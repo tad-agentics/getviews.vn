@@ -17,29 +17,39 @@
 **Why 10:** GetViews is a chat-first AI tool. All 7 analytical intents render inline in a single ChatScreen — no separate result detail screens. The northstar §17 explicitly targets "8 screens" for Wave 1 MVP. Screens 9–10 (checkout + success) complete the monetization flow. This is the correct scope for a chat-first SaaS, not an under-scoped B2C app.
 
 #### Core Loop (3 screens)
-| # | Screen | Primary Action | Notes |
-|---|---|---|---|
-| 1 | ChatScreen | Paste TikTok URL or ask question → streaming AI analysis | All 7 intents, credit bar, URL detection, all dopamine moments (D1–D4) |
-| 2 | TrendScreen | Browse pre-computed niche trends (hook rankings, format lifecycle) | ⑥ intent pre-computed, free, D2 dopamine |
-| 3 | HistoryScreen | Browse + resume past chat sessions | Tap → resumes in ChatScreen |
+
+
+| #   | Screen        | Primary Action                                                     | Notes                                                                  |
+| --- | ------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| 1   | ChatScreen    | Paste TikTok URL or ask question → streaming AI analysis           | All 7 intents, credit bar, URL detection, all dopamine moments (D1–D4) |
+| 2   | TrendScreen   | Browse pre-computed niche trends (hook rankings, format lifecycle) | ⑥ intent pre-computed, free, D2 dopamine                               |
+| 3   | HistoryScreen | Browse + resume past chat sessions                                 | Tap → resumes in ChatScreen                                            |
+
 
 #### Retention (overlaps with Core Loop)
+
 TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: Monday weekly trend brief (email, Wave 2 feature — no screen needed).
 
 #### Monetization (3 screens)
-| # | Screen | Revenue Mechanic | Notes |
-|---|---|---|---|
-| 4 | PricingScreen | Select subscription plan or overage pack | Triggered by low/zero credits or tap "Nâng cấp" |
-| 5 | CheckoutScreen | PayOS payment initiation | MoMo QR / VNPay QR / bank details / card form |
-| 6 | PaymentSuccessScreen | Confirm purchase, show updated credit balance | Returns to ChatScreen |
+
+
+| #   | Screen               | Revenue Mechanic                              | Notes                                           |
+| --- | -------------------- | --------------------------------------------- | ----------------------------------------------- |
+| 4   | PricingScreen        | Select subscription plan or overage pack      | Triggered by low/zero credits or tap "Nâng cấp" |
+| 5   | CheckoutScreen       | PayOS payment initiation                      | MoMo QR / VNPay QR / bank details / card form   |
+| 6   | PaymentSuccessScreen | Confirm purchase, show updated credit balance | Returns to ChatScreen                           |
+
 
 #### Infrastructure (4 screens)
-| # | Screen | Purpose | Notes |
-|---|---|---|---|
-| 7 | LandingPage | Conversion page at `/` — marketing + live demo | Pre-rendered, SEO, free Soi Kênh without auth |
-| 8 | LoginScreen | Facebook OAuth (primary) + Google OAuth (secondary) | No email/password form |
-| 9 | OnboardingScreen | Niche selection (step 2) + optional TikTok profile link (step 3) | Chat opens after step 2 |
-| 10 | SettingsScreen | Profile, subscription info, niche change, credit history, logout | |
+
+
+| #   | Screen           | Purpose                                                          | Notes                                         |
+| --- | ---------------- | ---------------------------------------------------------------- | --------------------------------------------- |
+| 7   | LandingPage      | Conversion page at `/` — marketing + live demo                   | Pre-rendered, SEO, free Soi Kênh without auth |
+| 8   | LoginScreen      | Facebook OAuth (primary) + Google OAuth (secondary)              | No email/password form                        |
+| 9   | OnboardingScreen | Niche selection (step 2) + optional TikTok profile link (step 3) | Chat opens after step 2                       |
+| 10  | SettingsScreen   | Profile, subscription info, niche change, credit history, logout |                                               |
+
 
 **Total: 10 screens** (3 core loop + 3 monetization + 4 infrastructure)  
 **Core loop ratio:** 3/(3+3) = 50% of product screens ✓ (at minimum threshold — appropriate for chat-first SaaS)  
@@ -73,6 +83,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/`
 
 **Components:**
+
 - `HeroSection` — headline + subheadline + trust line + live input field + CTA button + microcopy
 - `StickyBar` — appears after scrolling past hero; icon + CTA + risk reducer
 - `PainPointCard` — 3× named enemy cards (title + copy)
@@ -84,16 +95,21 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - `FinalCTASection` — repeat hero CTA, dark bg
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| — (all static, pre-rendered) | — | — |
+
+
+| Variable                     | Source | Default if null |
+| ---------------------------- | ------ | --------------- |
+| — (all static, pre-rendered) | —      | —               |
+
 
 **States:**
+
 - Loading: none (pre-rendered HTML, instant)
 - Error: none (static page)
 - Empty: none
 
 **Interaction flow:**
+
 1. Page loads → Hero section visible above fold. Input field shows placeholder "Dán link TikTok để bắt đầu". CTA button visible below.
 2. User scrolls past hero → StickyBar slides in from bottom (translateY animation, 200ms).
 3. User taps CTA "Soi Video Miễn Phí" → IF not logged in → LoginScreen. IF logged in → `/app` (ChatScreen).
@@ -105,6 +121,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 9. Tap "Bắt đầu" on pricing card → LoginScreen (free tier: no payment). Tap paid tier → LoginScreen → OnboardingScreen → PricingScreen with that tier pre-selected.
 
 **Navigation:**
+
 - Enters from: Direct URL, shared link, search result
 - Exits to: LoginScreen via CTA taps; ChatScreen if already logged in
 - Back: Browser back (no in-app back)
@@ -112,6 +129,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** none — landing page is calm/professional, measured, not celebratory
 
 **Copy slots (production-ready):**
+
 - hero_headline: "Bạn lướt TikTok cả ngày để tìm ý tưởng. GetViews làm việc đó thay bạn." — Ambient
 - hero_sub: "Dán link video của bạn vào. 1 phút sau biết ngay lỗi ở đâu, nên fix gì, và hook nào đang chạy trong niche của bạn." — Ambient
 - hero_trust: "Không guru. Không screenshot. Data thực từ video thực." — Ambient
@@ -153,6 +171,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - final_cta_button: "Soi Video Ngay" — Ambient
 
 **Edge cases:**
+
 - User already logged in and visits `/` → CTA navigates directly to `/app` (skip login)
 - User completes free Soi Kênh (anonymous) → login prompt appears below result with: "Kết quả của bạn đã sẵn sàng — đăng ký miễn phí để lưu và tiếp tục phân tích."
 - No internet → static pre-rendered HTML still loads; live input gives error "Không kết nối được — kiểm tra mạng và thử lại."
@@ -167,6 +186,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/login`
 
 **Components:**
+
 - `GetViewsLogo` — wordmark + TikTok red mark
 - `TrustLine` — single-line value statement below logo
 - `OAuthButton` — Facebook variant (primary, `--ink` bg, white text, Facebook icon)
@@ -174,16 +194,21 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - `LegalNote` — terms + privacy link
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| — (static, no user data needed) | — | — |
+
+
+| Variable                        | Source | Default if null |
+| ------------------------------- | ------ | --------------- |
+| — (static, no user data needed) | —      | —               |
+
 
 **States:**
+
 - Loading: OAuth button shows 16px spinner replacing icon, text changes to "Đang kết nối...", button disabled
 - Error: Error text below button "Đăng nhập không thành công — thử lại." in `--danger` color, button re-enables
 - Empty: n/a (static form)
 
 **Interaction flow:**
+
 1. Screen loads → GetViews logo centered, Facebook button primary (black fill), Google button below (outlined).
 2. User taps "Đăng nhập với Facebook" → Facebook OAuth popup/redirect. Button spinner activates.
 3. IF OAuth success + new user → OnboardingScreen.
@@ -192,13 +217,17 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 6. User taps "Đăng nhập với Google" → same flow via Google OAuth.
 
 **Navigation:**
+
 - Enters from: LandingPage via CTA, ChatScreen auth guard redirect, OnboardingScreen back (if user cancels)
-- Exits to: OnboardingScreen (new user) or ChatScreen (returning user)
+- Exits to: `/auth/callback` (OAuth provider redirects here) → OnboardingScreen (new user) or ChatScreen (returning user)
 - Back: Browser back → LandingPage
+
+**Auth callback note:** The route `/auth/callback` is a non-UI handler that exchanges the OAuth code for a Supabase session, then redirects. It is not designed in Figma Make — it is already implemented in `src/routes/_auth/callback/route.tsx`.
 
 **Dopamine moment:** none
 
 **Copy slots (production-ready):**
+
 - trust_line: "Data thực từ 46.000+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút." — Ambient
 - btn_facebook: "Đăng nhập với Facebook" — Ambient
 - btn_google: "Đăng nhập với Google" — Ambient
@@ -208,6 +237,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - legal_note: "Bằng cách đăng nhập, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của GetViews." — Ambient
 
 **Edge cases:**
+
 - Facebook OAuth blocked by corporate browser → show "Thử đăng nhập bằng Google hoặc mở trong Safari/Chrome."
 - User returns to login after already being logged in (e.g., navigates back) → auto-redirect to ChatScreen
 
@@ -220,7 +250,8 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/onboarding`
 
 **Components:**
-- `StepIndicator` — "Bước 2/3" pill (subtle, not progress bar)
+
+- `StepIndicator` — pill that reads "Bước 2/3" on step 2 (niche input) and updates to "Bước 3/3" on step 3 (TikTok profile). Step 1 = the OAuth login screen. The pill advances inline without navigation.
 - `NicheInput` — single text input with Vietnamese smart autocomplete suggestions
 - `NicheChip` — suggestion chips below input: "Review đồ gia dụng", "Làm đẹp / Skincare", "Shopee affiliate", "Review đồ ăn", "Hài phương ngữ"
 - `SkipLink` — text link "Bỏ qua" for step 3 (TikTok profile)
@@ -228,18 +259,23 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - `PrimaryButton` — "Bắt đầu phân tích" CTA
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| profiles.display_name | Supabase Auth OAuth | "Bạn" |
-| profiles.primary_niche | profiles table | null (required — must complete step 2) |
-| profiles.tiktok_handle | profiles table | null (optional) |
+
+
+| Variable               | Source              | Default if null                        |
+| ---------------------- | ------------------- | -------------------------------------- |
+| profiles.display_name  | Supabase Auth OAuth | "Bạn"                                  |
+| profiles.primary_niche | profiles table      | null (required — must complete step 2) |
+| profiles.tiktok_handle | profiles table      | null (optional)                        |
+
 
 **States:**
+
 - Loading: Button shows spinner "Đang thiết lập..." while profile saves
 - Error: "Không lưu được — thử lại." below button in `--danger`
 - Empty: Input placeholder text visible, button disabled until niche is entered
 
 **Interaction flow:**
+
 1. Screen loads → Greeting: "{{profiles.display_name}}, bạn tạo nội dung về chủ đề gì?" (heading). NicheInput focused immediately.
 2. User types → autocomplete chips appear below input matching Vietnamese niche taxonomy (§7): "Review đồ gia dụng", "Làm đẹp", "Shopee affiliate", "Hài phương ngữ", etc.
 3. User taps a chip → chip text populates input. Input clears and moves to step 3 section.
@@ -249,6 +285,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 7. ChatScreen first message auto-populated: "Sẵn sàng phân tích content của bạn. Thử dán link TikTok hoặc hỏi gì đang hot trong {{user.primary_niche}}."
 
 **Navigation:**
+
 - Enters from: LoginScreen (new user OAuth success)
 - Exits to: ChatScreen via "Bắt đầu phân tích" button
 - Back: Disabled (no back from onboarding — user must complete step 2 minimum)
@@ -256,12 +293,13 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** none — niche selection is neutral, no animation
 
 **Copy slots (production-ready):**
+
 - step_heading: "{{profiles.display_name}}, bạn tạo nội dung về chủ đề gì?" — Ambient
 - step_sub: "GetViews sẽ dùng data đúng niche của bạn để cho kết quả chính xác hơn." — Ambient
 - niche_placeholder: "Nhập niche — ví dụ: review đồ gia dụng, skincare, hài..." — Ambient
 - step3_label: "Dán link TikTok profile của bạn (tùy chọn)" — Ambient
 - step3_sub: "Giúp GetViews xác nhận niche từ content thực của bạn." — Ambient
-- step3_placeholder: "https://www.tiktok.com/@handle" — Ambient
+- step3_placeholder: "[https://www.tiktok.com/@handle](https://www.tiktok.com/@handle)" — Ambient
 - skip_link: "Bỏ qua" — Ambient
 - cta_button: "Bắt đầu phân tích" — Ambient
 - loading_save: "Đang thiết lập..." — Loading
@@ -269,6 +307,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - first_chat_message: "Sẵn sàng phân tích content của bạn. Thử dán link TikTok hoặc hỏi gì đang hot trong {{user.primary_niche}}." — Ambient
 
 **Edge cases:**
+
 - User enters a niche not in the taxonomy → stored as-is; system maps to closest niche in §7 taxonomy on first query
 - TikTok URL invalid format → "Link không hợp lệ — dán link profile TikTok (ví dụ: tiktok.com/@handle)." below input. Step 3 can still be skipped.
 - Profile save fails (network error) → retry button; niche data preserved in input
@@ -282,6 +321,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/app`
 
 **Components:**
+
 - `ChatHeader` — GetViews wordmark (left) + NicheBadge (center, current niche) + SettingsIcon (right, tap → SettingsScreen)
 - `MessageList` — scrollable chat history; auto-scroll to bottom
 - `UserMessageBubble` — right-aligned, `--purple-light` bg, `--ink` text
@@ -306,16 +346,20 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - `CreditBar` — persistent bottom bar above input area; tap → PricingScreen when zero
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| profiles.display_name | profiles table | "Bạn" |
-| profiles.primary_niche | profiles table | "creator" (fallback niche label) |
-| profiles.deep_credits_remaining | profiles table | 0 |
-| sessions[].id | chat_sessions table | — |
-| sessions[].messages | chat_messages table | [] |
-| sessions[].intent_type | chat_sessions table | null |
+
+
+| Variable                        | Source              | Default if null                  |
+| ------------------------------- | ------------------- | -------------------------------- |
+| profiles.display_name           | profiles table      | "Bạn"                            |
+| profiles.primary_niche          | profiles table      | "creator" (fallback niche label) |
+| profiles.deep_credits_remaining | profiles table      | 0                                |
+| sessions[].id                   | chat_sessions table | —                                |
+| sessions[].messages             | chat_messages table | []                               |
+| sessions[].intent_type          | chat_sessions table | null                             |
+
 
 **States:**
+
 - Loading (pre-stream): StreamingStatusText shows phased text (intent-specific, see EDS §5b). No skeleton loader.
 - Error: Inline error appended to last message. No modal. "Video không tải được — thử dán lại hoặc dùng video khác." with retry tap target.
 - Empty (first use): PromptCards grid, greeting heading, input focused.
@@ -323,6 +367,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Interaction flow:**
 
 *Empty state (first use / new session):*
+
 1. Screen loads → Greeting: "Sẵn sàng phân tích content của bạn." (28px, 2 lines max). NicheBadge shows `profiles.primary_niche`. PromptCards grid visible (2 columns). CreditBar at bottom.
 2. User taps a PromptCard → card text populates ChatInput. All cards fade out (opacity 0, 150ms). Input auto-focuses.
 3. User types their own message → PromptCards remain until send.
@@ -344,13 +389,20 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 15. IF stream fails (503/timeout) → append inline: "— Bị gián đoạn. Gõ 'tiếp' để tiếp tục." User types "tiếp" → system replays from last complete sentence.
 
 **Navigation:**
+
 - Enters from: OnboardingScreen (new user), LoginScreen (returning user), HistoryScreen (tap session → resume), PricingScreen/PaymentSuccessScreen (after payment)
 - Exits to: TrendScreen (bottom nav tab), HistoryScreen (bottom nav tab), SettingsScreen (header icon tap), PricingScreen (CreditBar tap when zero, or "Mua thêm" inline)
 - Back: No back from ChatScreen — it is the home screen
 
 **Dopamine moment:** D1 (DiagnosisReveal), D2 (HookRankingBars), D3 (BriefDelivered), D4 (CreatorCardsFound), D5 (CreditConsumption), D6 (FreeQueryConfirmation) — all inline, triggered by AI response content
 
+**Dopamine moment definitions (D5–D6, extends EDS §5c D1–D4):**
+
+- **D5 — CreditConsumption:** After a deep-credit query, `CreditBar` pulses once (border flashes `--purple` for 200ms), then the credit count decrements by 1 with a "−1" ghost that floats upward and fades (opacity 1→0, translateY 0→-12px, 400ms). Signals value exchange — user got something for their credit.
+- **D6 — FreeQueryConfirmation:** `FreeQueryPill` ("Miễn phí ✓") appears inline next to the user's message bubble, fades in (opacity 0→1, 120ms), lingers 2 seconds, then fades out (opacity 1→0, 200ms). No sound, no bounce. Reinforces the free intent without interrupting flow.
+
 **Copy slots (production-ready):**
+
 - empty_greeting: "Sẵn sàng phân tích content của bạn." — Ambient
 - empty_niche_sub: "Hỏi gì đang hot trong {{user.primary_niche}} — hoặc dán link TikTok để bắt đầu." — Ambient
 - prompt_card_1: "Tại sao video này ít view — lỗi ở đâu?" — Ambient
@@ -383,10 +435,11 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - diagnosis_fail: "✕ {{finding}} — {{benchmark}}. Fix: {{recommendation}}" — Diagnosis
 - corpus_cite: "Dựa trên {{count}} video {{niche}} {{timeframe}}" — Ambient
 - creator_card_label: "@{{handle}} · {{followers}} followers · {{total_likes}} likes · {{contact}}" — Creator Discovery
-- brief_hook: "{{number}}. \"{{hook_text}}\" — {{delivery_note}}" — Brief Generation
+- brief_hook: "{{number}}. {{hook_text}} — {{delivery_note}}" — Brief Generation
 - brief_kol: "{{tier}} {{follower_range}} · Est. {{cost_range}} · Commission {{commission_pct}}" — Brief Generation
 
 **Edge cases:**
+
 - User pastes non-TikTok URL → URLChip shows error state; send button still enabled
 - User pastes carousel (image slides) URL → intent ① handles slide-by-slide; no special UI needed
 - User types 1000+ characters → input stops, overflow message appears 3s then fades
@@ -403,31 +456,37 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/app/trends`
 
 **Components:**
+
 - `NicheSelector` — horizontal scrollable chip row at top; current niche highlighted in `--purple`; all 17 niches available
 - `TrendHeader` — niche name + "Xu hướng tuần này" heading + corpus citation
 - `HookRankingSection` — section heading + list of `HookRankingBar` items (D2 animation on mount)
 - `HookRankingBar` — hook name + animated bar (0→% width, 400ms cubic) + multiplier number (fades in at bar end)
 - `CorpusCite` — "{{count}} video · 7 ngày · Updated {{hours}}h ago" in JetBrains Mono `--faint`
-- `FormatLifecycleSection` — "Formats đang lên 📈" + "Formats đang xuống 📉" lists
+- `FormatLifecycleSection` — "Formats đang lên ↑" + "Formats đang xuống ↓" lists (use arrow text characters, not emoji)
 - `TrendingKeywordSection` — sound/keyword chips with usage count
 - `ThumbnailStrip` — horizontal strip of top-performing reference videos for the week
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| niche_intelligence.hook_rankings | niche_intelligence table | [] (show empty state) |
-| niche_intelligence.format_lifecycle | niche_intelligence table | [] |
-| niche_intelligence.trending_keywords | niche_intelligence table | [] |
-| niche_intelligence.indexed_at | niche_intelligence table | — (show "Data chưa cập nhật") |
-| niche_intelligence.video_count_7d | niche_intelligence table | 0 |
-| profiles.primary_niche | profiles table | first niche in taxonomy list |
+
+
+| Variable                             | Source                   | Default if null               |
+| ------------------------------------ | ------------------------ | ----------------------------- |
+| niche_intelligence.hook_rankings     | niche_intelligence table | [] (show empty state)         |
+| niche_intelligence.format_lifecycle  | niche_intelligence table | []                            |
+| niche_intelligence.trending_keywords | niche_intelligence table | []                            |
+| niche_intelligence.indexed_at        | niche_intelligence table | — (show "Data chưa cập nhật") |
+| niche_intelligence.video_count_7d    | niche_intelligence table | 0                             |
+| profiles.primary_niche               | profiles table           | first niche in taxonomy list  |
+
 
 **States:**
+
 - Loading: StreamingStatusText "Đang tải xu hướng {{niche}}..." (Normal 200ms transition). HookRankingBars show as gray placeholders.
 - Error: "Không tải được data tuần này — thử lại sau vài phút." in-place, retry button.
 - Empty (no data for niche yet): "Chưa có đủ data cho niche {{niche}} tuần này. Thử xem xu hướng của Review đồ gia dụng — niche có data đầy đủ nhất."
 
 **Interaction flow:**
+
 1. Screen loads → NicheSelector shows at top with `profiles.primary_niche` selected (purple). HookRankingSection shows skeleton bars.
 2. D2 animation triggers on mount: bars animate width from 0% → final value, 400ms, 100ms stagger. Top bar is purple, others lighter gray. Multiplier fades in last.
 3. User taps a different niche chip → niche selection updates, data reloads for new niche. Animation re-runs.
@@ -437,6 +496,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 7. CreditBar visible at bottom (same as ChatScreen).
 
 **Navigation:**
+
 - Enters from: ChatScreen (bottom nav "Xu hướng" tab), any screen via bottom nav
 - Exits to: ChatScreen (bottom nav), HistoryScreen (bottom nav), PricingScreen (CreditBar tap)
 - Back: None (tab screen — back gesture stays in tab)
@@ -444,6 +504,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** D2 (HookRankingBars animate on mount and on niche change)
 
 **Copy slots (production-ready):**
+
 - screen_title: "Xu hướng" — Ambient
 - section_hook_ranking: "Hook đang chạy trong {{niche}}" — Ambient
 - corpus_cite_trend: "{{count}} video · 7 ngày · Updated {{hours}}h ago" — Ambient
@@ -455,6 +516,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - thumbnail_action: "Phân tích video này" — Ambient
 
 **Edge cases:**
+
 - Batch job failed (data >36h old) → CorpusCite shows warning color and "Data cũ hơn 36 tiếng — đang cập nhật."
 - Niche has <10 videos indexed → empty state with redirect to best-data niche
 - TikTok URL in ThumbnailCard opens in TikTok app if installed (deep link), else browser
@@ -468,26 +530,34 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/app/history`
 
 **Components:**
+
+- `HistoryHeader` — "Lịch sử" title (left) + `SettingsIcon` (right, tap → SettingsScreen)
 - `HistorySearchBar` — search input to filter sessions by query text
 - `SessionList` — scrollable list of `SessionItem` components
 - `SessionItem` — intent type icon + first query truncated to 2 lines + date + credit cost used
 - `IntentBadge` — small badge: "Soi Video" | "Xu hướng" | "KOL" | "Brief" | "Đối thủ" | "Soi Kênh"
+- `BottomNav` — Lịch sử tab active
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| chat_sessions[].id | chat_sessions table | — |
-| chat_sessions[].first_message | chat_sessions table | "Phiên trống" |
-| chat_sessions[].intent_type | chat_sessions table | null |
-| chat_sessions[].created_at | chat_sessions table | — |
-| chat_sessions[].credits_used | chat_sessions table | 0 |
+
+
+| Variable                      | Source              | Default if null |
+| ----------------------------- | ------------------- | --------------- |
+| chat_sessions[].id            | chat_sessions table | —               |
+| chat_sessions[].first_message | chat_sessions table | "Phiên trống"   |
+| chat_sessions[].intent_type   | chat_sessions table | null            |
+| chat_sessions[].created_at    | chat_sessions table | —               |
+| chat_sessions[].credits_used  | chat_sessions table | 0               |
+
 
 **States:**
+
 - Loading: 3 skeleton SessionItem placeholders (gray bars, pulsing)
 - Error: "Không tải được lịch sử — thử lại." with retry button
 - Empty: "Chưa có phiên nào. Dán link TikTok hoặc hỏi câu đầu tiên để bắt đầu."
 
 **Interaction flow:**
+
 1. Screen loads → SessionList renders with most recent sessions first.
 2. User taps HistorySearchBar → keyboard opens, session list filters as user types.
 3. User taps a SessionItem → navigates to ChatScreen with that session's messages loaded (resumed mode). SessionItem's first message pre-fills context.
@@ -495,6 +565,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 5. CreditBar visible at bottom.
 
 **Navigation:**
+
 - Enters from: Any screen via bottom nav "Lịch sử" tab
 - Exits to: ChatScreen (tap session → resume), ChatScreen (bottom nav Chat tab)
 - Back: None (tab screen)
@@ -502,6 +573,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** none
 
 **Copy slots (production-ready):**
+
 - screen_title: "Lịch sử" — Ambient
 - search_placeholder: "Tìm trong lịch sử..." — Ambient
 - empty_history: "Chưa có phiên nào. Dán link TikTok hoặc hỏi câu đầu tiên để bắt đầu." — Empty
@@ -516,7 +588,8 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - intent_badge_soikenh: "Soi Kênh" — Ambient
 
 **Edge cases:**
-- >100 sessions → infinite scroll (load 20 at a time)
+
+- > 100 sessions → infinite scroll (load 20 at a time)
 - Session with failed response → still shows in list; content shows error state when reopened
 
 **Credit cost:** N/A (history browsing is free)
@@ -528,6 +601,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/app/pricing`
 
 **Components:**
+
 - `BillingToggle` — 3-state: "Tháng" | "6 tháng" | "Năm" (annual pre-selected, badge "Tiết kiệm nhất")
 - `PricingCard` — tier card: name + price + credit count + feature list + CTA button. Free / Starter / Pro / Agency
 - `PricingCardHighlight` — Starter card has "Phổ biến nhất" badge
@@ -536,18 +610,23 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - `CurrentPlanBadge` — shown on user's current plan (non-interactive)
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| profiles.subscription_tier | profiles table | "free" |
-| profiles.deep_credits_remaining | profiles table | 0 |
-| profiles.credits_reset_at | profiles table | — |
+
+
+| Variable                        | Source         | Default if null |
+| ------------------------------- | -------------- | --------------- |
+| profiles.subscription_tier      | profiles table | "free"          |
+| profiles.deep_credits_remaining | profiles table | 0               |
+| profiles.credits_reset_at       | profiles table | —               |
+
 
 **States:**
+
 - Loading: Skeleton pricing cards (gray boxes, pulsing)
 - Error: "Không tải được gói cước — thử lại." with retry
 - Empty: n/a (static pricing)
 
 **Interaction flow:**
+
 1. Screen loads → Annual billing toggle pre-selected. Starter card highlighted with "Phổ biến nhất" badge. User's current plan has "Gói hiện tại" badge.
 2. User taps billing period toggle → prices update instantly (Instant 0ms). Savings callouts appear/update.
 3. User taps "Nâng cấp" on a paid tier → CheckoutScreen with selected plan + billing period.
@@ -556,6 +635,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 6. User scrolls down → OverageSection → PaymentMethodRow → FAQ link.
 
 **Navigation:**
+
 - Enters from: ChatScreen (CreditBar tap), ChatScreen ("Mua thêm →" inline tap), SettingsScreen ("Nâng cấp" button), any screen via SettingsScreen
 - Exits to: CheckoutScreen (tap plan/pack), ChatScreen (back/close)
 - Back: ChatScreen (back arrow or hardware back)
@@ -563,6 +643,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** none
 
 **Copy slots (production-ready):**
+
 - screen_title: "Chọn gói phù hợp" — Ambient
 - billing_monthly: "Tháng" — Ambient
 - billing_6month: "6 tháng" — Ambient
@@ -576,22 +657,28 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - tier_free_cta: "Bắt đầu miễn phí" — Ambient
 - tier_starter_name: "Starter" — Ambient
 - tier_starter_price_monthly: "249.000đ/tháng" — Ambient
+- tier_starter_price_sixmo: "219.000đ/tháng · thanh toán 6 tháng" — Ambient
 - tier_starter_price_annual: "199.000đ/tháng · thanh toán cả năm" — Ambient
 - tier_starter_credits: "30 lần phân tích sâu/tháng" — Ambient
 - tier_starter_cta: "Nâng cấp Starter" — Ambient
 - tier_pro_name: "Pro" — Ambient
 - tier_pro_price_monthly: "499.000đ/tháng" — Ambient
+- tier_pro_price_sixmo: "449.000đ/tháng · thanh toán 6 tháng" — Ambient
 - tier_pro_price_annual: "399.000đ/tháng · thanh toán cả năm" — Ambient
 - tier_pro_credits: "80 lần phân tích sâu/tháng" — Ambient
 - tier_pro_cta: "Nâng cấp Pro" — Ambient
 - tier_agency_name: "Agency" — Ambient
 - tier_agency_price_monthly: "1.490.000đ/tháng" — Ambient
+- tier_agency_price_sixmo: "1.350.000đ/tháng · thanh toán 6 tháng" — Ambient
 - tier_agency_price_annual: "1.190.000đ/tháng · thanh toán cả năm" — Ambient
 - tier_agency_credits: "250 lần phân tích sâu/tháng · 10 tài khoản" — Ambient
 - tier_agency_cta: "Nâng cấp Agency" — Ambient
 - annual_starter_saving: "Tiết kiệm 600.000đ so với gói tháng" — Ambient
 - annual_pro_saving: "Tiết kiệm 1.200.000đ so với gói tháng" — Ambient
 - annual_agency_saving: "Tiết kiệm 3.600.000đ so với gói tháng" — Ambient
+- sixmo_starter_saving: "Tiết kiệm 180.000đ so với gói tháng" — Ambient
+- sixmo_pro_saving: "Tiết kiệm 300.000đ so với gói tháng" — Ambient
+- sixmo_agency_saving: "Tiết kiệm 840.000đ so với gói tháng" — Ambient
 - sixmo_callout: "Tặng 1 tháng miễn phí khi mua 6 tháng" — Ambient
 - overage_section_title: "Mua thêm credits" — Ambient
 - overage_10: "10 lần phân tích sâu — 130.000đ" — Ambient
@@ -599,6 +686,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - payment_methods: "Thanh toán qua MoMo, VNPay, chuyển khoản, hoặc thẻ quốc tế." — Ambient
 
 **Edge cases:**
+
 - User on Starter tries to buy Agency → goes directly to checkout for Agency, no downgrade warning
 - User on paid plan tries to buy overage → allowed (credits stack)
 - Annual plan price display: show "199.000đ/tháng" with "thanh toán cả năm = 2.388.000đ" clarification below
@@ -611,7 +699,10 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 
 **Route:** `/app/checkout`
 
+> **⚠ Phase 4 flag — N2:** Payment method pre-selection rule (from northstar §14): if billing period is **monthly or 6-month** → pre-select MoMo; if billing period is **annual** → pre-select bank transfer (chuyển khoản). This logic lives in the Frontend Developer's checkout hook — Figma Make will render with MoMo as default for all. The pre-selection swap happens at runtime via state, not by changing the static Make layout.
+
 **Components:**
+
 - `OrderSummary` — plan name + billing period + total amount in VND
 - `PaymentMethodSelector` — 4 options: MoMo | VNPay | Chuyển khoản | Thẻ quốc tế (radio buttons)
 - `MoMoQR` — QR code image + "Mở app MoMo để quét" instruction (shown when MoMo selected)
@@ -622,21 +713,26 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - `PaymentStatusPoll` — status polling indicator while awaiting PayOS webhook
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| order.plan_id | route state (from PricingScreen) | — (redirect to PricingScreen if null) |
-| order.amount_vnd | derived from plan_id | — |
-| order.billing_period | route state | "annual" |
-| payos.payment_link_id | PayOS API response | — |
-| payos.qr_code | PayOS API response | — |
-| payos.bank_transfer_ref | PayOS API response | — |
+
+
+| Variable                | Source                           | Default if null                       |
+| ----------------------- | -------------------------------- | ------------------------------------- |
+| order.plan_id           | route state (from PricingScreen) | — (redirect to PricingScreen if null) |
+| order.amount_vnd        | derived from plan_id             | —                                     |
+| order.billing_period    | route state                      | "annual"                              |
+| payos.payment_link_id   | PayOS API response               | —                                     |
+| payos.qr_code           | PayOS API response               | —                                     |
+| payos.bank_transfer_ref | PayOS API response               | —                                     |
+
 
 **States:**
+
 - Loading: QR generation loading skeleton + "Đang tạo mã thanh toán..." text
 - Error: "Không tạo được đơn hàng — thử lại hoặc dùng phương thức khác." with retry
 - Pending (after confirm): "Đang chờ xác nhận thanh toán..." status text + polling indicator
 
 **Interaction flow:**
+
 1. Screen loads → OrderSummary visible at top. PaymentMethodSelector below. MoMo pre-selected (monthly packs) or bank transfer pre-selected (annual/6-month packs, per northstar §14).
 2. PayOS API called on load → QR code or bank details generated.
 3. IF MoMo/VNPay selected → QR code displays. User opens MoMo/VNPay app, scans QR.
@@ -646,6 +742,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 7. IF user taps "Xác nhận thanh toán" on MoMo/VNPay → starts polling PayOS for confirmation.
 
 **Navigation:**
+
 - Enters from: PricingScreen (tap plan CTA)
 - Exits to: PaymentSuccessScreen (payment confirmed), PricingScreen (back/cancel)
 - Back: PricingScreen (back arrow)
@@ -653,6 +750,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** none
 
 **Copy slots (production-ready):**
+
 - screen_title: "Thanh toán" — Ambient
 - summary_plan: "{{plan_name}} · {{billing_period}}" — Ambient
 - summary_amount: "{{amount_vnd}}đ" — Ambient
@@ -669,6 +767,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - error_order: "Không tạo được đơn hàng — thử lại hoặc dùng phương thức khác." — Error
 
 **Edge cases:**
+
 - QR code expires (PayOS default 15 minutes) → show "Mã đã hết hạn" + "Tạo mã mới" button
 - Bank transfer not confirmed within 48h → credits not added; user sees status in SettingsScreen "Đang chờ xác nhận"
 - Card declined → "Thẻ không hợp lệ hoặc không đủ tiền — thử thẻ khác hoặc dùng MoMo." in-place error
@@ -681,31 +780,40 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 
 **Route:** `/app/payment-success`
 
+> **⚠ Phase 4 flag — N1:** This route must receive payment result data (plan name, credit delta) via React Router `state` (e.g., `navigate('/app/payment-success', { state: { planName, creditsDelta } })`). On page refresh, `state` is lost — fall back to a Supabase `profiles` fetch for the credit balance, and show the heading as "Credits đã được cập nhật." without the plan name. Do NOT pass data as query params (leaks to logs).
+
 **Components:**
+
 - `SuccessIcon` — static checkmark icon (no confetti — work tool, not game)
 - `SuccessSummary` — plan activated + new credit balance
 - `CreditBalanceDisplay` — large JetBrains Mono number: new credit count
 - `BackToChat` — primary button "Bắt đầu phân tích ngay"
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| profiles.deep_credits_remaining | profiles table (post-update) | 0 |
-| profiles.subscription_tier | profiles table (post-update) | "free" |
-| order.plan_name | route state | — |
+
+
+| Variable                        | Source                       | Default if null |
+| ------------------------------- | ---------------------------- | --------------- |
+| profiles.deep_credits_remaining | profiles table (post-update) | 0               |
+| profiles.subscription_tier      | profiles table (post-update) | "free"          |
+| order.plan_name                 | route state                  | —               |
+
 
 **States:**
+
 - Loading: "Đang kích hoạt gói..." skeleton (brief, payment has succeeded by this point)
-- Error: "Thanh toán thành công nhưng credits chưa cập nhật — liên hệ support@getviews.vn" (rare edge case)
+- Error: "Thanh toán thành công nhưng credits chưa cập nhật — liên hệ [support@getviews.vn](mailto:support@getviews.vn)" (rare edge case)
 - Empty: n/a
 
 **Interaction flow:**
+
 1. Screen loads (after PayOS webhook confirmed) → SuccessIcon. Heading: "Đã thêm {{count}} deep credits." Credit balance displays in large JetBrains Mono.
-2. D5 (credit consumption D5 variant): CreditBar pulses upward — number increments from old balance to new balance over 800ms.
+2. D5 (CreditConsumption, refill variant): CreditBar border flashes `--purple` 200ms, then credit count increments from old balance to new balance over 800ms (same component as in ChatScreen, but direction is upward — adding credits).
 3. User taps "Bắt đầu phân tích ngay" → ChatScreen. First chat session pre-populated prompt: "Dán link video đầu tiên để phân tích."
 4. Hardware back while on this screen → ChatScreen (not PricingScreen — payment is done).
 
 **Navigation:**
+
 - Enters from: CheckoutScreen (payment confirmed)
 - Exits to: ChatScreen (button or back)
 - Back: ChatScreen (hardware back goes home, not pricing)
@@ -713,14 +821,16 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** Credit balance increment animation (variant of D5 — upward instead of downward)
 
 **Copy slots (production-ready):**
+
 - screen_heading: "Đã thêm {{count}} deep credits." — Confirmation
 - plan_activated: "Gói {{plan_name}} đã kích hoạt. Credits có hiệu lực đến {{expiry_date}}." — Confirmation
 - credit_label: "Deep credits còn lại" — Ambient
 - cta_button: "Bắt đầu phân tích ngay" — Ambient
 - loading_activate: "Đang kích hoạt gói..." — Loading
-- error_credits_delay: "Thanh toán thành công nhưng credits chưa cập nhật — liên hệ support@getviews.vn nếu chưa thấy sau 5 phút." — Error
+- error_credits_delay: "Thanh toán thành công nhưng credits chưa cập nhật — liên hệ [support@getviews.vn](mailto:support@getviews.vn) nếu chưa thấy sau 5 phút." — Error
 
 **Edge cases:**
+
 - User navigates away before screen loads → credits still added via webhook; visible in SettingsScreen
 - Annual plan: expiry_date shown as "{{31 Dec 2026}}"
 
@@ -733,6 +843,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Route:** `/app/settings`
 
 **Components:**
+
 - `ProfileSection` — avatar (initial letter from display_name) + display_name + email (from OAuth)
 - `SubscriptionSection` — current plan name + credits remaining + expiry date + "Nâng cấp" button
 - `NicheSection` — current niche label + "Thay đổi" button → inline input to change niche
@@ -741,23 +852,28 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - `LogoutButton` — secondary style, `--danger` text color
 
 **Data:**
-| Variable | Source | Default if null |
-|---|---|---|
-| profiles.display_name | profiles table | "Bạn" |
-| profiles.email | profiles table | — |
-| profiles.subscription_tier | profiles table | "free" |
-| profiles.deep_credits_remaining | profiles table | 0 |
-| profiles.credits_reset_at | profiles table | — |
-| profiles.primary_niche | profiles table | — |
-| credit_ledger[].intent_type | credit_ledger table | — |
-| credit_ledger[].created_at | credit_ledger table | — |
+
+
+| Variable                        | Source              | Default if null |
+| ------------------------------- | ------------------- | --------------- |
+| profiles.display_name           | profiles table      | "Bạn"           |
+| profiles.email                  | profiles table      | —               |
+| profiles.subscription_tier      | profiles table      | "free"          |
+| profiles.deep_credits_remaining | profiles table      | 0               |
+| profiles.credits_reset_at       | profiles table      | —               |
+| profiles.primary_niche          | profiles table      | —               |
+| credit_ledger[].intent_type     | credit_ledger table | —               |
+| credit_ledger[].created_at      | credit_ledger table | —               |
+
 
 **States:**
+
 - Loading: Skeleton rows for ProfileSection + SubscriptionSection
 - Error: "Không tải được thông tin tài khoản — thử lại."
 - Empty: n/a (always has profile data post-auth)
 
 **Interaction flow:**
+
 1. Screen loads → ProfileSection (avatar, name, email). SubscriptionSection below.
 2. User taps "Thay đổi" in NicheSection → NicheInput appears inline (same component as OnboardingScreen). User selects new niche → saves to `profiles.primary_niche` → NicheBadge in ChatScreen updates.
 3. User taps "Nâng cấp" → PricingScreen.
@@ -766,6 +882,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 6. User taps LogoutButton → inline confirmation "Đăng xuất khỏi GetViews?" with "Đăng xuất" and "Hủy". Confirms → auth cleared → LoginScreen.
 
 **Navigation:**
+
 - Enters from: ChatScreen (settings icon tap in header), TrendScreen or HistoryScreen (via settings icon)
 - Exits to: PricingScreen ("Nâng cấp"/"Gia hạn" taps), LoginScreen (logout), ChatScreen (back)
 - Back: ChatScreen (back arrow)
@@ -773,6 +890,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Dopamine moment:** none — settings screen is zero animation
 
 **Copy slots (production-ready):**
+
 - screen_title: "Tài khoản" — Ambient
 - section_profile: "Thông tin" — Ambient
 - section_subscription: "Gói cước" — Ambient
@@ -793,6 +911,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 - error_settings: "Không tải được thông tin tài khoản — thử lại." — Error
 
 **Edge cases:**
+
 - Free tier user: SubscriptionSection shows "10 lần phân tích sâu miễn phí (lifetime)" with no expiry
 - Expired pack: credits_reset_at in past → "Gói đã hết hạn — gia hạn để tiếp tục phân tích sâu."
 - User changes niche to one not in taxonomy → stored as-is; niche inference resolves on next query
@@ -804,11 +923,14 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 ## Navigation Plan
 
 ### Bottom Navigation (mobile PWA)
-| Tab | Label | Route | Icon |
-|---|---|---|---|
-| 1 | Chat | `/app` | Chat bubble icon |
-| 2 | Xu hướng | `/app/trends` | Trending up icon |
-| 3 | Lịch sử | `/app/history` | Clock icon |
+
+
+| Tab | Label    | Route          | Icon             |
+| --- | -------- | -------------- | ---------------- |
+| 1   | Chat     | `/app`         | Chat bubble icon |
+| 2   | Xu hướng | `/app/trends`  | Trending up icon |
+| 3   | Lịch sử  | `/app/history` | Clock icon       |
+
 
 Settings accessed via header icon in ChatScreen, TrendScreen, HistoryScreen.
 
@@ -862,6 +984,7 @@ Settings accessed via header icon in ChatScreen, TrendScreen, HistoryScreen.
 ## Completeness Validation
 
 ### User Scenario 01 (Minh — Starter):
+
 - Opens app → ChatScreen (empty state) ✓
 - Pastes URL → ChatScreen (streaming D1) ✓
 - Follow-up questions → ChatScreen (free, same session) ✓
@@ -869,6 +992,7 @@ Settings accessed via header icon in ChatScreen, TrendScreen, HistoryScreen.
 - Credits low → CreditBar warning → PricingScreen → CheckoutScreen → PaymentSuccessScreen ✓
 
 ### User Scenario 02 (Linh — Pro):
+
 - Asks trends → TrendScreen or ChatScreen ✓
 - Video analysis (deep credit) → ChatScreen ✓
 - Find creators (free ⑦) → ChatScreen inline ✓
@@ -877,11 +1001,13 @@ Settings accessed via header icon in ChatScreen, TrendScreen, HistoryScreen.
 - Copy brief → copy button → plain text for Zalo ✓
 
 ### Auth Flow:
+
 - New user: LandingPage → LoginScreen → OnboardingScreen → ChatScreen ✓
 - Returning user: LandingPage → LoginScreen → ChatScreen ✓
 - Logout: SettingsScreen → LoginScreen ✓
 
 ### Payment Flow:
+
 - See credits → PricingScreen → CheckoutScreen → PaymentSuccessScreen → ChatScreen with updated credits ✓
 
 All flows validated. No dead ends. No teleports.
