@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* ─── Vietnamese-compatible font stack ───────────────────────────── */
+/* Place .woff2 files in public/fonts/ and uncomment @font-face blocks */
+
+/* @font-face {
+  font-family: "AppFont";
+  src: url("/fonts/AppFont-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "AppFont";
+  src: url("/fonts/AppFont-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "AppFont";
+  src: url("/fonts/AppFont-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "AppFont";
+  src: url("/fonts/AppFont-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+} */
+
+/* ─── Brand tokens ────────────────────────────────────────────────── */
+/* Sourced from EDS §5 — Visual Direction */
+:root {
+  /* Primary */
+  --color-primary: oklch(0.53 0.26 295);          /* TikTok Purple #7C3AED */
+  --color-primary-dark: oklch(0.45 0.28 295);     /* Purple Deep #6D28D9 */
+  --color-primary-light: oklch(0.95 0.03 295);    /* Purple Tint #F3F0FF */
+
+  /* Background / Surface */
+  --color-bg: oklch(0.93 0.00 0);                 /* Light Gray #EDEDEE */
+  --color-surface: oklch(1.00 0.00 0);            /* White #FFFFFF */
+  --color-surface-alt: oklch(0.97 0.00 0);        /* Warm Gray #F7F7F8 */
+
+  /* Foreground */
+  --color-fg: oklch(0.15 0.00 0);                 /* Ink #18181B */
+  --color-fg-2: oklch(0.30 0.00 0);               /* Ink Soft #3F3F46 */
+  --color-muted: oklch(0.55 0.00 0);              /* Gray #71717A */
+  --color-faint: oklch(0.68 0.00 0);              /* Light Muted #A1A1AA */
+
+  /* Border */
+  --color-border: oklch(0.90 0.00 0);             /* Light Border #E4E4E7 */
+  --color-border-active: oklch(0.85 0.00 0);      /* Medium Border #D4D4D8 */
+
+  /* Semantic */
+  --color-brand-mark: oklch(0.60 0.28 15);        /* Logo Red #FE2C55 */
+  --color-success: oklch(0.60 0.18 145);          /* Teal #25F4EE */
+  --color-danger: oklch(0.55 0.22 25);            /* Red #D93B3B */
+  --color-data: oklch(0.53 0.26 295);             /* Purple — data numbers */
+
+  /* Font — swap with self-hosted after public/fonts/ is populated */
+  --font-sans: system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ─── Base styles ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+}
+
+/* Mobile — prevent iOS zoom on 16px-minimum inputs */
+input,
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}

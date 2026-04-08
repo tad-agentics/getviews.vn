@@ -25,11 +25,7 @@ function manualChunks(id: string) {
   return "vendor";
 }
 
-// PWA — uncomment ONE of these after evaluating during /init:
-// Option A: vite-plugin-pwa (Workbox — more battle-tested for Vite)
-// import { VitePWA } from "vite-plugin-pwa";
-// Option B: @serwist/vite (if Serwist Vite plugin is mature enough at build time)
-// import { serwist } from "@serwist/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   build: {
@@ -44,15 +40,14 @@ export default defineConfig({
     reactRouter(),
     tsconfigPaths(),
 
-    // PWA plugin goes here — configured during /init based on evaluation
-    // VitePWA({
-    //   registerType: "autoUpdate",
-    //   manifest: false, // Use static public/manifest.json
-    //   workbox: {
-    //     globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-    //     navigateFallback: "/index.html",
-    //     navigateFallbackAllowlist: [/^\/app/],
-    //   },
-    // }),
+    VitePWA({
+      registerType: "autoUpdate",
+      manifest: false, // Use static public/manifest.json
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        navigateFallback: "/index.html",
+        navigateFallbackAllowlist: [/^\/app/],
+      },
+    }),
   ],
 });
