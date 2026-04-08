@@ -1,32 +1,44 @@
 @import "tailwindcss";
 
-/* ─── Vietnamese-compatible font stack ───────────────────────────── */
-/* Place .woff2 files in public/fonts/ and uncomment @font-face blocks */
+/* ─── TikTok Sans — variable font (covers all weights 100-900) ───── */
+/* License: SIL Open Font License 1.1 — https://github.com/tiktok/TikTokSans */
+@font-face {
+  font-family: "TikTok Sans";
+  src: url("/fonts/TikTokSans-Variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal oblique -12deg 0deg;
+  font-display: swap;
+}
 
-/* @font-face {
-  font-family: "AppFont";
-  src: url("/fonts/AppFont-Regular.woff2") format("woff2");
+/* Static fallbacks for browsers without variable font support */
+@font-face {
+  font-family: "TikTok Sans";
+  src: url("/fonts/TikTokSans16pt-Regular.woff2") format("woff2");
   font-weight: 400;
+  font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "AppFont";
-  src: url("/fonts/AppFont-Medium.woff2") format("woff2");
+  font-family: "TikTok Sans";
+  src: url("/fonts/TikTokSans16pt-Medium.woff2") format("woff2");
   font-weight: 500;
+  font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "AppFont";
-  src: url("/fonts/AppFont-SemiBold.woff2") format("woff2");
+  font-family: "TikTok Sans";
+  src: url("/fonts/TikTokSans16pt-SemiBold.woff2") format("woff2");
   font-weight: 600;
+  font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "AppFont";
-  src: url("/fonts/AppFont-Bold.woff2") format("woff2");
+  font-family: "TikTok Sans";
+  src: url("/fonts/TikTokSans16pt-Bold.woff2") format("woff2");
   font-weight: 700;
+  font-style: normal;
   font-display: swap;
-} */
+}
 
 /* ─── Brand tokens ────────────────────────────────────────────────── */
 /* Sourced from EDS §5 — Visual Direction */
@@ -57,8 +69,7 @@
   --color-danger: oklch(0.55 0.22 25);            /* Red #D93B3B */
   --color-data: oklch(0.53 0.26 295);             /* Purple — data numbers */
 
-  /* Font — swap with self-hosted after public/fonts/ is populated */
-  --font-sans: system-ui, "Segoe UI", sans-serif;
+  --font-sans: "TikTok Sans", system-ui, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
