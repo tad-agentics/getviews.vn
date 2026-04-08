@@ -2,11 +2,11 @@ import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { VitePWA } from "vite-plugin-pwa";
 
 /** Split heavy vendors so chunks cache independently and initial parse stays smaller on mobile. */
 function manualChunks(id: string) {
   if (!id.includes("node_modules")) return;
-  // Rollup IDs may use backslashes on Windows — normalize before segment checks.
   const n = id.replace(/\\/g, "/");
   if (n.includes("@radix-ui")) return "radix-ui";
   if (n.includes("@tanstack")) return "tanstack";
@@ -14,8 +14,6 @@ function manualChunks(id: string) {
   if (n.includes("lucide-react")) return "icons";
   if (n.includes("motion") || n.includes("framer-motion")) return "motion";
   if (n.includes("react-router") || n.includes("@remix-run")) return "react-router";
-  // Match the real `react` package only (`.../node_modules/react/...`), not loose `/react/`
-  // (avoids odd substring matches). `react-dom` is a different folder: `react-dom/...`.
   if (
     n.includes("node_modules/react-dom") ||
     n.includes("node_modules/scheduler/") ||
