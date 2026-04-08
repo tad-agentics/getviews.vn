@@ -1,0 +1,52 @@
+---
+description: Design system token and component rules — enforced on all component and route files
+globs:
+  - src/components/**/*
+  - src/routes/**/*.tsx
+alwaysApply: false
+---
+
+## Design system contract (Make + EDS, not Figma MCP)
+
+This section encodes the **same intent** as project-level “design system rules” in tools like Figma’s [Create Design System Rules](https://developers.figma.com/docs/figma-mcp-server/skill-figma-create-design-system-rules/) — *where things live, what to reuse, what never to hardcode* — but RAD’s **source of truth is Figma Make exports + EDS**, not MCP `get_design_context`.
+
+| Figma-rules idea | RAD equivalent |
+| --- | --- |
+| Fetch structured design + screenshot before coding | **Read** Make TSX in `src/make-import/` or `artifacts/docs/make-reference/`, **plus** `artifacts/docs/screen-specs-*-v1.md` and **`artifacts/docs/design-system-spec.md`** after Foundation catalogs Make |
+| Token / component discovery | **`design-system-spec.md`** (inventory + gaps); live primitives in **`src/components/ui/`**; tokens in **`src/app.css`** (Make theme) |
+| Do not bolt on duplicate libraries | **IMPORTANT:** Make’s `components/ui` **is** the library — same as elsewhere in this file |
+| Asset discipline | Use images/icons **from the Make bundle**; self-host fonts per `frontend-make.mdc`; do **not** add icon packages to replicate glyphs Make already ships |
+
+**Before changing layout, colors, or adding a “new” UI primitive:** Check `design-system-spec.md` and existing `src/components/ui/` — extend or compose; do not introduce a parallel component set.
+
+When **native** mode is active, brand colors/types that land in **`shared/colors.ts`** and `mobile/global.css` must **stay aligned** with EDS §5 and web tokens (see `mobile-developer.md` Foundation).
+
+---
+
+## Design Tokens (Make → Tailwind)
+
+- Make's code output defines the visual design. Make uses CSS custom properties with Tailwind v4's `@theme inline` syntax for design tokens — keep this CSS-based approach during Foundation. Do not migrate tokens to `tailwind.config.ts`. Copy Make's theme CSS into `src/app.css`.
+- All components use Tailwind utility classes referencing semantic tokens (`bg-primary`, `text-foreground`, `border-default`) — never raw hex codes, pixel sizes, or raw font sizes
+- Never use `style={{}}` for token values — only `className` with Tailwind classes
+- `style={{}}` is only permitted for genuinely dynamic values that can't be expressed as a token (e.g. `style={{ width: dynamicWidth + 'px' }}`)
+
+## Component Rules
+
+- Make's UI components (`src/components/ui/`) are the app's component library — do not add shadcn/ui, Radix, HeroUI, or any other library
+- Additional shared components (EmptyState, ErrorBanner, SkeletonCard) built during Foundation live in `src/components/`
+- Every component must implement all applicable states: default / loading / error / empty
+- Custom component interfaces must match the spec in `artifacts/docs/design-system-spec.md`
+- Import shared components from `src/components/` — never recreate one that already exists there
+- Make's TSX is copied directly into route files. Do not modify visual structure — every Tailwind class, spacing, and layout stays as Make wrote it
+
+## AI Slop Guard — Never ship these patterns
+
+- No gradient backgrounds using purple, violet, or indigo
+- No 3-column icon-in-circle feature grids
+- No global `text-align: center` on headings or card content
+- No uniform border-radius across all components — use the radius scale from design tokens
+- No decorative blobs, wavy dividers, or floating shapes
+- No generic hero copy: "Unlock the power of...", "Your all-in-one solution for...", "Revolutionize your..."
+- No emoji as visual design elements
+- No colored left-border accent cards as a default pattern
+- No identical spacing between all elements — use the spacing scale intentionally

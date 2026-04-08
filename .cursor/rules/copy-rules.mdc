@@ -1,0 +1,140 @@
+---
+description: Brand voice and copy standards for GetViews — auto-loads on all screen files
+globs:
+  - src/**/*.tsx
+  - mobile/**/*.tsx
+alwaysApply: false
+---
+
+## Copy Formula
+Formula: State the data → name the finding → give the specific fix. Always: evidence before opinion.
+Length: 1-2 sentences per point. No paragraph answers. Diagnosis rows max 30 words each.
+Tone: direct, data-backed, peer-to-peer — never guru, motivational, apologetic
+
+## Forbidden Opening Words
+Never start copy with: Chào bạn, Xin chào, Rất vui, Tuyệt vời, Wow, Chúc mừng, Đây là, Dưới đây là
+
+## Forbidden Words (anywhere in copy)
+Never use: tuyệt vời, hoàn hảo, bí mật, công thức vàng, đột phá, kỷ lục, triệu view, bùng nổ, siêu hot, thần thánh, hack, chiến lược độc quyền, ai cũng phải biết, không thể bỏ qua, chắc chắn thành công
+
+## Transition Timing (reference for animation-adjacent copy)
+- Instant: 0ms — toggles, active press
+- Fast: 120ms — hover, focus, border, icon color
+- Normal: 200ms — panel slide, tab switch, tooltip
+- Emphasis: 400ms — diagnosis row reveal, bar fill, card stagger
+- Slow: 600-800ms — dopamine moments only (D1-D4)
+- Hard rule: nothing >800ms
+
+## Screen-Context Copy Rules
+
+### Diagnosis / Analysis Result
+Emotional objective: Competence — "now I know exactly what's wrong and how to fix it"
+Rule: ✕ for problems, ✓ for strengths. Data benchmark in every row. End with specific fix, not general advice.
+Example: "✕ Không mặt trong 3 giây đầu. 92% top video trong niche mở bằng mặt trong 0.5 giây. → Quay lại mở bằng mặt + text overlay 'ĐỪNG MUA' trong 0.5 giây đầu."
+
+### Trend / Hook Ranking
+Emotional objective: Authority — "this is data I can't get anywhere else"
+Rule: Hook name + multiplier + direction + niche. Always cite corpus size and timeframe.
+Example: "Cảnh Báo: 3.2x views — đang tăng trong review đồ Shopee. Dựa trên 412 video, 7 ngày gần nhất."
+
+### Brief Generation
+Emotional objective: Relief — "I can forward this right now"
+Rule: Hook options numbered. Shot structure with timestamps. KOL tier + budget + commission. Vietnamese, Zalo-ready.
+Example: "1. 'ĐỪNG MUA retinol nếu chưa xem video này' — mặt nhìn camera, nghiêm. 0-3s Hook+mặt · 3-8s Vấn đề da · 8-20s Demo. Micro 10K-50K · 2-4M VND · Xtra 12-18%."
+
+### Creator Discovery
+Emotional objective: Discovery — "found my next KOL in 10 seconds"
+Rule: Handle, followers, likes, contact info. If corpus data exists, add "Có data" badge. One tap to deep-dive.
+Example: "@{{handle}} · {{followers}} followers · {{total_likes}} likes · {{contact}}"
+
+### Confirmation / Completion
+Emotional objective: Momentum — let the user act immediately
+Rule: State what happened + enable next action. Max 1 sentence.
+Example: "Đã copy ✓" or "Đã copy — forward qua Zalo cho KOL luôn."
+
+### Empty / Zero State
+Emotional objective: Direction — not apology, just path forward
+Rule: Warm, not sorry. Always include what to do next. No "Oops" or "Rất tiếc."
+Example: "Không tìm được video phù hợp trong {{niche}} tuần này. Thử mở rộng thời gian hoặc đổi niche?"
+
+### Error State
+Emotional objective: Calm control — state what happened, what to do
+Rule: What failed + what to do next. One sentence. No apology. No emoji.
+Example: "Video không tải được — thử dán lại hoặc dùng video khác."
+
+### Stream Interruption
+Emotional objective: Continuity — not broken, just paused
+Rule: Inline at cut point, not modal. Tell user how to resume.
+Example: "— Bị gián đoạn. Gõ 'tiếp' để tiếp tục."
+
+### Loading / Streaming Status
+Emotional objective: Progress — show the system is working, not just waiting
+Rule: Describe what GetViews is doing. Not a generic "Đang tải..." — specific to the intent. Phase transitions fade in/out (200ms).
+Examples:
+- Diagnosis: "Đang xem video của bạn..." → "Đang so sánh với {{corpus_count}} video..."
+- Brief: "Đang viết brief..."
+- Creator: "Đang tìm KOL..."
+
+### Onboarding
+Emotional objective: Speed — get to first result fast
+Rule: Minimum steps. Skip-able profile link. First message within 3 seconds of completing onboarding.
+Example: "Sẵn sàng phân tích content của bạn. Thử dán link TikTok hoặc hỏi gì đang hot trong {{user.niche}}."
+
+### Background / Ambient
+Emotional objective: Invisible — UI chrome should not draw attention
+Rule: Noun-first for nav labels. Max 2 words. No verbs. No punctuation.
+Example: "Chat" · "Xu hướng" · "Lịch sử" · "Cài đặt"
+
+### Credit Display (persistent bar)
+Emotional objective: Transparency — user always knows balance without anxiety
+Rule: Show deep credit count + remind unlimited browse is free. No urgency language until ≤5.
+Examples:
+- Normal: "{{count}} deep credits còn lại · Lướt xu hướng & tìm KOL không giới hạn"
+- Low (≤5): "⚠ {{count}} deep credits còn lại"
+- Zero: "Hết credit. Mua thêm →" (tappable CTA)
+
+### Free Query Pill
+Emotional objective: Generosity — reinforce that unlimited browse costs nothing
+Rule: Small pill appears next to user message for ⑥⑦ + follow-ups. Fades out after 2s. Reduces credit hoarding.
+Example: "Miễn phí ✓"
+
+### Paywall / Credit Exhaustion
+Emotional objective: Transactional — flat, honest, no pressure
+Rule: State what's needed. Price. One CTA. No FOMO, no countdown, no "chỉ còn X giờ."
+Example: "Hết deep credit tháng này. Mua thêm 10 credit = 130K VND."
+
+### Input States
+Emotional objective: Responsiveness — the field is alive, the system listens
+Rules:
+- URL detected: show chip above input "Video TikTok — @{{handle}}" with purple left border
+- URL invalid: chip shows "Link không hợp lệ — cần link TikTok" in danger color
+- Character overflow: "Đã cắt — giới hạn 1000 ký tự" below input, 3s then fade
+- Scroll-to-bottom pill: "↓ Cuộn xuống" — appears when user scrolls up during stream
+
+### Share / Copy Output
+Emotional objective: Action — Linh forwards to Zalo in one tap
+Rules:
+- Copy button on every structured output (diagnosis, brief, hook ranking, creator list)
+- Copied text is plain text optimized for Zalo paste — no HTML, no markdown
+- Mobile: share button triggers Web Share API, falls back to clipboard
+- Copy feedback: button text → "Đã copy ✓" for 2s, bg flash purple-light 200ms
+
+## Copy Quality Test
+A string passes only if all five answer yes:
+1. Does this copy cite a specific number, niche, or data point? — if diagnosis/trend/brief, yes passes. If error/ambient/nav, skip.
+2. Could Minh act on this in the next 10 minutes without asking a follow-up? — yes passes.
+3. Is this free of any forbidden words listed above? — yes passes, no rewrites.
+4. Does this sound like a peer expert talking to a working creator, NOT a teacher talking to a student? — yes passes.
+5. If read aloud in a Vietnamese creator Zalo group, would it sound natural and not robotic? — yes passes.
+
+## Hard Rules
+- All dynamic text uses real data variables — never lorem ipsum or placeholder strings
+- All copy slots defined in the screen spec metadata must be populated before committing
+- Copy written in Vietnamese for Vietnam B2C market — Vietnamese punctuation, numbers use dot separators (1.000, not 1,000) for VND
+- English loanwords acceptable when standard in Vietnamese creator culture: hook, content, viral, trend, brief, format, niche, view, follower, like. Do not translate these.
+- JetBrains Mono for all numerical data displayed in UI (credit counts, statistics, multipliers, corpus sizes)
+- ✕/✓ markers for diagnosis pass/fail — not emoji, not colored dots
+- Mobile touch targets: 44×44px minimum for all tappable elements
+- Mobile input: 16px font minimum (prevents iOS zoom)
+- No modals, popups, or full-screen interstitials in chat flow — everything inline
+- Copied text is plain text for Zalo — no formatting characters

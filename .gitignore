@@ -1,0 +1,75 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js (legacy — safe to keep for compat)
+# /.next/
+# /out/
+
+# vite / react-router
+/dist/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# Dev Workspace
+.local/
+
+# RAD — Figma Make import staging dir (temporary, deleted after porting)
+src/make-import/
+
+# RAD — Figma Make reference for native translation (temporary)
+artifacts/docs/make-reference/
+
+# RAD — Mobile / Expo
+mobile/android/
+mobile/ios/
+mobile/.expo/
+*.ipa
+*.apk
+*.aab
+mobile/google-play-key.json
+
+# RAD — agent-workspace operational files (project-specific, never commit)
+agent-workspace/ACTIVE_CONTEXT.md
+agent-workspace/memory/*.md
+agent-workspace/temp/*
+!agent-workspace/temp/.gitkeep
+agent-workspace/scripts/*
+!agent-workspace/scripts/.gitkeep
+
+# RAD — local sync target when using vendored rad-rr7-template
+rad-rr7-template/.sync-target
+
+# RAD — MCP config contains credentials
+.cursor/mcp.json
+
+# env
+.env
+.env.local
+.env.*.local

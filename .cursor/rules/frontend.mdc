@@ -1,0 +1,171 @@
+---
+description: Frontend architecture, naming, file structure, imports, performance, accessibility, mobile UX, and composition rules — React Router v7 SPA
+globs:
+  - src/**/*.tsx
+  - src/**/*.ts
+alwaysApply: false
+---
+
+## Architecture — React Router v7 SPA
+
+This is a client-side SPA. There are no Server Components, no Server Actions, no `middleware.ts`, no `'use client'` directives. Every component is a client component.
+
+- **Routing:** React Router v7 with file-based routes in `src/routes/`
+- **Data:** All data flows through Supabase client (`@supabase/supabase-js`) via TanStack React Query hooks — see `frontend-data.mdc` for full patterns
+- **Auth:** Supabase Auth on the client. Auth guard is a layout route that checks session before rendering children.
+- **Server logic:** Zero server logic in the frontend. Webhooks, cron, email, LLM = Supabase Edge Functions (separate codebase in `supabase/functions/`)
+- **Pre-rendering:** Only the landing page (`/`) is pre-rendered at build time for SEO. All `/app/*` routes are SPA.
+- **Env:** All required `VITE_*` variables are validated in `src/lib/env.ts` (Zod) at startup — extend the schema when adding new client env vars; never scatter raw `import.meta.env` reads for secrets or required URLs.
+- **Make integration:** Figma Make TSX copied into route files — see `frontend-make.mdc` for full copy-then-edit methodology
+
+### Route-level code splitting (mandatory for `/app/*` screens)
+
+Every **authenticated feature screen** (leaf route under `src/routes/_app/*/route.tsx`, excluding layout shells) must lazy-load its main UI so the initial bundle does not include code for screens the user has not visited.
+
+**Keep eager (no `lazy`):** `src/routes/_index/route.tsx` (landing), `src/routes/_auth/*`, `src/routes/_app/layout.tsx` and other **layout** route modules — they run on every navigation and must stay lightweight.
+
+**Pattern:** The default export of `route.tsx` wraps the real screen in `Suspense`; the heavy UI lives in a colocated file (e.g. `HomeScreen.tsx` or `route.screen.tsx`) loaded with `React.lazy`.
+
+```tsx
+// src/routes/_app/example/route.tsx — adjust segment name as needed
+import { lazy, Suspense } from "react";
+
+const ExampleScreen = lazy(() => import("./ExampleScreen"));
+
+export default function ExampleRoute() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          role="status"
+          aria-label="Loading"
+          className="min-h-[40vh] animate-pulse rounded-lg bg-muted"
+        />
+      }
+    >
+      <ExampleScreen />
+    </Suspense>
+  );
+}
+```
+
+```tsx
+// src/routes/_app/example/ExampleScreen.tsx — default export = full page UI (from Make + hooks)
+export default function ExampleScreen() {
+  // useQuery, handlers, JSX
+  return <main>...</main>;
+}
+```
+
+Extract a shared `RouteScreenFallback` (or skeleton) to `src/components/` when the same fallback is reused across many routes; keep it visually consistent with screen loading rules in `frontend-data.mdc`.
+
+### `clientLoader` vs TanStack Query (explicit non-choice)
+
+React Router v7 **clientLoader** can run before a route renders in SPA mode. **RAD does not use `clientLoader` for data loading.** TanStack Query remains the single source of truth for server state: `staleTime`, cache invalidation, optimistic updates, and deduplication across screens outperform one-shot loader fetches for Supabase-backed SPAs. Reserve `clientLoader` for future SSR/hydration architectures — not for the default RAD SPA stack.
+
+## Component Reuse
+
+- **First choice: Make's UI components.** Check `src/components/ui/` (copied from Make) for existing components.
+- **Second choice: Build from Tailwind primitives.**
+- Only create a new shared component in `src/components/` when it's used by 2+ screens
+- Never duplicate logic that already exists in a shared component or hook
+
+## Naming
+
+- Components: PascalCase, one per file, named export only, filename matches component name — `PrimaryButton.tsx` exports `PrimaryButton`
+- Hooks: camelCase prefixed with `use` — `useAuth.ts`, `useProfile.ts`
+- Utility functions: camelCase in `src/lib/` — `formatCurrency.ts`, `validateInput.ts`
+- Route files: `src/routes/[name]/route.tsx` — name matches URL segment
+
+## File Structure
+
+- Route files: `src/routes/` — React Router v7 file convention
+- Shared components: `src/components/` — imported across multiple screens
+- Route-specific components: colocated in `src/routes/[name]/components/` — used only on that screen
+- If a route-specific component is imported by a second route, move it to `src/components/`
+- Hooks: `src/hooks/` — no business logic in components that can be extracted to a hook
+- Constants and config: `src/lib/constants.ts` — never hardcode magic numbers or strings in components
+
+## Imports
+
+- Absolute imports from `@/` via tsconfig paths — never relative imports that go up more than one level (no `../../..`)
+- Group imports: React → third-party libs → project components → project utils → types
+
+---
+
+## Common Agent Mistakes (Auto-Check)
+
+### Stale Closure Prevention
+
+In any callback, timer, or event handler that references state, always use the functional updater form:
+
+- ✅ `setState(prev => prev + 1)`
+- ✅ `setState(prev => [...prev, newItem])`
+- ❌ `setState(count + 1)` inside setTimeout, useEffect cleanup, or event listeners
+- ❌ `setState([...items, newItem])` inside callbacks that close over `items`
+
+If the callback is passed to `setTimeout`, `setInterval`, `addEventListener`, or a child component's `onX` prop, assume the value is stale — use the functional form.
+
+### Context Value Referential Equality
+
+Every React context provider value must be referentially stable. Creating a new object on every render causes all consumers to re-render — cascading across 30+ screens.
+
+```tsx
+// ❌ New object every render — every useContext(AuthContext) consumer re-renders
+<AuthContext.Provider value={{ user, signOut, loading }}>
+
+// ✅ Stable reference — consumers only re-render when actual values change
+const value = useMemo(() => ({ user, signOut, loading }), [user, signOut, loading])
+<AuthContext.Provider value={value}>
+```
+
+Apply to: AuthProvider, CreditsProvider, any shared context. This is the #1 cause of unexplained mobile lag in multi-screen apps.
+
+---
+
+## Performance
+
+### Critical — Bundle Size + route chunks
+
+- **`vite.config.ts`:** vendor `manualChunks` splits `react-vendor`, `react-router`, `@tanstack/*`, `@supabase/*`, `@radix-ui/*`, `lucide-react`, and `motion` — do not remove without replacing with an equivalent strategy.
+- Import only what you use: `import { Camera } from "lucide-react"` not `import * as Icons from "lucide-react"`
+- **Route-level:** mandatory `React.lazy()` for `/app/*` leaf routes (see above). Additionally use `React.lazy()` + `Suspense` inside a screen for **heavy** optional pieces (charts, rich editors, large modals) below the fold or behind user action.
+- Libraries commonly affected by barrel imports: lucide-react, @radix-ui/react-*, date-fns, lodash
+
+### High — Key Management
+
+- Never use array index as `key` in lists that can reorder, filter, or insert — use a stable unique ID (database `id` field)
+- When rendering a list from Supabase, always key on the row's `id` column
+
+### Medium — Memoization + Images
+
+- `React.memo()` only for expensive components receiving stable props. `useMemo` for expensive computations only. `useCallback` for functions passed to memoized children.
+- Images: explicit `width`/`height` or `aspect-ratio`. Self-host fonts with `font-display: swap`. Single icon library (lucide-react), tree-shake unused.
+
+---
+
+## Accessibility
+
+- Every interactive element keyboard-accessible. Every `<img>` has `alt`. Color contrast meets WCAG AA.
+- Never color alone to convey info. Focus indicators always visible. Modals trap focus.
+- Forms: every input has a `<label>`. Use `<button>` for actions, `<Link>` for navigation — never `<div onClick>`.
+- Heading hierarchy (`h1` → `h2` → `h3`). Landmark elements (`<nav>`, `<main>`, `<aside>`, `<footer>`).
+
+---
+
+## Mobile UX
+
+- Touch targets: min 44×44px. Space between targets: min 8px. Bottom nav: min 48px tall.
+- Mobile-first: base styles for 375px, scale up with `sm:`, `md:`, `lg:`. Test every screen at 375px.
+- Never fixed widths on containers. Prefer vertical scroll.
+- Forms: validate on blur + submit. Error below field in `text-destructive text-sm`. Disable submit while loading.
+- Layout stability: explicit `width`/`height` on images, skeleton loaders for dynamic content, `font-display: swap`, animate `transform`/`opacity` only.
+
+---
+
+## Composition
+
+- Lift state to the nearest common ancestor — not to the route level
+- If state is used across many unrelated components, use React Context (low-frequency updates) or React Query (server state)
+- Never store derived data in state — compute it during render
+- When a component accumulates 3+ boolean props, refactor to a `variant` enum prop

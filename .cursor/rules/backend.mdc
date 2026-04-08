@@ -1,0 +1,329 @@
+---
+description: Backend, database, auth, and Edge Function rules — Supabase API-only backend
+globs:
+  - supabase/**/*
+  - src/lib/env.ts
+  - src/lib/supabase.ts
+  - src/lib/auth.tsx
+  - src/lib/data/**/*
+  - src/hooks/useAuth.ts
+alwaysApply: false
+---
+
+## Architecture — Supabase API-Only Backend
+
+There is no Node.js server. No API routes in the frontend. No Server Actions. No middleware.ts.
+
+- **Frontend:** React SPA communicates directly with Supabase via `@supabase/supabase-js` (publishable key + JWT)
+- **Authorization:** RLS on every table — the JWT scopes all queries to the current user. RLS is the single authorization boundary.
+- **Server-side logic:** Supabase Edge Functions only — for webhooks, cron, transactional email, service_role operations, and any logic that must not run in the browser.
+
+## Supabase Client
+
+- Required client env vars are validated in `src/lib/env.ts` (Zod) — import `env` there, never read `import.meta.env` for Supabase keys directly in `supabase.ts`
+- One client in `src/lib/supabase.ts` using `createClient()` with `env.VITE_SUPABASE_URL` and `env.VITE_SUPABASE_PUBLISHABLE_KEY`
+- All frontend code (routes, components, hooks) uses this single client instance
+- Never import `@supabase/supabase-js` directly in route or component files — always import the pre-initialized client from `src/lib/supabase`
+- The client automatically attaches the user's JWT to every request — RLS handles authorization
+
+```typescript
+// src/lib/supabase.ts
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
+import { env } from "@/lib/env";
+
+export const supabase = createClient<Database>(
+  env.VITE_SUPABASE_URL,
+  env.VITE_SUPABASE_PUBLISHABLE_KEY,
+);
+```
+
+## Auth
+
+- Use Supabase Auth exclusively — no custom JWT, no custom session management
+- Auth state managed by `AuthProvider` in `src/lib/auth.tsx` wrapping the app
+- `useAuth()` hook provides: `user`, `session`, `loading`, `signIn()`, `signOut()`
+- **AuthProvider must subscribe to `supabase.auth.onAuthStateChange()`** to handle token refresh, session expiry, and sign-out events. Redirect to `/login` on `SIGNED_OUT` event. Without this, expired tokens cause silent query failures.
+- Auth guard is a React Router layout route at `src/routes/_app/layout.tsx` — checks session, redirects to `/login` if absent
+- OAuth callback handled at `src/routes/_auth/callback/route.tsx`
+
+```typescript
+// src/routes/_app/layout.tsx — Auth guard pattern
+import { Outlet, Navigate } from "react-router";
+import { useAuth } from "@/lib/auth";
+
+export default function AppLayout() {
+  const { session, loading } = useAuth();
+  if (loading) return <LoadingSkeleton />;
+  if (!session) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
+```
+
+## Data Access
+
+- Typed query functions in `src/lib/data/*.ts` — one file per domain entity (optional organizational layer)
+- Routes and hooks call these functions or use Supabase client directly
+- All entity interfaces live in `src/lib/api-types.ts` — single source of truth
+- Generated types from `supabase gen types typescript` go to `src/lib/database.types.ts` — api-types.ts re-exports or extends these
+
+## Database
+
+- **RLS required on every table — no exceptions.** Never create a table without RLS policies.
+- Common RLS pattern: `auth.uid() = user_id` for row-level ownership
+- After every MCP `apply_migration` call, write the same SQL to a local file in `supabase/migrations/` named `YYYYMMDDHHmmss_short_description.sql` — remote and local must never drift
+- Use `supabase gen types typescript --project-id <ref> > src/lib/database.types.ts` after schema changes
+- Default to SQL for deterministic queries — no LLM for structured data
+- Add indexes on columns used in WHERE clauses and JOIN conditions — especially `user_id` foreign keys
+
+### RLS Policy Patterns
+
+```sql
+-- Standard ownership policy
+ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read own goals"
+  ON goals FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users insert own goals"
+  ON goals FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users update own goals"
+  ON goals FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users delete own goals"
+  ON goals FOR DELETE
+  USING (auth.uid() = user_id);
+```
+
+## Edge Functions
+
+All server-side logic lives in `supabase/functions/`. Each function is a Deno module with a single `index.ts`.
+
+| Use case | Example | Why Edge Function |
+|---|---|---|
+| Payment webhooks | `supabase/functions/payment-webhook/` | Verify signatures, use service_role to update credits |
+| Transactional email | `supabase/functions/send-email/` | Resend API key is server-only |
+| Scheduled jobs | `supabase/functions/cron-*/` | Push notifications, cleanup, digests |
+| Admin operations | `supabase/functions/admin-*/` | Service role operations outside user context |
+| **LLM interpretation** | `supabase/functions/interpret-*/` | LLM API keys are server-only. Never call LLM from frontend. |
+| **LLM reasoning** | `supabase/functions/reason-*/` | Same — all LLM calls go through Edge Functions |
+
+### Edge Function Rules
+
+- Verify webhook signatures before processing — use the provider's verification method
+- Check idempotency before writes — skip duplicate event IDs
+- Use `createClient()` with `SUPABASE_SERVICE_ROLE_KEY` from `Deno.env` — webhooks have no user session
+- Edge Functions have a 2-second CPU limit and 150-second wall clock limit — keep them lean
+- Never import frontend code into Edge Functions — they are separate Deno modules
+- Deploy via `supabase functions deploy [name]` in the devops-agent deploy flow
+
+### Edge Function CORS (Mandatory)
+
+Every Edge Function called from the frontend (via `supabase.functions.invoke()`) must handle CORS. Missing CORS headers = runtime error on every frontend call. Webhook functions (called server-to-server) don't need CORS but including it is harmless.
+
+Shared helper — create once, import in every function:
+
+```typescript
+// supabase/functions/_shared/cors.ts
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+```
+
+Every Edge Function must: (1) handle OPTIONS preflight explicitly, (2) include CORS headers in every response.
+
+```typescript
+import { corsHeaders } from '../_shared/cors.ts'
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    // ... function logic ...
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
+  }
+})
+```
+
+**Never skip the OPTIONS handler.** Browser sends preflight before POST/PUT/DELETE. Without it, the actual request never fires and frontend gets a network error with no useful message.
+
+```typescript
+// supabase/functions/payment-webhook/index.ts — pattern
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+Deno.serve(async (req) => {
+  // 1. Read body once
+  const body = await req.text();
+
+  // 2. Verify signature
+  const signature = req.headers.get("x-webhook-signature");
+  if (!verifySignature(signature, body)) {
+    return new Response("Invalid signature", { status: 401 });
+  }
+
+  // 3. Parse event
+  const event = JSON.parse(body);
+
+  // 3. Idempotency check
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const { data: existing } = await supabase
+    .from("webhook_events")
+    .select("id")
+    .eq("event_id", event.id)
+    .single();
+
+  if (existing) return new Response("Already processed", { status: 200 });
+
+  // 4. Process event + record
+  // ...
+
+  return new Response("OK", { status: 200 });
+});
+```
+
+## LLM Edge Functions
+
+Every RAD app uses LLM for data interpretation or user input reasoning. All LLM calls go through Edge Functions — never expose API keys to the frontend.
+
+**Two patterns:**
+
+### Pattern A — Interpret (structured data → natural language explanation)
+
+```typescript
+// supabase/functions/interpret-result/index.ts
+import { corsHeaders } from '../_shared/cors.ts'
+
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
+const MODEL = "anthropic/claude-sonnet-4"; // change per app — see https://openrouter.ai/models
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  const { resultData, userContext } = await req.json();
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 500,
+      messages: [{
+        role: "user",
+        content: `Given this result: ${JSON.stringify(resultData)}
+User context: ${JSON.stringify(userContext)}
+Explain this result in Vietnamese, 2-3 sentences. Be specific to the data, not generic.`
+      }],
+    }),
+  });
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  return new Response(JSON.stringify({ interpretation: text }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+});
+```
+
+### Pattern B — Reason (user inputs → analysis/recommendation)
+
+```typescript
+// supabase/functions/reason-compatibility/index.ts
+import { corsHeaders } from '../_shared/cors.ts'
+
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
+const MODEL = "anthropic/claude-sonnet-4";
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  const { userInputs, referenceData } = await req.json();
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 800,
+      messages: [
+        { role: "system", content: "You are a domain expert. Analyze the inputs against the reference data. Return JSON with: { score: number, summary: string, details: string[] }" },
+        { role: "user", content: JSON.stringify({ inputs: userInputs, reference: referenceData }) },
+      ],
+    }),
+  });
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content ?? "{}";
+  return new Response(text, {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+});
+```
+
+### LLM Edge Function Rules
+
+- **OpenRouter as LLM gateway** — all LLM calls go through `https://openrouter.ai/api/v1/chat/completions` (OpenAI-compatible). One API key, access to all models. Default model: `anthropic/claude-sonnet-4`. Switch models by changing the `MODEL` constant.
+- **Cache LLM results** — same input = same output. Store in a `llm_cache` table: `input_hash TEXT PRIMARY KEY, response JSONB, created_at TIMESTAMPTZ`. Check cache before calling LLM.
+- **Cost control** — set `max_tokens` to the minimum needed. Interpretation: 300–500 tokens. Reasoning: 500–1000 tokens. Never leave max_tokens unbounded.
+- **Structured output** — when you need JSON back, use a system prompt that specifies the exact schema. Parse with `zod` on the Edge Function side before returning to frontend.
+- **Error handling** — LLM calls can fail (rate limit, timeout). Return `{ error: "interpretation_unavailable" }` and let the frontend show the raw data without interpretation rather than blocking the screen.
+- **Never stream from Edge Functions in v1** — return complete JSON. Streaming adds complexity (SSE, partial state management). Add streaming in a future cycle if interpretation latency becomes a UX issue.
+- **2-second CPU limit** — LLM wall-clock time (waiting for API response) doesn't count against CPU limit, but parsing and processing does. Keep processing lean.
+- **No SDK needed** — OpenRouter uses standard `fetch()` with OpenAI-compatible JSON. Do not install `openai`, `@anthropic-ai/sdk`, or any LLM SDK.
+
+## Webhooks
+
+- Verify signatures before processing
+- Check idempotency before writes — skip duplicate event IDs
+- Use service_role client — webhooks have no user session
+- Return 200 quickly — defer heavy processing if needed
+- Log webhook event ID + status for debugging
+
+## Social preview / share routes (conditional)
+
+If the northstar describes **public share links** (e.g. `/share/[token]`) that must unfurl with **Open Graph** or **Twitter** cards on social platforms, **pre-rendering `/` alone is not enough** — crawlers often hit the share URL directly.
+
+**Default RAD template:** only `react-router.config.ts` `prerender: ["/"]` is required. Do not add share prerender until the product needs it.
+
+**When needed — pick one:**
+
+1. **Static prerender** — add share URL pattern to `prerender()` only if tokens are enumerable at build time (rare).
+2. **SSR or meta edge function** — not in RAD’s SPA-only default; would be a major architectural fork.
+3. **Platform middleware / bot handling** — e.g. Vercel Routing Middleware or a small edge function that serves HTML with OG tags for `?share=` or `/share/*` bot user-agents, while humans still get the SPA shell. Document the chosen approach in `artifacts/docs/tech-spec.md` and implement during the feature that introduces sharing.
+
+Defer implementation until the first app wave that ships viral/share mechanics; document the planned approach in the tech spec so DevOps can set env and routes.
+
+## Validation
+
+- Use `zod` schemas for validating user input in Edge Functions
+- Frontend forms validate with the same zod schemas (shared types in `src/lib/api-types.ts`)
+- Never expose raw database errors to the client — transform to `{ error: { code, message } }`

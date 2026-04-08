@@ -1,0 +1,238 @@
+---
+description: Data fetching, caching, mutations, and LLM consumption patterns — TanStack React Query + Supabase
+globs:
+  - src/hooks/**/*.ts
+  - src/lib/**/*.ts
+  - src/routes/**/*.tsx
+alwaysApply: false
+---
+
+## Data Fetching
+
+- All data fetches use `@supabase/supabase-js` via hooks in `src/hooks/` or query functions in `src/lib/data/`
+- The Supabase client is initialized once in `src/lib/supabase.ts` from validated `env` in `src/lib/env.ts` (Zod) — never bypass `env` for Supabase URL/key
+- Auth state is managed by `AuthProvider` in `src/lib/auth.tsx` — use `useAuth()` hook in components
+- All entity types: import from `src/lib/api-types.ts` — single source of truth
+- RLS handles all authorization — the JWT in the Supabase client scopes every query to the current user automatically
+- For real-time data: use Supabase Realtime subscriptions via `supabase.channel()` that call `queryClient.invalidateQueries()` on change events
+
+### Data Architecture — What Is Fetched Where
+
+**This prevents the #1 performance bug: every screen fetching the same profile/credits data.**
+
+| Data | Fetched in | staleTime | Consumers read via |
+|---|---|---|---|
+| User session + profile | `AuthProvider` (root layout) | `Infinity` (refresh on auth event only) | `useAuth()` hook — never re-fetch in screens |
+| Credit balance | `useCredits()` hook with React Query | `30s` | Any screen that shows balance or checks paywall |
+| Feature-specific data | Screen-level `useQuery` | `60s` (default) | Props passed to child components |
+| Static reference data (event lists, packages, prices) | `useQuery` with long staleTime | `5min` | Direct import of query hook |
+
+**Rule: If two screens show the same data, they must use the same `queryKey`. React Query deduplicates automatically.**
+
+### TanStack React Query — Required Patterns
+
+All data fetching uses `@tanstack/react-query`. No raw `useState` + `useEffect` for Supabase queries.
+
+**QueryClient setup** (created during Foundation in `src/lib/query-client.ts`):
+
+```typescript
+import { QueryClient } from "@tanstack/react-query";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,        // 60s — data is fresh for 1 min
+      gcTime: 5 * 60 * 1000,       // 5 min — unused cache kept for 5 min
+      retry: 1,                     // retry once on failure
+      refetchOnWindowFocus: false,  // don't refetch when user switches tabs
+    },
+  },
+});
+```
+
+**Query key convention** — hierarchical, all keys in `src/lib/query-keys.ts`:
+
+```typescript
+export const queryKeys = {
+  profile: (userId: string) => ["profile", userId] as const,
+  credits: (userId: string) => ["credits", userId] as const,
+  calendar: (month: number, year: number) => ["calendar", month, year] as const,
+  results: (intent: string, range: number) => ["results", intent, range] as const,
+  // Add per-feature keys here
+};
+```
+
+**Read hook pattern:**
+
+```typescript
+// src/hooks/useCalendarDays.ts
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { queryKeys } from "@/lib/query-keys";
+
+export function useCalendarDays(month: number, year: number) {
+  return useQuery({
+    queryKey: queryKeys.calendar(month, year),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("calendar_days")
+        .select("*")
+        .eq("month", month)
+        .eq("year", year);
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+```
+
+**In the screen component** (after copying from Make):
+
+```typescript
+// str_replace this Make line:
+//   const days = generateCalendarDays(calMonth, calYear);
+// with:
+const { data: days, isPending, error } = useCalendarDays(calMonth, calYear);
+
+if (isPending) return <SkeletonCard />;
+if (error) return <ErrorBanner message={error.message} />;
+if (!days?.length) return <EmptyState message="..." />;
+
+// Everything below stays exactly as Make wrote it — days is the same shape
+```
+
+### staleTime Reference
+
+| Data type | staleTime | Why |
+|---|---|---|
+| User profile | `Infinity` | Only changes on explicit profile edit — invalidate after mutation |
+| Credit balance | `30 * 1000` (30s) | Changes on purchase/spend — short stale so balance feels current |
+| Calendar / results | `60 * 1000` (60s) | Doesn't change often — default |
+| Static reference (event list, packages, prices) | `5 * 60 * 1000` (5 min) | Changes only on app update |
+| LLM interpretation / lá số | `Infinity` | Computed once, never changes for the same input |
+
+### Mutation Cache Invalidation (Mandatory)
+
+Every `useMutation` that writes data must invalidate affected queries on success. Without this, other screens showing the same data display stale values.
+
+```tsx
+const mutation = useMutation({
+  mutationFn: (data) => supabase.from('table').insert(data),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['table'] })
+    queryClient.invalidateQueries({ queryKey: ['credits'] }) // if mutation affects credits
+  }
+})
+```
+
+Rule: List ALL affected query keys in `onSuccess`. Over-invalidate when in doubt — TanStack deduplicates and only refetches stale queries.
+
+### Optimistic UI for User-Facing Actions
+
+Any action where the user expects instant feedback (toggle, add to list, submit form) should update the cache optimistically before server confirms.
+
+```tsx
+const mutation = useMutation({
+  mutationFn: (newItem) => supabase.from('items').insert(newItem),
+  onMutate: async (newItem) => {
+    await queryClient.cancelQueries({ queryKey: ['items'] })
+    const previous = queryClient.getQueryData(['items'])
+    queryClient.setQueryData(['items'], (old) => [...(old ?? []), newItem])
+    return { previous }
+  },
+  onError: (_err, _newItem, context) => {
+    queryClient.setQueryData(['items'], context?.previous) // rollback
+  },
+  onSettled: () => {
+    queryClient.invalidateQueries({ queryKey: ['items'] }) // refetch server truth
+  }
+})
+```
+
+When to apply optimistic UI:
+- Toggle/favorite actions → always
+- Form submissions → if result is predictable (add item, update profile)
+- Credit deductions → **NO** (server must confirm balance first)
+- Payment actions → **NO** (wait for server confirmation)
+
+### No Data Fetch Waterfalls
+
+Multiple independent queries on the same screen must run in parallel. TanStack React Query does this automatically when you declare multiple `useQuery` hooks at the same level.
+
+```tsx
+// ✅ Parallel — both fire immediately
+const { data: profile } = useQuery({ queryKey: ['profile'], queryFn: fetchProfile })
+const { data: credits } = useQuery({ queryKey: ['credits'], queryFn: fetchCredits })
+
+// ❌ Waterfall — credits waits for profile to finish
+const { data: profile } = useQuery({ queryKey: ['profile'], queryFn: fetchProfile })
+const { data: credits } = useQuery({
+  queryKey: ['credits'],
+  queryFn: fetchCredits,
+  enabled: !!profile  // ← only enable if credits actually depends on profile data
+})
+```
+
+Only use `enabled` when query B genuinely needs query A's result as input (e.g., `queryFn: () => fetchOrders(profile.id)`). If queries are independent, never gate one on the other.
+
+On Vietnam mobile networks (4G, 100-300ms RTT), each unnecessary waterfall adds 200-400ms of perceived latency.
+
+### No Raw useState + useEffect for Data Fetching
+
+`useState` + `useEffect` for Supabase queries is **forbidden**. Always use `useQuery` from TanStack React Query. Raw state = no cache, no dedup, re-fetches on every mount.
+
+---
+
+## LLM Data — Calling Edge Functions for Interpretation/Reasoning
+
+Every RAD app uses LLM to interpret backend data or reason from user inputs. LLM calls go through Supabase Edge Functions (API keys are server-only). The frontend treats LLM responses as regular data — fetched via React Query, cached aggressively.
+
+**Hook pattern for LLM interpretation:**
+
+```typescript
+// src/hooks/useInterpretation.ts
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+
+export function useInterpretation(resultData: unknown, enabled = true) {
+  const inputHash = JSON.stringify(resultData);
+  return useQuery({
+    queryKey: ["interpretation", inputHash],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("interpret-result", {
+        body: { resultData },
+      });
+      if (error) throw error;
+      return data as { interpretation: string };
+    },
+    enabled: enabled && !!resultData,
+    staleTime: Infinity,  // Same input = same interpretation. Never re-fetch.
+    retry: 1,
+  });
+}
+```
+
+**In the screen component** (after copying from Make):
+
+```typescript
+// Make's mock: hardcoded interpretation string
+//   const interpretation = "Ngày Hoàng Đạo, Trực Thành — rất thuận lợi cho ký kết.";
+
+// Replace with:
+const { data: llm, isPending: llmLoading } = useInterpretation(resultData);
+const interpretation = llm?.interpretation;
+
+// Render: show result data immediately (from Supabase query)
+// Show interpretation when ready, or skeleton while loading
+// If LLM fails, screen still works — just without the interpretation text
+```
+
+**Key rules:**
+- **staleTime: Infinity** for all LLM results — same input never re-calls LLM
+- **Screen must work without LLM** — show raw data immediately, add interpretation as enhancement. Never block the screen on LLM loading.
+- **`supabase.functions.invoke()`** — the correct way to call Edge Functions from the Supabase client. Automatically includes the user's JWT.
+- **Never call LLM APIs directly from frontend** — no `fetch("https://openrouter.ai/...")` or any LLM API in components.
+
+### Related — cache methodology (client + optional server)
+
+TTL tiers, invalidation discipline, fail-open server cache, and stampede awareness mapped to RAD (TanStack Query + Supabase + Edge) live in **`.cursor/skills/caching-strategies/SKILL.md`**.

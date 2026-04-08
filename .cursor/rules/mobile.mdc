@@ -1,0 +1,105 @@
+---
+description: React Native / Expo patterns — prohibitions, NativeWind, component rules
+globs:
+  - mobile/**/*.tsx
+  - mobile/**/*.ts
+alwaysApply: false
+---
+
+## Critical Prohibitions
+
+CRITICAL — generating web-only code will crash the mobile app:
+
+1. NEVER use HTML tags: div, p, span, h1-h6, img, button, input, ul, ol, li, a, form, label.
+   Use ONLY: View, Text, Pressable, TextInput, ScrollView, Image (from expo-image).
+2. NEVER use CSS Grid, hover:, ::before, ::after, cursor-*, float, backdrop-filter, position: fixed.
+3. NEVER use framer-motion or motion. Use react-native-reanimated.
+4. NEVER use lucide-react. Use @expo/vector-icons or lucide-react-native.
+5. NEVER use react-router-dom, useNavigate, <Link> from react-router. Use expo-router.
+6. NEVER put FlatList or FlashList inside ScrollView.
+7. NEVER render bare strings outside <Text> — including {count && <Text>...</Text>} (renders "0").
+8. NEVER use SafeAreaView from react-native. Use useSafeAreaInsets() from react-native-safe-area-context.
+9. NEVER use the RN Button component. Use Pressable or Button from @/components/ui/button.
+10. NEVER use RN Image. Use Image from expo-image with contentFit and placeholder.
+
+Self-audit: Every time you apply a prohibition, state which rule number you followed.
+
+## Stack
+
+Expo SDK 55 · Expo Router (file-based) · NativeWind v4 (TW3) · react-native-reusables · @shopify/flash-list · react-native-reanimated · expo-image · TanStack React Query · react-hook-form + zod · react-native-keyboard-controller · Supabase via shared/
+
+## NativeWind Rules
+
+- Use `className` for all styling. `style` prop only for dynamic computed values (e.g., `style={{ transform }}`).
+- **flexDirection defaults to column** in RN (not row like web). Always add explicit `flex-row` when needed.
+- **Text styles do NOT cascade** from parent Views. Apply `text-*`, `font-*` directly to each `<Text>`.
+- Both light and dark variants: `className="bg-white dark:bg-gray-950"` or use semantic tokens `bg-background`.
+- Platform prefixes: `ios:pt-2 android:pt-4` for platform-specific adjustments.
+- No grid classes — use `flex-row flex-wrap` with percentage widths (`w-1/2`, `w-1/3`) or FlashList `numColumns`.
+- No hover: — use `active:` with Pressable for touch feedback.
+- `global.css` imported only in root `_layout.tsx`.
+- Third-party components without `className` support: wrap with `cssInterop` from `nativewind`.
+
+## FlashList Rules
+
+Default for all dynamic lists (>20 items or server data).
+
+- **NEVER add `key` props** inside `renderItem` or child components — destroys recycling
+- `keyExtractor` required for scroll position stability
+- `React.memo()` on all list item components
+- `renderItem` wrapped in `useCallback`
+- `getItemType` for heterogeneous item types
+- `useRecyclingState` instead of `useState` for item-identity-dependent state
+- `ListHeaderComponent` / `ListFooterComponent` for mixed content
+- expo-image inside FlashList: set `recyclingKey` prop
+
+## Component Rules
+
+- UI primitives from `@/components/ui/` (react-native-reusables). Never build custom Button, Card, Input, Dialog.
+- Overlay components (Dialog, Popover, Select, Dropdown) require `<PortalHost />` in root layout.
+- Touch targets: minimum 48×48dp. Use `min-h-[48px] min-w-[48px]` on all interactive elements.
+- Every `Pressable`: `accessibilityRole="button"` + `accessibilityLabel` + `active:opacity-90`.
+- Haptic feedback on key actions: `Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)`.
+
+## Images
+
+expo-image exclusively. Always specify `contentFit` + dimensions (`width`/`height` or `aspectRatio`). Provide `placeholder` (blurhash) for perceived performance. Inside FlashList: add `recyclingKey`.
+
+## Animations
+
+react-native-reanimated only. Built-in `Animated` API prohibited. `react-native-gesture-handler` for gestures.
+
+## Forms
+
+react-hook-form + zod (shared schemas from `shared/validation/`). Wrap form content in `KeyboardAwareScrollView` from `react-native-keyboard-controller`. Add `<KeyboardToolbar />` for prev/next navigation. Chain inputs via `returnKeyType="next"` + `onSubmitEditing`.
+
+## Navigation
+
+Expo Router file-based routing in `mobile/src/app/`. `useRouter()` for programmatic navigation. `<Link>` for declarative. Stack.Protected for auth guards. Modal screens: `presentation: "modal"` or `"formSheet"`.
+
+## Data
+
+All data via `useSupabase()` from `shared/api/supabase-context` through TanStack Query hooks in `shared/hooks/`. Every screen implements the state trifecta: `isPending` → skeleton, `isError` → error with retry, empty → empty state with action. `useFocusEffect` to refetch stale data on screen focus.
+
+## Radix → @rn-primitives Mapping
+
+| Radix | @rn-primitives | Notes |
+|---|---|---|
+| react-dialog | dialog | Same Trigger→Content |
+| react-select | select | Same Root→Trigger→Content |
+| react-tabs | tabs | Same Root→List→Trigger→Content |
+| react-accordion | accordion | Same Root→Item→Trigger→Content |
+| react-switch | switch | Same checked/onCheckedChange |
+| react-checkbox | checkbox | Same checked/onCheckedChange |
+| react-progress | progress | Same value prop |
+| react-avatar | avatar | Same Image→Fallback |
+| react-popover | popover | Needs PortalHost |
+| react-dropdown-menu | dropdown-menu | Needs PortalHost |
+| react-tooltip | tooltip | Long press on mobile |
+| react-slot | — | Not needed in RN |
+| react-scroll-area | Native ScrollView | Direct replacement |
+| react-form | react-hook-form | Different paradigm |
+
+## MCP (optional)
+
+MCP is an optional delivery mechanism for Make source files. If Figma MCP is configured, agent can read Make files via `file://figma/make/source/...` instead of from `artifacts/docs/make-reference/`. The translation work is identical either way. Never expect `get_design_context` to return structured design data from Make — it returns raw source files.
