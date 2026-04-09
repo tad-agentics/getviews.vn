@@ -658,8 +658,8 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - `BillingToggle` — 3-state: "Tháng" | "6 tháng" | "Năm" (annual pre-selected, badge "Tiết kiệm nhất")
 - `PricingCard` — tier card: name + price + credit count + feature list + CTA button. Free / Starter / Pro / Agency
 - `PricingCardHighlight` — Starter card has "Phổ biến nhất" badge
-- `OverageSection` — heading "Mua thêm credits" + 2 overage pack cards
-- `PaymentMethodRow` — icons for MoMo, VNPay, bank transfer, card
+- `OverageSection` — heading "Mua thêm credits" + 3 overage pack cards (10 / 30 / 50 credits). Figma Make uses 3 packs; 50-credit pack has "Phổ biến" badge.
+- `PaymentMethodRow` — icons for MoMo, VNPay, ZaloPay, Visa/Mastercard, bank transfer. Note: Figma Make includes ZaloPay; confirm PayOS integration supports it before launch.
 - `CurrentPlanBadge` — shown on user's current plan (non-interactive)
 
 **Data:**
@@ -734,8 +734,9 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - sixmo_agency_saving: "Tiết kiệm 840.000đ so với gói tháng" — Ambient
 - sixmo_callout: "Tặng 1 tháng miễn phí khi mua 6 tháng" — Ambient
 - overage_section_title: "Mua thêm credits" — Ambient
-- overage_10: "10 lần phân tích sâu — 130.000đ" — Ambient
-- overage_50: "50 lần phân tích sâu — 600.000đ (12.000đ/lần)" — Ambient
+- overage_10: "10 lần phân tích sâu — 130.000đ (13.000đ/lần)" — Ambient
+- overage_30: "30 lần phân tích sâu — 350.000đ (11.700đ/lần)" — Ambient
+- overage_50: "50 lần phân tích sâu — 550.000đ (11.000đ/lần) · Phổ biến" — Ambient
 - payment_methods: "Thanh toán qua MoMo, VNPay, chuyển khoản, hoặc thẻ quốc tế." — Ambient
 
 **Edge cases:**

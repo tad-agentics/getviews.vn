@@ -132,10 +132,11 @@ export type IntentType =
   | 'trend_spike'
   | 'find_creators'
   | 'follow_up'
+  | 'format_lifecycle'   // Figma Make uses this as a session intent label for ⑥ format sub-intent
 
 export type SubscriptionTier = 'free' | 'starter' | 'pro' | 'agency'
 
-export type BillingPeriod = 'monthly' | 'biannual' | 'annual'
+export type BillingPeriod = 'monthly' | 'biannual' | 'annual' | 'overage_10' | 'overage_30' | 'overage_50'
 
 export type ContentType = 'video' | 'carousel'
 
@@ -179,6 +180,20 @@ export interface ChatSession {
   deleted_at: string | null
 }
 
+// Typed union for the structured_output JSONB column in chat_messages.
+// Matches the DB schema exactly — one column, typed at the application layer.
+export type StructuredOutput =
+  | { type: 'diagnosis';   diagnosis_rows: DiagnosisRow[]; corpus_cite: CorpusCite | null; thumbnails: ThumbnailItem[] }  // thumbnails matches Figma Make field name
+  | { type: 'hook_ranking'; hook_rankings: HookRanking[]; corpus_cite: CorpusCite | null }
+  | { type: 'creators';    creator_cards: CreatorCard[] }
+  | { type: 'brief';       brief_block: BriefBlock }
+
+export interface ThumbnailItem {
+  handle: string
+  views: string           // display string e.g. "1,2M" — matches Figma Make thumbnails[]
+  url: string             // TikTok URL for external link
+}
+
 export interface ChatMessage {
   id: string
   created_at: string
@@ -189,12 +204,7 @@ export interface ChatMessage {
   intent_type: IntentType | null
   credits_used: number                // 0 or 1
   is_free: boolean
-  diagnosis_rows: DiagnosisRow[] | null
-  hook_rankings: HookRanking[] | null
-  creator_cards: CreatorCard[] | null
-  brief_block: BriefBlock | null
-  corpus_cite: CorpusCite | null
-  thumbnail_urls: string[] | null
+  structured_output: StructuredOutput | null   // single JSONB column; typed union above
   stream_id: string | null            // for SSE reconnection
 }
 
@@ -339,7 +349,7 @@ export interface CreatePaymentRequest {
   tier: SubscriptionTier
   billing_period: BillingPeriod
   is_overage: boolean
-  overage_pack_size: 10 | 50 | null
+  overage_pack_size: 10 | 30 | 50 | null
 }
 
 export interface CreatePaymentResponse {
@@ -356,6 +366,26 @@ export interface BankTransferDetails {
   account_number: string
   account_name: string
   reference_code: string
+}
+
+// ─── SSE stream token shape (Cloud Run → client, never stored in DB) ─────────
+
+export interface SSEToken {
+  stream_id: string       // ties all tokens to one response
+  seq: number             // monotonically increasing; client stores last_seq for reconnect
+  delta: string           // partial text token
+  done: boolean           // true on final token
+  error?: string          // set on stream error
+}
+
+// ─── Niche taxonomy ───────────────────────────────────────────────────────────
+
+export interface NicheTaxonomy {
+  id: number
+  name_vn: string         // e.g. "Review đồ Shopee / Gia dụng"
+  name_en: string
+  signal_hashtags: string[]
+  created_at: string
 }
 
 // ─── Client-safe view types ───────────────────────────────────────────────────
@@ -377,6 +407,52 @@ export interface SessionSummary {
   intent_type: IntentType | null
   credits_used: number
   is_pinned: boolean
+}
+
+export interface NicheIntelligence {
+  niche_id: number
+  avg_face_appears_at: number | null
+  hook_type_distribution: Record<string, number>
+  avg_transitions_per_second: number | null
+  avg_video_length_seconds: number | null
+  median_engagement_rate: number | null
+  sample_size: number
+  video_count_7d: number
+  trending_keywords: Array<{ keyword: string; usage_count: number }>
+  computed_at: string
+}
+
+export interface TrendVelocity {
+  id: string
+  niche_id: number
+  week_start: string
+  hook_type_shifts: Record<string, { prev_pct: number; curr_pct: number; delta: number }>
+  format_changes: Record<string, unknown>
+  new_hashtags: string[]
+  sound_trends: { trending_sounds: Array<{ sound_id: string; name: string; niche_count: number }> }
+}
+
+export interface HookEffectiveness {
+  id: string
+  niche_id: number
+  hook_type: string
+  avg_views: number
+  avg_engagement_rate: number
+  avg_completion_rate: number | null
+  sample_size: number
+  trend_direction: TrendDirection
+  computed_at: string
+}
+
+export interface FormatLifecycle {
+  id: string
+  niche_id: number
+  format_type: string
+  lifecycle_stage: LifecycleStage
+  volume_trend: number | null
+  engagement_trend: number | null
+  weeks_in_stage: number | null
+  computed_at: string
 }
 
 export interface VideoCorpusSummary {
@@ -539,6 +615,13 @@ export interface VideoCorpusSummary {
 **Research basis:** Northstar §13 best practices — "Concurrent request guard."
 **Risks:** If Cloud Run crashes without clearing flag, user is stuck. Mitigation: cron resets stale `is_processing = true` flags older than 5 minutes.
 
+### TD-5: Subscription credit grant model — upfront, not monthly top-up
+
+**Context:** Subscriptions grant a fixed number of deep credits per billing period. PayOS is one-time (no recurring billing). Credits need to be available immediately after payment confirmation.
+**Decision:** Credits are granted **once upfront** on the PAID webhook — the full period's allotment (e.g., Starter monthly = 30 credits deposited immediately). There is no monthly top-up cron. When a subscription expires (`cron-expiry-check`), unused credits are cleared and the profile is downgraded to free.
+**Implication for seed.sql:** `deep_credits_granted = 30` for Starter monthly is correct — this is the one-time grant for the month. Linh's Pro annual grant of 80 is also correct — the annual pack gives 80 credits upfront (not 80×12). Annual users pay upfront for access, not for monthly allotments.
+**Revisit trigger:** If recurring billing is added (Wave 2), this becomes a monthly cron top-up.
+
 ### TD-4: SSE reconnection for Vietnamese mobile
 
 **Context:** Vietnamese mobile connections (4G) are prone to blips. If an SSE stream disconnects mid-response, the user loses partial output.
@@ -663,7 +746,7 @@ Indexes:
 | created_at | timestamptz | default now() | |
 | user_id | uuid | NOT NULL, FK → auth.users(id) | |
 | tier | text | NOT NULL, CHECK IN tier values | |
-| billing_period | text | NOT NULL, CHECK IN ('monthly','biannual','annual','overage_10','overage_50') | |
+| billing_period | text | NOT NULL, CHECK IN ('monthly','biannual','annual','overage_10','overage_30','overage_50') | |
 | amount_vnd | integer | NOT NULL | |
 | deep_credits_granted | integer | NOT NULL | |
 | starts_at | timestamptz | NOT NULL | |
@@ -752,7 +835,7 @@ Indexes:
 - `CREATE UNIQUE INDEX idx_corpus_video_id ON video_corpus(video_id);`
 
 ### niche_intelligence (materialized view)
-Refreshed weekly (Sunday night). Computed from `video_corpus`.
+Refreshed weekly (Sunday night). Computed from `video_corpus`, `hook_effectiveness`, `format_lifecycle`, `trend_velocity`.
 | Column | Type | Notes |
 |---|---|---|
 | niche_id | integer | |
@@ -762,6 +845,8 @@ Refreshed weekly (Sunday night). Computed from `video_corpus`.
 | avg_video_length_seconds | numeric | |
 | median_engagement_rate | numeric | |
 | sample_size | integer | videos in last 30 days |
+| video_count_7d | integer | videos indexed in last 7 days — TrendScreen corpus cite |
+| trending_keywords | jsonb | `[{keyword: string, usage_count: number}]` — TrendScreen TrendingKeywordSection |
 | computed_at | timestamptz | |
 
 ### trend_velocity
@@ -866,7 +951,11 @@ Note: R2 buckets are managed outside Supabase — no Supabase Storage RLS needed
 | `useVideoCorpus(filters)` | `src/hooks/useVideoCorpus.ts` | `{ data: VideoCorpusSummary[], loading, error, fetchNextPage }` | ExploreScreen |
 | `useVideoDetail(videoId)` | `src/hooks/useVideoDetail.ts` | `{ data: VideoCorpusSummary \| null, loading, error }` | ExploreScreen VideoDetailModal |
 | `useSubscription()` | `src/hooks/useSubscription.ts` | `{ data: Subscription \| null, loading, error }` | SettingsScreen, PricingScreen |
-| `useNicheTaxonomy()` | `src/hooks/useNicheTaxonomy.ts` | `{ data: NicheTaxonomy[], loading, error }` | ExploreScreen filter chips, SettingsScreen niche selector |
+| `useNicheTaxonomy()` | `src/hooks/useNicheTaxonomy.ts` | `{ data: NicheTaxonomy[], loading, error }` | ExploreScreen filter chips, SettingsScreen niche selector, TrendScreen niche chips |
+| `useNicheIntelligence(nicheId)` | `src/hooks/useNicheIntelligence.ts` | `{ data: NicheIntelligence \| null, loading, error }` | TrendScreen (hook rankings, format lifecycle, trending keywords, corpus cite) |
+| `useTrendVelocity(nicheId)` | `src/hooks/useTrendVelocity.ts` | `{ data: TrendVelocity \| null, loading, error }` | TrendScreen (hook type shifts, sound trends) |
+| `useHookEffectiveness(nicheId)` | `src/hooks/useHookEffectiveness.ts` | `{ data: HookEffectiveness[], loading, error }` | TrendScreen HookRankingSection |
+| `useFormatLifecycle(nicheId)` | `src/hooks/useFormatLifecycle.ts` | `{ data: FormatLifecycle[], loading, error }` | TrendScreen FormatLifecycleSection |
 | `getRelatedVideos(videoId, nicheId)` | `src/lib/data/corpus.ts` | `Promise<VideoCorpusSummary[]>` | ExploreScreen VideoDetailModal "Similar Videos" |
 | `searchSessions(query)` | `src/lib/data/sessions.ts` | `Promise<SessionSummary[]>` | HistoryScreen search |
 | `updateProfile(patch)` | `src/lib/data/profile.ts` | `Promise<void>` | SettingsScreen niche change |
@@ -894,7 +983,7 @@ Note: R2 buckets are managed outside Supabase — no Supabase Storage RLS needed
 **Auth:** Supabase JWT (authenticated user)
 **Validation:**
 ```typescript
-{ tier: z.enum(['starter','pro','agency']), billing_period: z.enum(['monthly','biannual','annual']), is_overage: z.boolean(), overage_pack_size: z.union([z.literal(10), z.literal(50), z.null()]) }
+{ tier: z.enum(['starter','pro','agency']), billing_period: z.enum(['monthly','biannual','annual']), is_overage: z.boolean(), overage_pack_size: z.union([z.literal(10), z.literal(30), z.literal(50), z.null()]) }
 ```
 **Request body:**
 ```json

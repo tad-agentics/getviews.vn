@@ -5,7 +5,7 @@
 - [x] Phase 2 — Screen Specs + Figma Make Brief (commit a3c0ae1)
 - [x] Figma Make — Human built prototype; code copied to `src/make-import/` (11 screens, 85 files)
 - [x] Phase 4 — Tech Spec (2026-04-09) → `artifacts/docs/tech-spec.md`
-- [ ] Setup
+- [x] Setup (2026-04-09) → `project.mdc` written, `build-plan.md` generated, `@payos/node` + `resend` installed
 
 ## Foundation
 
@@ -16,15 +16,14 @@
 
 | Feature | Wave | Backend | Frontend | QA | Commit |
 |---|---|---|---|---|---|
-| Auth (Facebook + Google OAuth, onboarding niche inline) | 1 | — | — | — | — |
-| ChatScreen — 7 intents, streaming SSE, credit deduction, intent detection | 1 | — | — | — | — |
-| HistoryScreen — session list, search | 1 | — | — | — | — |
-| ExploreScreen — corpus browse grid, VideoDetailModal, R2 playback | 2 | — | — | — | — |
-| PricingScreen + CheckoutScreen — PayOS integration | 2 | — | — | — | — |
-| PaymentSuccessScreen | 2 | — | — | — | — |
-| SettingsScreen + LearnMoreScreen | 2 | — | — | — | — |
-| Intelligence Layer cron (batch indexing, weekly aggregates) | 2 | — | — | — | — |
-| Email flows (expiry reminders) | 2 | — | — | — | — |
+| auth | 1 | — | — | — | — |
+| chat-core (ChatScreen — 7 intents, SSE, credit deduction) | 1 | — | — | — | — |
+| history (HistoryScreen — session list, search, resume) | 1 | — | — | — | — |
+| explore (ExploreScreen — corpus grid, VideoDetailModal, R2 playback) | 2 | — | — | — | — |
+| trends (TrendScreen — hook rankings, format lifecycle, D2) | 2 | — | — | — | — |
+| billing (PricingScreen + CheckoutScreen + PaymentSuccessScreen + PayOS) | 2 | — | — | — | — |
+| settings (SettingsScreen + LearnMoreScreen) | 2 | — | — | — | — |
+| email-cron (expiry reminders + cron jobs) | 2 | — | — | — | — |
 
 ## Post-Build
 

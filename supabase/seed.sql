@@ -250,7 +250,19 @@ INSERT INTO trend_velocity (id, niche_id, week_start, hook_type_shifts, format_c
    '{"canh_bao": {"prev_pct": 45, "curr_pct": 51, "delta": 6}, "truoc_sau": {"prev_pct": 32, "curr_pct": 28, "delta": -4}}'::jsonb,
    '{"storytime": {"lifecycle": "emerging", "volume_delta": 22, "er_delta": 12}}'::jsonb,
    ARRAY['#routine2026','#damyeu'],
-   '{"trending_sounds": []}'::jsonb)
+   '{"trending_sounds": []}'::jsonb),
+  -- Niche 8: Gym / Fitness
+  ('60000000-0000-0000-0000-000000000003', 8, '2026-04-07',
+   '{"canh_bao": {"prev_pct": 35, "curr_pct": 40, "delta": 5}, "giao_duc": {"prev_pct": 40, "curr_pct": 38, "delta": -2}, "ke_chuyen": {"prev_pct": 25, "curr_pct": 22, "delta": -3}}'::jsonb,
+   '{"reels_ngan": {"lifecycle": "peaking", "volume_delta": 18, "er_delta": 8}}'::jsonb,
+   ARRAY['#gymvietnam2026','#giamcan30ngay'],
+   '{"trending_sounds": [{"sound_id": "VN_SOUND_002", "name": "Nhạc EDM workout", "niche_count": 2}]}'::jsonb),
+  -- Niche 17: Gaming
+  ('60000000-0000-0000-0000-000000000004', 17, '2026-04-07',
+   '{"to_mo": {"prev_pct": 48, "curr_pct": 55, "delta": 7}, "giao_duc": {"prev_pct": 30, "curr_pct": 26, "delta": -4}, "gia_soc": {"prev_pct": 22, "curr_pct": 19, "delta": -3}}'::jsonb,
+   '{"gameplay_clip": {"lifecycle": "peaking", "volume_delta": 12, "er_delta": 5}}'::jsonb,
+   ARRAY['#freefire2026','#lienquan'],
+   '{"trending_sounds": [{"sound_id": "VN_SOUND_003", "name": "Nhạc game lo-fi", "niche_count": 3}]}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 -- ─── Hook Effectiveness (sample data — review đồ gia dụng niche) ─────────────
