@@ -1,7 +1,7 @@
 # Figma Make Brief — GetViews.vn
 
 **Date:** 2026-04-08  
-**Screen count:** 10 screens  
+**Screen count:** 11 screens (Figma phase: OnboardingScreen dropped; ExploreScreen + LearnMoreScreen added)  
 **Platform:** Mobile-first PWA. 375px baseline. Desktop-capable.  
 **Font:** TikTok Sans (primary), JetBrains Mono (data/numbers)  
 **Palette:** Light mode only — oklch-based tokens (see styles.md below)
@@ -248,8 +248,9 @@ Chào bạn, Xin chào, Rất vui, Tuyệt vời, Wow, Chúc mừng, Đây là, 
 ## First Prompt (copy-paste into Make)
 
 ```
-TASK: Build a Vietnamese TikTok creator intelligence tool called GetViews.vn with 10 screens:
-LandingPage, LoginScreen, OnboardingScreen, ChatScreen, TrendScreen, HistoryScreen, PricingScreen, CheckoutScreen, PaymentSuccessScreen, SettingsScreen.
+TASK: Build a Vietnamese TikTok creator intelligence tool called GetViews.vn with 11 screens:
+LandingPage, LoginScreen, ChatScreen, TrendScreen, ExploreScreen, HistoryScreen, PricingScreen, CheckoutScreen, PaymentSuccessScreen, SettingsScreen, LearnMoreScreen.
+Note: OnboardingScreen was dropped — niche selection is inline on ChatScreen first session.
 
 CONTEXT: GetViews is a chat-first AI product for Vietnamese TikTok creators. The primary user (Minh, 24) pastes a TikTok video URL and gets a Vietnamese-language diagnosis backed by a corpus of 46,000+ analyzed videos — frame-by-frame analysis, hook effectiveness rankings, and specific fixes. Secondary user (Linh, 28) manages KOL campaigns and needs creator discovery + brief generation. The core product is a streaming chat interface with inline structured output: diagnosis rows, hook ranking bars, creator cards, and brief blocks. Everything is inline — no modals, no popups.
 
@@ -279,16 +280,23 @@ ELEMENTS (per screen):
 - Legal note: "Bằng cách đăng nhập, bạn đồng ý với Điều khoản dịch vụ và Chính sách bảo mật."
 - Simple, minimal layout — center-aligned vertically on screen
 
-[OnboardingScreen — route: /onboarding]:
-- Header: "Bước 2/3" small pill indicator (top right or below logo)
-- Heading: "Bạn tạo nội dung về chủ đề gì?" (24px, bold)
-- Subtext: "GetViews sẽ dùng data đúng niche của bạn để cho kết quả chính xác hơn."
-- Niche input: Full-width text input with placeholder "Nhập niche — ví dụ: review đồ gia dụng, skincare, hài..."
-- Smart suggestion chips below input (horizontal scroll): "Review đồ gia dụng", "Làm đẹp / Skincare", "Shopee affiliate", "Review đồ ăn", "Hài phương ngữ", "Công nghệ", "Mẹ bỉm sữa"
-- Divider "──── tùy chọn ────"
-- Step 3 section: Label "Dán link TikTok profile của bạn" + subtext "Giúp GetViews xác nhận niche từ content thực." + URL input
-- "Bỏ qua" skip text link below step 3
-- Primary CTA button (bottom): "Bắt đầu phân tích" (--purple bg, white text, full-width, 48px height)
+[ExploreScreen — route: /app/explore]:
+- Header: "Khám phá" title (left, 24px bold) + corpus count "Khám phá 46.000+ video" in JetBrains Mono --faint (right)
+- NicheFilterRow: horizontal scrollable chip row. "Tất cả" chip active (--purple bg). Other chips: "Review đồ gia dụng", "Làm đẹp", "Shopee", "Đồ ăn", "Hài", "Công nghệ", "Mẹ bỉm sữa"
+- Filter row 2: DateRangeSelect ("7 ngày") + SortSelect ("Nhiều view nhất") — compact inline selects, right-aligned
+- ExploreGrid: 2-column thumbnail grid. Each VideoCard: thumbnail (4:5 aspect ratio, 12px radius) + view count (JetBrains Mono, white on dark overlay, bottom-left) + creator handle (@handle, --faint, below card)
+- VideoDetailModal (shown on card tap): full-screen sheet. Top: inline <video> player (16:9, autoplay muted) + mute/unmute icon top-right. Below: creator handle (@bold) + caption text + engagement stats row (views, likes, comments, shares in JetBrains Mono). "Similar Videos" horizontal scroll (3 thumbnails). "Phân tích video này" primary button (--purple bg, full-width, 48px).
+- BreakoutHitsSidebar (desktop only, right panel): "Breakout Hits" heading + numbered list (rank + title + views + handle). "Viral Now" heading below + 2-item list.
+- Bottom navigation: same 3-tab bar (Chat, Xu hướng, Lịch sử)
+- Mock data: 8 VideoCards in grid. Modal shows first card video.
+
+[LearnMoreScreen — route: /app/learn-more]:
+- Header: "Tìm hiểu thêm" heading (28px, bold) + subtitle "Tài liệu, khóa học và thông tin pháp lý về GetViews.vn" (--muted)
+- Section "GETVIEWS.VN" (uppercase, --faint, 11px): card list with 3 items — "Về GetViews.vn", "Hướng dẫn sử dụng", "Changelog"
+- Section "TIKTOK CREATOR RESOURCES": 2 items — "TikTok Creator Academy", "TikTok Trends Hub"
+- Section "PHÁP LÝ": 3 items — "Điều khoản dịch vụ", "Chính sách bảo mật", "Chính sách hoàn tiền"
+- Each card: title (14px semibold, --ink) + summary (12px, --muted) + ExternalLink icon right (--faint, 14px). Hover: bg --surface-alt + icon + title turn --purple (120ms)
+- Footer: "getviews.vn · v1.0.0" centered, JetBrains Mono, --faint, 11px
 
 [ChatScreen — route: /app]:
 - Header (fixed top): GetViews wordmark left + NicheBadge chip center (e.g., "Review đồ gia dụng") + settings icon right (24×24px, stroke)
@@ -525,9 +533,10 @@ Match northstar §17 Feature Grouping:
 
 **Wave 1 — Foundation (build in this order):**
 1. LandingPage — validates theme tokens immediately
-2. LoginScreen + OnboardingScreen — unblocks all auth-gated screens
+2. LoginScreen — unblocks all auth-gated screens (no OnboardingScreen — dropped)
 3. ChatScreen — core product, highest priority fidelity
 4. TrendScreen — second highest usage
+5. ExploreScreen — corpus browse + VideoDetailModal
 
 **Wave 2 — Complete App:**
 5. HistoryScreen
@@ -541,7 +550,7 @@ Match northstar §17 Feature Grouping:
 
 ## Prompt Budget
 
-- First prompt (structural, all 10 screens): 1 prompt — get this right
+- First prompt (structural, all 11 screens): 1 prompt — get this right
 - Dopamine animations (D1, D2): 2 prompts
 - CreditBar states: 1 prompt
 - ThumbnailStrip: 1 prompt
@@ -557,7 +566,7 @@ Match northstar §17 Feature Grouping:
 
 Before handing off to Frontend Developer, verify Make output has:
 
-- [ ] All 10 screens in separate files under `screens/`
+- [ ] All 11 screens in separate files under `screens/` (no OnboardingScreen; yes ExploreScreen + LearnMoreScreen)
 - [ ] ChatScreen shows all 4 dopamine moment component types (DiagnosisRow, HookRankingBar, BriefBlock, CreatorCard)
 - [ ] ThumbnailStrip horizontal scroll visible with 2.5 thumbnails
 - [ ] CreditBar persistent and visible on all /app/* screens

@@ -12,50 +12,53 @@
 
 ## Scope Plan
 
-### Build Scope — 10 screens total
+### Build Scope — 11 screens total
 
-**Why 10:** GetViews is a chat-first AI tool. All 7 analytical intents render inline in a single ChatScreen — no separate result detail screens. The northstar §17 explicitly targets "8 screens" for Wave 1 MVP. Screens 9–10 (checkout + success) complete the monetization flow. This is the correct scope for a chat-first SaaS, not an under-scoped B2C app.
+**Why 11:** GetViews is a chat-first AI tool. All 7 analytical intents render inline in a single ChatScreen — no separate result detail screens. ExploreScreen (Figma phase addition) adds the corpus browse layer from northstar §11. LearnMoreScreen provides a lightweight resources + legal hub linked from SettingsScreen. OnboardingScreen was dropped during the Figma phase as deemed unnecessary — niche selection is handled inline inside ChatScreen's first session.
 
-#### Core Loop (3 screens)
+#### Core Loop (4 screens)
 
 
-| #   | Screen        | Primary Action                                                     | Notes                                                                  |
-| --- | ------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| 1   | ChatScreen    | Paste TikTok URL or ask question → streaming AI analysis           | All 7 intents, credit bar, URL detection, all dopamine moments (D1–D4) |
-| 2   | TrendScreen   | Browse pre-computed niche trends (hook rankings, format lifecycle) | ⑥ intent pre-computed, free, D2 dopamine                               |
-| 3   | HistoryScreen | Browse + resume past chat sessions                                 | Tap → resumes in ChatScreen                                            |
+| #   | Screen        | Primary Action                                                             | Notes                                                                       |
+| --- | ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 1   | ChatScreen    | Paste TikTok URL or ask question → streaming AI analysis                   | All 7 intents, credit bar, URL detection, all dopamine moments (D1–D6)     |
+| 2   | TrendScreen   | Browse pre-computed niche trends (hook rankings, format lifecycle, Explore) | ⑥ intent pre-computed, free, D2 dopamine. Explore tab is a section within this screen. |
+| 3   | HistoryScreen | Browse + resume past chat sessions                                         | Tap → resumes in ChatScreen                                                 |
+| 4   | ExploreScreen | Visual browse of the 46K+ video corpus with niche/filter + video detail modal | Free (0 credits). Inline video player modal. Separate route from TrendScreen. |
 
 
 #### Retention (overlaps with Core Loop)
 
-TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: Monday weekly trend brief (email, Wave 2 feature — no screen needed).
+TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated retention mechanic: Monday weekly trend brief (email, Wave 2 feature — no screen needed).
 
 #### Monetization (3 screens)
 
 
 | #   | Screen               | Revenue Mechanic                              | Notes                                           |
 | --- | -------------------- | --------------------------------------------- | ----------------------------------------------- |
-| 4   | PricingScreen        | Select subscription plan or overage pack      | Triggered by low/zero credits or tap "Nâng cấp" |
-| 5   | CheckoutScreen       | PayOS payment initiation                      | MoMo QR / VNPay QR / bank details / card form   |
-| 6   | PaymentSuccessScreen | Confirm purchase, show updated credit balance | Returns to ChatScreen                           |
+| 5   | PricingScreen        | Select subscription plan or overage pack      | Triggered by low/zero credits or tap "Nâng cấp" |
+| 6   | CheckoutScreen       | PayOS payment initiation                      | MoMo QR / VNPay QR / bank details / card form   |
+| 7   | PaymentSuccessScreen | Confirm purchase, show updated credit balance | Returns to ChatScreen                           |
 
 
 #### Infrastructure (4 screens)
 
 
-| #   | Screen           | Purpose                                                          | Notes                                         |
-| --- | ---------------- | ---------------------------------------------------------------- | --------------------------------------------- |
-| 7   | LandingPage      | Conversion page at `/` — marketing + live demo                   | Pre-rendered, SEO, free Soi Kênh without auth |
-| 8   | LoginScreen      | Facebook OAuth (primary) + Google OAuth (secondary)              | No email/password form                        |
-| 9   | OnboardingScreen | Niche selection (step 2) + optional TikTok profile link (step 3) | Chat opens after step 2                       |
-| 10  | SettingsScreen   | Profile, subscription info, niche change, credit history, logout |                                               |
+| #   | Screen          | Purpose                                                          | Notes                                         |
+| --- | --------------- | ---------------------------------------------------------------- | --------------------------------------------- |
+| 8   | LandingPage     | Conversion page at `/` — marketing + live demo                   | Pre-rendered, SEO, free Soi Kênh without auth |
+| 9   | LoginScreen     | Facebook OAuth (primary) + Google OAuth (secondary)              | No email/password form                        |
+| 10  | SettingsScreen  | Profile, subscription info, niche change, credit history, logout | Links to LearnMoreScreen                      |
+| 11  | LearnMoreScreen | Resources hub: docs, TikTok Academy, legal links                 | Accessible from SettingsScreen + sidebar      |
 
 
-**Total: 10 screens** (3 core loop + 3 monetization + 4 infrastructure)  
-**Core loop ratio:** 3/(3+3) = 50% of product screens ✓ (at minimum threshold — appropriate for chat-first SaaS)  
+**Total: 11 screens** (4 core loop + 3 monetization + 4 infrastructure)  
+**Dropped vs original spec:** OnboardingScreen — dropped during Figma phase. Niche is set inline on first ChatScreen session.  
+**Added vs original spec:** ExploreScreen (northstar §11 corpus browse), LearnMoreScreen (resources + legal hub).  
+**Core loop ratio:** 4/(4+3) = 57% of product screens ✓  
 **Completeness check:** All user scenarios from §16 walkable ✓
 
-**Core loop summary:** User opens chat → pastes TikTok URL or asks text question → GetViews streams analysis backed by 46K+ Vietnamese video corpus → user acts on specific recommendations → explores trends in second tab → buys more credits when needed.
+**Core loop summary:** User opens chat → pastes TikTok URL or asks text question → GetViews streams analysis backed by 46K+ Vietnamese video corpus → user acts on specific recommendations → browses video corpus in Explore → explores trends in Trends tab → buys more credits when needed.
 
 ---
 
@@ -118,7 +121,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 6. Scroll down → PainPointCards appear (no stagger — landing page is calm). Continue scrolling → SolutionCards → LiveDemoSection → SocialProof → PricingCards → FAQAccordion → FinalCTASection.
 7. FAQ item tapped → accordion expands (Normal 200ms). Tap again → collapses.
 8. Billing toggle tapped → prices update instantly (Instant 0ms). Annual is pre-selected.
-9. Tap "Bắt đầu" on pricing card → LoginScreen (free tier: no payment). Tap paid tier → LoginScreen → OnboardingScreen → PricingScreen with that tier pre-selected.
+9. Tap "Bắt đầu" on pricing card → LoginScreen (free tier: no payment). Tap paid tier → LoginScreen → ChatScreen → PricingScreen with that tier pre-selected (no onboarding step).
 
 **Navigation:**
 
@@ -211,15 +214,15 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 
 1. Screen loads → GetViews logo centered, Facebook button primary (black fill), Google button below (outlined).
 2. User taps "Đăng nhập với Facebook" → Facebook OAuth popup/redirect. Button spinner activates.
-3. IF OAuth success + new user → OnboardingScreen.
+3. IF OAuth success + new user → ChatScreen (niche selection happens inline on first session — no onboarding step).
 4. IF OAuth success + returning user → ChatScreen (app home).
 5. IF OAuth fails or user cancels → error text appears below the tapped button. Button re-enables.
 6. User taps "Đăng nhập với Google" → same flow via Google OAuth.
 
 **Navigation:**
 
-- Enters from: LandingPage via CTA, ChatScreen auth guard redirect, OnboardingScreen back (if user cancels)
-- Exits to: `/auth/callback` (OAuth provider redirects here) → OnboardingScreen (new user) or ChatScreen (returning user)
+- Enters from: LandingPage via CTA, ChatScreen auth guard redirect
+- Exits to: `/auth/callback` (OAuth provider redirects here) → ChatScreen (all users, new and returning)
 - Back: Browser back → LandingPage
 
 **Auth callback note:** The route `/auth/callback` is a non-UI handler that exchanges the OAuth code for a Supabase session, then redirects. It is not designed in Figma Make — it is already implemented in `src/routes/_auth/callback/route.tsx`.
@@ -245,72 +248,122 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 
 ---
 
-## OnboardingScreen
+## ExploreScreen
 
-**Route:** `/onboarding`
+> **Added in Figma phase** — not in original spec. Implements northstar §11 Explore feature. Niche is set inline on first ChatScreen session (OnboardingScreen dropped).
+
+**Route:** `/app/explore`
 
 **Components:**
 
-- `StepIndicator` — pill that reads "Bước 2/3" on step 2 (niche input) and updates to "Bước 3/3" on step 3 (TikTok profile). Step 1 = the OAuth login screen. The pill advances inline without navigation.
-- `NicheInput` — single text input with Vietnamese smart autocomplete suggestions
-- `NicheChip` — suggestion chips below input: "Review đồ gia dụng", "Làm đẹp / Skincare", "Shopee affiliate", "Review đồ ăn", "Hài phương ngữ"
-- `SkipLink` — text link "Bỏ qua" for step 3 (TikTok profile)
-- `TikTokProfileInput` — text/URL input for step 3 (optional)
-- `PrimaryButton` — "Bắt đầu phân tích" CTA
+- `ExploreHeader` — "Khám phá" title (left) + corpus count "Khám phá {{N}} video" in `--faint` JetBrains Mono + `SettingsIcon` (right)
+- `NicheFilterRow` — horizontal scrollable chip row (same as TrendScreen). All / per-niche chips. Tapping updates the grid.
+- `DateRangeFilter` — compact dropdown: "7 ngày", "30 ngày", "3 tháng", "Tất cả"
+- `SortSelector` — compact dropdown: "Nhiều view nhất", "Mới nhất", "ER cao nhất"
+- `ExploreGrid` — 2-column thumbnail grid. Each `VideoCard` shows: thumbnail (from `video_corpus.thumbnail_url`) + view count + creator handle + hook text overlay (if any)
+- `VideoDetailModal` — full-screen sheet modal on video tap. Left panel: inline `<video>` player (from `video_corpus.video_url`, 720p/30s R2 URL) with mute/unmute. Right panel: creator handle + caption + engagement stats (views, likes, comments, shares) + "Similar Videos" row + "Phân tích video này" CTA button (→ ChatScreen with URL pre-loaded)
+- `BreakoutHitsSidebar` — ranked list: "Breakout Hits" (views > 3× creator avg, last 7 days) + "Viral Now" (highest velocity last 48h). Desktop only.
+- `BottomNav` — Explore tab active (if Explore has a dedicated tab; else accessed from sidebar)
 
 **Data:**
 
-
-| Variable               | Source              | Default if null                        |
-| ---------------------- | ------------------- | -------------------------------------- |
-| profiles.display_name  | Supabase Auth OAuth | "Bạn"                                  |
-| profiles.primary_niche | profiles table      | null (required — must complete step 2) |
-| profiles.tiktok_handle | profiles table      | null (optional)                        |
-
+| Variable | Source | Default if null |
+| --- | --- | --- |
+| video_corpus[].thumbnail_url | video_corpus table | placeholder gray |
+| video_corpus[].video_url | video_corpus table (R2 public URL) | disabled play button |
+| video_corpus[].views | video_corpus table | 0 |
+| video_corpus[].creator_handle | video_corpus table | "@unknown" |
+| video_corpus[].hook_text | video_corpus.analysis_json | null (no overlay) |
+| video_corpus[].niche_id | video_corpus table | — |
+| count(*) | video_corpus table | 0 |
 
 **States:**
 
-- Loading: Button shows spinner "Đang thiết lập..." while profile saves
-- Error: "Không lưu được — thử lại." below button in `--danger`
-- Empty: Input placeholder text visible, button disabled until niche is entered
+- Loading: 2-column skeleton grid (gray pulsing cards)
+- Error: "Không tải được video — thử lại." with retry
+- Empty (filtered): "Không có video nào trong khoảng này — thử bỏ bộ lọc."
+- Modal loading: spinner inside modal while video buffering
 
 **Interaction flow:**
 
-1. Screen loads → Greeting: "{{profiles.display_name}}, bạn tạo nội dung về chủ đề gì?" (heading). NicheInput focused immediately.
-2. User types → autocomplete chips appear below input matching Vietnamese niche taxonomy (§7): "Review đồ gia dụng", "Làm đẹp", "Shopee affiliate", "Hài phương ngữ", etc.
-3. User taps a chip → chip text populates input. Input clears and moves to step 3 section.
-4. Step 3 appears: "Dán link TikTok profile của bạn (tùy chọn)" with SkipLink "Bỏ qua".
-5. IF user enters TikTok URL → stored as `profiles.tiktok_handle`. IF user taps "Bỏ qua" → step 3 skipped.
-6. User taps "Bắt đầu phân tích" → profiles.primary_niche saves to Supabase → navigate to ChatScreen.
-7. ChatScreen first message auto-populated: "Sẵn sàng phân tích content của bạn. Thử dán link TikTok hoặc hỏi gì đang hot trong {{user.primary_niche}}."
+1. Screen loads → NicheFilterRow shows "Tất cả" selected. Grid renders first 20 videos by views desc.
+2. User taps niche chip → grid filters by `niche_id`, re-renders. Animation: fast opacity transition (120ms).
+3. User taps sort/date filter → grid re-sorts instantly.
+4. User taps `VideoCard` → `VideoDetailModal` opens (slide up, 200ms). Video auto-plays muted.
+5. User taps mute/unmute → toggles audio.
+6. User taps "Phân tích video này" → modal closes → navigates to ChatScreen with video URL pre-filled in input.
+7. User taps "×" or swipes down → modal closes.
+8. Infinite scroll: loads next 20 videos when user reaches bottom of grid.
 
 **Navigation:**
 
-- Enters from: LoginScreen (new user OAuth success)
-- Exits to: ChatScreen via "Bắt đầu phân tích" button
-- Back: Disabled (no back from onboarding — user must complete step 2 minimum)
+- Enters from: sidebar nav item, BottomNav (if tab present), TrendScreen link
+- Exits to: ChatScreen (via "Phân tích video này"), SettingsScreen (header icon)
+- Back: sidebar nav / hardware back
 
-**Dopamine moment:** none — niche selection is neutral, no animation
+**Dopamine moment:** none (browse is ambient)
 
 **Copy slots (production-ready):**
 
-- step_heading: "{{profiles.display_name}}, bạn tạo nội dung về chủ đề gì?" — Ambient
-- step_sub: "GetViews sẽ dùng data đúng niche của bạn để cho kết quả chính xác hơn." — Ambient
-- niche_placeholder: "Nhập niche — ví dụ: review đồ gia dụng, skincare, hài..." — Ambient
-- step3_label: "Dán link TikTok profile của bạn (tùy chọn)" — Ambient
-- step3_sub: "Giúp GetViews xác nhận niche từ content thực của bạn." — Ambient
-- step3_placeholder: "[https://www.tiktok.com/@handle](https://www.tiktok.com/@handle)" — Ambient
-- skip_link: "Bỏ qua" — Ambient
-- cta_button: "Bắt đầu phân tích" — Ambient
-- loading_save: "Đang thiết lập..." — Loading
-- error_save: "Không lưu được — thử lại." — Error
-- first_chat_message: "Sẵn sàng phân tích content của bạn. Thử dán link TikTok hoặc hỏi gì đang hot trong {{user.primary_niche}}." — Ambient
+- screen_title: "Khám phá" — Ambient
+- corpus_count: "Khám phá {{N}} video" — Ambient
+- filter_all: "Tất cả" — Ambient
+- sort_views: "Nhiều view nhất" — Ambient
+- sort_new: "Mới nhất" — Ambient
+- sort_er: "ER cao nhất" — Ambient
+- date_7: "7 ngày" — Ambient
+- date_30: "30 ngày" — Ambient
+- date_90: "3 tháng" — Ambient
+- date_all: "Tất cả" — Ambient
+- modal_analyze_cta: "Phân tích video này" — Ambient
+- empty_filter: "Không có video nào trong khoảng này — thử bỏ bộ lọc." — Empty
+- error_load: "Không tải được video — thử lại." — Error
 
 **Edge cases:**
 
-- User enters a niche not in the taxonomy → stored as-is; system maps to closest niche in §7 taxonomy on first query
-- TikTok URL invalid format → "Link không hợp lệ — dán link profile TikTok (ví dụ: tiktok.com/@handle)." below input. Step 3 can still be skipped.
-- Profile save fails (network error) → retry button; niche data preserved in input
+- `video_url` null (pre-R2 corpus entries) → show thumbnail only, play button disabled, "Video chưa có — xem trên TikTok" link
+- Modal video fails to load → show thumbnail + "Không phát được — xem trên TikTok" external link
+- Corpus count < 100 → hide count (no social proof value)
+
+**Credit cost:** 0 (free all tiers)
+
+---
+
+## LearnMoreScreen
+
+> **Added in Figma phase** — not in original spec. Resources + legal hub linked from SettingsScreen and sidebar.
+
+**Route:** `/app/learn-more`
+
+**Components:**
+
+- `LearnMoreHeader` — "Tìm hiểu thêm" title + subtitle "Tài liệu, khóa học và thông tin pháp lý về GetViews.vn"
+- `LearnMoreSection` — grouped list: section heading (uppercase, `--faint`) + `LearnMoreCard` list
+- `LearnMoreCard` — title + summary + `ExternalLink` icon. Taps open URL in new tab.
+
+**Sections (production-ready):**
+
+- **GetViews.vn:** Về GetViews.vn (getviews.vn/about), Hướng dẫn sử dụng (getviews.vn/docs), Changelog (getviews.vn/changelog)
+- **TikTok Creator Resources:** TikTok Creator Academy (tiktok.com/creator-academy), TikTok Trends Hub (tiktok.com/trending)
+- **Pháp lý:** Điều khoản dịch vụ (getviews.vn/terms), Chính sách bảo mật (getviews.vn/privacy), Chính sách hoàn tiền (getviews.vn/refund)
+
+**Data:** Static — no Supabase queries needed
+
+**States:** Static content only — no loading/error/empty states
+
+**Interaction flow:**
+
+1. Screen loads → sections render instantly (static data, no fetch).
+2. User taps a card → URL opens in new browser tab (`target="_blank"`).
+3. User taps back → SettingsScreen or previous screen.
+
+**Navigation:**
+
+- Enters from: SettingsScreen ("Tìm hiểu thêm" link), sidebar nav
+- Exits to: external URLs (new tab), SettingsScreen (back)
+- Back: SettingsScreen / hardware back
+
+**Dopamine moment:** none
 
 **Credit cost:** N/A
 
@@ -390,7 +443,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 
 **Navigation:**
 
-- Enters from: OnboardingScreen (new user), LoginScreen (returning user), HistoryScreen (tap session → resume), PricingScreen/PaymentSuccessScreen (after payment)
+- Enters from: LoginScreen (all users — new and returning), HistoryScreen (tap session → resume), PricingScreen/PaymentSuccessScreen (after payment)
 - Exits to: TrendScreen (bottom nav tab), HistoryScreen (bottom nav tab), SettingsScreen (header icon tap), PricingScreen (CreditBar tap when zero, or "Mua thêm" inline)
 - Back: No back from ChatScreen — it is the home screen
 
@@ -875,7 +928,7 @@ TrendScreen and HistoryScreen serve dual purpose. Dedicated retention mechanic: 
 **Interaction flow:**
 
 1. Screen loads → ProfileSection (avatar, name, email). SubscriptionSection below.
-2. User taps "Thay đổi" in NicheSection → NicheInput appears inline (same component as OnboardingScreen). User selects new niche → saves to `profiles.primary_niche` → NicheBadge in ChatScreen updates.
+2. User taps "Thay đổi" in NicheSection → NicheInput appears inline. User selects new niche → saves to `profiles.primary_niche` → NicheBadge in ChatScreen updates.
 3. User taps "Nâng cấp" → PricingScreen.
 4. User taps "Gia hạn" → PricingScreen with current tier pre-selected.
 5. User scrolls → CreditHistoryList shows last 20 credit events with intent types.
@@ -939,9 +992,16 @@ Settings accessed via header icon in ChatScreen, TrendScreen, HistoryScreen.
 ```
 / (LandingPage)
   → /login (CTA tap, if not logged in)
-    → /onboarding (new user OAuth success)
-      → /app (onboarding complete)
-    → /app (returning user OAuth success)
+    → /auth/callback → /app (all users — new and returning; no onboarding step)
+
+/app/explore (ExploreScreen)
+  → /app (bottom nav / sidebar)
+  → /app/settings (header icon)
+  ← modal tap → ChatScreen with video URL pre-loaded
+
+/app/learn-more (LearnMoreScreen)
+  → external URLs (new tab)
+  ← /app/settings (back)
 
 /app (ChatScreen — home)
   → /app/trends (bottom nav tab 2)
@@ -1002,7 +1062,7 @@ Settings accessed via header icon in ChatScreen, TrendScreen, HistoryScreen.
 
 ### Auth Flow:
 
-- New user: LandingPage → LoginScreen → OnboardingScreen → ChatScreen ✓
+- New user: LandingPage → LoginScreen → ChatScreen (niche set inline on first session) ✓
 - Returning user: LandingPage → LoginScreen → ChatScreen ✓
 - Logout: SettingsScreen → LoginScreen ✓
 
