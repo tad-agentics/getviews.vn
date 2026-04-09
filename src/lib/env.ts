@@ -3,7 +3,7 @@ import { z } from "zod";
 const clientEnvSchema = z.object({
   VITE_SUPABASE_URL: z.string().url(),
   VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
-  VITE_CLOUD_RUN_API_URL: z.string().url().optional(),
+  VITE_CLOUD_RUN_API_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
 });
 
 export type ClientEnv = z.infer<typeof clientEnvSchema>;
