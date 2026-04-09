@@ -1,4 +1,4 @@
-# Changelog — [App Name]
+# Changelog — GetViews.vn
 
 ## How to use
 
@@ -12,6 +12,9 @@
 
 | Feature | What changed | Blocking? | Fixed? | Commit |
 |---|---|---|---|---|
+| Northstar v1.3 update | **Explore screen added** (§11): visual browse grid + R2 inline video playback + Trending This Week + Video detail modal + Videos to Copy sidebar. Free for all tiers (0 credits). This is a new screen not in the current screen-specs — requires Phase 2 amendment before /phase4. | YES — new screen | No | — |
+| Northstar v1.3 update | **Batch cost corrected**: $55/mo → $42/mo due to 720p/30s proxy optimization. Proxy step: 1.8GB/day → 1.0GB/day. R2 now stores full 720p/30s video clips. `video_corpus` gains `video_url` column. | NO — infra only | No | — |
+| Northstar v1.3 update | **Wave 2 scope** renamed "Intelligence + Explore": Explore page promoted to Wave 2 deliverable. Rate limiting scope updated to include Explore (100/day). | NO — planning only | No | — |
 
 ## Resolved
 
