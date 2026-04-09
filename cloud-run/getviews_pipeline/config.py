@@ -7,7 +7,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-ENSEMBLEDATA_API_TOKEN = os.environ.get("ENSEMBLEDATA_API_TOKEN")
+ENSEMBLEDATA_API_TOKEN = os.environ.get("ENSEMBLE_DATA_API_KEY") or os.environ.get("ENSEMBLEDATA_API_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
 # §11 hybrid: extraction (Flash-Lite) vs synthesis (Flash) vs knowledge (Flash-Lite).

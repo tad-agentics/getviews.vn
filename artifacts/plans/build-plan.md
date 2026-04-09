@@ -46,7 +46,9 @@
 
 ### Make files to port in Foundation
 
-| Make file | Destination route/component |
+All Make files are under `src/make-import/` (git-ignored). Full paths shown below.
+
+| Make file (under `src/make-import/`) | Destination route/component |
 |---|---|
 | `src/app/screens/LandingPage.tsx` | `src/routes/_index/route.tsx` |
 | `src/app/screens/LoginScreen.tsx` | `src/routes/_auth/login/route.tsx` |
@@ -85,7 +87,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=
 VITE_CLOUD_RUN_API_URL=
 ```
 
-**Supabase Edge Function secrets:**
+**Supabase Edge Function secrets (set via `supabase secrets set`):**
 ```
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_JWT_SECRET=
@@ -94,6 +96,21 @@ PAYOS_CLIENT_ID=
 PAYOS_CHECKSUM_KEY=
 RESEND_API_KEY=
 ```
+
+**Cloud Run env vars (set in GCP Cloud Run service config — NOT in Vercel):**
+```
+ENSEMBLE_DATA_API_KEY=
+GEMINI_API_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_JWT_SECRET=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_ACCOUNT_ID=
+R2_BUCKET=getviews-videos
+R2_PUBLIC_URL=
+```
+See `cloud-run/.env.example` for the full list. Cloud Run secrets are managed in GCP, not Vercel.
 
 ### Acceptance criteria — Foundation
 
@@ -122,7 +139,7 @@ RESEND_API_KEY=
 - `useAuth` hook: `supabase.auth.signInWithOAuth({ provider: 'facebook' | 'google' })`
 - After OAuth callback: `profiles.primary_niche` null check → NicheSelector inline in ChatScreen
 
-**Make files to port:**
+**Make files to port** (from `src/make-import/src/app/screens/`)**:**
 - `LoginScreen.tsx` → `src/routes/_auth/login/route.tsx`
 
 **Copy slots (production-ready):**
@@ -154,7 +171,7 @@ RESEND_API_KEY=
 - `chat_sessions` + `chat_messages` + RLS (Foundation migration 003)
 - `decrement_credit` RPC (Foundation migration 004)
 - `profiles.is_processing` guard (Foundation migration 002)
-- **Vercel Edge Runtime** — `src/app/api/chat/route.ts`: handles text intents ⑤⑥⑦ + follow-ups. Validates JWT, checks credits, calls Gemini, streams response via Vercel Edge streaming. Writes `chat_messages` row after completion.
+- **Vercel Edge Runtime** — `api/chat.ts` (project root `api/` directory, NOT inside `src/`): handles text intents ⑤⑥⑦ + follow-ups. Validates JWT, checks credits, calls Gemini, streams response via Vercel Edge streaming. Writes `chat_messages` row after completion. Export: `export const config = { runtime: 'edge' }` + `export default async function handler(req: Request): Promise<Response> {...}`
 - **Cloud Run `/stream` SSE endpoint**: wired from frontend via `EventSource` with `Authorization: Bearer <supabase_jwt>`. Cloud Run validates JWT against `SUPABASE_JWT_SECRET` (no Supabase call on hot path). Handles video intents ①③④.
 - `cron-reset-processing` runs every 5 minutes (Foundation)
 
@@ -162,7 +179,7 @@ RESEND_API_KEY=
 - `src/routes/_app/route.tsx` (ChatScreen) — port `ChatScreen.tsx` from Make
 - `src/routes/_app/components/` — DiagnosisRow, HookRankingBar, BriefBlock, CreatorCard, ThumbnailStrip, CorpusCite, CreditBar, URLChip, ChatInput, StreamingStatusText, FreeQueryPill, PromptCards, ScrollDownPill, CopyButton
 
-**Make files to port:**
+**Make files to port** (from `src/make-import/src/app/screens/`)**:**
 - `ChatScreen.tsx` → `src/routes/_app/route.tsx`
 
 **Data hooks needed:**
@@ -179,14 +196,36 @@ RESEND_API_KEY=
 - Default text → Intent ⑤ (brief generation) or ⑥ per keywords
 
 **SSE streaming client pattern:**
+
+`EventSource` does not support custom headers in browsers — do NOT pass the JWT as a query param (exposes it in server logs). Use `fetch()` with `Authorization: Bearer` and stream the response body as NDJSON/SSE:
+
 ```typescript
-const source = new EventSource(`${CLOUD_RUN_URL}/stream?token=${supabaseJwt}&session_id=${sessionId}`)
-source.onmessage = (e) => {
-  const token: SSEToken = JSON.parse(e.data)
-  // append token.delta to message buffer
-  // if token.done → save to chat_messages
+// src/hooks/useChatStream.ts
+const response = await fetch(`${VITE_CLOUD_RUN_API_URL}/stream`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${supabaseSession.access_token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ session_id: sessionId, query, intent_type }),
+})
+
+const reader = response.body!.getReader()
+const decoder = new TextDecoder()
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) break
+  const lines = decoder.decode(value).split('\n').filter(Boolean)
+  for (const line of lines) {
+    if (!line.startsWith('data: ')) continue
+    const token: SSEToken = JSON.parse(line.slice(6))
+    // append token.delta to message buffer
+    // if token.done → finalize message
+  }
 }
 ```
+
+Cloud Run `/stream` endpoint validates JWT via `jsonwebtoken.verify(token, SUPABASE_JWT_SECRET)` — stateless, no Supabase call on hot path. For reconnection, include `stream_id` + `last_seq` in the POST body; Cloud Run replays from its 60s in-memory buffer.
 
 **Dopamine moments:**
 - D1 (DiagnosisReveal): `DiagnosisRow` items stagger-in from left, 150ms each, on mount
@@ -232,7 +271,7 @@ source.onmessage = (e) => {
 - `useChatSessions()` hook (built in chat-core — reused)
 - `searchSessions(query)` in `src/lib/data/sessions.ts`
 
-**Make files to port:**
+**Make files to port** (from `src/make-import/src/app/screens/`)**:**
 - `HistoryScreen.tsx` → `src/routes/_app/history/route.tsx`
 
 **Copy slots (key):**
@@ -305,7 +344,7 @@ source.onmessage = (e) => {
 - `src/routes/_app/trends/route.tsx` — TrendScreen (from Make: `TrendScreen.tsx`)
 - Components: NicheSelector, TrendHeader, HookRankingSection, HookRankingBar (D2), CorpusCite, FormatLifecycleSection, TrendingKeywordSection, ThumbnailStrip
 
-**Make files to port:**
+**Make files to port** (from `src/make-import/src/app/screens/`)**:**
 - `TrendScreen.tsx` → `src/routes/_app/trends/route.tsx`
 
 **Dopamine moment:**
@@ -347,7 +386,7 @@ source.onmessage = (e) => {
 - `src/routes/_app/checkout/route.tsx` — CheckoutScreen (from Make: `CheckoutScreen.tsx`)
 - `src/routes/_app/payment-success/route.tsx` — PaymentSuccessScreen (from Make: `PaymentSuccessScreen.tsx`)
 
-**Make files to port:**
+**Make files to port** (from `src/make-import/src/app/screens/`)**:**
 - `PricingScreen.tsx` → `src/routes/_app/pricing/route.tsx`
 - `CheckoutScreen.tsx` → `src/routes/_app/checkout/route.tsx`
 - `PaymentSuccessScreen.tsx` → `src/routes/_app/payment-success/route.tsx`
@@ -404,7 +443,7 @@ const defaultMethod = billingPeriod === 'annual' || billingPeriod === 'biannual'
 - `src/routes/_app/settings/route.tsx` — SettingsScreen (from Make: `SettingsScreen.tsx`)
 - `src/routes/_app/learn-more/route.tsx` — LearnMoreScreen (from Make: `LearnMoreScreen.tsx`)
 
-**Make files to port:**
+**Make files to port** (from `src/make-import/src/app/screens/`)**:**
 - `SettingsScreen.tsx` → `src/routes/_app/settings/route.tsx`
 - `LearnMoreScreen.tsx` → `src/routes/_app/learn-more/route.tsx`
 
@@ -475,6 +514,6 @@ const defaultMethod = billingPeriod === 'annual' || billingPeriod === 'biannual'
 - **Make import flow:** For each Make screen, copy the TSX content into the route file, then wire up: (1) replace `mockProfile`/`mockMessages` etc. with real TanStack Query hooks, (2) add loading/error/empty states using the screen-spec States section, (3) add navigation using the screen-spec Navigation section, (4) add dopamine animations using the screen-spec Dopamine section.
 - **ExploreScreen has NO Make file** — implement directly from screen-spec. Components can reuse NicheFilterRow from TrendScreen and VideoCard patterns from TrendScreen's explore tab section.
 - **Cloud Run wiring:** Frontend just opens an `EventSource` to `VITE_CLOUD_RUN_API_URL/stream` with the Supabase JWT. The Cloud Run Python service (already in `cloud-run/`) handles the rest.
-- **Vercel Edge Runtime:** `/api/chat` is a standard React Router resource route using `export async function action()`. Validates JWT, calls Gemini via `@google/generative-ai`, streams back via `ReadableStream`.
+- **Vercel Edge Runtime:** `/api/chat` is a Vercel Edge Function at `api/chat.ts` (project root — NOT inside `src/`). React Router v7 runs in `ssr: false` SPA mode and cannot serve server routes. The Vercel `api/` directory is picked up automatically by Vercel's file-based routing. Use `export const config = { runtime: 'edge' }` + `export default async function handler(req: Request): Promise<Response>`. Validates JWT via Supabase `auth.getUser()`, calls Gemini via `@google/generative-ai`, streams back via `ReadableStream`.
 - **Realtime CreditBar:** `useProfile()` subscribes to `profiles` Supabase Realtime channel — balance updates live when webhook credits the account. No polling needed.
 - **ZaloPay:** Figma Make PricingScreen includes ZaloPay in PaymentMethodRow. Add to CheckoutScreen UI but gate behind a `VITE_ZALOPAY_ENABLED=true` flag until PayOS integration is confirmed.
