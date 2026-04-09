@@ -44,7 +44,7 @@ Read: @anti-patterns.md
 ## Colors
 Use CSS custom properties ONLY. Never raw hex in components.
 
-> **Token mapping note (for Frontend Developer):** Figma Make will generate code using the `--purple` / `--purple-dark` / `--purple-light` token names defined here. When porting Make TSX into `src/routes/`, replace them with the codebase tokens: `--purple` → `--color-primary`, `--purple-dark` → `--color-primary-dark`, `--purple-light` → `--color-primary-light`. All other tokens (`--background`, `--surface`, `--ink`, etc.) should be declared in `src/app.css` to match exactly.
+> **Token mapping note (for Frontend Developer):** Make's token names (`--purple`, `--purple-dark`, `--purple-light`, `--background`, `--surface`, `--ink`, etc.) are declared verbatim in `src/app.css`. **No renaming is needed during porting** — copy Make component files as-is and all `var(--purple)` references will resolve correctly.
 
 - --purple: oklch(0.53 0.26 295) / #7C3AED — Send button, active states, gradient text, card hover border
 - --purple-dark: oklch(0.45 0.28 295) / #6D28D9 — Hover on purple elements

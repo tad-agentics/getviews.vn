@@ -2,8 +2,6 @@ import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { VitePWA } from "vite-plugin-pwa";
-
 /** Split heavy vendors so chunks cache independently and initial parse stays smaller on mobile. */
 function manualChunks(id: string) {
   if (!id.includes("node_modules")) return;
