@@ -274,3 +274,5 @@ INSERT INTO hook_effectiveness (id, niche_id, hook_type, avg_views, avg_engageme
   ('70000000-0000-0000-0000-000000000004', 2, 'canh_bao',  1450000, 0.1220, 0.72, 62, 'rising',  now() - interval '1 day'),
   ('70000000-0000-0000-0000-000000000005', 2, 'truoc_sau',  820000, 0.0980, 0.61, 44, 'stable',  now() - interval '1 day')
 ON CONFLICT (id) DO NOTHING;
+
+REFRESH MATERIALIZED VIEW niche_intelligence;

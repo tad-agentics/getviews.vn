@@ -1,10 +1,10 @@
 {
-  "name": "GetViews.vn",
+  "name": "GetViews",
   "short_name": "GetViews",
   "description": "Phân tích TikTok cho creator Việt Nam. Không guru. Không screenshot. Data thực từ video thực.",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
-  "background_color": "#EDEDEE",
+  "background_color": "#0A0A0A",
   "theme_color": "#7C3AED",
   "orientation": "portrait",
   "lang": "vi",
