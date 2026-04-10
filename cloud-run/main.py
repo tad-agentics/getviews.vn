@@ -266,13 +266,16 @@ async def require_user(request: Request) -> dict[str, Any]:
 
 @app.get("/health")
 async def health() -> JSONResponse:
+    from getviews_pipeline.r2 import r2_configured
     checks = {
         "gemini_key_set": bool(GEMINI_API_KEY),
         "ensemble_key_set": bool(ENSEMBLEDATA_API_TOKEN),
         "jwt_configured": bool(SUPABASE_JWT_SECRET) or bool(SUPABASE_JWKS_URL),
         "cdn_proxy_set": bool(os.environ.get("RESIDENTIAL_PROXY_URL")),
+        "r2_configured": r2_configured(),
     }
-    required = {k: v for k, v in checks.items() if k != "cdn_proxy_set"}
+    # cdn_proxy_set and r2_configured are optional — don't affect health status
+    required = {k: v for k, v in checks.items() if k not in ("cdn_proxy_set", "r2_configured")}
     ok = all(required.values())
     return JSONResponse(
         {"status": "ok" if ok else "degraded", "checks": checks},

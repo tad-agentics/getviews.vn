@@ -21,6 +21,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.helpers import filter_recency, merge_aweme_lists
+from getviews_pipeline.r2 import download_and_extract_frames, r2_configured
 from getviews_pipeline.runtime import get_analysis_semaphore
 
 logger = logging.getLogger(__name__)
@@ -292,6 +293,29 @@ async def ingest_niche(
             result.skipped += 1
         else:
             rows.append(row)
+
+    # Frame extraction: download a short clip per video → extract → upload to R2.
+    # Runs only when R2 is configured. Failures are non-fatal — frame_urls stays [].
+    if rows and r2_configured():
+        logger.info("[corpus] niche=%s — extracting frames for %d rows", niche_name, len(rows))
+        frame_tasks = [
+            download_and_extract_frames(
+                [row["video_url"]] if row.get("video_url") else [],
+                row["video_id"],
+            )
+            for row in rows
+        ]
+        frame_results = await asyncio.gather(*frame_tasks, return_exceptions=True)
+        for row, frame_result in zip(rows, frame_results):
+            if isinstance(frame_result, list) and frame_result:
+                row["frame_urls"] = frame_result
+                logger.info(
+                    "[corpus] %s — %d frame(s) uploaded",
+                    row["video_id"],
+                    len(frame_result),
+                )
+            elif isinstance(frame_result, Exception):
+                logger.warning("[corpus] frame extraction error for %s: %s", row["video_id"], frame_result)
 
     if rows:
         try:

@@ -94,6 +94,29 @@ CDN_HEADERS: dict[str, str] = {
 # Providers: Smartproxy, Bright Data, Oxylabs, IPRoyal
 RESIDENTIAL_PROXY_URL = os.environ.get("RESIDENTIAL_PROXY_URL")
 
+# ── Cloudflare R2 (frame storage) ─────────────────────────────────────────────
+# Frames are extracted from videos at fixed timestamps and uploaded to R2.
+# frame_urls in video_corpus stores the resulting public CDN URLs.
+#
+# Required env vars:
+#   R2_ACCOUNT_ID       — Cloudflare account ID
+#   R2_ACCESS_KEY_ID    — R2 API token access key
+#   R2_SECRET_ACCESS_KEY — R2 API token secret key
+#   R2_BUCKET_NAME      — R2 bucket name (e.g. "getviews-frames")
+#   R2_PUBLIC_URL       — Public URL prefix (e.g. "https://frames.getviews.vn")
+#
+# When any of the required vars is absent, frame extraction is skipped silently
+# and frame_urls remains [] (corpus row is still inserted).
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "getviews-frames")
+R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
+
+# Frame timestamps to extract (seconds from start of video).
+# 0s = hook frame, 1s = after hook, 3s = body start.
+FRAME_TIMESTAMPS_SEC: list[float] = [0.0, 1.0, 3.0]
+
 FILES_API_POLL_INTERVAL_SEC = 2
 FILES_API_POLL_MAX_ATTEMPTS = 30
 
