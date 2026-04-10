@@ -9,11 +9,10 @@ const ReceiptDataSchema = z.object({
   amount_vnd: z.number().optional(),
 });
 
-const ExpiryDataSchema = z.object({
-  display_name: z.string(),
-  tier: z.string(),
-  expires_at: z.string(),
-  renewal_url: z.string(),
+const ExpiryReminderDataSchema = z.object({
+  name: z.string(),
+  expiry_date: z.string(),
+  site_url: z.string().min(1),
 });
 
 const BodySchema = z.discriminatedUnion("template", [
@@ -27,19 +26,19 @@ const BodySchema = z.discriminatedUnion("template", [
     to: z.string().email(),
     subject: z.string().min(1).optional(),
     template: z.literal("expiry_reminder_7d"),
-    data: ExpiryDataSchema,
+    data: ExpiryReminderDataSchema,
   }),
   z.object({
     to: z.string().email(),
     subject: z.string().min(1).optional(),
     template: z.literal("expiry_reminder_3d"),
-    data: ExpiryDataSchema,
+    data: ExpiryReminderDataSchema,
   }),
   z.object({
     to: z.string().email(),
     subject: z.string().min(1).optional(),
     template: z.literal("expiry_reminder_1d"),
-    data: ExpiryDataSchema,
+    data: ExpiryReminderDataSchema,
   }),
 ]);
 
@@ -77,19 +76,32 @@ function renderReceipt(data: z.infer<typeof ReceiptDataSchema>): { subject: stri
   return { subject, html: lines.join("\n") };
 }
 
-function renderExpiry(
+function ctaPricingHref(siteUrl: string): string {
+  return `${siteUrl.replace(/\/$/, "")}/app/pricing`;
+}
+
+function renderExpiryReminder(
   window: "7d" | "3d" | "1d",
-  data: z.infer<typeof ExpiryDataSchema>,
+  data: z.infer<typeof ExpiryReminderDataSchema>,
 ): { subject: string; html: string } {
-  const map = {
+  const subjects = {
     "7d": "Gói GetViews của bạn hết hạn trong 7 ngày",
     "3d": "Gói GetViews của bạn hết hạn trong 3 ngày",
     "1d": "Gói GetViews của bạn hết hạn ngày mai",
   } as const;
-  const subject = map[window];
-  const html = `<p>Xin chào ${data.display_name},</p>
-<p>Gói <strong>${data.tier}</strong> sẽ hết hạn vào <strong>${data.expires_at}</strong>.</p>
-<p><a href="${data.renewal_url}">Gia hạn ngay</a></p>`;
+  const subject = subjects[window];
+  const href = ctaPricingHref(data.site_url);
+
+  const bodyByWindow = {
+    "7d": `<p>Xin chào ${data.name}, gói Starter của bạn sẽ hết hạn vào ${data.expiry_date}. Gia hạn ngay để không bị gián đoạn phân tích content.</p>`,
+    "3d": `<p>Xin chào ${data.name}, chỉ còn 3 ngày — gói Starter hết hạn vào ${data.expiry_date}. Đừng để mất đà phân tích.</p>`,
+    "1d": `<p>Xin chào ${data.name}, gói Starter của bạn hết hạn vào ngày mai (${data.expiry_date}). Gia hạn ngay để tiếp tục phân tích.</p>`,
+  } as const;
+
+  const html = `<h2>GetViews</h2>
+${bodyByWindow[window]}
+<p><a href="${href}">Gia hạn ngay</a></p>`;
+
   return { subject, html };
 }
 
@@ -128,19 +140,19 @@ Deno.serve(async (req) => {
         break;
       }
       case "expiry_reminder_7d": {
-        const r = renderExpiry("7d", body.data);
+        const r = renderExpiryReminder("7d", body.data);
         subject = body.subject ?? r.subject;
         html = r.html;
         break;
       }
       case "expiry_reminder_3d": {
-        const r = renderExpiry("3d", body.data);
+        const r = renderExpiryReminder("3d", body.data);
         subject = body.subject ?? r.subject;
         html = r.html;
         break;
       }
       case "expiry_reminder_1d": {
-        const r = renderExpiry("1d", body.data);
+        const r = renderExpiryReminder("1d", body.data);
         subject = body.subject ?? r.subject;
         html = r.html;
         break;

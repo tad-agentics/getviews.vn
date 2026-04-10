@@ -1,0 +1,68 @@
+-- pg_cron schedules for GetViews.vn Edge Function cron triggers
+-- These must be applied once pg_cron extension is enabled in Supabase Dashboard
+-- Dashboard → Database → Extensions → pg_cron
+--
+-- NOTE: Supabase managed projects typically use Dashboard → Integrations → Cron Jobs
+-- (or Database → Cron) to invoke Edge Functions — not raw pg_cron SQL from migrations.
+-- This file is documentation-first; all executable lines are commented out.
+--
+-- Verified 2026-04-10: SELECT on cron.job fails with "relation cron.job does not exist"
+-- on project lzhiqnxfveqttsujebiv — pg_cron is not enabled. Configure schedules in Dashboard.
+--
+-- Replace placeholders when self-hosting or if pg_cron + pg_net are enabled:
+--   <SUPABASE_URL>     — project URL
+--   <SERVICE_ROLE_KEY> — never commit; use Vault / secrets
+--
+-- SELECT cron.schedule(
+--   'cron-expiry-check',
+--   '0 2 * * *',
+--   $cmd$SELECT net.http_post(
+--     url := '<SUPABASE_URL>/functions/v1/cron-expiry-check',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+--     ),
+--     body := '{}'::jsonb
+--   );$cmd$
+-- );
+--
+-- SELECT cron.schedule(
+--   'cron-reset-free',
+--   '0 17 * * *',
+--   $cmd$SELECT net.http_post(
+--     url := '<SUPABASE_URL>/functions/v1/cron-reset-free-queries',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+--     ),
+--     body := '{}'::jsonb
+--   );$cmd$
+-- );
+--
+-- SELECT cron.schedule(
+--   'cron-prune-webhooks',
+--   '0 20 * * 0',
+--   $cmd$SELECT net.http_post(
+--     url := '<SUPABASE_URL>/functions/v1/cron-prune-webhooks',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+--     ),
+--     body := '{}'::jsonb
+--   );$cmd$
+-- );
+--
+-- SELECT cron.schedule(
+--   'cron-reset-processing',
+--   '*/5 * * * *',
+--   $cmd$SELECT net.http_post(
+--     url := '<SUPABASE_URL>/functions/v1/cron-reset-processing',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+--     ),
+--     body := '{}'::jsonb
+--   );$cmd$
+-- );
+
+SELECT 1;

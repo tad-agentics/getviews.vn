@@ -21,6 +21,14 @@ Deno.serve(async (req) => {
   const cutoff = new Date(Date.now() - 5 * 60_000).toISOString();
 
   try {
+    const { count, error: countErr } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("is_processing", true)
+      .lt("updated_at", cutoff);
+
+    if (countErr) throw countErr;
+
     const { error } = await supabase
       .from("profiles")
       .update({ is_processing: false })
@@ -29,7 +37,7 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify({ reset_count: count ?? 0 }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
