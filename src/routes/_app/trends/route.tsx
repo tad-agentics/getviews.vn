@@ -1,4 +1,19 @@
-// Phase 2+: Figma Make TSX will be copied here by the Frontend Developer
-export default function TrendsScreen() {
-  return <div className="p-4">Xu hướng</div>;
+import { lazy, Suspense } from "react";
+
+const ExploreScreen = lazy(() => import("./ExploreScreen"));
+
+export default function TrendsRoute() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          role="status"
+          aria-label="Đang tải"
+          className="min-h-[40vh] flex-1 animate-pulse rounded-lg bg-[var(--surface-alt)]"
+        />
+      }
+    >
+      <ExploreScreen />
+    </Suspense>
+  );
 }

@@ -1,0 +1,52 @@
+{
+  "feature": "trends",
+  "date": "2026-04-10",
+  "healthScore": 94,
+  "passResults": {
+    "pass1": "PASS",
+    "pass2": "PASS",
+    "pass3": "PASS",
+    "pass4": "PASS",
+    "pass5": "PASS"
+  },
+  "findings": [
+    {
+      "pass": 4,
+      "severity": "high",
+      "title": "Hook effectiveness query error showed as empty data state",
+      "status": "fixed"
+    },
+    {
+      "pass": 4,
+      "severity": "medium",
+      "title": "Niche intelligence error could mark niche as low corpus (0 videos)",
+      "status": "fixed"
+    },
+    {
+      "pass": 2,
+      "severity": "low",
+      "title": "36h stale banner now prefers niche_intelligence.computed_at then hook row",
+      "status": "fixed"
+    },
+    {
+      "pass": 1,
+      "severity": "low",
+      "title": "Non-top hook bars use uniform ink-soft (EDS mentions progressively lighter gray)",
+      "status": "deferred"
+    }
+  ],
+  "categoryScores": {
+    "visual": 97,
+    "data": 95,
+    "security": 100,
+    "interaction": 92,
+    "build": 100,
+    "copy": 96
+  },
+  "fixesApplied": {
+    "verified": 3,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 1
+  }
+}

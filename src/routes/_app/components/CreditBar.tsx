@@ -46,7 +46,9 @@ export function CreditBar({
       className="mx-3 mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2.5"
     >
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)]">Deep Credits</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)]">
+          Deep credit
+        </span>
         <Link
           to="/app/pricing"
           className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--purple)] hover:underline"

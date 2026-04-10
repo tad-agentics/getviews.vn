@@ -716,6 +716,22 @@ export type Database = {
         Returns: Json
       }
       decrement_credit: { Args: { p_user_id: string }; Returns: number }
+      search_sessions: {
+        Args: { p_user_id: string; search_query: string }
+        Returns: {
+          created_at: string
+          credits_used: number
+          deleted_at: string | null
+          first_message: string
+          id: string
+          intent_type: string | null
+          is_pinned: boolean
+          niche_id: number | null
+          title: string | null
+          updated_at: string
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

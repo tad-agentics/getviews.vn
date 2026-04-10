@@ -1,10 +1,10 @@
-# Foundation & Auth Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Backend `f83aa55` + Frontend `81b99f2` + Auth `89dc2ca` / `fd2203f` / `a2661f6`
-> Status: OPEN — resolve before Wave 1 features are deployed to staging
+# Foundation → Wave 2 Concerns
+> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839`
+> Status: Trends QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
 
 ---
 
-## BLOCKING (must fix before auth / chat-core can function)
+## BLOCKING (must fix before end-to-end testing is possible)
 
 ### B-1 — OAuth providers not configured in Supabase Dashboard
 **Source:** Backend agent — Step 4
@@ -58,19 +58,20 @@ npx supabase gen types typescript --project-id lzhiqnxfveqttsujebiv > src/lib/da
 - `public/icons/icon-512.png` + `icon-512-maskable.png`
 - `public/screenshots/chat-mobile.png` (390×844, form_factor: "narrow") — for PWA install sheet
 
-### N-6 — `AppLayout.tsx` uses mock data
-**Source:** Frontend agent (Foundation)
-**Impact:** `AppLayout` (BottomNav, header, credit display) still renders mock profile/session data. This is intentional — it will be replaced when `chat-core` feature wires `useProfile()` and `useAuth()`. No action until chat-core is dispatched.
-**Action:** Resolved automatically during `/feature chat-core` dispatch.
+### N-6 — `AppLayout.tsx` uses mock data — RESOLVED by chat-core frontend (`df0b02c`)
+**Source:** Frontend agent (Foundation) → Resolved by chat-core frontend agent
+**Impact:** ~~`AppLayout` renders mock profile/session data.~~
+**Status:** Wired to `useAuth()` + `useProfile()` during chat-core. Credit count, avatar, and session list are all live data.
 
-### N-7 — `SUPABASE_JWT_SECRET` not yet set in `.env.local`
-**Source:** Setup pre-flight
-**Impact:** Cloud Run Python service (`cloud-run/getviews_pipeline/`) cannot validate user JWTs for the SSE `/stream` endpoint. Video intents (①③④) will fail auth check.
-**Action:** Supabase Dashboard → Settings → API → **JWT Settings** → copy JWT Secret → add to `.env.local`:
-```
-SUPABASE_JWT_SECRET=<your-jwt-secret>
-```
-Also add to Cloud Run service env vars in GCP when deploying. Not needed until `chat-core` feature is deployed.
+### N-7 — Supabase JWT validation for Cloud Run — RESOLVED (ES256/JWKS)
+**Source:** Setup pre-flight → Resolved with JWKS approach
+**Status:** Cloud Run now validates JWTs via JWKS endpoint (ES256, asymmetric) — no shared secret needed. Implemented in `cloud-run/main.py` `require_user` dependency.
+- **JWKS URL:** `https://lzhiqnxfveqttsujebiv.supabase.co/auth/v1/.well-known/jwks.json`
+- **Key ID (kid):** `7e331b8a-f420-4b4c-b2fb-dc2849768068`
+- **Algorithm:** ES256 (P-256 elliptic curve) — keys rotate without redeployment
+- `cloud-run/.env` — `SUPABASE_JWKS_URL` + `SUPABASE_JWKS_KID` set
+- **Vercel Edge** (`api/chat.ts`) uses `supabase.auth.getUser()` — no JWKS needed there
+**Remaining:** Set `SUPABASE_JWKS_URL` + `SUPABASE_JWKS_KID` in GCP Cloud Run service env vars when deploying.
 
 ### N-8 — Supabase Realtime not enabled on `public.profiles`
 **Source:** Auth backend agent (`89dc2ca`)
@@ -78,10 +79,87 @@ Also add to Cloud Run service env vars in GCP when deploying. Not needed until `
 **Action (human):** Supabase Dashboard → Database → Replication → enable `profiles` table for Realtime.
 Not required for Wave 1 dev (queries work without it), but needed before any feature that updates the profile (e.g., settings, NicheSelector write-back).
 
-### N-9 — `useProfile` `.single()` can fail during trigger lag
-**Source:** Auth QA agent (adversarial check)
-**Impact:** After OAuth, `profiles` row is created by a `AFTER INSERT` trigger on `auth.users`. If the trigger fires slightly after the frontend calls `useProfile`, `.single()` returns an error (PGRST116 — no rows). The global `QueryClient` is configured with `retry: 1`, so one automatic retry fires — sufficient for typical lag. However, if the trigger is slow (cold start), the retry may also fail, leaving the user on an error state.
-**Action:** `chat-core` frontend agent must handle `useProfile`'s `isError` state gracefully — show a loading or retry UI on the NicheSelector screen rather than a hard error. Consider `maybeSingle()` + polling as a longer-term fix.
+### N-9 — `useProfile` `.single()` can fail during trigger lag — PARTIALLY RESOLVED
+**Source:** Auth QA agent (adversarial check) → chat-core frontend agent
+**Impact:** After OAuth, `profiles` row may not exist yet when `useProfile` first fires. Global `retry: 1` covers typical lag.
+**Status:** NicheSelector in ChatScreen gracefully handles `isError` / loading state from `useProfile` — no hard error shown. Longer-term fix (`maybeSingle()` + polling) deferred to settings feature.
+
+### N-11 — `GEMINI_API_KEY` not set — RESOLVED (local dev)
+**Source:** Chat-core backend agent (`9b8bdd0`)
+**Status:** Key set in `.env.local` and `cloud-run/.env`. Text intents (⑤⑥⑦) will work in local dev.
+**Remaining action:** Add to Vercel project before staging deploy: Dashboard → Project → Settings → Environment Variables → `GEMINI_API_KEY`. Also set `GEMINI_SYNTHESIS_MODEL` (defaults to `gemini-3.1-flash-lite-preview`).
+
+### N-12 — `VITE_CLOUD_RUN_API_URL` unset: video intents fall through to `/api/chat`
+**Source:** Chat-core QA agent (adversarial check)
+**Impact:** When `VITE_CLOUD_RUN_API_URL` is not set in `.env.local`, video intents (①③④ — TikTok URL diagnosis, competitor profile, own channel) are sent to `/api/chat` (Vercel Edge text endpoint) instead of Cloud Run. The text endpoint has no video understanding capability — responses will be meaningless or errors.
+**Action:** For local video intent testing, deploy the Cloud Run service and set:
+```
+VITE_CLOUD_RUN_API_URL=https://<your-cloud-run-url>
+```
+Not blocking for Wave 1 dev if video intents are not being tested. Required before staging demo.
+
+### N-13 — `structured_output` column not yet parsed — assistant content is raw text
+**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
+**Impact:** `api/chat.ts` writes the full Gemini text to `chat_messages.content`. The `structured_output` JSONB column (defined in tech-spec for typed DiagnosisRow / HookRanking / BriefBlock / CreatorCard payloads) is never populated. The frontend currently renders `content` as plain text — structured components (DiagnosisRow bars, HookRankingBar widths) show Make's mock data or empty states rather than real data.
+**Action:** When Cloud Run pipeline is deployed, it writes `structured_output` with the typed payload. The frontend's `ChatScreen.tsx` must be updated to read from `structured_output` (falls back to `content` for plain text intents). This is a Wave 2 enhancement — acceptable for Wave 1 with text-only responses.
+
+### N-14 — `profiles.primary_niche` stored as TEXT, niche ID is integer
+**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
+**Impact:** The migration defines `profiles.primary_niche` as TEXT (niche name or ID as string), but `niche_taxonomy.id` is an integer. The NicheSelector currently calls `parseInt` when saving. Inconsistency could cause filtering bugs in the future (e.g., `WHERE niche_id = primary_niche` type mismatch).
+**Action:** Before settings feature: align the column type. Options: (a) change `primary_niche` to INTEGER FK → `niche_taxonomy.id`, or (b) store the niche name string and join by name. Recommend option (a) for referential integrity. Apply a migration in `/feature settings` backend step.
+
+### N-15 — Session title / sidebar rename not persisted — RESOLVED by history (`e8bc480` / `c30f2f3`)
+**Source:** Chat-core frontend agent (`df0b02c`) → Resolved by history backend + frontend agents
+**Status:** `useUpdateSession` mutation added to `useChatSessions.ts` (`e8bc480`). HistoryScreen rename wired to `useUpdateSession`, invalidates `chat_sessions` + `chat_session(id)` on success (`c30f2f3`).
+**Remaining:** AppLayout sidebar rename still local state only — `handleRename` in `AppLayout.tsx` should call `useUpdateSession`. Track as N-16 below.
+
+### N-16 — AppLayout sidebar rename still local-state only — RESOLVED
+**Source:** History frontend agent (`c4cd6da`) → Fixed pre-Wave 2
+**Status:** `useUpdateSession` imported and instantiated in `AppLayout.tsx`. `handleRename` now calls both `setSessions` (optimistic local update) and `updateSession.mutate({ sessionId, title })` to persist to DB.
+
+### N-17 — `database.types.ts` needs re-generation after history migrations — RESOLVED
+**Source:** History backend agent (`e8bc480`) → Regenerated via Supabase MCP pre-Wave 2
+**Status:** Full 866-line type file regenerated from live schema (`lzhiqnxfveqttsujebiv`) via Supabase MCP. Includes `search_sessions` RPC with correct return type, all 14 tables, `niche_intelligence` view, `decrement_credit` + `decrement_and_grant_credits` RPCs. Re-run after every Wave 2 migration.
+
+### N-18 — Navigation misalignment vs Figma Make — RESOLVED
+**Source:** History QA fix agent (`c30f2f3`) → Fixed post-explore (`20572ac`)
+**Impact:** ~~BottomNav component was added but not in Make design. ExploreScreen was at `/app/explore` but Figma Make's TrendScreen lives at `/app/trends`.~~
+**Status:** Fully resolved in `20572ac`:
+- `BottomNav.tsx` deleted — Make uses sidebar-only nav
+- ExploreScreen moved to `/app/trends` (matching Make's `TrendScreen.tsx` route)
+- `/app/explore` route removed
+- AppLayout sidebar nav now matches Make exactly: Chat (`/app`) + Xu hướng (`/app/trends`)
+- `active` type narrowed to `"chat" | "trends"`
+
+### N-19 — `video_corpus` table has no data in remote DB
+**Source:** Explore QA agent (`304f866`)
+**Impact:** ExploreScreen at `/app/trends` shows the empty state ("Không có video nào trong khoảng này — thử bỏ bộ lọc.") on first load because `video_corpus` has 0 rows in the remote Supabase project. The Cloud Run pipeline populates this table via `ensemble.py` → `analysis_core.py` → R2 upload → Supabase insert.
+**Action:** Required before staging demo. Either (a) deploy the Cloud Run pipeline and run a batch ingest, or (b) seed a small set of test rows manually in Supabase Dashboard for early QA. Not blocking for local dev.
+
+### N-20 — `video_corpus.video_url` and `thumbnail_url` are R2 URLs — not signed
+**Source:** Explore backend agent (`9f09947`)
+**Impact:** `video_url` and `thumbnail_url` in `video_corpus` point to Cloudflare R2 public bucket URLs. If the R2 bucket is set to private, all `<img>` and `<video>` elements in ExploreScreen will 403. If the bucket is public, no signing is needed.
+**Action (human):** Confirm R2 bucket (`getviews-corpus`) is set to **public** in Cloudflare dashboard, or implement signed URL generation (short-lived presigned URLs via Cloud Run) before production. Not blocking for Wave 2 dev.
+
+### N-21 — Desktop aside wired to `niche_intelligence.trending_keywords` — PARTIALLY RESOLVED
+**Source:** Explore QA agent (`304f866`) → Addressed in trends frontend (`b28a9a7`)
+**Status:** Desktop `<aside>` now shows `trending_keywords` from `niche_intelligence` as pill badges when available. Falls back to "Đang cập nhật…" placeholder when `trending_keywords` is null or empty (materialized view not yet refreshed). The old `breakoutHits` / `viralNow` mock arrays are removed.
+**Remaining:** `trending_keywords` field is often empty until Cloud Run batch job runs and refreshes `niche_intelligence`. Full aside content depends on N-19 (Cloud Run deploy). Health score 94/100 (−6 for aside placeholder + non-progressive bar shading).
+
+### N-22 — `niche_intelligence` materialized view not auto-refreshed
+**Source:** Trends backend agent (`58a6446`)
+**Impact:** `niche_intelligence` is a Postgres materialized view populated by the Cloud Run batch job. It is not scheduled for auto-refresh in `supabase/config.toml` or any Supabase cron. Until Cloud Run deploys and runs the batch, the view returns stale or empty rows. `useTrendVelocity`, `useHookEffectiveness`, `useFormatLifecycle`, and `useNicheIntelligence` hooks all query tables that depend on this pipeline.
+**Action:** Before staging demo — deploy Cloud Run pipeline (see DEFERRED) and set up a Cloud Scheduler job or `pg_cron` to call `REFRESH MATERIALIZED VIEW niche_intelligence` nightly after the batch run. Not blocking for local dev (hooks degrade gracefully to empty state).
+
+### N-23 — `hook_effectiveness.hook_type` field is a raw string — no taxonomy
+**Source:** Trends frontend agent (`b28a9a7`) — noted during data mapping
+**Impact:** `hook_effectiveness` rows have `hook_type` as a free-text string (e.g., `"question"`, `"statistic"`, `"POV"`). The HookRankingBars section renders this directly. If the Cloud Run pipeline generates inconsistent casing or Vietnamese/English mixing, bars will look noisy. No normalization or translation layer exists.
+**Action:** Before trends feature goes live with real data — define a canonical `hook_type` enum in the Cloud Run pipeline (`getviews_pipeline/intents.py`) and normalize on write. No frontend change needed; this is a pipeline concern.
+
+### N-24 — D2 bars use `var(--ink-soft)` for all non-top bars — not progressively lighter
+**Source:** Trends QA agent (`ddaf839`) — deferred finding
+**Impact:** EDS D2 spec calls for bars to be progressively lighter (top = purple, 2nd = slightly lighter, etc.). Current implementation uses the same `var(--ink-soft)` color for bars 2–N. Deducted 6 health points (visual).
+**Action:** Update the bar color logic in `ExploreScreen.tsx` HookRankingBars to interpolate opacity: `rgba(var(--ink-rgb), 0.6 - i*0.08)` or similar. Low priority — does not affect functionality.
 
 ### N-10 — Secrets in `.cursor/mcp.json` accessible in-session
 **Source:** Auth backend agent (`89dc2ca`)
@@ -97,7 +175,7 @@ Not required for Wave 1 dev (queries work without it), but needed before any fea
 | ZaloPay in CheckoutScreen | Before billing launch | Confirm PayOS supports ZaloPay; currently UI shows icon but backend not wired |
 | PWA screenshots in `manifest.json` | Before production deploy | `screenshots` array is empty — add after real screens are built |
 | Monday weekly email Edge Function | Wave 2 | Content generation deferred; cron + template scaffolded |
-| Cloud Run service deploy to GCP | Before chat-core (video intents) | Python pipeline in `cloud-run/` is local only |
+| Cloud Run service deploy to GCP | Before staging video demo (see N-12) | Python pipeline in `cloud-run/` is local only; video intents fall back to text endpoint until deployed |
 | `GEMINI_API_KEY`, `PAYOS_*`, `RESEND_API_KEY` in Supabase secrets | Before respective features land | Edge Functions will fail without these secrets |
 
 ---
@@ -107,11 +185,17 @@ Not required for Wave 1 dev (queries work without it), but needed before any fea
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 10 | N-1 through N-10 (N-2 resolved) |
+| NON-BLOCKING | 24 | N-1 through N-24 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18 resolved; N-9, N-21 partially resolved) |
 | DEFERRED | 5 | Wave 2+ |
 
-**Resolved this phase:** N-2 (`database.types.ts` regenerated in auth backend `89dc2ca`).
+**Resolved this phase (trends):**
+- N-21 — Desktop aside partially wired: `trending_keywords` from `niche_intelligence` replaces mock arrays; placeholder shown until Cloud Run runs
 
-**Minimum to proceed with Wave 1 local dev:** None — all concerns are non-blocking for local development. OAuth (B-1) is required to test the auth flow end-to-end. N-9 must be handled in `chat-core` frontend.
+**New concerns added from `/feature trends`:**
+- N-22 — `niche_intelligence` materialized view not auto-refreshed (depends on Cloud Run batch)
+- N-23 — `hook_effectiveness.hook_type` is free-text — no canonical taxonomy enforced by pipeline
+- N-24 — D2 bars not progressively lighter (all non-top bars same `var(--ink-soft)`)
 
-**New concerns added from `/feature auth`:** N-8 (Realtime not enabled), N-9 (trigger lag in `useProfile`), N-10 (secrets in MCP config).
+**Wave 2 trends: QA PASS.** TrendScreen fully wired: NicheSelector, D2 HookRankingBars, FormatLifecycle, aside keywords (5/5 passes, health 94/100).
+
+**Before next Wave 2 feature:** No new blockers. N-19 (empty corpus) + N-22 (MV not refreshed) are the main gaps for staging demo — both depend on Cloud Run deploy.

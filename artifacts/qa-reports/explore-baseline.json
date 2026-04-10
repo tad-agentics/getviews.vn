@@ -1,0 +1,40 @@
+{
+  "feature": "explore",
+  "date": "2026-04-10",
+  "healthScore": 98,
+  "passResults": {
+    "pass1": "PASS",
+    "pass2": "PASS",
+    "pass3": "PASS",
+    "pass4": "PASS",
+    "pass5": "PASS"
+  },
+  "findings": [
+    {
+      "pass": 1,
+      "severity": "medium",
+      "title": "BreakoutHitsSidebar (desktop) listed in build-plan but not implemented on ExploreScreen",
+      "status": "deferred"
+    },
+    {
+      "pass": 1,
+      "severity": "high",
+      "title": "User-facing English strings ('views', 'Index:') violated Vietnamese-only UI rule",
+      "status": "fixed"
+    }
+  ],
+  "categoryScores": {
+    "visual": 92,
+    "data": 100,
+    "security": 100,
+    "interaction": 100,
+    "build": 100,
+    "copy": 100
+  },
+  "fixesApplied": {
+    "verified": 1,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 1
+  }
+}

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -210,6 +210,11 @@ type ChatMsg = {
   is_free?: boolean | null;
 };
 
+function isResumeQuery(q: string): boolean {
+  const s = q.trim().toLowerCase();
+  return ["tiếp", "tiếp tục", "continue", "resume", "/tiếp"].includes(s);
+}
+
 function detectIntent(query: string, priorAssistant: boolean): { intentType: string; isFree: boolean } {
   const q = query.trim();
   const ql = q.toLowerCase();
@@ -324,6 +329,8 @@ function AssistantStructuredBlock({ parsed }: { parsed: ParsedAssistant | null }
 
 export default function ChatScreen() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlSessionId = searchParams.get("session");
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId);
@@ -357,9 +364,17 @@ export default function ChatScreen() {
 
   const [message, setMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
+
+  useEffect(() => {
+    const prefillUrl = (location.state as { prefillUrl?: string } | null | undefined)?.prefillUrl;
+    if (!prefillUrl || typeof prefillUrl !== "string") return;
+    setMessage(prefillUrl);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+  }, [location.state, location.pathname, location.search, navigate]);
   const [freePillKey, setFreePillKey] = useState(0);
   const [clientPaywall, setClientPaywall] = useState(false);
   const [lastStreamIntent, setLastStreamIntent] = useState<string | null>(null);
+  const lastIntentRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -395,7 +410,11 @@ export default function ChatScreen() {
       if (needsNiche) return;
 
       setClientPaywall(false);
-      const { intentType, isFree } = detectIntent(trimmed, priorAssistant);
+
+      const isResume = Boolean(resume && lastIntentRef.current);
+      const { intentType, isFree } = isResume
+        ? { intentType: lastIntentRef.current!, isFree: true }
+        : detectIntent(trimmed, priorAssistant);
 
       if (!isFree && credits <= 0) {
         setClientPaywall(true);
@@ -427,6 +446,7 @@ export default function ChatScreen() {
       });
 
       setLastStreamIntent(intentType);
+      lastIntentRef.current = intentType;
 
       await stream({
         sessionId: sid!,
@@ -459,18 +479,20 @@ export default function ChatScreen() {
   );
 
   const handleSend = async () => {
-    const trimmed = message.trim().toLowerCase();
-    if (trimmed === "tiếp" && error === "stream_failed" && streamId) {
-      const q = message;
-      setMessage("");
-      await runSend(q, { stream_id: streamId, last_seq: lastSeq });
-      return;
-    }
     if (!message.trim() || charOverLimit) return;
     const q = message;
+    const trimmed = q.trim();
+    const resumePayload =
+      isResumeQuery(trimmed) &&
+      status === "error" &&
+      streamId !== null &&
+      error !== "insufficient_credits" &&
+      lastIntentRef.current !== null
+        ? { stream_id: streamId, last_seq: lastSeq }
+        : undefined;
     setMessage("");
-    reset();
-    await runSend(q);
+    if (!resumePayload) reset();
+    await runSend(q, resumePayload);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -812,7 +834,9 @@ export default function ChatScreen() {
 
   const paywallVisible = clientPaywall || error === "insufficient_credits";
 
-  const inFlightVisible = status === "streaming" || (status === "error" && error === "stream_failed");
+  const inFlightVisible =
+    status === "streaming" ||
+    (status === "error" && streamId !== null && error !== "insufficient_credits");
 
   const messageThread = (
     <div className="space-y-4">
@@ -834,7 +858,7 @@ export default function ChatScreen() {
         if (m.role === "user") {
           return (
             <div key={m.id} className="flex justify-end">
-              <div className="flex max-w-[80%] items-start gap-2 rounded-xl bg-[var(--purple-light)] px-4 py-3 lg:max-w-[75%]">
+              <div className="flex max-w-[75%] items-start gap-2 rounded-xl bg-[var(--purple-light)] px-4 py-3">
                 <p className="text-sm text-[var(--ink)]">{m.content}</p>
                 {m.is_free && m.id === lastUser?.id ? <FreeQueryPill pulseKey={freePillKey} /> : null}
               </div>
@@ -874,7 +898,7 @@ export default function ChatScreen() {
               <div className="h-3 w-[66%] rounded bg-[var(--border)]" />
             </div>
           ) : null}
-          {error === "stream_failed" ? (
+          {status === "error" && streamId !== null && error !== "insufficient_credits" ? (
             <p className="mt-2 text-sm text-[var(--muted)]">— Bị gián đoạn. Gõ &apos;tiếp&apos; để tiếp tục.</p>
           ) : null}
           {text ? <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--ink)]">{text}</p> : null}

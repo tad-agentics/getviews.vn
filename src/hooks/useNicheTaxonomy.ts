@@ -9,9 +9,9 @@ export function useNicheTaxonomy() {
   return useQuery({
     queryKey: nicheTaxonomyKeys.all(),
     queryFn: async () => {
-      const { data, error } = await supabase.from("niche_taxonomy").select("id, name").order("name");
+      const { data, error } = await supabase.from("niche_taxonomy").select("id, name_vn").order("name_vn");
       if (error) throw error;
-      return data as { id: number; name: string }[];
+      return (data ?? []).map((row) => ({ id: row.id, name: row.name_vn }));
     },
     staleTime: 5 * 60_000,
   });

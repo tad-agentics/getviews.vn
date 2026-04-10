@@ -19,7 +19,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
-import { useChatSessions, useDeleteSession } from "@/hooks/useChatSessions";
+import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { CreditBar } from "@/routes/_app/components/CreditBar";
 
 type Session = {
@@ -255,7 +255,7 @@ function SessionRow({
    AppLayout
 ════════════════════════════════════════════════ */
 interface AppLayoutProps {
-  active?: 'chat' | 'trends' | 'history';
+  active?: "chat" | "trends";
   children: ReactNode;
   enableMobileSidebar?: boolean;
 }
@@ -266,6 +266,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const { data: profile } = useProfile();
   const { data: sessionsData } = useChatSessions();
   const deleteSession = useDeleteSession();
+  const updateSession = useUpdateSession();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -303,8 +304,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
   };
 
-  const handleRename = (id: string, label: string) =>
+  const handleRename = (id: string, label: string) => {
     setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, label } : s)));
+    updateSession.mutate({ sessionId: id, title: label });
+  };
 
   const displayName =
     (profile?.display_name as string | null | undefined) ||
@@ -374,7 +377,15 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
-          <NavItem icon={TrendingUp} label="Xu hướng" active={active === 'trends'} onClick={() => { navigate('/app/trends'); onClose?.(); }} />
+          <NavItem
+            icon={TrendingUp}
+            label="Xu hướng"
+            active={active === "trends"}
+            onClick={() => {
+              navigate("/app/trends");
+              onClose?.();
+            }}
+          />
         </div>
 
         {/* Divider */}
@@ -507,7 +518,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
       {/* ── Mobile ─────────────────────────── */}
       <div className="flex flex-col flex-1 lg:hidden overflow-hidden relative">
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </div>
 
         {/* Mobile sidebar trigger buttons (only when enableMobileSidebar) */}
         {enableMobileSidebar && !mobileSidebarOpen && (
@@ -564,6 +577,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             )}
           </AnimatePresence>
         )}
+
       </div>
 
       {/* ── Profile modal ── */}
@@ -582,7 +596,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               exit={{ opacity: 0, y: 6, scale: 0.97 }}
               transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
               className="fixed z-50 w-[260px]"
-              style={{ bottom: '60px', left: '12px' }}
+              style={{ bottom: '16px', left: '12px' }}
             >
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
                 <div className="p-4">
