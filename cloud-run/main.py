@@ -64,10 +64,15 @@ async def require_user(request: Request) -> dict[str, Any]:
 
     try:
         if SUPABASE_JWT_SECRET:
-            # HS256 fallback (legacy — prefer JWKS)
-            payload = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"])
+            # HS256 via shared secret — preferred when available (no network call)
+            payload = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                options={"verify_aud": False},
+            )
         else:
-            # ES256 via JWKS
+            # ES256 via JWKS (stateless, asymmetric fallback)
             jwks = await _get_jwks()
             payload = jwt.decode(
                 token,
