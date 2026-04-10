@@ -15,6 +15,7 @@ export default [
     route("app/history", "routes/_app/history/route.tsx"),
     route("app/trends", "routes/_app/trends/route.tsx"),
     route("app/settings", "routes/_app/settings/route.tsx"),
+    route("app/learn-more", "routes/_app/learn-more/route.tsx"),
     route("app/pricing", "routes/_app/pricing/route.tsx"),
     route("app/checkout", "routes/_app/checkout/route.tsx"),
     route("app/payment-success", "routes/_app/payment-success/route.tsx"),

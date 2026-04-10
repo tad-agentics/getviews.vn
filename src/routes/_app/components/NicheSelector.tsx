@@ -1,24 +1,9 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { queryKeys } from "@/lib/query-keys";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 
-export function NicheSelector({ userId }: { userId: string }) {
-  const qc = useQueryClient();
+export function NicheSelector({ userId: _userId }: { userId: string }) {
   const { data: niches, isPending, error } = useNicheTaxonomy();
-
-  const save = useMutation({
-    mutationFn: async (nicheId: number) => {
-      const { error: e } = await supabase
-        .from("profiles")
-        .update({ primary_niche: String(nicheId) })
-        .eq("id", userId);
-      if (e) throw e;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.profile(userId) });
-    },
-  });
+  const save = useUpdateProfile();
 
   if (isPending) {
     return <p className="text-sm text-[var(--muted)]">Đang tải niche...</p>;
@@ -36,7 +21,7 @@ export function NicheSelector({ userId }: { userId: string }) {
             key={n.id}
             type="button"
             disabled={save.isPending}
-            onClick={() => save.mutate(n.id)}
+            onClick={() => save.mutate({ primary_niche: n.id })}
             className="rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2 text-xs font-semibold text-[var(--ink)] transition-colors duration-[120ms] hover:border-[var(--purple)] disabled:opacity-50"
           >
             {n.name}

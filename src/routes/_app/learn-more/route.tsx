@@ -1,8 +1,8 @@
 import { lazy, Suspense } from "react";
 
-const SettingsScreen = lazy(() => import("./SettingsScreen"));
+const LearnMoreScreen = lazy(() => import("./LearnMoreScreen"));
 
-export default function SettingsRoute() {
+export default function LearnMoreRoute() {
   return (
     <Suspense
       fallback={
@@ -13,7 +13,7 @@ export default function SettingsRoute() {
         />
       }
     >
-      <SettingsScreen />
+      <LearnMoreScreen />
     </Suspense>
   );
 }

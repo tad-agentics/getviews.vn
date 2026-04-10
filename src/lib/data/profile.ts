@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 export interface ProfilePatch {
-  primary_niche?: string | null;
+  primary_niche?: number | null;
   niche_id?: number | null;
   tiktok_handle?: string | null;
   display_name?: string;
