@@ -1,8 +1,9 @@
 "use client";
 
-import { Toaster as Sonner, ToasterProps } from "sonner";
+import type { ComponentProps } from "react";
+import { Toaster as Sonner } from "sonner";
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ ...props }: ComponentProps<typeof Sonner>) => {
   return (
     <Sonner
       theme="light"

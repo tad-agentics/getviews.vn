@@ -182,7 +182,7 @@ export default function CheckoutScreen() {
                   Đang xử lý...
                 </span>
               ) : (
-                "Thanh toán"
+                "Xác nhận thanh toán"
               )}
             </Button>
             {submitError ? <p className="text-sm text-destructive text-center">{submitError}</p> : null}
