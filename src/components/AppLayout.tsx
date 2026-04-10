@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ReactNode } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useNavigate } from 'react-router';
 import {
   Plus,
@@ -7,7 +7,6 @@ import {
   Settings,
   LogOut,
   X,
-  Zap,
   Pin,
   PinOff,
   Pencil,
@@ -17,13 +16,18 @@ import {
   BookOpen,
   Menu,
 } from 'lucide-react';
-import { mockProfile, mockSessions } from "@/lib/mock-data";
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from "motion/react";
+import { useAuth } from "@/lib/auth";
+import { useProfile } from "@/hooks/useProfile";
+import { useChatSessions, useDeleteSession } from "@/hooks/useChatSessions";
+import { CreditBar } from "@/routes/_app/components/CreditBar";
 
-const AVATAR_URL =
-  'https://images.unsplash.com/photo-1639149888905-fb39731f2e6c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbiUyMHByb2ZpbGUlMjBwb3J0cmFpdCUyMGF2YXRhcnxlbnwxfHx8fDE3NzU2NTg1NjF8MA&ixlib=rb-4.1.0&q=80&w=200';
-
-type Session = (typeof mockSessions)[number] & { label?: string };
+type Session = {
+  id: string;
+  first_message: string | null;
+  title?: string | null;
+  label?: string;
+};
 
 /* ── Logo mark ── */
 function LogoMark() {
@@ -157,7 +161,7 @@ function SessionRow({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [renaming, setRenaming] = useState(false);
-  const [draft, setDraft] = useState(session.label ?? session.first_message);
+  const [draft, setDraft] = useState(session.label ?? session.title ?? session.first_message ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
   const moreRef = useRef<HTMLSpanElement>(null);
 
@@ -168,7 +172,7 @@ function SessionRow({
   const commitRename = () => {
     const trimmed = draft.trim();
     if (trimmed) onRename(trimmed);
-    else setDraft(session.label ?? session.first_message);
+    else setDraft(session.label ?? session.title ?? session.first_message ?? "");
     setRenaming(false);
   };
 
@@ -182,7 +186,7 @@ function SessionRow({
     setMenuOpen((v) => !v);
   };
 
-  const displayLabel = session.label ?? session.first_message;
+  const displayLabel = session.label ?? session.title ?? session.first_message ?? "Phiên chat";
 
   return (
     <div className="relative group/row">
@@ -258,12 +262,26 @@ interface AppLayoutProps {
 
 export function AppLayout({ active, children, enableMobileSidebar = false }: AppLayoutProps) {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { data: profile } = useProfile();
+  const { data: sessionsData } = useChatSessions();
+  const deleteSession = useDeleteSession();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Local session state (label overrides + pinned + deleted)
-  const [sessions, setSessions] = useState<Session[]>(mockSessions);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!sessionsData) return;
+    setSessions(
+      sessionsData.map((s) => ({
+        id: s.id,
+        first_message: s.first_message,
+        title: s.title ?? null,
+      })),
+    );
+  }, [sessionsData]);
 
   const pinned = sessions.filter((s) => pinnedIds.has(s.id));
   const recent = sessions.filter((s) => !pinnedIds.has(s.id));
@@ -276,20 +294,40 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
 
   const handleDelete = (id: string) => {
+    void deleteSession.mutateAsync(id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
-    setPinnedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    setPinnedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   const handleRename = (id: string, label: string) =>
     setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, label } : s)));
 
-  const initials = mockProfile.display_name
-    .split(' ')
+  const displayName =
+    (profile?.display_name as string | null | undefined) ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "User";
+  const email = user?.email ?? "";
+  const initials = displayName
+    .split(" ")
     .map((n: string) => n[0])
-    .join('')
+    .join("")
+    .slice(0, 2)
     .toUpperCase();
 
-  const handleLogout = () => { setShowProfileModal(false); navigate('/'); };
+  const avatarUrl =
+    (user?.user_metadata?.avatar_url as string | undefined) ||
+    (user?.user_metadata?.picture as string | undefined);
+
+  const handleLogout = async () => {
+    setShowProfileModal(false);
+    await signOut();
+    navigate("/login");
+  };
 
   /* ── Shared sidebar inner content ── */
   function SidebarContent({ onClose }: { onClose?: () => void }) {
@@ -306,7 +344,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           <div className="flex items-center gap-1">
             <button
               title="Chat mới"
-              onClick={() => { navigate('/app'); onClose?.(); }}
+              onClick={() => {
+                navigate("/app");
+                onClose?.();
+              }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--faint)] hover:text-[var(--ink-soft)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
             >
               <Plus className="w-4 h-4" strokeWidth={1.8} />
@@ -324,7 +365,15 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
         {/* Nav items */}
         <div className="flex flex-col gap-0.5 px-2 mb-3">
-          <NavItem icon={MessageCircle} label="Chat" active={active === 'chat'} onClick={() => { navigate('/app'); onClose?.(); }} />
+          <NavItem
+            icon={MessageCircle}
+            label="Chat"
+            active={active === "chat"}
+            onClick={() => {
+              navigate("/app");
+              onClose?.();
+            }}
+          />
           <NavItem icon={TrendingUp} label="Xu hướng" active={active === 'trends'} onClick={() => { navigate('/app/trends'); onClose?.(); }} />
         </div>
 
@@ -353,7 +402,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       key={session.id}
                       session={session}
                       isPinned
-                      onNavigate={() => { navigate('/app'); onClose?.(); }}
+                      onNavigate={() => {
+                        navigate(`/app?session=${session.id}`);
+                        onClose?.();
+                      }}
                       onPin={() => handlePin(session.id)}
                       onDelete={() => handleDelete(session.id)}
                       onRename={(label) => handleRename(session.id, label)}
@@ -375,7 +427,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                     key={session.id}
                     session={session}
                     isPinned={false}
-                    onNavigate={() => { navigate('/app'); onClose?.(); }}
+                    onNavigate={() => {
+                      navigate(`/app?session=${session.id}`);
+                      onClose?.();
+                    }}
                     onPin={() => handlePin(session.id)}
                     onDelete={() => handleDelete(session.id)}
                     onRename={(label) => handleRename(session.id, label)}
@@ -395,31 +450,14 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         {/* Divider */}
         <div className="mx-3 mt-3 mb-2 border-t border-[var(--border)]" />
 
-        {/* Credits widget */}
-        <div className="mx-3 mb-3 px-3 py-2.5 rounded-lg bg-[var(--surface-alt)] border border-[var(--border)]">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] uppercase tracking-widest text-[var(--faint)] font-semibold">Deep Credits</span>
-            <button
-              onClick={() => { navigate('/app/pricing'); onClose?.(); }}
-              className="flex items-center gap-0.5 text-[10px] text-[var(--purple)] hover:underline font-semibold"
-            >
-              <Zap className="w-2.5 h-2.5" strokeWidth={2.5} />
-              Nâng cấp
-            </button>
-          </div>
-          <div className="flex items-baseline gap-1 mb-1.5">
-            <span className="font-extrabold font-mono text-[var(--ink)] text-base">
-              {mockProfile.deep_credits_remaining}
-            </span>
-            <span className="text-[10px] text-[var(--muted)] font-mono">/ 50</span>
-          </div>
-          <div className="h-1 bg-[var(--border)] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${Math.round((mockProfile.deep_credits_remaining / 50) * 100)}%`, background: 'var(--gradient-primary)' }}
-            />
-          </div>
-        </div>
+        {profile ? (
+          <CreditBar
+            deepCreditsRemaining={profile.deep_credits_remaining ?? 0}
+            cap={(profile as { deep_credits_total?: number }).deep_credits_total ?? 50}
+          />
+        ) : (
+          <div className="mx-3 mb-3 h-24 animate-pulse rounded-lg bg-[var(--surface-alt)]" />
+        )}
 
         {/* Bottom: settings + avatar */}
         <div className="flex items-center justify-between px-3">
@@ -431,11 +469,18 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             <Settings className="w-[18px] h-[18px]" strokeWidth={1.7} />
           </button>
           <button
-            title={mockProfile.display_name}
+            type="button"
+            title={displayName}
             onClick={() => setShowProfileModal((v) => !v)}
-            className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-[var(--border-active)] transition-all duration-[120ms]"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[var(--border-active)]"
           >
-            <img src={AVATAR_URL} alt={mockProfile.display_name} className="w-full h-full object-cover" />
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center bg-[var(--purple)] text-[10px] font-extrabold text-white">
+                {initials}
+              </span>
+            )}
           </button>
         </div>
       </>
@@ -546,8 +591,8 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       <span className="text-white font-extrabold text-xs">{initials}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-extrabold text-[var(--ink)] truncate text-sm">{mockProfile.display_name}</p>
-                      <p className="text-xs text-[var(--muted)] truncate">{mockProfile.email}</p>
+                      <p className="truncate text-sm font-extrabold text-[var(--ink)]">{displayName}</p>
+                      <p className="truncate text-xs text-[var(--muted)]">{email}</p>
                     </div>
                     <button
                       onClick={() => setShowProfileModal(false)}

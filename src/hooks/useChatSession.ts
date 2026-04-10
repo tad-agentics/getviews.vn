@@ -55,11 +55,13 @@ export function useInsertUserMessage() {
       userId,
       content,
       intentType,
+      isFree,
     }: {
       sessionId: string;
       userId: string;
       content: string;
       intentType: string | null;
+      isFree: boolean;
     }) => {
       const { data, error } = await supabase
         .from("chat_messages")
@@ -70,7 +72,7 @@ export function useInsertUserMessage() {
           content,
           intent_type: intentType,
           credits_used: 0,
-          is_free: true,
+          is_free: isFree,
         })
         .select()
         .single();
