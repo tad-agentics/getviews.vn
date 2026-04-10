@@ -615,25 +615,37 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "MỤC TIÊU: Trend đang tăng tốc — nhấn mạnh những gì đang bứt phá gần đây so với các format đã ổn định."
     ),
     "competitor_profile": (
-        "MỤC TIÊU: Phân tích tài khoản đối thủ — tóm tắt công thức nội dung lặp lại của họ từ các bài đăng."
+        "MỤC TIÊU: Phân tích tài khoản đối thủ — tóm tắt công thức nội dung lặp lại của họ từ các bài đăng.\n"
+        "CẤU TRÚC: Mở bằng nhận định chính về đối thủ (1-2 câu). Sau đó: **Công thức lặp** (hook style, format, nhịp — 2-3 gạch đầu dòng), "
+        "**Điểm mạnh cần học** (2-3 gạch), **Điểm yếu khai thác được** (2-3 gạch), **Khoảng trống** (1-2 gạch — chủ đề/format họ chưa đụng)."
     ),
     "series_audit": (
-        "MỤC TIÊU: Kiểm tra series — so sánh pattern xuyên suốt các video của người dùng; ghi nhận tính nhất quán và khoảng trống."
+        "MỤC TIÊU: Kiểm tra series — so sánh pattern xuyên suốt các video của người dùng; ghi nhận tính nhất quán và khoảng trống.\n"
+        "CẤU TRÚC: Mở bằng nhận định chính về series (1-2 câu). Sau đó: **Pattern nhất quán** (hook, format, nhịp lặp — 2-3 gạch), "
+        "**Bài đứng đầu và vì sao** (1-2 gạch, trích số liệu), **Bài yếu nhất và vì sao** (1-2 gạch), **Hành động tiếp** (2-3 gạch cụ thể)."
     ),
     "brief_generation": (
-        "MỤC TIÊU: Brief sản xuất — xuất brief quay phim ngắn gọn (beat, tùy chọn hook, cảnh quay)."
+        "MỤC TIÊU: Brief sản xuất — xuất brief quay phim ngắn gọn.\n"
+        "CẤU TRÚC: **Hook** (câu mở + hành động khung đầu), **Beat sheet** (3-5 beat, mỗi beat 1 dòng: thời lượng + hành động + chữ trên màn hình), "
+        "**CTA** (câu kết + overlay), **Ghi chú sản xuất** (setup, prop, âm nhạc nếu cần). Ngắn gọn — creator cần đọc trong 30 giây."
     ),
     "video_diagnosis": (
         "MỤC TIÊU: Chẩn đoán video — thiết lập chuẩn niche từ video tham chiếu trước, sau đó đo video của người dùng so với chuẩn đó."
     ),
     "kol_search": (
-        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do (hook, ER, niche fit)."
+        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do.\n"
+        "CẤU TRÚC: Liệt kê 3-5 tài khoản, mỗi tài khoản: **@handle** — nhận định chính (hook style, ER, niche fit) + vì sao nên theo dõi/hợp tác. "
+        "Kết thúc bằng **Pattern chung** (1-2 câu — điểm chung giữa các KOL top)."
     ),
     "find_creators": (
-        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do (hook, ER, niche fit)."
+        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do.\n"
+        "CẤU TRÚC: Liệt kê 3-5 tài khoản, mỗi tài khoản: **@handle** — nhận định chính (hook style, ER, niche fit) + vì sao nên theo dõi/hợp tác. "
+        "Kết thúc bằng **Pattern chung** (1-2 câu — điểm chung giữa các KOL top)."
     ),
     "own_channel": (
-        "MỤC TIÊU: Soi kênh của người dùng — đối chiếu với benchmark niche từ video tham chiếu; chỉ ra điểm khớp/lệch và hành động."
+        "MỤC TIÊU: Soi kênh của người dùng — đối chiếu với benchmark niche từ video tham chiếu; chỉ ra điểm khớp/lệch và hành động.\n"
+        "CẤU TRÚC: Mở bằng nhận định chính (1-2 câu). **Đang làm đúng** (2-3 gạch — pattern khớp niche benchmark), "
+        "**Đang lệch** (2-3 gạch — so sánh cụ thể với reference videos), **Hành động ưu tiên** (2-3 gạch — việc cụ thể, đo được)."
     ),
 }
 
