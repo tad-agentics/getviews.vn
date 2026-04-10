@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { env } from "@/lib/env";
 import { chatKeys } from "./useChatSession";
 
-const CLOUD_RUN_URL = import.meta.env.VITE_CLOUD_RUN_API_URL as string | undefined;
+const CLOUD_RUN_URL = env.VITE_CLOUD_RUN_API_URL;
 const VERCEL_CHAT_URL = "/api/chat";
 
 const VIDEO_INTENTS = new Set(["video_diagnosis", "competitor_profile", "own_channel"]);
