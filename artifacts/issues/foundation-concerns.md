@@ -1,5 +1,5 @@
-# Foundation & Auth Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Backend `f83aa55` + Frontend `81b99f2` + Auth `89dc2ca` / `fd2203f` / `a2661f6`
+# Foundation, Auth & Chat-Core Concerns
+> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Backend `f83aa55` + Frontend `81b99f2` + Auth `89dc2ca` / `fd2203f` / `a2661f6` + Chat-core `9b8bdd0` / `df0b02c` / `3e1da07`
 > Status: OPEN — resolve before Wave 1 features are deployed to staging
 
 ---
@@ -58,19 +58,19 @@ npx supabase gen types typescript --project-id lzhiqnxfveqttsujebiv > src/lib/da
 - `public/icons/icon-512.png` + `icon-512-maskable.png`
 - `public/screenshots/chat-mobile.png` (390×844, form_factor: "narrow") — for PWA install sheet
 
-### N-6 — `AppLayout.tsx` uses mock data
-**Source:** Frontend agent (Foundation)
-**Impact:** `AppLayout` (BottomNav, header, credit display) still renders mock profile/session data. This is intentional — it will be replaced when `chat-core` feature wires `useProfile()` and `useAuth()`. No action until chat-core is dispatched.
-**Action:** Resolved automatically during `/feature chat-core` dispatch.
+### N-6 — `AppLayout.tsx` uses mock data — RESOLVED by chat-core frontend (`df0b02c`)
+**Source:** Frontend agent (Foundation) → Resolved by chat-core frontend agent
+**Impact:** ~~`AppLayout` renders mock profile/session data.~~
+**Status:** Wired to `useAuth()` + `useProfile()` during chat-core. Credit count, avatar, and session list are all live data.
 
 ### N-7 — `SUPABASE_JWT_SECRET` not yet set in `.env.local`
 **Source:** Setup pre-flight
-**Impact:** Cloud Run Python service (`cloud-run/getviews_pipeline/`) cannot validate user JWTs for the SSE `/stream` endpoint. Video intents (①③④) will fail auth check.
+**Impact:** Cloud Run Python service (`cloud-run/getviews_pipeline/`) cannot validate user JWTs for the SSE `/stream` endpoint. Video intents (①③④) will fail auth check. **Now actively needed** — chat-core is deployed and video intents route to Cloud Run when `VITE_CLOUD_RUN_API_URL` is set.
 **Action:** Supabase Dashboard → Settings → API → **JWT Settings** → copy JWT Secret → add to `.env.local`:
 ```
 SUPABASE_JWT_SECRET=<your-jwt-secret>
 ```
-Also add to Cloud Run service env vars in GCP when deploying. Not needed until `chat-core` feature is deployed.
+Also add to Cloud Run service env vars in GCP when deploying.
 
 ### N-8 — Supabase Realtime not enabled on `public.profiles`
 **Source:** Auth backend agent (`89dc2ca`)
@@ -78,10 +78,43 @@ Also add to Cloud Run service env vars in GCP when deploying. Not needed until `
 **Action (human):** Supabase Dashboard → Database → Replication → enable `profiles` table for Realtime.
 Not required for Wave 1 dev (queries work without it), but needed before any feature that updates the profile (e.g., settings, NicheSelector write-back).
 
-### N-9 — `useProfile` `.single()` can fail during trigger lag
-**Source:** Auth QA agent (adversarial check)
-**Impact:** After OAuth, `profiles` row is created by a `AFTER INSERT` trigger on `auth.users`. If the trigger fires slightly after the frontend calls `useProfile`, `.single()` returns an error (PGRST116 — no rows). The global `QueryClient` is configured with `retry: 1`, so one automatic retry fires — sufficient for typical lag. However, if the trigger is slow (cold start), the retry may also fail, leaving the user on an error state.
-**Action:** `chat-core` frontend agent must handle `useProfile`'s `isError` state gracefully — show a loading or retry UI on the NicheSelector screen rather than a hard error. Consider `maybeSingle()` + polling as a longer-term fix.
+### N-9 — `useProfile` `.single()` can fail during trigger lag — PARTIALLY RESOLVED
+**Source:** Auth QA agent (adversarial check) → chat-core frontend agent
+**Impact:** After OAuth, `profiles` row may not exist yet when `useProfile` first fires. Global `retry: 1` covers typical lag.
+**Status:** NicheSelector in ChatScreen gracefully handles `isError` / loading state from `useProfile` — no hard error shown. Longer-term fix (`maybeSingle()` + polling) deferred to settings feature.
+
+### N-11 — `GEMINI_API_KEY` not set — `api/chat.ts` will fail at runtime
+**Source:** Chat-core backend agent (`9b8bdd0`)
+**Impact:** `api/chat.ts` (Vercel Edge) reads `process.env.GEMINI_API_KEY`. If not set in Vercel project environment variables, all text intents (⑤⑥⑦) return HTTP 502. Local dev also requires it in `.env.local`.
+**Action:**
+1. Get API key from [Google AI Studio](https://aistudio.google.com/apikey)
+2. Add to `.env.local`: `GEMINI_API_KEY=<your-key>`
+3. Add to Vercel project: Dashboard → Project → Settings → Environment Variables → `GEMINI_API_KEY`
+Also optionally set `GEMINI_SYNTHESIS_MODEL` (defaults to `gemini-3.1-flash-lite-preview`).
+
+### N-12 — `VITE_CLOUD_RUN_API_URL` unset: video intents fall through to `/api/chat`
+**Source:** Chat-core QA agent (adversarial check)
+**Impact:** When `VITE_CLOUD_RUN_API_URL` is not set in `.env.local`, video intents (①③④ — TikTok URL diagnosis, competitor profile, own channel) are sent to `/api/chat` (Vercel Edge text endpoint) instead of Cloud Run. The text endpoint has no video understanding capability — responses will be meaningless or errors.
+**Action:** For local video intent testing, deploy the Cloud Run service and set:
+```
+VITE_CLOUD_RUN_API_URL=https://<your-cloud-run-url>
+```
+Not blocking for Wave 1 dev if video intents are not being tested. Required before staging demo.
+
+### N-13 — `structured_output` column not yet parsed — assistant content is raw text
+**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
+**Impact:** `api/chat.ts` writes the full Gemini text to `chat_messages.content`. The `structured_output` JSONB column (defined in tech-spec for typed DiagnosisRow / HookRanking / BriefBlock / CreatorCard payloads) is never populated. The frontend currently renders `content` as plain text — structured components (DiagnosisRow bars, HookRankingBar widths) show Make's mock data or empty states rather than real data.
+**Action:** When Cloud Run pipeline is deployed, it writes `structured_output` with the typed payload. The frontend's `ChatScreen.tsx` must be updated to read from `structured_output` (falls back to `content` for plain text intents). This is a Wave 2 enhancement — acceptable for Wave 1 with text-only responses.
+
+### N-14 — `profiles.primary_niche` stored as TEXT, niche ID is integer
+**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
+**Impact:** The migration defines `profiles.primary_niche` as TEXT (niche name or ID as string), but `niche_taxonomy.id` is an integer. The NicheSelector currently calls `parseInt` when saving. Inconsistency could cause filtering bugs in the future (e.g., `WHERE niche_id = primary_niche` type mismatch).
+**Action:** Before settings feature: align the column type. Options: (a) change `primary_niche` to INTEGER FK → `niche_taxonomy.id`, or (b) store the niche name string and join by name. Recommend option (a) for referential integrity. Apply a migration in `/feature settings` backend step.
+
+### N-15 — Session title / sidebar rename not persisted
+**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
+**Impact:** Users can rename chat sessions in the sidebar, but the rename is local state only (not written to `chat_sessions.title` in the DB). After page refresh, the title reverts.
+**Action:** Add a `useUpdateSession` mutation in `useChatSessions.ts` that calls `supabase.from('chat_sessions').update({ title })`. Wire to sidebar rename handler. Implement during `/feature history` (which owns the session list) or as a fix before Wave 2.
 
 ### N-10 — Secrets in `.cursor/mcp.json` accessible in-session
 **Source:** Auth backend agent (`89dc2ca`)
@@ -97,7 +130,7 @@ Not required for Wave 1 dev (queries work without it), but needed before any fea
 | ZaloPay in CheckoutScreen | Before billing launch | Confirm PayOS supports ZaloPay; currently UI shows icon but backend not wired |
 | PWA screenshots in `manifest.json` | Before production deploy | `screenshots` array is empty — add after real screens are built |
 | Monday weekly email Edge Function | Wave 2 | Content generation deferred; cron + template scaffolded |
-| Cloud Run service deploy to GCP | Before chat-core (video intents) | Python pipeline in `cloud-run/` is local only |
+| Cloud Run service deploy to GCP | Before staging video demo (see N-12) | Python pipeline in `cloud-run/` is local only; video intents fall back to text endpoint until deployed |
 | `GEMINI_API_KEY`, `PAYOS_*`, `RESEND_API_KEY` in Supabase secrets | Before respective features land | Edge Functions will fail without these secrets |
 
 ---
@@ -107,11 +140,13 @@ Not required for Wave 1 dev (queries work without it), but needed before any fea
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 10 | N-1 through N-10 (N-2 resolved) |
+| NON-BLOCKING | 15 | N-1 through N-15 (N-2, N-6 resolved; N-9 partially resolved) |
 | DEFERRED | 5 | Wave 2+ |
 
-**Resolved this phase:** N-2 (`database.types.ts` regenerated in auth backend `89dc2ca`).
+**Resolved this phase (chat-core):**
+- N-6 — `AppLayout` mock data replaced with real hooks (`df0b02c`)
+- N-9 — `useProfile` trigger lag: NicheSelector now handles `isError` gracefully (partial — long-term fix deferred)
 
-**Minimum to proceed with Wave 1 local dev:** None — all concerns are non-blocking for local development. OAuth (B-1) is required to test the auth flow end-to-end. N-9 must be handled in `chat-core` frontend.
+**New concerns added from `/feature chat-core`:** N-11 (`GEMINI_API_KEY` missing), N-12 (Cloud Run URL unset → video intents fallback), N-13 (`structured_output` not yet parsed), N-14 (`primary_niche` type mismatch), N-15 (session title rename not persisted).
 
-**New concerns added from `/feature auth`:** N-8 (Realtime not enabled), N-9 (trigger lag in `useProfile`), N-10 (secrets in MCP config).
+**Minimum to proceed with Wave 1 local dev (text intents only):** Set `GEMINI_API_KEY` in `.env.local` (N-11). OAuth (B-1) required for end-to-end auth test.
