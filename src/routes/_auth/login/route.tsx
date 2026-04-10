@@ -1,15 +1,32 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, type MetaFunction } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Link,
+  Navigate,
+  useNavigate,
+  useSearchParams,
+  type MetaFunction,
+} from "react-router";
 import { motion } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+
+const COPY_TRUST_LINE =
+  "Data thực từ 46.000+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.";
+const COPY_BTN_FACEBOOK = "Đăng nhập với Facebook";
+const COPY_BTN_GOOGLE = "Đăng nhập với Google";
+const COPY_LOADING_FACEBOOK = "Đang kết nối Facebook...";
+const COPY_LOADING_GOOGLE = "Đang kết nối Google...";
+const COPY_ERROR_OAUTH = "Đăng nhập không thành công — thử lại.";
+const COPY_ERROR_FACEBOOK_BLOCKED =
+  "Thử đăng nhập bằng Google hoặc mở trong Safari/Chrome.";
+const COPY_LEGAL_NOTE_PREFIX = "Bằng cách đăng nhập, bạn đồng ý với ";
+const COPY_LEGAL_NOTE_SUFFIX = " của GetViews.";
 
 export const meta: MetaFunction = () => [
   { title: "Đăng nhập — GetViews" },
   {
     name: "description",
-    content:
-      "Data thực từ 46.000+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.",
+    content: COPY_TRUST_LINE,
   },
 ];
 
@@ -81,23 +98,34 @@ const THUMBS = [
   },
 ];
 
+type OauthErrorState = {
+  target: "facebook" | "google" | "general";
+  message: string;
+};
+
 export default function LoginRoute() {
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const callbackErrorHandled = useRef(false);
+  const { user, loading: authLoading } = useAuth();
   const [loadingFb, setLoadingFb] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
-  const [oauthError, setOauthError] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<OauthErrorState | null>(null);
 
   useEffect(() => {
-    if (!authLoading && session) {
-      navigate("/app", { replace: true });
-    }
-  }, [authLoading, session, navigate]);
+    if (callbackErrorHandled.current) return;
+    if (searchParams.get("error") !== "oauth") return;
+    callbackErrorHandled.current = true;
+    setOauthError({ target: "general", message: COPY_ERROR_OAUTH });
+    navigate("/login", { replace: true });
+  }, [navigate, searchParams]);
 
-  const redirectTo = `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`;
+  const redirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : "/auth/callback";
 
   const signIn = useCallback(
     async (provider: "facebook" | "google") => {
+      if (authLoading || loadingFb || loadingGoogle) return;
       setOauthError(null);
       if (provider === "facebook") setLoadingFb(true);
       else setLoadingGoogle(true);
@@ -105,16 +133,26 @@ export default function LoginRoute() {
         provider,
         options: { redirectTo },
       });
-      if (provider === "facebook") setLoadingFb(false);
-      else setLoadingGoogle(false);
       if (error) {
-        setOauthError("Đăng nhập không thành công — thử lại.");
+        if (provider === "facebook") setLoadingFb(false);
+        else setLoadingGoogle(false);
+        const blockedHint =
+          provider === "facebook" &&
+          /popup|blocked|closed|disallowed|cancel|not\s+allowed|denied/i.test(error.message);
+        setOauthError({
+          target: provider,
+          message: blockedHint ? COPY_ERROR_FACEBOOK_BLOCKED : COPY_ERROR_OAUTH,
+        });
       }
     },
-    [redirectTo],
+    [authLoading, loadingFb, loadingGoogle, redirectTo],
   );
 
   const anyLoading = loadingFb || loadingGoogle;
+
+  if (!authLoading && user) {
+    return <Navigate to="/app" replace />;
+  }
 
   return (
     <div
@@ -163,7 +201,7 @@ export default function LoginRoute() {
               </span>
             </div>
             <p className="text-[var(--ink-soft)] text-sm" style={{ lineHeight: "1.6" }}>
-              Data thực từ 46.000+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.
+              {COPY_TRUST_LINE}
             </p>
           </div>
 
@@ -176,8 +214,13 @@ export default function LoginRoute() {
               style={{ background: "var(--ink)", color: "var(--background)" }}
             >
               {loadingFb ? <Spinner /> : <FacebookIcon />}
-              {loadingFb ? "Đang kết nối Facebook..." : "Đăng nhập với Facebook"}
+              {loadingFb ? COPY_LOADING_FACEBOOK : COPY_BTN_FACEBOOK}
             </button>
+            {oauthError?.target === "facebook" ? (
+              <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
+                {oauthError.message}
+              </p>
+            ) : null}
 
             <button
               type="button"
@@ -191,27 +234,32 @@ export default function LoginRoute() {
               }}
             >
               {loadingGoogle ? <Spinner /> : <GoogleIcon />}
-              {loadingGoogle ? "Đang kết nối Google..." : "Đăng nhập với Google"}
+              {loadingGoogle ? COPY_LOADING_GOOGLE : COPY_BTN_GOOGLE}
             </button>
-
-            {oauthError ? (
+            {oauthError?.target === "google" ? (
               <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
-                {oauthError}
+                {oauthError.message}
+              </p>
+            ) : null}
+
+            {oauthError?.target === "general" ? (
+              <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
+                {oauthError.message}
               </p>
             ) : null}
           </div>
         </motion.div>
 
         <p className="text-[11px] text-center px-4" style={{ color: "var(--faint)", lineHeight: "1.7" }}>
-          Bằng cách đăng nhập, bạn đồng ý với{" "}
+          {COPY_LEGAL_NOTE_PREFIX}
           <Link to="#" className="hover:underline" style={{ color: "var(--purple)" }}>
             Điều khoản dịch vụ
           </Link>{" "}
           và{" "}
           <Link to="#" className="hover:underline" style={{ color: "var(--purple)" }}>
             Chính sách bảo mật
-          </Link>{" "}
-          của GetViews.
+          </Link>
+          {COPY_LEGAL_NOTE_SUFFIX}
         </p>
       </div>
     </div>
