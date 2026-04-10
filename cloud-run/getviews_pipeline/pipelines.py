@@ -21,6 +21,16 @@ from getviews_pipeline.helpers import (
 )
 from getviews_pipeline.intents import QueryIntent
 from getviews_pipeline.runtime import get_analysis_semaphore, run_sync
+from getviews_pipeline.step_events import (
+    emit,
+    emit_sentinel,
+    step_count,
+    step_creator,
+    step_done,
+    step_process,
+    step_search,
+    step_start,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -202,14 +212,23 @@ async def run_competitor_profile(
     handle: str,
     session: dict[str, Any],
     questions: list[str],
+    *,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     sem = get_analysis_semaphore()
+
+    emit(step_queue, step_start(f"Đang tải trang TikTok @{handle}..."))
+    emit(step_queue, step_creator(handle))
+
     posts = await ensemble.fetch_user_posts(handle, depth=2)
     fa = session.setdefault("full_analyses", {})
     cached_ids = set(fa.keys())
     picks = select_reference_videos(
         posts, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
     )
+    emit(step_queue, step_count(len(posts)))
+
+    emit(step_queue, step_process("Đang phân tích video tốt nhất..."))
 
     async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
         async with sem:
@@ -219,6 +238,8 @@ async def run_competitor_profile(
 
     results = await asyncio.gather(*[_one(a) for a in picks])
     analyzed = [r for r in results if "analysis" in r]
+
+    emit(step_queue, step_done(f"Đã phân tích {len(analyzed)} video — đang viết báo cáo..."))
 
     payload = {"handle": handle, "analyzed_videos": analyzed}
     synthesis = await run_sync(
@@ -235,6 +256,7 @@ async def run_competitor_profile(
         delta_videos=len(analyzed),
         intent_label="competitor_profile",
     )
+    await emit_sentinel(step_queue)
     return {
         "intent": "competitor_profile",
         "handle": handle,
@@ -326,16 +348,23 @@ async def run_video_diagnosis(
     include_diagnosis: bool = True,
     niche_override: str | None = None,
     questions: list[str] | None = None,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     sem = get_analysis_semaphore()
     fa = session.setdefault("full_analyses", {})
 
+    emit(step_queue, step_start("Đang tải và đọc video..."))
     user_aweme = await ensemble.fetch_post_info(url)
     meta = ensemble.parse_metadata(user_aweme)
+    handle = meta.author.username if meta.author else ""
+    if handle:
+        emit(step_queue, step_creator(handle))
+
     niche = niche_override or infer_niche_from_hashtags(
         meta.hashtags, meta.description
     )
 
+    emit(step_queue, step_search("corpus", f"video tương tự trong niche {niche}"))
     pool = await _niche_aweme_pool(niche, period=30)
     cached_ids = set(fa.keys())
     uid = str(user_aweme.get("aweme_id", "") or "")
@@ -344,6 +373,9 @@ async def run_video_diagnosis(
     picks = select_reference_videos(
         pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
     )
+    emit(step_queue, step_count(len(pool)))
+
+    emit(step_queue, step_process("Đang phân tích từng video..."))
 
     async def _user() -> dict[str, Any]:
         async with sem:
@@ -367,6 +399,8 @@ async def run_video_diagnosis(
         session, niche_id=None, days=30, niche_name=niche
     )
     citation = build_corpus_citation_block(count, niche_name, days=30)
+
+    emit(step_queue, step_done(f"Đã phân tích {1 + len(references)} video — đang viết báo cáo..."))
 
     diagnosis: str
     if include_diagnosis:
@@ -398,6 +432,7 @@ async def run_video_diagnosis(
         delta_videos=1 + len(references),
         intent_label="video_diagnosis",
     )
+    await emit_sentinel(step_queue)
 
     # Flatten user result for backward compatibility with VideoAnalyzeResult consumers
     out: dict[str, Any] = {

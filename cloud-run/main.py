@@ -363,23 +363,79 @@ async def stream(
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
 
-            # ── Run pipeline ──────────────────────────────────────────────────
+            # ── Run pipeline (with step events) ───────────────────────────────
             session = get_session_context(body.session_id)
             urls, handles = extract_urls_and_handles(body.query)
             questions = split_into_questions(body.query)
 
+            step_q: asyncio.Queue[dict | None] = asyncio.Queue()
+
             if normalized in ("video_diagnosis", "own_channel"):
-                # own_channel = diagnosing the user's own video URL (same pipeline)
                 url = _pick_video_url(urls)
                 if not url:
                     seq += 1
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "missing_video_url"})
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
-                out = await asyncio.wait_for(
-                    run_video_diagnosis(url, session, questions=questions),
-                    timeout=120.0,
+                pipeline_coro = run_video_diagnosis(url, session, questions=questions, step_queue=step_q)
+
+            elif normalized == "competitor_profile":
+                handle = _resolve_profile_handle(urls, handles)
+                pipeline_coro = run_competitor_profile(handle, session, questions, step_queue=step_q)
+
+            else:
+                # Safety net: unknown intent routed here — treat as follow-up text
+                logger.warning("Unexpected intent in /stream: %s — falling back to gemini_text_only", normalized)
+                full_text = await run_sync(gemini_text_only, body.query, session)
+                structured = None
+                chunks = _chunk_text(full_text, 50)
+                put_stream_chunks(stream_id, chunks)
+                for chunk in chunks:
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
+                    await asyncio.sleep(0.005)
+                seq += 1
+                yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
+                await run_sync(
+                    _insert_chat_message_best_effort,
+                    supabase=sb, session_id=body.session_id, user_id=user_id,
+                    content=full_text, structured_output=None, intent_type=normalized, stream_id=stream_id,
                 )
+                sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                return
+
+            # Run pipeline in background task; yield step events as they arrive
+            pipeline_task = asyncio.create_task(
+                asyncio.wait_for(pipeline_coro, timeout=180.0)
+            )
+
+            # ── Phase 1: stream step events ───────────────────────────────────
+            while True:
+                try:
+                    event = await asyncio.wait_for(step_q.get(), timeout=0.25)
+                except asyncio.TimeoutError:
+                    if pipeline_task.done():
+                        # Drain any remaining events
+                        while not step_q.empty():
+                            event = step_q.get_nowait()
+                            if event is None:
+                                break
+                            seq += 1
+                            yield _sse_line({"stream_id": stream_id, "seq": seq, "step": event})
+                        break
+                    continue
+
+                if event is None:
+                    # Sentinel — pipeline has finished emitting step events
+                    break
+
+                seq += 1
+                yield _sse_line({"stream_id": stream_id, "seq": seq, "step": event})
+
+            # ── Await pipeline result ─────────────────────────────────────────
+            out = await pipeline_task
+
+            if normalized in ("video_diagnosis", "own_channel"):
                 uv = out.get("user_video") or {}
                 if uv.get("error"):
                     seq += 1
@@ -392,23 +448,11 @@ async def stream(
                     for k in ("niche", "user_video", "reference_videos", "metadata", "analysis", "content_type")
                     if k in out
                 } or None
-
-            elif normalized == "competitor_profile":
-                handle = _resolve_profile_handle(urls, handles)
-                out = await asyncio.wait_for(
-                    run_competitor_profile(handle, session, questions),
-                    timeout=120.0,
-                )
+            else:
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {k: out[k] for k in ("handle", "analyzed_videos") if k in out} or None
 
-            else:
-                # Safety net: unknown intent routed here — treat as follow-up text
-                logger.warning("Unexpected intent in /stream: %s — falling back to gemini_text_only", normalized)
-                full_text = await run_sync(gemini_text_only, body.query, session)
-                structured = None
-
-            # ── Stream text in chunks ─────────────────────────────────────────
+            # ── Phase 2: stream synthesis text ────────────────────────────────
             chunks = _chunk_text(full_text, 50)
             put_stream_chunks(stream_id, chunks)
 

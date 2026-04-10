@@ -34,6 +34,7 @@ import { HookRankingBar } from "@/routes/_app/components/HookRankingBar";
 import { BriefBlock } from "@/routes/_app/components/BriefBlock";
 import { CreatorCard } from "@/routes/_app/components/CreatorCard";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
+import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
 
 /* ─── Quick action cards (Make) ───────────────────────────────────────── */
 interface QuickAction {
@@ -345,7 +346,7 @@ export default function ChatScreen() {
   const { data: sessionRow, refetch: refetchSession } = useChatSession(sessionId);
   const createSession = useCreateSession();
   const insertUser = useInsertUserMessage();
-  const { status, text, streamId, lastSeq, error, stream, reset } = useChatStream();
+  const { status, text, streamId, lastSeq, error, stepEvents, stream, reset } = useChatStream();
   const { data: nicheRows } = useNicheTaxonomy();
 
   const messages = useMemo(
@@ -882,11 +883,16 @@ export default function ChatScreen() {
 
       {inFlightVisible ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
-          <StreamingStatusText
-            phase={status === "streaming" ? "streaming" : "idle"}
-            isVideoIntent={VIDEO_INTENTS.has(lastStreamIntent ?? "")}
-          />
-          {status === "streaming" && !text ? (
+          {/* Step logger — shown before synthesis text arrives */}
+          {stepEvents.length > 0 ? (
+            <AgentStepLogger events={stepEvents} collapsed={Boolean(text)} />
+          ) : (
+            <StreamingStatusText
+              phase={status === "streaming" ? "streaming" : "idle"}
+              isVideoIntent={VIDEO_INTENTS.has(lastStreamIntent ?? "")}
+            />
+          )}
+          {status === "streaming" && !text && stepEvents.length === 0 ? (
             <div className="mt-3 space-y-2 animate-pulse">
               <div className="h-3 w-[75%] rounded bg-[var(--border)]" />
               <div className="h-3 w-[50%] rounded bg-[var(--border)]" />
@@ -1000,6 +1006,12 @@ export default function ChatScreen() {
                 </div>
               </div>
             </div>
+            {/* Time estimate hint — shown for video/competitor intents */}
+            {hasTikTokUrl && !inputDisabled ? (
+              <p className="mt-1.5 text-center text-[10px] text-[var(--faint)]">
+                Phân tích sâu cần 30 giây – 2 phút
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

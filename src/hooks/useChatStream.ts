@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { env } from "@/lib/env";
 import { chatKeys } from "./useChatSession";
+import { type StepEvent } from "@/lib/types/sse-events";
 
 const CLOUD_RUN_URL = env.VITE_CLOUD_RUN_API_URL;
 const VERCEL_CHAT_URL = "/api/chat";
@@ -17,6 +18,8 @@ export interface StreamState {
   streamId: string | null;
   lastSeq: number;
   error: string | null;
+  /** Step events received from Cloud Run pipeline (P0-6). Empty for Vercel-routed intents. */
+  stepEvents: StepEvent[];
 }
 
 export function useChatStream() {
@@ -28,6 +31,7 @@ export function useChatStream() {
     streamId: null,
     lastSeq: 0,
     error: null,
+    stepEvents: [],
   });
 
   const stream = useCallback(
@@ -54,6 +58,7 @@ export function useChatStream() {
         streamId: resumeStreamId ?? null,
         lastSeq: resumeSeq ?? 0,
         error: null,
+        stepEvents: [],
       });
 
       try {
@@ -106,6 +111,7 @@ export function useChatStream() {
                 delta?: string;
                 done?: boolean;
                 error?: string;
+                step?: StepEvent;
               };
               if (token.error) {
                 setState((s) => ({ ...s, status: "error", error: token.error ?? "stream_failed" }));
@@ -113,6 +119,11 @@ export function useChatStream() {
               }
               if (token.stream_id) lastStreamId = token.stream_id;
               if (typeof token.seq === "number") lastSeq = token.seq;
+              // Step event — append to stepEvents, no text change
+              if (token.step) {
+                setState((s) => ({ ...s, streamId: lastStreamId, lastSeq, stepEvents: [...s.stepEvents, token.step!] }));
+                continue;
+              }
               if (token.delta) text += token.delta;
               if (token.done) {
                 setState({
@@ -121,6 +132,7 @@ export function useChatStream() {
                   streamId: lastStreamId,
                   lastSeq,
                   error: null,
+                  stepEvents: [],
                 });
                 void qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
                 void qc.invalidateQueries({ queryKey: ["profile"] });
@@ -147,7 +159,7 @@ export function useChatStream() {
   }, []);
 
   const reset = useCallback(() => {
-    setState({ status: "idle", text: "", streamId: null, lastSeq: 0, error: null });
+    setState({ status: "idle", text: "", streamId: null, lastSeq: 0, error: null, stepEvents: [] });
   }, []);
 
   return { ...state, stream, abort, reset };
