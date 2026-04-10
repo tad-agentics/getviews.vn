@@ -154,7 +154,7 @@ function LiveDemoSection() {
                 ))}
               </div>
               <p className="text-xs font-mono text-[var(--faint)] mt-3">
-                412 video review đồ gia dụng · 7 ngày · Updated 4h ago
+                412 video review đồ gia dụng · 7 ngày · Cập nhật 4h trước
               </p>
             </div>
           </div>
@@ -168,9 +168,7 @@ export default function LandingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "biannual" | "annual">("annual");
   const [stickyVisible, setStickyVisible] = useState(false);
   const [iosOpen, setIosOpen] = useState(false);
-  const [online, setOnline] = useState(
-    () => typeof navigator !== "undefined" && navigator.onLine,
-  );
+  const [online, setOnline] = useState(true);
 
   const { session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
