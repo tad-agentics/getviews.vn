@@ -6,6 +6,8 @@ Flow per niche:
   3. Analyze each post with Gemini (video or carousel path).
   4. Upsert rows to video_corpus via service-role Supabase client.
   5. After all niches complete, refresh niche_intelligence materialized view.
+  6. On Sundays: run batch_analytics (creator_velocity + breakout_multiplier)
+               + signal_classifier (signal_grades per niche × hook_type).
 
 Designed to run as a Cloud Scheduler cron or via POST /batch/ingest.
 """
@@ -17,6 +19,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any
 
 from getviews_pipeline import ensemble
@@ -505,6 +508,13 @@ async def run_batch_ingest(
     # Refresh materialized view once all niches are done
     summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
 
+    # Weekly analytics (Sunday only — day 6 in Python's weekday())
+    today = date.today()
+    is_sunday = today.weekday() == 6
+    if is_sunday:
+        logger.info("[corpus] Sunday — running weekly analytics (P1-7 + P1-8)...")
+        await _run_weekly_analytics(client)
+
     logger.info(
         "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d mv_refreshed=%s",
         summary.total_inserted,
@@ -514,6 +524,36 @@ async def run_batch_ingest(
         summary.materialized_view_refreshed,
     )
     return summary
+
+
+async def _run_weekly_analytics(client: Any) -> None:
+    """Run creator velocity + breakout multiplier + signal grading (Sunday only).
+
+    Non-fatal: errors are logged but do not fail the batch ingest.
+    """
+    try:
+        from getviews_pipeline.batch_analytics import run_analytics
+        analytics_result = await run_analytics(client)
+        logger.info(
+            "[analytics] creators_updated=%d videos_updated=%d errors=%s",
+            analytics_result.creators_updated,
+            analytics_result.videos_updated,
+            analytics_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[analytics] Weekly analytics failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.signal_classifier import run_signal_grading
+        signal_result = await run_signal_grading(client)
+        logger.info(
+            "[signal] grades_written=%d niches=%d errors=%s",
+            signal_result.grades_written,
+            signal_result.niches_processed,
+            signal_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[signal] Signal grading failed (non-fatal): %s", exc)
 
 
 def _fetch_niches_sync(client: Any) -> list[dict[str, Any]]:

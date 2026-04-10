@@ -11,6 +11,8 @@ from getviews_pipeline.analysis_core import analyze_aweme, analyze_tiktok_url
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
     get_corpus_count_cached,
+    get_signal_grades_for_niche,
+    get_top_breakout_videos,
 )
 from getviews_pipeline.gemini import synthesize_intent_markdown
 from getviews_pipeline.helpers import (
@@ -183,7 +185,29 @@ async def run_trend_spike(
     )
     citation = build_corpus_citation_block(count, niche_name, days=7)
 
-    payload = {"niche": niche, "window_days": 7, "analyzed_videos": analyzed}
+    # Enrich with real breakout + signal data (P1-7 + P1-8)
+    # niche_id lookup: use session if available, else omit (signal grades require integer id)
+    niche_id: int | None = session.get("niche_id")
+    async def _noop_dict() -> dict:
+        return {}
+
+    breakout_videos, signal_grades = await asyncio.gather(
+        get_top_breakout_videos(niche_id, days=7, limit=10),
+        get_signal_grades_for_niche(niche_id) if niche_id else _noop_dict(),
+        return_exceptions=True,
+    )
+    if isinstance(breakout_videos, Exception):
+        breakout_videos = []
+    if isinstance(signal_grades, Exception):
+        signal_grades = {}
+
+    payload = {
+        "niche": niche,
+        "window_days": 7,
+        "analyzed_videos": analyzed,
+        "breakout_videos": breakout_videos,
+        "signal_grades": signal_grades,
+    }
     synthesis = await run_sync(
         synthesize_intent_markdown,
         "trend_spike",

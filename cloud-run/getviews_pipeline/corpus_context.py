@@ -148,3 +148,66 @@ async def get_corpus_count_cached(
     )
     set_cached_count(session, niche_id, count, resolved_name)
     return count, resolved_name
+
+
+# ---------------------------------------------------------------------------
+# Breakout + signal helpers — used by run_trend_spike to enrich payload
+# ---------------------------------------------------------------------------
+
+async def get_top_breakout_videos(
+    niche_id: int | None,
+    *,
+    days: int = 7,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Return corpus videos sorted by breakout_multiplier for a niche.
+
+    Returns list of {video_id, creator_handle, views, breakout_multiplier, indexed_at}.
+    Falls back to [] on any error.
+    """
+    try:
+        client = _anon_client()
+        query = (
+            client.table("video_corpus")
+            .select("video_id, creator_handle, views, breakout_multiplier, indexed_at")
+            .gt("breakout_multiplier", 1.0)
+            .gte("indexed_at", f"now() - interval '{days} days'")
+            .order("breakout_multiplier", desc=True)
+            .limit(limit)
+        )
+        if niche_id is not None:
+            query = query.eq("niche_id", niche_id)
+        result = query.execute()
+        return result.data or []
+    except Exception as exc:
+        logger.warning("[corpus_context] get_top_breakout_videos failed: %s", exc)
+        return []
+
+
+async def get_signal_grades_for_niche(
+    niche_id: int,
+) -> dict[str, str]:
+    """Return {hook_type: signal} for most recent week in a niche.
+
+    Falls back to {} on any error (signal grades may not be computed yet).
+    """
+    try:
+        client = _anon_client()
+        result = (
+            client.table("signal_grades")
+            .select("hook_type, signal")
+            .eq("niche_id", niche_id)
+            .order("week_start", desc=True)
+            .limit(20)
+            .execute()
+        )
+        seen: dict[str, str] = {}
+        for row in (result.data or []):
+            ht = row.get("hook_type", "")
+            sig = row.get("signal", "stable")
+            if ht and ht not in seen:
+                seen[ht] = sig
+        return seen
+    except Exception as exc:
+        logger.warning("[corpus_context] get_signal_grades_for_niche failed: %s", exc)
+        return {}

@@ -543,3 +543,41 @@ async def batch_ingest(
         "materialized_view_refreshed": summary.materialized_view_refreshed,
         "niche_results": summary.niche_results,
     })
+
+
+@app.post("/batch/analytics")
+async def batch_analytics(request: Request) -> JSONResponse:
+    """Trigger weekly analytics: creator velocity + breakout multiplier + signal grading.
+
+    Protected by X-Batch-Secret header. Normally called by Cloud Scheduler on Sundays,
+    but available for manual triggering (e.g. after importing a large batch of corpus data).
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.batch_analytics import run_analytics
+    from getviews_pipeline.signal_classifier import run_signal_grading
+
+    logger.info("POST /batch/analytics triggered")
+    try:
+        analytics = await run_analytics()
+        signal = await run_signal_grading()
+    except Exception as exc:
+        logger.exception("Batch analytics failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({
+        "ok": True,
+        "analytics": {
+            "creators_updated": analytics.creators_updated,
+            "videos_updated": analytics.videos_updated,
+            "errors": analytics.errors,
+        },
+        "signal": {
+            "grades_written": signal.grades_written,
+            "niches_processed": signal.niches_processed,
+            "errors": signal.errors,
+        },
+    })
