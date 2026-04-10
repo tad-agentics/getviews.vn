@@ -55,25 +55,22 @@ None. ✅
 **Impact:** ChatScreen renders `content` as plain text. Structured diagnosis components (DiagnosisRow, HookRankingBar) show mock data, not real pipeline output.
 **Action:** Wave 2 — update ChatScreen to read `structured_output` when present.
 
-### N-19 — `video_corpus` table empty in remote DB
+### N-19 — `video_corpus` first batch complete ✅
 **Source:** Explore QA agent
-**Impact:** ExploreScreen shows empty state. Populated only by Cloud Run batch ingest.
-**Action:** Deploy Cloud Run pipeline and run batch ingest, or manually seed test rows for early QA.
+**Status:** RESOLVED 2026-04-10 — Batch ingest ran against niche_id=1 ("Shopee affiliate reviews"): 10 videos inserted, 0 failed, MV refreshed. Cloud Scheduler (`getviews-corpus-ingest`) runs nightly at 02:00 ICT.
 
 ### N-20 — R2 bucket must be public for corpus media to load
 **Source:** Explore backend agent
-**Impact:** `video_url` and `thumbnail_url` are public R2 URLs — will 403 if bucket is private.
-**Action (human):** Confirm `getviews-corpus` R2 bucket is set to public in Cloudflare dashboard.
+**Impact:** `video_url` and `thumbnail_url` stored are TikTok CDN URLs (not R2) — R2 not used in current pipeline. ExploreScreen thumbnails load from TikTok CDN directly.
+**Status:** Non-issue for current implementation. R2 only needed if we cache videos locally.
 
-### N-21 — `trending_keywords` empty until Cloud Run batch runs
+### N-21 — `trending_keywords` populated ✅
 **Source:** Explore QA agent
-**Impact:** TrendScreen aside shows "Đang cập nhật…" until `niche_intelligence` is populated by batch job.
-**Action:** Resolved when N-19 (Cloud Run batch) is done.
+**Status:** RESOLVED 2026-04-10 — `niche_intelligence` materialized view refreshed after first batch run. TrendScreen aside will show real data on next load.
 
-### N-22 — `niche_intelligence` materialized view not auto-refreshed
+### N-22 — `niche_intelligence` auto-refresh scheduled ✅
 **Source:** Trends backend agent
-**Impact:** View returns stale/empty rows until Cloud Run batch runs and refreshes it.
-**Action:** Set up Cloud Scheduler or pg_cron job to call `REFRESH MATERIALIZED VIEW niche_intelligence` after nightly batch.
+**Status:** RESOLVED 2026-04-10 — `refresh_niche_intelligence()` SECURITY DEFINER RPC created. Called automatically at end of every batch ingest. Cloud Scheduler triggers nightly at 02:00 ICT.
 
 ### N-26 — `noreply@getviews.vn` sender not yet verified in Resend
 **Source:** Billing backend agent
@@ -139,7 +136,7 @@ None. ✅
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 0 | — |
-| NON-BLOCKING | 15 | N-1, N-3, N-4, N-5, N-8, N-10, N-13, N-19, N-20, N-21, N-22, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-40 |
+| NON-BLOCKING | 12 | N-1, N-3, N-4, N-5, N-8, N-10, N-13, N-20, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-40 |
 | DEFERRED | 8 | Post-MVP |
 
 **Resolved since last update:**
@@ -151,3 +148,6 @@ None. ✅
 - ✅ N-39 (Cloud Run env vars) — 2026-04-10; all 5 keys confirmed via `/health`
 - ✅ Cloud Run deploy — 2026-04-10; `getviews-pipeline-00002-2lj` live in `asia-southeast1`, health check green
 - ✅ N-12 (`VITE_CLOUD_RUN_API_URL`) — 2026-04-10; set in Vercel, video intents now route to Cloud Run
+- ✅ N-19 (video_corpus first batch) — 2026-04-10; 10 videos ingested for niche_id=1, nightly scheduler active
+- ✅ N-21 (trending_keywords) — 2026-04-10; niche_intelligence view refreshed post-batch
+- ✅ N-22 (MV auto-refresh) — 2026-04-10; refresh_niche_intelligence() RPC + Cloud Scheduler running
