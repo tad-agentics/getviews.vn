@@ -1,6 +1,6 @@
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 /** Split heavy vendors so chunks cache independently and initial parse stays smaller on mobile. */
 function manualChunks(id: string) {
@@ -46,4 +46,13 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    globals: true,
+    env: {
+      VITE_SUPABASE_URL: "https://test-project.supabase.co",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "vitest-publishable-key-placeholder",
+    },
+  },
 });
