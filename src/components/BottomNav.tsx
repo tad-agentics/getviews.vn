@@ -4,7 +4,7 @@ import { NavLink } from "react-router";
 const tabs = [
   { to: "/app", label: "Chat", icon: MessageCircle, end: true },
   { to: "/app/history", label: "Lịch sử", icon: Clock, end: false },
-  { to: "/app/trends", label: "Xu hướng", icon: TrendingUp, end: false },
+  { to: "/app/explore", label: "Xu hướng", icon: TrendingUp, end: false },
 ] as const;
 
 export function BottomNav() {

@@ -257,7 +257,7 @@ function SessionRow({
    AppLayout
 ════════════════════════════════════════════════ */
 interface AppLayoutProps {
-  active?: 'chat' | 'trends' | 'history';
+  active?: "chat" | "history" | "explore" | "trends";
   children: ReactNode;
   enableMobileSidebar?: boolean;
 }
@@ -391,9 +391,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           <NavItem
             icon={TrendingUp}
             label="Xu hướng"
-            active={active === "trends"}
+            active={active === "explore"}
             onClick={() => {
-              navigate("/app/trends");
+              navigate("/app/explore");
               onClose?.();
             }}
           />

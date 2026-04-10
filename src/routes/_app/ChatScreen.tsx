@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -329,6 +329,8 @@ function AssistantStructuredBlock({ parsed }: { parsed: ParsedAssistant | null }
 
 export default function ChatScreen() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlSessionId = searchParams.get("session");
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId);
@@ -362,6 +364,13 @@ export default function ChatScreen() {
 
   const [message, setMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
+
+  useEffect(() => {
+    const prefillUrl = (location.state as { prefillUrl?: string } | null | undefined)?.prefillUrl;
+    if (!prefillUrl || typeof prefillUrl !== "string") return;
+    setMessage(prefillUrl);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
+  }, [location.state, location.pathname, location.search, navigate]);
   const [freePillKey, setFreePillKey] = useState(0);
   const [clientPaywall, setClientPaywall] = useState(false);
   const [lastStreamIntent, setLastStreamIntent] = useState<string | null>(null);
