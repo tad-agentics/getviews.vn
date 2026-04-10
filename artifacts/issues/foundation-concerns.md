@@ -1,6 +1,6 @@
 # Foundation → Wave 2 Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac`
-> Status: Explore QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
+> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839`
+> Status: Trends QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
 
 ---
 
@@ -141,10 +141,25 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Impact:** `video_url` and `thumbnail_url` in `video_corpus` point to Cloudflare R2 public bucket URLs. If the R2 bucket is set to private, all `<img>` and `<video>` elements in ExploreScreen will 403. If the bucket is public, no signing is needed.
 **Action (human):** Confirm R2 bucket (`getviews-corpus`) is set to **public** in Cloudflare dashboard, or implement signed URL generation (short-lived presigned URLs via Cloud Run) before production. Not blocking for Wave 2 dev.
 
-### N-21 — `BreakoutHitsSidebar` (desktop) not implemented in ExploreScreen
-**Source:** Explore QA agent (`304f866`) — deferred finding
-**Impact:** Desktop layout for `/app/trends` lacks the sidebar showing "Breakout tuần này" and "Đang viral" columns. These are visible in Make's `TrendScreen.tsx` right-side `<aside>`. Health score docked at 98/100 (−2 visual).
-**Action:** Implement during `/feature trends` frontend step using the Make `TrendScreen.tsx` `<aside>` section and the `breakoutHits` / `viralNow` mock data (to be replaced with real `niche_intelligence` queries). Wire to `useNicheIntelligence(nicheId)` hook.
+### N-21 — Desktop aside wired to `niche_intelligence.trending_keywords` — PARTIALLY RESOLVED
+**Source:** Explore QA agent (`304f866`) → Addressed in trends frontend (`b28a9a7`)
+**Status:** Desktop `<aside>` now shows `trending_keywords` from `niche_intelligence` as pill badges when available. Falls back to "Đang cập nhật…" placeholder when `trending_keywords` is null or empty (materialized view not yet refreshed). The old `breakoutHits` / `viralNow` mock arrays are removed.
+**Remaining:** `trending_keywords` field is often empty until Cloud Run batch job runs and refreshes `niche_intelligence`. Full aside content depends on N-19 (Cloud Run deploy). Health score 94/100 (−6 for aside placeholder + non-progressive bar shading).
+
+### N-22 — `niche_intelligence` materialized view not auto-refreshed
+**Source:** Trends backend agent (`58a6446`)
+**Impact:** `niche_intelligence` is a Postgres materialized view populated by the Cloud Run batch job. It is not scheduled for auto-refresh in `supabase/config.toml` or any Supabase cron. Until Cloud Run deploys and runs the batch, the view returns stale or empty rows. `useTrendVelocity`, `useHookEffectiveness`, `useFormatLifecycle`, and `useNicheIntelligence` hooks all query tables that depend on this pipeline.
+**Action:** Before staging demo — deploy Cloud Run pipeline (see DEFERRED) and set up a Cloud Scheduler job or `pg_cron` to call `REFRESH MATERIALIZED VIEW niche_intelligence` nightly after the batch run. Not blocking for local dev (hooks degrade gracefully to empty state).
+
+### N-23 — `hook_effectiveness.hook_type` field is a raw string — no taxonomy
+**Source:** Trends frontend agent (`b28a9a7`) — noted during data mapping
+**Impact:** `hook_effectiveness` rows have `hook_type` as a free-text string (e.g., `"question"`, `"statistic"`, `"POV"`). The HookRankingBars section renders this directly. If the Cloud Run pipeline generates inconsistent casing or Vietnamese/English mixing, bars will look noisy. No normalization or translation layer exists.
+**Action:** Before trends feature goes live with real data — define a canonical `hook_type` enum in the Cloud Run pipeline (`getviews_pipeline/intents.py`) and normalize on write. No frontend change needed; this is a pipeline concern.
+
+### N-24 — D2 bars use `var(--ink-soft)` for all non-top bars — not progressively lighter
+**Source:** Trends QA agent (`ddaf839`) — deferred finding
+**Impact:** EDS D2 spec calls for bars to be progressively lighter (top = purple, 2nd = slightly lighter, etc.). Current implementation uses the same `var(--ink-soft)` color for bars 2–N. Deducted 6 health points (visual).
+**Action:** Update the bar color logic in `ExploreScreen.tsx` HookRankingBars to interpolate opacity: `rgba(var(--ink-rgb), 0.6 - i*0.08)` or similar. Low priority — does not affect functionality.
 
 ### N-10 — Secrets in `.cursor/mcp.json` accessible in-session
 **Source:** Auth backend agent (`89dc2ca`)
@@ -170,19 +185,17 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 21 | N-1 through N-21 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18 resolved; N-9 partially resolved) |
+| NON-BLOCKING | 24 | N-1 through N-24 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18 resolved; N-9, N-21 partially resolved) |
 | DEFERRED | 5 | Wave 2+ |
 
-**Resolved this phase (explore + nav fix):**
-- N-16 — AppLayout sidebar rename now persisted via `useUpdateSession` (`023ba47`)
-- N-17 — `database.types.ts` regenerated from live schema post-history (`023ba47`)
-- N-18 — Navigation misalignment fully resolved: BottomNav removed, ExploreScreen at `/app/trends`, sidebar matches Make exactly (`20572ac`)
+**Resolved this phase (trends):**
+- N-21 — Desktop aside partially wired: `trending_keywords` from `niche_intelligence` replaces mock arrays; placeholder shown until Cloud Run runs
 
-**New concerns added from `/feature explore` + nav alignment:**
-- N-19 — `video_corpus` table empty in remote DB — no data to browse until Cloud Run pipeline runs
-- N-20 — R2 bucket access (public vs. private) not confirmed — `video_url` / `thumbnail_url` may 403
-- N-21 — `BreakoutHitsSidebar` (desktop aside) not implemented — deferred to `/feature trends`
+**New concerns added from `/feature trends`:**
+- N-22 — `niche_intelligence` materialized view not auto-refreshed (depends on Cloud Run batch)
+- N-23 — `hook_effectiveness.hook_type` is free-text — no canonical taxonomy enforced by pipeline
+- N-24 — D2 bars not progressively lighter (all non-top bars same `var(--ink-soft)`)
 
-**Wave 2 explore: QA PASS.** ExploreScreen at `/app/trends` fully functional (5/5 passes, health 98/100). Navigation now matches Figma Make exactly.
+**Wave 2 trends: QA PASS.** TrendScreen fully wired: NicheSelector, D2 HookRankingBars, FormatLifecycle, aside keywords (5/5 passes, health 94/100).
 
-**Before next Wave 2 feature:** No new blockers added. N-19 (empty corpus) is the main gap for staging demo.
+**Before next Wave 2 feature:** No new blockers. N-19 (empty corpus) + N-22 (MV not refreshed) are the main gaps for staging demo — both depend on Cloud Run deploy.
