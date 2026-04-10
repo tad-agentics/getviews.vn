@@ -33,7 +33,7 @@ from getviews_pipeline.config import SUPABASE_JWKS_URL, SUPABASE_JWT_SECRET
 from getviews_pipeline.gemini import gemini_text_only
 from getviews_pipeline.intents import (
     QueryIntent,
-    classify_intent,
+    collapse_to_intents,
     extract_urls_and_handles,
     infer_niche_from_message,
     split_into_questions,
@@ -78,25 +78,27 @@ def get_supabase() -> Any:
 _PROFILE_HANDLE_RE = re.compile(r"tiktok\.com/@([a-zA-Z0-9_.]+)", re.IGNORECASE)
 
 
-def _normalize_intent_name(raw: str | None) -> str | None:
+_INTENT_ALIASES: dict[str, str] = {
+    "tiktok_url_diagnosis": "video_diagnosis",
+    "kol_search": "find_creators",
+    "followup": "follow_up",
+}
+
+
+def _normalize_intent(raw: str | None) -> str | None:
     if raw is None:
         return None
-    aliases = {
-        "tiktok_url_diagnosis": "video_diagnosis",
-        "kol_search": "find_creators",
-        "followup": "follow_up",
-    }
-    return aliases.get(raw, raw)
+    return _INTENT_ALIASES.get(raw, raw)
+
+
+# Matches FREE_INTENTS in api/chat.ts — no credit deduction for these.
+FREE_INTENTS: frozenset[str] = frozenset(
+    {"trend_spike", "find_creators", "follow_up", "format_lifecycle", "kol_search"}
+)
 
 
 def is_free_intent(intent: str) -> bool:
-    return intent in ("trend_spike", "kol_search", "follow_up", "find_creators")
-
-
-def _classify_to_frontend_intent(qi: QueryIntent) -> str:
-    if qi == QueryIntent.FOLLOWUP:
-        return "follow_up"
-    return qi.value
+    return intent in FREE_INTENTS
 
 
 def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:
@@ -117,7 +119,7 @@ def _pick_video_url(urls: list[str]) -> str | None:
     return urls[0] if urls else None
 
 
-async def _metadata_only_text(url: str) -> str:
+async def _metadata_only_json(url: str) -> str:
     aweme = await ensemble.fetch_post_info(url)
     meta = ensemble.parse_metadata(aweme)
     m = meta.metrics
@@ -133,17 +135,18 @@ async def _metadata_only_text(url: str) -> str:
     return f"{head}\n\n{desc[:800]}"
 
 
-async def _run_intent_pipeline(
-    intent: str,
+async def _dispatch_intent(
+    intent: QueryIntent,
+    questions: list[str],
     query: str,
+    urls: list[str],
+    handles: list[str],
     session: dict[str, Any],
 ) -> tuple[str, dict[str, Any] | None]:
-    """Run analysis pipeline; returns (assistant_markdown_or_text, structured_json_or_none)."""
-    questions = split_into_questions(query)
+    """Dispatch one classified intent to its pipeline. Returns (text, structured)."""
     niche = infer_niche_from_message(query)
-    urls, handles = extract_urls_and_handles(query)
 
-    if intent == "video_diagnosis":
+    if intent == QueryIntent.VIDEO_DIAGNOSIS:
         url = _pick_video_url(urls)
         if not url:
             return "Cần link TikTok (video) hợp lệ.", None
@@ -154,76 +157,54 @@ async def _run_intent_pipeline(
         text = (out.get("diagnosis") or "").strip()
         structured = {
             k: out[k]
-            for k in (
-                "niche",
-                "user_video",
-                "reference_videos",
-                "metadata",
-                "analysis",
-                "content_type",
-            )
+            for k in ("niche", "user_video", "reference_videos", "metadata", "analysis", "content_type")
             if k in out
         }
         return text, structured or None
 
-    if intent == "competitor_profile":
+    if intent == QueryIntent.COMPETITOR_PROFILE:
         handle = _resolve_profile_handle(urls, handles)
         out = await run_competitor_profile(handle, session, questions)
         structured = {k: out[k] for k in ("handle", "analyzed_videos") if k in out}
         return out["synthesis"], structured or None
 
-    if intent == "own_channel":
-        out = await run_own_channel(niche, session, questions)
-        structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out}
-        return out["synthesis"], structured or None
-
-    if intent == "trend_spike":
+    if intent == QueryIntent.TREND_SPIKE:
         out = await run_trend_spike(niche, session, questions)
         structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out}
         return out["synthesis"], structured or None
 
-    if intent == "brief_generation":
-        topic = questions[0] if questions else query.strip()
-        out = await run_brief_generation(topic, niche, session, questions)
-        structured = {k: v for k, v in out.items() if k != "brief"}
-        return out["brief"], structured or None
-
-    if intent in ("find_creators", "kol_search"):
-        out = await run_kol_search(niche, session, questions)
-        structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out}
+    if intent == QueryIntent.CONTENT_DIRECTIONS:
+        out = await run_content_directions(niche, session, questions)
+        structured = {k: out[k] for k in ("niche", "directions", "analyzed_videos") if k in out}
         return out["synthesis"], structured or None
 
-    if intent in ("follow_up", "followup"):
-        text = await run_sync(gemini_text_only, query, session)
-        record_intent_done(session, "follow_up")
-        return text, None
-
-    if intent == "series_audit":
+    if intent == QueryIntent.SERIES_AUDIT:
         if len(urls) < 2:
             return "Cần ít nhất hai link TikTok cho kiểm tra series.", None
         out = await run_series_audit(urls, session, questions)
         structured = {k: out[k] for k in ("analyzed_videos",) if k in out}
         return out["synthesis"], structured or None
 
-    if intent == "content_directions":
-        out = await run_content_directions(niche, session, questions)
-        structured = {
-            k: out[k]
-            for k in ("niche", "directions", "analyzed_videos")
-            if k in out
-        }
-        return out["synthesis"], structured or None
+    if intent == QueryIntent.BRIEF_GENERATION:
+        topic = questions[0] if questions else query.strip()
+        out = await run_brief_generation(topic, niche, session, questions)
+        structured = {k: v for k, v in out.items() if k != "brief"}
+        return out["brief"], structured or None
 
-    if intent == "metadata_only":
+    if intent == QueryIntent.METADATA_ONLY:
         if not urls:
             return "Cần link TikTok.", None
-        text = await _metadata_only_text(urls[0])
+        text = await _metadata_only_json(urls[0])
         return text, None
 
-    topic = questions[0] if questions else query.strip()
-    out = await run_brief_generation(topic, niche, session, questions)
-    structured = {k: v for k, v in out.items() if k != "brief"}
-    return out["brief"], structured or None
+    if intent == QueryIntent.FOLLOWUP:
+        text = await run_sync(gemini_text_only, query, session)
+        record_intent_done(session, "follow_up")
+        return text, None
+
+    # Unknown — fall back to knowledge/text
+    text = await run_sync(gemini_text_only, query, session)
+    return text, None
 
 
 def _chunk_text(text: str, size: int = 20) -> list[str]:
@@ -258,8 +239,8 @@ def _insert_chat_message_best_effort(
     stream_id: str,
 ) -> None:
     try:
-        supabase = get_supabase()
-        supabase.table("chat_messages").insert(
+        sb = get_supabase()
+        sb.table("chat_messages").insert(
             {
                 "session_id": session_id,
                 "user_id": user_id,
@@ -274,6 +255,15 @@ def _insert_chat_message_best_effort(
         ).execute()
     except Exception as exc:
         logger.warning("Supabase chat_messages insert failed (non-fatal): %s", exc)
+
+
+def _clear_processing(user_id: str) -> None:
+    """Best-effort: clear is_processing flag after a paid intent finishes."""
+    try:
+        sb = get_supabase()
+        sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+    except Exception as exc:
+        logger.warning("clear is_processing failed (non-fatal): %s", exc)
 
 app = FastAPI(title="GetViews Pipeline", version="0.1.0")
 
@@ -377,13 +367,69 @@ async def stream(
     body: StreamRequest,
     user: dict = Depends(require_user),
 ) -> StreamingResponse:
-    """SSE token stream for analysis pipeline (chunked shim until Gemini streaming)."""
+    """SSE token stream — full pipeline implementation.
 
+    Flow:
+    1. JWT validated by require_user dependency.
+    2. SSE reconnect: replay cached chunks if resume_stream_id + last_seq provided.
+    3. Credit gate: decrement_credit RPC for non-free intents; 402 on insufficient balance.
+    4. is_processing = true on start (paid intents only).
+    5. collapse_to_intents: multi-intent + knowledge question routing.
+    6. Knowledge questions → gemini_text_only, streamed first.
+    7. Each intent pair → matching pipeline (video_diagnosis, competitor_profile, etc.).
+    8. All results concatenated, chunked, streamed as SSE deltas.
+    9. chat_messages insert (best-effort) after all chunks sent.
+    10. is_processing = false on finish or error (paid intents only).
+    """
     user_id: str = user["user_id"]
+
+    # ── Credit gate (before opening the stream) ───────────────────────────────
+    # Mirrors api/chat.ts lines 82–96. Done outside the generator so we can
+    # return a proper HTTP 402 before the SSE stream starts.
+    urls_pre, handles_pre = extract_urls_and_handles(body.query)
+    has_session_pre = False  # will be checked properly inside generator
+    normalized_pre = _normalize_intent(body.intent_type)
+    if normalized_pre:
+        primary_intent_str = normalized_pre
+    else:
+        questions_pre = split_into_questions(body.query)
+        session_pre = get_session_context(body.session_id)
+        has_session_pre = bool(session_pre.get("completed_intents"))
+        collapse_pre = collapse_to_intents(questions_pre, urls_pre, handles_pre, has_session_pre)
+        primary_intent_str = (
+            collapse_pre.pairs[0][0].value if collapse_pre.pairs
+            else ("follow_up" if collapse_pre.knowledge_questions else "content_directions")
+        )
+
+    is_free = is_free_intent(primary_intent_str)
+
+    if not is_free:
+        try:
+            sb = get_supabase()
+            sb.table("profiles").update({"is_processing": True}).eq("id", user_id).execute()
+            result = sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
+            balance_after = result.data
+            if balance_after is None:
+                sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                return JSONResponse(
+                    {"error": "insufficient_credits"},
+                    status_code=402,
+                    headers={"Content-Type": "application/json"},
+                )
+        except Exception as exc:
+            logger.error("Credit deduction failed: %s", exc)
+            try:
+                get_supabase().table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+            except Exception:
+                pass
+            return JSONResponse({"error": "credit_check_failed"}, status_code=500)
 
     async def event_generator() -> AsyncIterator[bytes]:
         stream_id = str(uuid.uuid4())
+        seq = body.last_seq or 0
+
         try:
+            # ── SSE reconnect replay ──────────────────────────────────────────
             if body.resume_stream_id and body.last_seq is not None:
                 cached = get_stream_chunks(body.resume_stream_id)
                 if cached:
@@ -391,62 +437,103 @@ async def stream(
                     for i, chunk in enumerate(cached, start=1):
                         if i <= body.last_seq:
                             continue
-                        yield _sse_line({"delta": chunk, "seq": i, "done": False})
+                        yield _sse_line({"stream_id": stream_id, "seq": i, "delta": chunk, "done": False})
                         await asyncio.sleep(0.005)
-                    yield _sse_line(
-                        {
-                            "delta": "",
-                            "seq": len(cached) + 1,
-                            "done": True,
-                            "stream_id": stream_id,
-                        }
-                    )
+                    yield _sse_line({"stream_id": stream_id, "seq": len(cached) + 1, "delta": "", "done": True})
+                    if not is_free:
+                        await run_sync(_clear_processing, user_id)
                     return
 
+            # ── Intent classification ─────────────────────────────────────────
             session = get_session_context(body.session_id)
-            normalized = _normalize_intent_name(body.intent_type)
-            if normalized:
-                classified = normalized
+            urls, handles = extract_urls_and_handles(body.query)
+            has_session = bool(session.get("completed_intents"))
+
+            all_chunks: list[str] = []
+            full_text_parts: list[str] = []
+            last_intent_str = primary_intent_str
+
+            if normalized_pre:
+                # Frontend pre-classified — honour it directly as a single intent pair
+                try:
+                    qi = QueryIntent(normalized_pre)
+                except ValueError:
+                    qi = QueryIntent.FOLLOWUP
+                questions = split_into_questions(body.query)
+                pairs: list[tuple[QueryIntent, list[str]]] = [(qi, questions)]
+                knowledge_qs: list[str] = []
             else:
-                urls, handles = extract_urls_and_handles(body.query)
-                has_session = bool(session.get("completed_intents"))
-                qi = classify_intent(body.query, urls, handles, has_session)
-                classified = _classify_to_frontend_intent(qi)
+                questions = split_into_questions(body.query)
+                collapse = collapse_to_intents(questions, urls, handles, has_session)
+                pairs = collapse.pairs
+                knowledge_qs = collapse.knowledge_questions
 
-            full_text, structured = await _run_intent_pipeline(
-                classified, body.query, session
-            )
+            # ── Stream knowledge answers first ───────────────────────────────
+            if knowledge_qs:
+                k_text = await run_sync(gemini_text_only, "\n\n".join(knowledge_qs), session)
+                k_chunks = _chunk_text(k_text, 20)
+                for chunk in k_chunks:
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
+                    await asyncio.sleep(0.005)
+                full_text_parts.append(k_text)
+                all_chunks.extend(k_chunks)
 
-            # TODO: replace chunked shim with real Gemini streaming when migrating to generate_content_stream()
-            chunks = _chunk_text(full_text, 20)
-            put_stream_chunks(stream_id, chunks)
+            # ── Stream each intent pipeline result ───────────────────────────
+            for intent, qs in pairs:
+                last_intent_str = intent.value
+                text, structured = await _dispatch_intent(
+                    intent, qs, body.query, urls, handles, session
+                )
 
-            for i, chunk in enumerate(chunks, start=1):
-                yield _sse_line({"delta": chunk, "seq": i, "done": False})
-                await asyncio.sleep(0.005)
+                # Separate multiple results with a divider
+                if full_text_parts:
+                    divider = "\n\n---\n\n"
+                    div_chunks = _chunk_text(divider, 20)
+                    for chunk in div_chunks:
+                        seq += 1
+                        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
+                        await asyncio.sleep(0.002)
+                    all_chunks.extend(div_chunks)
 
+                chunks = _chunk_text(text, 20)
+                for chunk in chunks:
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
+                    await asyncio.sleep(0.005)
+
+                full_text_parts.append(text)
+                all_chunks.extend(chunks)
+
+            full_text = "\n\n".join(full_text_parts)
+
+            # Cache for replay
+            put_stream_chunks(stream_id, all_chunks)
+
+            # ── Persist to chat_messages ──────────────────────────────────────
+            # TODO: pass structured output from last pipeline when multi-intent
             await run_sync(
                 _insert_chat_message_best_effort,
                 session_id=body.session_id,
                 user_id=user_id,
                 content=full_text,
-                structured_output=structured,
-                intent_type=classified,
+                structured_output=None,
+                intent_type=last_intent_str,
                 stream_id=stream_id,
             )
 
-            yield _sse_line(
-                {
-                    "delta": "",
-                    "seq": len(chunks) + 1,
-                    "done": True,
-                    "stream_id": stream_id,
-                }
-            )
+            seq += 1
+            yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
+
+            if not is_free:
+                await run_sync(_clear_processing, user_id)
+
         except Exception as exc:
             logger.exception("stream pipeline error: %s", exc)
-            msg = str(exc).strip() or "stream_failed"
-            yield _sse_line({"error": msg, "done": True})
+            err_msg = str(exc).strip() or "stream_failed"
+            yield _sse_line({"stream_id": stream_id, "seq": seq + 1, "delta": "", "done": True, "error": err_msg})
+            if not is_free:
+                await run_sync(_clear_processing, user_id)
 
     return StreamingResponse(
         event_generator(),
