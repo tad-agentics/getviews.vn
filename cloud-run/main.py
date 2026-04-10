@@ -30,7 +30,12 @@ from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import AliasChoices, BaseModel, Field
 
 from getviews_pipeline import ensemble
-from getviews_pipeline.config import SUPABASE_JWKS_URL, SUPABASE_JWT_SECRET
+from getviews_pipeline.config import (
+    ENSEMBLEDATA_API_TOKEN,
+    GEMINI_API_KEY,
+    SUPABASE_JWKS_URL,
+    SUPABASE_JWT_SECRET,
+)
 from getviews_pipeline.gemini import gemini_text_only
 from getviews_pipeline.intents import (
     QueryIntent,
@@ -399,7 +404,16 @@ async def require_user(request: Request) -> dict[str, Any]:
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    return JSONResponse({"status": "ok"})
+    checks = {
+        "gemini_key_set": bool(GEMINI_API_KEY),
+        "ensemble_key_set": bool(ENSEMBLEDATA_API_TOKEN),
+        "jwt_configured": bool(SUPABASE_JWT_SECRET) or bool(SUPABASE_JWKS_URL),
+    }
+    ok = all(checks.values())
+    return JSONResponse(
+        {"status": "ok" if ok else "degraded", "checks": checks},
+        status_code=200 if ok else 503,
+    )
 
 
 @app.get("/auth-check")
