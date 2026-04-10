@@ -101,6 +101,7 @@ async def run_content_directions(
         "content_directions",
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
+        niche_key=niche,
     )
     directions_struct = [
         {
@@ -163,6 +164,7 @@ async def run_trend_spike(
         "trend_spike",
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
+        niche_key=niche,
     )
     session["directions"] = session.get("directions") or []
     _append_completed(session, QueryIntent.TREND_SPIKE)
@@ -283,6 +285,7 @@ async def run_brief_generation(
         "brief_generation",
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
+        niche_key=niche,
     )
     _append_completed(session, QueryIntent.BRIEF_GENERATION)
     _bump_analyses_summary(
@@ -350,6 +353,7 @@ async def run_video_diagnosis(
             "video_diagnosis",
             payload,
             collapsed_questions=questions if questions and len(questions) > 1 else None,
+            niche_key=niche,
         )
     else:
         diagnosis = (

@@ -324,12 +324,20 @@ def synthesize_intent_markdown(
     payload: dict[str, Any],
     *,
     collapsed_questions: list[str] | None = None,
+    niche_key: str | None = None,
 ) -> str:
-    """Multi-video / niche synthesis using §18 intent framing."""
+    """Multi-video / niche synthesis using §18 intent framing.
+
+    Args:
+        niche_key: Optional niche identifier (e.g. "skincare") passed through to
+                   build_synthesis_prompt so knowledge_base niche guidance is injected
+                   for brief_generation and video_diagnosis intents.
+    """
     prompt = build_synthesis_prompt(
         intent_key,
         payload,
         collapsed_questions=collapsed_questions,
+        niche_key=niche_key,
     )
     cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=2048)
     response = _generate_content_models(

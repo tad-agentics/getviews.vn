@@ -5,6 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from getviews_pipeline.knowledge_base import (
+    build_commerce_structure_block,
+    build_hook_vocabulary_block,
+    build_niche_hook_block,
+)
 from getviews_pipeline.models import ContentType
 
 # ---------------------------------------------------------------------------
@@ -23,9 +28,10 @@ Map slides to the provided batch indices; be precise on hook_analysis and each s
 
 # ---------------------------------------------------------------------------
 # Strategist context — benchmarks and vocabulary (edit independently of few-shots)
+# Hook taxonomy is injected from knowledge_base.py at module load time.
 # ---------------------------------------------------------------------------
 
-_STRATEGIST_CONTEXT = """
+_STRATEGIST_CONTEXT_TEMPLATE = """
 Bạn là chuyên gia chiến lược nội dung TikTok hàng đầu cho thị trường Việt Nam. Bạn đã xem
 hàng chục nghìn video TikTok và nắm rõ điều gì khiến nội dung chết ở ~200 lượt xem
 so với nội dung bứt phá trên FYP.
@@ -77,8 +83,15 @@ TỪ VỰNG — dùng đúng thuật ngữ (một số giữ tiếng Anh vì c�
 - FYP: For You Page — nơi thuật toán đưa video vào feed
 - "Lượt xem", "tương tác", "giữ chân người xem", "viral", "trend", "niche" — dùng tự nhiên trong câu tiếng Việt
 
+{hook_vocabulary}
+
 QUY TẮC CỨNG: Tất cả phản hồi phải bằng tiếng Việt.
 """
+
+# Resolve {hook_vocabulary} once at import — no per-call overhead
+_STRATEGIST_CONTEXT = _STRATEGIST_CONTEXT_TEMPLATE.format(
+    hook_vocabulary=build_hook_vocabulary_block()
+)
 
 
 # ---------------------------------------------------------------------------
@@ -655,8 +668,18 @@ def build_synthesis_prompt(
     payload: dict[str, Any],
     *,
     collapsed_questions: list[str] | None = None,
+    niche_key: str | None = None,
 ) -> str:
-    """§18 item 17 — intent-specific framing + optional collapsed questions."""
+    """§18 item 17 — intent-specific framing + optional collapsed questions.
+
+    Args:
+        intent_key:           Routing key from INTENT_SYNTHESIS_FRAMING.
+        payload:              Dynamic corpus data from video_corpus / niche_intelligence.
+        collapsed_questions:  Optional multi-question list from the user.
+        niche_key:            Optional niche identifier (e.g. "skincare") — when provided,
+                              injects niche-specific hook guidance from knowledge_base.py.
+                              Particularly useful for brief_generation and video_diagnosis.
+    """
     data_json = json.dumps(payload, ensure_ascii=False, indent=2)
     framing = INTENT_SYNTHESIS_FRAMING.get(
         intent_key,
@@ -668,6 +691,16 @@ def build_synthesis_prompt(
             "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"
         )
         qblock += "\n".join(f"- {q}" for q in collapsed_questions)
+
+    # Static knowledge blocks — injected per intent to keep token count lean
+    knowledge_block = ""
+    if intent_key == "brief_generation":
+        knowledge_block = "\n" + build_commerce_structure_block()
+        if niche_key:
+            knowledge_block += "\n\n" + build_niche_hook_block(niche_key)
+    elif intent_key in ("video_diagnosis", "content_directions", "trend_spike"):
+        if niche_key:
+            knowledge_block = "\n" + build_niche_hook_block(niche_key)
 
     few_shot = _SYNTHESIS_FEW_SHOTS.get(intent_key, "")
     few_shot_block = ""
@@ -681,7 +714,7 @@ Viết phân tích giống ví dụ dưới — học giọng, cấu trúc, đ�
 """
 
     return f"""{_STRATEGIST_CONTEXT}
-
+{knowledge_block}
 {framing}
 {qblock}
 {few_shot_block}
