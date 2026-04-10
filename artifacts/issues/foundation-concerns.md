@@ -83,14 +83,10 @@ Not required for Wave 1 dev (queries work without it), but needed before any fea
 **Impact:** After OAuth, `profiles` row may not exist yet when `useProfile` first fires. Global `retry: 1` covers typical lag.
 **Status:** NicheSelector in ChatScreen gracefully handles `isError` / loading state from `useProfile` — no hard error shown. Longer-term fix (`maybeSingle()` + polling) deferred to settings feature.
 
-### N-11 — `GEMINI_API_KEY` not set — `api/chat.ts` will fail at runtime
+### N-11 — `GEMINI_API_KEY` not set — RESOLVED (local dev)
 **Source:** Chat-core backend agent (`9b8bdd0`)
-**Impact:** `api/chat.ts` (Vercel Edge) reads `process.env.GEMINI_API_KEY`. If not set in Vercel project environment variables, all text intents (⑤⑥⑦) return HTTP 502. Local dev also requires it in `.env.local`.
-**Action:**
-1. Get API key from [Google AI Studio](https://aistudio.google.com/apikey)
-2. Add to `.env.local`: `GEMINI_API_KEY=<your-key>`
-3. Add to Vercel project: Dashboard → Project → Settings → Environment Variables → `GEMINI_API_KEY`
-Also optionally set `GEMINI_SYNTHESIS_MODEL` (defaults to `gemini-3.1-flash-lite-preview`).
+**Status:** Key set in `.env.local` and `cloud-run/.env`. Text intents (⑤⑥⑦) will work in local dev.
+**Remaining action:** Add to Vercel project before staging deploy: Dashboard → Project → Settings → Environment Variables → `GEMINI_API_KEY`. Also set `GEMINI_SYNTHESIS_MODEL` (defaults to `gemini-3.1-flash-lite-preview`).
 
 ### N-12 — `VITE_CLOUD_RUN_API_URL` unset: video intents fall through to `/api/chat`
 **Source:** Chat-core QA agent (adversarial check)
@@ -149,4 +145,4 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 
 **New concerns added from `/feature chat-core`:** N-11 (`GEMINI_API_KEY` missing), N-12 (Cloud Run URL unset → video intents fallback), N-13 (`structured_output` not yet parsed), N-14 (`primary_niche` type mismatch), N-15 (session title rename not persisted).
 
-**Minimum to proceed with Wave 1 local dev (text intents only):** Set `GEMINI_API_KEY` in `.env.local` (N-11). OAuth (B-1) required for end-to-end auth test.
+**Minimum to proceed with Wave 1 local dev (text intents only):** ✅ `GEMINI_API_KEY` set (N-11 resolved locally). OAuth (B-1) still required for end-to-end auth test.
