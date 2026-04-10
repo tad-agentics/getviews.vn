@@ -149,15 +149,17 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
     Returns total count of videos updated.
     """
     # Fetch creator velocities (only those with meaningful avg)
+    # Include niche_id so the map is keyed per (creator, niche) — a creator active
+    # in multiple niches has a different avg_views per niche.
     vel_result = (
         client.table("creator_velocity")
-        .select("creator_handle, avg_views")
+        .select("creator_handle, niche_id, avg_views")
         .gt("avg_views", 0)
         .gt("video_count", 1)
         .execute()
     )
-    velocity_map: dict[str, float] = {
-        row["creator_handle"]: row["avg_views"]
+    velocity_map: dict[tuple[str, int], float] = {
+        (row["creator_handle"], row["niche_id"]): row["avg_views"]
         for row in (vel_result.data or [])
     }
 
@@ -165,8 +167,8 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
         logger.info("[analytics] No creator velocity data — skipping breakout computation")
         return 0
 
-    # Fetch corpus videos for creators we have velocity for
-    handles = list(velocity_map.keys())
+    # Fetch corpus videos for creators we have velocity for (with niche_id for correct lookup)
+    handles = list({handle for handle, _ in velocity_map})
     total_updated = 0
 
     # Process in chunks to avoid URL length limits
@@ -175,16 +177,16 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
         chunk = handles[i : i + chunk_size]
         vid_result = (
             client.table("video_corpus")
-            .select("id, creator_handle, views")
+            .select("id, creator_handle, niche_id, views")
             .in_("creator_handle", chunk)
             .gt("views", 0)
             .execute()
         )
         videos = vid_result.data or []
 
-        # Update breakout_multiplier for each video
+        # Update breakout_multiplier for each video using the per-niche creator average
         for video in videos:
-            avg = velocity_map.get(video["creator_handle"])
+            avg = velocity_map.get((video["creator_handle"], video["niche_id"]))
             if not avg or avg <= 0:
                 continue
             breakout = round(video["views"] / avg, 2)
