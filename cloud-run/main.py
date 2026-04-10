@@ -23,6 +23,7 @@ from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import AliasChoices, BaseModel, Field
@@ -275,6 +276,24 @@ def _insert_chat_message_best_effort(
         logger.warning("Supabase chat_messages insert failed (non-fatal): %s", exc)
 
 app = FastAPI(title="GetViews Pipeline", version="0.1.0")
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# ALLOWED_ORIGINS env var: comma-separated list. Defaults to production + local dev.
+_raw_origins = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "https://getviews.vn,https://www.getviews.vn,http://localhost:5173,http://localhost:4173",
+)
+_ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_ALLOWED_ORIGINS,
+    # Vercel preview deployments have dynamic subdomains — allow via regex.
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 # ── JWKS cache (refresh at most every 10 minutes) ─────────────────────────────
 
