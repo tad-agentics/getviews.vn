@@ -1,6 +1,6 @@
-# Foundation → Wave 1 Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3`
-> Status: Wave 1 COMPLETE — open items are Wave 2 prerequisites or production-deploy gates
+# Foundation → Wave 2 Concerns
+> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac`
+> Status: Explore QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
 
 ---
 
@@ -121,10 +121,30 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Source:** History backend agent (`e8bc480`) → Regenerated via Supabase MCP pre-Wave 2
 **Status:** Full 866-line type file regenerated from live schema (`lzhiqnxfveqttsujebiv`) via Supabase MCP. Includes `search_sessions` RPC with correct return type, all 14 tables, `niche_intelligence` view, `decrement_credit` + `decrement_and_grant_credits` RPCs. Re-run after every Wave 2 migration.
 
-### N-18 — `trends` route not yet protected by AppLayout — PARTIALLY FIXED
-**Source:** History QA fix agent (`c30f2f3`)
-**Impact:** The `/app/trends` route was not wrapped in `AppLayout`, so BottomNav did not render on TrendScreen. Fixed in `c30f2f3` (wrapped in `AppLayout active="trends"`). However, TrendScreen itself is a stub — full implementation is Wave 2 (`/feature trends`).
-**Action:** No immediate action. Note for `/feature trends` frontend: AppLayout wrapper is already in place.
+### N-18 — Navigation misalignment vs Figma Make — RESOLVED
+**Source:** History QA fix agent (`c30f2f3`) → Fixed post-explore (`20572ac`)
+**Impact:** ~~BottomNav component was added but not in Make design. ExploreScreen was at `/app/explore` but Figma Make's TrendScreen lives at `/app/trends`.~~
+**Status:** Fully resolved in `20572ac`:
+- `BottomNav.tsx` deleted — Make uses sidebar-only nav
+- ExploreScreen moved to `/app/trends` (matching Make's `TrendScreen.tsx` route)
+- `/app/explore` route removed
+- AppLayout sidebar nav now matches Make exactly: Chat (`/app`) + Xu hướng (`/app/trends`)
+- `active` type narrowed to `"chat" | "trends"`
+
+### N-19 — `video_corpus` table has no data in remote DB
+**Source:** Explore QA agent (`304f866`)
+**Impact:** ExploreScreen at `/app/trends` shows the empty state ("Không có video nào trong khoảng này — thử bỏ bộ lọc.") on first load because `video_corpus` has 0 rows in the remote Supabase project. The Cloud Run pipeline populates this table via `ensemble.py` → `analysis_core.py` → R2 upload → Supabase insert.
+**Action:** Required before staging demo. Either (a) deploy the Cloud Run pipeline and run a batch ingest, or (b) seed a small set of test rows manually in Supabase Dashboard for early QA. Not blocking for local dev.
+
+### N-20 — `video_corpus.video_url` and `thumbnail_url` are R2 URLs — not signed
+**Source:** Explore backend agent (`9f09947`)
+**Impact:** `video_url` and `thumbnail_url` in `video_corpus` point to Cloudflare R2 public bucket URLs. If the R2 bucket is set to private, all `<img>` and `<video>` elements in ExploreScreen will 403. If the bucket is public, no signing is needed.
+**Action (human):** Confirm R2 bucket (`getviews-corpus`) is set to **public** in Cloudflare dashboard, or implement signed URL generation (short-lived presigned URLs via Cloud Run) before production. Not blocking for Wave 2 dev.
+
+### N-21 — `BreakoutHitsSidebar` (desktop) not implemented in ExploreScreen
+**Source:** Explore QA agent (`304f866`) — deferred finding
+**Impact:** Desktop layout for `/app/trends` lacks the sidebar showing "Breakout tuần này" and "Đang viral" columns. These are visible in Make's `TrendScreen.tsx` right-side `<aside>`. Health score docked at 98/100 (−2 visual).
+**Action:** Implement during `/feature trends` frontend step using the Make `TrendScreen.tsx` `<aside>` section and the `breakoutHits` / `viralNow` mock data (to be replaced with real `niche_intelligence` queries). Wire to `useNicheIntelligence(nicheId)` hook.
 
 ### N-10 — Secrets in `.cursor/mcp.json` accessible in-session
 **Source:** Auth backend agent (`89dc2ca`)
@@ -150,20 +170,19 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 18 | N-1 through N-18 (N-2, N-6, N-7, N-11, N-15 resolved; N-9, N-18 partially resolved) |
+| NON-BLOCKING | 21 | N-1 through N-21 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18 resolved; N-9 partially resolved) |
 | DEFERRED | 5 | Wave 2+ |
 
-**Resolved this phase (history):**
-- N-15 — Session title rename now persisted via `useUpdateSession` in HistoryScreen (`e8bc480` / `c30f2f3`)
+**Resolved this phase (explore + nav fix):**
+- N-16 — AppLayout sidebar rename now persisted via `useUpdateSession` (`023ba47`)
+- N-17 — `database.types.ts` regenerated from live schema post-history (`023ba47`)
+- N-18 — Navigation misalignment fully resolved: BottomNav removed, ExploreScreen at `/app/trends`, sidebar matches Make exactly (`20572ac`)
 
-**Partially resolved this phase:**
-- N-18 — `/app/trends` now wrapped in `AppLayout` (BottomNav works); TrendScreen content is Wave 2
+**New concerns added from `/feature explore` + nav alignment:**
+- N-19 — `video_corpus` table empty in remote DB — no data to browse until Cloud Run pipeline runs
+- N-20 — R2 bucket access (public vs. private) not confirmed — `video_url` / `thumbnail_url` may 403
+- N-21 — `BreakoutHitsSidebar` (desktop aside) not implemented — deferred to `/feature trends`
 
-**New concerns added from `/feature history`:**
-- N-16 — AppLayout sidebar rename still local state (easy 1-line fix)
-- N-17 — `database.types.ts` needs re-generation after history migrations
-- N-18 — Trends route wrapped in AppLayout but screen is a stub
+**Wave 2 explore: QA PASS.** ExploreScreen at `/app/trends` fully functional (5/5 passes, health 98/100). Navigation now matches Figma Make exactly.
 
-**Wave 1 complete.** All 3 features (auth, chat-core, history) QA PASSED. Open items are Wave 2 prerequisites or production-deploy gates.
-
-**Before Wave 2 local dev:** ✅ N-16 and N-17 resolved. No blockers for Wave 2 local dev beyond B-1 (OAuth) and GEMINI_API_KEY in Vercel.
+**Before next Wave 2 feature:** No new blockers added. N-19 (empty corpus) is the main gap for staging demo.
