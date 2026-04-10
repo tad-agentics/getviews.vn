@@ -8,6 +8,10 @@ from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_tiktok_url
+from getviews_pipeline.corpus_context import (
+    build_corpus_citation_block,
+    get_corpus_count_cached,
+)
 from getviews_pipeline.gemini import synthesize_intent_markdown
 from getviews_pipeline.helpers import (
     filter_recency,
@@ -91,6 +95,11 @@ async def run_content_directions(
         if "analysis" in r:
             analyzed.append(r)
 
+    count, niche_name = await get_corpus_count_cached(
+        session, niche_id=None, days=30, niche_name=niche
+    )
+    citation = build_corpus_citation_block(count, niche_name, days=30)
+
     payload = {
         "niche": niche,
         "reference_count": len(analyzed),
@@ -102,6 +111,7 @@ async def run_content_directions(
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
         niche_key=niche,
+        corpus_citation=citation,
     )
     directions_struct = [
         {
@@ -158,6 +168,11 @@ async def run_trend_spike(
     results = await asyncio.gather(*[_one(a) for a in picks])
     analyzed = [r for r in results if "analysis" in r]
 
+    count, niche_name = await get_corpus_count_cached(
+        session, niche_id=None, days=7, niche_name=niche
+    )
+    citation = build_corpus_citation_block(count, niche_name, days=7)
+
     payload = {"niche": niche, "window_days": 7, "analyzed_videos": analyzed}
     synthesis = await run_sync(
         synthesize_intent_markdown,
@@ -165,6 +180,7 @@ async def run_trend_spike(
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
         niche_key=niche,
+        corpus_citation=citation,
     )
     session["directions"] = session.get("directions") or []
     _append_completed(session, QueryIntent.TREND_SPIKE)
@@ -272,6 +288,11 @@ async def run_brief_generation(
     session: dict[str, Any],
     questions: list[str],
 ) -> dict[str, Any]:
+    count, niche_name = await get_corpus_count_cached(
+        session, niche_id=None, days=30, niche_name=niche
+    )
+    citation = build_corpus_citation_block(count, niche_name, days=30)
+
     payload = {
         "topic": topic,
         "niche": niche,
@@ -286,6 +307,7 @@ async def run_brief_generation(
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
         niche_key=niche,
+        corpus_citation=citation,
     )
     _append_completed(session, QueryIntent.BRIEF_GENERATION)
     _bump_analyses_summary(
@@ -341,6 +363,11 @@ async def run_video_diagnosis(
     ref_results = await asyncio.gather(*ref_tasks)
     references = [r for r in ref_results if "analysis" in r]
 
+    count, niche_name = await get_corpus_count_cached(
+        session, niche_id=None, days=30, niche_name=niche
+    )
+    citation = build_corpus_citation_block(count, niche_name, days=30)
+
     diagnosis: str
     if include_diagnosis:
         payload = {
@@ -354,6 +381,7 @@ async def run_video_diagnosis(
             payload,
             collapsed_questions=questions if questions and len(questions) > 1 else None,
             niche_key=niche,
+            corpus_citation=citation,
         )
     else:
         diagnosis = (

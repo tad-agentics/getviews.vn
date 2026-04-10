@@ -325,19 +325,24 @@ def synthesize_intent_markdown(
     *,
     collapsed_questions: list[str] | None = None,
     niche_key: str | None = None,
+    corpus_citation: str = "",
 ) -> str:
     """Multi-video / niche synthesis using §18 intent framing.
 
     Args:
-        niche_key: Optional niche identifier (e.g. "skincare") passed through to
-                   build_synthesis_prompt so knowledge_base niche guidance is injected
-                   for brief_generation and video_diagnosis intents.
+        niche_key:        Optional niche identifier passed through to build_synthesis_prompt
+                          so knowledge_base niche guidance is injected (brief_generation,
+                          video_diagnosis intents).
+        corpus_citation:  Optional pre-built citation block from corpus_context.py
+                          (build_corpus_citation_block). Grounds all claims in real
+                          corpus size + timeframe. Injected above the framing block.
     """
     prompt = build_synthesis_prompt(
         intent_key,
         payload,
         collapsed_questions=collapsed_questions,
         niche_key=niche_key,
+        corpus_citation=corpus_citation,
     )
     cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=2048)
     response = _generate_content_models(

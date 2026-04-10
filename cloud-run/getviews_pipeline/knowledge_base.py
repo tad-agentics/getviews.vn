@@ -369,3 +369,49 @@ def build_commerce_structure_block() -> str:
     for p in COMMERCE_VIDEO_STRUCTURE:
         lines.append(f'  Phase {p["phase"]} [{p["time"]}] {p["name_vi"]}: {p["description"]}')
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Shopee-specific hook formulas (P0-3) — affiliate/commerce creator staples
+# ---------------------------------------------------------------------------
+
+SHOPEE_HOOK_FORMULAS: list[str] = [
+    "Shopee sale [ngày] — [số] món đồ đáng mua nhất",
+    "[Sản phẩm] Shopee mall [giá] — rẻ hơn cửa hàng [số]K",
+    "Haul Shopee dưới [giá] — món nào dùng được, món nào vứt",
+    "Mã giảm giá Shopee hôm nay — tiết kiệm [số]K",
+    "[Số] món đồ Shopee dưới 50K mà dùng mãi không hết",
+]
+
+
+def build_hook_formula_instruction() -> str:
+    """P0-3: Hook formula instruction block for synthesis system prompt.
+
+    Tells Gemini to always output hooks as fill-in-the-blank Vietnamese templates.
+    Includes the 8 structural patterns + 5 Shopee-specific formulas.
+    Injected into the _STRATEGIST_CONTEXT once at module load.
+    """
+    # Build compact formula list: name + first template
+    formula_lines: list[str] = []
+    for key, h in HOOK_CATEGORIES.items():
+        tpl = h["templates"][0] if h["templates"] else ""
+        formula_lines.append(f'  {h["name_vi"]}: "{tpl}"')
+
+    shopee_lines = "\n".join(f'  "{t}"' for t in SHOPEE_HOOK_FORMULAS)
+
+    return f"""QUY TẮC HOOK FORMULA (P0-3):
+Khi đề xuất hook, LUÔN viết dưới dạng template copy-paste được.
+Dùng [ngoặc vuông] cho phần thay thế — LUÔN bằng tiếng Việt.
+
+✅ Đúng: "ĐỪNG [hành động] nếu chưa xem video này"
+✅ Đúng: "[Sản phẩm] chỉ [giá] — mua ở đâu?"
+❌ Sai:  "ĐỪNG [action] nếu chưa xem" — không dùng placeholder tiếng Anh
+
+Không bao giờ chỉ nói "nên cải thiện hook" mà không đưa ra template cụ thể.
+Mỗi hook đề xuất phải bắt đầu bằng "Hook:" và là một dòng riêng.
+
+8 template hook phổ biến nhất:
+{chr(10).join(formula_lines)}
+
+5 template Shopee dành cho affiliate/commerce content:
+{shopee_lines}"""
