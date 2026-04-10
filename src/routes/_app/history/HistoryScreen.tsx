@@ -26,6 +26,7 @@ import {
 const INTENT_BADGES: Record<string, string> = {
   video_diagnosis: "Soi Video",
   competitor_profile: "Đối thủ",
+  own_channel: "Soi Kênh",
   soi_kenh: "Soi Kênh",
   brief_generation: "Brief",
   trend_spike: "Xu hướng",
@@ -99,11 +100,17 @@ export default function HistoryScreen() {
   const trimmedQuery = query.trim();
   const isSearch = trimmedQuery.length > 0;
 
-  const { data: listSessions, isLoading: listLoading, isError: listError } = useChatSessions();
+  const {
+    data: listSessions,
+    isLoading: listLoading,
+    isError: listError,
+    refetch: refetchList,
+  } = useChatSessions();
   const {
     data: searchResults,
     isLoading: searchLoading,
     isError: searchError,
+    refetch: refetchSearch,
   } = useSearchSessions(trimmedQuery);
 
   const deleteSession = useDeleteSession();
@@ -116,6 +123,11 @@ export default function HistoryScreen() {
   const sessions: SessionRow[] = (isSearch ? searchResults : listSessions) as SessionRow[];
   const isLoading = isSearch ? searchLoading : listLoading;
   const isError = isSearch ? searchError : listError;
+
+  const refetchHistory = () => {
+    if (isSearch) void refetchSearch();
+    else void refetchList();
+  };
 
   const filteredSessions = sessions ?? [];
 
@@ -182,7 +194,7 @@ export default function HistoryScreen() {
 
       {/* Header */}
       <div className="flex-shrink-0 h-14 bg-[var(--surface)] border-b border-[var(--border)] flex items-center px-6 pt-0 lg:px-6">
-        <span className="font-extrabold text-[var(--ink)] pl-10 lg:pl-0">Lịch sử phân tích</span>
+        <span className="font-extrabold text-[var(--ink)] pl-10 lg:pl-0">Lịch sử</span>
       </div>
 
       {/* Search Bar */}
@@ -202,8 +214,15 @@ export default function HistoryScreen() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
           {isError ? (
-            <div className="px-4 py-8 text-center">
-              <p className="text-sm text-[var(--danger)]">Không tải được lịch sử — thử tải lại trang.</p>
+            <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+              <p className="text-sm text-[var(--muted)]">Không tải được lịch sử — thử lại.</p>
+              <button
+                type="button"
+                onClick={() => refetchHistory()}
+                className="text-sm text-[var(--purple)] underline"
+              >
+                Thử lại
+              </button>
             </div>
           ) : isLoading ? (
             <HistoryListSkeleton />

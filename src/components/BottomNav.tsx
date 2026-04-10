@@ -1,10 +1,10 @@
-import { History, MessageCircle, TrendingUp } from "lucide-react";
+import { Clock, MessageCircle, TrendingUp } from "lucide-react";
 import { NavLink } from "react-router";
 
 const tabs = [
   { to: "/app", label: "Chat", icon: MessageCircle, end: true },
+  { to: "/app/history", label: "Lịch sử", icon: Clock, end: false },
   { to: "/app/trends", label: "Xu hướng", icon: TrendingUp, end: false },
-  { to: "/app/history", label: "Lịch sử", icon: History, end: false },
 ] as const;
 
 export function BottomNav() {

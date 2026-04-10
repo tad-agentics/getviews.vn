@@ -4,6 +4,7 @@ import {
   Plus,
   MessageCircle,
   TrendingUp,
+  Clock,
   Settings,
   LogOut,
   X,
@@ -21,6 +22,7 @@ import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
 import { useChatSessions, useDeleteSession } from "@/hooks/useChatSessions";
 import { CreditBar } from "@/routes/_app/components/CreditBar";
+import { BottomNav } from "@/components/BottomNav";
 
 type Session = {
   id: string;
@@ -374,7 +376,24 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
-          <NavItem icon={TrendingUp} label="Xu hướng" active={active === 'trends'} onClick={() => { navigate('/app/trends'); onClose?.(); }} />
+          <NavItem
+            icon={Clock}
+            label="Lịch sử"
+            active={active === "history"}
+            onClick={() => {
+              navigate("/app/history");
+              onClose?.();
+            }}
+          />
+          <NavItem
+            icon={TrendingUp}
+            label="Xu hướng"
+            active={active === "trends"}
+            onClick={() => {
+              navigate("/app/trends");
+              onClose?.();
+            }}
+          />
         </div>
 
         {/* Divider */}
@@ -507,7 +526,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
       {/* ── Mobile ─────────────────────────── */}
       <div className="flex flex-col flex-1 lg:hidden overflow-hidden relative">
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
+          {children}
+        </div>
 
         {/* Mobile sidebar trigger buttons (only when enableMobileSidebar) */}
         {enableMobileSidebar && !mobileSidebarOpen && (
@@ -564,6 +585,8 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             )}
           </AnimatePresence>
         )}
+
+        <BottomNav />
       </div>
 
       {/* ── Profile modal ── */}
