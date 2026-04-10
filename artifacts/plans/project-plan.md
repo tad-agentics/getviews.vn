@@ -9,8 +9,8 @@
 
 ## Foundation
 
-- [ ] Backend foundation        commit: —
-- [ ] Frontend: Make import + component inventory + Tailwind config + landing page + auth screens commit: —
+- [x] Backend foundation        commit: f83aa55
+- [x] Frontend: Make import + component inventory + Tailwind config + landing page + auth screens commit: 81b99f2
 
 ## Feature Workstreams
 
