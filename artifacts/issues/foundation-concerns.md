@@ -1,6 +1,6 @@
 # Foundation → Wave 2 Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839` + Billing `f62ca14`/`d706777`/`5b1c433`/`93a30b7` + Settings `322649a`/`09a81a8`/`8086be5`/`6dc6708`
-> Status: Settings QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
+> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839` + Billing `f62ca14`/`d706777`/`5b1c433`/`93a30b7` + Settings `322649a`/`09a81a8`/`8086be5`/`6dc6708` + Email-cron `31a2b70`/`54568ab`/`27a292b`
+> Status: **Wave 2 COMPLETE** — all 5 features QA PASSED. Open items are staging-deploy gates and post-deploy verifications.
 
 ---
 
@@ -205,6 +205,31 @@ Required before any end-to-end billing test. Currently in DEFERRED list as "Befo
 **Impact:** The 11 existing tests pass, but neither the logout confirmation dialog nor the `useUpdateProfile` optimistic niche-change path has regression coverage. A future refactor could silently break these flows.
 **Action:** Add 3–4 regression tests in `/feature email-cron` or a dedicated test pass: `logout dialog confirm/cancel`, `useUpdateProfile optimistic rollback on error`, `SettingsScreen free-tier vs paid-tier copy`. Low priority for current wave.
 
+### N-32 — pg_cron not enabled on `lzhiqnxfveqttsujebiv` — cron jobs not scheduled
+**Source:** Email-cron backend agent (`31a2b70`) + QA agent (`54568ab`)
+**Impact:** All four cron functions (`cron-expiry-check`, `cron-reset-free-queries`, `cron-prune-webhooks`, `cron-reset-processing`) will never fire automatically. Migration `20260410000015` is documentation-only. Subscriptions will not auto-expire, free query counts won't reset, webhooks won't be pruned, and stuck `is_processing` flags won't clear.
+**Action (human):** Before staging deploy — Supabase Dashboard → Database → Extensions → enable `pg_cron`. Then Dashboard → Database → Cron Jobs → create 4 jobs pointing to deployed Edge Function URLs with the schedules:
+- `cron-expiry-check`: `0 2 * * *` (9AM ICT)
+- `cron-reset-free-queries`: `0 17 * * *` (midnight ICT)
+- `cron-prune-webhooks`: `0 20 * * 0` (Sunday 3AM ICT)
+- `cron-reset-processing`: `*/5 * * * *` (every 5 min)
+Each job must include `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` header.
+
+### N-33 — Live invocation of cron + email functions not yet verified
+**Source:** Email-cron QA agent (`54568ab`) — Pass 3 deferred
+**Impact:** Functions have not been invoked end-to-end. Verification of Resend delivery, subscription expiry logic, and reminder email formatting requires deployed Edge Functions + `RESEND_API_KEY` secret set.
+**Action:** After deploy — run `supabase functions invoke cron-expiry-check --project-ref lzhiqnxfveqttsujebiv` and verify the response JSON, then check Resend dashboard for test emails. Do the same for each cron function.
+
+### N-34 — Receipt email body contains English "deep credits" in Vietnamese sentence
+**Source:** Email-cron QA agent (`54568ab`) — Pass 1 low-severity finding
+**Impact:** Minor copy inconsistency — the `receipt` email template in `send-email` uses "deep credits" (English) inside an otherwise Vietnamese sentence. Minor brand polish issue.
+**Action:** Before billing launch — update receipt body in `supabase/functions/send-email/index.ts` to use "deep credit" (Vietnamese product term already used in UI). One-line fix.
+
+### N-35 — `cron-reset-free-queries` does not bump `daily_free_query_reset_at` for users already at 0
+**Source:** Email-cron QA agent (`54568ab`) — Pass 1 low-severity finding
+**Impact:** Users who sent no free queries that day (already at 0) don't get their `daily_free_query_reset_at` timestamp bumped. This is cosmetic — the count is already 0, so no functional difference. A future analytics query on reset timestamps may undercount resets.
+**Status:** Acceptable as-is. Can be addressed in a background cleanup if analytics on reset frequency is needed.
+
 ---
 
 ## DEFERRED (Wave 2 or later)
@@ -213,7 +238,7 @@ Required before any end-to-end billing test. Currently in DEFERRED list as "Befo
 |---|---|---|
 | ZaloPay in CheckoutScreen | Before billing launch | Gated behind `VITE_ZALOPAY_ENABLED=true`; PayOS must confirm ZaloPay support |
 | PWA screenshots in `manifest.json` | Before production deploy | `screenshots` array is empty — add after real screens are built |
-| Monday weekly email Edge Function | Wave 2 | Content generation deferred; cron + template scaffolded |
+| Monday weekly email Edge Function | Post Wave 2 | Content generation deferred; not in current cron suite |
 | Cloud Run service deploy to GCP | Before staging video demo (see N-12) | Python pipeline in `cloud-run/` is local only; video intents fall back to text endpoint until deployed |
 | PayOS Realtime webhook → in-app payment detection | Post-billing | Currently relies on PayOS redirect + page reload; no in-app detection |
 
@@ -224,18 +249,25 @@ Required before any end-to-end billing test. Currently in DEFERRED list as "Befo
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 31 | N-1 through N-31 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24, N-28 resolved; N-21 partially resolved) |
-| DEFERRED | 5 | Wave 2+ |
+| NON-BLOCKING | 35 | N-1 through N-35 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24, N-28 resolved; N-21 partially resolved) |
+| DEFERRED | 5 | Post Wave 2 |
 
-**Resolved this phase (settings):**
-- N-28 — `useCreditTransactions` now consumed by SettingsScreen CreditHistoryList
+**Resolved this phase (email-cron):**
+- No resolutions — email-cron had no pre-existing concerns to close
 
-**New concerns added from `/feature settings`:**
-- N-30 — `useUpdateProfile` optimistic update skips when profile not yet cached (rare edge case)
-- N-31 — No Vitest coverage for logout dialog and niche-change optimistic rollback
+**New concerns added from `/feature email-cron`:**
+- N-32 — pg_cron not enabled on remote project — cron jobs will not fire (staging gate)
+- N-33 — Live invocation of cron + email not yet verified (requires deploy + secrets)
+- N-34 — Receipt email has English "deep credits" in Vietnamese sentence (minor copy)
+- N-35 — `cron-reset-free-queries` doesn't bump reset_at for users already at 0 (cosmetic)
 
-**Wave 2 settings: QA PASS.** SettingsScreen (profile, subscription, niche change, credit history, logout) + LearnMoreScreen complete (health 96/100 — 5/5 passes clean, 11/11 tests).
+**Wave 2 email-cron: QA PASS.** All 4 cron functions + 4 email templates complete (health 97/100 — 3/3 passes clean).
 
-**Wave 2 status:** Only `/feature email-cron` remains. All user-facing screens are complete.
+**Wave 2 COMPLETE.** All 5 features shipped and QA-passed:
+- explore ✅ | trends 94/100 ✅ | billing 72/100 ✅ | settings 96/100 ✅ | email-cron 97/100 ✅
 
-**Staging gates before demo:** N-25 (PayOS secrets) + N-26 (Resend API key) — both require human action in Supabase Dashboard.
+**Staging deploy gates (human action required):**
+1. **B-1** — Configure Google + Facebook OAuth providers in Supabase Dashboard
+2. **N-25** — Set `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` in Supabase Edge Function secrets
+3. **N-26** — Set `RESEND_API_KEY` in Supabase Edge Function secrets + verify sender in Resend
+4. **N-32** — Enable pg_cron in Supabase Dashboard → configure 4 cron jobs pointing to deployed Edge Function URLs
