@@ -481,7 +481,7 @@ export default function LandingPage() {
                 </p>
                 <Link to="/login">
                   <Button fullWidth variant={plan.popular ? "primary" : "outlined"} className="text-sm py-2">
-                    {plan.name === "Free" ? "Bắt đầu" : `Nâng cấp ${plan.name}`}
+                    {plan.name === "Free" ? "Bắt đầu miễn phí" : `Nâng cấp ${plan.name}`}
                   </Button>
                 </Link>
               </div>

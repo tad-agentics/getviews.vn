@@ -195,48 +195,48 @@ export default function LoginRoute() {
           </div>
 
           <div className="px-6 pt-2 pb-5 text-center">
-            <div className="mb-3">
-              <span className="font-extrabold text-xl text-[var(--ink)]">
-                GetViews<span className="text-[var(--brand-red)]">.vn</span>
-              </span>
-            </div>
-            <p className="text-[var(--ink-soft)] text-sm" style={{ lineHeight: "1.6" }}>
-              {COPY_TRUST_LINE}
+            <h1 className="gradient-text mb-2 text-xl font-extrabold leading-tight">
+              Bắt trend TikTok trước khi nó viral
+            </h1>
+            <p className="text-sm" style={{ color: "var(--ink-soft)", lineHeight: "1.6" }}>
+              Data thực từ <strong style={{ color: "var(--ink)" }}>46.000+</strong> video TikTok Việt Nam — phân tích trong{" "}
+              <strong style={{ color: "var(--ink)" }}>1 phút</strong>.
             </p>
           </div>
 
           <div className="px-5 pb-6 flex flex-col gap-2.5">
-            <button
-              type="button"
-              onClick={() => void signIn("facebook")}
-              disabled={anyLoading || authLoading}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: "var(--ink)", color: "var(--background)" }}
-            >
-              {loadingFb ? <Spinner /> : <FacebookIcon />}
-              {loadingFb ? COPY_LOADING_FACEBOOK : COPY_BTN_FACEBOOK}
-            </button>
-            {oauthError?.target === "facebook" ? (
-              <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
-                {oauthError.message}
-              </p>
-            ) : null}
-
+            {/* Google — primary */}
             <button
               type="button"
               onClick={() => void signIn("google")}
               disabled={anyLoading || authLoading}
               className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{
-                background: "var(--surface)",
-                color: "var(--ink)",
-                border: "1px solid var(--border)",
-              }}
+              style={{ background: "var(--ink)", color: "var(--background)" }}
             >
               {loadingGoogle ? <Spinner /> : <GoogleIcon />}
               {loadingGoogle ? COPY_LOADING_GOOGLE : COPY_BTN_GOOGLE}
             </button>
             {oauthError?.target === "google" ? (
+              <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
+                {oauthError.message}
+              </p>
+            ) : null}
+
+            {/* Facebook */}
+            <button
+              type="button"
+              onClick={() => void signIn("facebook")}
+              disabled={anyLoading || authLoading}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: "#1877F2",
+                color: "#fff",
+              }}
+            >
+              {loadingFb ? <Spinner /> : <FacebookIcon />}
+              {loadingFb ? COPY_LOADING_FACEBOOK : COPY_BTN_FACEBOOK}
+            </button>
+            {oauthError?.target === "facebook" ? (
               <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
                 {oauthError.message}
               </p>

@@ -596,7 +596,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               exit={{ opacity: 0, y: 6, scale: 0.97 }}
               transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
               className="fixed z-50 w-[260px]"
-              style={{ bottom: '60px', left: '12px' }}
+              style={{ bottom: '16px', left: '12px' }}
             >
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
                 <div className="p-4">

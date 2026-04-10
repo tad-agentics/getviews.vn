@@ -194,7 +194,7 @@ export default function HistoryScreen() {
 
       {/* Header */}
       <div className="flex-shrink-0 h-14 bg-[var(--surface)] border-b border-[var(--border)] flex items-center px-6 pt-0 lg:px-6">
-        <span className="font-extrabold text-[var(--ink)] pl-10 lg:pl-0">Lịch sử</span>
+        <span className="font-extrabold text-[var(--ink)] pl-10 lg:pl-0">Lịch sử phân tích</span>
       </div>
 
       {/* Search Bar */}

@@ -858,7 +858,7 @@ export default function ChatScreen() {
         if (m.role === "user") {
           return (
             <div key={m.id} className="flex justify-end">
-              <div className="flex max-w-[80%] items-start gap-2 rounded-xl bg-[var(--purple-light)] px-4 py-3 lg:max-w-[75%]">
+              <div className="flex max-w-[75%] items-start gap-2 rounded-xl bg-[var(--purple-light)] px-4 py-3">
                 <p className="text-sm text-[var(--ink)]">{m.content}</p>
                 {m.is_free && m.id === lastUser?.id ? <FreeQueryPill pulseKey={freePillKey} /> : null}
               </div>
