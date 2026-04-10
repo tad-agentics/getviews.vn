@@ -20,7 +20,7 @@
 | chat-core (ChatScreen — 7 intents, SSE, credit deduction) | 1 | ✅ 9b8bdd0 | ✅ df0b02c | ✅ 3e1da07 | QA PASS 2026-04-08 |
 | history (HistoryScreen — session list, search, resume) | 1 | ✅ e8bc480 | ✅ c4cd6da | ✅ c30f2f3 | QA PASS 2026-04-08 |
 | explore (ExploreScreen — corpus grid, VideoDetailModal, R2 playback) | 2 | ✅ 9f09947 | ✅ beff235 | ✅ 304f866 | QA PASS 2026-04-08 |
-| trends (TrendScreen — hook rankings, format lifecycle, D2) | 2 | — | — | — | — |
+| trends (TrendScreen — hook rankings, format lifecycle, D2) | 2 | ✅ 58a6446 | ✅ b28a9a7 | ✅ ddaf839 | QA PASS 2026-04-10 |
 | billing (PricingScreen + CheckoutScreen + PaymentSuccessScreen + PayOS) | 2 | — | — | — | — |
 | settings (SettingsScreen + LearnMoreScreen) | 2 | — | — | — | — |
 | email-cron (expiry reminders + cron jobs) | 2 | — | — | — | — |
