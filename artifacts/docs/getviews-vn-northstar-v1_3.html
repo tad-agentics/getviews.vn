@@ -482,7 +482,7 @@
   <tr><td>PayOS transaction fees (~2%)</td><td>$10</td><td>$30</td><td>$90</td><td>$350</td></tr>
   <tr><td><strong>Total fixed</strong></td><td><strong>$195</strong></td><td><strong>$235</strong></td><td><strong>$370</strong></td><td><strong>$910</strong></td></tr>
   <tr><td colspan="5" style="font-weight:600; background:#F5F5F7;">Pre-indexing batch job (§12 Intelligence Layer)</td></tr>
-  <tr><td>Daily batch: Gemini + proxy + R2</td><td>$55</td><td>$55</td><td>$55</td><td>$55</td></tr>
+  <tr><td>Daily batch: Gemini + proxy + R2</td><td>$42</td><td>$42</td><td>$42</td><td>$42</td></tr>
   <tr><td colspan="5" style="font-weight:600; background:#F5F5F7;">Marginal API costs (Gemini + proxy only)</td></tr>
   <tr><td>Gemini API + proxy (user queries)</td><td>$20</td><td>$60</td><td>$170</td><td>$560</td></tr>
   <tr><td colspan="5" style="font-weight:600; background:#F5F5F7;">Total cost vs revenue</td></tr>
@@ -610,7 +610,7 @@
 
 <div class="callout warn-note">
   <div class="callout-label">Batch Job Impact: 14 → 17 Niches</div>
-  Daily batch crawl increases from ~200 to ~255 videos/day (17 × ~15). ED units: ~485/day (up from ~400). Still well within Wood plan (1,500/day). Monthly batch cost: ~$55/mo (up from $45). Negligible impact on unit economics.
+  Daily batch crawl increases from ~200 to ~255 videos/day (17 × ~15). ED units: ~485/day (up from ~400). Still well within Wood plan (1,500/day). Monthly batch cost: ~$42/mo (720p/30s optimization reduces proxy + Gemini input vs original $55 estimate). R2 video storage grows ~$3-6/mo. Negligible impact on unit economics.
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════ -->
@@ -659,6 +659,17 @@
     • <strong>Proactive trend alerts</strong> — Layer 3 detects velocity shifts before the user asks. When a hook type, sound, or format spikes in the user's niche, GetViews sends an alert via email (and Zalo in Wave 2). "Hook 'Đừng mua...' tăng 280% trong niche review đồ gia dụng 3 ngày qua — đây là 3 video mẫu." This is intelligence pushed TO the user, not pulled BY the user.<br>
     • <strong>Competitor outlier alerts</strong> — when a tracked competitor posts a video that significantly outperforms their average, user gets notified with a structural breakdown.<br>
     • Chat history with search (Wave 1). Daily trend digest email (Wave 2).</td>
+  </tr>
+  <tr>
+    <td>Explore</td>
+    <td><strong>Visual browse interface for the pre-indexed corpus (LightReel-equivalent "Explore" page).</strong> Videos play instantly from R2 — no TikTok CDN dependency, no oEmbed delay.<br><br>
+    • <strong>Browse grid:</strong> Thumbnail cards from <code>video_corpus.thumbnail_url</code>. Filter by niche, date range, min views, hook type, format. Sort by views, ER, recency. Tap thumbnail → inline <code>&lt;video&gt;</code> player loads from <code>video_corpus.video_url</code> (R2 public URL, 720p/30s). Instant playback — same UX as LightReel.<br>
+    • <strong>Trending This Week:</strong> AI-generated trend cards from <code>trend_velocity</code> table (§12 Layer 3). Each card: trend name, structural description, sample thumbnails, "See more →" to filtered browse. Generated weekly by batch job — 1 Flash-Lite call per niche = 17 calls/week, negligible cost.<br>
+    • <strong>Video detail modal:</strong> Left panel: "Similar Videos" (same niche + format, ranked by ER) + "Similar Hooks" (same hook_type classification). Right panel: inline video player + creator handle + caption + engagement stats. All queries against <code>video_corpus</code> — no live API calls.<br>
+    • <strong>Videos to Copy:</strong> Sidebar ranking computed from corpus: Breakout Hits (video views > 3× creator average, last 7 days) + Viral Now (highest velocity, last 48h). Updated on each batch run.<br>
+    • <strong>Explore counter:</strong> "Khám phá {{corpus_size}} video" — live count from <code>video_corpus</code>. Grows daily. Social proof + authority signal.<br><br>
+    <strong>Why this works at ~$6/mo:</strong> R2 has zero egress fees. 92K videos × 4MB = ~368GB storage = $5.52/mo. No per-view bandwidth cost. LightReel pays Firebase egress ($0.12/GB) — at scale, their video serving costs 10-50× more. R2 is the architectural advantage.<br><br>
+    <strong>Explore is unlimited (0 credits).</strong> Browsing is free for all tiers including Free. This is the "unlimited search" layer from LightReel's pricing model — drives engagement, surfaces content the user then spends deep credits to analyze.</td>
   </tr>
   <tr>
     <td>Monetization</td>
@@ -855,16 +866,16 @@
   <tr><th>Step</th><th>What</th><th>Cost/day</th></tr>
   <tr><td>1</td><td><strong>Crawl top videos across 17 niches.</strong> ED <code>/tt/keyword/search</code> × 17 niches + <code>/tt/hashtag/posts</code> for top hashtags per niche. Filter: last 7 days, sorted by engagement. Deduplicate against existing corpus.</td><td>~485 ED units</td></tr>
   <tr><td>2</td><td><strong>Select ~255 net-new posts/day</strong> (17 niches × ~15 top posts each, minus already-indexed). Includes both videos and carousels — content type detected automatically via <code>aweme_type</code>. Some days fewer if niche is slow.</td><td>—</td></tr>
-  <tr><td>3</td><td><strong>Download media via proxy.</strong> Videos: batch, sequential, rate-limited. ~255 × 7MB = ~1.8GB/day. Carousels: download slides from <code>image_post_info.images[].display_image.url_list[]</code> (cap 10 slides). Image CDN rarely blocks — proxy rate near 0% for images vs 30% for video.</td><td>~$1.08 proxy ($3/GB × 30% proxy rate × 1.8GB video)</td></tr>
+  <tr><td>3</td><td><strong>Download media via proxy.</strong> Videos: batch, sequential, rate-limited. <strong>Download at 720p, cap at first 30 seconds</strong> (hook analysis only needs opening — saves ~60% storage vs full 1080p). ~255 × 4MB = ~1.0GB/day. Carousels: download slides from <code>image_post_info.images[].display_image.url_list[]</code> (cap 10 slides). Image CDN rarely blocks — proxy rate near 0% for images vs 30% for video.</td><td>~$0.60 proxy ($3/GB × 30% proxy rate × 1.0GB video)</td></tr>
   <tr><td>4</td><td><strong>Gemini 3.1 Flash-Lite extraction</strong> (<code>gemini-3.1-flash-lite-preview</code>) per post: videos get face timing, text overlays, scene types, pacing, audio transcript, hook classification. Carousels get slide-by-slide analysis with interleaved labeling (slide_count, visual_type per slide, hook_slide, story_arc, swipe_incentive). Same schemas as on-demand analysis. See §11 for model config.</td><td>255 × $0.0021 = $0.54 Gemini<br>(carousels ~$0.0014 each — cheaper)</td></tr>
-  <tr><td>5</td><td><strong>FFmpeg frame extraction</strong> → key frames stored in R2. ~255 × ~4 frames = ~1,020 frames/day.</td><td>~$0.03 R2</td></tr>
-  <tr><td>6</td><td><strong>Store analysis in <code>video_corpus</code></strong> table: video_id, niche, analysis JSON, engagement metrics, indexed_at, frames URLs.</td><td>Supabase (included)</td></tr>
+  <tr><td>5</td><td><strong>FFmpeg frame extraction</strong> → key frames stored in R2. ~255 × ~4 frames = ~1,020 frames/day. <strong>Upload full 720p/30s video to R2</strong> at <code>videos/{video_id}.mp4</code>. Public bucket, zero egress fees. This enables inline playback in Explore browse (see §8).</td><td>~$0.03 R2 frames + ~$0.02 R2 video storage</td></tr>
+  <tr><td>6</td><td><strong>Store analysis in <code>video_corpus</code></strong> table: video_id, niche, analysis JSON, engagement metrics, indexed_at, frames URLs, <strong>video_url (R2 public URL for inline playback)</strong>.</td><td>Supabase (included)</td></tr>
   <tr><td>7</td><td><strong>Compute niche aggregates</strong> (see below). Update <code>niche_intelligence</code> materialized view.</td><td>Supabase (included)</td></tr>
-  <tr><td>8</td><td><strong>Delete /tmp videos.</strong> Only analyses + frames persist.</td><td>—</td></tr>
-  <tr><td><strong>Total</strong></td><td></td><td><strong>~$1.85/day = ~$55/mo</strong></td></tr>
+  <tr><td>8</td><td><strong>Delete /tmp files.</strong> Videos + frames now persist in R2. Only /tmp working directory is cleaned.</td><td>—</td></tr>
+  <tr><td><strong>Total</strong></td><td></td><td><strong>~$1.39/day = ~$42/mo</strong> (down from $55 — 720p/30s cap reduces proxy + Gemini input)</td></tr>
 </table>
 
-<p><strong>At Month 6: corpus contains ~46,000 analyzed Vietnamese TikTok videos.</strong> At Month 12: ~92,000. This is a genuine data asset that compounds — no competitor can replicate it without running the same pipeline for the same duration.</p>
+<p><strong>At Month 6: corpus contains ~46,000 analyzed Vietnamese TikTok videos + their 720p/30s clips in R2.</strong> At Month 12: ~92,000. R2 storage: ~184GB at Month 6 (~$2.76/mo), ~368GB at Month 12 (~$5.52/mo). <strong>Zero egress fees</strong> — R2's pricing model means video playback in Explore costs nothing per view. This is a genuine data + media asset that compounds. LightReel stores full videos in Firebase ($0.12/GB egress); R2 is 10-50x cheaper for serving video.</p>
 
 <h3>The Seven Intelligence Layers (how GetViews gets smarter)</h3>
 
@@ -940,7 +951,7 @@
 
 <table>
   <tr><th>Table</th><th>What</th><th>Updated</th></tr>
-  <tr><td><code>video_corpus</code></td><td>One row per analyzed post: video_id, <strong>content_type ("video" | "carousel")</strong>, niche_id, analysis_json (VideoAnalysis or CarouselAnalysis schema), engagement_metrics (views, likes, shares, comments, ER), creator_handle, indexed_at, frame_urls[], <strong>thumbnail_url (best hook frame — first face appearance or first text overlay, selected from extracted frames)</strong></td><td>Daily batch (~255/day)</td></tr>
+  <tr><td><code>video_corpus</code></td><td>One row per analyzed post: video_id, <strong>content_type ("video" | "carousel")</strong>, niche_id, analysis_json (VideoAnalysis or CarouselAnalysis schema), engagement_metrics (views, likes, shares, comments, ER), creator_handle, indexed_at, frame_urls[], <strong>thumbnail_url (best hook frame)</strong>, <strong>video_url (R2 public URL: <code>https://media.getviews.vn/videos/{video_id}.mp4</code> — 720p/30s, enables instant inline playback in Explore)</strong>, tiktok_url (original TikTok link for deep link)</td><td>Daily batch (~255/day)</td></tr>
   <tr><td><code>niche_intelligence</code></td><td>Materialized view per niche: avg_face_appears_at, hook_type_distribution (JSON), avg_transitions_per_second, avg_video_length, median_er, top_creators[], sample_size, computed_at</td><td>Weekly (Sunday night job)</td></tr>
   <tr><td><code>trend_velocity</code></td><td>Week-over-week delta per niche: hook_type_shifts, format_changes, engagement_changes, new_hashtags, sound_trends</td><td>Weekly</td></tr>
   <tr><td><code>hook_effectiveness</code></td><td>Per niche × hook_type: avg_views, avg_er, avg_completion, sample_size, trend_direction (rising/stable/declining), computed_at</td><td>Weekly</td></tr>
@@ -954,7 +965,7 @@
 
 <table>
   <tr><th></th><th>Before (on-demand, code-traced)</th><th>After (pre-indexed)</th><th>Change</th></tr>
-  <tr><td>Daily batch cost</td><td>$0</td><td>$1.85/day ($55/mo)</td><td>+$55/mo fixed</td></tr>
+  <tr><td>Daily batch cost</td><td>$0</td><td>$1.39/day ($42/mo) + R2 video storage ~$3-6/mo</td><td>+$42/mo fixed + ~$5/mo storage</td></tr>
   <tr><td>① Video Diagnosis</td><td>$0.043 (4 videos: user + 3 refs)</td><td><strong>$0.017</strong> (user video only, refs from corpus)</td><td>-60%</td></tr>
   <tr><td>② Content Directions</td><td>$0.021 (3 ref downloads + extractions)</td><td><strong>$0.007</strong> (corpus lookup + synthesis)</td><td>-67%</td></tr>
   <tr><td>③ Competitor Profile</td><td>$0.033</td><td><strong>$0.033</strong> (still on-demand — specific handle)</td><td>No change</td></tr>
@@ -966,7 +977,7 @@
   <tr><td><strong>Blended Starter (30 deep/mo + unlimited browse)</strong></td><td>$0.012</td><td><strong>$0.008</strong></td><td><strong>-33%</strong></td></tr>
 </table>
 
-<p><strong>Net impact:</strong> +$55/mo fixed cost, -33% marginal cost per query. At 150 users, the savings exceed the batch cost. <strong>At 500 users, pre-indexing saves ~$180/mo net.</strong> It gets cheaper with scale, not more expensive.</p>
+<p><strong>Net impact:</strong> +$42/mo batch + ~$5/mo R2 video storage = ~$47/mo fixed cost, -33% marginal cost per query. At 150 users, the savings exceed the batch cost. <strong>At 500 users, pre-indexing saves ~$180/mo net.</strong> It gets cheaper with scale, not more expensive. R2 video storage enables Explore page with instant playback at near-zero serving cost (zero egress).</p>
 
 <div class="callout warn-note">
   <div class="callout-label">The Real Value Isn't Cost Savings — It's Product Quality</div>
@@ -1014,7 +1025,7 @@
   <tr><td>4</td><td><strong>EnsembleData</strong></td><td>TikTok metadata + CDN video URLs</td><td>Shared account (track usage separately)</td></tr>
   <tr><td>5</td><td><strong>PayOS</strong></td><td>Vietnamese payment aggregator (MoMo, VNPay, bank transfer, card)</td><td><strong>New — replaces Stripe</strong></td></tr>
   <tr><td>6</td><td><strong>Resend</strong></td><td>Vietnamese emails (Monday plans, trend digests)</td><td>Shared account, separate domain</td></tr>
-  <tr><td>7</td><td><strong>Cloudflare R2</strong></td><td>Frame storage (WebP)</td><td>Separate bucket</td></tr>
+  <tr><td>7</td><td><strong>Cloudflare R2</strong></td><td>Frame storage (WebP) + <strong>video storage (720p/30s .mp4 — enables Explore instant playback). Zero egress fees.</strong> ~184GB at Month 6 (~$2.76/mo), ~368GB at Month 12 (~$5.52/mo).</td><td>Separate bucket</td></tr>
   <tr><td>8</td><td><strong>Cloud Run Scheduled Job</strong></td><td>Daily batch indexing (§12 Intelligence Layer). Runs 4 AM ICT. Crawls 17 niches, downloads + analyzes ~255 videos/day, updates video_corpus + niche_intelligence tables.</td><td>Separate scheduled job (same GCP project)</td></tr>
 </table>
 
@@ -1156,7 +1167,7 @@
   <strong>150 users: $340/mo total (17% COGS) — crossing into healthy margins</strong><br>
   <strong>500 users: $585/mo total (7.3% COGS) — scale economics kick in</strong><br>
   <strong>2,000 users: $1,515/mo total (4.7% COGS) — highly profitable</strong><br><br>
-  Key cost drivers at launch: EnsembleData Wood plan ($100/mo) + Intelligence Layer batch job ($55/mo) + Supabase Pro ($25/mo) + Cloud Run min-instances ($12/mo) = ~$192/mo fixed. Wood plan supports ~500 users at corrected ED unit rates — do not upgrade to Bronze until daily ED usage consistently exceeds 1,200 units. Gemini API costs scale linearly with queries. Everything else is near-fixed.
+  Key cost drivers at launch: EnsembleData Wood plan ($100/mo) + Intelligence Layer batch job ($42/mo) + R2 video storage (~$3-6/mo) + Supabase Pro ($25/mo) + Cloud Run min-instances ($12/mo) = ~$185/mo fixed. R2 has zero egress — Explore video playback costs nothing per view. Wood plan supports ~500 users at corrected ED unit rates — do not upgrade to Bronze until daily ED usage consistently exceeds 1,200 units.
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════ -->
@@ -1381,17 +1392,18 @@
   <tr><th>Wave</th><th>Features</th><th>Timeline</th></tr>
   <tr>
     <td>Foundation</td>
-    <td>Fork codebase · Next.js + Supabase (new project) + PayOS + credit ledger + Resend + Cloud Run (new service) + R2 (new bucket) + Gemini SDK · <strong>Pre-launch corpus seeding (500 videos across 17 niches)</strong></td>
+    <td>Fork codebase · Next.js + Supabase (new project) + PayOS + credit ledger + Resend + Cloud Run (new service) + R2 (<strong>2 buckets: frames + videos</strong>) + Gemini SDK · <strong>Pre-launch corpus seeding (500 videos across 17 niches — stored in R2 as 720p/30s clips)</strong></td>
     <td>Wk 1-2</td>
   </tr>
   <tr>
     <td>Wave 1 — Vietnamese Chat MVP</td>
-    <td>Vietnamese UI (8 screens) · <strong>Landing page with live input field + Free Soi Kênh (Intent ③)</strong> · Vietnamese synthesis prompts · VN niche taxonomy + hashtag filter + <strong>niche inference fix (<code>niche_taxonomy.py</code> + <code>resolve_niche()</code>)</strong> · EnsembleData <code>region=VN</code> · Video analysis pipeline (forked) · 7 intent types including <strong>Find Creators (⑦)</strong> · <strong>Multi-turn chat (all tiers)</strong> · <strong>Session-based credit consumption (intent detection: ①-⑤ = deep credit, ⑥⑦ + follow-ups = free, intent classifier + credit ledger)</strong> · PayOS checkout (MoMo + VNPay) · <strong>Facebook OAuth (primary) + Google OAuth</strong> · <strong>Analysis cache (required for COGS control)</strong> · <strong>Daily batch indexing job (Cloud Run scheduled, 4 AM ICT)</strong> · <strong>video_corpus + niche_intelligence tables</strong> · <strong>Layer 1 (Video Corpus) + Layer 2 (Niche Norms) active from launch</strong></td>
+    <td>Vietnamese UI (8 screens) · <strong>Landing page with live input field + Free Soi Kênh (Intent ③)</strong> · Vietnamese synthesis prompts · VN niche taxonomy + hashtag filter + <strong>niche inference fix (<code>niche_taxonomy.py</code> + <code>resolve_niche()</code>)</strong> · EnsembleData <code>region=VN</code> · Video analysis pipeline (forked) · 7 intent types including <strong>Find Creators (⑦)</strong> · <strong>Multi-turn chat (all tiers)</strong> · <strong>Session-based credit consumption (intent detection: ①-⑤ = deep credit, ⑥⑦ + follow-ups = free, intent classifier + credit ledger)</strong> · PayOS checkout (MoMo + VNPay) · <strong>Facebook OAuth (primary) + Google OAuth</strong> · <strong>Analysis cache (required for COGS control)</strong> · <strong>Daily batch indexing job (Cloud Run scheduled, 4 AM ICT) — stores 720p/30s video clips to R2 + analysis JSON to Supabase</strong> · <strong>video_corpus + niche_intelligence tables (including video_url column)</strong> · <strong>Layer 1 (Video Corpus) + Layer 2 (Niche Norms) active from launch</strong></td>
     <td>Wk 2-5</td>
   </tr>
   <tr>
-    <td>Wave 2 — Intelligence + Growth</td>
-    <td>Brief export · Competitor tracking · Overage billing · Chat history + search · Monday email (Vietnamese, built from weekly corpus data) · <strong>Rate limiting for unlimited ⑥⑦ (100/day per account)</strong> · <strong>Layer 3 (Trend Velocity) + Layer 4 (Hook Effectiveness) + Layer 6 (Creator Velocity) + Layer 7 (Sound & Slang Radar)</strong> · <strong>trend_velocity + hook_effectiveness + creator_velocity tables</strong> · <strong>Douyin trend forecasting — "format này đang hot trên Douyin, thường đến VN trong 2-3 tuần"</strong></td>
+    <td>Wave 2 — Intelligence + Explore</td>
+    <td><strong>Explore page (LightReel-equivalent):</strong> Browse grid with niche/date/views/hook filters · Inline video playback from R2 (instant, zero egress) · Trending This Week cards (AI-generated from trend_velocity) · Video detail modal with Similar Videos + Similar Hooks · Videos to Copy sidebar (breakout hits + viral now rankings) · Explore counter "Khám phá {{N}} video" · <strong>Explore is unlimited (0 credits) on all tiers</strong><br><br>
+    Brief export · Competitor tracking · Overage billing · Chat history + search · Monday email (Vietnamese, built from weekly corpus data) · <strong>Rate limiting for unlimited ⑥⑦ + Explore (100/day per account)</strong> · <strong>Layer 3 (Trend Velocity) + Layer 4 (Hook Effectiveness) + Layer 6 (Creator Velocity) + Layer 7 (Sound & Slang Radar)</strong> · <strong>trend_velocity + hook_effectiveness + creator_velocity tables</strong> · <strong>Douyin trend forecasting</strong></td>
     <td>Wk 5-7</td>
   </tr>
   <tr>

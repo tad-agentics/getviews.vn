@@ -3,6 +3,7 @@ import { z } from "zod";
 const clientEnvSchema = z.object({
   VITE_SUPABASE_URL: z.string().url(),
   VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+  VITE_CLOUD_RUN_API_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
 });
 
 export type ClientEnv = z.infer<typeof clientEnvSchema>;
@@ -11,6 +12,7 @@ function loadClientEnv(): ClientEnv {
   const parsed = clientEnvSchema.safeParse({
     VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
     VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    VITE_CLOUD_RUN_API_URL: import.meta.env.VITE_CLOUD_RUN_API_URL,
   });
 
   if (!parsed.success) {

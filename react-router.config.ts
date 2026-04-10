@@ -4,6 +4,9 @@ export default {
   // SPA mode — no runtime server, static files only
   ssr: false,
 
+  // Use src/ as the app directory (RAD convention)
+  appDirectory: "src",
+
   // Pre-render the landing page at build time for SEO + OG tags
   // All other routes load as SPA (client-side routing)
   async prerender() {

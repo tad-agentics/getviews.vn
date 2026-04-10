@@ -1,0 +1,153 @@
+import { useState, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { chatKeys } from "./useChatSession";
+
+const CLOUD_RUN_URL = import.meta.env.VITE_CLOUD_RUN_API_URL as string | undefined;
+const VERCEL_CHAT_URL = "/api/chat";
+
+const VIDEO_INTENTS = new Set(["video_diagnosis", "competitor_profile", "own_channel"]);
+
+export type StreamStatus = "idle" | "streaming" | "done" | "error";
+
+export interface StreamState {
+  status: StreamStatus;
+  text: string;
+  streamId: string | null;
+  lastSeq: number;
+  error: string | null;
+}
+
+export function useChatStream() {
+  const qc = useQueryClient();
+  const abortRef = useRef<AbortController | null>(null);
+  const [state, setState] = useState<StreamState>({
+    status: "idle",
+    text: "",
+    streamId: null,
+    lastSeq: 0,
+    error: null,
+  });
+
+  const stream = useCallback(
+    async ({
+      sessionId,
+      query,
+      intentType,
+      resumeStreamId,
+      lastSeq: resumeSeq,
+    }: {
+      sessionId: string;
+      query: string;
+      intentType: string;
+      resumeStreamId?: string;
+      lastSeq?: number;
+    }) => {
+      abortRef.current?.abort();
+      const abort = new AbortController();
+      abortRef.current = abort;
+
+      setState({
+        status: "streaming",
+        text: "",
+        streamId: resumeStreamId ?? null,
+        lastSeq: resumeSeq ?? 0,
+        error: null,
+      });
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) throw new Error("No session");
+
+        const isVideo = VIDEO_INTENTS.has(intentType);
+        const endpoint = isVideo && CLOUD_RUN_URL ? `${CLOUD_RUN_URL}/stream` : VERCEL_CHAT_URL;
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            query,
+            intent_type: intentType,
+            stream_id: resumeStreamId,
+            last_seq: resumeSeq,
+          }),
+          signal: abort.signal,
+        });
+
+        if (res.status === 402) {
+          setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let text = "";
+        let lastStreamId: string | null = resumeStreamId ?? null;
+        let lastSeq = resumeSeq ?? 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const lines = decoder.decode(value).split("\n");
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const token = JSON.parse(line.slice(6)) as {
+                stream_id?: string;
+                seq?: number;
+                delta?: string;
+                done?: boolean;
+                error?: string;
+              };
+              if (token.error) {
+                setState((s) => ({ ...s, status: "error", error: token.error ?? "stream_failed" }));
+                return;
+              }
+              if (token.stream_id) lastStreamId = token.stream_id;
+              if (typeof token.seq === "number") lastSeq = token.seq;
+              if (token.delta) text += token.delta;
+              if (token.done) {
+                setState({
+                  status: "done",
+                  text,
+                  streamId: lastStreamId,
+                  lastSeq,
+                  error: null,
+                });
+                void qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
+                void qc.invalidateQueries({ queryKey: ["profile"] });
+                void qc.invalidateQueries({ queryKey: ["credits"] });
+                return;
+              }
+              setState((s) => ({ ...s, text, streamId: lastStreamId, lastSeq }));
+            } catch {
+              /* skip malformed */
+            }
+          }
+        }
+      } catch (err: unknown) {
+        if ((err as Error).name === "AbortError") return;
+        setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
+      }
+    },
+    [qc],
+  );
+
+  const abort = useCallback(() => {
+    abortRef.current?.abort();
+    setState((s) => ({ ...s, status: "idle" }));
+  }, []);
+
+  const reset = useCallback(() => {
+    setState({ status: "idle", text: "", streamId: null, lastSeq: 0, error: null });
+  }, []);
+
+  return { ...state, stream, abort, reset };
+}

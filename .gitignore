@@ -73,3 +73,6 @@ rad-rr7-template/.sync-target
 .env
 .env.local
 .env.*.local
+
+# Supabase CLI cache
+supabase/.temp/

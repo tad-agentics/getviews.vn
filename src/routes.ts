@@ -1,0 +1,19 @@
+import { type RouteConfig, index, layout, route } from "@react-router/dev/routes";
+
+export default [
+  // Landing page — pre-rendered for SEO
+  index("routes/_index/route.tsx"),
+
+  // Auth routes
+  route("login", "routes/_auth/login/route.tsx"),
+  route("signup", "routes/_auth/signup/route.tsx"),
+  route("auth/callback", "routes/_auth/callback/route.tsx"),
+
+  // Authenticated app routes — guarded by layout
+  layout("routes/_app/layout.tsx", [
+    route("app", "routes/_app/route.tsx"),
+    route("app/history", "routes/_app/history/route.tsx"),
+    route("app/trends", "routes/_app/trends/route.tsx"),
+    route("app/settings", "routes/_app/settings/route.tsx"),
+  ]),
+] satisfies RouteConfig;

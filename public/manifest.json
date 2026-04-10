@@ -1,0 +1,38 @@
+{
+  "name": "GetViews",
+  "short_name": "GetViews",
+  "description": "Phân tích TikTok cho creator Việt Nam. Không guru. Không screenshot. Data thực từ video thực.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#7C3AED",
+  "orientation": "portrait",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": []
+}
