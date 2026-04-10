@@ -1,14 +1,17 @@
-"""Runtime utilities for Cloud Run — replaces MCP semaphore with asyncio.
+"""Runtime utilities for Cloud Run.
 
-In Cloud Run, each request runs in its own process, so no cross-request
-semaphore is needed. run_sync wraps sync Gemini SDK calls in a thread pool
-to keep the asyncio event loop unblocked.
+run_sync wraps sync Gemini SDK calls in a thread pool to keep the
+asyncio event loop unblocked. The analysis semaphore caps concurrent
+Gemini calls per instance.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any, Callable
+
+_ANALYSIS_SEMAPHORE: asyncio.Semaphore | None = None
 
 
 async def run_sync(fn: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -18,5 +21,13 @@ async def run_sync(fn: Callable, *args: Any, **kwargs: Any) -> Any:
 
 
 def get_analysis_semaphore() -> asyncio.Semaphore:
-    """No-op in Cloud Run — returns an always-available semaphore."""
-    return asyncio.Semaphore(999)
+    """Limit concurrent Gemini calls per Cloud Run instance.
+
+    Default 4 — fits 1 vCPU with Gemini calls being I/O-bound.
+    Override via GEMINI_CONCURRENCY env var.
+    """
+    global _ANALYSIS_SEMAPHORE
+    if _ANALYSIS_SEMAPHORE is None:
+        limit = int(os.environ.get("GEMINI_CONCURRENCY", "4"))
+        _ANALYSIS_SEMAPHORE = asyncio.Semaphore(limit)
+    return _ANALYSIS_SEMAPHORE
