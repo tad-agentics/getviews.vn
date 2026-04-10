@@ -88,6 +88,12 @@ CDN_HEADERS: dict[str, str] = {
     "Accept": "*/*",
 }
 
+# Residential proxy for TikTok CDN downloads (video + carousel images).
+# Without this, Cloud Run datacenter IPs will be blocked by TikTok.
+# Format: http://user:pass@host:port
+# Providers: Smartproxy, Bright Data, Oxylabs, IPRoyal
+RESIDENTIAL_PROXY_URL = os.environ.get("RESIDENTIAL_PROXY_URL")
+
 FILES_API_POLL_INTERVAL_SEC = 2
 FILES_API_POLL_MAX_ATTEMPTS = 30
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import uuid
 from pathlib import Path
 from typing import Any
@@ -30,20 +31,45 @@ AWEME_TYPE_PHOTO_CAROUSEL = 2
 
 logger = logging.getLogger(__name__)
 
-_client: httpx.AsyncClient | None = None
-_client_lock = asyncio.Lock()
+_api_client: httpx.AsyncClient | None = None
+_cdn_client: httpx.AsyncClient | None = None
+_api_lock = asyncio.Lock()
+_cdn_lock = asyncio.Lock()
 
 
-async def get_client() -> httpx.AsyncClient:
-    global _client
-
-    async with _client_lock:
-        if _client is None or _client.is_closed:
-            # read matches default (120s) so long CDN/image streams are not cut at 60s.
-            _client = httpx.AsyncClient(
+async def get_api_client() -> httpx.AsyncClient:
+    """Direct client for EnsembleData API calls. No proxy — not needed."""
+    global _api_client
+    async with _api_lock:
+        if _api_client is None or _api_client.is_closed:
+            _api_client = httpx.AsyncClient(
                 timeout=httpx.Timeout(120.0, connect=30.0, read=120.0)
             )
-        return _client
+        return _api_client
+
+
+async def get_cdn_client() -> httpx.AsyncClient:
+    """Client for TikTok CDN downloads. Uses residential proxy when configured.
+
+    Set RESIDENTIAL_PROXY_URL in env to route through proxy, e.g.:
+      http://user:pass@gate.smartproxy.com:7777
+      http://user:pass@brd.superproxy.io:22225
+
+    Without the env var, falls back to direct (works in dev, will get blocked in prod).
+    """
+    global _cdn_client
+    async with _cdn_lock:
+        if _cdn_client is None or _cdn_client.is_closed:
+            proxy_url = os.environ.get("RESIDENTIAL_PROXY_URL")
+            if proxy_url and not proxy_url.strip():
+                proxy_url = None
+            if proxy_url:
+                logger.info("CDN client using residential proxy: %s", proxy_url.split("@")[-1])
+            _cdn_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(120.0, connect=30.0, read=120.0),
+                proxy=proxy_url,
+            )
+        return _cdn_client
 
 
 def _aweme_payload_from_mapping(obj: dict[str, Any]) -> dict[str, Any]:
@@ -103,7 +129,7 @@ def _ensembledata_error_message(code: int) -> str | None:
 async def fetch_post_info(url: str) -> dict[str, Any]:
     """Fetch TikTok post info; return aweme_detail dict."""
     token = require_ensembledata_token()
-    client = await get_client()
+    client = await get_api_client()
     r = await client.get(
         ENSEMBLEDATA_POST_INFO_URL,
         params={"url": url, "token": token},
@@ -141,7 +167,7 @@ async def fetch_post_info(url: str) -> dict[str, Any]:
 async def _ensemble_get(path_url: str, params: dict[str, Any]) -> dict[str, Any]:
     """GET EnsembleData API; return parsed JSON object."""
     token = require_ensembledata_token()
-    client = await get_client()
+    client = await get_api_client()
     q = {**params, "token": token}
     r = await client.get(path_url, params=q)
     msg = _ensembledata_error_message(r.status_code)
@@ -538,6 +564,12 @@ async def _download_one_slide_image(
                     except OSError:
                         pass
                 continue
+            logger.debug(
+                "Slide %s downloaded: %d bytes via %s",
+                slide_index,
+                total,
+                "proxy" if os.environ.get("RESIDENTIAL_PROXY_URL") else "direct",
+            )
             return path, mime
         except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.RequestError, ValueError) as e:
             logger.debug(
@@ -573,7 +605,7 @@ async def download_images(
     if not url_lists:
         return [], []
 
-    client = await get_client()
+    client = await get_cdn_client()
     success: list[tuple[int, Path, str]] = []
     failed_indices: list[int] = []
 
@@ -597,7 +629,7 @@ async def download_video(url_list: list[str]) -> Path:
     if not url_list:
         raise ValueError("No video download URLs available")
 
-    client = await get_client()
+    client = await get_cdn_client()  # proxied when RESIDENTIAL_PROXY_URL is set
     last_err: Exception | None = None
     for url in url_list:
         for attempt in range(3):
@@ -624,6 +656,12 @@ async def download_video(url_list: list[str]) -> Path:
                             except OSError:
                                 pass
                         raise
+                size_mb = path.stat().st_size / (1024 * 1024)
+                logger.info(
+                    "Video downloaded: %.1fMB via %s",
+                    size_mb,
+                    "proxy" if os.environ.get("RESIDENTIAL_PROXY_URL") else "direct",
+                )
                 return path
             except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.RequestError) as e:
                 last_err = e

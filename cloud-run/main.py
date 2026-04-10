@@ -270,8 +270,10 @@ async def health() -> JSONResponse:
         "gemini_key_set": bool(GEMINI_API_KEY),
         "ensemble_key_set": bool(ENSEMBLEDATA_API_TOKEN),
         "jwt_configured": bool(SUPABASE_JWT_SECRET) or bool(SUPABASE_JWKS_URL),
+        "cdn_proxy_set": bool(os.environ.get("RESIDENTIAL_PROXY_URL")),
     }
-    ok = all(checks.values())
+    required = {k: v for k, v in checks.items() if k != "cdn_proxy_set"}
+    ok = all(required.values())
     return JSONResponse(
         {"status": "ok" if ok else "degraded", "checks": checks},
         status_code=200 if ok else 503,
