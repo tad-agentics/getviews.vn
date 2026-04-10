@@ -131,7 +131,10 @@ def _build_corpus_row(
         return None
 
     metadata = analysis.get("metadata") or {}
-    stats = metadata.get("stats") or {}
+    # VideoMetadata serialises stats under "metrics" (not "stats")
+    metrics = metadata.get("metrics") or {}
+    # Fallback: read raw aweme statistics dict if metrics is empty
+    raw_stats = aweme.get("statistics") or {}
     author = metadata.get("author") or {}
     content_type = analysis.get("content_type", "video")
 
@@ -170,10 +173,11 @@ def _build_corpus_row(
         "video_url": video_url,
         "frame_urls": [],
         "analysis_json": analysis.get("analysis", {}),
-        "views": int(stats.get("views") or 0),
-        "likes": int(stats.get("likes") or 0),
-        "comments": int(stats.get("comments") or 0),
-        "shares": int(stats.get("shares") or 0),
+        # metrics dict from VideoMetadata.model_dump(); fall back to raw aweme statistics
+        "views": int(metrics.get("views") or raw_stats.get("play_count") or 0),
+        "likes": int(metrics.get("likes") or raw_stats.get("digg_count") or 0),
+        "comments": int(metrics.get("comments") or raw_stats.get("comment_count") or 0),
+        "shares": int(metrics.get("shares") or raw_stats.get("share_count") or 0),
         "engagement_rate": float(analysis.get("engagement_rate") or metadata.get("engagement_rate") or 0),
     }
 
