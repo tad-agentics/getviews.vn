@@ -16,6 +16,7 @@ const AuthContext = createContext<AuthContextValue>({
   signOut: async () => {},
 });
 
+/** OAuth redirect: `signInWithOAuth` in login route uses `redirectTo: origin + '/auth/callback'`. */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
