@@ -1,6 +1,6 @@
 # Foundation → Wave 2 Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839` + Billing `f62ca14`/`d706777`/`5b1c433`/`93a30b7` + Settings `322649a`/`09a81a8`/`8086be5`/`6dc6708` + Email-cron `31a2b70`/`54568ab`/`27a292b`
-> Status: **Wave 2 COMPLETE** — all 5 features QA PASSED. Open items are staging-deploy gates and post-deploy verifications.
+> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839` + Billing `f62ca14`/`d706777`/`5b1c433`/`93a30b7` + Settings `322649a`/`09a81a8`/`8086be5`/`6dc6708` + Email-cron `31a2b70`/`54568ab`/`27a292b` + Cloud Run `c75a8d3`/`2f3f32e`
+> Status: **Wave 2 COMPLETE** — all 5 features QA PASSED. Cloud Run pipeline complete (Vietnamese prompts + /stream + Supabase write-back). CR-1 (CORS) fixed. Open items are staging-deploy gates and post-deploy verifications.
 
 ---
 
@@ -230,6 +230,26 @@ Each job must include `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` header
 **Impact:** Users who sent no free queries that day (already at 0) don't get their `daily_free_query_reset_at` timestamp bumped. This is cosmetic — the count is already 0, so no functional difference. A future analytics query on reset timestamps may undercount resets.
 **Status:** Acceptable as-is. Can be addressed in a background cleanup if analytics on reset frequency is needed.
 
+### N-36 — `SUPABASE_JWKS_KID` is dead export in `config.py`
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** `SUPABASE_JWKS_KID` is exported from `getviews_pipeline/config.py` but is no longer imported or used in `main.py` after the JWT validation rewrite. Zero functional impact.
+**Action:** Cosmetic cleanup — remove the export in a future tidy-up pass.
+
+### N-37 — `own_channel` intent has semantic mismatch: uses niche reference search, not user's actual account
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** `own_channel` is in `VIDEO_INTENTS` (routes to Cloud Run), but `run_own_channel()` does a niche keyword/hashtag search — it does NOT fetch or analyze the user's own TikTok posts. True "Soi Kênh" (own-channel audit) requires the user to supply their `@handle` and a dedicated `fetch_user_posts` pipeline. Current behaviour: returns niche-level analysis with own-channel framing — useful but not the full intent.
+**Action:** Implement `run_own_channel` to accept `@handle` from query and call `ensemble.fetch_user_posts()`. Track as a future feature enhancement.
+
+### N-38 — Cloud Run in-process session store not shared across instances
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** `session_store.py` uses a Python dict (in-process). If Cloud Run scales to >1 instance, a reconnect replay on a different instance returns cache-miss and re-runs the full pipeline. The user gets a correct result but incurs duplicate Gemini + EnsembleData costs and latency. Also, cross-request session context (e.g. `completed_intents`, `analyses_summary`) won't accumulate correctly across instances.
+**Action:** Before scaling Cloud Run above 1 instance — replace the in-process store with a Redis or Firestore session backend, or pin users to instances via Cloud Run session affinity (limited support). For now, set `--max-instances=1` in Cloud Run deployment config.
+
+### N-39 — Cloud Run pipeline requires `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` env vars for Supabase write-back
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** The `get_supabase()` factory in `main.py` raises `RuntimeError` at first DB write if either var is unset. The stream itself will succeed (chunks already yielded before the write), but the `chat_messages` row won't be written and the error will appear in Cloud Run logs.
+**Action:** Before deploying to GCP Cloud Run — set `SUPABASE_URL=https://lzhiqnxfveqttsujebiv.supabase.co` and `SUPABASE_SERVICE_ROLE_KEY=<service_role_key>` as Cloud Run environment variables (or Secret Manager references).
+
 ---
 
 ## DEFERRED (Wave 2 or later)
@@ -249,25 +269,26 @@ Each job must include `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` header
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 35 | N-1 through N-35 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24, N-28 resolved; N-21 partially resolved) |
+| NON-BLOCKING | 39 | N-1 through N-39 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24, N-28 resolved; N-21 partially resolved; CR-1 fixed) |
 | DEFERRED | 5 | Post Wave 2 |
 
-**Resolved this phase (email-cron):**
-- No resolutions — email-cron had no pre-existing concerns to close
+**Resolved this phase (Cloud Run audit):**
+- CR-1 — CORS middleware missing — **FIXED** (`2f3f32e`)
 
-**New concerns added from `/feature email-cron`:**
-- N-32 — pg_cron not enabled on remote project — cron jobs will not fire (staging gate)
-- N-33 — Live invocation of cron + email not yet verified (requires deploy + secrets)
-- N-34 — Receipt email has English "deep credits" in Vietnamese sentence (minor copy)
-- N-35 — `cron-reset-free-queries` doesn't bump reset_at for users already at 0 (cosmetic)
+**New concerns added from Cloud Run audit (`c75a8d3`/`2f3f32e`):**
+- N-36 — `SUPABASE_JWKS_KID` dead export in `config.py` (cosmetic)
+- N-37 — `own_channel` intent uses niche search, not user's actual account (semantic gap)
+- N-38 — In-process session store not shared across Cloud Run instances (scaling concern)
+- N-39 — Cloud Run needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` env vars before GCP deploy
 
-**Wave 2 email-cron: QA PASS.** All 4 cron functions + 4 email templates complete (health 97/100 — 3/3 passes clean).
+**Cloud Run pipeline: DONE.** Vietnamese prompts + `/stream` SSE endpoint + Supabase write-back complete (`c75a8d3`). CORS fix applied (`2f3f32e`).
 
-**Wave 2 COMPLETE.** All 5 features shipped and QA-passed:
-- explore ✅ | trends 94/100 ✅ | billing 72/100 ✅ | settings 96/100 ✅ | email-cron 97/100 ✅
+**Wave 2 COMPLETE.** All 5 features + Cloud Run pipeline shipped:
+- explore ✅ | trends 94/100 ✅ | billing 72/100 ✅ | settings 96/100 ✅ | email-cron 97/100 ✅ | cloud-run pipeline ✅
 
 **Staging deploy gates (human action required):**
 1. **B-1** — Configure Google + Facebook OAuth providers in Supabase Dashboard
 2. **N-25** — Set `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` in Supabase Edge Function secrets
 3. **N-26** — Set `RESEND_API_KEY` in Supabase Edge Function secrets + verify sender in Resend
 4. **N-32** — Enable pg_cron in Supabase Dashboard → configure 4 cron jobs pointing to deployed Edge Function URLs
+5. **N-39** — Set `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` as Cloud Run environment variables before GCP deploy
