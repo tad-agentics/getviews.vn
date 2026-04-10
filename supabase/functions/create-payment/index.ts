@@ -2,17 +2,89 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { z } from "https://esm.sh/zod@3.24.2";
 import { corsHeaders } from "../_shared/cors.ts";
 
+const PlanSchema = z.enum([
+  "starter_monthly",
+  "starter_biannual",
+  "starter_annual",
+  "pack_10",
+  "pack_30",
+  "pack_50",
+]);
+
+const PaymentMethodSchema = z.enum(["momo", "bank_transfer", "vietqr"]);
+
 const BodySchema = z.object({
-  tier: z.enum(["starter", "pro", "agency"]),
-  billing_period: z.enum(["monthly", "biannual", "annual"]),
-  is_overage: z.boolean(),
-  overage_pack_size: z.union([z.literal(10), z.literal(30), z.literal(50), z.null()]),
+  plan: PlanSchema,
+  payment_method: PaymentMethodSchema,
 });
 
-/** PayOS orderCode is numeric in API; we keep a stable string id for our DB + description. */
-function orderCodes(): { numeric: number; label: string } {
-  const numeric = Number(`${Date.now()}`.slice(-12));
-  return { numeric, label: `GV-${numeric}` };
+type DbBillingPeriod = "monthly" | "biannual" | "annual" | "overage_10" | "overage_30" | "overage_50";
+
+const PLAN_CONFIG: Record<
+  z.infer<typeof PlanSchema>,
+  {
+    amount_vnd: number;
+    deep_credits_granted: number;
+    tier: "starter";
+    db_billing_period: DbBillingPeriod;
+    billing_period: "monthly" | "biannual" | "annual" | "pack";
+  }
+> = {
+  starter_monthly: {
+    amount_vnd: 249_000,
+    deep_credits_granted: 30,
+    tier: "starter",
+    db_billing_period: "monthly",
+    billing_period: "monthly",
+  },
+  starter_biannual: {
+    amount_vnd: 199_000 * 6,
+    deep_credits_granted: 30 * 6,
+    tier: "starter",
+    db_billing_period: "biannual",
+    billing_period: "biannual",
+  },
+  starter_annual: {
+    amount_vnd: 199_000 * 12,
+    deep_credits_granted: 30 * 12,
+    tier: "starter",
+    db_billing_period: "annual",
+    billing_period: "annual",
+  },
+  pack_10: {
+    amount_vnd: 130_000,
+    deep_credits_granted: 10,
+    tier: "starter",
+    db_billing_period: "overage_10",
+    billing_period: "pack",
+  },
+  pack_30: {
+    amount_vnd: 350_000,
+    deep_credits_granted: 30,
+    tier: "starter",
+    db_billing_period: "overage_30",
+    billing_period: "pack",
+  },
+  pack_50: {
+    amount_vnd: 550_000,
+    deep_credits_granted: 50,
+    tier: "starter",
+    db_billing_period: "overage_50",
+    billing_period: "pack",
+  },
+};
+
+function computeExpiresAt(dbBilling: DbBillingPeriod): Date {
+  const starts = new Date();
+  const expires = new Date(starts);
+  if (dbBilling === "monthly" || dbBilling.startsWith("overage_")) {
+    expires.setMonth(expires.getMonth() + 1);
+  } else if (dbBilling === "biannual") {
+    expires.setMonth(expires.getMonth() + 6);
+  } else if (dbBilling === "annual") {
+    expires.setFullYear(expires.getFullYear() + 1);
+  }
+  return expires;
 }
 
 Deno.serve(async (req) => {
@@ -59,63 +131,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tier, billing_period, is_overage, overage_pack_size } = parsed.data;
-    if (is_overage && overage_pack_size === null) {
-      return new Response(JSON.stringify({ error: { code: "VALIDATION_ERROR", message: "overage_pack_size required" } }), {
-        status: 422,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!is_overage && overage_pack_size !== null) {
-      return new Response(JSON.stringify({ error: { code: "VALIDATION_ERROR", message: "unexpected overage_pack_size" } }), {
-        status: 422,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Placeholder pricing — replace with pricing table / env in production
-    const amountTable: Record<string, Record<string, number>> = {
-      starter: { monthly: 249_000, biannual: 1_290_000, annual: 2_388_000 },
-      pro: { monthly: 499_000, biannual: 2_590_000, annual: 4_788_000 },
-      agency: { monthly: 999_000, biannual: 5_190_000, annual: 9_588_000 },
-    };
-
-    let billingPeriod: "monthly" | "biannual" | "annual" | "overage_10" | "overage_30" | "overage_50" = billing_period;
-    let amountVnd = amountTable[tier][billing_period];
-    let credits = tier === "starter" ? 30 : tier === "pro" ? 80 : 200;
-
-    if (is_overage && overage_pack_size) {
-      billingPeriod =
-        overage_pack_size === 10 ? "overage_10" : overage_pack_size === 30 ? "overage_30" : "overage_50";
-      const overagePrices = { 10: 79_000, 30: 199_000, 50: 299_000 };
-      const overageCredits = { 10: 10, 30: 30, 50: 50 };
-      amountVnd = overagePrices[overage_pack_size];
-      credits = overageCredits[overage_pack_size];
-    }
-
-    const { numeric: orderNum, label: code } = orderCodes();
+    const { plan, payment_method } = parsed.data;
+    const cfg = PLAN_CONFIG[plan];
+    const orderCode = Date.now();
     const starts = new Date();
-    const expires = new Date(starts);
-    if (billingPeriod === "monthly") expires.setMonth(expires.getMonth() + 1);
-    else if (billingPeriod === "biannual") expires.setMonth(expires.getMonth() + 6);
-    else if (billingPeriod === "annual") expires.setFullYear(expires.getFullYear() + 1);
-    else expires.setMonth(expires.getMonth() + 1);
+    const expires = computeExpiresAt(cfg.db_billing_period);
 
-    const admin = createClient(url, serviceKey);
-
-    const { error: subErr } = await admin.from("subscriptions").insert({
-      user_id: user.id,
-      tier,
-      billing_period: billingPeriod,
-      amount_vnd: amountVnd,
-      deep_credits_granted: credits,
-      starts_at: starts.toISOString(),
-      expires_at: expires.toISOString(),
-      payos_order_code: String(orderNum),
-      status: "pending",
-    });
-
-    if (subErr) throw subErr;
+    const siteBase =
+      Deno.env.get("SITE_URL") ?? Deno.env.get("PUBLIC_APP_URL") ?? "https://getviews.vn";
+    const siteUrl = siteBase.replace(/\/$/, "");
 
     if (!payosClientId || !payosApiKey) {
       return new Response(
@@ -126,7 +150,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    const appUrl = Deno.env.get("PUBLIC_APP_URL") ?? "https://getviews.vn";
+    const admin = createClient(url, serviceKey);
+
+    const { error: subErr } = await admin.from("subscriptions").insert({
+      user_id: user.id,
+      tier: cfg.tier,
+      billing_period: cfg.db_billing_period,
+      amount_vnd: cfg.amount_vnd,
+      deep_credits_granted: cfg.deep_credits_granted,
+      starts_at: starts.toISOString(),
+      expires_at: expires.toISOString(),
+      payos_order_code: String(orderCode),
+      status: "pending",
+    });
+
+    if (subErr) throw subErr;
+
+    const description = `GetViews ${plan} · ${payment_method}`;
+
     const payosRes = await fetch("https://api-merchant.payos.vn/v2/payment-requests", {
       method: "POST",
       headers: {
@@ -135,11 +176,11 @@ Deno.serve(async (req) => {
         "x-api-key": payosApiKey,
       },
       body: JSON.stringify({
-        orderCode: orderNum,
-        amount: amountVnd,
-        description: `GetViews ${tier} ${code}`,
-        cancelUrl: `${appUrl}/app/settings`,
-        returnUrl: `${appUrl}/app/settings`,
+        orderCode,
+        amount: cfg.amount_vnd,
+        description,
+        cancelUrl: `${siteUrl}/app/pricing`,
+        returnUrl: `${siteUrl}/app/payment-success`,
       }),
     });
 
@@ -151,21 +192,16 @@ Deno.serve(async (req) => {
 
     const data = payosJson.data as Record<string, unknown> | undefined;
     const checkoutUrl = (data?.checkoutUrl ?? data?.checkout_url) as string | undefined;
-    const qr = (data?.qrCode ?? data?.qr_code) as string | undefined;
+    const qrCode = (data?.qrCode ?? data?.qr_code) as string | undefined;
 
     return new Response(
       JSON.stringify({
-        order_code: String(orderNum),
-        payment_url: checkoutUrl ?? "",
-        qr_code_url: qr ?? "",
-        bank_details: {
-          bank_name: "PayOS",
-          account_number: "",
-          account_name: "GETVIEWS",
-          reference_code: String(orderNum),
-        },
-        amount_vnd: amountVnd,
-        expires_at: expires.toISOString(),
+        checkoutUrl: checkoutUrl ?? "",
+        qrCode: qrCode ?? "",
+        orderCode,
+        amount_vnd: cfg.amount_vnd,
+        deep_credits_granted: cfg.deep_credits_granted,
+        billing_period: cfg.billing_period,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
