@@ -38,20 +38,11 @@ from getviews_pipeline.config import (
 )
 from getviews_pipeline.gemini import gemini_text_only
 from getviews_pipeline.intents import (
-    QueryIntent,
-    classify_intent,
     extract_urls_and_handles,
-    infer_niche_from_message,
     split_into_questions,
 )
 from getviews_pipeline.pipelines import (
-    run_brief_generation,
     run_competitor_profile,
-    run_content_directions,
-    run_kol_search,
-    run_own_channel,
-    run_series_audit,
-    run_trend_spike,
     run_video_diagnosis,
 )
 from getviews_pipeline.runtime import run_sync
@@ -59,28 +50,11 @@ from getviews_pipeline.session_store import (
     get_session_context,
     get_stream_chunks,
     put_stream_chunks,
-    record_intent_done,
 )
 from getviews_pipeline.supabase_client import user_supabase
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
-
-_supabase: Any = None
-
-
-def get_supabase() -> Any:
-    global _supabase
-    if _supabase is None:
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-        if not url or not key:
-            raise RuntimeError("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set")
-        from supabase import create_client
-
-        _supabase = create_client(url, key)
-    return _supabase
-
 
 _PROFILE_HANDLE_RE = re.compile(r"tiktok\.com/@([a-zA-Z0-9_.]+)", re.IGNORECASE)
 
@@ -97,13 +71,10 @@ def _normalize_intent_name(raw: str | None) -> str | None:
 
 
 def is_free_intent(intent: str) -> bool:
+    # The three intents routed to Cloud Run (video_diagnosis, competitor_profile,
+    # own_channel) are always paid. This function exists for completeness —
+    # credits_used is always 1 in the /stream handler.
     return intent in ("trend_spike", "kol_search", "follow_up", "find_creators")
-
-
-def _classify_to_frontend_intent(qi: QueryIntent) -> str:
-    if qi == QueryIntent.FOLLOWUP:
-        return "follow_up"
-    return qi.value
 
 
 def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:
@@ -122,115 +93,6 @@ def _pick_video_url(urls: list[str]) -> str | None:
         if "/video/" in ul or "vm.tiktok.com" in ul:
             return u
     return urls[0] if urls else None
-
-
-async def _metadata_only_text(url: str) -> str:
-    aweme = await ensemble.fetch_post_info(url)
-    meta = ensemble.parse_metadata(aweme)
-    m = meta.metrics
-    head = " · ".join(
-        [
-            f"@{meta.author.username}",
-            f"{m.views or 0} lượt xem",
-            f"{m.likes or 0} thích",
-            f"{meta.duration_sec:.1f}s",
-        ]
-    )
-    desc = (meta.description or "").strip()
-    return f"{head}\n\n{desc[:800]}"
-
-
-async def _run_intent_pipeline(
-    intent: str,
-    query: str,
-    session: dict[str, Any],
-) -> tuple[str, dict[str, Any] | None]:
-    """Run analysis pipeline; returns (assistant_markdown_or_text, structured_json_or_none)."""
-    questions = split_into_questions(query)
-    niche = infer_niche_from_message(query)
-    urls, handles = extract_urls_and_handles(query)
-
-    if intent == "video_diagnosis":
-        url = _pick_video_url(urls)
-        if not url:
-            return "Cần link TikTok (video) hợp lệ.", None
-        out = await run_video_diagnosis(url, session, questions=questions)
-        uv = out.get("user_video") or {}
-        if uv.get("error"):
-            return f"Không phân tích được: {uv['error']}", None
-        text = (out.get("diagnosis") or "").strip()
-        structured = {
-            k: out[k]
-            for k in (
-                "niche",
-                "user_video",
-                "reference_videos",
-                "metadata",
-                "analysis",
-                "content_type",
-            )
-            if k in out
-        }
-        return text, structured or None
-
-    if intent == "competitor_profile":
-        handle = _resolve_profile_handle(urls, handles)
-        out = await run_competitor_profile(handle, session, questions)
-        structured = {k: out[k] for k in ("handle", "analyzed_videos") if k in out}
-        return out["synthesis"], structured or None
-
-    if intent == "own_channel":
-        out = await run_own_channel(niche, session, questions)
-        structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out}
-        return out["synthesis"], structured or None
-
-    if intent == "trend_spike":
-        out = await run_trend_spike(niche, session, questions)
-        structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out}
-        return out["synthesis"], structured or None
-
-    if intent == "brief_generation":
-        topic = questions[0] if questions else query.strip()
-        out = await run_brief_generation(topic, niche, session, questions)
-        structured = {k: v for k, v in out.items() if k != "brief"}
-        return out["brief"], structured or None
-
-    if intent in ("find_creators", "kol_search"):
-        out = await run_kol_search(niche, session, questions)
-        structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out}
-        return out["synthesis"], structured or None
-
-    if intent in ("follow_up", "followup"):
-        text = await run_sync(gemini_text_only, query, session)
-        record_intent_done(session, "follow_up")
-        return text, None
-
-    if intent == "series_audit":
-        if len(urls) < 2:
-            return "Cần ít nhất hai link TikTok cho kiểm tra series.", None
-        out = await run_series_audit(urls, session, questions)
-        structured = {k: out[k] for k in ("analyzed_videos",) if k in out}
-        return out["synthesis"], structured or None
-
-    if intent == "content_directions":
-        out = await run_content_directions(niche, session, questions)
-        structured = {
-            k: out[k]
-            for k in ("niche", "directions", "analyzed_videos")
-            if k in out
-        }
-        return out["synthesis"], structured or None
-
-    if intent == "metadata_only":
-        if not urls:
-            return "Cần link TikTok.", None
-        text = await _metadata_only_text(urls[0])
-        return text, None
-
-    topic = questions[0] if questions else query.strip()
-    out = await run_brief_generation(topic, niche, session, questions)
-    structured = {k: v for k, v in out.items() if k != "brief"}
-    return out["brief"], structured or None
 
 
 def _chunk_text(text: str, size: int = 20) -> list[str]:
