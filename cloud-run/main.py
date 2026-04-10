@@ -445,3 +445,52 @@ async def stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ── Batch corpus ingest ─────────────────────────────────────────────────────────
+
+_BATCH_SECRET = os.environ.get("BATCH_SECRET", "")
+
+
+class BatchIngestRequest(BaseModel):
+    niche_ids: list[int] | None = Field(
+        default=None,
+        description="Restrict to specific niche IDs. Omit to ingest all niches.",
+    )
+
+
+@app.post("/batch/ingest")
+async def batch_ingest(
+    request: Request,
+    body: BatchIngestRequest = BatchIngestRequest(),
+) -> JSONResponse:
+    """Trigger video corpus batch ingest.
+
+    Protected by BATCH_SECRET header (X-Batch-Secret). Intended to be called
+    by Cloud Scheduler via HTTP target — not exposed to end users.
+
+    Returns a summary of inserted / skipped / failed counts per niche.
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.corpus_ingest import run_batch_ingest
+
+    logger.info("POST /batch/ingest triggered — niche_ids=%s", body.niche_ids)
+    try:
+        summary = await run_batch_ingest(niche_ids=body.niche_ids)
+    except Exception as exc:
+        logger.exception("Batch ingest failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({
+        "ok": True,
+        "total_inserted": summary.total_inserted,
+        "total_skipped": summary.total_skipped,
+        "total_failed": summary.total_failed,
+        "niches_processed": summary.niches_processed,
+        "materialized_view_refreshed": summary.materialized_view_refreshed,
+        "niche_results": summary.niche_results,
+    })

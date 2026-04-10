@@ -21,6 +21,10 @@ gcloud run deploy "$SERVICE_NAME" \
   --min-instances 0 \
   --max-instances 5
 
+SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format="value(status.url)")
+
+echo ""
+echo "Service URL: $SERVICE_URL"
 echo ""
 echo "Set env vars in Cloud Run console or via:"
 echo "  gcloud run services update $SERVICE_NAME --region $REGION --set-env-vars KEY=VALUE"
@@ -28,3 +32,21 @@ echo ""
 echo "Required env vars:"
 echo "  ENSEMBLE_DATA_API_KEY, GEMINI_API_KEY, SUPABASE_URL,"
 echo "  SUPABASE_ANON_KEY, SUPABASE_JWT_SECRET"
+echo ""
+echo "Batch corpus ingest env vars (optional):"
+echo "  SUPABASE_SERVICE_ROLE_KEY  — required for batch ingest DB writes"
+echo "  BATCH_SECRET               — shared secret for POST /batch/ingest (recommended)"
+echo "  BATCH_VIDEOS_PER_NICHE     — max videos analyzed per niche (default: 10)"
+echo "  BATCH_RECENCY_DAYS         — post recency window in days (default: 30)"
+echo "  BATCH_CONCURRENCY          — parallel niches per batch wave (default: 4)"
+echo ""
+echo "To set up Cloud Scheduler for nightly corpus ingest:"
+echo "  gcloud scheduler jobs create http getviews-corpus-ingest \\"
+echo "    --location $REGION \\"
+echo "    --schedule '0 2 * * *' \\"
+echo "    --uri \"$SERVICE_URL/batch/ingest\" \\"
+echo "    --message-body '{}' \\"
+echo "    --headers 'X-Batch-Secret=<YOUR_BATCH_SECRET>,Content-Type=application/json' \\"
+echo "    --http-method POST \\"
+echo "    --time-zone 'Asia/Ho_Chi_Minh' \\"
+echo "    --attempt-deadline 25m"
