@@ -79,10 +79,9 @@ npx supabase gen types typescript --project-id lzhiqnxfveqttsujebiv > src/lib/da
 **Action (human):** Supabase Dashboard → Database → Replication → enable `profiles` table for Realtime.
 Not required for Wave 1 dev (queries work without it), but needed before any feature that updates the profile (e.g., settings, NicheSelector write-back).
 
-### N-9 — `useProfile` `.single()` can fail during trigger lag — PARTIALLY RESOLVED
-**Source:** Auth QA agent (adversarial check) → chat-core frontend agent
-**Impact:** After OAuth, `profiles` row may not exist yet when `useProfile` first fires. Global `retry: 1` covers typical lag.
-**Status:** NicheSelector in ChatScreen gracefully handles `isError` / loading state from `useProfile` — no hard error shown. Longer-term fix (`maybeSingle()` + polling) deferred to settings feature.
+### N-9 — `useProfile` `.single()` can fail during trigger lag — RESOLVED
+**Source:** Auth QA agent (adversarial check) → chat-core frontend agent → fixed pre-billing
+**Status:** `useProfile` now uses `.maybeSingle()` — returns `null` instead of throwing when the profiles row doesn't exist yet (trigger lag after OAuth). Callers already handle `profile == null` gracefully (NicheSelector, CreditBar, ChatScreen `needsNiche` check). Type updated to `ProfileRow | null`.
 
 ### N-11 — `GEMINI_API_KEY` not set — RESOLVED (local dev)
 **Source:** Chat-core backend agent (`9b8bdd0`)
@@ -103,10 +102,9 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Impact:** `api/chat.ts` writes the full Gemini text to `chat_messages.content`. The `structured_output` JSONB column (defined in tech-spec for typed DiagnosisRow / HookRanking / BriefBlock / CreatorCard payloads) is never populated. The frontend currently renders `content` as plain text — structured components (DiagnosisRow bars, HookRankingBar widths) show Make's mock data or empty states rather than real data.
 **Action:** When Cloud Run pipeline is deployed, it writes `structured_output` with the typed payload. The frontend's `ChatScreen.tsx` must be updated to read from `structured_output` (falls back to `content` for plain text intents). This is a Wave 2 enhancement — acceptable for Wave 1 with text-only responses.
 
-### N-14 — `profiles.primary_niche` stored as TEXT, niche ID is integer
-**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
-**Impact:** The migration defines `profiles.primary_niche` as TEXT (niche name or ID as string), but `niche_taxonomy.id` is an integer. The NicheSelector currently calls `parseInt` when saving. Inconsistency could cause filtering bugs in the future (e.g., `WHERE niche_id = primary_niche` type mismatch).
-**Action:** Before settings feature: align the column type. Options: (a) change `primary_niche` to INTEGER FK → `niche_taxonomy.id`, or (b) store the niche name string and join by name. Recommend option (a) for referential integrity. Apply a migration in `/feature settings` backend step.
+### N-14 — `profiles.primary_niche` stored as TEXT, niche ID is integer — RESOLVED
+**Source:** Chat-core frontend agent (`df0b02c`) → Fixed pre-billing
+**Status:** Migration `20260410000012_profiles_primary_niche_integer.sql` applied. Column is now `INTEGER` with FK → `niche_taxonomy(id) ON DELETE SET NULL`. All `parseInt`/string-cast workarounds removed from `ChatScreen.tsx` and `ExploreScreen.tsx`. `database.types.ts` regenerated: `primary_niche: number | null`.
 
 ### N-15 — Session title / sidebar rename not persisted — RESOLVED by history (`e8bc480` / `c30f2f3`)
 **Source:** Chat-core frontend agent (`df0b02c`) → Resolved by history backend + frontend agents
@@ -156,10 +154,9 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Impact:** `hook_effectiveness` rows have `hook_type` as a free-text string (e.g., `"question"`, `"statistic"`, `"POV"`). The HookRankingBars section renders this directly. If the Cloud Run pipeline generates inconsistent casing or Vietnamese/English mixing, bars will look noisy. No normalization or translation layer exists.
 **Action:** Before trends feature goes live with real data — define a canonical `hook_type` enum in the Cloud Run pipeline (`getviews_pipeline/intents.py`) and normalize on write. No frontend change needed; this is a pipeline concern.
 
-### N-24 — D2 bars use `var(--ink-soft)` for all non-top bars — not progressively lighter
-**Source:** Trends QA agent (`ddaf839`) — deferred finding
-**Impact:** EDS D2 spec calls for bars to be progressively lighter (top = purple, 2nd = slightly lighter, etc.). Current implementation uses the same `var(--ink-soft)` color for bars 2–N. Deducted 6 health points (visual).
-**Action:** Update the bar color logic in `ExploreScreen.tsx` HookRankingBars to interpolate opacity: `rgba(var(--ink-rgb), 0.6 - i*0.08)` or similar. Low priority — does not affect functionality.
+### N-24 — D2 bars use `var(--ink-soft)` for all non-top bars — not progressively lighter — RESOLVED
+**Source:** Trends QA agent (`ddaf839`) → Fixed pre-billing
+**Status:** Bar color now interpolates opacity: top bar = `var(--purple)`, bars 2–8 = `rgba(100, 100, 120, 0.65 - i*0.08)` (floor 0.10). Track background unified to `var(--border)`. Visual EDS D2 fidelity restored.
 
 ### N-10 — Secrets in `.cursor/mcp.json` accessible in-session
 **Source:** Auth backend agent (`89dc2ca`)
@@ -185,7 +182,7 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 24 | N-1 through N-24 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18 resolved; N-9, N-21 partially resolved) |
+| NON-BLOCKING | 24 | N-1 through N-24 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24 resolved; N-21 partially resolved) |
 | DEFERRED | 5 | Wave 2+ |
 
 **Resolved this phase (trends):**
@@ -197,5 +194,7 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 - N-24 — D2 bars not progressively lighter (all non-top bars same `var(--ink-soft)`)
 
 **Wave 2 trends: QA PASS.** TrendScreen fully wired: NicheSelector, D2 HookRankingBars, FormatLifecycle, aside keywords (5/5 passes, health 94/100).
+
+**Pre-billing housekeeping (resolved):** N-9 (useProfile maybeSingle), N-14 (primary_niche INTEGER FK), N-24 (D2 progressive bars).
 
 **Before next Wave 2 feature:** No new blockers. N-19 (empty corpus) + N-22 (MV not refreshed) are the main gaps for staging demo — both depend on Cloud Run deploy.

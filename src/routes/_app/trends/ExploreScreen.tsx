@@ -793,10 +793,8 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     if (selectedNicheId !== null) return;
-    const raw = profile?.primary_niche;
-    if (raw == null || raw === "") return;
-    const id = typeof raw === "string" ? Number.parseInt(raw, 10) : Number(raw);
-    if (!Number.isNaN(id)) setSelectedNicheId(id);
+    const id = profile?.primary_niche;
+    if (id != null) setSelectedNicheId(id);
   }, [profile?.primary_niche, selectedNicheId]);
 
   const selectedNicheName = useMemo(
@@ -1015,6 +1013,10 @@ export default function ExploreScreen() {
                     const pct = Math.min(100, Math.round((er / maxEr) * 100));
                     const isTop = i === 0;
                     const mult = maxEr > 0 ? (er / maxEr).toFixed(2) : "—";
+                    // D2: top bar = purple, others progressively lighter (0.65 → 0.10 opacity)
+                    const barColor = isTop
+                      ? "var(--purple)"
+                      : `rgba(100, 100, 120, ${Math.max(0.10, 0.65 - i * 0.08)})`;
                     return (
                       <div key={h.id ?? i} className="flex flex-col gap-1">
                         <div className="flex items-center justify-between gap-2">
@@ -1038,15 +1040,12 @@ export default function ExploreScreen() {
                           </div>
                         </div>
                         <div
-                          className={`relative h-2 rounded-full overflow-hidden ${isTop ? "" : "border border-[var(--border)]"}`}
-                          style={{ background: isTop ? "var(--border)" : "var(--surface-alt)" }}
+                          className="relative h-2 rounded-full overflow-hidden"
+                          style={{ background: "var(--border)" }}
                         >
                           <motion.div
                             className="absolute left-0 top-0 h-full rounded-full"
-                            style={{
-                              background: isTop ? "var(--purple)" : "var(--ink-soft)",
-                              boxShadow: isTop ? undefined : "inset 0 0 0 1px var(--border)",
-                            }}
+                            style={{ background: barColor }}
                             initial={{ width: 0 }}
                             animate={{ width: `${pct}%` }}
                             transition={{

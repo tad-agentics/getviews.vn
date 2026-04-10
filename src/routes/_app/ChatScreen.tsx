@@ -354,12 +354,8 @@ export default function ChatScreen() {
 
   const nicheLabel = useMemo(() => {
     const pn = profile?.primary_niche;
-    if (pn == null || pn === "") return "";
-    const id = typeof pn === "number" ? pn : Number(pn);
-    if (!Number.isNaN(id) && nicheRows?.length) {
-      return nicheRows.find((n) => n.id === id)?.name ?? "";
-    }
-    return String(pn);
+    if (pn == null) return "";
+    return nicheRows?.find((n) => n.id === pn)?.name ?? "";
   }, [profile?.primary_niche, nicheRows]);
 
   const [message, setMessage] = useState("");
@@ -384,7 +380,7 @@ export default function ChatScreen() {
 
   const credits = profile?.deep_credits_remaining ?? 0;
   const processing = Boolean(profile?.is_processing);
-  const needsNiche = profile?.primary_niche == null || profile?.primary_niche === "";
+  const needsNiche = profile?.primary_niche == null;
 
   const priorAssistant = useMemo(() => messages.some((m) => m.role === "assistant"), [messages]);
 
@@ -425,12 +421,9 @@ export default function ChatScreen() {
 
       let sid = sessionId;
       if (!sid) {
-        const rawNiche = profile?.primary_niche;
-        const nicheIdNum =
-          rawNiche != null && rawNiche !== "" ? Number.parseInt(String(rawNiche), 10) : Number.NaN;
         const row = await createSession.mutateAsync({
           userId: user.id,
-          nicheId: Number.isFinite(nicheIdNum) ? nicheIdNum : null,
+          nicheId: profile?.primary_niche ?? null,
         });
         sid = row.id;
         setSessionId(sid);
