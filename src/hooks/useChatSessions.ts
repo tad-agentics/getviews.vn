@@ -8,7 +8,9 @@ export function useChatSessions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("chat_sessions")
-        .select("id, title, first_message, created_at, niche_id, niche_taxonomy(name)")
+        .select(
+          "id, title, first_message, created_at, niche_id, intent_type, credits_used, niche_taxonomy(name)",
+        )
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(50);

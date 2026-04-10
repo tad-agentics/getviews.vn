@@ -1,4 +1,19 @@
-// Phase 2+: Figma Make TSX will be copied here by the Frontend Developer
-export default function HistoryScreen() {
-  return <div className="p-4">Lịch sử</div>;
+import { lazy, Suspense } from "react";
+
+const HistoryScreen = lazy(() => import("./HistoryScreen"));
+
+export default function HistoryRoute() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          role="status"
+          aria-label="Đang tải"
+          className="min-h-[40vh] flex-1 animate-pulse rounded-lg bg-[var(--surface-alt)]"
+        />
+      }
+    >
+      <HistoryScreen />
+    </Suspense>
+  );
 }
