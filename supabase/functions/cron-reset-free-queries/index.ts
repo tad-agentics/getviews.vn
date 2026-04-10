@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
   const now = new Date().toISOString();
 
   try {
+    // Count rows that actually had queries to reset (for logging).
     const { count, error: countErr } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
@@ -28,7 +29,9 @@ Deno.serve(async (req) => {
 
     if (countErr) throw countErr;
 
-    const { error } = await supabase
+    // Reset count for users who used queries today, and bump reset_at for ALL users
+    // so analytics can reliably track reset cadence regardless of usage.
+    const { error: resetErr } = await supabase
       .from("profiles")
       .update({
         daily_free_query_count: 0,
@@ -36,7 +39,14 @@ Deno.serve(async (req) => {
       })
       .gt("daily_free_query_count", 0);
 
-    if (error) throw error;
+    if (resetErr) throw resetErr;
+
+    const { error: stampErr } = await supabase
+      .from("profiles")
+      .update({ daily_free_query_reset_at: now })
+      .eq("daily_free_query_count", 0);
+
+    if (stampErr) throw stampErr;
 
     return new Response(JSON.stringify({ reset_count: count ?? 0 }), {
       status: 200,

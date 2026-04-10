@@ -62,7 +62,7 @@ function renderReceipt(data: z.infer<typeof ReceiptDataSchema>): { subject: stri
     lines.push(`<p>Xin chào ${data.display_name},</p>`);
   }
   lines.push(
-    `<p>Thanh toán thành công — bạn đã nhận được <strong>${data.count}</strong> deep credits. Hẹn gặp lại trên GetViews!</p>`,
+    `<p>Thanh toán thành công — bạn đã nhận được <strong>${data.count}</strong> deep credit. Hẹn gặp lại trên GetViews!</p>`,
   );
   if (data.tier) {
     lines.push(`<p>Gói: <strong>${data.tier}</strong></p>`);

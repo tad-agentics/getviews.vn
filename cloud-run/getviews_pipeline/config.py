@@ -12,8 +12,7 @@ SUPABASE_JWKS_URL = os.environ.get(
     "SUPABASE_JWKS_URL",
     "https://lzhiqnxfveqttsujebiv.supabase.co/auth/v1/.well-known/jwks.json",
 )
-SUPABASE_JWKS_KID = os.environ.get("SUPABASE_JWKS_KID", "7e331b8a-f420-4b4c-b2fb-dc2849768068")
-# Legacy fallback: if SUPABASE_JWT_SECRET is set (HS256), use it instead
+# Legacy fallback: if SUPABASE_JWT_SECRET is set (HS256), use it instead of JWKS ES256
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
 
 ENSEMBLEDATA_API_TOKEN = os.environ.get("ENSEMBLE_DATA_API_KEY") or os.environ.get("ENSEMBLEDATA_API_TOKEN")

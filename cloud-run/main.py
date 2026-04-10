@@ -23,13 +23,19 @@ from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import AliasChoices, BaseModel, Field
 
 from getviews_pipeline import ensemble
-from getviews_pipeline.config import SUPABASE_JWKS_URL, SUPABASE_JWT_SECRET
+from getviews_pipeline.config import (
+    ENSEMBLEDATA_API_TOKEN,
+    GEMINI_API_KEY,
+    SUPABASE_JWKS_URL,
+    SUPABASE_JWT_SECRET,
+)
 from getviews_pipeline.gemini import gemini_text_only
 from getviews_pipeline.intents import (
     QueryIntent,
@@ -55,6 +61,7 @@ from getviews_pipeline.session_store import (
     put_stream_chunks,
     record_intent_done,
 )
+from getviews_pipeline.supabase_client import user_supabase
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -236,6 +243,26 @@ def _sse_line(payload: dict[str, Any]) -> bytes:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
 
 
+def _classify_stream_error(exc: BaseException) -> str:
+    """Map known exceptions to frontend-readable error codes.
+
+    These codes are handled by useChatStream.ts lines 109-111.
+    Called only AFTER the SSE stream has opened — do not raise, just return a code.
+    """
+    msg = str(exc).lower()
+    if isinstance(exc, asyncio.TimeoutError):
+        return "analysis_timeout"
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 403:
+        return "video_download_failed"
+    if "unit limit" in msg or "daily unit limit" in msg:
+        return "ensembledata_quota"
+    # Gemini SDK exceptions live under google.genai or google.generativeai namespaces
+    exc_module = type(exc).__module__ or ""
+    if exc_module.startswith("google"):
+        return "gemini_error"
+    return "stream_failed"
+
+
 class StreamRequest(BaseModel):
     session_id: str
     query: str
@@ -250,6 +277,7 @@ class StreamRequest(BaseModel):
 
 def _insert_chat_message_best_effort(
     *,
+    supabase: Any,
     session_id: str,
     user_id: str,
     content: str,
@@ -257,8 +285,8 @@ def _insert_chat_message_best_effort(
     intent_type: str,
     stream_id: str,
 ) -> None:
+    """Insert the assistant message via RLS-scoped client (non-fatal on failure)."""
     try:
-        supabase = get_supabase()
         supabase.table("chat_messages").insert(
             {
                 "session_id": session_id,
@@ -278,22 +306,33 @@ def _insert_chat_message_best_effort(
 app = FastAPI(title="GetViews Pipeline", version="0.1.0")
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# ALLOWED_ORIGINS env var: comma-separated list. Defaults to production + local dev.
-_raw_origins = os.environ.get(
-    "ALLOWED_ORIGINS",
-    "https://getviews.vn,https://www.getviews.vn,http://localhost:5173,http://localhost:4173",
-)
-_ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-
+# Use allow_origin_regex only — FastAPI CORSMiddleware does not support wildcard
+# subdomains in allow_origins. The regex covers production, Vercel previews, and
+# local dev on any port.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_ALLOWED_ORIGINS,
-    # Vercel preview deployments have dynamic subdomains — allow via regex.
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.app|https://getviews\.vn|http://localhost:\d+",
     allow_credentials=True,
-    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# ── Global error handler ──────────────────────────────────────────────────────
+# Catches unhandled errors BEFORE the response body is opened (e.g. route lookup,
+# middleware, dependency injection). Errors that occur DURING an open SSE stream
+# cannot change the HTTP status — they are sent as error SSE tokens instead.
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, HTTPException):
+        # Let FastAPI's default handler format 4xx/5xx HTTPExceptions correctly
+        return await http_exception_handler(request, exc)
+    logger.exception("Unhandled error: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "internal_error", "detail": str(exc)},
+    )
+
 
 # ── JWKS cache (refresh at most every 10 minutes) ─────────────────────────────
 
@@ -320,7 +359,8 @@ async def require_user(request: Request) -> dict[str, Any]:
     """Validate Supabase JWT from Authorization: Bearer header.
 
     Supports ES256 via JWKS (primary) with HS256 fallback if SUPABASE_JWT_SECRET is set.
-    Returns the decoded JWT payload (contains 'sub' = user UUID).
+    Returns the decoded JWT payload (contains 'sub' = user UUID) plus the raw token
+    so callers can build a user-scoped Supabase client via user_supabase(access_token).
     """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -356,14 +396,24 @@ async def require_user(request: Request) -> dict[str, Any]:
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No sub in token")
 
-    return {"user_id": user_id, "payload": payload}
+    # Include raw token so /stream can build a user-scoped (RLS-aware) Supabase client
+    return {"user_id": user_id, "payload": payload, "access_token": token}
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    return JSONResponse({"status": "ok"})
+    checks = {
+        "gemini_key_set": bool(GEMINI_API_KEY),
+        "ensemble_key_set": bool(ENSEMBLEDATA_API_TOKEN),
+        "jwt_configured": bool(SUPABASE_JWT_SECRET) or bool(SUPABASE_JWKS_URL),
+    }
+    ok = all(checks.values())
+    return JSONResponse(
+        {"status": "ok" if ok else "degraded", "checks": checks},
+        status_code=200 if ok else 503,
+    )
 
 
 @app.get("/auth-check")
@@ -374,79 +424,155 @@ async def auth_check(user: dict = Depends(require_user)) -> JSONResponse:
 
 @app.post("/stream")
 async def stream(
+    request: Request,
     body: StreamRequest,
     user: dict = Depends(require_user),
 ) -> StreamingResponse:
-    """SSE token stream for analysis pipeline (chunked shim until Gemini streaming)."""
+    """SSE token stream for video analysis pipeline.
 
+    Only handles the three intents the frontend routes to Cloud Run:
+      - video_diagnosis  → run_video_diagnosis (EnsembleData + Gemini multimodal)
+      - competitor_profile → run_competitor_profile
+      - own_channel      → run_video_diagnosis (user's own video URL — same pipeline)
+                           NOTE: own_channel is not in QueryIntent; treated as video_diagnosis.
+
+    All other intents (brief_generation, trend_spike, etc.) go to Vercel Edge /api/chat.
+
+    Credit gate (mirrors api/chat.ts lines 82-96):
+      1. Mark is_processing = true before calling pipeline
+      2. decrement_credit RPC — returns 402 if balance is zero
+      3. Mark is_processing = false after streaming finishes (in generator)
+
+    Uses user_supabase() (anon key + user JWT) so RLS applies correctly.
+    """
     user_id: str = user["user_id"]
+    access_token: str = user["access_token"]
+
+    # ── Credit gate (pre-flight, before opening the SSE stream) ──────────────
+    # Build user-scoped client here so we can return 402 synchronously before
+    # streaming starts. The same client is passed into the generator for cleanup.
+    sb = user_supabase(access_token)
+
+    try:
+        sb.table("profiles").update({"is_processing": True}).eq("id", user_id).execute()
+        rpc_resp = sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
+        # decrement_credit returns false (or raises) when balance is zero
+        if rpc_resp.data is False:
+            sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+            return JSONResponse(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                content={"error": "insufficient_credits"},
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Credit deduction failed: %s", exc)
+        sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+        return JSONResponse(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            content={"error": "insufficient_credits"},
+        )
+
+    # ── Resolve intent ────────────────────────────────────────────────────────
+    normalized = _normalize_intent_name(body.intent_type) or "video_diagnosis"
 
     async def event_generator() -> AsyncIterator[bytes]:
-        stream_id = str(uuid.uuid4())
+        stream_id = body.resume_stream_id or str(uuid.uuid4())
+        seq = body.last_seq or 0
+
         try:
+            # ── Resume: replay cached chunks the client already missed ────────
             if body.resume_stream_id and body.last_seq is not None:
                 cached = get_stream_chunks(body.resume_stream_id)
                 if cached:
-                    stream_id = body.resume_stream_id
                     for i, chunk in enumerate(cached, start=1):
                         if i <= body.last_seq:
                             continue
-                        yield _sse_line({"delta": chunk, "seq": i, "done": False})
+                        seq = i
+                        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
                         await asyncio.sleep(0.005)
-                    yield _sse_line(
-                        {
-                            "delta": "",
-                            "seq": len(cached) + 1,
-                            "done": True,
-                            "stream_id": stream_id,
-                        }
-                    )
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
+                    sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
 
+            # ── Run pipeline ──────────────────────────────────────────────────
             session = get_session_context(body.session_id)
-            normalized = _normalize_intent_name(body.intent_type)
-            if normalized:
-                classified = normalized
+            urls, handles = extract_urls_and_handles(body.query)
+            questions = split_into_questions(body.query)
+
+            if normalized in ("video_diagnosis", "own_channel"):
+                # own_channel = diagnosing the user's own video URL (same pipeline)
+                url = _pick_video_url(urls)
+                if not url:
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "missing_video_url"})
+                    sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                    return
+                out = await asyncio.wait_for(
+                    run_video_diagnosis(url, session, questions=questions),
+                    timeout=120.0,
+                )
+                uv = out.get("user_video") or {}
+                if uv.get("error"):
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "analysis_failed"})
+                    sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                    return
+                full_text = (out.get("diagnosis") or "").strip()
+                structured: dict[str, Any] | None = {
+                    k: out[k]
+                    for k in ("niche", "user_video", "reference_videos", "metadata", "analysis", "content_type")
+                    if k in out
+                } or None
+
+            elif normalized == "competitor_profile":
+                handle = _resolve_profile_handle(urls, handles)
+                out = await asyncio.wait_for(
+                    run_competitor_profile(handle, session, questions),
+                    timeout=120.0,
+                )
+                full_text = (out.get("synthesis") or "").strip()
+                structured = {k: out[k] for k in ("handle", "analyzed_videos") if k in out} or None
+
             else:
-                urls, handles = extract_urls_and_handles(body.query)
-                has_session = bool(session.get("completed_intents"))
-                qi = classify_intent(body.query, urls, handles, has_session)
-                classified = _classify_to_frontend_intent(qi)
+                # Safety net: unknown intent routed here — treat as follow-up text
+                logger.warning("Unexpected intent in /stream: %s — falling back to gemini_text_only", normalized)
+                full_text = await run_sync(gemini_text_only, body.query, session)
+                structured = None
 
-            full_text, structured = await _run_intent_pipeline(
-                classified, body.query, session
-            )
-
-            # TODO: replace chunked shim with real Gemini streaming when migrating to generate_content_stream()
-            chunks = _chunk_text(full_text, 20)
+            # ── Stream text in chunks ─────────────────────────────────────────
+            chunks = _chunk_text(full_text, 50)
             put_stream_chunks(stream_id, chunks)
 
-            for i, chunk in enumerate(chunks, start=1):
-                yield _sse_line({"delta": chunk, "seq": i, "done": False})
+            for chunk in chunks:
+                seq += 1
+                yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
                 await asyncio.sleep(0.005)
 
+            # ── Done token ────────────────────────────────────────────────────
+            seq += 1
+            yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
+
+            # ── Post-stream: persist message + clear is_processing ────────────
             await run_sync(
                 _insert_chat_message_best_effort,
+                supabase=sb,
                 session_id=body.session_id,
                 user_id=user_id,
                 content=full_text,
                 structured_output=structured,
-                intent_type=classified,
+                intent_type=normalized,
                 stream_id=stream_id,
             )
+            sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
 
-            yield _sse_line(
-                {
-                    "delta": "",
-                    "seq": len(chunks) + 1,
-                    "done": True,
-                    "stream_id": stream_id,
-                }
-            )
         except Exception as exc:
-            logger.exception("stream pipeline error: %s", exc)
-            msg = str(exc).strip() or "stream_failed"
-            yield _sse_line({"error": msg, "done": True})
+            logger.exception("Stream pipeline error: %s", exc)
+            error_code = _classify_stream_error(exc)
+            seq += 1
+            yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": error_code})
+            sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
 
     return StreamingResponse(
         event_generator(),
