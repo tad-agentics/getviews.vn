@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,6 +33,14 @@ BATCH_VIDEOS_PER_NICHE = int(os.environ.get("BATCH_VIDEOS_PER_NICHE", "10"))
 BATCH_RECENCY_DAYS = int(os.environ.get("BATCH_RECENCY_DAYS", "30"))
 BATCH_MAX_FAILURES = int(os.environ.get("BATCH_MAX_FAILURES", "3"))
 BATCH_CONCURRENCY = int(os.environ.get("BATCH_CONCURRENCY", "4"))
+
+# Quality gates — tune via env vars without redeploying
+# Minimum views a post must have to enter the corpus (filters low-reach content)
+BATCH_MIN_VIEWS = int(os.environ.get("BATCH_MIN_VIEWS", "10000"))
+# Minimum engagement rate % — (likes+comments+shares)/views*100 (filters dead content)
+BATCH_MIN_ER = float(os.environ.get("BATCH_MIN_ER", "0.5"))
+# Keyword search pages fetched per niche (each page ~20 posts, broadens candidate pool)
+BATCH_KEYWORD_PAGES = int(os.environ.get("BATCH_KEYWORD_PAGES", "2"))
 
 
 # ── Result containers ───────────────────────────────────────────────────────────
@@ -92,21 +101,48 @@ async def _existing_video_ids(client: Any, niche_id: int) -> set[str]:
 
 # ── Post pool fetch ─────────────────────────────────────────────────────────────
 
+async def _fetch_keyword_pages(term: str) -> list[dict[str, Any]]:
+    """Fetch BATCH_KEYWORD_PAGES pages of keyword search results, following nextCursor."""
+    all_awemes: list[dict[str, Any]] = []
+    cursor: int = 0
+    for page in range(BATCH_KEYWORD_PAGES):
+        try:
+            awemes, next_cursor = await ensemble.fetch_keyword_search(
+                term, period=BATCH_RECENCY_DAYS, cursor=cursor
+            )
+            all_awemes.extend(awemes)
+            logger.debug(
+                "[corpus] keyword='%s' page=%d fetched=%d next_cursor=%s",
+                term, page, len(awemes), next_cursor,
+            )
+            if next_cursor is None or not awemes:
+                break
+            cursor = next_cursor
+        except Exception as exc:
+            logger.warning("[corpus] keyword search page %d failed for '%s': %s", page, term, exc)
+            break
+    return all_awemes
+
+
 async def _fetch_niche_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
-    """Fetch posts for a niche via keyword search + hashtag posts, merged + deduped."""
+    """Fetch posts for a niche via keyword search (paginated) + all signal hashtags, merged + deduped."""
     term = (niche.get("name_en") or "").strip()
     hashtags: list[str] = niche.get("signal_hashtags") or []
 
-    tasks: list[Any] = [ensemble.fetch_keyword_search(term, period=BATCH_RECENCY_DAYS)]
-    for ht in hashtags[:3]:
-        tasks.append(ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0))
+    # Keyword search: paginated — broadens pool beyond a single page of ~20 posts
+    keyword_task = _fetch_keyword_pages(term)
+    # All signal_hashtags (was [:3] — now all 4)
+    hashtag_tasks = [
+        ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
+        for ht in hashtags  # use all hashtags, not just first 3
+    ]
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    all_results = await asyncio.gather(keyword_task, *hashtag_tasks, return_exceptions=True)
 
     all_awemes: list[dict[str, Any]] = []
-    for res in results:
+    for res in all_results:
         if isinstance(res, Exception):
-            logger.warning("Pool fetch error: %s", res)
+            logger.warning("[corpus] pool fetch error: %s", res)
             continue
         if isinstance(res, tuple):
             awemes, _ = res
@@ -121,6 +157,22 @@ async def _fetch_niche_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 # ── Single post ingest ──────────────────────────────────────────────────────────
+
+_VIETNAMESE_PATTERN = re.compile(
+    r"[\u00c0-\u024f\u1e00-\u1eff\u0300-\u036f]"  # diacritics common in Vietnamese
+)
+
+
+def _has_vietnamese_chars(text: str) -> bool:
+    """Return True if the text contains Vietnamese diacritical characters.
+
+    Vietnamese uses precomposed Unicode characters (e.g. ắ, ề, ượ) in the
+    Latin Extended-A/B and Latin Extended Additional blocks. A single match is
+    sufficient — any diacritic signals a high probability of Vietnamese content.
+    English, Korean, and Japanese captions won't have these characters.
+    """
+    return bool(_VIETNAMESE_PATTERN.search(text))
+
 
 def _safe_engagement_rate(
     *,
@@ -238,25 +290,56 @@ async def ingest_niche(
         None, lambda: _existing_video_ids_sync(client, niche_id)
     )
 
-    # Filter: exclude already-indexed, exclude creators with no play_count (stats missing)
-    # and exclude non-Vietnamese creators (region != "VN" when available)
+    # Quality gates — filter out low-quality / non-Vietnamese posts before analysis
     candidates = []
     for a in pool:
         vid = str(a.get("aweme_id", "") or "")
         if vid in existing_ids:
             continue
-        # Skip posts where statistics.play_count is absent — means no real engagement data
+
         stats = a.get("statistics") or {}
-        play_count = stats.get("play_count") or stats.get("playCount") or 0
-        if int(play_count) == 0:
+        play_count = int(stats.get("play_count") or stats.get("playCount") or 0)
+
+        # Gate 1: views must be above zero (no engagement data at all)
+        if play_count == 0:
             logger.debug("[corpus] skip %s — play_count=0 (no real stats)", vid)
             continue
-        # VN region filter: author region code when available
+
+        # Gate 2: minimum view floor — filters out low-reach content
+        if play_count < BATCH_MIN_VIEWS:
+            logger.debug("[corpus] skip %s — play_count=%d < min=%d", vid, play_count, BATCH_MIN_VIEWS)
+            continue
+
+        # Gate 3: Vietnamese creator — hard check on region when present
         author = a.get("author") or {}
         region = str(author.get("region") or "").upper()
         if region and region not in ("VN", ""):
             logger.debug("[corpus] skip %s — region=%s (not VN)", vid, region)
             continue
+
+        # Gate 4: Vietnamese caption detection when region is absent (cheap heuristic)
+        # Vietnamese uses diacritics in the Unicode Latin Extended Additional block
+        if not region:
+            desc = str(a.get("desc") or "")
+            if desc and not _has_vietnamese_chars(desc):
+                logger.debug("[corpus] skip %s — no Vietnamese chars in caption and region unknown", vid)
+                continue
+
+        # Gate 5: minimum engagement rate — filters out dead content that got views but no engagement
+        likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
+        comments = int(stats.get("comment_count") or stats.get("commentCount") or 0)
+        shares = int(stats.get("share_count") or stats.get("shareCount") or 0)
+        er = _safe_engagement_rate(
+            er_from_analysis=None,
+            views=play_count,
+            likes=likes,
+            comments=comments,
+            shares=shares,
+        )
+        if er < BATCH_MIN_ER:
+            logger.debug("[corpus] skip %s — ER=%.2f%% < min=%.2f%%", vid, er, BATCH_MIN_ER)
+            continue
+
         candidates.append(a)
 
     # Sort by play_count desc (most-viewed first) for quality signal
