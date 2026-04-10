@@ -271,7 +271,7 @@ def synthesize_diagnosis(
     """Strategist markdown: routes to video vs carousel diagnosis prompt."""
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     prompt = build_diagnosis_prompt(analysis, metadata, content_type)
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE)
+    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=2048)
     response = _generate_content_models(
         [prompt],
         primary_model=model,
@@ -306,7 +306,7 @@ def _response_text(response: Any) -> str:
 def gemini_text_only(message: str, session_context: dict[str, Any]) -> str:
     """§3a Rule A / FOLLOWUP — knowledge or session-grounded text."""
     prompt = build_knowledge_prompt(message, session_context)
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE)
+    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=1024)
     response = _generate_content_models(
         [prompt],
         primary_model=GEMINI_KNOWLEDGE_MODEL,
@@ -331,7 +331,7 @@ def synthesize_intent_markdown(
         payload,
         collapsed_questions=collapsed_questions,
     )
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE)
+    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=2048)
     response = _generate_content_models(
         [prompt],
         primary_model=GEMINI_SYNTHESIS_MODEL,
