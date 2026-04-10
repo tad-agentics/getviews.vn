@@ -1,6 +1,6 @@
 # Foundation → Wave 2 Concerns
 > Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation + all Wave 1–2 features + Cloud Run pipeline
-> Status: **Production gates cleared.** Remaining items are Cloud Run deploy, PWA assets, Facebook OAuth, and post-deploy verifications.
+> Status: **Cloud Run deployed and healthy.** Remaining items are env var wiring in Vercel, PWA assets, Facebook OAuth, and post-deploy verifications.
 
 ---
 
@@ -43,13 +43,13 @@ None. ✅
 
 ### N-10 — MCP tokens in `.cursor/mcp.json` readable in-session
 **Source:** Auth backend agent
-**Impact:** Low risk for solo dev. Becomes a concern when onboarding teammates.
-**Action:** Before adding team members — rotate tokens and migrate to OS keychain auth.
+**Status:** DEFERRED — low risk for solo dev. `.cursor/mcp.json` is gitignored. Revisit when onboarding first teammate: rotate tokens + migrate to `~/.zshrc` env vars or macOS Keychain.
 
-### N-12 — `VITE_CLOUD_RUN_API_URL` not set — video intents fall back to text endpoint
+### N-12 — `VITE_CLOUD_RUN_API_URL` needs to be set in Vercel
 **Source:** Chat-core QA agent
-**Impact:** `video_diagnosis`, `competitor_profile`, `own_channel` route to `/api/chat` (no video understanding) until Cloud Run is deployed and URL is set.
-**Action:** Deploy Cloud Run to GCP, then set `VITE_CLOUD_RUN_API_URL` in Vercel env vars.
+**Impact:** `video_diagnosis`, `competitor_profile`, `own_channel` route to `/api/chat` (no video understanding) until Vercel picks up the new env var.
+**Status:** Cloud Run deployed and healthy at `https://getviews-pipeline-720640652377.asia-southeast1.run.app`. `.env.local` updated.
+**Action (human):** Vercel Dashboard → Settings → Environment Variables → add `VITE_CLOUD_RUN_API_URL=https://getviews-pipeline-720640652377.asia-southeast1.run.app` for Production + Preview + Development → Save → Redeploy.
 
 ### N-13 — `structured_output` not yet rendered in ChatScreen
 **Source:** Chat-core frontend agent
@@ -109,13 +109,9 @@ None. ✅
 **Impact:** In-process dict fails on multi-instance scale-out — duplicate pipeline costs, no cross-request context.
 **Action:** Keep `--max-instances=1` for MVP. Replace with Redis/Firestore before scaling.
 
-### N-39 — Cloud Run needs `SUPABASE_URL` + `SUPABASE_ANON_KEY` before GCP deploy
+### N-39 — Cloud Run env vars set ✅
 **Source:** Cloud Run audit
-**Action:** Before deploying to GCP:
-```
-SUPABASE_URL=https://lzhiqnxfveqttsujebiv.supabase.co
-SUPABASE_ANON_KEY=<same as VITE_SUPABASE_PUBLISHABLE_KEY>
-```
+**Status:** RESOLVED — all 5 required env vars (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `ENSEMBLE_DATA_API_KEY`, `SUPABASE_JWT_SECRET`) set via `gcloud run services update`. Health check confirms all keys present.
 
 ### N-40 — Facebook OAuth not yet configured
 **Source:** B-1 partial resolution
@@ -131,7 +127,7 @@ SUPABASE_ANON_KEY=<same as VITE_SUPABASE_PUBLISHABLE_KEY>
 | ZaloPay in CheckoutScreen | Before billing launch | Gated behind `VITE_ZALOPAY_ENABLED=true` |
 | PWA screenshots in `manifest.json` | Before production deploy | `screenshots` array is empty |
 | Monday weekly email Edge Function | Post Wave 2 | Content generation deferred |
-| Cloud Run deploy to GCP | Before video demo | Video intents fall back to text until deployed |
+| Cloud Run deploy to GCP | ✅ Done — 2026-04-10 | `getviews-pipeline-00002-2lj` live at `asia-southeast1.run.app` |
 | PayOS Realtime → in-app payment detection | Post-billing | Currently relies on redirect + page reload |
 | `own_channel` full account audit | Post MVP | Routes to `run_video_diagnosis` for MVP |
 | `structured_output` rendering in ChatScreen (N-13) | Wave 2 | Plain text render only for now |
@@ -144,7 +140,7 @@ SUPABASE_ANON_KEY=<same as VITE_SUPABASE_PUBLISHABLE_KEY>
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 0 | — |
-| NON-BLOCKING | 17 | N-1, N-3, N-4, N-5, N-8, N-10, N-12, N-13, N-19, N-20, N-21, N-22, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-39, N-40 |
+| NON-BLOCKING | 16 | N-1, N-3, N-4, N-5, N-8, N-10, N-12, N-13, N-19, N-20, N-21, N-22, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-40 |
 | DEFERRED | 8 | Post-MVP |
 
 **Resolved since last update:**
@@ -153,3 +149,5 @@ SUPABASE_ANON_KEY=<same as VITE_SUPABASE_PUBLISHABLE_KEY>
 - ✅ N-25 (PayOS secrets in Supabase) — 2026-04-10
 - ✅ N-26 partial (RESEND_API_KEY set) — 2026-04-10; sender verify still pending
 - ✅ N-32 (pg_cron + 4 cron jobs) — 2026-04-10
+- ✅ N-39 (Cloud Run env vars) — 2026-04-10; all 5 keys confirmed via `/health`
+- ✅ Cloud Run deploy — 2026-04-10; `getviews-pipeline-00002-2lj` live in `asia-southeast1`, health check green
