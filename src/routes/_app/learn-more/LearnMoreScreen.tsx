@@ -33,7 +33,7 @@ const sections: { heading: string; items: LearnMoreItem[] }[] = [
     ],
   },
   {
-    heading: "TikTok Creator Resources",
+    heading: "Tài nguyên từ TikTok",
     items: [
       {
         title: "TikTok Creator Academy",
