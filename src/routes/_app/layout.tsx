@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router";
 import { useAuth } from "@/lib/auth";
+import { Toaster } from "@/components/ui/sonner";
 
 function Spinner() {
   return (
@@ -34,5 +35,10 @@ export default function AppLayout() {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <Toaster />
+    </>
+  );
 }

@@ -9,9 +9,12 @@ const DEFAULT_CAP = 50;
 export function CreditBar({
   deepCreditsRemaining,
   cap = DEFAULT_CAP,
+  showPricingLinks = true,
 }: {
   deepCreditsRemaining: number;
   cap?: number;
+  /** When false, hide upgrade / mua thêm links (sidebar: paid tier + credits &gt; 5). */
+  showPricingLinks?: boolean;
 }) {
   const prev = useRef(deepCreditsRemaining);
   const [flash, setFlash] = useState(false);
@@ -49,13 +52,17 @@ export function CreditBar({
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)]">
           Deep credit
         </span>
-        <Link
-          to="/app/pricing"
-          className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--purple)] hover:underline"
-        >
-          <Zap className="h-2.5 w-2.5" strokeWidth={2.5} />
-          Nâng cấp
-        </Link>
+        {showPricingLinks ? (
+          <Link
+            to="/app/pricing"
+            className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--purple)] hover:underline"
+          >
+            <Zap className="h-2.5 w-2.5" strokeWidth={2.5} />
+            Nâng cấp
+          </Link>
+        ) : (
+          <span className="w-px h-px opacity-0" aria-hidden />
+        )}
       </div>
       <div className="relative mb-1.5 flex items-baseline gap-1">
         <span className="font-mono text-base font-extrabold text-[var(--ink)]">{deepCreditsRemaining}</span>
@@ -75,7 +82,7 @@ export function CreditBar({
           ) : null}
         </AnimatePresence>
       </div>
-      {deepCreditsRemaining === 0 ? (
+      {showPricingLinks && deepCreditsRemaining === 0 ? (
         <Link to="/app/pricing" className="mb-1.5 block text-xs font-semibold text-[var(--purple)] hover:underline">
           Hết credit. Mua thêm →
         </Link>

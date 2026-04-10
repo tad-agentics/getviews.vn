@@ -15,6 +15,7 @@ import {
   Check,
   BookOpen,
   Menu,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
@@ -326,6 +327,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     (user?.user_metadata?.avatar_url as string | undefined) ||
     (user?.user_metadata?.picture as string | undefined);
 
+  const creditsRemaining = profile?.deep_credits_remaining ?? 0;
+  const subscriptionTier = (profile as { subscription_tier?: string } | null)?.subscription_tier ?? "free";
+  const showPricingCta = subscriptionTier === "free" || creditsRemaining <= 5;
+
   const handleLogout = async () => {
     setShowProfileModal(false);
     await signOut();
@@ -386,6 +391,17 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
+          {showPricingCta ? (
+            <NavItem
+              icon={Sparkles}
+              label="Nâng cấp"
+              active={false}
+              onClick={() => {
+                navigate("/app/pricing");
+                onClose?.();
+              }}
+            />
+          ) : null}
         </div>
 
         {/* Divider */}
@@ -465,6 +481,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           <CreditBar
             deepCreditsRemaining={profile.deep_credits_remaining ?? 0}
             cap={(profile as { deep_credits_total?: number }).deep_credits_total ?? 50}
+            showPricingLinks={showPricingCta}
           />
         ) : (
           <div className="mx-3 mb-3 h-24 animate-pulse rounded-lg bg-[var(--surface-alt)]" />

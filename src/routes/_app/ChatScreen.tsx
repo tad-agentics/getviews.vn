@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -838,12 +838,13 @@ export default function ChatScreen() {
           <p className="mb-3 text-sm text-[var(--ink)]">
             Hết deep credit tháng này. Mua thêm 10 credit = 130.000 VND.
           </p>
-          <Link
-            to="/app/pricing"
+          <button
+            type="button"
+            onClick={() => navigate("/app/pricing")}
             className="inline-flex text-sm font-semibold text-[var(--purple)] hover:underline"
           >
-            Mua credit →
-          </Link>
+            Mua thêm →
+          </button>
         </div>
       ) : null}
 
