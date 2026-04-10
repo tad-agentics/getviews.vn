@@ -138,7 +138,7 @@ export default function ExploreScreen() {
   };
 
   return (
-    <AppLayout active="explore" enableMobileSidebar>
+    <AppLayout active="trends" enableMobileSidebar>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--surface-alt)]">
         <header className="flex-shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 pl-14 lg:pl-6">
           <h1 className="text-lg font-extrabold text-[var(--ink)]">

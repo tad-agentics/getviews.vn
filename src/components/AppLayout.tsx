@@ -4,7 +4,6 @@ import {
   Plus,
   MessageCircle,
   TrendingUp,
-  Clock,
   Settings,
   LogOut,
   X,
@@ -22,7 +21,6 @@ import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { CreditBar } from "@/routes/_app/components/CreditBar";
-import { BottomNav } from "@/components/BottomNav";
 
 type Session = {
   id: string;
@@ -257,7 +255,7 @@ function SessionRow({
    AppLayout
 ════════════════════════════════════════════════ */
 interface AppLayoutProps {
-  active?: "chat" | "history" | "explore" | "trends";
+  active?: "chat" | "trends";
   children: ReactNode;
   enableMobileSidebar?: boolean;
 }
@@ -380,20 +378,11 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             }}
           />
           <NavItem
-            icon={Clock}
-            label="Lịch sử"
-            active={active === "history"}
-            onClick={() => {
-              navigate("/app/history");
-              onClose?.();
-            }}
-          />
-          <NavItem
             icon={TrendingUp}
             label="Xu hướng"
-            active={active === "explore"}
+            active={active === "trends"}
             onClick={() => {
-              navigate("/app/explore");
+              navigate("/app/trends");
               onClose?.();
             }}
           />
@@ -529,7 +518,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
       {/* ── Mobile ─────────────────────────── */}
       <div className="flex flex-col flex-1 lg:hidden overflow-hidden relative">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-[calc(56px+env(safe-area-inset-bottom,0px))]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {children}
         </div>
 
@@ -589,7 +578,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           </AnimatePresence>
         )}
 
-        <BottomNav />
       </div>
 
       {/* ── Profile modal ── */}

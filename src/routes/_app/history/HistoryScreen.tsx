@@ -160,7 +160,7 @@ export default function HistoryScreen() {
   }
 
   return (
-    <AppLayout active="history" enableMobileSidebar>
+    <AppLayout enableMobileSidebar>
       <AlertDialog
         open={deleteTargetId !== null}
         onOpenChange={(open) => {
