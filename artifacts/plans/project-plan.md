@@ -23,7 +23,7 @@
 | trends (TrendScreen — hook rankings, format lifecycle, D2) | 2 | ✅ 58a6446 | ✅ b28a9a7 | ✅ ddaf839 | QA PASS 2026-04-10 |
 | billing (PricingScreen + CheckoutScreen + PaymentSuccessScreen + PayOS) | 2 | ✅ f62ca14 | ✅ d706777 | ✅ 5b1c433 | QA PASS 2026-04-10 |
 | settings (SettingsScreen + LearnMoreScreen) | 2 | ✅ 322649a | ✅ 09a81a8 | ✅ 8086be5 | QA PASS 2026-04-10 |
-| email-cron (expiry reminders + cron jobs) | 2 | — | — | — | — |
+| email-cron (expiry reminders + cron jobs) | 2 | ✅ 31a2b70 | N/A | ✅ 54568ab | QA PASS 2026-04-10 |
 
 ## Post-Build
 
