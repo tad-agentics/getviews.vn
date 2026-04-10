@@ -236,9 +236,13 @@ async def fetch_keyword_search(
     period: int = 30,
     sorting: int = 1,
     cursor: int = 0,
-    country: str = "us",
+    country: str = "vn",
 ) -> tuple[list[dict[str, Any]], int | None]:
-    """TikTok keyword search; ``sorting`` 1 ≈ likes/engagement. Returns (awemes, next_cursor)."""
+    """TikTok keyword search; ``sorting`` 1 ≈ likes/engagement. Returns (awemes, next_cursor).
+
+    Defaults to country="vn" so corpus stays Vietnamese-creator focused.
+    get_author_stats=True ensures aweme.statistics includes play_count.
+    """
     kw = keyword.strip().lstrip("#")
     if not kw:
         raise ValueError("keyword search requires a non-empty keyword")
@@ -251,7 +255,7 @@ async def fetch_keyword_search(
             "cursor": cursor,
             "country": country.lower(),
             "match_exactly": "False",
-            "get_author_stats": "False",
+            "get_author_stats": "True",
         },
     )
     data = payload.get("data")

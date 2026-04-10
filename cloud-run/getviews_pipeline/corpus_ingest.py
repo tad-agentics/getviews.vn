@@ -121,6 +121,30 @@ async def _fetch_niche_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
 
 # ── Single post ingest ──────────────────────────────────────────────────────────
 
+def _safe_engagement_rate(
+    *,
+    er_from_analysis: float | None,
+    views: int,
+    likes: int,
+    comments: int,
+    shares: int,
+) -> float:
+    """Return engagement rate as a percentage. Never returns >100 or infinity.
+
+    Priority:
+      1. Use er_from_analysis when views > 0 (already correctly calculated in parse_metadata)
+      2. Recalculate from raw counts when er_from_analysis is None but views > 0
+      3. Return 0 when views = 0 (never divide by zero)
+    """
+    if views <= 0:
+        return 0.0
+    if er_from_analysis is not None:
+        er = float(er_from_analysis)
+        # Sanity cap: ER > 100% signals a calculation error
+        return min(er, 100.0)
+    return min((likes + comments + shares) / views * 100.0, 100.0)
+
+
 def _build_corpus_row(
     aweme: dict[str, Any],
     analysis: dict[str, Any],
@@ -174,11 +198,18 @@ def _build_corpus_row(
         "frame_urls": [],
         "analysis_json": analysis.get("analysis", {}),
         # metrics dict from VideoMetadata.model_dump(); fall back to raw aweme statistics
-        "views": int(metrics.get("views") or raw_stats.get("play_count") or 0),
+        "views": int(metrics.get("views") or raw_stats.get("play_count") or raw_stats.get("playCount") or 0),
         "likes": int(metrics.get("likes") or raw_stats.get("digg_count") or 0),
         "comments": int(metrics.get("comments") or raw_stats.get("comment_count") or 0),
         "shares": int(metrics.get("shares") or raw_stats.get("share_count") or 0),
-        "engagement_rate": float(analysis.get("engagement_rate") or metadata.get("engagement_rate") or 0),
+        # ER: use parsed value only if views > 0; otherwise 0 (never divide by zero)
+        "engagement_rate": _safe_engagement_rate(
+            er_from_analysis=analysis.get("engagement_rate") or metadata.get("engagement_rate"),
+            views=int(metrics.get("views") or raw_stats.get("play_count") or raw_stats.get("playCount") or 0),
+            likes=int(metrics.get("likes") or raw_stats.get("digg_count") or 0),
+            comments=int(metrics.get("comments") or raw_stats.get("comment_count") or 0),
+            shares=int(metrics.get("shares") or raw_stats.get("share_count") or 0),
+        ),
     }
 
 
@@ -206,14 +237,30 @@ async def ingest_niche(
         None, lambda: _existing_video_ids_sync(client, niche_id)
     )
 
-    # Select top N by engagement rate, exclude already-indexed
-    candidates = [
-        a for a in pool
-        if str(a.get("aweme_id", "") or "") not in existing_ids
-    ]
-    # Sort by engagement rate desc
+    # Filter: exclude already-indexed, exclude creators with no play_count (stats missing)
+    # and exclude non-Vietnamese creators (region != "VN" when available)
+    candidates = []
+    for a in pool:
+        vid = str(a.get("aweme_id", "") or "")
+        if vid in existing_ids:
+            continue
+        # Skip posts where statistics.play_count is absent — means no real engagement data
+        stats = a.get("statistics") or {}
+        play_count = stats.get("play_count") or stats.get("playCount") or 0
+        if int(play_count) == 0:
+            logger.debug("[corpus] skip %s — play_count=0 (no real stats)", vid)
+            continue
+        # VN region filter: author region code when available
+        author = a.get("author") or {}
+        region = str(author.get("region") or "").upper()
+        if region and region not in ("VN", ""):
+            logger.debug("[corpus] skip %s — region=%s (not VN)", vid, region)
+            continue
+        candidates.append(a)
+
+    # Sort by play_count desc (most-viewed first) for quality signal
     candidates.sort(
-        key=lambda a: float(a.get("statistics", {}).get("digg_count", 0) or 0),
+        key=lambda a: int((a.get("statistics") or {}).get("play_count", 0) or 0),
         reverse=True,
     )
     candidates = candidates[:BATCH_VIDEOS_PER_NICHE]
