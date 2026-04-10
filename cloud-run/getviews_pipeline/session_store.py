@@ -8,6 +8,7 @@ so that intent-routing logic and tests can run without a database connection.
 from __future__ import annotations
 
 import copy
+import time
 from typing import Any
 
 _EMPTY_CONTEXT: dict[str, Any] = {
@@ -20,6 +21,28 @@ _EMPTY_CONTEXT: dict[str, Any] = {
 }
 
 _store: dict[str, dict[str, Any]] = {}
+
+# SSE replay buffer (in-process; TD-4 style replay within TTL).
+_STREAM_REPLAY_TTL_SEC = 120.0
+_stream_chunks: dict[str, dict[str, Any]] = {}
+
+
+def put_stream_chunks(stream_id: str, chunks: list[str]) -> None:
+    """Cache token chunks for reconnect replay (same seq indices as first send)."""
+    _stream_chunks[stream_id] = {
+        "chunks": chunks,
+        "expires_at": time.monotonic() + _STREAM_REPLAY_TTL_SEC,
+    }
+
+
+def get_stream_chunks(stream_id: str) -> list[str] | None:
+    entry = _stream_chunks.get(stream_id)
+    if not entry:
+        return None
+    if time.monotonic() > float(entry["expires_at"]):
+        _stream_chunks.pop(stream_id, None)
+        return None
+    return list(entry["chunks"])
 
 
 def fresh_session_context() -> dict[str, Any]:
