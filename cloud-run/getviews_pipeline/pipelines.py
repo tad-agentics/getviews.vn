@@ -382,3 +382,119 @@ async def run_video_diagnosis(
     if "content_type" in user_res:
         out["content_type"] = user_res["content_type"]
     return out
+
+
+async def run_kol_search(
+    niche: str,
+    session: dict[str, Any],
+    questions: list[str],
+) -> dict[str, Any]:
+    """KOL / creator discovery — reference posts + synthesis (free intent on product)."""
+    sem = get_analysis_semaphore()
+    pool = await _niche_aweme_pool(niche, period=30)
+    fa: dict[str, Any] = session.setdefault("full_analyses", {})
+    cached_ids = set(fa.keys())
+    picks = select_reference_videos(
+        pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+    )
+
+    async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+        async with sem:
+            return await analyze_aweme(
+                aweme, include_diagnosis=False, full_analyses=fa
+            )
+
+    results = await asyncio.gather(*[_one(a) for a in picks])
+    analyzed = [r for r in results if "analysis" in r]
+
+    payload = {
+        "niche": niche,
+        "reference_count": len(analyzed),
+        "analyzed_videos": analyzed,
+    }
+    synthesis = await run_sync(
+        synthesize_intent_markdown,
+        "find_creators",
+        payload,
+        collapsed_questions=questions if len(questions) > 1 else None,
+    )
+    session["kol_search"] = synthesis
+    completed = session.setdefault("completed_intents", [])
+    if "find_creators" not in completed:
+        completed.append("find_creators")
+    _bump_analyses_summary(
+        session,
+        niche=niche,
+        delta_videos=len(analyzed),
+        intent_label="find_creators",
+    )
+    return {
+        "intent": "find_creators",
+        "niche": niche,
+        "synthesis": synthesis,
+        "analyzed_videos": analyzed,
+    }
+
+
+async def run_own_channel(
+    niche: str,
+    session: dict[str, Any],
+    questions: list[str],
+) -> dict[str, Any]:
+    """Soi kênh — same reference pull as content directions, own-channel framing."""
+    sem = get_analysis_semaphore()
+    pool = await _niche_aweme_pool(niche, period=30)
+    fa: dict[str, Any] = session.setdefault("full_analyses", {})
+    cached_ids = set(fa.keys())
+    picks = select_reference_videos(
+        pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+    )
+
+    analyzed: list[dict[str, Any]] = []
+
+    async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+        async with sem:
+            return await analyze_aweme(
+                aweme, include_diagnosis=False, full_analyses=fa
+            )
+
+    tasks = [_one(a) for a in picks]
+    results = await asyncio.gather(*tasks)
+    for r in results:
+        if "analysis" in r:
+            analyzed.append(r)
+
+    payload = {
+        "niche": niche,
+        "reference_count": len(analyzed),
+        "analyzed_videos": analyzed,
+    }
+    synthesis = await run_sync(
+        synthesize_intent_markdown,
+        "own_channel",
+        payload,
+        collapsed_questions=questions if len(questions) > 1 else None,
+    )
+    session["own_channel_audit"] = synthesis
+    completed = session.setdefault("completed_intents", [])
+    if "own_channel" not in completed:
+        completed.append("own_channel")
+    _bump_analyses_summary(
+        session,
+        niche=niche,
+        delta_videos=len(analyzed),
+        intent_label="own_channel",
+        patterns=[
+            str(a.get("analysis", {}).get("content_direction", {}).get("what_works", ""))[
+                :120
+            ]
+            for a in analyzed
+            if a.get("analysis")
+        ],
+    )
+    return {
+        "intent": "own_channel",
+        "niche": niche,
+        "synthesis": synthesis,
+        "analyzed_videos": analyzed,
+    }

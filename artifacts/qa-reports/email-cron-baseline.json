@@ -1,0 +1,59 @@
+{
+  "feature": "email-cron",
+  "date": "2026-04-10",
+  "healthScore": 97,
+  "passResults": {
+    "pass1": "PASS",
+    "pass2": "PASS",
+    "pass3": "PASS"
+  },
+  "findings": [
+    {
+      "pass": 1,
+      "severity": "low",
+      "title": "Receipt email body includes English phrase \"deep credits\" inside Vietnamese sentence",
+      "status": "deferred",
+      "files": ["supabase/functions/send-email/index.ts"]
+    },
+    {
+      "pass": 1,
+      "severity": "low",
+      "title": "cron-reset-free-queries only updates rows with daily_free_query_count > 0 (reset_at not bumped for users already at 0)",
+      "status": "deferred",
+      "files": ["supabase/functions/cron-reset-free-queries/index.ts"]
+    },
+    {
+      "pass": 3,
+      "severity": "info",
+      "title": "Live invoke / Resend verification deferred until deploy (secrets + Edge Functions on remote)",
+      "status": "deferred",
+      "files": []
+    }
+  ],
+  "categoryScores": {
+    "visual": 100,
+    "data": 100,
+    "security": 100,
+    "interaction": 100,
+    "build": 100,
+    "copy": 97
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 3
+  },
+  "acceptanceCriteria": {
+    "fourCronFunctions": true,
+    "sendEmailTemplates": true,
+    "migrationPgCronDocOnly": true,
+    "nonOverlappingReminderWindows": true,
+    "pgCronNotEnabledRemote": true,
+    "invokeLive": "DEFERRED"
+  },
+  "notes": [
+    "Cron auth: Bearer token must equal SUPABASE_SERVICE_ROLE_KEY (all cron-* + send-email).",
+    "pg_cron migration ends with SELECT 1; commented examples only per file header."
+  ]
+}

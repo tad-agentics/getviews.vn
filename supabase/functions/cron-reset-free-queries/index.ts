@@ -21,17 +21,24 @@ Deno.serve(async (req) => {
   const now = new Date().toISOString();
 
   try {
+    const { count, error: countErr } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .gt("daily_free_query_count", 0);
+
+    if (countErr) throw countErr;
+
     const { error } = await supabase
       .from("profiles")
       .update({
         daily_free_query_count: 0,
         daily_free_query_reset_at: now,
       })
-      .gte("created_at", "1970-01-01T00:00:00Z");
+      .gt("daily_free_query_count", 0);
 
     if (error) throw error;
 
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify({ reset_count: count ?? 0 }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

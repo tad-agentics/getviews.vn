@@ -1,6 +1,6 @@
 # Foundation → Wave 2 Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839`
-> Status: Trends QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
+> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839` + Billing `f62ca14`/`d706777`/`5b1c433`/`93a30b7` + Settings `322649a`/`09a81a8`/`8086be5`/`6dc6708` + Email-cron `31a2b70`/`54568ab`/`27a292b` + Cloud Run `c75a8d3`/`2f3f32e`
+> Status: **Wave 2 COMPLETE** — all 5 features QA PASSED. Cloud Run pipeline complete (Vietnamese prompts + /stream + Supabase write-back). CR-1 (CORS) fixed. Open items are staging-deploy gates and post-deploy verifications.
 
 ---
 
@@ -79,10 +79,9 @@ npx supabase gen types typescript --project-id lzhiqnxfveqttsujebiv > src/lib/da
 **Action (human):** Supabase Dashboard → Database → Replication → enable `profiles` table for Realtime.
 Not required for Wave 1 dev (queries work without it), but needed before any feature that updates the profile (e.g., settings, NicheSelector write-back).
 
-### N-9 — `useProfile` `.single()` can fail during trigger lag — PARTIALLY RESOLVED
-**Source:** Auth QA agent (adversarial check) → chat-core frontend agent
-**Impact:** After OAuth, `profiles` row may not exist yet when `useProfile` first fires. Global `retry: 1` covers typical lag.
-**Status:** NicheSelector in ChatScreen gracefully handles `isError` / loading state from `useProfile` — no hard error shown. Longer-term fix (`maybeSingle()` + polling) deferred to settings feature.
+### N-9 — `useProfile` `.single()` can fail during trigger lag — RESOLVED
+**Source:** Auth QA agent (adversarial check) → chat-core frontend agent → fixed pre-billing
+**Status:** `useProfile` now uses `.maybeSingle()` — returns `null` instead of throwing when the profiles row doesn't exist yet (trigger lag after OAuth). Callers already handle `profile == null` gracefully (NicheSelector, CreditBar, ChatScreen `needsNiche` check). Type updated to `ProfileRow | null`.
 
 ### N-11 — `GEMINI_API_KEY` not set — RESOLVED (local dev)
 **Source:** Chat-core backend agent (`9b8bdd0`)
@@ -103,10 +102,9 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Impact:** `api/chat.ts` writes the full Gemini text to `chat_messages.content`. The `structured_output` JSONB column (defined in tech-spec for typed DiagnosisRow / HookRanking / BriefBlock / CreatorCard payloads) is never populated. The frontend currently renders `content` as plain text — structured components (DiagnosisRow bars, HookRankingBar widths) show Make's mock data or empty states rather than real data.
 **Action:** When Cloud Run pipeline is deployed, it writes `structured_output` with the typed payload. The frontend's `ChatScreen.tsx` must be updated to read from `structured_output` (falls back to `content` for plain text intents). This is a Wave 2 enhancement — acceptable for Wave 1 with text-only responses.
 
-### N-14 — `profiles.primary_niche` stored as TEXT, niche ID is integer
-**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
-**Impact:** The migration defines `profiles.primary_niche` as TEXT (niche name or ID as string), but `niche_taxonomy.id` is an integer. The NicheSelector currently calls `parseInt` when saving. Inconsistency could cause filtering bugs in the future (e.g., `WHERE niche_id = primary_niche` type mismatch).
-**Action:** Before settings feature: align the column type. Options: (a) change `primary_niche` to INTEGER FK → `niche_taxonomy.id`, or (b) store the niche name string and join by name. Recommend option (a) for referential integrity. Apply a migration in `/feature settings` backend step.
+### N-14 — `profiles.primary_niche` stored as TEXT, niche ID is integer — RESOLVED
+**Source:** Chat-core frontend agent (`df0b02c`) → Fixed pre-billing
+**Status:** Migration `20260410000012_profiles_primary_niche_integer.sql` applied. Column is now `INTEGER` with FK → `niche_taxonomy(id) ON DELETE SET NULL`. All `parseInt`/string-cast workarounds removed from `ChatScreen.tsx` and `ExploreScreen.tsx`. `database.types.ts` regenerated: `primary_niche: number | null`.
 
 ### N-15 — Session title / sidebar rename not persisted — RESOLVED by history (`e8bc480` / `c30f2f3`)
 **Source:** Chat-core frontend agent (`df0b02c`) → Resolved by history backend + frontend agents
@@ -156,15 +154,101 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Impact:** `hook_effectiveness` rows have `hook_type` as a free-text string (e.g., `"question"`, `"statistic"`, `"POV"`). The HookRankingBars section renders this directly. If the Cloud Run pipeline generates inconsistent casing or Vietnamese/English mixing, bars will look noisy. No normalization or translation layer exists.
 **Action:** Before trends feature goes live with real data — define a canonical `hook_type` enum in the Cloud Run pipeline (`getviews_pipeline/intents.py`) and normalize on write. No frontend change needed; this is a pipeline concern.
 
-### N-24 — D2 bars use `var(--ink-soft)` for all non-top bars — not progressively lighter
-**Source:** Trends QA agent (`ddaf839`) — deferred finding
-**Impact:** EDS D2 spec calls for bars to be progressively lighter (top = purple, 2nd = slightly lighter, etc.). Current implementation uses the same `var(--ink-soft)` color for bars 2–N. Deducted 6 health points (visual).
-**Action:** Update the bar color logic in `ExploreScreen.tsx` HookRankingBars to interpolate opacity: `rgba(var(--ink-rgb), 0.6 - i*0.08)` or similar. Low priority — does not affect functionality.
+### N-24 — D2 bars use `var(--ink-soft)` for all non-top bars — not progressively lighter — RESOLVED
+**Source:** Trends QA agent (`ddaf839`) → Fixed pre-billing
+**Status:** Bar color now interpolates opacity: top bar = `var(--purple)`, bars 2–8 = `rgba(100, 100, 120, 0.65 - i*0.08)` (floor 0.10). Track background unified to `var(--border)`. Visual EDS D2 fidelity restored.
 
 ### N-10 — Secrets in `.cursor/mcp.json` accessible in-session
 **Source:** Auth backend agent (`89dc2ca`)
 **Impact:** The Supabase access token and Vercel token stored in `.cursor/mcp.json` are readable by any agent operating in the workspace session. This is a low risk in a solo dev environment but becomes a concern if the repo is shared or if any agent logs/outputs token values.
 **Action:** No immediate action required. Before onboarding team members: rotate tokens and migrate to OS keychain or environment-variable-based MCP auth. `.cursor/mcp.json` is already in `.gitignore`.
+
+### N-25 — `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` not set in Supabase secrets
+**Source:** Billing backend agent (`f62ca14`)
+**Impact:** `create-payment` and `payos-webhook` Edge Functions will throw on any payment attempt in staging/production. `create-payment` reads `PAYOS_CLIENT_ID` + `PAYOS_API_KEY` to call PayOS REST; `payos-webhook` reads `PAYOS_CHECKSUM_KEY` for HMAC verification.
+**Action (human):** In Supabase Dashboard → Edge Functions → Secrets, set:
+```
+PAYOS_CLIENT_ID=<from PayOS merchant dashboard>
+PAYOS_API_KEY=<from PayOS merchant dashboard>
+PAYOS_CHECKSUM_KEY=<from PayOS merchant dashboard>
+```
+Required before any end-to-end billing test. Currently in DEFERRED list as "Before respective features land" — now that billing is built, this is a staging gate.
+
+### N-26 — `RESEND_API_KEY` not set in Supabase secrets
+**Source:** Billing backend agent (`f62ca14`) — `send-email` Edge Function
+**Impact:** Receipt emails and expiry reminder emails (cron) will fail silently. The `send-email` function returns an error response but does not block the webhook — credits are still granted. No user-facing failure, but users receive no receipt.
+**Action (human):** Supabase Dashboard → Edge Functions → Secrets → set `RESEND_API_KEY`. Also verify the `from` address (`noreply@getviews.vn`) is registered as a verified sender in Resend.
+
+### N-27 — CheckoutScreen UI diverges from Make (QR mock removed, VNPay → VietQR)
+**Source:** Billing QA agent (`5b1c433`) — Pass 1 finding (visual, 72/100 health)
+**Impact:** Make's `CheckoutScreen.tsx` has a mock QR code block, a VNPay option, and a success confirmation Dialog that were not ported. The ported version uses live PayOS redirect flow (correct for production) but differs visually from Make's mockup. Health −28 on visual pass.
+**Status:** Intentional deviation — the mock QR/VNPay/Dialog in Make is design scaffolding; the real payment flow is PayOS redirect (`window.location.href = checkoutUrl`). No functional impact.
+**Action:** None for now. If a QR display is needed (for bank transfer), implement when PayOS sandbox credentials are available to test the actual QR URL from their API response.
+
+### N-28 — `useCreditTransactions` hook unused — RESOLVED
+**Source:** Billing QA agent (`5b1c433`) → Resolved by `/feature settings` (`09a81a8`)
+**Status:** `useCreditTransactions(20)` is now consumed by `SettingsScreen` — last 20 credit events rendered in CreditHistoryList with skeleton + empty state.
+
+### N-29 — PaymentSuccessScreen: state missing `creditsDelta` edge case
+**Source:** Billing QA agent (`5b1c433`) — Pass 4 finding
+**Impact:** If `navigate('/app/payment-success', { state: { planName } })` is called without `creditsDelta`, the heading uses `profile.deep_credits_remaining` (total) instead of the delta. Can show "Đã thêm 40 deep credits" when only 10 were added if user already had 30.
+**Status:** Low risk — the PayOS return URL redirect loses all state (browser navigation), so the screen already falls back to "Credits đã được cập nhật." copy which doesn't show a count. The delta path only triggers if navigated programmatically (not via PayOS redirect). Acceptable for now.
+**Action:** When wiring the PayOS webhook Realtime callback (to detect payment completion without page reload), pass the correct `creditsDelta` from the webhook payload. Deferred to post-billing.
+
+### N-30 — `useUpdateProfile` optimistic update skips when profile not yet cached
+**Source:** Settings QA agent (`8086be5`) — Pass 2 deferred finding
+**Impact:** In `useUpdateProfile.ts`, `onMutate` calls `setQueryData` only when `previous` is non-null. If the user changes their niche before the first `useProfile` query resolves (extremely rare on SettingsScreen since profile loads before niche chips are shown), the optimistic update is skipped — the UI shows the old chip until the server responds.
+**Status:** Deferred. Acceptable edge case — SettingsScreen renders the niche selector only after profile loads, so `previous` is virtually always populated. No immediate action needed.
+
+### N-31 — No Vitest coverage for settings flows (logout dialog, niche change)
+**Source:** Settings QA agent (`8086be5`) — Pass 5 deferred finding
+**Impact:** The 11 existing tests pass, but neither the logout confirmation dialog nor the `useUpdateProfile` optimistic niche-change path has regression coverage. A future refactor could silently break these flows.
+**Action:** Add 3–4 regression tests in `/feature email-cron` or a dedicated test pass: `logout dialog confirm/cancel`, `useUpdateProfile optimistic rollback on error`, `SettingsScreen free-tier vs paid-tier copy`. Low priority for current wave.
+
+### N-32 — pg_cron not enabled on `lzhiqnxfveqttsujebiv` — cron jobs not scheduled
+**Source:** Email-cron backend agent (`31a2b70`) + QA agent (`54568ab`)
+**Impact:** All four cron functions (`cron-expiry-check`, `cron-reset-free-queries`, `cron-prune-webhooks`, `cron-reset-processing`) will never fire automatically. Migration `20260410000015` is documentation-only. Subscriptions will not auto-expire, free query counts won't reset, webhooks won't be pruned, and stuck `is_processing` flags won't clear.
+**Action (human):** Before staging deploy — Supabase Dashboard → Database → Extensions → enable `pg_cron`. Then Dashboard → Database → Cron Jobs → create 4 jobs pointing to deployed Edge Function URLs with the schedules:
+- `cron-expiry-check`: `0 2 * * *` (9AM ICT)
+- `cron-reset-free-queries`: `0 17 * * *` (midnight ICT)
+- `cron-prune-webhooks`: `0 20 * * 0` (Sunday 3AM ICT)
+- `cron-reset-processing`: `*/5 * * * *` (every 5 min)
+Each job must include `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` header.
+
+### N-33 — Live invocation of cron + email functions not yet verified
+**Source:** Email-cron QA agent (`54568ab`) — Pass 3 deferred
+**Impact:** Functions have not been invoked end-to-end. Verification of Resend delivery, subscription expiry logic, and reminder email formatting requires deployed Edge Functions + `RESEND_API_KEY` secret set.
+**Action:** After deploy — run `supabase functions invoke cron-expiry-check --project-ref lzhiqnxfveqttsujebiv` and verify the response JSON, then check Resend dashboard for test emails. Do the same for each cron function.
+
+### N-34 — Receipt email body contains English "deep credits" in Vietnamese sentence
+**Source:** Email-cron QA agent (`54568ab`) — Pass 1 low-severity finding
+**Impact:** Minor copy inconsistency — the `receipt` email template in `send-email` uses "deep credits" (English) inside an otherwise Vietnamese sentence. Minor brand polish issue.
+**Action:** Before billing launch — update receipt body in `supabase/functions/send-email/index.ts` to use "deep credit" (Vietnamese product term already used in UI). One-line fix.
+
+### N-35 — `cron-reset-free-queries` does not bump `daily_free_query_reset_at` for users already at 0
+**Source:** Email-cron QA agent (`54568ab`) — Pass 1 low-severity finding
+**Impact:** Users who sent no free queries that day (already at 0) don't get their `daily_free_query_reset_at` timestamp bumped. This is cosmetic — the count is already 0, so no functional difference. A future analytics query on reset timestamps may undercount resets.
+**Status:** Acceptable as-is. Can be addressed in a background cleanup if analytics on reset frequency is needed.
+
+### N-36 — `SUPABASE_JWKS_KID` is dead export in `config.py`
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** `SUPABASE_JWKS_KID` is exported from `getviews_pipeline/config.py` but is no longer imported or used in `main.py` after the JWT validation rewrite. Zero functional impact.
+**Action:** Cosmetic cleanup — remove the export in a future tidy-up pass.
+
+### N-37 — `own_channel` intent has semantic mismatch: uses niche reference search, not user's actual account
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** `own_channel` is in `VIDEO_INTENTS` (routes to Cloud Run), but `run_own_channel()` does a niche keyword/hashtag search — it does NOT fetch or analyze the user's own TikTok posts. True "Soi Kênh" (own-channel audit) requires the user to supply their `@handle` and a dedicated `fetch_user_posts` pipeline. Current behaviour: returns niche-level analysis with own-channel framing — useful but not the full intent.
+**Action:** Implement `run_own_channel` to accept `@handle` from query and call `ensemble.fetch_user_posts()`. Track as a future feature enhancement.
+
+### N-38 — Cloud Run in-process session store not shared across instances
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** `session_store.py` uses a Python dict (in-process). If Cloud Run scales to >1 instance, a reconnect replay on a different instance returns cache-miss and re-runs the full pipeline. The user gets a correct result but incurs duplicate Gemini + EnsembleData costs and latency. Also, cross-request session context (e.g. `completed_intents`, `analyses_summary`) won't accumulate correctly across instances.
+**Action:** Before scaling Cloud Run above 1 instance — replace the in-process store with a Redis or Firestore session backend, or pin users to instances via Cloud Run session affinity (limited support). For now, set `--max-instances=1` in Cloud Run deployment config.
+
+### N-39 — Cloud Run pipeline requires `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` env vars for Supabase write-back
+**Source:** Cloud Run audit (`2f3f32e`)
+**Impact:** The `get_supabase()` factory in `main.py` raises `RuntimeError` at first DB write if either var is unset. The stream itself will succeed (chunks already yielded before the write), but the `chat_messages` row won't be written and the error will appear in Cloud Run logs.
+**Action:** Before deploying to GCP Cloud Run — set `SUPABASE_URL=https://lzhiqnxfveqttsujebiv.supabase.co` and `SUPABASE_SERVICE_ROLE_KEY=<service_role_key>` as Cloud Run environment variables (or Secret Manager references).
 
 ---
 
@@ -172,11 +256,11 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 
 | Item | When needed | Notes |
 |---|---|---|
-| ZaloPay in CheckoutScreen | Before billing launch | Confirm PayOS supports ZaloPay; currently UI shows icon but backend not wired |
+| ZaloPay in CheckoutScreen | Before billing launch | Gated behind `VITE_ZALOPAY_ENABLED=true`; PayOS must confirm ZaloPay support |
 | PWA screenshots in `manifest.json` | Before production deploy | `screenshots` array is empty — add after real screens are built |
-| Monday weekly email Edge Function | Wave 2 | Content generation deferred; cron + template scaffolded |
+| Monday weekly email Edge Function | Post Wave 2 | Content generation deferred; not in current cron suite |
 | Cloud Run service deploy to GCP | Before staging video demo (see N-12) | Python pipeline in `cloud-run/` is local only; video intents fall back to text endpoint until deployed |
-| `GEMINI_API_KEY`, `PAYOS_*`, `RESEND_API_KEY` in Supabase secrets | Before respective features land | Edge Functions will fail without these secrets |
+| PayOS Realtime webhook → in-app payment detection | Post-billing | Currently relies on PayOS redirect + page reload; no in-app detection |
 
 ---
 
@@ -185,17 +269,26 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 24 | N-1 through N-24 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18 resolved; N-9, N-21 partially resolved) |
-| DEFERRED | 5 | Wave 2+ |
+| NON-BLOCKING | 39 | N-1 through N-39 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24, N-28 resolved; N-21 partially resolved; CR-1 fixed) |
+| DEFERRED | 5 | Post Wave 2 |
 
-**Resolved this phase (trends):**
-- N-21 — Desktop aside partially wired: `trending_keywords` from `niche_intelligence` replaces mock arrays; placeholder shown until Cloud Run runs
+**Resolved this phase (Cloud Run audit):**
+- CR-1 — CORS middleware missing — **FIXED** (`2f3f32e`)
 
-**New concerns added from `/feature trends`:**
-- N-22 — `niche_intelligence` materialized view not auto-refreshed (depends on Cloud Run batch)
-- N-23 — `hook_effectiveness.hook_type` is free-text — no canonical taxonomy enforced by pipeline
-- N-24 — D2 bars not progressively lighter (all non-top bars same `var(--ink-soft)`)
+**New concerns added from Cloud Run audit (`c75a8d3`/`2f3f32e`):**
+- N-36 — `SUPABASE_JWKS_KID` dead export in `config.py` (cosmetic)
+- N-37 — `own_channel` intent uses niche search, not user's actual account (semantic gap)
+- N-38 — In-process session store not shared across Cloud Run instances (scaling concern)
+- N-39 — Cloud Run needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` env vars before GCP deploy
 
-**Wave 2 trends: QA PASS.** TrendScreen fully wired: NicheSelector, D2 HookRankingBars, FormatLifecycle, aside keywords (5/5 passes, health 94/100).
+**Cloud Run pipeline: DONE.** Vietnamese prompts + `/stream` SSE endpoint + Supabase write-back complete (`c75a8d3`). CORS fix applied (`2f3f32e`).
 
-**Before next Wave 2 feature:** No new blockers. N-19 (empty corpus) + N-22 (MV not refreshed) are the main gaps for staging demo — both depend on Cloud Run deploy.
+**Wave 2 COMPLETE.** All 5 features + Cloud Run pipeline shipped:
+- explore ✅ | trends 94/100 ✅ | billing 72/100 ✅ | settings 96/100 ✅ | email-cron 97/100 ✅ | cloud-run pipeline ✅
+
+**Staging deploy gates (human action required):**
+1. **B-1** — Configure Google + Facebook OAuth providers in Supabase Dashboard
+2. **N-25** — Set `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` in Supabase Edge Function secrets
+3. **N-26** — Set `RESEND_API_KEY` in Supabase Edge Function secrets + verify sender in Resend
+4. **N-32** — Enable pg_cron in Supabase Dashboard → configure 4 cron jobs pointing to deployed Edge Function URLs
+5. **N-39** — Set `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` as Cloud Run environment variables before GCP deploy

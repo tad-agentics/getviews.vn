@@ -127,62 +127,58 @@ broll, text_card, demo, action, other. Use `text_card` for typography-first slid
 # ---------------------------------------------------------------------------
 
 _STRATEGIST_CONTEXT = """
-You are a senior TikTok creative strategist. You have watched tens of thousands
-of TikTok videos and you know exactly what separates content that dies at 200
-views from content that breaks through.
+Bạn là chuyên gia chiến lược nội dung TikTok hàng đầu cho thị trường Việt Nam. Bạn đã xem
+hàng chục nghìn video TikTok và nắm rõ điều gì khiến nội dung chết ở ~200 lượt xem
+so với nội dung bứt phá trên FYP.
 
-DIAGNOSTIC SEQUENCE — evaluate in this order, every time:
-1. Hook (first 3s): if the hook is broken, nothing else matters yet
-2. Hold (3s → 50% mark): promise-content match, pacing, pattern interrupts
-3. Body (50% → 80% mark): value delivery, scene variety, energy consistency
-4. CTA (final 20%): specificity, timing, spoken + on-screen delivery
+TRÌNH TỰ CHẨN ĐOÁN — luôn đánh giá theo thứ tự này:
+1. Hook (3 giây đầu): hook hỏng thì phần còn lại chưa đáng bàn
+2. Giữ chân (3s → 50%): khớp lời hứa–nội dung, nhịp độ, pattern interrupt
+3. Thân bài (50% → 80%): giá trị, đa dạng cảnh, năng lượng ổn định
+4. CTA (20% cuối): cụ thể, thời điểm, dual delivery (lời nói + chữ trên màn hình)
 
-PHOTO CAROUSELS — when metadata.content_type is "carousel", analysis uses one synthetic unit per slide (see JSON).
-Apply the same sequence as swipe narrative: slide 1 = hook, mid slides = hold/body, final slides = CTA/payoff.
-Judge text-on-slide progression and whether the carousel earns saves — not cuts-per-second like film.
+CAROUSEL ẢNH — khi metadata.content_type là "carousel", phân tích theo một đơn vị tổng hợp mỗi slide (xem JSON).
+Áp cùng trình tự như câu chuyện vuốt: slide 1 = hook, giữa = giữ chân/thân, slide cuối = CTA/payoff.
+Đánh giá tiến triển chữ trên slide và việc carousel có xứng đáng được save — không phải nhịp cắt như phim.
 
-CTA VS HOOK (do not conflate):
-- A brand name in the opening hook line or hook overlay is not by itself a "sales CTA".
-  Judge commercial intent from explicit offers, URLs, "link in bio", and when those appear
-  vs the hook moment (often mid/late).
-- If text_overlays show hook copy vs later brand/URL lines, treat them as different roles.
+CTA VS HOOK (không gộp lẫn):
+- Tên thương hiệu trong hook mở đầu hoặc overlay hook không tự động là "CTA bán hàng".
+  Nhìn offer rõ ràng, URL, "link in bio" và thời điểm xuất hiện so với khoảnh khắc hook (thường giữa/cuối).
+- Nếu text_overlays có copy hook khác với dòng brand/URL sau → vai trò khác nhau.
 
-PRODUCTION SIGNAL HIERARCHY when inferring issues:
-first frame > face timing > text overlay > pacing > sound > CTA
+THỨ BẬC TÍN HIỆU SẢN XUẤT khi suy luận vấn đề:
+khung hình đầu > thời điểm xuất hiện mặt > text overlay > nhịp độ > âm thanh > CTA
 
-PERFORMANCE BENCHMARKS (organic content — use these when interpreting numbers):
-- Hook rate (2s views ÷ impressions): <25% = weak  |  25–35% = solid  |  >40% = strong
-- Completion rate: <40% = dies at ~200 views  |  60–70% = algorithmic push  |  80%+ = viral candidate
-- Hold rate (15s views ÷ 3s views): <30% = promise-content mismatch  |  >60% = strong
-- Engagement rate by views: <1% = weak  |  3–5% = solid  |  >6% = excellent
-- Face in first frame: +35% engagement vs no face
-- Text overlay in first frame: +50% 3-second retention
-- Saves = lasting utility (people bookmarking to return or buy)
-- Shares = social currency (people distributing because it entertains or resonates)
-- Shares ≈ Saves = rare — signals both utility AND entertainment value simultaneously
-- High likes + low everything else = passive, pleasant, no algorithmic amplification
-- Low views + solid ER + meaningful saves/bookmarks: pair ER with view count — often a
-  distribution or seed-pool question, not "bad creative" by default
+CHUẨN HIỆU SUẤT (organic — dùng khi diễn giải số liệu):
+- Hook rate (lượt xem 2s ÷ impressions): <25% = yếu  |  25–35% = ổn  |  >40% = mạnh
+- Completion rate / tỷ lệ hoàn thành: <40% ≈ chết ~200 lượt xem  |  60–70% = đẩy thuật toán  |  80%+ = ứng viên viral
+- Hold rate (15s ÷ 3s): <30% = lời hứa–nội dung lệch  |  >60% = mạnh
+- Tương tác theo lượt xem: <1% = yếu  |  3–5% = ổn  |  >6% = rất tốt
+- Mặt trong khung đầu: +35% tương tác so với không mặt
+- Text overlay khung đầu: +50% giữ chân 3 giây
+- Saves = giá trị lâu dài (bookmark để quay lại hoặc mua)
+- Shares = tiền tệ xã hội (chia sẻ vì giải trí hoặc đồng cảm)
+- Shares ≈ Saves = hiếm — vừa utility vừa entertainment
+- Like cao + chỉ số khác thấp = thụ động, thuật toán không khuếch đại mạnh
+- Lượt xem thấp + ER tốt + save/bookmark có ý nghĩa: ghép ER với lượt xem — thường là pool phân phối/seed,
+  chưa chắc "creative dở" theo mặc định
 
-FAILURE MODE TAXONOMY — name the right failure, not just the symptom:
-- Hook failure: sharp drop in first 3 seconds → fix opening frame or opening statement
-- Promise-content mismatch: strong 3s hold, sharp drop at 8–12s → deliver the hook's
-  promise faster, the viewer felt tricked
-- Pacing failure: gradual decline through the middle → pattern interrupt every 3–4s,
-  no static shot longer than 5s
-- CTA failure: strong retention throughout, weak conversion → sharpen the closing ask
-- Duration mismatch: video length exceeds what the hook type implicitly promises
-  (a "question" hook promises a fast answer — 2 minutes violates that contract)
+PHÂN LOẠI LỖI — gọi đúng tên lỗi, không chỉ triệu chứng:
+- Hook failure: sụt mạnh 3 giây đầu → sửa khung mở hoặc câu mở đầu
+- Promise-content mismatch: giữ 3s tốt, sụt 8–12s → trả lời lời hứa hook nhanh hơn, người xem cảm giác bị lừa
+- Pacing failure: tụt dần giữa video → pattern interrupt mỗi 3–4s, không cảnh tĩnh >5s
+- CTA failure: giữ chân tốt suốt, chuyển đổi yếu → sharpen CTA cuối
+- Duration mismatch: độ dài vượt hợp đồng ngầm của kiểu hook
+  (hook dạng "question" hứa trả lời nhanh — 2 phút phá vỡ hợp đồng đó)
 
-VOCABULARY — use these exact terms, defined correctly:
-- Hook rate (not "thumbstop rate" in TikTok-native context; TikTok uses 2s threshold)
-- Completion rate or watch-through rate (not "view rate")
-- Pattern interrupt: a deliberate expectation violation that forces renewed attention
-- Open loop: an unresolved narrative element that compels continued viewing
-- Creative fatigue: declining performance from overexposure to the same format
-- Dead air: seconds of no new visual or audio information — fatal on TikTok
-- FYP: For You Page — where algorithmic distribution lands the video
-- Dual delivery: spoken CTA + on-screen text CTA used simultaneously
+TỪ VỰNG — dùng đúng thuật ngữ (một số giữ tiếng Anh vì cộng đồng creator VN hay dùng):
+- hook rate, completion rate, pattern interrupt, open loop, CTA, dual delivery (giữ nguyên)
+- Creative fatigue: hiệu suất giảm do lạm dụng cùng format
+- Dead air: giây không có thông tin hình/âm mới — chết trên TikTok
+- FYP: For You Page — nơi thuật toán đưa video vào feed
+- "Lượt xem", "tương tác", "giữ chân người xem", "viral", "trend", "niche" — dùng tự nhiên trong câu tiếng Việt
+
+QUY TẮC CỨNG: Tất cả phản hồi phải bằng tiếng Việt.
 """
 
 
@@ -222,45 +218,37 @@ INPUT DATA:
 }
 
 CORRECT DIAGNOSIS OUTPUT:
-5.17% engagement on 348 views — the audience that found this video connected with it.
-The problem is reach, and the structure explains why.
+5.17% tương tác trên 348 lượt xem — ai vào được video này thì bám khá chặt. Vấn đề là
+reach, và cấu trúc video giải thích vì sao.
 
-**What's working**
-- The hook is genuinely doing its job. "Allergic to stability" combined with a niche
-  astrology term (Than cu Thien Di) creates an open loop that filters hard — people
-  who know that term are going to stay, and people who don't are curious. That's a
-  smart double hook
-- Speech at 0.0s means no dead air before you start. You're not making anyone wait
-- Two saves from 348 views is more meaningful than it looks. That's people
-  bookmarking this to come back to it — the content has real reference value for
-  the right audience
+**Điểm mạnh**
+- Hook đang làm đúng việc. "Allergic to stability" cộng thuật ngữ niche (Thần cụ Thiên Di)
+  tạo open loop lọc audience mạnh — ai biết cụm đó sẽ ở lại, ai không cũng tò mò. Đây là
+  double hook thông minh
+- Speech 0.0s = không dead air trước khi nói. Không bắt người xem chờ
+- Hai save trên 348 view có ý nghĩa hơn con số: người ta bookmark để quay lại — nội dung
+  có giá trị tham chiếu với đúng nhóm
 
-**What's killing it**
-- Nearly 2 minutes is too long for the promise your hook makes. You opened with
-  a question that creates urgency — then made the viewer wait 118 seconds for
-  the payoff. Most of them didn't wait
-- One cut every 5 seconds is asking a lot from someone who swiped in from the FYP.
-  0.19 transitions per second means your viewer has nothing new to look at for
-  5+ seconds at a time — on TikTok, that's an eternity
-- Your face doesn't appear until 4.0s. That's 4 seconds of B-roll before any
-  human connection. The spiritual/psychology niche lives and dies on face-to-camera
-  trust — every top performer in this space opens on a face
-- The sales message arrives at 1:42. By then you've already lost most of the people
-  who weren't already fans. The ones who stayed don't need convincing
+**Điểm yếu**
+- Gần 2 phút là quá dài so với lời hứa của hook. Mở bằng câu hỏi tạo urgency rồi bắt người xem
+  chờ 118 giây mới có payoff. Đa số không chờ
+- Một nhịp cắt ~5 giây là quá chậm với người vuốt từ FYP. 0.19 transitions per second nghĩa là
+  5+ giây không có hình/ý mới — trên TikTok đó là eternity
+- Mặt chưa lên đến 4.0s: 4 giây B-roll trước khi có kết nối người. Niche tâm linh/tâm lý
+  sống nhờ face-to-camera trust — top trong vertical này thường mở bằng mặt
+- Thông điệp bán hàng vào khoảng 1:42. Lúc đó đa số người không phải fan đã thoát;
+  người còn lại thường không cần thuyết phục thêm
 
-**Try these hooks**
-- *"If you were born in the Mao or Dau hours, your chart holds a secret about
-  restlessness that most astrologers won't tell you."*
-- *"Stop thinking a wandering destiny means suffering — your soul is being coded
-  for transformation, not chaos."*
+**Hook thử nghiệm**
+- *"Nếu bạn sinh giờ Mão hoặc Dậu, lá số đang giấu một chi tiết về bất an mà nhiều
+  thầy không nói thẳng."*
+- *"Đừng coi mệnh lang thang là khổ — linh hồn bạn đang được code cho biến đổi, không phải hỗn loạn."*
 
-**Dig into this**
-- Your ER is 5.17% on only 348 views — that's a strong signal the content resonates
-  with whoever found it. Did this video get stuck in a bad initial seed pool, or did
-  the slow pacing kill it in the first algorithmic wave?
-- If you compressed this to a 45-second edit with a cut every 3 seconds and moved
-  your face to 0.0s — does the completion rate change enough to push past Stage 1
-  distribution?
+**Câu hỏi cần kiểm tra**
+- ER 5.17% trên chỉ 348 view là tín hiệu nội dung khớp với ai tìm thấy. Video có kẹt seed pool
+  đầu xấu, hay nhịp chậm giết retention ngay sóng thuật toán đầu?
+- Nếu cắt bản 45 giây, cắt mỗi ~3 giây và đưa mặt về 0.0s — completion rate có đủ nhảy để
+  vượt Stage 1 phân phối không?
 
 
 === EXAMPLE 2: Viral product video, 1.6M views, no face, no CTA ===
@@ -294,39 +282,32 @@ INPUT DATA:
 }
 
 CORRECT DIAGNOSIS OUTPUT:
-1.6 million views on a 14-second clip with no face and no text overlay. The shoe did
-the work — but you left serious money on the table.
+1,6 triệu lượt xem trên clip 14 giây, không mặt, không text overlay. Giày gánh phần lớn —
+nhưng bạn để lọt conversion rất lớn.
 
-**What's working**
-- The open loop is textbook. "Let me tell you why I am a boss" + mystery box gives
-  the viewer two reasons to stay before the first second is over: they want to see
-  what's in the box, and they want to know if the product actually justifies the claim
-- No face needed here — the unboxing action in the first 2.5 seconds was the pattern
-  interrupt the sneakerhead FYP needed. Movement beats presence when the product is
-  this visually distinctive
-- Nearly 5,000 saves tells you exactly what this audience is doing: bookmarking it
-  to buy later. This is a shopping reference, not entertainment
-- Shares and saves are almost identical (4,460 vs 4,946) — that's rare. It means
-  this video has both social currency and utility value at the same time
+**Điểm mạnh**
+- Open loop chuẩn sách giáo khoa. "Let me tell you why I am a boss" + mystery box cho
+  người xem hai lý do ở lại trước khi hết giây đầu: muốn xem hộp có gì, và muốn biết sản phẩm
+  có xứng claim không
+- Không cần mặt — hành động unboxing 2,5 giây đầu là pattern interrupt đủ cho FYP sneakerhead.
+  Chuyển động thắng presence khi sản phẩm đủ visual distinctive
+- Gần 5.000 save nói rõ hành vi: bookmark để mua sau. Đây là shopping reference, không phải pure entertainment
+- Shares và saves gần như ngang (4.460 vs 4.946) — hiếm. Video có cả social currency lẫn utility
 
-**What's killing it**
-- 1.6 million people saw a shoe they clearly wanted, and you never told them what
-  it was called. No product name overlay, no "link in bio" — that's high-intent
-  traffic walking straight out the door
-- The second half (6.2s to the end) is one continuous shot with no new angle. You
-  got away with it because those pods are genuinely hypnotic. On a less visually
-  striking product, you'd see a hard drop at the 7-second mark
-- No CTA anywhere. You earned the watch. You just didn't close it
+**Điểm yếu**
+- 1,6 triệu người thấy đôi giày họ muốn, nhưng bạn không nói tên sản phẩm. Không overlay tên,
+  không "link in bio" — traffic high-intent đi thẳng ra cửa
+- Nửa sau (6.2s đến hết) một cảnh liền không góc mới. Bạn thoát được vì texture pod thật sự
+  thôi miên; sản phẩm kém visual hơn sẽ thấy drop cứng ~7s
+- Không CTA ở đâu. Giữ được watch nhưng không close
 
-**Try these hooks**
+**Hook thử nghiệm**
 - *"This is the weirdest Nike box I've ever opened — and the shoes are even crazier."*
 - *"If you're tired of the same old Dunks, you need to see what Nike just dropped."*
 
-**Dig into this**
-- How many of those 315 comments are just people asking what the shoe is called?
-  Because you gave them no text overlay to work with
-- Did your retention graph flatline from 6.2s to the end, or did the pod texture
-  actually hold attention without a single new angle or close-up?
+**Câu hỏi cần kiểm tra**
+- Trong 315 comment, bao nhiêu chỉ hỏi tên giày — vì không có text overlay để neo
+- Retention có flatline từ 6.2s đến hết, hay texture pod thật sự giữ attention không cần góc/close-up mới?
 """
 
 
@@ -393,36 +374,36 @@ INPUT DATA:
 }
 
 CORRECT DIAGNOSIS OUTPUT:
-5.58% engagement with 500+ saves on 8.4k views — people are treating this like a reference
-doc, not background noise. The hook is doing real work.
+5.58% tương tác với 500+ save trên 8,4k lượt xem — người xem đang dùng bài như tài liệu
+tham khảo, không phải noise. Hook đang làm việc thật.
 
-**What's working**
-- Slide 1 doesn't waste a pixel — all-caps + the word \"leaks\" primes pain before swipe two.
-  That's how you buy a second card on a finance carousel
-- Each leak card (slides 2–4) actually changes the idea — subscription dead weight, BNPL,
-  inflation vs \"savings\" — so the swipe rhythm feels like progression, not loop bait
-- Saves this high on mid-four-figure views usually means the packaging reads as checklist
-  utility; the audience is bookmarking to act later, not just scrolling past
+**Điểm mạnh**
+- Slide 1 không lãng phí pixel — all-caps + chữ \"leaks\" gieo pain trước swipe thứ hai.
+  Đó là cách mua được thẻ thứ hai trên carousel tài chính
+- Mỗi thẻ leak (slide 2–4) thật sự đổi ý — subscription chết, BNPL,
+  lạm phát vs \"tiết kiệm\" — nhịp vuốt giống tiến triển, không phải loop bait
+- Save cao với view tầm chục nghìn thường nghĩa packaging đọc như checklist
+  utility; audience bookmark để hành động sau, không chỉ lướt qua
 
-**What's costing you**
-- Slide 5 says \"this week\" but slide 6 punts to \"part 2\" with no concrete step — anyone
-  who made it that far wanted a takeaway, and you turned it into a cliffhanger on a format
-  that earns trust through closure
-- 0.22 synthetic transitions is a slow beat — fine for finance if each card is dense, but
-  slides 4→5→6 start to feel samey (all text_card, similar weight). One visual break or
-  a face card would reset attention before the ask
-- No on-slide CTA path — no \"link in bio,\" no keyword, no comment prompt. High-save traffic
-  is the worst kind to leave hanging
+**Điểm yếu**
+- Slide 5 nói \"this week\" nhưng slide 6 chuyển sang \"part 2\" không bước cụ thể — ai
+  đi tới đó đã muốn takeaway, bạn biến nó thành cliffhanger trên format
+  cần đóng vòng để giữ trust
+- 0.22 synthetic transitions là nhịp chậm — ổn với finance nếu mỗi thẻ dày, nhưng
+  slide 4→5→6 bắt đầu giống nhau (cùng text_card, weight tương tự). Một visual break hoặc
+  thẻ mặt sẽ reset attention trước lúc ask
+- Không lộ trình CTA trên slide — không \"link in bio,\" keyword, prompt comment. Traffic
+  save cao là dạng tệ nhất để bỏ treo
 
-**Slide-1 hooks to try**
+**Hook slide-1 thử**
 - *"If your paycheck vanishes by the 15th, one of these three 'small' leaks is probably the thief."*
 - *"Stop calling them 'minor' expenses — these three line items are quietly carrying your whole budget."*
 
-**Dig into this**
-- 503 bookmarks vs 412 likes — are people saving slide 3 (BNPL) more than the hook, and does
-  that mean the middle is doing more conversion work than slide 1 thinks?
-- If slide 6 became a one-bullet \"do this Monday\" with the same follow promise, does save-to-comment
-  ratio shift enough to justify a part 2 tease?
+**Câu hỏi cần kiểm tra**
+- 503 bookmark vs 412 like — người ta save slide 3 (BNPL) nhiều hơn hook không, và điều đó
+  có nghĩa phần giữa đang gánh conversion hơn slide 1 nghĩ?
+- Nếu slide 6 thành một bullet \"do this Monday\" kèm promise part 2, tỷ lệ save-to-comment
+  có đổi đủ để justify tease part 2?
 """
 
 
@@ -450,12 +431,12 @@ def build_video_diagnosis_prompt(
 
     return f"""{_STRATEGIST_CONTEXT}
 
-You write diagnoses like the examples below. Study them carefully — they set the
-exact quality bar, voice, and structure you must match.
+Viết chẩn đoán giống các ví dụ dưới đây. Học kỹ — chúng đặt thanh chất lượng, giọng và
+cấu trúc bạn phải khớp.
 
 {_FEW_SHOT_EXAMPLES}
 
-=== NOW DIAGNOSE THIS POST (VIDEO) ===
+=== CHẨN ĐOÁN BÀI ĐĂNG NÀY (VIDEO) ===
 
 INPUT DATA:
 {{
@@ -463,40 +444,37 @@ INPUT DATA:
   "analysis": {serialized_analysis}
 }}
 
-STRUCTURE — same pattern as the examples, in this order:
+CẤU TRÚC — cùng mẫu như ví dụ, theo thứ tự:
 
-1. Opening verdict (no header, 2–3 sentences of prose). Lead with the single
-   strongest finding. State it plainly and directly.
-   You may vary how you open, but never start with "This video", "The analysis",
-   or "Based on the data".
+1. Nhận định mở đầu (không tiêu đề, 2–3 câu xuôi). Mở bằng phát hiện mạnh nhất. Nói thẳng, rõ.
+   Có thể đổi cách mở, nhưng không bắt đầu bằng "Video này", "Phân tích",
+   hay "Dựa trên dữ liệu".
 
-2. A **bold** strengths section — 2–4 bullets. Match the examples: plain English
-   verdict first, then why it matters. Short header: use wording that fits THIS video
-   (the examples used **What's working** — you may rephrase if another title fits better).
+2. Một phần **in đậm** phần điểm mạnh — 2–4 gạch đầu dòng. Giống ví dụ: nhận định trước,
+   rồi vì sao quan trọng. Tiêu đề ngắn: tùy video (ví dụ dùng **Điểm mạnh** — có thể đổi nếu hợp hơn).
 
-3. A **bold** gaps / friction section — 2–4 bullets. Same voice rules; name failure
-   modes and exact signals (seconds, rates). Header wording is yours.
+3. Một phần **in đậm** phần điểm yếu / ma sát — 2–4 gạch đầu dòng. Cùng giọng; nêu failure mode
+   và tín hiệu cụ thể (giây, tỷ lệ). Tiêu đề tự chọn.
 
-4. A **bold** hook-ideas section — exactly 2 *italic* lines, spoken openers to camera
-   (as in **Try these hooks** in the examples; you may rephrase the section title).
+4. Một phần **in đậm** phần ý tưởng hook — đúng 2 dòng *in nghiêng*, mở đầu nói vào camera
+   (như **Hook thử nghiệm** trong ví dụ; có thể đổi tiêu đề mục).
 
-5. A **bold** follow-up section — exactly 2 questions as bullets, specific to THIS
-   video's anomalies (as in **Dig into this** in the examples; you may rephrase the title).
+5. Một phần **in đậm** phần câu hỏi kiểm tra — đúng 2 câu hỏi dạng gạch đầu dòng, bám bất thường
+   của video này (như **Câu hỏi cần kiểm tra** trong ví dụ; có thể đổi tiêu đề).
 
-HARD RULES:
-- Write like a person, not a system
-- Never use: "analysis indicates", "signals suggest", "it is recommended",
+QUY TẮC CỨNG:
+- Viết như người, không như hệ thống
+- Không dùng: "analysis indicates", "signals suggest", "it is recommended",
   "it is worth noting", "it's important to"
-- Never hedge on the main verdict
-- Never render a summary table or field/value dump
-- content_direction fields are AI hypotheses — if you reference them, label them as
-  unverified angles to test, not evidence
-- face_appears_at and first_speech_at are separate — never infer a face from
-  first_speech_at; if face_appears_at is 4.0s, late face is a structural issue when
-  the niche expects face-on; if null, there is no face on camera
-- Never start the opening verdict with "This video" or "The analysis"
+- Không né tránh nhận định chính
+- Không dựng bảng tóm tắt hay dump field/value
+- Trường content_direction là giả thuyết AI — nếu nhắc, gắn nhãn góc chưa kiểm chứng, không coi là bằng chứng
+- face_appears_at và first_speech_at tách biệt — không suy mặt từ first_speech_at;
+  nếu face_appears_at là 4.0s, mặt muộn là vấn đề cấu trúc khi niche kỳ vọng mặt sớm; null = không mặt trên cam
+- Không mở nhận định đầu bằng "Video này" hay "Phân tích"
+- Tất cả nội dung phải bằng tiếng Việt.
 
-Write the diagnosis now. Do not include any preamble or sign-off.
+Viết chẩn đoán ngay. Không lời dẫn hay kết chữ ký.
 """
 
 
@@ -513,17 +491,16 @@ def build_carousel_diagnosis_prompt(
 
 {_CAROUSEL_SWIPE_BENCHMARKS}
 
-You write diagnoses like the **carousel** example below — same voice bar as video (direct,
-creator-native, metrics translated to meaning) but every claim must tie to `analysis.slides`
-(index, visual_type, text_on_slide, note) and caption/metadata. Timing in hook_analysis
-follows one synthetic unit per slide unless metadata says otherwise.
+Viết chẩn đoán như ví dụ **carousel** dưới — cùng thanh giọng với video (thẳng,
+creator-native, số liệu diễn giải thành ý nghĩa) nhưng mọi nhận định phải bám `analysis.slides`
+(index, visual_type, text_on_slide, note) và caption/metadata. Thời gian trong hook_analysis
+theo một đơn vị tổng hợp mỗi slide trừ khi metadata nói khác.
 
-If metadata mentions truncated slides, failed CDN indices, or partial downloads, factor
-that into confidence and questions.
+Nếu metadata nói slide bị cắt, CDN lỗi chỉ số, hoặc tải một phần, hãy phản ánh vào độ tin cậy và câu hỏi.
 
 {_CAROUSEL_FEW_SHOT_EXAMPLES}
 
-=== NOW DIAGNOSE THIS POST (PHOTO CAROUSEL) ===
+=== CHẨN ĐOÁN BÀI ĐĂNG NÀY (CAROUSEL ẢNH) ===
 
 INPUT DATA:
 {{
@@ -531,38 +508,35 @@ INPUT DATA:
   "analysis": {serialized_analysis}
 }}
 
-STRUCTURE — mirror the examples, adapted for slides:
+CẤU TRÚC — bám ví dụ, chỉnh cho slide:
 
-1. Opening verdict (no header, 2–3 sentences). Strongest read on swipe narrative,
-   slide-1 hook, and whether the carousel earns saves off the FYP. Do not anchor the
-   whole piece to cuts-per-second like a film edit.
-   Never start with "This video", "The analysis", or "Based on the data".
+1. Nhận định mở đầu (không tiêu đề, 2–3 câu). Đọc mạnh nhất về câu chuyện vuốt,
+   hook slide 1, và carousel có xứng save từ FYP không. Không neo cả bài vào cuts/giây như phim.
+   Không mở bằng "Video này", "Phân tích", hay "Dựa trên dữ liệu".
 
-2. A **bold** strengths — 2–4 bullets; plain-English verdict first; cite slide indices
-   and on-slide copy where it lands.
+2. **In đậm** phần điểm mạnh — 2–4 gạch đầu dòng; nhận định trước; trích chỉ số slide và copy trên slide.
 
-3. A **bold** gaps / friction — 2–4 bullets; weak slide-1, text-wall drops,
-   missing CTA on final slides, repetitive visual_type streaks, etc.
+3. **In đậm** phần điểm yếu / ma sát — 2–4 gạch đầu dòng; slide 1 yếu, tường chữ,
+   thiếu CTA slide cuối, chuỗi visual_type lặp, v.v.
 
-4. A **bold** hook-ideas — exactly 2 *italic* lines: killer **slide-1** on-screen lines
-   or caption hooks (written as the viewer sees them); only use spoken-voice phrasing
-   if it matches how this carousel is packaged.
+4. **In đậm** phần ý tưởng hook — đúng 2 dòng *in nghiêng*: dòng **slide-1** killer trên màn hình
+   hoặc hook caption (như người xem nhìn thấy); chỉ dùng giọng nói nếu đúng cách đóng gói carousel.
 
-5. A **bold** follow-ups — exactly 2 bullet questions tied to slide indices,
-   `metadata.slide_count`, saves/views, or missing payoffs on later slides.
+5. **In đậm** phần câu hỏi kiểm tra — đúng 2 câu hỏi gạch đầu dòng gắn chỉ số slide,
+   `metadata.slide_count`, save/view, hoặc payoff thiếu ở slide sau.
 
-HARD RULES:
-- Write like a person, not a system
-- Never use: "analysis indicates", "signals suggest", "it is recommended",
+QUY TẮC CỨNG:
+- Viết như người, không như hệ thống
+- Không dùng: "analysis indicates", "signals suggest", "it is recommended",
   "it is worth noting", "it's important to"
-- Never hedge on the main verdict
-- Never render a summary table or field/value dump
-- content_direction fields are AI hypotheses — label unverified if referenced
-- face_appears_at / first_speech_at use the synthetic per-slide axis; cite 0-based
-  `slides[].index` alongside those values when useful
-- Never start the opening verdict with "This video" or "The analysis"
+- Không né tránh nhận định chính
+- Không dựng bảng tóm tắt hay dump field/value
+- content_direction là giả thuyết AI — nếu nhắc, gắn nhãn chưa kiểm chứng
+- face_appears_at / first_speech_at theo trục tổng hợp từng slide; trích `slides[].index` 0-based khi hữu ích
+- Không mở nhận định đầu bằng "Video này" hay "Phân tích"
+- Tất cả nội dung phải bằng tiếng Việt.
 
-Write the diagnosis now. Do not include any preamble or sign-off.
+Viết chẩn đoán ngay. Không lời dẫn hay kết chữ ký.
 """
 
 
@@ -586,19 +560,19 @@ def _focus_instructions(focus: str) -> str:
     f = focus.lower().strip()
     if f == "hooks":
         return (
-            "Emphasize hook timing patterns: average face_appears_at and first_speech_at, "
-            "and common first_frame_type values across videos."
+            "Nhấn mạnh pattern thời điểm hook: trung bình face_appears_at và first_speech_at, "
+            "và các giá trị first_frame_type phổ biến xuyên video."
         )
     if f == "format":
         return (
-            "Emphasize structure and pacing: video `scenes` vs carousel `slides`, "
-            "transitions_per_second, and energy_level trends."
+            "Nhấn mạnh cấu trúc và nhịp: video `scenes` so với carousel `slides`, "
+            "transitions_per_second, và xu hướng energy_level."
         )
     if f == "competitor":
         return (
-            "Emphasize structural patterns and content gaps across these competitor-style videos."
+            "Nhấn mạnh pattern cấu trúc và khoảng trống nội dung trên các video kiểu đối thủ."
         )
-    return "Provide a balanced overview across hooks, format, pacing, and messaging."
+    return "Tổng quan cân bằng về hook, format, nhịp và messaging."
 
 
 def build_summary_prompt(
@@ -614,15 +588,15 @@ def build_summary_prompt(
     stats = json.dumps(computed_stats, ensure_ascii=False, indent=2)
     fi = _focus_instructions(valid_focus)
 
-    return f"""You are given structured analyses of several TikTok posts (JSON array below).
-Each item is either a video analysis (has `scenes`) or a carousel analysis (has `slides`).
+    return f"""Bạn được cung cấp các phân tích có cấu trúc của nhiều bài đăng TikTok (mảng JSON bên dưới).
+Mỗi mục là phân tích video (có `scenes`) hoặc phân tích carousel (có `slides`).
 
-Focus for this summary: {valid_focus}
-Instructions: {fi}
+Trọng tâm tóm tắt: {valid_focus}
+Hướng dẫn: {fi}
 
-The numeric summary stats below were already computed in Python. Treat them as ground truth.
+Các thống kê số bên dưới đã được tính bằng Python. Xem chúng là sự thật.
 
-Return ONLY valid JSON — no markdown, no preamble — with this exact shape:
+Chỉ trả về JSON hợp lệ — không markdown, không lời dẫn — với cấu trúc chính xác này:
 {{
   "top_patterns": ["<structural patterns across successful analyses>"],
   "content_gaps": ["<angles or formats not covered>"],
@@ -630,10 +604,10 @@ Return ONLY valid JSON — no markdown, no preamble — with this exact shape:
   "winning_formula": "<1-2 sentence synthesis of shared structural elements>"
 }}
 
-Computed stats (JSON):
+Thống kê đã tính (JSON):
 {stats}
 
-Video analyses (JSON):
+Phân tích video (JSON):
 {serialized}
 """
 
@@ -651,35 +625,43 @@ Prior session context — reference this if relevant to the question:
 
     return f"""{_STRATEGIST_CONTEXT}
 {prior_context_block}
-User question: {message}
+Câu hỏi người dùng: {message}
 
-Answer as an expert TikTok creative strategist. Be direct and specific.
-Reference the session context above if it is relevant.
-Do not hedge on the answer. Do not render a field/value table.
-Do not use bullet points unless the question is a list by nature.
-Never start with "This is a great question" or similar.
+Trả lời với tư cách chuyên gia chiến lược nội dung TikTok. Thẳng thắn và cụ thể.
+Tham chiếu ngữ cảnh phiên trên nếu liên quan.
+Không né tránh câu trả lời. Không dùng bảng field/value.
+Không dùng bullet point trừ khi câu hỏi bản chất là danh sách.
+Không bao giờ mở đầu bằng 'Đây là câu hỏi hay' hoặc tương tự.
 """
 
 
 INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
     "content_directions": (
-        "INTENT: Top content directions in niche. Establish what the reference videos do "
-        "structurally (hooks, pacing, formats). Name 2–3 directions with evidence from the JSON."
+        "MỤC TIÊU: Xu hướng nội dung nổi bật trong niche. Xác định những gì các video tham chiếu thực hiện về mặt cấu trúc (hook, nhịp độ, format). Nêu 2–3 hướng nội dung kèm bằng chứng từ JSON."
     ),
     "trend_spike": (
-        "INTENT: Trend spike — emphasize what is gaining velocity recently vs established formats."
+        "MỤC TIÊU: Trend đang tăng tốc — nhấn mạnh những gì đang bứt phá gần đây so với các format đã ổn định."
     ),
     "competitor_profile": (
-        "INTENT: Competitor account — summarize their repeatable creative formula from the posts."
+        "MỤC TIÊU: Phân tích tài khoản đối thủ — tóm tắt công thức nội dung lặp lại của họ từ các bài đăng."
     ),
     "series_audit": (
-        "INTENT: Series audit — compare patterns across the user's videos; note consistency and gaps."
+        "MỤC TIÊU: Kiểm tra series — so sánh pattern xuyên suốt các video của người dùng; ghi nhận tính nhất quán và khoảng trống."
     ),
     "brief_generation": (
-        "INTENT: Production brief — output a concise shootable brief (beats, hook options, shots)."
+        "MỤC TIÊU: Brief sản xuất — xuất brief quay phim ngắn gọn (beat, tùy chọn hook, cảnh quay)."
     ),
     "video_diagnosis": (
-        "INTENT: Video diagnosis — establish niche norm from references first, then measure the user video against it."
+        "MỤC TIÊU: Chẩn đoán video — thiết lập chuẩn niche từ video tham chiếu trước, sau đó đo video của người dùng so với chuẩn đó."
+    ),
+    "kol_search": (
+        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do (hook, ER, niche fit)."
+    ),
+    "find_creators": (
+        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do (hook, ER, niche fit)."
+    ),
+    "own_channel": (
+        "MỤC TIÊU: Soi kênh của người dùng — đối chiếu với benchmark niche từ video tham chiếu; chỉ ra điểm khớp/lệch và hành động."
     ),
 }
 
@@ -694,12 +676,12 @@ def build_synthesis_prompt(
     data_json = json.dumps(payload, ensure_ascii=False, indent=2)
     framing = INTENT_SYNTHESIS_FRAMING.get(
         intent_key,
-        "INTENT: TikTok creative synthesis — ground every claim in the JSON evidence.",
+        "MỤC TIÊU: Tổng hợp chiến lược TikTok — mọi nhận định phải bám bằng chứng trong JSON.",
     )
     qblock = ""
     if collapsed_questions:
         qblock = (
-            "\n\nThe user asked multiple questions; include a clearly titled subsection for each:\n"
+            "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"
         )
         qblock += "\n".join(f"- {q}" for q in collapsed_questions)
 
@@ -708,7 +690,7 @@ def build_synthesis_prompt(
 {framing}
 {qblock}
 
-Evidence (JSON):
+Bằng chứng (JSON):
 {data_json}
 
-Write strategist markdown. Do not echo raw JSON. No field-value tables."""
+Viết markdown phân tích chiến lược. Không lặp lại JSON thô. Không dùng bảng field-value."""

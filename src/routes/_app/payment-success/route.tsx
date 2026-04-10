@@ -1,8 +1,8 @@
 import { lazy, Suspense } from "react";
 
-const SettingsScreen = lazy(() => import("./SettingsScreen"));
+const PaymentSuccessScreen = lazy(() => import("./PaymentSuccessScreen"));
 
-export default function SettingsRoute() {
+export default function PaymentSuccessRoute() {
   return (
     <Suspense
       fallback={
@@ -13,7 +13,7 @@ export default function SettingsRoute() {
         />
       }
     >
-      <SettingsScreen />
+      <PaymentSuccessScreen />
     </Suspense>
   );
 }

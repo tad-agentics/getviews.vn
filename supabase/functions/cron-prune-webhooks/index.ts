@@ -21,10 +21,17 @@ Deno.serve(async (req) => {
   const cutoff = new Date(Date.now() - 30 * 86400_000).toISOString();
 
   try {
+    const { count, error: countErr } = await supabase
+      .from("processed_webhook_events")
+      .select("*", { count: "exact", head: true })
+      .lt("created_at", cutoff);
+
+    if (countErr) throw countErr;
+
     const { error } = await supabase.from("processed_webhook_events").delete().lt("created_at", cutoff);
     if (error) throw error;
 
-    return new Response(JSON.stringify({ ok: true }), {
+    return new Response(JSON.stringify({ deleted_count: count ?? 0 }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

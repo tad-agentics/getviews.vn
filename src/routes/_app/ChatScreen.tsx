@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
@@ -354,12 +354,8 @@ export default function ChatScreen() {
 
   const nicheLabel = useMemo(() => {
     const pn = profile?.primary_niche;
-    if (pn == null || pn === "") return "";
-    const id = typeof pn === "number" ? pn : Number(pn);
-    if (!Number.isNaN(id) && nicheRows?.length) {
-      return nicheRows.find((n) => n.id === id)?.name ?? "";
-    }
-    return String(pn);
+    if (pn == null) return "";
+    return nicheRows?.find((n) => n.id === pn)?.name ?? "";
   }, [profile?.primary_niche, nicheRows]);
 
   const [message, setMessage] = useState("");
@@ -384,7 +380,7 @@ export default function ChatScreen() {
 
   const credits = profile?.deep_credits_remaining ?? 0;
   const processing = Boolean(profile?.is_processing);
-  const needsNiche = profile?.primary_niche == null || profile?.primary_niche === "";
+  const needsNiche = profile?.primary_niche == null;
 
   const priorAssistant = useMemo(() => messages.some((m) => m.role === "assistant"), [messages]);
 
@@ -425,12 +421,9 @@ export default function ChatScreen() {
 
       let sid = sessionId;
       if (!sid) {
-        const rawNiche = profile?.primary_niche;
-        const nicheIdNum =
-          rawNiche != null && rawNiche !== "" ? Number.parseInt(String(rawNiche), 10) : Number.NaN;
         const row = await createSession.mutateAsync({
           userId: user.id,
-          nicheId: Number.isFinite(nicheIdNum) ? nicheIdNum : null,
+          nicheId: profile?.primary_niche ?? null,
         });
         sid = row.id;
         setSessionId(sid);
@@ -845,12 +838,13 @@ export default function ChatScreen() {
           <p className="mb-3 text-sm text-[var(--ink)]">
             Hết deep credit tháng này. Mua thêm 10 credit = 130.000 VND.
           </p>
-          <Link
-            to="/app/pricing"
+          <button
+            type="button"
+            onClick={() => navigate("/app/pricing")}
             className="inline-flex text-sm font-semibold text-[var(--purple)] hover:underline"
           >
-            Mua credit →
-          </Link>
+            Mua thêm →
+          </button>
         </div>
       ) : null}
 

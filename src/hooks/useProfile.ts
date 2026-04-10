@@ -32,9 +32,11 @@ export function useProfile() {
   return useQuery({
     queryKey: queryKeys.profile(userId),
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
       if (error) throw error;
-      return data as ProfileRow;
+      // maybeSingle() returns null when the row doesn't exist yet (e.g. trigger lag after OAuth)
+      // returning null here lets callers distinguish "loading" from "row missing" gracefully
+      return data as ProfileRow | null;
     },
     enabled: Boolean(userId),
     staleTime: Number.POSITIVE_INFINITY,

@@ -122,9 +122,9 @@ Deno.serve(async (req) => {
             template: "receipt",
             to: profile.email,
             data: {
+              count: sub.deep_credits_granted,
               display_name: profile.display_name ?? "",
               tier: sub.tier,
-              credits_granted: sub.deep_credits_granted,
               expires_at: sub.expires_at,
               amount_vnd: sub.amount_vnd,
             },
