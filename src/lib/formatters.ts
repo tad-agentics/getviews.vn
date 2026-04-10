@@ -42,3 +42,34 @@ export function formatTimestamp(seconds: number): string {
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
+
+/**
+ * Format a number with Vietnamese thousand separator (dot).
+ * Vietnamese uses '.' for thousands: 1.100, 46.000, 1.623.886
+ */
+export function formatVN(n: number): string {
+  return Math.round(n)
+    .toLocaleString("en-US")
+    .replace(/,/g, ".");
+}
+
+/**
+ * Format a recency value (days ago) as natural Vietnamese.
+ * "Hôm nay", "Hôm qua", "3 ngày trước", "Tuần trước", "2 tuần trước", "1 tháng trước"
+ */
+export function formatRecencyVI(daysAgo: number): string {
+  if (daysAgo === 0) return "Hôm nay";
+  if (daysAgo === 1) return "Hôm qua";
+  if (daysAgo <= 7) return `${daysAgo} ngày trước`;
+  if (daysAgo <= 14) return "Tuần trước";
+  if (daysAgo <= 30) return `${Math.floor(daysAgo / 7)} tuần trước`;
+  return `${Math.floor(daysAgo / 30)} tháng trước`;
+}
+
+/**
+ * Format a breakout multiplier with Vietnamese decimal separator (comma).
+ * Vietnamese uses ',' for decimals: "3,2x" not "3.2x"
+ */
+export function formatBreakoutVI(ratio: number): string {
+  return `${ratio.toFixed(1).replace(".", ",")}x`;
+}

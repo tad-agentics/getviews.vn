@@ -33,6 +33,7 @@ import { NicheSelector } from "@/routes/_app/components/NicheSelector";
 import { HookRankingBar } from "@/routes/_app/components/HookRankingBar";
 import { BriefBlock } from "@/routes/_app/components/BriefBlock";
 import { CreatorCard } from "@/routes/_app/components/CreatorCard";
+import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 
 /* ─── Quick action cards (Make) ───────────────────────────────────────── */
 interface QuickAction {
@@ -321,7 +322,7 @@ function AssistantStructuredBlock({ parsed }: { parsed: ParsedAssistant | null }
         </div>
       ) : null}
       {parsed.plain && !diagnosis.length ? (
-        <p className="whitespace-pre-wrap text-sm text-[var(--ink)]">{parsed.plain}</p>
+        <MarkdownRenderer text={parsed.plain} />
       ) : null}
     </>
   );
@@ -885,7 +886,7 @@ export default function ChatScreen() {
             phase={status === "streaming" ? "streaming" : "idle"}
             isVideoIntent={VIDEO_INTENTS.has(lastStreamIntent ?? "")}
           />
-          {status === "streaming" ? (
+          {status === "streaming" && !text ? (
             <div className="mt-3 space-y-2 animate-pulse">
               <div className="h-3 w-[75%] rounded bg-[var(--border)]" />
               <div className="h-3 w-[50%] rounded bg-[var(--border)]" />
@@ -895,7 +896,11 @@ export default function ChatScreen() {
           {status === "error" && streamId !== null && error !== "insufficient_credits" ? (
             <p className="mt-2 text-sm text-[var(--muted)]">— Bị gián đoạn. Gõ &apos;tiếp&apos; để tiếp tục.</p>
           ) : null}
-          {text ? <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--ink)]">{text}</p> : null}
+          {text ? (
+            <div className="mt-2">
+              <MarkdownRenderer text={text} streaming={status === "streaming"} />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
