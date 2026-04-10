@@ -124,6 +124,7 @@ export type Database = {
           id: string
           intent_type: string | null
           is_pinned: boolean
+          niche_id: number | null
           title: string | null
           updated_at: string
           user_id: string
@@ -136,6 +137,7 @@ export type Database = {
           id?: string
           intent_type?: string | null
           is_pinned?: boolean
+          niche_id?: number | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -148,11 +150,27 @@ export type Database = {
           id?: string
           intent_type?: string | null
           is_pinned?: boolean
+          niche_id?: number | null
           title?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_intelligence"
+            referencedColumns: ["niche_id"]
+          },
+          {
+            foreignKeyName: "chat_sessions_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       creator_velocity: {
         Row: {
