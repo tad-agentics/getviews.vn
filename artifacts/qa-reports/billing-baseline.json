@@ -1,0 +1,70 @@
+{
+  "feature": "billing",
+  "date": "2026-04-10",
+  "healthScore": 72,
+  "passResults": {
+    "pass1": "BLOCKING",
+    "pass2": "PASS",
+    "pass3": "PASS",
+    "pass4": "PASS",
+    "pass5": "DONE_WITH_CONCERNS"
+  },
+  "findings": [
+    {
+      "pass": 1,
+      "severity": "high",
+      "title": "CheckoutScreen diverges from Make (removed QR/VNPay/card blocks, success Dialog, different payment options and CTA label)",
+      "status": "blocked",
+      "files": ["src/routes/_app/checkout/CheckoutScreen.tsx", "src/make-import/src/app/screens/CheckoutScreen.tsx"]
+    },
+    {
+      "pass": 1,
+      "severity": "high",
+      "title": "PricingScreen plan copy/prices/CTAs differ from Make source (e.g. biannual Starter display, Starter CTA text)",
+      "status": "blocked",
+      "files": ["src/routes/_app/pricing/PricingScreen.tsx", "src/make-import/src/app/screens/PricingScreen.tsx"]
+    },
+    {
+      "pass": 2,
+      "severity": "low",
+      "title": "useCreditTransactions exists but no screen imports it yet",
+      "status": "deferred",
+      "files": ["src/hooks/useCreditTransactions.ts"]
+    },
+    {
+      "pass": 4,
+      "severity": "low",
+      "title": "PaymentSuccess: router state with planName but no creditsDelta uses remaining balance in heading (edge case)",
+      "status": "deferred",
+      "files": ["src/routes/_app/payment-success/PaymentSuccessScreen.tsx"]
+    },
+    {
+      "pass": 5,
+      "severity": "high",
+      "title": "Duplicate const navigate in PricingContent (TS2451) — fixed",
+      "status": "fixed",
+      "files": ["src/routes/_app/pricing/PricingScreen.tsx"]
+    },
+    {
+      "pass": 5,
+      "severity": "medium",
+      "title": "npm run build fails: vite-plugin-pwa/workbox precaching config (pre-existing, not billing-specific)",
+      "status": "deferred",
+      "files": ["vite.config.ts / vite-plugin-pwa"]
+    }
+  ],
+  "categoryScores": {
+    "visual": 55,
+    "data": 88,
+    "security": 100,
+    "interaction": 90,
+    "build": 65,
+    "copy": 90
+  },
+  "fixesApplied": {
+    "verified": 1,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 3
+  }
+}

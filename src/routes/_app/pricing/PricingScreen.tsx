@@ -474,7 +474,6 @@ function PricingContent() {
     ? { tier: String(subscription.tier), billing_period: String(subscription.billing_period) }
     : null;
 
-  const navigate = useNavigate();
   const cap = (profile as { deep_credits_total?: number } | null)?.deep_credits_total ?? 50;
   const remaining = profile?.deep_credits_remaining ?? 0;
 
