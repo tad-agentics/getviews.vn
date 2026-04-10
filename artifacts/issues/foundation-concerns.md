@@ -1,10 +1,10 @@
-# Foundation, Auth & Chat-Core Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Backend `f83aa55` + Frontend `81b99f2` + Auth `89dc2ca` / `fd2203f` / `a2661f6` + Chat-core `9b8bdd0` / `df0b02c` / `3e1da07`
-> Status: OPEN — resolve before Wave 1 features are deployed to staging
+# Foundation → Wave 1 Concerns
+> Logged: 2026-04-09 | Updated: 2026-04-08 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3`
+> Status: Wave 1 COMPLETE — open items are Wave 2 prerequisites or production-deploy gates
 
 ---
 
-## BLOCKING (must fix before auth / chat-core can function)
+## BLOCKING (must fix before end-to-end testing is possible)
 
 ### B-1 — OAuth providers not configured in Supabase Dashboard
 **Source:** Backend agent — Step 4
@@ -108,10 +108,29 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Impact:** The migration defines `profiles.primary_niche` as TEXT (niche name or ID as string), but `niche_taxonomy.id` is an integer. The NicheSelector currently calls `parseInt` when saving. Inconsistency could cause filtering bugs in the future (e.g., `WHERE niche_id = primary_niche` type mismatch).
 **Action:** Before settings feature: align the column type. Options: (a) change `primary_niche` to INTEGER FK → `niche_taxonomy.id`, or (b) store the niche name string and join by name. Recommend option (a) for referential integrity. Apply a migration in `/feature settings` backend step.
 
-### N-15 — Session title / sidebar rename not persisted
-**Source:** Chat-core frontend agent (`df0b02c`) — concern flagged
-**Impact:** Users can rename chat sessions in the sidebar, but the rename is local state only (not written to `chat_sessions.title` in the DB). After page refresh, the title reverts.
-**Action:** Add a `useUpdateSession` mutation in `useChatSessions.ts` that calls `supabase.from('chat_sessions').update({ title })`. Wire to sidebar rename handler. Implement during `/feature history` (which owns the session list) or as a fix before Wave 2.
+### N-15 — Session title / sidebar rename not persisted — RESOLVED by history (`e8bc480` / `c30f2f3`)
+**Source:** Chat-core frontend agent (`df0b02c`) → Resolved by history backend + frontend agents
+**Status:** `useUpdateSession` mutation added to `useChatSessions.ts` (`e8bc480`). HistoryScreen rename wired to `useUpdateSession`, invalidates `chat_sessions` + `chat_session(id)` on success (`c30f2f3`).
+**Remaining:** AppLayout sidebar rename still local state only — `handleRename` in `AppLayout.tsx` should call `useUpdateSession`. Track as N-16 below.
+
+### N-16 — AppLayout sidebar rename still local-state only
+**Source:** History frontend agent (`c4cd6da`) — concern flagged
+**Impact:** HistoryScreen rename is now persisted, but the sidebar rename in `AppLayout.tsx` (`handleRename`) updates only local state — title reverts on refresh when renamed from the sidebar.
+**Action:** Wire `handleRename` in `AppLayout.tsx` to `useUpdateSession({ sessionId, title })`. One-line change — do before Wave 2 or in the next bug-fix commit.
+
+### N-17 — `database.types.ts` needs re-generation after history migrations
+**Source:** History backend agent (`e8bc480`)
+**Impact:** `search_sessions` RPC type was hand-patched into `database.types.ts` (could not run `npx supabase gen types` without `SUPABASE_ACCESS_TOKEN`). The full generated shape may differ from the hand-patch.
+**Action:** Run after setting `SUPABASE_ACCESS_TOKEN`:
+```bash
+npx supabase gen types typescript --project-id lzhiqnxfveqttsujebiv > src/lib/database.types.ts
+```
+Re-run after every Wave 2 migration.
+
+### N-18 — `trends` route not yet protected by AppLayout — PARTIALLY FIXED
+**Source:** History QA fix agent (`c30f2f3`)
+**Impact:** The `/app/trends` route was not wrapped in `AppLayout`, so BottomNav did not render on TrendScreen. Fixed in `c30f2f3` (wrapped in `AppLayout active="trends"`). However, TrendScreen itself is a stub — full implementation is Wave 2 (`/feature trends`).
+**Action:** No immediate action. Note for `/feature trends` frontend: AppLayout wrapper is already in place.
 
 ### N-10 — Secrets in `.cursor/mcp.json` accessible in-session
 **Source:** Auth backend agent (`89dc2ca`)
@@ -137,13 +156,20 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 15 | N-1 through N-15 (N-2, N-6 resolved; N-9 partially resolved) |
+| NON-BLOCKING | 18 | N-1 through N-18 (N-2, N-6, N-7, N-11, N-15 resolved; N-9, N-18 partially resolved) |
 | DEFERRED | 5 | Wave 2+ |
 
-**Resolved this phase (chat-core):**
-- N-6 — `AppLayout` mock data replaced with real hooks (`df0b02c`)
-- N-9 — `useProfile` trigger lag: NicheSelector now handles `isError` gracefully (partial — long-term fix deferred)
+**Resolved this phase (history):**
+- N-15 — Session title rename now persisted via `useUpdateSession` in HistoryScreen (`e8bc480` / `c30f2f3`)
 
-**New concerns added from `/feature chat-core`:** N-11 (`GEMINI_API_KEY` missing), N-12 (Cloud Run URL unset → video intents fallback), N-13 (`structured_output` not yet parsed), N-14 (`primary_niche` type mismatch), N-15 (session title rename not persisted).
+**Partially resolved this phase:**
+- N-18 — `/app/trends` now wrapped in `AppLayout` (BottomNav works); TrendScreen content is Wave 2
 
-**Minimum to proceed with Wave 1 local dev (text intents only):** ✅ `GEMINI_API_KEY` set (N-11 resolved locally). OAuth (B-1) still required for end-to-end auth test.
+**New concerns added from `/feature history`:**
+- N-16 — AppLayout sidebar rename still local state (easy 1-line fix)
+- N-17 — `database.types.ts` needs re-generation after history migrations
+- N-18 — Trends route wrapped in AppLayout but screen is a stub
+
+**Wave 1 complete.** All 3 features (auth, chat-core, history) QA PASSED. Open items are Wave 2 prerequisites or production-deploy gates.
+
+**Before Wave 2 local dev:** Fix N-16 (sidebar rename) and N-17 (`database.types.ts` regen) — both low effort.
