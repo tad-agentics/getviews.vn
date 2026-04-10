@@ -6,12 +6,11 @@ import {
   useSearchParams,
   type MetaFunction,
 } from "react-router";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
-const COPY_TRUST_LINE =
-  "Data thực từ 46.000+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.";
 const COPY_BTN_FACEBOOK = "Đăng nhập với Facebook";
 const COPY_BTN_GOOGLE = "Đăng nhập với Google";
 const COPY_LOADING_FACEBOOK = "Đang kết nối Facebook...";
@@ -19,14 +18,12 @@ const COPY_LOADING_GOOGLE = "Đang kết nối Google...";
 const COPY_ERROR_OAUTH = "Đăng nhập không thành công — thử lại.";
 const COPY_ERROR_FACEBOOK_BLOCKED =
   "Thử đăng nhập bằng Google hoặc mở trong Safari/Chrome.";
-const COPY_LEGAL_NOTE_PREFIX = "Bằng cách đăng nhập, bạn đồng ý với ";
-const COPY_LEGAL_NOTE_SUFFIX = " của GetViews.";
 
 export const meta: MetaFunction = () => [
   { title: "Đăng nhập — GetViews" },
   {
     name: "description",
-    content: COPY_TRUST_LINE,
+    content: "Data thực từ 46.000+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.",
   },
 ];
 
@@ -110,7 +107,16 @@ export default function LoginRoute() {
   const { user, loading: authLoading } = useAuth();
   const [loadingFb, setLoadingFb] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [loadingEmail, setLoadingEmail] = useState(false);
   const [oauthError, setOauthError] = useState<OauthErrorState | null>(null);
+
+  // Email form state
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     if (callbackErrorHandled.current) return;
@@ -148,7 +154,27 @@ export default function LoginRoute() {
     [authLoading, loadingFb, loadingGoogle, redirectTo],
   );
 
-  const anyLoading = loadingFb || loadingGoogle;
+  const handleEmailSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!email || !password) { setEmailError("Vui lòng nhập đầy đủ thông tin."); return; }
+      if (password.length < 6) { setEmailError("Mật khẩu ít nhất 6 ký tự."); return; }
+      setEmailError("");
+      setLoadingEmail(true);
+      const { error } = isRegister
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
+      setLoadingEmail(false);
+      if (error) {
+        setEmailError(error.message);
+      } else {
+        navigate("/app", { replace: true });
+      }
+    },
+    [email, password, isRegister, navigate],
+  );
+
+  const anyLoading = loadingFb || loadingGoogle || loadingEmail;
 
   if (!authLoading && user) {
     return <Navigate to="/app" replace />;
@@ -247,19 +273,172 @@ export default function LoginRoute() {
                 {oauthError.message}
               </p>
             ) : null}
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-0.5">
+              <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+              <span className="text-[11px] font-semibold" style={{ color: "var(--faint)" }}>HOẶC</span>
+              <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+            </div>
+
+            {/* Email toggle button */}
+            <button
+              type="button"
+              onClick={() => setShowEmailForm((v) => !v)}
+              disabled={anyLoading}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{
+                background: "var(--surface-alt)",
+                color: "var(--ink-soft)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <Mail className="w-4 h-4" strokeWidth={1.8} />
+              {showEmailForm ? "Ẩn form đăng nhập" : "Đăng nhập bằng Email"}
+            </button>
+
+            {/* Email/Password form */}
+            <AnimatePresence initial={false}>
+              {showEmailForm && (
+                <motion.div
+                  key="email-form"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="overflow-hidden"
+                >
+                  <form onSubmit={(e) => void handleEmailSubmit(e)} className="flex flex-col gap-2.5 pt-1">
+                    {/* Email input */}
+                    <div className="relative">
+                      <Mail
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                        style={{ color: "var(--faint)" }}
+                        strokeWidth={1.8}
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                        className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all duration-[120ms]"
+                        style={{
+                          background: "var(--surface-alt)",
+                          border: "1px solid var(--border)",
+                          color: "var(--ink)",
+                        }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--purple)")}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+                      />
+                    </div>
+
+                    {/* Password input */}
+                    <div className="relative">
+                      <Lock
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                        style={{ color: "var(--faint)" }}
+                        strokeWidth={1.8}
+                      />
+                      <input
+                        type={showPw ? "text" : "password"}
+                        placeholder="Mật khẩu"
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); setEmailError(""); }}
+                        className="w-full pl-9 pr-10 py-3 rounded-xl text-sm outline-none transition-all duration-[120ms]"
+                        style={{
+                          background: "var(--surface-alt)",
+                          border: "1px solid var(--border)",
+                          color: "var(--ink)",
+                        }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--purple)")}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors duration-[100ms]"
+                        style={{ color: "var(--faint)" }}
+                        tabIndex={-1}
+                      >
+                        {showPw
+                          ? <EyeOff className="w-4 h-4" strokeWidth={1.8} />
+                          : <Eye className="w-4 h-4" strokeWidth={1.8} />
+                        }
+                      </button>
+                    </div>
+
+                    {/* Error */}
+                    <AnimatePresence>
+                      {emailError && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                          className="text-xs px-1"
+                          style={{ color: "var(--danger)" }}
+                        >
+                          {emailError}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Register / Login toggle + forgot */}
+                    <div className="flex items-center justify-between px-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsRegister((v) => !v)}
+                        className="text-xs font-semibold transition-colors duration-[100ms]"
+                        style={{ color: "var(--purple)" }}
+                      >
+                        {isRegister ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký"}
+                      </button>
+                      <span className="text-xs" style={{ color: "var(--faint)" }}>
+                        Quên mật khẩu?
+                      </span>
+                    </div>
+
+                    {/* Submit */}
+                    <button
+                      type="submit"
+                      disabled={anyLoading}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: "var(--purple)", color: "#fff" }}
+                    >
+                      {loadingEmail ? (
+                        <><Spinner /> Đang xử lý...</>
+                      ) : (
+                        <>
+                          {isRegister ? "Tạo tài khoản" : "Đăng nhập"}
+                          <ArrowRight className="w-4 h-4" strokeWidth={2} />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
 
+        {/* Stats */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="text-xs text-center"
+          style={{ color: "var(--faint)" }}
+        >
+          Đang theo dõi <strong style={{ color: "var(--ink-soft)" }}>46.000+</strong> video TikTok Việt Nam
+        </motion.p>
+
         <p className="text-[11px] text-center px-4" style={{ color: "var(--faint)", lineHeight: "1.7" }}>
-          {COPY_LEGAL_NOTE_PREFIX}
+          Bằng cách đăng nhập, bạn đồng ý với{" "}
           <Link to="#" className="hover:underline" style={{ color: "var(--purple)" }}>
             Điều khoản dịch vụ
           </Link>{" "}
           và{" "}
           <Link to="#" className="hover:underline" style={{ color: "var(--purple)" }}>
             Chính sách bảo mật
-          </Link>
-          {COPY_LEGAL_NOTE_SUFFIX}
+          </Link>{" "}
+          của GetViews.
         </p>
       </div>
     </div>
