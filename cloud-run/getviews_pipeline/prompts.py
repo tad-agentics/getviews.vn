@@ -518,8 +518,8 @@ def build_knowledge_prompt(message: str, session_context: dict[str, Any]) -> str
     if completed:
         summary = session_context.get("analyses_summary", {})
         prior_context_block = f"""
-Prior session context — reference this if relevant to the question:
-{json.dumps(summary, indent=2)}
+Ngữ cảnh phiên trước — tham chiếu nếu liên quan đến câu hỏi:
+{json.dumps(summary, indent=2, ensure_ascii=False)}
 """
 
     return f"""{_STRATEGIST_CONTEXT}
