@@ -63,14 +63,15 @@ npx supabase gen types typescript --project-id lzhiqnxfveqttsujebiv > src/lib/da
 **Impact:** ~~`AppLayout` renders mock profile/session data.~~
 **Status:** Wired to `useAuth()` + `useProfile()` during chat-core. Credit count, avatar, and session list are all live data.
 
-### N-7 — `SUPABASE_JWT_SECRET` not yet set in `.env.local`
-**Source:** Setup pre-flight
-**Impact:** Cloud Run Python service (`cloud-run/getviews_pipeline/`) cannot validate user JWTs for the SSE `/stream` endpoint. Video intents (①③④) will fail auth check. **Now actively needed** — chat-core is deployed and video intents route to Cloud Run when `VITE_CLOUD_RUN_API_URL` is set.
-**Action:** Supabase Dashboard → Settings → API → **JWT Settings** → copy JWT Secret → add to `.env.local`:
-```
-SUPABASE_JWT_SECRET=<your-jwt-secret>
-```
-Also add to Cloud Run service env vars in GCP when deploying.
+### N-7 — Supabase JWT validation for Cloud Run — RESOLVED (ES256/JWKS)
+**Source:** Setup pre-flight → Resolved with JWKS approach
+**Status:** Cloud Run now validates JWTs via JWKS endpoint (ES256, asymmetric) — no shared secret needed. Implemented in `cloud-run/main.py` `require_user` dependency.
+- **JWKS URL:** `https://lzhiqnxfveqttsujebiv.supabase.co/auth/v1/.well-known/jwks.json`
+- **Key ID (kid):** `7e331b8a-f420-4b4c-b2fb-dc2849768068`
+- **Algorithm:** ES256 (P-256 elliptic curve) — keys rotate without redeployment
+- `cloud-run/.env` — `SUPABASE_JWKS_URL` + `SUPABASE_JWKS_KID` set
+- **Vercel Edge** (`api/chat.ts`) uses `supabase.auth.getUser()` — no JWKS needed there
+**Remaining:** Set `SUPABASE_JWKS_URL` + `SUPABASE_JWKS_KID` in GCP Cloud Run service env vars when deploying.
 
 ### N-8 — Supabase Realtime not enabled on `public.profiles`
 **Source:** Auth backend agent (`89dc2ca`)
