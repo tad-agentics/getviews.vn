@@ -7,20 +7,24 @@
  *   1. video_ref JSON blocks  → VideoRefStrip (P0-2)
  *      {"type":"video_ref","video_id":"...","handle":"@x","views":1100000,"days_ago":6}
  *
- *   2. Hook: lines            → CopyableBlock (P0-3)
+ *   2. trend_card JSON blocks → TrendCard (P1-6)
+ *      {"type":"trend_card","title":"...","signal":"rising","hook_formula":"...","mechanism":"..."}
+ *
+ *   3. Hook: lines            → CopyableBlock (P0-3)
  *      "Hook: ĐỪNG [hành động] nếu chưa xem video này"
  *      "**Hook:** [Sản phẩm] chỉ [giá] — mua ở đâu?"
  *
- *   3. Markdown formatting     → bold (**text**), headings (##), bullets (-)
+ *   4. Markdown formatting     → bold (**text**), headings (##), bullets (-)
  *      (lightweight inline — no full markdown parser dependency)
  *
- * Buffering: video_ref blocks are detected as complete JSON objects only,
+ * Buffering: JSON blocks are detected as complete objects only,
  * never partially — so incomplete streaming tokens are rendered as plain text
  * until the closing brace arrives and the block is detected on the next render.
  */
 import { useMemo } from "react";
 import { VideoRefStrip, type VideoRefData } from "./VideoRefStrip";
 import { CopyableBlock } from "./CopyableBlock";
+import { TrendCard, type TrendCardData } from "./TrendCard";
 
 // ---------------------------------------------------------------------------
 // Segment types
@@ -29,8 +33,9 @@ import { CopyableBlock } from "./CopyableBlock";
 type TextSegment = { kind: "text"; content: string };
 type VideoRefSegment = { kind: "video_refs"; refs: VideoRefData[] };
 type HookSegment = { kind: "hook"; text: string };
+type TrendCardSegment = { kind: "trend_card"; data: TrendCardData; cardIndex: number };
 
-type Segment = TextSegment | VideoRefSegment | HookSegment;
+type Segment = TextSegment | VideoRefSegment | HookSegment | TrendCardSegment;
 
 // ---------------------------------------------------------------------------
 // Parser
@@ -39,14 +44,74 @@ type Segment = TextSegment | VideoRefSegment | HookSegment;
 const HOOK_LINE_RE = /^\*{0,2}Hook:\*{0,2}\s+(.+)$/;
 const VIDEO_REF_RE = /\{"type"\s*:\s*"video_ref"[^}]*\}/g;
 
+/**
+ * Match complete trend_card JSON blocks (multi-line-aware).
+ * Strategy: find {"type":"trend_card"...} by scanning for balanced braces.
+ * This handles nested arrays in the "videos" field.
+ */
+function extractTrendCards(
+  text: string
+): { result: string; cards: TrendCardData[] } {
+  const cards: TrendCardData[] = [];
+  let result = text;
+  let searchFrom = 0;
+
+  while (true) {
+    const start = result.indexOf('{"type":"trend_card"', searchFrom);
+    if (start === -1) break;
+
+    // Walk forward counting braces to find the matching closing }
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < result.length; i++) {
+      if (result[i] === "{") depth++;
+      else if (result[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end === -1) {
+      // Incomplete block — leave as plain text, stop scanning
+      break;
+    }
+
+    const raw = result.slice(start, end);
+    try {
+      const data = JSON.parse(raw) as TrendCardData;
+      if (data.type === "trend_card") {
+        const idx = cards.length;
+        cards.push(data);
+        result =
+          result.slice(0, start) +
+          `\x00TREND_CARD_${idx}\x00` +
+          result.slice(end);
+        // restart from same position (marker is shorter than original)
+        searchFrom = start + `\x00TREND_CARD_${idx}\x00`.length;
+        continue;
+      }
+    } catch {
+      /* malformed — leave as plain text */
+    }
+    searchFrom = end;
+  }
+
+  return { result, cards };
+}
+
 function parseSegments(text: string): Segment[] {
   if (!text.trim()) return [];
+
+  // Step 0: extract trend_card blocks first (they may contain video IDs)
+  const { result: afterCards, cards: trendCards } = extractTrendCards(text);
 
   // Step 1: extract all video_ref JSON objects and replace with markers
   const videoRefs: VideoRefData[] = [];
   const indexed: string[] = [];
 
-  const withMarkers = text.replace(VIDEO_REF_RE, (match) => {
+  const withMarkers = afterCards.replace(VIDEO_REF_RE, (match) => {
     try {
       const data = JSON.parse(match) as VideoRefData;
       if (data.type === "video_ref" && data.video_id) {
@@ -61,12 +126,14 @@ function parseSegments(text: string): Segment[] {
     return match;
   });
 
-  // Step 2: split on VIDEO_REF markers, then process each text chunk line by line
-  const parts = withMarkers.split(/\x00VIDEO_REF_(\d+)\x00/);
+  // Step 2: split on both TREND_CARD and VIDEO_REF markers
+  // First split on trend card markers
+  const COMBINED_MARKER_RE = /\x00(TREND_CARD_\d+|VIDEO_REF_\d+)\x00/g;
+  const allParts = withMarkers.split(COMBINED_MARKER_RE);
   const segments: Segment[] = [];
 
-  // Consecutive video_refs that appear adjacent get grouped into one strip
   let pendingRefs: VideoRefData[] = [];
+  let trendCardCount = 0;
 
   const flushPendingRefs = () => {
     if (pendingRefs.length) {
@@ -75,19 +142,27 @@ function parseSegments(text: string): Segment[] {
     }
   };
 
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
+  for (let i = 0; i < allParts.length; i++) {
+    const part = allParts[i];
 
-    // Even indices are text chunks; odd indices are ref index strings
+    // Odd indices are marker keys (TREND_CARD_N or VIDEO_REF_N)
     if (i % 2 === 1) {
-      const refIdx = parseInt(part, 10);
-      if (!isNaN(refIdx) && videoRefs[refIdx]) {
-        pendingRefs.push(videoRefs[refIdx]);
+      if (part.startsWith("TREND_CARD_")) {
+        flushPendingRefs();
+        const idx = parseInt(part.slice("TREND_CARD_".length), 10);
+        if (!isNaN(idx) && trendCards[idx]) {
+          segments.push({ kind: "trend_card", data: trendCards[idx], cardIndex: trendCardCount++ });
+        }
+      } else if (part.startsWith("VIDEO_REF_")) {
+        const idx = parseInt(part.slice("VIDEO_REF_".length), 10);
+        if (!isNaN(idx) && videoRefs[idx]) {
+          pendingRefs.push(videoRefs[idx]);
+        }
       }
       continue;
     }
 
-    // Text chunk — split into lines, detect Hook: lines
+    // Even indices are text chunks
     if (part) {
       flushPendingRefs();
       const lines = part.split("\n");
@@ -248,7 +323,10 @@ export function MarkdownRenderer({ text, streaming = false }: Props) {
         if (seg.kind === "hook") {
           return <CopyableBlock key={i} text={seg.text} />;
         }
-        return <TextBlock key={i} content={seg.content} />;
+        if (seg.kind === "trend_card") {
+          return <TrendCard key={i} data={seg.data} index={seg.cardIndex} />;
+        }
+        return <TextBlock key={i} content={(seg as TextSegment).content} />;
       })}
     </div>
   );
