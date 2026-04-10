@@ -1,6 +1,6 @@
 # Foundation → Wave 2 Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation + all Wave 1–2 features + Cloud Run pipeline
-> Status: **Cloud Run deployed and healthy.** Remaining items are env var wiring in Vercel, PWA assets, Facebook OAuth, and post-deploy verifications.
+> Logged: 2026-04-09 | Updated: 2026-04-11 | Source: Foundation + all Wave 1–2 features + Cloud Run pipeline
+> Status: **Cloud Run deployed and healthy. Wave 3 output quality in progress.** Remaining open items: env var wiring, PWA assets, Facebook OAuth, cron verification, session store scaling.
 
 ---
 
@@ -36,41 +36,14 @@ None. ✅
 - `public/icons/icon-512.png` + `icon-512-maskable.png`
 - `public/screenshots/chat-mobile.png` (390×844)
 
-### N-8 — Supabase Realtime not enabled on `profiles` table
-**Source:** Auth backend agent
-**Impact:** `useProfile` Realtime subscription is inert — queries work, but live cache invalidation on profile changes won't fire.
-**Action (human):** Supabase Dashboard → Database → Replication → enable `profiles` for Realtime.
-
 ### N-10 — MCP tokens in `.cursor/mcp.json` readable in-session
 **Source:** Auth backend agent
 **Status:** DEFERRED — low risk for solo dev. `.cursor/mcp.json` is gitignored. Revisit when onboarding first teammate: rotate tokens + migrate to `~/.zshrc` env vars or macOS Keychain.
-
-### N-12 — `VITE_CLOUD_RUN_API_URL` ✅ RESOLVED
-**Source:** Chat-core QA agent
-**Status:** RESOLVED 2026-04-10 — Cloud Run deployed, env var set in Vercel. Video intents (`video_diagnosis`, `competitor_profile`, `own_channel`) now route to Cloud Run pipeline.
-**Action:** Redeploy triggered in Vercel to pick up the new env var.
 
 ### N-13 — `structured_output` not yet rendered in ChatScreen
 **Source:** Chat-core frontend agent
 **Impact:** ChatScreen renders `content` as plain text. Structured diagnosis components (DiagnosisRow, HookRankingBar) show mock data, not real pipeline output.
 **Action:** Wave 2 — update ChatScreen to read `structured_output` when present.
-
-### N-19 — `video_corpus` first batch complete ✅
-**Source:** Explore QA agent
-**Status:** RESOLVED 2026-04-10 — Batch ingest ran against niche_id=1 ("Shopee affiliate reviews"): 10 videos inserted, 0 failed, MV refreshed. Cloud Scheduler (`getviews-corpus-ingest`) runs nightly at 02:00 ICT.
-
-### N-20 — R2 bucket must be public for corpus media to load
-**Source:** Explore backend agent
-**Impact:** `video_url` and `thumbnail_url` stored are TikTok CDN URLs (not R2) — R2 not used in current pipeline. ExploreScreen thumbnails load from TikTok CDN directly.
-**Status:** Non-issue for current implementation. R2 only needed if we cache videos locally.
-
-### N-21 — `trending_keywords` populated ✅
-**Source:** Explore QA agent
-**Status:** RESOLVED 2026-04-10 — `niche_intelligence` materialized view refreshed after first batch run. TrendScreen aside will show real data on next load.
-
-### N-22 — `niche_intelligence` auto-refresh scheduled ✅
-**Source:** Trends backend agent
-**Status:** RESOLVED 2026-04-10 — `refresh_niche_intelligence()` SECURITY DEFINER RPC created. Called automatically at end of every batch ingest. Cloud Scheduler triggers nightly at 02:00 ICT.
 
 ### N-26 — `noreply@getviews.vn` sender not yet verified in Resend
 **Source:** Billing backend agent
@@ -105,10 +78,6 @@ None. ✅
 **Impact:** In-process dict fails on multi-instance scale-out — duplicate pipeline costs, no cross-request context.
 **Action:** Keep `--max-instances=1` for MVP. Replace with Redis/Firestore before scaling.
 
-### N-39 — Cloud Run env vars set ✅
-**Source:** Cloud Run audit
-**Status:** RESOLVED — all 5 required env vars (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GEMINI_API_KEY`, `ENSEMBLE_DATA_API_KEY`, `SUPABASE_JWT_SECRET`) set via `gcloud run services update`. Health check confirms all keys present.
-
 ### N-40 — Facebook OAuth not yet configured
 **Source:** B-1 partial resolution
 **Impact:** Facebook login button returns error.
@@ -136,18 +105,21 @@ None. ✅
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 0 | — |
-| NON-BLOCKING | 12 | N-1, N-3, N-4, N-5, N-8, N-10, N-13, N-20, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-40 |
+| NON-BLOCKING | 14 | N-1, N-3, N-4, N-5, N-10, N-13, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-40 |
 | DEFERRED | 8 | Post-MVP |
 
 **Resolved since last update:**
 - ✅ B-1 (Google OAuth) — 2026-04-10
+- ✅ N-8 (profiles Realtime) — 2026-04-11; `profiles` added to `supabase_realtime` publication
 - ✅ N-11 (Gemini API key in Vercel) — 2026-04-10
+- ✅ N-12 (`VITE_CLOUD_RUN_API_URL`) — 2026-04-10; set in Vercel, video intents now route to Cloud Run
+- ✅ N-19 (video_corpus first batch) — 2026-04-10; 10 videos ingested for niche_id=1, nightly scheduler active
+- ✅ N-20 (R2 frame extraction) — 2026-04-10; `r2.py` + ffmpeg integrated, frame_urls populated on new ingests
+- ✅ N-21 (trending_keywords) — 2026-04-10; niche_intelligence view refreshed post-batch
+- ✅ N-22 (MV auto-refresh) — 2026-04-10; refresh_niche_intelligence() RPC + Cloud Scheduler running
 - ✅ N-25 (PayOS secrets in Supabase) — 2026-04-10
 - ✅ N-26 partial (RESEND_API_KEY set) — 2026-04-10; sender verify still pending
 - ✅ N-32 (pg_cron + 4 cron jobs) — 2026-04-10
 - ✅ N-39 (Cloud Run env vars) — 2026-04-10; all 5 keys confirmed via `/health`
+- ✅ N-41 (corpus quality gates) — 2026-04-10; 5 quality gates + expanded discovery pool deployed to Cloud Run
 - ✅ Cloud Run deploy — 2026-04-10; `getviews-pipeline-00002-2lj` live in `asia-southeast1`, health check green
-- ✅ N-12 (`VITE_CLOUD_RUN_API_URL`) — 2026-04-10; set in Vercel, video intents now route to Cloud Run
-- ✅ N-19 (video_corpus first batch) — 2026-04-10; 10 videos ingested for niche_id=1, nightly scheduler active
-- ✅ N-21 (trending_keywords) — 2026-04-10; niche_intelligence view refreshed post-batch
-- ✅ N-22 (MV auto-refresh) — 2026-04-10; refresh_niche_intelligence() RPC + Cloud Scheduler running
