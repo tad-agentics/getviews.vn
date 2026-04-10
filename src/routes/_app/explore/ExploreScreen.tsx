@@ -251,7 +251,7 @@ export default function ExploreScreen() {
                       @{video.creator_handle ?? "—"}
                     </span>
                     <span className="block font-mono text-[11px] text-[var(--muted)]">
-                      {formatViewsDisplay(video.views)} views
+                      {formatViewsDisplay(video.views)} lượt xem
                     </span>
                     <span className="block font-mono text-[11px] text-[var(--muted)]">{erPercent(video.engagement_rate)} ER</span>
                   </div>
@@ -341,10 +341,12 @@ export default function ExploreScreen() {
                   <div className="mt-4 space-y-1">
                     <p className="text-base font-bold text-[var(--ink)]">@{detail.creator_handle ?? "—"}</p>
                     <p className="font-mono text-sm text-[var(--muted)]">
-                      {formatViewsDisplay(detail.views)} views · {erPercent(detail.engagement_rate)} ER
+                      {formatViewsDisplay(detail.views)} lượt xem · {erPercent(detail.engagement_rate)} ER
                     </p>
                     {detail.indexed_at ? (
-                      <p className="font-mono text-xs text-[var(--faint)]">Index: {formatDate(detail.indexed_at)}</p>
+                      <p className="font-mono text-xs text-[var(--faint)]">
+                        Cập nhật kho: {formatDate(detail.indexed_at)}
+                      </p>
                     ) : null}
                   </div>
 
