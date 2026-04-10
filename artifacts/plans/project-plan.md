@@ -22,7 +22,7 @@
 | explore (ExploreScreen — corpus grid, VideoDetailModal, R2 playback) | 2 | ✅ 9f09947 | ✅ beff235 | ✅ 304f866 | QA PASS 2026-04-08 |
 | trends (TrendScreen — hook rankings, format lifecycle, D2) | 2 | ✅ 58a6446 | ✅ b28a9a7 | ✅ ddaf839 | QA PASS 2026-04-10 |
 | billing (PricingScreen + CheckoutScreen + PaymentSuccessScreen + PayOS) | 2 | ✅ f62ca14 | ✅ d706777 | ✅ 5b1c433 | QA PASS 2026-04-10 |
-| settings (SettingsScreen + LearnMoreScreen) | 2 | — | — | — | — |
+| settings (SettingsScreen + LearnMoreScreen) | 2 | ✅ 322649a | ✅ 09a81a8 | ✅ 8086be5 | QA PASS 2026-04-10 |
 | email-cron (expiry reminders + cron jobs) | 2 | — | — | — | — |
 
 ## Post-Build
