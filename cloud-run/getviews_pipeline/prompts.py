@@ -367,7 +367,7 @@ QUY TẮC CỨNG:
   "it is worth noting", "it's important to"
 - Không né tránh nhận định chính
 - Không dựng bảng tóm tắt hay dump field/value
-- Trường content_direction là giả thuyết AI — nếu nhắc, gắn nhãn góc chưa kiểm chứng, không coi là bằng chứng
+- Trường content_direction phản ánh pattern cấu trúc mà extraction model nhận diện — dùng như quan sát bổ sung, không dùng làm bằng chứng chính cho nhận định
 - face_appears_at và first_speech_at tách biệt — không suy mặt từ first_speech_at;
   nếu face_appears_at là 4.0s, mặt muộn là vấn đề cấu trúc khi niche kỳ vọng mặt sớm; null = không mặt trên cam
 - Không mở nhận định đầu bằng "Video này" hay "Phân tích"
@@ -430,7 +430,7 @@ QUY TẮC CỨNG:
   "it is worth noting", "it's important to"
 - Không né tránh nhận định chính
 - Không dựng bảng tóm tắt hay dump field/value
-- content_direction là giả thuyết AI — nếu nhắc, gắn nhãn chưa kiểm chứng
+- content_direction phản ánh pattern cấu trúc mà extraction model nhận diện — dùng như quan sát bổ sung, không dùng làm bằng chứng chính cho nhận định
 - face_appears_at / first_speech_at theo trục tổng hợp từng slide; trích `slides[].index` 0-based khi hữu ích
 - Không mở nhận định đầu bằng "Video này" hay "Phân tích"
 - Tất cả nội dung phải bằng tiếng Việt.
