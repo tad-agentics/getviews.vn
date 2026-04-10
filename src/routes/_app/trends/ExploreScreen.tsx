@@ -776,9 +776,18 @@ export default function ExploreScreen() {
 
   const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
-  const { data: hookDataRaw, isPending: hookLoading } = useHookEffectiveness(selectedNicheId);
+  const {
+    data: hookDataRaw,
+    isPending: hookLoading,
+    isError: hookQueryError,
+    refetch: refetchHookEffectiveness,
+  } = useHookEffectiveness(selectedNicheId);
   const { data: formatData } = useFormatLifecycle(selectedNicheId);
-  const { data: nicheIntel, isPending: nicheIntelLoading } = useNicheIntelligence(selectedNicheId);
+  const {
+    data: nicheIntel,
+    isPending: nicheIntelLoading,
+    isError: nicheIntelQueryError,
+  } = useNicheIntelligence(selectedNicheId);
 
   const hookData = hookDataRaw as HookEffectivenessRow[] | undefined;
 
@@ -827,12 +836,14 @@ export default function ExploreScreen() {
   const lowVideoCorpus = Boolean(
     selectedNicheId &&
       !nicheIntelLoading &&
+      !nicheIntelQueryError &&
       (nicheIntel == null || (nicheIntel.video_count_7d ?? 0) < 10),
   );
 
   const newestComputedAt = hookData?.[0]?.computed_at ?? null;
+  const staleTimestamp = nicheIntel?.computed_at ?? newestComputedAt;
   const hookDataStale =
-    newestComputedAt != null && Date.now() - new Date(newestComputedAt).getTime() > 36 * 3600 * 1000;
+    staleTimestamp != null && Date.now() - new Date(staleTimestamp).getTime() > 36 * 3600 * 1000;
 
   const totalHookSamples = useMemo(
     () => (hookData ?? []).reduce((s, h) => s + (h.sample_size ?? 0), 0),
@@ -914,6 +925,17 @@ export default function ExploreScreen() {
             {selectedNicheId === null ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
                 <p className="text-sm text-[var(--ink-soft)]">Chọn một niche để xem xu hướng</p>
+              </div>
+            ) : hookQueryError ? (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+                <p className="mb-4 text-sm text-[var(--ink)]">Không tải được xu hướng — thử lại</p>
+                <button
+                  type="button"
+                  onClick={() => void refetchHookEffectiveness()}
+                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--border-active)] transition-colors duration-[120ms]"
+                >
+                  Thử lại
+                </button>
               </div>
             ) : lowVideoCorpus ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
@@ -1043,23 +1065,31 @@ export default function ExploreScreen() {
 
             {(risingFormats.length > 0 || fallingFormats.length > 0) && selectedNicheId && !lowVideoCorpus ? (
               <section className="mt-4 pt-4 border-t border-[var(--border)] -mx-5 lg:-mx-7 px-5 lg:px-7">
-                <h2 className="font-extrabold text-[var(--ink)] mb-3">Format đang lên</h2>
-                <div className="flex flex-col gap-2">
-                  {risingFormats.map((f, i) => (
-                    <div
-                      key={f.id ?? `r-${i}`}
-                      className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
-                    >
-                      <span className="text-sm text-[var(--ink)]">{f.format_type}</span>
-                      <span className="text-xs font-semibold" style={{ color: "var(--success, #22c55e)" }}>
-                        +{((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
-                      </span>
+                {risingFormats.length > 0 ? (
+                  <>
+                    <h2 className="font-extrabold text-[var(--ink)] mb-3">Format đang lên</h2>
+                    <div className="flex flex-col gap-2">
+                      {risingFormats.map((f, i) => (
+                        <div
+                          key={f.id ?? `r-${i}`}
+                          className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
+                        >
+                          <span className="text-sm text-[var(--ink)]">{f.format_type}</span>
+                          <span className="text-xs font-semibold" style={{ color: "var(--success, #22c55e)" }}>
+                            +{((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                ) : null}
                 {fallingFormats.length > 0 ? (
                   <>
-                    <h2 className="font-extrabold text-[var(--ink)] mt-4 mb-3">Format đang giảm</h2>
+                    <h2
+                      className={`font-extrabold text-[var(--ink)] mb-3 ${risingFormats.length > 0 ? "mt-4" : ""}`}
+                    >
+                      Format đang giảm
+                    </h2>
                     <div className="flex flex-col gap-2">
                       {fallingFormats.map((f, i) => (
                         <div
@@ -1068,7 +1098,7 @@ export default function ExploreScreen() {
                         >
                           <span className="text-sm text-[var(--ink-soft)]">{f.format_type}</span>
                           <span className="text-xs font-semibold" style={{ color: "var(--danger, #ef4444)" }}>
-                            {(Number(f.engagement_trend) * 100).toFixed(1)}%
+                            {((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
                           </span>
                         </div>
                       ))}
