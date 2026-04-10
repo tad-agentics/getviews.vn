@@ -23,6 +23,7 @@ from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -237,6 +238,26 @@ def _sse_line(payload: dict[str, Any]) -> bytes:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
 
 
+def _classify_stream_error(exc: BaseException) -> str:
+    """Map known exceptions to frontend-readable error codes.
+
+    These codes are handled by useChatStream.ts lines 109-111.
+    Called only AFTER the SSE stream has opened — do not raise, just return a code.
+    """
+    msg = str(exc).lower()
+    if isinstance(exc, asyncio.TimeoutError):
+        return "analysis_timeout"
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 403:
+        return "video_download_failed"
+    if "unit limit" in msg or "daily unit limit" in msg:
+        return "ensembledata_quota"
+    # Gemini SDK exceptions live under google.genai or google.generativeai namespaces
+    exc_module = type(exc).__module__ or ""
+    if exc_module.startswith("google"):
+        return "gemini_error"
+    return "stream_failed"
+
+
 class StreamRequest(BaseModel):
     session_id: str
     query: str
@@ -290,6 +311,23 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# ── Global error handler ──────────────────────────────────────────────────────
+# Catches unhandled errors BEFORE the response body is opened (e.g. route lookup,
+# middleware, dependency injection). Errors that occur DURING an open SSE stream
+# cannot change the HTTP status — they are sent as error SSE tokens instead.
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, HTTPException):
+        # Let FastAPI's default handler format 4xx/5xx HTTPExceptions correctly
+        return await http_exception_handler(request, exc)
+    logger.exception("Unhandled error: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"error": "internal_error", "detail": str(exc)},
+    )
+
 
 # ── JWKS cache (refresh at most every 10 minutes) ─────────────────────────────
 
@@ -515,14 +553,9 @@ async def stream(
             )
             sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
 
-        except asyncio.TimeoutError:
-            seq += 1
-            yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "analysis_timeout"})
-            sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
-
         except Exception as exc:
             logger.exception("Stream pipeline error: %s", exc)
-            error_code = "ensembledata_quota" if "unit limit" in str(exc).lower() else "stream_failed"
+            error_code = _classify_stream_error(exc)
             seq += 1
             yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": error_code})
             sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
