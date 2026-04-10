@@ -34,3 +34,42 @@ export function useDeleteSession() {
     },
   });
 }
+
+export function useUpdateSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, title }: { sessionId: string; title: string }) => {
+      const { error } = await supabase
+        .from("chat_sessions")
+        .update({ title: title.trim() })
+        .eq("id", sessionId);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
+      void qc.invalidateQueries({ queryKey: chatKeys.session(vars.sessionId) });
+    },
+  });
+}
+
+export function useSearchSessions(query: string) {
+  return useQuery({
+    queryKey: [...chatKeys.sessions(), "search", query] as const,
+    queryFn: async () => {
+      const q = query.trim();
+      if (!q) return [];
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data, error } = await supabase.rpc("search_sessions", {
+        search_query: q,
+        p_user_id: user.id,
+      });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: query.trim().length > 0,
+    staleTime: 10_000,
+  });
+}
