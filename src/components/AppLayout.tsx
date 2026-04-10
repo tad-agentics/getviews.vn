@@ -20,7 +20,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
-import { useChatSessions, useDeleteSession } from "@/hooks/useChatSessions";
+import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { CreditBar } from "@/routes/_app/components/CreditBar";
 import { BottomNav } from "@/components/BottomNav";
 
@@ -268,6 +268,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const { data: profile } = useProfile();
   const { data: sessionsData } = useChatSessions();
   const deleteSession = useDeleteSession();
+  const updateSession = useUpdateSession();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -305,8 +306,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
   };
 
-  const handleRename = (id: string, label: string) =>
+  const handleRename = (id: string, label: string) => {
     setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, label } : s)));
+    updateSession.mutate({ sessionId: id, title: label });
+  };
 
   const displayName =
     (profile?.display_name as string | null | undefined) ||

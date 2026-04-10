@@ -113,19 +113,13 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Status:** `useUpdateSession` mutation added to `useChatSessions.ts` (`e8bc480`). HistoryScreen rename wired to `useUpdateSession`, invalidates `chat_sessions` + `chat_session(id)` on success (`c30f2f3`).
 **Remaining:** AppLayout sidebar rename still local state only — `handleRename` in `AppLayout.tsx` should call `useUpdateSession`. Track as N-16 below.
 
-### N-16 — AppLayout sidebar rename still local-state only
-**Source:** History frontend agent (`c4cd6da`) — concern flagged
-**Impact:** HistoryScreen rename is now persisted, but the sidebar rename in `AppLayout.tsx` (`handleRename`) updates only local state — title reverts on refresh when renamed from the sidebar.
-**Action:** Wire `handleRename` in `AppLayout.tsx` to `useUpdateSession({ sessionId, title })`. One-line change — do before Wave 2 or in the next bug-fix commit.
+### N-16 — AppLayout sidebar rename still local-state only — RESOLVED
+**Source:** History frontend agent (`c4cd6da`) → Fixed pre-Wave 2
+**Status:** `useUpdateSession` imported and instantiated in `AppLayout.tsx`. `handleRename` now calls both `setSessions` (optimistic local update) and `updateSession.mutate({ sessionId, title })` to persist to DB.
 
-### N-17 — `database.types.ts` needs re-generation after history migrations
-**Source:** History backend agent (`e8bc480`)
-**Impact:** `search_sessions` RPC type was hand-patched into `database.types.ts` (could not run `npx supabase gen types` without `SUPABASE_ACCESS_TOKEN`). The full generated shape may differ from the hand-patch.
-**Action:** Run after setting `SUPABASE_ACCESS_TOKEN`:
-```bash
-npx supabase gen types typescript --project-id lzhiqnxfveqttsujebiv > src/lib/database.types.ts
-```
-Re-run after every Wave 2 migration.
+### N-17 — `database.types.ts` needs re-generation after history migrations — RESOLVED
+**Source:** History backend agent (`e8bc480`) → Regenerated via Supabase MCP pre-Wave 2
+**Status:** Full 866-line type file regenerated from live schema (`lzhiqnxfveqttsujebiv`) via Supabase MCP. Includes `search_sessions` RPC with correct return type, all 14 tables, `niche_intelligence` view, `decrement_credit` + `decrement_and_grant_credits` RPCs. Re-run after every Wave 2 migration.
 
 ### N-18 — `trends` route not yet protected by AppLayout — PARTIALLY FIXED
 **Source:** History QA fix agent (`c30f2f3`)
@@ -172,4 +166,4 @@ Re-run after every Wave 2 migration.
 
 **Wave 1 complete.** All 3 features (auth, chat-core, history) QA PASSED. Open items are Wave 2 prerequisites or production-deploy gates.
 
-**Before Wave 2 local dev:** Fix N-16 (sidebar rename) and N-17 (`database.types.ts` regen) — both low effort.
+**Before Wave 2 local dev:** ✅ N-16 and N-17 resolved. No blockers for Wave 2 local dev beyond B-1 (OAuth) and GEMINI_API_KEY in Vercel.
