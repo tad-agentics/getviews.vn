@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Post format (video vs photo carousel) — used on VideoMetadata and analyze payloads.
 ContentType = Literal["video", "carousel"]
@@ -72,6 +72,23 @@ ToneType = Literal[
 ]
 
 
+# Maps known Gemini near-miss values → canonical HookType.
+_HOOK_TYPE_ALIASES: dict[str, str] = {
+    "pov": "story_open",
+    "statistic": "shock_stat",
+    "stat": "shock_stat",
+    "question_hook": "question",
+    "bold claim": "bold_claim",
+    "shock stat": "shock_stat",
+    "story open": "story_open",
+    "how to": "how_to",
+    "social proof": "social_proof",
+    "curiosity gap": "curiosity_gap",
+    "pain point": "pain_point",
+    "trend hijack": "trend_hijack",
+}
+
+
 class HookAnalysis(BaseModel):
     first_frame_type: FirstFrameType
     face_appears_at: float | None = None
@@ -79,6 +96,14 @@ class HookAnalysis(BaseModel):
     hook_phrase: str
     hook_type: HookType
     hook_notes: str
+
+    @field_validator("hook_type", mode="before")
+    @classmethod
+    def normalize_hook_type(cls, v: object) -> object:
+        if not isinstance(v, str):
+            return v
+        normalized = v.strip().lower().replace("-", "_")
+        return _HOOK_TYPE_ALIASES.get(normalized, normalized)
 
 
 class TextOverlay(BaseModel):
