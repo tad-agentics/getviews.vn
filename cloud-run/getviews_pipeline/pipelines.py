@@ -39,6 +39,11 @@ logger = logging.getLogger(__name__)
 REF_N = 3
 
 
+async def _empty_dict() -> dict:
+    """No-op coroutine returning an empty dict — used as a gather placeholder."""
+    return {}
+
+
 def _niche_query_terms(niche: str) -> str:
     return niche.strip().lstrip("#") or "tiktok"
 
@@ -188,12 +193,17 @@ async def run_trend_spike(
     # Enrich with real breakout + signal data (P1-7 + P1-8)
     # niche_id lookup: use session if available, else omit (signal grades require integer id)
     niche_id: int | None = session.get("niche_id")
-    async def _noop_dict() -> dict:
-        return {}
+
+    breakout_task = get_top_breakout_videos(niche_id, days=7, limit=10)
+    signal_task = (
+        get_signal_grades_for_niche(niche_id)
+        if niche_id is not None
+        else _empty_dict()
+    )
 
     breakout_videos, signal_grades = await asyncio.gather(
-        get_top_breakout_videos(niche_id, days=7, limit=10),
-        get_signal_grades_for_niche(niche_id) if niche_id else _noop_dict(),
+        breakout_task,
+        signal_task,
         return_exceptions=True,
     )
     if isinstance(breakout_videos, Exception):
