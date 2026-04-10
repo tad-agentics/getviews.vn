@@ -278,20 +278,14 @@ def _insert_chat_message_best_effort(
 app = FastAPI(title="GetViews Pipeline", version="0.1.0")
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# ALLOWED_ORIGINS env var: comma-separated list. Defaults to production + local dev.
-_raw_origins = os.environ.get(
-    "ALLOWED_ORIGINS",
-    "https://getviews.vn,https://www.getviews.vn,http://localhost:5173,http://localhost:4173",
-)
-_ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-
+# Use allow_origin_regex only — FastAPI CORSMiddleware does not support wildcard
+# subdomains in allow_origins. The regex covers production, Vercel previews, and
+# local dev on any port.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_ALLOWED_ORIGINS,
-    # Vercel preview deployments have dynamic subdomains — allow via regex.
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://.*\.vercel\.app|https://getviews\.vn|http://localhost:\d+",
     allow_credentials=True,
-    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
