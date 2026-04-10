@@ -45,11 +45,10 @@ None. ✅
 **Source:** Auth backend agent
 **Status:** DEFERRED — low risk for solo dev. `.cursor/mcp.json` is gitignored. Revisit when onboarding first teammate: rotate tokens + migrate to `~/.zshrc` env vars or macOS Keychain.
 
-### N-12 — `VITE_CLOUD_RUN_API_URL` needs to be set in Vercel
+### N-12 — `VITE_CLOUD_RUN_API_URL` ✅ RESOLVED
 **Source:** Chat-core QA agent
-**Impact:** `video_diagnosis`, `competitor_profile`, `own_channel` route to `/api/chat` (no video understanding) until Vercel picks up the new env var.
-**Status:** Cloud Run deployed and healthy at `https://getviews-pipeline-720640652377.asia-southeast1.run.app`. `.env.local` updated.
-**Action (human):** Vercel Dashboard → Settings → Environment Variables → add `VITE_CLOUD_RUN_API_URL=https://getviews-pipeline-720640652377.asia-southeast1.run.app` for Production + Preview + Development → Save → Redeploy.
+**Status:** RESOLVED 2026-04-10 — Cloud Run deployed, env var set in Vercel. Video intents (`video_diagnosis`, `competitor_profile`, `own_channel`) now route to Cloud Run pipeline.
+**Action:** Redeploy triggered in Vercel to pick up the new env var.
 
 ### N-13 — `structured_output` not yet rendered in ChatScreen
 **Source:** Chat-core frontend agent
@@ -140,7 +139,7 @@ None. ✅
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 0 | — |
-| NON-BLOCKING | 16 | N-1, N-3, N-4, N-5, N-8, N-10, N-12, N-13, N-19, N-20, N-21, N-22, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-40 |
+| NON-BLOCKING | 15 | N-1, N-3, N-4, N-5, N-8, N-10, N-13, N-19, N-20, N-21, N-22, N-26, N-27, N-29, N-30, N-31, N-33, N-38, N-40 |
 | DEFERRED | 8 | Post-MVP |
 
 **Resolved since last update:**
@@ -151,3 +150,4 @@ None. ✅
 - ✅ N-32 (pg_cron + 4 cron jobs) — 2026-04-10
 - ✅ N-39 (Cloud Run env vars) — 2026-04-10; all 5 keys confirmed via `/health`
 - ✅ Cloud Run deploy — 2026-04-10; `getviews-pipeline-00002-2lj` live in `asia-southeast1`, health check green
+- ✅ N-12 (`VITE_CLOUD_RUN_API_URL`) — 2026-04-10; set in Vercel, video intents now route to Cloud Run
