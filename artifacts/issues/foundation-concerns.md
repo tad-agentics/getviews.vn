@@ -1,6 +1,6 @@
 # Foundation → Wave 2 Concerns
-> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839`
-> Status: Trends QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
+> Logged: 2026-04-09 | Updated: 2026-04-10 | Source: Foundation `f83aa55`/`81b99f2` + Auth `89dc2ca`/`fd2203f`/`a2661f6` + Chat-core `9b8bdd0`/`df0b02c`/`3e1da07` + History `e8bc480`/`c4cd6da`/`c30f2f3` + Explore `9f09947`/`beff235`/`304f866`/`20572ac` + Trends `58a6446`/`b28a9a7`/`ddaf839` + Billing `f62ca14`/`d706777`/`5b1c433`/`93a30b7`
+> Status: Billing QA PASSED — open items are Wave 2 prerequisites or production-deploy gates
 
 ---
 
@@ -163,17 +163,50 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 **Impact:** The Supabase access token and Vercel token stored in `.cursor/mcp.json` are readable by any agent operating in the workspace session. This is a low risk in a solo dev environment but becomes a concern if the repo is shared or if any agent logs/outputs token values.
 **Action:** No immediate action required. Before onboarding team members: rotate tokens and migrate to OS keychain or environment-variable-based MCP auth. `.cursor/mcp.json` is already in `.gitignore`.
 
+### N-25 — `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` not set in Supabase secrets
+**Source:** Billing backend agent (`f62ca14`)
+**Impact:** `create-payment` and `payos-webhook` Edge Functions will throw on any payment attempt in staging/production. `create-payment` reads `PAYOS_CLIENT_ID` + `PAYOS_API_KEY` to call PayOS REST; `payos-webhook` reads `PAYOS_CHECKSUM_KEY` for HMAC verification.
+**Action (human):** In Supabase Dashboard → Edge Functions → Secrets, set:
+```
+PAYOS_CLIENT_ID=<from PayOS merchant dashboard>
+PAYOS_API_KEY=<from PayOS merchant dashboard>
+PAYOS_CHECKSUM_KEY=<from PayOS merchant dashboard>
+```
+Required before any end-to-end billing test. Currently in DEFERRED list as "Before respective features land" — now that billing is built, this is a staging gate.
+
+### N-26 — `RESEND_API_KEY` not set in Supabase secrets
+**Source:** Billing backend agent (`f62ca14`) — `send-email` Edge Function
+**Impact:** Receipt emails and expiry reminder emails (cron) will fail silently. The `send-email` function returns an error response but does not block the webhook — credits are still granted. No user-facing failure, but users receive no receipt.
+**Action (human):** Supabase Dashboard → Edge Functions → Secrets → set `RESEND_API_KEY`. Also verify the `from` address (`noreply@getviews.vn`) is registered as a verified sender in Resend.
+
+### N-27 — CheckoutScreen UI diverges from Make (QR mock removed, VNPay → VietQR)
+**Source:** Billing QA agent (`5b1c433`) — Pass 1 finding (visual, 72/100 health)
+**Impact:** Make's `CheckoutScreen.tsx` has a mock QR code block, a VNPay option, and a success confirmation Dialog that were not ported. The ported version uses live PayOS redirect flow (correct for production) but differs visually from Make's mockup. Health −28 on visual pass.
+**Status:** Intentional deviation — the mock QR/VNPay/Dialog in Make is design scaffolding; the real payment flow is PayOS redirect (`window.location.href = checkoutUrl`). No functional impact.
+**Action:** None for now. If a QR display is needed (for bank transfer), implement when PayOS sandbox credentials are available to test the actual QR URL from their API response.
+
+### N-28 — `useCreditTransactions` hook unused (no screen imports it yet)
+**Source:** Billing QA agent (`5b1c433`) — Pass 2 finding
+**Impact:** `src/hooks/useCreditTransactions.ts` is created but not consumed. Credit history list is deferred to `/feature settings` (SettingsScreen `CreditHistoryList`).
+**Status:** By design — deferred to settings feature. No action required now.
+
+### N-29 — PaymentSuccessScreen: state missing `creditsDelta` edge case
+**Source:** Billing QA agent (`5b1c433`) — Pass 4 finding
+**Impact:** If `navigate('/app/payment-success', { state: { planName } })` is called without `creditsDelta`, the heading uses `profile.deep_credits_remaining` (total) instead of the delta. Can show "Đã thêm 40 deep credits" when only 10 were added if user already had 30.
+**Status:** Low risk — the PayOS return URL redirect loses all state (browser navigation), so the screen already falls back to "Credits đã được cập nhật." copy which doesn't show a count. The delta path only triggers if navigated programmatically (not via PayOS redirect). Acceptable for now.
+**Action:** When wiring the PayOS webhook Realtime callback (to detect payment completion without page reload), pass the correct `creditsDelta` from the webhook payload. Deferred to post-billing.
+
 ---
 
 ## DEFERRED (Wave 2 or later)
 
 | Item | When needed | Notes |
 |---|---|---|
-| ZaloPay in CheckoutScreen | Before billing launch | Confirm PayOS supports ZaloPay; currently UI shows icon but backend not wired |
+| ZaloPay in CheckoutScreen | Before billing launch | Gated behind `VITE_ZALOPAY_ENABLED=true`; PayOS must confirm ZaloPay support |
 | PWA screenshots in `manifest.json` | Before production deploy | `screenshots` array is empty — add after real screens are built |
 | Monday weekly email Edge Function | Wave 2 | Content generation deferred; cron + template scaffolded |
 | Cloud Run service deploy to GCP | Before staging video demo (see N-12) | Python pipeline in `cloud-run/` is local only; video intents fall back to text endpoint until deployed |
-| `GEMINI_API_KEY`, `PAYOS_*`, `RESEND_API_KEY` in Supabase secrets | Before respective features land | Edge Functions will fail without these secrets |
+| PayOS Realtime webhook → in-app payment detection | Post-billing | Currently relies on PayOS redirect + page reload; no in-app detection |
 
 ---
 
@@ -182,19 +215,22 @@ Not blocking for Wave 1 dev if video intents are not being tested. Required befo
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 1 | B-1 (OAuth config) |
-| NON-BLOCKING | 24 | N-1 through N-24 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24 resolved; N-21 partially resolved) |
+| NON-BLOCKING | 29 | N-1 through N-29 (N-2, N-6, N-7, N-11, N-15, N-16, N-17, N-18, N-9, N-14, N-24 resolved; N-21 partially resolved) |
 | DEFERRED | 5 | Wave 2+ |
 
-**Resolved this phase (trends):**
-- N-21 — Desktop aside partially wired: `trending_keywords` from `niche_intelligence` replaces mock arrays; placeholder shown until Cloud Run runs
+**Resolved this phase (trends + pre-billing):**
+- N-9 — `useProfile` `.maybeSingle()` — no longer throws on trigger lag
+- N-14 — `profiles.primary_niche` now INTEGER FK → `niche_taxonomy`
+- N-21 — Desktop aside partially wired to `niche_intelligence.trending_keywords`
+- N-24 — D2 HookRankingBars now progressively lighter
 
-**New concerns added from `/feature trends`:**
-- N-22 — `niche_intelligence` materialized view not auto-refreshed (depends on Cloud Run batch)
-- N-23 — `hook_effectiveness.hook_type` is free-text — no canonical taxonomy enforced by pipeline
-- N-24 — D2 bars not progressively lighter (all non-top bars same `var(--ink-soft)`)
+**New concerns added from `/feature billing`:**
+- N-25 — `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY` not set in Supabase secrets (staging gate)
+- N-26 — `RESEND_API_KEY` not set — receipt + expiry emails will fail silently
+- N-27 — CheckoutScreen UI diverges from Make (intentional — live PayOS redirect vs mock QR)
+- N-28 — `useCreditTransactions` hook unused — deferred to `/feature settings`
+- N-29 — PaymentSuccessScreen `creditsDelta` edge case — low risk, acceptable for now
 
-**Wave 2 trends: QA PASS.** TrendScreen fully wired: NicheSelector, D2 HookRankingBars, FormatLifecycle, aside keywords (5/5 passes, health 94/100).
+**Wave 2 billing: QA PASS.** PricingScreen, CheckoutScreen, PaymentSuccessScreen complete. `create-payment` + `payos-webhook` + `send-email` Edge Functions wired (health 72/100 — −28 for intentional UI divergence from Make mock).
 
-**Pre-billing housekeeping (resolved):** N-9 (useProfile maybeSingle), N-14 (primary_niche INTEGER FK), N-24 (D2 progressive bars).
-
-**Before next Wave 2 feature:** No new blockers. N-19 (empty corpus) + N-22 (MV not refreshed) are the main gaps for staging demo — both depend on Cloud Run deploy.
+**Before next Wave 2 feature:** N-25 and N-26 are the new staging gates (PayOS + Resend secrets). N-19 (empty corpus) + N-22 (MV refresh) remain pending Cloud Run deploy.
