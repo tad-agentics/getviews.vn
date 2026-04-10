@@ -16,7 +16,7 @@
 
 | Feature | Wave | Backend | Frontend | QA | Commit |
 |---|---|---|---|---|---|
-| auth | 1 | — | — | — | — |
+| auth | 1 | ✅ 89dc2ca | ✅ fd2203f | ✅ a2661f6 | QA PASS 2026-04-08 |
 | chat-core (ChatScreen — 7 intents, SSE, credit deduction) | 1 | — | — | — | — |
 | history (HistoryScreen — session list, search, resume) | 1 | — | — | — | — |
 | explore (ExploreScreen — corpus grid, VideoDetailModal, R2 playback) | 2 | — | — | — | — |
