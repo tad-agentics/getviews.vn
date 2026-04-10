@@ -14,8 +14,11 @@ export function useProfile() {
 
   useEffect(() => {
     if (!userId) return;
+    // Use a unique channel name per mount to avoid "cannot add callbacks after subscribe()"
+    // when React strict mode or re-mounts create a second instance before cleanup runs.
+    const channelName = `realtime:profile:${userId}:${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel(`profile:${userId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "profiles", filter: `id=eq.${userId}` },
