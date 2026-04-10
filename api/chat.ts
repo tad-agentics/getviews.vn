@@ -3,8 +3,17 @@ export const config = { runtime: "edge" };
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!;
+// Vercel Edge Runtime receives all env vars (including VITE_-prefixed ones).
+// VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are the canonical names
+// in this project (set in .env.local and Vercel project settings).
+// SUPABASE_URL / SUPABASE_ANON_KEY are accepted as aliases for CI/CD environments
+// that prefer non-VITE_ names.
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ??
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 const GEMINI_MODEL =
   process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-3.1-flash-lite-preview";
