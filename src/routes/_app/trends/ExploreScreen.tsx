@@ -16,279 +16,40 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { useVideoCorpus } from "@/hooks/useVideoCorpus";
+import { useProfile } from "@/hooks/useProfile";
+import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
+import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
+import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews } from "@/lib/formatters";
 
-/* --- Mock data ---------------------------------------------------- */
+/* --- Trending card types (filled from hook_effectiveness) ---------- */
 
-const trendingCards = [
-  {
-    id: 1,
-    title: "Fruit-cutting or food-prep as a visual anchor while delivering the hook",
-    description:
-      "Creators who slice fruit, peel oranges, or chop food while speaking their hook to camera dramatically outperform static talking heads...",
-    images: [
-      "https://images.unsplash.com/photo-1598358532244-6480b5c5ea1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1758273706007-f1524d2d963f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1759215524472-1b0686fdbd87?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-    ],
-    platforms: ["tiktok", "ig", "yt"],
-    videos: [
-      {
-        handle: "@bephanoi_official",
-        title: "Cat dua hau kieu nay viral ngay",
-        views: "1.2M",
-        time: "2d ago",
-        img: "https://images.unsplash.com/photo-1598358532244-6480b5c5ea1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Hook cat trai cay + noi thang vao cam",
-        likes: "89.4K",
-        comments: "2.1K",
-        shares: "12.3K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      },
-      {
-        handle: "@cookwithlinh",
-        title: "Got tao 1 phut = 500K view??",
-        views: "523K",
-        time: "3d ago",
-        img: "https://images.unsplash.com/photo-1758273706007-f1524d2d963f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Khong can studio xin, can tay nghe",
-        likes: "42.1K",
-        comments: "918",
-        shares: "5.7K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      },
-      {
-        handle: "@foodhacksvn",
-        title: "Thai hanh kieu nay khong chay nuoc mat",
-        views: "341K",
-        time: "4d ago",
-        img: "https://images.unsplash.com/photo-1759215524472-1b0686fdbd87?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Meo bep nuc ma ai cung can",
-        likes: "28.6K",
-        comments: "640",
-        shares: "9.2K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-      },
-      {
-        handle: "@minhbep",
-        title: "POV: ban cat xoai dung cach",
-        views: "198K",
-        time: "5d ago",
-        img: "https://images.unsplash.com/photo-1598358532244-6480b5c5ea1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Cai nay ai cung lam sai het",
-        likes: "17.2K",
-        comments: "430",
-        shares: "3.1K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-      },
-      {
-        handle: "@vegankitchen.vn",
-        title: "Luoc rau kieu nay moi giu mau xanh",
-        views: "89K",
-        time: "6d ago",
-        img: "https://images.unsplash.com/photo-1759215524472-1b0686fdbd87?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Bi quyet tu dau bep 5 sao",
-        likes: "7.8K",
-        comments: "201",
-        shares: "1.4K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Panic-countdown hook: 'We literally leave in X hours and I see THIS'",
-    description:
-      "A formulaic hook structure where the creator feigns panic about an imminent departure and then reveals an app got them breakout ratios of...",
-    images: [
-      "https://images.unsplash.com/photo-1758272422000-07f4bdc8a9fd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1645118286859-0cf9c5c784b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1758272422309-070322449526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-    ],
-    platforms: ["tiktok", "ig", "yt"],
-    videos: [
-      {
-        handle: "@dulichviet365",
-        title: "Bay sau 3 tieng ma con chua pack!!",
-        views: "892K",
-        time: "1d ago",
-        img: "https://images.unsplash.com/photo-1758272422000-07f4bdc8a9fd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Panic packing vlog kieu nay moi viral",
-        likes: "67.3K",
-        comments: "3.4K",
-        shares: "18.9K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-      },
-      {
-        handle: "@travelwithkhanh",
-        title: "2 tieng nua check-in ma con ngoi day",
-        views: "445K",
-        time: "2d ago",
-        img: "https://images.unsplash.com/photo-1645118286859-0cf9c5c784b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Hook countdown = cong thuc trieu view",
-        likes: "38.9K",
-        comments: "1.2K",
-        shares: "7.3K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      },
-      {
-        handle: "@bacpacker.vn",
-        title: "Con 1 tieng ma vali van rong",
-        views: "267K",
-        time: "3d ago",
-        img: "https://images.unsplash.com/photo-1758272422309-070322449526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Cai cam giac nay ai cung tung trai",
-        likes: "22.1K",
-        comments: "876",
-        shares: "4.5K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-      },
-      {
-        handle: "@minhtravel",
-        title: "Quen passport luc ra san bay",
-        views: "134K",
-        time: "4d ago",
-        img: "https://images.unsplash.com/photo-1758272422000-07f4bdc8a9fd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Khoanh khac panic ma ai cung so",
-        likes: "11.2K",
-        comments: "540",
-        shares: "2.8K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: "AI-generated fake photo sent as text prank with real reaction recording",
-    description:
-      "Creators use AI photo editors to generate a fake disaster image, text it to a family member or partner, then screen-record the panicked text...",
-    images: [
-      "https://images.unsplash.com/photo-1759215524472-1b0686fdbd87?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1758273706007-f1524d2d963f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1598358532244-6480b5c5ea1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-    ],
-    platforms: ["tiktok", "ig"],
-    videos: [
-      {
-        handle: "@haihuocvn",
-        title: "Gui anh AI cho me roi nhan cai ket",
-        views: "2.1M",
-        time: "1d ago",
-        img: "https://images.unsplash.com/photo-1759215524472-1b0686fdbd87?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Phan ung cua me moi la highlight",
-        likes: "198K",
-        comments: "12.4K",
-        shares: "67.8K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-      },
-      {
-        handle: "@prankviet",
-        title: "Ban trai tuong minh dam xe",
-        views: "876K",
-        time: "2d ago",
-        img: "https://images.unsplash.com/photo-1758273706007-f1524d2d963f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "AI prank + real reaction = cong thuc viral",
-        likes: "74.2K",
-        comments: "5.6K",
-        shares: "23.1K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      },
-      {
-        handle: "@comedyvn",
-        title: "Prank em gai bang anh AI nha bi lu",
-        views: "412K",
-        time: "3d ago",
-        img: "https://images.unsplash.com/photo-1598358532244-6480b5c5ea1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Man phan ung khong ai ngo toi",
-        likes: "35.8K",
-        comments: "2.3K",
-        shares: "9.7K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-      },
-    ],
-  },
-  {
-    id: 4,
-    title: "Alarm-won't-stop scavenger hunt filmed first-person",
-    description:
-      "First-person POV videos of creators searching their house to photograph object so their alarm app stops scr...",
-    images: [
-      "https://images.unsplash.com/photo-1760551937732-a86cccd851e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1758272422309-070322449526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1645118286859-0cf9c5c784b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-    ],
-    platforms: ["tiktok", "yt"],
-    videos: [
-      {
-        handle: "@lazyvn",
-        title: "App bao thuc bat chup anh giay",
-        views: "1.5M",
-        time: "1d ago",
-        img: "https://images.unsplash.com/photo-1760551937732-a86cccd851e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Tim cai giay luc 5am ma khong ngu them duoc",
-        likes: "142K",
-        comments: "8.9K",
-        shares: "44.2K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      },
-      {
-        handle: "@morningroutine.vn",
-        title: "POV: chay khap nha luc 6am de tat alarm",
-        views: "634K",
-        time: "2d ago",
-        img: "https://images.unsplash.com/photo-1758272422309-070322449526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "First-person chaos = engagement cao nhat",
-        likes: "54.7K",
-        comments: "3.2K",
-        shares: "15.6K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-      },
-      {
-        handle: "@sleepaddict",
-        title: "Bi bat chup cau thang luc 5:30am",
-        views: "289K",
-        time: "3d ago",
-        img: "https://images.unsplash.com/photo-1645118286859-0cf9c5c784b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Cai app nay ac nhan that su",
-        likes: "23.4K",
-        comments: "1.1K",
-        shares: "5.8K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-      },
-      {
-        handle: "@wakeupchallenge",
-        title: "Ngay 7 dung alarm chup anh: ket qua?",
-        views: "178K",
-        time: "4d ago",
-        img: "https://images.unsplash.com/photo-1760551937732-a86cccd851e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-        caption: "Review sau 1 tuan dung that su",
-        likes: "15.1K",
-        comments: "780",
-        shares: "3.3K",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      },
-    ],
-  },
-];
+type TrendingVideoEntry = {
+  handle: string;
+  title: string;
+  views: string;
+  time: string;
+  img: string;
+  caption: string;
+  likes: string;
+  comments: string;
+  shares: string;
+  videoUrl: string;
+};
 
-const breakoutHits = [
-  { rank: 1, title: "Solicit Opinion On Celebrity Drama", views: "109.4K", handle: "@bc_drama", time: "4d ago", img: "https://images.unsplash.com/photo-1758272422000-07f4bdc8a9fd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 2, title: "Mock Unrealistic Instant Results Hook", views: "45K", handle: "@jinnablogg3", time: "4d ago", img: "https://images.unsplash.com/photo-1760551937732-a86cccd851e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 3, title: "Tease Scandalous App Content", views: "25.1K", handle: "@theappdotcomm", time: "4d ago", img: "https://images.unsplash.com/photo-1759215524472-1b0686fdbd87?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 4, title: "Call Out Specific Dating Ick", views: "5.3K", handle: "@datingwithkatie", time: "5d ago", img: "https://images.unsplash.com/photo-1645118286859-0cf9c5c784b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 5, title: "Pitch Hypothetical Marketing Strategy", views: "2.8K", handle: "@thequestion", time: "3d ago", img: "https://images.unsplash.com/photo-1758273706007-f1524d2d963f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 6, title: "Confusing Duo Introduction Hook", views: "340.8K", handle: "@duosetug_official", time: "2d ago", img: "https://images.unsplash.com/photo-1598358532244-6480b5c5ea1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 7, title: "Solo Activity Vulnerability Hook", views: "27.3K", handle: "@jodelosb", time: "13d ago", img: "https://images.unsplash.com/photo-1758272422309-070322449526?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 8, title: "Partner Jealousy Warning Hook", views: "8.7K", handle: "@jyounglikelee", time: "9d ago", img: "https://images.unsplash.com/photo-1758272422000-07f4bdc8a9fd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { rank: 9, title: "Stereotype Competitor App Hook", views: "8.9K", handle: "@daniel.dates", time: "8d ago", img: "https://images.unsplash.com/photo-1760551937732-a86cccd851e7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-];
-
-const viralNow = [
-  { title: "Why Is X Hard Template", views: "540.2K", handle: "@mercy_german", time: "2d ago", img: "https://images.unsplash.com/photo-1758273706007-f1524d2d963f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-  { title: "Toxic Romantic Rival Comparison Hook", views: "491K", handle: "@silyat", time: "2d ago", img: "https://images.unsplash.com/photo-1645118286859-0cf9c5c784b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=80" },
-];
+type TrendingCardData = {
+  id: string | number;
+  title: string;
+  description: string;
+  images: string[];
+  platforms: string[];
+  videos: TrendingVideoEntry[];
+};
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
+
+const SUGGESTED_FULL_DATA_NICHE_ID = 1;
 
 type CorpusRow = {
   id: string;
@@ -425,10 +186,8 @@ function EngagementSidebar({
 }
 
 /* --- Trending Card Modal ------------------------------------------ */
-type VideoEntry = (typeof trendingCards)[0]["videos"][0];
-
-function TrendingCardModal({ card, onClose }: { card: (typeof trendingCards)[0]; onClose: () => void }) {
-  const [selectedVideo, setSelectedVideo] = useState<VideoEntry>(card.videos[0]);
+function TrendingCardModal({ card, onClose }: { card: TrendingCardData; onClose: () => void }) {
+  const [selectedVideo, setSelectedVideo] = useState<TrendingVideoEntry>(() => card.videos[0]!);
   const [muted, setMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -611,15 +370,28 @@ function TrendingCardModal({ card, onClose }: { card: (typeof trendingCards)[0];
 }
 
 /* --- Trending Card ------------------------------------------------ */
-function TrendingCard({ card }: { card: (typeof trendingCards)[0] }) {
+function TrendingCard({ card }: { card: TrendingCardData }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const canOpenModal = card.videos.length > 0;
 
   return (
     <>
-      {modalOpen && <TrendingCardModal card={card} onClose={() => setModalOpen(false)} />}
+      {modalOpen && canOpenModal ? <TrendingCardModal card={card} onClose={() => setModalOpen(false)} /> : null}
       <div
-        onClick={() => setModalOpen(true)}
-        className="flex-shrink-0 w-[220px] flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden hover:border-[var(--border-active)] transition-colors duration-[150ms] cursor-pointer"
+        role={canOpenModal ? "button" : undefined}
+        tabIndex={canOpenModal ? 0 : undefined}
+        onClick={canOpenModal ? () => setModalOpen(true) : undefined}
+        onKeyDown={
+          canOpenModal
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setModalOpen(true);
+                }
+              }
+            : undefined
+        }
+        className={`flex-shrink-0 w-[220px] flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-colors duration-[150ms] ${canOpenModal ? "hover:border-[var(--border-active)] cursor-pointer" : "cursor-default opacity-95"}`}
       >
         <div className="relative h-[130px] bg-[var(--surface-alt)]">
           {card.images.slice(0, 3).map((img, i) => (
@@ -981,11 +753,98 @@ function ExploreGridSkeleton() {
 }
 
 /* --- ExploreScreen (Make TrendScreen + corpus) -------------------- */
+type HookEffectivenessRow = {
+  id?: string;
+  hook_type: string;
+  avg_engagement_rate: number | string | null;
+  sample_size: number | null;
+  computed_at: string | null;
+};
+
+function parseTrendingKeywords(raw: unknown): string[] {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((k): k is string => typeof k === "string");
+}
+
 export default function ExploreScreen() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeViewFilter, setActiveViewFilter] = useState("100K+");
+  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
+
+  const { data: profile } = useProfile();
+  const { data: niches } = useNicheTaxonomy();
+  const { data: hookDataRaw, isPending: hookLoading } = useHookEffectiveness(selectedNicheId);
+  const { data: formatData } = useFormatLifecycle(selectedNicheId);
+  const { data: nicheIntel, isPending: nicheIntelLoading } = useNicheIntelligence(selectedNicheId);
+
+  const hookData = hookDataRaw as HookEffectivenessRow[] | undefined;
+
+  useEffect(() => {
+    if (selectedNicheId !== null) return;
+    const raw = profile?.primary_niche;
+    if (raw == null || raw === "") return;
+    const id = typeof raw === "string" ? Number.parseInt(raw, 10) : Number(raw);
+    if (!Number.isNaN(id)) setSelectedNicheId(id);
+  }, [profile?.primary_niche, selectedNicheId]);
+
+  const selectedNicheName = useMemo(
+    () => niches?.find((n) => n.id === selectedNicheId)?.name,
+    [niches, selectedNicheId],
+  );
+
+  const trendingCardsData = useMemo((): TrendingCardData[] => {
+    if (!hookData?.length) return [];
+    return hookData.map((h, i) => {
+      const er = (Number(h.avg_engagement_rate) || 0) * 100;
+      const title = String(h.hook_type ?? "")
+        .replace(/_/g, " ")
+        .trim() || "Hook";
+      return {
+        id: h.id ?? i,
+        title,
+        description: `${er.toFixed(1)}% ER trung bình · ${h.sample_size ?? 0} video mẫu`,
+        images: [PLACEHOLDER_THUMB, PLACEHOLDER_THUMB, PLACEHOLDER_THUMB],
+        platforms: ["tiktok"],
+        videos: [],
+      };
+    });
+  }, [hookData]);
+
+  const risingFormats = useMemo(
+    () => (formatData ?? []).filter((f) => (f.engagement_trend ?? 0) > 0).slice(0, 5),
+    [formatData],
+  );
+  const fallingFormats = useMemo(
+    () => (formatData ?? []).filter((f) => (f.engagement_trend ?? 0) <= 0).slice(0, 3),
+    [formatData],
+  );
+
+  const trendingKeywords = useMemo(() => parseTrendingKeywords(nicheIntel?.trending_keywords), [nicheIntel]);
+
+  const lowVideoCorpus = Boolean(
+    selectedNicheId &&
+      !nicheIntelLoading &&
+      (nicheIntel == null || (nicheIntel.video_count_7d ?? 0) < 10),
+  );
+
+  const newestComputedAt = hookData?.[0]?.computed_at ?? null;
+  const hookDataStale =
+    newestComputedAt != null && Date.now() - new Date(newestComputedAt).getTime() > 36 * 3600 * 1000;
+
+  const totalHookSamples = useMemo(
+    () => (hookData ?? []).reduce((s, h) => s + (h.sample_size ?? 0), 0),
+    [hookData],
+  );
+
+  const asideUpdatedLabel = useMemo(() => {
+    const t = nicheIntel?.computed_at;
+    if (!t) return "—";
+    const h = Math.round((Date.now() - new Date(t).getTime()) / 3600000);
+    return `${h}h trước`;
+  }, [nicheIntel?.computed_at]);
 
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({});
 
@@ -1019,21 +878,205 @@ export default function ExploreScreen() {
     <AppLayout active="trends" enableMobileSidebar>
       <div className="flex-1 overflow-hidden flex min-h-0">
         <div className="flex-1 overflow-y-auto min-w-0" style={{ scrollbarWidth: "thin" }}>
-          <section className="px-5 lg:px-7 pt-14 lg:pt-6 pb-4">
+          <div
+            className="overflow-x-auto px-5 lg:px-7 pt-14 lg:pt-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: "none" }}
+          >
+            <div className="flex gap-2" style={{ width: "max-content" }}>
+              {niches?.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => setSelectedNicheId(n.id)}
+                  className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-[120ms] ${
+                    selectedNicheId === n.id
+                      ? "bg-[var(--purple)] text-white"
+                      : "bg-[var(--surface-alt)] text-[var(--ink-soft)] border border-[var(--border)] hover:border-[var(--border-active)]"
+                  }`}
+                >
+                  {n.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <section className="px-5 lg:px-7 pt-2 pb-4">
             <button type="button" className="flex items-center gap-1 mb-4 group">
-              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]">Xu huong tuan nay</h2>
+              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]">
+                Xu hướng tuần này
+              </h2>
               <ChevronRight
                 className="w-4 h-4 text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]"
                 strokeWidth={2.5}
               />
             </button>
-            <div className="overflow-x-auto -mx-5 lg:-mx-7 px-5 lg:px-7" style={{ scrollbarWidth: "none" }}>
-              <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-                {trendingCards.map((card) => (
-                  <TrendingCard key={card.id} card={card} />
-                ))}
+
+            {selectedNicheId === null ? (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+                <p className="text-sm text-[var(--ink-soft)]">Chọn một niche để xem xu hướng</p>
               </div>
-            </div>
+            ) : lowVideoCorpus ? (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+                <p className="text-sm text-[var(--ink)] mb-3">
+                  Niche này mới có {nicheIntel?.video_count_7d ?? 0} video 7 ngày — chưa đủ để xu hướng. Thử niche Review đồ
+                  Shopee / Gia dụng (data đầy đủ hơn).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNicheId(SUGGESTED_FULL_DATA_NICHE_ID)}
+                  className="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--border-active)] transition-colors duration-[120ms]"
+                >
+                  Xem niche gợi ý
+                </button>
+              </div>
+            ) : hookLoading ? (
+              <div className="overflow-x-auto -mx-5 lg:-mx-7 px-5 lg:px-7" style={{ scrollbarWidth: "none" }}>
+                <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="flex-shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] animate-pulse"
+                      style={{ width: 260, height: 180 }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : trendingCardsData.length === 0 ? (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+                <p className="text-sm text-[var(--ink-soft)] mb-3">
+                  Chưa có đủ data cho {selectedNicheName ?? "niche này"} tuần này. Thử xem xu hướng của Review đồ Shopee / Gia
+                  dụng — niche có data đầy đủ nhất.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNicheId(SUGGESTED_FULL_DATA_NICHE_ID)}
+                  className="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--border-active)] transition-colors duration-[120ms]"
+                >
+                  Chuyển sang niche gợi ý
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto -mx-5 lg:-mx-7 px-5 lg:px-7" style={{ scrollbarWidth: "none" }}>
+                <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
+                  {trendingCardsData.map((card) => (
+                    <TrendingCard key={String(card.id)} card={card} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hookData && hookData.length > 0 && selectedNicheId && !lowVideoCorpus ? (
+              <section
+                key={`hook-ranking-${selectedNicheId}`}
+                className="mt-4 pt-4 border-t border-[var(--border)] -mx-5 lg:-mx-7 px-5 lg:px-7"
+              >
+                {hookDataStale ? (
+                  <p className="text-xs font-medium text-[var(--ink-soft)] mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
+                    Data cũ hơn 36 tiếng — đang cập nhật.
+                  </p>
+                ) : null}
+                <h2 className="font-extrabold text-[var(--ink)] mb-3">
+                  Hook đang chạy trong {selectedNicheName ?? "…"}
+                </h2>
+                <p className="text-xs text-[var(--faint)] mb-4">
+                  {totalHookSamples} video · 7 ngày · Cập nhật{" "}
+                  <span>
+                    {newestComputedAt
+                      ? `${Math.max(0, Math.round((Date.now() - new Date(newestComputedAt).getTime()) / 3600000))}h trước`
+                      : "—"}
+                  </span>
+                </p>
+                <div className="flex flex-col gap-2">
+                  {hookData.slice(0, 8).map((h, i) => {
+                    const maxEr = Number(hookData[0]?.avg_engagement_rate) || 1;
+                    const er = Number(h.avg_engagement_rate) || 0;
+                    const pct = Math.min(100, Math.round((er / maxEr) * 100));
+                    const isTop = i === 0;
+                    const mult = maxEr > 0 ? (er / maxEr).toFixed(2) : "—";
+                    return (
+                      <div key={h.id ?? i} className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-[var(--ink)] font-medium truncate max-w-[70%]">
+                            {String(h.hook_type ?? "").replace(/_/g, " ")}
+                          </span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-mono text-[var(--ink-soft)]">{(er * 100).toFixed(1)}%</span>
+                            <motion.span
+                              className="text-[10px] font-semibold text-[var(--purple)] tabular-nums"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{
+                                duration: 0.25,
+                                delay: i * 0.1 + 0.35,
+                                ease: [0.16, 1, 0.3, 1],
+                              }}
+                            >
+                              ×{mult}
+                            </motion.span>
+                          </div>
+                        </div>
+                        <div
+                          className={`relative h-2 rounded-full overflow-hidden ${isTop ? "" : "border border-[var(--border)]"}`}
+                          style={{ background: isTop ? "var(--border)" : "var(--surface-alt)" }}
+                        >
+                          <motion.div
+                            className="absolute left-0 top-0 h-full rounded-full"
+                            style={{
+                              background: isTop ? "var(--purple)" : "var(--ink-soft)",
+                              boxShadow: isTop ? undefined : "inset 0 0 0 1px var(--border)",
+                            }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{
+                              duration: 0.4,
+                              delay: i * 0.1,
+                              ease: [0.16, 1, 0.3, 1],
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {(risingFormats.length > 0 || fallingFormats.length > 0) && selectedNicheId && !lowVideoCorpus ? (
+              <section className="mt-4 pt-4 border-t border-[var(--border)] -mx-5 lg:-mx-7 px-5 lg:px-7">
+                <h2 className="font-extrabold text-[var(--ink)] mb-3">Format đang lên</h2>
+                <div className="flex flex-col gap-2">
+                  {risingFormats.map((f, i) => (
+                    <div
+                      key={f.id ?? `r-${i}`}
+                      className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
+                    >
+                      <span className="text-sm text-[var(--ink)]">{f.format_type}</span>
+                      <span className="text-xs font-semibold" style={{ color: "var(--success, #22c55e)" }}>
+                        +{((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {fallingFormats.length > 0 ? (
+                  <>
+                    <h2 className="font-extrabold text-[var(--ink)] mt-4 mb-3">Format đang giảm</h2>
+                    <div className="flex flex-col gap-2">
+                      {fallingFormats.map((f, i) => (
+                        <div
+                          key={f.id ?? `f-${i}`}
+                          className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0"
+                        >
+                          <span className="text-sm text-[var(--ink-soft)]">{f.format_type}</span>
+                          <span className="text-xs font-semibold" style={{ color: "var(--danger, #ef4444)" }}>
+                            {(Number(f.engagement_trend) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </section>
+            ) : null}
           </section>
 
           <section className="px-5 lg:px-7 pb-8">
@@ -1121,39 +1164,69 @@ export default function ExploreScreen() {
         >
           <div className="px-4 pt-5 pb-3 border-b border-[var(--border)]">
             <button type="button" className="flex items-center gap-1 group">
-              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]">Video nen xem</h2>
+              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]">
+                Video nên xem
+              </h2>
               <ChevronRight
                 className="w-4 h-4 text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]"
                 strokeWidth={2.5}
               />
             </button>
-            <p className="text-xs text-[var(--faint)] mt-0.5">Cap nhat 2 gio truoc</p>
+            <p className="text-xs text-[var(--faint)] mt-0.5">Cập nhật {asideUpdatedLabel}</p>
           </div>
 
           <div className="flex-1 px-4 pb-6">
             <div className="mt-4 mb-1">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
-                <span className="text-xs font-bold text-[var(--ink)]">Breakout tuan nay</span>
+                <span className="text-xs font-bold text-[var(--ink)]">Breakout tuần này</span>
               </div>
             </div>
-            <div>
-              {breakoutHits.map((item) => (
-                <SidebarVideoRow key={item.rank} item={item} rank={item.rank} />
-              ))}
-            </div>
+            {trendingKeywords.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {trendingKeywords.slice(0, Math.ceil(trendingKeywords.length / 2)).map((kw, idx) => (
+                  <span
+                    key={`b-${idx}-${kw}`}
+                    className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink)]"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div>
+                <SidebarVideoRow
+                  item={{
+                    title: "Đang cập nhật…",
+                    views: "—",
+                    handle: "",
+                    time: "",
+                    img: PLACEHOLDER_THUMB,
+                  }}
+                />
+              </div>
+            )}
 
             <div className="mt-5 mb-1">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
-                <span className="text-xs font-bold text-[var(--ink)]">Dang viral</span>
+                <span className="text-xs font-bold text-[var(--ink)]">Đang viral</span>
               </div>
             </div>
-            <div>
-              {viralNow.map((item, idx) => (
-                <SidebarVideoRow key={`${item.title}-${idx}`} item={item} />
-              ))}
-            </div>
+            {trendingKeywords.length > 1 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {trendingKeywords.slice(Math.ceil(trendingKeywords.length / 2)).map((kw, idx) => (
+                  <span
+                    key={`v-${idx}-${kw}`}
+                    className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink)]"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            ) : trendingKeywords.length === 1 ? (
+              <p className="text-[11px] text-[var(--faint)]">Thêm từ khóa sẽ hiện ở mục này.</p>
+            ) : null}
           </div>
         </aside>
       </div>
