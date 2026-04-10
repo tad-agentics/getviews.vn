@@ -6,7 +6,9 @@ SERVICE_NAME="getviews-pipeline"
 REGION="asia-southeast1"  # Singapore — lowest latency to Vietnam
 
 echo "Building image..."
-gcloud builds submit --tag "gcr.io/$PROJECT_ID/$SERVICE_NAME" .
+# Build using the cloud-run/ directory as context so the correct Dockerfile is used
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+gcloud builds submit --tag "gcr.io/$PROJECT_ID/$SERVICE_NAME" "$SCRIPT_DIR"
 
 echo "Deploying to Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
