@@ -27,8 +27,8 @@
 
 ## Post-Build
 
-- [ ] Visual fidelity audit (Product Designer — staging URL vs Make code)
-- [ ] Pre-handoff code review (QA Agent — /review skill)
+- [x] Visual fidelity audit (Product Designer — staging URL vs Make code) commit: 82c4c12
+- [x] Pre-handoff code review (QA Agent — /review skill) commit: 2caeb1f
 
 ## Issues
 
