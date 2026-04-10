@@ -15,6 +15,7 @@ class QueryIntent(StrEnum):
     TREND_SPIKE = "trend_spike"
     METADATA_ONLY = "metadata_only"
     FOLLOWUP = "followup"
+    OWN_CHANNEL = "own_channel"  # "Soi Kênh" — same pipeline as video_diagnosis
 
 
 KNOWLEDGE_SIGNALS = [
