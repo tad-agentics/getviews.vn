@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   Links,
   Meta,
@@ -5,6 +6,8 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { AuthProvider } from "@/lib/auth";
+import { queryClient } from "@/lib/query-client";
 import "./app.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -27,5 +30,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+      </QueryClientProvider>
+    </AuthProvider>
+  );
 }

@@ -1,14 +1,6 @@
-import type { MetaFunction } from "react-router";
+import { Navigate } from "react-router";
 
-export const meta: MetaFunction = () => [
-  { title: "Đăng ký — GetViews.vn" },
-];
-
-export default function SignupPage() {
-  return (
-    <main>
-      {/* Signup screen — built in /foundation by Frontend Developer */}
-      <p>Đăng ký</p>
-    </main>
-  );
+/** OAuth-only product — account creation goes through login. */
+export default function SignupRedirect() {
+  return <Navigate to="/login" replace />;
 }
