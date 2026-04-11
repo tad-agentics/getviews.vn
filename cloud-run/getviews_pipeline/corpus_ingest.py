@@ -19,7 +19,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any
 
 from getviews_pipeline import ensemble
@@ -195,6 +195,148 @@ def _safe_engagement_rate(
     return min((likes + comments + shares) / views * 100.0, 100.0)
 
 
+# ── Corpus classifiers ─────────────────────────────────────────────────────────
+# Python equivalents of src/lib/batch/classifiers.ts — keep in sync.
+
+_VN_PATTERN = re.compile(
+    r"[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]",
+    re.IGNORECASE,
+)
+
+_HOOK_TYPE_ALIASES: dict[str, str] = {
+    "warning": "warning", "price_shock": "price_shock", "pain_point": "pain_point",
+    "how_to": "how_to", "curiosity_gap": "curiosity_gap", "bold_claim": "bold_claim",
+    "question": "question", "story_open": "story_open", "social_proof": "social_proof",
+    "trend_hijack": "trend_hijack", "reaction": "reaction", "comparison": "comparison",
+    "expose": "expose", "pov": "pov", "none": "none", "other": "other",
+    "canh_bao": "warning", "gia_soc": "price_shock", "phan_ung": "reaction",
+    "so_sanh": "comparison", "boc_phot": "expose", "huong_dan": "how_to",
+    "ke_chuyen": "story_open", "bang_chung": "social_proof",
+    "tutorial": "how_to", "story": "story_open", "storytelling": "story_open",
+    "shock": "bold_claim", "tips": "how_to", "controversy": "expose",
+    "fomo": "warning", "fear": "warning",
+}
+
+_SOUTHERN = [
+    r"\btui\b", r"\bmấy bà\b", r"\bnè\b", r"\bnha\b", r"\bhông\b",
+    r"\bquá trời\b", r"\bdzậy\b", r"\bvầy\b", r"\bbiết hông\b",
+    r"á(?=\s|[.,!?])", r"\btrời ơi\b", r"\bluôn á\b",
+    r"\bnghen\b", r"\bhen\b", r"\bquá xá\b",
+]
+_NORTHERN = [
+    r"\bmình\b", r"\bcác bạn\b", r"\bnhé\b", r"ạ(?=\s|[.,!?])",
+    r"\bcực kỳ\b", r"\bthế\b", r"\bvậy à\b", r"\bbiết không\b",
+    r"\bkhông ạ\b", r"\bấy\b", r"\bđấy\b", r"\bcơ\b",
+]
+_CENTRAL = [r"\bchi\b", r"\bmô\b(?=\s)", r"\bni\b", r"\brứa\b", r"\brăng\b"]
+
+
+def _normalize_hook_type(raw: str) -> str:
+    return _HOOK_TYPE_ALIASES.get(raw.lower(), "other")
+
+
+def _classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
+    transcript = (analysis_json.get("audio_transcript") or "").lower()
+    topics = " ".join(t.lower() for t in (analysis_json.get("topics") or []))
+    scenes = analysis_json.get("scenes") or []
+    tone = analysis_json.get("tone") or ""
+    combined = f"{transcript} {topics}"
+
+    if re.search(r"mukbang|ăn.*cùng|mời.*ăn|eating|asmr", combined): return "mukbang"
+    if niche_id == 4 and len(scenes) >= 10 and tone == "entertaining": return "mukbang"
+    if re.search(r"grwm|get ready|makeup routine|morning routine|buổi sáng", combined): return "grwm"
+    if re.search(r"công thức|recipe|nấu|cách làm|nguyên liệu|ướp|xào|chiên|nướng|hấp", combined): return "recipe"
+    if re.search(r"haul|đập hộp|unbox|mở hộp|mua.*về|đặt.*gửi", combined): return "haul"
+    if re.search(r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm", combined): return "review"
+    if re.search(r"cách|hướng dẫn|tutorial|mẹo|bước|step|tips", combined): return "tutorial"
+    if re.search(r"vs |so sánh|versus|cái nào|nào hơn|nào tốt", combined): return "comparison"
+    if re.search(r"kể chuyện|story|hồi đó|hồi nhỏ|ngày xưa|mình từng", combined): return "storytelling"
+    if re.search(r"trước.*sau|before.*after|biến đổi|thay đổi.*ngày|glow.?up", combined): return "before_after"
+    if re.match(r"pov[: ]", combined.lstrip()): return "pov"
+    if re.search(r"outfit|ootd|biến hình|transition|mix đồ|phối đồ", combined): return "outfit_transition"
+    if re.search(r"vlog|daily|thường ngày|một ngày", combined): return "vlog"
+    if scenes and all(s.get("type") == "action" for s in scenes) and not transcript: return "dance"
+    product_types = {"product_shot", "demo", "action"}
+    if (scenes and all(s.get("type") in product_types for s in scenes)
+            and len(transcript) > 50
+            and not any(s.get("type") == "face_to_camera" for s in scenes)):
+        return "faceless"
+    return "other"
+
+
+def _classify_cta(cta: str | None) -> str | None:
+    if not cta:
+        return None
+    c = cta.lower()
+    if re.search(r"lưu lại|lưu ngay|save|lưu về", c): return "save"
+    if re.search(r"theo dõi|follow|đăng ký|subscribe", c): return "follow"
+    if re.search(r"comment|bình luận|cho.*biết|chia sẻ.*bên dưới", c): return "comment"
+    if re.search(r"giỏ hàng|mua ngay|chốt đơn|đặt hàng|shop|cart", c): return "shop_cart"
+    if re.search(r"link.*bio|bio.*link|link.*comment|link.*mô tả", c): return "link_bio"
+    if re.search(r"còn tiếp|phần 2|part 2|tiếp tục|tập sau", c): return "part2"
+    if re.search(r"thử đi|thử.*xem|làm.*thử|ăn thử", c): return "try_it"
+    return "other"
+
+
+def _detect_commerce(analysis_json: dict[str, Any]) -> bool:
+    transcript = (analysis_json.get("audio_transcript") or "").lower()
+    overlays = " ".join(
+        (t.get("text") or "").lower()
+        for t in (analysis_json.get("text_overlays") or [])
+    )
+    combined = f"{transcript} {overlays}"
+    if re.search(r"\d+k\b|\d+đ\b|\d+\.\d+đ|giá.*\d|giảm.*\d+%", combined): return True
+    if re.search(r"shopee|tiktok shop|lazada|link.*bio|giỏ hàng|mã giảm|voucher|freeship|affiliate", combined): return True
+    if re.search(r"mua ngay|chốt đơn|đặt hàng|mua.*ở đâu|link.*mua|bán hàng|ra đơn", combined): return True
+    if re.search(r"flash sale|sale|giảm sốc|giảm giá|khuyến mãi|ưu đãi|hết.*là.*hết", combined): return True
+    if re.search(r"giá gốc|giá sale|rẻ hơn|đáng tiền|tiết kiệm", combined): return True
+    cta = (analysis_json.get("cta") or "").lower()
+    if cta and re.search(r"mua|chốt|giỏ hàng|shop|link", cta): return True
+    return False
+
+
+def _detect_dialect(transcript: str) -> str | None:
+    if not transcript or len(transcript) < 20:
+        return None
+    t = transcript.lower()
+    south = sum(1 for p in _SOUTHERN if re.search(p, t))
+    north = sum(1 for p in _NORTHERN if re.search(p, t))
+    central = sum(1 for p in _CENTRAL if re.search(p, t))
+    max_score = max(south, north, central)
+    if max_score < 2:
+        return None
+    if central >= 3:
+        return "central"
+    if south > north * 1.5:
+        return "southern"
+    if north > south * 1.5:
+        return "northern"
+    if south >= 2 and north >= 2:
+        return "mixed"
+    return "southern" if south > north else "northern"
+
+
+def _classify_creator_tier(followers: int | None) -> str | None:
+    if not followers or followers < 0:
+        return None
+    if followers < 1_000: return "nano"
+    if followers < 10_000: return "micro"
+    if followers < 100_000: return "mid"
+    if followers < 1_000_000: return "macro"
+    return "mega"
+
+
+def _vietnam_hour(create_time: int | None) -> int | None:
+    if not create_time:
+        return None
+    dt = datetime.fromtimestamp(create_time, tz=timezone.utc)
+    return (dt.hour + 7) % 24
+
+
+def _normalize_handle(handle: str) -> str:
+    return handle.lstrip("@").lower().strip()
+
+
 def _build_corpus_row(
     aweme: dict[str, Any],
     analysis: dict[str, Any],
@@ -216,7 +358,7 @@ def _build_corpus_row(
     if not video_id:
         return None
 
-    handle = (
+    handle = _normalize_handle(
         author.get("username")
         or str(aweme.get("author", {}).get("unique_id", "") or "")
         or "unknown"
@@ -237,7 +379,52 @@ def _build_corpus_row(
     video_urls = ensemble.extract_video_urls(aweme)
     video_url = video_urls[0] if video_urls else None
 
+    views = int(metrics.get("views") or raw_stats.get("play_count") or raw_stats.get("playCount") or 0)
+    likes = int(metrics.get("likes") or raw_stats.get("digg_count") or 0)
+    comments = int(metrics.get("comments") or raw_stats.get("comment_count") or 0)
+    shares = int(metrics.get("shares") or raw_stats.get("share_count") or 0)
+    saves = int(raw_stats.get("collect_count") or raw_stats.get("collectCount") or 0)
+
+    analysis_json: dict[str, Any] = analysis.get("analysis") or {}
+    hook_info: dict[str, Any] = analysis_json.get("hook_analysis") or {}
+    scenes: list[dict[str, Any]] = analysis_json.get("scenes") or []
+
+    # ED metadata from aweme
+    music: dict[str, Any] = aweme.get("music") or {}
+    sound_id = str(music.get("id") or "") or None
+    sound_name = music.get("title") or None
+    is_original_sound = bool(sound_name and str(sound_name).lower().startswith("original sound"))
+    create_time: int | None = aweme.get("createTime") or aweme.get("create_time")
+    raw_author: dict[str, Any] = aweme.get("author") or {}
+    creator_followers: int | None = (
+        raw_author.get("follower_count")
+        or raw_author.get("followerCount")
+        or None
+    )
+    if creator_followers is not None:
+        creator_followers = int(creator_followers)
+
+    desc = aweme.get("desc") or ""
+    hashtags: list[str] = [
+        c.get("title") or ""
+        for c in (aweme.get("challenges") or [])
+        if c.get("title")
+    ]
+
+    stitch_setting: dict[str, Any] = aweme.get("stitch_setting") or aweme.get("stitchSetting") or {}
+    duet_setting: dict[str, Any] = aweme.get("duet_setting") or aweme.get("duetSetting") or {}
+    is_stitch = bool(stitch_setting.get("stitch_type") == 1 or stitch_setting.get("stitchType") == 1)
+    is_duet = bool(duet_setting.get("duet_type") == 1 or duet_setting.get("duetType") == 1)
+
+    posted_at = (
+        datetime.fromtimestamp(create_time, tz=timezone.utc).isoformat()
+        if create_time else None
+    )
+
+    transcript: str = analysis_json.get("audio_transcript") or ""
+
     return {
+        # ── Core columns (existing 17) ──
         "video_id": video_id,
         "content_type": content_type,
         "niche_id": niche_id,
@@ -246,20 +433,55 @@ def _build_corpus_row(
         "thumbnail_url": thumbnail_url,
         "video_url": video_url,
         "frame_urls": [],
-        "analysis_json": analysis.get("analysis", {}),
-        # metrics dict from VideoMetadata.model_dump(); fall back to raw aweme statistics
-        "views": int(metrics.get("views") or raw_stats.get("play_count") or raw_stats.get("playCount") or 0),
-        "likes": int(metrics.get("likes") or raw_stats.get("digg_count") or 0),
-        "comments": int(metrics.get("comments") or raw_stats.get("comment_count") or 0),
-        "shares": int(metrics.get("shares") or raw_stats.get("share_count") or 0),
-        # ER: use parsed value only if views > 0; otherwise 0 (never divide by zero)
+        "analysis_json": analysis_json,
+        "views": views,
+        "likes": likes,
+        "comments": comments,
+        "shares": shares,
         "engagement_rate": _safe_engagement_rate(
             er_from_analysis=analysis.get("engagement_rate") or metadata.get("engagement_rate"),
-            views=int(metrics.get("views") or raw_stats.get("play_count") or raw_stats.get("playCount") or 0),
-            likes=int(metrics.get("likes") or raw_stats.get("digg_count") or 0),
-            comments=int(metrics.get("comments") or raw_stats.get("comment_count") or 0),
-            shares=int(metrics.get("shares") or raw_stats.get("share_count") or 0),
+            views=views,
+            likes=likes,
+            comments=comments,
+            shares=shares,
         ),
+
+        # ── Group A: Gemini analysis extraction (11 columns) ──
+        "hook_type": _normalize_hook_type(hook_info.get("hook_type") or "other"),
+        "hook_phrase": hook_info.get("hook_phrase"),
+        "face_appears_at": hook_info.get("face_appears_at"),
+        "first_frame_type": hook_info.get("first_frame_type") or "other",
+        "video_duration": scenes[-1].get("end") if scenes else None,
+        "transitions_per_second": analysis_json.get("transitions_per_second"),
+        "tone": analysis_json.get("tone"),
+        "text_overlay_count": len(analysis_json.get("text_overlays") or []),
+        "scene_count": len(scenes),
+        "language": "vi",  # guaranteed by Gate 3/4 in ingest_niche
+
+        # ── Group B: Vietnamese/Asian TikTok-specific (4 columns) ──
+        "content_format": _classify_format(analysis_json, niche_id),
+        "cta_type": _classify_cta(analysis_json.get("cta")),
+        "is_commerce": _detect_commerce(analysis_json),
+        "dialect": _detect_dialect(transcript),
+
+        # ── Group C: ED metadata (13 columns) ──
+        "saves": saves,
+        "save_rate": saves / views if views > 0 else None,
+        "posted_at": posted_at,
+        "posting_hour": _vietnam_hour(create_time),
+        "sound_id": sound_id,
+        "sound_name": sound_name,
+        "is_original_sound": is_original_sound,
+        "creator_followers": creator_followers,
+        "creator_tier": _classify_creator_tier(creator_followers),
+        "caption": desc or None,
+        "hashtags": hashtags if hashtags else None,
+        "is_stitch": is_stitch,
+        "is_duet": is_duet,
+
+        # ── Group D: Searchable text (2 columns) ──
+        "topics": analysis_json.get("topics") or [],
+        "transcript_snippet": transcript[:500] if transcript else None,
     }
 
 
