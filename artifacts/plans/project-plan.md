@@ -45,10 +45,10 @@ Full plan: `artifacts/plans/output-quality-plan.md`
 | P1-6: Trend Card UI | P1 | ✅ | ✅ | 🔲 | Built — TrendCard.tsx + trend_card schema in prompts.py |
 | P1-7: Breakout multiplier | P1 | ✅ | — | 🔲 | Built — batch_analytics.py (creator_velocity + breakout_multiplier) |
 | P1-8: Signal strength grading | P1 | ✅ | ✅ | 🔲 | Built — signal_classifier.py + SignalBadge.tsx |
-| P1-9: Trending This Week (Explore) | P1 | 🔲 | 🔲 | 🔲 | — |
-| P1-10: Meta-pattern Monday email | P1 | 🔲 | — | 🔲 | — |
-| P2-11: Cross-creator detection | P2 | 🔲 | — | 🔲 | — |
-| P2-12: Video Đáng Học ranking | P2 | 🔲 | 🔲 | 🔲 | — |
+| P1-9: Trending This Week (Explore) | P1 | ✅ | ✅ | 🔲 | Built — trending_cards migration + weekly batch + TrendingSection.tsx |
+| P1-10: Meta-pattern Monday email | P1 | ✅ | — | 🔲 | Built — cron-monday-email Edge Function |
+| P2-11: Cross-creator detection | P2 | ✅ | — | 🔲 | Built — cross_creator_patterns migration + weekly batch |
+| P2-12: Video Đáng Học ranking | P2 | ✅ | ✅ | 🔲 | Built — video_dang_hoc migration + daily batch + VideoDangHocSidebar.tsx |
 | P2-13: Creator network (stretch) | P2 | 🔲 | — | 🔲 | — |
 
 ## Issues

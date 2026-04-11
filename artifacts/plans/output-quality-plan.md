@@ -18,10 +18,10 @@
 | P1-6: Trend Card UI component | P1 | Wave 3-4 | ✅ Built | Frontend |
 | P1-7: Breakout multiplier | P1 | Wave 3-4 | ✅ Built | Backend (batch) |
 | P1-8: Signal strength grading | P1 | Wave 3-4 | ✅ Built | Backend + Frontend |
-| P1-9: Trending This Week cards | P1 | Wave 4 | 🔲 Not started | Backend + Frontend |
-| P1-10: Meta-pattern Monday email | P1 | Wave 4 | 🔲 Not started | Backend |
-| P2-11: Cross-creator detection | P2 | Wave 4-5 | 🔲 Not started | Backend |
-| P2-12: Video Đáng Học ranking | P2 | Wave 4-5 | 🔲 Not started | Backend + Frontend |
+| P1-9: Trending This Week cards | P1 | Wave 4 | ✅ Built | Backend + Frontend |
+| P1-10: Meta-pattern Monday email | P1 | Wave 4 | ✅ Built | Backend |
+| P2-11: Cross-creator detection | P2 | Wave 4-5 | ✅ Built | Backend |
+| P2-12: Video Đáng Học ranking | P2 | Wave 4-5 | ✅ Built | Backend + Frontend |
 | P2-13: Creator network mapping | P2 | Wave 5 | 🔲 Not started | Backend |
 
 ---
@@ -470,10 +470,10 @@ Batch 8 — Stretch:                            P2-13
 | P1-6 (trend cards) | 3-4 | ✅ | ✅ | 🔲 | Built |
 | P1-7 (breakout) | 3-4 | ✅ | — | 🔲 | Built |
 | P1-8 (signal grading) | 3-4 | ✅ | ✅ | 🔲 | Built |
-| P1-9 (trending cards) | 4 | 🔲 | 🔲 | 🔲 | — |
-| P1-10 (meta-pattern email) | 4 | 🔲 | — | 🔲 | — |
-| P2-11 (cross-creator) | 4-5 | 🔲 | — | 🔲 | — |
-| P2-12 (video dang hoc) | 4-5 | 🔲 | 🔲 | 🔲 | — |
+| P1-9 (trending cards) | 4 | ✅ | ✅ | 🔲 | Built |
+| P1-10 (meta-pattern email) | 4 | ✅ | — | 🔲 | Built |
+| P2-11 (cross-creator) | 4-5 | ✅ | — | 🔲 | Built |
+| P2-12 (video dang hoc) | 4-5 | ✅ | ✅ | 🔲 | Built |
 | P2-13 (creator network) | 5 | 🔲 | — | 🔲 | — |
 
 ---
