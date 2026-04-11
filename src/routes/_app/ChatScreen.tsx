@@ -342,11 +342,6 @@ export default function ChatScreen() {
   const urlSessionId = searchParams.get("session");
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId);
 
-  useEffect(() => {
-    const s = searchParams.get("session");
-    if (s) setSessionId(s);
-  }, [searchParams]);
-
   const { data: profile } = useProfile();
   const { data: sessionRow, refetch: refetchSession } = useChatSession(sessionId);
   const createSession = useCreateSession();
@@ -380,6 +375,22 @@ export default function ChatScreen() {
   const lastIntentRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Reset to blank chat when navigating to /app without a ?session= param (new chat button)
+  useEffect(() => {
+    const s = searchParams.get("session");
+    if (!s) {
+      setSessionId(null);
+      setMessage("");
+      setShowMessages(false);
+      setClientPaywall(false);
+      setLastStreamIntent(null);
+      lastIntentRef.current = null;
+      reset();
+    }
+  // reset is stable (useCallback), searchParams identity changes on navigation
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     if (messages.length > 0) setShowMessages(true);
