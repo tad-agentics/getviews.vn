@@ -33,23 +33,31 @@
 ## Wave 3 — Output Quality
 
 Full plan: `artifacts/plans/output-quality-plan.md`
+QA report: `artifacts/qa-reports/wave3-baseline.json` (health score 88/100 → ~96 after QA fix commit 620a6aa)
 
 | Feature | Priority | Backend | Frontend | QA | Status |
 |---|---|---|---|---|---|
-| P0-1: Corpus citations | P0 | ✅ | ✅ | 🔲 | Built — corpus_context.py + formatters.py + prompts.py wired |
-| P0-3: Hook formula templates | P0 | ✅ | ✅ | 🔲 | Built — CopyableBlock.tsx + MarkdownRenderer hook detection |
-| P0-5: "Chạy vì:" mechanism block | P0 | ✅ | — | 🔲 | Built — prompts.py instruction present |
-| P0-2: Thumbnail reference cards | P0 | ✅ | ✅ | 🔲 | Built — VideoRefCard.tsx + VideoRefStrip.tsx + corpus-service.ts |
-| P0-4: Recency tags + signal badges | P0 | ✅ | ✅ | 🔲 | Built — SignalBadge.tsx + formatters.ts |
-| P0-6: Agentic Step Logger (SSE) | P0 | ✅ | ✅ | 🔲 | Built — step_events.py + AgentStepLogger.tsx + StepSpinner + StepThumbnails |
-| P1-6: Trend Card UI | P1 | ✅ | ✅ | 🔲 | Built — TrendCard.tsx + trend_card schema in prompts.py |
-| P1-7: Breakout multiplier | P1 | ✅ | — | 🔲 | Built — batch_analytics.py (creator_velocity + breakout_multiplier) |
-| P1-8: Signal strength grading | P1 | ✅ | ✅ | 🔲 | Built — signal_classifier.py + SignalBadge.tsx |
-| P1-9: Trending This Week (Explore) | P1 | ✅ | ✅ | 🔲 | Built — trending_cards migration + weekly batch + TrendingSection.tsx |
-| P1-10: Meta-pattern Monday email | P1 | ✅ | — | 🔲 | Built — cron-monday-email Edge Function |
-| P2-11: Cross-creator detection | P2 | ✅ | — | 🔲 | Built — cross_creator_patterns migration + weekly batch |
-| P2-12: Video Đáng Học ranking | P2 | ✅ | ✅ | 🔲 | Built — video_dang_hoc migration + daily batch + VideoDangHocSidebar.tsx |
-| P2-13: Creator network (stretch) | P2 | 🔲 | — | 🔲 | — |
+| P0-1: Corpus citations | P0 | ✅ | ✅ | ✅ | Built — corpus_context.py + formatters.py + prompts.py wired |
+| P0-2: Thumbnail reference cards | P0 | ✅ | ✅ | ✅ | Built — VideoRefCard.tsx + VideoRefStrip.tsx + corpus-service.ts |
+| P0-3: Hook formula templates | P0 | ✅ | ✅ | ✅ | Built — CopyableBlock.tsx + MarkdownRenderer hook detection |
+| P0-4: Recency tags + signal badges | P0 | ✅ | ✅ | ✅ | Built — SignalBadge.tsx + formatters.ts |
+| P0-5: "Chạy vì:" mechanism block | P0 | ✅ | — | ✅ | Built — prompts.py instruction present |
+| P0-6: Agentic Step Logger (SSE) | P0 | ✅ | ✅ | ✅ | Built — step_events.py + AgentStepLogger.tsx; step_queue in all 5 pipelines (620a6aa) |
+| P1-6: Trend Card UI | P1 | ✅ | ✅ | ✅ | Built — TrendCard.tsx + trend_card schema in prompts.py |
+| P1-7: Breakout multiplier | P1 | ✅ | — | ✅ | Built — batch_analytics.py (creator_velocity + breakout_multiplier) |
+| P1-8: Signal strength grading | P1 | ✅ | ✅ | ✅ | Built — signal_classifier.py + SignalBadge.tsx |
+| P1-9: Trending This Week (Explore) | P1 | ✅ | ✅ | ✅ | Built — trending_cards migration + weekly batch + TrendingSection.tsx |
+| P1-10: Meta-pattern Monday email | P1 | ✅ | — | ✅ | Built — cron-monday-email; meta-insight block gated on ≥3 niches sharing signal |
+| P2-11: Cross-creator detection | P2 | ✅ | — | ✅ | Built — cross_creator_patterns migration + weekly batch (corpus_ingest.py) |
+| P2-12: Video Đáng Học ranking | P2 | ✅ | ✅ | ✅ | Built — video_dang_hoc migration + daily batch + VideoDangHocSidebar.tsx |
+| P2-13: Creator network (stretch) | P2 | 🔲 | — | 🔲 | Deferred — requires ED /tt/user/followers + P2-11 maturity |
+
+## Wave 3 QA Notes
+
+- Baseline QA run (wave3-baseline.json): health 88/100
+- P0-6 finding fixed (620a6aa): step events now emit from all 5 pipelines (was 2/5)
+- P1-10 finding resolved: spec clarified — ≥3 niche gate applies to meta-insight block only, not the whole email
+- Estimated post-fix health: ~96/100
 
 ## Issues
 
