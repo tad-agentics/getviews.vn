@@ -9,7 +9,7 @@ export function useChatSessions() {
       const { data, error } = await supabase
         .from("chat_sessions")
         .select(
-          "id, title, first_message, created_at, niche_id, intent_type, credits_used, niche_taxonomy(name)",
+          "id, title, first_message, created_at, niche_id, intent_type, credits_used, niche_taxonomy(name_vn)",
         )
         .is("deleted_at", null)
         .order("created_at", { ascending: false })

@@ -190,7 +190,7 @@ app = FastAPI(title="GetViews Pipeline", version="0.1.0")
 # local dev on any port.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app|https://getviews\.vn|http://localhost:\d+",
+    allow_origin_regex=r"https://.*\.vercel\.app|https://(www\.)?getviews\.vn|http://localhost:\d+",
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],

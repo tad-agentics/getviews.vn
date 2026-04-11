@@ -17,10 +17,13 @@ function isIOSDevice(): boolean {
 
 export function useInstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(() => isStandaloneDisplay());
-  const isIOS = isIOSDevice();
+  // Start false on SSR; effect corrects to actual value after hydration
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Resolve browser-only values after hydration to avoid SSR/client mismatch
+    setIsIOS(isIOSDevice());
     setIsInstalled(isStandaloneDisplay());
     const onChange = () => setIsInstalled(isStandaloneDisplay());
     const mq = window.matchMedia("(display-mode: standalone)");
