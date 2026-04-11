@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, forwardRef, TextareaHTMLAttributes } from 'react';
+import { type InputHTMLAttributes, forwardRef, type TextareaHTMLAttributes } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: boolean;
