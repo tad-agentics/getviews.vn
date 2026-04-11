@@ -412,7 +412,7 @@ async def stream(
 
             elif normalized == "content_directions":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
-                pipeline_coro = run_content_directions(niche, session, questions)
+                pipeline_coro = run_content_directions(niche, session, questions, step_queue=step_q)
 
             elif normalized == "own_channel":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
@@ -420,11 +420,11 @@ async def stream(
 
             elif normalized == "brief_generation":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
-                pipeline_coro = run_brief_generation(body.query, niche, session, questions)
+                pipeline_coro = run_brief_generation(body.query, niche, session, questions, step_queue=step_q)
 
             elif normalized == "trend_spike":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
-                pipeline_coro = run_trend_spike(niche, session, questions)
+                pipeline_coro = run_trend_spike(niche, session, questions, step_queue=step_q)
 
             elif normalized == "find_creators":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)

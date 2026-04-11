@@ -374,13 +374,15 @@ Batch 8 — Stretch:                            P2-13
 1. `supabase/functions/cron-monday-email/` (extend existing) — after per-niche plans generated, one additional Flash-Lite call:
    - Input: all 17 niche trend summaries
    - Output: 2-3 sentence Vietnamese cross-niche insight
-   - Only included when a genuine cross-cutting pattern exists (don't force)
-2. Email template — add meta-insight as header block before per-niche sections
+   - The meta-insight block is only included when ≥3 niches share a cross-cutting signal (gate applies to the block, not the entire email — the per-niche sections are always sent)
+2. Email template — add meta-insight as header block before per-niche sections (when present)
 3. Email subject: Vietnamese, ≤42 chars, mobile-optimized: `"Tuần này: hook Cảnh Báo bùng trong 4 niche"`
-4. Preview text: first sentence of the meta-insight
+4. Preview text: first sentence of the meta-insight (or first per-niche summary if no meta-insight)
 
 **Acceptance criteria:**
-- [ ] Monday email opens with 2-3 sentence cross-niche insight in Vietnamese
+- [ ] Monday email always sends with per-niche trend summaries
+- [ ] When ≥3 niches share a signal: email opens with 2-3 sentence cross-niche insight in Vietnamese
+- [ ] When <3 niches share a signal: email sends without meta-insight block (per-niche only)
 - [ ] Insight references specific niche count ("4/17 niche thấy xu hướng này")
 - [ ] Email subject ≤42 chars, Vietnamese, mobile-optimized
 - [ ] Tone: creator conversation — "Chạy vì:" not "Tại sao hiệu quả:"

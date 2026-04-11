@@ -89,157 +89,176 @@ async def run_content_directions(
     niche: str,
     session: dict[str, Any],
     questions: list[str],
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
-    sem = get_analysis_semaphore()
-    pool = await _niche_aweme_pool(niche, period=30)
-    fa: dict[str, Any] = session.setdefault("full_analyses", {})
-    cached_ids = set(fa.keys())
-    picks = select_reference_videos(
-        pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
-    )
+    try:
+        sem = get_analysis_semaphore()
+        emit(step_queue, step_start(f"Đang tìm hướng nội dung cho '{niche}'..."))
+        emit(step_queue, step_search("ensemble", niche))
+        pool = await _niche_aweme_pool(niche, period=30)
+        emit(step_queue, step_count(len(pool)))
+        fa: dict[str, Any] = session.setdefault("full_analyses", {})
+        cached_ids = set(fa.keys())
+        picks = select_reference_videos(
+            pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+        )
 
-    analyzed: list[dict[str, Any]] = []
+        analyzed: list[dict[str, Any]] = []
 
-    async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
-        async with sem:
-            return await analyze_aweme(
-                aweme, include_diagnosis=False, full_analyses=fa
-            )
+        async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+            async with sem:
+                return await analyze_aweme(
+                    aweme, include_diagnosis=False, full_analyses=fa
+                )
 
-    tasks = [_one(a) for a in picks]
-    results = await asyncio.gather(*tasks)
-    for r in results:
-        if "analysis" in r:
-            analyzed.append(r)
+        emit(step_queue, step_process("Đang phân tích video tham chiếu..."))
+        tasks = [_one(a) for a in picks]
+        results = await asyncio.gather(*tasks)
+        for r in results:
+            if "analysis" in r:
+                analyzed.append(r)
 
-    count, niche_name = await get_corpus_count_cached(
-        session, niche_id=None, days=30, niche_name=niche
-    )
-    citation = build_corpus_citation_block(count, niche_name, days=30)
+        count, niche_name = await get_corpus_count_cached(
+            session, niche_id=None, days=30, niche_name=niche
+        )
+        citation = build_corpus_citation_block(count, niche_name, days=30)
+        emit(step_queue, step_done("Đã phân tích xong — đang tổng hợp hướng nội dung..."))
 
-    payload = {
-        "niche": niche,
-        "reference_count": len(analyzed),
-        "analyzed_videos": analyzed,
-    }
-    synthesis = await run_sync(
-        synthesize_intent_markdown,
-        "content_directions",
-        payload,
-        collapsed_questions=questions if len(questions) > 1 else None,
-        niche_key=niche,
-        corpus_citation=citation,
-    )
-    directions_struct = [
-        {
-            "label": f"direction_{i + 1}",
-            "summary": a.get("analysis", {})
-            .get("content_direction", {})
-            .get("what_works", ""),
+        payload = {
+            "niche": niche,
+            "reference_count": len(analyzed),
+            "analyzed_videos": analyzed,
         }
-        for i, a in enumerate(analyzed[:3])
-    ]
-    session["directions"] = directions_struct
-    _append_completed(session, QueryIntent.CONTENT_DIRECTIONS)
-    _bump_analyses_summary(
-        session,
-        niche=niche,
-        delta_videos=len(analyzed),
-        intent_label="content_directions",
-        patterns=[
-            str(a.get("analysis", {}).get("content_direction", {}).get("what_works", ""))[
-                :120
-            ]
-            for a in analyzed
-            if a.get("analysis")
-        ],
-    )
-    return {
-        "intent": "content_directions",
-        "niche": niche,
-        "synthesis": synthesis,
-        "analyzed_videos": analyzed,
-        "directions": directions_struct,
-    }
+        synthesis = await run_sync(
+            synthesize_intent_markdown,
+            "content_directions",
+            payload,
+            collapsed_questions=questions if len(questions) > 1 else None,
+            niche_key=niche,
+            corpus_citation=citation,
+        )
+        directions_struct = [
+            {
+                "label": f"direction_{i + 1}",
+                "summary": a.get("analysis", {})
+                .get("content_direction", {})
+                .get("what_works", ""),
+            }
+            for i, a in enumerate(analyzed[:3])
+        ]
+        session["directions"] = directions_struct
+        _append_completed(session, QueryIntent.CONTENT_DIRECTIONS)
+        _bump_analyses_summary(
+            session,
+            niche=niche,
+            delta_videos=len(analyzed),
+            intent_label="content_directions",
+            patterns=[
+                str(a.get("analysis", {}).get("content_direction", {}).get("what_works", ""))[
+                    :120
+                ]
+                for a in analyzed
+                if a.get("analysis")
+            ],
+        )
+        return {
+            "intent": "content_directions",
+            "niche": niche,
+            "synthesis": synthesis,
+            "analyzed_videos": analyzed,
+            "directions": directions_struct,
+        }
+    finally:
+        await emit_sentinel(step_queue)
 
 
 async def run_trend_spike(
     niche: str,
     session: dict[str, Any],
     questions: list[str],
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
-    sem = get_analysis_semaphore()
-    pool = await _niche_aweme_pool(niche, period=7)
-    fa = session.setdefault("full_analyses", {})
-    cached_ids = set(fa.keys())
-    picks = select_reference_videos(
-        pool, recency_days=7, n=REF_N, cached_ids=cached_ids, rank_by="velocity"
-    )
+    try:
+        sem = get_analysis_semaphore()
+        emit(step_queue, step_start(f"Đang tìm xu hướng '{niche}'..."))
+        emit(step_queue, step_search("ensemble", niche))
+        pool = await _niche_aweme_pool(niche, period=7)
+        emit(step_queue, step_count(len(pool)))
+        fa = session.setdefault("full_analyses", {})
+        cached_ids = set(fa.keys())
+        picks = select_reference_videos(
+            pool, recency_days=7, n=REF_N, cached_ids=cached_ids, rank_by="velocity"
+        )
 
-    async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
-        async with sem:
-            return await analyze_aweme(
-                aweme, include_diagnosis=False, full_analyses=fa
-            )
+        async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+            async with sem:
+                return await analyze_aweme(
+                    aweme, include_diagnosis=False, full_analyses=fa
+                )
 
-    results = await asyncio.gather(*[_one(a) for a in picks])
-    analyzed = [r for r in results if "analysis" in r]
+        emit(step_queue, step_process("Đang phân tích video bứt phá..."))
+        results = await asyncio.gather(*[_one(a) for a in picks])
+        analyzed = [r for r in results if "analysis" in r]
 
-    count, niche_name = await get_corpus_count_cached(
-        session, niche_id=None, days=7, niche_name=niche
-    )
-    citation = build_corpus_citation_block(count, niche_name, days=7)
+        count, niche_name = await get_corpus_count_cached(
+            session, niche_id=None, days=7, niche_name=niche
+        )
+        citation = build_corpus_citation_block(count, niche_name, days=7)
 
-    # Enrich with real breakout + signal data (P1-7 + P1-8)
-    # niche_id lookup: use session if available, else omit (signal grades require integer id)
-    niche_id: int | None = session.get("niche_id")
+        # Enrich with real breakout + signal data (P1-7 + P1-8)
+        # niche_id lookup: use session if available, else omit (signal grades require integer id)
+        niche_id: int | None = session.get("niche_id")
+        emit(step_queue, step_search("corpus", f"breakout videos {niche}"))
 
-    breakout_task = get_top_breakout_videos(niche_id, days=7, limit=10)
-    signal_task = (
-        get_signal_grades_for_niche(niche_id)
-        if niche_id is not None
-        else _empty_dict()
-    )
+        breakout_task = get_top_breakout_videos(niche_id, days=7, limit=10)
+        signal_task = (
+            get_signal_grades_for_niche(niche_id)
+            if niche_id is not None
+            else _empty_dict()
+        )
 
-    breakout_videos, signal_grades = await asyncio.gather(
-        breakout_task,
-        signal_task,
-        return_exceptions=True,
-    )
-    if isinstance(breakout_videos, Exception):
-        breakout_videos = []
-    if isinstance(signal_grades, Exception):
-        signal_grades = {}
+        breakout_videos, signal_grades = await asyncio.gather(
+            breakout_task,
+            signal_task,
+            return_exceptions=True,
+        )
+        if isinstance(breakout_videos, Exception):
+            breakout_videos = []
+        if isinstance(signal_grades, Exception):
+            signal_grades = {}
 
-    payload = {
-        "niche": niche,
-        "window_days": 7,
-        "analyzed_videos": analyzed,
-        "breakout_videos": breakout_videos,
-        "signal_grades": signal_grades,
-    }
-    synthesis = await run_sync(
-        synthesize_intent_markdown,
-        "trend_spike",
-        payload,
-        collapsed_questions=questions if len(questions) > 1 else None,
-        niche_key=niche,
-        corpus_citation=citation,
-    )
-    session["directions"] = session.get("directions") or []
-    _append_completed(session, QueryIntent.TREND_SPIKE)
-    _bump_analyses_summary(
-        session,
-        niche=niche,
-        delta_videos=len(analyzed),
-        intent_label="trend_spike",
-    )
-    return {
-        "intent": "trend_spike",
-        "niche": niche,
-        "synthesis": synthesis,
-        "analyzed_videos": analyzed,
-    }
+        emit(step_queue, step_done("Đã tổng hợp dữ liệu — đang viết phân tích..."))
+        payload = {
+            "niche": niche,
+            "window_days": 7,
+            "analyzed_videos": analyzed,
+            "breakout_videos": breakout_videos,
+            "signal_grades": signal_grades,
+        }
+        synthesis = await run_sync(
+            synthesize_intent_markdown,
+            "trend_spike",
+            payload,
+            collapsed_questions=questions if len(questions) > 1 else None,
+            niche_key=niche,
+            corpus_citation=citation,
+        )
+        session["directions"] = session.get("directions") or []
+        _append_completed(session, QueryIntent.TREND_SPIKE)
+        _bump_analyses_summary(
+            session,
+            niche=niche,
+            delta_videos=len(analyzed),
+            intent_label="trend_spike",
+        )
+        return {
+            "intent": "trend_spike",
+            "niche": niche,
+            "synthesis": synthesis,
+            "analyzed_videos": analyzed,
+        }
+    finally:
+        await emit_sentinel(step_queue)
 
 
 async def run_competitor_profile(
@@ -343,36 +362,44 @@ async def run_brief_generation(
     niche: str,
     session: dict[str, Any],
     questions: list[str],
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
-    count, niche_name = await get_corpus_count_cached(
-        session, niche_id=None, days=30, niche_name=niche
-    )
-    citation = build_corpus_citation_block(count, niche_name, days=30)
+    try:
+        emit(step_queue, step_start("Đang chuẩn bị brief quay phim..."))
+        emit(step_queue, step_search("corpus", niche or topic))
+        count, niche_name = await get_corpus_count_cached(
+            session, niche_id=None, days=30, niche_name=niche
+        )
+        citation = build_corpus_citation_block(count, niche_name, days=30)
+        emit(step_queue, step_process("Đang tạo brief dựa trên dữ liệu corpus..."))
 
-    payload = {
-        "topic": topic,
-        "niche": niche,
-        "session_diagnosis": session.get("diagnosis"),
-        "session_directions": session.get("directions"),
-        "session_competitor": session.get("competitor_profile"),
-        "analyses_summary": session.get("analyses_summary", {}),
-    }
-    brief = await run_sync(
-        synthesize_intent_markdown,
-        "brief_generation",
-        payload,
-        collapsed_questions=questions if len(questions) > 1 else None,
-        niche_key=niche,
-        corpus_citation=citation,
-    )
-    _append_completed(session, QueryIntent.BRIEF_GENERATION)
-    _bump_analyses_summary(
-        session,
-        niche=niche or session.get("niche"),
-        delta_videos=0,
-        intent_label="brief_generation",
-    )
-    return {"intent": "brief_generation", "topic": topic, "niche": niche, "brief": brief}
+        payload = {
+            "topic": topic,
+            "niche": niche,
+            "session_diagnosis": session.get("diagnosis"),
+            "session_directions": session.get("directions"),
+            "session_competitor": session.get("competitor_profile"),
+            "analyses_summary": session.get("analyses_summary", {}),
+        }
+        brief = await run_sync(
+            synthesize_intent_markdown,
+            "brief_generation",
+            payload,
+            collapsed_questions=questions if len(questions) > 1 else None,
+            niche_key=niche,
+            corpus_citation=citation,
+        )
+        emit(step_queue, step_done("Brief xong — đang hiển thị..."))
+        _append_completed(session, QueryIntent.BRIEF_GENERATION)
+        _bump_analyses_summary(
+            session,
+            niche=niche or session.get("niche"),
+            delta_videos=0,
+            intent_label="brief_generation",
+        )
+        return {"intent": "brief_generation", "topic": topic, "niche": niche, "brief": brief}
+    finally:
+        await emit_sentinel(step_queue)
 
 
 async def run_video_diagnosis(
