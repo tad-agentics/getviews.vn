@@ -1,8 +1,18 @@
 # Production Pipeline Upgrades — Revised Plan
 
-**Date:** 2026-04-08
+**Date:** 2026-04-08 | **Last reviewed:** 2026-04-11 (post Wave 3 complete)
 **Based on:** getviews-production-pipeline-plan.md + production-pipeline-downstream-updates.md
 **Scope:** Three new pipeline intents — U3 Sound Intelligence, U2 Shot List Generator, U1 Pre-Publish Audit
+
+## Wave 3 Gate Status (as of 2026-04-11)
+
+| Gate | Status | Notes |
+|---|---|---|
+| Wave 3 P0 all QA PASS | ✅ | P0-1 through P0-6 complete; step_queue on all 5 pipelines (620a6aa) |
+| Wave 3 P1 all QA PASS | ✅ | P1-6 through P1-10 complete |
+| Wave 3 P2 all QA PASS | ✅ | P2-11, P2-12 complete; P2-13 deferred |
+| **U2 dependency gate** | ✅ **CLEARED** | All Wave 3 P0 items are QA PASS — U2 can start now |
+| **U1 dependency gate** | ✅ **CLEARED** (partial) | Wave 3 complete; still needs R2 bucket + billing decision |
 
 ---
 
@@ -46,15 +56,15 @@ flowchart TD
 
 ---
 
-## Build Priority
+## Build Priority (updated 2026-04-11)
 
-| Upgrade | When to build | Rationale |
-|---|---|---|
-| U3 Sound Intelligence | Now | Additive, no new routing, data already in video_corpus. Highest ROI. |
-| U2 Shot List Generator | After Wave 3 P0 items complete | New intent (4 integration points). brief_generation covers 80% today. Wave 3 P0 improves all intents — more leverage per hour. |
-| U1 Pre-Publish Audit | Deferred — after Wave 3 complete + R2 infra provisioned | Highest value but highest complexity. New upload→stream flow is a fundamental change to the chat loop. Privacy risk if R2 lifecycle misconfigured. Build on stable, optimized output base. |
+| Upgrade | Status | When to build | Rationale |
+|---|---|---|---|
+| U3 Sound Intelligence | 🔲 Not started | **Now** | Additive, no new routing, sound fields already in video_corpus. Highest ROI. |
+| U2 Shot List Generator | 🔲 Not started | **Now** ✅ Gate cleared | Wave 3 P0 all QA PASS — dependency gate lifted. Build immediately after U3. |
+| U1 Pre-Publish Audit | 🔲 Deferred | After R2 infra + billing decision | Wave 3 complete ✅. Still needs: R2 `temp-audits` bucket + 24h lifecycle rule + credits decision. |
 
-**Wave 3 P0 items that unblock U2/U1** (from `project-plan.md`):
+**Wave 3 P0 gate items** — all QA PASS ✅:
 - P0-1: Corpus citations
 - P0-2: Thumbnail reference cards
 - P0-3: Hook formula templates
@@ -86,18 +96,20 @@ No upload endpoint exists in `main.py`. `ChatScreen.tsx` has no file-picker. The
 - `ChatScreen.tsx`: file input `<input type="file" accept="video/*">`, calls `/upload` first, then calls `/stream` with the R2 URL injected as `urls[0]`
 - `pre_publish_audit` is triggered by file drop/pick, not keyword detection — `detectIntent` returns `"pre_publish_audit"` only when a file is attached
 
-**Conflict 5 — Migration numbering (Trivial)**
-Next migration must be `20260411000022_create_trending_sounds.sql` (last existing is `000021`).
+**Conflict 5 — Migration numbering (Updated)**
+Wave 3 consumed `000022`–`000025`. Next migration must be `20260411000026_create_trending_sounds.sql`.
+Last existing: `20260411000025_video_dang_hoc.sql`.
 
 ---
 
 ## U3 — Sound Intelligence (Build Now)
 
-**Why now:** `video_corpus` already stores `sound_id`, `sound_name`, `is_original_sound` from the last batch job. No new intent routing. Purely additive — worst case is an empty sound section if the batch hasn't run yet.
+**Status:** 🔲 Not started  
+**Why now:** `video_corpus` has `sound_id`, `sound_name`, `is_original_sound` columns live (migration `20260411000020`), populated by `corpus_ingest.py` on every video ingest. No new intent routing. Purely additive — worst case is an empty sound section if the batch hasn't run yet.
 
 ### New files
 
-- `supabase/migrations/20260411000022_create_trending_sounds.sql` — `trending_sounds` table + RLS
+- `supabase/migrations/20260411000026_create_trending_sounds.sql` — `trending_sounds` table + RLS *(was 000022 — taken by Wave 3)*
 - `src/lib/batch/sound-aggregator.ts` — reads `video_corpus.sound_id/name/is_original_sound`, aggregates by niche + week, upserts `trending_sounds`
 - `src/lib/batch/weekly-job.ts` — orchestrates corpus refresh + sound aggregation (runs after Sunday batch)
 - `src/components/chat/TrendingSoundCard.tsx` — renders a sound card with name, usage count, commerce signal
@@ -117,11 +129,12 @@ Next migration must be `20260411000022_create_trending_sounds.sql` (last existin
 
 ---
 
-## U2 — Shot List Generator (After Wave 3 P0)
+## U2 — Shot List Generator (Build After U3)
 
-**Why after Wave 3 P0:** `brief_generation` covers 80% of the use case today. Wave 3 P0 items (corpus citations, thumbnail cards, hook templates) improve every response — higher leverage. U2 builds on top of a better output foundation.
+**Status:** 🔲 Not started — dependency gate ✅ CLEARED  
+**Why now:** Wave 3 P0 all QA PASS. `brief_generation` covers 80% of the use case but lacks structured shot-by-shot breakdown. U2 adds a new `shot_list` intent with its own pipeline, prompt framing, and card UI.
 
-**Dependency gate:** All 5 Wave 3 P0 items must be QA PASS before starting U2.
+**Dependency gate:** ✅ All 5 Wave 3 P0 items QA PASS — start immediately after U3.
 
 ### New files
 
@@ -146,13 +159,14 @@ Next migration must be `20260411000022_create_trending_sounds.sql` (last existin
 
 ## U1 — Pre-Publish Audit (Deferred)
 
-**Why deferred:** Highest creator value but highest complexity. Key blockers:
-- R2 `temp-audits` bucket doesn't exist — requires infra provisioning before any code works
+**Status:** 🔲 Deferred — Wave 3 gate ✅ cleared; R2 + billing still pending  
+**Why deferred:** Highest creator value but highest complexity. Remaining blockers:
+- R2 `temp-audits` bucket doesn't exist — provision before any code works
 - Upload→stream two-step is a new interaction pattern in ChatScreen.tsx (file state, error handling, orphaned R2 objects on stream failure)
 - 7-metric comparator requires simultaneous analysis of two videos — new Gemini call pattern not used in any existing pipeline
 - Credit billing decision needed: does this consume credits? If no, it's abuseable
 
-**Dependency gate:** Wave 3 complete + R2 temp-audits bucket provisioned + billing decision made.
+**Dependency gate:** ~~Wave 3 complete~~ ✅ + R2 `temp-audits` bucket provisioned + billing decision made.
 
 ### New files
 
@@ -189,7 +203,7 @@ Next migration must be `20260411000022_create_trending_sounds.sql` (last existin
 
 ## Pre-conditions checklist before starting U1
 
-- [ ] Wave 3 P0–P1 all QA PASS
+- [x] Wave 3 P0–P2 all QA PASS ✅ (2026-04-11)
 - [ ] R2 `temp-audits` bucket created with 24h lifecycle rule configured
 - [ ] Decision made: does `pre_publish_audit` consume credits? (yes = update billing gate; no = add rate-limit)
 - [ ] Orphaned R2 object cleanup strategy defined (e.g. on stream failure, delete the uploaded file)
