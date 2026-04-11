@@ -54,7 +54,7 @@ function OverlappingThumbs({
           className="h-5 w-5 flex-shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-alt)]"
           style={{ marginLeft: idx === 0 ? 0 : -4, zIndex: 3 - idx }}
         >
-          <img src={m.thumbnail_url ?? PLACEHOLDER_THUMB} alt="" className="h-full w-full object-cover" />
+          <img src={m.thumbnail_url ?? PLACEHOLDER_THUMB} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
         </div>
       ))}
     </div>

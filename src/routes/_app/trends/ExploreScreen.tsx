@@ -144,7 +144,7 @@ function EngagementSidebar({
   return (
     <div className="hidden md:flex absolute right-3 bottom-24 z-20 flex-col items-center gap-4">
       <div className="w-9 h-9 rounded-full bg-[var(--surface)] border-2 border-white overflow-hidden">
-        <img src={img} alt="" className="w-full h-full object-cover" />
+        <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
       </div>
       <div className="flex flex-col items-center gap-0.5">
         <Heart className="w-6 h-6 text-white" strokeWidth={2} />
@@ -295,7 +295,7 @@ function VideoPlayerModal({
                       style={{ width: 80, flexShrink: 0 }}
                     >
                       <div className="w-full rounded-lg overflow-hidden relative" style={{ height: 100 }}>
-                        <img src={v.img} alt="" className="w-full h-full object-cover" />
+                        <img src={v.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
                         {isSel && (
                           <div className="absolute inset-0 bg-[var(--purple)]/20 flex items-center justify-center">
                             <div className="w-3 h-3 rounded-full bg-white/90" />
@@ -326,7 +326,7 @@ function VideoPlayerModal({
                     className={`w-full flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-[120ms] border-b border-[var(--border)] last:border-0 ${isSel ? "bg-[var(--purple-light)]" : "hover:bg-[var(--surface-alt)]"}`}
                   >
                     <div className="flex-shrink-0 rounded-md overflow-hidden border border-[var(--border)] relative" style={{ width: 36, height: 50 }}>
-                      <img src={v.img} alt="" className="w-full h-full object-cover" />
+                      <img src={v.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
                       {isSel && (
                         <div className="absolute inset-0 bg-[var(--purple)]/25 flex items-center justify-center">
                           <div className="w-2.5 h-2.5 rounded-full bg-white/90" />
@@ -382,7 +382,7 @@ function VideoCard({
         className="relative rounded-xl overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--border-active)] transition-colors duration-[120ms]"
         style={{ aspectRatio: "9/14" }}
       >
-        <img src={video.img} alt="" className="w-full h-full object-cover" />
+        <img src={video.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
         {video.text && (
           <div className="absolute top-2 left-2 right-2">
             <p className="text-white text-[11px] font-semibold drop-shadow leading-snug line-clamp-2">{video.text}</p>
@@ -425,7 +425,7 @@ function SidebarVideoRow({
         <span className="text-xs font-mono text-[var(--faint)] w-4 flex-shrink-0 pt-0.5 text-right">{rank}</span>
       )}
       <div className="w-9 h-12 flex-shrink-0 rounded-md overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)]">
-        <img src={item.img} alt="" className="w-full h-full object-cover" />
+        <img src={item.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-semibold text-[var(--ink)] leading-snug line-clamp-2 group-hover:text-[var(--purple)] transition-colors duration-[120ms]">

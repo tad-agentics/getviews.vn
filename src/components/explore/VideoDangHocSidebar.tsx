@@ -41,6 +41,7 @@ function VideoDangHocRow({ row, showVelocity }: { row: VideoRow; showVelocity: b
           src={row.thumbnail_url || PLACEHOLDER_THUMB}
           alt=""
           className="w-full h-full object-cover"
+          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }}
         />
       </div>
       <div className="flex-1 min-w-0">
