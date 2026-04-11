@@ -230,6 +230,9 @@ function detectIntent(query: string, priorAssistant: boolean): { intentType: str
   if (/\b(tìm kol|tìm creator|\bkol\b)\b/i.test(ql)) return { intentType: "find_creators", isFree: true };
   if (/\b(soi kênh|kênh của (tôi|mình|tao)|phân tích kênh|channel của)\b/i.test(ql)) return { intentType: "own_channel", isFree: false };
   if (/\b(gì đang hot|content direction|hướng nội dung|nên làm (gì|video gì)|video gì (đang|phổ biến)|ý tưởng video)\b/i.test(ql)) return { intentType: "content_directions", isFree: false };
+  if (/\b(shot list|danh sách cảnh quay|kịch bản quay|cảnh quay|lên kịch bản)\b/i.test(query)) {
+    return { intentType: "shot_list", isFree: false };
+  }
   if (priorAssistant) return { intentType: "follow_up", isFree: true };
   return { intentType: "brief_generation", isFree: false };
 }

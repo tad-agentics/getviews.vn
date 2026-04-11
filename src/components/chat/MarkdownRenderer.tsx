@@ -10,6 +10,9 @@
  *   2. trend_card JSON blocks → TrendCard (P1-6)
  *      {"type":"trend_card","title":"...","signal":"rising","hook_formula":"...","mechanism":"..."}
  *
+ *   2b. sound_card JSON blocks → TrendingSoundCard (U3)
+ *   2c. shot_item JSON blocks → ShotListCard list (U2)
+ *
  *   3. Hook: lines            → CopyableBlock (P0-3)
  *      "Hook: ĐỪNG [hành động] nếu chưa xem video này"
  *      "**Hook:** [Sản phẩm] chỉ [giá] — mua ở đâu?"
@@ -22,9 +25,12 @@
  * until the closing brace arrives and the block is detected on the next render.
  */
 import { useMemo } from "react";
-import { VideoRefStrip, type VideoRefData } from "./VideoRefStrip";
+import { VideoRefStrip } from "./VideoRefStrip";
+import type { VideoRefData } from "./VideoRefCard";
 import { CopyableBlock } from "./CopyableBlock";
 import { TrendCard, type TrendCardData } from "./TrendCard";
+import { TrendingSoundCard, type TrendingSoundData } from "./TrendingSoundCard";
+import { ShotListCard, type ShotItemData } from "./ShotListCard";
 
 // ---------------------------------------------------------------------------
 // Segment types
@@ -34,8 +40,16 @@ type TextSegment = { kind: "text"; content: string };
 type VideoRefSegment = { kind: "video_refs"; refs: VideoRefData[] };
 type HookSegment = { kind: "hook"; text: string };
 type TrendCardSegment = { kind: "trend_card"; data: TrendCardData; cardIndex: number };
+type SoundCardSegment = { kind: "sound_card"; data: TrendingSoundData; cardIndex: number };
+type ShotListSegment = { kind: "shot_list"; items: ShotItemData[] };
 
-type Segment = TextSegment | VideoRefSegment | HookSegment | TrendCardSegment;
+type Segment =
+  | TextSegment
+  | VideoRefSegment
+  | HookSegment
+  | TrendCardSegment
+  | SoundCardSegment
+  | ShotListSegment;
 
 // ---------------------------------------------------------------------------
 // Parser
@@ -101,17 +115,127 @@ function extractTrendCards(
   return { result, cards };
 }
 
+/**
+ * Match complete sound_card JSON blocks (same balanced-brace strategy as trend_card).
+ */
+function extractSoundCards(
+  text: string
+): { result: string; cards: TrendingSoundData[] } {
+  const cards: TrendingSoundData[] = [];
+  let result = text;
+  let searchFrom = 0;
+
+  while (true) {
+    const start = result.indexOf('{"type":"sound_card"', searchFrom);
+    if (start === -1) break;
+
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < result.length; i++) {
+      if (result[i] === "{") depth++;
+      else if (result[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end === -1) break;
+
+    const raw = result.slice(start, end);
+    try {
+      const data = JSON.parse(raw) as TrendingSoundData & { type?: string };
+      if (data.type === "sound_card") {
+        const idx = cards.length;
+        cards.push(data);
+        result =
+          result.slice(0, start) +
+          `\x00SOUND_CARD_${idx}\x00` +
+          result.slice(end);
+        searchFrom = start + `\x00SOUND_CARD_${idx}\x00`.length;
+        continue;
+      }
+    } catch {
+      /* malformed — leave as plain text */
+    }
+    searchFrom = end;
+  }
+
+  return { result, cards };
+}
+
+/**
+ * Extract all shot_item JSON blocks; replace with a single SHOT_LIST marker at the first block.
+ */
+function extractShotItems(text: string): { result: string; items: ShotItemData[] } {
+  type Range = { start: number; end: number };
+  const items: ShotItemData[] = [];
+  const ranges: Range[] = [];
+  let searchFrom = 0;
+
+  while (true) {
+    const start = text.indexOf('{"type":"shot_item"', searchFrom);
+    if (start === -1) break;
+
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end === -1) break;
+
+    const raw = text.slice(start, end);
+    try {
+      const data = JSON.parse(raw) as ShotItemData;
+      if (data.type === "shot_item") {
+        ranges.push({ start, end });
+        items.push(data);
+      }
+    } catch {
+      searchFrom = start + 1;
+      continue;
+    }
+    searchFrom = end;
+  }
+
+  if (ranges.length === 0) return { result: text, items: [] };
+
+  let out = "";
+  let last = 0;
+  for (let i = 0; i < ranges.length; i++) {
+    const r = ranges[i];
+    if (i === 0) {
+      out += text.slice(last, r.start) + "\x00SHOT_LIST\x00";
+    } else {
+      out += text.slice(last, r.start);
+    }
+    last = r.end;
+  }
+  out += text.slice(last);
+  return { result: out, items };
+}
+
 function parseSegments(text: string): Segment[] {
   if (!text.trim()) return [];
 
   // Step 0: extract trend_card blocks first (they may contain video IDs)
-  const { result: afterCards, cards: trendCards } = extractTrendCards(text);
+  const { result: afterTrendCards, cards: trendCards } = extractTrendCards(text);
+  const { result: afterSoundCards, cards: soundCards } = extractSoundCards(afterTrendCards);
+  const { result: afterShotItems, items: shotListItems } = extractShotItems(afterSoundCards);
 
   // Step 1: extract all video_ref JSON objects and replace with markers
   const videoRefs: VideoRefData[] = [];
   const indexed: string[] = [];
 
-  const withMarkers = afterCards.replace(VIDEO_REF_RE, (match) => {
+  const withMarkers = afterShotItems.replace(VIDEO_REF_RE, (match) => {
     try {
       const data = JSON.parse(match) as VideoRefData;
       if (data.type === "video_ref" && data.video_id) {
@@ -126,14 +250,15 @@ function parseSegments(text: string): Segment[] {
     return match;
   });
 
-  // Step 2: split on both TREND_CARD and VIDEO_REF markers
-  // First split on trend card markers
-  const COMBINED_MARKER_RE = /\x00(TREND_CARD_\d+|VIDEO_REF_\d+)\x00/g;
+  // Step 2: split on TREND_CARD, SOUND_CARD, SHOT_LIST, and VIDEO_REF markers
+  const COMBINED_MARKER_RE =
+    /\x00(TREND_CARD_\d+|SOUND_CARD_\d+|VIDEO_REF_\d+|SHOT_LIST)\x00/g;
   const allParts = withMarkers.split(COMBINED_MARKER_RE);
   const segments: Segment[] = [];
 
   let pendingRefs: VideoRefData[] = [];
   let trendCardCount = 0;
+  let soundCardCount = 0;
 
   const flushPendingRefs = () => {
     if (pendingRefs.length) {
@@ -145,13 +270,24 @@ function parseSegments(text: string): Segment[] {
   for (let i = 0; i < allParts.length; i++) {
     const part = allParts[i];
 
-    // Odd indices are marker keys (TREND_CARD_N or VIDEO_REF_N)
+    // Odd indices are marker keys (TREND_CARD_N, SOUND_CARD_N, VIDEO_REF_N, SHOT_LIST)
     if (i % 2 === 1) {
       if (part.startsWith("TREND_CARD_")) {
         flushPendingRefs();
         const idx = parseInt(part.slice("TREND_CARD_".length), 10);
         if (!isNaN(idx) && trendCards[idx]) {
           segments.push({ kind: "trend_card", data: trendCards[idx], cardIndex: trendCardCount++ });
+        }
+      } else if (part.startsWith("SOUND_CARD_")) {
+        flushPendingRefs();
+        const idx = parseInt(part.slice("SOUND_CARD_".length), 10);
+        if (!isNaN(idx) && soundCards[idx]) {
+          segments.push({ kind: "sound_card", data: soundCards[idx], cardIndex: soundCardCount++ });
+        }
+      } else if (part === "SHOT_LIST") {
+        flushPendingRefs();
+        if (shotListItems.length > 0) {
+          segments.push({ kind: "shot_list", items: shotListItems });
         }
       } else if (part.startsWith("VIDEO_REF_")) {
         const idx = parseInt(part.slice("VIDEO_REF_".length), 10);
@@ -325,6 +461,21 @@ export function MarkdownRenderer({ text, streaming = false }: Props) {
         }
         if (seg.kind === "trend_card") {
           return <TrendCard key={i} data={seg.data} index={seg.cardIndex} />;
+        }
+        if (seg.kind === "sound_card") {
+          return <TrendingSoundCard key={seg.cardIndex} data={seg.data} />;
+        }
+        if (seg.kind === "shot_list") {
+          return (
+            <div key={i} className="my-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Danh sách cảnh quay
+              </p>
+              {seg.items.map((item, j) => (
+                <ShotListCard key={`${item.beat}-${j}`} data={item} />
+              ))}
+            </div>
+          );
         }
         return <TextBlock key={i} content={(seg as TextSegment).content} />;
       })}

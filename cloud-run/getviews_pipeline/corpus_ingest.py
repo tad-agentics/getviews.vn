@@ -850,6 +850,17 @@ async def _run_weekly_analytics(client: Any) -> None:
     except Exception as exc:
         logger.error("[cross_creator] Cross-creator detection failed (non-fatal): %s", exc)
 
+    try:
+        from getviews_pipeline.sound_aggregator import run_sound_aggregation
+
+        sa_result = await run_sound_aggregation(client)
+        logger.info(
+            "[sound_aggregation] upserted=%d",
+            sa_result.get("upserted", 0),
+        )
+    except Exception as exc:
+        logger.error("[sound_aggregation] Sound aggregation failed (non-fatal): %s", exc)
+
 
 def _fetch_niches_sync(client: Any) -> list[dict[str, Any]]:
     result = (

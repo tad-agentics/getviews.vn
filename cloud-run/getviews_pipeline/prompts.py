@@ -665,6 +665,10 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "- breakout: tỷ lệ views/trung bình niche — dùng dấu phẩy Việt Nam: 3,2x không 3.2x\n"
         "- Sau JSON block, thêm 2-3 dòng phân tích sâu về trend đó (cơ chế, timing, rủi ro)\n"
         "- Kết thúc bằng mục **Cơ hội giao nhau** nếu có pattern xuyên trend"
+        "\n\nÂM THANH XU HƯỚNG (từ khóa trending_sounds trong JSON):\n"
+        "- Nếu JSON chứa trending_sounds, LUÔN đề cập ít nhất 1 âm thanh đang trending trong phân tích\n"
+        "- Format: **Âm thanh đang nổi:** '[tên âm thanh]' — dùng trong X video, [nhận định ngắn]\n"
+        "- Chỉ đề cập nếu usage_count >= 3 — bỏ qua nếu danh sách rỗng hoặc không đủ dữ liệu"
     ),
     "competitor_profile": (
         "MỤC TIÊU: Phân tích tài khoản đối thủ — tóm tắt công thức nội dung lặp lại của họ từ các bài đăng.\n"
@@ -680,6 +684,24 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "MỤC TIÊU: Brief sản xuất — xuất brief quay phim ngắn gọn.\n"
         "CẤU TRÚC: **Hook** (câu mở + hành động khung đầu), **Beat sheet** (3-5 beat, mỗi beat 1 dòng: thời lượng + hành động + chữ trên màn hình), "
         "**CTA** (câu kết + overlay), **Ghi chú sản xuất** (setup, prop, âm nhạc nếu cần). Ngắn gọn — creator cần đọc trong 30 giây."
+    ),
+    "shot_list": (
+        "MỤC TIÊU: Danh sách cảnh quay chi tiết — xuất shot list dạng có cấu trúc, mỗi beat là một JSON block.\n\n"
+        "ĐỊNH DẠNG BẮT BUỘC — mỗi beat PHẢI là một JSON block trên một dòng riêng:\n"
+        '{"type":"shot_item","beat":1,"duration":"0:00–0:03","action":"Cầm sản phẩm, nhìn thẳng camera","overlay":"ĐỪNG mua [sản phẩm] khi chưa xem video này","note":""}\n'
+        '{"type":"shot_item","beat":2,"duration":"0:03–0:08","action":"Zoom vào chi tiết đặc biệt của sản phẩm","overlay":"","note":"B-roll cận cảnh"}\n\n'
+        "QUYẾT ĐỊNH FORMAT:\n"
+        "- Review/unboxing: 5–7 beat, bắt đầu bằng hook reveal\n"
+        "- Tutorial/how-to: 4–6 beat, step-by-step logic\n"
+        "- Reaction/comparison: 3–5 beat, build-up tension\n"
+        "- GRWM/vlog: 4–5 beat, lifestyle flow\n\n"
+        "QUY TẮC:\n"
+        "- Tổng thời lượng 15–60 giây — ghi rõ duration từng beat\n"
+        "- action: hành động camera/diễn viên, ngắn gọn, tiếng Việt\n"
+        "- overlay: chữ trên màn hình — LUÔN dùng tiếng Việt, dùng [ngoặc] cho phần thay thế\n"
+        "- note: ghi chú sản xuất (setup, prop, ánh sáng) — để trống nếu không cần\n"
+        "- Sau tất cả JSON beats, thêm **Ghi chú sản xuất tổng** (1 đoạn ngắn: setup, nhạc nền gợi ý, tone)\n"
+        "- Kết thúc bằng **CTA beat**: câu kết + overlay kêu gọi hành động"
     ),
     "video_diagnosis": (
         "MỤC TIÊU: Chẩn đoán video — thiết lập chuẩn niche từ video tham chiếu trước, sau đó đo video của người dùng so với chuẩn đó."
@@ -744,7 +766,7 @@ def build_synthesis_prompt(
         knowledge_block = "\n" + build_commerce_structure_block()
         if niche_key:
             knowledge_block += "\n\n" + build_niche_hook_block(niche_key)
-    elif intent_key in ("video_diagnosis", "content_directions", "trend_spike"):
+    elif intent_key in ("video_diagnosis", "content_directions", "trend_spike", "shot_list"):
         if niche_key:
             knowledge_block = "\n" + build_niche_hook_block(niche_key)
 

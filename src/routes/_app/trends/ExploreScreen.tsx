@@ -25,6 +25,7 @@ import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews } from "@/lib/formatters";
 import { TrendingSection } from "@/components/explore/TrendingSection";
+import { TrendingSoundsSection } from "@/components/explore/TrendingSoundsSection";
 import { VideoDangHocSidebar } from "@/components/explore/VideoDangHocSidebar";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
@@ -688,7 +689,10 @@ export default function ExploreScreen() {
                 </button>
               </div>
             ) : (
-              <TrendingSection nicheId={selectedNicheId} />
+              <>
+                <TrendingSection nicheId={selectedNicheId} />
+                <TrendingSoundsSection nicheId={selectedNicheId} />
+              </>
             )}
 
             <VideoDangHocSidebar />

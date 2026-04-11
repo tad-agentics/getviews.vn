@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import date, timedelta
 from typing import Any
+
+from getviews_pipeline.supabase_client import get_service_client
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_tiktok_url
@@ -227,6 +230,24 @@ async def run_trend_spike(
         if isinstance(signal_grades, Exception):
             signal_grades = {}
 
+        trending_sounds: list[dict[str, Any]] = []
+        if niche_id is not None:
+            try:
+                sb = get_service_client()
+                _week_of = date.today() - timedelta(days=date.today().weekday())
+                _sounds_res = (
+                    sb.table("trending_sounds")
+                    .select("sound_name,usage_count,total_views,commerce_signal")
+                    .eq("niche_id", niche_id)
+                    .eq("week_of", _week_of.isoformat())
+                    .order("usage_count", desc=True)
+                    .limit(5)
+                    .execute()
+                )
+                trending_sounds = _sounds_res.data or []
+            except Exception as exc:
+                logger.warning("trending_sounds fetch failed: %s", exc)
+
         emit(step_queue, step_done("Đã tổng hợp dữ liệu — đang viết phân tích..."))
         payload = {
             "niche": niche,
@@ -234,6 +255,7 @@ async def run_trend_spike(
             "analyzed_videos": analyzed,
             "breakout_videos": breakout_videos,
             "signal_grades": signal_grades,
+            "trending_sounds": trending_sounds,
         }
         synthesis = await run_sync(
             synthesize_intent_markdown,
@@ -398,6 +420,57 @@ async def run_brief_generation(
             intent_label="brief_generation",
         )
         return {"intent": "brief_generation", "topic": topic, "niche": niche, "brief": brief}
+    finally:
+        await emit_sentinel(step_queue)
+
+
+async def run_shot_list(
+    topic: str,
+    niche: str,
+    session: dict[str, Any],
+    questions: list[str],
+    step_queue: asyncio.Queue | None = None,
+) -> dict[str, Any]:
+    """Generate a structured shot-by-shot production list for a video topic."""
+    try:
+        emit(step_queue, step_start("Đang tạo danh sách cảnh quay..."))
+        emit(step_queue, step_search("corpus", niche or topic))
+        count, niche_name = await get_corpus_count_cached(
+            session, niche_id=None, days=30, niche_name=niche
+        )
+        citation = build_corpus_citation_block(count, niche_name, days=30)
+        emit(step_queue, step_process("Đang xây dựng shot list dựa trên corpus..."))
+
+        payload = {
+            "topic": topic,
+            "niche": niche,
+            "format": session.get("video_format", "standard"),
+            "session_directions": session.get("directions"),
+            "session_diagnosis": session.get("diagnosis"),
+            "analyses_summary": session.get("analyses_summary", {}),
+        }
+        shot_list = await run_sync(
+            synthesize_intent_markdown,
+            "shot_list",
+            payload,
+            collapsed_questions=questions if len(questions) > 1 else None,
+            niche_key=niche,
+            corpus_citation=citation,
+        )
+        emit(step_queue, step_done("Shot list xong — đang hiển thị..."))
+        _append_completed(session, QueryIntent.BRIEF_GENERATION)
+        _bump_analyses_summary(
+            session,
+            niche=niche or session.get("niche"),
+            delta_videos=0,
+            intent_label="shot_list",
+        )
+        return {
+            "intent": "shot_list",
+            "topic": topic,
+            "niche": niche,
+            "shot_list": shot_list,
+        }
     finally:
         await emit_sentinel(step_queue)
 

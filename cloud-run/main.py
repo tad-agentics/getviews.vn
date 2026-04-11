@@ -47,6 +47,7 @@ from getviews_pipeline.pipelines import (
     run_content_directions,
     run_kol_search,
     run_own_channel,
+    run_shot_list,
     run_trend_spike,
     run_video_diagnosis,
 )
@@ -426,6 +427,10 @@ async def stream(
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
                 pipeline_coro = run_trend_spike(niche, session, questions, step_queue=step_q)
 
+            elif normalized == "shot_list":
+                niche = session.get("niche") or _infer_niche_from_query(body.query)
+                pipeline_coro = run_shot_list(body.query, niche, session, questions, step_queue=step_q)
+
             elif normalized == "find_creators":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
                 pipeline_coro = run_kol_search(niche, session, questions)
@@ -511,6 +516,9 @@ async def stream(
             elif normalized == "trend_spike":
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+            elif normalized == "shot_list":
+                full_text = (out.get("shot_list") or "").strip()
+                structured = {k: out[k] for k in ("topic", "niche") if k in out} or None
             elif normalized == "find_creators":
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
