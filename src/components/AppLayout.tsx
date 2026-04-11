@@ -296,13 +296,14 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
 
   const handleDelete = (id: string) => {
-    void deleteSession.mutateAsync(id);
+    // Optimistic update first — remove from UI immediately
     setSessions((prev) => prev.filter((s) => s.id !== id));
     setPinnedIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
       return next;
     });
+    deleteSession.mutate(id);
   };
 
   const handleRename = (id: string, label: string) => {
