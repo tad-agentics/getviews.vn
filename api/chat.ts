@@ -19,8 +19,6 @@ const GEMINI_MODEL =
   process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-3.1-flash-lite-preview";
 
 const FREE_INTENTS = new Set([
-  "trend_spike",
-  "find_creators",
   "follow_up",
   "format_lifecycle",
 ]);
@@ -221,12 +219,6 @@ Trả lời bằng tiếng Việt, ngắn gọn, đi thẳng vào vấn đề.
 Không dùng markdown heading. Dùng bullet points khi liệt kê.`;
 
   switch (intentType) {
-    case "brief_generation":
-      return `${base}\nTạo brief sáng tạo ngắn gọn cho video TikTok: hook, cấu trúc, CTA.`;
-    case "trend_spike":
-      return `${base}\nPhân tích xu hướng TikTok đang hot trong niche của creator.`;
-    case "find_creators":
-      return `${base}\nTìm creator phù hợp với mô tả. Đề xuất tên + lý do phù hợp.`;
     case "format_lifecycle":
       return `${base}\nPhân tích vòng đời format video: đang ở giai đoạn nào, nên làm gì.`;
     case "follow_up":

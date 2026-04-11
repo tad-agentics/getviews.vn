@@ -41,8 +41,14 @@ from getviews_pipeline.intents import (
     extract_urls_and_handles,
     split_into_questions,
 )
+from getviews_pipeline.helpers import infer_niche_from_hashtags
 from getviews_pipeline.pipelines import (
+    run_brief_generation,
     run_competitor_profile,
+    run_content_directions,
+    run_kol_search,
+    run_own_channel,
+    run_trend_spike,
     run_video_diagnosis,
 )
 from getviews_pipeline.runtime import run_sync
@@ -93,6 +99,11 @@ def _pick_video_url(urls: list[str]) -> str | None:
         if "/video/" in ul or "vm.tiktok.com" in ul:
             return u
     return urls[0] if urls else None
+
+
+def _infer_niche_from_query(query: str) -> str:
+    """Best-effort niche from free-text query when session has no niche yet."""
+    return infer_niche_from_hashtags([], query) or "tiktok"
 
 
 def _chunk_text(text: str, size: int = 20) -> list[str]:
@@ -330,8 +341,6 @@ async def stream(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 content={"error": "insufficient_credits"},
             )
-    except HTTPException:
-        raise
     except Exception as exc:
         logger.warning("Credit deduction failed: %s", exc)
         sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
@@ -382,6 +391,26 @@ async def stream(
             elif normalized == "competitor_profile":
                 handle = _resolve_profile_handle(urls, handles)
                 pipeline_coro = run_competitor_profile(handle, session, questions, step_queue=step_q)
+
+            elif normalized == "content_directions":
+                niche = session.get("niche") or _infer_niche_from_query(body.query)
+                pipeline_coro = run_content_directions(niche, session, questions)
+
+            elif normalized == "own_channel":
+                niche = session.get("niche") or _infer_niche_from_query(body.query)
+                pipeline_coro = run_own_channel(niche, session, questions)
+
+            elif normalized == "brief_generation":
+                niche = session.get("niche") or _infer_niche_from_query(body.query)
+                pipeline_coro = run_brief_generation(body.query, niche, session, questions)
+
+            elif normalized == "trend_spike":
+                niche = session.get("niche") or _infer_niche_from_query(body.query)
+                pipeline_coro = run_trend_spike(niche, session, questions)
+
+            elif normalized == "find_creators":
+                niche = session.get("niche") or _infer_niche_from_query(body.query)
+                pipeline_coro = run_kol_search(niche, session, questions)
 
             else:
                 # Safety net: unknown intent routed here — treat as follow-up text
@@ -435,7 +464,8 @@ async def stream(
             # ── Await pipeline result ─────────────────────────────────────────
             out = await pipeline_task
 
-            if normalized in ("video_diagnosis", "own_channel"):
+            if normalized == "video_diagnosis":
+                # Video URL analysis: has user_video + diagnosis key
                 uv = out.get("user_video") or {}
                 if uv.get("error"):
                     seq += 1
@@ -448,9 +478,27 @@ async def stream(
                     for k in ("niche", "user_video", "reference_videos", "metadata", "analysis", "content_type")
                     if k in out
                 } or None
-            else:
+            elif normalized == "competitor_profile":
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {k: out[k] for k in ("handle", "analyzed_videos") if k in out} or None
+            elif normalized == "content_directions":
+                full_text = (out.get("synthesis") or "").strip()
+                structured = {k: out[k] for k in ("niche", "directions", "analyzed_videos") if k in out} or None
+            elif normalized == "own_channel":
+                full_text = (out.get("synthesis") or "").strip()
+                structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+            elif normalized == "brief_generation":
+                full_text = (out.get("brief") or "").strip()
+                structured = {k: out[k] for k in ("topic", "niche") if k in out} or None
+            elif normalized == "trend_spike":
+                full_text = (out.get("synthesis") or "").strip()
+                structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+            elif normalized == "find_creators":
+                full_text = (out.get("synthesis") or "").strip()
+                structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+            else:
+                full_text = (out.get("synthesis") or out.get("diagnosis") or "").strip()
+                structured = None
 
             # ── Phase 2: stream synthesis text ────────────────────────────────
             chunks = _chunk_text(full_text, 50)

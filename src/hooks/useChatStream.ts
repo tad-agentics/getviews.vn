@@ -8,7 +8,15 @@ import { type StepEvent } from "@/lib/types/sse-events";
 const CLOUD_RUN_URL = env.VITE_CLOUD_RUN_API_URL;
 const VERCEL_CHAT_URL = "/api/chat";
 
-const VIDEO_INTENTS = new Set(["video_diagnosis", "competitor_profile", "own_channel"]);
+const CLOUD_RUN_INTENTS = new Set([
+  "video_diagnosis",
+  "competitor_profile",
+  "own_channel",
+  "content_directions",
+  "brief_generation",
+  "trend_spike",
+  "find_creators",
+]);
 
 export type StreamStatus = "idle" | "streaming" | "done" | "error";
 
@@ -67,8 +75,8 @@ export function useChatStream() {
         } = await supabase.auth.getSession();
         if (!session) throw new Error("No session");
 
-        const isVideo = VIDEO_INTENTS.has(intentType);
-        const endpoint = isVideo && CLOUD_RUN_URL ? `${CLOUD_RUN_URL}/stream` : VERCEL_CHAT_URL;
+        const useCloudRun = CLOUD_RUN_INTENTS.has(intentType);
+        const endpoint = useCloudRun && CLOUD_RUN_URL ? `${CLOUD_RUN_URL}/stream` : VERCEL_CHAT_URL;
 
         const res = await fetch(endpoint, {
           method: "POST",
