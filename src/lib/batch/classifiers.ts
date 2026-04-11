@@ -83,7 +83,7 @@ const HOOK_TYPE_ALIASES: Record<string, string> = {
   story: 'story_open',
   storytelling: 'story_open',
   shock: 'bold_claim',
-  challenge: 'challenge',
+  challenge: 'other',
   tips: 'how_to',
   controversy: 'expose',
   fomo: 'warning',
@@ -133,7 +133,7 @@ export function classifyFormat(analysis: Analysis, nicheId: number): string {
 
   if (combined.match(/vlog|daily|thường ngày|một ngày/)) return 'vlog';
 
-  if (scenes.every(s => s.type === 'action') && !analysis.audio_transcript) return 'dance';
+  if (scenes.length > 0 && scenes.every(s => s.type === 'action') && !analysis.audio_transcript) return 'dance';
 
   const allProductOrDemo = scenes.length > 0 &&
     scenes.every(s => ['product_shot', 'demo', 'action'].includes(s.type ?? ''));
