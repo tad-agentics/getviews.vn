@@ -50,23 +50,28 @@ export function detectLanguage(analysis: Analysis): 'vi' | 'en' | 'other' {
 // ── Hook type normalization ──────────────────────────────────────────────────
 
 const HOOK_TYPE_ALIASES: Record<string, string> = {
-  // Canonical values
+  // Canonical values from models.py HookType — must all pass through unchanged
+  question: 'question',
+  bold_claim: 'bold_claim',
+  shock_stat: 'shock_stat',
+  story_open: 'story_open',
+  controversy: 'controversy',
+  challenge: 'challenge',
+  how_to: 'how_to',
+  social_proof: 'social_proof',
+  curiosity_gap: 'curiosity_gap',
+  pain_point: 'pain_point',
+  trend_hijack: 'trend_hijack',
+  none: 'none',
+  other: 'other',
+
+  // Additional canonical values from knowledge-base HOOK_CATEGORIES (Gemini also returns these)
   warning: 'warning',
   price_shock: 'price_shock',
-  pain_point: 'pain_point',
-  how_to: 'how_to',
-  curiosity_gap: 'curiosity_gap',
-  bold_claim: 'bold_claim',
-  question: 'question',
-  story_open: 'story_open',
-  social_proof: 'social_proof',
-  trend_hijack: 'trend_hijack',
   reaction: 'reaction',
   comparison: 'comparison',
   expose: 'expose',
   pov: 'pov',
-  none: 'none',
-  other: 'other',
 
   // Vietnamese-language aliases (from HOOK_CATEGORIES keys)
   canh_bao: 'warning',
@@ -83,9 +88,7 @@ const HOOK_TYPE_ALIASES: Record<string, string> = {
   story: 'story_open',
   storytelling: 'story_open',
   shock: 'bold_claim',
-  challenge: 'other',
   tips: 'how_to',
-  controversy: 'expose',
   fomo: 'warning',
   fear: 'warning',
 };

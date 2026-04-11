@@ -204,17 +204,21 @@ _VN_PATTERN = re.compile(
 )
 
 _HOOK_TYPE_ALIASES: dict[str, str] = {
-    "warning": "warning", "price_shock": "price_shock", "pain_point": "pain_point",
-    "how_to": "how_to", "curiosity_gap": "curiosity_gap", "bold_claim": "bold_claim",
-    "question": "question", "story_open": "story_open", "social_proof": "social_proof",
-    "trend_hijack": "trend_hijack", "reaction": "reaction", "comparison": "comparison",
-    "expose": "expose", "pov": "pov", "none": "none", "other": "other",
+    # Canonical values from models.py HookType — must all pass through unchanged
+    "question": "question", "bold_claim": "bold_claim", "shock_stat": "shock_stat",
+    "story_open": "story_open", "controversy": "controversy", "challenge": "challenge",
+    "how_to": "how_to", "social_proof": "social_proof", "curiosity_gap": "curiosity_gap",
+    "pain_point": "pain_point", "trend_hijack": "trend_hijack", "none": "none", "other": "other",
+    # Additional canonical values from knowledge-base HOOK_CATEGORIES
+    "warning": "warning", "price_shock": "price_shock", "reaction": "reaction",
+    "comparison": "comparison", "expose": "expose", "pov": "pov",
+    # Vietnamese-language aliases
     "canh_bao": "warning", "gia_soc": "price_shock", "phan_ung": "reaction",
     "so_sanh": "comparison", "boc_phot": "expose", "huong_dan": "how_to",
     "ke_chuyen": "story_open", "bang_chung": "social_proof",
+    # English synonyms Gemini might use
     "tutorial": "how_to", "story": "story_open", "storytelling": "story_open",
-    "shock": "bold_claim", "tips": "how_to", "controversy": "expose",
-    "fomo": "warning", "fear": "warning",
+    "shock": "bold_claim", "tips": "how_to", "fomo": "warning", "fear": "warning",
 }
 
 _SOUTHERN = [
