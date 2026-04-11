@@ -36,15 +36,15 @@ Full plan: `artifacts/plans/output-quality-plan.md`
 
 | Feature | Priority | Backend | Frontend | QA | Status |
 |---|---|---|---|---|---|
-| P0-1: Corpus citations | P0 | 🔲 | 🔲 | 🔲 | — |
-| P0-3: Hook formula templates | P0 | 🔲 | 🔲 | 🔲 | — |
-| P0-5: "Chạy vì:" mechanism block | P0 | 🔲 | — | 🔲 | — |
-| P0-2: Thumbnail reference cards | P0 | 🔲 | 🔲 | 🔲 | — |
-| P0-4: Recency tags + signal badges | P0 | 🔲 | 🔲 | 🔲 | — |
-| P0-6: Agentic Step Logger (SSE) | P0 | 🔲 | 🔲 | 🔲 | — |
-| P1-6: Trend Card UI | P1 | 🔲 | 🔲 | 🔲 | — |
-| P1-7: Breakout multiplier | P1 | 🔲 | — | 🔲 | — |
-| P1-8: Signal strength grading | P1 | 🔲 | 🔲 | 🔲 | — |
+| P0-1: Corpus citations | P0 | ✅ | ✅ | 🔲 | Built — corpus_context.py + formatters.py + prompts.py wired |
+| P0-3: Hook formula templates | P0 | ✅ | ✅ | 🔲 | Built — CopyableBlock.tsx + MarkdownRenderer hook detection |
+| P0-5: "Chạy vì:" mechanism block | P0 | ✅ | — | 🔲 | Built — prompts.py instruction present |
+| P0-2: Thumbnail reference cards | P0 | ✅ | ✅ | 🔲 | Built — VideoRefCard.tsx + VideoRefStrip.tsx + corpus-service.ts |
+| P0-4: Recency tags + signal badges | P0 | ✅ | ✅ | 🔲 | Built — SignalBadge.tsx + formatters.ts |
+| P0-6: Agentic Step Logger (SSE) | P0 | ✅ | ✅ | 🔲 | Built — step_events.py + AgentStepLogger.tsx + StepSpinner + StepThumbnails |
+| P1-6: Trend Card UI | P1 | ✅ | ✅ | 🔲 | Built — TrendCard.tsx + trend_card schema in prompts.py |
+| P1-7: Breakout multiplier | P1 | ✅ | — | 🔲 | Built — batch_analytics.py (creator_velocity + breakout_multiplier) |
+| P1-8: Signal strength grading | P1 | ✅ | ✅ | 🔲 | Built — signal_classifier.py + SignalBadge.tsx |
 | P1-9: Trending This Week (Explore) | P1 | 🔲 | 🔲 | 🔲 | — |
 | P1-10: Meta-pattern Monday email | P1 | 🔲 | — | 🔲 | — |
 | P2-11: Cross-creator detection | P2 | 🔲 | — | 🔲 | — |

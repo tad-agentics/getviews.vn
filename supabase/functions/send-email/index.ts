@@ -40,6 +40,14 @@ const BodySchema = z.discriminatedUnion("template", [
     template: z.literal("expiry_reminder_1d"),
     data: ExpiryReminderDataSchema,
   }),
+  z.object({
+    to: z.string().email(),
+    subject: z.string().min(1),
+    template: z.literal("monday_digest"),
+    data: z.object({
+      html: z.string().min(1),
+    }),
+  }),
 ]);
 
 function requireServiceRole(req: Request): Response | null {
@@ -155,6 +163,11 @@ Deno.serve(async (req) => {
         const r = renderExpiryReminder("1d", body.data);
         subject = body.subject ?? r.subject;
         html = r.html;
+        break;
+      }
+      case "monday_digest": {
+        subject = body.subject;
+        html = body.data.html;
         break;
       }
     }

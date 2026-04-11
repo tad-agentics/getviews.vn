@@ -24,30 +24,7 @@ import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
 import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews } from "@/lib/formatters";
-
-/* --- Trending card types (filled from hook_effectiveness) ---------- */
-
-type TrendingVideoEntry = {
-  handle: string;
-  title: string;
-  views: string;
-  time: string;
-  img: string;
-  caption: string;
-  likes: string;
-  comments: string;
-  shares: string;
-  videoUrl: string;
-};
-
-type TrendingCardData = {
-  id: string | number;
-  title: string;
-  description: string;
-  images: string[];
-  platforms: string[];
-  videos: TrendingVideoEntry[];
-};
+import { TrendingSection } from "@/components/explore/TrendingSection";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -184,242 +161,6 @@ function EngagementSidebar({
         <span className="text-white text-[11px] font-semibold">{views}</span>
       </div>
     </div>
-  );
-}
-
-/* --- Trending Card Modal ------------------------------------------ */
-function TrendingCardModal({ card, onClose }: { card: TrendingCardData; onClose: () => void }) {
-  const [selectedVideo, setSelectedVideo] = useState<TrendingVideoEntry>(() => card.videos[0]!);
-  const [muted, setMuted] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.load();
-      videoRef.current.play().catch(() => {});
-    }
-  }, [selectedVideo]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.18 }}
-        className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4"
-        style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 48 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 48 }}
-          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="relative flex flex-col md:flex-row bg-[var(--surface)] w-full md:rounded-2xl overflow-hidden"
-          style={{
-            maxWidth: 960,
-            height: "95dvh",
-            maxHeight: "95dvh",
-            borderRadius: "20px 20px 0 0",
-            boxShadow: "0 32px 80px rgba(0,0,0,0.4)",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="relative bg-black overflow-hidden order-1 md:order-2 md:flex-1" style={{ minHeight: "55%" }}>
-            <video
-              ref={videoRef}
-              key={selectedVideo.videoUrl}
-              src={selectedVideo.videoUrl}
-              autoPlay
-              loop
-              playsInline
-              muted={muted}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
-
-            <button
-              onClick={onClose}
-              className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors duration-[120ms] backdrop-blur-sm"
-            >
-              <X className="w-4 h-4" strokeWidth={2} />
-            </button>
-            <button
-              onClick={() => setMuted((v) => !v)}
-              className="absolute top-3 left-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors duration-[120ms] backdrop-blur-sm"
-            >
-              {muted ? <VolumeX className="w-4 h-4" strokeWidth={2} /> : <Volume2 className="w-4 h-4" strokeWidth={2} />}
-            </button>
-
-            <EngagementSidebar
-              img={selectedVideo.img}
-              likes={selectedVideo.likes}
-              comments={selectedVideo.comments}
-              shares={selectedVideo.shares}
-              views={selectedVideo.views}
-            />
-
-            <div className="absolute bottom-0 inset-x-0 z-20 px-4 pb-4">
-              <p className="text-white font-semibold text-sm mb-0.5">
-                {selectedVideo.handle} · {selectedVideo.time}
-              </p>
-              <p className="text-white/85 text-xs leading-snug">{selectedVideo.caption}</p>
-            </div>
-          </div>
-
-          <div
-            className="order-2 md:order-1 flex flex-col md:w-[340px] md:flex-shrink-0 border-t md:border-t-0 md:border-r border-[var(--border)] bg-[var(--surface)] overflow-hidden"
-            style={{ flex: "0 0 auto", maxHeight: "45%", minHeight: 0 }}
-          >
-            <div className="hidden md:block px-4 pt-4 pb-3 border-b border-[var(--border)]">
-              <p className="font-bold text-[var(--ink)] text-sm leading-snug mb-1 line-clamp-2">{card.title}</p>
-              <p className="text-[11px] text-[var(--muted)] leading-relaxed line-clamp-3">{card.description}</p>
-            </div>
-
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)] flex-shrink-0">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--faint)]">Videos</p>
-              <div className="flex md:hidden items-center gap-3">
-                <span className="flex items-center gap-1 text-[11px] text-[var(--muted)]">
-                  <Heart className="w-3.5 h-3.5" strokeWidth={2} />
-                  {selectedVideo.likes}
-                </span>
-                <span className="flex items-center gap-1 text-[11px] text-[var(--muted)]">
-                  <Eye className="w-3.5 h-3.5" strokeWidth={2} />
-                  {selectedVideo.views}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex md:hidden flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              <div className="flex flex-row gap-2 px-3 py-2.5" style={{ width: "max-content" }}>
-                {card.videos.map((video, idx) => {
-                  const isSelected = video.handle === selectedVideo.handle && video.title === selectedVideo.title;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedVideo(video)}
-                      className={`flex flex-col items-start gap-1 p-1.5 rounded-xl border transition-colors duration-[120ms] ${isSelected ? "border-[var(--purple)] bg-[var(--purple-light)]" : "border-[var(--border)]"}`}
-                      style={{ width: 80, flexShrink: 0 }}
-                    >
-                      <div className="w-full rounded-lg overflow-hidden relative" style={{ height: 100 }}>
-                        <img src={video.img} alt="" className="w-full h-full object-cover" />
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-[var(--purple)]/20 flex items-center justify-center">
-                            <div className="w-3 h-3 rounded-full bg-white/90" />
-                          </div>
-                        )}
-                      </div>
-                      <p
-                        className={`text-[10px] font-semibold leading-snug line-clamp-2 w-full text-left ${isSelected ? "text-[var(--purple)]" : "text-[var(--ink)]"}`}
-                      >
-                        {video.title}
-                      </p>
-                      <p className="text-[10px] font-mono text-[var(--muted)]">{video.views}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="hidden md:block flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
-              {card.videos.map((video, idx) => {
-                const isSelected = video.handle === selectedVideo.handle && video.title === selectedVideo.title;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedVideo(video)}
-                    className={`w-full flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-[120ms] border-b border-[var(--border)] last:border-0 ${isSelected ? "bg-[var(--purple-light)]" : "hover:bg-[var(--surface-alt)]"}`}
-                  >
-                    <div className="flex-shrink-0 rounded-md overflow-hidden border border-[var(--border)] relative" style={{ width: 40, height: 52 }}>
-                      <img src={video.img} alt="" className="w-full h-full object-cover" />
-                      {isSelected && (
-                        <div className="absolute inset-0 bg-[var(--purple)]/20 flex items-center justify-center">
-                          <div className="w-3 h-3 rounded-full bg-white/90" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-[12px] font-semibold leading-snug line-clamp-2 mb-0.5 ${isSelected ? "text-[var(--purple)]" : "text-[var(--ink)]"}`}
-                      >
-                        {video.title}
-                      </p>
-                      <p className="text-[11px] font-mono font-semibold text-[var(--ink)]">{video.views}</p>
-                      <p className="text-[10px] text-[var(--faint)]">
-                        {video.handle} · {video.time}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-/* --- Trending Card ------------------------------------------------ */
-function TrendingCard({ card }: { card: TrendingCardData }) {
-  const [modalOpen, setModalOpen] = useState(false);
-  const canOpenModal = card.videos.length > 0;
-
-  return (
-    <>
-      {modalOpen && canOpenModal ? <TrendingCardModal card={card} onClose={() => setModalOpen(false)} /> : null}
-      <div
-        role={canOpenModal ? "button" : undefined}
-        tabIndex={canOpenModal ? 0 : undefined}
-        onClick={canOpenModal ? () => setModalOpen(true) : undefined}
-        onKeyDown={
-          canOpenModal
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setModalOpen(true);
-                }
-              }
-            : undefined
-        }
-        className={`flex-shrink-0 w-[220px] flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-colors duration-[150ms] ${canOpenModal ? "hover:border-[var(--border-active)] cursor-pointer" : "cursor-default opacity-95"}`}
-      >
-        <div className="relative h-[130px] bg-[var(--surface-alt)]">
-          {card.images.slice(0, 3).map((img, i) => (
-            <div
-              key={i}
-              className="absolute rounded-lg overflow-hidden border border-[var(--border)] shadow-sm"
-              style={{ width: 72, height: 96, top: 12 + i * 8, left: 16 + i * 36, zIndex: 3 - i }}
-            >
-              <img src={img} alt="" className="w-full h-full object-cover" />
-            </div>
-          ))}
-        </div>
-        <div className="flex flex-col gap-1.5 p-3 flex-1">
-          <p className="text-xs font-semibold text-[var(--ink)] leading-snug line-clamp-2">{card.title}</p>
-          <p className="text-[11px] text-[var(--muted)] leading-relaxed line-clamp-3">{card.description}</p>
-          <div className="flex items-center justify-between mt-auto pt-1.5">
-            <div className="flex items-center gap-1">
-              {card.platforms.includes("tiktok") && <TikTokIcon size={13} />}
-              {card.platforms.includes("ig") && <IGIcon size={13} />}
-              {card.platforms.includes("yt") && <YTIcon size={13} />}
-            </div>
-            <button className="text-[11px] text-[var(--purple)] font-medium hover:underline">See more &rsaquo;</button>
-          </div>
-        </div>
-      </div>
-    </>
   );
 }
 
@@ -784,12 +525,7 @@ export default function ExploreScreen() {
 
   const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
-  const {
-    data: hookDataRaw,
-    isPending: hookLoading,
-    isError: hookQueryError,
-    refetch: refetchHookEffectiveness,
-  } = useHookEffectiveness(selectedNicheId);
+  const { data: hookDataRaw } = useHookEffectiveness(selectedNicheId);
   const { data: formatData } = useFormatLifecycle(selectedNicheId);
   const {
     data: nicheIntel,
@@ -798,38 +534,6 @@ export default function ExploreScreen() {
   } = useNicheIntelligence(selectedNicheId);
 
   const hookData = hookDataRaw as HookEffectivenessRow[] | undefined;
-
-  const { data: hookThumbnailsRaw } = useQuery({
-    queryKey: ["hook_thumbnails", selectedNicheId],
-    queryFn: async () => {
-      // Use analysis_json->>'hook_type' so the key space matches hook_effectiveness.hook_type
-      const { data, error } = await supabase
-        .from("video_corpus")
-        .select("analysis_json, thumbnail_url")
-        .eq("niche_id", selectedNicheId!)
-        .not("thumbnail_url", "is", null)
-        .order("engagement_rate", { ascending: false })
-        .limit(120);
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !!selectedNicheId,
-    staleTime: 10 * 60_000,
-  });
-
-  const hookThumbnailMap = useMemo(() => {
-    const map: Record<string, string[]> = {};
-    for (const row of hookThumbnailsRaw ?? []) {
-      const aj = row.analysis_json as Record<string, unknown> | null;
-      const hookType = typeof aj?.hook_type === "string" ? aj.hook_type : null;
-      const thumb = row.thumbnail_url as string | null;
-      if (!hookType || !thumb) continue;
-      const key = hookType.toLowerCase().replace(/\s+/g, "_");
-      if (!map[key]) map[key] = [];
-      if (map[key].length < 3) map[key].push(thumb);
-    }
-    return map;
-  }, [hookThumbnailsRaw]);
 
   useEffect(() => {
     if (selectedNicheId !== null) return;
@@ -841,33 +545,6 @@ export default function ExploreScreen() {
     () => niches?.find((n) => n.id === selectedNicheId)?.name,
     [niches, selectedNicheId],
   );
-
-  const trendingCardsData = useMemo((): TrendingCardData[] => {
-    if (!hookData?.length) return [];
-    return hookData.map((h, i) => {
-      const er = (Number(h.avg_engagement_rate) || 0) * 100;
-      const rawHook = String(h.hook_type ?? "");
-      const title = rawHook.replace(/_/g, " ").trim() || "Hook";
-      const key = rawHook.toLowerCase().replace(/\s+/g, "_");
-      const thumbs = hookThumbnailMap[key] ?? [];
-      const images =
-        thumbs.length >= 3
-          ? thumbs.slice(0, 3)
-          : [
-              thumbs[0] ?? PLACEHOLDER_THUMB,
-              thumbs[1] ?? PLACEHOLDER_THUMB,
-              thumbs[2] ?? PLACEHOLDER_THUMB,
-            ];
-      return {
-        id: h.id ?? i,
-        title,
-        description: `${er.toFixed(1)}% ER trung bình · ${h.sample_size ?? 0} video mẫu`,
-        images,
-        platforms: ["tiktok"],
-        videos: [],
-      };
-    });
-  }, [hookData, hookThumbnailMap]);
 
   const risingFormats = useMemo(
     () => (formatData ?? []).filter((f) => (f.engagement_trend ?? 0) > 0).slice(0, 5),
@@ -995,33 +672,8 @@ export default function ExploreScreen() {
           </div>
 
           <section className="px-5 lg:px-7 pt-2 pb-4">
-            <button type="button" className="flex items-center gap-1 mb-4 group">
-              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]">
-                Xu hướng tuần này
-              </h2>
-              <ChevronRight
-                className="w-4 h-4 text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]"
-                strokeWidth={2.5}
-              />
-            </button>
-
-            {selectedNicheId === null ? (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-                <p className="text-sm text-[var(--ink-soft)]">Chọn một niche để xem xu hướng</p>
-              </div>
-            ) : hookQueryError ? (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-                <p className="mb-4 text-sm text-[var(--ink)]">Không tải được xu hướng — thử lại</p>
-                <button
-                  type="button"
-                  onClick={() => void refetchHookEffectiveness()}
-                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--border-active)] transition-colors duration-[120ms]"
-                >
-                  Thử lại
-                </button>
-              </div>
-            ) : lowVideoCorpus ? (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+            {selectedNicheId !== null && lowVideoCorpus ? (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center mb-4">
                 <p className="text-sm text-[var(--ink)] mb-3">
                   Niche này mới có {nicheIntel?.video_count_7d ?? 0} video 7 ngày — chưa đủ để xu hướng. Thử niche Review đồ
                   Shopee / Gia dụng (data đầy đủ hơn).
@@ -1034,40 +686,8 @@ export default function ExploreScreen() {
                   Xem niche gợi ý
                 </button>
               </div>
-            ) : hookLoading ? (
-              <div className="overflow-x-auto -mx-5 lg:-mx-7 px-5 lg:px-7" style={{ scrollbarWidth: "none" }}>
-                <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="flex-shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] animate-pulse"
-                      style={{ width: 260, height: 180 }}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : trendingCardsData.length === 0 ? (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-                <p className="text-sm text-[var(--ink-soft)] mb-3">
-                  Chưa có đủ data cho {selectedNicheName ?? "niche này"} tuần này. Thử xem xu hướng của Review đồ Shopee / Gia
-                  dụng — niche có data đầy đủ nhất.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setSelectedNicheId(SUGGESTED_FULL_DATA_NICHE_ID)}
-                  className="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--border-active)] transition-colors duration-[120ms]"
-                >
-                  Chuyển sang niche gợi ý
-                </button>
-              </div>
             ) : (
-              <div className="overflow-x-auto -mx-5 lg:-mx-7 px-5 lg:px-7" style={{ scrollbarWidth: "none" }}>
-                <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-                  {trendingCardsData.map((card) => (
-                    <TrendingCard key={String(card.id)} card={card} />
-                  ))}
-                </div>
-              </div>
+              <TrendingSection nicheId={selectedNicheId} />
             )}
 
             {hookData && hookData.length > 0 && selectedNicheId && !lowVideoCorpus ? (

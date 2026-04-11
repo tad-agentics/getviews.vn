@@ -9,15 +9,15 @@
 
 | Item | Priority | Wave | Status | Owner |
 |---|---|---|---|---|
-| P0-1: Corpus citations | P0 | Wave 3 | 🔲 Not started | Backend + Frontend |
-| P0-2: Thumbnail reference cards | P0 | Wave 3 | 🔲 Not started | Frontend |
-| P0-3: Bold hook formulas | P0 | Wave 3 | 🔲 Not started | Frontend + Backend |
-| P0-4: Recency tags | P0 | Wave 3 | 🔲 Not started | Frontend + Backend |
-| P0-5: "Why it works" mechanism | P0 | Wave 3 | 🔲 Not started | Backend (prompt-only) |
-| P0-6: Agentic Step Logger | P0 | Wave 3 | 🔲 Not started | Frontend + Cloud Run |
-| P1-6: Trend Card UI component | P1 | Wave 3-4 | 🔲 Not started | Frontend |
-| P1-7: Breakout multiplier | P1 | Wave 3-4 | 🔲 Not started | Backend (batch) |
-| P1-8: Signal strength grading | P1 | Wave 3-4 | 🔲 Not started | Backend + Frontend |
+| P0-1: Corpus citations | P0 | Wave 3 | ✅ Built | Backend + Frontend |
+| P0-2: Thumbnail reference cards | P0 | Wave 3 | ✅ Built | Frontend |
+| P0-3: Bold hook formulas | P0 | Wave 3 | ✅ Built | Frontend + Backend |
+| P0-4: Recency tags | P0 | Wave 3 | ✅ Built | Frontend + Backend |
+| P0-5: "Why it works" mechanism | P0 | Wave 3 | ✅ Built | Backend (prompt-only) |
+| P0-6: Agentic Step Logger | P0 | Wave 3 | ✅ Built | Frontend + Cloud Run |
+| P1-6: Trend Card UI component | P1 | Wave 3-4 | ✅ Built | Frontend |
+| P1-7: Breakout multiplier | P1 | Wave 3-4 | ✅ Built | Backend (batch) |
+| P1-8: Signal strength grading | P1 | Wave 3-4 | ✅ Built | Backend + Frontend |
 | P1-9: Trending This Week cards | P1 | Wave 4 | 🔲 Not started | Backend + Frontend |
 | P1-10: Meta-pattern Monday email | P1 | Wave 4 | 🔲 Not started | Backend |
 | P2-11: Cross-creator detection | P2 | Wave 4-5 | 🔲 Not started | Backend |
@@ -461,15 +461,15 @@ Batch 8 — Stretch:                            P2-13
 
 | Feature | Wave | Backend | Frontend | QA | Status |
 |---|---|---|---|---|---|
-| P0-1 (corpus citations) | 3 | 🔲 | 🔲 | 🔲 | — |
-| P0-3 (hook formulas) | 3 | 🔲 | 🔲 | 🔲 | — |
-| P0-5 (why it works) | 3 | 🔲 | — | 🔲 | — |
-| P0-2 (thumbnail cards) | 3 | 🔲 | 🔲 | 🔲 | — |
-| P0-4 (recency tags) | 3 | 🔲 | 🔲 | 🔲 | — |
-| P0-6 (step logger) | 3 | 🔲 | 🔲 | 🔲 | — |
-| P1-6 (trend cards) | 3-4 | 🔲 | 🔲 | 🔲 | — |
-| P1-7 (breakout) | 3-4 | 🔲 | — | 🔲 | — |
-| P1-8 (signal grading) | 3-4 | 🔲 | 🔲 | 🔲 | — |
+| P0-1 (corpus citations) | 3 | ✅ | ✅ | 🔲 | Built |
+| P0-3 (hook formulas) | 3 | ✅ | ✅ | 🔲 | Built |
+| P0-5 (why it works) | 3 | ✅ | — | 🔲 | Built |
+| P0-2 (thumbnail cards) | 3 | ✅ | ✅ | 🔲 | Built |
+| P0-4 (recency tags) | 3 | ✅ | ✅ | 🔲 | Built |
+| P0-6 (step logger) | 3 | ✅ | ✅ | 🔲 | Built |
+| P1-6 (trend cards) | 3-4 | ✅ | ✅ | 🔲 | Built |
+| P1-7 (breakout) | 3-4 | ✅ | — | 🔲 | Built |
+| P1-8 (signal grading) | 3-4 | ✅ | ✅ | 🔲 | Built |
 | P1-9 (trending cards) | 4 | 🔲 | 🔲 | 🔲 | — |
 | P1-10 (meta-pattern email) | 4 | 🔲 | — | 🔲 | — |
 | P2-11 (cross-creator) | 4-5 | 🔲 | — | 🔲 | — |
