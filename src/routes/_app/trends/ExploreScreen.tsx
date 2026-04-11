@@ -25,6 +25,7 @@ import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews } from "@/lib/formatters";
 import { TrendingSection } from "@/components/explore/TrendingSection";
+import { VideoDangHocSidebar } from "@/components/explore/VideoDangHocSidebar";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -689,6 +690,8 @@ export default function ExploreScreen() {
             ) : (
               <TrendingSection nicheId={selectedNicheId} />
             )}
+
+            <VideoDangHocSidebar />
 
             {hookData && hookData.length > 0 && selectedNicheId && !lowVideoCorpus ? (
               <section

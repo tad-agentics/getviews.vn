@@ -751,6 +751,20 @@ async def run_batch_ingest(
     # Refresh materialized view once all niches are done
     summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
 
+    # Daily: refresh Video Đáng Học rankings
+    try:
+        from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
+
+        vdh_result = await run_video_dang_hoc(client)
+        logger.info(
+            "[video_dang_hoc] bung_no=%d dang_hot=%d errors=%s",
+            vdh_result.bung_no_count,
+            vdh_result.dang_hot_count,
+            vdh_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
+
     # Weekly analytics (Sunday only — day 6 in Python's weekday())
     today = date.today()
     is_sunday = today.weekday() == 6
@@ -822,6 +836,19 @@ async def _run_weekly_analytics(client: Any) -> None:
         )
     except Exception as exc:
         logger.error("[trending_cards] Trending cards generation failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.cross_creator import run_cross_creator_detection
+
+        cc_result = await run_cross_creator_detection(client)
+        logger.info(
+            "[cross_creator] patterns_written=%d niches_affected=%d errors=%s",
+            cc_result.patterns_written,
+            cc_result.niches_affected,
+            cc_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[cross_creator] Cross-creator detection failed (non-fatal): %s", exc)
 
 
 def _fetch_niches_sync(client: Any) -> list[dict[str, Any]]:
