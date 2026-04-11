@@ -376,10 +376,15 @@ export default function ChatScreen() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Reset to blank chat when navigating to /app without a ?session= param (new chat button)
+  // Sync session state with URL ?session= param on every navigation
   useEffect(() => {
     const s = searchParams.get("session");
-    if (!s) {
+    if (s) {
+      // Navigated to a specific session (e.g. from history sidebar)
+      setSessionId(s);
+      setShowMessages(true);
+    } else {
+      // No ?session= — new chat button or bare /app navigation
       setSessionId(null);
       setMessage("");
       setShowMessages(false);
