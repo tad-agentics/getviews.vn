@@ -16,6 +16,7 @@ const CLOUD_RUN_INTENTS = new Set([
   "brief_generation",
   "trend_spike",
   "find_creators",
+  "shot_list",
 ]);
 
 export type StreamStatus = "idle" | "streaming" | "done" | "error";

@@ -891,18 +891,21 @@ export default function ChatScreen() {
         }
         if (m.role === "assistant") {
           const parsed = parseAssistantPayload(m.content);
-          const hasBody =
+          const hasStructured =
             parsed &&
-            (parsed.plain ||
-              (parsed.diagnosis_rows && parsed.diagnosis_rows.length > 0) ||
+            ((parsed.diagnosis_rows && parsed.diagnosis_rows.length > 0) ||
               (parsed.hook_ranking && parsed.hook_ranking.length > 0) ||
               (parsed.brief_sections && parsed.brief_sections.length > 0) ||
               (parsed.creators && parsed.creators.length > 0) ||
               parsed.error_video);
-          if (!hasBody) return null;
+          const hasPlain = parsed?.plain && parsed.plain.trim().length > 0;
+          if (!hasStructured && !hasPlain) return null;
           return (
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
-              <AssistantStructuredBlock parsed={parsed} />
+              {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
+              {hasPlain && !hasStructured ? (
+                <MarkdownRenderer text={parsed!.plain!} streaming={false} />
+              ) : null}
             </div>
           );
         }
