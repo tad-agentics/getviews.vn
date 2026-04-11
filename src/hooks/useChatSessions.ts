@@ -25,10 +25,13 @@ export function useDeleteSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const { error } = await supabase
         .from("chat_sessions")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", sessionId);
+        .eq("id", sessionId)
+        .eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -41,10 +44,13 @@ export function useUpdateSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, title }: { sessionId: string; title: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const { error } = await supabase
         .from("chat_sessions")
         .update({ title: title.trim() })
-        .eq("id", sessionId);
+        .eq("id", sessionId)
+        .eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: (_, vars) => {
