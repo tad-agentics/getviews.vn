@@ -71,10 +71,20 @@ export function useChatStream() {
       });
 
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        // getSession() returns cached token — refresh if within 60s of expiry to avoid
+        // sending an expired JWT to Cloud Run (which returns 401).
+        let { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error("No session");
+        const expiresAt = session.expires_at ?? 0; // unix seconds
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (expiresAt - nowSec < 60) {
+          const refreshed = await supabase.auth.refreshSession();
+          session = refreshed.data.session;
+          if (!session) {
+            setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
+            return;
+          }
+        }
 
         const useCloudRun = CLOUD_RUN_INTENTS.has(intentType);
         const endpoint = useCloudRun && CLOUD_RUN_URL ? `${CLOUD_RUN_URL}/stream` : VERCEL_CHAT_URL;

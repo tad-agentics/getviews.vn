@@ -254,7 +254,7 @@ async def require_user(request: Request) -> dict[str, Any]:
                 token,
                 SUPABASE_JWT_SECRET,
                 algorithms=["HS256"],
-                options={"verify_aud": False},
+                options={"verify_aud": False, "leeway": 30},
             )
         else:
             # ES256 via JWKS (stateless, asymmetric fallback)
@@ -263,7 +263,7 @@ async def require_user(request: Request) -> dict[str, Any]:
                 token,
                 jwks,
                 algorithms=["ES256"],
-                options={"verify_aud": False},
+                options={"verify_aud": False, "leeway": 30},
             )
     except ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
