@@ -1,23 +1,20 @@
-"""User-scoped Supabase client for Cloud Run request handlers.
+"""Supabase client helpers for Cloud Run.
 
-Pattern mirrors api/chat.ts userSupabase():
+Two client types:
 
-    function userSupabase(accessToken: string) {
-      return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false },
-        global: { headers: { Authorization: `Bearer ${accessToken}` } },
-      });
-    }
+1. user_supabase(access_token) — RLS-scoped, runs as the calling user.
+   Use for credit deduction, is_processing, chat_messages inserts.
+   Pattern mirrors api/chat.ts userSupabase().
 
-Using the anon key + the caller's JWT means all queries run through RLS as
-that user — credits and chat_messages operations are correctly scoped.
-
-DO NOT use SERVICE_ROLE_KEY here — it bypasses RLS.
+2. get_service_client() — service_role key, bypasses RLS.
+   Use ONLY for batch operations (corpus ingest, analytics, trend velocity).
+   Never use for user-facing request handlers.
 """
 
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from supabase import ClientOptions, Client, create_client
 
@@ -47,3 +44,14 @@ def user_supabase(access_token: str) -> Client:
             persist_session=False,
         ),
     )
+
+
+def get_service_client() -> Any:
+    """Return a Supabase client with service_role key (bypasses RLS).
+
+    Use ONLY for batch/admin operations: corpus ingest, analytics,
+    trend velocity, signal grading. Never for user-facing requests.
+    """
+    url = _require("SUPABASE_URL")
+    key = _require("SUPABASE_SERVICE_ROLE_KEY")
+    return create_client(url, key)

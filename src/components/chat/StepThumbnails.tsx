@@ -14,7 +14,7 @@ export function StepThumbnails({ thumbnails, maxVisible = 4 }: Props) {
   if (!visible.length) return null;
 
   return (
-    <span className="inline-flex items-center" style={{ gap: -4 }}>
+    <span className="inline-flex items-center">
       {visible.map((url, i) => (
         <span
           key={i}
@@ -28,7 +28,13 @@ export function StepThumbnails({ thumbnails, maxVisible = 4 }: Props) {
           }}
         >
           {url ? (
-            <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
+            <img
+              src={url}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
           ) : (
             <span
               className="block h-full w-full rounded-full"

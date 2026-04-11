@@ -99,8 +99,9 @@ export function useChatStream() {
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.body) throw new Error("Response body is null");
 
-        const reader = res.body!.getReader();
+        const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let text = "";
         let lastStreamId: string | null = resumeStreamId ?? null;
@@ -154,7 +155,7 @@ export function useChatStream() {
           }
         }
       } catch (err: unknown) {
-        if ((err as Error).name === "AbortError") return;
+        if (err instanceof Error && err.name === "AbortError") return;
         setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
       }
     },

@@ -23,6 +23,9 @@ const FREE_INTENTS = new Set([
   "format_lifecycle",
 ]);
 
+// §13: max 100 free queries per user per day — matches Cloud Run FREE_DAILY_LIMIT
+const FREE_DAILY_LIMIT = 100;
+
 function userSupabase(accessToken: string) {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -86,7 +89,22 @@ export default async function handler(req: Request): Promise<Response> {
 
   const isFree = FREE_INTENTS.has(intent_type);
 
-  if (!isFree) {
+  if (isFree) {
+    // Enforce daily free query limit (§13) — matches Cloud Run FREE_DAILY_LIMIT
+    const { data: gateResult, error: gateError } = await supabase.rpc(
+      "increment_free_query_count",
+      { p_user_id: user.id },
+    );
+    if (!gateError && gateResult) {
+      const newCount = (gateResult as { new_count?: number }).new_count ?? 0;
+      if (newCount > FREE_DAILY_LIMIT) {
+        return new Response(
+          JSON.stringify({ error: "daily_limit_exceeded" }),
+          { status: 429, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+  } else {
     await supabase.from("profiles").update({ is_processing: true }).eq("id", user.id);
 
     const { data: balanceAfter, error: rpcError } = await supabase.rpc("decrement_credit", {
