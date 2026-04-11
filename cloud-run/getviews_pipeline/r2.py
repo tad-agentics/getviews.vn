@@ -107,7 +107,9 @@ def extract_frames(video_path: Path, video_id: str) -> list[Path]:
             str(out_path),
         ]
         try:
-            result = __import__("subprocess").run(
+            import subprocess
+
+            result = subprocess.run(
                 cmd,
                 capture_output=True,
                 timeout=30,

@@ -233,9 +233,9 @@ async def run_signal_grading(client: Any | None = None) -> SignalGradingResult:
     loop = asyncio.get_event_loop()
 
     if client is None:
-        from getviews_pipeline.batch_analytics import _service_client
+        from getviews_pipeline.supabase_client import get_service_client
         try:
-            client = _service_client()
+            client = get_service_client()
         except RuntimeError as exc:
             result.errors.append(str(exc))
             return result

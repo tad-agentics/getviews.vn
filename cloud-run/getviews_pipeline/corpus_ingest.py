@@ -72,15 +72,9 @@ class BatchSummary:
 
 def _service_client() -> Any:
     """Create a Supabase client with service_role key (bypasses RLS for batch writes)."""
-    from supabase import Client, create_client  # type: ignore[import-untyped]
+    from getviews_pipeline.supabase_client import get_service_client
 
-    url = os.environ.get("SUPABASE_URL", "")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    if not url or not key:
-        raise RuntimeError(
-            "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for batch ingest"
-        )
-    return create_client(url, key)
+    return get_service_client()
 
 
 # ── Niche fetching ──────────────────────────────────────────────────────────────
