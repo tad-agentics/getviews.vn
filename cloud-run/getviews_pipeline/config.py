@@ -94,24 +94,31 @@ CDN_HEADERS: dict[str, str] = {
 # Providers: Smartproxy, Bright Data, Oxylabs, IPRoyal
 RESIDENTIAL_PROXY_URL = os.environ.get("RESIDENTIAL_PROXY_URL")
 
-# ── Cloudflare R2 (frame storage) ─────────────────────────────────────────────
+# ── Cloudflare R2 (frame + video storage) ─────────────────────────────────────
 # Frames are extracted from videos at fixed timestamps and uploaded to R2.
 # frame_urls in video_corpus stores the resulting public CDN URLs.
+# Videos (720p/30s .mp4) are also uploaded to R2 for permanent Explore playback.
 #
-# Required env vars:
-#   R2_ACCOUNT_ID       — Cloudflare account ID
-#   R2_ACCESS_KEY_ID    — R2 API token access key
+# Required env vars (shared for both frames and videos):
+#   R2_ACCOUNT_ID        — Cloudflare account ID
+#   R2_ACCESS_KEY_ID     — R2 API token access key (Object Read & Write)
 #   R2_SECRET_ACCESS_KEY — R2 API token secret key
-#   R2_BUCKET_NAME      — R2 bucket name (e.g. "getviews-frames")
-#   R2_PUBLIC_URL       — Public URL prefix (e.g. "https://frames.getviews.vn")
+#   R2_BUCKET_NAME       — R2 bucket name (e.g. "getviews-media")
+#   R2_PUBLIC_URL        — Public URL prefix for frames (e.g. "https://media.getviews.vn")
 #
-# When any of the required vars is absent, frame extraction is skipped silently
-# and frame_urls remains [] (corpus row is still inserted).
+# Optional — separate public URL for videos (defaults to R2_PUBLIC_URL if unset):
+#   R2_VIDEO_PUBLIC_URL  — Public URL prefix for videos (e.g. "https://media.getviews.vn")
+#                          Videos are stored at: videos/{video_id}.mp4
+#                          Frames are stored at: frames/{video_id}/{i}.png
+#
+# When any of the required vars is absent, R2 upload is skipped silently.
 R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
 R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
 R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
-R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "getviews-frames")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "getviews-media")
 R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
+# If R2_VIDEO_PUBLIC_URL is not set, falls back to R2_PUBLIC_URL.
+R2_VIDEO_PUBLIC_URL = os.environ.get("R2_VIDEO_PUBLIC_URL", "").rstrip("/")
 
 # Frame timestamps to extract (seconds from start of video).
 # 0s = hook frame, 1s = after hook, 3s = body start.

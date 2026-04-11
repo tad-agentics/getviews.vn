@@ -60,18 +60,11 @@ class AnalyticsResult:
 def _compute_creator_velocity_sync(client: Any) -> list[dict[str, Any]]:
     """Aggregate avg_views + video_count per (creator_handle, niche_id) from corpus.
 
-    Uses a direct SQL query via Supabase's postgrest RPC endpoint.
-    Falls back to Python-side aggregation if RPC is unavailable.
+    Performs Python-side aggregation via SELECT on video_corpus.
+    A SQL RPC path was removed because the `compute_creator_velocity` RPC does not
+    exist in migrations; Python aggregation is the authoritative path.
     """
-    try:
-        # Try SQL aggregation via RPC (most efficient)
-        result = client.rpc("compute_creator_velocity", {}).execute()
-        if result.data:
-            return result.data or []
-    except Exception:
-        pass  # RPC not available — fall through to Python aggregation
-
-    # Python-side fallback: fetch all corpus rows and aggregate
+    # Fetch all corpus rows and aggregate
     rows = (
         client.table("video_corpus")
         .select("creator_handle, niche_id, views")

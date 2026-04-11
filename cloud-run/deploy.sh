@@ -20,7 +20,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --cpu 1 \
   --timeout 300 \
   --concurrency 20 \
-  --min-instances 0 \
+  --min-instances 1 \
   --max-instances 5
 
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format="value(status.url)")
@@ -42,12 +42,15 @@ echo "  BATCH_VIDEOS_PER_NICHE     — max videos analyzed per niche (default: 1
 echo "  BATCH_RECENCY_DAYS         — post recency window in days (default: 30)"
 echo "  BATCH_CONCURRENCY          — parallel niches per batch wave (default: 4)"
 echo ""
-echo "R2 frame extraction env vars (optional — skip to leave frame_urls empty):"
+echo "R2 frame + video storage env vars (optional — skip to leave frame_urls/video_url as ED CDN URLs):"
 echo "  R2_ACCOUNT_ID              — Cloudflare account ID"
 echo "  R2_ACCESS_KEY_ID           — R2 API token access key (Object Read & Write)"
 echo "  R2_SECRET_ACCESS_KEY       — R2 API token secret key"
-echo "  R2_BUCKET_NAME             — R2 bucket name (default: getviews-frames)"
-echo "  R2_PUBLIC_URL              — Public URL prefix (e.g. https://frames.getviews.vn)"
+echo "  R2_BUCKET_NAME             — R2 bucket name (default: getviews-media)"
+echo "  R2_PUBLIC_URL              — Public URL prefix for frames (e.g. https://media.getviews.vn)"
+echo "  R2_VIDEO_PUBLIC_URL        — Public URL prefix for videos (defaults to R2_PUBLIC_URL)"
+echo "                               Videos stored at: videos/{video_id}.mp4"
+echo "                               Frames stored at: frames/{video_id}/{i}.png"
 echo ""
 echo "To set up Cloud Scheduler for nightly corpus ingest:"
 echo "  gcloud scheduler jobs create http getviews-corpus-ingest \\"

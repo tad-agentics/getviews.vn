@@ -34,6 +34,7 @@ from getviews_pipeline.config import (
     R2_BUCKET_NAME,
     R2_PUBLIC_URL,
     R2_SECRET_ACCESS_KEY,
+    R2_VIDEO_PUBLIC_URL,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,11 @@ _FRAME_EXT = ".png"
 
 # Max bytes we'll upload per frame (guard against runaway ffmpeg output)
 _MAX_FRAME_BYTES = 5 * 1024 * 1024  # 5 MB
+
+# Video upload settings
+_VIDEO_CONTENT_TYPE = "video/mp4"
+# Guard: skip upload if clip is larger than 60 MB (should be well under for 30s 720p)
+_MAX_VIDEO_BYTES = 60 * 1024 * 1024  # 60 MB
 
 
 def r2_configured() -> bool:
@@ -298,5 +304,138 @@ async def download_and_extract_frames(
             logger.warning("[r2] clip download failed for all URLs of %s", video_id)
             return []
         return await extract_and_upload(clip_path, video_id)
+    finally:
+        clip_path.unlink(missing_ok=True)
+
+
+def upload_video(video_id: str, clip_path: Path) -> str | None:
+    """Upload a 720p/30s .mp4 clip to R2 at videos/{video_id}.mp4.
+
+    Returns the permanent public URL (R2_VIDEO_PUBLIC_URL/videos/{video_id}.mp4)
+    or None on any failure.
+
+    Key pattern: videos/{video_id}.mp4
+    CacheControl: immutable — the clip content is stable once uploaded.
+    Runs synchronously (call via run_in_executor for async contexts).
+    """
+    if not r2_configured():
+        logger.warning("[r2] R2 not configured — skipping video upload for %s", video_id)
+        return None
+
+    public_base = R2_VIDEO_PUBLIC_URL or R2_PUBLIC_URL
+    if not public_base:
+        logger.warning("[r2] No public URL configured for video upload of %s", video_id)
+        return None
+
+    if not clip_path.exists():
+        logger.warning("[r2] clip_path %s does not exist — skipping upload", clip_path)
+        return None
+
+    size = clip_path.stat().st_size
+    if size == 0:
+        logger.warning("[r2] clip_path %s is empty — skipping upload", clip_path)
+        return None
+
+    if size > _MAX_VIDEO_BYTES:
+        logger.warning(
+            "[r2] clip %s is %.1fMB — exceeds %dMB limit, skipping upload",
+            video_id,
+            size / 1024 / 1024,
+            _MAX_VIDEO_BYTES // 1024 // 1024,
+        )
+        return None
+
+    key = f"videos/{video_id}.mp4"
+    try:
+        client = _get_r2_client()
+        with clip_path.open("rb") as fh:
+            client.put_object(
+                Bucket=R2_BUCKET_NAME,
+                Key=key,
+                Body=fh,
+                ContentType=_VIDEO_CONTENT_TYPE,
+                CacheControl="public, max-age=31536000, immutable",
+            )
+        url = f"{public_base.rstrip('/')}/{key}"
+        logger.info("[r2] uploaded video %s → %s (%.1fKB)", video_id, url, size / 1024)
+        return url
+    except (BotoCoreError, ClientError) as exc:
+        logger.error("[r2] R2 video upload failed for %s: %s", video_id, exc)
+        return None
+    except Exception as exc:
+        logger.error("[r2] unexpected error uploading video %s: %s", video_id, exc)
+        return None
+
+
+async def download_and_upload_video(
+    video_urls: list[str],
+    video_id: str,
+) -> str | None:
+    """Download a 720p/30s clip → upload to R2 → return permanent public URL.
+
+    Used by corpus_ingest to replace the ephemeral ED CDN video_url with a
+    permanent R2 URL suitable for Explore inline playback (zero egress cost).
+
+    The clip is downloaded with ffmpeg -t 32 (32 seconds = 30s content + buffer)
+    at 720p equivalent bitrate via stream copy — no re-encode, no quality loss.
+
+    Returns the permanent R2 URL on success, or None on any failure (non-fatal).
+    Cleans up /tmp regardless.
+    """
+    if not r2_configured():
+        return None
+
+    if not video_urls:
+        return None
+
+    if not _ffmpeg_available():
+        logger.warning("[r2] ffmpeg not available — skipping video upload for %s", video_id)
+        return None
+
+    import subprocess
+
+    loop = asyncio.get_event_loop()
+    clip_path = Path("/tmp") / f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
+
+    def _download_30s_clip() -> bool:
+        """Download first 30s of the video via ffmpeg stream copy."""
+        for url in video_urls:
+            cmd = [
+                "ffmpeg",
+                "-y",
+                "-t", "32",          # 30s content + 2s buffer
+                "-i", url,           # HTTP input — ffmpeg streams directly
+                "-c", "copy",        # no re-encode — preserve original quality
+                "-movflags", "+faststart",  # moov atom at front for streaming
+                str(clip_path),
+            ]
+            try:
+                res = subprocess.run(cmd, capture_output=True, timeout=90)
+                if res.returncode == 0 and clip_path.exists() and clip_path.stat().st_size > 0:
+                    logger.debug(
+                        "[r2] downloaded 30s clip for %s: %.1fMB",
+                        video_id,
+                        clip_path.stat().st_size / 1024 / 1024,
+                    )
+                    return True
+                logger.debug(
+                    "[r2] 30s clip download failed for %s (url=%s...): %s",
+                    video_id,
+                    url[:60],
+                    res.stderr.decode(errors="replace")[:200],
+                )
+            except Exception as exc:
+                logger.debug("[r2] 30s clip download error for %s: %s", video_id, exc)
+        return False
+
+    try:
+        ok = await loop.run_in_executor(None, _download_30s_clip)
+        if not ok:
+            logger.warning("[r2] 30s clip download failed for all URLs of %s", video_id)
+            return None
+        return await loop.run_in_executor(None, upload_video, video_id, clip_path)
+    except Exception as exc:
+        logger.error("[r2] download_and_upload_video failed for %s: %s", video_id, exc)
+        return None
     finally:
         clip_path.unlink(missing_ok=True)

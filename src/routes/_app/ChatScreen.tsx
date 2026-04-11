@@ -228,6 +228,8 @@ function detectIntent(query: string, priorAssistant: boolean): { intentType: str
   if (/@\w/.test(q)) return { intentType: "competitor_profile", isFree: false };
   if (/\b(hot|trending|xu hướng|đang lên)\b/i.test(ql)) return { intentType: "trend_spike", isFree: true };
   if (/\b(tìm kol|tìm creator|\bkol\b)\b/i.test(ql)) return { intentType: "find_creators", isFree: true };
+  if (/\b(soi kênh|kênh của (tôi|mình|tao)|phân tích kênh|channel của)\b/i.test(ql)) return { intentType: "own_channel", isFree: false };
+  if (/\b(gì đang hot|content direction|hướng nội dung|nên làm (gì|video gì)|video gì (đang|phổ biến)|ý tưởng video)\b/i.test(ql)) return { intentType: "content_directions", isFree: false };
   if (priorAssistant) return { intentType: "follow_up", isFree: true };
   return { intentType: "brief_generation", isFree: false };
 }
@@ -482,6 +484,7 @@ export default function ChatScreen() {
       status === "error" &&
       streamId !== null &&
       error !== "insufficient_credits" &&
+      error !== "daily_free_limit" &&
       lastIntentRef.current !== null
         ? { stream_id: streamId, last_seq: lastSeq }
         : undefined;
@@ -695,6 +698,20 @@ export default function ChatScreen() {
             <NicheSelector userId={user.id} />
           </div>
         ) : null}
+        {!needsNiche && credits > 0 && credits <= 5 ? (
+          <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/30">
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Còn <span className="font-semibold">{credits}</span> deep credit — mỗi phân tích sâu dùng 1 credit.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/app/pricing")}
+              className="ml-3 shrink-0 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400"
+            >
+              Nạp thêm →
+            </button>
+          </div>
+        ) : null}
         <div
           className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
           style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04)" }}
@@ -828,13 +845,21 @@ export default function ChatScreen() {
   }
 
   const paywallVisible = clientPaywall || error === "insufficient_credits";
+  const dailyLimitVisible = error === "daily_free_limit";
 
   const inFlightVisible =
     status === "streaming" ||
-    (status === "error" && streamId !== null && error !== "insufficient_credits");
+    (status === "error" && streamId !== null && error !== "insufficient_credits" && error !== "daily_free_limit");
 
   const messageThread = (
     <div className="space-y-4">
+      {dailyLimitVisible ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            Bạn đã dùng quá 100 lượt tìm kiếm hôm nay. Hạn mức sẽ reset lúc 00:00 ngày mai.
+          </p>
+        </div>
+      ) : null}
       {paywallVisible ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <p className="mb-3 text-sm text-[var(--ink)]">
@@ -946,6 +971,20 @@ export default function ChatScreen() {
             {needsNiche && user?.id ? (
               <div className="mb-3">
                 <NicheSelector userId={user.id} />
+              </div>
+            ) : null}
+            {!needsNiche && credits > 0 && credits <= 5 ? (
+              <div className="mb-2 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-950/30">
+                <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                  Còn <span className="font-semibold">{credits}</span> deep credit
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/app/pricing")}
+                  className="ml-2 shrink-0 text-[11px] font-semibold text-amber-700 hover:underline dark:text-amber-400"
+                >
+                  Nạp thêm →
+                </button>
               </div>
             ) : null}
             <AnimatePresence>

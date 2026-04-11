@@ -29,7 +29,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import AliasChoices, BaseModel, Field
 
-from getviews_pipeline import ensemble
 from getviews_pipeline.config import (
     ENSEMBLEDATA_API_TOKEN,
     GEMINI_API_KEY,
@@ -81,6 +80,12 @@ def is_free_intent(intent: str) -> bool:
     # own_channel) are always paid. This function exists for completeness —
     # credits_used is always 1 in the /stream handler.
     return intent in ("trend_spike", "kol_search", "follow_up", "find_creators")
+
+
+# §13 mandate: max 100 free queries per user per day for abuse prevention
+FREE_DAILY_LIMIT = 100
+# Intents that consume from the daily free quota (not the deep-credit pool)
+_FREE_GATED_INTENTS = frozenset({"trend_spike", "find_creators", "follow_up"})
 
 
 def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:
@@ -372,6 +377,19 @@ async def stream(
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
 
+            # ── Free-intent daily abuse gate ──────────────────────────────────
+            if normalized in _FREE_GATED_INTENTS:
+                try:
+                    gate_result = sb.rpc("increment_free_query_count", {"p_user_id": user_id}).execute()
+                    new_count = (gate_result.data or {}).get("new_count", 0)
+                    if new_count > FREE_DAILY_LIMIT:
+                        seq += 1
+                        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "daily_free_limit"})
+                        sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                        return
+                except Exception as gate_exc:
+                    logger.warning("[stream] free query count gate failed (fail-open): %s", gate_exc)
+
             # ── Run pipeline (with step events) ───────────────────────────────
             session = get_session_context(body.session_id)
             urls, handles = extract_urls_and_handles(body.query)
@@ -379,7 +397,7 @@ async def stream(
 
             step_q: asyncio.Queue[dict | None] = asyncio.Queue()
 
-            if normalized in ("video_diagnosis", "own_channel"):
+            if normalized == "video_diagnosis":
                 url = _pick_video_url(urls)
                 if not url:
                     seq += 1

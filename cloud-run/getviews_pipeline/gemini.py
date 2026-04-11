@@ -114,6 +114,15 @@ def _extraction_json_config(schema: dict[str, Any]) -> types.GenerateContentConf
     return types.GenerateContentConfig(**updates)
 
 
+_RETRY_DELAYS = (1, 2, 4)  # seconds — §13 mandate: 3 retries at 1s/2s/4s
+
+
+def _is_transient_gemini_error(exc: Exception) -> bool:
+    """Return True for 503 / 429 / rate-limit errors that are safe to retry."""
+    msg = str(exc).lower()
+    return any(kw in msg for kw in ("503", "429", "rate limit", "quota", "overloaded", "resource exhausted"))
+
+
 def _generate_content_models(
     contents: Any,
     *,
@@ -129,14 +138,21 @@ def _generate_content_models(
         if not m or m in seen:
             continue
         seen.add(m)
-        try:
-            kwargs: dict[str, Any] = {"model": m, "contents": contents}
-            if config is not None:
-                kwargs["config"] = config
-            return client.models.generate_content(**kwargs)
-        except Exception as e:
-            last_err = e
-            logger.warning("Gemini model %s failed: %s", m, e)
+        for attempt, delay in enumerate(_RETRY_DELAYS):
+            try:
+                kwargs: dict[str, Any] = {"model": m, "contents": contents}
+                if config is not None:
+                    kwargs["config"] = config
+                return client.models.generate_content(**kwargs)
+            except Exception as e:
+                is_transient = _is_transient_gemini_error(e)
+                is_last_attempt = attempt == len(_RETRY_DELAYS) - 1
+                if not is_transient or is_last_attempt:
+                    last_err = e
+                    logger.warning("Gemini model %s attempt %d/%d failed: %s", m, attempt + 1, len(_RETRY_DELAYS), e)
+                    break
+                logger.info("Gemini model %s transient error (attempt %d/%d), retrying in %ds: %s", m, attempt + 1, len(_RETRY_DELAYS), delay, e)
+                time.sleep(delay)
     if last_err:
         raise last_err
     raise RuntimeError("No Gemini models available")

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { supabase } from "@/lib/supabase";
 import { useVideoCorpus } from "@/hooks/useVideoCorpus";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
@@ -761,18 +763,24 @@ type HookEffectivenessRow = {
   computed_at: string | null;
 };
 
-function parseTrendingKeywords(raw: unknown): string[] {
-  if (raw == null) return [];
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((k): k is string => typeof k === "string");
-}
+
+type SortOption = "indexed_at" | "views" | "engagement_rate";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  indexed_at: "Mới nhất",
+  views: "Lượt xem",
+  engagement_rate: "Tương tác",
+};
 
 export default function ExploreScreen() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeViewFilter, setActiveViewFilter] = useState("100K+");
   const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("indexed_at");
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
@@ -791,6 +799,38 @@ export default function ExploreScreen() {
 
   const hookData = hookDataRaw as HookEffectivenessRow[] | undefined;
 
+  const { data: hookThumbnailsRaw } = useQuery({
+    queryKey: ["hook_thumbnails", selectedNicheId],
+    queryFn: async () => {
+      // Use analysis_json->>'hook_type' so the key space matches hook_effectiveness.hook_type
+      const { data, error } = await supabase
+        .from("video_corpus")
+        .select("analysis_json, thumbnail_url")
+        .eq("niche_id", selectedNicheId!)
+        .not("thumbnail_url", "is", null)
+        .order("engagement_rate", { ascending: false })
+        .limit(120);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!selectedNicheId,
+    staleTime: 10 * 60_000,
+  });
+
+  const hookThumbnailMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const row of hookThumbnailsRaw ?? []) {
+      const aj = row.analysis_json as Record<string, unknown> | null;
+      const hookType = typeof aj?.hook_type === "string" ? aj.hook_type : null;
+      const thumb = row.thumbnail_url as string | null;
+      if (!hookType || !thumb) continue;
+      const key = hookType.toLowerCase().replace(/\s+/g, "_");
+      if (!map[key]) map[key] = [];
+      if (map[key].length < 3) map[key].push(thumb);
+    }
+    return map;
+  }, [hookThumbnailsRaw]);
+
   useEffect(() => {
     if (selectedNicheId !== null) return;
     const id = profile?.primary_niche;
@@ -806,19 +846,28 @@ export default function ExploreScreen() {
     if (!hookData?.length) return [];
     return hookData.map((h, i) => {
       const er = (Number(h.avg_engagement_rate) || 0) * 100;
-      const title = String(h.hook_type ?? "")
-        .replace(/_/g, " ")
-        .trim() || "Hook";
+      const rawHook = String(h.hook_type ?? "");
+      const title = rawHook.replace(/_/g, " ").trim() || "Hook";
+      const key = rawHook.toLowerCase().replace(/\s+/g, "_");
+      const thumbs = hookThumbnailMap[key] ?? [];
+      const images =
+        thumbs.length >= 3
+          ? thumbs.slice(0, 3)
+          : [
+              thumbs[0] ?? PLACEHOLDER_THUMB,
+              thumbs[1] ?? PLACEHOLDER_THUMB,
+              thumbs[2] ?? PLACEHOLDER_THUMB,
+            ];
       return {
         id: h.id ?? i,
         title,
         description: `${er.toFixed(1)}% ER trung bình · ${h.sample_size ?? 0} video mẫu`,
-        images: [PLACEHOLDER_THUMB, PLACEHOLDER_THUMB, PLACEHOLDER_THUMB],
+        images,
         platforms: ["tiktok"],
         videos: [],
       };
     });
-  }, [hookData]);
+  }, [hookData, hookThumbnailMap]);
 
   const risingFormats = useMemo(
     () => (formatData ?? []).filter((f) => (f.engagement_trend ?? 0) > 0).slice(0, 5),
@@ -829,7 +878,33 @@ export default function ExploreScreen() {
     [formatData],
   );
 
-  const trendingKeywords = useMemo(() => parseTrendingKeywords(nicheIntel?.trending_keywords), [nicheIntel]);
+  const { data: breakoutVideosRaw } = useQuery({
+    queryKey: ["breakout_videos", selectedNicheId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("video_corpus")
+        .select("id, creator_handle, views, thumbnail_url, content_type, indexed_at")
+        .eq("niche_id", selectedNicheId!)
+        .not("thumbnail_url", "is", null)
+        .order("views", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!selectedNicheId,
+    staleTime: 10 * 60_000,
+  });
+
+  const breakoutSidebarItems = useMemo(() => {
+    const rows = breakoutVideosRaw ?? [];
+    return rows.map((r) => ({
+      title: String(r.content_type ?? "").replace(/_/g, " ") || `@${r.creator_handle}`,
+      views: r.views != null ? formatViews(r.views) : "—",
+      handle: `@${r.creator_handle ?? ""}`,
+      time: r.indexed_at ? formatDate(r.indexed_at) : "",
+      img: r.thumbnail_url ?? PLACEHOLDER_THUMB,
+    }));
+  }, [breakoutVideosRaw]);
 
   const lowVideoCorpus = Boolean(
     selectedNicheId &&
@@ -855,7 +930,11 @@ export default function ExploreScreen() {
     return `${h}h trước`;
   }, [nicheIntel?.computed_at]);
 
-  const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({});
+  const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({
+    nicheId: selectedNicheId,
+    sortBy,
+    sortOrder: "desc",
+  });
 
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
   const videos = useMemo(() => corpusRows.map(corpusRowToExploreVideo), [corpusRows]);
@@ -883,10 +962,16 @@ export default function ExploreScreen() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPageStable, isPending, isError]);
 
+  // Scroll the content column back to top whenever sort changes so the user
+  // immediately sees page 0 of the new sort order instead of staying mid-list.
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [sortBy]);
+
   return (
     <AppLayout active="trends" enableMobileSidebar>
       <div className="flex-1 overflow-hidden flex min-h-0">
-        <div className="flex-1 overflow-y-auto min-w-0" style={{ scrollbarWidth: "thin" }}>
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-w-0" style={{ scrollbarWidth: "thin" }}>
           <div
             className="overflow-x-auto px-5 lg:px-7 pt-14 lg:pt-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: "none" }}
@@ -1128,11 +1213,37 @@ export default function ExploreScreen() {
                   placeholder="Tim video..."
                 />
               </div>
-              <FilterChip label="Nen tang" hasArrow />
-              <FilterChip label="Sap xep" hasArrow />
-              <FilterChip label="Ngay" hasArrow />
-              <FilterChip label={activeViewFilter} active onRemove={() => setActiveViewFilter("")} />
-              <FilterChip label="The loai" hasArrow />
+              <div className="relative">
+                <FilterChip
+                  label={SORT_LABELS[sortBy]}
+                  hasArrow
+                  active={sortBy !== "indexed_at"}
+                  onRemove={sortBy !== "indexed_at" ? () => setSortBy("indexed_at") : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSortMenu((v) => !v)}
+                  className="absolute inset-0"
+                  aria-label="Sắp xếp"
+                />
+                {showSortMenu ? (
+                  <div className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
+                    {(["indexed_at", "views", "engagement_rate"] as SortOption[]).map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setSortBy(opt); setShowSortMenu(false); }}
+                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${sortBy === opt ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
+                      >
+                        {SORT_LABELS[opt]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {activeViewFilter ? (
+                <FilterChip label={activeViewFilter} active onRemove={() => setActiveViewFilter("")} />
+              ) : null}
             </div>
 
             {isPending ? <ExploreGridSkeleton /> : null}
@@ -1211,15 +1322,10 @@ export default function ExploreScreen() {
                 <span className="text-xs font-bold text-[var(--ink)]">Breakout tuần này</span>
               </div>
             </div>
-            {trendingKeywords.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {trendingKeywords.slice(0, Math.ceil(trendingKeywords.length / 2)).map((kw, idx) => (
-                  <span
-                    key={`b-${idx}-${kw}`}
-                    className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink)]"
-                  >
-                    {kw}
-                  </span>
+            {breakoutSidebarItems.slice(0, 5).length > 0 ? (
+              <div>
+                {breakoutSidebarItems.slice(0, 5).map((item, idx) => (
+                  <SidebarVideoRow key={`b-${idx}`} item={item} rank={idx + 1} />
                 ))}
               </div>
             ) : (
@@ -1242,20 +1348,15 @@ export default function ExploreScreen() {
                 <span className="text-xs font-bold text-[var(--ink)]">Đang viral</span>
               </div>
             </div>
-            {trendingKeywords.length > 1 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {trendingKeywords.slice(Math.ceil(trendingKeywords.length / 2)).map((kw, idx) => (
-                  <span
-                    key={`v-${idx}-${kw}`}
-                    className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink)]"
-                  >
-                    {kw}
-                  </span>
+            {breakoutSidebarItems.slice(5).length > 0 ? (
+              <div>
+                {breakoutSidebarItems.slice(5).map((item, idx) => (
+                  <SidebarVideoRow key={`v-${idx}`} item={item} rank={idx + 6} />
                 ))}
               </div>
-            ) : trendingKeywords.length === 1 ? (
-              <p className="text-[11px] text-[var(--faint)]">Thêm từ khóa sẽ hiện ở mục này.</p>
-            ) : null}
+            ) : (
+              <p className="text-[11px] text-[var(--faint)]">Chưa có video viral trong niche này.</p>
+            )}
           </div>
         </aside>
       </div>

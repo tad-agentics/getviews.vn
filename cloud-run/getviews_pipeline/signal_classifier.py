@@ -275,37 +275,3 @@ async def run_signal_grading(client: Any | None = None) -> SignalGradingResult:
         result.errors.append(f"upsert: {exc}")
 
     return result
-
-
-# ---------------------------------------------------------------------------
-# Query helper — used by pipelines.py to inject signal into synthesis
-# ---------------------------------------------------------------------------
-
-def get_hook_signals_for_niche(
-    client: Any,
-    niche_id: int,
-) -> dict[str, str]:
-    """Return {hook_type: signal} for the most recent week in a niche.
-
-    Used by run_trend_spike to annotate trend cards with real signal grades.
-    Falls back to empty dict on any error.
-    """
-    try:
-        result = (
-            client.table("signal_grades")
-            .select("hook_type, signal")
-            .eq("niche_id", niche_id)
-            .order("week_start", desc=True)
-            .limit(20)
-            .execute()
-        )
-        seen: dict[str, str] = {}
-        for row in (result.data or []):
-            ht = row.get("hook_type", "")
-            sig = row.get("signal", "stable")
-            if ht and ht not in seen:
-                seen[ht] = sig
-        return seen
-    except Exception as exc:
-        logger.warning("[signal] get_hook_signals_for_niche failed: %s", exc)
-        return {}

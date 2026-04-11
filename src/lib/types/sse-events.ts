@@ -106,19 +106,3 @@ export interface SseErrorToken {
 
 export type SseToken = SseStepToken | SseDeltaToken | SseDoneToken | SseErrorToken;
 
-/** Narrowing helpers */
-export function isStepToken(t: SseToken): t is SseStepToken {
-  return "step" in t && t.step != null;
-}
-
-export function isDeltaToken(t: SseToken): t is SseDeltaToken {
-  return "delta" in t && t.done === false;
-}
-
-export function isDoneToken(t: SseToken): t is SseDoneToken {
-  return t.done === true && !("error" in t && t.error);
-}
-
-export function isErrorToken(t: SseToken): t is SseErrorToken {
-  return t.done === true && "error" in t && Boolean(t.error);
-}

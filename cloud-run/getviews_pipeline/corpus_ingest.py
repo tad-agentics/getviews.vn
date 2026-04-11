@@ -25,7 +25,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.helpers import filter_recency, merge_aweme_lists
-from getviews_pipeline.r2 import download_and_extract_frames, r2_configured
+from getviews_pipeline.r2 import download_and_extract_frames, download_and_upload_video, r2_configured
 from getviews_pipeline.runtime import get_analysis_semaphore
 
 logger = logging.getLogger(__name__)
@@ -380,28 +380,51 @@ async def ingest_niche(
         else:
             rows.append(row)
 
-    # Frame extraction: download a short clip per video → extract → upload to R2.
-    # Runs only when R2 is configured. Failures are non-fatal — frame_urls stays [].
+    # R2 upload: for each video row, concurrently:
+    #   a) Download short clip → extract frames → upload frame PNGs (frame_urls)
+    #   b) Download 30s clip → upload full .mp4 → store permanent video_url
+    # Failures are non-fatal — frame_urls stays [] and video_url stays as ED CDN URL.
     if rows and r2_configured():
-        logger.info("[corpus] niche=%s — extracting frames for %d rows", niche_name, len(rows))
+        video_rows = [r for r in rows if r.get("content_type", "video") == "video" and r.get("video_url")]
+        logger.info(
+            "[corpus] niche=%s — R2 upload: %d frames + %d video clips",
+            niche_name,
+            len(video_rows),
+            len(video_rows),
+        )
+
         frame_tasks = [
             download_and_extract_frames(
-                [row["video_url"]] if row.get("video_url") else [],
+                [row["video_url"]],
                 row["video_id"],
             )
-            for row in rows
+            for row in video_rows
         ]
-        frame_results = await asyncio.gather(*frame_tasks, return_exceptions=True)
-        for row, frame_result in zip(rows, frame_results):
+        video_upload_tasks = [
+            download_and_upload_video(
+                [row["video_url"]],
+                row["video_id"],
+            )
+            for row in video_rows
+        ]
+
+        frame_results, video_results = await asyncio.gather(
+            asyncio.gather(*frame_tasks, return_exceptions=True),
+            asyncio.gather(*video_upload_tasks, return_exceptions=True),
+        )
+
+        for row, frame_result, video_result in zip(video_rows, frame_results, video_results):
             if isinstance(frame_result, list) and frame_result:
                 row["frame_urls"] = frame_result
-                logger.info(
-                    "[corpus] %s — %d frame(s) uploaded",
-                    row["video_id"],
-                    len(frame_result),
-                )
+                logger.info("[corpus] %s — %d frame(s) uploaded", row["video_id"], len(frame_result))
             elif isinstance(frame_result, Exception):
                 logger.warning("[corpus] frame extraction error for %s: %s", row["video_id"], frame_result)
+
+            if isinstance(video_result, str) and video_result:
+                row["video_url"] = video_result
+                logger.info("[corpus] %s — video uploaded to R2: %s", row["video_id"], video_result)
+            elif isinstance(video_result, Exception):
+                logger.warning("[corpus] video upload error for %s: %s", row["video_id"], video_result)
 
     if rows:
         try:
@@ -512,7 +535,7 @@ async def run_batch_ingest(
     today = date.today()
     is_sunday = today.weekday() == 6
     if is_sunday:
-        logger.info("[corpus] Sunday — running weekly analytics (P1-7 + P1-8)...")
+        logger.info("[corpus] Sunday — running weekly analytics (trend_velocity + P1-7 + P1-8)...")
         await _run_weekly_analytics(client)
 
     logger.info(
@@ -527,10 +550,22 @@ async def run_batch_ingest(
 
 
 async def _run_weekly_analytics(client: Any) -> None:
-    """Run creator velocity + breakout multiplier + signal grading (Sunday only).
+    """Run trend velocity + creator velocity + breakout multiplier + signal grading (Sunday only).
 
     Non-fatal: errors are logged but do not fail the batch ingest.
     """
+    try:
+        from getviews_pipeline.trend_velocity import run_trend_velocity
+        tv_result = await run_trend_velocity(client)
+        logger.info(
+            "[tv] rows_upserted=%d niches=%d errors=%s",
+            tv_result.rows_upserted,
+            tv_result.niches_processed,
+            tv_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[tv] Trend velocity computation failed (non-fatal): %s", exc)
+
     try:
         from getviews_pipeline.batch_analytics import run_analytics
         analytics_result = await run_analytics(client)

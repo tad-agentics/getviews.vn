@@ -30,7 +30,28 @@
 - [x] Visual fidelity audit (Product Designer — staging URL vs Make code) commit: 82c4c12
 - [x] Pre-handoff code review (QA Agent — /review skill) commit: 2caeb1f
 
+## Wave 3 — Output Quality
+
+Full plan: `artifacts/plans/output-quality-plan.md`
+
+| Feature | Priority | Backend | Frontend | QA | Status |
+|---|---|---|---|---|---|
+| P0-1: Corpus citations | P0 | 🔲 | 🔲 | 🔲 | — |
+| P0-3: Hook formula templates | P0 | 🔲 | 🔲 | 🔲 | — |
+| P0-5: "Chạy vì:" mechanism block | P0 | 🔲 | — | 🔲 | — |
+| P0-2: Thumbnail reference cards | P0 | 🔲 | 🔲 | 🔲 | — |
+| P0-4: Recency tags + signal badges | P0 | 🔲 | 🔲 | 🔲 | — |
+| P0-6: Agentic Step Logger (SSE) | P0 | 🔲 | 🔲 | 🔲 | — |
+| P1-6: Trend Card UI | P1 | 🔲 | 🔲 | 🔲 | — |
+| P1-7: Breakout multiplier | P1 | 🔲 | — | 🔲 | — |
+| P1-8: Signal strength grading | P1 | 🔲 | 🔲 | 🔲 | — |
+| P1-9: Trending This Week (Explore) | P1 | 🔲 | 🔲 | 🔲 | — |
+| P1-10: Meta-pattern Monday email | P1 | 🔲 | — | 🔲 | — |
+| P2-11: Cross-creator detection | P2 | 🔲 | — | 🔲 | — |
+| P2-12: Video Đáng Học ranking | P2 | 🔲 | 🔲 | 🔲 | — |
+| P2-13: Creator network (stretch) | P2 | 🔲 | — | 🔲 | — |
+
 ## Issues
 
 See `artifacts/issues/`
-BLOCKING: 0 | NON-BLOCKING: 0
+BLOCKING: 0 | NON-BLOCKING: 14

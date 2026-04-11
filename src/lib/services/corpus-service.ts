@@ -25,16 +25,3 @@ export async function getVideoMeta(videoId: string): Promise<VideoMeta | null> {
   return data as VideoMeta;
 }
 
-/** Batch-fetch metadata for multiple video IDs (deduped). */
-export async function getVideoMetaBatch(videoIds: string[]): Promise<Map<string, VideoMeta>> {
-  const unique = [...new Set(videoIds)];
-  if (!unique.length) return new Map();
-
-  const { data, error } = await supabase
-    .from("video_corpus")
-    .select("video_id, thumbnail_url, video_url, views, creator_handle, indexed_at")
-    .in("video_id", unique);
-
-  if (error || !data) return new Map();
-  return new Map(data.map((row) => [row.video_id, row as VideoMeta]));
-}
