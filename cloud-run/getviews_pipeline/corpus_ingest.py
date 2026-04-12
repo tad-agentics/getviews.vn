@@ -610,7 +610,7 @@ async def ingest_niche(
                         "metadata": ensemble.parse_metadata(aweme).model_dump(),
                     }, []
 
-                vid = str(aweme.get("aweme_id", ""))
+                vid = str(aweme.get("aweme_id", "") or "")
                 # Run Gemini analysis and R2 frame extraction concurrently on the same file.
                 # extract_and_upload never raises (returns [] on any failure).
                 async def _noop_frames() -> list[str]:
