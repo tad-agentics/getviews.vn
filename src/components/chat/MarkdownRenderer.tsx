@@ -231,11 +231,16 @@ function parseSegments(text: string): Segment[] {
   const { result: afterSoundCards, cards: soundCards } = extractSoundCards(afterTrendCards);
   const { result: afterShotItems, items: shotListItems } = extractShotItems(afterSoundCards);
 
+  // Strip incomplete trailing video_ref blocks (Gemini truncated mid-JSON).
+  // These appear when max_output_tokens is hit — e.g. `{"type": "video_ref", "views": 123,`
+  // The complete-block regex won't match them so they'd show as raw text.
+  const cleanedText = afterShotItems.replace(/\{"type"\s*:\s*"video_ref"[^}]*$/, "").trimEnd();
+
   // Step 1: extract all video_ref JSON objects and replace with markers
   const videoRefs: VideoRefData[] = [];
   const indexed: string[] = [];
 
-  const withMarkers = afterShotItems.replace(VIDEO_REF_RE, (match) => {
+  const withMarkers = cleanedText.replace(VIDEO_REF_RE, (match) => {
     try {
       const data = JSON.parse(match) as VideoRefData;
       if (data.type === "video_ref" && data.video_id) {

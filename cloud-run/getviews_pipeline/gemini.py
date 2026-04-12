@@ -287,7 +287,7 @@ def synthesize_diagnosis(
     """Strategist markdown: routes to video vs carousel diagnosis prompt."""
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     prompt = build_diagnosis_prompt(analysis, metadata, content_type)
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=2048)
+    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=4096)
     response = _generate_content_models(
         [prompt],
         primary_model=model,
@@ -360,7 +360,7 @@ def synthesize_intent_markdown(
         niche_key=niche_key,
         corpus_citation=corpus_citation,
     )
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=2048)
+    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=4096)
     response = _generate_content_models(
         [prompt],
         primary_model=GEMINI_SYNTHESIS_MODEL,
