@@ -80,13 +80,13 @@ def is_free_intent(intent: str) -> bool:
     # The three intents routed to Cloud Run (video_diagnosis, competitor_profile,
     # own_channel) are always paid. This function exists for completeness —
     # credits_used is always 1 in the /stream handler.
-    return intent in ("trend_spike", "kol_search", "follow_up", "find_creators")
+    return intent in ("trend_spike", "kol_search", "find_creators")
 
 
 # §13 mandate: max 100 free queries per user per day for abuse prevention
 FREE_DAILY_LIMIT = 100
 # Intents that consume from the daily free quota (not the deep-credit pool)
-_FREE_GATED_INTENTS = frozenset({"trend_spike", "find_creators", "follow_up"})
+_FREE_GATED_INTENTS = frozenset({"trend_spike", "find_creators"})
 
 
 def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:

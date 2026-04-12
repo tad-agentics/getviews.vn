@@ -122,8 +122,8 @@ function detectIntent(query: string, priorAssistant: boolean): { intentType: str
   if (isTrend) return { intentType: "trend_spike", isFree: true };
 
   // ── 7. DEFAULT ────────────────────────────────────────────────────────────
-  if (q.length < 10 || priorAssistant) return { intentType: "follow_up", isFree: true };
-  return { intentType: "follow_up", isFree: true };
+  if (q.length < 10 || priorAssistant) return { intentType: "follow_up", isFree: false };
+  return { intentType: "follow_up", isFree: false };
 }
 
 type ParsedAssistant = {

@@ -19,7 +19,6 @@ const GEMINI_MODEL =
   process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-3.1-flash-lite-preview";
 
 const FREE_INTENTS = new Set([
-  "follow_up",
   "format_lifecycle",
 ]);
 

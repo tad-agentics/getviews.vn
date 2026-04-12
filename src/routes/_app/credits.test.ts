@@ -5,7 +5,7 @@
  * Vitest (module-level env reads + createClient side-effects).  The constants
  * are replicated here so any divergence is caught at the assertion level.
  *
- * SOURCE OF TRUTH: api/chat.ts lines 21-27.
+ * SOURCE OF TRUTH: api/chat.ts lines 21-24.
  * If FREE_INTENTS or FREE_DAILY_LIMIT change there, update this file too.
  */
 
@@ -14,7 +14,6 @@ import { describe, it, expect } from "vitest";
 // ── Replicated from api/chat.ts (keep in sync) ────────────────────────────────
 
 const FREE_INTENTS = new Set([
-  "follow_up",
   "format_lifecycle",
 ]);
 
@@ -33,11 +32,11 @@ function creditRow(isFree: boolean) {
 
 describe("api/chat.ts — FREE_INTENTS set", () => {
   it("contains the expected free intents", () => {
-    expect(FREE_INTENTS.has("follow_up")).toBe(true);
     expect(FREE_INTENTS.has("format_lifecycle")).toBe(true);
   });
 
   it("does not contain paid intents", () => {
+    expect(FREE_INTENTS.has("follow_up")).toBe(false);
     expect(FREE_INTENTS.has("video_diagnosis")).toBe(false);
     expect(FREE_INTENTS.has("brief_generation")).toBe(false);
     expect(FREE_INTENTS.has("shot_list")).toBe(false);
@@ -52,7 +51,7 @@ describe("api/chat.ts — FREE_DAILY_LIMIT", () => {
 
 describe("api/chat.ts — credit deduction logic", () => {
   it("free intent writes credits_used=0 and is_free=true", () => {
-    const isFree = FREE_INTENTS.has("follow_up");
+    const isFree = FREE_INTENTS.has("format_lifecycle");
     const row = creditRow(isFree);
     expect(row.credits_used).toBe(0);
     expect(row.is_free).toBe(true);
