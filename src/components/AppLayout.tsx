@@ -15,7 +15,6 @@ import {
   Check,
   BookOpen,
   Menu,
-  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
@@ -381,17 +380,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
-          {showPricingCta ? (
-            <NavItem
-              icon={Sparkles}
-              label="Nâng cấp"
-              active={false}
-              onClick={() => {
-                navigate("/app/pricing");
-                onClose?.();
-              }}
-            />
-          ) : null}
         </div>
 
         {/* Divider */}
