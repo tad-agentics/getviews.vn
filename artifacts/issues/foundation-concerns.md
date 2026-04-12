@@ -46,9 +46,11 @@ None. ✅
 **Impact:** `onMutate` only calls `setQueryData` when `previous` exists — cold cache skips the optimistic update. Virtually never triggered in practice (SettingsScreen only renders after profile loads).
 **Action:** Deferred — low impact.
 
-### N-31 — No Vitest coverage for settings flows
-**Source:** Settings QA agent
-**Action:** Add 3–4 regression tests: logout dialog, `useUpdateProfile` optimistic rollback, free vs paid copy. Low priority.
+### ~~N-31 — No Vitest coverage for settings flows~~ ✅
+**Resolved 2026-04-12** — 9 tests added in `src/routes/_app/settings/settings.test.tsx`:
+- Logout dialog: opens, cancel closes without signOut, confirm calls signOut + clears cache
+- `useUpdateProfile`: optimistic write, onError rollback, cold-cache skip
+- `PlanPanel`: free-tier lifetime copy, expired subscription copy, active expiry date
 
 ### N-33 — Cron + email functions not yet verified end-to-end
 **Source:** Email-cron QA agent
@@ -84,10 +86,11 @@ None. ✅
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 0 | — |
-| NON-BLOCKING | 9 | N-1, N-3, N-4, N-5, N-26, N-30, N-31, N-33, N-40 |
+| NON-BLOCKING | 8 | N-1, N-3, N-4, N-5, N-26, N-30, N-33, N-40 |
 | DEFERRED | 5 | Post-MVP |
 
 **Resolved since last update:**
+- ✅ N-31 (settings Vitest coverage) — 9 tests: logout dialog, useUpdateProfile rollback, PlanPanel copy — 2026-04-12
 - ✅ N-38 (session store cross-instance) — `build_session_context_from_db()` from chat_messages; --max-instances=1 backstop — 2026-04-12
 - ✅ N-10 (MCP tokens gitignored) — `.cursor/mcp.json` confirmed in `.gitignore`
 - ✅ N-13 (`structured_output` rendering) — ChatScreen parses JSON from `content` into structured blocks; MarkdownRenderer handles video_ref, trend_card, hook blocks via Wave 3
