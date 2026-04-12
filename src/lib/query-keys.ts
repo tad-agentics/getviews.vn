@@ -7,4 +7,5 @@ export const queryKeys = {
   nicheIntelligence: (niche: string) => ["niche_intelligence", niche] as const,
   trendVelocity: (niche: string) => ["trend_velocity", niche] as const,
   hookEffectiveness: (niche: string) => ["hook_effectiveness", niche] as const,
+  videoDangHoc: () => ["video_dang_hoc"] as const,
 };
