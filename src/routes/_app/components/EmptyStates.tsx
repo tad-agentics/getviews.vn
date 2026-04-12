@@ -1,0 +1,285 @@
+/**
+ * EmptyStates — module-level components for the chat empty screen.
+ *
+ * Defined outside ChatScreen so React never unmounts/remounts them on
+ * parent re-renders (e.g. keystroke in the message textarea). Memoized
+ * so they only re-render when their own props change.
+ *
+ * motion animations use `initial` only on first mount. Because these
+ * components are stable across parent re-renders they will not re-fire.
+ */
+import { memo, useState, useRef, useEffect } from "react";
+import { motion } from "motion/react";
+import { ArrowUp, Database, BarChart2, Search, TrendingUp, Video } from "lucide-react";
+import { PromptCards } from "@/routes/_app/components/PromptCards";
+import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
+
+export { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
+
+/* ─── Quick action config ─────────────────────────────────────────────── */
+interface QuickAction {
+  text: string;
+  Icon: React.ElementType;
+  modalKey: "marketing" | "tiktok-page" | "trends" | "video";
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
+  { text: "Tư vấn chiến lược marketing", Icon: BarChart2, modalKey: "marketing" },
+  { text: "Phân tích trang TikTok", Icon: Search, modalKey: "tiktok-page" },
+  { text: "Tìm xu hướng mới nhất", Icon: TrendingUp, modalKey: "trends" },
+  { text: "Chẩn đoán video cụ thể", Icon: Video, modalKey: "video" },
+];
+
+/* ─── MobileEmptyState ────────────────────────────────────────────────── */
+export const MobileEmptyState = memo(function MobileEmptyState({
+  nicheLabel,
+  onSelectPrompt,
+}: {
+  nicheLabel: string;
+  onSelectPrompt: (p: string) => void;
+}) {
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  const handleModalContinue = (prompt: string) => {
+    setActiveModal(null);
+    onSelectPrompt(prompt);
+  };
+
+  return (
+    <>
+      {activeModal ? (
+        <QuickActionModal
+          modalKey={activeModal}
+          onClose={() => setActiveModal(null)}
+          onContinue={handleModalContinue}
+        />
+      ) : null}
+      <div className="flex flex-1 flex-col items-center px-5 pb-4 pt-16">
+        <motion.h1
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="gradient-text mb-4 text-center"
+          style={{ fontWeight: 800, fontSize: "1.5rem", lineHeight: 1.25 }}
+        >
+          Sẵn sàng phân tích content của bạn.
+        </motion.h1>
+        <p className="mb-2 text-center text-xs text-[var(--muted)]">Chọn gợi ý hoặc thao tác nhanh</p>
+        <PromptCards nicheLabel={nicheLabel} onSelect={onSelectPrompt} />
+
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, delay: 0.05, ease: "easeOut" }}
+          className="mt-6 w-full"
+        >
+          <p className="mb-2.5 text-center text-xs font-semibold uppercase tracking-widest text-[var(--faint)]">
+            Thao tác nhanh
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {QUICK_ACTIONS.map((action, idx) => {
+              const Icon = action.Icon;
+              return (
+                <motion.button
+                  key={idx}
+                  type="button"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
+                  onClick={() => setActiveModal(action.modalKey)}
+                  className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
+                >
+                  <Icon
+                    className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
+                    strokeWidth={1.5}
+                  />
+                  <p className="text-xs leading-snug text-[var(--ink)]">{action.text}</p>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+      </div>
+    </>
+  );
+});
+
+/* ─── DesktopCenteredEmpty ────────────────────────────────────────────── */
+/**
+ * Owns its own textarea state — does NOT receive message/setMessage from
+ * ChatScreen. This prevents ChatScreen's message state from causing
+ * this component to re-render (and re-fire motion animations) on every
+ * keystroke. When the user sends, `onSend(text)` passes the value up.
+ */
+export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
+  nicheLabel,
+  initialValue,
+  inputDisabled,
+  onSend,
+}: {
+  nicheLabel: string;
+  initialValue: string;
+  inputDisabled: boolean;
+  onSend: (text: string) => void;
+}) {
+  const [msg, setMsg] = useState(initialValue);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const charLimit = 1000;
+  const charCount = msg.length;
+  const charOverLimit = charCount > charLimit;
+
+  // Sync if parent pushes a prefill after mount (e.g. "Phân tích video này" button)
+  useEffect(() => {
+    if (initialValue && !msg) setMsg(initialValue);
+  }, [initialValue]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [msg]);
+
+  const handleSend = () => {
+    if (!msg.trim() || charOverLimit || inputDisabled) return;
+    onSend(msg);
+    setMsg("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleModalContinue = (prompt: string) => {
+    setActiveModal(null);
+    onSend(prompt);
+  };
+
+  return (
+    <>
+      {activeModal ? (
+        <QuickActionModal
+          modalKey={activeModal}
+          onClose={() => setActiveModal(null)}
+          onContinue={handleModalContinue}
+        />
+      ) : null}
+
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10">
+        <motion.h1
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="mb-4 text-center text-[1.75rem] font-extrabold gradient-text"
+        >
+          Sẵn sàng phân tích content của bạn.
+        </motion.h1>
+
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.05, ease: "easeOut" }}
+          className="w-full"
+          style={{ maxWidth: 600 }}
+        >
+          <p className="mb-2 text-center text-xs text-[var(--muted)]">Thử gợi ý hoặc nhập câu hỏi</p>
+          <PromptCards nicheLabel={nicheLabel} onSelect={(p) => { setMsg(p); }} />
+
+          <div
+            className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+            style={{ boxShadow: "0 1px 4px 0 rgba(0,0,0,0.06)" }}
+          >
+            <div className="px-4 pb-2 pt-4">
+              <textarea
+                ref={textareaRef}
+                value={msg}
+                onChange={(e) => setMsg(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Hỏi về xu hướng TikTok, hook, video..."
+                rows={2}
+                maxLength={charLimit + 50}
+                className="w-full resize-none overflow-hidden border-none bg-transparent text-sm leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--faint)]"
+                style={{ minHeight: 52, fontSize: 14 }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-3 pb-3">
+              {charCount > 0 ? (
+                <span
+                  className={`font-mono text-xs tabular-nums ${
+                    charOverLimit ? "text-[var(--danger)]" : "text-[var(--faint)]"
+                  }`}
+                >
+                  {charCount}/{charLimit}
+                </span>
+              ) : null}
+              <button
+                type="button"
+                disabled={!msg.trim() || charOverLimit || inputDisabled}
+                onClick={handleSend}
+                className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-[120ms] active:scale-95"
+                style={{
+                  background: msg.trim() && !charOverLimit && !inputDisabled ? "var(--gradient-primary)" : "var(--faint)",
+                  cursor: !msg.trim() || charOverLimit || inputDisabled ? "not-allowed" : "pointer",
+                }}
+              >
+                <ArrowUp className="h-4 w-4 text-white" strokeWidth={2.5} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
+              <div className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+                <Database className="h-3 w-3" strokeWidth={1.6} />
+                <span className="font-mono">46.000+ video</span>
+              </div>
+              <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fill="#69C9D0"
+                  d="M10.06 13.28a2.89 2.89 0 0 0-2.89 2.89 2.89 2.89 0 0 0 2.89 2.89 2.89 2.89 0 0 0 2.88-2.5V2h3.45c.09.78.4 1.5.88 2.08a4.83 4.83 0 0 0 2.9 2.17v3.44a8.18 8.18 0 0 1-4.78-1.52v6.5a6.34 6.34 0 0 1-6.33 6.33 6.34 6.34 0 0 1-6.34-6.34 6.34 6.34 0 0 1 6.34-6.34c.27 0 .53.02.79.05v3.48a2.89 2.89 0 0 0-.79-.1z"
+                />
+                <path
+                  fill="#EE1D52"
+                  d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"
+                />
+                <path
+                  fill="#ffffff"
+                  d="M18.58 6.09a4.83 4.83 0 0 1-3.77-4.25V1.36h-3.45v13.31a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V7.97a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V7.9a8.18 8.18 0 0 0 4.78 1.52V6.05a4.85 4.85 0 0 1-1.01.04z"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Thao tác nhanh</p>
+            <div className="grid grid-cols-2 gap-2.5">
+              {QUICK_ACTIONS.map((action, idx) => {
+                const Icon = action.Icon;
+                return (
+                  <motion.button
+                    key={idx}
+                    type="button"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
+                    onClick={() => setActiveModal(action.modalKey)}
+                    className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
+                  >
+                    <Icon
+                      className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
+                      strokeWidth={1.5}
+                    />
+                    <p className="text-xs leading-snug text-[var(--ink)]">{action.text}</p>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </>
+  );
+});

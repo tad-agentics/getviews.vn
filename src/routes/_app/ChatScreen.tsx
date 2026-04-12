@@ -27,6 +27,8 @@ import { ThumbnailStrip, type ThumbnailItem } from "@/routes/_app/components/Thu
 import { CopyButton } from "@/routes/_app/components/CopyButton";
 import { URLChip } from "@/routes/_app/components/URLChip";
 import { PromptCards } from "@/routes/_app/components/PromptCards";
+import { MobileEmptyState, DesktopCenteredEmpty } from "@/routes/_app/components/EmptyStates";
+import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 import { StreamingStatusText } from "@/routes/_app/components/StreamingStatusText";
 import { FreeQueryPill } from "@/routes/_app/components/FreeQueryPill";
 import { NicheSelector } from "@/routes/_app/components/NicheSelector";
@@ -35,174 +37,6 @@ import { BriefBlock } from "@/routes/_app/components/BriefBlock";
 import { CreatorCard } from "@/routes/_app/components/CreatorCard";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
-
-/* ─── Quick action cards (Make) ───────────────────────────────────────── */
-interface QuickAction {
-  text: string;
-  Icon: React.ElementType;
-  modalKey: "marketing" | "tiktok-page" | "trends" | "video";
-}
-
-const QUICK_ACTIONS: QuickAction[] = [
-  { text: "Tư vấn chiến lược marketing", Icon: BarChart2, modalKey: "marketing" },
-  { text: "Phân tích trang TikTok", Icon: Search, modalKey: "tiktok-page" },
-  { text: "Tìm xu hướng mới nhất", Icon: TrendingUp, modalKey: "trends" },
-  { text: "Chẩn đoán video cụ thể", Icon: Video, modalKey: "video" },
-];
-
-interface ModalConfig {
-  title: string;
-  fields: {
-    label: string;
-    placeholder: string;
-    type: "input" | "textarea";
-    key: string;
-  }[];
-  buildPrompt: (values: Record<string, string>) => string;
-}
-
-const MODAL_CONFIGS: Record<string, ModalConfig> = {
-  marketing: {
-    title: "Chiến lược Marketing",
-    fields: [
-      { label: "Tên sản phẩm của bạn là gì?", placeholder: "VD: FitTrack", type: "input", key: "product" },
-      {
-        label: "Mô tả sản phẩm",
-        placeholder: "VD: Ứng dụng fitness AI tạo kế hoạch tập luyện cá nhân hóa",
-        type: "textarea",
-        key: "description",
-      },
-    ],
-    buildPrompt: (v) => `Tư vấn chiến lược marketing TikTok cho sản phẩm "${v.product}": ${v.description}`,
-  },
-  "tiktok-page": {
-    title: "Phân tích trang TikTok",
-    fields: [
-      { label: "TikTok profile URL", placeholder: "https://www.tiktok.com/@username", type: "input", key: "url" },
-    ],
-    buildPrompt: (v) => `Phân tích trang TikTok: ${v.url}`,
-  },
-  trends: {
-    title: "Tìm xu hướng mới nhất",
-    fields: [
-      { label: "Xu hướng trong lĩnh vực nào?", placeholder: "VD: fitness, skincare, AI tools", type: "input", key: "niche" },
-    ],
-    buildPrompt: (v) => `Tìm xu hướng TikTok mới nhất trong lĩnh vực: ${v.niche}`,
-  },
-  video: {
-    title: "Chẩn đoán video",
-    fields: [
-      { label: "TikTok video URL", placeholder: "https://www.tiktok.com/@username/video/...", type: "input", key: "url" },
-    ],
-    buildPrompt: (v) => `Chẩn đoán video TikTok: ${v.url}`,
-  },
-};
-
-function QuickActionModal({
-  modalKey,
-  onClose,
-  onContinue,
-}: {
-  modalKey: string;
-  onClose: () => void;
-  onContinue: (prompt: string) => void;
-}) {
-  const config = MODAL_CONFIGS[modalKey];
-  const [values, setValues] = useState<Record<string, string>>(
-    () => Object.fromEntries(config.fields.map((f) => [f.key, ""])),
-  );
-
-  const allFilled = config.fields.every((f) => values[f.key]?.trim());
-
-  const handleContinue = () => {
-    if (!allFilled) return;
-    onContinue(config.buildPrompt(values));
-  };
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        key="backdrop"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.15 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
-      >
-        <motion.div
-          key="modal"
-          initial={{ opacity: 0, scale: 0.95, y: 8 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 8 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
-          className="relative flex w-full max-w-[420px] flex-col gap-5 rounded-2xl p-6"
-          style={{
-            background: "var(--surface)",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
-          }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
-
-          <h2 className="pr-8 text-[var(--ink)]" style={{ fontSize: "1.35rem", fontWeight: 800, lineHeight: 1.2 }}>
-            {config.title}
-          </h2>
-
-          <div className="flex flex-col gap-4">
-            {config.fields.map((field) => (
-              <div key={field.key} className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-[var(--ink)]">{field.label}</label>
-                {field.type === "input" ? (
-                  <input
-                    type="text"
-                    placeholder={field.placeholder}
-                    value={values[field.key]}
-                    onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleContinue();
-                    }}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--ink)] transition-all duration-[120ms] placeholder:text-[var(--faint)] focus:border-[var(--purple)] focus:outline-none focus:ring-1 focus:ring-[var(--purple)]"
-                    autoFocus={field.key === config.fields[0].key}
-                  />
-                ) : (
-                  <textarea
-                    placeholder={field.placeholder}
-                    value={values[field.key]}
-                    onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-                    rows={3}
-                    className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--ink)] transition-all duration-[120ms] placeholder:text-[var(--faint)] focus:border-[var(--purple)] focus:outline-none focus:ring-1 focus:ring-[var(--purple)]"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={handleContinue}
-            disabled={!allFilled}
-            className="h-12 w-full rounded-xl text-sm font-semibold text-white transition-all duration-[120ms] active:scale-[0.98]"
-            style={{
-              background: allFilled ? "var(--gradient-primary)" : "var(--faint)",
-              cursor: allFilled ? "pointer" : "not-allowed",
-            }}
-          >
-            Tiếp tục
-          </button>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
 
 type ChatMsg = {
   id: string;
@@ -497,9 +331,9 @@ export default function ChatScreen() {
     ],
   );
 
-  const handleSend = async () => {
-    if (!message.trim() || charOverLimit) return;
-    const q = message;
+  const handleSend = async (overrideText?: string) => {
+    const q = overrideText ?? message;
+    if (!q.trim() || q.length > charLimit) return;
     const trimmed = q.trim();
     const resumePayload =
       isResumeQuery(trimmed) &&
@@ -523,167 +357,6 @@ export default function ChatScreen() {
   };
 
   const inputDisabled = processing || needsNiche || insertUser.isPending || status === "streaming";
-
-  /* ─── Desktop empty (Make + PromptCards) ──────────────────────────── */
-  function DesktopCenteredEmpty({
-    message: msg,
-    setMessage: setMsg,
-    onSend,
-  }: {
-    message: string;
-    setMessage: (v: string) => void;
-    onSend: () => void;
-  }) {
-    const textareaRefInner = useRef<HTMLTextAreaElement>(null);
-    const charCountInner = msg.length;
-    const charLimitInner = 1000;
-    const charOverLimitInner = charCountInner > charLimitInner;
-    const [activeModal, setActiveModal] = useState<string | null>(null);
-
-    useEffect(() => {
-      const el = textareaRefInner.current;
-      if (!el) return;
-      el.style.height = "auto";
-      el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-    }, [msg]);
-
-    const handleKeyDownInner = (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        onSend();
-      }
-    };
-
-    const handleModalContinue = (prompt: string) => {
-      setActiveModal(null);
-      setMsg(prompt);
-      onSend();
-    };
-
-    return (
-      <>
-        {activeModal ? (
-          <QuickActionModal
-            modalKey={activeModal}
-            onClose={() => setActiveModal(null)}
-            onContinue={handleModalContinue}
-          />
-        ) : null}
-
-        <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10">
-          <motion.h1
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="mb-4 text-center text-[1.75rem] font-extrabold gradient-text"
-          >
-            Sẵn sàng phân tích content của bạn.
-          </motion.h1>
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 0.05, ease: "easeOut" }}
-            className="w-full"
-            style={{ maxWidth: 600 }}
-          >
-            <p className="mb-2 text-center text-xs text-[var(--muted)]">Thử gợi ý hoặc nhập câu hỏi</p>
-            <PromptCards nicheLabel={nicheLabel} onSelect={(p) => setMsg(p)} />
-
-            <div
-              className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
-              style={{ boxShadow: "0 1px 4px 0 rgba(0,0,0,0.06)" }}
-            >
-              <div className="px-4 pb-2 pt-4">
-                <textarea
-                  ref={textareaRefInner}
-                  value={msg}
-                  onChange={(e) => setMsg(e.target.value)}
-                  onKeyDown={handleKeyDownInner}
-                  placeholder="Hỏi về xu hướng TikTok, hook, video..."
-                  rows={2}
-                  maxLength={charLimitInner + 50}
-                  className="w-full resize-none overflow-hidden border-none bg-transparent text-sm leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--faint)]"
-                  style={{ minHeight: 52, fontSize: 14 }}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 px-3 pb-3">
-                {charCountInner > 0 ? (
-                  <span
-                    className={`font-mono text-xs tabular-nums ${
-                      charOverLimitInner ? "text-[var(--danger)]" : "text-[var(--faint)]"
-                    }`}
-                  >
-                    {charCountInner}/{charLimitInner}
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={!msg.trim() || charOverLimitInner || inputDisabled}
-                  onClick={onSend}
-                  className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-[120ms] active:scale-95"
-                  style={{
-                    background: msg.trim() && !charOverLimitInner && !inputDisabled ? "var(--gradient-primary)" : "var(--faint)",
-                    cursor: !msg.trim() || charOverLimitInner || inputDisabled ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <ArrowUp className="h-4 w-4 text-white" strokeWidth={2.5} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
-                <div className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-                  <Database className="h-3 w-3" strokeWidth={1.6} />
-                  <span className="font-mono">46.000+ video</span>
-                </div>
-                <svg className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    fill="#69C9D0"
-                    d="M10.06 13.28a2.89 2.89 0 0 0-2.89 2.89 2.89 2.89 0 0 0 2.89 2.89 2.89 2.89 0 0 0 2.88-2.5V2h3.45c.09.78.4 1.5.88 2.08a4.83 4.83 0 0 0 2.9 2.17v3.44a8.18 8.18 0 0 1-4.78-1.52v6.5a6.34 6.34 0 0 1-6.33 6.33 6.34 6.34 0 0 1-6.34-6.34 6.34 6.34 0 0 1 6.34-6.34c.27 0 .53.02.79.05v3.48a2.89 2.89 0 0 0-.79-.1z"
-                  />
-                  <path
-                    fill="#EE1D52"
-                    d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"
-                  />
-                  <path
-                    fill="#ffffff"
-                    d="M18.58 6.09a4.83 4.83 0 0 1-3.77-4.25V1.36h-3.45v13.31a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V7.97a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V7.9a8.18 8.18 0 0 0 4.78 1.52V6.05a4.85 4.85 0 0 1-1.01.04z"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Thao tác nhanh</p>
-              <div className="grid grid-cols-2 gap-2.5">
-                {QUICK_ACTIONS.map((action, idx) => {
-                  const Icon = action.Icon;
-                  return (
-                    <motion.button
-                      key={idx}
-                      type="button"
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
-                      onClick={() => setActiveModal(action.modalKey)}
-                      className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
-                    >
-                      <Icon
-                        className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
-                        strokeWidth={1.5}
-                      />
-                      <p className="text-xs leading-snug text-[var(--ink)]">{action.text}</p>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </>
-    );
-  }
 
   function DesktopInput({
     message: msg,
@@ -799,73 +472,6 @@ export default function ChatScreen() {
     );
   }
 
-  function MobileEmptyState({ onSelectPrompt }: { onSelectPrompt: (p: string) => void }) {
-    const [activeModal, setActiveModal] = useState<string | null>(null);
-
-    const handleModalContinue = (prompt: string) => {
-      setActiveModal(null);
-      onSelectPrompt(prompt);
-    };
-
-    return (
-      <>
-        {activeModal ? (
-          <QuickActionModal
-            modalKey={activeModal}
-            onClose={() => setActiveModal(null)}
-            onContinue={handleModalContinue}
-          />
-        ) : null}
-        <div className="flex flex-1 flex-col items-center px-5 pb-4 pt-16">
-          <motion.h1
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="gradient-text mb-4 text-center"
-            style={{ fontWeight: 800, fontSize: "1.5rem", lineHeight: 1.25 }}
-          >
-            Sẵn sàng phân tích content của bạn.
-          </motion.h1>
-          <p className="mb-2 text-center text-xs text-[var(--muted)]">Chọn gợi ý hoặc thao tác nhanh</p>
-          <PromptCards nicheLabel={nicheLabel} onSelect={onSelectPrompt} />
-
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: 0.05, ease: "easeOut" }}
-            className="mt-6 w-full"
-          >
-            <p className="mb-2.5 text-center text-xs font-semibold uppercase tracking-widest text-[var(--faint)]">
-              Thao tác nhanh
-            </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              {QUICK_ACTIONS.map((action, idx) => {
-                const Icon = action.Icon;
-                return (
-                  <motion.button
-                    key={idx}
-                    type="button"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
-                    onClick={() => setActiveModal(action.modalKey)}
-                    className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
-                  >
-                    <Icon
-                      className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
-                      strokeWidth={1.5}
-                    />
-                    <p className="text-xs leading-snug text-[var(--ink)]">{action.text}</p>
-                  </motion.button>
-                );
-              })}
-            </div>
-          </motion.div>
-        </div>
-      </>
-    );
-  }
-
   const paywallVisible = clientPaywall || error === "insufficient_credits";
   const dailyLimitVisible = error === "daily_free_limit";
 
@@ -968,7 +574,12 @@ export default function ChatScreen() {
     <AppLayout active="chat" enableMobileSidebar>
       <div className="hidden h-full flex-col lg:flex">
         {!showMessages ? (
-          <DesktopCenteredEmpty message={message} setMessage={setMessage} onSend={() => void handleSend()} />
+          <DesktopCenteredEmpty
+            nicheLabel={nicheLabel}
+            initialValue={message}
+            inputDisabled={inputDisabled}
+            onSend={(text) => void handleSend(text)}
+          />
         ) : (
           <>
             <div className="flex-1 space-y-4 overflow-y-auto px-10 py-6">{messageThread}</div>
@@ -981,6 +592,7 @@ export default function ChatScreen() {
         <div className="flex-1 overflow-y-auto bg-[var(--surface-alt)]">
           {!showMessages ? (
             <MobileEmptyState
+              nicheLabel={nicheLabel}
               onSelectPrompt={(p) => {
                 setMessage(p);
                 setShowMessages(true);

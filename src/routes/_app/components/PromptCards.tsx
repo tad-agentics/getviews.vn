@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { motion } from "motion/react";
 
-export function PromptCards({
+export const PromptCards = memo(function PromptCards({
   nicheLabel,
   onSelect,
 }: {
@@ -29,4 +30,4 @@ export function PromptCards({
       ))}
     </div>
   );
-}
+});
