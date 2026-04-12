@@ -27,12 +27,16 @@ interface Props {
 
 export function VideoRefCard({ data }: Props) {
   const [meta, setMeta] = useState<VideoMeta | null>(null);
+  const [metaLoaded, setMetaLoaded] = useState(false);
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     getVideoMeta(data.video_id).then((m) => {
-      if (!cancelled) setMeta(m);
+      if (!cancelled) {
+        setMeta(m);
+        setMetaLoaded(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -79,7 +83,17 @@ export function VideoRefCard({ data }: Props) {
                 className="absolute inset-0 h-full w-full object-cover"
                 loading="lazy"
               />
+            ) : metaLoaded ? (
+              /* Video not in corpus — show TikTok icon placeholder */
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-[var(--surface-alt)]">
+                <svg className="h-7 w-7 opacity-60" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#69C9D0" d="M10.06 13.28a2.89 2.89 0 0 0-2.89 2.89 2.89 2.89 0 0 0 2.89 2.89 2.89 2.89 0 0 0 2.88-2.5V2h3.45c.09.78.4 1.5.88 2.08a4.83 4.83 0 0 0 2.9 2.17v3.44a8.18 8.18 0 0 1-4.78-1.52v6.5a6.34 6.34 0 0 1-6.33 6.33 6.34 6.34 0 0 1-6.34-6.34 6.34 6.34 0 0 1 6.34-6.34c.27 0 .53.02.79.05v3.48a2.89 2.89 0 0 0-.79-.1z"/>
+                  <path fill="#EE1D52" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"/>
+                </svg>
+                <p className="text-center text-[9px] leading-tight text-[var(--faint)] px-1">Xem trên TikTok</p>
+              </div>
             ) : (
+              /* Still loading */
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--border)]" />
               </div>
