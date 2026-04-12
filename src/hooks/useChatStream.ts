@@ -107,11 +107,19 @@ export function useChatStream() {
         let text = "";
         let lastStreamId: string | null = resumeStreamId ?? null;
         let lastSeq = resumeSeq ?? 0;
+        // Buffer incomplete SSE lines across chunk boundaries.
+        // reader.read() returns arbitrary byte chunks — a single "data: {...}\n"
+        // event can be split across two reads. Without a buffer the partial tail
+        // is silently dropped, causing the stream to appear cut off.
+        let buffer = "";
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const lines = decoder.decode(value).split("\n");
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          // Keep the last (potentially incomplete) fragment in the buffer.
+          buffer = lines.pop() ?? "";
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             try {
