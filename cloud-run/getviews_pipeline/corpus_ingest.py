@@ -20,12 +20,13 @@ import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from getviews_pipeline import ensemble
-from getviews_pipeline.analysis_core import analyze_aweme
+from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
 from getviews_pipeline.helpers import filter_recency, merge_aweme_lists
-from getviews_pipeline.r2 import download_and_extract_frames, download_and_upload_thumbnail, download_and_upload_video, r2_configured
+from getviews_pipeline.r2 import download_and_upload_thumbnail, download_and_upload_video, extract_and_upload, r2_configured
 from getviews_pipeline.runtime import get_analysis_semaphore
 
 logger = logging.getLogger(__name__)
@@ -39,9 +40,9 @@ BATCH_CONCURRENCY = int(os.environ.get("BATCH_CONCURRENCY", "4"))
 
 # Quality gates — tune via env vars without redeploying
 # Minimum views a post must have to enter the corpus (filters low-reach content)
-BATCH_MIN_VIEWS = int(os.environ.get("BATCH_MIN_VIEWS", "10000"))
+BATCH_MIN_VIEWS = int(os.environ.get("BATCH_MIN_VIEWS", "50000"))
 # Minimum engagement rate % — (likes+comments+shares)/views*100 (filters dead content)
-BATCH_MIN_ER = float(os.environ.get("BATCH_MIN_ER", "0.5"))
+BATCH_MIN_ER = float(os.environ.get("BATCH_MIN_ER", "1.0"))
 # Keyword search pages fetched per niche (each page ~20 posts, broadens candidate pool)
 BATCH_KEYWORD_PAGES = int(os.environ.get("BATCH_KEYWORD_PAGES", "2"))
 
@@ -579,50 +580,101 @@ async def ingest_niche(
     logger.info("[corpus] niche=%s — analyzing %d candidates", niche_name, len(candidates))
 
     sem = get_analysis_semaphore()
-    fa: dict[str, Any] = {}
 
-    async def _analyze_one(aweme: dict[str, Any]) -> dict[str, Any]:
+    # For video candidates: download once via proxy → run Gemini analysis and R2
+    # frame extraction concurrently on the same file → then upload the 30s clip
+    # separately (ffmpeg reads directly from CDN, not the proxy, so it stays cheap).
+    # For carousels: fall through to the existing analyze_aweme path (no local file).
+    async def _analyze_one(aweme: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+        """Return (analysis_dict, frame_urls). frame_urls is [] for carousels or on failure."""
         async with sem:
-            return await analyze_aweme(aweme, include_diagnosis=False, full_analyses=fa)
+            ct = ensemble.detect_content_type(aweme)
+            if ct == "carousel":
+                analysis = await analyze_aweme(aweme, include_diagnosis=False)
+                return analysis, []
 
-    analyses = await asyncio.gather(*[_analyze_one(a) for a in candidates], return_exceptions=True)
+            video_urls = ensemble.extract_video_urls(aweme)
+            if not video_urls:
+                return {
+                    "error": "No video URLs in aweme",
+                    "metadata": ensemble.parse_metadata(aweme).model_dump(),
+                }, []
+
+            video_path: Path | None = None
+            try:
+                try:
+                    video_path = await ensemble.download_video(video_urls)
+                except Exception as e:
+                    return {
+                        "error": str(e),
+                        "metadata": ensemble.parse_metadata(aweme).model_dump(),
+                    }, []
+
+                vid = str(aweme.get("aweme_id", ""))
+                # Run Gemini analysis and R2 frame extraction concurrently on the same file.
+                # extract_and_upload never raises (returns [] on any failure).
+                async def _noop_frames() -> list[str]:
+                    return []
+
+                frame_coro = (
+                    extract_and_upload(video_path, vid)
+                    if r2_configured()
+                    else _noop_frames()
+                )
+                analysis, frame_urls = await asyncio.gather(
+                    analyze_aweme_from_path(aweme, video_path, include_diagnosis=False),
+                    frame_coro,
+                )
+                return analysis, frame_urls if isinstance(frame_urls, list) else []
+            finally:
+                if video_path is not None:
+                    video_path.unlink(missing_ok=True)
+
+    gather_results = await asyncio.gather(
+        *[_analyze_one(a) for a in candidates], return_exceptions=True
+    )
 
     rows: list[dict[str, Any]] = []
-    for aweme, analysis in zip(candidates, analyses):
-        if isinstance(analysis, Exception):
-            logger.warning("[corpus] analyze error: %s", analysis)
+    # frame_urls_by_video_id holds pre-extracted frames from the shared download
+    frame_urls_by_video_id: dict[str, list[str]] = {}
+
+    for aweme, gather_result in zip(candidates, gather_results):
+        if isinstance(gather_result, Exception):
+            logger.warning("[corpus] analyze error: %s", gather_result)
             result.failed += 1
-            result.errors.append(str(analysis))
+            result.errors.append(str(gather_result))
             continue
+        analysis, frame_urls = gather_result
         row = _build_corpus_row(aweme, analysis, niche_id)
         if row is None:
             result.skipped += 1
         else:
             rows.append(row)
+            if frame_urls:
+                frame_urls_by_video_id[row["video_id"]] = frame_urls
 
-    # R2 upload: for each video row, concurrently:
-    #   a) Download short clip → extract frames → upload frame PNGs (frame_urls)
-    #   b) Download 30s clip → upload full .mp4 → store permanent video_url
-    #   c) Download thumbnail → upload JPEG → store permanent thumbnail_url
-    #      (TikTok CDN signed URLs expire within hours; R2 copy is permanent and free)
+    # R2 upload:
+    #   Frames: already extracted above from the shared proxy download — apply them now.
+    #   Video clip: download 30s clip via ffmpeg directly from CDN (no proxy, cheap).
+    #   Thumbnail: download from CDN and upload to R2 for permanent storage.
     # Failures are non-fatal — frame_urls stays [] and video/thumbnail_url stay as CDN URLs.
     if rows and r2_configured():
         video_rows = [r for r in rows if r.get("content_type", "video") == "video" and r.get("video_url")]
+
+        # Apply pre-extracted frame URLs from the shared download
+        for row in video_rows:
+            pre_frames = frame_urls_by_video_id.get(row["video_id"], [])
+            if pre_frames:
+                row["frame_urls"] = pre_frames
+                logger.info("[corpus] %s — %d frame(s) from shared download", row["video_id"], len(pre_frames))
+
         logger.info(
-            "[corpus] niche=%s — R2 upload: %d frames + %d video clips + %d thumbnails",
+            "[corpus] niche=%s — R2 upload: %d video clips + %d thumbnails",
             niche_name,
-            len(video_rows),
             len(video_rows),
             len(rows),
         )
 
-        frame_tasks = [
-            download_and_extract_frames(
-                [row["video_url"]],
-                row["video_id"],
-            )
-            for row in video_rows
-        ]
         video_upload_tasks = [
             download_and_upload_video(
                 [row["video_url"]],
@@ -639,19 +691,12 @@ async def ingest_niche(
             for row in rows
         ]
 
-        frame_results, video_results, thumb_results = await asyncio.gather(
-            asyncio.gather(*frame_tasks, return_exceptions=True),
+        video_results, thumb_results = await asyncio.gather(
             asyncio.gather(*video_upload_tasks, return_exceptions=True),
             asyncio.gather(*thumb_tasks, return_exceptions=True),
         )
 
-        for row, frame_result, video_result in zip(video_rows, frame_results, video_results):
-            if isinstance(frame_result, list) and frame_result:
-                row["frame_urls"] = frame_result
-                logger.info("[corpus] %s — %d frame(s) uploaded", row["video_id"], len(frame_result))
-            elif isinstance(frame_result, Exception):
-                logger.warning("[corpus] frame extraction error for %s: %s", row["video_id"], frame_result)
-
+        for row, video_result in zip(video_rows, video_results):
             if isinstance(video_result, str) and video_result:
                 row["video_url"] = video_result
                 logger.info("[corpus] %s — video uploaded to R2: %s", row["video_id"], video_result)

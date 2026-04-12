@@ -191,6 +191,48 @@ async def _analyze_carousel(
                     pass
 
 
+async def analyze_aweme_from_path(
+    aweme: dict[str, Any],
+    video_path: Path,
+    *,
+    include_diagnosis: bool = False,
+) -> dict:
+    """Analyze a raw aweme using an already-downloaded video file.
+
+    Skips the ``ensemble.download_video()`` call — caller owns the file
+    and is responsible for cleanup. Used by corpus_ingest to share a single
+    proxy download across Gemini analysis and R2 frame extraction.
+
+    Only supports video content type (carousels have no local path to pass).
+    Returns an error dict if the aweme is a carousel or the path is missing.
+    """
+    ct = ensemble.detect_content_type(aweme)
+    if ct == "carousel":
+        return {
+            "error": "analyze_aweme_from_path does not support carousels",
+            "metadata": ensemble.parse_metadata(aweme).model_dump(),
+        }
+
+    if not video_path.exists():
+        return {
+            "error": f"video_path {video_path} does not exist",
+            "metadata": ensemble.parse_metadata(aweme).model_dump(),
+        }
+
+    metadata = ensemble.parse_metadata(aweme)
+    try:
+        analysis = await run_sync(analyze_video, video_path)
+    except Exception as e:
+        return {"error": str(e), "metadata": metadata.model_dump()}
+
+    return await _finish_analysis(
+        metadata=metadata,
+        analysis_obj=analysis,
+        metadata_for_diagnosis=metadata.model_dump(),
+        include_diagnosis=include_diagnosis,
+    )
+
+
 async def analyze_aweme(
     aweme: dict[str, Any],
     *,
