@@ -37,7 +37,25 @@ export function useDeleteSession() {
         .eq("user_id", user.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: async (sessionId: string) => {
+      // Cancel any in-flight refetches so they don't overwrite the optimistic update
+      await qc.cancelQueries({ queryKey: chatKeys.sessions() });
+      // Snapshot the previous value for rollback
+      const previous = qc.getQueryData(chatKeys.sessions());
+      // Optimistically remove from cache immediately
+      qc.setQueryData(chatKeys.sessions(), (old: unknown[] | undefined) =>
+        old ? old.filter((s: { id: string }) => s.id !== sessionId) : [],
+      );
+      return { previous };
+    },
+    onError: (_err, _sessionId, context) => {
+      // Rollback to previous cache state on failure
+      if (context?.previous !== undefined) {
+        qc.setQueryData(chatKeys.sessions(), context.previous);
+      }
+    },
+    onSettled: () => {
+      // Always sync with server after mutation completes or fails
       void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
     },
   });
