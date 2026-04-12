@@ -247,9 +247,16 @@ async def require_user(request: Request) -> dict[str, Any]:
 
     token = auth_header[7:]
 
+    # Decode the token header to detect algorithm before attempting verification
     try:
-        if SUPABASE_JWT_SECRET:
-            # HS256 via shared secret — preferred when available (no network call)
+        unverified_header = jwt.get_unverified_header(token)
+        token_alg = unverified_header.get("alg", "")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token")
+
+    try:
+        if token_alg == "HS256" and SUPABASE_JWT_SECRET:
+            # HS256 via shared secret (legacy / service tokens)
             payload = jwt.decode(
                 token,
                 SUPABASE_JWT_SECRET,
@@ -257,7 +264,7 @@ async def require_user(request: Request) -> dict[str, Any]:
                 options={"verify_aud": False, "leeway": 30},
             )
         else:
-            # ES256 via JWKS (stateless, asymmetric fallback)
+            # ES256 via JWKS — this project signs user JWTs with ES256 (asymmetric)
             jwks = await _get_jwks()
             payload = jwt.decode(
                 token,
