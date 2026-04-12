@@ -28,12 +28,13 @@ export function useDeleteSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      // Use service-role-style approach: filter only by id, let RLS enforce ownership.
-      // Avoids a mismatch between auth.uid() in the JS client vs the RLS policy uid.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const { error } = await supabase
         .from("chat_sessions")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", sessionId);
+        .eq("id", sessionId)
+        .eq("user_id", user.id);
       if (error) {
         console.error("[useDeleteSession] Supabase UPDATE error:", error);
         throw error;
