@@ -20,7 +20,7 @@ export function useChatSessions() {
       if (error) throw error;
       return data;
     },
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }
 
@@ -30,12 +30,15 @@ export function useDeleteSession() {
     mutationFn: async (sessionId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("chat_sessions")
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", sessionId)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select("id");
       if (error) throw error;
+      // If 0 rows updated, the session didn't exist or RLS blocked it
+      if (!data || data.length === 0) throw new Error("Delete failed: session not found or access denied");
     },
     onMutate: async (sessionId: string) => {
       // Cancel any in-flight refetches so they don't overwrite the optimistic update
