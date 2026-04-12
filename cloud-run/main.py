@@ -626,6 +626,73 @@ async def batch_ingest(
     })
 
 
+@app.post("/batch/backfill-thumbnails")
+async def batch_backfill_thumbnails(request: Request) -> JSONResponse:
+    """One-time backfill: copy TikTok CDN thumbnail URLs → permanent R2 URLs.
+
+    Iterates all video_corpus rows whose thumbnail_url does NOT start with the
+    R2 public URL (i.e. still points at tiktokcdn-eu.com or similar CDN).
+    Downloads each thumbnail and uploads to R2, then patches the row.
+
+    Protected by X-Batch-Secret. Safe to re-run — skips rows already on R2.
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.r2 import download_and_upload_thumbnail, r2_configured
+    from getviews_pipeline.config import R2_PUBLIC_URL
+    from getviews_pipeline.supabase_client import get_service_client
+
+    if not r2_configured():
+        raise HTTPException(status_code=500, detail="R2 not configured")
+
+    sb = get_service_client()
+    logger.info("POST /batch/backfill-thumbnails — starting")
+
+    # Fetch all rows with non-R2 thumbnail URLs
+    r2_prefix = R2_PUBLIC_URL.rstrip("/") if R2_PUBLIC_URL else "NONE"
+    result = sb.table("video_corpus").select("video_id, thumbnail_url").execute()
+    rows = result.data or []
+    to_backfill = [
+        r for r in rows
+        if r.get("thumbnail_url") and not r["thumbnail_url"].startswith(r2_prefix)
+    ]
+    logger.info("[backfill-thumbnails] %d/%d rows need backfill", len(to_backfill), len(rows))
+
+    updated = 0
+    failed = 0
+    skipped = 0
+
+    # Process in batches of 10 to avoid overwhelming R2 or TikTok CDN
+    CHUNK = 10
+    for i in range(0, len(to_backfill), CHUNK):
+        chunk = to_backfill[i:i + CHUNK]
+        tasks = [
+            download_and_upload_thumbnail(r["thumbnail_url"], r["video_id"])
+            for r in chunk
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for row, res in zip(chunk, results):
+            if isinstance(res, Exception):
+                logger.warning("[backfill-thumbnails] error for %s: %s", row["video_id"], res)
+                failed += 1
+            elif isinstance(res, str) and res:
+                try:
+                    sb.table("video_corpus").update({"thumbnail_url": res}).eq("video_id", row["video_id"]).execute()
+                    updated += 1
+                    logger.debug("[backfill-thumbnails] patched %s → %s", row["video_id"], res)
+                except Exception as exc:
+                    logger.warning("[backfill-thumbnails] DB patch failed for %s: %s", row["video_id"], exc)
+                    failed += 1
+            else:
+                skipped += 1
+
+    logger.info("[backfill-thumbnails] done — updated=%d failed=%d skipped=%d", updated, failed, skipped)
+    return JSONResponse({"ok": True, "updated": updated, "failed": failed, "skipped": skipped, "total": len(to_backfill)})
+
+
 @app.post("/batch/analytics")
 async def batch_analytics(request: Request) -> JSONResponse:
     """Trigger weekly analytics: creator velocity + breakout multiplier + signal grading.

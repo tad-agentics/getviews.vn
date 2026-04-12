@@ -25,7 +25,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.helpers import filter_recency, merge_aweme_lists
-from getviews_pipeline.r2 import download_and_extract_frames, download_and_upload_video, r2_configured
+from getviews_pipeline.r2 import download_and_extract_frames, download_and_upload_thumbnail, download_and_upload_video, r2_configured
 from getviews_pipeline.runtime import get_analysis_semaphore
 
 logger = logging.getLogger(__name__)
@@ -603,14 +603,17 @@ async def ingest_niche(
     # R2 upload: for each video row, concurrently:
     #   a) Download short clip → extract frames → upload frame PNGs (frame_urls)
     #   b) Download 30s clip → upload full .mp4 → store permanent video_url
-    # Failures are non-fatal — frame_urls stays [] and video_url stays as ED CDN URL.
+    #   c) Download thumbnail → upload JPEG → store permanent thumbnail_url
+    #      (TikTok CDN signed URLs expire within hours; R2 copy is permanent and free)
+    # Failures are non-fatal — frame_urls stays [] and video/thumbnail_url stay as CDN URLs.
     if rows and r2_configured():
         video_rows = [r for r in rows if r.get("content_type", "video") == "video" and r.get("video_url")]
         logger.info(
-            "[corpus] niche=%s — R2 upload: %d frames + %d video clips",
+            "[corpus] niche=%s — R2 upload: %d frames + %d video clips + %d thumbnails",
             niche_name,
             len(video_rows),
             len(video_rows),
+            len(rows),
         )
 
         frame_tasks = [
@@ -627,10 +630,19 @@ async def ingest_niche(
             )
             for row in video_rows
         ]
+        # Thumbnail upload for ALL rows (including carousels that may not have video_url)
+        thumb_tasks = [
+            download_and_upload_thumbnail(
+                row.get("thumbnail_url") or "",
+                row["video_id"],
+            )
+            for row in rows
+        ]
 
-        frame_results, video_results = await asyncio.gather(
+        frame_results, video_results, thumb_results = await asyncio.gather(
             asyncio.gather(*frame_tasks, return_exceptions=True),
             asyncio.gather(*video_upload_tasks, return_exceptions=True),
+            asyncio.gather(*thumb_tasks, return_exceptions=True),
         )
 
         for row, frame_result, video_result in zip(video_rows, frame_results, video_results):
@@ -645,6 +657,13 @@ async def ingest_niche(
                 logger.info("[corpus] %s — video uploaded to R2: %s", row["video_id"], video_result)
             elif isinstance(video_result, Exception):
                 logger.warning("[corpus] video upload error for %s: %s", row["video_id"], video_result)
+
+        for row, thumb_result in zip(rows, thumb_results):
+            if isinstance(thumb_result, str) and thumb_result:
+                row["thumbnail_url"] = thumb_result
+                logger.info("[corpus] %s — thumbnail uploaded to R2: %s", row["video_id"], thumb_result)
+            elif isinstance(thumb_result, Exception):
+                logger.warning("[corpus] thumbnail upload error for %s: %s", row["video_id"], thumb_result)
 
     if rows:
         try:

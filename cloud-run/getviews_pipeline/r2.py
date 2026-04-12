@@ -441,3 +441,102 @@ async def download_and_upload_video(
         return None
     finally:
         clip_path.unlink(missing_ok=True)
+
+
+# ── Thumbnail upload ──────────────────────────────────────────────────────────
+
+# Max bytes accepted for a thumbnail image (guard against runaway CDN responses)
+_MAX_THUMB_BYTES = 2 * 1024 * 1024  # 2 MB
+
+def upload_thumbnail_bytes(video_id: str, image_bytes: bytes, content_type: str = "image/jpeg") -> str | None:
+    """Upload raw thumbnail bytes to R2 at thumbnails/{video_id}.jpg.
+
+    Returns the permanent public URL on success, None on failure.
+    Runs synchronously — call via run_in_executor for async contexts.
+
+    Key pattern : thumbnails/{video_id}.jpg
+    CacheControl: immutable — thumbnail content is stable once ingested.
+    """
+    if not r2_configured():
+        return None
+    if not image_bytes:
+        return None
+
+    ext = "jpg" if "jpeg" in content_type or "jpg" in content_type else "png"
+    key = f"thumbnails/{video_id}.{ext}"
+    try:
+        client = _get_r2_client()
+        client.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=key,
+            Body=image_bytes,
+            ContentType=content_type,
+            CacheControl="public, max-age=31536000, immutable",
+        )
+        url = f"{R2_PUBLIC_URL.rstrip('/')}/{key}"
+        logger.info("[r2] uploaded thumbnail %s → %s (%dKB)", video_id, url, len(image_bytes) // 1024)
+        return url
+    except (BotoCoreError, ClientError) as exc:
+        logger.error("[r2] thumbnail upload failed for %s: %s", video_id, exc)
+        return None
+    except Exception as exc:
+        logger.error("[r2] unexpected error uploading thumbnail %s: %s", video_id, exc)
+        return None
+
+
+async def download_and_upload_thumbnail(thumbnail_url: str, video_id: str) -> str | None:
+    """Download a TikTok CDN thumbnail URL → upload to R2 → return permanent public URL.
+
+    TikTok CDN thumbnails (tiktokcdn-eu.com) are served via signed URLs that
+    expire within hours. Uploading to R2 on ingest gives a permanent URL with
+    zero recurring cost (R2 egress is free; storage is ~$0.015/GB).
+
+    Flow:
+      1. HTTP GET the thumbnail URL (no auth needed — signed URL is public)
+      2. Validate content-type is image/* and size < _MAX_THUMB_BYTES
+      3. PUT bytes to R2 at thumbnails/{video_id}.jpg
+      4. Return the permanent R2 public URL, or None on any failure (non-fatal)
+
+    Skipped gracefully when:
+      - R2 is not configured (r2_configured() = False)
+      - thumbnail_url is empty or None
+      - Download fails or returns a non-image content type
+    """
+    if not r2_configured():
+        return None
+    if not thumbnail_url:
+        return None
+
+    import httpx
+
+    loop = asyncio.get_event_loop()
+
+    def _fetch() -> tuple[bytes, str] | None:
+        try:
+            with httpx.Client(timeout=15, follow_redirects=True) as client:
+                resp = client.get(thumbnail_url, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code != 200:
+                    logger.debug("[r2] thumbnail fetch returned %d for %s", resp.status_code, video_id)
+                    return None
+                ct = resp.headers.get("content-type", "image/jpeg")
+                if not ct.startswith("image/"):
+                    logger.debug("[r2] thumbnail content-type unexpected (%s) for %s", ct, video_id)
+                    return None
+                data = resp.content
+                if len(data) > _MAX_THUMB_BYTES:
+                    logger.warning("[r2] thumbnail too large (%dKB) for %s", len(data) // 1024, video_id)
+                    return None
+                return data, ct
+        except Exception as exc:
+            logger.debug("[r2] thumbnail download error for %s: %s", video_id, exc)
+            return None
+
+    try:
+        result = await loop.run_in_executor(None, _fetch)
+        if result is None:
+            return None
+        image_bytes, content_type = result
+        return await loop.run_in_executor(None, upload_thumbnail_bytes, video_id, image_bytes, content_type)
+    except Exception as exc:
+        logger.error("[r2] download_and_upload_thumbnail failed for %s: %s", video_id, exc)
+        return None
