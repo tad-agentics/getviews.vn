@@ -30,15 +30,16 @@ export function useDeleteSession() {
     mutationFn: async (sessionId: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { data, error } = await supabase
+      // Do not chain .select() — the SELECT RLS filters deleted_at IS NULL, so after
+      // a successful soft-delete the updated row is excluded and count returns 0,
+      // which would falsely trigger onError and roll back the optimistic removal.
+      // Supabase returns a real error object if the UPDATE itself fails (auth, RLS, etc).
+      const { error } = await supabase
         .from("chat_sessions")
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", sessionId)
-        .eq("user_id", user.id)
-        .select("id");
+        .eq("user_id", user.id);
       if (error) throw error;
-      // If 0 rows updated, the session didn't exist or RLS blocked it
-      if (!data || data.length === 0) throw new Error("Delete failed: session not found or access denied");
     },
     onMutate: async (sessionId: string) => {
       // Cancel any in-flight refetches so they don't overwrite the optimistic update
