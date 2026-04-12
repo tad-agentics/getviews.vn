@@ -53,7 +53,7 @@ from getviews_pipeline.pipelines import (
 )
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.session_store import (
-    get_session_context,
+    build_session_context_from_db,
     get_stream_chunks,
     put_stream_chunks,
 )
@@ -399,7 +399,7 @@ async def stream(
                     logger.warning("[stream] free query count gate failed (fail-open): %s", gate_exc)
 
             # ── Run pipeline (with step events) ───────────────────────────────
-            session = get_session_context(body.session_id)
+            session = build_session_context_from_db(body.session_id, sb)
             urls, handles = extract_urls_and_handles(body.query)
             questions = split_into_questions(body.query)
 

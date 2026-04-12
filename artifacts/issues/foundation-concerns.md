@@ -56,9 +56,9 @@ None. ✅
 **Action:** After deploy — `supabase functions invoke cron-expiry-check --project-ref lzhiqnxfveqttsujebiv` and verify Resend dashboard. Repeat for `cron-monday-email`.
 
 ### N-38 — Cloud Run session store not shared across instances
-**Source:** Cloud Run audit
-**Impact:** In-process dict (`session_store.py`) fails on multi-instance scale-out — duplicate pipeline costs, no cross-request context.
-**Action:** Keep `--max-instances=1` for MVP. Replace with Redis/Firestore before scaling.
+**Source:** Cloud Run audit — `--max-instances` was already set to 5, making this a live bug.
+**Impact:** In-process dict (`session_store.py`) fails on multi-instance scale-out — duplicate pipeline costs, stale cross-request context.
+**Resolution:** `build_session_context_from_db()` added to `session_store.py` — reconstructs `niche`, `completed_intents`, `directions`, `diagnosis`, `competitor_profile` from the last 10 `chat_messages` rows for the session on each `/stream` request. `main.py` updated to call this instead of `get_session_context()`. SSE replay buffer remains in-process (best-effort — acceptable). `--max-instances` locked to 1 as backstop while this path stabilises in production. ✅ Resolved 2026-04-12.
 
 ### N-40 — Facebook OAuth not yet configured
 **Source:** B-1 partial resolution
@@ -75,7 +75,7 @@ None. ✅
 | PWA screenshots in `manifest.json` | Before production deploy | `screenshots` array is empty |
 | PayOS Realtime → in-app payment detection | Post-billing | Currently relies on redirect + page reload |
 | `own_channel` full account audit | Post MVP | Routes to `run_video_diagnosis` for MVP |
-| Redis/Firestore session store for Cloud Run (N-38) | Before scaling >1 instance | In-process dict fine at `--max-instances=1` |
+| Increase --max-instances beyond 1 (N-38) | After DB session path stabilises in prod | Currently locked at 1 as backstop |
 
 ---
 
@@ -84,10 +84,11 @@ None. ✅
 | Priority | Count | Items |
 |---|---|---|
 | BLOCKING | 0 | — |
-| NON-BLOCKING | 10 | N-1, N-3, N-4, N-5, N-26, N-30, N-31, N-33, N-38, N-40 |
+| NON-BLOCKING | 9 | N-1, N-3, N-4, N-5, N-26, N-30, N-31, N-33, N-40 |
 | DEFERRED | 5 | Post-MVP |
 
 **Resolved since last update:**
+- ✅ N-38 (session store cross-instance) — `build_session_context_from_db()` from chat_messages; --max-instances=1 backstop — 2026-04-12
 - ✅ N-10 (MCP tokens gitignored) — `.cursor/mcp.json` confirmed in `.gitignore`
 - ✅ N-13 (`structured_output` rendering) — ChatScreen parses JSON from `content` into structured blocks; MarkdownRenderer handles video_ref, trend_card, hook blocks via Wave 3
 - ✅ N-27 (CheckoutScreen deviation) — intentional, documented, no action needed
