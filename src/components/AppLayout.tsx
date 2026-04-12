@@ -271,19 +271,16 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  const [sessions, setSessions] = useState<Session[]>([]);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!sessionsData) return;
-    setSessions(
-      sessionsData.map((s) => ({
-        id: s.id,
-        first_message: s.first_message,
-        title: s.title ?? null,
-      })),
-    );
-  }, [sessionsData]);
+  // Derive session list directly from TanStack Query cache — no local copy.
+  // The optimistic delete in useDeleteSession mutates the cache immediately,
+  // so removing the local useState/useEffect eliminates the race where the
+  // useEffect would re-add a deleted session after onSettled invalidation.
+  const sessions: Session[] = (sessionsData ?? []).map((s) => ({
+    id: s.id,
+    first_message: s.first_message,
+    title: s.title ?? null,
+  }));
 
   const pinned = sessions.filter((s) => pinnedIds.has(s.id));
   const recent = sessions.filter((s) => !pinnedIds.has(s.id));
@@ -296,16 +293,10 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
 
   const handleDelete = (id: string) => {
-    setPinnedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
     deleteSession.mutate(id);
   };
 
   const handleRename = (id: string, label: string) => {
-    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, label } : s)));
     updateSession.mutate({ sessionId: id, title: label });
   };
 
