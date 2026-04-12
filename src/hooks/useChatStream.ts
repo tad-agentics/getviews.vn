@@ -71,15 +71,10 @@ export function useChatStream() {
       });
 
       try {
-        // Always call refreshSession() before sending to Cloud Run.
-        // Supabase returns the cached session if still valid; only hits the network
-        // when the access token is expired. Prevents 401s from stale cached JWTs.
-        const { data: { session } } = await supabase.auth.refreshSession();
-        if (!session) {
-          // Refresh token itself expired — user needs to re-login
-          setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
-          return;
-        }
+        // getSession() returns the current session; Cloud Run now validates via JWKS
+        // (ES256) so expired token detection is handled server-side with 30s leeway.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("No session");
 
         const useCloudRun = CLOUD_RUN_INTENTS.has(intentType);
         const endpoint = useCloudRun && CLOUD_RUN_URL ? `${CLOUD_RUN_URL}/stream` : VERCEL_CHAT_URL;
