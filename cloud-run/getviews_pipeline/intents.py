@@ -16,6 +16,8 @@ class QueryIntent(StrEnum):
     METADATA_ONLY = "metadata_only"
     FOLLOWUP = "followup"
     OWN_CHANNEL = "own_channel"  # "Soi Kênh" — same pipeline as video_diagnosis
+    FIND_CREATORS = "find_creators"  # KOL/creator search
+    SHOT_LIST = "shot_list"  # detailed shot list for production
 
 
 KNOWLEDGE_SIGNALS = [
@@ -289,8 +291,11 @@ def collapse_to_intents(
         QueryIntent.CONTENT_DIRECTIONS,
         QueryIntent.VIDEO_DIAGNOSIS,
         QueryIntent.COMPETITOR_PROFILE,
+        QueryIntent.OWN_CHANNEL,
         QueryIntent.SERIES_AUDIT,
         QueryIntent.BRIEF_GENERATION,
+        QueryIntent.SHOT_LIST,
+        QueryIntent.FIND_CREATORS,
         QueryIntent.METADATA_ONLY,
         QueryIntent.FOLLOWUP,
     ]
