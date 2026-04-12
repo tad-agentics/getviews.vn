@@ -14,6 +14,7 @@ from getviews_pipeline.analysis_core import analyze_aweme, analyze_tiktok_url
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
     get_corpus_count_cached,
+    get_niche_intelligence,
     get_signal_grades_for_niche,
     get_top_breakout_videos,
 )
@@ -534,6 +535,9 @@ async def run_video_diagnosis(
     )
     citation = build_corpus_citation_block(count, niche_name, days=30)
 
+    # Fetch niche norms from materialized view — fail-open, never raises
+    niche_norms = await get_niche_intelligence(niche)
+
     emit(step_queue, step_done(f"Đã phân tích {1 + len(references)} video — đang viết báo cáo..."))
 
     diagnosis: str
@@ -542,6 +546,8 @@ async def run_video_diagnosis(
             "user_video": user_res,
             "reference_videos": references,
             "niche": niche,
+            "corpus_size": count,
+            "niche_norms": niche_norms,  # from niche_intelligence materialized view
         }
         diagnosis = await run_sync(
             synthesize_intent_markdown,

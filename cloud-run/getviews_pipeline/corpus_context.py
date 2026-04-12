@@ -184,6 +184,59 @@ async def get_top_breakout_videos(
         return []
 
 
+async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
+    """Fetch one row from niche_intelligence for a niche identified by name.
+
+    Resolves niche_id via niche_taxonomy lookup, then returns the materialized
+    niche stats row (avg_face_appears_at, pct_face_in_half_sec,
+    avg_transitions_per_second, hook_distribution, format_distribution,
+    avg_engagement_rate, avg_text_overlays, has_cta_pct, commerce_pct,
+    median_duration, sample_size).
+
+    Falls back to {} on any error so callers never raise.
+    """
+    try:
+        client = _anon_client()
+        # Resolve niche_id by name (slug match or display name substring)
+        tax_result = (
+            client.table("niche_taxonomy")
+            .select("id")
+            .ilike("slug", niche_name)
+            .limit(1)
+            .execute()
+        )
+        niche_id: int | None = None
+        if tax_result.data:
+            niche_id = tax_result.data[0]["id"]
+        else:
+            # Try substring match on name_vn / name_en
+            tax_result2 = (
+                client.table("niche_taxonomy")
+                .select("id")
+                .ilike("name_en", f"%{niche_name}%")
+                .limit(1)
+                .execute()
+            )
+            if tax_result2.data:
+                niche_id = tax_result2.data[0]["id"]
+
+        if niche_id is None:
+            logger.info("[corpus_context] niche '%s' not found in niche_taxonomy", niche_name)
+            return {}
+
+        ni_result = (
+            client.table("niche_intelligence")
+            .select("*")
+            .eq("niche_id", niche_id)
+            .single()
+            .execute()
+        )
+        return ni_result.data or {}
+    except Exception as exc:
+        logger.warning("[corpus_context] get_niche_intelligence failed for '%s': %s", niche_name, exc)
+        return {}
+
+
 async def get_signal_grades_for_niche(
     niche_id: int,
 ) -> dict[str, str]:
