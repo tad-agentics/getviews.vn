@@ -386,12 +386,15 @@ export default function ChatScreen() {
     } else {
       // No ?session= — new chat button or bare /app navigation
       setSessionId(null);
-      setMessage("");
       setShowMessages(false);
       setClientPaywall(false);
       setLastStreamIntent(null);
       lastIntentRef.current = null;
       reset();
+      // Only clear the message box if there's no incoming prefillUrl from location state
+      // (e.g. "Phân tích video này" button in ExploreScreen passes tiktok_url via state)
+      const hasPrefill = !!(location.state as { prefillUrl?: string } | null)?.prefillUrl;
+      if (!hasPrefill) setMessage("");
     }
   // reset is stable (useCallback), searchParams identity changes on navigation
   // eslint-disable-next-line react-hooks/exhaustive-deps
