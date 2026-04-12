@@ -42,11 +42,11 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
     for niche_id in niches:
         try:
 
-            def _fetch_corpus() -> list[dict[str, Any]]:
+            def _fetch_corpus(_nid: int = niche_id) -> list[dict[str, Any]]:
                 return (
                     client.table("video_corpus")
                     .select("sound_id,sound_name,is_original_sound,views")
-                    .eq("niche_id", niche_id)
+                    .eq("niche_id", _nid)
                     .not_.is_("sound_id", None)
                     .gte("indexed_at", since_iso)
                     .execute()
