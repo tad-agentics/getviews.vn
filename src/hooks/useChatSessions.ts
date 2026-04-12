@@ -28,38 +28,32 @@ export function useDeleteSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-      // Do not chain .select() — the SELECT RLS filters deleted_at IS NULL, so after
-      // a successful soft-delete the updated row is excluded and count returns 0,
-      // which would falsely trigger onError and roll back the optimistic removal.
-      // Supabase returns a real error object if the UPDATE itself fails (auth, RLS, etc).
+      // Use service-role-style approach: filter only by id, let RLS enforce ownership.
+      // Avoids a mismatch between auth.uid() in the JS client vs the RLS policy uid.
       const { error } = await supabase
         .from("chat_sessions")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", sessionId)
-        .eq("user_id", user.id);
-      if (error) throw error;
+        .eq("id", sessionId);
+      if (error) {
+        console.error("[useDeleteSession] Supabase UPDATE error:", error);
+        throw error;
+      }
     },
     onMutate: async (sessionId: string) => {
-      // Cancel any in-flight refetches so they don't overwrite the optimistic update
       await qc.cancelQueries({ queryKey: chatKeys.sessions() });
-      // Snapshot the previous value for rollback
       const previous = qc.getQueryData(chatKeys.sessions());
-      // Optimistically remove from cache immediately
       qc.setQueryData(chatKeys.sessions(), (old: unknown[] | undefined) =>
         old ? old.filter((s: { id: string }) => s.id !== sessionId) : [],
       );
       return { previous };
     },
-    onError: (_err, _sessionId, context) => {
-      // Rollback to previous cache state on failure
+    onError: (err, _sessionId, context) => {
+      console.error("[useDeleteSession] onError — rolling back:", err);
       if (context?.previous !== undefined) {
         qc.setQueryData(chatKeys.sessions(), context.previous);
       }
     },
     onSettled: () => {
-      // Always sync with server after mutation completes or fails
       void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
     },
   });
