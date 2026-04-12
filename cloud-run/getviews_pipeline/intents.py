@@ -21,6 +21,7 @@ class QueryIntent(StrEnum):
 
 
 KNOWLEDGE_SIGNALS = [
+    # English
     "algorithm",
     "how does tiktok",
     "does the algorithm",
@@ -49,6 +50,26 @@ KNOWLEDGE_SIGNALS = [
     "lo-fi vs",
     "production quality",
     "phone vs camera",
+    # Vietnamese equivalents
+    "thuật toán",
+    "tiktok hoạt động",
+    "tiktok phạt",
+    "shadowban",
+    "có đáng",
+    "đăng nhiều",
+    "từ khóa",
+    "hashtag",
+    "caption",
+    "bình luận mồi",
+    "gây tranh cãi",
+    "hack thuật toán",
+    "đèn ring",
+    "microphone",
+    "thiết bị",
+    "ánh sáng",
+    "chất lượng sản xuất",
+    "điện thoại vs",
+    "máy ảnh vs",
 ]
 
 _TIKTOK_URL_RE = re.compile(
@@ -76,10 +97,23 @@ def is_knowledge_question(message: str) -> bool:
 
 
 def infer_niche_from_message(message: str) -> str:
-    """Best-effort niche string for search/hashtag APIs."""
-    m = re.search(r"\bin\s+([#a-zA-Z0-9_+]+)", message, re.IGNORECASE)
+    """Best-effort niche string for search/hashtag APIs.
+
+    Handles both English ("in fitness") and Vietnamese
+    ("trong niche skincare", "niche mỹ phẩm", "lĩnh vực ẩm thực") patterns.
+    """
+    # English: "in <niche>"
+    m = re.search(r"\bin\s+([#a-zA-Z0-9_+\u00C0-\u024F\u1E00-\u1EFF]+)", message, re.IGNORECASE)
     if m:
         return m.group(1).lstrip("#").strip()
+    # Vietnamese: "trong niche X" / "niche X" / "trong lĩnh vực X"
+    m_vi = re.search(
+        r"(?:trong\s+)?(?:niche|lĩnh vực|ngách|chủ đề)\s+([^\s,.!?]+)",
+        message,
+        re.IGNORECASE,
+    )
+    if m_vi:
+        return m_vi.group(1).lstrip("#").strip()
     m2 = re.search(r"#(\w+)", message)
     if m2:
         return m2.group(1).strip()
@@ -89,11 +123,17 @@ def infer_niche_from_message(message: str) -> str:
 
 
 def split_into_questions(message: str) -> list[str]:
-    """Split multi-part user messages (e.g. '... Also, ...')."""
+    """Split multi-part user messages on common English and Vietnamese conjunctions."""
     raw = message.strip()
     if not raw:
         return []
-    parts = re.split(r"\bAlso,|\n\n+", raw, flags=re.IGNORECASE)
+    # Splits on: "Also," / "Ngoài ra" / "Và " (sentence-starting "And") /
+    # "Thêm nữa" / "Bên cạnh đó" / double newline
+    parts = re.split(
+        r"\bAlso,|(?<=[.!?])\s+Và\s+|Ngoài ra[,\s]|Thêm nữa[,\s]|Bên cạnh đó[,\s]|\n\n+",
+        raw,
+        flags=re.IGNORECASE,
+    )
     out = [p.strip() for p in parts if p.strip()]
     return out if out else [raw]
 
@@ -117,25 +157,45 @@ def classify_intent(
     if any(
         kw in msg
         for kw in [
+            # English
             "write a brief",
             "brief for",
             "content plan",
             "production brief",
             "create a brief",
             "brief me",
+            # Vietnamese
+            "viết brief",
+            "tạo brief",
+            "lên kế hoạch nội dung",
+            "kế hoạch content",
+            "brief cho",
+            "brief nội dung",
         ]
     ):
         return QueryIntent.BRIEF_GENERATION
 
     if has_urls and any(
         kw in msg
-        for kw in ["stats", "metrics", "followers", "how many", "views on"]
-    ) and not any(kw in msg for kw in ["analyze", "why", "what should", "what's wrong"]):
+        for kw in [
+            # English
+            "stats", "metrics", "followers", "how many", "views on",
+            # Vietnamese
+            "lượt xem", "người theo dõi", "bao nhiêu view", "bao nhiêu follow",
+            "chỉ số", "số liệu",
+        ]
+    ) and not any(kw in msg for kw in [
+        # English negation
+        "analyze", "why", "what should", "what's wrong",
+        # Vietnamese negation
+        "phân tích", "tại sao", "vì sao", "nên làm gì", "sai ở đâu",
+    ]):
         return QueryIntent.METADATA_ONLY
 
     if has_urls and any(
         kw in msg
         for kw in [
+            # English
             "analyze",
             "improve",
             "why",
@@ -146,6 +206,19 @@ def classify_intent(
             "how did",
             "what's wrong",
             "better",
+            # Vietnamese
+            "phân tích",
+            "cải thiện",
+            "tại sao",
+            "vì sao",
+            "ít view",
+            "sửa",
+            "nên làm gì",
+            "làm thế nào",
+            "sai ở đâu",
+            "tốt hơn",
+            "tại sao video",
+            "video này",
         ]
     ):
         return QueryIntent.VIDEO_DIAGNOSIS
@@ -153,6 +226,7 @@ def classify_intent(
     if any(
         kw in msg
         for kw in [
+            # English
             "trending now",
             "trending",
             "blowing up",
@@ -163,6 +237,17 @@ def classify_intent(
             "just dropped",
             "viral right now",
             "what's trending",
+            # Vietnamese
+            "đang trending",
+            "xu hướng",
+            "đang hot",
+            "đang lên",
+            "tuần này",
+            "hôm nay",
+            "mới nhất",
+            "viral",
+            "bùng nổ",
+            "đang nổi",
         ]
     ):
         return QueryIntent.TREND_SPIKE
@@ -170,6 +255,7 @@ def classify_intent(
     if not has_urls and any(
         kw in msg
         for kw in [
+            # English
             "direction",
             "top",
             "popular",
@@ -179,6 +265,17 @@ def classify_intent(
             "how do",
             "what format",
             "structure",
+            # Vietnamese
+            "hướng nội dung",
+            "nên làm",
+            "video gì",
+            "format nào",
+            "loại video",
+            "ý tưởng",
+            "chủ đề",
+            "niche",
+            "đang hoạt động",
+            "cấu trúc",
         ]
     ):
         return QueryIntent.CONTENT_DIRECTIONS
@@ -201,6 +298,7 @@ def detect_hybrid_intents(
     recency_signal = any(
         kw in msg
         for kw in [
+            # English
             "right now",
             "this week",
             "blowing up",
@@ -214,12 +312,26 @@ def detect_hybrid_intents(
             "just dropped",
             "viral right now",
             "what's trending",
+            # Vietnamese
+            "tuần này",
+            "hôm nay",
+            "đang trending",
+            "đang hot",
+            "đang lên",
+            "xu hướng",
+            "viral",
+            "bùng nổ",
+            "đang nổi",
+            "mới nhất",
+            "còn hoạt động",
+            "vẫn hiệu quả",
         ]
     )
 
     structural_signal = any(
         kw in msg
         for kw in [
+            # English
             "format",
             "hook",
             "structure",
@@ -228,11 +340,25 @@ def detect_hybrid_intents(
             "should i do",
             "which is better",
             "hooks are working",
+            # Vietnamese
+            "format",
+            "hook",
+            "cấu trúc",
+            "carousel",
+            "hướng nội dung",
+            "nên làm gì",
+            "cái nào tốt hơn",
+            "hook nào",
         ]
     )
 
     brief_signal = any(
-        kw in msg for kw in ["brief", "content plan", "production brief"]
+        kw in msg for kw in [
+            # English
+            "brief", "content plan", "production brief",
+            # Vietnamese
+            "brief", "kế hoạch content", "kế hoạch nội dung", "lên kế hoạch",
+        ]
     )
 
     if brief_signal and recency_signal and not has_urls:

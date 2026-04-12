@@ -51,23 +51,78 @@ function isResumeQuery(q: string): boolean {
   return ["tiếp", "tiếp tục", "continue", "resume", "/tiếp"].includes(s);
 }
 
+/**
+ * detectIntent — maps a raw user message to a pipeline intent.
+ *
+ * Intent catalogue:
+ *   video_diagnosis    — analyse a specific video URL (why it flopped / how to improve)
+ *   competitor_profile — analyse another creator's channel via @handle or profile URL
+ *   own_channel        — analyse the user's own channel
+ *   series_audit       — let backend handle; we route all multi-URL to video_diagnosis here
+ *   trend_spike        — what's trending / viral right now in a niche
+ *   content_directions — what video types / formats / hooks to make next
+ *   brief_generation   — produce a full content brief (default fallback)
+ *   shot_list          — production shot list / filming plan for a video
+ *   find_creators      — discover KOLs / creators in a niche
+ *   follow_up          — continue the current conversation thread
+ *
+ * Priority order: URL → handle → shot_list → find_creators → own_channel
+ *                 → content_directions + trend (with disambiguation)
+ *                 → trend_spike alone → default
+ */
 function detectIntent(query: string, priorAssistant: boolean): { intentType: string; isFree: boolean } {
   const q = query.trim();
   const ql = q.toLowerCase();
 
+  // ── 1. URL DETECTION (highest confidence — structural) ────────────────────
   if (/https?:\/\/[^\s]*tiktok\.com/i.test(q)) {
-    if (/\/video\//i.test(q)) return { intentType: "video_diagnosis", isFree: false };
-    return { intentType: "competitor_profile", isFree: false };
+    // Profile URL: long-form /@handle with no /video/ path → competitor
+    // Everything else (vm.tiktok.com short links, /video/ paths) → video
+    const hasTiktokProfileUrl = /tiktok\.com\/@[^\s/]+(?:\/(?!video)[^\s]*)?(?:\s|$)/i.test(q)
+      && !/\/video\//i.test(q);
+    return hasTiktokProfileUrl
+      ? { intentType: "competitor_profile", isFree: false }
+      : { intentType: "video_diagnosis", isFree: false };
   }
-  if (/@\w/.test(q)) return { intentType: "competitor_profile", isFree: false };
-  if (/\b(hot|trending|xu hướng|đang lên)\b/i.test(ql)) return { intentType: "trend_spike", isFree: true };
-  if (/\b(tìm kol|tìm creator|\bkol\b)\b/i.test(ql)) return { intentType: "find_creators", isFree: true };
-  if (/\b(soi kênh|kênh của (tôi|mình|tao)|phân tích kênh|channel của)\b/i.test(ql)) return { intentType: "own_channel", isFree: false };
-  if (/\b(gì đang hot|content direction|hướng nội dung|nên làm (gì|video gì)|video gì (đang|phổ biến)|ý tưởng video)\b/i.test(ql)) return { intentType: "content_directions", isFree: false };
-  if (/\b(shot list|danh sách cảnh quay|kịch bản quay|cảnh quay|lên kịch bản)\b/i.test(query)) {
+
+  // ── 2. HANDLE DETECTION (structural) ─────────────────────────────────────
+  if (/@\w/.test(q)) {
+    const ownChannelHandle = /soi kênh|kênh (của )?(mình|tôi|tao|tui)|review kênh|phân tích kênh|đánh giá kênh|channel (của )?(mình|tôi|tao|tui)/i.test(ql);
+    return ownChannelHandle
+      ? { intentType: "own_channel", isFree: false }
+      : { intentType: "competitor_profile", isFree: false };
+  }
+
+  // ── 3. SHOT LIST ──────────────────────────────────────────────────────────
+  // Checked before content_directions because "quay video" / "cách quay" could
+  // also loosely match direction keywords.
+  if (/shot list|kịch bản|cách quay|hướng dẫn quay|quay như nào|quay thế nào|quay video|lên ý tưởng quay|plan quay|danh sách cảnh|cảnh quay/i.test(ql)) {
     return { intentType: "shot_list", isFree: false };
   }
-  if (priorAssistant) return { intentType: "follow_up", isFree: true };
+
+  // ── 4. FIND CREATORS ──────────────────────────────────────────────────────
+  if (/tìm creator|tìm kol|tìm koc|ai đang làm tốt|creator nào|kol nào|koc nào|giới thiệu creator|gợi ý kol|gợi ý creator/i.test(ql)) {
+    return { intentType: "find_creators", isFree: true };
+  }
+
+  // ── 5. OWN CHANNEL ────────────────────────────────────────────────────────
+  if (/soi kênh|kênh (của )?(mình|tôi|tao|tui)|review kênh|phân tích kênh|đánh giá kênh|channel (của )?(mình|tôi|tao)/i.test(ql)) {
+    return { intentType: "own_channel", isFree: false };
+  }
+
+  // ── 6. CONTENT_DIRECTIONS + TREND disambiguation ──────────────────────────
+  // Evaluated together so mixed signals prefer content_directions (more actionable).
+  const isTrend = /đang viral|video viral|viral rồi|xu hướng|đang lên|bùng nổ|đang nổ|gì đang chạy|trend|tuần này|7 ngày|gần đây|đang trending|mới nổi/i.test(ql)
+    || /\b(trending|viral)\b/i.test(ql);
+
+  const isContent = /nên quay gì|quay gì|làm gì|video gì|format nào|hook nào|kiểu video|đang chạy tốt|đang work|đang hiệu quả|hướng content|content direction|hướng nội dung|nên làm gì|nên làm video|ý tưởng video|gì đang hot|gợi ý nội dung|loại video/i.test(ql);
+
+  // Rule 4: both signals → prefer content_directions
+  if (isContent) return { intentType: "content_directions", isFree: false };
+  if (isTrend) return { intentType: "trend_spike", isFree: true };
+
+  // ── 7. DEFAULT ────────────────────────────────────────────────────────────
+  if (q.length < 10 || priorAssistant) return { intentType: "follow_up", isFree: true };
   return { intentType: "brief_generation", isFree: false };
 }
 

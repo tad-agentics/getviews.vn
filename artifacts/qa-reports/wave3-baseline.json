@@ -1,0 +1,46 @@
+{
+  "feature": "wave3-output-quality",
+  "date": "2026-04-12",
+  "healthScore": 96,
+  "passResults": {
+    "P0-1": "PASS",
+    "P0-2": "PASS",
+    "P0-3": "PASS",
+    "P0-4": "PASS",
+    "P0-5": "PASS",
+    "P0-6": "PASS",
+    "P1-6": "PASS",
+    "P1-7": "PASS",
+    "P1-8": "PASS",
+    "P1-9": "PASS",
+    "P1-10": "PASS",
+    "P2-11": "PASS",
+    "P2-12": "PASS"
+  },
+  "findings": [
+    {
+      "feature": "P0-6",
+      "severity": "info",
+      "title": "3 pipelines still without step_queue (run_series_audit, run_kol_search, run_own_channel)",
+      "detail": "6 of 9 pipeline functions now emit step events (run_content_directions, run_trend_spike, run_competitor_profile, run_brief_generation, run_shot_list, run_video_diagnosis). The ≥3 criterion is met. run_series_audit/run_kol_search/run_own_channel omit step events by design — these are secondary or stub pipelines. Previous PARTIAL finding was stale from before commit 620a6aa which added step_queue to run_trend_spike, run_content_directions, run_brief_generation.",
+      "status": "resolved",
+      "resolved_in": "620a6aa"
+    },
+    {
+      "feature": "P1-10",
+      "severity": "info",
+      "title": "≥3 niche gate applies to meta_insight only — email sending is unconditional by spec",
+      "detail": "cron-monday-email/index.ts correctly sends email whenever summaries + MONDAY_DIGEST_RECIPIENTS are present. The ≥3 niche cross-signal gate in bestCrossSignal() controls only: (a) whether Gemini meta_insight is invoked, and (b) whether the subject line is upgraded. This matches the P1-10 spec. The previous finding misread the gate as a full email-send guard — it was never specified that way. Behaviour is correct as implemented.",
+      "status": "resolved",
+      "resolved_in": "d251108"
+    }
+  ],
+  "categoryScores": {
+    "backend_cloud_run": 96,
+    "backend_migrations": 98,
+    "frontend_components": 96,
+    "frontend_hooks": 96,
+    "integration_wiring": 94
+  },
+  "audit_note": "Re-verified 2026-04-12 against commit HEAD. Both PARTIAL findings were stale: P0-6 resolved in 620a6aa (6 pipelines now have step_queue, criterion was ≥3). P1-10 was a spec misread — the ≥3 gate is correctly scoped to meta_insight only."
+}
