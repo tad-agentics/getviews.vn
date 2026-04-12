@@ -19,15 +19,48 @@ export { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 /* ─── Quick action config ─────────────────────────────────────────────── */
 interface QuickAction {
   text: string;
+  subtext: string;
   Icon: React.ElementType;
-  modalKey: "marketing" | "tiktok-page" | "trends" | "video";
+  modalKey: string;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { text: "Tư vấn chiến lược marketing", Icon: BarChart2, modalKey: "marketing" },
-  { text: "Phân tích trang TikTok", Icon: Search, modalKey: "tiktok-page" },
-  { text: "Tìm xu hướng mới nhất", Icon: TrendingUp, modalKey: "trends" },
-  { text: "Chẩn đoán video cụ thể", Icon: Video, modalKey: "video" },
+  {
+    text: "Soi Video",
+    subtext: "Dán link TikTok — phân tích hook, nhịp, CTA",
+    Icon: Video,
+    modalKey: "soi-video",
+  },
+  {
+    text: "Soi Kênh Đối Thủ",
+    subtext: "Dán @handle — xem công thức content của họ",
+    Icon: Search,
+    modalKey: "soi-kenh",
+  },
+  {
+    text: "Xu Hướng Tuần Này",
+    subtext: "Hook nào đang chạy trong ngách của bạn",
+    Icon: TrendingUp,
+    modalKey: "xu-huong",
+  },
+  {
+    text: "Lên Kịch Bản Quay",
+    subtext: "Từ chủ đề → shot list sẵn sàng quay",
+    Icon: Video,
+    modalKey: "kich-ban",
+  },
+  {
+    text: "Tìm KOL / Creator",
+    subtext: "Gợi ý tài khoản đáng theo dõi hoặc hợp tác",
+    Icon: Search,
+    modalKey: "tim-kol",
+  },
+  {
+    text: "Tư Vấn Content",
+    subtext: "Hướng nội dung + format phù hợp ngách",
+    Icon: BarChart2,
+    modalKey: "tu-van",
+  },
 ];
 
 /* ─── MobileEmptyState ────────────────────────────────────────────────── */
@@ -93,7 +126,8 @@ export const MobileEmptyState = memo(function MobileEmptyState({
                     className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
                     strokeWidth={1.5}
                   />
-                  <p className="text-xs leading-snug text-[var(--ink)]">{action.text}</p>
+                  <p className="text-xs font-semibold leading-snug text-[var(--ink)]">{action.text}</p>
+                  <p className="text-[10px] leading-tight text-[var(--muted)]">{action.subtext}</p>
                 </motion.button>
               );
             })}
@@ -255,7 +289,7 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
 
           <div className="mt-6">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">Thao tác nhanh</p>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {QUICK_ACTIONS.map((action, idx) => {
                 const Icon = action.Icon;
                 return (
@@ -272,7 +306,8 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
                       className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
                       strokeWidth={1.5}
                     />
-                    <p className="text-xs leading-snug text-[var(--ink)]">{action.text}</p>
+                    <p className="text-xs font-semibold leading-snug text-[var(--ink)]">{action.text}</p>
+                    <p className="text-[10px] leading-tight text-[var(--muted)]">{action.subtext}</p>
                   </motion.button>
                 );
               })}

@@ -9,9 +9,9 @@ export const PromptCards = memo(function PromptCards({
   onSelect: (prompt: string) => void;
 }) {
   const cards = [
-    "Tại sao video này ít view — lỗi ở đâu?",
-    `Hook nào đang hot trong ${nicheLabel || "niche của bạn"} tuần này?`,
-    "Soi kênh @đối_thủ — họ đang làm gì?",
+    `Xu hướng đang hot trong ${nicheLabel || "ngách của bạn"} tuần này?`,
+    "Dán link video TikTok để soi chi tiết",
+    "Lên kịch bản quay video mới cho tuần tới",
   ];
   return (
     <div className="mt-4 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-3">

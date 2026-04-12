@@ -123,7 +123,7 @@ function detectIntent(query: string, priorAssistant: boolean): { intentType: str
 
   // ── 7. DEFAULT ────────────────────────────────────────────────────────────
   if (q.length < 10 || priorAssistant) return { intentType: "follow_up", isFree: true };
-  return { intentType: "brief_generation", isFree: false };
+  return { intentType: "follow_up", isFree: true };
 }
 
 type ParsedAssistant = {

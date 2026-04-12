@@ -9,21 +9,104 @@ interface ModalConfig {
     placeholder: string;
     type: "input" | "textarea";
     key: string;
+    optional?: boolean;
   }[];
   buildPrompt: (values: Record<string, string>) => string;
 }
 
 const MODAL_CONFIGS: Record<string, ModalConfig> = {
+  "soi-video": {
+    title: "Soi Video",
+    fields: [
+      {
+        label: "Dán link TikTok video",
+        placeholder: "https://vm.tiktok.com/... hoặc https://www.tiktok.com/@user/video/...",
+        type: "input",
+        key: "url",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Phân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: ${v.url}`,
+  },
+  "soi-kenh": {
+    title: "Soi Kênh Đối Thủ",
+    fields: [
+      {
+        label: "@handle hoặc link trang TikTok",
+        placeholder: "@username hoặc https://www.tiktok.com/@username",
+        type: "input",
+        key: "handle",
+      },
+    ],
+    buildPrompt: (v) => {
+      const h = v.handle.trim();
+      const handle = h.startsWith("http") ? h : h.startsWith("@") ? h : `@${h}`;
+      return `Soi kênh đối thủ ${handle} — phân tích công thức content, hook, format của họ`;
+    },
+  },
+  "xu-huong": {
+    title: "Xu Hướng Tuần Này",
+    fields: [
+      {
+        label: "Lĩnh vực / ngách (tùy chọn)",
+        placeholder: "VD: skincare, fitness, AI tools — hoặc để trống dùng ngách mặc định",
+        type: "input",
+        key: "niche",
+        optional: true,
+      },
+    ],
+    buildPrompt: (v) => {
+      const niche = v.niche.trim();
+      return niche
+        ? `Xu hướng TikTok đang hot tuần này trong lĩnh vực ${niche} — hook nào đang chạy, format nào đang lên?`
+        : "Xu hướng TikTok đang hot tuần này — hook nào đang chạy, format nào đang lên?";
+    },
+  },
+  "kich-ban": {
+    title: "Lên Kịch Bản Quay",
+    fields: [
+      {
+        label: "Chủ đề video",
+        placeholder: "VD: review son mới, so sánh điện thoại, recipe nấu ăn nhanh",
+        type: "input",
+        key: "topic",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Lên kịch bản quay video TikTok cho chủ đề: ${v.topic} — bao gồm hook, danh sách cảnh quay, CTA`,
+  },
+  "tim-kol": {
+    title: "Tìm KOL / Creator",
+    fields: [
+      {
+        label: "Mô tả sản phẩm hoặc lĩnh vực",
+        placeholder: "VD: ứng dụng fitness AI, mỹ phẩm Hàn Quốc, đồ gia dụng thông minh",
+        type: "input",
+        key: "product",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Tìm creator TikTok phù hợp để marketing sản phẩm: ${v.product} — gợi ý KOL và lý do`,
+  },
+  "tu-van": {
+    title: "Tư Vấn Content",
+    fields: [
+      {
+        label: "Bạn đang làm content về gì?",
+        placeholder: "VD: review đồ skincare, chia sẻ kinh nghiệm đầu tư, dạy nấu ăn",
+        type: "input",
+        key: "niche",
+      },
+    ],
+    buildPrompt: (v) =>
+      `Hướng nội dung TikTok cho ngách ${v.niche} — nên làm video gì, format nào đang hiệu quả, hook mẫu`,
+  },
+  // Legacy keys for backward compatibility
   marketing: {
     title: "Chiến lược Marketing",
     fields: [
       { label: "Tên sản phẩm của bạn là gì?", placeholder: "VD: FitTrack", type: "input", key: "product" },
-      {
-        label: "Mô tả sản phẩm",
-        placeholder: "VD: Ứng dụng fitness AI tạo kế hoạch tập luyện cá nhân hóa",
-        type: "textarea",
-        key: "description",
-      },
+      { label: "Mô tả sản phẩm", placeholder: "VD: Ứng dụng fitness AI", type: "textarea", key: "description" },
     ],
     buildPrompt: (v) => `Tư vấn chiến lược marketing TikTok cho sản phẩm "${v.product}": ${v.description}`,
   },
@@ -32,21 +115,21 @@ const MODAL_CONFIGS: Record<string, ModalConfig> = {
     fields: [
       { label: "TikTok profile URL", placeholder: "https://www.tiktok.com/@username", type: "input", key: "url" },
     ],
-    buildPrompt: (v) => `Phân tích trang TikTok: ${v.url}`,
+    buildPrompt: (v) => `Soi kênh đối thủ ${v.url} — phân tích công thức content của họ`,
   },
   trends: {
     title: "Tìm xu hướng mới nhất",
     fields: [
-      { label: "Xu hướng trong lĩnh vực nào?", placeholder: "VD: fitness, skincare, AI tools", type: "input", key: "niche" },
+      { label: "Xu hướng trong lĩnh vực nào?", placeholder: "VD: fitness, skincare", type: "input", key: "niche" },
     ],
-    buildPrompt: (v) => `Tìm xu hướng TikTok mới nhất trong lĩnh vực: ${v.niche}`,
+    buildPrompt: (v) => `Xu hướng TikTok đang hot tuần này trong lĩnh vực: ${v.niche}`,
   },
   video: {
     title: "Chẩn đoán video",
     fields: [
       { label: "TikTok video URL", placeholder: "https://www.tiktok.com/@username/video/...", type: "input", key: "url" },
     ],
-    buildPrompt: (v) => `Chẩn đoán video TikTok: ${v.url}`,
+    buildPrompt: (v) => `Phân tích video TikTok này: ${v.url}`,
   },
 };
 
@@ -61,12 +144,12 @@ export function QuickActionModal({
 }) {
   const config = MODAL_CONFIGS[modalKey];
   const [values, setValues] = useState<Record<string, string>>(
-    () => Object.fromEntries(config.fields.map((f) => [f.key, ""])),
+    () => Object.fromEntries((config?.fields ?? []).map((f) => [f.key, ""])),
   );
 
   if (!config) return null;
 
-  const allFilled = config.fields.every((f) => values[f.key]?.trim());
+  const allFilled = config.fields.every((f) => f.optional || values[f.key]?.trim());
 
   const handleContinue = () => {
     if (!allFilled) return;
