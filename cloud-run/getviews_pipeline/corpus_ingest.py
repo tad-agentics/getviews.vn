@@ -78,6 +78,56 @@ def _service_client() -> Any:
     return get_service_client()
 
 
+# ── Distribution annotations ────────────────────────────────────────────────────
+# Generic hashtags that carry no niche signal — used by millions of posts daily.
+# A post using ONLY these tags gives the algorithm no information about audience fit.
+# "has_vietnamese_hashtags" column name is legacy; semantically means "has_specific_hashtags".
+GENERIC_HASHTAGS: frozenset[str] = frozenset({
+    # Universal virality bait
+    "fyp", "foryou", "foryoupage", "viral", "trending", "trendingtiktok",
+    "tiktok", "tiktokviral", "fy", "xyzbca", "xyz", "trend",
+    # Broad lifestyle categories — too wide to target any niche
+    "ootd", "fashion", "beauty", "food", "funny", "comedy", "love",
+    "music", "dance", "art", "photography", "travel", "fitness",
+    "makeup", "skincare", "style", "outfit", "recipe", "diy",
+    # Platform learning programmes
+    "learnontiktok", "edutok",
+})
+
+
+def annotate_distribution(hashtags: list[str], caption: str | None) -> dict[str, Any]:
+    """Compute distribution annotations from ED metadata.
+
+    These are NOT quality gates — all rows are still ingested regardless.
+    They annotate each video so niche_intelligence can compute:
+      - pct_has_specific_hashtags: % of top videos with ≥1 niche-specific hashtag
+      - pct_has_caption_text: % of top videos with real text beyond hashtags
+      - avg_hashtag_count: hashtag volume norms per niche
+      - pct_original_sound: already exists in niche_intelligence (from is_original_sound)
+
+    These feed into the synthesis prompt, enabling data-backed distribution claims:
+      "92% top video trong ngách skincare có caption + hashtag cụ thể cho ngách.
+       Video bạn chỉ có 4 hashtag tiếng Anh chung chung (#trending #ootd) —
+       thuật toán không biết đẩy cho ai."
+    """
+    tags_lower = [t.lower() for t in (hashtags or [])]
+
+    # True = at least 1 hashtag is niche-specific (not in the generic noise list)
+    has_specific = any(t not in GENERIC_HASHTAGS for t in tags_lower)
+
+    # True = caption contains ≥10 chars of non-hashtag text
+    has_caption_text = False
+    if caption:
+        stripped = re.sub(r"#\w+\s*", "", caption).strip()
+        has_caption_text = len(stripped) > 10
+
+    return {
+        "has_vietnamese_hashtags": has_specific,
+        "has_caption_text": has_caption_text,
+        "hashtag_count": len(tags_lower),
+    }
+
+
 # ── Niche fetching ──────────────────────────────────────────────────────────────
 
 async def _fetch_niches(client: Any) -> list[dict[str, Any]]:
@@ -560,6 +610,11 @@ def _build_corpus_row(
         # ── Group D: Searchable text (2 columns) ──
         "topics": analysis_json.get("topics") or [],
         "transcript_snippet": transcript[:500] if transcript else None,
+
+        # ── Group E: Distribution annotations (3 columns) ──
+        # Computed from ED metadata already in memory — zero incremental API cost.
+        # NOT quality gates. Every row is annotated regardless.
+        **annotate_distribution(hashtags, desc or None),
     }
 
 
