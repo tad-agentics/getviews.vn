@@ -13,9 +13,10 @@
  *   2b. sound_card JSON blocks → TrendingSoundCard (U3)
  *   2c. shot_item JSON blocks → ShotListCard list (U2)
  *
- *   3. Hook: lines            → CopyableBlock (P0-3)
- *      "Hook: ĐỪNG [hành động] nếu chưa xem video này"
- *      "**Hook:** [Sản phẩm] chỉ [giá] — mua ở đâu?"
+ *   3. Hook template: lines   → CopyableBlock (P0-3)
+ *      "Hook template: ĐỪNG [hành động] nếu chưa xem video này"
+ *      "**Hook template:** [Sản phẩm] chỉ [giá] — mua ở đâu?"
+ *      (NOT "Hook: 🟢 Label" diagnosis section headers — those render as bold text)
  *
  *   4. Markdown formatting     → bold (**text**), headings (##), bullets (-)
  *      (lightweight inline — no full markdown parser dependency)
@@ -55,7 +56,9 @@ type Segment =
 // Parser
 // ---------------------------------------------------------------------------
 
-const HOOK_LINE_RE = /^\*{0,2}Hook:\*{0,2}\s+(.+)$/;
+// Matches "Hook template: ..." lines — the copyable formula at the end of diagnosis.
+// Intentionally does NOT match "Hook: [emoji] [label]" section headers from diagnosis.
+const HOOK_LINE_RE = /^\*{0,2}Hook template:\*{0,2}\s+(.+?)[\s*]*$/i;
 const VIDEO_REF_RE = /\{"type"\s*:\s*"video_ref"[^}]*\}/g;
 
 /**

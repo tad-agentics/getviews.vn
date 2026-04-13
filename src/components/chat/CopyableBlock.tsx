@@ -7,6 +7,19 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 
+/** Strip leading/trailing asterisks and whitespace from hook text. */
+function cleanHookText(text: string): string {
+  return text.replace(/^\*+|\*+$/g, "").trim();
+}
+
+/** Render **bold** markers as <strong> within hook text. */
+function renderHookInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/);
+  return parts.map((p, i) =>
+    p.startsWith("**") && p.endsWith("**") ? <strong key={i}>{p.slice(2, -2)}</strong> : p
+  );
+}
+
 interface Props {
   text: string;
 }
@@ -16,7 +29,7 @@ export function CopyableBlock({ text }: Props) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(cleanHookText(text));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -32,7 +45,9 @@ export function CopyableBlock({ text }: Props) {
         borderLeft: "2px solid var(--purple)",
       }}
     >
-      <p className="flex-1 text-sm font-semibold leading-snug text-[var(--ink)]">{text}</p>
+      <p className="flex-1 text-sm font-semibold leading-snug text-[var(--ink)]">
+        {renderHookInline(cleanHookText(text))}
+      </p>
       <button
         type="button"
         onClick={() => void handleCopy()}
