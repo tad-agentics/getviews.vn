@@ -34,6 +34,7 @@ from getviews_pipeline.prompts import (
     CAROUSEL_EXTRACTION_PROMPT,
     VIDEO_EXTRACTION_PROMPT,
     build_diagnosis_prompt,
+    build_diagnosis_synthesis_prompt_v2,
     build_knowledge_prompt,
     build_summary_prompt,
     build_synthesis_prompt,
@@ -297,6 +298,54 @@ def synthesize_diagnosis(
     text = _response_text(response)
     if not text.strip():
         raise ValueError("Gemini returned empty synthesis response")
+    return text.strip()
+
+
+def synthesize_diagnosis_v2(
+    content_format: str,
+    niche_name: str,
+    corpus_size: int,
+    niche_norms: dict[str, Any],
+    reference_videos: list[dict[str, Any]],
+    user_analysis: dict[str, Any],
+    user_stats: dict[str, Any],
+    collapsed_questions: list[str] | None = None,
+) -> str:
+    """V2 narrative diagnosis — format-aware, 4-part structure.
+
+    Uses build_diagnosis_synthesis_prompt_v2() from prompts.py.
+    max_output_tokens bumped to 3072 to accommodate full 4-part narrative.
+    """
+    model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
+    prompt = build_diagnosis_synthesis_prompt_v2(
+        content_format=content_format,
+        niche_name=niche_name,
+        corpus_size=corpus_size,
+        niche_norms=niche_norms,
+        reference_videos=reference_videos,
+        user_analysis=user_analysis,
+        user_stats=user_stats,
+    )
+    if collapsed_questions:
+        question_block = (
+            "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"
+            + "\n".join(f"- {q}" for q in collapsed_questions)
+        )
+        prompt = prompt.rstrip() + question_block + "\n\nViết chẩn đoán ngay."
+
+    cfg = types.GenerateContentConfig(
+        temperature=GEMINI_TEMPERATURE,
+        max_output_tokens=3072,  # narrative structure needs more room than old checklist
+    )
+    response = _generate_content_models(
+        [prompt],
+        primary_model=model,
+        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+        config=cfg,
+    )
+    text = _response_text(response)
+    if not text.strip():
+        raise ValueError("synthesize_diagnosis_v2 returned empty response")
     return text.strip()
 
 

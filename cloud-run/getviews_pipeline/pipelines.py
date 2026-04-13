@@ -19,7 +19,8 @@ from getviews_pipeline.corpus_context import (
     get_signal_grades_for_niche,
     get_top_breakout_videos,
 )
-from getviews_pipeline.gemini import synthesize_intent_markdown
+from getviews_pipeline.corpus_ingest import _classify_format
+from getviews_pipeline.gemini import synthesize_diagnosis_v2, synthesize_intent_markdown
 from getviews_pipeline.helpers import (
     filter_recency,
     infer_niche_from_hashtags,
@@ -636,22 +637,35 @@ async def run_video_diagnosis(
 
     emit(step_queue, step_done(f"Đã phân tích {1 + len(references)} video — đang viết báo cáo..."))
 
+    # Detect content format from user analysis — reuse corpus_ingest classifier.
+    user_analysis_dict = user_res.get("analysis") or {}
+    user_metadata_dict = user_res.get("metadata") or {}
+    niche_id_for_format = 0  # format classifier uses niche_id for mukbang heuristic;
+                              # 0 = unknown is safe (falls back to keyword matching only)
+    content_format = _classify_format(user_analysis_dict, niche_id_for_format)
+
+    # Build user_stats from metadata for the synthesis prompt.
+    user_stats: dict[str, Any] = {
+        "views": user_metadata_dict.get("views") or 0,
+        "likes": user_metadata_dict.get("likes") or 0,
+        "comments": user_metadata_dict.get("comments") or 0,
+        "shares": user_metadata_dict.get("shares") or 0,
+        "breakout_multiplier": user_metadata_dict.get("breakout") or 0.0,
+        "duration": user_metadata_dict.get("duration") or 0,
+    }
+
     diagnosis: str
     if include_diagnosis:
-        payload = {
-            "user_video": user_res,
-            "reference_videos": references,
-            "niche": niche,
-            "corpus_size": count,
-            "niche_norms": niche_norms,  # from niche_intelligence materialized view
-        }
         diagnosis = await run_sync(
-            synthesize_intent_markdown,
-            "video_diagnosis",
-            payload,
+            synthesize_diagnosis_v2,
+            content_format=content_format,
+            niche_name=niche,
+            corpus_size=count,
+            niche_norms=niche_norms,
+            reference_videos=references,
+            user_analysis=user_analysis_dict,
+            user_stats=user_stats,
             collapsed_questions=questions if questions and len(questions) > 1 else None,
-            niche_key=niche,
-            corpus_citation=citation,
         )
         # Server-side guarantee: ensure all reference videos appear as video_ref
         # blocks regardless of whether Gemini emitted them. Appended only for refs

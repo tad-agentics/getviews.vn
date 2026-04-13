@@ -886,3 +886,49 @@ Bằng chứng (JSON):
 {data_json}
 
 Viết markdown phân tích chiến lược. Không lặp lại JSON thô. Không dùng bảng field-value."""
+
+
+# ---------------------------------------------------------------------------
+# V2 diagnosis synthesis — narrative structure, format-aware
+# ---------------------------------------------------------------------------
+
+def build_diagnosis_synthesis_prompt_v2(
+    content_format: str,
+    niche_name: str,
+    corpus_size: int,
+    niche_norms: dict[str, Any],
+    reference_videos: list[dict[str, Any]],
+    user_analysis: dict[str, Any],
+    user_stats: dict[str, Any],
+) -> str:
+    """V2 diagnosis synthesis prompt — narrative structure, format-aware.
+
+    Replaces checklist-style output for Intent ① (video_diagnosis).
+    Called by gemini.py:synthesize_diagnosis_v2().
+
+    Args:
+        content_format:   Detected format string (e.g. "tutorial", "mukbang").
+        niche_name:       Human-readable niche name (e.g. "skincare").
+        corpus_size:      Number of videos in corpus for this niche (last 30 days).
+        niche_norms:      Dict from niche_intelligence materialized view.
+        reference_videos: List of reference video dicts with analysis + metadata.
+        user_analysis:    Gemini extraction result for the user's video.
+        user_stats:       User video stats dict (views, breakout_multiplier, etc.).
+    """
+    from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
+    from getviews_pipeline.output_redesign import build_diagnosis_narrative_prompt
+
+    voice = build_voice_block(include_examples=True, example_type="diagnosis")
+
+    return build_diagnosis_narrative_prompt(
+        voice_block=voice,
+        examples_block="",  # already included in voice_block when include_examples=True
+        anti_patterns=ANTI_PATTERNS,
+        content_format=content_format,
+        niche_name=niche_name,
+        corpus_size=corpus_size,
+        niche_norms=niche_norms,
+        reference_videos=reference_videos,
+        user_analysis=user_analysis,
+        user_stats=user_stats,
+    )

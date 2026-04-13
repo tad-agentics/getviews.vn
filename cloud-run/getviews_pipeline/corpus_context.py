@@ -352,7 +352,7 @@ async def fetch_corpus_reference_pool(
             .select(
                 "video_id, creator_handle, views, likes, comments, shares, "
                 "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
-                "indexed_at, analysis_json"
+                "indexed_at, content_format, analysis_json"
             )
             .eq("niche_id", niche_id)
             .gte("indexed_at", f"now() - interval '{days} days'")
@@ -419,6 +419,10 @@ async def fetch_corpus_reference_pool(
                 "_from_corpus": True,
                 "_corpus_analysis": corpus_analysis,
                 "_corpus_tiktok_url": tiktok_url,
+                # Scene-level pattern data for narrative synthesis.
+                "_corpus_scenes": corpus_analysis.get("scenes") or [],
+                "_corpus_hook_analysis": corpus_analysis.get("hook_analysis") or {},
+                "_corpus_content_format": row.get("content_format") or "",
             })
         return awemes
     except Exception as exc:
