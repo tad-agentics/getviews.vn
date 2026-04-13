@@ -318,7 +318,6 @@ export default function ChatScreen() {
       const trimmed = raw.trim();
       if (!trimmed || trimmed.length > charLimit || !user?.id) return;
       if (processing) return;
-      if (needsNiche) return;
 
       setClientPaywall(false);
 
@@ -411,7 +410,7 @@ export default function ChatScreen() {
     }
   };
 
-  const inputDisabled = processing || needsNiche || insertUser.isPending || status === "streaming";
+  const inputDisabled = processing || insertUser.isPending || status === "streaming";
 
   function DesktopInput({
     message: msg,
