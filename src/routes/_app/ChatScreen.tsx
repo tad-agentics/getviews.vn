@@ -620,8 +620,22 @@ export default function ChatScreen() {
               <div className="h-3 w-[66%] rounded bg-[var(--border)]" />
             </div>
           ) : null}
-          {status === "error" && streamId !== null && error !== "insufficient_credits" ? (
-            <p className="mt-2 text-sm text-[var(--muted)]">— Bị gián đoạn. Gõ &apos;tiếp&apos; để tiếp tục.</p>
+          {status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit" ? (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/40 dark:bg-red-950/30">
+              <p className="text-sm text-red-700 dark:text-red-300">
+                {error === "analysis_timeout"
+                  ? "Phân tích quá lâu — thử lại với video ngắn hơn hoặc gõ 'tiếp'."
+                  : error === "video_download_failed"
+                    ? "Không tải được video — link có thể đã hết hạn. Thử dán lại link mới."
+                    : error === "ensembledata_quota"
+                      ? "Hệ thống đang quá tải — thử lại sau vài phút."
+                      : error === "gemini_error"
+                        ? "AI tạm lỗi — thử lại sau ít phút."
+                        : error === "missing_video_url"
+                          ? "Cần link TikTok video hợp lệ (dán link vào tin nhắn)."
+                          : "Có lỗi xảy ra — gõ 'tiếp' để thử lại hoặc gửi câu hỏi mới."}
+              </p>
+            </div>
           ) : null}
           {text ? (
             <div className="mt-2">
