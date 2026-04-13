@@ -811,6 +811,7 @@ async def run_video_diagnosis(
                 user_analysis=_truncate_analysis(user_analysis_dict),
                 user_stats=user_stats,
                 collapsed_questions=questions if questions and len(questions) > 1 else None,
+                wants_directions=_wants_directions(user_message),
             )
         # Server-side guarantee: ensure all reference videos appear as video_ref
         # blocks regardless of whether Gemini emitted them. Appended only for refs

@@ -888,6 +888,7 @@ def build_diagnosis_synthesis_prompt_v2(
     reference_videos: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
+    wants_directions: bool = False,
 ) -> str:
     """V2 diagnosis synthesis prompt — narrative structure, format-aware.
 
@@ -902,6 +903,7 @@ def build_diagnosis_synthesis_prompt_v2(
         reference_videos: List of reference video dicts with analysis + metadata.
         user_analysis:    Gemini extraction result for the user's video.
         user_stats:       User video stats dict (views, breakout_multiplier, etc.).
+        wants_directions: If True, appends 4-5 content direction suggestions after diagnosis.
     """
     voice = build_voice_block(include_examples=True, example_type="diagnosis")
     voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
@@ -917,4 +919,5 @@ def build_diagnosis_synthesis_prompt_v2(
         reference_videos=reference_videos,
         user_analysis=user_analysis,
         user_stats=user_stats,
+        wants_directions=wants_directions,
     )

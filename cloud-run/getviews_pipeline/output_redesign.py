@@ -405,6 +405,7 @@ def build_diagnosis_narrative_prompt(
     reference_videos: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
+    wants_directions: bool = False,
 ) -> str:
     """V2 diagnosis synthesis prompt — narrative structure, format-aware.
 
@@ -419,6 +420,7 @@ def build_diagnosis_narrative_prompt(
         reference_videos:  List of reference video dicts with analysis + metadata.
         user_analysis:     Gemini extraction result for the user's video.
         user_stats:        User video stats dict (views, breakout_multiplier, etc.).
+        wants_directions:  If True, appends 4-5 content direction suggestions after diagnosis.
     """
     analysis_focus = get_analysis_focus(content_format)
     niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
@@ -427,6 +429,21 @@ def build_diagnosis_narrative_prompt(
     user_stats_json = json.dumps(user_stats, ensure_ascii=False, indent=2)
 
     examples_section = f"\n{examples_block}\n" if examples_block.strip() else ""
+
+    directions_block = ""
+    if wants_directions:
+        directions_block = """
+
+---
+
+## GỢI Ý HƯỚNG CONTENT VIDEO
+
+Người dùng yêu cầu gợi ý định dạng nội dung video.
+Sau phần chẩn đoán, thêm phần **"Hướng content video cho ngách này"** với 4-5 công thức cụ thể.
+Mỗi hướng gồm: tên công thức, hook type (dùng đúng 14 tên cố định), cấu trúc beat ngắn (3-4 beat),
+lý do chạy trong niche này (1 câu), hook template điền vào ([ngoặc vuông] cho placeholder).
+Không lặp lại định dạng đã được chẩn đoán ở phần trên — gợi ý hướng mới chưa thử.
+"""
 
     return f"""{voice_block}
 
@@ -473,8 +490,8 @@ Format được phát hiện: **{content_format}**
 
 ## QUY TẮC BẮT BUỘC
 
-R1: KHÔNG tự giới thiệu. KHÔNG "Chào bạn". Nhảy thẳng vào PHẦN 1 — niche pattern.
-R2: Mở đầu bằng CÔNG THỨC CỦA NICHE, không phải điểm số video người dùng.
+R1: KHÔNG tự giới thiệu. KHÔNG "Chào bạn". Nhảy thẳng vào PHẦN 0 — phân phối.
+R2: Mở PHẦN 1 bằng CÔNG THỨC CỦA NICHE, không phải điểm số video người dùng.
 R3: "Chạy vì:" tối đa 1-2 câu. Không giải thích dài dòng.
 R4: KHÔNG fabricate metrics. Chỉ dùng số thật từ data JSON.
 R5: Hook type phải từ 14 tên cố định. Không đặt tên mới.
@@ -485,8 +502,8 @@ R9: 1 khuyến nghị duy nhất ở PHẦN 4, không phải danh sách.
 R10: Số dùng format Vietnamese: 1.200 (hàng nghìn), 3,2x (thập phân).
 R11: KHÔNG dùng heading markdown (##, ###). Dùng **bold** cho label.
 R12: KHÔNG đánh số section.
-R13: Hoàn thành đủ 4 phần — không truncate.
-
+R13: Hoàn thành đủ 5 phần (bao gồm PHẦN 0 — Phân phối) — không truncate.
+{directions_block}
 Viết chẩn đoán ngay."""
 
 

@@ -375,11 +375,12 @@ def synthesize_diagnosis_v2(
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
     collapsed_questions: list[str] | None = None,
+    wants_directions: bool = False,
 ) -> str:
-    """V2 narrative diagnosis — format-aware, 4-part structure.
+    """V2 narrative diagnosis — format-aware, 5-part structure (incl. distribution).
 
     Uses build_diagnosis_synthesis_prompt_v2() from prompts.py.
-    max_output_tokens bumped to 3072 to accommodate full 4-part narrative.
+    max_output_tokens bumped to 3072 to accommodate full narrative + optional directions.
     """
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     prompt = build_diagnosis_synthesis_prompt_v2(
@@ -390,6 +391,7 @@ def synthesize_diagnosis_v2(
         reference_videos=reference_videos,
         user_analysis=user_analysis,
         user_stats=user_stats,
+        wants_directions=wants_directions,
     )
     if collapsed_questions:
         question_block = (
