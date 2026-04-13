@@ -180,8 +180,10 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [msg]);
 
+  const sendBlocked = inputDisabled || needsNiche;
+
   const handleSend = () => {
-    if (!msg.trim() || charOverLimit || inputDisabled) return;
+    if (!msg.trim() || charOverLimit || sendBlocked) return;
     onSend(msg);
     setMsg("");
   };
@@ -189,7 +191,7 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (!sendBlocked) handleSend();
     }
   };
 
@@ -264,12 +266,13 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
               ) : null}
               <button
                 type="button"
-                disabled={!msg.trim() || charOverLimit || inputDisabled}
+                disabled={!msg.trim() || charOverLimit || sendBlocked}
                 onClick={handleSend}
+                title={needsNiche ? "Chọn chủ đề content trước" : undefined}
                 className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-[120ms] active:scale-95"
                 style={{
-                  background: msg.trim() && !charOverLimit && !inputDisabled ? "var(--gradient-primary)" : "var(--faint)",
-                  cursor: !msg.trim() || charOverLimit || inputDisabled ? "not-allowed" : "pointer",
+                  background: msg.trim() && !charOverLimit && !sendBlocked ? "var(--gradient-primary)" : "var(--faint)",
+                  cursor: !msg.trim() || charOverLimit || sendBlocked ? "not-allowed" : "pointer",
                 }}
               >
                 <ArrowUp className="h-4 w-4 text-white" strokeWidth={2.5} />

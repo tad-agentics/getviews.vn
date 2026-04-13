@@ -350,7 +350,7 @@ const DesktopInput = memo(function DesktopInput({
 });
 
 export default function ChatScreen() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -536,7 +536,7 @@ export default function ChatScreen() {
     }
   };
 
-  const inputDisabled = processing || insertUser.isPending || status === "streaming";
+  const inputDisabled = authLoading || processing || insertUser.isPending || status === "streaming";
 
   const paywallVisible = clientPaywall || error === "insufficient_credits";
   const dailyLimitVisible = error === "daily_free_limit";
