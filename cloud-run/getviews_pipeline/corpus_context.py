@@ -36,6 +36,66 @@ def _anon_client() -> Any:
     return create_client(url, key)
 
 
+def _resolve_niche_id(client: Any, niche_name: str) -> int | None:
+    """Resolve a free-text niche string to a niche_taxonomy id.
+
+    Resolution order (most → least precise):
+    1. signal_hashtags array overlap — matches "#catwalk" against stored hashtags.
+       Uses Postgres `cs` (contains) operator: signal_hashtags @> ARRAY['#<name>'].
+    2. name_en substring — "Fashion" matches "Fashion & outfit".
+    3. name_vn substring — fallback for Vietnamese niche names.
+
+    Returns None when no match found — caller should fall back to live search.
+    """
+    # Normalise: strip leading # and lowercase; then try both "#term" and "term"
+    term = niche_name.strip().lstrip("#").lower()
+    hashtag_form = f"#{term}"
+
+    # 1. signal_hashtags overlap (Supabase PostgREST: cs = @> array contains)
+    try:
+        r = (
+            client.table("niche_taxonomy")
+            .select("id")
+            .contains("signal_hashtags", [hashtag_form])
+            .limit(1)
+            .execute()
+        )
+        if r.data:
+            return r.data[0]["id"]
+    except Exception:
+        pass  # Fall through to name match
+
+    # 2. name_en substring
+    try:
+        r2 = (
+            client.table("niche_taxonomy")
+            .select("id")
+            .ilike("name_en", f"%{term}%")
+            .limit(1)
+            .execute()
+        )
+        if r2.data:
+            return r2.data[0]["id"]
+    except Exception:
+        pass
+
+    # 3. name_vn substring
+    try:
+        r3 = (
+            client.table("niche_taxonomy")
+            .select("id")
+            .ilike("name_vn", f"%{term}%")
+            .limit(1)
+            .execute()
+        )
+        if r3.data:
+            return r3.data[0]["id"]
+    except Exception:
+        pass
+
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Corpus count query
 # ---------------------------------------------------------------------------
@@ -197,28 +257,7 @@ async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
     """
     try:
         client = _anon_client()
-        # Resolve niche_id by name (slug match or display name substring)
-        tax_result = (
-            client.table("niche_taxonomy")
-            .select("id")
-            .ilike("slug", niche_name)
-            .limit(1)
-            .execute()
-        )
-        niche_id: int | None = None
-        if tax_result.data:
-            niche_id = tax_result.data[0]["id"]
-        else:
-            # Try substring match on name_vn / name_en
-            tax_result2 = (
-                client.table("niche_taxonomy")
-                .select("id")
-                .ilike("name_en", f"%{niche_name}%")
-                .limit(1)
-                .execute()
-            )
-            if tax_result2.data:
-                niche_id = tax_result2.data[0]["id"]
+        niche_id = _resolve_niche_id(client, niche_name)
 
         if niche_id is None:
             logger.info("[corpus_context] niche '%s' not found in niche_taxonomy", niche_name)
@@ -257,32 +296,12 @@ async def fetch_corpus_reference_pool(
     """
     try:
         client = _anon_client()
-        # Resolve niche_id by slug then name substring
-        niche_id: int | None = None
-        tax = (
-            client.table("niche_taxonomy")
-            .select("id")
-            .ilike("slug", niche_name)
-            .limit(1)
-            .execute()
-        )
-        if tax.data:
-            niche_id = tax.data[0]["id"]
-        else:
-            tax2 = (
-                client.table("niche_taxonomy")
-                .select("id")
-                .ilike("name_en", f"%{niche_name}%")
-                .limit(1)
-                .execute()
-            )
-            if tax2.data:
-                niche_id = tax2.data[0]["id"]
+        niche_id = _resolve_niche_id(client, niche_name)
 
         if niche_id is None:
             logger.warning(
                 "[corpus_context] fetch_corpus_reference_pool: niche '%s' not in taxonomy — "
-                "will fall back to live search. Add this niche to niche_taxonomy to fix.",
+                "falling back to live search. Add signal_hashtags entry to fix.",
                 niche_name,
             )
             return []
