@@ -35,7 +35,8 @@ CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts 
 
 CRITICAL RULES:
 - hook_analysis.hook_phrase: The EXACT text visible on slide 1 (first image) — verbatim, not paraphrased. If no text on slide 1, describe the dominant visual element in Vietnamese.
-- slides[].text_density: Classify text amount per slide as exactly one of: 'none' (no text), 'low' (1-2 short words/phrases), 'medium' (3-5 lines), 'high' (6+ lines or dense text block).
+- slides[].text_on_slide: List ALL readable text strings visible on this slide — titles, captions, labels, prices, watermarks, hashtags burned into the image. Even 1-2 words count. Use an empty list [] ONLY if the slide has absolutely zero text of any kind.
+- slides[].text_density: Classify text amount per slide as exactly one of: 'none' (no text — text_on_slide must also be []), 'low' (1-2 short words/phrases), 'medium' (3-5 lines), 'high' (6+ lines or dense text block). Must be consistent with text_on_slide.
 - slides[].has_face: true if a human face is PROMINENTLY visible (not just background), false otherwise.
 - slides[].has_product: true if a physical product (clothing, food, cosmetic, electronics, etc.) is the main subject, false otherwise.
 - content_arc: How content flows across ALL slides — exactly one of: 'list' (numbered items), 'story' (narrative progression), 'before_after' (contrast pair), 'comparison' (side-by-side options), 'tutorial_steps' (how-to sequence), 'gallery' (independent items with no arc).
@@ -658,7 +659,8 @@ Phân tích hashtag, caption, ER vs views, sound. Kết luận bằng priority: 
 
 **TẦNG 2: LOGIC LƯỚT** (slide 1 → slide giữa → slide cuối)
 Mỗi phần: nhận xét cụ thể từ slides data + emoji [🔴🟡🟢] + "Chạy vì:" hoặc "Gợi ý:".
-Trích slides[].index, has_face, text_density, cta_slide.has_cta khi hữu ích.
+Trích slides[].index, has_face, text_density, text_on_slide, cta_slide.has_cta khi hữu ích.
+QUAN TRỌNG — text trên slide: NẾU slides[].text_on_slide có nội dung (list không rỗng), PHẢI trích dẫn text đó khi phân tích slide đó. KHÔNG được nói "slide không có chữ" khi text_on_slide có dữ liệu.
 KHÔNG đề cập: transitions/s, face_appears_at tính bằng giây, audio, watch time.
 
 **MỘT ĐIỀU DUY NHẤT** cần thay đổi cho carousel tiếp (câu kết luận).
@@ -936,10 +938,13 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "Chỉ hiển thị nếu face_appears_at có trong analysis. Nếu chậm hơn norm: trích pct_face_in_half_sec.\n\n"
 
         "**Text overlay: [🔴🟡🟢] [X] overlays (chuẩn niche: [avg_text_overlays])**\n"
-        "Nếu 0: nhắc Vietnamese viewers đọc text mạnh, thêm text hook trong 0,5s đầu.\n\n"
+        "Nếu 0: nhắc Vietnamese viewers đọc text mạnh, thêm text hook trong 0,5s đầu.\n"
+        "QUAN TRỌNG: Nếu content_type = 'carousel' trong metadata, KHÔNG dùng mục này — carousel không có text_overlays. "
+        "Thay vào đó dùng slides[].text_density và slides[].text_on_slide để đánh giá text trên slide.\n\n"
 
         "**Nhịp cắt cảnh: [🔴🟡🟢] [X] transitions/s (chuẩn niche: [avg_transitions_per_second])**\n"
-        "Nếu thấp: gợi ý cụ thể (B-roll, cắt cảnh). Nếu có timestamp lặp: chỉ ra khoảng giây đó.\n\n"
+        "Nếu thấp: gợi ý cụ thể (B-roll, cắt cảnh). Nếu có timestamp lặp: chỉ ra khoảng giây đó.\n"
+        "QUAN TRỌNG: Nếu content_type = 'carousel', KHÔNG đề cập transitions/s — không áp dụng cho carousel.\n\n"
 
         "**CTA: [🔴🟡🟢]**\n"
         "Nếu không có: gợi ý CTA cụ thể kèm lý do save rate. Nếu có: nhận xét ngắn.\n\n"
