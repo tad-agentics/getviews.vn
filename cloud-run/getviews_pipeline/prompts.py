@@ -151,239 +151,6 @@ _STRATEGIST_CONTEXT = _STRATEGIST_CONTEXT_TEMPLATE.format(
 
 
 # ---------------------------------------------------------------------------
-# Few-shot examples — anchor voice and structure (update independently)
-# ---------------------------------------------------------------------------
-
-_FEW_SHOT_EXAMPLES = """
-=== EXAMPLE 1: Low-view spiritual content, slow pacing, strong hook ===
-
-INPUT DATA:
-{
-  "metadata": {
-    "author": "@luangiai.vn",
-    "views": 348, "likes": 18, "comments": 0, "shares": 0, "bookmarks": 2,
-    "engagement_rate": 5.17, "duration_sec": 118.9
-  },
-  "analysis": {
-    "hook_analysis": {
-      "first_frame_type": "face_with_text",
-      "face_appears_at": 4.0,
-      "first_speech_at": 0.0,
-      "hook_phrase": "Than cu Thien Di? Have you ever felt your soul is allergic to stability?",
-      "hook_type": "question",
-      "hook_notes": "Combines niche astrology term with universal psychological pain point"
-    },
-    "scenes": [
-      {"type": "broll", "start": 0.0, "end": 102.0},
-      {"type": "screen_recording", "start": 102.0, "end": 118.9}
-    ],
-    "transitions_per_second": 0.19,
-    "energy_level": "low",
-    "audio_transcript": "Than cu Thien Di? Have you ever felt your soul is allergic to stability?...",
-    "tone": "emotional",
-    "cta": "Visit luangiai.vn for personalized horoscope interpretation"
-  }
-}
-
-CORRECT DIAGNOSIS OUTPUT:
-5,17% tương tác trên 348 lượt xem — ai vào được video này thì bám khá chặt. Vấn đề là
-reach, và cấu trúc video giải thích vì sao.
-
-**Điểm mạnh**
-- Hook đang làm đúng việc. "Allergic to stability" cộng thuật ngữ ngách (Thần cụ Thiên Di)
-  tạo open loop lọc khán giả mạnh — ai biết cụm đó sẽ ở lại, ai không cũng tò mò.
-  Chạy vì: hook hai tầng vừa lọc đúng người vừa gợi tò mò cho người chưa biết — giữ được cả hai nhóm
-- First speech 0.0s = không có khoảng trống chết trước khi nói. Không bắt người xem chờ
-- Hai lượt lưu trên 348 lượt xem có ý nghĩa hơn con số: người ta bookmark để quay lại —
-  nội dung có giá trị tham chiếu với đúng nhóm khán giả
-
-**Điểm yếu**
-- Gần 2 phút là quá dài so với lời hứa của hook. Mở bằng câu hỏi tạo cảm giác cấp bách rồi bắt
-  người xem chờ 118 giây mới có payoff. Đa số không chờ
-- 0,19 lần chuyển cảnh/giây nghĩa là cứ 5 giây mới có hình/ý mới — trên TikTok đó là quá dài.
-  Chạy vì: não người xử lý thay đổi thị giác liên tục; không có gì mới = não ra tín hiệu "lướt đi"
-- Mặt chưa lên đến 4,0s: 4 giây B-roll trước khi có kết nối người. Ngách tâm linh/tâm lý
-  sống nhờ độ tin cậy từ mặt người — top trong ngách này thường mở bằng mặt
-- Thông điệp bán hàng vào khoảng 1:42. Lúc đó đa số người chưa phải fan đã thoát;
-  người còn lại thường không cần thuyết phục thêm
-
-**Hook thử nghiệm**
-- *"Nếu bạn sinh giờ Mão hoặc Dậu, lá số đang giấu một chi tiết về bất an mà nhiều
-  thầy không nói thẳng."*
-- *"Đừng coi mệnh lang thang là khổ — linh hồn bạn đang được viết cho biến đổi, không phải hỗn loạn."*
-
-**Câu hỏi cần kiểm tra**
-- ER 5,17% trên chỉ 348 lượt xem là tín hiệu nội dung khớp với ai tìm thấy. Video có kẹt ở
-  vòng phân phối đầu xấu, hay nhịp chậm giết tỷ lệ xem lại ngay đợt đẩy đầu của thuật toán?
-- Nếu cắt bản 45 giây, cắt mỗi ~3 giây và đưa mặt về 0,0s — tỷ lệ xem hết có đủ nhảy để
-  vượt giai đoạn 1 phân phối không?
-
-
-=== EXAMPLE 2: Viral product video, 1.6M views, no face, no CTA ===
-
-INPUT DATA:
-{
-  "metadata": {
-    "author": "@cucusneaker",
-    "views": 1623886, "likes": 57144, "comments": 315, "shares": 4460, "bookmarks": 4946,
-    "engagement_rate": 3.81, "duration_sec": 14.07
-  },
-  "analysis": {
-    "hook_analysis": {
-      "first_frame_type": "product",
-      "face_appears_at": null,
-      "first_speech_at": 0.0,
-      "hook_phrase": "Let me tell you why I am a boss",
-      "hook_type": "bold_claim",
-      "hook_notes": "Combines bold spoken claim with satisfying visual of unwrapping unique packaging"
-    },
-    "text_overlays": [],
-    "scenes": [
-      {"type": "action", "start": 0.0, "end": 2.5},
-      {"type": "product_shot", "start": 2.5, "end": 6.2},
-      {"type": "product_shot", "start": 6.2, "end": 15.0}
-    ],
-    "transitions_per_second": 0.47,
-    "energy_level": "medium",
-    "cta": null
-  }
-}
-
-CORRECT DIAGNOSIS OUTPUT:
-1,6 triệu lượt xem trên clip 14 giây, không mặt, không chữ trên màn hình. Giày gánh phần lớn —
-nhưng bạn để lọt chuyển đổi rất lớn.
-
-**Điểm mạnh**
-- Open loop chuẩn. "Let me tell you why I am a boss" + mystery box cho người xem hai lý do ở lại
-  trước khi hết giây đầu: muốn xem hộp có gì, và muốn biết sản phẩm có xứng claim không.
-  Chạy vì: hook kép — vừa tạo tò mò bằng lời nói vừa tạo tò mò bằng hình ảnh, người xem không thể
-  lướt qua khi chưa biết bên trong có gì
-- Không cần mặt — hành động unboxing 2,5 giây đầu là ngắt nhịp đủ cho FYP ngách sneaker.
-  Chuyển động thắng khi sản phẩm có hình ảnh đủ nổi bật để tự gánh attention
-- Gần 5.000 lượt lưu nói rõ hành vi: người xem bookmark để mua sau, không chỉ lướt qua.
-  Đây là content tham chiếu mua sắm, không phải giải trí thuần túy
-- Lượt chia sẻ và lượt lưu gần như ngang (4.460 so với 4.946) — hiếm thấy. Video có cả giá trị
-  xã hội lẫn giá trị tiện ích cùng lúc
-
-**Điểm yếu**
-- 1,6 triệu người thấy đôi giày họ muốn, nhưng bạn không nói tên sản phẩm. Không overlay tên,
-  không "link in bio" — lượng truy cập có chủ đích đi thẳng ra ngoài
-- Nửa sau (6,2s đến hết) một cảnh liền không góc mới. Thoát được lần này vì texture hộp thật sự
-  cuốn; sản phẩm ít nổi bật hơn sẽ thấy tụt cứng ở giây thứ 7
-- Không CTA ở bất kỳ đâu. Giữ được lượt xem nhưng không chốt
-
-**Hook thử nghiệm**
-- *"Cái hộp Nike lạ nhất tôi từng mở — và đôi giày bên trong còn lạ hơn."*
-- *"Chán Dunk rồi? Xem Nike vừa thả gì này."*
-
-**Câu hỏi cần kiểm tra**
-- Trong 315 bình luận, bao nhiêu chỉ hỏi tên giày vì không có chữ trên màn hình để neo thông tin?
-- Tỷ lệ xem từ 6,2s đến hết có phẳng lặng hay texture hộp thật sự giữ được chú ý mà không cần
-  góc quay hoặc cận cảnh mới?
-"""
-
-
-_CAROUSEL_SWIPE_BENCHMARKS = """
-CHUẨN CAROUSEL / VUỐT QUA (áp dụng cùng metadata + `analysis.slides`):
-- Slide 1 là hook toàn phần — không có chuyển động hay âm thanh kéo theo; nội dung đọc được
-  trên slide đầu phải kiếm được lượt vuốt thứ hai hoặc lượt lưu trước khi người xem rời đi.
-- Kiểu thoát sớm: slide 1 hứa hẹn mạnh, slide 2 lặp lại tiêu đề hoặc thêm thông tin thừa —
-  người xem nhận ra mồi câu và thoát; sửa bằng cách đưa thông tin mới vào mỗi slide.
-- Mệt mỏi giữa carousel: 3+ slide liên tiếp có cùng visual_type và bố cục tương tự
-  (ví dụ: chuỗi thẻ chữ) mà không có ngắt nhịp — nhịp vuốt chậm lại trừ khi mỗi thẻ
-  thêm một nhịp riêng hoặc số thứ tự mới.
-- Hợp đồng payoff: định dạng danh sách và "sai lầm / mẹo / các bước" ngầm hứa 1–2 slide cuối
-  đóng vòng hoặc đưa ra giá trị cao nhất; chôn CTA hoặc điểm chốt vào slide cuối sau chuỗi
-  slide đơn điệu sẽ mất người xem có chủ đích nhất.
-- Lượt lưu trên carousel thường phản ánh giá trị tiện ích và khả năng tìm lại (bookmark để
-  xem lại); lượt chia sẻ phản ánh đồng nhất bản thân hoặc tính giải trí — ghép lượt lưu ÷
-  lượt xem với nội dung chữ từng slide.
-- `transitions_per_second` trong JSON là giá trị tổng hợp cho carousel; diễn giải với creator
-  là "mỗi lần vuốt tiết lộ thêm nhịp hình ảnh hoặc văn bản mới," không phải điểm cắt như video.
-"""
-
-
-_CAROUSEL_FEW_SHOT_EXAMPLES = """
-=== EXAMPLE: Personal-finance carousel — sharp hook, mid holds, CTA dies on the last slide ===
-
-INPUT DATA:
-{
-  "metadata": {
-    "author": "@brica_budget",
-    "content_type": "carousel",
-    "slide_count": 6,
-    "metrics": { "views": 8420, "likes": 412, "comments": 28, "shares": 19, "bookmarks": 503 },
-    "engagement_rate": 5.58,
-    "description": "3 money leaks that look innocent 🧵 save this for tax season"
-  },
-  "analysis": {
-    "hook_analysis": {
-      "first_frame_type": "text_only",
-      "face_appears_at": null,
-      "first_speech_at": null,
-      "hook_phrase": "YOU IGNORE THESE 3 \"SMALL\" LEAKS",
-      "hook_type": "bold_claim",
-      "hook_notes": "All-caps slide 1 creates urgency; list format promised in caption"
-    },
-    "slides": [
-      { "index": 0, "visual_type": "text_card", "text_on_slide": ["YOU IGNORE THESE 3 'SMALL' LEAKS", "…and wonder where the money went"], "note": "High-contrast typography; hook is entirely text" },
-      { "index": 1, "visual_type": "text_card", "text_on_slide": ["Leak #1", "Subscriptions you forgot"], "note": "Numbered beat; new info vs slide 1" },
-      { "index": 2, "visual_type": "text_card", "text_on_slide": ["Leak #2", "BNPL minimums"], "note": "Specific enough to feel actionable" },
-      { "index": 3, "visual_type": "text_card", "text_on_slide": ["Leak #3", "Low-interest savings while inflation eats you"], "note": "Slightly denser type — still readable" },
-      { "index": 4, "visual_type": "text_card", "text_on_slide": ["What to do this week"], "note": "Setup slide; teases payoff" },
-      { "index": 5, "visual_type": "text_card", "text_on_slide": ["Follow for part 2"], "note": "Soft CTA; no checklist or link cue" }
-    ],
-    "transitions_per_second": 0.22,
-    "energy_level": "medium",
-    "key_timestamps": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
-    "audio_transcript": "",
-    "tone": "educational",
-    "cta": null,
-    "content_direction": {
-      "what_works": "List structure with numbered leaks matches save intent.",
-      "suggested_angles": ["One-slide summary with dollar ranges", "End on downloadable checklist"]
-    }
-  }
-}
-
-CORRECT DIAGNOSIS OUTPUT:
-5,58% tương tác với 500+ lượt lưu trên 8,4k lượt xem — người xem đang dùng bài như tài liệu
-tham khảo, không phải đọc lướt. Hook đang làm việc thật.
-
-**Điểm mạnh**
-- Slide 1 không lãng phí pixel — chữ hoa + từ "leaks" gieo nỗi đau trước lượt vuốt thứ hai.
-  Chạy vì: đây là cách mua được thẻ thứ hai trên carousel tài chính — người xem cần biết
-  "leak" đó có phải của mình không nên phải vuốt tiếp để kiểm tra
-- Mỗi thẻ leak (slide 2–4) thật sự đổi ý — subscription quên, BNPL, lạm phát ngấm vào "tiết kiệm"
-  — nhịp vuốt giống tiến triển, không phải lặp lại để câu kéo
-  Chạy vì: người xem cảm giác học được điều mới mỗi lần vuốt nên không có lý do dừng sớm
-- Lượt lưu cao trên lượt xem tầm chục nghìn thường nghĩa người xem bookmark để hành động sau —
-  nội dung đang đọc như danh sách việc cần làm, không chỉ lướt qua
-
-**Điểm yếu**
-- Slide 5 nói "this week" nhưng slide 6 chuyển sang "part 2" mà không có bước cụ thể — ai
-  đi tới đó đã muốn thông tin hành động được ngay, bạn biến nó thành lời hứa tiếp nối trên
-  format cần đóng vòng để giữ độ tin cậy.
-  Gợi ý: thay slide 6 thành 1 bullet "làm ngay tuần này" kèm promise part 2 ở cuối
-- 0,22 nhịp vuốt là chậm — ổn với finance nếu mỗi thẻ chữ dày, nhưng slide 4→5→6 bắt đầu
-  trông giống nhau (cùng text_card, độ nặng tương tự). Một thẻ hình hoặc thẻ có mặt người sẽ
-  đặt lại chú ý trước khi đến phần kêu gọi hành động
-- Không có lộ trình CTA trên slide — không "link in bio", không từ khóa, không gợi ý bình luận.
-  Lượt lưu cao là tốt, nhưng không có CTA thì không chốt được bước tiếp theo
-
-**Hook slide-1 thử**
-- *"Nếu lương hết trước ngày 15, một trong ba khoản 'nhỏ' này đang làm thủ phạm."*
-- *"Đừng gọi chúng là 'chi phí nhỏ' — ba khoản này đang âm thầm ăn hết ngân sách của bạn."*
-
-**Câu hỏi cần kiểm tra**
-- 503 lượt lưu so với 412 lượt thích — người ta lưu nhiều hơn thích, nghĩa là nội dung có
-  giá trị tiện ích thật. Slide nào đang kéo lượt lưu nhiều nhất — slide 3 (BNPL) hay slide 1?
-- Nếu slide 6 thành một bullet "làm ngay thứ Hai" kèm promise part 2, tỷ lệ lượt lưu trên
-  bình luận có đổi đủ để xác nhận người xem muốn tiếp tục không?
-"""
-
-
-# ---------------------------------------------------------------------------
 # Diagnosis prompt — Gemini call 2
 # ---------------------------------------------------------------------------
 
@@ -394,69 +161,6 @@ def _serialize_diagnosis_inputs(
     serialized_analysis = json.dumps(analysis, ensure_ascii=False, indent=2)
     serialized_metadata = json.dumps(metadata, ensure_ascii=False, indent=2)
     return serialized_analysis, serialized_metadata
-
-
-def build_video_diagnosis_prompt(
-    analysis: dict[str, Any],
-    metadata: dict[str, Any],
-) -> str:
-    """Strategist markdown synthesis for **video** analysis (scenes, timeline in seconds)."""
-    serialized_analysis, serialized_metadata = _serialize_diagnosis_inputs(
-        analysis, metadata
-    )
-    voice = build_voice_block(include_examples=True, example_type="diagnosis")
-
-    return f"""{voice}
-
----
-
-{_STRATEGIST_CONTEXT}
-
-Viết chẩn đoán giống các ví dụ dưới đây. Học kỹ — chúng đặt thanh chất lượng, giọng và
-cấu trúc bạn phải khớp.
-
-{_FEW_SHOT_EXAMPLES}
-
-=== CHẨN ĐOÁN BÀI ĐĂNG NÀY (VIDEO) ===
-
-INPUT DATA:
-{{
-  "metadata": {serialized_metadata},
-  "analysis": {serialized_analysis}
-}}
-
-CẤU TRÚC — cùng mẫu như ví dụ, theo thứ tự:
-
-1. Nhận định mở đầu (không tiêu đề, 2–3 câu xuôi). Mở bằng phát hiện mạnh nhất. Nói thẳng, rõ.
-   Có thể đổi cách mở, nhưng không bắt đầu bằng "Video này", "Phân tích",
-   hay "Dựa trên dữ liệu".
-
-2. Một phần **in đậm** phần điểm mạnh — 2–4 gạch đầu dòng. Giống ví dụ: nhận định trước,
-   rồi vì sao quan trọng. Tiêu đề ngắn: tùy video (ví dụ dùng **Điểm mạnh** — có thể đổi nếu hợp hơn).
-
-3. Một phần **in đậm** phần điểm yếu / ma sát — 2–4 gạch đầu dòng. Cùng giọng; nêu failure mode
-   và tín hiệu cụ thể (giây, tỷ lệ). Tiêu đề tự chọn.
-
-4. Một phần **in đậm** phần ý tưởng hook — đúng 2 dòng *in nghiêng*, mở đầu nói vào camera
-   (như **Hook thử nghiệm** trong ví dụ; có thể đổi tiêu đề mục).
-
-5. Một phần **in đậm** phần câu hỏi kiểm tra — đúng 2 câu hỏi dạng gạch đầu dòng, bám bất thường
-   của video này (như **Câu hỏi cần kiểm tra** trong ví dụ; có thể đổi tiêu đề).
-
-QUY TẮC CỨNG:
-- Viết như người, không như hệ thống
-- Không dùng: "analysis indicates", "signals suggest", "it is recommended",
-  "it is worth noting", "it's important to"
-- Không né tránh nhận định chính
-- Không dựng bảng tóm tắt hay dump field/value
-- Trường content_direction phản ánh pattern cấu trúc mà extraction model nhận diện — dùng như quan sát bổ sung, không dùng làm bằng chứng chính cho nhận định
-- face_appears_at và first_speech_at tách biệt — không suy mặt từ first_speech_at;
-  nếu face_appears_at là 4.0s, mặt muộn là vấn đề cấu trúc khi niche kỳ vọng mặt sớm; null = không mặt trên cam
-- Không mở nhận định đầu bằng "Video này" hay "Phân tích"
-- Tất cả nội dung phải bằng tiếng Việt.
-
-Viết chẩn đoán ngay. Không lời dẫn hay kết chữ ký.
-"""
 
 
 _CAROUSEL_SYNTHESIS_FRAMING = """
@@ -715,7 +419,11 @@ def build_diagnosis_prompt(
     include_carousel_directions: bool = False,
     user_message: str = "",
 ) -> str:
-    """Route to video vs carousel strategist prompt."""
+    """Route to the carousel strategist prompt.
+
+    Video path uses build_diagnosis_synthesis_prompt_v2() via synthesize_diagnosis_v2().
+    This function is now carousel-only; calling it for video content is a no-op fallback.
+    """
     if content_type == "carousel":
         return build_carousel_diagnosis_prompt(
             analysis,
@@ -723,7 +431,10 @@ def build_diagnosis_prompt(
             include_directions=include_carousel_directions,
             user_message=user_message,
         )
-    return build_video_diagnosis_prompt(analysis, metadata)
+    # Video: v2 prompt (build_diagnosis_synthesis_prompt_v2) is the active path.
+    # This branch is a safety fallback for legacy callers — returns empty string
+    # so callers that check for a non-empty string will fall through gracefully.
+    return ""
 
 
 # ---------------------------------------------------------------------------
