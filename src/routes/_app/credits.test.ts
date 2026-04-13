@@ -35,8 +35,8 @@ describe("api/chat.ts — FREE_INTENTS set", () => {
     expect(FREE_INTENTS.has("format_lifecycle")).toBe(true);
   });
 
-  it("does not contain paid intents", () => {
-    expect(FREE_INTENTS.has("follow_up")).toBe(false);
+  it("contains follow_up and does not contain deep-credit intents", () => {
+    expect(FREE_INTENTS.has("follow_up")).toBe(true);
     expect(FREE_INTENTS.has("video_diagnosis")).toBe(false);
     expect(FREE_INTENTS.has("brief_generation")).toBe(false);
     expect(FREE_INTENTS.has("shot_list")).toBe(false);

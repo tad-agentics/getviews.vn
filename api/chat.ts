@@ -20,6 +20,7 @@ const GEMINI_MODEL =
 
 const FREE_INTENTS = new Set([
   "format_lifecycle",
+  "follow_up",
 ]);
 
 // §13: max 100 free queries per user per day — matches Cloud Run FREE_DAILY_LIMIT
