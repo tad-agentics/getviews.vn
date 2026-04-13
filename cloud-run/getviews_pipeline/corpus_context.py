@@ -280,8 +280,9 @@ async def fetch_corpus_reference_pool(
                 niche_id = tax2.data[0]["id"]
 
         if niche_id is None:
-            logger.info(
-                "[corpus_context] fetch_corpus_reference_pool: niche '%s' not in taxonomy",
+            logger.warning(
+                "[corpus_context] fetch_corpus_reference_pool: niche '%s' not in taxonomy — "
+                "will fall back to live search. Add this niche to niche_taxonomy to fix.",
                 niche_name,
             )
             return []
@@ -311,6 +312,12 @@ async def fetch_corpus_reference_pool(
             comments = int(row.get("comments") or 0)
             shares = int(row.get("shares") or 0)
             tiktok_url = row.get("tiktok_url") or f"https://www.tiktok.com/@{handle}/video/{vid}"
+            corpus_analysis = row.get("analysis_json") or {}
+            if not corpus_analysis:
+                logger.warning(
+                    "[corpus_context] corpus row %s has no analysis_json — skipping", vid
+                )
+                continue
             awemes.append({
                 "aweme_id": vid,
                 "author": {"unique_id": handle},
@@ -322,11 +329,14 @@ async def fetch_corpus_reference_pool(
                     "comment_count": comments,
                     "share_count": shares,
                 },
+                # Use pre-computed engagement_rate from corpus (more accurate than
+                # recomputing from raw counts, which excludes shares in some APIs).
+                "_corpus_er": float(row.get("engagement_rate") or 0.0),
                 # create_time=0 intentional: we pre-filter by indexed_at above.
                 "create_time": 0,
                 # Pre-built analysis from corpus — skip re-analysis in pipeline.
                 "_from_corpus": True,
-                "_corpus_analysis": row.get("analysis_json") or {},
+                "_corpus_analysis": corpus_analysis,
                 "_corpus_tiktok_url": tiktok_url,
             })
         return awemes

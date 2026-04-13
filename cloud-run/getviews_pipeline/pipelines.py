@@ -512,12 +512,8 @@ async def run_video_diagnosis(
         niche, days=30, limit=20, exclude_video_id=uid or None
     )
     if len(corpus_pool) >= REF_N:
-        # Corpus has enough — rank by ER, skip recency filter (already filtered above)
-        corpus_pool.sort(
-            key=lambda v: float((v.get("statistics") or {}).get("digg_count", 0))
-            / max(float((v.get("statistics") or {}).get("play_count", 1)), 1) * 100,
-            reverse=True,
-        )
+        # Corpus has enough — sort by pre-computed engagement_rate (most accurate)
+        corpus_pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
         picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
         pool = corpus_pool
     else:
