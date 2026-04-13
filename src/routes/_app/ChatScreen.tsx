@@ -271,7 +271,7 @@ const DesktopInput = memo(function DesktopInput({
           <NicheSelector userId={userId} />
         </div>
       ) : null}
-      {!needsNiche && credits > 0 && credits <= 5 ? (
+      {credits > 0 && credits <= 5 ? (
         <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/30">
           <p className="text-xs text-amber-800 dark:text-amber-300">
             Còn <span className="font-semibold">{credits}</span> deep credit — mỗi phân tích sâu dùng 1 credit.
@@ -497,7 +497,6 @@ export default function ChatScreen() {
       charLimit,
       user?.id,
       processing,
-      needsNiche,
       priorAssistant,
       credits,
       sessionId,
@@ -687,7 +686,7 @@ export default function ChatScreen() {
                 <NicheSelector userId={user.id} />
               </div>
             ) : null}
-            {!needsNiche && credits > 0 && credits <= 5 ? (
+            {credits > 0 && credits <= 5 ? (
               <div className="mb-2 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-950/30">
                 <p className="text-[11px] text-amber-800 dark:text-amber-300">
                   Còn <span className="font-semibold">{credits}</span> deep credit
