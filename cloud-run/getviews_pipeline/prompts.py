@@ -549,11 +549,22 @@ Ngữ cảnh phiên trước — tham chiếu nếu liên quan đến câu hỏi
     # include_examples=False: knowledge Q&A doesn't need diagnosis examples
     voice = build_voice_block(include_examples=False)
 
+    # Inject domain knowledge only when the question is about platform mechanics.
+    # Casual questions ("cho tôi xem lại video", "bạn là ai?") don't benefit from
+    # 1,500 tokens of algorithm/psychology/market context — skip it to save budget.
+    _domain_kws = (
+        "thuật toán", "algorithm", "views", "viral", "fyp", "reach",
+        "save", "share", "comment", "hook", "completion",
+        "đăng", "posting", "thời gian", "trending", "sound",
+        "shopee", "affiliate", "kiếm tiền", "commission",
+    )
+    msg_lower = message.lower()
+    domain_block = f"\n{_DOMAIN_KNOWLEDGE}\n" if any(kw in msg_lower for kw in _domain_kws) else ""
+
     return f"""{voice}
 
 ---
-
-{_DOMAIN_KNOWLEDGE}
+{domain_block}
 {prior_context_block}
 Câu hỏi người dùng: {message}
 
