@@ -283,10 +283,15 @@ async def analyze_aweme_from_path(
 async def analyze_aweme(
     aweme: dict[str, Any],
     *,
-    include_diagnosis: bool = True,
+    include_diagnosis: bool = False,
     full_analyses: dict[str, dict[str, Any]] | None = None,
 ) -> dict:
-    """Analyze a raw aweme dict; reuse ``full_analyses[video_id]`` when present (§10 Rule 12)."""
+    """Analyze a raw aweme dict; reuse ``full_analyses[video_id]`` when present (§10 Rule 12).
+
+    include_diagnosis defaults to False — pipeline callers always pass it explicitly and
+    diagnosis adds significant latency + token cost. Use analyze_tiktok_url() (which
+    defaults to True) for standalone single-URL analysis where diagnosis is expected.
+    """
     vid = str(aweme.get("aweme_id", "") or "")
 
     # 1. Session cache — same video seen earlier in this conversation

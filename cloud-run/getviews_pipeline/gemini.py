@@ -35,7 +35,6 @@ from getviews_pipeline.prompts import (
     CAROUSEL_EXTRACTION_PROMPT,
     VIDEO_EXTRACTION_PROMPT,
     build_carousel_diagnosis_prompt_v2,
-    build_diagnosis_prompt,
     build_diagnosis_synthesis_prompt_v2,
     build_knowledge_prompt,
     build_summary_prompt,
@@ -287,6 +286,23 @@ def analyze_carousel(
     return _normalize_carousel_slide_indices(analysis, indices)
 
 
+def _infer_carousel_format(analysis: dict[str, Any]) -> str:
+    """Infer carousel sub-format from content_arc in analysis dict."""
+    arc = (analysis.get("content_arc") or "").lower()
+    if arc in ("list", "gallery"):
+        return "carousel_product_roundup"
+    if arc in ("tutorial_steps",):
+        return "carousel_tutorial"
+    if arc in ("story", "narrative"):
+        return "carousel_story"
+    return "carousel"
+
+
+_NO_NICHE_NOTE: dict[str, Any] = {
+    "_note": "Không có data niche — phân tích dựa trên video này, không so sánh với chuẩn niche"
+}
+
+
 def synthesize_diagnosis(
     analysis: dict[str, Any],
     metadata: dict[str, Any],
@@ -294,48 +310,49 @@ def synthesize_diagnosis(
     include_carousel_directions: bool = False,
     user_message: str = "",
 ) -> str:
-    """Strategist markdown: routes to video vs carousel diagnosis prompt.
+    """Strategist markdown: routes to video vs carousel v2 diagnosis prompt.
 
-    Video path: delegates to build_diagnosis_synthesis_prompt_v2() with no corpus
-    context (analysis_core callers don't have niche/corpus data). Output is
-    analysis-only — lacks niche comparison but is always valid.
+    Both paths use their respective v2 narrative builders with zero corpus context
+    (analysis_core callers don't have niche/corpus data). Output is analysis-only —
+    lacks niche benchmarks but uses the correct 2-layer narrative structure.
 
-    Carousel path: delegates to build_diagnosis_prompt() (v1 carousel prompt)
-    which accepts raw analysis+metadata dicts. Carousel v2 (corpus-aware) is
-    invoked via synthesize_diagnosis_carousel_v2() from pipelines.py instead.
+    Full corpus-enriched v2 diagnosis runs via pipelines.run_video_diagnosis.
     """
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
+    _no_niche = _NO_NICHE_NOTE
+    user_stats = {
+        "views": metadata.get("views") or 0,
+        "likes": metadata.get("likes") or 0,
+        "comments": metadata.get("comments") or 0,
+        "shares": metadata.get("shares") or 0,
+        "breakout_multiplier": metadata.get("breakout") or 0.0,
+        "duration": metadata.get("duration") or 0,
+    }
 
-    if content_type != "carousel":
-        # Video: build_diagnosis_prompt returns "" for video (v2 is the active path).
-        # Construct a valid prompt from available analysis+metadata without corpus context.
+    if content_type == "carousel":
+        carousel_format = _infer_carousel_format(analysis)
+        prompt = build_carousel_diagnosis_prompt_v2(
+            carousel_format=carousel_format,
+            niche_name=metadata.get("niche") or "",
+            corpus_size=0,
+            niche_norms=_no_niche,
+            reference_carousels=[],
+            user_analysis=analysis,
+            user_stats=user_stats,
+            wants_directions=include_carousel_directions,
+        )
+    else:
         content_format = (analysis.get("content_format") or "other").lower()
         prompt = build_diagnosis_synthesis_prompt_v2(
             content_format=content_format,
             niche_name=metadata.get("niche") or "",
             corpus_size=0,
-            niche_norms={"_note": "Không có data niche — phân tích dựa trên video này, không so sánh với chuẩn niche"},
+            niche_norms=_no_niche,
             reference_videos=[],
             user_analysis=analysis,
-            user_stats={
-                "views": metadata.get("views") or 0,
-                "likes": metadata.get("likes") or 0,
-                "comments": metadata.get("comments") or 0,
-                "shares": metadata.get("shares") or 0,
-                "breakout_multiplier": metadata.get("breakout") or 0.0,
-                "duration": metadata.get("duration") or 0,
-            },
+            user_stats=user_stats,
         )
-        cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=3072)
-    else:
-        prompt = build_diagnosis_prompt(
-            analysis,
-            metadata,
-            content_type,
-            include_carousel_directions=include_carousel_directions,
-            user_message=user_message,
-        )
-        cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=4096)
+    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=3072)
 
     response = _generate_content_models(
         [prompt],

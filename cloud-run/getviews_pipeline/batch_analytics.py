@@ -22,7 +22,7 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -53,18 +53,27 @@ class AnalyticsResult:
 # Pass 1 — Creator velocity
 # ---------------------------------------------------------------------------
 
+_VELOCITY_WINDOW_DAYS = 180
+"""Rolling window for creator velocity — uses the most recent 180 days of corpus data.
+
+180 days covers seasonal patterns without being distorted by viral outliers from
+18+ months ago that no longer reflect a creator's current baseline.
+"""
+
+
 def _compute_creator_velocity_sync(client: Any) -> list[dict[str, Any]]:
     """Aggregate avg_views + video_count per (creator_handle, niche_id) from corpus.
 
-    Performs Python-side aggregation via SELECT on video_corpus.
-    A SQL RPC path was removed because the `compute_creator_velocity` RPC does not
-    exist in migrations; Python aggregation is the authoritative path.
+    Performs Python-side aggregation via SELECT on video_corpus within a rolling
+    180-day window. This prevents unbounded full-table scans as the corpus grows
+    and produces more accurate baselines by excluding stale historical outliers.
     """
-    # Fetch all corpus rows and aggregate
+    since = (datetime.now(timezone.utc) - timedelta(days=_VELOCITY_WINDOW_DAYS)).isoformat()
     rows = (
         client.table("video_corpus")
         .select("creator_handle, niche_id, views")
         .gt("views", 0)
+        .gte("indexed_at", since)
         .execute()
     )
     data = rows.data or []
@@ -131,7 +140,7 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
 
     Strategy:
       1. Fetch all creator_velocity rows (avg_views).
-      2. For each creator, fetch their corpus videos.
+      2. For each creator, fetch their corpus videos within the same rolling window.
       3. Compute breakout = views / avg_views; update video_corpus.
 
     Uses batched updates to avoid hitting Supabase row limits.
@@ -156,6 +165,8 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
         logger.info("[analytics] No creator velocity data — skipping breakout computation")
         return 0
 
+    since = (datetime.now(timezone.utc) - timedelta(days=_VELOCITY_WINDOW_DAYS)).isoformat()
+
     # Fetch corpus videos for creators we have velocity for (with niche_id for correct lookup)
     handles = list({handle for handle, _ in velocity_map})
     total_updated = 0
@@ -169,6 +180,7 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
             .select("id, creator_handle, niche_id, views")
             .in_("creator_handle", chunk)
             .gt("views", 0)
+            .gte("indexed_at", since)
             .execute()
         )
         videos = vid_result.data or []

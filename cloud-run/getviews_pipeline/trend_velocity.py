@@ -7,7 +7,7 @@ Flow:
   1. For each niche, query video_corpus for videos from the last 14 days.
   2. Bucket videos into this_week (last 7 days) and prev_week (7–14 days ago).
   3. Per hook_type: compute count delta % and engagement rate delta %.
-  4. Aggregate new_hashtags from analysis_json.trending_hashtags across all videos.
+  4. Aggregate new_hashtags from video_corpus.hashtags (top-level column) across all videos.
   5. Upsert trend_velocity (niche_id, week_start, hook_type_shifts, new_hashtags).
 
 Called from corpus_ingest._run_weekly_analytics() every Sunday alongside
@@ -61,7 +61,7 @@ def _compute_trend_velocity_for_niche_sync(
     try:
         result = (
             client.table("video_corpus")
-            .select("engagement_rate, indexed_at, analysis_json")
+            .select("engagement_rate, indexed_at, analysis_json, hashtags")
             .eq("niche_id", niche_id)
             .gte("indexed_at", cutoff_14d.isoformat())
             .execute()
@@ -90,7 +90,13 @@ def _compute_trend_velocity_for_niche_sync(
 
     for row in rows:
         aj = row.get("analysis_json") or {}
-        hook = str(aj.get("hook_type") or "unknown").strip()
+        # hook_type is nested under hook_analysis in analysis_json (written by corpus_ingest).
+        # Fall back to top-level key for older rows written before the nested schema.
+        hook = str(
+            (aj.get("hook_analysis") or {}).get("hook_type")
+            or aj.get("hook_type")
+            or "unknown"
+        ).strip()
         er = float(row.get("engagement_rate") or 0.0)
         indexed = str(row.get("indexed_at") or "")
         is_this_week = indexed >= cutoff_7d.isoformat()
@@ -103,8 +109,8 @@ def _compute_trend_velocity_for_niche_sync(
             s["pw_count"] += 1
             s["pw_er_sum"] += er
 
-        # Extract trending_hashtags from analysis_json
-        for tag in (aj.get("trending_hashtags") or []):
+        # Hashtags are stored as a top-level column in video_corpus, not inside analysis_json.
+        for tag in (row.get("hashtags") or []):
             if isinstance(tag, str) and tag:
                 hashtag_set.add(tag.lstrip("#").lower())
 

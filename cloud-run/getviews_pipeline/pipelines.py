@@ -20,8 +20,9 @@ from getviews_pipeline.corpus_context import (
     get_niche_intelligence,
     get_signal_grades_for_niche,
     get_top_breakout_videos,
+    resolve_niche_id_cached,
 )
-from getviews_pipeline.corpus_ingest import _classify_format
+from getviews_pipeline.corpus_ingest import classify_format
 from getviews_pipeline.output_redesign import hook_type_vi
 from getviews_pipeline.gemini import (
     synthesize_diagnosis,
@@ -199,8 +200,9 @@ async def run_content_directions(
             if "analysis" in r:
                 analyzed.append(r)
 
+        niche_id = await resolve_niche_id_cached(session, niche)
         count, niche_name = await get_corpus_count_cached(
-            session, niche_id=None, days=30, niche_name=niche
+            session, niche_id=niche_id, days=30, niche_name=niche
         )
         citation = build_corpus_citation_block(count, niche_name, days=30)
         emit(step_queue, step_done("Đã phân tích xong — đang tổng hợp hướng nội dung..."))
@@ -311,14 +313,14 @@ async def run_trend_spike(
         results = await asyncio.gather(*[_one(a) for a in picks])
         analyzed = [r for r in results if "analysis" in r]
 
+        # Resolve niche_id once — used for count, breakout, and signal grades
+        niche_id: int | None = await resolve_niche_id_cached(session, niche)
         count, niche_name = await get_corpus_count_cached(
-            session, niche_id=None, days=7, niche_name=niche
+            session, niche_id=niche_id, days=7, niche_name=niche
         )
         citation = build_corpus_citation_block(count, niche_name, days=7)
 
         # Enrich with real breakout + signal data (P1-7 + P1-8)
-        # niche_id lookup: use session if available, else omit (signal grades require integer id)
-        niche_id: int | None = session.get("niche_id")
         emit(step_queue, step_search("corpus", f"breakout videos {niche}"))
 
         breakout_task = get_top_breakout_videos(niche_id, days=7, limit=10)
@@ -497,8 +499,9 @@ async def run_brief_generation(
     try:
         emit(step_queue, step_start("Đang chuẩn bị brief quay phim..."))
         emit(step_queue, step_search("corpus", niche or topic))
+        niche_id = await resolve_niche_id_cached(session, niche)
         count, niche_name = await get_corpus_count_cached(
-            session, niche_id=None, days=30, niche_name=niche
+            session, niche_id=niche_id, days=30, niche_name=niche
         )
         citation = build_corpus_citation_block(count, niche_name, days=30)
         emit(step_queue, step_process("Đang tạo brief dựa trên dữ liệu corpus..."))
@@ -543,8 +546,9 @@ async def run_shot_list(
     try:
         emit(step_queue, step_start("Đang tạo danh sách cảnh quay..."))
         emit(step_queue, step_search("corpus", niche or topic))
+        niche_id = await resolve_niche_id_cached(session, niche)
         count, niche_name = await get_corpus_count_cached(
-            session, niche_id=None, days=30, niche_name=niche
+            session, niche_id=niche_id, days=30, niche_name=niche
         )
         citation = build_corpus_citation_block(count, niche_name, days=30)
         emit(step_queue, step_process("Đang xây dựng shot list dựa trên corpus..."))
@@ -704,8 +708,9 @@ async def run_video_diagnosis(
     ref_results = await asyncio.gather(*ref_tasks)
     references = [r for r in ref_results if "analysis" in r]
 
+    niche_id = await resolve_niche_id_cached(session, niche)
     count, niche_name = await get_corpus_count_cached(
-        session, niche_id=None, days=30, niche_name=niche
+        session, niche_id=niche_id, days=30, niche_name=niche
     )
     citation = build_corpus_citation_block(count, niche_name, days=30)
 
@@ -725,7 +730,7 @@ async def run_video_diagnosis(
     user_metadata_dict = user_res.get("metadata") or {}
     niche_id_for_format = 0  # format classifier uses niche_id for mukbang heuristic;
                               # 0 = unknown is safe (falls back to keyword matching only)
-    content_format = _classify_format(user_analysis_dict, niche_id_for_format)
+    content_format = classify_format(user_analysis_dict, niche_id_for_format)
 
     # Build user_stats from metadata for the synthesis prompt.
     user_stats: dict[str, Any] = {

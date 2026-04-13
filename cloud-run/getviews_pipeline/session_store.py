@@ -25,7 +25,7 @@ _EMPTY_CONTEXT: dict[str, Any] = {
     "completed_intents": [],
     "niche": None,
     "analyses_summary": {
-        "total_videos_analyzed": 0,
+        "videos_analyzed": 0,
         "intents_run": [],
     },
 }
@@ -76,11 +76,11 @@ def build_session_context_from_db(
     dict.
 
     Fields reconstructed (mirrors what pipelines read from ``session``):
-    - ``niche``              — from any message with a niche in structured_output
+    - ``niche``              — from the most recent message that has one
     - ``completed_intents``  — list of intent_type values seen in this session
     - ``analyses_summary``   — videos_analyzed + intents_run accumulated count
     - ``directions``         — from the most recent ``content_directions`` message
-    - ``diagnosis``          — from the most recent ``video_diagnosis`` message
+    - ``diagnosis``          — markdown string from the most recent ``video_diagnosis`` message
     - ``competitor_profile`` — from the most recent ``competitor_profile`` message
     """
     ctx = fresh_session_context()
@@ -124,9 +124,10 @@ def build_session_context_from_db(
             ir.append(intent)
         summary["intents_run"] = ir
 
-        # Niche — prefer the most recent message that has one
+        # Niche — always overwrite so the most recent message's niche wins.
+        # Messages are walked oldest-first, so the last write here is the newest value.
         niche = so.get("niche")
-        if niche and not ctx.get("niche"):
+        if niche:
             ctx["niche"] = niche
 
         # Intent-specific fields — set from the most recent message of that type
@@ -134,9 +135,11 @@ def build_session_context_from_db(
             ctx["directions"] = so.get("directions") or []
 
         if intent == "video_diagnosis" and "diagnosis" not in ctx:
-            uv = so.get("user_video") or {}
-            if uv:
-                ctx["diagnosis"] = uv
+            # structured_output["diagnosis"] is the markdown string written by run_video_diagnosis.
+            # structured_output["user_video"] is the raw analysis dict — do not use it here.
+            md = so.get("diagnosis")
+            if md and isinstance(md, str):
+                ctx["diagnosis"] = md
 
         if intent == "competitor_profile" and "competitor_profile" not in ctx:
             ctx["competitor_profile"] = so.get("handle") or ""

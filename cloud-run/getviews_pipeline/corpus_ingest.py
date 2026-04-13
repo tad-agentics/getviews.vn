@@ -337,7 +337,7 @@ def _normalize_hook_type(raw: str) -> str:
     return _HOOK_TYPE_ALIASES.get(raw.lower(), "other")
 
 
-def _classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
+def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     """Classify a video's content format from its Gemini analysis.
 
     PRIORITY ORDER — intentional, highest specificity first:
@@ -634,7 +634,7 @@ def _build_corpus_row(
         "language": "vi",  # guaranteed by Gate 3/4 in ingest_niche
 
         # ── Group B: Vietnamese/Asian TikTok-specific (4 columns) ──
-        "content_format": _classify_format(analysis_json, niche_id),
+        "content_format": classify_format(analysis_json, niche_id),
         "cta_type": _classify_cta(analysis_json.get("cta")),
         "is_commerce": _detect_commerce(analysis_json),
         "dialect": _detect_dialect(transcript),

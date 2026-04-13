@@ -553,9 +553,15 @@ Ngữ cảnh phiên trước — tham chiếu nếu liên quan đến câu hỏi
     # Casual questions ("cho tôi xem lại video", "bạn là ai?") don't benefit from
     # 1,500 tokens of algorithm/psychology/market context — skip it to save budget.
     _domain_kws = (
-        "thuật toán", "algorithm", "views", "viral", "fyp", "reach",
-        "save", "share", "comment", "hook", "completion",
-        "đăng", "posting", "thời gian", "trending", "sound",
+        # Platform mechanics / distribution
+        "thuật toán", "algorithm", "fyp", "reach", "viral", "trending",
+        "flop", "chạy", "bóp", "shadowban", "lên xu hướng",
+        # Engagement metrics (EN + VI)
+        "views", "lượt xem", "watch time", "completion", "tương tác",
+        "save", "share", "comment", "hook",
+        # Posting / content strategy
+        "đăng", "posting", "thời gian", "sound",
+        # Monetisation
         "shopee", "affiliate", "kiếm tiền", "commission",
     )
     msg_lower = message.lower()
@@ -831,22 +837,19 @@ def build_synthesis_prompt(
     # P0-1: corpus citation block — grounds all claims in real data size + timeframe
     citation_block = f"\n{corpus_citation}" if corpus_citation else ""
 
-    # Static knowledge blocks — injected per intent to keep token count lean
+    # Static knowledge blocks — injected per intent to keep token count lean.
+    # Note: video_diagnosis is never routed here — it uses build_diagnosis_synthesis_prompt_v2().
     knowledge_block = ""
     if intent_key == "brief_generation":
         knowledge_block = "\n" + build_commerce_structure_block()
         if niche_key:
             knowledge_block += "\n\n" + build_niche_hook_block(niche_key)
-    elif intent_key in ("video_diagnosis", "content_directions", "trend_spike", "shot_list"):
+    elif intent_key in ("content_directions", "trend_spike", "shot_list"):
         if niche_key:
             knowledge_block = "\n" + build_niche_hook_block(niche_key)
 
-    # voice_guide injects examples for video_diagnosis — skip _SYNTHESIS_FEW_SHOTS for that
-    # intent to avoid duplication. Other intents still get their own few-shot blocks.
-    include_ex = intent_key == "video_diagnosis"
-    voice = build_voice_block(include_examples=include_ex, example_type="diagnosis")
-
-    few_shot = "" if intent_key == "video_diagnosis" else _SYNTHESIS_FEW_SHOTS.get(intent_key, "")
+    voice = build_voice_block(include_examples=False)
+    few_shot = _SYNTHESIS_FEW_SHOTS.get(intent_key, "")
     few_shot_block = ""
     if few_shot:
         few_shot_block = f"""

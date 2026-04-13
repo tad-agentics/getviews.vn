@@ -224,6 +224,44 @@ async def get_corpus_count_cached(
     return count, resolved_name
 
 
+async def resolve_niche_id_cached(
+    session: dict[str, Any],
+    niche_name: str,
+) -> int | None:
+    """Resolve a niche name to its niche_taxonomy PK, with in-session caching.
+
+    Cache key is the normalized niche_name, stored in ``session["_niche_ids"]``.
+    This supports sessions where the user switches niches across intents — each
+    distinct niche_name gets its own cached id, so a "làm đẹp" lookup never
+    returns the cached id from a prior "review đồ gia dụng" call.
+
+    On first call for a given niche_name: queries niche_taxonomy via
+    name_en / name_vn / signal_hashtags.
+    On follow-up calls with the same name: returns the cached integer (no DB hit).
+
+    Returns None when the niche name cannot be matched — callers should pass
+    None to get_corpus_count_cached, which counts across all niches as a safe
+    fallback.
+    """
+    key = niche_name.strip().lower()
+    cache: dict[str, int | None] = session.setdefault("_niche_ids", {})
+
+    if key in cache:
+        return cache[key]
+
+    from getviews_pipeline.runtime import run_sync  # local import avoids circular dep
+
+    try:
+        client = _anon_client()
+        niche_id = await run_sync(_resolve_niche_id, client, niche_name)
+    except Exception as exc:
+        logger.warning("[corpus_context] niche_id resolution failed for '%s': %s", niche_name, exc)
+        niche_id = None
+
+    cache[key] = niche_id
+    return niche_id
+
+
 # ---------------------------------------------------------------------------
 # Breakout + signal helpers — used by run_trend_spike to enrich payload
 # ---------------------------------------------------------------------------
