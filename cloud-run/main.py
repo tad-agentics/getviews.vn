@@ -412,7 +412,7 @@ async def stream(
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "missing_video_url"})
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
-                pipeline_coro = run_video_diagnosis(url, session, questions=questions, step_queue=step_q)
+                pipeline_coro = run_video_diagnosis(url, session, questions=questions, user_message=body.query, step_queue=step_q)
 
             elif normalized == "competitor_profile":
                 handle = _resolve_profile_handle(urls, handles)
@@ -498,8 +498,19 @@ async def stream(
                 # Video URL analysis: has user_video + diagnosis key
                 uv = out.get("user_video") or {}
                 if uv.get("error"):
+                    # Use structured error_message from _analyze_carousel when present
+                    # so carousel errors show a Vietnamese message instead of generic failure.
+                    user_error_msg = uv.get("error_message")
+                    error_code = uv.get("error") if isinstance(uv.get("error"), str) else "analysis_failed"
                     seq += 1
-                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "analysis_failed"})
+                    if user_error_msg:
+                        # Stream the Vietnamese message as a text delta so the user sees it
+                        for chunk in _chunk_text(user_error_msg, 50):
+                            seq += 1
+                            yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk})
+                        yield _sse_line({"stream_id": stream_id, "seq": seq + 1, "delta": "", "done": True, "error": error_code})
+                    else:
+                        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "analysis_failed"})
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
                 full_text = (out.get("diagnosis") or "").strip()

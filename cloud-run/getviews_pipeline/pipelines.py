@@ -23,7 +23,7 @@ from getviews_pipeline.corpus_context import (
 )
 from getviews_pipeline.corpus_ingest import _classify_format
 from getviews_pipeline.output_redesign import hook_type_vi
-from getviews_pipeline.gemini import synthesize_diagnosis_v2, synthesize_intent_markdown
+from getviews_pipeline.gemini import synthesize_diagnosis, synthesize_diagnosis_v2, synthesize_intent_markdown
 from getviews_pipeline.helpers import (
     filter_recency,
     infer_niche_from_hashtags,
@@ -562,6 +562,18 @@ async def run_shot_list(
         await emit_sentinel(step_queue)
 
 
+_DIRECTION_KEYWORDS = (
+    "gợi ý", "định dạng", "ý tưởng", "hướng content",
+    "kịch bản", "cho tôi", "cho mình", "ý kiến",
+)
+
+
+def _wants_directions(user_message: str) -> bool:
+    """Return True if the user message requests content direction suggestions."""
+    lower = user_message.lower()
+    return any(kw in lower for kw in _DIRECTION_KEYWORDS)
+
+
 async def run_video_diagnosis(
     url: str,
     session: dict[str, Any],
@@ -569,6 +581,7 @@ async def run_video_diagnosis(
     include_diagnosis: bool = True,
     niche_override: str | None = None,
     questions: list[str] | None = None,
+    user_message: str = "",
     step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     sem = get_analysis_semaphore()
@@ -700,19 +713,43 @@ async def run_video_diagnosis(
         "duration": user_metadata_dict.get("duration") or 0,
     }
 
+    # Detect content type from user analysis result for routing
+    user_content_type = user_res.get("content_type") or (
+        "carousel" if user_res.get("metadata", {}).get("content_type") == "carousel" else "video"
+    )
+    include_carousel_directions = _wants_directions(user_message)
+
     diagnosis: str
     if include_diagnosis:
-        diagnosis = await run_sync(
-            synthesize_diagnosis_v2,
-            content_format=content_format,
-            niche_name=niche,
-            corpus_size=count,
-            niche_norms=niche_norms,
-            reference_videos=_truncate_transcripts(references),
-            user_analysis=_truncate_analysis(user_analysis_dict),
-            user_stats=user_stats,
-            collapsed_questions=questions if questions and len(questions) > 1 else None,
-        )
+        if user_content_type == "carousel":
+            # Carousel: use existing synthesize_diagnosis which routes to
+            # build_carousel_diagnosis_prompt — the v2 narrative format is video-only.
+            carousel_analysis = user_analysis_dict
+            carousel_metadata = user_metadata_dict
+            logger.info(
+                "[carousel] routing diagnosis to synthesize_diagnosis (carousel path) "
+                "include_directions=%s",
+                include_carousel_directions,
+            )
+            diagnosis = await run_sync(
+                synthesize_diagnosis,
+                carousel_analysis,
+                carousel_metadata,
+                "carousel",
+                include_carousel_directions,
+            )
+        else:
+            diagnosis = await run_sync(
+                synthesize_diagnosis_v2,
+                content_format=content_format,
+                niche_name=niche,
+                corpus_size=count,
+                niche_norms=niche_norms,
+                reference_videos=_truncate_transcripts(references),
+                user_analysis=_truncate_analysis(user_analysis_dict),
+                user_stats=user_stats,
+                collapsed_questions=questions if questions and len(questions) > 1 else None,
+            )
         # Server-side guarantee: ensure all reference videos appear as video_ref
         # blocks regardless of whether Gemini emitted them. Appended only for refs
         # whose video_id is not already present in the synthesis text.

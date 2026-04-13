@@ -99,12 +99,19 @@ async def _analyze_carousel(
     metadata: VideoMetadata,
     include_diagnosis: bool,
 ) -> dict:
+    vid = str(aweme.get("aweme_id", "") or "")
     url_lists = ensemble.extract_image_url_lists(aweme)
     if not url_lists:
+        logger.error(
+            "[carousel] video_id=%s — aweme_type=2 but no per-slide CDN URLs in "
+            "image_post_info; EnsembleData may not recognize this /photo/ URL format",
+            vid,
+        )
         return {
-            "error": (
-                "Photo carousel (aweme_type=2) but no per-slide CDN URLs "
-                "in image_post_info"
+            "error": "carousel_no_images",
+            "error_message": (
+                "Không thể tải carousel này — EnsembleData không trả về ảnh slide. "
+                "Thử lại hoặc dán link khác nha."
             ),
             "metadata": metadata.model_dump(),
         }
@@ -138,7 +145,20 @@ async def _analyze_carousel(
         try:
             downloaded, failed_indices = await ensemble.download_images(fetch_lists)
         except Exception as e:
-            return {"error": str(e), "metadata": metadata.model_dump()}
+            logger.error(
+                "[carousel] video_id=%s — slide download failed: %s",
+                vid,
+                e,
+                exc_info=True,
+            )
+            return {
+                "error": "carousel_download_failed",
+                "error_message": (
+                    "Không tải được ảnh carousel — CDN bị chặn hoặc link hết hạn. "
+                    "Thử lại hoặc dán link khác nha."
+                ),
+                "metadata": metadata.model_dump(),
+            }
 
         carousel_temp_paths = [p for _, p, _ in downloaded]
 
@@ -152,10 +172,23 @@ async def _analyze_carousel(
                 f"{failed_indices} (0-based, relative to extracted set); "
                 "attached images are only the successfully downloaded slides, in order.\n"
             )
+            logger.warning(
+                "[carousel] video_id=%s — %d slide(s) failed CDN download: indices %s",
+                vid,
+                len(failed_indices),
+                failed_indices,
+            )
 
         if not downloaded:
+            logger.error(
+                "[carousel] video_id=%s — all slides failed CDN download", vid
+            )
             return {
-                "error": "No carousel slides could be downloaded from CDN",
+                "error": "carousel_all_slides_failed",
+                "error_message": (
+                    "Không tải được ảnh nào từ carousel — CDN bị chặn. "
+                    "Thử lại sau hoặc dán link khác nha."
+                ),
                 "metadata": metadata.model_dump(),
             }
 
@@ -169,7 +202,20 @@ async def _analyze_carousel(
                 source_indices,
             )
         except Exception as e:
-            return {"error": str(e), "metadata": metadata.model_dump()}
+            logger.error(
+                "[carousel] video_id=%s — Gemini analysis failed: %s",
+                vid,
+                e,
+                exc_info=True,
+            )
+            return {
+                "error": "carousel_analysis_failed",
+                "error_message": (
+                    "Gemini không phân tích được carousel này. "
+                    "Thử lại sau ít phút nha."
+                ),
+                "metadata": metadata.model_dump(),
+            }
 
         analyzed_count = len(slide_bytes)
         metadata_out = metadata.model_copy(update={"slide_count": analyzed_count})

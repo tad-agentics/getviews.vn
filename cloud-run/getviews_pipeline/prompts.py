@@ -32,7 +32,17 @@ CRITICAL RULES:
 - content_direction.what_works: Name the specific STRUCTURAL element making this video effective — e.g. "face in first frame + question hook + 3s scene cuts". NOT generic praise like "good visuals" or "engaging content"."""
 
 CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts before this text). Return ONLY JSON matching the schema — no markdown.
-Map slides to the provided batch indices; be precise on hook_analysis and each slide."""
+
+CRITICAL RULES:
+- hook_analysis.hook_phrase: The EXACT text visible on slide 1 (first image) — verbatim, not paraphrased. If no text on slide 1, describe the dominant visual element in Vietnamese.
+- slides[].text_density: Classify text amount per slide as exactly one of: 'none' (no text), 'low' (1-2 short words/phrases), 'medium' (3-5 lines), 'high' (6+ lines or dense text block).
+- slides[].has_face: true if a human face is PROMINENTLY visible (not just background), false otherwise.
+- slides[].has_product: true if a physical product (clothing, food, cosmetic, electronics, etc.) is the main subject, false otherwise.
+- content_arc: How content flows across ALL slides — exactly one of: 'list' (numbered items), 'story' (narrative progression), 'before_after' (contrast pair), 'comparison' (side-by-side options), 'tutorial_steps' (how-to sequence), 'gallery' (independent items with no arc).
+- visual_consistency: Design coherence across slides — 'consistent' (same palette/font/style), 'mixed' (mostly consistent with 1-2 outliers), 'inconsistent' (different styles per slide).
+- estimated_read_time_seconds: Realistic total time to read/swipe the full carousel. Base: 2s per text-heavy slide, 1s per image/product slide.
+- cta_slide: Analyze the LAST slide only. Set has_cta=true if it contains a call-to-action (follow, save, comment, link, buy). Set cta_type to one of: 'follow', 'save', 'comment', 'link_in_bio', 'buy', 'none'. Set cta_text to the exact CTA text or empty string.
+- Map slides to the provided batch indices precisely."""
 
 
 
@@ -444,15 +454,173 @@ Viết chẩn đoán ngay. Không lời dẫn hay kết chữ ký.
 """
 
 
+_CAROUSEL_SYNTHESIS_FRAMING = """
+Đây là carousel (ảnh trượt), KHÔNG PHẢI video.
+
+PHÂN TÍCH 2 TẦNG — theo đúng thứ tự:
+
+**TẦNG 1: PHÂN PHỐI — TẠI SAO ÍT NGƯỜI THẤY (từ metadata)**
+Phân tích TRƯỚC KHI nói về nội dung. Carousel có thể đẹp nhưng không ai thấy vì phân phối sai. Kiểm tra:
+
+a) Hashtag: có phải tiếng Việt + cụ thể cho ngách không?
+   Hashtag generic tiếng Anh (#trendingtiktok #ootd) = thuật toán không biết đẩy cho ai.
+   Carousel chạy tốt dùng hashtag Vietnamese ngách cụ thể.
+   Nếu hashtag user quá chung → đây là nguyên nhân chính, nói trước.
+
+b) Caption: có text mô tả nội dung không?
+   Caption trống (chỉ hashtag) = thiếu context cho thuật toán.
+   Caption tốt = 1-2 câu mô tả + hook + hashtag cuối.
+
+c) Tỷ lệ tương tác vs views:
+   Nếu ER cao nhưng views thấp → vấn đề PHÂN PHỐI (ít người thấy, nhưng người thấy thì thích).
+   Nói rõ: "Content không dở — reach bị hạn chế."
+   Nếu ER thấp VÀ views thấp → vấn đề CẢ HAI.
+
+d) Sound: có đang dùng sound trending không?
+   Carousel dùng sound trending được thuật toán ưu tiên đẩy hơn.
+
+**TẦNG 2: NỘI DUNG — LOGIC LƯỚT (từ Gemini phân tích slides)**
+Chỉ phân tích sau khi đã nói về tầng phân phối.
+
+Video tự chạy — viewer thụ động. Carousel yêu cầu viewer LƯỚT — mỗi lần lướt là 1 quyết định.
+Phân tích theo logic lướt:
+
+a) Slide 1 → dừng lướt:
+   Có dừng được feed scroll không? Có chữ/câu hỏi/con số tạo tò mò không?
+   Có mặt người không (slides[0].has_face)? So sánh với slide 1 của carousel đang chạy trong ngách.
+
+b) Slide 1→2 → có lý do lướt tiếp không:
+   3 loại lý do lướt: tò mò (câu hỏi chưa trả lời), danh sách (còn item chưa xem),
+   câu chuyện (chưa biết kết quả). content_arc cho biết arc nào đang được dùng.
+
+c) Momentum giữa các slide:
+   visual_consistency — thiếu nhất quán làm mất tin cậy thương hiệu.
+   text_density thay đổi đột ngột — slide chữ dày xen kẽ ảnh tạo nhịp tốt.
+
+d) Slide cuối → hành động:
+   cta_slide.has_cta — nếu False thì bỏ lỡ cơ hội. Carousel có tỷ lệ lưu cao gấp 2-3x video.
+
+KHÔNG phân tích yếu tố video:
+❌ nhịp cắt cảnh / transitions / audio / watch time / face_appears_at theo giây
+
+QUAN TRỌNG:
+- Nếu tầng 1 (phân phối) là vấn đề chính → nói rõ: "Sửa hashtag + caption TRƯỚC — content carousel có thể không cần thay đổi nhiều."
+- Nếu tầng 2 (nội dung) là vấn đề chính → tầng 1 chỉ mention ngắn.
+- Nếu cả hai → nói cả hai, nhưng ưu tiên thứ tự: phân phối trước, nội dung sau.
+"""
+
+_CAROUSEL_DIAGNOSIS_FEW_SHOT_V2 = """
+=== EXAMPLE: Fashion accessory carousel — distribution problem, strong content ===
+
+INPUT DATA:
+{
+  "metadata": {
+    "author": "@blingblingbienhinh",
+    "content_type": "carousel",
+    "slide_count": 8,
+    "metrics": { "views": 2493, "likes": 64, "comments": 0, "shares": 0, "bookmarks": 0 },
+    "engagement_rate": 2.57,
+    "description": "#trendingtiktok #OOTD #outfitideas #beachoutfit",
+    "hashtags": ["trendingtiktok", "OOTD", "outfitideas", "beachoutfit"]
+  },
+  "analysis": {
+    "hook_analysis": {
+      "first_frame_type": "product_only",
+      "face_appears_at": null,
+      "hook_phrase": "",
+      "hook_type": "none",
+      "hook_notes": "Slide 1 is a product photo with no text overlay"
+    },
+    "slides": [
+      { "index": 0, "visual_type": "product_photo", "text_on_slide": [], "has_face": false, "has_product": true, "text_density": "none", "note": "Accessory on plain background" },
+      { "index": 1, "visual_type": "product_photo", "text_on_slide": [], "has_face": false, "has_product": true, "text_density": "none", "note": "Different angle" },
+      { "index": 7, "visual_type": "product_photo", "text_on_slide": [], "has_face": false, "has_product": true, "text_density": "none", "note": "Final slide, no CTA text" }
+    ],
+    "content_arc": "gallery",
+    "visual_consistency": "consistent",
+    "estimated_read_time_seconds": 8,
+    "cta_slide": { "has_cta": false, "cta_type": "none", "cta_text": "" },
+    "transitions_per_second": 0.0
+  }
+}
+
+CORRECT DIAGNOSIS OUTPUT:
+Carousel @blingblingbienhinh — 8 slides, 2.493 views. Tỷ lệ tương tác 2,57% — người nào thấy thì có tương tác. Vấn đề chính không phải content dở mà là ít người được thấy.
+
+**Tại sao ít người thấy carousel này:**
+Nguyên nhân rõ nhất: hashtag. Bạn dùng #trendingtiktok #OOTD #outfitideas #beachoutfit — 4 hashtag tiếng Anh cực kỳ chung chung, hàng triệu post dùng mỗi ngày. Thuật toán TikTok không biết nên đẩy carousel này cho ai vì không có tín hiệu ngách cụ thể nào.
+
+Caption cũng trống — chỉ có hashtag, không có dòng mô tả nào. Thuật toán cần text để hiểu nội dung và đẩy đúng người.
+
+So sánh: carousel chạy tốt trong ngách thời trang Việt Nam dùng hashtag Vietnamese cụ thể: #phukienbienhoa #trangsucdep #outfitvietnam #phoidohanngay. Caption kiểu: "Mấy món phụ kiện này mình phối đồ nào cũng hợp luôn á" — vừa tự nhiên vừa cho thuật toán context.
+
+Sửa hashtag + caption TRƯỚC — content carousel có thể không cần thay đổi nhiều.
+
+**Nội dung carousel — phân tích theo logic lướt:**
+
+Slide 1 → dừng lướt: 🔴
+Ảnh sản phẩm đẹp nhưng thiếu dòng chữ hook — người xem thấy phụ kiện, không biết có gì đặc biệt, lướt đi. Không có mặt người (has_face = false) để tạo kết nối cảm xúc.
+So sánh: carousel thời trang chạy tốt thường mở slide 1 bằng "7 phụ kiện dưới 100K phối đồ nào cũng hợp" — con số + giới hạn giá cho viewer 2 lý do dừng lại.
+
+Slide 1→2 → lý do lướt tiếp: 🔴
+content_arc = gallery — không có câu hỏi, không có danh sách, không có câu chuyện. Viewer không biết carousel có bao nhiêu slide hay bao nhiêu item. Thiếu momentum ngay từ đầu.
+Chạy vì: carousel cần cho viewer biết "có X thứ để xem" ngay từ slide đầu — tạo kỳ vọng để lướt đến cuối.
+
+Slide cuối → hành động: 🔴
+cta_slide.has_cta = false — kết thúc bằng ảnh sản phẩm, không CTA. Viewer đã lướt đến slide 8 — đó là lúc dễ nhất để họ lưu lại. Bỏ lỡ cơ hội này đáng tiếc vì carousel có tỷ lệ lưu cao gấp 2-3x so với video.
+
+**5 hướng content carousel cho ngách thời trang:**
+
+1. **Danh sách có số** — "[Số] phụ kiện dưới [giá] phối đồ nào cũng hợp"
+   Logic lướt: con số trên slide 1 tạo kỳ vọng — viewer lướt để xem hết danh sách.
+   Slide 1: tiêu đề lớn + ảnh item đẹp nhất. Slide 2-8: mỗi slide = 1 item + giá.
+   Slide cuối: "Lưu lại mua dần nha."
+   Hashtag gợi ý: #phukien #phukiengiare #phoidohanngay
+
+2. **So sánh A vs B** — "[Phụ kiện A] vs [B] — cái nào hợp hơn?"
+   Logic lướt: câu hỏi ở slide 1 tạo tension — viewer lướt để tìm câu trả lời.
+   Slide 1: 2 sản phẩm cạnh nhau + câu hỏi. Slide 2-5: so sánh từng tiêu chí. Slide cuối: verdict + "Comment cho mình biết bạn chọn cái nào."
+
+3. **Biến hình phối đồ** — "1 chiếc [phụ kiện] phối 5 kiểu khác nhau"
+   Logic lướt: "còn kiểu nào nữa?" — tò mò vì mỗi slide là cách phối mới.
+   Slide 1: outfit đẹp nhất. Slide 2-6: mỗi slide = 1 cách phối hoàn toàn khác. Slide cuối: "Follow để xem thêm cách phối mỗi ngày."
+
+4. **Trước / Sau** — "Phối phụ kiện sai vs đúng — khác nhau một trời một vực"
+   Logic lướt: slide "sai" tạo tension → viewer lướt để thấy phiên bản "đúng".
+   Slide 1: ảnh phối sai. Slide 2: cùng outfit + phụ kiện đúng. Lặp lại 3-4 cặp. Slide cuối: "Lưu lại để nhớ khi đi mua nha."
+
+5. **Câu chuyện mua hàng** — "Mình đặt [sản phẩm] Shopee [giá] — mở ra thấy..."
+   Logic lướt: bỏ lửng ở slide 1 → viewer lướt để biết kết quả.
+   Slide 1: hook "Mua về mở ra thấy..." + ảnh hộp hàng. Slide 2-4: quá trình dùng. Slide cuối: verdict + "Lưu lại nếu muốn mua."
+
+**Điều duy nhất cần thay đổi cho carousel tiếp:**
+Đổi hashtag sang tiếng Việt cụ thể cho ngách (#phukiengiare #phoidohanngay) và thêm 1 dòng caption mô tả. Chỉ riêng việc này đã giúp thuật toán biết đẩy cho ai — đó là sự khác biệt giữa 2.000 views và 20.000+ views cho cùng content.
+"""
+
+
 def build_carousel_diagnosis_prompt(
     analysis: dict[str, Any],
     metadata: dict[str, Any],
+    include_directions: bool = False,
 ) -> str:
-    """Strategist markdown synthesis for **photo carousel** analysis (`analysis.slides`)."""
+    """Strategist markdown synthesis for **photo carousel** analysis (`analysis.slides`).
+
+    include_directions: when True, appends an instruction asking Gemini to include
+    4-5 carousel content direction suggestions (triggered by direction keywords in user message).
+    """
     serialized_analysis, serialized_metadata = _serialize_diagnosis_inputs(
         analysis, metadata
     )
     voice = build_voice_block(include_examples=False)
+
+    directions_instruction = ""
+    if include_directions:
+        directions_instruction = """
+Sau phần chẩn đoán, thêm phần **"Hướng content carousel cho ngách này"** với 4-5 công thức carousel cụ thể.
+Mỗi hướng gồm: tên công thức, hook slide 1, nội dung các slide giữa, CTA slide cuối, gợi ý hashtag tiếng Việt.
+Giải thích LOGIC LƯỚT của mỗi hướng — tại sao viewer lướt hết.
+Dựa trên video tham chiếu trong ngách nếu có.
+"""
 
     return f"""{voice}
 
@@ -462,14 +630,18 @@ def build_carousel_diagnosis_prompt(
 
 {_CAROUSEL_SWIPE_BENCHMARKS}
 
+{_CAROUSEL_SYNTHESIS_FRAMING}
+
 Viết chẩn đoán như ví dụ **carousel** dưới — cùng thanh giọng với video (thẳng,
 creator-native, số liệu diễn giải thành ý nghĩa) nhưng mọi nhận định phải bám `analysis.slides`
-(index, visual_type, text_on_slide, note) và caption/metadata. Thời gian trong hook_analysis
-theo một đơn vị tổng hợp mỗi slide trừ khi metadata nói khác.
+(index, visual_type, text_on_slide, has_face, has_product, text_density, note),
+content_arc, visual_consistency, cta_slide, và caption/metadata.
 
 Nếu metadata nói slide bị cắt, CDN lỗi chỉ số, hoặc tải một phần, hãy phản ánh vào độ tin cậy và câu hỏi.
 
 {_CAROUSEL_FEW_SHOT_EXAMPLES}
+
+{_CAROUSEL_DIAGNOSIS_FEW_SHOT_V2}
 
 === CHẨN ĐOÁN BÀI ĐĂNG NÀY (CAROUSEL ẢNH) ===
 
@@ -479,32 +651,24 @@ INPUT DATA:
   "analysis": {serialized_analysis}
 }}
 
-CẤU TRÚC — bám ví dụ, chỉnh cho slide:
+CẤU TRÚC — theo PHÂN TÍCH 2 TẦNG (phân phối TRƯỚC, nội dung SAU):
 
-1. Nhận định mở đầu (không tiêu đề, 2–3 câu). Đọc mạnh nhất về câu chuyện vuốt,
-   hook slide 1, và carousel có xứng save từ FYP không. Không neo cả bài vào cuts/giây như phim.
-   Không mở bằng "Video này", "Phân tích", hay "Dựa trên dữ liệu".
+**TẦNG 1: TẠI SAO ÍT NGƯỜI THẤY** (2-3 đoạn)
+Phân tích hashtag, caption, ER vs views, sound. Kết luận bằng priority: phân phối hay nội dung là vấn đề chính.
 
-2. **In đậm** phần điểm mạnh — 2–4 gạch đầu dòng; nhận định trước; trích chỉ số slide và copy trên slide.
+**TẦNG 2: LOGIC LƯỚT** (slide 1 → slide giữa → slide cuối)
+Mỗi phần: nhận xét cụ thể từ slides data + emoji [🔴🟡🟢] + "Chạy vì:" hoặc "Gợi ý:".
+Trích slides[].index, has_face, text_density, cta_slide.has_cta khi hữu ích.
+KHÔNG đề cập: transitions/s, face_appears_at tính bằng giây, audio, watch time.
 
-3. **In đậm** phần điểm yếu / ma sát — 2–4 gạch đầu dòng; slide 1 yếu, tường chữ,
-   thiếu CTA slide cuối, chuỗi visual_type lặp, v.v.
-
-4. **In đậm** phần ý tưởng hook — đúng 2 dòng *in nghiêng*: dòng **slide-1** killer trên màn hình
-   hoặc hook caption (như người xem nhìn thấy); chỉ dùng giọng nói nếu đúng cách đóng gói carousel.
-
-5. **In đậm** phần câu hỏi kiểm tra — đúng 2 câu hỏi gạch đầu dòng gắn chỉ số slide,
-   `metadata.slide_count`, save/view, hoặc payoff thiếu ở slide sau.
+**MỘT ĐIỀU DUY NHẤT** cần thay đổi cho carousel tiếp (câu kết luận).
+{directions_instruction}
 
 QUY TẮC CỨNG:
 - Viết như người, không như hệ thống
-- Không dùng: "analysis indicates", "signals suggest", "it is recommended",
-  "it is worth noting", "it's important to"
+- Không dùng: "analysis indicates", "signals suggest", "it is recommended"
 - Không né tránh nhận định chính
 - Không dựng bảng tóm tắt hay dump field/value
-- content_direction phản ánh pattern cấu trúc mà extraction model nhận diện — dùng như quan sát bổ sung, không dùng làm bằng chứng chính cho nhận định
-- face_appears_at / first_speech_at theo trục tổng hợp từng slide; trích `slides[].index` 0-based khi hữu ích
-- Không mở nhận định đầu bằng "Video này" hay "Phân tích"
 - Tất cả nội dung phải bằng tiếng Việt.
 
 Viết chẩn đoán ngay. Không lời dẫn hay kết chữ ký.
@@ -515,10 +679,13 @@ def build_diagnosis_prompt(
     analysis: dict[str, Any],
     metadata: dict[str, Any],
     content_type: ContentType = "video",
+    include_carousel_directions: bool = False,
 ) -> str:
     """Route to video vs carousel strategist prompt."""
     if content_type == "carousel":
-        return build_carousel_diagnosis_prompt(analysis, metadata)
+        return build_carousel_diagnosis_prompt(
+            analysis, metadata, include_directions=include_carousel_directions
+        )
     return build_video_diagnosis_prompt(analysis, metadata)
 
 

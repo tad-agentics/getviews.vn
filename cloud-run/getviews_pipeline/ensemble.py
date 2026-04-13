@@ -128,6 +128,10 @@ def _ensembledata_error_message(code: int) -> str | None:
 
 async def fetch_post_info(url: str) -> dict[str, Any]:
     """Fetch TikTok post info; return aweme_detail dict."""
+    is_photo_url = "/photo/" in url
+    if is_photo_url:
+        logger.info("[carousel] /photo/ URL detected — expecting aweme_type=2: %s", url)
+
     token = require_ensembledata_token()
     client = await get_api_client()
     r = await client.get(
@@ -161,7 +165,34 @@ async def fetch_post_info(url: str) -> dict[str, Any]:
 
     if not isinstance(payload, dict):
         raise ValueError("Unexpected EnsembleData response: not a JSON object")
-    return _extract_aweme_detail(payload.get("data"))
+
+    aweme_detail = _extract_aweme_detail(payload.get("data"))
+
+    if is_photo_url:
+        aweme_type = aweme_detail.get("aweme_type")
+        has_ipi = bool(
+            isinstance(aweme_detail.get("image_post_info"), dict)
+            and aweme_detail["image_post_info"].get("images")
+        )
+        logger.info(
+            "[carousel] ED response for /photo/ URL — aweme_type=%s image_post_info.images=%s",
+            aweme_type,
+            has_ipi,
+        )
+        # URL-based type override: if ED did not set aweme_type=2 but the URL path is
+        # /photo/, treat it as a carousel. Carousel detection normally relies on
+        # aweme_type or image_post_info.images; some ED responses omit aweme_type
+        # for photo posts while still including image_post_info.images.
+        if aweme_type != AWEME_TYPE_PHOTO_CAROUSEL and not has_ipi:
+            logger.warning(
+                "[carousel] /photo/ URL but aweme_type=%s and no image_post_info — "
+                "ED may not recognize /photo/ path format; setting _photo_url_hint=True",
+                aweme_type,
+            )
+        # Always tag with hint so detect_content_type can use URL as tiebreaker.
+        aweme_detail["_photo_url_hint"] = True
+
+    return aweme_detail
 
 
 async def _ensemble_get(path_url: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -359,19 +390,33 @@ def _float_sec_from_ms(val: Any) -> float:
 
 
 def detect_content_type(aweme_detail: dict[str, Any]) -> ContentType:
-    """§2: carousel when aweme_type=2 or when ``image_post_info.images`` is non-empty."""
+    """§2: carousel when aweme_type=2 or when ``image_post_info.images`` is non-empty.
+
+    Priority order:
+    1. aweme_type == 2 with image_post_info.images → carousel (strongest signal)
+    2. image_post_info.images present (any aweme_type) → carousel
+    3. _photo_url_hint == True (URL path contained /photo/) → carousel as fallback
+       when ED response lacks both aweme_type=2 and image_post_info (rare, but observed
+       when ED doesn't recognize the /photo/ URL format)
+    4. Anything else → video
+    """
     if _int(aweme_detail.get("aweme_type")) == AWEME_TYPE_PHOTO_CAROUSEL:
         ipi = aweme_detail.get("image_post_info")
         if isinstance(ipi, dict):
             images = ipi.get("images")
             if isinstance(images, list) and len(images) > 0:
                 return "carousel"
-        return "video"
+        # aweme_type=2 but no images — treat as carousel anyway; _analyze_carousel
+        # will return an informative error if CDN URLs are missing.
+        return "carousel"
     ipi = aweme_detail.get("image_post_info")
     if isinstance(ipi, dict):
         images = ipi.get("images")
         if isinstance(images, list) and len(images) > 0:
             return "carousel"
+    # URL-based hint set by fetch_post_info for /photo/ paths
+    if aweme_detail.get("_photo_url_hint"):
+        return "carousel"
     return "video"
 
 

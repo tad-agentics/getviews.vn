@@ -145,6 +145,14 @@ class SlideAnalysis(BaseModel):
     text_on_slide: list[str] = Field(default_factory=list)
     note: str = ""
 
+    # Per-slide metrics for diagnosis (all Optional — existing analyses unaffected)
+    text_density: str | None = None
+    """Amount of text on slide: 'none', 'low', 'medium', or 'high'."""
+    has_face: bool | None = None
+    """True if a human face is prominently visible on this slide."""
+    has_product: bool | None = None
+    """True if a product (physical item for purchase) is prominently visible."""
+
 
 class CarouselAnalysis(BaseModel):
     """Gemini output for photo carousels — parallel to VideoAnalysis but slide-native."""
@@ -161,6 +169,17 @@ class CarouselAnalysis(BaseModel):
     key_messages: list[str] = Field(default_factory=list)
     cta: str | None = None
     content_direction: ContentDirection
+
+    # Carousel-level metrics (all Optional — existing cached analyses unaffected)
+    content_arc: str | None = None
+    """How content flows across slides: 'list', 'story', 'before_after', 'comparison',
+    'tutorial_steps', or 'gallery'."""
+    visual_consistency: str | None = None
+    """Design consistency across slides: 'consistent', 'mixed', or 'inconsistent'."""
+    estimated_read_time_seconds: int | None = None
+    """Estimated total read/swipe time in seconds."""
+    cta_slide: dict | None = None
+    """CTA presence on final slide: {'has_cta': bool, 'cta_type': str, 'cta_text': str}."""
 
 
 class Metrics(BaseModel):

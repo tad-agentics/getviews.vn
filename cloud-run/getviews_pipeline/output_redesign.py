@@ -139,6 +139,64 @@ FORMAT_ANALYSIS_WEIGHTS: dict[str, dict[str, str]] = {
         "cta": "moderate",
         "transcript": "moderate",
     },
+
+    # ── Carousel formats ──────────────────────────────────────────────────────
+    # Carousel metrics differ from video: slide-native signals replace video signals.
+    # Transitions/s, face_appears_at (timed), audio, and transcript are all skipped.
+    # has_face on slide 0 is the carousel equivalent of face_appears_at for video.
+    "carousel": {
+        "hook_slide":             "primary",    # slide 1 = the hook; no autoplay to carry it
+        "slide_count":            "primary",    # too few = thin, too many = drop-off
+        "text_density":           "primary",    # per-slide text amount — too dense = abandonment
+        "visual_consistency":     "primary",    # same design style across slides → brand trust
+        "cta_slide":              "primary",    # last slide CTA — highest-leverage moment
+        "content_arc":            "primary",    # how content flows: list/story/before_after/etc.
+        "visual_energy":          "skip",       # no transitions in carousel
+        "music_sync":             "skip",       # irrelevant — no audio at swipe point
+        "transitions_per_second": "skip",       # does not apply to static images
+        "face_appears_at":        "skip",       # use slides[0].has_face instead
+        "audio_quality":          "skip",       # no audio analysis
+        "transcript":             "skip",       # no speech
+    },
+    "carousel_product_roundup": {
+        # e.g. "5 phụ kiện dưới 200K" — slide_count matters more (too few = thin)
+        "hook_slide":             "primary",
+        "slide_count":            "critical",   # more slides = more value perceived
+        "text_density":           "primary",    # price/name on each slide
+        "visual_consistency":     "primary",
+        "cta_slide":              "primary",
+        "content_arc":            "primary",    # should be 'list'
+        "transitions_per_second": "skip",
+        "face_appears_at":        "skip",
+        "audio_quality":          "skip",
+        "transcript":             "skip",
+    },
+    "carousel_tutorial": {
+        # e.g. "3 bước chăm sóc da" — text_density more important (steps need clear text)
+        "hook_slide":             "primary",
+        "slide_count":            "primary",    # too many steps = cognitive overload
+        "text_density":           "critical",   # each step must be readable
+        "visual_consistency":     "primary",
+        "cta_slide":              "primary",
+        "content_arc":            "critical",   # should be 'tutorial_steps'
+        "transitions_per_second": "skip",
+        "face_appears_at":        "skip",
+        "audio_quality":          "skip",
+        "transcript":             "skip",
+    },
+    "carousel_story": {
+        # e.g. "Câu chuyện mua hàng" or emotional narrative — progression matters
+        "hook_slide":             "critical",   # cliffhanger on slide 1 critical
+        "slide_count":            "primary",
+        "text_density":           "primary",
+        "visual_consistency":     "primary",
+        "cta_slide":              "primary",
+        "content_arc":            "critical",   # should be 'story'
+        "transitions_per_second": "skip",
+        "face_appears_at":        "skip",
+        "audio_quality":          "skip",
+        "transcript":             "skip",
+    },
 }
 
 # ---------------------------------------------------------------------------
