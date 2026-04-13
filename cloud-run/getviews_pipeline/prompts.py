@@ -12,7 +12,8 @@ from getviews_pipeline.knowledge_base import (
     build_niche_hook_block,
 )
 from getviews_pipeline.models import ContentType
-from getviews_pipeline.voice_guide import build_voice_block
+from getviews_pipeline.output_redesign import build_diagnosis_narrative_prompt
+from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 
 # ---------------------------------------------------------------------------
 # Video analysis prompt — Gemini call 1
@@ -915,9 +916,6 @@ def build_diagnosis_synthesis_prompt_v2(
         user_analysis:    Gemini extraction result for the user's video.
         user_stats:       User video stats dict (views, breakout_multiplier, etc.).
     """
-    from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
-    from getviews_pipeline.output_redesign import build_diagnosis_narrative_prompt
-
     voice = build_voice_block(include_examples=True, example_type="diagnosis")
 
     return build_diagnosis_narrative_prompt(
