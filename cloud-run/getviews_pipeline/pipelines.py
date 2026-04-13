@@ -81,9 +81,25 @@ def _niche_query_terms(niche: str) -> str:
 
 
 async def _niche_aweme_pool(niche: str, *, period: int) -> list[dict[str, Any]]:
+    """Fetch keyword + hashtag pool for a niche. Fails open on EnsembleData quota errors
+    so the pipeline can still return a carousel/video diagnosis without reference videos."""
     term = _niche_query_terms(niche)
-    kw_aw, _ = await ensemble.fetch_keyword_search(term, period=period)
-    ht_aw, _ = await ensemble.fetch_hashtag_posts(term, cursor=0)
+    kw_aw: list[dict[str, Any]] = []
+    ht_aw: list[dict[str, Any]] = []
+    try:
+        kw_aw, _ = await ensemble.fetch_keyword_search(term, period=period)
+    except ValueError as exc:
+        if "unit limit" in str(exc).lower() or "quota" in str(exc).lower():
+            logger.warning("[niche_pool] EnsembleData quota exhausted — skipping keyword search for niche=%s", niche)
+        else:
+            raise
+    try:
+        ht_aw, _ = await ensemble.fetch_hashtag_posts(term, cursor=0)
+    except ValueError as exc:
+        if "unit limit" in str(exc).lower() or "quota" in str(exc).lower():
+            logger.warning("[niche_pool] EnsembleData quota exhausted — skipping hashtag search for niche=%s", niche)
+        else:
+            raise
     ht_f = filter_recency(ht_aw, period)
     return merge_aweme_lists(kw_aw, ht_f)
 

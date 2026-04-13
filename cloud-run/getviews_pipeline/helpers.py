@@ -6,8 +6,21 @@ import time
 from typing import Any
 
 GENERIC_HASHTAGS: frozenset[str] = frozenset({
-    "fyp", "foryou", "foryoupage", "viral", "trending",
-    "xyzbca", "blowthisup", "fypage", "tiktok",
+    # Platform / algorithm bait
+    "fyp", "foryou", "foryoupage", "foryourpage", "fypage",
+    "viral", "viralvideo", "viraltiktok", "trending", "trendingtiktok",
+    "trendingnow", "trend", "tiktok", "tiktoktrending", "tiktokviral",
+    "xyzbca", "blowthisup", "blowup", "4u", "4you",
+    # Fashion generic
+    "ootd", "outfitoftheday", "outfitideas", "outfitinspo",
+    "fashion", "style", "fashiontiktok", "styletiktok",
+    "beachoutfit", "summerstyle", "summeroutfit",
+    # Generic engagement
+    "relatable", "funny", "cute", "aesthetic", "love",
+    "lifestyle", "vlog", "duet", "stitch",
+    # Generic Vietnamese
+    "xuhuong", "xuhướng", "tiktokviệtnam", "tiktokvietnam",
+    "việtnam", "vn", "vietnam",
 })
 
 
