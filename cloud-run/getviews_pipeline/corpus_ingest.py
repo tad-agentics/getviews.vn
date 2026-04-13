@@ -45,6 +45,11 @@ BATCH_MIN_VIEWS = int(os.environ.get("BATCH_MIN_VIEWS", "20000"))
 BATCH_MIN_ER = float(os.environ.get("BATCH_MIN_ER", "2.0"))
 # Keyword search pages fetched per niche (each page ~20 posts, broadens candidate pool)
 BATCH_KEYWORD_PAGES = int(os.environ.get("BATCH_KEYWORD_PAGES", "2"))
+# Carousel ingest: carousels per niche per batch run
+BATCH_CAROUSELS_PER_NICHE = int(os.environ.get("BATCH_CAROUSELS_PER_NICHE", "3"))
+# Carousel quality gate: minimum likes (digg_count) — used instead of play_count
+# because TikTok doesn't report play_count for carousels reliably in feed responses
+BATCH_CAROUSEL_MIN_LIKES = int(os.environ.get("BATCH_CAROUSEL_MIN_LIKES", "500"))
 
 
 # ── Result containers ───────────────────────────────────────────────────────────
@@ -202,6 +207,48 @@ async def _fetch_niche_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
 
     merged = merge_aweme_lists(all_awemes, [])
     return filter_recency(merged, BATCH_RECENCY_DAYS)
+
+
+async def _fetch_carousel_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fetch carousel posts (aweme_type=2) for a niche from signal hashtag feeds.
+
+    ED's keyword search surfaces mostly videos. Carousels live in hashtag feeds
+    but are mixed with videos. This function fetches the same hashtag feeds and
+    filters to aweme_type=2 (photo carousel) only.
+
+    Quality proxy: uses digg_count (likes) instead of play_count because TikTok
+    does not report play_count reliably for carousels in feed API responses —
+    the field is often 0 even for high-reach carousels.
+    """
+    hashtags: list[str] = niche.get("signal_hashtags") or []
+    if not hashtags:
+        return []
+
+    hashtag_tasks = [
+        ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
+        for ht in hashtags
+    ]
+    results = await asyncio.gather(*hashtag_tasks, return_exceptions=True)
+
+    all_awemes: list[dict[str, Any]] = []
+    for res in results:
+        if isinstance(res, Exception):
+            logger.warning("[corpus] carousel hashtag fetch error: %s", res)
+            continue
+        awemes, _ = res if isinstance(res, tuple) else (res, None)
+        all_awemes.extend(awemes or [])
+
+    # Filter to carousels only — aweme_type=2 or image_post_info.images present
+    carousels = [
+        a for a in all_awemes
+        if ensemble.detect_content_type(a) == "carousel"
+    ]
+
+    logger.info(
+        "[corpus] carousel pool for niche '%s': %d carousels from %d total hashtag posts",
+        niche.get("name_en", "?"), len(carousels), len(all_awemes),
+    )
+    return filter_recency(carousels, BATCH_RECENCY_DAYS)
 
 
 # ── Single post ingest ──────────────────────────────────────────────────────────
@@ -642,7 +689,25 @@ async def ingest_niche(
         None, lambda: _existing_video_ids_sync(client, niche_id)
     )
 
-    # Quality gates — filter out low-quality / non-Vietnamese posts before analysis
+    # Fetch carousel pool in parallel with the video pool
+    carousel_pool = await _fetch_carousel_pool(niche)
+
+    # ── Quality gates ────────────────────────────────────────────────────────────
+    # Shared helper — applies Gates 3+4 (Vietnamese creator/caption checks)
+    def _passes_vn_gates(a: dict[str, Any], vid: str) -> bool:
+        author = a.get("author") or {}
+        region = str(author.get("region") or "").upper()
+        if region and region not in ("VN", ""):
+            logger.debug("[corpus] skip %s — region=%s (not VN)", vid, region)
+            return False
+        if not region:
+            desc = str(a.get("desc") or "")
+            if desc and not _has_vietnamese_chars(desc):
+                logger.debug("[corpus] skip %s — no Vietnamese chars in caption and region unknown", vid)
+                return False
+        return True
+
+    # ── Video candidates ─────────────────────────────────────────────────────────
     candidates = []
     for a in pool:
         vid = str(a.get("aweme_id", "") or "")
@@ -662,20 +727,9 @@ async def ingest_niche(
             logger.debug("[corpus] skip %s — play_count=%d < min=%d", vid, play_count, BATCH_MIN_VIEWS)
             continue
 
-        # Gate 3: Vietnamese creator — hard check on region when present
-        author = a.get("author") or {}
-        region = str(author.get("region") or "").upper()
-        if region and region not in ("VN", ""):
-            logger.debug("[corpus] skip %s — region=%s (not VN)", vid, region)
+        # Gate 3+4: Vietnamese creator
+        if not _passes_vn_gates(a, vid):
             continue
-
-        # Gate 4: Vietnamese caption detection when region is absent (cheap heuristic)
-        # Vietnamese uses diacritics in the Unicode Latin Extended Additional block
-        if not region:
-            desc = str(a.get("desc") or "")
-            if desc and not _has_vietnamese_chars(desc):
-                logger.debug("[corpus] skip %s — no Vietnamese chars in caption and region unknown", vid)
-                continue
 
         # Gate 5: minimum engagement rate — filters out dead content that got views but no engagement
         likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
@@ -700,6 +754,50 @@ async def ingest_niche(
         reverse=True,
     )
     candidates = candidates[:BATCH_VIDEOS_PER_NICHE]
+
+    # ── Carousel candidates ──────────────────────────────────────────────────────
+    # Carousel quality gates differ from video:
+    # - play_count is unreliable for carousels in feed responses (often 0) — use digg_count instead
+    # - Gate 1 (play_count > 0) is skipped; Gate 2 replaced with min-likes floor
+    # - ER gate is skipped because we have no reliable view denominator
+    carousel_candidates = []
+    for a in carousel_pool:
+        vid = str(a.get("aweme_id", "") or "")
+        if vid in existing_ids:
+            continue
+        # Skip carousels already picked as video candidates (de-dup)
+        if any(str(c.get("aweme_id", "")) == vid for c in candidates):
+            continue
+
+        stats = a.get("statistics") or {}
+        likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
+
+        # Carousel Gate: minimum likes floor — proxy for reach when play_count is missing
+        if likes < BATCH_CAROUSEL_MIN_LIKES:
+            logger.debug("[corpus] skip carousel %s — likes=%d < min=%d", vid, likes, BATCH_CAROUSEL_MIN_LIKES)
+            continue
+
+        # Gate 3+4: Vietnamese creator
+        if not _passes_vn_gates(a, vid):
+            continue
+
+        carousel_candidates.append(a)
+
+    # Sort carousels by likes desc
+    carousel_candidates.sort(
+        key=lambda a: int((a.get("statistics") or {}).get("digg_count", 0) or 0),
+        reverse=True,
+    )
+    carousel_candidates = carousel_candidates[:BATCH_CAROUSELS_PER_NICHE]
+
+    if carousel_candidates:
+        logger.info(
+            "[corpus] niche=%s — %d carousel candidates added (min_likes=%d)",
+            niche_name, len(carousel_candidates), BATCH_CAROUSEL_MIN_LIKES,
+        )
+
+    # Merge video + carousel candidates
+    candidates = candidates + carousel_candidates
 
     if not candidates:
         logger.info("[corpus] niche=%s — all posts already indexed, skipping", niche_name)
