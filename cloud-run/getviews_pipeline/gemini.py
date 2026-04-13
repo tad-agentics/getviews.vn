@@ -34,6 +34,7 @@ from getviews_pipeline.models import BatchSummary, CarouselAnalysis, ContentType
 from getviews_pipeline.prompts import (
     CAROUSEL_EXTRACTION_PROMPT,
     VIDEO_EXTRACTION_PROMPT,
+    build_carousel_diagnosis_prompt_v2,
     build_diagnosis_prompt,
     build_diagnosis_synthesis_prompt_v2,
     build_knowledge_prompt,
@@ -360,6 +361,58 @@ def synthesize_diagnosis_v2(
     text = _response_text(response)
     if not text.strip():
         raise ValueError("synthesize_diagnosis_v2 returned empty response")
+    return text.strip()
+
+
+def synthesize_diagnosis_carousel_v2(
+    carousel_format: str,
+    niche_name: str,
+    corpus_size: int,
+    niche_norms: dict[str, Any],
+    reference_carousels: list[dict[str, Any]],
+    user_analysis: dict[str, Any],
+    user_stats: dict[str, Any],
+    wants_directions: bool = False,
+    collapsed_questions: list[str] | None = None,
+) -> str:
+    """V2 carousel diagnosis — 2-layer narrative (distribution + swipe logic), corpus-aware.
+
+    Mirrors synthesize_diagnosis_v2() for video but uses:
+    - build_carousel_diagnosis_prompt_v2() from prompts.py
+    - carousel-specific FORMAT_ANALYSIS_WEIGHTS and CAROUSEL_NARRATIVE_OUTPUT_STRUCTURE
+    max_output_tokens set to 3072 to match video v2 — narrative structure needs room.
+    """
+    model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
+    prompt = build_carousel_diagnosis_prompt_v2(
+        carousel_format=carousel_format,
+        niche_name=niche_name,
+        corpus_size=corpus_size,
+        niche_norms=niche_norms,
+        reference_carousels=reference_carousels,
+        user_analysis=user_analysis,
+        user_stats=user_stats,
+        wants_directions=wants_directions,
+    )
+    if collapsed_questions:
+        question_block = (
+            "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"
+            + "\n".join(f"- {q}" for q in collapsed_questions)
+        )
+        prompt = prompt.rstrip() + question_block + "\n\nViết chẩn đoán ngay."
+
+    cfg = types.GenerateContentConfig(
+        temperature=GEMINI_TEMPERATURE,
+        max_output_tokens=3072,
+    )
+    response = _generate_content_models(
+        [prompt],
+        primary_model=model,
+        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+        config=cfg,
+    )
+    text = _response_text(response)
+    if not text.strip():
+        raise ValueError("synthesize_diagnosis_carousel_v2 returned empty response")
     return text.strip()
 
 

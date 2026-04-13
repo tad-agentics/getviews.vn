@@ -23,7 +23,12 @@ from getviews_pipeline.corpus_context import (
 )
 from getviews_pipeline.corpus_ingest import _classify_format
 from getviews_pipeline.output_redesign import hook_type_vi
-from getviews_pipeline.gemini import synthesize_diagnosis, synthesize_diagnosis_v2, synthesize_intent_markdown
+from getviews_pipeline.gemini import (
+    synthesize_diagnosis,
+    synthesize_diagnosis_carousel_v2,
+    synthesize_diagnosis_v2,
+    synthesize_intent_markdown,
+)
 from getviews_pipeline.helpers import (
     filter_recency,
     infer_niche_from_hashtags,
@@ -735,27 +740,50 @@ async def run_video_diagnosis(
     )
     include_carousel_directions = _wants_directions(user_message)
 
+    # Detect carousel sub-format for FORMAT_ANALYSIS_WEIGHTS routing.
+    # Inferred from content_arc when available (set by Gemini carousel extraction).
+    def _carousel_subformat(analysis: dict[str, Any]) -> str:
+        arc = (analysis.get("content_arc") or "").lower()
+        if arc in ("list", "gallery"):
+            return "carousel_product_roundup"
+        if arc in ("tutorial_steps",):
+            return "carousel_tutorial"
+        if arc in ("story", "narrative"):
+            return "carousel_story"
+        return "carousel"
+
     diagnosis: str
     if include_diagnosis:
         if user_content_type == "carousel":
-            # Carousel: use existing synthesize_diagnosis which routes to
-            # build_carousel_diagnosis_prompt — the v2 narrative format is video-only.
-            carousel_analysis = user_analysis_dict
-            # Inject niche_norms into carousel metadata so the prompt has
-            # pct_original_sound for the sound analysis section.
-            carousel_metadata = {**user_metadata_dict, "niche_norms": niche_norms}
+            carousel_format = _carousel_subformat(user_analysis_dict)
+            # Filter references to carousel-only when the corpus has enough;
+            # fall back to all references if fewer than REF_N carousels found.
+            carousel_refs = [
+                r for r in references
+                if (r.get("analysis") or {}).get("content_type") == "carousel"
+                or (r.get("metadata") or {}).get("content_type") == "carousel"
+            ]
+            if len(carousel_refs) < REF_N:
+                # Not enough carousel references — use all references (mixed is better than empty)
+                carousel_refs = references
             logger.info(
-                "[carousel] routing diagnosis to synthesize_diagnosis (carousel path) "
-                "include_directions=%s",
+                "[carousel] routing to synthesize_diagnosis_carousel_v2 "
+                "format=%s carousel_refs=%d wants_directions=%s",
+                carousel_format,
+                len(carousel_refs),
                 include_carousel_directions,
             )
             diagnosis = await run_sync(
-                synthesize_diagnosis,
-                carousel_analysis,
-                carousel_metadata,
-                "carousel",
-                include_carousel_directions,
-                user_message,
+                synthesize_diagnosis_carousel_v2,
+                carousel_format=carousel_format,
+                niche_name=niche,
+                corpus_size=count,
+                niche_norms=niche_norms,
+                reference_carousels=_truncate_transcripts(carousel_refs),
+                user_analysis=_truncate_analysis(user_analysis_dict),
+                user_stats=user_stats,
+                wants_directions=include_carousel_directions,
+                collapsed_questions=questions if questions and len(questions) > 1 else None,
             )
         else:
             diagnosis = await run_sync(

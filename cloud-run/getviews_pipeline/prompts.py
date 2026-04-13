@@ -12,7 +12,10 @@ from getviews_pipeline.knowledge_base import (
     build_niche_hook_block,
 )
 from getviews_pipeline.models import ContentType
-from getviews_pipeline.output_redesign import build_diagnosis_narrative_prompt
+from getviews_pipeline.output_redesign import (
+    build_carousel_diagnosis_narrative_prompt,
+    build_diagnosis_narrative_prompt,
+)
 from getviews_pipeline.carousel_knowledge import build_carousel_context
 from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 
@@ -390,6 +393,55 @@ Viết chẩn đoán ngay. Không lời dẫn hay kết chữ ký.
 """
 
 
+def build_carousel_diagnosis_prompt_v2(
+    carousel_format: str,
+    niche_name: str,
+    corpus_size: int,
+    niche_norms: dict[str, Any],
+    reference_carousels: list[dict[str, Any]],
+    user_analysis: dict[str, Any],
+    user_stats: dict[str, Any],
+    wants_directions: bool = False,
+) -> str:
+    """V2 carousel diagnosis prompt — 2-layer narrative, corpus-aware.
+
+    Mirrors build_diagnosis_synthesis_prompt_v2() for video but uses:
+    - CAROUSEL_NARRATIVE_OUTPUT_STRUCTURE (2-layer: distribution + swipe logic)
+    - carousel-specific FORMAT_ANALYSIS_WEIGHTS
+    - carousel_knowledge.build_carousel_context() for swipe psychology
+    - reference_carousels instead of reference_videos
+
+    Called by gemini.py:synthesize_diagnosis_carousel_v2().
+
+    Args:
+        carousel_format:    One of: carousel, carousel_product_roundup,
+                            carousel_tutorial, carousel_story.
+        niche_name:         Human-readable niche name.
+        corpus_size:        Carousel count in corpus for this niche (last 30 days).
+        niche_norms:        Dict from niche_intelligence (carousel-filtered).
+        reference_carousels: List of 3 top-performing carousel dicts with analysis + metadata.
+        user_analysis:      Gemini carousel extraction result.
+        user_stats:         User carousel stats (views, breakout_multiplier, etc.).
+        wants_directions:   If True, appends 4-5 content direction suggestions.
+    """
+    voice = build_voice_block(include_examples=False)
+    carousel_context = build_carousel_context()
+
+    return build_carousel_diagnosis_narrative_prompt(
+        voice_block=voice,
+        carousel_knowledge_block=carousel_context,
+        carousel_synthesis_framing=_CAROUSEL_SYNTHESIS_FRAMING,
+        carousel_format=carousel_format,
+        niche_name=niche_name,
+        corpus_size=corpus_size,
+        niche_norms=niche_norms,
+        reference_carousels=reference_carousels,
+        user_analysis=user_analysis,
+        user_stats=user_stats,
+        wants_directions=wants_directions,
+    )
+
+
 def build_diagnosis_prompt(
     analysis: dict[str, Any],
     metadata: dict[str, Any],
@@ -397,10 +449,12 @@ def build_diagnosis_prompt(
     include_carousel_directions: bool = False,
     user_message: str = "",
 ) -> str:
-    """Route to the carousel strategist prompt.
+    """Route to the carousel strategist prompt (v1 — legacy).
 
     Video path uses build_diagnosis_synthesis_prompt_v2() via synthesize_diagnosis_v2().
-    This function is now carousel-only; calling it for video content is a no-op fallback.
+    Carousel path uses build_carousel_diagnosis_prompt_v2() via synthesize_diagnosis_carousel_v2().
+    This function is kept for analysis_core.py callers that pass raw analysis/metadata
+    dicts without corpus context. New carousel calls should use the v2 path via pipelines.py.
     """
     if content_type == "carousel":
         return build_carousel_diagnosis_prompt(

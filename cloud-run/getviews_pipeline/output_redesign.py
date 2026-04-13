@@ -1,12 +1,15 @@
 """Narrative output redesign — format-aware diagnosis synthesis.
 
 Exports:
-    FORMAT_ANALYSIS_WEIGHTS   — per-format signal importance map
-    NARRATIVE_OUTPUT_STRUCTURE — 4-part narrative structure spec
-    PATTERN_EXTRACTION_PROMPT  — instruction block for scene-level pattern analysis
-    HOOK_TYPE_NAMES_CONSTRAINT — enforces 14-name fixed hook type taxonomy
-    get_analysis_focus()       — returns format-specific analysis focus string
-    build_diagnosis_narrative_prompt() — main prompt builder (renamed from build_synthesis_prompt)
+    FORMAT_ANALYSIS_WEIGHTS            — per-format signal importance map (video + carousel)
+    NARRATIVE_OUTPUT_STRUCTURE         — 4-part narrative structure spec (video)
+    CAROUSEL_NARRATIVE_OUTPUT_STRUCTURE — 2-layer + 4-part narrative structure spec (carousel)
+    PATTERN_EXTRACTION_PROMPT          — instruction block for scene-level pattern analysis
+    HOOK_TYPE_NAMES_CONSTRAINT         — enforces 14-name fixed hook type taxonomy
+    get_analysis_focus()               — returns format-specific analysis focus string (video)
+    get_carousel_analysis_focus()      — returns carousel sub-format focus string
+    build_diagnosis_narrative_prompt() — video diagnosis prompt builder
+    build_carousel_diagnosis_narrative_prompt() — carousel diagnosis prompt builder
 """
 
 from __future__ import annotations
@@ -468,5 +471,227 @@ R10: Số dùng format Vietnamese: 1.200 (hàng nghìn), 3,2x (thập phân).
 R11: KHÔNG dùng heading markdown (##, ###). Dùng **bold** cho label.
 R12: KHÔNG đánh số section.
 R13: Hoàn thành đủ 4 phần — không truncate.
+
+Viết chẩn đoán ngay."""
+
+
+# ---------------------------------------------------------------------------
+# Carousel narrative output structure — 2-layer + 4-part
+# Mirrors NARRATIVE_OUTPUT_STRUCTURE but replaces video signals with slide signals.
+# ---------------------------------------------------------------------------
+
+CAROUSEL_NARRATIVE_OUTPUT_STRUCTURE = """
+## CẤU TRÚC OUTPUT CAROUSEL — 2 TẦNG PHÂN TÍCH
+
+**TẦNG 1 — PHÂN PHỐI (luôn đánh giá TRƯỚC nội dung)**
+Đây là tầng quyết định — ER cao + views thấp = vấn đề phân phối, không phải nội dung.
+
+PHẦN 1A — CÔNG THỨC CAROUSEL TRONG NGÁCH (niche pattern)
+Mở đầu bằng pattern của ngách, KHÔNG phải điểm số carousel người dùng.
+Format: "Trong [tên ngách], carousel [X]% top post tháng này dùng [arc / hook type] — [lý do ngắn gọn tại sao chạy]."
+Dùng hook_distribution, content_arc_distribution từ niche_norms nếu có. Trích corpus_size.
+Nếu niche_norms có pct_with_vi_hashtags hoặc pct_has_caption_text: thêm 1 câu về chuẩn phân phối ngách.
+Ví dụ: "[X]% top carousel trong ngách dùng hashtag tiếng Việt cụ thể (không phải #trending #ootd) và caption ≥200 ký tự."
+Tối đa 3-4 câu. KHÔNG đề cập carousel người dùng ở phần này.
+
+PHẦN 1B — PHÂN PHỐI CAROUSEL NÀY
+Phân tích theo thứ tự:
+1. Hashtag: tiếng Việt + cụ thể ngách không? Hashtag tiếng Anh chung chung = thuật toán không biết đẩy cho ai.
+2. Caption: ≥200 ký tự + từ khoá ngách không? Caption ngắn = mất ~3x views tiềm năng.
+3. ER vs views: ER cao + views thấp = vấn đề phân phối rõ ràng — nói thẳng.
+4. Upload mode: dấu hiệu Photo Mode vs video slideshow nếu có trong metadata.
+Kết luận: phân phối hay nội dung là vấn đề chính — chọn 1, không né.
+
+---
+
+**TẦNG 2 — LOGIC LƯỚT (slide-by-slide swipe analysis)**
+Carousel yêu cầu LƯỚT — mỗi lần lướt là 1 quyết định chủ động. Khác hoàn toàn với video autoplay.
+
+PHẦN 2A — CAROUSEL NÀY SO VỚI NGÁCH
+Verdict 1-2 câu: "[X]x so với mức trung bình của ngách [tên ngách] — dựa trên [corpus_size] carousel tháng này."
+Sau đó đánh giá từng điểm THEO THỨ TỰ QUAN TRỌNG của format (xem FORMAT_ANALYSIS_WEIGHTS carousel):
+- Mỗi điểm: **Label: [🔴🟡🟢]** + 1 câu cụ thể từ slides data + "Chạy vì:" hoặc "Gợi ý:"
+- Trích slides[].index, text_on_slide, has_face, text_density, word_count khi hữu ích
+- NẾU slides[].text_on_slide có nội dung: PHẢI trích dẫn text đó khi phân tích slide đó
+- Giải thích bằng tên tâm lý lướt: completion bias, information gap, Zeigarnik effect, goal gradient, micro-commitment
+- KHÔNG đề cập: transitions/s, face_appears_at theo giây, audio, watch time
+
+Đánh giá 4 điểm quyết định lướt:
+① Slide 1 → dừng lướt + tạo lý do lướt tiếp (hook + swipe trigger)
+② Slide 1→2 → khoảng trống thông tin (information gap, completion bias, narrative tension)
+③ Momentum slide giữa → giá trị mới mỗi slide? ≤30 từ/slide? Thiết kế đồng nhất?
+④ Slide cuối → chuyển đổi: CHỈ 1 CTA, tỷ lệ lưu >3% = tốt, >5% = xuất sắc
+
+PHẦN 2B — CAROUSEL THAM CHIẾU (phân tích riêng từng carousel)
+Phân tích 3 reference_carousels. Với mỗi carousel:
+- "@handle — [views] views — arc: [content_arc] — [days_ago] ngày trước"
+- 1-2 câu mô tả cụ thể LOGIC LƯỚT và TẠI SAO chạy (dùng tên tâm lý lướt)
+- Xuất video_ref JSON block ngay sau:
+  {"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số nếu >1>}
+
+PHẦN 2C — CAROUSEL TIẾP THEO
+1 khuyến nghị duy nhất — không phải danh sách 5-7 điểm.
+Format: "Carousel tiếp: [1 câu hành động cụ thể — arc + hook slide 1 + CTA slide cuối]."
+Kết thúc bắt buộc bằng Hook template slide 1: "[câu hook dùng [ngoặc vuông] tiếng Việt cho placeholder]"
+"""
+
+# ---------------------------------------------------------------------------
+# Carousel format-specific analysis focus
+# ---------------------------------------------------------------------------
+
+_CAROUSEL_FORMAT_FOCUS_MAP: dict[str, str] = {
+    "carousel": (
+        "Format CAROUSEL (chung) — ưu tiên: hook_slide (slide 1 = dừng lướt + swipe trigger), "
+        "content_arc (list/story/before_after/comparison/tutorial_steps/gallery), "
+        "visual_consistency (đồng nhất thiết kế), cta_slide (CTA slide cuối). "
+        "KHÔNG đề cập transitions, audio, face_appears_at theo giây."
+    ),
+    "carousel_product_roundup": (
+        "Format CAROUSEL PRODUCT ROUNDUP (danh sách sản phẩm) — ưu tiên: "
+        "slide_count (nhiều slide = nhiều giá trị cảm nhận), text_density (giá + tên sản phẩm rõ), "
+        "hook_slide (con số + giới hạn giá kích hoạt completion bias). "
+        "content_arc PHẢI là 'list'. KHÔNG đề cập audio hay transitions."
+    ),
+    "carousel_tutorial": (
+        "Format CAROUSEL TUTORIAL (hướng dẫn từng bước) — ưu tiên: "
+        "text_density CRITICAL (mỗi bước phải đọc được trong ≤4s), "
+        "content_arc PHẢI là 'tutorial_steps', slide_count (quá nhiều bước = cognitive overload). "
+        "CTA slide cuối nên là 'save' — người xem muốn quay lại xem hướng dẫn."
+    ),
+    "carousel_story": (
+        "Format CAROUSEL STORY (câu chuyện) — ưu tiên: "
+        "hook_slide CRITICAL (cliffhanger hoặc bỏ lửng ở slide 1 — Zeigarnik effect), "
+        "content_arc PHẢI là 'story', visual_consistency (câu chuyện cần phong cách nhất quán). "
+        "Narrative tension phải duy trì đến slide cuối trước khi resolve."
+    ),
+}
+
+
+def get_carousel_analysis_focus(carousel_format: str) -> str:
+    """Return the carousel sub-format analysis focus instruction string."""
+    return _CAROUSEL_FORMAT_FOCUS_MAP.get(
+        carousel_format, _CAROUSEL_FORMAT_FOCUS_MAP["carousel"]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Carousel diagnosis narrative prompt builder
+# ---------------------------------------------------------------------------
+
+def build_carousel_diagnosis_narrative_prompt(
+    voice_block: str,
+    carousel_knowledge_block: str,
+    carousel_synthesis_framing: str,
+    carousel_format: str,
+    niche_name: str,
+    corpus_size: int,
+    niche_norms: dict[str, Any],
+    reference_carousels: list[dict[str, Any]],
+    user_analysis: dict[str, Any],
+    user_stats: dict[str, Any],
+    wants_directions: bool = False,
+) -> str:
+    """Carousel v2 diagnosis prompt — 2-layer narrative, format-aware.
+
+    Architecture mirrors build_diagnosis_narrative_prompt() for video but replaces:
+    - scene-level pattern extraction → slide-level swipe analysis
+    - HOOK_TYPE_NAMES_CONSTRAINT → carousel hook psychology taxonomy
+    - NARRATIVE_OUTPUT_STRUCTURE → CAROUSEL_NARRATIVE_OUTPUT_STRUCTURE
+
+    Args:
+        voice_block:               Output of build_voice_block().
+        carousel_knowledge_block:  Output of carousel_knowledge.build_carousel_context().
+        carousel_synthesis_framing: _CAROUSEL_SYNTHESIS_FRAMING from prompts.py.
+        carousel_format:           One of: carousel, carousel_product_roundup,
+                                   carousel_tutorial, carousel_story.
+        niche_name:                Human-readable niche name.
+        corpus_size:               Carousel count in corpus for this niche (last 30 days).
+        niche_norms:               Dict from niche_intelligence (carousel-filtered).
+        reference_carousels:       List of 3 reference carousel dicts with analysis + metadata.
+        user_analysis:             Gemini carousel extraction result.
+        user_stats:                User carousel stats (views, breakout_multiplier, etc.).
+        wants_directions:          If True, appends direction generation instruction.
+    """
+    analysis_focus = get_carousel_analysis_focus(carousel_format)
+    niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
+    ref_carousels_json = json.dumps(reference_carousels, ensure_ascii=False, indent=2)
+    user_analysis_json = json.dumps(user_analysis, ensure_ascii=False, indent=2)
+    user_stats_json = json.dumps(user_stats, ensure_ascii=False, indent=2)
+
+    directions_block = ""
+    if wants_directions:
+        directions_block = """
+
+---
+
+## GỢI Ý HƯỚNG CONTENT CAROUSEL
+
+Người dùng yêu cầu gợi ý hướng content carousel.
+Sau phần chẩn đoán, thêm phần **"Hướng content carousel cho ngách này"** với 4-5 công thức cụ thể.
+Mỗi hướng gồm: tên công thức, LOGIC LƯỚT (dùng đúng tên tâm lý: completion bias, information gap, \
+Zeigarnik effect, micro-commitment), hook slide 1, nội dung slide giữa, CTA slide cuối.
+Kèm gợi ý hashtag tiếng Việt ngách cụ thể + caption mẫu ≥200 ký tự.
+"""
+
+    return f"""{voice_block}
+
+---
+
+{carousel_synthesis_framing}
+
+---
+
+{carousel_knowledge_block}
+
+---
+
+{CAROUSEL_NARRATIVE_OUTPUT_STRUCTURE}
+
+---
+
+## FORMAT-SPECIFIC FOCUS
+
+Format được phát hiện: **{carousel_format}**
+
+{analysis_focus}
+
+---
+
+## DỮ LIỆU ĐẦU VÀO
+
+**Ngách:** {niche_name}
+**Corpus size (30 ngày):** {corpus_size} carousel
+
+**Niche norms (carousel):**
+{niche_norms_json}
+
+**Carousel người dùng — Gemini extraction:**
+{user_analysis_json}
+
+**Stats carousel người dùng:**
+{user_stats_json}
+
+**3 carousel tham chiếu (top-performing):**
+{ref_carousels_json}
+{directions_block}
+
+---
+
+## QUY TẮC BẮT BUỘC
+
+R1: KHÔNG tự giới thiệu. KHÔNG "Chào bạn". Nhảy thẳng vào PHẦN 1A — niche pattern carousel.
+R2: TẦNG 1 (phân phối) TRƯỚC TẦNG 2 (logic lướt) — luôn luôn.
+R3: "Chạy vì:" tối đa 1-2 câu. Không giải thích dài dòng.
+R4: KHÔNG fabricate metrics. Chỉ dùng số thật từ data JSON.
+R5: NẾU slides[].text_on_slide có nội dung, PHẢI trích dẫn — KHÔNG nói "slide không có chữ".
+R6: Bỏ qua tín hiệu video: transitions/s, face_appears_at theo giây, audio, watch time.
+R7: 3 reference carousels BẮT BUỘC — video_ref JSON block cho mỗi carousel.
+R8: Hook template slide 1 BẮT BUỘC ở cuối PHẦN 2C.
+R9: 1 khuyến nghị duy nhất ở PHẦN 2C, không phải danh sách.
+R10: Số dùng format Vietnamese: 1.200 (hàng nghìn), 3,2x (thập phân).
+R11: KHÔNG dùng heading markdown (##, ###). Dùng **bold** cho label.
+R12: KHÔNG đánh số section.
+R13: Hoàn thành đủ 2 tầng — không truncate.
+R14: Giải thích swipe psychology bằng tên đúng: completion bias, information gap, Zeigarnik effect, goal gradient, micro-commitment.
 
 Viết chẩn đoán ngay."""
