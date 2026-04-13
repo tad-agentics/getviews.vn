@@ -32,7 +32,7 @@ export function useProfile() {
     };
   }, [userId, queryClient]);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.profile(userId),
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
@@ -43,5 +43,13 @@ export function useProfile() {
     },
     enabled: Boolean(userId),
     staleTime: Number.POSITIVE_INFINITY,
+    // Poll every 4s when is_processing is stuck true — realtime can miss updates on network blips.
+    // Once is_processing clears, refetchInterval returns false and polling stops.
+    refetchInterval: (query) => {
+      const data = query.state.data as ProfileRow | null | undefined;
+      return data?.is_processing ? 4_000 : false;
+    },
   });
+
+  return query;
 }
