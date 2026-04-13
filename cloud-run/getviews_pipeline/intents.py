@@ -79,15 +79,22 @@ _TIKTOK_URL_RE = re.compile(
 _HANDLE_RE = re.compile(r"@([a-zA-Z0-9_.]+)")
 
 
+def _strip_urls(text: str) -> str:
+    """Remove all TikTok URL spans before handle extraction so that @username
+    embedded in a URL (e.g. tiktok.com/@foo/video/123) is not treated as a
+    standalone @handle mention."""
+    return _TIKTOK_URL_RE.sub("", text)
+
+
 def extract_urls_and_handles(message: str) -> tuple[list[str], list[str]]:
     urls = _TIKTOK_URL_RE.findall(message)
-    handles = _HANDLE_RE.findall(message)
+    handles = _HANDLE_RE.findall(_strip_urls(message))
     return urls, handles
 
 
 def extract_per_question(q: str) -> tuple[list[str], list[str]]:
     q_urls = _TIKTOK_URL_RE.findall(q)
-    q_handles = _HANDLE_RE.findall(q)
+    q_handles = _HANDLE_RE.findall(_strip_urls(q))
     return q_urls, q_handles
 
 
@@ -352,6 +359,21 @@ def detect_hybrid_intents(
         ]
     )
 
+    # Directions signal: user wants content format/direction suggestions in addition to diagnosis.
+    # Broader than structural_signal — catches "gợi ý", "định dạng", "niche liên quan", etc.
+    directions_signal = any(
+        kw in msg
+        for kw in [
+            # English
+            "suggest", "content ideas", "content directions", "content formats",
+            "what formats", "ideas for", "ideas from",
+            # Vietnamese
+            "gợi ý", "định dạng nội dung", "hướng nội dung", "các định dạng",
+            "nghiên cứu từ niche", "niche liên quan", "mảng liên quan",
+            "format nào", "ý tưởng nội dung", "loại nội dung",
+        ]
+    )
+
     brief_signal = any(
         kw in msg for kw in [
             # English
@@ -360,6 +382,21 @@ def detect_hybrid_intents(
             "brief", "kế hoạch content", "kế hoạch nội dung", "lên kế hoạch",
         ]
     )
+
+    # Diagnosis + directions: URL present, user asks WHY it underperforms AND wants content ideas.
+    # CONTENT_DIRECTIONS runs first (collapse order) so niche context is in session before diagnosis.
+    if has_urls and directions_signal and any(
+        kw in msg
+        for kw in [
+            # English
+            "why", "low views", "few views", "not performing", "underperforming",
+            "what's wrong", "fix", "improve",
+            # Vietnamese
+            "tại sao", "vì sao", "ít view", "ít views", "không lên", "sai ở đâu",
+            "cải thiện", "sửa", "nên làm gì",
+        ]
+    ):
+        return [QueryIntent.CONTENT_DIRECTIONS, QueryIntent.VIDEO_DIAGNOSIS]
 
     if brief_signal and recency_signal and not has_urls:
         return [

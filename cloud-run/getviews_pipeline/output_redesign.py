@@ -207,14 +207,29 @@ FORMAT_ANALYSIS_WEIGHTS: dict[str, dict[str, str]] = {
 # ---------------------------------------------------------------------------
 
 NARRATIVE_OUTPUT_STRUCTURE = """
-## CẤU TRÚC OUTPUT — 4 PHẦN (KHÔNG đánh số, KHÔNG dùng heading markdown)
+## CẤU TRÚC OUTPUT — 5 PHẦN (KHÔNG đánh số, KHÔNG dùng heading markdown)
+
+**PHẦN 0 — PHÂN PHỐI (luôn đánh giá TRƯỚC nội dung)**
+Đây là bộ lọc đầu tiên — ER cao + views thấp = vấn đề phân phối, không phải nội dung.
+Đánh giá theo thứ tự:
+1. Hashtag: so sánh hashtag của video với pct_has_specific_hashtags trong niche_norms.
+   - Hashtag chung chung (#trending, #fyp, #viral) = thuật toán không biết đẩy cho ai → 🔴
+   - Có hashtag cụ thể cho ngách + ≤10 total hashtag = 🟢
+   - Thiếu hashtag hoặc dùng hỗn hợp = 🟡 kèm gợi ý cụ thể
+2. Caption: so sánh với pct_has_caption_text trong niche_norms.
+   - Không có caption hoặc <50 ký tự = mất ~3x tìm kiếm tiềm năng → 🔴
+   - Caption ≥100 ký tự + từ khoá ngách = 🟢
+3. Âm thanh: nếu niche_norms có pct_original_sound — video dùng âm thanh gốc hay trending?
+   - Chỉ đề cập nếu có dữ liệu pct_original_sound trong niche_norms
+4. Kết luận: 1 câu thẳng thắn — phân phối hay nội dung là vấn đề chính? Chọn 1, không né.
+   - Nếu phân phối là vấn đề: nói rõ để creator fix phân phối TRƯỚC khi nghĩ đến nội dung
+   - Nếu phân phối ổn: xác nhận và chuyển sang phần nội dung
+Tối đa 4-5 dòng. KHÔNG phân tích nội dung ở phần này.
 
 **PHẦN 1 — CÔNG THỨC ĐANG CHẠY (niche pattern)**
 Mở đầu bằng pattern của niche, KHÔNG phải điểm số video người dùng.
 Format: "Trong [tên niche], [X]% top video tháng này dùng [công thức] — [lý do ngắn gọn tại sao chạy]."
 Dùng hook_distribution, format_distribution từ niche_norms. Trích corpus_size.
-Nếu niche_norms có pct_has_specific_hashtags hoặc pct_has_caption_text: thêm 1 câu về chuẩn phân phối của niche.
-Ví dụ: "[X]% top video trong ngách này dùng hashtag cụ thể cho ngách (không phải #trending #fyp) và có caption mô tả thật."
 Tối đa 3-4 câu. KHÔNG đề cập video người dùng ở phần này.
 
 **PHẦN 2 — VIDEO CỦA BẠN SO VỚI CÔNG THỨC ĐÓ**
