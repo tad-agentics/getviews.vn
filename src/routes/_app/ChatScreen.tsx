@@ -76,10 +76,11 @@ function detectIntent(query: string, priorAssistant: boolean): { intentType: str
 
   // ── 1. URL DETECTION (highest confidence — structural) ────────────────────
   if (/https?:\/\/[^\s]*tiktok\.com/i.test(q)) {
-    // Profile URL: long-form /@handle with no /video/ path → competitor
-    // Everything else (vm.tiktok.com short links, /video/ paths) → video
-    const hasTiktokProfileUrl = /tiktok\.com\/@[^\s/]+(?:\/(?!video)[^\s]*)?(?:\s|$)/i.test(q)
-      && !/\/video\//i.test(q);
+    // Profile URL: long-form /@handle with no /video/ or /photo/ path → competitor
+    // Everything else (vm.tiktok.com short links, /video/ paths, /photo/ paths) → video
+    const hasTiktokProfileUrl = /tiktok\.com\/@[^\s/]+(?:\/(?!video|photo)[^\s]*)?(?:\s|$)/i.test(q)
+      && !/\/video\//i.test(q)
+      && !/\/photo\//i.test(q);
     return hasTiktokProfileUrl
       ? { intentType: "competitor_profile", isFree: false }
       : { intentType: "video_diagnosis", isFree: false };
