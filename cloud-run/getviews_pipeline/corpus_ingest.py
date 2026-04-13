@@ -25,6 +25,7 @@ from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
+from getviews_pipeline.hashtag_niche_map import learn_hashtag_mappings
 from getviews_pipeline.helpers import filter_recency, merge_aweme_lists
 from getviews_pipeline.r2 import download_and_upload_thumbnail, download_and_upload_video, extract_and_upload, r2_configured
 from getviews_pipeline.runtime import get_analysis_semaphore
@@ -956,6 +957,20 @@ async def ingest_niche(
             logger.error("[corpus] niche=%s upsert failed: %s", niche_name, exc)
             result.failed += len(rows)
             result.errors.append(f"upsert: {exc}")
+
+        # Learn hashtag→niche mappings from successfully upserted rows.
+        # niche_source="corpus_batch" is treated as reliable ground truth:
+        # these videos were fetched by querying niche_taxonomy signal hashtags,
+        # so the niche assignment is as trustworthy as "topics" classification.
+        for row in rows:
+            row_hashtags: list[str] = row.get("hashtags") or []
+            if row_hashtags:
+                await learn_hashtag_mappings(
+                    video_hashtags=row_hashtags,
+                    niche_id=niche_id,
+                    niche_source="corpus_batch",
+                    client=client,
+                )
 
     return result
 
