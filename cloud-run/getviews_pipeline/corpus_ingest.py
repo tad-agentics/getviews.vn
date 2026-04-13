@@ -26,7 +26,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
 from getviews_pipeline.hashtag_niche_map import learn_hashtag_mappings
-from getviews_pipeline.helpers import filter_recency, merge_aweme_lists
+from getviews_pipeline.helpers import GENERIC_HASHTAGS as _BASE_GENERIC_HASHTAGS, filter_recency, merge_aweme_lists
 from getviews_pipeline.r2 import download_and_upload_thumbnail, download_and_upload_video, extract_and_upload, r2_configured
 from getviews_pipeline.runtime import get_analysis_semaphore
 
@@ -90,14 +90,26 @@ def _service_client() -> Any:
 
 
 # ── Distribution annotations ────────────────────────────────────────────────────
-# Generic hashtags that carry no niche signal — used by millions of posts daily.
-# A post using ONLY these tags gives the algorithm no information about audience fit.
-# "has_vietnamese_hashtags" column name is legacy; semantically means "has_specific_hashtags".
-GENERIC_HASHTAGS: frozenset[str] = frozenset({
-    # Universal virality bait
-    "fyp", "foryou", "foryoupage", "viral", "trending", "trendingtiktok",
-    "tiktok", "tiktokviral", "fy", "xyzbca", "xyz", "trend",
-    # Broad lifestyle categories — too wide to target any niche
+# Distribution-generic hashtags for annotate_distribution().
+# Extends the base platform-generic set from helpers.py with English niche-category
+# words that carry no targeting value on TikTok VN — the algorithm cannot use
+# "#skincare" or "#fashion" to target Vietnamese audiences effectively.
+# "has_vietnamese_hashtags" column name is legacy; semantically means
+# "has_specific_niche_hashtags" (Vietnamese, niche-specific, not English generics).
+#
+# IMPORTANT — two-level design:
+#   helpers.GENERIC_HASHTAGS  (~15 tags): zero-niche-signal platform tags.
+#                             Used by hashtag_niche_map.py for classification.
+#   This set (~30 tags):      adds English niche-category words that ARE niche
+#                             signals globally but don't help Vietnamese audience
+#                             targeting. Used ONLY by annotate_distribution() to
+#                             compute pct_has_specific_hashtags in niche_intelligence.
+#
+# Do NOT merge these two sets — they serve different purposes.
+# hashtag_niche_map.py must keep the shorter list so it can learn from
+# English niche hashtags when they reliably appear in a specific niche.
+GENERIC_HASHTAGS: frozenset[str] = _BASE_GENERIC_HASHTAGS | frozenset({
+    # English niche-category words — broad enough to be useless for VN targeting
     "ootd", "fashion", "beauty", "food", "funny", "comedy", "love",
     "music", "dance", "art", "photography", "travel", "fitness",
     "makeup", "skincare", "style", "outfit", "recipe", "diy",
