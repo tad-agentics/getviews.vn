@@ -122,7 +122,10 @@ function detectIntent(query: string, priorAssistant: boolean): { intentType: str
   if (isTrend) return { intentType: "trend_spike", isFree: true };
 
   // ── 7. DEFAULT ────────────────────────────────────────────────────────────
-  if (q.length < 10 || priorAssistant) return { intentType: "follow_up", isFree: true };
+  // Use follow_up only when there's prior assistant context — it's a free,
+  // text-only path with conversation history injected. Without prior context
+  // it's meaningless; fall through to follow_up anyway as a safe no-op fallback
+  // (Gemini will ask the user to clarify or provide a TikTok link).
   return { intentType: "follow_up", isFree: true };
 }
 

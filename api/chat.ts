@@ -123,12 +123,37 @@ export default async function handler(req: Request): Promise<Response> {
   const systemPrompt = buildSystemPrompt(intent_type);
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
 
+  // For follow_up, fetch the last 6 messages in the session to give Gemini real
+  // conversation context. Without this, Gemini has no idea what "format này" or
+  // "video đó" refers to. Cap at 6 to stay within Edge CPU/memory budget.
+  let contents: Array<{ role: string; parts: Array<{ text: string }> }> = [
+    { role: "user", parts: [{ text: query }] },
+  ];
+  if (intent_type === "follow_up") {
+    const { data: history } = await supabase
+      .from("chat_messages")
+      .select("role, content")
+      .eq("session_id", session_id)
+      .order("created_at", { ascending: true })
+      .limit(6);
+    if (history && history.length > 0) {
+      const historyContents = history
+        .filter((m) => m.content && (m.role === "user" || m.role === "assistant"))
+        .map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: (m.content as string).slice(0, 1500) }], // cap per message to avoid token overflow
+        }));
+      // Append current user message after history
+      contents = [...historyContents, { role: "user", parts: [{ text: query }] }];
+    }
+  }
+
   const geminiRes = await fetch(geminiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: "user", parts: [{ text: query }] }],
+      contents,
       generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
     }),
   });
