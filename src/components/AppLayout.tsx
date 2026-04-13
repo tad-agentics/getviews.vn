@@ -103,6 +103,7 @@ function ContextMenu({
         transition={{ duration: 0.1, ease: 'easeOut' }}
         className="fixed z-[200] w-[152px] bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden"
         style={{ top, left }}
+        onClick={(e) => e.stopPropagation()}
       >
       <button
         onClick={() => { onPin(); onClose(); }}
@@ -172,7 +173,17 @@ function SessionRow({
     e.stopPropagation();
     if (moreRef.current) {
       const rect = moreRef.current.getBoundingClientRect();
-      setMenuPos({ top: rect.bottom + 4, left: rect.left - 120 });
+      const MENU_W = 152;
+      const MENU_H = 120; // approximate: 3 buttons + separator
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Prefer menu to the left of the button; clamp so it never goes off-screen.
+      const rawLeft = rect.left - MENU_W + rect.width;
+      const left = Math.max(8, Math.min(rawLeft, vw - MENU_W - 8));
+      // Prefer below the button; flip above if not enough room.
+      const rawTop = rect.bottom + 4;
+      const top = rawTop + MENU_H > vh ? rect.top - MENU_H - 4 : rawTop;
+      setMenuPos({ top, left });
     }
     setMenuOpen(true);
   };
