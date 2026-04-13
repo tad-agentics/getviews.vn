@@ -545,7 +545,7 @@ export default function ChatScreen() {
     (status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit");
 
   const messageThread = (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       {dailyLimitVisible ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
           <p className="text-sm text-amber-800 dark:text-amber-300">
@@ -571,9 +571,9 @@ export default function ChatScreen() {
       {messages.map((m) => {
         if (m.role === "user") {
           return (
-            <div key={m.id} className="flex justify-end">
-              <div className="flex max-w-[85%] items-start gap-2 rounded-xl bg-[var(--purple-light)] px-4 py-3 lg:max-w-[75%]">
-                <p className="break-words text-sm text-[var(--ink)]">{m.content}</p>
+            <div key={m.id} className="flex justify-end overflow-hidden">
+              <div className="flex min-w-0 max-w-[85%] items-start gap-2 rounded-xl bg-[var(--purple-light)] px-4 py-3 lg:max-w-[75%]">
+                <p className="min-w-0 break-all text-sm text-[var(--ink)]">{m.content}</p>
                 {m.is_free && m.id === lastUser?.id ? <FreeQueryPill pulseKey={freePillKey} /> : null}
               </div>
             </div>
