@@ -241,6 +241,35 @@ def _normalize_hook_type(raw: str) -> str:
 
 
 def _classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
+    """Classify a video's content format from its Gemini analysis.
+
+    PRIORITY ORDER — intentional, highest specificity first:
+
+    1. mukbang   — eating/ASMR signals are highly specific; checked before recipe/review.
+    2. grwm      — "get ready with me" is a named ritual format; checked before tutorial.
+    3. recipe    — cooking actions (nấu, chiên, ướp) are more specific than generic "cách làm".
+                   NOTE: "hướng dẫn nấu ăn" matches recipe here, NOT tutorial (line below).
+                   This is intentional — recipe is more semantically precise for food content.
+    4. haul      — unboxing/haul signals are unambiguous; checked before review.
+    5. review    — broad category. Intentionally catches "review + tutorial" combos because
+                   the dominant intent of such videos is evaluation, not instruction.
+                   NOTE: "so sánh + review" → review wins here. Comparison is checked below
+                   only for videos without explicit review vocabulary.
+    6. tutorial  — how-to instruction; falls here only if not caught by recipe/grwm above.
+    7. comparison — "vs / so sánh" without review vocabulary.
+    8. storytelling — narrative past-tense signals.
+    9. before_after — transformation arc signals.
+    10. pov       — anchored to the literal string "pov:" at transcript start.
+    11. outfit_transition — fashion/transition signals.
+    12. vlog      — lifestyle/daily signals; broad, checked late to avoid false positives.
+    13. dance     — scene-only classification (no transcript, all action scenes).
+    14. faceless  — product/demo scenes without face_to_camera and with spoken transcript.
+    15. other     — fallback.
+
+    These priorities affect format_distribution in niche_intelligence. If the observed
+    distribution for a niche looks wrong, check whether the ranking above needs adjustment
+    for that niche's vocabulary before adding niche-specific overrides.
+    """
     transcript = (analysis_json.get("audio_transcript") or "").lower()
     topics = " ".join(t.lower() for t in (analysis_json.get("topics") or []))
     scenes = analysis_json.get("scenes") or []
