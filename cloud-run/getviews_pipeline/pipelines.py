@@ -45,6 +45,29 @@ logger = logging.getLogger(__name__)
 
 REF_N = 3
 
+# audio_transcript character limit before synthesis — full transcripts can be
+# 500+ tokens each; 3 refs × 500 tokens = 1500 extra tokens for low-value text.
+_TRANSCRIPT_CHAR_LIMIT = 500
+
+
+def _truncate_analysis(analysis: dict[str, Any]) -> dict[str, Any]:
+    """Return a shallow copy of an analysis dict with audio_transcript truncated."""
+    transcript = analysis.get("audio_transcript")
+    if not transcript or len(transcript) <= _TRANSCRIPT_CHAR_LIMIT:
+        return analysis
+    return {**analysis, "audio_transcript": transcript[:_TRANSCRIPT_CHAR_LIMIT] + "…"}
+
+
+def _truncate_transcripts(refs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return reference video list with audio_transcript truncated in each analysis."""
+    result = []
+    for ref in refs:
+        analysis = ref.get("analysis")
+        if analysis and analysis.get("audio_transcript"):
+            ref = {**ref, "analysis": _truncate_analysis(analysis)}
+        result.append(ref)
+    return result
+
 
 async def _empty_dict() -> dict:
     """No-op coroutine returning an empty dict — used as a gather placeholder."""
@@ -667,8 +690,8 @@ async def run_video_diagnosis(
             niche_name=niche,
             corpus_size=count,
             niche_norms=niche_norms,
-            reference_videos=references,
-            user_analysis=user_analysis_dict,
+            reference_videos=_truncate_transcripts(references),
+            user_analysis=_truncate_analysis(user_analysis_dict),
             user_stats=user_stats,
             collapsed_questions=questions if questions and len(questions) > 1 else None,
         )
