@@ -93,26 +93,34 @@ function ContextMenu({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleOutside(e: MouseEvent | TouchEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClose();
       }
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
   }, [onClose]);
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, scale: 0.95, y: -4 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: -4 }}
-      transition={{ duration: 0.1, ease: 'easeOut' }}
-      className="fixed z-[200] w-[152px] bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden"
-      style={{ top, left }}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
+    <>
+      {/* Full-screen backdrop — captures taps outside menu on mobile */}
+      <div className="fixed inset-0 z-[199]" onTouchStart={onClose} onMouseDown={onClose} />
+      <motion.div
+        ref={ref}
+        initial={{ opacity: 0, scale: 0.95, y: -4 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: -4 }}
+        transition={{ duration: 0.1, ease: 'easeOut' }}
+        className="fixed z-[200] w-[152px] bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden"
+        style={{ top, left }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
       <button
         onClick={() => { onPin(); onClose(); }}
         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--ink-soft)] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[100ms]"
@@ -139,6 +147,7 @@ function ContextMenu({
         <span className="font-semibold">Xoá</span>
       </button>
     </motion.div>
+    </>
   );
 }
 
