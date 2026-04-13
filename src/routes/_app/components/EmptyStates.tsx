@@ -13,6 +13,7 @@ import { motion } from "motion/react";
 import { ArrowUp, Database, BarChart2, Search, TrendingUp, Video } from "lucide-react";
 import { PromptCards } from "@/routes/_app/components/PromptCards";
 import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
+import { NicheSelector } from "@/routes/_app/components/NicheSelector";
 
 export { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 
@@ -149,11 +150,15 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
   nicheLabel,
   initialValue,
   inputDisabled,
+  needsNiche,
+  userId,
   onSend,
 }: {
   nicheLabel: string;
   initialValue: string;
   inputDisabled: boolean;
+  needsNiche: boolean;
+  userId: string | undefined;
   onSend: (text: string) => void;
 }) {
   const [msg, setMsg] = useState(initialValue);
@@ -222,6 +227,12 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
         >
           <p className="mb-2 text-center text-xs text-[var(--muted)]">Thử gợi ý hoặc nhập câu hỏi</p>
           <PromptCards nicheLabel={nicheLabel} onSelect={(p) => { setMsg(p); }} />
+
+          {needsNiche && userId ? (
+            <div className="mt-6">
+              <NicheSelector userId={userId} />
+            </div>
+          ) : null}
 
           <div
             className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"

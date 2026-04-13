@@ -633,6 +633,8 @@ export default function ChatScreen() {
             nicheLabel={nicheLabel}
             initialValue={message}
             inputDisabled={inputDisabled}
+            needsNiche={needsNiche}
+            userId={user?.id}
             onSend={(text) => void handleSend(text)}
           />
         ) : (
