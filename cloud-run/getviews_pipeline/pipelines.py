@@ -13,6 +13,7 @@ from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_tiktok_url
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
+    fetch_corpus_reference_pool,
     get_corpus_count_cached,
     get_niche_intelligence,
     get_signal_grades_for_niche,
@@ -500,14 +501,37 @@ async def run_video_diagnosis(
     )
 
     emit(step_queue, step_search("corpus", f"video tương tự trong niche {niche}"))
-    pool = await _niche_aweme_pool(niche, period=30)
-    cached_ids = set(fa.keys())
     uid = str(user_aweme.get("aweme_id", "") or "")
+    cached_ids = set(fa.keys())
     if uid:
         cached_ids.add(uid)
-    picks = select_reference_videos(
-        pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+
+    # Prefer curated corpus (niche-tagged, ≥20k views) over live search to
+    # ensure reference videos are actually in the same niche as the user's video.
+    corpus_pool = await fetch_corpus_reference_pool(
+        niche, days=30, limit=20, exclude_video_id=uid or None
     )
+    if len(corpus_pool) >= REF_N:
+        # Corpus has enough — rank by ER, skip recency filter (already filtered above)
+        corpus_pool.sort(
+            key=lambda v: float((v.get("statistics") or {}).get("digg_count", 0))
+            / max(float((v.get("statistics") or {}).get("play_count", 1)), 1) * 100,
+            reverse=True,
+        )
+        picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
+        pool = corpus_pool
+    else:
+        # Corpus too sparse for this niche — fall back to live EnsembleData search
+        logger.info(
+            "[video_diagnosis] corpus pool too small (%d) for niche '%s', using live search",
+            len(corpus_pool),
+            niche,
+        )
+        pool = await _niche_aweme_pool(niche, period=30)
+        picks = select_reference_videos(
+            pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+        )
+
     emit(step_queue, step_count(len(pool)))
 
     emit(step_queue, step_process("Đang phân tích từng video..."))
@@ -519,6 +543,22 @@ async def run_video_diagnosis(
             )
 
     async def _ref(aweme: dict[str, Any]) -> dict[str, Any]:
+        # Corpus-sourced picks already have analysis_json — skip re-analysis.
+        if aweme.get("_from_corpus") and aweme.get("_corpus_analysis"):
+            stats = aweme.get("statistics") or {}
+            views = int(stats.get("play_count") or 0)
+            handle = (aweme.get("author") or {}).get("unique_id") or ""
+            return {
+                "aweme_id": aweme["aweme_id"],
+                "analysis": aweme["_corpus_analysis"],
+                "metadata": {
+                    "video_id": aweme["aweme_id"],
+                    "author": {"username": handle},
+                    "views": views,
+                    "tiktok_url": aweme.get("_corpus_tiktok_url", ""),
+                    "thumbnail_url": aweme.get("thumbnail_url"),
+                },
+            }
         async with sem:
             return await analyze_aweme(
                 aweme, include_diagnosis=False, full_analyses=fa

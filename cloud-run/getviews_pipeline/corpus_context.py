@@ -237,6 +237,104 @@ async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
         return {}
 
 
+async def fetch_corpus_reference_pool(
+    niche_name: str,
+    *,
+    days: int = 30,
+    limit: int = 20,
+    exclude_video_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch video_corpus rows for a niche, shaped as aweme-compatible dicts.
+
+    Used by run_video_diagnosis to source reference videos from the curated
+    corpus (niche-tagged, ≥20k views) instead of raw live EnsembleData search,
+    which can return off-niche content.
+
+    Returns rows shaped with synthetic `aweme_id`, `statistics`, `author`
+    fields so helpers.select_reference_videos() and analyze_aweme() can
+    consume them. Falls back to [] on any error so callers can fall through
+    to the live search pool.
+    """
+    try:
+        client = _anon_client()
+        # Resolve niche_id by slug then name substring
+        niche_id: int | None = None
+        tax = (
+            client.table("niche_taxonomy")
+            .select("id")
+            .ilike("slug", niche_name)
+            .limit(1)
+            .execute()
+        )
+        if tax.data:
+            niche_id = tax.data[0]["id"]
+        else:
+            tax2 = (
+                client.table("niche_taxonomy")
+                .select("id")
+                .ilike("name_en", f"%{niche_name}%")
+                .limit(1)
+                .execute()
+            )
+            if tax2.data:
+                niche_id = tax2.data[0]["id"]
+
+        if niche_id is None:
+            logger.info(
+                "[corpus_context] fetch_corpus_reference_pool: niche '%s' not in taxonomy",
+                niche_name,
+            )
+            return []
+
+        query = (
+            client.table("video_corpus")
+            .select(
+                "video_id, creator_handle, views, likes, comments, shares, "
+                "engagement_rate, tiktok_url, thumbnail_url, indexed_at, analysis_json"
+            )
+            .eq("niche_id", niche_id)
+            .gte("indexed_at", f"now() - interval '{days} days'")
+            .order("engagement_rate", desc=True)
+            .limit(limit)
+        )
+        result = query.execute()
+        rows = result.data or []
+
+        awemes: list[dict[str, Any]] = []
+        for row in rows:
+            vid = row.get("video_id") or ""
+            if not vid or vid == exclude_video_id:
+                continue
+            handle = row.get("creator_handle") or ""
+            views = int(row.get("views") or 0)
+            likes = int(row.get("likes") or 0)
+            comments = int(row.get("comments") or 0)
+            shares = int(row.get("shares") or 0)
+            tiktok_url = row.get("tiktok_url") or f"https://www.tiktok.com/@{handle}/video/{vid}"
+            awemes.append({
+                "aweme_id": vid,
+                "author": {"unique_id": handle},
+                "tiktok_url": tiktok_url,
+                "thumbnail_url": row.get("thumbnail_url"),
+                "statistics": {
+                    "play_count": views,
+                    "digg_count": likes,
+                    "comment_count": comments,
+                    "share_count": shares,
+                },
+                # create_time=0 intentional: we pre-filter by indexed_at above.
+                "create_time": 0,
+                # Pre-built analysis from corpus — skip re-analysis in pipeline.
+                "_from_corpus": True,
+                "_corpus_analysis": row.get("analysis_json") or {},
+                "_corpus_tiktok_url": tiktok_url,
+            })
+        return awemes
+    except Exception as exc:
+        logger.warning("[corpus_context] fetch_corpus_reference_pool failed: %s", exc)
+        return []
+
+
 async def get_signal_grades_for_niche(
     niche_id: int,
 ) -> dict[str, str]:
