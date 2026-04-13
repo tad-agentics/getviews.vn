@@ -50,6 +50,11 @@ BATCH_CAROUSELS_PER_NICHE = int(os.environ.get("BATCH_CAROUSELS_PER_NICHE", "3")
 # Carousel quality gate: minimum likes (digg_count) — used instead of play_count
 # because TikTok doesn't report play_count for carousels reliably in feed responses
 BATCH_CAROUSEL_MIN_LIKES = int(os.environ.get("BATCH_CAROUSEL_MIN_LIKES", "500"))
+# Max signal_hashtags used for EnsembleData fetch calls per niche.
+# signal_hashtags array may grow to 25+ for better _resolve_niche_id() coverage,
+# but we cap EnsembleData calls to avoid unit limit exhaustion.
+# All hashtags are still used for in-DB matching (no API cost); only fetch is capped.
+BATCH_HASHTAG_FETCH_LIMIT = int(os.environ.get("BATCH_HASHTAG_FETCH_LIMIT", "6"))
 
 
 # ── Result containers ───────────────────────────────────────────────────────────
@@ -184,10 +189,12 @@ async def _fetch_niche_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
 
     # Keyword search: paginated — broadens pool beyond a single page of ~20 posts
     keyword_task = _fetch_keyword_pages(term)
-    # All signal_hashtags (was [:3] — now all 4)
+    # Cap hashtag fetch calls to BATCH_HASHTAG_FETCH_LIMIT highest-signal tags.
+    # The full signal_hashtags array is used for in-DB niche matching (no API cost).
+    fetch_hashtags = hashtags[:BATCH_HASHTAG_FETCH_LIMIT]
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
-        for ht in hashtags  # use all hashtags, not just first 3
+        for ht in fetch_hashtags
     ]
 
     all_results = await asyncio.gather(keyword_task, *hashtag_tasks, return_exceptions=True)
@@ -224,9 +231,11 @@ async def _fetch_carousel_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
     if not hashtags:
         return []
 
+    # Cap carousel hashtag fetch to same limit as video pool fetch.
+    fetch_hashtags = hashtags[:BATCH_HASHTAG_FETCH_LIMIT]
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
-        for ht in hashtags
+        for ht in fetch_hashtags
     ]
     results = await asyncio.gather(*hashtag_tasks, return_exceptions=True)
 

@@ -5,22 +5,14 @@ from __future__ import annotations
 import time
 from typing import Any
 
+# Tags that carry ZERO niche signal — appear equally across ALL niches.
+# Keep this list short (~15). If a tag has any niche association, it belongs
+# in niche_taxonomy.signal_hashtags instead of here.
 GENERIC_HASHTAGS: frozenset[str] = frozenset({
-    # Platform / algorithm bait
     "fyp", "foryou", "foryoupage", "foryourpage", "fypage",
-    "viral", "viralvideo", "viraltiktok", "trending", "trendingtiktok",
-    "trendingnow", "trend", "tiktok", "tiktoktrending", "tiktokviral",
-    "xyzbca", "blowthisup", "blowup", "4u", "4you",
-    # Fashion generic
-    "ootd", "outfitoftheday", "outfitideas", "outfitinspo",
-    "fashion", "style", "fashiontiktok", "styletiktok",
-    "beachoutfit", "summerstyle", "summeroutfit",
-    # Generic engagement
-    "relatable", "funny", "cute", "aesthetic", "love",
-    "lifestyle", "vlog", "duet", "stitch",
-    # Generic Vietnamese
-    "xuhuong", "xuhướng", "tiktokviệtnam", "tiktokvietnam",
-    "việtnam", "vn", "vietnam",
+    "viral", "trending", "trend", "tiktok", "tiktokviral",
+    "xyzbca", "blowthisup",
+    "xuhuong", "thinhhanh", "hot",
 })
 
 
