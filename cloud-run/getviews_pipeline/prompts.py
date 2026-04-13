@@ -939,8 +939,9 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
 
         "**Text overlay: [🔴🟡🟢] [X] overlays (chuẩn niche: [avg_text_overlays])**\n"
         "Nếu 0: nhắc Vietnamese viewers đọc text mạnh, thêm text hook trong 0,5s đầu.\n"
-        "QUAN TRỌNG: Nếu content_type = 'carousel' trong metadata, KHÔNG dùng mục này — carousel không có text_overlays. "
-        "Thay vào đó dùng slides[].text_density và slides[].text_on_slide để đánh giá text trên slide.\n\n"
+        "QUAN TRỌNG — CAROUSEL: Nếu content_type = 'carousel', text không nằm trong text_overlays (trường đó dành cho video timeline). "
+        "Text trên ảnh carousel nằm trong slides[].text_on_slide và slides[].text_density. "
+        "Đánh giá text từ slides[] — KHÔNG báo '0 text overlays' cho carousel.\n\n"
 
         "**Nhịp cắt cảnh: [🔴🟡🟢] [X] transitions/s (chuẩn niche: [avg_transitions_per_second])**\n"
         "Nếu thấp: gợi ý cụ thể (B-roll, cắt cảnh). Nếu có timestamp lặp: chỉ ra khoảng giây đó.\n"

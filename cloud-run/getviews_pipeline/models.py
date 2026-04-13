@@ -155,11 +155,15 @@ class SlideAnalysis(BaseModel):
 
 
 class CarouselAnalysis(BaseModel):
-    """Gemini output for photo carousels — parallel to VideoAnalysis but slide-native."""
+    """Gemini output for photo carousels — parallel to VideoAnalysis but slide-native.
+
+    Intentionally omits text_overlays (timestamped video burns — not applicable to
+    static images). Per-slide text lives in slides[].text_on_slide and
+    slides[].text_density instead.
+    """
 
     hook_analysis: HookAnalysis
     slides: list[SlideAnalysis]
-    text_overlays: list[TextOverlay] = Field(default_factory=list)
     transitions_per_second: float
     energy_level: EnergyLevel
     key_timestamps: list[float] = Field(default_factory=list)
