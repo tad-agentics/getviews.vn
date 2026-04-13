@@ -502,15 +502,13 @@ async def stream(
                     # so carousel errors show a Vietnamese message instead of generic failure.
                     user_error_msg = uv.get("error_message")
                     error_code = uv.get("error") if isinstance(uv.get("error"), str) else "analysis_failed"
-                    seq += 1
                     if user_error_msg:
                         # Stream the Vietnamese message as a text delta so the user sees it
                         for chunk in _chunk_text(user_error_msg, 50):
                             seq += 1
                             yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk})
-                        yield _sse_line({"stream_id": stream_id, "seq": seq + 1, "delta": "", "done": True, "error": error_code})
-                    else:
-                        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "analysis_failed"})
+                    seq += 1
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": error_code})
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
                 full_text = (out.get("diagnosis") or "").strip()
