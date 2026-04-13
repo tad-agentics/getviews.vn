@@ -276,6 +276,47 @@ async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
         return {}
 
 
+async def get_cached_analysis(video_id: str) -> dict[str, Any] | None:
+    """Look up a previously-analyzed video in video_corpus by video_id.
+
+    Returns the stored analysis_json dict if found and non-empty, else None.
+    Used as a cross-user cache — if video was already analyzed (by batch ingest
+    or a previous user), skip re-download and re-analysis entirely.
+
+    Falls back to None on any error so callers always proceed to fresh analysis.
+    """
+    if not video_id:
+        return None
+    try:
+        client = _anon_client()
+        result = (
+            client.table("video_corpus")
+            .select("analysis_json, creator_handle, views, tiktok_url, thumbnail_url")
+            .eq("video_id", video_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return None
+        row = rows[0]
+        analysis = row.get("analysis_json") or {}
+        if not analysis:
+            return None
+        logger.info("[corpus_context] cache hit for video_id=%s — skipping download", video_id)
+        return {
+            "analysis": analysis,
+            "_from_corpus_cache": True,
+            "_corpus_handle": row.get("creator_handle") or "",
+            "_corpus_views": int(row.get("views") or 0),
+            "_corpus_tiktok_url": row.get("tiktok_url") or "",
+            "_corpus_thumbnail_url": row.get("thumbnail_url") or "",
+        }
+    except Exception as exc:
+        logger.warning("[corpus_context] get_cached_analysis failed for %s: %s", video_id, exc)
+        return None
+
+
 async def fetch_corpus_reference_pool(
     niche_name: str,
     *,

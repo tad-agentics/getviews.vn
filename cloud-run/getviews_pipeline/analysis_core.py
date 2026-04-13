@@ -8,6 +8,7 @@ from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.config import CAROUSEL_EXTRACT_MAX_SLIDES, CAROUSEL_MAX_SLIDES
+from getviews_pipeline.corpus_context import get_cached_analysis
 from getviews_pipeline.gemini import analyze_carousel, analyze_video, synthesize_diagnosis
 from getviews_pipeline.models import (
     CarouselAnalyzeResult,
@@ -241,9 +242,26 @@ async def analyze_aweme(
 ) -> dict:
     """Analyze a raw aweme dict; reuse ``full_analyses[video_id]`` when present (§10 Rule 12)."""
     vid = str(aweme.get("aweme_id", "") or "")
+
+    # 1. Session cache — same video seen earlier in this conversation
     if full_analyses is not None and vid and vid in full_analyses:
         cached = full_analyses[vid]
         return dict(cached)
+
+    # 2. Corpus cache — video already analyzed by batch ingest or a previous user.
+    #    Skip download + Gemini call entirely; use stored analysis_json.
+    if vid:
+        corpus_hit = await get_cached_analysis(vid)
+        if corpus_hit:
+            metadata = ensemble.parse_metadata(aweme)
+            result = {
+                "analysis": corpus_hit["analysis"],
+                "metadata": metadata.model_dump(),
+                "_from_corpus_cache": True,
+            }
+            if full_analyses is not None:
+                full_analyses[vid] = result
+            return result
 
     metadata = ensemble.parse_metadata(aweme)
     ct = ensemble.detect_content_type(aweme)
