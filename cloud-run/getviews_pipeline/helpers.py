@@ -15,6 +15,28 @@ GENERIC_HASHTAGS: frozenset[str] = frozenset({
     "xuhuong", "thinhhanh", "hot",
 })
 
+# English niche-category words that are too broad to be useful for VN audience
+# targeting. "#skincare" or "#fashion" appear across all niches on TikTok VN —
+# the algorithm cannot use them to identify a Vietnamese target audience.
+#
+# Used in two places:
+#   corpus_ingest.annotate_distribution()  — computes pct_has_specific_hashtags
+#   hashtag_niche_map.learn_hashtag_mappings() — prevents learning false niche
+#     associations from broad English category tags
+#
+# IMPORTANT: These tags are intentionally NOT in GENERIC_HASHTAGS.
+# classify_from_hashtags() (read path) may legitimately match them against
+# hashtag_niche_map DB rows that were seeded with high-quality signal data.
+# Only the LEARNING path must block them — adding occurrences from corpus
+# batch videos where "#skincare" co-occurs with a skincare niche fetch is
+# circular and pollutes future classification.
+DISTRIBUTION_GENERIC_HASHTAGS: frozenset[str] = GENERIC_HASHTAGS | frozenset({
+    "ootd", "fashion", "beauty", "food", "funny", "comedy", "love",
+    "music", "dance", "art", "photography", "travel", "fitness",
+    "makeup", "skincare", "style", "outfit", "recipe", "diy",
+    "learnontiktok", "edutok",
+})
+
 
 def infer_niche_from_hashtags(
     hashtags: list[str],

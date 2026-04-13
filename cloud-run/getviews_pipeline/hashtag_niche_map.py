@@ -24,7 +24,7 @@ import logging
 import time
 from typing import Any
 
-from getviews_pipeline.helpers import GENERIC_HASHTAGS
+from getviews_pipeline.helpers import DISTRIBUTION_GENERIC_HASHTAGS, GENERIC_HASHTAGS
 
 logger = logging.getLogger(__name__)
 
@@ -144,10 +144,15 @@ async def learn_hashtag_mappings(
 ) -> None:
     """Learn new hashtag→niche mappings from a batch-indexed video.
 
-    CRITICAL: Only learn when niche_source is "onboarding" or "topics".
+    CRITICAL: Only learn when niche_source is "onboarding", "topics", or "corpus_batch".
     Never learn from hashtag-classified videos (niche_source="hashtags") —
     that would create a circular dependency where low-confidence assignments
     reinforce themselves over time.
+
+    Per-hashtag filter uses DISTRIBUTION_GENERIC_HASHTAGS (broader set) so that
+    English niche-category words (#fashion, #skincare, #beauty, #food…) are never
+    learned as niche signals. These tags co-occur with every niche and carry no
+    targeting value on TikTok VN — learning them poisons future classification.
 
     Learning rules:
       - New hashtag → insert with occurrences=1, niche_id=niche_id
@@ -175,8 +180,14 @@ async def learn_hashtag_mappings(
 
     for ht in video_hashtags:
         ht_clean = ht.lower().lstrip("#")
-        # Skip known generics and too-short tags (e.g. "vn", "vl")
-        if ht_clean in _generic_set or len(ht_clean) < 3:
+        # Skip distribution-generic tags and too-short tags (e.g. "vn", "vl").
+        # Use DISTRIBUTION_GENERIC_HASHTAGS (the broader set) here, not _generic_set.
+        # _generic_set starts from the short platform-only list and grows via DB rows
+        # already marked is_generic — but broad English category tags like #fashion,
+        # #skincare, #beauty are never in the DB yet and would slip through.
+        # Learning them as niche-specific creates false associations: #fashion co-occurs
+        # with every niche fetched via niche_taxonomy, so it carries no niche signal.
+        if ht_clean in DISTRIBUTION_GENERIC_HASHTAGS or ht_clean in _generic_set or len(ht_clean) < 3:
             continue
 
         try:

@@ -26,7 +26,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
 from getviews_pipeline.hashtag_niche_map import learn_hashtag_mappings
-from getviews_pipeline.helpers import GENERIC_HASHTAGS as _BASE_GENERIC_HASHTAGS, filter_recency, merge_aweme_lists
+from getviews_pipeline.helpers import DISTRIBUTION_GENERIC_HASHTAGS, filter_recency, merge_aweme_lists
 from getviews_pipeline.r2 import download_and_upload_thumbnail, download_and_upload_video, extract_and_upload, r2_configured
 from getviews_pipeline.runtime import get_analysis_semaphore
 
@@ -90,32 +90,10 @@ def _service_client() -> Any:
 
 
 # ── Distribution annotations ────────────────────────────────────────────────────
-# Distribution-generic hashtags for annotate_distribution().
-# Extends the base platform-generic set from helpers.py with English niche-category
-# words that carry no targeting value on TikTok VN — the algorithm cannot use
-# "#skincare" or "#fashion" to target Vietnamese audiences effectively.
-# "has_vietnamese_hashtags" column name is legacy; semantically means
-# "has_specific_niche_hashtags" (Vietnamese, niche-specific, not English generics).
-#
-# IMPORTANT — two-level design:
-#   helpers.GENERIC_HASHTAGS  (~15 tags): zero-niche-signal platform tags.
-#                             Used by hashtag_niche_map.py for classification.
-#   This set (~30 tags):      adds English niche-category words that ARE niche
-#                             signals globally but don't help Vietnamese audience
-#                             targeting. Used ONLY by annotate_distribution() to
-#                             compute pct_has_specific_hashtags in niche_intelligence.
-#
-# Do NOT merge these two sets — they serve different purposes.
-# hashtag_niche_map.py must keep the shorter list so it can learn from
-# English niche hashtags when they reliably appear in a specific niche.
-GENERIC_HASHTAGS: frozenset[str] = _BASE_GENERIC_HASHTAGS | frozenset({
-    # English niche-category words — broad enough to be useless for VN targeting
-    "ootd", "fashion", "beauty", "food", "funny", "comedy", "love",
-    "music", "dance", "art", "photography", "travel", "fitness",
-    "makeup", "skincare", "style", "outfit", "recipe", "diy",
-    # Platform learning programmes
-    "learnontiktok", "edutok",
-})
+# Alias for annotate_distribution() — the full distribution-generic set lives in
+# helpers.DISTRIBUTION_GENERIC_HASHTAGS so both this module and hashtag_niche_map
+# use the identical filter (no local copy → no divergence risk).
+GENERIC_HASHTAGS: frozenset[str] = DISTRIBUTION_GENERIC_HASHTAGS
 
 
 def annotate_distribution(hashtags: list[str], caption: str | None) -> dict[str, Any]:
