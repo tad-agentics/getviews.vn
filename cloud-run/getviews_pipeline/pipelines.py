@@ -20,6 +20,7 @@ from getviews_pipeline.corpus_context import (
     get_top_breakout_videos,
 )
 from getviews_pipeline.corpus_ingest import _classify_format
+from getviews_pipeline.output_redesign import hook_type_vi
 from getviews_pipeline.gemini import synthesize_diagnosis_v2, synthesize_intent_markdown
 from getviews_pipeline.helpers import (
     filter_recency,
@@ -603,9 +604,11 @@ async def run_video_diagnosis(
             stats = aweme.get("statistics") or {}
             views = int(stats.get("play_count") or 0)
             handle = (aweme.get("author") or {}).get("unique_id") or ""
+            corpus_analysis = aweme["_corpus_analysis"]
+            raw_hook_type = (corpus_analysis.get("hook_analysis") or {}).get("hook_type") or ""
             return {
                 "aweme_id": aweme["aweme_id"],
-                "analysis": aweme["_corpus_analysis"],
+                "analysis": corpus_analysis,
                 "metadata": {
                     "video_id": aweme["aweme_id"],
                     "author": {"username": handle},
@@ -614,6 +617,8 @@ async def run_video_diagnosis(
                     "thumbnail_url": aweme.get("thumbnail_url"),
                     "days_ago": aweme.get("_corpus_days_ago", 0),
                     "breakout": aweme.get("_corpus_breakout", 0.0),
+                    "hook_type": raw_hook_type,
+                    "hook_type_vi": hook_type_vi(raw_hook_type),
                 },
             }
         async with sem:

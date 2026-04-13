@@ -205,6 +205,40 @@ POV, Bằng Chứng, Tò Mò / Gợi Mở, Tuyên Bố Mạnh, Câu Hỏi, Nỗi
 ✅ "Hook: Tò Mò / Gợi Mở"  ❌ "Hook: Gây Tò Mò"
 """
 
+# Canonical English hook type enum → Vietnamese display name (14-name fixed list).
+# Keyed by all values that can appear in analysis_json.hook_analysis.hook_type.
+HOOK_TYPE_VI: dict[str, str] = {
+    "warning": "Cảnh Báo",
+    "price_shock": "Giá Sốc",
+    "shock_stat": "Giá Sốc",        # shock_stat closest to price_shock in impact
+    "reaction": "Phản Ứng",
+    "comparison": "So Sánh",
+    "expose": "Bóc Phốt",
+    "controversy": "Bóc Phốt",      # controversy ≈ expose in Vietnamese creator vocab
+    "how_to": "Hướng Dẫn",
+    "story_open": "Kể Chuyện",
+    "pov": "POV",
+    "social_proof": "Bằng Chứng",
+    "curiosity_gap": "Tò Mò / Gợi Mở",
+    "bold_claim": "Tuyên Bố Mạnh",
+    "challenge": "Tuyên Bố Mạnh",   # challenge often functions as bold claim
+    "question": "Câu Hỏi",
+    "pain_point": "Nỗi Đau",
+    "trend_hijack": "Đu Trend",
+    "none": "",
+    "other": "",
+}
+
+
+def hook_type_vi(hook_type: str) -> str:
+    """Return the Vietnamese display name for a canonical hook type enum value.
+
+    Returns an empty string for unknown or absent hook types so callers can
+    decide whether to omit the field rather than showing a raw English enum.
+    """
+    return HOOK_TYPE_VI.get((hook_type or "").lower(), "")
+
+
 # ---------------------------------------------------------------------------
 # Format-specific analysis focus
 # ---------------------------------------------------------------------------
