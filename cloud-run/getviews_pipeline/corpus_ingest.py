@@ -427,7 +427,20 @@ def _build_corpus_row(
     music: dict[str, Any] = aweme.get("music") or {}
     sound_id = str(music.get("id") or "") or None
     sound_name = music.get("title") or None
-    is_original_sound = bool(sound_name and str(sound_name).lower().startswith("original sound"))
+    # Detect original sounds via two signal paths (either is sufficient):
+    # 1. Explicit API field — EnsembleData may expose music.is_original or music.is_original_sound.
+    # 2. Title prefix match — covers EN ("original sound - @handle"), VI ("âm thanh gốc",
+    #    "nhạc gốc"), and TikTok Studio uploads ("original audio").
+    _music_title_lower = str(sound_name or "").lower()
+    is_original_sound = bool(
+        music.get("is_original") or music.get("is_original_sound")
+        or (sound_name and (
+            _music_title_lower.startswith("original sound")
+            or _music_title_lower.startswith("original audio")
+            or _music_title_lower.startswith("âm thanh gốc")
+            or _music_title_lower.startswith("nhạc gốc")
+        ))
+    )
     create_time: int | None = aweme.get("createTime") or aweme.get("create_time")
     raw_author: dict[str, Any] = aweme.get("author") or {}
     creator_followers: int | None = (
