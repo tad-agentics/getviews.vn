@@ -542,7 +542,7 @@ export default function ChatScreen() {
 
   const inFlightVisible =
     status === "streaming" ||
-    (status === "error" && streamId !== null && error !== "insufficient_credits" && error !== "daily_free_limit");
+    (status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit");
 
   const messageThread = (
     <div className="space-y-4">
@@ -614,10 +614,13 @@ export default function ChatScreen() {
             />
           )}
           {status === "streaming" && !text && stepEvents.length === 0 ? (
-            <div className="mt-3 space-y-2 animate-pulse">
-              <div className="h-3 w-[75%] rounded bg-[var(--border)]" />
-              <div className="h-3 w-[50%] rounded bg-[var(--border)]" />
-              <div className="h-3 w-[66%] rounded bg-[var(--border)]" />
+            <div className="mt-3">
+              <div className="space-y-2 animate-pulse">
+                <div className="h-3 w-[75%] rounded bg-[var(--border)]" />
+                <div className="h-3 w-[50%] rounded bg-[var(--border)]" />
+                <div className="h-3 w-[66%] rounded bg-[var(--border)]" />
+              </div>
+              <p className="mt-2 text-xs text-[var(--faint)]">Đang kết nối và phân tích...</p>
             </div>
           ) : null}
           {status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit" ? (
