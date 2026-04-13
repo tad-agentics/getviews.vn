@@ -210,6 +210,8 @@ NARRATIVE_OUTPUT_STRUCTURE = """
 Mở đầu bằng pattern của niche, KHÔNG phải điểm số video người dùng.
 Format: "Trong [tên niche], [X]% top video tháng này dùng [công thức] — [lý do ngắn gọn tại sao chạy]."
 Dùng hook_distribution, format_distribution từ niche_norms. Trích corpus_size.
+Nếu niche_norms có pct_has_specific_hashtags hoặc pct_has_caption_text: thêm 1 câu về chuẩn phân phối của niche.
+Ví dụ: "[X]% top video trong ngách này dùng hashtag cụ thể cho ngách (không phải #trending #fyp) và có caption mô tả thật."
 Tối đa 3-4 câu. KHÔNG đề cập video người dùng ở phần này.
 
 **PHẦN 2 — VIDEO CỦA BẠN SO VỚI CÔNG THỨC ĐÓ**

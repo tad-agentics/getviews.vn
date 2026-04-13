@@ -907,7 +907,12 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "## INPUT BẠN NHẬN ĐƯỢC (từ JSON bên dưới)\n"
         "- user_video: kết quả Gemini extraction của video người dùng (hook_analysis, scenes, tone, text_overlays, transcript, transitions_per_second, metadata)\n"
         "- reference_videos: 3 video top-performing cùng niche (metadata + analysis)\n"
-        "- niche_norms: từ materialized view niche_intelligence — sample_size, avg_face_appears_at, pct_face_in_half_sec, avg_transitions_per_second, hook_distribution, format_distribution, avg_text_overlays, avg_engagement_rate, has_cta_pct, commerce_pct, median_duration\n"
+        "- niche_norms: từ materialized view niche_intelligence. Các trường quan trọng:\n"
+        "    • Kỹ thuật video: avg_face_appears_at, pct_face_in_half_sec, avg_transitions_per_second, avg_text_overlays, has_cta_pct, median_duration\n"
+        "    • Phân phối: pct_has_specific_hashtags (% top video dùng hashtag cụ thể cho ngách — không phải #trending #fyp chung chung), pct_has_caption_text (% top video có caption mô tả thật), avg_hashtag_count (số hashtag trung bình), pct_original_sound (% dùng âm thanh gốc tự tạo)\n"
+        "    • Performance: avg_engagement_rate, commerce_pct, sample_size\n"
+        "    • Phân bố nội dung: hook_distribution, format_distribution\n"
+        "    CÁCH DÙNG pct_has_specific_hashtags và pct_has_caption_text: nếu user dùng hashtag chung chung hoặc thiếu caption, so sánh với % này trong niche để đưa ra nhận định phân phối cụ thể.\n"
         "- corpus_size: tổng video trong niche 30 ngày qua\n\n"
 
         "## CẤU TRÚC OUTPUT BẮT BUỘC\n\n"
