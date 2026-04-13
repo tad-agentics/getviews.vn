@@ -429,6 +429,7 @@ def build_carousel_diagnosis_prompt_v2(
         wants_directions:   If True, appends 4-5 content direction suggestions.
     """
     voice = build_voice_block(include_examples=False)
+    voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
     carousel_context = build_carousel_context()
 
     return build_carousel_diagnosis_narrative_prompt(
@@ -889,6 +890,7 @@ def build_diagnosis_synthesis_prompt_v2(
         user_stats:       User video stats dict (views, breakout_multiplier, etc.).
     """
     voice = build_voice_block(include_examples=True, example_type="diagnosis")
+    voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
 
     return build_diagnosis_narrative_prompt(
         voice_block=voice,
