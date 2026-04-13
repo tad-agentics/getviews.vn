@@ -21,9 +21,9 @@ export function VideoRefStrip({ refs }: Props) {
   }
 
   return (
-    <div className="my-3 -mx-4 lg:mx-0">
+    <div className="my-3 -mx-4 lg:-mx-5">
       <div
-        className="flex gap-2.5 overflow-x-auto px-4 pb-2 lg:flex-wrap lg:overflow-x-visible lg:px-0 lg:pb-0"
+        className="flex gap-2.5 overflow-x-auto px-4 pb-2 lg:px-5"
         style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
       >
         {refs.map((ref) => (
@@ -31,8 +31,8 @@ export function VideoRefStrip({ refs }: Props) {
             <VideoRefCard data={ref} />
           </div>
         ))}
-        {/* Peek spacer — mobile only, signals scrollability */}
-        <div className="flex-shrink-0 lg:hidden" style={{ width: 24 }} aria-hidden />
+        {/* Peek spacer — signals more cards are scrollable */}
+        <div className="flex-shrink-0" style={{ width: 16 }} aria-hidden />
       </div>
     </div>
   );

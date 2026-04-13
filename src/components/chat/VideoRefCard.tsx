@@ -43,12 +43,15 @@ export function VideoRefCard({ data }: Props) {
     };
   }, [data.video_id]);
 
-  const daysAgo = data.days_ago ?? (meta?.indexed_at
-    ? Math.floor((Date.now() - new Date(meta.indexed_at).getTime()) / 86_400_000)
-    : null);
-
+  // Always use video_ref JSON as primary source — DB enrichment is thumbnail-only.
   const views = data.views || meta?.views || 0;
   const handle = data.handle || meta?.creator_handle || "";
+  const daysAgo = data.days_ago != null
+    ? data.days_ago
+    : meta?.indexed_at
+      ? Math.floor((Date.now() - new Date(meta.indexed_at).getTime()) / 86_400_000)
+      : null;
+
   // Thumbnail resolution: DB URL → R2 frame fallback → null (shows TikTok icon)
   const thumbnail = meta?.thumbnail_url ?? r2FrameUrl(data.video_id);
   const videoUrl = meta?.video_url ?? null;
@@ -74,20 +77,20 @@ export function VideoRefCard({ data }: Props) {
           alt={handle}
           className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
         />
-      ) : metaLoaded ? (
-        /* Video not in corpus or thumbnail expired — show TikTok icon placeholder */
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-[var(--surface-alt)]">
-          <svg className="h-7 w-7 opacity-60" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#69C9D0" d="M10.06 13.28a2.89 2.89 0 0 0-2.89 2.89 2.89 2.89 0 0 0 2.89 2.89 2.89 2.89 0 0 0 2.88-2.5V2h3.45c.09.78.4 1.5.88 2.08a4.83 4.83 0 0 0 2.9 2.17v3.44a8.18 8.18 0 0 1-4.78-1.52v6.5a6.34 6.34 0 0 1-6.33 6.33 6.34 6.34 0 0 1-6.34-6.34 6.34 6.34 0 0 1 6.34-6.34c.27 0 .53.02.79.05v3.48a2.89 2.89 0 0 0-.79-.1z"/>
-            <path fill="#EE1D52" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"/>
-          </svg>
-          <p className="text-center text-[9px] leading-tight text-[var(--faint)] px-1">Xem trên TikTok</p>
-        </div>
       ) : (
-        /* Still loading */
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--border)]" />
+        /* No thumbnail — show TikTok icon immediately (no waiting for DB) */
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-[var(--surface-alt)]">
+          {!metaLoaded ? (
+            <div className="h-6 w-6 animate-pulse rounded-full bg-[var(--border)]" />
+          ) : (
+            <svg className="h-7 w-7 opacity-60" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#69C9D0" d="M10.06 13.28a2.89 2.89 0 0 0-2.89 2.89 2.89 2.89 0 0 0 2.89 2.89 2.89 2.89 0 0 0 2.88-2.5V2h3.45c.09.78.4 1.5.88 2.08a4.83 4.83 0 0 0 2.9 2.17v3.44a8.18 8.18 0 0 1-4.78-1.52v6.5a6.34 6.34 0 0 1-6.33 6.33 6.34 6.34 0 0 1-6.34-6.34 6.34 6.34 0 0 1 6.34-6.34c.27 0 .53.02.79.05v3.48a2.89 2.89 0 0 0-.79-.1z"/>
+              <path fill="#EE1D52" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"/>
+            </svg>
+          )}
+          <p className="text-center text-[9px] leading-tight text-[var(--faint)] px-1">Xem trên TikTok</p>
         </div>
       )}
       {/* Play overlay — only when R2 video is available */}
