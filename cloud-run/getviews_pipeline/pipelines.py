@@ -688,6 +688,9 @@ async def run_video_diagnosis(
                     "breakout": aweme.get("_corpus_breakout", 0.0),
                     "hook_type": raw_hook_type,
                     "hook_type_vi": hook_type_vi(raw_hook_type),
+                    # content_type from video_corpus table — not present in analysis_json.
+                    # Required for carousel reference filtering in run_video_diagnosis().
+                    "content_type": aweme.get("_corpus_content_type", "video"),
                 },
             }
         async with sem:
@@ -758,10 +761,17 @@ async def run_video_diagnosis(
             carousel_format = _carousel_subformat(user_analysis_dict)
             # Filter references to carousel-only when the corpus has enough;
             # fall back to all references if fewer than REF_N carousels found.
+            # Filter on metadata.content_type only — not analysis.content_type.
+            # For corpus-sourced references, analysis contains the raw Gemini
+            # extraction sub-dict (hook_analysis, content_arc, scenes…) which
+            # never has content_type at its root. content_type comes from the
+            # video_corpus table column and is surfaced via metadata.content_type
+            # (set by _ref() above from _corpus_content_type).
+            # For live-analyzed references, analyze_aweme() also places
+            # content_type in the metadata dict, not in the analysis sub-dict.
             carousel_refs = [
                 r for r in references
-                if (r.get("analysis") or {}).get("content_type") == "carousel"
-                or (r.get("metadata") or {}).get("content_type") == "carousel"
+                if (r.get("metadata") or {}).get("content_type") == "carousel"
             ]
             if len(carousel_refs) < REF_N:
                 # Not enough carousel references — use all references (mixed is better than empty)
