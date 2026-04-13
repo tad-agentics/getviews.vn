@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import logging
+import re
 from datetime import date, timedelta
 from typing import Any
 
@@ -704,14 +706,7 @@ async def run_video_diagnosis(
         # Server-side guarantee: ensure all reference videos appear as video_ref
         # blocks regardless of whether Gemini emitted them. Appended only for refs
         # whose video_id is not already present in the synthesis text.
-        import json as _json
-        already_emitted = set()
-        for chunk in diagnosis.split('"video_id"'):
-            # crude scan for IDs already in the text
-            trimmed = chunk.strip().lstrip(":").strip().strip('"')
-            vid_candidate = trimmed.split('"')[0]
-            if vid_candidate:
-                already_emitted.add(vid_candidate)
+        already_emitted = set(re.findall(r'"video_id"\s*:\s*"([^"]+)"', diagnosis))
 
         injected_blocks: list[str] = []
         for ref in references:
