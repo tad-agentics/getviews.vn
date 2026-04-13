@@ -163,7 +163,7 @@ function SessionRow({
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(session.label ?? session.title ?? session.first_message ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
-  const moreRef = useRef<HTMLSpanElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (renaming) inputRef.current?.focus();
@@ -176,7 +176,7 @@ function SessionRow({
     setRenaming(false);
   };
 
-  const openMenu = (e: React.MouseEvent) => {
+  const openMenu = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
     e.preventDefault();
     if (moreRef.current) {
@@ -211,26 +211,34 @@ function SessionRow({
           </button>
         </div>
       ) : (
-        <button
-          onClick={onNavigate}
-          title={displayLabel}
-          className="w-full text-left flex items-center gap-1 pl-2.5 pr-1 py-2 rounded-lg text-xs text-[var(--ink-soft)] hover:bg-[var(--border)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
-        >
-          {isPinned && (
-            <Pin className="w-2.5 h-2.5 flex-shrink-0 text-[var(--purple)] rotate-45" strokeWidth={2} />
-          )}
-          <span className="flex-1 truncate min-w-0">{displayLabel}</span>
+        <div className="flex items-center rounded-lg hover:bg-[var(--border)] transition-colors duration-[120ms]">
+          <button
+            onClick={onNavigate}
+            title={displayLabel}
+            className="flex-1 min-w-0 text-left flex items-center gap-1 pl-2.5 py-2 text-xs text-[var(--ink-soft)] hover:text-[var(--ink)]"
+          >
+            {isPinned && (
+              <Pin className="w-2.5 h-2.5 flex-shrink-0 text-[var(--purple)] rotate-45" strokeWidth={2} />
+            )}
+            <span className="truncate min-w-0">{displayLabel}</span>
+          </button>
 
-          <span
+          {/* More button — separate element so it never competes with row navigation.
+              44×44 touch target on mobile; fades in on desktop hover only. */}
+          <button
             ref={moreRef}
             onMouseDown={openMenu}
-            className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:text-[var(--ink-soft)] hover:bg-[var(--border)] transition-colors duration-[100ms] ${
-              menuOpen ? 'text-[var(--ink-soft)]' : 'text-[var(--faint)] opacity-40 group-hover/row:opacity-100'
-            }`}
+            onTouchStart={openMenu}
+            aria-label="Tuỳ chọn phiên chat"
+            className={`flex-shrink-0 flex items-center justify-center rounded transition-colors duration-[100ms]
+              w-9 h-9 lg:w-6 lg:h-6
+              hover:text-[var(--ink-soft)] hover:bg-[var(--border)]
+              lg:opacity-0 lg:group-hover/row:opacity-100
+              ${menuOpen ? 'lg:opacity-100 text-[var(--ink-soft)]' : 'text-[var(--faint)]'}`}
           >
             <MoreHorizontal className="w-3.5 h-3.5" strokeWidth={1.8} />
-          </span>
-        </button>
+          </button>
+        </div>
       )}
 
       {/* Context menu rendered at fixed screen position — never clipped by scroll */}
