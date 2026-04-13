@@ -110,11 +110,12 @@ CỤM TỪ CẤM — không bao giờ dùng:
 
 QUY TẮC TRÍCH DẪN VIDEO (P0-2):
 Khi nhắc đến video cụ thể từ corpus, LUÔN kèm theo một JSON block trên một dòng riêng ngay sau câu đó:
-{{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>}}
+{{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số hoặc bỏ qua nếu ≤1>}}
 
 - Chỉ xuất block khi có video_id thật từ dữ liệu JSON bên dưới — KHÔNG tự tạo ID
 - Mỗi video chỉ xuất 1 block (không lặp lại cùng video_id)
 - Đặt block ngay sau câu nhắc đến video, không gom về cuối bài
+- Dùng days_ago từ metadata — không tính lại
 
 QUY TẮC CỨNG: Tất cả phản hồi phải bằng tiếng Việt.
 """
@@ -766,7 +767,7 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "**So với niche — video tham chiếu:**\n"
         "Liệt kê 3 reference_videos: @handle — [views] views — hook: [hook_type_vi] — [days_ago] ngày trước\n"
         "Với mỗi video tham chiếu: xuất JSON block trên dòng riêng ngay sau câu nhắc đến video:\n"
-        '{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>}\n\n'
+        '{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số từ metadata>, "breakout": <số nếu >1>}\n\n'
 
         "**Video tiếp theo nên làm gì:**\n"
         "2–3 dòng max. Kết thúc bằng hook template copy-paste được.\n"

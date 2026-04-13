@@ -351,7 +351,8 @@ async def fetch_corpus_reference_pool(
             client.table("video_corpus")
             .select(
                 "video_id, creator_handle, views, likes, comments, shares, "
-                "engagement_rate, tiktok_url, thumbnail_url, indexed_at, analysis_json"
+                "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
+                "indexed_at, analysis_json"
             )
             .eq("niche_id", niche_id)
             .gte("indexed_at", f"now() - interval '{days} days'")
@@ -360,6 +361,9 @@ async def fetch_corpus_reference_pool(
         )
         result = query.execute()
         rows = result.data or []
+
+        import math
+        from datetime import datetime, timezone as _tz
 
         awemes: list[dict[str, Any]] = []
         for row in rows:
@@ -378,6 +382,22 @@ async def fetch_corpus_reference_pool(
                     "[corpus_context] corpus row %s has no analysis_json — skipping", vid
                 )
                 continue
+
+            # Compute real days_ago from indexed_at so Gemini emits accurate recency.
+            indexed_at_str = row.get("indexed_at") or ""
+            try:
+                indexed_dt = datetime.fromisoformat(indexed_at_str.replace("Z", "+00:00"))
+                days_ago = max(0, math.floor(
+                    (datetime.now(_tz.utc) - indexed_dt).total_seconds() / 86400
+                ))
+                # create_time epoch so helpers can sort; we pre-filter by indexed_at
+                create_time = int(indexed_dt.timestamp())
+            except Exception:
+                days_ago = 0
+                create_time = 0
+
+            breakout = float(row.get("breakout_multiplier") or 0.0)
+
             awemes.append({
                 "aweme_id": vid,
                 "author": {"unique_id": handle},
@@ -392,8 +412,9 @@ async def fetch_corpus_reference_pool(
                 # Use pre-computed engagement_rate from corpus (more accurate than
                 # recomputing from raw counts, which excludes shares in some APIs).
                 "_corpus_er": float(row.get("engagement_rate") or 0.0),
-                # create_time=0 intentional: we pre-filter by indexed_at above.
-                "create_time": 0,
+                "_corpus_days_ago": days_ago,
+                "_corpus_breakout": breakout,
+                "create_time": create_time,
                 # Pre-built analysis from corpus — skip re-analysis in pipeline.
                 "_from_corpus": True,
                 "_corpus_analysis": corpus_analysis,

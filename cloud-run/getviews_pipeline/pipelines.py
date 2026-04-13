@@ -99,18 +99,46 @@ async def run_content_directions(
     try:
         sem = get_analysis_semaphore()
         emit(step_queue, step_start(f"Đang tìm hướng nội dung cho '{niche}'..."))
-        emit(step_queue, step_search("ensemble", niche))
-        pool = await _niche_aweme_pool(niche, period=30)
-        emit(step_queue, step_count(len(pool)))
+        emit(step_queue, step_search("corpus", niche))
         fa: dict[str, Any] = session.setdefault("full_analyses", {})
         cached_ids = set(fa.keys())
-        picks = select_reference_videos(
-            pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
-        )
+
+        corpus_pool = await fetch_corpus_reference_pool(niche, days=30, limit=20)
+        if len(corpus_pool) >= REF_N:
+            corpus_pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
+            picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
+            pool = corpus_pool
+        else:
+            logger.info(
+                "[content_directions] corpus pool too small (%d) for niche '%s', using live search",
+                len(corpus_pool), niche,
+            )
+            emit(step_queue, step_search("ensemble", niche))
+            pool = await _niche_aweme_pool(niche, period=30)
+            picks = select_reference_videos(
+                pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+            )
+        emit(step_queue, step_count(len(pool)))
 
         analyzed: list[dict[str, Any]] = []
 
         async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+            if aweme.get("_from_corpus") and aweme.get("_corpus_analysis"):
+                stats = aweme.get("statistics") or {}
+                handle = (aweme.get("author") or {}).get("unique_id") or ""
+                return {
+                    "aweme_id": aweme["aweme_id"],
+                    "analysis": aweme["_corpus_analysis"],
+                    "metadata": {
+                        "video_id": aweme["aweme_id"],
+                        "author": {"username": handle},
+                        "views": int(stats.get("play_count") or 0),
+                        "tiktok_url": aweme.get("_corpus_tiktok_url", ""),
+                        "thumbnail_url": aweme.get("thumbnail_url"),
+                        "days_ago": aweme.get("_corpus_days_ago", 0),
+                        "breakout": aweme.get("_corpus_breakout", 0.0),
+                    },
+                }
             async with sem:
                 return await analyze_aweme(
                     aweme, include_diagnosis=False, full_analyses=fa
@@ -186,16 +214,46 @@ async def run_trend_spike(
     try:
         sem = get_analysis_semaphore()
         emit(step_queue, step_start(f"Đang tìm xu hướng '{niche}'..."))
-        emit(step_queue, step_search("ensemble", niche))
-        pool = await _niche_aweme_pool(niche, period=7)
-        emit(step_queue, step_count(len(pool)))
+        emit(step_queue, step_search("corpus", niche))
         fa = session.setdefault("full_analyses", {})
         cached_ids = set(fa.keys())
-        picks = select_reference_videos(
-            pool, recency_days=7, n=REF_N, cached_ids=cached_ids, rank_by="velocity"
-        )
+
+        # Prefer corpus (7-day window) for niche-accurate trend videos.
+        corpus_pool = await fetch_corpus_reference_pool(niche, days=7, limit=20)
+        if len(corpus_pool) >= REF_N:
+            # Sort by breakout_multiplier for trend spike — highest breakout wins
+            corpus_pool.sort(key=lambda v: float(v.get("_corpus_breakout") or 0.0), reverse=True)
+            picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
+            pool = corpus_pool
+        else:
+            logger.info(
+                "[trend_spike] corpus pool too small (%d) for niche '%s' (7d), using live search",
+                len(corpus_pool), niche,
+            )
+            emit(step_queue, step_search("ensemble", niche))
+            pool = await _niche_aweme_pool(niche, period=7)
+            picks = select_reference_videos(
+                pool, recency_days=7, n=REF_N, cached_ids=cached_ids, rank_by="velocity"
+            )
+        emit(step_queue, step_count(len(pool)))
 
         async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+            if aweme.get("_from_corpus") and aweme.get("_corpus_analysis"):
+                stats = aweme.get("statistics") or {}
+                handle = (aweme.get("author") or {}).get("unique_id") or ""
+                return {
+                    "aweme_id": aweme["aweme_id"],
+                    "analysis": aweme["_corpus_analysis"],
+                    "metadata": {
+                        "video_id": aweme["aweme_id"],
+                        "author": {"username": handle},
+                        "views": int(stats.get("play_count") or 0),
+                        "tiktok_url": aweme.get("_corpus_tiktok_url", ""),
+                        "thumbnail_url": aweme.get("thumbnail_url"),
+                        "days_ago": aweme.get("_corpus_days_ago", 0),
+                        "breakout": aweme.get("_corpus_breakout", 0.0),
+                    },
+                }
             async with sem:
                 return await analyze_aweme(
                     aweme, include_diagnosis=False, full_analyses=fa
@@ -553,6 +611,8 @@ async def run_video_diagnosis(
                     "views": views,
                     "tiktok_url": aweme.get("_corpus_tiktok_url", ""),
                     "thumbnail_url": aweme.get("thumbnail_url"),
+                    "days_ago": aweme.get("_corpus_days_ago", 0),
+                    "breakout": aweme.get("_corpus_breakout", 0.0),
                 },
             }
         async with sem:
@@ -593,6 +653,44 @@ async def run_video_diagnosis(
             niche_key=niche,
             corpus_citation=citation,
         )
+        # Server-side guarantee: ensure all reference videos appear as video_ref
+        # blocks regardless of whether Gemini emitted them. Appended only for refs
+        # whose video_id is not already present in the synthesis text.
+        import json as _json
+        already_emitted = set()
+        for chunk in diagnosis.split('"video_id"'):
+            # crude scan for IDs already in the text
+            trimmed = chunk.strip().lstrip(":").strip().strip('"')
+            vid_candidate = trimmed.split('"')[0]
+            if vid_candidate:
+                already_emitted.add(vid_candidate)
+
+        injected_blocks: list[str] = []
+        for ref in references:
+            meta = ref.get("metadata") or {}
+            vid = str(meta.get("video_id") or ref.get("aweme_id") or "")
+            if not vid or vid in already_emitted:
+                continue
+            handle = ""
+            author = meta.get("author") or {}
+            handle = str(author.get("username") or "")
+            views = int(meta.get("views") or 0)
+            days_ago = int(meta.get("days_ago") or 0)
+            breakout = float(meta.get("breakout") or 0.0)
+            block: dict = {
+                "type": "video_ref",
+                "video_id": vid,
+                "handle": f"@{handle}" if handle and not handle.startswith("@") else handle,
+                "views": views,
+                "days_ago": days_ago,
+            }
+            if breakout > 1.0:
+                block["breakout"] = round(breakout, 1)
+            injected_blocks.append(_json.dumps(block, ensure_ascii=False))
+            already_emitted.add(vid)
+
+        if injected_blocks:
+            diagnosis = diagnosis.rstrip() + "\n\n" + "\n".join(injected_blocks)
     else:
         diagnosis = (
             "Diagnosis skipped (`include_diagnosis=false`). "

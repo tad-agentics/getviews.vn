@@ -9,7 +9,7 @@
  */
 import { useState, useEffect } from "react";
 import { ExternalLink, Play } from "lucide-react";
-import { getVideoMeta, type VideoMeta } from "@/lib/services/corpus-service";
+import { getVideoMeta, r2FrameUrl, type VideoMeta } from "@/lib/services/corpus-service";
 import { formatVN, formatRecencyVI, formatBreakoutVI } from "@/lib/formatters";
 
 export interface VideoRefData {
@@ -49,7 +49,8 @@ export function VideoRefCard({ data }: Props) {
 
   const views = data.views || meta?.views || 0;
   const handle = data.handle || meta?.creator_handle || "";
-  const thumbnail = meta?.thumbnail_url ?? null;
+  // Thumbnail resolution: DB URL → R2 frame fallback → null (shows TikTok icon)
+  const thumbnail = meta?.thumbnail_url ?? r2FrameUrl(data.video_id);
   const videoUrl = meta?.video_url ?? null;
   const tiktokUrl = handle
     ? `https://www.tiktok.com/${handle.startsWith("@") ? handle : "@" + handle}/video/${data.video_id}`

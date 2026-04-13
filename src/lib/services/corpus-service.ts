@@ -4,8 +4,15 @@
  *
  * Includes a simple in-memory cache to prevent N+1 queries when multiple
  * VideoRefCards render for the same video in a single chat response.
+ *
+ * Thumbnail resolution order:
+ *   1. video_corpus.thumbnail_url (R2 stable URL when ingested after backfill)
+ *   2. R2 frame fallback: {VITE_R2_PUBLIC_URL}/frames/{video_id}/0.png
+ *      (available for all batch-ingested videos that went through frame extraction)
+ *   3. null → VideoRefCard shows TikTok icon placeholder + clickable link
  */
 import { supabase } from "@/lib/supabase";
+import { env } from "@/lib/env";
 
 export interface VideoMeta {
   video_id: string;
@@ -14,6 +21,13 @@ export interface VideoMeta {
   views: number;
   creator_handle: string | null;
   indexed_at: string | null;
+}
+
+/** Derive a stable R2 frame URL for a video_id (frame 0 = ~0s thumbnail). */
+export function r2FrameUrl(videoId: string): string | null {
+  const base = env.VITE_R2_PUBLIC_URL;
+  if (!base || !videoId) return null;
+  return `${base.replace(/\/$/, "")}/frames/${videoId}/0.png`;
 }
 
 const _cache = new Map<string, { data: VideoMeta | null; ts: number }>();
