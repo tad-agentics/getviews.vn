@@ -10,8 +10,8 @@ export const PromptCards = memo(function PromptCards({
 }) {
   const cards = [
     `Xu hướng đang hot trong ${nicheLabel || "ngách của bạn"} tuần này?`,
-    "Dán link video TikTok để soi chi tiết",
-    "Lên kịch bản quay video mới cho tuần tới",
+    `Hook nào đang hiệu quả nhất trong ${nicheLabel || "ngách của bạn"} gần đây?`,
+    `Gợi ý 3 ý tưởng video cho kênh ${nicheLabel || "của tôi"} tuần tới`,
   ];
   return (
     <div className="mt-4 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-3">
