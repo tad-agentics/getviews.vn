@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Any
 
 from getviews_pipeline.formatters import citation_vi
@@ -26,23 +27,26 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _anon: Any = None
+_anon_lock = threading.Lock()
 
 
 def _anon_client() -> Any:
     """Supabase client with anon key — sufficient for reading video_corpus counts.
 
-    Cached at module level so the supabase-py client (and its connection pool
-    overhead) is only instantiated once per Cloud Run instance, not once per call.
+    Cached at module level behind a threading.Lock() so the supabase-py client
+    is only instantiated once per Cloud Run instance even under concurrent requests.
+    Mirrors the pattern used by gemini.py:_get_client().
     """
     global _anon
-    if _anon is None:
-        from supabase import create_client  # type: ignore[import-untyped]
+    with _anon_lock:
+        if _anon is None:
+            from supabase import create_client  # type: ignore[import-untyped]
 
-        url = os.environ.get("SUPABASE_URL", "")
-        key = os.environ.get("SUPABASE_ANON_KEY", "")
-        if not url or not key:
-            raise RuntimeError("SUPABASE_URL and SUPABASE_ANON_KEY must be set")
-        _anon = create_client(url, key)
+            url = os.environ.get("SUPABASE_URL", "")
+            key = os.environ.get("SUPABASE_ANON_KEY", "")
+            if not url or not key:
+                raise RuntimeError("SUPABASE_URL and SUPABASE_ANON_KEY must be set")
+            _anon = create_client(url, key)
     return _anon
 
 
