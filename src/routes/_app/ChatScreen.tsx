@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -223,6 +223,129 @@ function AssistantStructuredBlock({ parsed }: { parsed: ParsedAssistant | null }
   );
 }
 
+const DesktopInput = memo(function DesktopInput({
+  message,
+  setMessage,
+  onSend,
+  inputDisabled,
+  needsNiche,
+  userId,
+  credits,
+  onNavigatePricing,
+}: {
+  message: string;
+  setMessage: (v: string) => void;
+  onSend: () => void;
+  inputDisabled: boolean;
+  needsNiche: boolean;
+  userId: string | undefined;
+  credits: number;
+  onNavigatePricing: () => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const charCount = message.length;
+  const charLimit = 1000;
+  const charOverLimit = charCount > charLimit;
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [message]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSend();
+    }
+  };
+
+  return (
+    <div className="flex-shrink-0 px-10 pb-7">
+      {needsNiche && userId ? (
+        <div className="mb-4">
+          <NicheSelector userId={userId} />
+        </div>
+      ) : null}
+      {!needsNiche && credits > 0 && credits <= 5 ? (
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/30">
+          <p className="text-xs text-amber-800 dark:text-amber-300">
+            Còn <span className="font-semibold">{credits}</span> deep credit — mỗi phân tích sâu dùng 1 credit.
+          </p>
+          <button
+            type="button"
+            onClick={onNavigatePricing}
+            className="ml-3 shrink-0 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400"
+          >
+            Nạp thêm →
+          </button>
+        </div>
+      ) : null}
+      <div
+        className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+        style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04)" }}
+      >
+        <div className="px-4 pb-2 pt-4">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Dán link TikTok hoặc hỏi bất cứ thứ gì..."
+            rows={1}
+            maxLength={charLimit + 50}
+            disabled={inputDisabled}
+            className="w-full resize-none overflow-hidden border-none bg-transparent text-sm leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--faint)] disabled:opacity-50"
+            style={{ minHeight: 28, fontSize: 14 }}
+          />
+        </div>
+        <div className="flex items-center justify-between px-3 pb-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
+              <span>Đính kèm</span>
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
+            >
+              <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
+              <span>Dùng ảnh</span>
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            {charCount > 0 ? (
+              <span
+                className={`font-mono text-xs tabular-nums ${
+                  charOverLimit ? "text-[var(--danger)]" : "text-[var(--faint)]"
+                }`}
+              >
+                {charCount}/{charLimit}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              disabled={!message.trim() || charOverLimit || inputDisabled}
+              onClick={onSend}
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-[120ms] active:scale-95"
+              style={{
+                background: message.trim() && !charOverLimit && !inputDisabled ? "var(--gradient-primary)" : "var(--faint)",
+                cursor: !message.trim() || charOverLimit || inputDisabled ? "not-allowed" : "pointer",
+              }}
+            >
+              <ArrowUp className="h-4 w-4 text-white" strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export default function ChatScreen() {
   const { user } = useAuth();
   const location = useLocation();
@@ -412,120 +535,6 @@ export default function ChatScreen() {
 
   const inputDisabled = processing || insertUser.isPending || status === "streaming";
 
-  function DesktopInput({
-    message: msg,
-    setMessage: setMsg,
-    onSend,
-  }: {
-    message: string;
-    setMessage: (v: string) => void;
-    onSend: () => void;
-  }) {
-    const textareaRefInner = useRef<HTMLTextAreaElement>(null);
-    const charCountInner = msg.length;
-    const charLimitInner = 1000;
-    const charOverLimitInner = charCountInner > charLimitInner;
-
-    useEffect(() => {
-      const el = textareaRefInner.current;
-      if (!el) return;
-      el.style.height = "auto";
-      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-    }, [msg]);
-
-    const handleKeyDownInner = (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        onSend();
-      }
-    };
-
-    return (
-      <div className="flex-shrink-0 px-10 pb-7">
-        {needsNiche && user?.id ? (
-          <div className="mb-4">
-            <NicheSelector userId={user.id} />
-          </div>
-        ) : null}
-        {!needsNiche && credits > 0 && credits <= 5 ? (
-          <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/30">
-            <p className="text-xs text-amber-800 dark:text-amber-300">
-              Còn <span className="font-semibold">{credits}</span> deep credit — mỗi phân tích sâu dùng 1 credit.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/app/pricing")}
-              className="ml-3 shrink-0 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400"
-            >
-              Nạp thêm →
-            </button>
-          </div>
-        ) : null}
-        <div
-          className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
-          style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04)" }}
-        >
-          <div className="px-4 pb-2 pt-4">
-            <textarea
-              ref={textareaRefInner}
-              value={msg}
-              onChange={(e) => setMsg(e.target.value)}
-              onKeyDown={handleKeyDownInner}
-              placeholder="Dán link TikTok hoặc hỏi bất cứ thứ gì..."
-              rows={1}
-              maxLength={charLimitInner + 50}
-              disabled={inputDisabled}
-              className="w-full resize-none overflow-hidden border-none bg-transparent text-sm leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--faint)] disabled:opacity-50"
-              style={{ minHeight: 28, fontSize: 14 }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between px-3 pb-3">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
-                <span>Đính kèm</span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
-              >
-                <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
-                <span>Dùng ảnh</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              {charCountInner > 0 ? (
-                <span
-                  className={`font-mono text-xs tabular-nums ${
-                    charOverLimitInner ? "text-[var(--danger)]" : "text-[var(--faint)]"
-                  }`}
-                >
-                  {charCountInner}/{charLimitInner}
-                </span>
-              ) : null}
-              <button
-                type="button"
-                disabled={!msg.trim() || charOverLimitInner || inputDisabled}
-                onClick={onSend}
-                className="flex h-8 w-8 items-center justify-center rounded-full transition-all duration-[120ms] active:scale-95"
-                style={{
-                  background: msg.trim() && !charOverLimitInner && !inputDisabled ? "var(--gradient-primary)" : "var(--faint)",
-                  cursor: !msg.trim() || charOverLimitInner || inputDisabled ? "not-allowed" : "pointer",
-                }}
-              >
-                <ArrowUp className="h-4 w-4 text-white" strokeWidth={2.5} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const paywallVisible = clientPaywall || error === "insufficient_credits";
   const dailyLimitVisible = error === "daily_free_limit";
 
@@ -639,7 +648,16 @@ export default function ChatScreen() {
         ) : (
           <>
             <div className="flex-1 space-y-4 overflow-y-auto px-10 py-6">{messageThread}</div>
-            <DesktopInput message={message} setMessage={setMessage} onSend={() => void handleSend()} />
+            <DesktopInput
+              message={message}
+              setMessage={setMessage}
+              onSend={() => void handleSend()}
+              inputDisabled={inputDisabled}
+              needsNiche={needsNiche}
+              userId={user?.id}
+              credits={credits}
+              onNavigatePricing={() => navigate("/app/pricing")}
+            />
           </>
         )}
       </div>
