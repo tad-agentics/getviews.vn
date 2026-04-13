@@ -152,6 +152,18 @@ class SlideAnalysis(BaseModel):
     """True if a human face is prominently visible on this slide."""
     has_product: bool | None = None
     """True if a product (physical item for purchase) is prominently visible."""
+    word_count: int | None = None
+    """Approximate number of words of text visible on this slide."""
+
+
+class CTASlide(BaseModel):
+    """CTA presence on the final slide of a carousel."""
+
+    has_cta: bool = False
+    cta_type: str | None = None
+    """One of: 'save', 'follow', 'comment', 'link_bio', 'shop_cart', or None."""
+    cta_text: str | None = None
+    """Verbatim CTA text extracted from the slide, if present."""
 
 
 class CarouselAnalysis(BaseModel):
@@ -182,8 +194,12 @@ class CarouselAnalysis(BaseModel):
     """Design consistency across slides: 'consistent', 'mixed', or 'inconsistent'."""
     estimated_read_time_seconds: int | None = None
     """Estimated total read/swipe time in seconds."""
-    cta_slide: dict | None = None
-    """CTA presence on final slide: {'has_cta': bool, 'cta_type': str, 'cta_text': str}."""
+    cta_slide: CTASlide | None = None
+    """CTA presence on the final slide — typed Pydantic model for JSON schema generation."""
+    has_numbered_hook: bool | None = None
+    """True if slide 1 shows a number (e.g. '7 cách…') triggering completion bias."""
+    swipe_trigger_type: str | None = None
+    """Dominant swipe mechanic: 'list_momentum', 'curiosity_chain', 'narrative_tension', or 'none'."""
 
 
 class Metrics(BaseModel):

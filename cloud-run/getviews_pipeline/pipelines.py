@@ -737,6 +737,7 @@ async def run_video_diagnosis(
                 carousel_metadata,
                 "carousel",
                 include_carousel_directions,
+                user_message,
             )
         else:
             diagnosis = await run_sync(

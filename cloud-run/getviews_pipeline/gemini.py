@@ -291,6 +291,7 @@ def synthesize_diagnosis(
     metadata: dict[str, Any],
     content_type: ContentType = "video",
     include_carousel_directions: bool = False,
+    user_message: str = "",
 ) -> str:
     """Strategist markdown: routes to video vs carousel diagnosis prompt."""
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
@@ -299,6 +300,7 @@ def synthesize_diagnosis(
         metadata,
         content_type,
         include_carousel_directions=include_carousel_directions,
+        user_message=user_message,
     )
     cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=4096)
     response = _generate_content_models(

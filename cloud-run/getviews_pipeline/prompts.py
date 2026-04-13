@@ -13,6 +13,7 @@ from getviews_pipeline.knowledge_base import (
 )
 from getviews_pipeline.models import ContentType
 from getviews_pipeline.output_redesign import build_diagnosis_narrative_prompt
+from getviews_pipeline.carousel_knowledge import build_carousel_context
 from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 
 # ---------------------------------------------------------------------------
@@ -36,13 +37,16 @@ CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts 
 CRITICAL RULES:
 - hook_analysis.hook_phrase: The EXACT text visible on slide 1 (first image) — verbatim, not paraphrased. If no text on slide 1, describe the dominant visual element in Vietnamese.
 - slides[].text_on_slide: List ALL readable text strings visible on this slide — titles, captions, labels, prices, watermarks, hashtags burned into the image. Even 1-2 words count. Use an empty list [] ONLY if the slide has absolutely zero text of any kind.
-- slides[].text_density: Classify text amount per slide as exactly one of: 'none' (no text — text_on_slide must also be []), 'low' (1-2 short words/phrases), 'medium' (3-5 lines), 'high' (6+ lines or dense text block). Must be consistent with text_on_slide.
+- slides[].text_density: Classify text amount per slide as exactly one of: 'none' (no text — text_on_slide must also be []), 'low' (1-2 short words/phrases), 'medium' (3-5 lines), 'high' (6+ lines or dense text block). MUST be consistent with text_on_slide: if text_on_slide is non-empty, text_density CANNOT be 'none'.
 - slides[].has_face: true if a human face is PROMINENTLY visible (not just background), false otherwise.
 - slides[].has_product: true if a physical product (clothing, food, cosmetic, electronics, etc.) is the main subject, false otherwise.
+- slides[].word_count: Count the total number of words of visible text on this slide. 0 if no text.
 - content_arc: How content flows across ALL slides — exactly one of: 'list' (numbered items), 'story' (narrative progression), 'before_after' (contrast pair), 'comparison' (side-by-side options), 'tutorial_steps' (how-to sequence), 'gallery' (independent items with no arc).
 - visual_consistency: Design coherence across slides — 'consistent' (same palette/font/style), 'mixed' (mostly consistent with 1-2 outliers), 'inconsistent' (different styles per slide).
 - estimated_read_time_seconds: Realistic total time to read/swipe the full carousel. Base: 2s per text-heavy slide, 1s per image/product slide.
-- cta_slide: Analyze the LAST slide only. Set has_cta=true if it contains a call-to-action (follow, save, comment, link, buy). Set cta_type to one of: 'follow', 'save', 'comment', 'link_in_bio', 'buy', 'none'. Set cta_text to the exact CTA text or empty string.
+- cta_slide: Analyze the LAST slide only. Set has_cta=true if it contains a call-to-action (follow, save, comment, link, buy). Set cta_type to one of: 'save', 'follow', 'comment', 'link_bio', 'shop_cart', or null. Set cta_text to the exact CTA text or null.
+- has_numbered_hook: true if slide 1 visibly shows a number (e.g. "7 cách…", "3 lỗi…", "5 outfit…") that creates completion bias, false otherwise.
+- swipe_trigger_type: The dominant psychological mechanism driving swipes — exactly one of: 'list_momentum' (numbered list, people swipe to complete the count), 'curiosity_chain' (each slide withholds something, creating information gap), 'narrative_tension' (story arc with unresolved outcome), 'none' (no clear swipe trigger).
 - Map slides to the provided batch indices precisely."""
 
 
@@ -603,24 +607,44 @@ def build_carousel_diagnosis_prompt(
     analysis: dict[str, Any],
     metadata: dict[str, Any],
     include_directions: bool = False,
+    user_message: str = "",
 ) -> str:
     """Strategist markdown synthesis for **photo carousel** analysis (`analysis.slides`).
 
-    include_directions: when True, appends an instruction asking Gemini to include
-    4-5 carousel content direction suggestions (triggered by direction keywords in user message).
+    include_directions: when True (or detected from user_message compound keywords),
+    appends an instruction asking Gemini for 4-5 carousel content directions.
+    user_message: raw user text — checked for compound direction keywords.
     """
     serialized_analysis, serialized_metadata = _serialize_diagnosis_inputs(
         analysis, metadata
     )
     voice = build_voice_block(include_examples=False)
+    carousel_context = build_carousel_context()
+
+    # Compound keywords only — single words like "cho tôi" match too broadly
+    _direction_keywords = [
+        "gợi ý định dạng",
+        "gợi ý hướng",
+        "ý tưởng content",
+        "đề xuất format",
+        "gợi ý carousel",
+        "gợi ý cho tôi",
+        "cho tôi 4",
+        "cho tôi 5",
+        "cho mình mấy",
+        "định dạng nội dung",
+        "hướng content",
+    ]
+    wants_directions = include_directions or any(
+        kw in user_message.lower() for kw in _direction_keywords
+    )
 
     directions_instruction = ""
-    if include_directions:
+    if wants_directions:
         directions_instruction = """
 Sau phần chẩn đoán, thêm phần **"Hướng content carousel cho ngách này"** với 4-5 công thức carousel cụ thể.
-Mỗi hướng gồm: tên công thức, hook slide 1, nội dung các slide giữa, CTA slide cuối, gợi ý hashtag tiếng Việt.
-Giải thích LOGIC LƯỚT của mỗi hướng — tại sao viewer lướt hết.
-Dựa trên video tham chiếu trong ngách nếu có.
+Mỗi hướng gồm: tên công thức, LOGIC LƯỚT (giải thích tại sao viewer lướt hết — dùng đúng tên tâm lý: completion bias, information gap, Zeigarnik effect, micro-commitment), hook slide 1, nội dung slide giữa, CTA slide cuối.
+Kèm gợi ý hashtag tiếng Việt ngách cụ thể + caption mẫu ≥200 ký tự.
 """
 
     return f"""{voice}
@@ -633,10 +657,15 @@ Dựa trên video tham chiếu trong ngách nếu có.
 
 {_CAROUSEL_SYNTHESIS_FRAMING}
 
+---
+{carousel_context}
+
+---
+
 Viết chẩn đoán như ví dụ **carousel** dưới — cùng thanh giọng với video (thẳng,
 creator-native, số liệu diễn giải thành ý nghĩa) nhưng mọi nhận định phải bám `analysis.slides`
-(index, visual_type, text_on_slide, has_face, has_product, text_density, note),
-content_arc, visual_consistency, cta_slide, và caption/metadata.
+(index, visual_type, text_on_slide, has_face, has_product, text_density, word_count, note),
+content_arc, visual_consistency, cta_slide, has_numbered_hook, swipe_trigger_type, và caption/metadata.
 
 Nếu metadata nói slide bị cắt, CDN lỗi chỉ số, hoặc tải một phần, hãy phản ánh vào độ tin cậy và câu hỏi.
 
@@ -659,7 +688,8 @@ Phân tích hashtag, caption, ER vs views, sound. Kết luận bằng priority: 
 
 **TẦNG 2: LOGIC LƯỚT** (slide 1 → slide giữa → slide cuối)
 Mỗi phần: nhận xét cụ thể từ slides data + emoji [🔴🟡🟢] + "Chạy vì:" hoặc "Gợi ý:".
-Trích slides[].index, has_face, text_density, text_on_slide, cta_slide.has_cta khi hữu ích.
+Trích slides[].index, has_face, text_density, text_on_slide, word_count, has_numbered_hook, swipe_trigger_type, cta_slide.has_cta khi hữu ích.
+Giải thích bằng tên tâm lý lướt (completion bias, information gap, Zeigarnik effect, goal gradient, micro-commitment) — không phải thuật ngữ kỹ thuật chung chung.
 QUAN TRỌNG — text trên slide: NẾU slides[].text_on_slide có nội dung (list không rỗng), PHẢI trích dẫn text đó khi phân tích slide đó. KHÔNG được nói "slide không có chữ" khi text_on_slide có dữ liệu.
 KHÔNG đề cập: transitions/s, face_appears_at tính bằng giây, audio, watch time.
 
@@ -682,11 +712,15 @@ def build_diagnosis_prompt(
     metadata: dict[str, Any],
     content_type: ContentType = "video",
     include_carousel_directions: bool = False,
+    user_message: str = "",
 ) -> str:
     """Route to video vs carousel strategist prompt."""
     if content_type == "carousel":
         return build_carousel_diagnosis_prompt(
-            analysis, metadata, include_directions=include_carousel_directions
+            analysis,
+            metadata,
+            include_directions=include_carousel_directions,
+            user_message=user_message,
         )
     return build_video_diagnosis_prompt(analysis, metadata)
 
