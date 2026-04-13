@@ -540,8 +540,14 @@ export default function ChatScreen() {
   const paywallVisible = clientPaywall || error === "insufficient_credits";
   const dailyLimitVisible = error === "daily_free_limit";
 
+  // Keep the in-flight block visible during streaming, on error, AND while the
+  // stream is "done" but the TanStack Query refetch hasn't landed yet (the gap
+  // between invalidateQueries() and the new assistant row appearing in `messages`).
+  // Without this, the streamed text disappears for ~200–500ms after completion.
+  const lastMessageIsAssistant = messages.at(-1)?.role === "assistant";
   const inFlightVisible =
     status === "streaming" ||
+    (status === "done" && Boolean(text) && !lastMessageIsAssistant) ||
     (status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit");
 
   const messageThread = (
