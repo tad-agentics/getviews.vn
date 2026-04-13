@@ -662,6 +662,12 @@ async def run_video_diagnosis(
 
     # Fetch niche norms from materialized view — fail-open, never raises
     niche_norms = await get_niche_intelligence(niche)
+    # Inject an explicit no-data marker when niche_norms is empty so Gemini
+    # cannot hallucinate niche benchmarks. The soft prompt instruction alone
+    # ("bỏ qua so sánh") is insufficient — an explicit _note in the JSON is
+    # harder for the model to ignore than prose guidance.
+    if not niche_norms:
+        niche_norms = {"_note": "Không có data niche — KHÔNG tạo số liệu niche, KHÔNG so sánh với chuẩn niche"}
 
     emit(step_queue, step_done(f"Đã phân tích {1 + len(references)} video — đang viết báo cáo..."))
 
