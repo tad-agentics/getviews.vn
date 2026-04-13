@@ -481,8 +481,12 @@ c) Tỷ lệ tương tác vs views:
    Nói rõ: "Content không dở — reach bị hạn chế."
    Nếu ER thấp VÀ views thấp → vấn đề CẢ HAI.
 
-d) Sound: có đang dùng sound trending không?
-   Carousel dùng sound trending được thuật toán ưu tiên đẩy hơn.
+d) Sound: kiểm tra `metadata.music` (title, artist, is_original):
+   - Nếu is_original = true → dùng âm thanh tự tạo. So sánh với niche_norms.pct_original_sound:
+     nếu niche dưới 30% dùng âm thanh gốc → đây là lựa chọn khác biệt, đề cập ngắn.
+   - Nếu is_original = false → dùng nhạc trending/remix. Tích cực: thuật toán ưu tiên sound trending.
+   - Nếu music.title có tên bài cụ thể → đề cập tên sound và ngắn gọn nói nó đang trending hay không.
+   - Nếu music là null hoặc thiếu → bỏ qua mục này, KHÔNG đề cập.
 
 **TẦNG 2: NỘI DUNG — LOGIC LƯỚT (từ Gemini phân tích slides)**
 Chỉ phân tích sau khi đã nói về tầng phân phối.
@@ -680,7 +684,8 @@ INPUT DATA:
 CẤU TRÚC — theo PHÂN TÍCH 2 TẦNG (phân phối TRƯỚC, nội dung SAU):
 
 **TẦNG 1: TẠI SAO ÍT NGƯỜI THẤY** (2-3 đoạn)
-Phân tích hashtag, caption, ER vs views, sound. Kết luận bằng priority: phân phối hay nội dung là vấn đề chính.
+Phân tích hashtag, caption, ER vs views, và sound (từ metadata.music + niche_norms.pct_original_sound nếu có).
+Kết luận bằng priority: phân phối hay nội dung là vấn đề chính.
 
 **TẦNG 2: LOGIC LƯỚT** (slide 1 → slide giữa → slide cuối)
 Mỗi phần: nhận xét cụ thể từ slides data + emoji [🔴🟡🟢] + "Chạy vì:" hoặc "Gợi ý:".

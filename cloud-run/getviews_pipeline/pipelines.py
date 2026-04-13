@@ -725,7 +725,9 @@ async def run_video_diagnosis(
             # Carousel: use existing synthesize_diagnosis which routes to
             # build_carousel_diagnosis_prompt — the v2 narrative format is video-only.
             carousel_analysis = user_analysis_dict
-            carousel_metadata = user_metadata_dict
+            # Inject niche_norms into carousel metadata so the prompt has
+            # pct_original_sound for the sound analysis section.
+            carousel_metadata = {**user_metadata_dict, "niche_norms": niche_norms}
             logger.info(
                 "[carousel] routing diagnosis to synthesize_diagnosis (carousel path) "
                 "include_directions=%s",
