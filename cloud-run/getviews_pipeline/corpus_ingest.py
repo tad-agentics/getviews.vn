@@ -470,6 +470,37 @@ def _build_corpus_row(
 
     transcript: str = analysis_json.get("audio_transcript") or ""
 
+    # ── Post-extraction quality checks (warnings only — row is still ingested) ──
+    # These catch degraded Gemini extractions that pollute corpus and skew niche_norms.
+    # They do NOT block ingest; use the warnings to decide whether to re-run or discard.
+    _video_duration_approx = scenes[-1].get("end") if scenes else None
+    if _video_duration_approx and _video_duration_approx > 10 and len(scenes) <= 1:
+        logger.warning(
+            "[corpus_quality] video_id=%s: only %d scene(s) for %.0fs video — "
+            "likely coarse extraction; transitions_per_second will be wrong",
+            video_id, len(scenes), _video_duration_approx,
+        )
+    _tps = analysis_json.get("transitions_per_second") or 0
+    if len(scenes) > 1 and _tps == 0:
+        logger.warning(
+            "[corpus_quality] video_id=%s: %d scenes but transitions_per_second=0 — "
+            "extraction inconsistency",
+            video_id, len(scenes),
+        )
+    if transcript and len(transcript) > 20 and not _VN_PATTERN.search(transcript):
+        logger.warning(
+            "[corpus_quality] video_id=%s: transcript (%d chars) has no Vietnamese "
+            "diacritics — possible English paraphrase or mis-transcription",
+            video_id, len(transcript),
+        )
+    hook_phrase = hook_info.get("hook_phrase") or ""
+    if hook_phrase and not _VN_PATTERN.search(hook_phrase) and transcript and _VN_PATTERN.search(transcript):
+        logger.warning(
+            "[corpus_quality] video_id=%s: hook_phrase %r has no Vietnamese diacritics "
+            "but transcript does — likely English paraphrase",
+            video_id, hook_phrase[:60],
+        )
+
     return {
         # ── Core columns (existing 17) ──
         "video_id": video_id,
