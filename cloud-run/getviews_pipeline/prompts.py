@@ -19,10 +19,17 @@ from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 # Video analysis prompt — Gemini call 1
 # ---------------------------------------------------------------------------
 
-# §14 — short extraction prompt (full schema enforced via response_json_schema).
+# §14 — extraction prompt (full schema enforced via response_json_schema).
+# Keep instructions field-specific — generic "be precise" is ignored by Gemini.
 VIDEO_EXTRACTION_PROMPT = """Analyze this TikTok video. Return ONLY JSON matching the schema — no markdown.
-Be precise on hook_analysis, scenes, audio_transcript, and content_direction.
-For audio_transcript and hook_phrase: if words are unclear, write "[unclear]" rather than guessing. Accuracy over completeness."""
+
+CRITICAL RULES:
+- audio_transcript: Transcribe EXACTLY in the original language (mostly Vietnamese). Do NOT translate to English. Preserve Vietnamese diacritics (ă, â, đ, ê, ô, ơ, ư, etc.). If words are unclear, write "[không rõ]".
+- hook_phrase: The EXACT opening spoken words in Vietnamese — verbatim, not paraphrased, not translated. If no speech in the first 3s, use the first visible text overlay instead.
+- scenes: Mark a new scene at EVERY visual cut, camera angle change, or significant subject change. Err toward more scenes rather than fewer. A 15s video typically has 3–8 scenes; a 30s video has 5–15.
+- transitions_per_second: Count total scene boundaries ÷ video duration in seconds.
+- face_appears_at: The FIRST timestamp (in seconds) where a human face is prominently visible. Set to null if no face appears in the entire video.
+- content_direction.what_works: Name the specific STRUCTURAL element making this video effective — e.g. "face in first frame + question hook + 3s scene cuts". NOT generic praise like "good visuals" or "engaging content"."""
 
 CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts before this text). Return ONLY JSON matching the schema — no markdown.
 Map slides to the provided batch indices; be precise on hook_analysis and each slide."""
