@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from getviews_pipeline.domain_knowledge import build_domain_knowledge_block
 from getviews_pipeline.knowledge_base import (
     build_commerce_structure_block,
     build_hook_formula_instruction,
@@ -102,6 +103,8 @@ PHÂN LOẠI LỖI — gọi đúng tên lỗi, không chỉ triệu chứng:
 - Duration mismatch: độ dài vượt hợp đồng ngầm của kiểu hook
   (hook dạng "question" hứa trả lời nhanh — 2 phút phá vỡ hợp đồng đó)
 
+{domain_knowledge}
+
 TỪ VỰNG CHUYÊN NGÀNH (giữ tiếng Anh vì creator VN dùng hàng ngày):
 - hook rate, completion rate, pattern interrupt, open loop, CTA, dual delivery
 - Creative fatigue: hiệu suất giảm do lạm dụng cùng format
@@ -125,6 +128,7 @@ Khi nhắc đến video cụ thể từ corpus, LUÔN kèm theo một JSON block
 
 # Resolve placeholders once at import — no per-call overhead
 _DOMAIN_KNOWLEDGE = _DOMAIN_KNOWLEDGE_TEMPLATE.format(
+    domain_knowledge=build_domain_knowledge_block(),
     hook_vocabulary=build_hook_vocabulary_block(),
     hook_formula_instruction=build_hook_formula_instruction(),
 )
