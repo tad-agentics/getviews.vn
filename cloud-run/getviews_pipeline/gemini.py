@@ -22,6 +22,7 @@ from getviews_pipeline.config import (
     GEMINI_EXTRACTION_MODEL,
     GEMINI_KNOWLEDGE_FALLBACKS,
     GEMINI_KNOWLEDGE_MODEL,
+    GEMINI_EXTRACTION_TEMPERATURE,
     GEMINI_SYNTHESIS_FALLBACKS,
     GEMINI_SYNTHESIS_MODEL,
     GEMINI_TEMPERATURE,
@@ -103,10 +104,15 @@ def _video_analysis_config() -> types.GenerateContentConfig | None:
 
 
 def _extraction_json_config(schema: dict[str, Any]) -> types.GenerateContentConfig | None:
-    """§11 Rule 4 — structured JSON for analysis calls."""
+    """§11 Rule 4 — structured JSON for analysis calls.
+
+    Uses GEMINI_EXTRACTION_TEMPERATURE (default 0.2) — low temperature is
+    critical for deterministic transcription and scene detection. The synthesis
+    temperature (0.8) is intentionally not used here.
+    """
     base = _video_analysis_config()
     updates: dict[str, Any] = {
-        "temperature": GEMINI_TEMPERATURE,
+        "temperature": GEMINI_EXTRACTION_TEMPERATURE,
         "response_mime_type": "application/json",
         "response_json_schema": schema,
     }

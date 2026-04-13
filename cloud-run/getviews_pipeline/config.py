@@ -42,8 +42,19 @@ GEMINI_KNOWLEDGE_FALLBACKS = [
     for s in os.environ.get("GEMINI_KNOWLEDGE_FALLBACKS", "").split(",")
     if s.strip()
 ]
-# Google Gemini 3 guidance: default 1.0
-GEMINI_TEMPERATURE = float(os.environ.get("GEMINI_TEMPERATURE", "1.0"))
+# Extraction: low temperature for deterministic transcription + scene detection.
+# Synthesis: higher temperature for natural Vietnamese creative writing.
+# GEMINI_TEMPERATURE is kept as a legacy override — if set, it overrides both.
+_GEMINI_TEMPERATURE_LEGACY = os.environ.get("GEMINI_TEMPERATURE")
+GEMINI_EXTRACTION_TEMPERATURE = float(
+    _GEMINI_TEMPERATURE_LEGACY or os.environ.get("GEMINI_EXTRACTION_TEMPERATURE", "0.2")
+)
+GEMINI_SYNTHESIS_TEMPERATURE = float(
+    _GEMINI_TEMPERATURE_LEGACY or os.environ.get("GEMINI_SYNTHESIS_TEMPERATURE", "0.8")
+)
+# Legacy alias — kept so existing code that imports GEMINI_TEMPERATURE still compiles.
+# New code should use the split constants above.
+GEMINI_TEMPERATURE = GEMINI_SYNTHESIS_TEMPERATURE
 # Opt-in: low | medium | high | unspecified (empty = API default). Lower = faster video.
 GEMINI_VIDEO_MEDIA_RESOLUTION = (
     os.environ.get("GEMINI_VIDEO_MEDIA_RESOLUTION", "").strip().lower()
@@ -128,13 +139,15 @@ FILES_API_POLL_INTERVAL_SEC = 2
 FILES_API_POLL_MAX_ATTEMPTS = 30
 
 logger.info(
-    "Resolved GEMINI_MODEL=%s extraction=%s synthesis=%s knowledge=%s diagnosis=%s temp=%s",
+    "Resolved GEMINI_MODEL=%s extraction=%s synthesis=%s knowledge=%s diagnosis=%s "
+    "temp_extraction=%.1f temp_synthesis=%.1f",
     GEMINI_MODEL,
     GEMINI_EXTRACTION_MODEL,
     GEMINI_SYNTHESIS_MODEL,
     GEMINI_KNOWLEDGE_MODEL,
     GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL,
-    GEMINI_TEMPERATURE,
+    GEMINI_EXTRACTION_TEMPERATURE,
+    GEMINI_SYNTHESIS_TEMPERATURE,
 )
 
 
