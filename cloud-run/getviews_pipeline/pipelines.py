@@ -601,12 +601,22 @@ async def run_video_diagnosis(
         corpus_pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
         picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
         pool = corpus_pool
-    else:
-        # Corpus too sparse for this niche — fall back to live EnsembleData search
         logger.info(
-            "[video_diagnosis] corpus pool too small (%d) for niche '%s', using live search",
-            len(corpus_pool),
+            "[ref_source] niche=%s corpus_hit=true corpus_size=%d",
             niche,
+            len(corpus_pool),
+        )
+    else:
+        # Corpus too sparse for this niche — fall back to live EnsembleData search.
+        # Each fallback costs EnsembleData API units (keyword + hashtag search).
+        # Monitor corpus_hit=false frequency per niche in Cloud Run logs to identify
+        # niches where the corpus needs broader coverage.
+        logger.warning(
+            "[ref_source] niche=%s corpus_hit=false corpus_size=%d threshold=%d — "
+            "falling back to live EnsembleData search (costs API units)",
+            niche,
+            len(corpus_pool),
+            REF_N,
         )
         pool = await _niche_aweme_pool(niche, period=30)
         picks = select_reference_videos(
