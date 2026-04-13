@@ -1,6 +1,6 @@
 /**
  * VideoRefStrip — horizontal scroll strip for 2+ VideoRefCards.
- * Shows 2.5 cards to signal scrollability on mobile (per EDS spec).
+ * Always scrolls horizontally (mobile + desktop). Peek spacer signals scrollability.
  */
 import { VideoRefCard, type VideoRefData } from "./VideoRefCard";
 

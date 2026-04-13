@@ -177,13 +177,14 @@ function SessionRow({
   };
 
   const openMenu = (e: React.MouseEvent | React.TouchEvent) => {
+    // Prevent touchstart from also firing the synthetic mousedown on mobile.
+    if (e.type === "touchstart") e.preventDefault();
     e.stopPropagation();
-    e.preventDefault();
     if (moreRef.current) {
       const rect = moreRef.current.getBoundingClientRect();
       setMenuPos({ top: rect.bottom + 4, left: rect.left - 120 });
     }
-    setMenuOpen((v) => !v);
+    setMenuOpen(true);
   };
 
   const displayLabel = session.label ?? session.title ?? session.first_message ?? "Phiên chat";
