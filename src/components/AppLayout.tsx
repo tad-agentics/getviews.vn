@@ -90,36 +90,19 @@ function ContextMenu({
   onDelete: () => void;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent | TouchEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener('mousedown', handleOutside);
-    document.addEventListener('touchstart', handleOutside, { passive: true });
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('touchstart', handleOutside);
-    };
-  }, [onClose]);
-
   return (
     <>
-      {/* Full-screen backdrop — captures taps outside menu on mobile */}
-      <div className="fixed inset-0 z-[199]" onTouchStart={onClose} onMouseDown={onClose} />
+      {/* Backdrop — onClick fires AFTER the menu button's onClick, so Delete
+          resolves before the menu closes. onMouseDown/onTouchStart would fire
+          before the button click and race with it on mobile. */}
+      <div className="fixed inset-0 z-[199]" onClick={onClose} />
       <motion.div
-        ref={ref}
         initial={{ opacity: 0, scale: 0.95, y: -4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: -4 }}
         transition={{ duration: 0.1, ease: 'easeOut' }}
         className="fixed z-[200] w-[152px] bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden"
         style={{ top, left }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
       >
       <button
         onClick={() => { onPin(); onClose(); }}
@@ -185,9 +168,7 @@ function SessionRow({
     setRenaming(false);
   };
 
-  const openMenu = (e: React.MouseEvent | React.TouchEvent) => {
-    // Prevent touchstart from also firing the synthetic mousedown on mobile.
-    if (e.type === "touchstart") e.preventDefault();
+  const openMenu = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (moreRef.current) {
       const rect = moreRef.current.getBoundingClientRect();
@@ -237,8 +218,7 @@ function SessionRow({
               44×44 touch target on mobile; fades in on desktop hover only. */}
           <button
             ref={moreRef}
-            onMouseDown={openMenu}
-            onTouchStart={openMenu}
+            onClick={openMenu}
             aria-label="Tuỳ chọn phiên chat"
             className={`flex-shrink-0 flex items-center justify-center rounded transition-colors duration-[100ms]
               w-9 h-9 lg:w-6 lg:h-6
