@@ -26,6 +26,9 @@ GEMINI_KNOWLEDGE_MODEL = (
 )
 # Text-only second step; defaults to GEMINI_SYNTHESIS_MODEL.
 GEMINI_DIAGNOSIS_MODEL = os.environ.get("GEMINI_DIAGNOSIS_MODEL", "").strip() or None
+# Intent classification — text-only, JSON output, must be fast (<300ms).
+# Defaults to GEMINI_KNOWLEDGE_MODEL (Flash-Lite) for low latency.
+GEMINI_INTENT_MODEL = os.environ.get("GEMINI_INTENT_MODEL", "").strip() or GEMINI_KNOWLEDGE_MODEL
 # Comma-separated fallback model names (optional), tried in order after primary fails.
 GEMINI_EXTRACTION_FALLBACKS = [
     s.strip()

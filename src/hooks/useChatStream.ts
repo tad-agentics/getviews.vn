@@ -12,6 +12,7 @@ const CLOUD_RUN_INTENTS = new Set([
   "video_diagnosis",
   "competitor_profile",
   "own_channel",
+  "series_audit",
   "content_directions",
   "brief_generation",
   "trend_spike",

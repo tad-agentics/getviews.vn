@@ -35,7 +35,7 @@ from getviews_pipeline.config import (
     SUPABASE_JWKS_URL,
     SUPABASE_JWT_SECRET,
 )
-from getviews_pipeline.gemini import gemini_text_only
+from getviews_pipeline.gemini import classify_intent_gemini, gemini_text_only
 from getviews_pipeline.intents import (
     extract_urls_and_handles,
     split_into_questions,
@@ -313,6 +313,33 @@ async def auth_check(user: dict = Depends(require_user)) -> JSONResponse:
     return JSONResponse({"ok": True, "user_id": user["user_id"]})
 
 
+class ClassifyIntentRequest(BaseModel):
+    query: str
+
+
+@app.post("/classify-intent")
+async def classify_intent_endpoint(
+    body: ClassifyIntentRequest,
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """Tier-3 semantic intent classification — no credit cost.
+
+    Called by the frontend when tiers 1+2 (structural + keyword) produce a
+    low-confidence result (falls through to follow_up with no prior context).
+    Returns primary intent, optional secondary intent, and a niche hint.
+
+    Response: {"primary": str, "secondary": str|null, "niche_hint": str|null}
+    """
+    urls, handles = extract_urls_and_handles(body.query)
+    result = await run_sync(
+        classify_intent_gemini,
+        body.query,
+        has_url=bool(urls),
+        has_handle=bool(handles),
+    )
+    return JSONResponse(result)
+
+
 @app.post("/stream")
 async def stream(
     request: Request,
@@ -363,7 +390,22 @@ async def stream(
         )
 
     # ── Resolve intent ────────────────────────────────────────────────────────
-    normalized = _normalize_intent_name(body.intent_type) or "video_diagnosis"
+    # Tier 1+2: frontend keyword classification result arrives as intent_type.
+    # Tier 3: when intent_type is null or "follow_up" with no prior session,
+    # run Gemini semantic classification server-side so no query is lost.
+    _raw_intent = _normalize_intent_name(body.intent_type)
+    if not _raw_intent or _raw_intent == "follow_up":
+        _t3_urls, _t3_handles = extract_urls_and_handles(body.query)
+        _t3 = await run_sync(
+            classify_intent_gemini,
+            body.query,
+            has_url=bool(_t3_urls),
+            has_handle=bool(_t3_handles),
+        )
+        normalized = _t3["primary"]
+        logger.info("[stream] tier-3 classification: %s → %s (secondary=%s)", body.intent_type, normalized, _t3.get("secondary"))
+    else:
+        normalized = _raw_intent
 
     async def event_generator() -> AsyncIterator[bytes]:
         stream_id = body.resume_stream_id or str(uuid.uuid4())

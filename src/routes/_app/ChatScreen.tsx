@@ -21,6 +21,8 @@ import {
   useInsertUserMessage,
 } from "@/hooks/useChatSession";
 import { useChatStream } from "@/hooks/useChatStream";
+import { env } from "@/lib/env";
+import { supabase } from "@/lib/supabase";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { DiagnosisRow, type DiagnosisRowData } from "@/routes/_app/components/DiagnosisRow";
 import { ThumbnailStrip, type ThumbnailItem } from "@/routes/_app/components/ThumbnailStrip";
@@ -46,6 +48,33 @@ type ChatMsg = {
   is_free?: boolean | null;
 };
 
+const FREE_INTENT_SET = new Set(["find_creators", "trend_spike", "follow_up"]);
+
+/** Tier-3: ask the backend to classify intent using Gemini when tiers 1+2 are low-confidence. */
+async function classifyIntentT3(
+  query: string,
+  accessToken: string,
+): Promise<{ intentType: string; isFree: boolean }> {
+  const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
+  if (!cloudRunUrl) return { intentType: "follow_up", isFree: true };
+  try {
+    const res = await fetch(`${cloudRunUrl}/classify-intent`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) throw new Error(`classify-intent HTTP ${res.status}`);
+    const data = (await res.json()) as { primary?: string; secondary?: string | null };
+    const intentType = data.primary ?? "follow_up";
+    return { intentType, isFree: FREE_INTENT_SET.has(intentType) };
+  } catch {
+    return { intentType: "follow_up", isFree: true };
+  }
+}
+
 function isResumeQuery(q: string): boolean {
   const s = q.trim().toLowerCase();
   return ["tiếp", "tiếp tục", "continue", "resume", "/tiếp"].includes(s);
@@ -68,66 +97,70 @@ function isResumeQuery(q: string): boolean {
  *
  * Priority order: URL → handle → shot_list → find_creators → own_channel
  *                 → content_directions + trend (with disambiguation)
- *                 → trend_spike alone → default
+ *                 → trend_spike alone → default (low confidence → tier 3)
+ *
+ * Returns a `confidence` flag:
+ *   "high"   — structural signal (URL, handle) — always correct, no tier-3 needed
+ *   "medium" — keyword matched — usually correct
+ *   "low"    — fell through to follow_up with no prior context — tier-3 needed
  */
-function detectIntent(query: string, priorAssistant: boolean): { intentType: string; isFree: boolean } {
+function detectIntent(
+  query: string,
+  priorAssistant: boolean,
+): { intentType: string; isFree: boolean; confidence: "high" | "medium" | "low" } {
   const q = query.trim();
   const ql = q.toLowerCase();
 
   // ── 1. URL DETECTION (highest confidence — structural) ────────────────────
   if (/https?:\/\/[^\s]*tiktok\.com/i.test(q)) {
-    // Profile URL: long-form /@handle with no /video/ or /photo/ path → competitor
-    // Everything else (vm.tiktok.com short links, /video/ paths, /photo/ paths) → video
     const hasTiktokProfileUrl = /tiktok\.com\/@[^\s/]+(?:\/(?!video|photo)[^\s]*)?(?:\s|$)/i.test(q)
       && !/\/video\//i.test(q)
       && !/\/photo\//i.test(q);
     return hasTiktokProfileUrl
-      ? { intentType: "competitor_profile", isFree: false }
-      : { intentType: "video_diagnosis", isFree: false };
+      ? { intentType: "competitor_profile", isFree: false, confidence: "high" }
+      : { intentType: "video_diagnosis", isFree: false, confidence: "high" };
   }
 
   // ── 2. HANDLE DETECTION (structural) ─────────────────────────────────────
   if (/@\w/.test(q)) {
     const ownChannelHandle = /soi kênh|kênh (của )?(mình|tôi|tao|tui)|review kênh|phân tích kênh|đánh giá kênh|channel (của )?(mình|tôi|tao|tui)/i.test(ql);
     return ownChannelHandle
-      ? { intentType: "own_channel", isFree: false }
-      : { intentType: "competitor_profile", isFree: false };
+      ? { intentType: "own_channel", isFree: false, confidence: "high" }
+      : { intentType: "competitor_profile", isFree: false, confidence: "high" };
   }
 
   // ── 3. SHOT LIST ──────────────────────────────────────────────────────────
-  // Checked before content_directions because "quay video" / "cách quay" could
-  // also loosely match direction keywords.
   if (/shot list|kịch bản|cách quay|hướng dẫn quay|quay như nào|quay thế nào|quay video|lên ý tưởng quay|plan quay|danh sách cảnh|cảnh quay/i.test(ql)) {
-    return { intentType: "shot_list", isFree: false };
+    return { intentType: "shot_list", isFree: false, confidence: "medium" };
   }
 
   // ── 4. FIND CREATORS ──────────────────────────────────────────────────────
   if (/tìm creator|tìm kol|tìm koc|ai đang làm tốt|creator nào|kol nào|koc nào|giới thiệu creator|gợi ý kol|gợi ý creator/i.test(ql)) {
-    return { intentType: "find_creators", isFree: true };
+    return { intentType: "find_creators", isFree: true, confidence: "medium" };
   }
 
   // ── 5. OWN CHANNEL ────────────────────────────────────────────────────────
   if (/soi kênh|kênh (của )?(mình|tôi|tao|tui)|review kênh|phân tích kênh|đánh giá kênh|channel (của )?(mình|tôi|tao)/i.test(ql)) {
-    return { intentType: "own_channel", isFree: false };
+    return { intentType: "own_channel", isFree: false, confidence: "medium" };
   }
 
   // ── 6. CONTENT_DIRECTIONS + TREND disambiguation ──────────────────────────
-  // Evaluated together so mixed signals prefer content_directions (more actionable).
   const isTrend = /đang viral|video viral|viral rồi|xu hướng|đang lên|bùng nổ|đang nổ|gì đang chạy|trend|tuần này|7 ngày|gần đây|đang trending|mới nổi/i.test(ql)
     || /\b(trending|viral)\b/i.test(ql);
 
   const isContent = /nên quay gì|quay gì|làm gì|video gì|format nào|hook nào|kiểu video|đang chạy tốt|đang work|đang hiệu quả|hướng content|content direction|hướng nội dung|nên làm gì|nên làm video|ý tưởng video|gì đang hot|gợi ý nội dung|loại video/i.test(ql);
 
-  // Rule 4: both signals → prefer content_directions
-  if (isContent) return { intentType: "content_directions", isFree: false };
-  if (isTrend) return { intentType: "trend_spike", isFree: true };
+  if (isContent) return { intentType: "content_directions", isFree: false, confidence: "medium" };
+  if (isTrend) return { intentType: "trend_spike", isFree: true, confidence: "medium" };
 
   // ── 7. DEFAULT ────────────────────────────────────────────────────────────
-  // Use follow_up only when there's prior assistant context — it's a free,
-  // text-only path with conversation history injected. Without prior context
-  // it's meaningless; fall through to follow_up anyway as a safe no-op fallback
-  // (Gemini will ask the user to clarify or provide a TikTok link).
-  return { intentType: "follow_up", isFree: true };
+  // follow_up with prior context = medium confidence (conversation continuation).
+  // follow_up with NO prior context = low confidence → tier-3 Gemini classification.
+  return {
+    intentType: "follow_up",
+    isFree: true,
+    confidence: priorAssistant ? "medium" : "low",
+  };
 }
 
 type ParsedAssistant = {
@@ -449,9 +482,27 @@ export default function ChatScreen() {
       setClientPaywall(false);
 
       const isResume = Boolean(resume && lastIntentRef.current);
-      const { intentType, isFree } = isResume
-        ? { intentType: lastIntentRef.current!, isFree: true }
-        : detectIntent(trimmed, priorAssistant);
+      let intentType: string;
+      let isFree: boolean;
+
+      if (isResume) {
+        intentType = lastIntentRef.current!;
+        isFree = true;
+      } else {
+        const detected = detectIntent(trimmed, priorAssistant);
+        if (detected.confidence === "low") {
+          // Tier-3: Gemini semantic classification — fires only when tiers 1+2 are ambiguous
+          const { data: { session: authSession } } = await supabase.auth.getSession();
+          const classified = authSession
+            ? await classifyIntentT3(trimmed, authSession.access_token)
+            : { intentType: "follow_up", isFree: true };
+          intentType = classified.intentType;
+          isFree = classified.isFree;
+        } else {
+          intentType = detected.intentType;
+          isFree = detected.isFree;
+        }
+      }
 
       if (!isFree && credits <= 0) {
         setClientPaywall(true);
