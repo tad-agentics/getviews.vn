@@ -306,6 +306,7 @@ async def analyze_aweme(
         if corpus_hit:
             metadata = ensemble.parse_metadata(aweme)
             result = {
+                "content_type": metadata.content_type,
                 "analysis": corpus_hit["analysis"],
                 "metadata": metadata.model_dump(),
                 "_from_corpus_cache": True,
