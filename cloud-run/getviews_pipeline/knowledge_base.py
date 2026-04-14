@@ -27,7 +27,7 @@ CONSUMERS
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# Hook categories — 9 categories, Vietnamese-native labels
+# Hook categories — 12 categories, Vietnamese-native labels
 # ---------------------------------------------------------------------------
 
 HOOK_CATEGORIES: dict[str, dict] = {
@@ -147,6 +147,48 @@ HOOK_CATEGORIES: dict[str, dict] = {
         "mechanism_vi": 'Chạy vì: số liệu cụ thể tạo uy tín ngay lập tức. "Trước/Sau" format chạy đặc biệt tốt.',
         "best_niches": ["giao_duc", "tai_chinh", "marketing", "shopee_affiliate"],
         "visual_pairing": "Text overlay số liệu lớn, JetBrains Mono style. Screenshot kết quả thật.",
+    },
+    "to_mo": {
+        "name_vi": "Tò Mò / Gợi Mở",
+        "name_en": "curiosity_gap",
+        "templates": [
+            "Không ai nói cho bạn biết điều này về [chủ đề]",
+            "Lý do thật sự tại sao [hiện tượng] — không phải như bạn nghĩ",
+            "[Số]% người [hành động] sai cách này mà không biết",
+            "Mình phát hiện ra một điều về [sản phẩm/chủ đề] mà ai cũng bỏ qua",
+            "Xem đến cuối — cái kết bạn không đoán được",
+        ],
+        "mechanism_vi": "Chạy vì: tạo khoảng trống thông tin mà não buộc phải lấp đầy. Người xem không thể lướt qua khi cảm giác thiếu một mảnh thông tin quan trọng.",
+        "best_niches": ["skincare", "tai_chinh", "giao_duc", "review_do_gia_dung", "cong_nghe"],
+        "visual_pairing": "Text overlay câu hỏi/tuyên bố lớn + mặt tò mò hoặc ngạc nhiên. Đừng reveal ngay — giữ open loop qua 2-3 giây đầu.",
+    },
+    "cau_hoi": {
+        "name_vi": "Câu Hỏi",
+        "name_en": "question",
+        "templates": [
+            "Bạn có biết tại sao [hiện tượng phổ biến]?",
+            "Tại sao [X] mà không ai giải thích?",
+            "Bạn thuộc team nào — [A] hay [B]?",
+            "[Sản phẩm] này có thật sự tốt như quảng cáo không?",
+            "Ai đã từng gặp vấn đề [X] — mình có cách giải quyết",
+        ],
+        "mechanism_vi": "Chạy vì: não tự động kích hoạt tìm câu trả lời khi nghe câu hỏi. Đặc biệt mạnh khi câu hỏi chạm vào trải nghiệm cá nhân của người xem.",
+        "best_niches": ["giao_duc", "skincare", "tai_chinh", "suc_khoe", "review_do_gia_dung"],
+        "visual_pairing": "Mặt nhìn thẳng camera + text overlay câu hỏi. Hoặc B-roll sản phẩm + voiceover câu hỏi trong 1s đầu.",
+    },
+    "bi_mat": {
+        "name_vi": "Bí Mật / Nội Bộ",
+        "name_en": "insider",
+        "templates": [
+            "Bí mật mà [ngành] không bao giờ nói cho bạn",
+            "Mua hàng Shopee — điều không ai dạy bạn",
+            "Mình làm trong ngành [X] — đây là sự thật",
+            "Shop không muốn bạn biết điều này về [sản phẩm]",
+            "[Nghề/ngành] từ góc nhìn người trong cuộc — khác xa bạn nghĩ",
+        ],
+        "mechanism_vi": "Chạy vì: hứa hẹn thông tin độc quyền mà đa số không có. Kết hợp authority (người trong ngành) + tò mò (bí mật) = giữ chân cực mạnh.",
+        "best_niches": ["review_do_gia_dung", "shopee_haul", "tai_chinh", "cong_nghe", "thoi_trang"],
+        "visual_pairing": "Mặt 'thì thầm' hoặc nhìn nghiêm túc + text 'BÍ MẬT' hoặc '🤫'. Giọng nói nhỏ hơn bình thường tạo cảm giác riêng tư.",
     },
 }
 

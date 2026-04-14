@@ -317,6 +317,9 @@ _HOOK_TYPE_ALIASES: dict[str, str] = {
     # English synonyms Gemini might use
     "tutorial": "how_to", "story": "story_open", "storytelling": "story_open",
     "shock": "bold_claim", "tips": "how_to", "fomo": "warning", "fear": "warning",
+    # New categories — map to closest canonical HookType for DB column compatibility
+    "curiosity": "curiosity_gap", "curiosity_gap": "curiosity_gap",
+    "insider": "social_proof", "secret": "social_proof",
 }
 
 _SOUTHERN = [

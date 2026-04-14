@@ -84,8 +84,13 @@ _HOOK_TYPE_ALIASES: dict[str, str] = {
     "how to": "how_to",
     "social proof": "social_proof",
     "curiosity gap": "curiosity_gap",
+    "curiosity": "curiosity_gap",
     "pain point": "pain_point",
     "trend hijack": "trend_hijack",
+    # "insider" / "secret" knowledge-base types → closest canonical HookType
+    "insider": "social_proof",
+    "secret": "social_proof",
+    "bi_mat": "social_proof",
 }
 
 
