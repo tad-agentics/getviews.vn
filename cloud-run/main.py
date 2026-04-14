@@ -99,10 +99,36 @@ def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:
     raise ValueError("Thiếu @handle hoặc URL profile TikTok hợp lệ.")
 
 
+_SHORT_TIKTOK_HOSTS = {"vm.tiktok.com", "vt.tiktok.com", "m.tiktok.com"}
+
+
+def _is_short_tiktok_url(url: str) -> bool:
+    from urllib.parse import urlparse
+    try:
+        return urlparse(url).netloc.lower() in _SHORT_TIKTOK_HOSTS
+    except Exception:
+        return False
+
+
+def _resolve_short_url(url: str, timeout: float = 8.0) -> str:
+    """Follow redirects on a short TikTok URL and return the final URL.
+    Falls back to the original URL on any error."""
+    import httpx
+    try:
+        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            resp = client.head(url, headers={"User-Agent": "Mozilla/5.0"})
+            final = str(resp.url)
+            logger.info("[short_url] resolved %s → %s", url, final)
+            return final
+    except Exception as exc:
+        logger.warning("[short_url] could not resolve %s: %s — using original", url, exc)
+        return url
+
+
 def _pick_video_url(urls: list[str]) -> str | None:
     for u in urls:
         ul = u.lower()
-        if "/video/" in ul or "vm.tiktok.com" in ul:
+        if "/video/" in ul or "/photo/" in ul or _is_short_tiktok_url(u):
             return u
     return urls[0] if urls else None
 
@@ -455,6 +481,10 @@ async def stream(
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "missing_video_url"})
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
+                # Resolve short URLs (vt.tiktok.com, vm.tiktok.com) to full URLs before
+                # passing to EnsembleData — the API requires /video/ or /photo/ path.
+                if _is_short_tiktok_url(url):
+                    url = await run_sync(_resolve_short_url, url)
                 pipeline_coro = run_video_diagnosis(url, session, questions=questions, user_message=body.query, step_queue=step_q)
 
             elif normalized == "competitor_profile":

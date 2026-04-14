@@ -73,7 +73,9 @@ KNOWLEDGE_SIGNALS = [
 ]
 
 _TIKTOK_URL_RE = re.compile(
-    r"https?://(?:www\.)?(?:tiktok\.com|vm\.tiktok\.com)/\S+",
+    # Matches full TikTok URLs (www.tiktok.com, tiktok.com) and all short-link
+    # domains (vm.tiktok.com, vt.tiktok.com, and any future *.tiktok.com variants).
+    r"https?://(?:(?:www\.)?tiktok\.com|(?:vm|vt|m)\.tiktok\.com)/\S+",
     re.IGNORECASE,
 )
 _HANDLE_RE = re.compile(r"@([a-zA-Z0-9_.]+)")
