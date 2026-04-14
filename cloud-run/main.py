@@ -391,10 +391,11 @@ async def stream(
 
     # ── Resolve intent ────────────────────────────────────────────────────────
     # Tier 1+2: frontend keyword classification result arrives as intent_type.
-    # Tier 3: when intent_type is null or "follow_up" with no prior session,
-    # run Gemini semantic classification server-side so no query is lost.
+    # Tier 3 (backend safety net): only fires when intent_type is completely absent
+    # (null/empty). follow_up is intentional — frontend routes it to Vercel or
+    # calls /classify-intent first — do NOT reclassify it server-side.
     _raw_intent = _normalize_intent_name(body.intent_type)
-    if not _raw_intent or _raw_intent == "follow_up":
+    if not _raw_intent:
         _t3_urls, _t3_handles = extract_urls_and_handles(body.query)
         _t3 = await run_sync(
             classify_intent_gemini,
@@ -403,7 +404,7 @@ async def stream(
             has_handle=bool(_t3_handles),
         )
         normalized = _t3["primary"]
-        logger.info("[stream] tier-3 classification: %s → %s (secondary=%s)", body.intent_type, normalized, _t3.get("secondary"))
+        logger.info("[stream] tier-3 classification (null intent): %s (secondary=%s)", normalized, _t3.get("secondary"))
     else:
         normalized = _raw_intent
 
