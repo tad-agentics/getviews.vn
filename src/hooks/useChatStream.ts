@@ -132,10 +132,6 @@ export function useChatStream() {
                 error?: string;
                 step?: StepEvent;
               };
-              if (token.error) {
-                setState((s) => ({ ...s, status: "error", error: token.error ?? "stream_failed" }));
-                return;
-              }
               if (token.stream_id) lastStreamId = token.stream_id;
               if (typeof token.seq === "number") lastSeq = token.seq;
               // Step event — append to stepEvents, no text change
@@ -145,17 +141,36 @@ export function useChatStream() {
               }
               if (token.delta) text += token.delta;
               if (token.done) {
-                setState({
-                  status: "done",
-                  text,
-                  streamId: lastStreamId,
-                  lastSeq,
-                  error: null,
-                  stepEvents: [],
-                });
+                // Error on done: set error status but still invalidate queries so
+                // is_processing is cleared and UI reflects the failed state.
+                if (token.error) {
+                  setState({
+                    status: "error",
+                    text,
+                    streamId: lastStreamId,
+                    lastSeq,
+                    error: token.error,
+                    stepEvents: [],
+                  });
+                } else {
+                  setState({
+                    status: "done",
+                    text,
+                    streamId: lastStreamId,
+                    lastSeq,
+                    error: null,
+                    stepEvents: [],
+                  });
+                }
                 void qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
                 void qc.invalidateQueries({ queryKey: ["profile"] });
                 void qc.invalidateQueries({ queryKey: ["credits"] });
+                return;
+              }
+              // Mid-stream error without done flag (shouldn't happen, but handle gracefully)
+              if (token.error) {
+                setState((s) => ({ ...s, status: "error", error: token.error ?? "stream_failed", stepEvents: [] }));
+                void qc.invalidateQueries({ queryKey: ["profile"] });
                 return;
               }
               setState((s) => ({ ...s, text, streamId: lastStreamId, lastSeq }));
