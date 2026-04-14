@@ -702,11 +702,18 @@ async def run_video_diagnosis(
                 aweme, include_diagnosis=False, full_analyses=fa
             )
 
+    async def _ref_with_timeout(aweme: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return await asyncio.wait_for(_ref(aweme), timeout=60.0)
+        except (asyncio.TimeoutError, Exception) as e:
+            logger.warning("[ref_timeout] aweme_id=%s — skipped: %s", aweme.get("aweme_id"), e)
+            return {"_skipped": True}
+
     user_task = asyncio.create_task(_user())
-    ref_tasks = [asyncio.create_task(_ref(a)) for a in picks]
+    ref_tasks = [asyncio.create_task(_ref_with_timeout(a)) for a in picks]
     user_res = await user_task
     ref_results = await asyncio.gather(*ref_tasks)
-    references = [r for r in ref_results if "analysis" in r]
+    references = [r for r in ref_results if "analysis" in r and not r.get("_skipped")]
 
     niche_id = await resolve_niche_id_cached(session, niche)
     count, niche_name = await get_corpus_count_cached(

@@ -152,6 +152,11 @@ export function useChatStream() {
                     error: token.error,
                     stepEvents: [],
                   });
+                  // On error: only refresh profile/credits (is_processing cleared server-side).
+                  // Do NOT invalidate the session query — no assistant row was written,
+                  // and a DB refetch would update lastMessageIsAssistant, hiding the error block.
+                  void qc.invalidateQueries({ queryKey: ["profile"] });
+                  void qc.invalidateQueries({ queryKey: ["credits"] });
                 } else {
                   setState({
                     status: "done",
@@ -161,11 +166,12 @@ export function useChatStream() {
                     error: null,
                     stepEvents: [],
                   });
+                  // On success: refresh session (new assistant row) + profile/credits.
+                  void qc.invalidateQueries({ queryKey: chatKeys.session(sessionId) });
+                  void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
+                  void qc.invalidateQueries({ queryKey: ["profile"] });
+                  void qc.invalidateQueries({ queryKey: ["credits"] });
                 }
-                void qc.invalidateQueries({ queryKey: chatKeys.session(sessionId) });
-                void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
-                void qc.invalidateQueries({ queryKey: ["profile"] });
-                void qc.invalidateQueries({ queryKey: ["credits"] });
                 return;
               }
               // Mid-stream error without done flag (shouldn't happen, but handle gracefully)

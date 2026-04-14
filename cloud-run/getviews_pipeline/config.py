@@ -139,7 +139,7 @@ R2_VIDEO_PUBLIC_URL = os.environ.get("R2_VIDEO_PUBLIC_URL", "").rstrip("/")
 FRAME_TIMESTAMPS_SEC: list[float] = [0.0, 1.0, 3.0]
 
 FILES_API_POLL_INTERVAL_SEC = 2
-FILES_API_POLL_MAX_ATTEMPTS = 30
+FILES_API_POLL_MAX_ATTEMPTS = 15  # 30s max wait for Gemini file ACTIVE state
 
 logger.info(
     "Resolved GEMINI_MODEL=%s extraction=%s synthesis=%s knowledge=%s diagnosis=%s "

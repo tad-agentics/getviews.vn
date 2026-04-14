@@ -592,15 +592,18 @@ export default function ChatScreen() {
   const paywallVisible = clientPaywall || error === "insufficient_credits";
   const dailyLimitVisible = error === "daily_free_limit";
 
-  // Keep the in-flight block visible during streaming, on error, AND while the
-  // stream is "done" but the TanStack Query refetch hasn't landed yet (the gap
-  // between invalidateQueries() and the new assistant row appearing in `messages`).
+  // Keep the in-flight block visible during streaming AND while the stream is
+  // "done" but the TanStack Query refetch hasn't landed yet (the gap between
+  // invalidateQueries() and the new assistant row appearing in `messages`).
   // Without this, the streamed text disappears for ~200–500ms after completion.
   const lastMessageIsAssistant = messages.at(-1)?.role === "assistant";
   const inFlightVisible =
     status === "streaming" ||
-    (status === "done" && Boolean(text) && !lastMessageIsAssistant) ||
-    (status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit");
+    (status === "done" && Boolean(text) && !lastMessageIsAssistant);
+
+  // Error block is rendered independently — never hidden by DB refetch landing.
+  const streamErrorVisible =
+    status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit";
 
   const messageThread = (
     <div className="space-y-4 overflow-x-hidden">
@@ -681,28 +684,30 @@ export default function ChatScreen() {
               <p className="mt-2 text-xs text-[var(--faint)]">Đang kết nối và phân tích...</p>
             </div>
           ) : null}
-          {status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit" ? (
-            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/40 dark:bg-red-950/30">
-              <p className="text-sm text-red-700 dark:text-red-300">
-                {error === "analysis_timeout"
-                  ? "Phân tích quá lâu — thử lại với video ngắn hơn hoặc gõ 'tiếp'."
-                  : error === "video_download_failed"
-                    ? "Không tải được video — link có thể đã hết hạn. Thử dán lại link mới."
-                    : error === "ensembledata_quota"
-                      ? "Hệ thống đang quá tải — thử lại sau vài phút."
-                      : error === "gemini_error"
-                        ? "AI tạm lỗi — thử lại sau ít phút."
-                        : error === "missing_video_url"
-                          ? "Cần link TikTok video hợp lệ (dán link vào tin nhắn)."
-                          : "Có lỗi xảy ra — gõ 'tiếp' để thử lại hoặc gửi câu hỏi mới."}
-              </p>
-            </div>
-          ) : null}
           {text ? (
             <div className="mt-2">
               <MarkdownRenderer text={text} streaming={status === "streaming"} />
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* Error block — rendered independently so a DB refetch can never hide it */}
+      {streamErrorVisible ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-950/30">
+          <p className="text-sm text-red-700 dark:text-red-300">
+            {error === "analysis_timeout"
+              ? "Phân tích quá lâu — thử lại với video ngắn hơn hoặc gõ 'tiếp'."
+              : error === "video_download_failed"
+                ? "Không tải được video — link có thể đã hết hạn. Thử dán lại link mới."
+                : error === "ensembledata_quota"
+                  ? "Hệ thống đang quá tải — thử lại sau vài phút."
+                  : error === "gemini_error"
+                    ? "AI tạm lỗi — thử lại sau ít phút."
+                    : error === "missing_video_url"
+                      ? "Cần link TikTok video hợp lệ (dán link vào tin nhắn)."
+                      : "Có lỗi xảy ra — gõ 'tiếp' để thử lại hoặc gửi câu hỏi mới."}
+          </p>
         </div>
       ) : null}
 
