@@ -23,6 +23,7 @@ from getviews_pipeline.corpus_context import (
     resolve_niche_id_cached,
 )
 from getviews_pipeline.corpus_ingest import classify_format
+from getviews_pipeline.hashtag_niche_map import classify_from_hashtags
 from getviews_pipeline.output_redesign import hook_type_vi
 from getviews_pipeline.gemini import (
     synthesize_diagnosis,
@@ -82,8 +83,23 @@ async def _empty_dict() -> dict:
     return {}
 
 
+_NICHE_SEARCH_STOPWORDS: frozenset[str] = frozenset({
+    "trendingtiktok", "trending", "viral", "tiktok", "foryou", "fyp",
+    "xuhuong", "thinhhanh", "hot", "xinh", "dep",
+})
+
+
 def _niche_query_terms(niche: str) -> str:
-    return niche.strip().lstrip("#") or "tiktok"
+    """Return a clean search term for EnsembleData keyword/hashtag search.
+
+    Strips leading # and rejects pure noise strings (generic hashtags that
+    carry no niche signal) — falls back to "tiktok vietnam" so live search
+    at least returns Vietnamese content rather than garbage.
+    """
+    term = niche.strip().lstrip("#")
+    if not term or term.lower() in _NICHE_SEARCH_STOPWORDS:
+        return "tiktok vietnam"
+    return term
 
 
 async def _niche_aweme_pool(niche: str, *, period: int) -> list[dict[str, Any]]:
@@ -619,10 +635,31 @@ async def run_video_diagnosis(
     if handle:
         emit(step_queue, step_creator(handle))
 
-    niche = niche_override or infer_niche_from_hashtags(
-        meta.hashtags, meta.description
-    )
+    # ── Niche resolution (3-tier, best-signal-first) ──────────────────────────
+    # Tier 1: explicit override or session niche (most reliable — set by onboarding
+    #         or a prior content_directions intent in the same session).
+    # Tier 2: DB-backed hashtag→niche map (classify_from_hashtags). Knows that
+    #         e.g. #xinh maps to "thoi_trang" from learned corpus associations.
+    # Tier 3: Raw first-non-generic hashtag or description snippet (last resort,
+    #         often produces poor niche strings like "trendingtiktok").
+    if niche_override:
+        niche = niche_override
+    elif session.get("niche"):
+        niche = session["niche"]
+    else:
+        _sb = get_service_client()
+        _db_niche_id = await classify_from_hashtags(meta.hashtags, _sb)
+        if _db_niche_id is not None:
+            # Resolve niche_id → display name from niche_taxonomy
+            try:
+                _row = _sb.table("niche_taxonomy").select("name").eq("id", _db_niche_id).single().execute()
+                niche = (_row.data or {}).get("name") or infer_niche_from_hashtags(meta.hashtags, meta.description)
+            except Exception:
+                niche = infer_niche_from_hashtags(meta.hashtags, meta.description)
+        else:
+            niche = infer_niche_from_hashtags(meta.hashtags, meta.description)
 
+    logger.info("[video_diagnosis] niche resolved=%s hashtags=%s", niche, meta.hashtags[:5])
     emit(step_queue, step_search("corpus", f"video tương tự trong niche {niche}"))
     uid = str(user_aweme.get("aweme_id", "") or "")
     cached_ids = set(fa.keys())
