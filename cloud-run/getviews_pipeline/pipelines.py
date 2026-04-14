@@ -777,13 +777,17 @@ async def run_video_diagnosis(
     content_format = classify_format(user_analysis_dict, niche_id_for_format)
 
     # Build user_stats from metadata for the synthesis prompt.
+    # VideoMetadata.model_dump() nests engagement metrics under "metrics" sub-dict.
+    _metrics = user_metadata_dict.get("metrics") or {}
     user_stats: dict[str, Any] = {
-        "views": user_metadata_dict.get("views") or 0,
-        "likes": user_metadata_dict.get("likes") or 0,
-        "comments": user_metadata_dict.get("comments") or 0,
-        "shares": user_metadata_dict.get("shares") or 0,
-        "breakout_multiplier": user_metadata_dict.get("breakout") or 0.0,
-        "duration": user_metadata_dict.get("duration") or 0,
+        "views": _metrics.get("views") or 0,
+        "likes": _metrics.get("likes") or 0,
+        "comments": _metrics.get("comments") or 0,
+        "shares": _metrics.get("shares") or 0,
+        "bookmarks": _metrics.get("bookmarks") or 0,
+        "engagement_rate": user_metadata_dict.get("engagement_rate") or 0.0,
+        "breakout_multiplier": user_metadata_dict.get("breakout") or None,
+        "duration": user_metadata_dict.get("duration_sec") or 0,
     }
 
     # Detect content type from user analysis result for routing
