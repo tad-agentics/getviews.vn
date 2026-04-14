@@ -162,7 +162,8 @@ export function useChatStream() {
                     stepEvents: [],
                   });
                 }
-                void qc.invalidateQueries({ queryKey: chatKeys.messages(sessionId) });
+                void qc.invalidateQueries({ queryKey: chatKeys.session(sessionId) });
+                void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
                 void qc.invalidateQueries({ queryKey: ["profile"] });
                 void qc.invalidateQueries({ queryKey: ["credits"] });
                 return;
