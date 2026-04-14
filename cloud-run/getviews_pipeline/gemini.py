@@ -401,9 +401,11 @@ def synthesize_diagnosis_v2(
         )
         prompt = prompt.rstrip() + question_block + "\n\nViết chẩn đoán ngay."
 
+    # Directions block adds ~1000 tokens — extend budget so it isn't truncated.
+    max_tokens = 6000 if wants_directions else 3072
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
-        max_output_tokens=3072,  # narrative structure needs more room than old checklist
+        max_output_tokens=max_tokens,
     )
     response = _generate_content_models(
         [prompt],
@@ -453,9 +455,11 @@ def synthesize_diagnosis_carousel_v2(
         )
         prompt = prompt.rstrip() + question_block + "\n\nViết chẩn đoán ngay."
 
+    # Directions block adds ~1000 tokens — extend budget so it isn't truncated.
+    max_tokens = 6000 if wants_directions else 3072
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
-        max_output_tokens=3072,
+        max_output_tokens=max_tokens,
     )
     response = _generate_content_models(
         [prompt],
