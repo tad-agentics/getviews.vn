@@ -615,6 +615,63 @@ def _wants_directions(user_message: str) -> bool:
     return any(kw in lower for kw in _DIRECTION_KEYWORDS)
 
 
+async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
+    """Fetch current week's Layer 0 mechanism insight for this niche.
+
+    Returns a formatted string ready for injection into the synthesis voice_block.
+    Returns "" if no insight is available (Layer 0 hasn't run yet, or sparse niche).
+    """
+    try:
+        niche_id = await resolve_niche_id_cached(session, niche_name)
+        if not niche_id:
+            return ""
+
+        from getviews_pipeline.supabase_client import get_service_client
+        import asyncio
+        client = get_service_client()
+        loop = asyncio.get_event_loop()
+
+        def _query() -> list[dict]:
+            return (
+                client.table("niche_insights")
+                .select("insight_text,execution_tip,staleness_risk,quality_flag")
+                .eq("niche_id", niche_id)
+                .is_("quality_flag", None)  # only surface non-flagged insights
+                .order("week_of", desc=True)
+                .limit(1)
+                .execute()
+            ).data or []
+
+        rows = await loop.run_in_executor(None, _query)
+        if not rows:
+            return ""
+
+        row = rows[0]
+        insight_text = row.get("insight_text") or ""
+        execution_tip = row.get("execution_tip") or ""
+        staleness = row.get("staleness_risk") or "LOW"
+
+        if not insight_text:
+            return ""
+
+        block = (
+            f"PHÂN TÍCH NGÁCH TUẦN NÀY (Layer 0 — pre-computed, staleness={staleness}):\n"
+            f"{insight_text}\n"
+        )
+        if execution_tip:
+            block += f"Tip áp dụng ngay: {execution_tip}\n"
+        block += (
+            "\nSử dụng dữ liệu trên để INFORM nhận định — "
+            "so sánh video user với common_visual/common_timing của top formula. "
+            "KHÔNG dump raw JSON. KHÔNG bịa cơ chế ngoài dữ liệu trên."
+        )
+        return block
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("[layer0_context] fetch failed (non-fatal): %s", exc)
+        return ""
+
+
 async def run_video_diagnosis(
     url: str,
     session: dict[str, Any],
@@ -652,8 +709,9 @@ async def run_video_diagnosis(
         if _db_niche_id is not None:
             # Resolve niche_id → display name from niche_taxonomy
             try:
-                _row = _sb.table("niche_taxonomy").select("name").eq("id", _db_niche_id).single().execute()
-                niche = (_row.data or {}).get("name") or infer_niche_from_hashtags(meta.hashtags, meta.description)
+                _row = _sb.table("niche_taxonomy").select("name_vn, name_en").eq("id", _db_niche_id).single().execute()
+                _tax = _row.data or {}
+                niche = _tax.get("name_vn") or _tax.get("name_en") or infer_niche_from_hashtags(meta.hashtags, meta.description)
             except Exception:
                 niche = infer_niche_from_hashtags(meta.hashtags, meta.description)
         else:
@@ -767,6 +825,9 @@ async def run_video_diagnosis(
     if not niche_norms:
         niche_norms = {"_note": "Không có data niche — KHÔNG tạo số liệu niche, KHÔNG so sánh với chuẩn niche"}
 
+    # Layer 0 context — pre-computed mechanism insight for this niche (fail-open)
+    layer0_context = await _get_niche_insight(niche, session)
+
     emit(step_queue, step_done(f"Đã phân tích {1 + len(references)} video — đang viết báo cáo..."))
 
     # Detect content format from user analysis — reuse corpus_ingest classifier.
@@ -847,6 +908,7 @@ async def run_video_diagnosis(
                 user_stats=user_stats,
                 wants_directions=include_carousel_directions,
                 collapsed_questions=questions if questions and len(questions) > 1 else None,
+                layer0_context=layer0_context,
             )
         else:
             diagnosis = await run_sync(
@@ -860,6 +922,7 @@ async def run_video_diagnosis(
                 user_stats=user_stats,
                 collapsed_questions=questions if questions and len(questions) > 1 else None,
                 wants_directions=_wants_directions(user_message),
+                layer0_context=layer0_context,
             )
         # Server-side guarantee: ensure all reference videos appear as video_ref
         # blocks regardless of whether Gemini emitted them. Appended only for refs
@@ -878,6 +941,7 @@ async def run_video_diagnosis(
             views = int(meta.get("views") or 0)
             days_ago = int(meta.get("days_ago") or 0)
             breakout = float(meta.get("breakout") or 0.0)
+            thumb = meta.get("thumbnail_url") or ""
             block: dict = {
                 "type": "video_ref",
                 "video_id": vid,
@@ -887,6 +951,8 @@ async def run_video_diagnosis(
             }
             if breakout > 1.0:
                 block["breakout"] = round(breakout, 1)
+            if thumb:
+                block["thumbnail_url"] = thumb
             injected_blocks.append(_json.dumps(block, ensure_ascii=False))
             already_emitted.add(vid)
 

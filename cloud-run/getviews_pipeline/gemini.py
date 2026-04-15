@@ -377,6 +377,7 @@ def synthesize_diagnosis_v2(
     user_stats: dict[str, Any],
     collapsed_questions: list[str] | None = None,
     wants_directions: bool = False,
+    layer0_context: str = "",
 ) -> str:
     """V2 narrative diagnosis — format-aware, 5-part structure (incl. distribution).
 
@@ -393,6 +394,7 @@ def synthesize_diagnosis_v2(
         user_analysis=user_analysis,
         user_stats=user_stats,
         wants_directions=wants_directions,
+        layer0_context=layer0_context,
     )
     if collapsed_questions:
         question_block = (
@@ -429,6 +431,7 @@ def synthesize_diagnosis_carousel_v2(
     user_stats: dict[str, Any],
     wants_directions: bool = False,
     collapsed_questions: list[str] | None = None,
+    layer0_context: str = "",
 ) -> str:
     """V2 carousel diagnosis — 2-layer narrative (distribution + swipe logic), corpus-aware.
 
@@ -447,6 +450,7 @@ def synthesize_diagnosis_carousel_v2(
         user_analysis=user_analysis,
         user_stats=user_stats,
         wants_directions=wants_directions,
+        layer0_context=layer0_context,
     )
     if collapsed_questions:
         question_block = (
@@ -675,3 +679,54 @@ def generate_summary(
     except ValidationError as e:
         logger.warning("Batch summary validation failed, returning raw dict: %s", e)
         return combined
+
+
+def generate_niche_insight(
+    niche_name: str,
+    formula_hook: str,
+    formula_format: str,
+    top_videos: list[dict[str, Any]],
+    baseline_videos: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Layer 0A — mechanism extraction with contrastive framing (Pearl's Ladder).
+
+    Uses GEMINI_EXTRACTION_MODEL (Flash) for strongest causal reasoning.
+    Temperature 0.2 for analytical precision, not creative output.
+    """
+    from getviews_pipeline.layer0_prompts import (
+        LAYER0_NICHE_RESPONSE_SCHEMA,
+        NICHE_INSIGHT_FEW_SHOT_EXAMPLES,
+        NICHE_INSIGHT_SYSTEM_INSTRUCTION,
+        NICHE_INSIGHT_USER_PROMPT_TEMPLATE,
+    )
+
+    top_json = json.dumps(top_videos, ensure_ascii=False, indent=2)
+    baseline_json = json.dumps(baseline_videos, ensure_ascii=False, indent=2)
+    user_prompt = NICHE_INSIGHT_USER_PROMPT_TEMPLATE.format(
+        niche_name=niche_name,
+        hook_type=formula_hook,
+        content_format=formula_format,
+        top_videos_json=top_json,
+        baseline_videos_json=baseline_json,
+    )
+    full_prompt = (
+        f"{NICHE_INSIGHT_SYSTEM_INSTRUCTION}\n\n"
+        f"## FEW-SHOT EXAMPLES\n{NICHE_INSIGHT_FEW_SHOT_EXAMPLES}\n\n"
+        f"---\n\n{user_prompt}"
+    )
+
+    # _extraction_json_config already sets temperature=GEMINI_EXTRACTION_TEMPERATURE (0.2),
+    # response_mime_type, response_json_schema, and preserves media_resolution from
+    # _video_analysis_config() via model_copy. Do not replace it.
+    cfg = _extraction_json_config(LAYER0_NICHE_RESPONSE_SCHEMA)
+
+    response = _generate_content_models(
+        [full_prompt],
+        primary_model=GEMINI_EXTRACTION_MODEL,
+        fallbacks=GEMINI_EXTRACTION_FALLBACKS,
+        config=cfg,
+    )
+    text = _response_text(response)
+    if not text.strip():
+        raise ValueError(f"generate_niche_insight: empty response for niche={niche_name}")
+    return json.loads(_normalize_response(text))

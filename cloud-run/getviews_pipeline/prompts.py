@@ -406,6 +406,7 @@ def build_carousel_diagnosis_prompt_v2(
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
     wants_directions: bool = False,
+    layer0_context: str = "",
 ) -> str:
     """V2 carousel diagnosis prompt — 2-layer narrative, corpus-aware.
 
@@ -427,9 +428,12 @@ def build_carousel_diagnosis_prompt_v2(
         user_analysis:      Gemini carousel extraction result.
         user_stats:         User carousel stats (views, breakout_multiplier, etc.).
         wants_directions:   If True, appends 4-5 content direction suggestions.
+        layer0_context:     Pre-computed Layer 0 mechanism insight for this niche (optional).
     """
     voice = build_voice_block(include_examples=False)
     voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
+    if layer0_context:
+        voice = f"{voice}\n\n{layer0_context}"
     carousel_context = build_carousel_context()
 
     return build_carousel_diagnosis_narrative_prompt(
@@ -889,6 +893,7 @@ def build_diagnosis_synthesis_prompt_v2(
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
     wants_directions: bool = False,
+    layer0_context: str = "",
 ) -> str:
     """V2 diagnosis synthesis prompt — narrative structure, format-aware.
 
@@ -904,9 +909,12 @@ def build_diagnosis_synthesis_prompt_v2(
         user_analysis:    Gemini extraction result for the user's video.
         user_stats:       User video stats dict (views, breakout_multiplier, etc.).
         wants_directions: If True, appends 4-5 content direction suggestions after diagnosis.
+        layer0_context:   Pre-computed Layer 0 mechanism insight for this niche (optional).
     """
     voice = build_voice_block(include_examples=True, example_type="diagnosis")
     voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
+    if layer0_context:
+        voice = f"{voice}\n\n{layer0_context}"
 
     return build_diagnosis_narrative_prompt(
         voice_block=voice,

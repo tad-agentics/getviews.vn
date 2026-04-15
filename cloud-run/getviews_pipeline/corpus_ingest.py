@@ -1072,6 +1072,14 @@ async def run_batch_ingest(
     except Exception as exc:
         logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
 
+    # Daily: Layer 0B — emerging sound insights
+    try:
+        from getviews_pipeline.layer0_sound import run_sound_insights
+        l0b_result = await run_sound_insights(client)
+        logger.info("[layer0b] sounds_analyzed=%d", l0b_result.get("analyzed", 0))
+    except Exception as exc:
+        logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
+
     # Weekly analytics (Sunday only — day 6 in Python's weekday())
     today = date.today()
     is_sunday = today.weekday() == 6
@@ -1167,6 +1175,29 @@ async def _run_weekly_analytics(client: Any) -> None:
         )
     except Exception as exc:
         logger.error("[sound_aggregation] Sound aggregation failed (non-fatal): %s", exc)
+
+    # --- Layer 0: Intelligence Extraction (the brain) ---
+    # Runs LAST — reads from video_corpus + signal_grades + trending_sounds
+    # Non-fatal: if Layer 0 fails, dashboard still shows statistics (without mechanism)
+
+    try:
+        from getviews_pipeline.layer0_niche import run_niche_insights
+        l0a_result = await run_niche_insights(client)
+        logger.info(
+            "[layer0a] insights=%d skipped=%d errors=%s",
+            l0a_result.insights_written,
+            l0a_result.niches_skipped,
+            l0a_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[layer0a] Niche insight generation failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.layer0_migration import run_cross_niche_migration
+        l0c_result = await run_cross_niche_migration(client)
+        logger.info("[layer0c] migrations=%d", l0c_result.get("migrations_found", 0))
+    except Exception as exc:
+        logger.error("[layer0c] Cross-niche migration failed (non-fatal): %s", exc)
 
 
 def _fetch_niches_sync(client: Any) -> list[dict[str, Any]]:

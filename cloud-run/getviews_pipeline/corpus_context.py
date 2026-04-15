@@ -13,6 +13,7 @@ Usage pattern (P0-1):
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import threading
@@ -477,6 +478,17 @@ async def fetch_corpus_reference_pool(
                 "_corpus_content_format": row.get("content_format") or "",
                 "_corpus_content_type": row.get("content_type") or "video",
             })
+
+        # Repair stale (expired TikTok CDN) thumbnails in-place — fire-and-forget,
+        # updates DB so subsequent requests get R2 URLs from the start.
+        stale_count = sum(1 for a in awemes if not _is_r2_url(a.get("thumbnail_url")))
+        if stale_count:
+            logger.info(
+                "[corpus_context] %d/%d reference videos have stale thumbnails — repairing",
+                stale_count, len(awemes),
+            )
+            await refresh_stale_thumbnails(awemes)
+
         return awemes
     except Exception as exc:
         logger.warning("[corpus_context] fetch_corpus_reference_pool failed: %s", exc)
@@ -510,3 +522,88 @@ async def get_signal_grades_for_niche(
     except Exception as exc:
         logger.warning("[corpus_context] get_signal_grades_for_niche failed: %s", exc)
         return {}
+
+
+def _is_r2_url(url: str | None) -> bool:
+    """Return True if the URL points to R2 (permanent) rather than TikTok CDN (signed/expiring)."""
+    return bool(url and url.startswith("https://pub-"))
+
+
+async def _refresh_thumbnail_async(video_id: str, fresh_cdn_url: str) -> str | None:
+    """Download *fresh_cdn_url* and upload to R2; update video_corpus row in the background.
+
+    Returns the R2 URL on success, None on any failure.
+    This is fire-and-forget safe — callers should not await the result blocking the main flow.
+    """
+    try:
+        from getviews_pipeline.r2 import download_and_upload_thumbnail, r2_configured
+        if not r2_configured():
+            return None
+        r2_url = await download_and_upload_thumbnail(fresh_cdn_url, video_id)
+        if r2_url:
+            try:
+                from getviews_pipeline.supabase_client import get_service_client
+                sb = get_service_client()
+                sb.table("video_corpus").update({"thumbnail_url": r2_url}).eq("video_id", video_id).execute()
+                logger.info("[corpus_context] repaired thumbnail %s → %s", video_id, r2_url)
+            except Exception as db_exc:
+                logger.warning("[corpus_context] DB update after thumb repair failed for %s: %s", video_id, db_exc)
+        return r2_url
+    except Exception as exc:
+        logger.debug("[corpus_context] thumbnail refresh failed for %s: %s", video_id, exc)
+        return None
+
+
+async def refresh_stale_thumbnails(awemes: list[dict[str, Any]]) -> None:
+    """For corpus aweme dicts with non-R2 thumbnail_url, fire off background R2 upload tasks.
+
+    Fetches fresh CDN URLs via EnsembleData multi-info, uploads to R2, updates DB.
+    Results are applied to the aweme dicts in-place so the current request
+    benefits immediately if the upload finishes quickly enough.
+    """
+    stale = [a for a in awemes if not _is_r2_url(a.get("thumbnail_url"))]
+    if not stale:
+        return
+
+    try:
+        from getviews_pipeline.ensemble import fetch_post_multi_info
+        stale_ids = [str(a["aweme_id"]) for a in stale if a.get("aweme_id")]
+        if not stale_ids:
+            return
+
+        fresh_posts = await fetch_post_multi_info(stale_ids)
+        fresh_by_id: dict[str, dict] = {}
+        for post in fresh_posts:
+            detail = post.get("aweme_detail") or post
+            vid_id = str(detail.get("aweme_id") or "")
+            if vid_id:
+                fresh_by_id[vid_id] = detail
+
+        repair_tasks = []
+        repair_awemes = []
+        for aweme in stale:
+            vid_id = str(aweme.get("aweme_id") or "")
+            detail = fresh_by_id.get(vid_id)
+            if not detail:
+                continue
+            cover = detail.get("video", {}).get("cover") or {}
+            cover_urls = cover.get("url_list") or []
+            fresh_url = cover_urls[0] if cover_urls else ""
+            if not fresh_url:
+                continue
+            repair_tasks.append(_refresh_thumbnail_async(vid_id, fresh_url))
+            repair_awemes.append(aweme)
+
+        if not repair_tasks:
+            return
+
+        results = await asyncio.gather(*repair_tasks, return_exceptions=True)
+        for aweme, result in zip(repair_awemes, results):
+            if isinstance(result, str) and result:
+                aweme["thumbnail_url"] = result
+
+        refreshed = sum(1 for r in results if isinstance(r, str) and r)
+        logger.info("[corpus_context] thumbnail refresh: %d/%d repaired", refreshed, len(stale))
+
+    except Exception as exc:
+        logger.warning("[corpus_context] refresh_stale_thumbnails failed: %s", exc)

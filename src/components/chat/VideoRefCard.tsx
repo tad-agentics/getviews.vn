@@ -19,6 +19,7 @@ export interface VideoRefData {
   views: number;
   days_ago: number;
   breakout?: number; // ratio e.g. 3.2 → "3,2x"
+  thumbnail_url?: string; // pre-fetched CDN or R2 URL from backend
 }
 
 interface Props {
@@ -52,8 +53,8 @@ export function VideoRefCard({ data }: Props) {
       ? Math.floor((Date.now() - new Date(meta.indexed_at).getTime()) / 86_400_000)
       : null;
 
-  // Thumbnail resolution: DB URL → R2 frame fallback → null (shows TikTok icon)
-  const thumbnail = meta?.thumbnail_url ?? r2FrameUrl(data.video_id);
+  // Thumbnail resolution: block URL (from backend) → DB URL → R2 frame fallback → null (shows TikTok icon)
+  const thumbnail = data.thumbnail_url || meta?.thumbnail_url || r2FrameUrl(data.video_id);
   const videoUrl = meta?.video_url ?? null;
   const tiktokUrl = handle
     ? `https://www.tiktok.com/${handle.startsWith("@") ? handle : "@" + handle}/video/${data.video_id}`
