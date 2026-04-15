@@ -392,7 +392,7 @@ export default function ChatScreen() {
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId);
 
   const { data: profile } = useProfile();
-  const { data: sessionRow, refetch: refetchSession } = useChatSession(sessionId);
+  const { data: sessionRow, refetch: refetchSession, status: sessionStatus } = useChatSession(sessionId);
   const createSession = useCreateSession();
   const insertUser = useInsertUserMessage();
   const { status, text, streamId, lastSeq, error, stepEvents, stream, reset } = useChatStream();
@@ -448,6 +448,13 @@ export default function ChatScreen() {
   // reset is stable (useCallback), searchParams identity changes on navigation
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Guard: session was deleted externally or URL is stale — reset to new chat
+  useEffect(() => {
+    if (sessionId && sessionStatus === "error") {
+      navigate("/app");
+    }
+  }, [sessionId, sessionStatus, navigate]);
 
   useEffect(() => {
     if (messages.length > 0) setShowMessages(true);

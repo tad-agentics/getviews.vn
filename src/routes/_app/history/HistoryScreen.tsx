@@ -179,11 +179,16 @@ export default function HistoryScreen() {
             <Button
               type="button"
               variant="danger"
-              onClick={() => {
-                if (deleteTargetId) {
-                  void deleteSession.mutateAsync(deleteTargetId);
-                }
+              onClick={async () => {
+                const idToDelete = deleteTargetId;
                 setDeleteTargetId(null);
+                if (idToDelete) {
+                  try {
+                    await deleteSession.mutateAsync(idToDelete);
+                  } catch {
+                    // Optimistic rollback handled in useDeleteSession onError
+                  }
+                }
               }}
             >
               Xoá

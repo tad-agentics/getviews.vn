@@ -15,6 +15,7 @@ export function useChatSession(sessionId: string | null) {
         .from("chat_sessions")
         .select("*, chat_messages(*)")
         .eq("id", sessionId!)
+        .is("deleted_at", null)
         .order("created_at", { foreignTable: "chat_messages", ascending: true })
         .single();
       if (error) throw error;
@@ -22,6 +23,7 @@ export function useChatSession(sessionId: string | null) {
     },
     enabled: !!sessionId,
     staleTime: 30_000,
+    retry: false,
   });
 }
 

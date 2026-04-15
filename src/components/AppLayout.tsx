@@ -301,7 +301,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
 
   const handleDelete = (id: string) => {
-    deleteSession.mutate(id);
+    deleteSession.mutate(id, {
+      onSuccess: () => {
+        const activeId = new URLSearchParams(window.location.search).get("session");
+        if (activeId === id) navigate("/app");
+      },
+    });
   };
 
   const handleRename = (id: string, label: string) => {
