@@ -5,7 +5,6 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider,
 } from "@/components/ui/tooltip";
 
 interface UsageArcProps {
@@ -27,8 +26,7 @@ export function UsageArc({ used, limit }: UsageArcProps) {
   const strokeDashoffset = circumference * (1 - pct);
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
+    <Tooltip>
         <TooltipTrigger asChild>
           <div
             className="flex items-center justify-center cursor-default"
@@ -78,7 +76,6 @@ export function UsageArc({ used, limit }: UsageArcProps) {
             </p>
           )}
         </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    </Tooltip>
   );
 }

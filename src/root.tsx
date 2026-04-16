@@ -8,6 +8,7 @@ import {
 } from "react-router";
 import { AuthProvider } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./app.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -33,7 +34,9 @@ export default function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
-        <Outlet />
+        <TooltipProvider delayDuration={200}>
+          <Outlet />
+        </TooltipProvider>
       </QueryClientProvider>
     </AuthProvider>
   );
