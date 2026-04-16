@@ -26,8 +26,6 @@ export function UsageArc({ used, limit }: UsageArcProps) {
   const circumference = 2 * Math.PI * r;
   const strokeDashoffset = circumference * (1 - pct);
 
-  const gradientId = isAmber ? "arc-amber" : "arc-purple";
-
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
@@ -42,10 +40,6 @@ export function UsageArc({ used, limit }: UsageArcProps) {
                 <linearGradient id="arc-purple" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#a855f7" />
                   <stop offset="100%" stopColor="#7c3aed" />
-                </linearGradient>
-                <linearGradient id="arc-amber" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#fbbf24" />
-                  <stop offset="100%" stopColor="#d97706" />
                 </linearGradient>
               </defs>
               {/* Track */}
@@ -62,7 +56,7 @@ export function UsageArc({ used, limit }: UsageArcProps) {
                 cx={cx}
                 cy={cy}
                 r={r}
-                stroke={`url(#${gradientId})`}
+                stroke="url(#arc-purple)"
                 strokeWidth={2.5}
                 fill="none"
                 strokeDasharray={circumference}
