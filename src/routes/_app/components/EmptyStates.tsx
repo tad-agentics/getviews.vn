@@ -23,6 +23,7 @@ interface QuickAction {
   subtext: string;
   Icon: React.ElementType;
   modalKey: string;
+  isFree: boolean;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -31,36 +32,42 @@ const QUICK_ACTIONS: QuickAction[] = [
     subtext: "Dán link TikTok — phân tích hook, nhịp, CTA",
     Icon: Video,
     modalKey: "soi-video",
+    isFree: false,
   },
   {
     text: "Soi Kênh Đối Thủ",
     subtext: "Dán @handle — xem công thức content của họ",
     Icon: Search,
     modalKey: "soi-kenh",
+    isFree: false,
   },
   {
     text: "Xu Hướng Tuần Này",
     subtext: "Hook nào đang chạy trong ngách của bạn",
     Icon: TrendingUp,
     modalKey: "xu-huong",
+    isFree: true,
   },
   {
     text: "Lên Kịch Bản Quay",
     subtext: "Từ chủ đề → shot list sẵn sàng quay",
     Icon: Video,
     modalKey: "kich-ban",
+    isFree: false,
   },
   {
     text: "Tìm KOL / Creator",
     subtext: "Gợi ý tài khoản đáng theo dõi hoặc hợp tác",
     Icon: Search,
     modalKey: "tim-kol",
+    isFree: true,
   },
   {
     text: "Tư Vấn Content",
     subtext: "Hướng nội dung + format phù hợp ngách",
     Icon: BarChart2,
     modalKey: "tu-van",
+    isFree: false,
   },
 ];
 

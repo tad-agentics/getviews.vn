@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { motion } from "motion/react";
 
 export const PromptCards = memo(function PromptCards({
   nicheLabel,
@@ -14,19 +13,16 @@ export const PromptCards = memo(function PromptCards({
     `Gợi ý 3 ý tưởng video cho kênh ${nicheLabel || "của tôi"} tuần tới`,
   ];
   return (
-    <div className="mt-4 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-3">
+    <div className="flex gap-2 overflow-x-auto pb-1 w-full" style={{ scrollbarWidth: "none" }}>
       {cards.map((text, idx) => (
-        <motion.button
-          key={text}
+        <button
+          key={idx}
           type="button"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.18, delay: 0.05 + idx * 0.05, ease: "easeOut" }}
           onClick={() => onSelect(text)}
-          className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left text-xs leading-snug text-[var(--ink)] transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
+          className="flex-shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--ink)] transition-all duration-[120ms] hover:border-[var(--border-active)] hover:bg-[var(--surface-alt)] active:scale-[0.98] whitespace-nowrap"
         >
           {text}
-        </motion.button>
+        </button>
       ))}
     </div>
   );
