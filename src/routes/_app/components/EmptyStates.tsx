@@ -232,17 +232,14 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
           className="w-full"
           style={{ maxWidth: 600 }}
         >
-          <p className="mb-2 text-center text-xs text-[var(--muted)]">Thử gợi ý hoặc nhập câu hỏi</p>
-          <PromptCards nicheLabel={nicheLabel} onSelect={(p) => { setMsg(p); }} />
-
           {needsNiche && userId ? (
-            <div className="mt-6">
+            <div className="mb-6">
               <NicheSelector userId={userId} />
             </div>
           ) : null}
 
           <div
-            className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
+            className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
             style={{ boxShadow: "0 1px 4px 0 rgba(0,0,0,0.06)" }}
           >
             <div className="px-4 pb-2 pt-4">
@@ -251,11 +248,11 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
                 value={msg}
                 onChange={(e) => setMsg(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Hỏi về xu hướng TikTok, hook, video..."
-                rows={2}
+                placeholder={nicheLabel ? `Hỏi về hook, trend, hay kênh ${nicheLabel}...` : "Hỏi về xu hướng TikTok, hook, video..."}
+                rows={3}
                 maxLength={charLimit + 50}
                 className="w-full resize-none overflow-hidden border-none bg-transparent text-sm leading-relaxed text-[var(--ink)] outline-none placeholder:text-[var(--faint)]"
-                style={{ minHeight: 52, fontSize: 14 }}
+                style={{ minHeight: 72, fontSize: 14 }}
               />
             </div>
 
@@ -303,6 +300,10 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
                 />
               </svg>
             </div>
+          </div>
+
+          <div className="mt-3">
+            <PromptCards nicheLabel={nicheLabel} onSelect={(p) => { setMsg(p); }} />
           </div>
 
           <div className="mt-6">
