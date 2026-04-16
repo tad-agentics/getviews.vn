@@ -224,6 +224,51 @@ Schema:
 }}"""
 
 # ---------------------------------------------------------------------------
+# Module 0D — Trending Hashtag Discovery prompts + schema
+# ---------------------------------------------------------------------------
+
+
+class HashtagClassification(BaseModel):
+    hashtag: str           # without #
+    niche_id: int          # matched niche_taxonomy.id
+    niche_name: str        # for logging clarity
+    confidence: float      # 0.0–1.0
+    reason: str            # 1 sentence why this hashtag belongs to this niche
+
+
+class HashtagDiscoveryResult(BaseModel):
+    classifications: list[HashtagClassification]
+
+
+LAYER0_HASHTAG_RESPONSE_SCHEMA: dict = HashtagDiscoveryResult.model_json_schema()
+
+HASHTAG_DISCOVERY_PROMPT_TEMPLATE = """Bạn là chuyên gia phân loại nội dung TikTok Việt Nam.
+
+Dưới đây là danh sách hashtag mới nổi (xuất hiện nhiều trong video viral tuần này) chưa được phân loại:
+{candidate_hashtags_json}
+
+Danh sách ngách hiện có:
+{niches_json}
+
+Nhiệm vụ: Phân loại mỗi hashtag vào đúng ngách. Chỉ phân loại khi tin chắc (confidence ≥ 0.75).
+Bỏ qua hashtag quá chung chung (viral, trending, fyp, foryou) hoặc không rõ ngách.
+
+Trả về JSON object với key "classifications". Hashtag không rõ ngách → KHÔNG đưa vào kết quả.
+
+Schema:
+{{
+  "classifications": [
+    {{
+      "hashtag": "<hashtag không có #>",
+      "niche_id": <integer>,
+      "niche_name": "<tên ngách tiếng Việt>",
+      "confidence": <0.0 đến 1.0>,
+      "reason": "<1 câu giải thích ngắn tại sao hashtag này thuộc ngách đó>"
+    }}
+  ]
+}}"""
+
+# ---------------------------------------------------------------------------
 # Quality validation
 # ---------------------------------------------------------------------------
 

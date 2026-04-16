@@ -1180,6 +1180,20 @@ async def _run_weekly_analytics(client: Any) -> None:
     # Runs LAST — reads from video_corpus + signal_grades + trending_sounds
     # Non-fatal: if Layer 0 fails, dashboard still shows statistics (without mechanism)
 
+    # Layer 0D — Trending Hashtag Discovery (runs first so new tags feed 0A)
+    try:
+        from getviews_pipeline.layer0_hashtag import run_hashtag_discovery
+        l0d_result = await run_hashtag_discovery(client)
+        logger.info(
+            "[layer0d] candidates=%d added=%d skipped=%d errors=%s",
+            l0d_result.get("candidates_found", 0),
+            l0d_result.get("added", 0),
+            l0d_result.get("skipped", 0),
+            l0d_result.get("errors") or "none",
+        )
+    except Exception as exc:
+        logger.error("[layer0d] Hashtag discovery failed (non-fatal): %s", exc)
+
     try:
         from getviews_pipeline.layer0_niche import run_niche_insights
         l0a_result = await run_niche_insights(client)
