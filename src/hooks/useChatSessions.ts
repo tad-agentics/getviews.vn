@@ -28,13 +28,17 @@ export function useDeleteSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      // Use getSession (cached) rather than getUser (network round-trip) to
+      // ensure the access token used for auth check is the same one attached
+      // to the PostgREST request — avoids a race where getUser refreshes the
+      // token but the client's internal state hasn't propagated yet.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
       const { error } = await supabase
         .from("chat_sessions")
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", sessionId)
-        .eq("user_id", user.id);
+        .eq("user_id", session.user.id);
       if (error) {
         console.error("[useDeleteSession] Supabase UPDATE error:", error.message, error.code, error.details);
         throw error;
