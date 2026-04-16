@@ -12,9 +12,7 @@ const CLOUD_RUN_INTENTS = new Set([
   "video_diagnosis",
   "competitor_profile",
   "own_channel",
-  "series_audit",
   "content_directions",
-  "brief_generation",
   "trend_spike",
   "find_creators",
   "shot_list",
@@ -101,6 +99,10 @@ export function useChatStream() {
 
         if (res.status === 402) {
           setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
+          return;
+        }
+        if (res.status === 429) {
+          setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

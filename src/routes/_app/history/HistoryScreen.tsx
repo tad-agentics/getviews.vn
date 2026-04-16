@@ -27,11 +27,11 @@ const INTENT_BADGES: Record<string, string> = {
   video_diagnosis: "Soi Video",
   competitor_profile: "Đối thủ",
   own_channel: "Soi Kênh",
-  soi_kenh: "Soi Kênh",
-  brief_generation: "Brief",
+  shot_list: "Kịch bản",
+  brief_generation: "Brief",   // historical — no longer routable but may exist in DB
   trend_spike: "Xu hướng",
   find_creators: "Tìm KOL",
-  format_lifecycle: "Brief",
+  format_lifecycle: "Format",
   follow_up: "",
   content_directions: "",
 };

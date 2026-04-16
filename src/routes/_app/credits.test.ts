@@ -15,6 +15,7 @@ import { describe, it, expect } from "vitest";
 
 const FREE_INTENTS = new Set([
   "format_lifecycle",
+  "follow_up",
 ]);
 
 const FREE_DAILY_LIMIT = 100;

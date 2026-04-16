@@ -45,7 +45,6 @@ type ChatMsg = {
   is_free?: boolean | null;
 };
 
-const FREE_INTENT_SET = new Set(["find_creators", "trend_spike", "follow_up"]);
 
 function isResumeQuery(q: string): boolean {
   const s = q.trim().toLowerCase();
