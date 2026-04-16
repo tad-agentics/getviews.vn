@@ -342,11 +342,6 @@ export default function ChatScreen() {
 
   const [message, setMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
-  const [pendingPaidConfirm, setPendingPaidConfirm] = useState<{
-    query: string;
-    intentType: string;
-    label: string;
-  } | null>(null);
 
   useEffect(() => {
     const prefillUrl = (location.state as { prefillUrl?: string } | null | undefined)?.prefillUrl;
@@ -380,7 +375,6 @@ export default function ChatScreen() {
       setClientPaywall(false);
       setLastStreamIntent(null);
       setShowJumpToBottom(false);
-      setPendingPaidConfirm(null);
       autoScrollRef.current = true;
       lastIntentRef.current = null;
       reset();
@@ -446,7 +440,7 @@ export default function ChatScreen() {
   }, []);
 
   const runSend = useCallback(
-    async (raw: string, resume?: { stream_id: string; last_seq: number }, skipConfirm?: boolean) => {
+    async (raw: string, resume?: { stream_id: string; last_seq: number }) => {
       const trimmed = raw.trim();
       if (!trimmed || trimmed.length > charLimit || !user?.id) return;
       if (processing) return;
@@ -486,18 +480,6 @@ export default function ChatScreen() {
 
       if (!isFree && credits <= 0) {
         setClientPaywall(true);
-        return;
-      }
-
-      // Credit confirmation gate — show banner before first paid analysis
-      if (!isFree && !isResume && !skipConfirm) {
-        const label =
-          intentType === "video_diagnosis" ? "video này"
-          : intentType === "competitor_profile" ? "kênh đối thủ"
-          : intentType === "own_channel" ? "kênh của bạn"
-          : "nội dung này";
-        setPendingPaidConfirm({ query: trimmed, intentType, label });
-        setShowMessages(true);
         return;
       }
 
@@ -659,34 +641,6 @@ export default function ChatScreen() {
         return null;
       })}
 
-      {pendingPaidConfirm ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-          <p className="mb-3 text-sm text-[var(--ink)]">
-            Phân tích sâu {pendingPaidConfirm.label} sẽ dùng{" "}
-            <strong>1 phân tích</strong>.
-          </p>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const { query, intentType } = pendingPaidConfirm;
-                setPendingPaidConfirm(null);
-                void runSend(query, undefined, true);
-              }}
-              className="text-sm font-semibold text-[var(--purple)] hover:underline"
-            >
-              Tiếp tục →
-            </button>
-            <button
-              type="button"
-              onClick={() => setPendingPaidConfirm(null)}
-              className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
-            >
-              Huỷ
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       {inFlightVisible ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
