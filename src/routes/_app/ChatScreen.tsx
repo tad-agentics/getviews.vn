@@ -20,8 +20,6 @@ import {
   useInsertUserMessage,
 } from "@/hooks/useChatSession";
 import { useChatStream } from "@/hooks/useChatStream";
-import { env } from "@/lib/env";
-import { supabase } from "@/lib/supabase";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { DiagnosisRow, type DiagnosisRowData } from "@/routes/_app/components/DiagnosisRow";
 import { ThumbnailStrip, type ThumbnailItem } from "@/routes/_app/components/ThumbnailStrip";
@@ -49,31 +47,6 @@ type ChatMsg = {
 
 const FREE_INTENT_SET = new Set(["find_creators", "trend_spike", "follow_up"]);
 
-/** Tier-3: ask the backend to classify intent using Gemini when tiers 1+2 are low-confidence. */
-async function classifyIntentT3(
-  query: string,
-  accessToken: string,
-): Promise<{ intentType: string; isFree: boolean }> {
-  const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
-  if (!cloudRunUrl) return { intentType: "follow_up", isFree: true };
-  try {
-    const res = await fetch(`${cloudRunUrl}/classify-intent`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    });
-    if (!res.ok) throw new Error(`classify-intent HTTP ${res.status}`);
-    const data = (await res.json()) as { primary?: string; secondary?: string | null };
-    const intentType = data.primary ?? "follow_up";
-    return { intentType, isFree: FREE_INTENT_SET.has(intentType) };
-  } catch {
-    return { intentType: "follow_up", isFree: true };
-  }
-}
-
 function isResumeQuery(q: string): boolean {
   const s = q.trim().toLowerCase();
   return ["tiếp", "tiếp tục", "continue", "resume", "/tiếp"].includes(s);
@@ -82,26 +55,15 @@ function isResumeQuery(q: string): boolean {
 /**
  * detectIntent — maps a raw user message to a pipeline intent.
  *
- * Intent catalogue:
- *   video_diagnosis    — analyse a specific video URL (why it flopped / how to improve)
- *   competitor_profile — analyse another creator's channel via @handle or profile URL
- *   own_channel        — analyse the user's own channel
- *   series_audit       — let backend handle; we route all multi-URL to video_diagnosis here
- *   trend_spike        — what's trending / viral right now in a niche
- *   content_directions — what video types / formats / hooks to make next
- *   brief_generation   — produce a full content brief (default fallback)
- *   shot_list          — production shot list / filming plan for a video
- *   find_creators      — discover KOLs / creators in a niche
- *   follow_up          — continue the current conversation thread
+ * Two tiers only:
+ *   Tier 1 (high)   — structural signals: TikTok URL → video_diagnosis / competitor_profile
+ *                     @handle → competitor_profile / own_channel
+ *   Tier 2 (medium) — explicit keyword patterns for specialized pipelines
  *
- * Priority order: URL → handle → shot_list → find_creators → own_channel
- *                 → content_directions + trend (with disambiguation)
- *                 → trend_spike alone → default (low confidence → tier 3)
- *
- * Returns a `confidence` flag:
- *   "high"   — structural signal (URL, handle) — always correct, no tier-3 needed
- *   "medium" — keyword matched — usually correct
- *   "low"    — fell through to follow_up with no prior context — tier-3 needed
+ * Everything else → follow_up (free), which routes to the Gemini chat backend.
+ * Natural language, general questions, greetings, and anything ambiguous all
+ * land here so the chat behaves like a real LLM assistant rather than a broken
+ * intent router.
  */
 function detectIntent(
   query: string,
@@ -153,8 +115,8 @@ function detectIntent(
   if (isTrend) return { intentType: "trend_spike", isFree: true, confidence: "medium" };
 
   // ── 7. DEFAULT ────────────────────────────────────────────────────────────
-  // follow_up with prior context = medium confidence (conversation continuation).
-  // follow_up with NO prior context = low confidence → tier-3 Gemini classification.
+  // Anything that doesn't match a structural signal or an explicit keyword is
+  // treated as natural-language chat and routed to the Gemini follow_up handler.
   return {
     intentType: "follow_up",
     isFree: true,
@@ -507,19 +469,12 @@ export default function ChatScreen() {
         intentType = lastIntentRef.current!;
         isFree = true;
       } else {
+        // Two tiers: structural signals (high) then keywords (medium).
+        // Anything ambiguous falls to follow_up — the Gemini chat backend handles it
+        // conversationally instead of trying to force it into a specialized pipeline.
         const detected = detectIntent(trimmed, priorAssistant);
-        if (detected.confidence === "low") {
-          // Tier-3: Gemini semantic classification — fires only when tiers 1+2 are ambiguous
-          const { data: { session: authSession } } = await supabase.auth.getSession();
-          const classified = authSession
-            ? await classifyIntentT3(trimmed, authSession.access_token)
-            : { intentType: "follow_up", isFree: true };
-          intentType = classified.intentType;
-          isFree = classified.isFree;
-        } else {
-          intentType = detected.intentType;
-          isFree = detected.isFree;
-        }
+        intentType = detected.intentType;
+        isFree = detected.isFree;
       }
 
       if (!isFree && credits <= 0) {

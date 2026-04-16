@@ -123,27 +123,26 @@ export default async function handler(req: Request): Promise<Response> {
   const systemPrompt = buildSystemPrompt(intent_type);
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
 
-  // For follow_up, fetch the last 6 messages in the session to give Gemini real
-  // conversation context. Without this, Gemini has no idea what "format này" or
-  // "video đó" refers to. Cap at 6 to stay within Edge CPU/memory budget.
+  // For conversational intents, fetch recent message history so Gemini has
+  // context for pronouns like "video đó", "format này", "kênh đó", etc.
+  // Cap at 12 turns to stay within Edge CPU/memory budget.
   let contents: Array<{ role: string; parts: Array<{ text: string }> }> = [
     { role: "user", parts: [{ text: query }] },
   ];
-  if (intent_type === "follow_up") {
+  if (intent_type === "follow_up" || intent_type === "format_lifecycle") {
     const { data: history } = await supabase
       .from("chat_messages")
       .select("role, content")
       .eq("session_id", session_id)
       .order("created_at", { ascending: true })
-      .limit(6);
+      .limit(12);
     if (history && history.length > 0) {
       const historyContents = history
         .filter((m) => m.content && (m.role === "user" || m.role === "assistant"))
         .map((m) => ({
           role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: (m.content as string).slice(0, 1500) }], // cap per message to avoid token overflow
+          parts: [{ text: (m.content as string).slice(0, 2000) }],
         }));
-      // Append current user message after history
       contents = [...historyContents, { role: "user", parts: [{ text: query }] }];
     }
   }
@@ -257,16 +256,40 @@ export default async function handler(req: Request): Promise<Response> {
 }
 
 function buildSystemPrompt(intentType: string): string {
-  const base = `Bạn là GetViews AI, trợ lý phân tích TikTok cho creator Việt Nam.
-Trả lời bằng tiếng Việt, ngắn gọn, đi thẳng vào vấn đề.
-Không dùng markdown heading. Dùng bullet points khi liệt kê.`;
+  const style = `Ngôn ngữ: tiếng Việt, thân thiện nhưng súc tích.
+Định dạng: không dùng markdown heading (#). Dùng bullet (–) khi liệt kê nhiều điểm.
+Độ dài: tối đa 4–5 bullet hoặc 2–3 đoạn ngắn. Không dài dòng.
+Khi không chắc: nói thẳng, không bịa số liệu.`;
 
   switch (intentType) {
-    case "format_lifecycle":
-      return `${base}\nPhân tích vòng đời format video: đang ở giai đoạn nào, nên làm gì.`;
     case "follow_up":
-      return `${base}\nTrả lời câu hỏi tiếp theo dựa trên ngữ cảnh cuộc hội thoại.`;
+      return `Bạn là GetViews AI — trợ lý phân tích TikTok thông minh dành cho creator Việt Nam.
+
+KIẾN THỨC:
+– Thuật toán TikTok: FYP, completion rate, rewatch, engagement signals, watch time
+– Chiến lược nội dung: hook 3 giây đầu, CTR thumbnail, cấu trúc video, storytelling
+– Xu hướng & niche: cách đọc tín hiệu trend sớm, chọn niche, content pillars
+– Kỹ thuật sản xuất: caption, hashtag, thời điểm đăng, A/B test thumbnail
+– Thị trường Việt Nam: hành vi người dùng TikTok VN, niche phổ biến, creator economy
+
+CÁC TÍNH NĂNG CỦA GETVIEWS (chủ động gợi ý khi phù hợp):
+– Phân tích video cụ thể → "Dán link TikTok vào đây để tôi soi chi tiết tại sao video đó lên hoặc không lên"
+– Soi kênh đối thủ → "Gửi @handle hoặc link profile TikTok để tôi phân tích toàn bộ kênh"
+– Xu hướng đang nổi → "Hỏi 'xu hướng tuần này trong niche X' để xem data thực tế"
+– Tìm creator/KOL → "Hỏi 'tìm creator trong niche X' để tôi gợi ý danh sách"
+– Lên kịch bản quay → "Hỏi 'lên kịch bản cho video về X' để tôi tạo shot list chi tiết"
+
+HƯỚNG DẪN:
+${style}
+Dựa vào lịch sử hội thoại để trả lời đúng ngữ cảnh. Nếu câu hỏi cần data thực tế (số liệu view, trend corpus), gợi ý dùng tính năng phân tích chuyên sâu thay vì bịa số.`;
+
+    case "format_lifecycle":
+      return `Bạn là GetViews AI, trợ lý phân tích TikTok cho creator Việt Nam.
+Phân tích vòng đời format video: xác định đang ở giai đoạn nào (mới nổi / đỉnh / bão hòa / tàn) và đưa ra lời khuyên thực tế.
+${style}`;
+
     default:
-      return base;
+      return `Bạn là GetViews AI, trợ lý phân tích TikTok cho creator Việt Nam.
+${style}`;
   }
 }
