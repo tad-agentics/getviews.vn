@@ -74,6 +74,64 @@ function NavItem({
   );
 }
 
+/* ── Delete confirmation dialog ── */
+function DeleteConfirmDialog({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[300] bg-black/40 backdrop-blur-[2px]"
+        onClick={onCancel}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed z-[301] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-4 h-4 text-[var(--danger)]" strokeWidth={1.8} />
+            </div>
+            <p className="font-extrabold text-sm text-[var(--ink)]">Xoá cuộc trò chuyện</p>
+          </div>
+          <p className="text-xs text-[var(--ink-soft)] leading-relaxed mb-5">
+            Bạn có chắc muốn xoá cuộc trò chuyện này không?
+            <br />
+            <span className="text-[var(--ink)] font-semibold">Tất cả phân tích và insights sẽ bị xoá vĩnh viễn.</span>
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-[var(--ink-soft)] bg-[var(--surface-alt)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
+            >
+              Huỷ
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-white bg-[var(--danger)] hover:opacity-90 transition-opacity duration-[120ms]"
+            >
+              Xoá vĩnh viễn
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 /* ── Context menu ── */
 function ContextMenu({
   isPinned,
@@ -281,6 +339,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const updateSession = useUpdateSession();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   // Derive session list directly from TanStack Query cache — no local copy.
@@ -304,16 +363,17 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
 
   const handleDelete = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = () => {
+    const id = deleteConfirmId;
+    if (!id) return;
+    setDeleteConfirmId(null);
     deleteSession.mutate(id, {
       onSuccess: () => {
-        // removeQueries deletes the cache entry entirely — any subsequent read
-        // triggers a fresh fetch, which returns nothing due to RLS
-        // (deleted_at IS NOT NULL is excluded by SELECT policy).
-        // invalidateQueries would only mark cache stale, still serving pre-delete
-        // data for up to 30s (staleTime).
         qc.removeQueries({ queryKey: chatKeys.session(id) });
         qc.removeQueries({ queryKey: chatKeys.messages(id) });
-        setSessions((prev) => prev.filter((s) => s.id !== id));
         setPinnedIds((prev) => {
           const next = new Set(prev);
           next.delete(id);
@@ -604,6 +664,16 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         )}
 
       </div>
+
+      {/* ── Delete confirmation dialog ── */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <DeleteConfirmDialog
+            onConfirm={confirmDelete}
+            onCancel={() => setDeleteConfirmId(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── Profile modal ── */}
       <AnimatePresence>

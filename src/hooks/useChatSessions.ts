@@ -28,15 +28,12 @@ export function useDeleteSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      // Use an RPC with SECURITY DEFINER to avoid PostgREST's post-UPDATE
-      // SELECT check — PostgREST re-runs the SELECT policy after PATCH and
-      // sees the soft-deleted row as invisible (deleted_at IS NULL policy),
-      // which it incorrectly reports as a WITH CHECK violation (403).
-      const { error } = await supabase.rpc("soft_delete_chat_session", {
-        p_session_id: sessionId,
-      });
+      const { error } = await supabase
+        .from("chat_sessions")
+        .delete()
+        .eq("id", sessionId);
       if (error) {
-        console.error("[useDeleteSession] Supabase RPC error:", error.message, error.code, error.details);
+        console.error("[useDeleteSession] Supabase DELETE error:", error.message, error.code, error.details);
         throw error;
       }
     },
