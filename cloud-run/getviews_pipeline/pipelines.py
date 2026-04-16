@@ -220,6 +220,47 @@ def _bump_analyses_summary(
         s["top_patterns"] = (prev + patterns)[:8]
 
 
+def _inject_video_ref_blocks(synthesis: str, analyzed: list[dict[str, Any]]) -> str:
+    """Append video_ref JSON blocks for any analyzed video not already in synthesis.
+
+    Works for pipelines that use the metadata-wrapper structure:
+      {"aweme_id": id, "metadata": {"video_id": ..., "author": {"username": ...}, ...}}
+    """
+    already_emitted = set(re.findall(r'"video_id"\s*:\s*"([^"]+)"', synthesis))
+    now_ts = time.time()
+    injected: list[str] = []
+    for ref in analyzed:
+        meta = ref.get("metadata") or {}
+        vid = str(meta.get("video_id") or ref.get("aweme_id") or "")
+        if not vid or vid in already_emitted:
+            continue
+        author = meta.get("author") or {}
+        handle = str(author.get("username") or "")
+        views = int(meta.get("views") or 0)
+        create_time = int(ref.get("create_time") or 0)
+        days_ago = int(meta.get("days_ago") or (
+            int((now_ts - create_time) / 86400) if create_time > 0 else 0
+        ))
+        breakout = float(meta.get("breakout") or 0.0)
+        thumb = str(meta.get("thumbnail_url") or "")
+        block: dict = {
+            "type": "video_ref",
+            "video_id": vid,
+            "handle": f"@{handle}" if handle and not handle.startswith("@") else handle,
+            "views": views,
+            "days_ago": days_ago,
+        }
+        if breakout > 1.0:
+            block["breakout"] = round(breakout, 1)
+        if thumb:
+            block["thumbnail_url"] = thumb
+        injected.append(_json.dumps(block, ensure_ascii=False))
+        already_emitted.add(vid)
+    if injected:
+        synthesis = synthesis.rstrip() + "\n\n" + "\n".join(injected)
+    return synthesis
+
+
 async def run_content_directions(
     niche: str,
     session: dict[str, Any],
@@ -301,6 +342,7 @@ async def run_content_directions(
             niche_key=niche,
             corpus_citation=citation,
         )
+        synthesis = _inject_video_ref_blocks(synthesis, analyzed)
         directions_struct = [
             {
                 "label": f"direction_{i + 1}",
@@ -456,6 +498,7 @@ async def run_trend_spike(
             niche_key=niche,
             corpus_citation=citation,
         )
+        synthesis = _inject_video_ref_blocks(synthesis, analyzed)
         session["directions"] = session.get("directions") or []
         _append_completed(session, QueryIntent.TREND_SPIKE)
         _bump_analyses_summary(
