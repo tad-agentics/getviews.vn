@@ -28,19 +28,15 @@ export function useDeleteSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      // Use getSession (cached) rather than getUser (network round-trip) to
-      // ensure the access token used for auth check is the same one attached
-      // to the PostgREST request — avoids a race where getUser refreshes the
-      // token but the client's internal state hasn't propagated yet.
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-      const { error } = await supabase
-        .from("chat_sessions")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", sessionId)
-        .eq("user_id", session.user.id);
+      // Use an RPC with SECURITY DEFINER to avoid PostgREST's post-UPDATE
+      // SELECT check — PostgREST re-runs the SELECT policy after PATCH and
+      // sees the soft-deleted row as invisible (deleted_at IS NULL policy),
+      // which it incorrectly reports as a WITH CHECK violation (403).
+      const { error } = await supabase.rpc("soft_delete_chat_session", {
+        p_session_id: sessionId,
+      });
       if (error) {
-        console.error("[useDeleteSession] Supabase UPDATE error:", error.message, error.code, error.details);
+        console.error("[useDeleteSession] Supabase RPC error:", error.message, error.code, error.details);
         throw error;
       }
     },
