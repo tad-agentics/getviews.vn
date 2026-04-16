@@ -51,12 +51,14 @@ export function useChatStream() {
       intentType,
       resumeStreamId,
       lastSeq: resumeSeq,
+      nicheLabel,
     }: {
       sessionId: string;
       query: string;
       intentType: string;
       resumeStreamId?: string;
       lastSeq?: number;
+      nicheLabel?: string;
     }) => {
       abortRef.current?.abort();
       const abort = new AbortController();
@@ -92,6 +94,7 @@ export function useChatStream() {
             intent_type: intentType,
             stream_id: resumeStreamId,
             last_seq: resumeSeq,
+            niche_label: nicheLabel,
           }),
           signal: abort.signal,
         });

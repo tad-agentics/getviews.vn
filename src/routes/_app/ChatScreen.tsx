@@ -356,6 +356,11 @@ export default function ChatScreen() {
 
   const [message, setMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
+  const [pendingPaidConfirm, setPendingPaidConfirm] = useState<{
+    query: string;
+    intentType: string;
+    label: string;
+  } | null>(null);
 
   useEffect(() => {
     const prefillUrl = (location.state as { prefillUrl?: string } | null | undefined)?.prefillUrl;
@@ -389,6 +394,7 @@ export default function ChatScreen() {
       setClientPaywall(false);
       setLastStreamIntent(null);
       setShowJumpToBottom(false);
+      setPendingPaidConfirm(null);
       autoScrollRef.current = true;
       lastIntentRef.current = null;
       reset();
@@ -454,7 +460,7 @@ export default function ChatScreen() {
   }, []);
 
   const runSend = useCallback(
-    async (raw: string, resume?: { stream_id: string; last_seq: number }) => {
+    async (raw: string, resume?: { stream_id: string; last_seq: number }, skipConfirm?: boolean) => {
       const trimmed = raw.trim();
       if (!trimmed || trimmed.length > charLimit || !user?.id) return;
       if (processing) return;
@@ -475,10 +481,38 @@ export default function ChatScreen() {
         const detected = detectIntent(trimmed, priorAssistant);
         intentType = detected.intentType;
         isFree = detected.isFree;
+
+        // Pre-flight: downgrade structural intents when required URL/handle is absent,
+        // so Gemini asks a clarifying question instead of failing in Cloud Run.
+        const hasUrl = /https?:\/\/[^\s]*tiktok\.com/i.test(trimmed);
+        const hasHandle = /@\w/.test(trimmed);
+        if (
+          (intentType === "own_channel" || intentType === "competitor_profile") &&
+          !hasUrl && !hasHandle
+        ) {
+          intentType = "follow_up";
+          isFree = true;
+        }
+        if (intentType === "video_diagnosis" && !hasUrl) {
+          intentType = "follow_up";
+          isFree = true;
+        }
       }
 
       if (!isFree && credits <= 0) {
         setClientPaywall(true);
+        return;
+      }
+
+      // Credit confirmation gate — show banner before first paid analysis
+      if (!isFree && !isResume && !skipConfirm) {
+        const label =
+          intentType === "video_diagnosis" ? "video này"
+          : intentType === "competitor_profile" ? "kênh đối thủ"
+          : intentType === "own_channel" ? "kênh của bạn"
+          : "nội dung này";
+        setPendingPaidConfirm({ query: trimmed, intentType, label });
+        setShowMessages(true);
         return;
       }
 
@@ -512,6 +546,7 @@ export default function ChatScreen() {
         intentType,
         resumeStreamId: resume?.stream_id,
         lastSeq: resume?.last_seq,
+        nicheLabel: nicheLabel || undefined,
       });
 
       await refetchSession();
@@ -525,6 +560,7 @@ export default function ChatScreen() {
       priorAssistant,
       credits,
       sessionId,
+      nicheLabel,
       profile?.primary_niche,
       createSession,
       setSearchParams,
@@ -532,6 +568,7 @@ export default function ChatScreen() {
       stream,
       refetchSession,
       reset,
+      setPendingPaidConfirm,
     ],
   );
 
@@ -575,14 +612,46 @@ export default function ChatScreen() {
   const lastMessageIsAssistant = messages.at(-1)?.role === "assistant";
   const inFlightVisible =
     status === "streaming" ||
-    (status === "done" && Boolean(text) && !lastMessageIsAssistant);
+    (status === "done" && Boolean(text) && !lastMessageIsAssistant) ||
+    (status === "error" && Boolean(text));
 
   // Error block is rendered independently — never hidden by DB refetch landing.
   const streamErrorVisible =
     status === "error" && error !== "insufficient_credits" && error !== "daily_free_limit";
 
+  const isConversationalIntent =
+    lastStreamIntent === "follow_up" || lastStreamIntent === "format_lifecycle";
+
   const messageThread = (
     <div className="space-y-4 overflow-x-hidden">
+      {pendingPaidConfirm ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="mb-3 text-sm text-[var(--ink)]">
+            Phân tích sâu {pendingPaidConfirm.label} sẽ dùng{" "}
+            <strong>1 deep credit</strong>.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const { query, intentType } = pendingPaidConfirm;
+                setPendingPaidConfirm(null);
+                void runSend(query, undefined, true);
+              }}
+              className="text-sm font-semibold text-[var(--purple)] hover:underline"
+            >
+              Tiếp tục →
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingPaidConfirm(null)}
+              className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+            >
+              Huỷ
+            </button>
+          </div>
+        </div>
+      ) : null}
       {dailyLimitVisible ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
           <p className="text-sm text-amber-800 dark:text-amber-300">
@@ -631,7 +700,11 @@ export default function ChatScreen() {
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
               {hasPlain && !hasStructured ? (
-                <MarkdownRenderer text={parsed!.plain!} streaming={false} />
+                <MarkdownRenderer
+                  text={parsed!.plain!}
+                  streaming={false}
+                  onFollowUp={(chip) => void handleSend(chip)}
+                />
               ) : null}
             </div>
           );
@@ -648,9 +721,10 @@ export default function ChatScreen() {
             <StreamingStatusText
               phase={status === "streaming" ? "streaming" : "idle"}
               isVideoIntent={VIDEO_INTENTS.has(lastStreamIntent ?? "")}
+              isConversational={isConversationalIntent}
             />
           )}
-          {status === "streaming" && !text && stepEvents.length === 0 ? (
+          {status === "streaming" && !text && stepEvents.length === 0 && !isConversationalIntent ? (
             <div className="mt-3">
               <div className="space-y-2 animate-pulse">
                 <div className="h-3 w-[75%] rounded bg-[var(--border)]" />
@@ -662,7 +736,11 @@ export default function ChatScreen() {
           ) : null}
           {text ? (
             <div className="mt-2">
-              <MarkdownRenderer text={text} streaming={status === "streaming"} />
+              <MarkdownRenderer
+                text={text}
+                streaming={status === "streaming"}
+                onFollowUp={(chip) => void handleSend(chip)}
+              />
             </div>
           ) : null}
         </div>
@@ -673,17 +751,26 @@ export default function ChatScreen() {
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-950/30">
           <p className="text-sm text-red-700 dark:text-red-300">
             {error === "analysis_timeout"
-              ? "Phân tích quá lâu — thử lại với video ngắn hơn hoặc gõ 'tiếp'."
+              ? "Video phân tích quá lâu. Thử video ngắn hơn, hoặc nhấn Thử lại để tiếp tục."
               : error === "video_download_failed"
-                ? "Không tải được video — link có thể đã hết hạn. Thử dán lại link mới."
+                ? "Không tải được video — link có thể đã hết hạn. Dán lại link mới để thử."
                 : error === "ensembledata_quota"
-                  ? "Hệ thống đang quá tải — thử lại sau vài phút."
+                  ? "Hệ thống đang bận. Chờ vài phút rồi nhấn Thử lại."
                   : error === "gemini_error"
-                    ? "AI tạm lỗi — thử lại sau ít phút."
+                    ? "AI tạm thời lỗi. Nhấn Thử lại hoặc đặt câu hỏi theo cách khác."
                     : error === "missing_video_url"
-                      ? "Cần link TikTok video hợp lệ (dán link vào tin nhắn)."
-                      : "Có lỗi xảy ra — gõ 'tiếp' để thử lại hoặc gửi câu hỏi mới."}
+                      ? "Cần link TikTok hợp lệ. Dán link video vào ô chat và gửi lại."
+                      : "Có lỗi xảy ra. Nhấn Thử lại hoặc đặt câu hỏi mới."}
           </p>
+          {streamId && error !== "missing_video_url" ? (
+            <button
+              type="button"
+              onClick={() => void handleSend("tiếp")}
+              className="mt-3 text-xs font-semibold text-red-700 underline hover:no-underline dark:text-red-400"
+            >
+              Thử lại →
+            </button>
+          ) : null}
         </div>
       ) : null}
 

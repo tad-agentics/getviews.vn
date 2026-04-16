@@ -32,6 +32,7 @@ import { CopyableBlock } from "./CopyableBlock";
 import { TrendCard, type TrendCardData } from "./TrendCard";
 import { TrendingSoundCard, type TrendingSoundData } from "./TrendingSoundCard";
 import { ShotListCard, type ShotItemData } from "./ShotListCard";
+import { FollowUpChips } from "./FollowUpChips";
 
 // ---------------------------------------------------------------------------
 // Segment types
@@ -43,6 +44,7 @@ type HookSegment = { kind: "hook"; text: string };
 type TrendCardSegment = { kind: "trend_card"; data: TrendCardData; cardIndex: number };
 type SoundCardSegment = { kind: "sound_card"; data: TrendingSoundData; cardIndex: number };
 type ShotListSegment = { kind: "shot_list"; items: ShotItemData[] };
+type FollowUpSegment = { kind: "follow_ups"; chips: string[] };
 
 type Segment =
   | TextSegment
@@ -50,7 +52,8 @@ type Segment =
   | HookSegment
   | TrendCardSegment
   | SoundCardSegment
-  | ShotListSegment;
+  | ShotListSegment
+  | FollowUpSegment;
 
 // ---------------------------------------------------------------------------
 // Parser
@@ -226,11 +229,58 @@ function extractShotItems(text: string): { result: string; items: ShotItemData[]
   return { result: out, items };
 }
 
+/**
+ * Extract {"follow_ups":["q1","q2","q3"]} blocks appended by Gemini.
+ * Uses balanced-brace scan — same strategy as extractTrendCards.
+ */
+function extractFollowUps(text: string): { result: string; chips: string[] } {
+  const chips: string[] = [];
+  let result = text;
+
+  while (true) {
+    const start = result.indexOf('{"follow_ups":', 0);
+    if (start === -1) break;
+
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < result.length; i++) {
+      if (result[i] === "{") depth++;
+      else if (result[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end === -1) break; // incomplete — leave as plain text
+
+    const raw = result.slice(start, end);
+    try {
+      const data = JSON.parse(raw) as { follow_ups?: unknown };
+      if (Array.isArray(data.follow_ups)) {
+        chips.push(...(data.follow_ups as unknown[]).filter((c): c is string => typeof c === "string"));
+        result = result.slice(0, start).trimEnd() + result.slice(end);
+        // scan from same position after removal
+        continue;
+      }
+    } catch {
+      /* malformed — leave as plain text */
+    }
+    break;
+  }
+
+  return { result, chips };
+}
+
 function parseSegments(text: string): Segment[] {
   if (!text.trim()) return [];
 
-  // Step 0: extract trend_card blocks first (they may contain video IDs)
-  const { result: afterTrendCards, cards: trendCards } = extractTrendCards(text);
+  // Step 0: extract follow_ups block first (always at end, remove before other parsing)
+  const { result: afterFollowUps, chips: followUpChips } = extractFollowUps(text);
+
+  // Step 1: extract trend_card blocks (they may contain video IDs)
+  const { result: afterTrendCards, cards: trendCards } = extractTrendCards(afterFollowUps);
   const { result: afterSoundCards, cards: soundCards } = extractSoundCards(afterTrendCards);
   const { result: afterShotItems, items: shotListItems } = extractShotItems(afterSoundCards);
 
@@ -332,6 +382,12 @@ function parseSegments(text: string): Segment[] {
   }
 
   flushPendingRefs();
+
+  // Append follow-up chips as final segment (only shown after streaming completes)
+  if (followUpChips.length > 0) {
+    segments.push({ kind: "follow_ups", chips: followUpChips });
+  }
+
   return segments;
 }
 
@@ -369,8 +425,8 @@ function MarkdownLine({ line }: { line: string }) {
     );
   }
 
-  // Bullet — "- " or "* "
-  if (/^[-*] /.test(trimmed)) {
+  // Bullet — "- ", "* ", or "– " (em-dash per Gemini system prompt)
+  if (/^[-*–] /.test(trimmed)) {
     return (
       <li className="ml-3 list-disc text-sm leading-relaxed text-[var(--ink)]">
         {renderInline(trimmed.slice(2))}
@@ -398,7 +454,7 @@ function MarkdownLine({ line }: { line: string }) {
 
 function TextBlock({ content }: { content: string }) {
   const lines = content.split("\n");
-  const hasBullets = lines.some((l) => /^\s*[-*] /.test(l));
+  const hasBullets = lines.some((l) => /^\s*[-*–] /.test(l));
 
   if (hasBullets) {
     // Wrap bullet lines in <ul>, non-bullets in <p>
@@ -419,7 +475,7 @@ function TextBlock({ content }: { content: string }) {
     };
 
     for (const line of lines) {
-      if (/^\s*[-*] /.test(line)) {
+      if (/^\s*[-*–] /.test(line)) {
         bulletGroup.push(line);
       } else {
         flushBullets();
@@ -447,9 +503,11 @@ interface Props {
   text: string;
   /** When true, renders a simple whitespace-pre-wrap paragraph (streaming state). */
   streaming?: boolean;
+  /** Called when a follow-up chip is clicked. If omitted, chips are not interactive. */
+  onFollowUp?: (chip: string) => void;
 }
 
-export function MarkdownRenderer({ text, streaming = false }: Props) {
+export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props) {
   const segments = useMemo(() => (streaming ? [] : parseSegments(text)), [text, streaming]);
 
   if (streaming) {
@@ -483,6 +541,15 @@ export function MarkdownRenderer({ text, streaming = false }: Props) {
                 <ShotListCard key={`${item.beat}-${j}`} data={item} />
               ))}
             </div>
+          );
+        }
+        if (seg.kind === "follow_ups") {
+          return (
+            <FollowUpChips
+              key={i}
+              chips={seg.chips}
+              onSelect={onFollowUp ?? (() => {})}
+            />
           );
         }
         return <TextBlock key={i} content={(seg as TextSegment).content} />;
