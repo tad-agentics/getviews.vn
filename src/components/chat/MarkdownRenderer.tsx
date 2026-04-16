@@ -369,8 +369,8 @@ function MarkdownLine({ line }: { line: string }) {
     );
   }
 
-  // Bullet — "- " or "* "
-  if (/^[-*] /.test(trimmed)) {
+  // Bullet — "- ", "* ", or "– " (em-dash per Gemini system prompt)
+  if (/^[-*–] /.test(trimmed)) {
     return (
       <li className="ml-3 list-disc text-sm leading-relaxed text-[var(--ink)]">
         {renderInline(trimmed.slice(2))}
@@ -398,7 +398,7 @@ function MarkdownLine({ line }: { line: string }) {
 
 function TextBlock({ content }: { content: string }) {
   const lines = content.split("\n");
-  const hasBullets = lines.some((l) => /^\s*[-*] /.test(l));
+  const hasBullets = lines.some((l) => /^\s*[-*–] /.test(l));
 
   if (hasBullets) {
     // Wrap bullet lines in <ul>, non-bullets in <p>
@@ -419,7 +419,7 @@ function TextBlock({ content }: { content: string }) {
     };
 
     for (const line of lines) {
-      if (/^\s*[-*] /.test(line)) {
+      if (/^\s*[-*–] /.test(line)) {
         bulletGroup.push(line);
       } else {
         flushBullets();

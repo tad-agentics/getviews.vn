@@ -12,9 +12,7 @@ const CLOUD_RUN_INTENTS = new Set([
   "video_diagnosis",
   "competitor_profile",
   "own_channel",
-  "series_audit",
   "content_directions",
-  "brief_generation",
   "trend_spike",
   "find_creators",
   "shot_list",
@@ -51,12 +49,14 @@ export function useChatStream() {
       intentType,
       resumeStreamId,
       lastSeq: resumeSeq,
+      nicheLabel,
     }: {
       sessionId: string;
       query: string;
       intentType: string;
       resumeStreamId?: string;
       lastSeq?: number;
+      nicheLabel?: string;
     }) => {
       abortRef.current?.abort();
       const abort = new AbortController();
@@ -92,12 +92,17 @@ export function useChatStream() {
             intent_type: intentType,
             stream_id: resumeStreamId,
             last_seq: resumeSeq,
+            niche_label: nicheLabel,
           }),
           signal: abort.signal,
         });
 
         if (res.status === 402) {
           setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
+          return;
+        }
+        if (res.status === 429) {
+          setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
