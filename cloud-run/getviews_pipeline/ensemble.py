@@ -432,6 +432,10 @@ def parse_metadata(aweme_detail: dict[str, Any]) -> VideoMetadata:
     video = aweme_detail.get("video") or {}
     duration_sec = _float_sec_from_ms(video.get("duration"))
 
+    cover = video.get("origin_cover") or video.get("cover") or {}
+    cover_urls: list[str] = cover.get("url_list") or []
+    thumbnail_url: str | None = cover_urls[0] if cover_urls else None
+
     stats = aweme_detail.get("statistics") or {}
     views = _int(stats.get("play_count"))
     likes = _int(stats.get("digg_count"))
@@ -490,6 +494,7 @@ def parse_metadata(aweme_detail: dict[str, Any]) -> VideoMetadata:
             artist=music.get("author"),
             is_original=music.get("is_original"),
         ),
+        thumbnail_url=thumbnail_url,
     )
 
 

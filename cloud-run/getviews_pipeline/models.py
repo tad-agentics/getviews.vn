@@ -240,6 +240,7 @@ class VideoMetadata(BaseModel):
     engagement_rate: float | None = None
     author: Author
     music: Music
+    thumbnail_url: str | None = None
 
 
 class VideoAnalyzeResult(BaseModel):
