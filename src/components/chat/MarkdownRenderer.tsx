@@ -226,7 +226,6 @@ function extractShotItems(text: string): { result: string; items: ShotItemData[]
   return { result: out, items };
 }
 
-
 function parseSegments(text: string): Segment[] {
   if (!text.trim()) return [];
 

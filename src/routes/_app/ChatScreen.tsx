@@ -486,10 +486,9 @@ export default function ChatScreen() {
         // so Gemini asks a clarifying question instead of failing in Cloud Run.
         const hasUrl = /https?:\/\/[^\s]*tiktok\.com/i.test(trimmed);
         const hasHandle = /@\w/.test(trimmed);
-        if (
-          (intentType === "own_channel" || intentType === "competitor_profile") &&
-          !hasUrl && !hasHandle
-        ) {
+        // own_channel is Tier 2 keyword-detected (no structural signal required),
+        // so it can fire without a URL or handle — downgrade to follow_up so Gemini asks.
+        if (intentType === "own_channel" && !hasUrl && !hasHandle) {
           intentType = "follow_up";
           isFree = true;
         }
@@ -624,34 +623,6 @@ export default function ChatScreen() {
 
   const messageThread = (
     <div className="space-y-4 overflow-x-hidden">
-      {pendingPaidConfirm ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-          <p className="mb-3 text-sm text-[var(--ink)]">
-            Phân tích sâu {pendingPaidConfirm.label} sẽ dùng{" "}
-            <strong>1 deep credit</strong>.
-          </p>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const { query, intentType } = pendingPaidConfirm;
-                setPendingPaidConfirm(null);
-                void runSend(query, undefined, true);
-              }}
-              className="text-sm font-semibold text-[var(--purple)] hover:underline"
-            >
-              Tiếp tục →
-            </button>
-            <button
-              type="button"
-              onClick={() => setPendingPaidConfirm(null)}
-              className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
-            >
-              Huỷ
-            </button>
-          </div>
-        </div>
-      ) : null}
       {dailyLimitVisible ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
           <p className="text-sm text-amber-800 dark:text-amber-300">
@@ -707,6 +678,35 @@ export default function ChatScreen() {
         }
         return null;
       })}
+
+      {pendingPaidConfirm ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <p className="mb-3 text-sm text-[var(--ink)]">
+            Phân tích sâu {pendingPaidConfirm.label} sẽ dùng{" "}
+            <strong>1 deep credit</strong>.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const { query, intentType } = pendingPaidConfirm;
+                setPendingPaidConfirm(null);
+                void runSend(query, undefined, true);
+              }}
+              className="text-sm font-semibold text-[var(--purple)] hover:underline"
+            >
+              Tiếp tục →
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingPaidConfirm(null)}
+              className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+            >
+              Huỷ
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {inFlightVisible ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
