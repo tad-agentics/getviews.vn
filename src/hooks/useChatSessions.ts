@@ -36,7 +36,7 @@ export function useDeleteSession() {
         .eq("id", sessionId)
         .eq("user_id", user.id);
       if (error) {
-        console.error("[useDeleteSession] Supabase UPDATE error:", error);
+        console.error("[useDeleteSession] Supabase UPDATE error:", error.message, error.code, error.details);
         throw error;
       }
     },
@@ -49,7 +49,8 @@ export function useDeleteSession() {
       return { previous };
     },
     onError: (err, _sessionId, context) => {
-      console.error("[useDeleteSession] onError — rolling back:", err);
+      const e = err as { message?: string; code?: string };
+      console.error("[useDeleteSession] onError — rolling back:", e?.message ?? err, e?.code ?? "");
       if (context?.previous !== undefined) {
         qc.setQueryData(chatKeys.sessions(), context.previous);
       }
