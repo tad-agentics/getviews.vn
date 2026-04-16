@@ -32,6 +32,7 @@ import { CopyableBlock } from "./CopyableBlock";
 import { TrendCard, type TrendCardData } from "./TrendCard";
 import { TrendingSoundCard, type TrendingSoundData } from "./TrendingSoundCard";
 import { ShotListCard, type ShotItemData } from "./ShotListCard";
+import { FollowUpChips } from "./FollowUpChips";
 
 // ---------------------------------------------------------------------------
 // Segment types
@@ -440,6 +441,31 @@ function TextBlock({ content }: { content: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Follow-up chip extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts the trailing {"follow_ups":[...]} block that Gemini appends for depth progression.
+ * Returns the clean prose text (without the JSON block) and the extracted questions.
+ * Only fires when streaming is complete — during streaming the block will be incomplete.
+ */
+export function extractFollowUps(text: string): { prose: string; followUps: string[] } {
+  const trimmed = text.trimEnd();
+  // Find the last occurrence of a follow_ups JSON block
+  const match = trimmed.match(/\{"follow_ups"\s*:\s*(\[[^\]]*\])\s*\}$/);
+  if (!match) return { prose: text, followUps: [] };
+  try {
+    const questions = JSON.parse(match[1]) as unknown[];
+    const validQuestions = questions.filter((q): q is string => typeof q === "string" && q.trim().length > 0);
+    if (!validQuestions.length) return { prose: text, followUps: [] };
+    const prose = trimmed.slice(0, trimmed.length - match[0].length).trimEnd();
+    return { prose, followUps: validQuestions };
+  } catch {
+    return { prose: text, followUps: [] };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Public component
 // ---------------------------------------------------------------------------
 
@@ -447,16 +473,22 @@ interface Props {
   text: string;
   /** When true, renders a simple whitespace-pre-wrap paragraph (streaming state). */
   streaming?: boolean;
+  /** Called when the user clicks a follow-up chip. Only rendered when streaming=false. */
+  onFollowUp?: (question: string) => void;
 }
 
-export function MarkdownRenderer({ text, streaming = false }: Props) {
-  const segments = useMemo(() => (streaming ? [] : parseSegments(text)), [text, streaming]);
+export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props) {
+  const { prose, followUps } = useMemo(
+    () => (streaming ? { prose: text, followUps: [] } : extractFollowUps(text)),
+    [text, streaming],
+  );
+  const segments = useMemo(() => (streaming ? [] : parseSegments(prose)), [prose, streaming]);
 
   if (streaming) {
     return <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">{text}</p>;
   }
 
-  if (!segments.length) return null;
+  if (!segments.length && !followUps.length) return null;
 
   return (
     <div className="space-y-1">
@@ -487,6 +519,9 @@ export function MarkdownRenderer({ text, streaming = false }: Props) {
         }
         return <TextBlock key={i} content={(seg as TextSegment).content} />;
       })}
+      {followUps.length > 0 && onFollowUp ? (
+        <FollowUpChips questions={followUps} onSelect={onFollowUp} />
+      ) : null}
     </div>
   );
 }

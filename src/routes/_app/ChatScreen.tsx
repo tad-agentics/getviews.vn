@@ -644,7 +644,8 @@ export default function ChatScreen() {
         </div>
       ) : null}
 
-      {messages.map((m) => {
+      {messages.map((m, idx) => {
+        const isLastAssistant = m.role === "assistant" && idx === messages.length - 1;
         if (m.role === "user") {
           return (
             <div key={m.id} className="flex justify-end overflow-hidden">
@@ -670,7 +671,11 @@ export default function ChatScreen() {
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
               {hasPlain && !hasStructured ? (
-                <MarkdownRenderer text={parsed!.plain!} streaming={false} />
+                <MarkdownRenderer
+                  text={parsed!.plain!}
+                  streaming={false}
+                  onFollowUp={isLastAssistant && !inFlightVisible ? (q) => void handleSend(q) : undefined}
+                />
               ) : null}
             </div>
           );
