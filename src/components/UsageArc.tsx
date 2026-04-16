@@ -73,7 +73,7 @@ export function UsageArc({ used, limit }: UsageArcProps) {
             Đã dùng <strong>{used}</strong> / {limit} phân tích tháng này
           </p>
           {isAmber && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-xs text-white">
               Sắp hết — nâng cấp để tiếp tục không bị gián đoạn
             </p>
           )}
