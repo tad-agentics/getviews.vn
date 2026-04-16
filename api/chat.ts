@@ -157,7 +157,7 @@ export default async function handler(req: Request): Promise<Response> {
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens:
-          intent_type === "follow_up" ? 700
+          intent_type === "follow_up" ? 900
           : intent_type === "format_lifecycle" ? 1200
           : 2048,
       },
@@ -303,12 +303,11 @@ Khi câu hỏi rộng và cần 3+ chiều để trả lời đầy đủ (ví d
 – Quy tắc kích hoạt: câu hỏi chứa từ như "như thế nào", "bắt đầu từ đâu", "làm sao để", "nên làm gì" + chủ đề rộng (xây kênh, tăng view, kiếm tiền, content strategy).
 
 ━━━ MODE 2: DEPTH PROGRESSION ━━━
-Khi câu trả lời có nhiều chiều và người dùng có thể muốn đi sâu vào một chiều cụ thể:
-– Sau khi trả lời xong, thêm dòng trống rồi output JSON này (và CHỈ JSON này, không thêm text):
+Sau mỗi câu trả lời PHẢI thêm dòng trống rồi output JSON này (và CHỈ JSON này, không thêm text nào khác):
 {"follow_ups":["câu hỏi cụ thể 1","câu hỏi cụ thể 2"]}
-– Tối đa 2–3 câu hỏi. Mỗi câu phải cụ thể, khác nhau về hướng, và click được.
-– KHÔNG dùng mode này nếu: câu trả lời đã đầy đủ và hoàn chỉnh, câu hỏi đơn giản 1 chiều, hoặc đã dùng Mode 1 (chunking) trong lượt này.
-– Ví dụ tốt: ["Hook pattern cụ thể đang dùng?", "Music trend đi kèm format này?", "Creator nào đang dẫn đầu niche này?"]
+– Luôn luôn output 2 câu hỏi. Mỗi câu phải cụ thể, khác nhau về hướng, ngắn gọn dưới 10 từ.
+– Ngoại lệ duy nhất KHÔNG output follow_ups: câu hỏi chỉ có 1 chiều trả lời và đã hoàn chỉnh tuyệt đối (ví dụ: "completion rate là gì?").
+– Ví dụ tốt: ["Hook pattern cụ thể đang dùng?", "Music trend đi kèm format này?"]
 – Ví dụ xấu (không dùng): ["Bạn muốn biết thêm không?", "Có câu hỏi nào khác không?"]
 
 ━━━ MODE 3: PIPELINE ESCALATION ━━━
