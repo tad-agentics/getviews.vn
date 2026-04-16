@@ -3,7 +3,7 @@
   "installCommand": "npm install --legacy-peer-deps",
   "rewrites": [
     {
-      "source": "/((?!assets|icons|fonts|screenshots|manifest\\.json|sw\\.js|robots\\.txt|sitemap\\.xml).*)",
+      "source": "/((?!api|assets|icons|fonts|screenshots|manifest\\.json|sw\\.js|robots\\.txt|sitemap\\.xml).*)",
       "destination": "/index.html"
     }
   ]
