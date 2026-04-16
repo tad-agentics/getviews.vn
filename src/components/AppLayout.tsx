@@ -21,6 +21,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
+import { chatKeys } from "@/hooks/useChatSession";
+import { useQueryClient } from "@tanstack/react-query";
 import { CreditBar } from "@/routes/_app/components/CreditBar";
 
 type Session = {
@@ -266,6 +268,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const { data: sessionsData } = useChatSessions();
+  const qc = useQueryClient();
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -296,12 +299,24 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     });
 
   const handleDelete = (id: string) => {
-    void deleteSession.mutateAsync(id);
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-    setPinnedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
+    deleteSession.mutate(id, {
+      onSuccess: () => {
+        // removeQueries deletes the cache entry entirely — any subsequent read
+        // triggers a fresh fetch, which returns nothing due to RLS
+        // (deleted_at IS NOT NULL is excluded by SELECT policy).
+        // invalidateQueries would only mark cache stale, still serving pre-delete
+        // data for up to 30s (staleTime).
+        qc.removeQueries({ queryKey: chatKeys.session(id) });
+        qc.removeQueries({ queryKey: chatKeys.messages(id) });
+        setSessions((prev) => prev.filter((s) => s.id !== id));
+        setPinnedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        const activeId = new URLSearchParams(window.location.search).get("session");
+        if (activeId === id) navigate("/app");
+      },
     });
   };
 
