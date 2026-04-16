@@ -68,11 +68,11 @@ export default function PaymentSuccessScreen() {
 
           {hasRouterState ? (
             <h1 className="font-extrabold text-[var(--ink)] mb-2" style={{ fontSize: "1.5rem" }}>
-              Đã thêm {headingCount} deep credits.
+              Đã mở thêm {headingCount} phân tích.
             </h1>
           ) : (
             <h1 className="font-extrabold text-[var(--ink)] mb-2" style={{ fontSize: "1.5rem" }}>
-              Credits đã được cập nhật.
+              Phân tích đã được cập nhật.
             </h1>
           )}
 
@@ -91,7 +91,7 @@ export default function PaymentSuccessScreen() {
             >
               {displayCredits}
             </div>
-            <p className="text-sm text-[var(--muted)]">deep credits còn lại</p>
+            <p className="text-sm text-[var(--muted)]">phân tích còn lại</p>
           </div>
 
           <Button fullWidth className="h-12 text-sm" onClick={() => navigate("/app")}>

@@ -22,7 +22,7 @@ const sections: { heading: string; items: LearnMoreItem[] }[] = [
       {
         title: "Hướng dẫn sử dụng",
         summary:
-          "Cách dán link TikTok, đọc báo cáo chẩn đoán, lướt xu hướng và tận dụng tối đa Deep Credits.",
+          "Cách dán link TikTok, đọc báo cáo chẩn đoán, lướt xu hướng và tận dụng tối đa phân tích của bạn.",
         url: "https://getviews.vn/docs",
       },
       {

@@ -22,7 +22,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { chatKeys } from "@/hooks/useChatSession";
 import { useQueryClient } from "@tanstack/react-query";
-import { CreditBar } from "@/routes/_app/components/CreditBar";
+import { UsageArc } from "@/components/UsageArc";
 
 type Session = {
   id: string;
@@ -406,9 +406,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     (user?.user_metadata?.avatar_url as string | undefined) ||
     (user?.user_metadata?.picture as string | undefined);
 
-  const creditsRemaining = profile?.deep_credits_remaining ?? 0;
-  const subscriptionTier = (profile as { subscription_tier?: string } | null)?.subscription_tier ?? "free";
-  const showPricingCta = subscriptionTier === "free" || creditsRemaining <= 5;
 
   const handleLogout = async () => {
     setShowProfileModal(false);
@@ -545,17 +542,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         {/* Divider */}
         <div className="mx-3 mt-3 mb-2 border-t border-[var(--border)]" />
 
-        {profile ? (
-          <CreditBar
-            deepCreditsRemaining={profile.deep_credits_remaining ?? 0}
-            cap={(profile as { deep_credits_total?: number }).deep_credits_total ?? 50}
-            showPricingLinks={showPricingCta}
-          />
-        ) : (
-          <div className="mx-3 mb-3 h-24 animate-pulse rounded-lg bg-[var(--surface-alt)]" />
-        )}
-
-        {/* Bottom: settings + avatar */}
+        {/* Bottom: settings + arc + avatar */}
         <div className="flex items-center justify-between px-3">
           <button
             onClick={() => { navigate('/app/settings'); onClose?.(); }}
@@ -564,6 +551,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           >
             <Settings className="w-[18px] h-[18px]" strokeWidth={1.7} />
           </button>
+          {profile ? (
+            <UsageArc
+              used={((profile as { deep_credits_total?: number }).deep_credits_total ?? 50) - (profile.deep_credits_remaining ?? 0)}
+              limit={(profile as { deep_credits_total?: number }).deep_credits_total ?? 50}
+            />
+          ) : null}
           <button
             type="button"
             title={displayName}

@@ -31,9 +31,9 @@ const ORDER_COPY: Record<
   starter_monthly: { title: "Starter", subtitle: "Thanh toán hàng tháng", amount: "249.000đ" },
   starter_biannual: { title: "Starter", subtitle: "Thanh toán 6 tháng", amount: "1.194.000đ" },
   starter_annual: { title: "Starter", subtitle: "Thanh toán cả năm", amount: "2.388.000đ" },
-  pack_10: { title: "Gói 10 deep credits", subtitle: "Mua thêm", amount: "130.000đ" },
-  pack_30: { title: "Gói 30 deep credits", subtitle: "Mua thêm", amount: "350.000đ" },
-  pack_50: { title: "Gói 50 deep credits", subtitle: "Mua thêm", amount: "550.000đ" },
+  pack_10: { title: "10 phân tích", subtitle: "Mua thêm", amount: "130.000đ" },
+  pack_30: { title: "30 phân tích", subtitle: "Mua thêm", amount: "350.000đ" },
+  pack_50: { title: "50 phân tích", subtitle: "Mua thêm", amount: "550.000đ" },
 };
 
 function PaymentMethodIcon({ method }: { method: PaymentMethod }) {

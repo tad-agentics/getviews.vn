@@ -50,7 +50,7 @@ export function CreditBar({
     >
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)]">
-          Deep credit
+          Phân tích
         </span>
         {showPricingLinks ? (
           <Link
@@ -84,7 +84,7 @@ export function CreditBar({
       </div>
       {showPricingLinks && deepCreditsRemaining === 0 ? (
         <Link to="/app/pricing" className="mb-1.5 block text-xs font-semibold text-[var(--purple)] hover:underline">
-          Hết credit. Mua thêm →
+          Hết phân tích. Mở thêm →
         </Link>
       ) : null}
       <div className="h-1 overflow-hidden rounded-full bg-[var(--border)]">

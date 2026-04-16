@@ -30,6 +30,7 @@ import { MobileEmptyState, DesktopCenteredEmpty } from "@/routes/_app/components
 import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 import { StreamingStatusText } from "@/routes/_app/components/StreamingStatusText";
 import { FreeQueryPill } from "@/routes/_app/components/FreeQueryPill";
+import { AnalysisLimitCard } from "@/routes/_app/components/AnalysisLimitCard";
 import { NicheSelector } from "@/routes/_app/components/NicheSelector";
 import { HookRankingBar } from "@/routes/_app/components/HookRankingBar";
 import { BriefBlock } from "@/routes/_app/components/BriefBlock";
@@ -263,20 +264,6 @@ const DesktopInput = memo(function DesktopInput({
       {needsNiche && userId ? (
         <div className="mb-4">
           <NicheSelector userId={userId} />
-        </div>
-      ) : null}
-      {credits > 0 && credits <= 5 ? (
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-900/40 dark:bg-amber-950/30">
-          <p className="text-xs text-amber-800 dark:text-amber-300">
-            Còn <span className="font-semibold">{credits}</span> deep credit — mỗi phân tích sâu dùng 1 credit.
-          </p>
-          <button
-            type="button"
-            onClick={onNavigatePricing}
-            className="ml-3 shrink-0 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400"
-          >
-            Nạp thêm →
-          </button>
         </div>
       ) : null}
       <div
@@ -630,18 +617,7 @@ export default function ChatScreen() {
         </div>
       ) : null}
       {paywallVisible ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-          <p className="mb-3 text-sm text-[var(--ink)]">
-            Hết deep credit tháng này. Mua thêm 10 credit = 130.000 VND.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate("/app/pricing")}
-            className="inline-flex text-sm font-semibold text-[var(--purple)] hover:underline"
-          >
-            Mua thêm →
-          </button>
-        </div>
+        <AnalysisLimitCard onNavigatePricing={() => navigate("/app/pricing")} />
       ) : null}
 
       {messages.map((m, idx) => {
@@ -687,7 +663,7 @@ export default function ChatScreen() {
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <p className="mb-3 text-sm text-[var(--ink)]">
             Phân tích sâu {pendingPaidConfirm.label} sẽ dùng{" "}
-            <strong>1 deep credit</strong>.
+            <strong>1 phân tích</strong>.
           </p>
           <div className="flex gap-3">
             <button
@@ -865,20 +841,6 @@ export default function ChatScreen() {
             {needsNiche && user?.id ? (
               <div className="mb-3">
                 <NicheSelector userId={user.id} />
-              </div>
-            ) : null}
-            {credits > 0 && credits <= 5 ? (
-              <div className="mb-2 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-950/30">
-                <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                  Còn <span className="font-semibold">{credits}</span> deep credit
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate("/app/pricing")}
-                  className="ml-2 shrink-0 text-[11px] font-semibold text-amber-700 hover:underline dark:text-amber-400"
-                >
-                  Nạp thêm →
-                </button>
               </div>
             ) : null}
             <AnimatePresence>

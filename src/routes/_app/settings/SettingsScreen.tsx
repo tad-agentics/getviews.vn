@@ -151,7 +151,7 @@ const REASON_LABELS: Record<string, string> = {
   purchase: "Mua gói",
   query: "Phân tích sâu",
   refund: "Hoàn tiền",
-  admin_grant: "Cộng credit",
+  admin_grant: "Cộng phân tích",
   expiry_reset: "Gia hạn / reset",
 };
 
@@ -488,7 +488,7 @@ function PlanPanel({
       : subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)
     : tierLabelFromProfile(profile ?? null);
   const subscriptionTierLabel = `Gói ${tierName}`;
-  const subscriptionCreditsLine = `${remaining} deep credits còn lại`;
+  const subscriptionCreditsLine = `${remaining} phân tích còn lại`;
 
   if (loading && !profile) {
     return (
@@ -538,7 +538,7 @@ function PlanPanel({
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--purple)] hover:bg-[var(--purple-dark)] text-white text-sm font-semibold transition-colors duration-[120ms] flex-shrink-0"
             >
               <Zap className="w-3.5 h-3.5" strokeWidth={2.5} />
-              {isFreeTier || remaining <= 0 ? "Nâng cấp" : "Mua thêm credits"}
+              {isFreeTier || remaining <= 0 ? "Nâng cấp" : "Mở thêm phân tích"}
             </motion.button>
           </div>
 
@@ -568,7 +568,7 @@ function PlanPanel({
             <Zap className="w-4 h-4 text-[var(--purple)]" strokeWidth={2.2} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-extrabold text-[var(--ink)] mb-0.5">Mua thêm deep credits</p>
+            <p className="text-sm font-extrabold text-[var(--ink)] mb-0.5">Mở thêm phân tích</p>
             <p className="text-xs text-[var(--muted)]">Chọn gói phù hợp trên trang thanh toán.</p>
           </div>
           <motion.button
@@ -779,8 +779,8 @@ function PreferencesPanel() {
             </motion.button>
           </div>
           <Row
-            label="Thông báo khi credits sắp hết"
-            sub="Cảnh báo khi còn dưới 5 credits"
+            label="Thông báo khi sắp hết phân tích"
+            sub="Cảnh báo khi còn dưới 5 phân tích"
             value="Bật"
             onClick={() => {}}
           />
@@ -847,7 +847,7 @@ const HistoryPanel = memo(function HistoryPanel({
           {loading ? (
             <HistoryPanelSkeleton />
           ) : !transactions?.length ? (
-            <div className="px-4 py-8 text-center text-sm text-[var(--muted)]">Chưa có lịch sử credit.</div>
+            <div className="px-4 py-8 text-center text-sm text-[var(--muted)]">Chưa có lịch sử phân tích.</div>
           ) : (
             transactions.map((tx, idx) => {
               const label = REASON_LABELS[tx.reason] ?? tx.reason;
@@ -858,8 +858,8 @@ const HistoryPanel = memo(function HistoryPanel({
                 tx.delta === 0
                   ? "Miễn phí"
                   : tx.delta < 0
-                    ? `−${Math.abs(tx.delta)} credit`
-                    : `+${tx.delta} credit`;
+                    ? `−${Math.abs(tx.delta)} phân tích`
+                    : `+${tx.delta} phân tích`;
               const isFree = tx.delta === 0;
               return (
                 <motion.div

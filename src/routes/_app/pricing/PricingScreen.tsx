@@ -19,7 +19,7 @@ const plans = {
       popular: false,
       cta: "Bắt đầu ngay",
       features: [
-        "10 lần phân tích video (lifetime)",
+        "10 phân tích miễn phí",
         "Xem xu hướng cơ bản",
         "Chat AI không giới hạn",
         "Hỗ trợ qua email",
@@ -33,7 +33,7 @@ const plans = {
       popular: true,
       cta: "Chọn gói",
       features: [
-        "30 lần phân tích sâu / tháng",
+        "30 phân tích/tháng",
         "Xu hướng không giới hạn",
         "Chat AI không giới hạn",
         "Corpus data 7 ngày gần nhất",
@@ -48,7 +48,7 @@ const plans = {
       popular: false,
       cta: "Nâng cấp Pro",
       features: [
-        "80 lần phân tích sâu / tháng",
+        "80 phân tích/tháng",
         "Xu hướng không giới hạn",
         "Corpus data 30 ngày gần nhất",
         "So sánh niche đa chiều",
@@ -64,7 +64,7 @@ const plans = {
       popular: false,
       cta: "Liên hệ Agency",
       features: [
-        "250 lần phân tích sâu / tháng",
+        "250 phân tích/tháng",
         "Tối đa 10 tài khoản thành viên",
         "Tất cả tính năng Pro",
         "Corpus data realtime",
@@ -82,7 +82,7 @@ const plans = {
       popular: false,
       cta: "Bắt đầu ngay",
       features: [
-        "10 lần phân tích video (lifetime)",
+        "10 phân tích miễn phí",
         "Xem xu hướng cơ bản",
         "Chat AI không giới hạn",
         "Hỗ trợ qua email",
@@ -96,7 +96,7 @@ const plans = {
       popular: true,
       cta: "Chọn gói",
       features: [
-        "30 lần phân tích sâu / tháng",
+        "30 phân tích/tháng",
         "Xu hướng không giới hạn",
         "Chat AI không giới hạn",
         "Corpus data 7 ngày gần nhất",
@@ -111,7 +111,7 @@ const plans = {
       popular: false,
       cta: "Nâng cấp Pro",
       features: [
-        "80 lần phân tích sâu / tháng",
+        "80 phân tích/tháng",
         "Xu hướng không giới hạn",
         "Corpus data 30 ngày gần nhất",
         "So sánh niche đa chiều",
@@ -127,7 +127,7 @@ const plans = {
       popular: false,
       cta: "Liên hệ Agency",
       features: [
-        "250 lần phân tích sâu / tháng",
+        "250 phân tích/tháng",
         "Tối đa 10 tài khoản thành viên",
         "Tất cả tính năng Pro",
         "Corpus data realtime",
@@ -145,7 +145,7 @@ const plans = {
       popular: false,
       cta: "Bắt đầu ngay",
       features: [
-        "10 lần phân tích video (lifetime)",
+        "10 phân tích miễn phí",
         "Xem xu hướng cơ bản",
         "Chat AI không giới hạn",
         "Hỗ trợ qua email",
@@ -159,7 +159,7 @@ const plans = {
       popular: true,
       cta: "Chọn gói",
       features: [
-        "30 lần phân tích sâu / tháng",
+        "30 phân tích/tháng",
         "Xu hướng không giới hạn",
         "Chat AI không giới hạn",
         "Corpus data 7 ngày gần nhất",
@@ -174,7 +174,7 @@ const plans = {
       popular: false,
       cta: "Nâng cấp Pro",
       features: [
-        "80 lần phân tích sâu / tháng",
+        "80 phân tích/tháng",
         "Xu hướng không giới hạn",
         "Corpus data 30 ngày gần nhất",
         "So sánh niche đa chiều",
@@ -190,7 +190,7 @@ const plans = {
       popular: false,
       cta: "Liên hệ Agency",
       features: [
-        "250 lần phân tích sâu / tháng",
+        "250 phân tích/tháng",
         "Tối đa 10 tài khoản thành viên",
         "Tất cả tính năng Pro",
         "Corpus data realtime",
@@ -208,9 +208,9 @@ const periodLabels: Record<Period, string> = {
 };
 
 const topupCopy = [
-  { pack: "pack_10" as const, line: "10 lần phân tích sâu — 130.000đ (13.000đ/lần)", highlight: false },
-  { pack: "pack_30" as const, line: "30 lần phân tích sâu — 350.000đ (11.700đ/lần)", highlight: false },
-  { pack: "pack_50" as const, line: "50 lần phân tích sâu — 550.000đ (11.000đ/lần) · Phổ biến", highlight: true },
+  { pack: "pack_10" as const, line: "10 phân tích — 130.000đ (13.000đ/lần)", highlight: false },
+  { pack: "pack_30" as const, line: "30 phân tích — 350.000đ (11.700đ/lần)", highlight: false },
+  { pack: "pack_50" as const, line: "50 phân tích — 550.000đ (11.000đ/lần) · Phổ biến", highlight: true },
 ];
 
 const paymentMethodsBase = [
@@ -500,7 +500,7 @@ function PricingContent() {
               <Zap className="w-3.5 h-3.5" strokeWidth={2} />
             </div>
             <div>
-              <p className="text-xs text-[var(--muted)]">Credits còn lại</p>
+              <p className="text-xs text-[var(--muted)]">Phân tích còn lại</p>
               <p className="font-extrabold font-mono text-[var(--ink)] text-sm">
                 {remaining}
                 <span className="font-normal text-[var(--muted)]"> / {cap}</span>
@@ -554,7 +554,7 @@ function PricingContent() {
         <div className="border-t border-[var(--border)] mb-6" />
 
         <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--faint)] mb-3">Mua thêm credits</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--faint)] mb-3">Mở thêm phân tích</p>
           <div className="grid grid-cols-3 gap-2">
             {topupCopy.map((pack) => (
               <button
