@@ -2,13 +2,12 @@ import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Plus,
-  Image as ImageIcon,
   TrendingUp,
   Video,
   Search,
   BarChart2,
   ArrowUp,
+  ChevronDown,
   Database,
   X,
 } from "lucide-react";
@@ -337,23 +336,7 @@ const DesktopInput = memo(function DesktopInput({
             style={{ minHeight: 28, fontSize: 14 }}
           />
         </div>
-        <div className="flex items-center justify-between px-3 pb-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
-            >
-              <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
-              <span>Đính kèm</span>
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
-            >
-              <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
-              <span>Dùng ảnh</span>
-            </button>
-          </div>
+        <div className="flex items-center justify-end px-3 pb-3">
           <div className="flex items-center gap-2">
             {charCount > 0 ? (
               <span
@@ -421,9 +404,14 @@ export default function ChatScreen() {
   const [freePillKey, setFreePillKey] = useState(0);
   const [clientPaywall, setClientPaywall] = useState(false);
   const [lastStreamIntent, setLastStreamIntent] = useState<string | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const lastIntentRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerDesktopRef = useRef<HTMLDivElement>(null);
+  const scrollContainerMobileRef = useRef<HTMLDivElement>(null);
+  // true = new content should auto-scroll; set to false when user scrolls up
+  const autoScrollRef = useRef(true);
 
   // Sync session state with URL ?session= param on every navigation
   useEffect(() => {
@@ -438,6 +426,8 @@ export default function ChatScreen() {
       setShowMessages(false);
       setClientPaywall(false);
       setLastStreamIntent(null);
+      setShowJumpToBottom(false);
+      autoScrollRef.current = true;
       lastIntentRef.current = null;
       reset();
       // Only clear the message box if there's no incoming prefillUrl from location state
@@ -479,6 +469,27 @@ export default function ChatScreen() {
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 96)}px`;
   }, [message]);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  // Auto-scroll when new messages arrive or streaming text updates — only if
+  // the user hasn't manually scrolled up (autoScrollRef tracks this).
+  useEffect(() => {
+    if (autoScrollRef.current) {
+      scrollToBottom("smooth");
+    }
+  // text length changing means new streamed content; messages.length = new DB row
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, text.length]);
+
+  const handleScrollEvent = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    autoScrollRef.current = nearBottom;
+    setShowJumpToBottom(!nearBottom);
+  }, []);
 
   const runSend = useCallback(
     async (raw: string, resume?: { stream_id: string; last_seq: number }) => {
@@ -582,6 +593,9 @@ export default function ChatScreen() {
       lastIntentRef.current !== null
         ? { stream_id: streamId, last_seq: lastSeq }
         : undefined;
+    // Always scroll to latest when user sends a new message
+    autoScrollRef.current = true;
+    setShowJumpToBottom(false);
     setMessage("");
     if (!resumePayload) reset();
     await runSend(q, resumePayload);
@@ -736,7 +750,29 @@ export default function ChatScreen() {
           />
         ) : (
           <>
-            <div className="flex-1 space-y-4 overflow-y-auto px-10 py-6">{messageThread}</div>
+            <div className="relative min-h-0 flex-1">
+              <div
+                ref={scrollContainerDesktopRef}
+                className="h-full overflow-y-auto px-10 py-6"
+                onScroll={handleScrollEvent}
+              >
+                {messageThread}
+              </div>
+              {showJumpToBottom ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    autoScrollRef.current = true;
+                    setShowJumpToBottom(false);
+                    scrollToBottom("smooth");
+                  }}
+                  className="absolute bottom-4 right-8 flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] shadow-md transition-colors duration-[120ms] hover:bg-[var(--surface-alt)]"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  Tin mới nhất
+                </button>
+              ) : null}
+            </div>
             <DesktopInput
               message={message}
               setMessage={setMessage}
@@ -752,18 +788,38 @@ export default function ChatScreen() {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:hidden">
-        <div className="flex-1 overflow-y-auto bg-[var(--surface-alt)]">
-          {!showMessages ? (
-            <MobileEmptyState
-              nicheLabel={nicheLabel}
-              onSelectPrompt={(p) => {
-                setMessage(p);
-                setShowMessages(true);
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={scrollContainerMobileRef}
+            className="h-full overflow-y-auto bg-[var(--surface-alt)]"
+            onScroll={handleScrollEvent}
+          >
+            {!showMessages ? (
+              <MobileEmptyState
+                nicheLabel={nicheLabel}
+                onSelectPrompt={(p) => {
+                  setMessage(p);
+                  setShowMessages(true);
+                }}
+              />
+            ) : (
+              <div className="mx-auto max-w-2xl px-4 py-4">{messageThread}</div>
+            )}
+          </div>
+          {showJumpToBottom && showMessages ? (
+            <button
+              type="button"
+              onClick={() => {
+                autoScrollRef.current = true;
+                setShowJumpToBottom(false);
+                scrollToBottom("smooth");
               }}
-            />
-          ) : (
-            <div className="mx-auto max-w-2xl px-4 py-4">{messageThread}</div>
-          )}
+              className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] shadow-md transition-colors duration-[120ms] hover:bg-[var(--surface-alt)]"
+            >
+              <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.2} />
+              Tin mới
+            </button>
+          ) : null}
         </div>
 
         <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-3 py-3">
