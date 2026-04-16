@@ -793,9 +793,10 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "Kết thúc bằng **Pattern chung** (1-2 câu — điểm chung giữa các KOL top)."
     ),
     "find_creators": (
-        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do.\n"
-        "CẤU TRÚC: Liệt kê 3-5 tài khoản, mỗi tài khoản: **@handle** — nhận định chính (hook style, ER, niche fit) + vì sao nên theo dõi/hợp tác. "
-        "Kết thúc bằng **Pattern chung** (1-2 câu — điểm chung giữa các KOL top)."
+        "MỤC TIÊU: Tìm KOC/creator phù hợp để quay UGC — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản và lý do phù hợp với sản phẩm/thương hiệu của người dùng.\n"
+        "QUAN TRỌNG: Niche trong payload là niche đã được suy ra từ câu hỏi của người dùng — dùng niche đó để đánh giá mức độ phù hợp của từng KOC với sản phẩm.\n"
+        "CẤU TRÚC: Liệt kê 3-5 tài khoản, mỗi tài khoản: **@handle** — followers ước tính, ER, hook style, và đánh giá fit với sản phẩm trong niche (1-2 câu). "
+        "Kết thúc bằng **Gợi ý tiếp cận** (1-2 câu — cách liên hệ hoặc brief KOC phù hợp với loại sản phẩm này)."
     ),
     "own_channel": (
         "MỤC TIÊU: Soi kênh của người dùng — đối chiếu với benchmark niche từ video tham chiếu; chỉ ra điểm khớp/lệch và hành động.\n"

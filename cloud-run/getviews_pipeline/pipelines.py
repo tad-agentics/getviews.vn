@@ -83,6 +83,70 @@ async def _empty_dict() -> dict:
     return {}
 
 
+# Niche taxonomy labels the pipeline knows about — used to ground Gemini's
+# product→niche mapping so it doesn't hallucinate an unlisted niche.
+_NICHE_TAXONOMY_LABELS: list[str] = [
+    "review đồ gia dụng",
+    "làm đẹp",
+    "skincare",
+    "thời trang",
+    "ẩm thực",
+    "du lịch",
+    "công nghệ",
+    "tài chính",
+    "giáo dục",
+    "giải trí",
+    "thể thao",
+    "sức khỏe",
+    "mẹ và bé",
+    "thú cưng",
+    "hài",
+    "Shopee affiliate",
+    "lifestyle",
+]
+
+
+def _extract_kol_target_niche(questions: list[str], session_niche: str | None) -> str:
+    """Extract the target product/niche from a KOL-search question using Gemini.
+
+    When the user asks "tìm KOC cho thương hiệu đồng hồ", the session niche
+    may be unset or set to a previous unrelated niche. infer_niche_from_hashtags
+    just slices raw query text — it is not a classifier. This function uses a
+    cheap Gemini call to map the product description to the closest niche label
+    from _NICHE_TAXONOMY_LABELS, giving run_kol_search a meaningful search term.
+
+    Falls back to session_niche if extraction fails.
+    """
+    from getviews_pipeline.gemini import _generate_content_models, _response_text, GEMINI_KNOWLEDGE_MODEL, GEMINI_KNOWLEDGE_FALLBACKS
+    from google.genai import types as _types  # type: ignore
+
+    combined = " | ".join(questions)
+    labels_str = ", ".join(_NICHE_TAXONOMY_LABELS)
+    prompt = (
+        f"Câu hỏi của người dùng: \"{combined}\"\n\n"
+        f"Danh sách niche: {labels_str}\n\n"
+        "Người dùng muốn tìm KOC/KOL để quay UGC cho sản phẩm/thương hiệu nào? "
+        "Chọn niche GẦN NHẤT từ danh sách trên. "
+        "Nếu không có niche phù hợp, trả về niche gần nhất với sản phẩm đó. "
+        "Chỉ trả về TÊN NICHE, không giải thích. Ví dụ: 'thời trang' hoặc 'review đồ gia dụng'."
+    )
+    try:
+        cfg = _types.GenerateContentConfig(temperature=0.0, max_output_tokens=32)
+        response = _generate_content_models(
+            [prompt],
+            primary_model=GEMINI_KNOWLEDGE_MODEL,
+            fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
+            config=cfg,
+        )
+        extracted = _response_text(response).strip().strip('"').strip("'")
+        if extracted:
+            logger.info("[kol_search] extracted target niche from question: %r → %r", combined[:80], extracted)
+            return extracted
+    except Exception as exc:
+        logger.warning("[kol_search] niche extraction failed: %s — falling back to session niche", exc)
+    return session_niche or "tiktok vietnam"
+
+
 _NICHE_SEARCH_STOPWORDS: frozenset[str] = frozenset({
     "trendingtiktok", "trending", "viral", "tiktok", "foryou", "fyp",
     "xuhuong", "thinhhanh", "hot", "xinh", "dep",
@@ -997,9 +1061,18 @@ async def run_kol_search(
     session: dict[str, Any],
     questions: list[str],
 ) -> dict[str, Any]:
-    """KOL / creator discovery — reference posts + synthesis (free intent on product)."""
+    """KOL / creator discovery — reference posts + synthesis (free intent on product).
+
+    niche passed from main.py is the session niche, which may be unset or set to
+    an unrelated niche from a previous question (e.g. the user asked about skincare
+    before now asking for watch-brand KOCs). We always re-derive the target niche
+    from the current questions so the video pool matches what the user actually asked.
+    """
     sem = get_analysis_semaphore()
-    pool = await _niche_aweme_pool(niche, period=30)
+    # Re-derive search niche from the current question — session niche is often
+    # stale or unrelated when the user asks about a specific product/brand.
+    search_niche = await run_sync(_extract_kol_target_niche, questions, session.get("niche"))
+    pool = await _niche_aweme_pool(search_niche, period=30)
     fa: dict[str, Any] = session.setdefault("full_analyses", {})
     cached_ids = set(fa.keys())
     picks = select_reference_videos(
@@ -1016,7 +1089,7 @@ async def run_kol_search(
     analyzed = [r for r in results if "analysis" in r]
 
     payload = {
-        "niche": niche,
+        "niche": search_niche,
         "reference_count": len(analyzed),
         "analyzed_videos": analyzed,
     }
@@ -1025,6 +1098,7 @@ async def run_kol_search(
         "find_creators",
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
+        niche_key=search_niche,
     )
     session["kol_search"] = synthesis
     completed = session.setdefault("completed_intents", [])
@@ -1032,13 +1106,13 @@ async def run_kol_search(
         completed.append("find_creators")
     _bump_analyses_summary(
         session,
-        niche=niche,
+        niche=search_niche,
         delta_videos=len(analyzed),
         intent_label="find_creators",
     )
     return {
         "intent": "find_creators",
-        "niche": niche,
+        "niche": search_niche,
         "synthesis": synthesis,
         "analyzed_videos": analyzed,
     }
