@@ -26,8 +26,7 @@ export function UsageArc({ used, limit }: UsageArcProps) {
   const circumference = 2 * Math.PI * r;
   const strokeDashoffset = circumference * (1 - pct);
 
-  const trackColor = "var(--border)";
-  const arcColor = isAmber ? "#F59E0B" : "var(--purple)";
+  const gradientId = isAmber ? "arc-amber" : "arc-purple";
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -39,19 +38,31 @@ export function UsageArc({ used, limit }: UsageArcProps) {
             aria-label={`Đã dùng ${used} trong ${limit} phân tích tháng này`}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <defs>
+                <linearGradient id="arc-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#a855f7" />
+                  <stop offset="100%" stopColor="#7c3aed" />
+                </linearGradient>
+                <linearGradient id="arc-amber" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#fbbf24" />
+                  <stop offset="100%" stopColor="#d97706" />
+                </linearGradient>
+              </defs>
+              {/* Track */}
               <circle
                 cx={cx}
                 cy={cy}
                 r={r}
-                stroke={trackColor}
+                stroke="var(--border)"
                 strokeWidth={2.5}
                 fill="none"
               />
+              {/* Arc */}
               <circle
                 cx={cx}
                 cy={cy}
                 r={r}
-                stroke={arcColor}
+                stroke={`url(#${gradientId})`}
                 strokeWidth={2.5}
                 fill="none"
                 strokeDasharray={circumference}
