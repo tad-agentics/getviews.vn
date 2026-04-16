@@ -573,7 +573,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             {avatarUrl ? (
               <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
             ) : (
-              <span className="flex h-full w-full items-center justify-center bg-[var(--purple)] text-[10px] font-extrabold text-white">
+              <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#a855f7] to-[#7c3aed] text-[10px] font-extrabold text-white">
                 {initials}
               </span>
             )}
@@ -696,7 +696,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-9 h-9 rounded-full bg-[var(--purple)] flex items-center justify-center flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#a855f7] to-[#7c3aed] flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-extrabold text-xs">{initials}</span>
                     </div>
                     <div className="flex-1 min-w-0">
