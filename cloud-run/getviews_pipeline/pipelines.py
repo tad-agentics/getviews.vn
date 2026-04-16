@@ -6,6 +6,7 @@ import asyncio
 import json as _json
 import logging
 import re
+import time
 from datetime import date, timedelta
 from typing import Any
 
@@ -994,18 +995,20 @@ async def run_video_diagnosis(
         already_emitted = set(re.findall(r'"video_id"\s*:\s*"([^"]+)"', diagnosis))
 
         injected_blocks: list[str] = []
+        now_ts = time.time()
         for ref in references:
-            meta = ref.get("metadata") or {}
-            vid = str(meta.get("video_id") or ref.get("aweme_id") or "")
+            # refs are raw aweme dicts — read fields directly from aweme structure
+            vid = str(ref.get("aweme_id") or "")
             if not vid or vid in already_emitted:
                 continue
-            handle = ""
-            author = meta.get("author") or {}
-            handle = str(author.get("username") or "")
-            views = int(meta.get("views") or 0)
-            days_ago = int(meta.get("days_ago") or 0)
-            breakout = float(meta.get("breakout") or 0.0)
-            thumb = meta.get("thumbnail_url") or ""
+            author = ref.get("author") or {}
+            handle = str(author.get("unique_id") or author.get("sec_uid") or "")
+            stats = ref.get("statistics") or {}
+            views = int(stats.get("play_count") or 0)
+            create_time = int(ref.get("create_time") or 0)
+            days_ago = int((now_ts - create_time) / 86400) if create_time > 0 else 0
+            breakout = float(ref.get("breakout_multiplier") or 0.0)
+            thumb = str(ref.get("thumbnail_url") or "")
             block: dict = {
                 "type": "video_ref",
                 "video_id": vid,
