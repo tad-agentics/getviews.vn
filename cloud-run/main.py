@@ -113,7 +113,6 @@ def _is_short_tiktok_url(url: str) -> bool:
 def _resolve_short_url(url: str, timeout: float = 8.0) -> str:
     """Follow redirects on a short TikTok URL and return the final URL.
     Falls back to the original URL on any error."""
-    import httpx
     try:
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
             resp = client.head(url, headers={"User-Agent": "Mozilla/5.0"})

@@ -242,7 +242,6 @@ function parseSegments(text: string): Segment[] {
 
   // Step 1: extract all video_ref JSON objects and replace with markers
   const videoRefs: VideoRefData[] = [];
-  const indexed: string[] = [];
 
   const withMarkers = cleanedText.replace(VIDEO_REF_RE, (match) => {
     try {
@@ -250,7 +249,6 @@ function parseSegments(text: string): Segment[] {
       if (data.type === "video_ref" && data.video_id) {
         const idx = videoRefs.length;
         videoRefs.push(data);
-        indexed.push(match);
         return `\x00VIDEO_REF_${idx}\x00`;
       }
     } catch {

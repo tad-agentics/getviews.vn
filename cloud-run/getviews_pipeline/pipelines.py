@@ -27,7 +27,6 @@ from getviews_pipeline.corpus_ingest import classify_format
 from getviews_pipeline.hashtag_niche_map import classify_from_hashtags
 from getviews_pipeline.output_redesign import hook_type_vi
 from getviews_pipeline.gemini import (
-    synthesize_diagnosis,
     synthesize_diagnosis_carousel_v2,
     synthesize_diagnosis_v2,
     synthesize_intent_markdown,
@@ -574,45 +573,6 @@ async def run_competitor_profile(
     }
 
 
-async def run_series_audit(
-    urls: list[str],
-    session: dict[str, Any],
-    questions: list[str],
-) -> dict[str, Any]:
-    sem = get_analysis_semaphore()
-    fa: dict[str, Any] = session.setdefault("full_analyses", {})
-
-    async def _one(u: str) -> dict[str, Any]:
-        async with sem:
-            return await analyze_tiktok_url(
-                u, include_diagnosis=False, full_analyses=fa
-            )
-
-    results = await asyncio.gather(*[_one(u) for u in urls])
-    analyzed = [r for r in results if "analysis" in r]
-
-    payload = {"user_urls": urls, "analyzed_videos": analyzed}
-    synthesis = await run_sync(
-        synthesize_intent_markdown,
-        "series_audit",
-        payload,
-        collapsed_questions=questions if len(questions) > 1 else None,
-    )
-    session["series_audit"] = synthesis
-    _append_completed(session, QueryIntent.SERIES_AUDIT)
-    _bump_analyses_summary(
-        session,
-        niche=session.get("niche"),
-        delta_videos=len(analyzed),
-        intent_label="series_audit",
-    )
-    return {
-        "intent": "series_audit",
-        "synthesis": synthesis,
-        "analyzed_videos": analyzed,
-    }
-
-
 async def run_brief_generation(
     topic: str,
     niche: str,
@@ -694,7 +654,7 @@ async def run_shot_list(
             corpus_citation=citation,
         )
         emit(step_queue, step_done("Shot list xong — đang hiển thị..."))
-        _append_completed(session, QueryIntent.BRIEF_GENERATION)
+        _append_completed(session, QueryIntent.SHOT_LIST)
         _bump_analyses_summary(
             session,
             niche=niche or session.get("niche"),
@@ -735,7 +695,6 @@ async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
             return ""
 
         from getviews_pipeline.supabase_client import get_service_client
-        import asyncio
         client = get_service_client()
         loop = asyncio.get_event_loop()
 
@@ -775,8 +734,7 @@ async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
         )
         return block
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("[layer0_context] fetch failed (non-fatal): %s", exc)
+        logger.warning("[layer0_context] fetch failed (non-fatal): %s", exc)
         return ""
 
 

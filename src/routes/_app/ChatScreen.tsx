@@ -1,16 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  TrendingUp,
-  Video,
-  Search,
-  BarChart2,
-  ArrowUp,
-  ChevronDown,
-  Database,
-  X,
-} from "lucide-react";
+import { ArrowUp, ChevronDown } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -25,9 +16,7 @@ import { DiagnosisRow, type DiagnosisRowData } from "@/routes/_app/components/Di
 import { ThumbnailStrip, type ThumbnailItem } from "@/routes/_app/components/ThumbnailStrip";
 import { CopyButton } from "@/routes/_app/components/CopyButton";
 import { URLChip } from "@/routes/_app/components/URLChip";
-import { PromptCards } from "@/routes/_app/components/PromptCards";
 import { MobileEmptyState, DesktopCenteredEmpty } from "@/routes/_app/components/EmptyStates";
-import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 import { StreamingStatusText } from "@/routes/_app/components/StreamingStatusText";
 import { FreeQueryPill } from "@/routes/_app/components/FreeQueryPill";
 import { AnalysisLimitCard } from "@/routes/_app/components/AnalysisLimitCard";
