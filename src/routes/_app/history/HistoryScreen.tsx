@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Search, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -97,7 +97,15 @@ export default function HistoryScreen() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const trimmedQuery = query.trim();
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  // Debounce search input — avoids firing an RPC on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const trimmedQuery = debouncedQuery.trim();
   const isSearch = trimmedQuery.length > 0;
 
   const {

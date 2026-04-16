@@ -2,13 +2,12 @@ import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Plus,
-  Image as ImageIcon,
   TrendingUp,
   Video,
   Search,
   BarChart2,
   ArrowUp,
+  ChevronDown,
   Database,
   X,
 } from "lucide-react";
@@ -21,8 +20,6 @@ import {
   useInsertUserMessage,
 } from "@/hooks/useChatSession";
 import { useChatStream } from "@/hooks/useChatStream";
-import { env } from "@/lib/env";
-import { supabase } from "@/lib/supabase";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { DiagnosisRow, type DiagnosisRowData } from "@/routes/_app/components/DiagnosisRow";
 import { ThumbnailStrip, type ThumbnailItem } from "@/routes/_app/components/ThumbnailStrip";
@@ -50,31 +47,6 @@ type ChatMsg = {
 
 const FREE_INTENT_SET = new Set(["find_creators", "trend_spike", "follow_up"]);
 
-/** Tier-3: ask the backend to classify intent using Gemini when tiers 1+2 are low-confidence. */
-async function classifyIntentT3(
-  query: string,
-  accessToken: string,
-): Promise<{ intentType: string; isFree: boolean }> {
-  const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
-  if (!cloudRunUrl) return { intentType: "follow_up", isFree: true };
-  try {
-    const res = await fetch(`${cloudRunUrl}/classify-intent`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query }),
-    });
-    if (!res.ok) throw new Error(`classify-intent HTTP ${res.status}`);
-    const data = (await res.json()) as { primary?: string; secondary?: string | null };
-    const intentType = data.primary ?? "follow_up";
-    return { intentType, isFree: FREE_INTENT_SET.has(intentType) };
-  } catch {
-    return { intentType: "follow_up", isFree: true };
-  }
-}
-
 function isResumeQuery(q: string): boolean {
   const s = q.trim().toLowerCase();
   return ["tiếp", "tiếp tục", "continue", "resume", "/tiếp"].includes(s);
@@ -83,26 +55,15 @@ function isResumeQuery(q: string): boolean {
 /**
  * detectIntent — maps a raw user message to a pipeline intent.
  *
- * Intent catalogue:
- *   video_diagnosis    — analyse a specific video URL (why it flopped / how to improve)
- *   competitor_profile — analyse another creator's channel via @handle or profile URL
- *   own_channel        — analyse the user's own channel
- *   series_audit       — let backend handle; we route all multi-URL to video_diagnosis here
- *   trend_spike        — what's trending / viral right now in a niche
- *   content_directions — what video types / formats / hooks to make next
- *   brief_generation   — produce a full content brief (default fallback)
- *   shot_list          — production shot list / filming plan for a video
- *   find_creators      — discover KOLs / creators in a niche
- *   follow_up          — continue the current conversation thread
+ * Two tiers only:
+ *   Tier 1 (high)   — structural signals: TikTok URL → video_diagnosis / competitor_profile
+ *                     @handle → competitor_profile / own_channel
+ *   Tier 2 (medium) — explicit keyword patterns for specialized pipelines
  *
- * Priority order: URL → handle → shot_list → find_creators → own_channel
- *                 → content_directions + trend (with disambiguation)
- *                 → trend_spike alone → default (low confidence → tier 3)
- *
- * Returns a `confidence` flag:
- *   "high"   — structural signal (URL, handle) — always correct, no tier-3 needed
- *   "medium" — keyword matched — usually correct
- *   "low"    — fell through to follow_up with no prior context — tier-3 needed
+ * Everything else → follow_up (free), which routes to the Gemini chat backend.
+ * Natural language, general questions, greetings, and anything ambiguous all
+ * land here so the chat behaves like a real LLM assistant rather than a broken
+ * intent router.
  */
 function detectIntent(
   query: string,
@@ -154,8 +115,8 @@ function detectIntent(
   if (isTrend) return { intentType: "trend_spike", isFree: true, confidence: "medium" };
 
   // ── 7. DEFAULT ────────────────────────────────────────────────────────────
-  // follow_up with prior context = medium confidence (conversation continuation).
-  // follow_up with NO prior context = low confidence → tier-3 Gemini classification.
+  // Anything that doesn't match a structural signal or an explicit keyword is
+  // treated as natural-language chat and routed to the Gemini follow_up handler.
   return {
     intentType: "follow_up",
     isFree: true,
@@ -337,23 +298,7 @@ const DesktopInput = memo(function DesktopInput({
             style={{ minHeight: 28, fontSize: 14 }}
           />
         </div>
-        <div className="flex items-center justify-between px-3 pb-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
-            >
-              <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
-              <span>Đính kèm</span>
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--muted)] transition-colors duration-[120ms] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)]"
-            >
-              <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
-              <span>Dùng ảnh</span>
-            </button>
-          </div>
+        <div className="flex items-center justify-end px-3 pb-3">
           <div className="flex items-center gap-2">
             {charCount > 0 ? (
               <span
@@ -421,9 +366,14 @@ export default function ChatScreen() {
   const [freePillKey, setFreePillKey] = useState(0);
   const [clientPaywall, setClientPaywall] = useState(false);
   const [lastStreamIntent, setLastStreamIntent] = useState<string | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const lastIntentRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerDesktopRef = useRef<HTMLDivElement>(null);
+  const scrollContainerMobileRef = useRef<HTMLDivElement>(null);
+  // true = new content should auto-scroll; set to false when user scrolls up
+  const autoScrollRef = useRef(true);
 
   // Sync session state with URL ?session= param on every navigation
   useEffect(() => {
@@ -438,6 +388,8 @@ export default function ChatScreen() {
       setShowMessages(false);
       setClientPaywall(false);
       setLastStreamIntent(null);
+      setShowJumpToBottom(false);
+      autoScrollRef.current = true;
       lastIntentRef.current = null;
       reset();
       // Only clear the message box if there's no incoming prefillUrl from location state
@@ -480,6 +432,27 @@ export default function ChatScreen() {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 96)}px`;
   }, [message]);
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  // Auto-scroll when new messages arrive or streaming text updates — only if
+  // the user hasn't manually scrolled up (autoScrollRef tracks this).
+  useEffect(() => {
+    if (autoScrollRef.current) {
+      scrollToBottom("smooth");
+    }
+  // text length changing means new streamed content; messages.length = new DB row
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, text.length]);
+
+  const handleScrollEvent = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    autoScrollRef.current = nearBottom;
+    setShowJumpToBottom(!nearBottom);
+  }, []);
+
   const runSend = useCallback(
     async (raw: string, resume?: { stream_id: string; last_seq: number }) => {
       const trimmed = raw.trim();
@@ -496,19 +469,12 @@ export default function ChatScreen() {
         intentType = lastIntentRef.current!;
         isFree = true;
       } else {
+        // Two tiers: structural signals (high) then keywords (medium).
+        // Anything ambiguous falls to follow_up — the Gemini chat backend handles it
+        // conversationally instead of trying to force it into a specialized pipeline.
         const detected = detectIntent(trimmed, priorAssistant);
-        if (detected.confidence === "low") {
-          // Tier-3: Gemini semantic classification — fires only when tiers 1+2 are ambiguous
-          const { data: { session: authSession } } = await supabase.auth.getSession();
-          const classified = authSession
-            ? await classifyIntentT3(trimmed, authSession.access_token)
-            : { intentType: "follow_up", isFree: true };
-          intentType = classified.intentType;
-          isFree = classified.isFree;
-        } else {
-          intentType = detected.intentType;
-          isFree = detected.isFree;
-        }
+        intentType = detected.intentType;
+        isFree = detected.isFree;
       }
 
       if (!isFree && credits <= 0) {
@@ -582,6 +548,9 @@ export default function ChatScreen() {
       lastIntentRef.current !== null
         ? { stream_id: streamId, last_seq: lastSeq }
         : undefined;
+    // Always scroll to latest when user sends a new message
+    autoScrollRef.current = true;
+    setShowJumpToBottom(false);
     setMessage("");
     if (!resumePayload) reset();
     await runSend(q, resumePayload);
@@ -736,7 +705,29 @@ export default function ChatScreen() {
           />
         ) : (
           <>
-            <div className="flex-1 space-y-4 overflow-y-auto px-10 py-6">{messageThread}</div>
+            <div className="relative min-h-0 flex-1">
+              <div
+                ref={scrollContainerDesktopRef}
+                className="h-full overflow-y-auto px-10 py-6"
+                onScroll={handleScrollEvent}
+              >
+                {messageThread}
+              </div>
+              {showJumpToBottom ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    autoScrollRef.current = true;
+                    setShowJumpToBottom(false);
+                    scrollToBottom("smooth");
+                  }}
+                  className="absolute bottom-4 right-8 flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] shadow-md transition-colors duration-[120ms] hover:bg-[var(--surface-alt)]"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.2} />
+                  Tin mới nhất
+                </button>
+              ) : null}
+            </div>
             <DesktopInput
               message={message}
               setMessage={setMessage}
@@ -752,18 +743,38 @@ export default function ChatScreen() {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:hidden">
-        <div className="flex-1 overflow-y-auto bg-[var(--surface-alt)]">
-          {!showMessages ? (
-            <MobileEmptyState
-              nicheLabel={nicheLabel}
-              onSelectPrompt={(p) => {
-                setMessage(p);
-                setShowMessages(true);
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={scrollContainerMobileRef}
+            className="h-full overflow-y-auto bg-[var(--surface-alt)]"
+            onScroll={handleScrollEvent}
+          >
+            {!showMessages ? (
+              <MobileEmptyState
+                nicheLabel={nicheLabel}
+                onSelectPrompt={(p) => {
+                  setMessage(p);
+                  setShowMessages(true);
+                }}
+              />
+            ) : (
+              <div className="mx-auto max-w-2xl px-4 py-4">{messageThread}</div>
+            )}
+          </div>
+          {showJumpToBottom && showMessages ? (
+            <button
+              type="button"
+              onClick={() => {
+                autoScrollRef.current = true;
+                setShowJumpToBottom(false);
+                scrollToBottom("smooth");
               }}
-            />
-          ) : (
-            <div className="mx-auto max-w-2xl px-4 py-4">{messageThread}</div>
-          )}
+              className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] shadow-md transition-colors duration-[120ms] hover:bg-[var(--surface-alt)]"
+            >
+              <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.2} />
+              Tin mới
+            </button>
+          ) : null}
         </div>
 
         <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-3 py-3">
