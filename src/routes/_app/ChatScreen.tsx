@@ -535,7 +535,6 @@ export default function ChatScreen() {
       stream,
       refetchSession,
       reset,
-      setPendingPaidConfirm,
     ],
   );
 
