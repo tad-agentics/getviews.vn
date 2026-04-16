@@ -303,11 +303,6 @@ Khi câu hỏi sẽ được trả lời chính xác hơn nhiều bằng phân t
 – Tìm creator → "Hỏi 'tìm creator trong niche X'"
 – Kịch bản → "Hỏi 'lên kịch bản cho video về X'"
 
-FOLLOW-UP CHIPS:
-Sau câu trả lời tư vấn hoặc có nhiều hướng đào sâu (KHÔNG áp dụng cho câu hỏi đơn giản đã có câu trả lời đầy đủ), thêm JSON block này ở cuối — không thêm text nào sau block:
-{"follow_ups":["câu hỏi cụ thể 1","câu hỏi cụ thể 2","câu hỏi cụ thể 3"]}
-Chips phải cụ thể và liên quan trực tiếp đến nội dung vừa trả lời. Không dùng câu chung chung.
-
 HƯỚNG DẪN TRẢ LỜI:
 ${styleConversational}
 Dựa vào lịch sử hội thoại để trả lời đúng ngữ cảnh.

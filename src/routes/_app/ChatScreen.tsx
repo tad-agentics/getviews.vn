@@ -700,11 +700,7 @@ export default function ChatScreen() {
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
               {hasPlain && !hasStructured ? (
-                <MarkdownRenderer
-                  text={parsed!.plain!}
-                  streaming={false}
-                  onFollowUp={(chip) => void handleSend(chip)}
-                />
+                <MarkdownRenderer text={parsed!.plain!} streaming={false} />
               ) : null}
             </div>
           );
@@ -736,11 +732,7 @@ export default function ChatScreen() {
           ) : null}
           {text ? (
             <div className="mt-2">
-              <MarkdownRenderer
-                text={text}
-                streaming={status === "streaming"}
-                onFollowUp={(chip) => void handleSend(chip)}
-              />
+              <MarkdownRenderer text={text} streaming={status === "streaming"} />
             </div>
           ) : null}
         </div>
