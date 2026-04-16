@@ -105,14 +105,11 @@ export const MobileEmptyState = memo(function MobileEmptyState({
         >
           Sẵn sàng phân tích content của bạn.
         </motion.h1>
-        <p className="mb-2 text-center text-xs text-[var(--muted)]">Chọn gợi ý hoặc thao tác nhanh</p>
-        <PromptCards nicheLabel={nicheLabel} onSelect={onSelectPrompt} />
-
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.05, ease: "easeOut" }}
-          className="mt-6 w-full"
+          className="mt-2 w-full"
         >
           <p className="mb-2.5 text-center text-xs font-semibold uppercase tracking-widest text-[var(--faint)]">
             Thao tác nhanh
@@ -130,10 +127,21 @@ export const MobileEmptyState = memo(function MobileEmptyState({
                   onClick={() => setActiveModal(action.modalKey)}
                   className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
                 >
-                  <Icon
-                    className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
-                    strokeWidth={1.5}
-                  />
+                  <div className="flex items-start justify-between gap-1">
+                    <Icon
+                      className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
+                      strokeWidth={1.5}
+                    />
+                    <span
+                      className={`text-[9px] font-semibold leading-none px-1.5 py-0.5 rounded-full ${
+                        action.isFree
+                          ? "bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400"
+                          : "bg-[var(--surface-alt)] text-[var(--faint)]"
+                      }`}
+                    >
+                      {action.isFree ? "miễn phí" : "1 credit"}
+                    </span>
+                  </div>
                   <p className="text-xs font-semibold leading-snug text-[var(--ink)]">{action.text}</p>
                   <p className="text-[10px] leading-tight text-[var(--muted)]">{action.subtext}</p>
                 </motion.button>
@@ -307,10 +315,21 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
                     onClick={() => setActiveModal(action.modalKey)}
                     className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
                   >
-                    <Icon
-                      className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
-                      strokeWidth={1.5}
-                    />
+                    <div className="flex items-start justify-between gap-1">
+                      <Icon
+                        className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
+                        strokeWidth={1.5}
+                      />
+                      <span
+                        className={`text-[9px] font-semibold leading-none px-1.5 py-0.5 rounded-full ${
+                          action.isFree
+                            ? "bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400"
+                            : "bg-[var(--surface-alt)] text-[var(--faint)]"
+                        }`}
+                      >
+                        {action.isFree ? "miễn phí" : "1 credit"}
+                      </span>
+                    </div>
                     <p className="text-xs font-semibold leading-snug text-[var(--ink)]">{action.text}</p>
                     <p className="text-[10px] leading-tight text-[var(--muted)]">{action.subtext}</p>
                   </motion.button>
