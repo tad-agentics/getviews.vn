@@ -41,4 +41,6 @@ export const NICHE_IDS = {
   du_lich: 16,
   gaming: 17,
   nauan: 18,
+  thu_cung: 19,
+  nha_cua: 20,
 } as const;

@@ -2,7 +2,15 @@
 
 Mines video_corpus for hashtags that appear frequently in high-performing videos
 but are NOT yet in any niche_taxonomy.signal_hashtags array. Classifies candidates
-via Gemini, then appends confirmed tags to the correct niche's signal_hashtags.
+via Gemini, then:
+
+  1. Appends confirmed tags to niche_taxonomy.signal_hashtags (existing behaviour).
+  2. Writes confirmed classifications to hashtag_niche_map so classify_from_hashtags
+     can use them immediately without waiting for a corpus learning cycle.
+  3. Saves low-confidence / unclassified candidates to niche_candidates for human
+     review — replaces the silent discard of pre-improvement behaviour.
+  4. Updates niche_taxonomy.stale_signal_count and last_hashtag_refresh to surface
+     niches whose signal tags have gone stale in the corpus.
 
 This is corpus-driven (no external API) — free to run and grounded in real data.
 
@@ -15,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import date
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -38,7 +47,9 @@ MAX_CANDIDATES_PER_RUN = 60
 
 
 async def run_hashtag_discovery(client: Any) -> dict[str, Any]:
-    """Entry point. Returns summary dict with keys: candidates_found, added, skipped, errors."""
+    """Entry point. Returns summary dict with keys:
+    candidates_found, added, map_written, candidates_saved, stale_signals, skipped, errors.
+    """
     loop = asyncio.get_event_loop()
 
     try:
@@ -48,10 +59,12 @@ async def run_hashtag_discovery(client: Any) -> dict[str, Any]:
         )
     except Exception as exc:
         logger.error("[layer0d] Failed to fetch niches/existing tags: %s", exc)
-        return {"candidates_found": 0, "added": 0, "skipped": 0, "errors": [str(exc)]}
+        return {"candidates_found": 0, "added": 0, "map_written": 0, "candidates_saved": 0,
+                "stale_signals": 0, "skipped": 0, "errors": [str(exc)]}
 
     if not niches:
-        return {"candidates_found": 0, "added": 0, "skipped": 0, "errors": ["no niches"]}
+        return {"candidates_found": 0, "added": 0, "map_written": 0, "candidates_saved": 0,
+                "stale_signals": 0, "skipped": 0, "errors": ["no niches"]}
 
     try:
         candidates = await loop.run_in_executor(
@@ -59,11 +72,15 @@ async def run_hashtag_discovery(client: Any) -> dict[str, Any]:
         )
     except Exception as exc:
         logger.error("[layer0d] Failed to fetch candidate hashtags: %s", exc)
-        return {"candidates_found": 0, "added": 0, "skipped": 0, "errors": [str(exc)]}
+        return {"candidates_found": 0, "added": 0, "map_written": 0, "candidates_saved": 0,
+                "stale_signals": 0, "skipped": 0, "errors": [str(exc)]}
 
     if not candidates:
         logger.info("[layer0d] No new candidate hashtags found this week")
-        return {"candidates_found": 0, "added": 0, "skipped": 0, "errors": []}
+        # Still run freshness update even when no new candidates
+        stale = await _run_freshness_update(loop, client, niches)
+        return {"candidates_found": 0, "added": 0, "map_written": 0, "candidates_saved": 0,
+                "stale_signals": stale, "skipped": 0, "errors": []}
 
     logger.info("[layer0d] %d candidate hashtags to classify", len(candidates))
 
@@ -74,20 +91,23 @@ async def run_hashtag_discovery(client: Any) -> dict[str, Any]:
         )
     except Exception as exc:
         logger.error("[layer0d] Gemini classification failed: %s", exc)
+        stale = await _run_freshness_update(loop, client, niches)
         return {
             "candidates_found": len(candidates),
-            "added": 0,
+            "added": 0, "map_written": 0, "candidates_saved": 0,
+            "stale_signals": stale,
             "skipped": len(candidates),
             "errors": [str(exc)],
         }
 
     confirmed = [c for c in classifications if c.get("confidence", 0) >= MIN_CONFIDENCE]
+    unconfirmed = [c for c in classifications if c.get("confidence", 0) < MIN_CONFIDENCE]
     logger.info(
         "[layer0d] %d/%d classifications meet confidence threshold (%.2f)",
         len(confirmed), len(classifications), MIN_CONFIDENCE,
     )
 
-    # Append confirmed tags to niche_taxonomy
+    # Step 1: Append confirmed tags to niche_taxonomy.signal_hashtags (existing behaviour)
     added = 0
     errors: list[str] = []
     niche_additions: dict[int, list[str]] = {}
@@ -110,9 +130,39 @@ async def run_hashtag_discovery(client: Any) -> dict[str, Any]:
             logger.warning("[layer0d] Failed to append tags: %s", msg)
             errors.append(msg)
 
+    # Step 2: Write confirmed classifications to hashtag_niche_map
+    counts = {c["hashtag"]: c.get("video_count", 0) for c in candidates}
+    map_written = 0
+    try:
+        map_written = await loop.run_in_executor(
+            None, lambda: _write_to_hashtag_map(client, confirmed, counts)
+        )
+        logger.info("[layer0d] hashtag_niche_map: %d rows written", map_written)
+    except Exception as exc:
+        logger.warning("[layer0d] Failed to write hashtag_niche_map: %s", exc)
+        errors.append(f"hashtag_map: {exc}")
+
+    # Step 3: Save unconfirmed/unclassified to niche_candidates
+    avg_views = {c["hashtag"]: c.get("avg_views", 0) for c in candidates}
+    candidates_saved = 0
+    try:
+        candidates_saved = await loop.run_in_executor(
+            None, lambda: _save_to_niche_candidates(client, unconfirmed, counts, avg_views)
+        )
+        logger.info("[layer0d] niche_candidates: %d rows upserted", candidates_saved)
+    except Exception as exc:
+        logger.warning("[layer0d] Failed to save niche_candidates: %s", exc)
+        errors.append(f"niche_candidates: {exc}")
+
+    # Step 4: Freshness update
+    stale = await _run_freshness_update(loop, client, niches)
+
     return {
         "candidates_found": len(candidates),
         "added": added,
+        "map_written": map_written,
+        "candidates_saved": candidates_saved,
+        "stale_signals": stale,
         "skipped": len(candidates) - len(confirmed),
         "errors": errors,
     }
@@ -241,6 +291,179 @@ def _classify_hashtags(candidates: list[dict], niches: list[dict]) -> list[dict]
 
     parsed = json.loads(_normalize_response(text))
     return parsed.get("classifications", []) if isinstance(parsed, dict) else []
+
+
+async def _run_freshness_update(loop: Any, client: Any, niches: list[dict]) -> int:
+    """Run freshness tracking as a non-fatal async step. Returns stale_signals count."""
+    try:
+        stale = await loop.run_in_executor(
+            None, lambda: _update_freshness(client, niches)
+        )
+        logger.info("[layer0d] freshness: %d stale signals across all niches", stale)
+        return stale
+    except Exception as exc:
+        logger.warning("[layer0d] Freshness update failed (non-fatal): %s", exc)
+        return 0
+
+
+def _write_to_hashtag_map(
+    client: Any,
+    confirmed: list[dict],
+    counts: dict[str, int],
+) -> int:
+    """Write confirmed Gemini classifications to hashtag_niche_map.
+
+    Uses confidence='high' when corpus count >= 10, else 'medium'.
+    Never overwrites existing seed rows (source='seed').
+    ON CONFLICT: only updates if the existing row is source='corpus' or 'discovery'
+    and the new occurrence count is higher.
+    Returns number of rows inserted/updated.
+    """
+    written = 0
+    for item in confirmed:
+        niche_id = item.get("niche_id")
+        hashtag = str(item.get("hashtag", "")).strip().lstrip("#").lower()
+        if not niche_id or not hashtag:
+            continue
+        count = counts.get(hashtag, 1)
+        confidence = "high" if count >= 10 else "medium"
+        try:
+            # Check if a seed row already exists — never overwrite seed.
+            existing = (
+                client.table("hashtag_niche_map")
+                .select("source, occurrences")
+                .eq("hashtag", hashtag)
+                .maybe_single()
+                .execute()
+            ).data
+            if existing and existing.get("source") == "seed":
+                continue
+            if existing:
+                # Only update if new count is higher
+                if count <= int(existing.get("occurrences") or 0):
+                    continue
+                client.table("hashtag_niche_map").update({
+                    "niche_id": niche_id,
+                    "occurrences": count,
+                    "confidence": confidence,
+                    "source": "discovery",
+                    "is_generic": False,
+                }).eq("hashtag", hashtag).execute()
+            else:
+                client.table("hashtag_niche_map").insert({
+                    "hashtag": hashtag,
+                    "niche_id": niche_id,
+                    "occurrences": count,
+                    "niche_count": 1,
+                    "source": "discovery",
+                    "confidence": confidence,
+                    "is_generic": False,
+                }).execute()
+            written += 1
+        except Exception as exc:
+            logger.warning("[layer0d] hashtag_map upsert failed for '%s': %s", hashtag, exc)
+    return written
+
+
+def _save_to_niche_candidates(
+    client: Any,
+    unconfirmed: list[dict],
+    counts: dict[str, int],
+    avg_views: dict[str, int],
+) -> int:
+    """Upsert low-confidence / unclassified hashtags into niche_candidates.
+
+    ON CONFLICT (hashtag): update occurrences to GREATEST of existing and new.
+    Returns number of rows upserted.
+    """
+    today = date.today().isoformat()
+    saved = 0
+    for item in unconfirmed:
+        hashtag = str(item.get("hashtag", "")).strip().lstrip("#").lower()
+        if not hashtag:
+            continue
+        count = counts.get(hashtag, 1)
+        views = avg_views.get(hashtag, 0)
+        try:
+            existing = (
+                client.table("niche_candidates")
+                .select("id, occurrences")
+                .eq("hashtag", hashtag)
+                .maybe_single()
+                .execute()
+            ).data
+            if existing:
+                new_count = max(int(existing.get("occurrences") or 0), count)
+                client.table("niche_candidates").update({
+                    "occurrences": new_count,
+                    "avg_views": views,
+                    "updated_at": "now()",
+                }).eq("hashtag", hashtag).execute()
+            else:
+                client.table("niche_candidates").insert({
+                    "hashtag": hashtag,
+                    "occurrences": count,
+                    "avg_views": views,
+                    "discovery_date": today,
+                    "reviewed": False,
+                }).execute()
+            saved += 1
+        except Exception as exc:
+            logger.warning("[layer0d] niche_candidates upsert failed for '%s': %s", hashtag, exc)
+    return saved
+
+
+def _update_freshness(client: Any, niches: list[dict], days: int = 30) -> int:
+    """Update niche_taxonomy.stale_signal_count and last_hashtag_refresh.
+
+    For each niche, counts how many of its signal_hashtags appeared in
+    video_corpus.hashtags for videos indexed in the last `days` days.
+    stale_signal_count = len(signal_hashtags) - count_seen_recently.
+
+    Uses a single corpus fetch + Python-side aggregation to avoid N+1 queries.
+    Returns total stale signal count across all niches.
+    """
+    # Fetch all hashtags from recently-indexed corpus videos in one query
+    result = (
+        client.table("video_corpus")
+        .select("hashtags")
+        .gte("indexed_at", f"now() - interval '{days} days'")
+        .not_.is_("hashtags", None)
+        .execute()
+    )
+    rows = result.data or []
+
+    # Build a set of all hashtags seen in the recent corpus
+    seen_in_corpus: set[str] = set()
+    for row in rows:
+        for tag in (row.get("hashtags") or []):
+            seen_in_corpus.add(str(tag).strip().lstrip("#").lower())
+
+    total_stale = 0
+    today = date.today().isoformat()
+
+    for niche in niches:
+        niche_id = niche.get("id")
+        signal_hashtags = niche.get("signal_hashtags") or []
+        if not niche_id or not signal_hashtags:
+            continue
+
+        seen_count = sum(
+            1 for tag in signal_hashtags
+            if str(tag).strip().lstrip("#").lower() in seen_in_corpus
+        )
+        stale_count = len(signal_hashtags) - seen_count
+        total_stale += stale_count
+
+        try:
+            client.table("niche_taxonomy").update({
+                "stale_signal_count": stale_count,
+                "last_hashtag_refresh": today,
+            }).eq("id", niche_id).execute()
+        except Exception as exc:
+            logger.warning("[layer0d] freshness update failed for niche_id=%d: %s", niche_id, exc)
+
+    return total_stale
 
 
 def _append_tags_to_niche(client: Any, niche_id: int, new_tags: list[str]) -> int:

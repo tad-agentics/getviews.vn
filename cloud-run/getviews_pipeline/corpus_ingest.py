@@ -1215,9 +1215,12 @@ async def _run_weekly_analytics(client: Any) -> None:
         from getviews_pipeline.layer0_hashtag import run_hashtag_discovery
         l0d_result = await run_hashtag_discovery(client)
         logger.info(
-            "[layer0d] candidates=%d added=%d skipped=%d errors=%s",
+            "[layer0d] candidates=%d added=%d map_written=%d candidates_saved=%d stale=%d skipped=%d errors=%s",
             l0d_result.get("candidates_found", 0),
             l0d_result.get("added", 0),
+            l0d_result.get("map_written", 0),
+            l0d_result.get("candidates_saved", 0),
+            l0d_result.get("stale_signals", 0),
             l0d_result.get("skipped", 0),
             l0d_result.get("errors") or "none",
         )
