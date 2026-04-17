@@ -133,8 +133,8 @@ const HOOK_EXAMPLE = {
   handle: "@blogtamsu.taichinh",
 };
 
-// Card 4: Video grid — 16 diverse high-view videos across niches
-const GRID_IDS = [
+// Card 4: Dense video grid — 15 diverse high-view videos across niches (5 cols × 3 rows)
+const GRID_VIDEO_IDS = [
   "7625127374316784916", // niche 13 · 101M
   "7621134771292245266", // niche 4  · 17.6M
   "7622669408665652488", // niche 3  · 7.3M
@@ -150,7 +150,6 @@ const GRID_IDS = [
   "7618909735487835413", // niche 12 · 1.2M
   "7625204222585228566", // niche 1  · 1.0M
   "7624886649725504789", // niche 14 · 807K
-  "7626680583250365697", // niche 8  · 758K
 ];
 
 function VideoThumb({ id, className = "" }: { id: string; className?: string }) {
@@ -266,18 +265,21 @@ function SolutionCardsSection() {
             </svg>
           </motion.div>
 
-          {/* ── Card 4: Video Grid ────────────────────────────────────── */}
+          {/* ── Card 4: Dense Video Grid (5-col) ─────────────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.3 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
           >
-            <p className="font-bold text-[var(--ink)] mb-1">"Tìm video viral theo niche"</p>
-            <p className="text-xs text-[var(--muted)] mb-4">46.000+ video từ 17 niche — lọc, tìm, học theo</p>
-            <div className="grid grid-cols-4 gap-1">
-              {GRID_IDS.map((id) => (
-                <div key={id} className="relative overflow-hidden rounded" style={{ paddingBottom: "177.78%" }}>
+            <p className="text-lg font-bold text-[var(--ink)]">"Video nào nên làm?"</p>
+            <div className="grid grid-cols-5 gap-1">
+              {GRID_VIDEO_IDS.map((id) => (
+                <div
+                  key={id}
+                  className="relative overflow-hidden rounded-md bg-[var(--surface-alt)]"
+                  style={{ paddingBottom: "177%" }}
+                >
                   <VideoThumb id={id} className="absolute inset-0 w-full h-full" />
                 </div>
               ))}
