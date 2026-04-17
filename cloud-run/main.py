@@ -113,7 +113,6 @@ def _is_short_tiktok_url(url: str) -> bool:
 def _resolve_short_url(url: str, timeout: float = 8.0) -> str:
     """Follow redirects on a short TikTok URL and return the final URL.
     Falls back to the original URL on any error."""
-    import httpx
     try:
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
             resp = client.head(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -811,3 +810,61 @@ async def batch_analytics(request: Request) -> JSONResponse:
             "errors": signal.errors,
         },
     })
+
+
+@app.post("/batch/layer0")
+async def batch_layer0(request: Request) -> JSONResponse:
+    """Trigger Layer 0 intelligence extraction independently of corpus ingest.
+
+    Runs all three Layer 0 passes in sequence:
+      - Layer 0A: Niche insight synthesis (top formula mechanism extraction)
+      - Layer 0B: Emerging sound insights
+      - Layer 0C: Cross-niche format migration detection
+
+    Protected by X-Batch-Secret. Safe to re-run — upserts on conflict.
+    Useful after code changes or manual data imports without re-ingesting videos.
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.supabase_client import get_service_client
+    from getviews_pipeline.layer0_niche import run_niche_insights
+    from getviews_pipeline.layer0_sound import run_sound_insights
+    from getviews_pipeline.layer0_migration import run_cross_niche_migration
+
+    client = get_service_client()
+    logger.info("POST /batch/layer0 triggered")
+
+    result: dict = {"ok": True}
+
+    try:
+        l0a = await run_niche_insights(client)
+        result["layer0a_niche"] = {
+            "insights_written": l0a.insights_written,
+            "niches_skipped": l0a.niches_skipped,
+            "errors": l0a.errors,
+        }
+        logger.info("[layer0a] insights=%d skipped=%d", l0a.insights_written, l0a.niches_skipped)
+    except Exception as exc:
+        logger.exception("[layer0a] failed: %s", exc)
+        result["layer0a_niche"] = {"error": str(exc)}
+
+    try:
+        l0b = await run_sound_insights(client)
+        result["layer0b_sound"] = {"analyzed": l0b.get("analyzed", 0)}
+        logger.info("[layer0b] analyzed=%d", l0b.get("analyzed", 0))
+    except Exception as exc:
+        logger.exception("[layer0b] failed: %s", exc)
+        result["layer0b_sound"] = {"error": str(exc)}
+
+    try:
+        l0c = await run_cross_niche_migration(client)
+        result["layer0c_migration"] = {"migrations_found": l0c.get("migrations_found", 0)}
+        logger.info("[layer0c] migrations=%d", l0c.get("migrations_found", 0))
+    except Exception as exc:
+        logger.exception("[layer0c] failed: %s", exc)
+        result["layer0c_migration"] = {"error": str(exc)}
+
+    return JSONResponse(result)

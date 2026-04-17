@@ -343,6 +343,36 @@ def _normalize_hook_type(raw: str) -> str:
 def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     """Classify a video's content format from its Gemini analysis.
 
+    ━━━ TAXONOMY LOCK — READ BEFORE CHANGING ━━━
+    The 15 values this function can return are a hard contract shared across 7 layers:
+
+        corpus_ingest.py     → writes content_format into video_corpus (DB column)
+        output_redesign.py   → FORMAT_ANALYSIS_WEIGHTS keyed to these 15 values;
+                               get_analysis_focus() switches on them; diagnosis prompt
+                               injects format-specific signal priorities
+        gemini.py            → reads content_format from corpus; passes to
+                               build_diagnosis_narrative_prompt() and
+                               build_carousel_diagnosis_narrative_prompt()
+        layer0_niche.py      → queries content_format for formula detection
+                               (top formula = best hook_type × content_format pair)
+        layer0_migration.py  → groups migration signals by content_format per week
+        niche_intelligence   → format_distribution JSONB aggregated from content_format;
+                               used in diagnosis framing and Layer 0A synthesis
+        prompts.py           → format_distribution injected into corpus citation blocks
+
+    ANY taxonomy change (add / rename / remove a value) requires ALL of the above to
+    change atomically in a single migration + deploy. Backfilling existing DB rows via
+    SQL UPDATE is also required — old values will silently fall through to the "other"
+    branch in FORMAT_ANALYSIS_WEIGHTS, degrading diagnosis quality.
+
+    The plan §M.8 proposal (Gemini Flash-Lite reclassification into react/unbox/list/
+    trending_hook) was evaluated and DEFERRED. Regex classification is intentional here:
+    it is deterministic, zero-cost, and zero-latency. Switching to Gemini classification
+    adds ~$0.002/video in extraction cost and a round-trip latency with no quality gain
+    for the primary use-case (format_distribution benchmarking). If the taxonomy is
+    expanded in the future, add new values to FORMAT_ANALYSIS_WEIGHTS FIRST, run the
+    migration + backfill SECOND, then update this function THIRD.
+
     PRIORITY ORDER — intentional, highest specificity first:
 
     1. mukbang   — eating/ASMR signals are highly specific; checked before recipe/review.
@@ -1179,6 +1209,23 @@ async def _run_weekly_analytics(client: Any) -> None:
     # --- Layer 0: Intelligence Extraction (the brain) ---
     # Runs LAST — reads from video_corpus + signal_grades + trending_sounds
     # Non-fatal: if Layer 0 fails, dashboard still shows statistics (without mechanism)
+
+    # Layer 0D — Trending Hashtag Discovery (runs first so new tags feed 0A)
+    try:
+        from getviews_pipeline.layer0_hashtag import run_hashtag_discovery
+        l0d_result = await run_hashtag_discovery(client)
+        logger.info(
+            "[layer0d] candidates=%d added=%d map_written=%d candidates_saved=%d stale=%d skipped=%d errors=%s",
+            l0d_result.get("candidates_found", 0),
+            l0d_result.get("added", 0),
+            l0d_result.get("map_written", 0),
+            l0d_result.get("candidates_saved", 0),
+            l0d_result.get("stale_signals", 0),
+            l0d_result.get("skipped", 0),
+            l0d_result.get("errors") or "none",
+        )
+    except Exception as exc:
+        logger.error("[layer0d] Hashtag discovery failed (non-fatal): %s", exc)
 
     try:
         from getviews_pipeline.layer0_niche import run_niche_insights

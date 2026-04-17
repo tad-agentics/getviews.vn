@@ -27,7 +27,6 @@ from getviews_pipeline.corpus_ingest import classify_format
 from getviews_pipeline.hashtag_niche_map import classify_from_hashtags
 from getviews_pipeline.output_redesign import hook_type_vi
 from getviews_pipeline.gemini import (
-    synthesize_diagnosis,
     synthesize_diagnosis_carousel_v2,
     synthesize_diagnosis_v2,
     synthesize_intent_markdown,
@@ -220,6 +219,47 @@ def _bump_analyses_summary(
         s["top_patterns"] = (prev + patterns)[:8]
 
 
+def _inject_video_ref_blocks(synthesis: str, analyzed: list[dict[str, Any]]) -> str:
+    """Append video_ref JSON blocks for any analyzed video not already in synthesis.
+
+    Works for pipelines that use the metadata-wrapper structure:
+      {"aweme_id": id, "metadata": {"video_id": ..., "author": {"username": ...}, ...}}
+    """
+    already_emitted = set(re.findall(r'"video_id"\s*:\s*"([^"]+)"', synthesis))
+    now_ts = time.time()
+    injected: list[str] = []
+    for ref in analyzed:
+        meta = ref.get("metadata") or {}
+        vid = str(meta.get("video_id") or ref.get("aweme_id") or "")
+        if not vid or vid in already_emitted:
+            continue
+        author = meta.get("author") or {}
+        handle = str(author.get("username") or "")
+        views = int(meta.get("views") or 0)
+        create_time = int(ref.get("create_time") or 0)
+        days_ago = int(meta.get("days_ago") or (
+            int((now_ts - create_time) / 86400) if create_time > 0 else 0
+        ))
+        breakout = float(meta.get("breakout") or 0.0)
+        thumb = str(meta.get("thumbnail_url") or "")
+        block: dict = {
+            "type": "video_ref",
+            "video_id": vid,
+            "handle": f"@{handle}" if handle and not handle.startswith("@") else handle,
+            "views": views,
+            "days_ago": days_ago,
+        }
+        if breakout > 1.0:
+            block["breakout"] = round(breakout, 1)
+        if thumb:
+            block["thumbnail_url"] = thumb
+        injected.append(_json.dumps(block, ensure_ascii=False))
+        already_emitted.add(vid)
+    if injected:
+        synthesis = synthesis.rstrip() + "\n\n" + "\n".join(injected)
+    return synthesis
+
+
 async def run_content_directions(
     niche: str,
     session: dict[str, Any],
@@ -301,6 +341,7 @@ async def run_content_directions(
             niche_key=niche,
             corpus_citation=citation,
         )
+        synthesis = _inject_video_ref_blocks(synthesis, analyzed)
         directions_struct = [
             {
                 "label": f"direction_{i + 1}",
@@ -456,6 +497,7 @@ async def run_trend_spike(
             niche_key=niche,
             corpus_citation=citation,
         )
+        synthesis = _inject_video_ref_blocks(synthesis, analyzed)
         session["directions"] = session.get("directions") or []
         _append_completed(session, QueryIntent.TREND_SPIKE)
         _bump_analyses_summary(
@@ -526,45 +568,6 @@ async def run_competitor_profile(
     return {
         "intent": "competitor_profile",
         "handle": handle,
-        "synthesis": synthesis,
-        "analyzed_videos": analyzed,
-    }
-
-
-async def run_series_audit(
-    urls: list[str],
-    session: dict[str, Any],
-    questions: list[str],
-) -> dict[str, Any]:
-    sem = get_analysis_semaphore()
-    fa: dict[str, Any] = session.setdefault("full_analyses", {})
-
-    async def _one(u: str) -> dict[str, Any]:
-        async with sem:
-            return await analyze_tiktok_url(
-                u, include_diagnosis=False, full_analyses=fa
-            )
-
-    results = await asyncio.gather(*[_one(u) for u in urls])
-    analyzed = [r for r in results if "analysis" in r]
-
-    payload = {"user_urls": urls, "analyzed_videos": analyzed}
-    synthesis = await run_sync(
-        synthesize_intent_markdown,
-        "series_audit",
-        payload,
-        collapsed_questions=questions if len(questions) > 1 else None,
-    )
-    session["series_audit"] = synthesis
-    _append_completed(session, QueryIntent.SERIES_AUDIT)
-    _bump_analyses_summary(
-        session,
-        niche=session.get("niche"),
-        delta_videos=len(analyzed),
-        intent_label="series_audit",
-    )
-    return {
-        "intent": "series_audit",
         "synthesis": synthesis,
         "analyzed_videos": analyzed,
     }
@@ -651,7 +654,7 @@ async def run_shot_list(
             corpus_citation=citation,
         )
         emit(step_queue, step_done("Shot list xong — đang hiển thị..."))
-        _append_completed(session, QueryIntent.BRIEF_GENERATION)
+        _append_completed(session, QueryIntent.SHOT_LIST)
         _bump_analyses_summary(
             session,
             niche=niche or session.get("niche"),
@@ -692,7 +695,6 @@ async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
             return ""
 
         from getviews_pipeline.supabase_client import get_service_client
-        import asyncio
         client = get_service_client()
         loop = asyncio.get_event_loop()
 
@@ -732,8 +734,7 @@ async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
         )
         return block
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("[layer0_context] fetch failed (non-fatal): %s", exc)
+        logger.warning("[layer0_context] fetch failed (non-fatal): %s", exc)
         return ""
 
 

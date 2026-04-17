@@ -16,12 +16,9 @@
  *
  * D2 animation: 400ms reveal + stagger on children (100ms per section).
  */
-import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { SignalBadge } from "./SignalBadge";
 import { CopyableBlock } from "./CopyableBlock";
-import { VideoRefStrip } from "./VideoRefStrip";
-import type { VideoRefData } from "./VideoRefCard";
 import { hookNameVI } from "@/lib/constants/hook-names-vi";
 
 export interface TrendCardData {
@@ -30,7 +27,8 @@ export interface TrendCardData {
   recency?: string;
   signal?: string;
   breakout?: string;
-  /** Video IDs from corpus — resolved to VideoRefData for VideoRefStrip */
+  /** Video IDs — kept for schema compatibility but not rendered inline.
+   *  Full video_ref blocks with metadata are injected server-side after synthesis. */
   videos?: string[];
   hook_formula?: string;
   mechanism?: string;
@@ -58,15 +56,6 @@ function BarFill({ delay = 0 }: { delay?: number }) {
 
 export function TrendCard({ data, index = 0 }: Props) {
   const baseDelay = index * 0.12;
-
-  // Build VideoRefData stubs from video IDs — VideoRefCard fetches metadata lazily
-  const videoRefs: VideoRefData[] = (data.videos ?? []).map((vid) => ({
-    type: "video_ref",
-    video_id: vid,
-    handle: "",
-    views: 0,
-    days_ago: 0,
-  }));
 
   const titleDisplay = data.hook_type
     ? `${data.title} — ${hookNameVI(data.hook_type)}`
@@ -119,17 +108,6 @@ export function TrendCard({ data, index = 0 }: Props) {
           >
             {data.recency}
           </motion.p>
-        ) : null}
-
-        {/* Thumbnail strip — 3 corpus reference videos */}
-        {videoRefs.length > 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2, delay: baseDelay + 0.2 }}
-          >
-            <VideoRefStrip refs={videoRefs} />
-          </motion.div>
         ) : null}
 
         {/* Hook formula — copyable block (reuses CopyableBlock from P0-3) */}

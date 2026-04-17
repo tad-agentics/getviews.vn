@@ -21,6 +21,10 @@ from typing import Any
 # Format → signal weights
 # ---------------------------------------------------------------------------
 
+# ━━━ TAXONOMY LOCK ━━━
+# Keys here are the canonical content_format values written by classify_format()
+# in corpus_ingest.py. These two must stay in sync — see the TAXONOMY LOCK comment
+# in classify_format() for the full list of downstream dependencies before changing.
 FORMAT_ANALYSIS_WEIGHTS: dict[str, dict[str, str]] = {
     "tutorial": {
         "hook": "critical",
@@ -290,7 +294,7 @@ POV, Bằng Chứng, Tò Mò / Gợi Mở, Tuyên Bố Mạnh, Câu Hỏi, Nỗi
 HOOK_TYPE_VI: dict[str, str] = {
     "warning": "Cảnh Báo",
     "price_shock": "Giá Sốc",
-    "shock_stat": "Giá Sốc",        # shock_stat closest to price_shock in impact
+    "shock_stat": "Thống Kê Gây Sốc",
     "reaction": "Phản Ứng",
     "comparison": "So Sánh",
     "expose": "Bóc Phốt",
