@@ -22,6 +22,7 @@ const FREE_INTENTS = new Set([
   "format_lifecycle",
   "follow_up",
   "find_creators",
+  "creator_search",
 ]);
 
 // §13: max 100 free queries per user per day — matches Cloud Run FREE_DAILY_LIMIT
@@ -394,6 +395,7 @@ ${nonDisclosure}`;
     }
 
     case "find_creators":
+    case "creator_search":
       return `Bạn là GetViews AI, trợ lý phân tích TikTok cho creator Việt Nam.
 Người dùng đang hỏi gợi ý creator/KOL cụ thể.
 Tính năng tìm KOL đang được cập nhật. Trả lời đúng một câu:
