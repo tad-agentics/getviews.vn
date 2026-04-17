@@ -30,7 +30,7 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
       let query = supabase
         .from("video_corpus")
         .select(
-          "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, niche_id, indexed_at, likes, shares, comments, breakout_multiplier",
+          "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier",
         )
         .order(sortBy, { ascending: sortOrder === "asc" })
         .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1);
