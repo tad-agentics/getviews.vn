@@ -624,6 +624,136 @@ export default function ExploreScreen() {
               </div>
             ) : null}
           </section>
+
+          {/* ── Zone 2: Analytics (requires niche) ─────────────────────── */}
+          <section className="px-5 lg:px-7 pb-8">
+            {selectedNicheId === null ? (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-5 py-6 text-center">
+                <p className="text-sm font-semibold text-[var(--ink)] mb-1">Phân tích chuyên sâu</p>
+                <p className="text-xs text-[var(--muted)] mb-4">
+                  Chọn niche bên trên để xem hook hiệu quả, format đang lên và phân tích corpus
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {niches?.slice(0, 6).map((n) => (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onClick={() => setSelectedNicheId(n.id)}
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--ink-soft)] hover:border-[var(--border-active)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
+                    >
+                      {n.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <VideoDangHocSidebar />
+
+                {hookData && hookData.length > 0 && !lowVideoCorpus ? (
+                  <section
+                    key={`hook-ranking-${selectedNicheId}`}
+                    className="mt-4 pt-4 border-t border-[var(--border)] -mx-5 lg:-mx-7 px-5 lg:px-7"
+                  >
+                    {hookDataStale ? (
+                      <p className="text-xs font-medium text-[var(--ink-soft)] mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
+                        Data cũ hơn 36 tiếng — đang cập nhật.
+                      </p>
+                    ) : null}
+                    <h2 className="font-extrabold text-[var(--ink)] mb-3">
+                      Hook đang chạy trong {selectedNicheName ?? "…"}
+                    </h2>
+                    <p className="text-xs text-[var(--faint)] mb-4">
+                      {totalHookSamples} video · 7 ngày · Cập nhật{" "}
+                      <span>
+                        {newestComputedAt
+                          ? `${Math.max(0, Math.round((Date.now() - new Date(newestComputedAt).getTime()) / 3600000))}h trước`
+                          : "—"}
+                      </span>
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {hookData.slice(0, 8).map((h, i) => {
+                        const maxEr = Number(hookData[0]?.avg_engagement_rate) || 1;
+                        const er = Number(h.avg_engagement_rate) || 0;
+                        const pct = Math.min(100, Math.round((er / maxEr) * 100));
+                        const isTop = i === 0;
+                        const mult = maxEr > 0 ? (er / maxEr).toFixed(2) : "—";
+                        const barColor = isTop
+                          ? "var(--purple)"
+                          : `rgba(100, 100, 120, ${Math.max(0.10, 0.65 - i * 0.08)})`;
+                        return (
+                          <div key={h.id ?? i} className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs text-[var(--ink)] font-medium truncate max-w-[70%]">
+                                {String(h.hook_type ?? "").replace(/_/g, " ")}
+                              </span>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-xs font-mono text-[var(--ink-soft)]">{(er * 100).toFixed(1)}%</span>
+                                <motion.span
+                                  className="text-[10px] font-semibold text-[var(--purple)] tabular-nums"
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{ duration: 0.25, delay: i * 0.1 + 0.35, ease: [0.16, 1, 0.3, 1] }}
+                                >
+                                  ×{mult}
+                                </motion.span>
+                              </div>
+                            </div>
+                            <div className="relative h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                              <motion.div
+                                className="absolute left-0 top-0 h-full rounded-full"
+                                style={{ background: barColor }}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.4, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : null}
+
+                {(risingFormats.length > 0 || fallingFormats.length > 0) && !lowVideoCorpus ? (
+                  <section className="mt-4 pt-4 border-t border-[var(--border)] -mx-5 lg:-mx-7 px-5 lg:px-7">
+                    {risingFormats.length > 0 ? (
+                      <>
+                        <h2 className="font-extrabold text-[var(--ink)] mb-3">Format đang lên</h2>
+                        <div className="flex flex-col gap-2">
+                          {risingFormats.map((f, i) => (
+                            <div key={f.id ?? `r-${i}`} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
+                              <span className="text-sm text-[var(--ink)]">{f.format_type}</span>
+                              <span className="text-xs font-semibold" style={{ color: "var(--success, #22c55e)" }}>
+                                +{((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
+                    {fallingFormats.length > 0 ? (
+                      <>
+                        <h2 className={`font-extrabold text-[var(--ink)] mb-3 ${risingFormats.length > 0 ? "mt-4" : ""}`}>
+                          Format đang giảm
+                        </h2>
+                        <div className="flex flex-col gap-2">
+                          {fallingFormats.map((f, i) => (
+                            <div key={f.id ?? `f-${i}`} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
+                              <span className="text-sm text-[var(--ink-soft)]">{f.format_type}</span>
+                              <span className="text-xs font-semibold" style={{ color: "var(--danger, #ef4444)" }}>
+                                {((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
+                  </section>
+                ) : null}
+              </>
+            )}
+          </section>
         </div>
 
         <aside
