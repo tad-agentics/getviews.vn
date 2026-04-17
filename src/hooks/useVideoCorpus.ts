@@ -9,6 +9,7 @@ export interface VideoCorpusFilters {
   sortOrder?: "asc" | "desc";
   dateFrom?: string | null;
   dateTo?: string | null;
+  search?: string;
 }
 
 export const corpusKeys = {
@@ -19,7 +20,7 @@ export const corpusKeys = {
 };
 
 export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
-  const { nicheId, sortBy = "indexed_at", sortOrder = "desc", dateFrom, dateTo } = filters;
+  const { nicheId, sortBy = "indexed_at", sortOrder = "desc", dateFrom, dateTo, search } = filters;
 
   return useInfiniteQuery({
     queryKey: corpusKeys.list(filters),
@@ -40,6 +41,10 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
       }
       if (dateTo) {
         query = query.lte("indexed_at", dateTo);
+      }
+      if (search && search.trim().length > 0) {
+        const term = `%${search.trim()}%`;
+        query = query.or(`hook_phrase.ilike.${term},creator_handle.ilike.${term}`);
       }
 
       const { data, error } = await query;

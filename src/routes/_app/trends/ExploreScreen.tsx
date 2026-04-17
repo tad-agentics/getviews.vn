@@ -613,6 +613,7 @@ export default function ExploreScreen() {
     nicheId: selectedNicheId,
     sortBy,
     sortOrder: "desc",
+    search: searchQuery || undefined,
   });
 
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
@@ -646,6 +647,10 @@ export default function ExploreScreen() {
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [sortBy]);
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [searchQuery]);
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
