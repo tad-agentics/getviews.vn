@@ -610,24 +610,58 @@ export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props)
 
   if (!segments.length && !followUps.length) return null;
 
+  // Group consecutive creator_card segments so they render as a single unified list.
+  type RenderGroup =
+    | { kind: "single"; seg: Segment; idx: number }
+    | { kind: "creator_group"; cards: CreatorCardSegment[]; startIdx: number };
+
+  const groups: RenderGroup[] = [];
+  let i = 0;
+  while (i < segments.length) {
+    const seg = segments[i];
+    if (seg.kind === "creator_card") {
+      const batch: CreatorCardSegment[] = [];
+      const startIdx = i;
+      while (i < segments.length && segments[i].kind === "creator_card") {
+        batch.push(segments[i] as CreatorCardSegment);
+        i++;
+      }
+      groups.push({ kind: "creator_group", cards: batch, startIdx });
+    } else {
+      groups.push({ kind: "single", seg, idx: i });
+      i++;
+    }
+  }
+
   return (
     <div className="space-y-1">
-      {segments.map((seg, i) => {
+      {groups.map((group) => {
+        if (group.kind === "creator_group") {
+          return (
+            <div key={`creator-group-${group.startIdx}`} className="space-y-2">
+              {group.cards.map((seg) => (
+                <CreatorCard key={`creator-${seg.cardIndex}`} data={seg.data} />
+              ))}
+            </div>
+          );
+        }
+
+        const { seg, idx } = group;
         if (seg.kind === "video_refs") {
-          return <VideoRefStrip key={i} refs={seg.refs} />;
+          return <VideoRefStrip key={idx} refs={seg.refs} />;
         }
         if (seg.kind === "hook") {
-          return <CopyableBlock key={i} text={seg.text} />;
+          return <CopyableBlock key={idx} text={seg.text} />;
         }
         if (seg.kind === "trend_card") {
-          return <TrendCard key={i} data={seg.data} index={seg.cardIndex} />;
+          return <TrendCard key={idx} data={seg.data} index={seg.cardIndex} />;
         }
         if (seg.kind === "sound_card") {
           return <TrendingSoundCard key={seg.cardIndex} data={seg.data} />;
         }
         if (seg.kind === "shot_list") {
           return (
-            <div key={i} className="my-3">
+            <div key={idx} className="my-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
                 Danh sách cảnh quay
               </p>
@@ -638,12 +672,9 @@ export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props)
           );
         }
         if (seg.kind === "video_grid") {
-          return <VideoGridBlock key={i} ids={seg.ids} labels={seg.labels} />;
+          return <VideoGridBlock key={idx} ids={seg.ids} labels={seg.labels} />;
         }
-        if (seg.kind === "creator_card") {
-          return <CreatorCard key={`creator-${seg.cardIndex}`} data={seg.data} />;
-        }
-        return <TextBlock key={i} content={(seg as TextSegment).content} />;
+        return <TextBlock key={idx} content={(seg as TextSegment).content} />;
       })}
       {followUps.length > 0 && onFollowUp ? (
         <FollowUpChips questions={followUps} onSelect={onFollowUp} />
