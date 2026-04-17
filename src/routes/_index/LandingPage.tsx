@@ -207,7 +207,7 @@ function SolutionCardsSection() {
                 style={{ width: "10%", paddingBottom: "39%" }}
               />
             </div>
-            <p className="text-xs text-[var(--muted)]">12 video trong corpus · 5.1M views tổng</p>
+            <p className="text-xs text-[var(--muted)]">Xem toàn bộ nội dung, format và hook của đối thủ trong 1 màn hình</p>
           </motion.div>
 
           {/* ── Card 2: Creator Avatars (scattered float) ─────────────── */}
