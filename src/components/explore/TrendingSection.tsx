@@ -243,7 +243,7 @@ export function TrendingSection({ nicheId }: Props) {
       ) : null}
 
       <div className="mb-4">
-        <h2 className="mb-3 text-sm font-bold text-[var(--ink)]">Xu hướng tuần này</h2>
+        <h2 className="mb-3 font-extrabold text-[var(--ink)]">Xu hướng tuần này</h2>
 
         {showSkeleton ? (
           <div
