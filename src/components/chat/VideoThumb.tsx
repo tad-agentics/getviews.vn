@@ -128,7 +128,13 @@ export function VideoThumb({
 
   if (tiktokUrl) {
     return (
-      <a href={tiktokUrl} target="_blank" rel="noopener noreferrer" className="block">
+      <a
+        href={tiktokUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block"
+        aria-label={handle ? `Xem video của ${handle} trên TikTok` : "Xem trên TikTok"}
+      >
         {inner}
       </a>
     );

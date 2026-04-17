@@ -1,4 +1,4 @@
-// Vercel Edge — text intents ⑤⑥⑦ + follow-ups (Gemini 3.1 Flash Lite)
+// Vercel Edge — text intents ⑤⑥⑦ + follow-ups (Gemini 2.5 Flash Preview)
 export const config = { runtime: "edge" };
 
 import { createClient } from "@supabase/supabase-js";
@@ -16,7 +16,7 @@ const SUPABASE_ANON_KEY =
   "";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-// gemini-2.5-flash-preview-04-17 = Gemini 3.1 Flash Lite (latest stable preview).
+// gemini-2.5-flash-preview-04-17 = Gemini 2.5 Flash Preview (latest stable preview).
 // Override via GEMINI_SYNTHESIS_MODEL env var if needed.
 const GEMINI_MODEL =
   process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-2.5-flash-preview-04-17";
@@ -135,7 +135,7 @@ export default async function handler(req: Request): Promise<Response> {
   let contents: Array<{ role: string; parts: Array<{ text: string }> }> = [
     { role: "user", parts: [{ text: query }] },
   ];
-  if (intent_type === "follow_up" || intent_type === "format_lifecycle") {
+  if (intent_type === "follow_up" || intent_type === "format_lifecycle" || intent_type === "find_creators" || intent_type === "creator_search") {
     const { data: history } = await supabase
       .from("chat_messages")
       .select("role, content")
