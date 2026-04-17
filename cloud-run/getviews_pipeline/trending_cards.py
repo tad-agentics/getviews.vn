@@ -115,7 +115,7 @@ def _sync_top_videos(
         .eq("hook_type", hook_type)
         .gte("indexed_at", since_iso)
         .order("breakout_multiplier", desc=True)
-        .limit(24)
+        .limit(48)
     )
     res = q.execute()
     out: list[str] = []
@@ -125,7 +125,7 @@ def _sync_top_videos(
         vid = row.get("video_id")
         if vid:
             out.append(str(vid))
-        if len(out) >= 3:
+        if len(out) >= 12:
             break
     return out
 
