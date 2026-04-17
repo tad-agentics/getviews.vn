@@ -107,24 +107,29 @@ def _sync_top_videos(
     niche_id: int,
     hook_type: str,
     since_iso: str,
-) -> list[str]:
-    q = (
+) -> list[dict[str, Any]]:
+    """Return top breakout videos with content fields for Gemini context."""
+    res = (
         client.table("video_corpus")
-        .select("video_id, breakout_multiplier")
+        .select("video_id, hook_phrase, content_format, views, breakout_multiplier")
         .eq("niche_id", niche_id)
         .eq("hook_type", hook_type)
         .gte("indexed_at", since_iso)
         .order("breakout_multiplier", desc=True)
         .limit(48)
+        .execute()
     )
-    res = q.execute()
-    out: list[str] = []
+    out: list[dict[str, Any]] = []
     for row in res.data or []:
         if row.get("breakout_multiplier") is None:
             continue
-        vid = row.get("video_id")
-        if vid:
-            out.append(str(vid))
+        if row.get("video_id"):
+            out.append({
+                "video_id": str(row["video_id"]),
+                "hook_phrase": str(row.get("hook_phrase") or ""),
+                "content_format": str(row.get("content_format") or ""),
+                "views": int(row.get("views") or 0),
+            })
         if len(out) >= 12:
             break
     return out
@@ -234,27 +239,28 @@ async def _process_niche(
         if sig not in ("rising", "early", "stable", "declining"):
             sig = "stable"
 
-        vids = await asyncio.get_event_loop().run_in_executor(
+        video_dicts = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda h=hook_type: _sync_top_videos(client, nid, h, since_iso),
         )
-        if not vids:
+        if not video_dicts:
             errors.append(f"niche {nid} hook {hook_type}: không có video corpus 7 ngày")
             continue
 
-        gen = await _gemini_with_sem(name_vn, name_en, hook_type, sig, vids)
+        vid_ids = [v["video_id"] for v in video_dicts]
+        gen = await _gemini_with_sem(name_vn, name_en, hook_type, sig, vid_ids)
         if not gen:
             errors.append(f"niche {nid} hook {hook_type}: Gemini trống hoặc lỗi parse")
             continue
         title, description = gen
-        cite = _build_corpus_cite(name_vn, len(vids))
+        cite = _build_corpus_cite(name_vn, len(video_dicts))
         payload = {
             "niche_id": nid,
             "title": title,
             "description": description,
             "signal": sig,
             "hook_type": hook_type or None,
-            "video_ids": vids,
+            "video_ids": vid_ids,
             "corpus_cite": cite,
             "week_of": week_of.isoformat(),
         }
