@@ -675,9 +675,12 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "- Sau JSON block, thêm 2-3 dòng phân tích sâu về trend đó (cơ chế, timing, rủi ro)\n"
         "- Kết thúc bằng mục **Cơ hội giao nhau** nếu có pattern xuyên trend"
         "\n\nÂM THANH XU HƯỚNG (từ khóa trending_sounds trong JSON):\n"
-        "- Nếu JSON chứa trending_sounds, LUÔN đề cập ít nhất 1 âm thanh đang trending trong phân tích\n"
-        "- Format: **Âm thanh đang nổi:** '[tên âm thanh]' — dùng trong X video, [nhận định ngắn]\n"
-        "- Chỉ đề cập nếu usage_count >= 3 — bỏ qua nếu danh sách rỗng hoặc không đủ dữ liệu"
+        "- Nếu JSON chứa trending_sounds với usage_count >= 3, xuất mỗi âm thanh là một JSON block:\n"
+        '{"type":"sound_card","sound_name":"<tên>","usage_count":<số>,"total_views":<tổng views>,"commerce_signal":<true|false>}\n'
+        "- Đặt sound_card block ngay sau trend_card block liên quan nhất (cùng niche/format)\n"
+        "- commerce_signal: true nếu âm thanh được dùng nhiều trong video TikTok Shop / review sản phẩm\n"
+        "- Bỏ qua nếu danh sách trending_sounds rỗng hoặc tất cả usage_count < 3\n"
+        "- Không thêm prose giải thích quanh sound_card block — tự nó là đủ"
     ),
     "competitor_profile": (
         "MỤC TIÊU: Phân tích tài khoản đối thủ — tóm tắt công thức nội dung lặp lại của họ từ các bài đăng.\n"
