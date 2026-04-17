@@ -8,7 +8,7 @@
  * Play button → inline video playback from R2 video_url (when available)
  */
 import { useState, useEffect } from "react";
-import { ExternalLink, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { getVideoMeta, r2FrameUrl, type VideoMeta } from "@/lib/services/corpus-service";
 import { formatVN, formatRecencyVI, formatBreakoutVI } from "@/lib/formatters";
 
@@ -116,75 +116,57 @@ export function VideoRefCard({ data }: Props) {
     </>
   );
 
-  return (
+  const thumbnailArea = (
     <div
-      className="flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]"
-      style={{ width: 140 }}
+      className="relative w-full overflow-hidden bg-[var(--surface-alt)]"
+      style={{ paddingBottom: "177.78%" /* 9:16 */ }}
     >
-      {/* Thumbnail area — 9:16 aspect. Whole area is a TikTok link when URL is known. */}
+      {thumbnailInner}
+
+      {/* Bottom overlay: handle pill + stats row — matches LightReel card style */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-6">
+        {/* Handle pill */}
+        {handle ? (
+          <p className="mb-1 truncate text-[10px] font-medium text-white/80">{handle}</p>
+        ) : null}
+
+        {/* Stats row */}
+        <div className="flex items-center justify-between gap-1">
+          {views > 0 ? (
+            <span className="font-mono text-[11px] font-semibold tabular-nums text-white">
+              {formatVN(views)} views
+            </span>
+          ) : null}
+          <div className="flex items-center gap-1.5 ml-auto">
+            {data.breakout && data.breakout > 2 ? (
+              <span className="rounded bg-[var(--purple)]/80 px-1 py-0.5 text-[9px] font-semibold text-white">
+                {formatBreakoutVI(data.breakout)}{data.breakout > 5 ? " ⭐" : ""}
+              </span>
+            ) : null}
+            {daysAgo != null ? (
+              <span className="text-[10px] text-white/70">{formatRecencyVI(daysAgo)}</span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-alt)]">
       {tiktokUrl ? (
         <a
           href={tiktokUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Xem video của ${handle} trên TikTok`}
-          className="relative block w-full overflow-hidden bg-[var(--surface-alt)]"
-          style={{ paddingBottom: "177.78%" /* 9:16 */ }}
+          className="block"
         >
-          {thumbnailInner}
+          {thumbnailArea}
         </a>
       ) : (
-        <div
-          className="relative w-full overflow-hidden bg-[var(--surface-alt)]"
-          style={{ paddingBottom: "177.78%" /* 9:16 */ }}
-        >
-          {thumbnailInner}
-        </div>
+        thumbnailArea
       )}
-
-      {/* Card body */}
-      <div className="flex flex-col gap-1 p-2.5">
-        {/* View count — JetBrains Mono, purple */}
-        {views > 0 ? (
-          <p
-            className="font-mono text-xs font-semibold leading-tight text-[var(--purple)]"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
-          >
-            {formatVN(views)} views
-          </p>
-        ) : null}
-
-        {/* Recency */}
-        {daysAgo != null ? (
-          <p className="text-xs text-[var(--ink4,var(--muted))]">{formatRecencyVI(daysAgo)}</p>
-        ) : null}
-
-        {/* Breakout badge */}
-        {data.breakout && data.breakout > 2 ? (
-          <span
-            className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold text-[var(--purple)]"
-            style={{ background: "var(--purple-light)" }}
-          >
-            {formatBreakoutVI(data.breakout)}
-            {data.breakout > 5 ? " ⭐" : ""}
-          </span>
-        ) : null}
-
-        {/* Handle + TikTok link */}
-        {handle ? (
-          <p className="truncate text-xs font-medium text-[var(--muted)]">{handle}</p>
-        ) : null}
-        {tiktokUrl ? (
-          <a
-            href={tiktokUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-0.5 text-[10px] text-[var(--purple)] hover:underline"
-          >
-            TikTok <ExternalLink className="h-2.5 w-2.5" />
-          </a>
-        ) : null}
-      </div>
     </div>
   );
 }

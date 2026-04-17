@@ -2,7 +2,7 @@
  * VideoRefStrip — video reference citations in chat.
  *
  * 1 ref  → compact horizontal inline card (doesn't interrupt text flow)
- * 2+ refs → horizontal scroll strip (existing behaviour)
+ * 2+ refs → 2-col grid (3 refs → 3-col), fills container width
  */
 import { useState, useEffect } from "react";
 import { ExternalLink } from "lucide-react";
@@ -100,20 +100,14 @@ export function VideoRefStrip({ refs }: Props) {
     return <VideoRefInline data={refs[0]} />;
   }
 
-  // Multiple refs: horizontal scroll strip (existing behaviour)
+  // 2+ refs: 2-column grid — fills container width, matches LightReel card layout
+  // 3 refs: 3 columns. 4+ refs: 2 columns (even pairs, easier to scan).
+  const colClass = refs.length === 3 ? "grid-cols-3" : "grid-cols-2";
   return (
-    <div className="my-3 -mx-4 lg:-mx-5">
-      <div
-        className="flex gap-2.5 overflow-x-auto px-4 pb-2 lg:px-5"
-        style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
-      >
-        {refs.map((ref) => (
-          <div key={ref.video_id} style={{ scrollSnapAlign: "start" }}>
-            <VideoRefCard data={ref} />
-          </div>
-        ))}
-        <div className="flex-shrink-0" style={{ width: 16 }} aria-hidden />
-      </div>
+    <div className={`my-3 grid gap-2 ${colClass}`}>
+      {refs.map((ref) => (
+        <VideoRefCard key={ref.video_id} data={ref} />
+      ))}
     </div>
   );
 }
