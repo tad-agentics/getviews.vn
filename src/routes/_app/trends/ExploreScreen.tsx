@@ -492,13 +492,12 @@ export default function ExploreScreen() {
           </section>
 
           <section className="px-5 lg:px-7 pb-8">
-            <button type="button" className="flex items-center gap-1 mb-4 group">
-              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]">{exploreTitle}</h2>
-              <ChevronRight
-                className="w-4 h-4 text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]"
-                strokeWidth={2.5}
-              />
-            </button>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-extrabold text-[var(--ink)]">{exploreTitle}</h2>
+              {selectedNicheId === null ? (
+                <span className="text-xs text-[var(--muted)]">Tất cả niche</span>
+              ) : null}
+            </div>
 
             <div className="flex items-center gap-2 mb-4 flex-wrap">
               <div className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-active)] transition-colors duration-[120ms]">
