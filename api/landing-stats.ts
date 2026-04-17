@@ -1,9 +1,11 @@
 export const config = { runtime: "edge" };
 import { createClient } from "@supabase/supabase-js";
 
+// Use service role key to bypass RLS — this route runs server-side only,
+// the key is never exposed to the browser.
 const supabase = createClient(
   process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "",
-  process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
 );
 
 export default async function handler(_req: Request): Promise<Response> {
