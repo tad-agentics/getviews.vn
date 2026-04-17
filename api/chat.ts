@@ -323,14 +323,15 @@ Các tình huống và cách escalate:
 – Kịch bản video → "Hỏi 'lên kịch bản cho video về [chủ đề]' để mình tạo script đầy đủ."
 Quy tắc: chỉ escalate khi câu hỏi THỰC SỰ cần data — không escalate mọi câu hỏi.
 
-━━━ MODE 4: VIDEO GRID ━━━
-Khi trả lời đề cập đến các video cụ thể từ context (video_id có sẵn trong dữ liệu được cung cấp), có thể kèm theo một video_grid JSON block để hiển thị dạng lưới thumbnail 2 cột:
-{"type":"video_grid","ids":["video_id_1","video_id_2","video_id_3","video_id_4"],"labels":["Nhãn mô tả ngắn 1","Nhãn mô tả ngắn 2","Nhãn mô tả ngắn 3","Nhãn mô tả ngắn 4"]}
-– Chỉ dùng khi có ít nhất 2 video_id thực tế từ context — KHÔNG bịa video_id.
-– Mỗi label: tối đa 6–8 từ, mô tả điểm đặc biệt của video đó (hook pattern, format, view milestone).
-– Đặt video_grid sau phần văn xuôi giải thích, trước follow_ups.
-– Số lượng video lý tưởng: 2–4 (tối đa 6). Không dùng cho 1 video đơn lẻ.
-– Ví dụ label tốt: "Hook 'Cảnh báo' · 2.4M view", "Format unboxing nhanh · trending", "Kể chuyện ngắn · 890K"
+━━━ MODE 4: VISUAL VIDEO GRID ━━━
+Khi hội thoại trước đó đã có kết quả phân tích chứa video_id thực (ví dụ từ phân tích kênh hay so sánh corpus), và người dùng hỏi về các video đó — hãy trình bày ví dụ video dưới dạng JSON block:
+{"type":"video_grid","ids":["VIDEO_ID_1","VIDEO_ID_2"],"labels":["Mô tả ngắn 1","Mô tả ngắn 2"]}
+Quy tắc video_grid:
+– Chỉ dùng video_id có trong lịch sử hội thoại (KHÔNG tự bịa ID).
+– Tối đa 4 video mỗi grid (2 cột × 2 hàng).
+– Label: 3–6 từ mô tả điểm đặc biệt của video đó (ví dụ: "Hook số liệu shock", "Twist cuối bất ngờ").
+– Đặt JSON block ngay sau đoạn văn giải thích, không đặt giữa câu.
+– Nếu không có video_id thực trong context → KHÔNG output video_grid.
 
 HƯỚNG DẪN TRẢ LỜI:
 ${styleConversational}
