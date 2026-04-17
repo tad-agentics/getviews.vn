@@ -18,9 +18,14 @@ export interface VideoMeta {
   video_id: string;
   thumbnail_url: string | null;
   video_url: string | null;
+  tiktok_url: string | null;
   views: number;
   creator_handle: string | null;
   indexed_at: string | null;
+  hook_phrase: string | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
 }
 
 /** Derive a stable R2 frame URL for a video_id (frame 0 = ~0s thumbnail). */
@@ -42,7 +47,10 @@ export async function getVideoMeta(videoId: string): Promise<VideoMeta | null> {
 
   const { data, error } = await supabase
     .from("video_corpus")
-    .select("video_id, thumbnail_url, video_url, views, creator_handle, indexed_at")
+    .select(
+      "video_id, thumbnail_url, video_url, tiktok_url, views, " +
+      "creator_handle, indexed_at, hook_phrase, likes, comments, shares"
+    )
     .eq("video_id", videoId)
     .maybeSingle();
 
