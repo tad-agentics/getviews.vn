@@ -235,6 +235,7 @@ function FilterChip({
           strokeWidth={2}
           onClick={(e) => {
             e.stopPropagation();
+            e.preventDefault();
             onRemove();
           }}
         />
@@ -497,7 +498,7 @@ export default function ExploreScreen() {
                   label={selectedNicheName ?? "Niche"}
                   hasArrow={selectedNicheId === null}
                   active={selectedNicheId !== null}
-                  onRemove={selectedNicheId !== null ? () => setSelectedNicheId(null) : undefined}
+                  onRemove={selectedNicheId !== null ? () => { setSelectedNicheId(null); setShowNicheMenu(false); } : undefined}
                   onClick={() => setShowNicheMenu((v) => !v)}
                 />
                 {showNicheMenu ? (
