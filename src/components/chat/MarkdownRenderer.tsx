@@ -45,7 +45,7 @@ type HookSegment = { kind: "hook"; text: string };
 type TrendCardSegment = { kind: "trend_card"; data: TrendCardData; cardIndex: number };
 type SoundCardSegment = { kind: "sound_card"; data: TrendingSoundData; cardIndex: number };
 type ShotListSegment = { kind: "shot_list"; items: ShotItemData[] };
-type VideoGridSegment = { kind: "video_grid"; data: VideoGridData; gridIndex: number };
+type VideoGridSegment = { kind: "video_grid"; ids: string[]; labels: string[] };
 
 type Segment =
   | TextSegment
@@ -320,7 +320,6 @@ function parseSegments(text: string): Segment[] {
   let pendingRefs: VideoRefData[] = [];
   let trendCardCount = 0;
   let soundCardCount = 0;
-  let videoGridCount = 0;
 
   const flushPendingRefs = () => {
     if (pendingRefs.length) {
@@ -355,7 +354,8 @@ function parseSegments(text: string): Segment[] {
         flushPendingRefs();
         const idx = parseInt(part.slice("VIDEO_GRID_".length), 10);
         if (!isNaN(idx) && videoGrids[idx]) {
-          segments.push({ kind: "video_grid", data: videoGrids[idx], gridIndex: videoGridCount++ });
+          const g = videoGrids[idx];
+          segments.push({ kind: "video_grid", ids: g.ids, labels: g.labels ?? [] });
         }
       } else if (part.startsWith("VIDEO_REF_")) {
         const idx = parseInt(part.slice("VIDEO_REF_".length), 10);
@@ -577,13 +577,7 @@ export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props)
           );
         }
         if (seg.kind === "video_grid") {
-          return (
-            <VideoGridBlock
-              key={`grid-${seg.gridIndex}`}
-              ids={seg.data.ids}
-              labels={seg.data.labels}
-            />
-          );
+          return <VideoGridBlock key={i} ids={seg.ids} labels={seg.labels} />;
         }
         return <TextBlock key={i} content={(seg as TextSegment).content} />;
       })}
