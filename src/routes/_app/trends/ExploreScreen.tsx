@@ -303,6 +303,8 @@ export default function ExploreScreen() {
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const formatMenuRef = useRef<HTMLDivElement>(null);
+  const [showNicheMenu, setShowNicheMenu] = useState(false);
+  const nicheMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -444,6 +446,10 @@ export default function ExploreScreen() {
   }, [activeFormat]);
 
   useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [selectedNicheId]);
+
+  useEffect(() => {
     if (!showFormatMenu) return;
     const handler = (e: MouseEvent) => {
       if (formatMenuRef.current && !formatMenuRef.current.contains(e.target as Node)) {
@@ -454,34 +460,23 @@ export default function ExploreScreen() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showFormatMenu]);
 
+  useEffect(() => {
+    if (!showNicheMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (nicheMenuRef.current && !nicheMenuRef.current.contains(e.target as Node)) {
+        setShowNicheMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showNicheMenu]);
+
   return (
     <AppLayout active="trends" enableMobileSidebar>
       <div className="flex-1 overflow-hidden flex min-h-0">
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-w-0" style={{ scrollbarWidth: "thin" }}>
-          <div
-            className="overflow-x-auto px-5 lg:px-7 pt-14 lg:pt-6 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            style={{ scrollbarWidth: "none" }}
-          >
-            <div className="flex gap-2" style={{ width: "max-content" }}>
-              {niches?.map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  onClick={() => setSelectedNicheId(n.id)}
-                  className={`min-h-[44px] px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-[120ms] ${
-                    selectedNicheId === n.id
-                      ? "bg-[var(--purple)] text-white"
-                      : "bg-[var(--surface-alt)] text-[var(--ink-soft)] border border-[var(--border)] hover:border-[var(--border-active)]"
-                  }`}
-                >
-                  {n.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* ── Zone 1: Discovery (always visible) ─────────────────────── */}
-          <section className="px-5 lg:px-7 pt-2 pb-4">
+          <section className="px-5 lg:px-7 pt-14 lg:pt-2 pb-4">
             <TrendingSection nicheId={selectedNicheId} />
             <TrendingSoundsSection nicheId={selectedNicheId} />
             {selectedNicheId !== null && lowVideoCorpus ? (
@@ -494,12 +489,32 @@ export default function ExploreScreen() {
           <section className="px-5 lg:px-7 pb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-extrabold text-[var(--ink)]">{exploreTitle}</h2>
-              {selectedNicheId === null ? (
-                <span className="text-xs text-[var(--muted)]">Tất cả niche</span>
-              ) : null}
             </div>
 
             <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <div ref={nicheMenuRef} className="relative">
+                <FilterChip
+                  label={selectedNicheName ?? "Niche"}
+                  hasArrow={selectedNicheId === null}
+                  active={selectedNicheId !== null}
+                  onRemove={selectedNicheId !== null ? () => setSelectedNicheId(null) : undefined}
+                  onClick={() => setShowNicheMenu((v) => !v)}
+                />
+                {showNicheMenu ? (
+                  <div className="absolute left-0 top-full z-20 mt-1 w-[200px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg max-h-[320px] overflow-y-auto">
+                    {niches?.map((n) => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => { setSelectedNicheId(n.id); setShowNicheMenu(false); }}
+                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
+                      >
+                        {n.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <div className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-active)] transition-colors duration-[120ms]">
                 <Search className="w-3.5 h-3.5 text-[var(--faint)] flex-shrink-0" strokeWidth={1.8} />
                 <input
@@ -630,21 +645,9 @@ export default function ExploreScreen() {
             {selectedNicheId === null ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-5 py-6 text-center">
                 <p className="text-sm font-semibold text-[var(--ink)] mb-1">Phân tích chuyên sâu</p>
-                <p className="text-xs text-[var(--muted)] mb-4">
-                  Chọn niche bên trên để xem hook hiệu quả, format đang lên và phân tích corpus
+                <p className="text-xs text-[var(--muted)]">
+                  Chọn niche từ bộ lọc để xem hook hiệu quả, format đang lên và phân tích corpus
                 </p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {niches?.slice(0, 6).map((n) => (
-                    <button
-                      key={n.id}
-                      type="button"
-                      onClick={() => setSelectedNicheId(n.id)}
-                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--ink-soft)] hover:border-[var(--border-active)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
-                    >
-                      {n.name}
-                    </button>
-                  ))}
-                </div>
               </div>
             ) : (
               <>
