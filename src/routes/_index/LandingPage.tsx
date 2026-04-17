@@ -345,6 +345,32 @@ const STRIP_FRAME_IDS = [
   "7626372581448371464", // niche 4  · 220K
 ];
 
+// 3 confirmed R2-frame IDs per signal type (probed 2026-04-09)
+// rising = bold_claim / shock_stat hooks · early = curiosity_gap / pain_point · stable = how_to / story_open
+const SIGNAL_VIDEOS: Record<string, string[]> = {
+  rising: ["7616957249201638677", "7624842569465220368", "7626242462796778773"],
+  early:  ["7625973407997267221", "7621904918978252039", "7626756818085203207"],
+  stable: ["7622669408665652488", "7621463359350656277", "7615811534962330901"],
+};
+
+// 5 hook examples — real phrases from corpus, confirmed R2 frames
+const HOOK_EXAMPLES: { id: string; phrase: string; hookType: string; views: string }[] = [
+  { id: "7622669408665652488", phrase: "My height outfit >>",                                           hookType: "how_to",     views: "7.3M" },
+  { id: "7616957249201638677", phrase: "Nhà 25 tỷ view mặt hồ Hoàn Kiếm",                              hookType: "bold_claim", views: "3.8M" },
+  { id: "7619285253022125333", phrase: "Hôm nay mời mọi người mukbang combo mì cay và trà sữa",        hookType: "other",      views: "4.6M" },
+  { id: "7625973407997267221", phrase: "Đũa bị mốc cực kỳ nguy hiểm mà bạn không để ý",               hookType: "pain_point", views: "2.0M" },
+  { id: "7624842569465220368", phrase: "Mai mốt mà em có mở quán cơm á thì em sẽ bán món ba rọi chao", hookType: "bold_claim", views: "2.2M" },
+];
+
+// 4 confirmed R2-frame IDs per niche for the scroll strip (5 niches)
+const NICHE_STRIP: { label: string; ids: string[] }[] = [
+  { label: "Ẩm thực",   ids: ["7619285253022125333","7624842569465220368","7621904918978252039","7626756818085203207"] },
+  { label: "Thời trang", ids: ["7622669408665652488","7624501870622444821","7620112412523433237","7627444741767974152"] },
+  { label: "Công nghệ", ids: ["7627432133937679624","7627069060844457233","7620672683994402069","7627665640186268948"] },
+  { label: "Sức khỏe",  ids: ["7621463359350656277","7625973407997267221","7627068868820864276","7622902141807578389"] },
+  { label: "Giải trí",  ids: ["7615811534962330901","7616572388544695573","7620342789313776917","7617676901603101973"] },
+];
+
 const HOOK_TYPE_LABELS: Record<string, string> = {
   warning: "Cảnh báo",
   number_shock: "Số liệu gây shock",
