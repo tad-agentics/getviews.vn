@@ -141,12 +141,17 @@ function SolutionCardsSection() {
         .select("hook_phrase, views")
         .not("hook_phrase", "is", null)
         .order("views", { ascending: false })
-        .limit(60);
+        .limit(200);
+
+      // Junk filter: skip placeholder values and phrases that aren't real hooks
+      const JUNK_HOOK_RE = /^(none|null|n\/a|\d[\d\s\w]*$)/i;
+      const isValidHook = (p: string) =>
+        p.length >= 8 && !JUNK_HOOK_RE.test(p.trim()) && /[a-zA-ZÀ-ỹ]/.test(p);
 
       const hookMap = new Map<string, { total: number; count: number }>();
       for (const r of (hookRows ?? []) as { hook_phrase: string | null; views: number | null }[]) {
-        if (!r.hook_phrase) continue;
-        const key = r.hook_phrase.slice(0, 50);
+        if (!r.hook_phrase || !isValidHook(r.hook_phrase)) continue;
+        const key = r.hook_phrase.slice(0, 60);
         const prev = hookMap.get(key) ?? { total: 0, count: 0 };
         hookMap.set(key, { total: prev.total + (r.views ?? 0), count: prev.count + 1 });
       }
