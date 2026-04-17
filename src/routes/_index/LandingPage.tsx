@@ -98,7 +98,7 @@ const nicheList = [
 
 // ─── Hardcoded real video IDs from corpus (selected 2026-04-09) ──────────────
 
-// Card 1: Competitor intel — yeah1.giaitri (12 videos, top creator by count)
+// Card 1: Competitor intel — yeah1.giaitri (12 videos · 5.1M total views)
 const COMPETITOR_IDS = [
   "7615811534962330901", // 1.5M views
   "7616572388544695573", // 612K views
@@ -106,6 +106,8 @@ const COMPETITOR_IDS = [
   "7620356501630192916", // 500K views
   "7616572382827973909", // 450K views
   "7620342789313776917", // 381K views
+  "7617676901603101973", // 313K views
+  "7616570339660713237", // 219K views
 ];
 
 // Card 2: Creator roster — top 4 unique creators by views
@@ -180,17 +182,26 @@ function SolutionCardsSection() {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
           >
-            <p className="font-bold text-[var(--ink)] mb-1">"Đối thủ đang đăng gì?"</p>
-            <p className="text-xs text-[var(--muted)] mb-4">Xem toàn bộ chiến lược của @yeah1.giaitri trong 1 click</p>
-            <div className="grid grid-cols-3 gap-1.5 rounded-lg overflow-hidden">
-              {COMPETITOR_IDS.map((id) => (
-                <div key={id} className="relative overflow-hidden rounded" style={{ paddingBottom: "177.78%" }}>
+            <p className="text-lg font-bold text-[var(--ink)]">"Đối thủ đang đăng gì?"</p>
+            <div className="flex gap-2 overflow-hidden">
+              {COMPETITOR_IDS.slice(0, 4).map((id) => (
+                <div
+                  key={id}
+                  className="relative flex-shrink-0 overflow-hidden rounded-xl bg-[var(--surface-alt)]"
+                  style={{ width: "22%", paddingBottom: "39%" }}
+                >
                   <VideoThumb id={id} className="absolute inset-0 w-full h-full" />
                 </div>
               ))}
+              {/* Faded peek of a 5th card — signals volume / scrollability */}
+              <div
+                className="relative flex-shrink-0 overflow-hidden rounded-xl bg-[var(--surface-alt)] opacity-40"
+                style={{ width: "10%", paddingBottom: "39%" }}
+              />
             </div>
+            <p className="text-xs text-[var(--muted)]">12 video trong corpus · 5.1M views tổng</p>
           </motion.div>
 
           {/* ── Card 2: Creator Roster ────────────────────────────────── */}
