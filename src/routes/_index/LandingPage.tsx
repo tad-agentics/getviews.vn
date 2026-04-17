@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
 import * as Accordion from "@radix-ui/react-accordion";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Database, Play, Globe, Zap, Search, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { motion, AnimatePresence } from "motion/react";
@@ -492,6 +492,134 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
   );
 }
 
+const INFRA_FEATURES = [
+  { icon: Database,      label: "46.000+ Video Thực",      sub: "Corpus TikTok Việt Nam, kiểm chứng được" },
+  { icon: Play,          label: "Phân Tích Video Thật",    sub: "AI xem frame thực, không đoán mò" },
+  { icon: Globe,         label: "17 Niche Việt Nam",       sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
+  { icon: Zap,           label: "Hook Pattern Thực Tế",    sub: "Từ video đã viral, không phải lý thuyết" },
+  { icon: Search,        label: "Tìm Đối Thủ Ngay",       sub: "Tra @handle, ra ngay chiến lược của họ" },
+  { icon: MessageCircle, label: "AI Hiểu Tiếng Việt",     sub: "Hỏi tiếng Việt, trả lời tiếng Việt" },
+  { icon: ExternalLink,  label: "Cite Có Thể Kiểm Chứng", sub: "Mọi gợi ý đều kèm video thật, bấm xem được" },
+  { icon: RefreshCw,     label: "Cập Nhật Hàng Tuần",     sub: "Data mới mỗi tuần, không dùng data cũ" },
+] as const;
+
+function InfraGrid() {
+  return (
+    <section className="px-4 py-16 bg-[var(--background)]">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)] mb-3">
+            Hạ tầng
+          </p>
+          <h2
+            className="font-extrabold text-[var(--ink)] mb-3"
+            style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}
+          >
+            Câu trả lời dựa trên{" "}
+            <span className="gradient-text">data thực, không đoán mò</span>
+          </h2>
+          <p className="text-sm text-[var(--muted)] max-w-xl mx-auto">
+            GetViews không phải ChatGPT biết về TikTok. Đây là hệ thống thu thập và phân tích video TikTok Việt Nam liên tục — mỗi câu trả lời đều có nguồn gốc.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {INFRA_FEATURES.map(({ icon: Icon, label, sub }) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.35 }}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 flex flex-col gap-3"
+            >
+              <Icon className="h-6 w-6 text-[var(--ink-soft)]" strokeWidth={1.5} />
+              <div>
+                <p className="text-sm font-bold text-[var(--ink)] leading-snug mb-1">{label}</p>
+                <p className="text-xs text-[var(--muted)] leading-snug">{sub}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const SAMPLE_QUERIES = [
+  "Hook nào đang top view trong niche làm đẹp?",
+  "Soi kênh @đối_thủ — họ đang làm gì?",
+  "Tại sao video này chỉ 500 view?",
+  "Viết brief KOL cho chiến dịch skincare",
+];
+
+function CredibilitySection() {
+  return (
+    <section className="px-4 py-16 bg-[var(--surface)]">
+      <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+
+        {/* Left — credibility copy */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)] mb-4">
+            Tại sao chúng tôi xây GetViews
+          </p>
+          <h2
+            className="font-extrabold text-[var(--ink)] mb-5 leading-tight"
+            style={{ fontSize: "clamp(1.5rem, 3.5vw, 2rem)" }}
+          >
+            Bắt đầu tăng view{" "}
+            <span className="gradient-text">ngay hôm nay</span>
+          </h2>
+          <p className="text-sm text-[var(--ink-soft)] leading-relaxed mb-6">
+            Chúng tôi là những creator đã tự xây kênh TikTok từ 0 — và nhận ra rằng mọi quyết định nội dung đều đang được đưa ra dựa trên cảm tính. GetViews được xây để thay đổi điều đó: mỗi gợi ý đều có video thật làm bằng chứng, bạn bấm vào kiểm chứng được luôn.
+          </p>
+          <Link to="/login">
+            <button
+              type="button"
+              className="px-6 py-3 gradient-cta font-medium rounded-lg text-sm transition-all duration-[120ms] active:scale-95"
+            >
+              Thử miễn phí — không cần thẻ
+            </button>
+          </Link>
+        </div>
+
+        {/* Right — product UI mock */}
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-xs font-semibold text-[var(--ink)] text-center">GetViews AI</p>
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-[var(--muted)] mb-3">Bắt đầu với</p>
+            <div className="flex flex-col gap-2">
+              {SAMPLE_QUERIES.map((q) => (
+                <div
+                  key={q}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs text-[var(--ink-soft)]"
+                >
+                  {q}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="px-4 pb-4">
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5">
+              <p className="flex-1 text-xs text-[var(--muted)]">Dán link TikTok hoặc đặt câu hỏi...</p>
+              <div className="h-6 w-6 rounded-full bg-[var(--purple)] flex items-center justify-center flex-shrink-0">
+                <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-[10px] text-[var(--muted)] text-center mt-2">
+              46.000+ video · 17 niche · Cập nhật hàng tuần
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  );
+}
+
 function HowItWorksSection() {
   const steps = [
     {
@@ -835,6 +963,10 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
 
       {/* ── Live Demo ───────────────────────────────────────────── */}
       <LiveDemoSection stats={stats} />
+
+      {/* ── Infrastructure + Credibility ─────────────────────────── */}
+      <InfraGrid />
+      <CredibilitySection />
 
       {/* ── Results ─────────────────────────────────────────────── */}
       <section className="px-4 py-16 md:py-20 bg-white">
