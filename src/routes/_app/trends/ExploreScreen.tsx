@@ -330,6 +330,8 @@ export default function ExploreScreen() {
   const nicheMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // True once the user has explicitly cleared the niche — prevents auto-restore from profile
+  const nicheUserCleared = useRef(false);
 
   const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
@@ -343,7 +345,9 @@ export default function ExploreScreen() {
 
   const hookData = hookDataRaw as HookEffectivenessRow[] | undefined;
 
+  // Auto-seed niche from profile on first load — skip if user has manually cleared it
   useEffect(() => {
+    if (nicheUserCleared.current) return;
     if (selectedNicheId !== null) return;
     const id = profile?.primary_niche;
     if (id != null) setSelectedNicheId(id);
@@ -547,7 +551,7 @@ export default function ExploreScreen() {
                   label={selectedNicheName ?? "Niche"}
                   hasArrow={selectedNicheId === null}
                   active={selectedNicheId !== null}
-                  onRemove={selectedNicheId !== null ? () => { setSelectedNicheId(null); setShowNicheMenu(false); } : undefined}
+                  onRemove={selectedNicheId !== null ? () => { nicheUserCleared.current = true; setSelectedNicheId(null); setShowNicheMenu(false); } : undefined}
                   onClick={() => setShowNicheMenu((v) => !v)}
                 />
                 {showNicheMenu ? (
