@@ -38,6 +38,7 @@ type CorpusRow = {
   likes: number | null;
   shares: number | null;
   comments: number | null;
+  hook_phrase: string | null;
   content_format: string | null;
   breakout_multiplier: number | null;
 };
@@ -50,9 +51,9 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
     views: v === 0 ? "—" : formatViews(v),
     time: row.indexed_at ? formatDate(row.indexed_at) : "—",
     img: row.thumbnail_url || PLACEHOLDER_THUMB,
-    text: "",
+    text: row.hook_phrase ?? "",
     handle: row.creator_handle ? `@${row.creator_handle}` : "@—",
-    caption: row.creator_handle ? `Video @${row.creator_handle}` : "Video",
+    caption: row.hook_phrase || (row.creator_handle ? `Video @${row.creator_handle}` : "Video"),
     likes: row.likes != null ? formatViews(row.likes) : "—",
     comments: row.comments != null ? formatViews(row.comments) : "—",
     shares: row.shares != null ? formatViews(row.shares) : "—",
@@ -283,13 +284,13 @@ const VIEW_FILTER_OPTIONS: { label: string; value: number }[] = [
 ];
 
 const TYPE_FORMAT_OPTIONS: { label: string; value: string }[] = [
-  { label: "Tutorial",     value: "tutorial" },
-  { label: "Review",       value: "review" },
-  { label: "Haul",         value: "haul" },
-  { label: "Recipe",       value: "recipe" },
-  { label: "Storytelling", value: "storytelling" },
-  { label: "Vlog",         value: "vlog" },
-  { label: "So sánh",      value: "comparison" },
+  { label: "Tutorial",  value: "tutorial" },
+  { label: "Review",    value: "review" },
+  { label: "Haul",      value: "haul" },
+  { label: "GRWM",      value: "grwm" },
+  { label: "Vlog",      value: "vlog" },
+  { label: "Trước/Sau", value: "before_after" },
+  { label: "POV",       value: "pov" },
 ];
 
 export default function ExploreScreen() {
@@ -301,6 +302,7 @@ export default function ExploreScreen() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [activeFormat, setActiveFormat] = useState<string | null>(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const formatMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -442,21 +444,15 @@ export default function ExploreScreen() {
   }, [activeFormat]);
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (showSortMenu || showFormatMenu) {
-        const menus = document.querySelectorAll("[data-dropdown-menu]");
-        let inside = false;
-        menus.forEach((m) => { if (m.contains(target)) inside = true; });
-        if (!inside) {
-          setShowSortMenu(false);
-          setShowFormatMenu(false);
-        }
+    if (!showFormatMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (formatMenuRef.current && !formatMenuRef.current.contains(e.target as Node)) {
+        setShowFormatMenu(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showSortMenu, showFormatMenu]);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showFormatMenu]);
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
@@ -651,7 +647,7 @@ export default function ExploreScreen() {
                   placeholder="Tim video..."
                 />
               </div>
-              <div className="relative" data-dropdown-menu>
+              <div className="relative">
                 <FilterChip
                   label={SORT_LABELS[sortBy]}
                   hasArrow
@@ -679,28 +675,22 @@ export default function ExploreScreen() {
                   </div>
                 ) : null}
               </div>
-              <div className="relative" data-dropdown-menu>
+              <div ref={formatMenuRef} className="relative">
                 <FilterChip
-                  label={activeFormat
-                    ? (TYPE_FORMAT_OPTIONS.find((o) => o.value === activeFormat)?.label ?? "Type")
-                    : "Type"}
+                  label={activeFormat ? (TYPE_FORMAT_OPTIONS.find((o) => o.value === activeFormat)?.label ?? "Loại") : "Loại"}
                   hasArrow={!activeFormat}
-                  active={!!activeFormat}
-                  onRemove={activeFormat ? () => { setActiveFormat(null); setShowFormatMenu(false); } : undefined}
+                  active={activeFormat !== null}
+                  onRemove={activeFormat !== null ? () => setActiveFormat(null) : undefined}
                   onClick={() => setShowFormatMenu((v) => !v)}
                 />
                 {showFormatMenu ? (
-                  <div className="absolute left-0 top-full mt-1 z-30 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
+                  <div className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
                     {TYPE_FORMAT_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => { setActiveFormat(opt.value); setShowFormatMenu(false); }}
-                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${
-                          activeFormat === opt.value
-                            ? "font-semibold text-[var(--purple)]"
-                            : "text-[var(--ink)]"
-                        }`}
+                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${activeFormat === opt.value ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
                       >
                         {opt.label}
                       </button>
