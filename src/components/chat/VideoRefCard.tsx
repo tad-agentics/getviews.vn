@@ -30,6 +30,7 @@ export function VideoRefCard({ data }: Props) {
   const [meta, setMeta] = useState<VideoMeta | null>(null);
   const [metaLoaded, setMetaLoaded] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +56,11 @@ export function VideoRefCard({ data }: Props) {
 
   // Thumbnail resolution: block URL (from backend) → DB URL → R2 frame fallback → null (shows TikTok icon)
   const thumbnail = data.thumbnail_url || meta?.thumbnail_url || r2FrameUrl(data.video_id);
+
+  // Reset imgFailed whenever the resolved thumbnail URL changes (e.g. meta arrives with a valid URL).
+  useEffect(() => {
+    setImgFailed(false);
+  }, [thumbnail]);
   const videoUrl = meta?.video_url ?? null;
   const tiktokUrl = handle
     ? `https://www.tiktok.com/${handle.startsWith("@") ? handle : "@" + handle}/video/${data.video_id}`
@@ -72,16 +78,16 @@ export function VideoRefCard({ data }: Props) {
     />
   ) : (
     <>
-      {thumbnail ? (
+      {thumbnail && !imgFailed ? (
         <img
           src={thumbnail}
           alt={handle}
           className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          onError={() => setImgFailed(true)}
         />
       ) : (
-        /* No thumbnail — show TikTok icon immediately (no waiting for DB) */
+        /* No thumbnail or load failed — show TikTok icon */
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-[var(--surface-alt)]">
           {!metaLoaded ? (
             <div className="h-6 w-6 animate-pulse rounded-full bg-[var(--border)]" />
