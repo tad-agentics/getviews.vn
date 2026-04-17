@@ -6,6 +6,12 @@ import {
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
+function SafeImg({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <div className={`${className} bg-[var(--surface-alt)]`} />;
+  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
+}
+
 export type ExploreGridVideo = {
   id: string;
   views: string;
@@ -31,7 +37,7 @@ function EngagementSidebar({
   return (
     <div className="hidden md:flex absolute right-3 bottom-24 z-20 flex-col items-center gap-4">
       <div className="w-9 h-9 rounded-full bg-[var(--surface)] border-2 border-white overflow-hidden">
-        <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
+        <SafeImg src={img} alt="" className="w-full h-full object-cover" />
       </div>
       <div className="flex flex-col items-center gap-0.5">
         <Heart className="w-6 h-6 text-white" strokeWidth={2} />
@@ -180,7 +186,7 @@ export function VideoPlayerModal({
                       style={{ width: 80, flexShrink: 0 }}
                     >
                       <div className="w-full rounded-lg overflow-hidden relative" style={{ height: 100 }}>
-                        <img src={v.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
+                        <SafeImg src={v.img} alt="" className="w-full h-full object-cover" />
                         {isSel && <div className="absolute inset-0 bg-[var(--purple)]/20 flex items-center justify-center"><div className="w-3 h-3 rounded-full bg-white/90" /></div>}
                       </div>
                       {v.text && <p className={`text-[10px] font-semibold leading-snug line-clamp-2 w-full text-left ${isSel ? "text-[var(--purple)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
@@ -200,7 +206,7 @@ export function VideoPlayerModal({
                     className={`w-full flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-[120ms] border-b border-[var(--border)] last:border-0 ${isSel ? "bg-[var(--purple-light)]" : "hover:bg-[var(--surface-alt)]"}`}
                   >
                     <div className="flex-shrink-0 rounded-md overflow-hidden border border-[var(--border)] relative" style={{ width: 36, height: 50 }}>
-                      <img src={v.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
+                      <SafeImg src={v.img} alt="" className="w-full h-full object-cover" />
                       {isSel && <div className="absolute inset-0 bg-[var(--purple)]/25 flex items-center justify-center"><div className="w-2.5 h-2.5 rounded-full bg-white/90" /></div>}
                     </div>
                     <div className="flex-1 min-w-0">

@@ -127,6 +127,7 @@ function VideoCard({
   onNavigate?: () => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   return (
     <>
@@ -136,7 +137,11 @@ function VideoCard({
         className="relative rounded-xl overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--border-active)] transition-colors duration-[120ms]"
         style={{ aspectRatio: "9/14" }}
       >
-        <img src={video.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
+        {!imgFailed ? (
+          <img src={video.img} alt="" className="w-full h-full object-cover" onError={() => setImgFailed(true)} />
+        ) : (
+          <div className="w-full h-full bg-[var(--surface-alt)]" />
+        )}
         {video.text && (
           <div className="absolute top-2 left-2 right-2">
             <p className="text-white text-[11px] font-semibold drop-shadow leading-snug line-clamp-2">{video.text}</p>
@@ -174,20 +179,34 @@ function VideoCard({
 function SidebarVideoRow({
   item,
   rank,
+  onClick,
 }: {
   item: { title: string; views: string; handle: string; time: string; img: string };
   rank?: number;
+  onClick?: () => void;
 }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
   return (
-    <div className="flex items-start gap-2.5 py-2.5 border-b border-[var(--border)] last:border-0 cursor-pointer group">
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
+      className={`flex items-start gap-2.5 py-2.5 border-b border-[var(--border)] last:border-0 group ${onClick ? "cursor-pointer" : ""}`}
+    >
       {rank !== undefined && (
         <span className="text-xs font-mono text-[var(--faint)] w-4 flex-shrink-0 pt-0.5 text-right">{rank}</span>
       )}
       <div className="w-9 h-12 flex-shrink-0 rounded-md overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)]">
-        <img src={item.img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
+        {!imgFailed ? (
+          <img src={item.img} alt="" className="w-full h-full object-cover" onError={() => setImgFailed(true)} />
+        ) : (
+          <div className="w-full h-full bg-[var(--surface-alt)]" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-semibold text-[var(--ink)] leading-snug line-clamp-2 group-hover:text-[var(--purple)] transition-colors duration-[120ms]">
+        <p className={`text-[12px] font-semibold text-[var(--ink)] leading-snug line-clamp-2 transition-colors duration-[120ms] ${onClick ? "group-hover:text-[var(--purple)]" : ""}`}>
           {item.title}
         </p>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -252,7 +271,7 @@ function FilterChip({
 function ExploreGridSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-      {[0, 1, 2, 3].map((i) => (
+      {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
           className="rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface-alt)] animate-pulse"
@@ -349,7 +368,7 @@ export default function ExploreScreen() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("video_corpus")
-        .select("id, creator_handle, views, thumbnail_url, content_type, indexed_at")
+        .select("id, creator_handle, views, thumbnail_url, content_type, indexed_at, tiktok_url")
         .eq("niche_id", selectedNicheId!)
         .not("thumbnail_url", "is", null)
         .order("views", { ascending: false })
@@ -363,13 +382,20 @@ export default function ExploreScreen() {
 
   const breakoutSidebarItems = useMemo(() => {
     const rows = breakoutVideosRaw ?? [];
-    return rows.map((r) => ({
-      title: String(r.content_type ?? "").replace(/_/g, " ") || `@${r.creator_handle}`,
-      views: r.views != null ? formatViews(r.views) : "—",
-      handle: `@${r.creator_handle ?? ""}`,
-      time: r.indexed_at ? formatDate(r.indexed_at) : "",
-      img: r.thumbnail_url ?? PLACEHOLDER_THUMB,
-    }));
+    return rows.map((r) => {
+      const rawType = String(r.content_type ?? "").replace(/_/g, " ").trim();
+      const title = rawType
+        ? rawType.charAt(0).toUpperCase() + rawType.slice(1)
+        : `@${r.creator_handle}`;
+      return {
+        title,
+        views: r.views != null ? formatViews(r.views) : "—",
+        handle: `@${r.creator_handle ?? ""}`,
+        time: r.indexed_at ? formatDate(r.indexed_at) : "",
+        img: r.thumbnail_url ?? PLACEHOLDER_THUMB,
+        tiktok_url: r.tiktok_url ?? null,
+      };
+    });
   }, [breakoutVideosRaw]);
 
   const lowVideoCorpus = Boolean(
@@ -546,7 +572,7 @@ export default function ExploreScreen() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 text-xs bg-transparent border-none outline-none text-[var(--ink)] placeholder:text-[var(--faint)]"
-                  placeholder="Tim video..."
+                  placeholder="Tìm video..."
                 />
               </div>
               <div className="relative">
@@ -641,7 +667,7 @@ export default function ExploreScreen() {
                     key={video.id}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.18, delay: idx * 0.04, ease: "easeOut" }}
+                    transition={{ duration: 0.18, delay: Math.min(idx * 0.04, 0.3), ease: "easeOut" }}
                   >
                     <VideoCard
                       video={video}
@@ -810,7 +836,12 @@ export default function ExploreScreen() {
             {breakoutSidebarItems.slice(0, 5).length > 0 ? (
               <div>
                 {breakoutSidebarItems.slice(0, 5).map((item, idx) => (
-                  <SidebarVideoRow key={`b-${idx}`} item={item} rank={idx + 1} />
+                  <SidebarVideoRow
+                    key={`b-${idx}`}
+                    item={item}
+                    rank={idx + 1}
+                    onClick={item.tiktok_url ? () => navigate("/app", { state: { prefillUrl: item.tiktok_url } }) : undefined}
+                  />
                 ))}
               </div>
             ) : (
@@ -836,7 +867,12 @@ export default function ExploreScreen() {
             {breakoutSidebarItems.slice(5).length > 0 ? (
               <div>
                 {breakoutSidebarItems.slice(5).map((item, idx) => (
-                  <SidebarVideoRow key={`v-${idx}`} item={item} rank={idx + 6} />
+                  <SidebarVideoRow
+                    key={`v-${idx}`}
+                    item={item}
+                    rank={idx + 6}
+                    onClick={item.tiktok_url ? () => navigate("/app", { state: { prefillUrl: item.tiktok_url } }) : undefined}
+                  />
                 ))}
               </div>
             ) : (

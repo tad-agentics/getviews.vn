@@ -58,6 +58,19 @@ function TrendingCardSkeleton() {
   );
 }
 
+function ThumbCircle({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <div className="h-full w-full bg-[var(--surface-alt)]" />;
+  return (
+    <img
+      src={src}
+      alt=""
+      className="h-full w-full object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function OverlappingThumbs({ thumbs }: { thumbs: (VideoMeta | null | undefined)[] }) {
   const valid = thumbs.filter((t): t is VideoMeta => t != null && Boolean(t.thumbnail_url));
   if (valid.length === 0) return null;
@@ -69,15 +82,7 @@ function OverlappingThumbs({ thumbs }: { thumbs: (VideoMeta | null | undefined)[
           className="h-5 w-5 flex-shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-alt)]"
           style={{ marginLeft: idx === 0 ? 0 : -4, zIndex: 3 - idx }}
         >
-          <img
-            src={m.thumbnail_url ?? PLACEHOLDER_THUMB}
-            alt=""
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = PLACEHOLDER_THUMB;
-            }}
-          />
+          <ThumbCircle src={m.thumbnail_url ?? PLACEHOLDER_THUMB} />
         </div>
       ))}
     </div>

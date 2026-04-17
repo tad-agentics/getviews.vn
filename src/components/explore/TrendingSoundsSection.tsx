@@ -156,9 +156,9 @@ export function TrendingSoundsSection({ nicheId }: Props) {
       {/* Niche-specific sound row */}
       {nicheId !== null ? (
         <>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
             Âm thanh đang nổi
-          </h2>
+          </p>
           {isPending ? (
             <div className="flex gap-3 overflow-x-auto pb-2">
               <SoundRowSkeleton />

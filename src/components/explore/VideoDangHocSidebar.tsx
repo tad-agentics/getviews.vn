@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { formatViews } from "@/lib/formatters";
 import { useVideoDangHoc, type VideoRow } from "@/hooks/useVideoDangHoc";
 
@@ -30,22 +31,41 @@ function VideoDangHocSkeleton() {
   );
 }
 
-function VideoDangHocRow({ row, showVelocity }: { row: VideoRow; showVelocity: boolean }) {
+function VideoDangHocRow({
+  row,
+  showVelocity,
+  onClick,
+}: {
+  row: VideoRow;
+  showVelocity: boolean;
+  onClick?: () => void;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
   const mult = row.breakout_multiplier;
   const showBreakoutBadge = mult != null && mult > 2;
 
   return (
-    <div className="flex gap-2.5 py-2 border-b border-[var(--border)] last:border-0">
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
+      className={`flex gap-2.5 py-2 border-b border-[var(--border)] last:border-0 group ${onClick ? "cursor-pointer" : ""}`}
+    >
       <div className="w-10 h-[72px] flex-shrink-0 rounded-lg overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)]">
-        <img
-          src={row.thumbnail_url || PLACEHOLDER_THUMB}
-          alt=""
-          className="w-full h-full object-cover"
-          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }}
-        />
+        {!imgFailed ? (
+          <img
+            src={row.thumbnail_url || PLACEHOLDER_THUMB}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-[var(--surface-alt)]" />
+        )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-[var(--purple)] truncate">
+        <p className={`text-xs truncate transition-colors duration-[120ms] ${onClick ? "group-hover:text-[var(--purple)]" : "text-[var(--purple)]"} text-[var(--purple)]`}>
           {row.creator_handle ? `@${row.creator_handle}` : "@—"}
         </p>
         <p className="text-xs text-[var(--ink)]">{formatViews(row.views)}</p>
@@ -65,6 +85,7 @@ function VideoDangHocRow({ row, showVelocity }: { row: VideoRow; showVelocity: b
 }
 
 export function VideoDangHocSidebar() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<"bung_no" | "dang_hot">("bung_no");
   const { bungNo, dangHot, isLoading, error } = useVideoDangHoc();
 
@@ -117,7 +138,12 @@ export function VideoDangHocSidebar() {
       {!isLoading && !error && list.length > 0 ? (
         <div className="flex flex-col">
           {list.map((row) => (
-            <VideoDangHocRow key={`${row.list_type}-${row.video_id}`} row={row} showVelocity={showVelocity} />
+            <VideoDangHocRow
+              key={`${row.list_type}-${row.video_id}`}
+              row={row}
+              showVelocity={showVelocity}
+              onClick={row.tiktok_url ? () => navigate("/app", { state: { prefillUrl: row.tiktok_url } }) : undefined}
+            />
           ))}
         </div>
       ) : null}

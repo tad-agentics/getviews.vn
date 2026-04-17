@@ -5,6 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 export interface VideoRow {
   video_id: string;
   thumbnail_url: string | null;
+  tiktok_url: string | null;
   creator_handle: string | null;
   views: number;
   breakout_multiplier: number | null;
@@ -53,7 +54,7 @@ async function fetchVideoDangHocMerged(): Promise<{ bungNo: VideoRow[]; dangHot:
 
   const { data: corpusRows, error: corpusError } = await supabase
     .from("video_corpus")
-    .select("video_id, thumbnail_url, creator_handle, views, breakout_multiplier")
+    .select("video_id, thumbnail_url, tiktok_url, creator_handle, views, breakout_multiplier")
     .in("video_id", ids);
 
   if (corpusError) throw corpusError;
@@ -63,6 +64,7 @@ async function fetchVideoDangHocMerged(): Promise<{ bungNo: VideoRow[]; dangHot:
       row.video_id as string,
       {
         thumbnail_url: (row.thumbnail_url as string | null) ?? null,
+        tiktok_url: (row.tiktok_url as string | null) ?? null,
         creator_handle: (row.creator_handle as string | null) ?? null,
         views: toNum(row.views),
         breakout_multiplier:
@@ -82,6 +84,7 @@ async function fetchVideoDangHocMerged(): Promise<{ bungNo: VideoRow[]; dangHot:
         list_type: listType,
         velocity: r.velocity === null || r.velocity === undefined ? null : Number(r.velocity),
         thumbnail_url: m?.thumbnail_url ?? null,
+        tiktok_url: m?.tiktok_url ?? null,
         creator_handle: m?.creator_handle ?? null,
         views: m?.views ?? 0,
         breakout_multiplier:
