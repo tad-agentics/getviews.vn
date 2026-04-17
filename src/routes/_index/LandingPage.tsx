@@ -76,11 +76,11 @@ const hookTicker = [
 
 const painPoints = [
   {
-    title: "Lướt TikTok "vô tri" cả buổi",
+    title: 'Lướt TikTok \u201cvô tri\u201d cả buổi',
     body: "Sáng mở app định \"nghiên cứu đối thủ\". 2 tiếng sau nhận ra mình vẫn đang lướt trong vô định. Lưu hàng chục video vào mục yêu thích rồi... để đó, chẳng bao giờ xem lại.",
   },
   {
-    title: "Học đủ khóa vẫn "bí" ý tưởng",
+    title: 'Học đủ khóa vẫn \u201cbí\u201d ý tưởng',
     body: "Bỏ 3-5 triệu mua khóa học. Nắm chắc lý thuyết nhưng sáng ngủ dậy đứng trước camera vẫn không biết quay gì. Thuật toán đổi liên tục, kiến thức tháng trước giờ đã lỗi thời.",
   },
   {
