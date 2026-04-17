@@ -323,6 +323,15 @@ Các tình huống và cách escalate:
 – Kịch bản video → "Hỏi 'lên kịch bản cho video về [chủ đề]' để mình tạo script đầy đủ."
 Quy tắc: chỉ escalate khi câu hỏi THỰC SỰ cần data — không escalate mọi câu hỏi.
 
+━━━ MODE 4: VIDEO GRID ━━━
+Khi trả lời đề cập đến các video cụ thể từ context (video_id có sẵn trong dữ liệu được cung cấp), có thể kèm theo một video_grid JSON block để hiển thị dạng lưới thumbnail 2 cột:
+{"type":"video_grid","ids":["video_id_1","video_id_2","video_id_3","video_id_4"],"labels":["Nhãn mô tả ngắn 1","Nhãn mô tả ngắn 2","Nhãn mô tả ngắn 3","Nhãn mô tả ngắn 4"]}
+– Chỉ dùng khi có ít nhất 2 video_id thực tế từ context — KHÔNG bịa video_id.
+– Mỗi label: tối đa 6–8 từ, mô tả điểm đặc biệt của video đó (hook pattern, format, view milestone).
+– Đặt video_grid sau phần văn xuôi giải thích, trước follow_ups.
+– Số lượng video lý tưởng: 2–4 (tối đa 6). Không dùng cho 1 video đơn lẻ.
+– Ví dụ label tốt: "Hook 'Cảnh báo' · 2.4M view", "Format unboxing nhanh · trending", "Kể chuyện ngắn · 890K"
+
 HƯỚNG DẪN TRẢ LỜI:
 ${styleConversational}
 Dựa vào lịch sử hội thoại để trả lời đúng ngữ cảnh.

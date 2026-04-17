@@ -33,6 +33,7 @@ import { TrendCard, type TrendCardData } from "./TrendCard";
 import { TrendingSoundCard, type TrendingSoundData } from "./TrendingSoundCard";
 import { ShotListCard, type ShotItemData } from "./ShotListCard";
 import { FollowUpChips } from "./FollowUpChips";
+import { VideoGridBlock, type VideoGridData } from "./VideoGridBlock";
 
 // ---------------------------------------------------------------------------
 // Segment types
@@ -44,6 +45,7 @@ type HookSegment = { kind: "hook"; text: string };
 type TrendCardSegment = { kind: "trend_card"; data: TrendCardData; cardIndex: number };
 type SoundCardSegment = { kind: "sound_card"; data: TrendingSoundData; cardIndex: number };
 type ShotListSegment = { kind: "shot_list"; items: ShotItemData[] };
+type VideoGridSegment = { kind: "video_grid"; data: VideoGridData; gridIndex: number };
 
 type Segment =
   | TextSegment
@@ -51,7 +53,8 @@ type Segment =
   | HookSegment
   | TrendCardSegment
   | SoundCardSegment
-  | ShotListSegment;
+  | ShotListSegment
+  | VideoGridSegment;
 
 // ---------------------------------------------------------------------------
 // Parser
@@ -227,18 +230,69 @@ function extractShotItems(text: string): { result: string; items: ShotItemData[]
   return { result: out, items };
 }
 
+/**
+ * Match complete video_grid JSON blocks (same balanced-brace strategy as trend_card).
+ */
+function extractVideoGrids(
+  text: string
+): { result: string; grids: VideoGridData[] } {
+  const grids: VideoGridData[] = [];
+  let result = text;
+  let searchFrom = 0;
+
+  while (true) {
+    const start = result.indexOf('{"type":"video_grid"', searchFrom);
+    if (start === -1) break;
+
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < result.length; i++) {
+      if (result[i] === "{") depth++;
+      else if (result[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end === -1) break;
+
+    const raw = result.slice(start, end);
+    try {
+      const data = JSON.parse(raw) as VideoGridData & { type?: string };
+      if (data.type === "video_grid" && Array.isArray(data.ids)) {
+        const idx = grids.length;
+        grids.push(data);
+        result =
+          result.slice(0, start) +
+          `\x00VIDEO_GRID_${idx}\x00` +
+          result.slice(end);
+        searchFrom = start + `\x00VIDEO_GRID_${idx}\x00`.length;
+        continue;
+      }
+    } catch {
+      /* malformed — leave as plain text */
+    }
+    searchFrom = end;
+  }
+
+  return { result, grids };
+}
+
 function parseSegments(text: string): Segment[] {
   if (!text.trim()) return [];
 
-  // Step 0: extract trend_card blocks first (they may contain video IDs)
+  // Step 0: extract structured block types (order matters — most specific first)
   const { result: afterTrendCards, cards: trendCards } = extractTrendCards(text);
   const { result: afterSoundCards, cards: soundCards } = extractSoundCards(afterTrendCards);
   const { result: afterShotItems, items: shotListItems } = extractShotItems(afterSoundCards);
+  const { result: afterVideoGrids, grids: videoGrids } = extractVideoGrids(afterShotItems);
 
   // Strip incomplete trailing video_ref blocks (Gemini truncated mid-JSON).
   // These appear when max_output_tokens is hit — e.g. `{"type": "video_ref", "views": 123,`
   // The complete-block regex won't match them so they'd show as raw text.
-  const cleanedText = afterShotItems.replace(/\{"type"\s*:\s*"video_ref"[^}]*$/, "").trimEnd();
+  const cleanedText = afterVideoGrids.replace(/\{"type"\s*:\s*"video_ref"[^}]*$/, "").trimEnd();
 
   // Step 1: extract all video_ref JSON objects and replace with markers
   const videoRefs: VideoRefData[] = [];
@@ -257,15 +311,16 @@ function parseSegments(text: string): Segment[] {
     return match;
   });
 
-  // Step 2: split on TREND_CARD, SOUND_CARD, SHOT_LIST, and VIDEO_REF markers
+  // Step 2: split on all block markers
   const COMBINED_MARKER_RE =
-    /\x00(TREND_CARD_\d+|SOUND_CARD_\d+|VIDEO_REF_\d+|SHOT_LIST)\x00/g;
+    /\x00(TREND_CARD_\d+|SOUND_CARD_\d+|VIDEO_REF_\d+|SHOT_LIST|VIDEO_GRID_\d+)\x00/g;
   const allParts = withMarkers.split(COMBINED_MARKER_RE);
   const segments: Segment[] = [];
 
   let pendingRefs: VideoRefData[] = [];
   let trendCardCount = 0;
   let soundCardCount = 0;
+  let videoGridCount = 0;
 
   const flushPendingRefs = () => {
     if (pendingRefs.length) {
@@ -295,6 +350,12 @@ function parseSegments(text: string): Segment[] {
         flushPendingRefs();
         if (shotListItems.length > 0) {
           segments.push({ kind: "shot_list", items: shotListItems });
+        }
+      } else if (part.startsWith("VIDEO_GRID_")) {
+        flushPendingRefs();
+        const idx = parseInt(part.slice("VIDEO_GRID_".length), 10);
+        if (!isNaN(idx) && videoGrids[idx]) {
+          segments.push({ kind: "video_grid", data: videoGrids[idx], gridIndex: videoGridCount++ });
         }
       } else if (part.startsWith("VIDEO_REF_")) {
         const idx = parseInt(part.slice("VIDEO_REF_".length), 10);
@@ -513,6 +574,15 @@ export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props)
                 <ShotListCard key={`${item.beat}-${j}`} data={item} />
               ))}
             </div>
+          );
+        }
+        if (seg.kind === "video_grid") {
+          return (
+            <VideoGridBlock
+              key={`grid-${seg.gridIndex}`}
+              ids={seg.data.ids}
+              labels={seg.data.labels}
+            />
           );
         }
         return <TextBlock key={i} content={(seg as TextSegment).content} />;
