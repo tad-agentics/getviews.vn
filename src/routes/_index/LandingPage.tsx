@@ -173,7 +173,7 @@ function VideoThumb({ id, className = "" }: { id: string; className?: string }) 
 function SolutionCardsSection() {
   return (
     <section className="px-4 py-16 md:py-20 bg-[var(--background)]">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <p className="text-center text-sm text-[var(--muted)] mb-2">Giải pháp</p>
         <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
           Công Cụ Nghiên Cứu TikTok Của Bạn
@@ -181,7 +181,7 @@ function SolutionCardsSection() {
         <p className="text-center text-sm text-[var(--ink-soft)] mb-12 max-w-2xl mx-auto leading-relaxed">
           GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook viral, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
         </p>
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-4">
 
           {/* ── Card 1: Competitor Intel ──────────────────────────────── */}
           <motion.div
