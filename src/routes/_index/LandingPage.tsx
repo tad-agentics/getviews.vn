@@ -95,21 +95,87 @@ const nicheList = [
   "Thời trang", "Du lịch", "Tài chính", "Vlog đời sống",
 ];
 
-function LiveDemoSection() {
-  const trendingVideos = [
-    { title: "Hook \"Cảnh Báo\" đang chiếm sóng ngành skincare", views: "2.4M", niche: "Skincare" },
-    { title: "Format \"Thử Thách\" đang kéo view cực tốt cho gia dụng", views: "1.8M", niche: "Review" },
-    { title: "Unboxing + So sánh trực diện đang viral trong tech", views: "3.1M", niche: "Tech" },
-    { title: "Kể chuyện ngắn (Storytelling) cho ngành fashion", views: "1.2M", niche: "Fashion" },
-  ];
+function formatViewsShort(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+  return String(v);
+}
 
-  const videosToCopy = [
-    { creator: "@mai.skincare", hook: '"3 sai lầm khi dùng serum..."', views: "450K" },
-    { creator: "@review_gia_dung", hook: '"Tôi mua rồi để bạn khỏi..."', views: "520K" },
-    { creator: "@fashion_daily", hook: '"Cảnh báo: combo này..."', views: "380K" },
-    { creator: "@tech_review_vn", hook: '"So sánh thật sự giữa..."', views: "610K" },
-    { creator: "@lam_dep_linh", hook: '"Sự thật về sản phẩm..."', views: "290K" },
-  ];
+function LiveDemoSection() {
+  const [trendingVideos, setTrendingVideos] = useState<
+    { title: string; views: string; niche: string }[]
+  >([]);
+  const [videosToCopy, setVideosToCopy] = useState<
+    { creator: string; hook: string; views: string }[]
+  >([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+  const [loadingHooks, setLoadingHooks] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { supabase: sb } = await import("@/lib/supabase");
+
+      // Fetch niche name map
+      const { data: niches } = await sb
+        .from("niche_taxonomy")
+        .select("id, name_vn");
+      const nicheMap = new Map<number, string>(
+        (niches ?? []).map((n: { id: number; name_vn: string }) => [n.id, n.name_vn]),
+      );
+
+      // Fetch latest trending cards
+      const { data: cards } = await sb
+        .from("trending_cards")
+        .select("title, signal, niche_id, week_of")
+        .order("week_of", { ascending: false })
+        .limit(40);
+
+      if (!cancelled && cards && cards.length > 0) {
+        const latestWeek = (cards[0] as { week_of: string }).week_of;
+        const SIGNAL_PRIORITY: Record<string, number> = { rising: 0, early: 1, stable: 2, declining: 3 };
+        const top4 = (cards as { title: string; signal: string; niche_id: number; week_of: string }[])
+          .filter((c) => c.week_of === latestWeek)
+          .sort((a, b) => (SIGNAL_PRIORITY[a.signal] ?? 99) - (SIGNAL_PRIORITY[b.signal] ?? 99))
+          .slice(0, 4)
+          .map((c) => ({
+            title: c.title,
+            views: c.signal === "rising" ? "↑ Đang bùng" : c.signal === "early" ? "↑ Mới nổi" : "Ổn định",
+            niche: nicheMap.get(c.niche_id) ?? "Đa niche",
+          }));
+        setTrendingVideos(top4);
+      }
+      if (!cancelled) setLoadingTrending(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { supabase: sb } = await import("@/lib/supabase");
+      const { data: videos } = await sb
+        .from("video_corpus")
+        .select("creator_handle, hook_phrase, views")
+        .not("hook_phrase", "is", null)
+        .order("views", { ascending: false })
+        .limit(5);
+
+      if (!cancelled && videos && videos.length > 0) {
+        setVideosToCopy(
+          (videos as { creator_handle: string | null; hook_phrase: string | null; views: number | null }[]).map((v) => ({
+            creator: v.creator_handle
+              ? (v.creator_handle.startsWith("@") ? v.creator_handle : `@${v.creator_handle}`)
+              : "@creator",
+            hook: v.hook_phrase ? `\u201c${v.hook_phrase}\u201d` : "",
+            views: v.views ? formatViewsShort(v.views) : "—",
+          })),
+        );
+      }
+      if (!cancelled) setLoadingHooks(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const creators = Array(8).fill(null);
 
@@ -137,21 +203,33 @@ function LiveDemoSection() {
               <button className="text-xs text-[var(--ink)] font-medium hover:underline transition-colors duration-200 hover:text-[var(--purple)]">Xem tất cả →</button>
             </div>
             <div className="space-y-3">
-              {trendingVideos.map((video, i) => (
-                <div key={i} className="flex items-start gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 transition-colors duration-200 hover:bg-[var(--surface-alt)] -mx-2 px-2 rounded cursor-pointer">
-                  <div className="w-12 h-16 bg-[var(--surface-alt)] border border-[var(--border)] rounded flex-shrink-0 flex items-center justify-center">
-                    <span className="text-xs text-[var(--muted)]">9:16</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-[var(--ink)] line-clamp-2 leading-snug mb-1">{video.title}</p>
-                    <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-                      <span>{video.views} view</span>
-                      <span>·</span>
-                      <span>{video.niche}</span>
+              {loadingTrending
+                ? Array(4).fill(null).map((_, i) => (
+                    <div key={i} className="flex items-start gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0">
+                      <div className="w-12 h-16 bg-[var(--surface-alt)] border border-[var(--border)] rounded flex-shrink-0 animate-pulse" />
+                      <div className="flex-1 space-y-2 pt-1">
+                        <div className="h-3 bg-[var(--surface-alt)] rounded animate-pulse w-full" />
+                        <div className="h-3 bg-[var(--surface-alt)] rounded animate-pulse w-3/4" />
+                        <div className="h-2.5 bg-[var(--surface-alt)] rounded animate-pulse w-1/3" />
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  ))
+                : trendingVideos.map((video, i) => (
+                    <div key={i} className="flex items-start gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 transition-colors duration-200 hover:bg-[var(--surface-alt)] -mx-2 px-2 rounded cursor-pointer">
+                      <div className="w-12 h-16 bg-[var(--surface-alt)] border border-[var(--border)] rounded flex-shrink-0 flex items-center justify-center">
+                        <span className="text-xs text-[var(--muted)]">9:16</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[var(--ink)] line-clamp-2 leading-snug mb-1">{video.title}</p>
+                        <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+                          <span>{video.views}</span>
+                          <span>·</span>
+                          <span>{video.niche}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+              }
             </div>
           </motion.div>
 
@@ -164,15 +242,23 @@ function LiveDemoSection() {
           >
             <h3 className="font-bold text-[var(--ink)] mb-4">Mẫu Hook "Ăn" Tiền</h3>
             <div className="space-y-3">
-              {videosToCopy.map((video, i) => (
-                <div key={i} className="pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 transition-colors duration-200 hover:bg-[var(--surface-alt)] -mx-2 px-2 rounded cursor-pointer">
-                  <p className="font-medium text-xs text-[var(--ink)] mb-1">{video.hook}</p>
-                  <div className="flex items-center justify-between text-[10px] text-[var(--muted)]">
-                    <span>{video.creator}</span>
-                    <span>{video.views}</span>
-                  </div>
-                </div>
-              ))}
+              {loadingHooks
+                ? Array(5).fill(null).map((_, i) => (
+                    <div key={i} className="pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 space-y-1.5">
+                      <div className="h-3 bg-[var(--surface-alt)] rounded animate-pulse w-full" />
+                      <div className="h-2.5 bg-[var(--surface-alt)] rounded animate-pulse w-2/3" />
+                    </div>
+                  ))
+                : videosToCopy.map((video, i) => (
+                    <div key={i} className="pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 transition-colors duration-200 hover:bg-[var(--surface-alt)] -mx-2 px-2 rounded cursor-pointer">
+                      <p className="font-medium text-xs text-[var(--ink)] mb-1 line-clamp-2">{video.hook}</p>
+                      <div className="flex items-center justify-between text-[10px] text-[var(--muted)]">
+                        <span>{video.creator}</span>
+                        <span>{video.views} view</span>
+                      </div>
+                    </div>
+                  ))
+              }
             </div>
           </motion.div>
         </div>
