@@ -457,38 +457,33 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6"
+          className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[var(--ink)]">Database 10.000+ Video Creator Việt</h3>
-            <button className="text-xs text-[var(--ink)] font-medium hover:underline transition-colors duration-200 hover:text-[var(--purple)]">Tìm đối thủ →</button>
+            <h3 className="font-bold text-[var(--ink)]">Database 46.000+ Video Creator Việt</h3>
+            <Link to="/app/trends" className="text-xs text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-200">Tìm đối thủ →</Link>
           </div>
-          <div className="overflow-hidden">
-            <div className="flex gap-2 animate-scroll-infinite">
-              {[...STRIP_FRAME_IDS, ...STRIP_FRAME_IDS].map((id, i) => {
-                const url = r2FrameUrl(id);
-                return (
-                  <div
-                    key={`${id}-${i}`}
-                    className="flex-shrink-0 overflow-hidden rounded border border-[var(--border)] bg-[var(--surface-alt)] transition-transform duration-200 hover:scale-105"
-                    style={{ width: 48, height: 85 }}
-                  >
-                    {url && (
-                      <img
-                        src={url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-1">
+            {NICHE_STRIP.map((niche) => (
+              <div key={niche.label} className="flex-shrink-0 flex flex-col gap-1.5">
+                <p className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide">{niche.label}</p>
+                <div className="flex gap-1">
+                  {niche.ids.map((id) => (
+                    <div
+                      key={id}
+                      className="overflow-hidden rounded-lg bg-[var(--surface-alt)] flex-shrink-0"
+                      style={{ width: 52, height: 72 }}
+                    >
+                      <VideoThumb id={id} className="h-full w-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-center text-[var(--ink-soft)] mt-4">
-            Đầy đủ 17 niche thịnh hành nhất tại Việt Nam
-          </p>
+
+          <p className="text-xs text-[var(--muted)] mt-3 text-center">Đầy đủ 17 niche thịnh hành nhất tại Việt Nam</p>
         </motion.div>
       </div>
     </section>
