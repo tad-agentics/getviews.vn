@@ -108,6 +108,9 @@ function LiveDemoSection() {
   const [videosToCopy, setVideosToCopy] = useState<
     { creator: string; hook: string; views: string }[]
   >([]);
+  const [scrollVideos, setScrollVideos] = useState<
+    { video_id: string; thumbnail_url: string | null; tiktok_url: string | null }[]
+  >([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [loadingHooks, setLoadingHooks] = useState(true);
 
@@ -177,7 +180,28 @@ function LiveDemoSection() {
     return () => { cancelled = true; };
   }, []);
 
-  const creators = Array(8).fill(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { supabase: sb } = await import("@/lib/supabase");
+      const { r2FrameUrl } = await import("@/lib/services/corpus-service");
+      const { data: vids } = await sb
+        .from("video_corpus")
+        .select("video_id, thumbnail_url, tiktok_url")
+        .order("views", { ascending: false })
+        .limit(24);
+      if (!cancelled && vids && vids.length > 0) {
+        setScrollVideos(
+          (vids as { video_id: string; thumbnail_url: string | null; tiktok_url: string | null }[]).map((v) => ({
+            video_id: v.video_id,
+            thumbnail_url: v.thumbnail_url ?? r2FrameUrl(v.video_id),
+            tiktok_url: v.tiktok_url,
+          })),
+        );
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <section className="px-4 py-16 md:py-20 bg-white">
@@ -275,10 +299,45 @@ function LiveDemoSection() {
             <button className="text-xs text-[var(--ink)] font-medium hover:underline transition-colors duration-200 hover:text-[var(--purple)]">Tìm đối thủ →</button>
           </div>
           <div className="overflow-hidden">
-            <div className="flex gap-3 animate-scroll-infinite">
-              {[...creators, ...creators].map((_, i) => (
-                <div key={i} className="w-16 h-16 flex-shrink-0 border border-[var(--border)] rounded bg-[var(--surface-alt)] transition-transform duration-200 hover:scale-105 cursor-pointer" />
-              ))}
+            <div className="flex gap-2 animate-scroll-infinite">
+              {(scrollVideos.length > 0 ? [...scrollVideos, ...scrollVideos] : Array(16).fill(null)).map((v, i) => {
+                const inner = v ? (
+                  <div className="relative w-full h-full">
+                    {v.thumbnail_url ? (
+                      <img
+                        src={v.thumbnail_url}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-[var(--surface-alt)] animate-pulse" />
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full h-full bg-[var(--surface-alt)] animate-pulse" />
+                );
+                const el = (
+                  <div
+                    key={i}
+                    className="w-12 flex-shrink-0 overflow-hidden rounded border border-[var(--border)] transition-transform duration-200 hover:scale-105 cursor-pointer"
+                    style={{ aspectRatio: "9/16" }}
+                  >
+                    {inner}
+                  </div>
+                );
+                return v?.tiktok_url ? (
+                  <a key={i} href={v.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                    <div
+                      className="w-12 overflow-hidden rounded border border-[var(--border)] transition-transform duration-200 hover:scale-105 cursor-pointer"
+                      style={{ aspectRatio: "9/16" }}
+                    >
+                      {inner}
+                    </div>
+                  </a>
+                ) : el;
+              })}
             </div>
           </div>
           <p className="text-xs text-center text-[var(--ink-soft)] mt-4">
