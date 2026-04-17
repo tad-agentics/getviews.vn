@@ -19,6 +19,7 @@ interface VideoGridCellProps {
 function VideoGridCell({ videoId, label }: VideoGridCellProps) {
   const [meta, setMeta] = useState<VideoMeta | null>(null);
   const [imgFailed, setImgFailed] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +40,7 @@ function VideoGridCell({ videoId, label }: VideoGridCellProps) {
 
   useEffect(() => {
     setImgFailed(false);
+    setImgLoaded(false);
   }, [thumbnail]);
 
   const thumbnailEl = (
@@ -47,13 +49,19 @@ function VideoGridCell({ videoId, label }: VideoGridCellProps) {
       style={{ paddingBottom: "177.78%" /* 9:16 */ }}
     >
       {thumbnail && !imgFailed ? (
-        <img
-          src={thumbnail}
-          alt={label}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          onError={() => setImgFailed(true)}
-        />
+        <>
+          <img
+            src={thumbnail}
+            alt={label}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+            onLoad={() => setImgLoaded(true)}
+          />
+          {!imgLoaded ? (
+            <div className="absolute inset-0 animate-pulse bg-[var(--border)]" />
+          ) : null}
+        </>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="h-8 w-8 animate-pulse rounded-full bg-[var(--border)]" />
