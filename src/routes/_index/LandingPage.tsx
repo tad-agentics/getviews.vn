@@ -435,29 +435,20 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6"
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex flex-col gap-1"
           >
-            <h3 className="font-bold text-[var(--ink)] mb-4">Mẫu Hook "Ăn" Tiền</h3>
-            <div className="divide-y divide-[var(--border)]">
-              {stats.hooks.length > 0
-                ? stats.hooks.slice(0, 5).map((h) => (
-                    <div key={h.hook_type} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                      <div>
-                        <p className="text-sm font-medium text-[var(--ink)]">
-                          {HOOK_TYPE_LABELS[h.hook_type] ?? h.hook_type}
-                        </p>
-                        <p className="text-xs text-[var(--muted)]">{h.sample_size.toLocaleString("vi-VN")} video mẫu</p>
-                      </div>
-                      <p className="font-mono text-xs font-semibold text-[var(--purple)] tabular-nums">
-                        {(h.avg_views / 1_000_000).toFixed(1)}M avg
-                      </p>
-                    </div>
-                  ))
-                : Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="h-10 animate-pulse rounded bg-[var(--surface-alt)] my-1" />
-                  ))
-              }
-            </div>
+            <p className="font-bold text-[var(--ink)] mb-3">Mẫu Hook "Ăn" Tiền</p>
+
+            {HOOK_EXAMPLES.map((h, i) => (
+              <div key={h.id} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0">
+                <span className="text-xs text-[var(--muted)] w-4 flex-shrink-0 font-mono">{i + 1}</span>
+                <div className="flex-shrink-0 overflow-hidden rounded-md bg-[var(--surface-alt)]" style={{ width: 32, height: 44 }}>
+                  <VideoThumb id={h.id} className="h-full w-full" />
+                </div>
+                <p className="flex-1 text-xs text-[var(--ink)] line-clamp-2 leading-snug">{h.phrase}</p>
+                <p className="flex-shrink-0 font-mono text-xs font-semibold text-[var(--purple)] tabular-nums">{h.views}</p>
+              </div>
+            ))}
           </motion.div>
         </div>
 
