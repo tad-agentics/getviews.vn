@@ -45,7 +45,8 @@ export function useTrendingCards(nicheId: number | null) {
       const latestRows = rows.filter((r) => r.week_of === latestWeek);
 
       // Deduplicate by hook_type — same hook in multiple niches → keep best card.
-      // Priority: selected niche > better signal (rising > early > stable > declining).
+      // When nicheId is set: selected niche wins over any other niche, then signal.
+      // When nicheId is null: no niche priority — keep the best signal across all niches.
       const byHookType = new Map<string, TrendingCardRow>();
       for (const row of latestRows) {
         const key = row.hook_type ?? `__unique_${row.id}`;
@@ -54,25 +55,29 @@ export function useTrendingCards(nicheId: number | null) {
           byHookType.set(key, row);
           continue;
         }
-        const rowIsSelected = row.niche_id === nicheId;
-        const existingIsSelected = existing.niche_id === nicheId;
-        if (rowIsSelected && !existingIsSelected) {
-          byHookType.set(key, row);
-          continue;
+        if (nicheId != null) {
+          const rowIsSelected = row.niche_id === nicheId;
+          const existingIsSelected = existing.niche_id === nicheId;
+          if (rowIsSelected && !existingIsSelected) {
+            byHookType.set(key, row);
+            continue;
+          }
+          if (existingIsSelected) continue;
         }
-        if (!rowIsSelected && !existingIsSelected) {
-          const rp = SIGNAL_PRIORITY[row.signal] ?? 99;
-          const ep = SIGNAL_PRIORITY[existing.signal] ?? 99;
-          if (rp < ep) byHookType.set(key, row);
-        }
+        // Both cross-niche (or nicheId is null): keep whichever has better signal.
+        const rp = SIGNAL_PRIORITY[row.signal] ?? 99;
+        const ep = SIGNAL_PRIORITY[existing.signal] ?? 99;
+        if (rp < ep) byHookType.set(key, row);
       }
 
-      // Sort: selected niche cards first, then by signal strength.
+      // Sort: when a niche is selected, its cards float first; then by signal strength.
       return [...byHookType.values()]
         .sort((a, b) => {
-          const aSelected = a.niche_id === nicheId ? 0 : 1;
-          const bSelected = b.niche_id === nicheId ? 0 : 1;
-          if (aSelected !== bSelected) return aSelected - bSelected;
+          if (nicheId != null) {
+            const aSelected = a.niche_id === nicheId ? 0 : 1;
+            const bSelected = b.niche_id === nicheId ? 0 : 1;
+            if (aSelected !== bSelected) return aSelected - bSelected;
+          }
           return (SIGNAL_PRIORITY[a.signal] ?? 99) - (SIGNAL_PRIORITY[b.signal] ?? 99);
         })
         .slice(0, 8);
