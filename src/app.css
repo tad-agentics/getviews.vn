@@ -227,3 +227,45 @@
 .gradient-wash {
   background: var(--gradient-purple-wash);
 }
+
+/* ── Auto-scroll animation (creator carousel) ─────────────────────── */
+@keyframes scroll-infinite {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-scroll-infinite {
+  animation: scroll-infinite 20s linear infinite;
+}
+
+.animate-scroll-infinite:hover {
+  animation-play-state: paused;
+}
+
+/* ── Ticker animation (slower, for hook strip) ────────────────────── */
+.animate-scroll-ticker {
+  animation: scroll-infinite 40s linear infinite;
+}
+
+.animate-scroll-ticker:hover {
+  animation-play-state: paused;
+}
+
+/* ── Accordion open/close animations ─────────────────────────────── */
+@keyframes accordion-down {
+  from { height: 0; opacity: 0; }
+  to   { height: var(--radix-accordion-content-height); opacity: 1; }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); opacity: 1; }
+  to   { height: 0; opacity: 0; }
+}
+
+.animate-accordion-down {
+  animation: accordion-down 0.2s ease-out;
+}
+
+.animate-accordion-up {
+  animation: accordion-up 0.2s ease-out;
+}
