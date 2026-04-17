@@ -241,6 +241,7 @@ function FilterChip({
 
   return (
     <button
+      type="button"
       onClick={onClick}
       className={baseClass}
     >
@@ -251,16 +252,15 @@ function FilterChip({
       )}
       <span>{label}</span>
       {onRemove ? (
-        <span
-          role="button"
+        <button
+          type="button"
           aria-label="Xóa bộ lọc"
-          tabIndex={0}
           className="flex items-center rounded-full hover:opacity-100 opacity-60"
-          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onRemove(); } }}
+          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
         >
           <X className="w-3 h-3" strokeWidth={2} />
-        </span>
+        </button>
       ) : hasArrow ? (
         <ChevronDown className="w-3 h-3 opacity-60" strokeWidth={2} />
       ) : null}
