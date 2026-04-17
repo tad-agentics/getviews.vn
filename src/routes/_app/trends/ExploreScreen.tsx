@@ -214,14 +214,47 @@ function FilterChip({
   onClick?: () => void;
   hasArrow?: boolean;
 }) {
+  const baseClass = `flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all duration-[120ms] whitespace-nowrap ${
+    active
+      ? "border-[var(--ink)] text-[var(--ink)] bg-[var(--surface)]"
+      : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)] hover:border-[var(--border-active)] hover:text-[var(--ink)]"
+  }`;
+
+  // When there's a remove action, render the X as a sibling button outside the
+  // main chip button so click events never bubble through the chip's onClick.
+  if (onRemove) {
+    return (
+      <div className="flex items-center">
+        <button
+          onClick={onClick}
+          className={`${baseClass} rounded-r-none border-r-0 pr-1.5`}
+        >
+          {label === "App" && (
+            <span className="flex items-center mr-0.5">
+              <TikTokIcon size={11} />
+            </span>
+          )}
+          <span>{label}</span>
+        </button>
+        <button
+          onClick={onRemove}
+          className={`flex items-center px-1.5 py-1 rounded-r-full text-xs border border-l-0 transition-all duration-[120ms] whitespace-nowrap ${
+            active
+              ? "border-[var(--ink)] text-[var(--ink)] bg-[var(--surface)] hover:bg-[var(--surface-alt)]"
+              : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)] hover:border-[var(--border-active)] hover:text-[var(--ink)]"
+          }`}
+          aria-label="Xóa bộ lọc"
+        >
+          <X className="w-3 h-3 opacity-60" strokeWidth={2} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all duration-[120ms] whitespace-nowrap ${
-        active
-          ? "border-[var(--ink)] text-[var(--ink)] bg-[var(--surface)]"
-          : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)] hover:border-[var(--border-active)] hover:text-[var(--ink)]"
-      }`}
+      className={baseClass}
     >
       {label === "App" && (
         <span className="flex items-center mr-0.5">
@@ -229,17 +262,7 @@ function FilterChip({
         </span>
       )}
       <span>{label}</span>
-      {onRemove ? (
-        <X
-          className="w-3 h-3 opacity-60"
-          strokeWidth={2}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            onRemove();
-          }}
-        />
-      ) : hasArrow ? (
+      {hasArrow ? (
         <ChevronDown className="w-3 h-3 opacity-60" strokeWidth={2} />
       ) : null}
     </button>
@@ -402,12 +425,32 @@ export default function ExploreScreen() {
     contentFormat: activeFormat ?? undefined,
   });
 
+  // Exact total count for the current filter combination (head-only, no rows fetched)
+  const { data: corpusCount } = useQuery({
+    queryKey: ["corpus_count", selectedNicheId, searchQuery, activeViewFilter, activeFormat],
+    queryFn: async () => {
+      let q = supabase
+        .from("video_corpus")
+        .select("*", { count: "exact", head: true });
+      if (selectedNicheId != null) q = q.eq("niche_id", selectedNicheId);
+      if (searchQuery?.trim()) q = q.textSearch("search_vector", searchQuery.trim(), { config: "simple", type: "plain" });
+      if (activeViewFilter != null) q = q.gte("views", activeViewFilter);
+      if (activeFormat != null) q = q.eq("content_format", activeFormat);
+      const { count, error } = await q;
+      if (error) return null;
+      return count;
+    },
+    staleTime: 5 * 60_000,
+  });
+
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
   const videos = useMemo(() => corpusRows.map(corpusRowToExploreVideo), [corpusRows]);
 
   const exploreTitle = isPending
     ? "Khám phá video"
-    : `Khám phá ${videos.length}${hasNextPage ? "+" : ""} video`;
+    : corpusCount != null
+      ? `Khám phá ${corpusCount.toLocaleString("vi-VN")} video`
+      : `Khám phá ${videos.length}${hasNextPage ? "+" : ""} video`;
 
   const fetchNextPageStable = useCallback(() => {
     void fetchNextPage();
