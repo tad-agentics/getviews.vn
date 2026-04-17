@@ -328,7 +328,7 @@ Khi hội thoại trước đó đã có kết quả phân tích chứa video_id
 {"type":"video_grid","ids":["VIDEO_ID_1","VIDEO_ID_2"],"labels":["Mô tả ngắn 1","Mô tả ngắn 2"]}
 Quy tắc video_grid:
 – Chỉ dùng video_id có trong lịch sử hội thoại (KHÔNG tự bịa ID).
-– Tối đa 4 video mỗi grid (2 cột × 2 hàng).
+– Tối đa 4 video mỗi grid (1/2/3/4 video → layout tự động 1/2/3/2 cột).
 – Label: 3–6 từ mô tả điểm đặc biệt của video đó (ví dụ: "Hook số liệu shock", "Twist cuối bất ngờ").
 – Đặt JSON block ngay sau đoạn văn giải thích, không đặt giữa câu.
 – Nếu không có video_id thực trong context → KHÔNG output video_grid.

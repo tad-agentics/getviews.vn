@@ -104,8 +104,12 @@ interface Props {
 
 export function VideoGridBlock({ ids, labels }: Props) {
   if (!ids.length) return null;
+  const colsClass =
+    ids.length === 1 ? "grid-cols-1"
+    : ids.length === 3 ? "grid-cols-3"
+    : "grid-cols-2";
   return (
-    <div className="my-2 grid grid-cols-2 gap-3">
+    <div className={`my-2 grid ${colsClass} gap-3`}>
       {ids.map((id, i) => (
         <VideoGridCell key={`${id}-${i}`} videoId={id} label={labels[i] ?? ""} />
       ))}
