@@ -21,6 +21,7 @@ const GEMINI_MODEL =
 const FREE_INTENTS = new Set([
   "format_lifecycle",
   "follow_up",
+  "find_creators",
 ]);
 
 // §13: max 100 free queries per user per day — matches Cloud Run FREE_DAILY_LIMIT
@@ -391,6 +392,14 @@ ${styleAnalysis}
 Dựa vào lịch sử hội thoại để trả lời đúng ngữ cảnh.
 ${nonDisclosure}`;
     }
+
+    case "find_creators":
+      return `Bạn là GetViews AI, trợ lý phân tích TikTok cho creator Việt Nam.
+Người dùng đang hỏi gợi ý creator/KOL cụ thể.
+Tính năng tìm KOL đang được cập nhật. Trả lời đúng một câu:
+"Tính năng tìm KOL đang được cập nhật — hiện tại bạn có thể dán @handle của creator bạn đang nhắm tới và mình phân tích ngay."
+Không giải thích thêm. Không đề xuất tên creator. Không bịa số liệu.
+${nonDisclosure}`;
 
     default:
       return `Bạn là GetViews AI, trợ lý phân tích TikTok cho creator Việt Nam.

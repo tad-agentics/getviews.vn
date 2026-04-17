@@ -78,6 +78,9 @@ export function useChatStream() {
         if (!session) throw new Error("No session");
 
         const useCloudRun = CLOUD_RUN_INTENTS.has(intentType);
+        if (useCloudRun && !CLOUD_RUN_URL) {
+          console.warn(`[useChatStream] Cloud Run URL not set — routing ${intentType} to Vercel fallback`);
+        }
         const endpoint = useCloudRun && CLOUD_RUN_URL ? `${CLOUD_RUN_URL}/stream` : VERCEL_CHAT_URL;
 
         const res = await fetch(endpoint, {
