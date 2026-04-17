@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
+import { r2FrameUrl } from "@/lib/services/corpus-service";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -333,121 +334,31 @@ function formatViewsShort(v: number): string {
   return String(v);
 }
 
-function LiveDemoSection() {
-  const [trendingVideos, setTrendingVideos] = useState<
-    { title: string; views: string; niche: string }[]
-  >([]);
-  const [videosToCopy, setVideosToCopy] = useState<
-    { creator: string; hook: string; views: string }[]
-  >([]);
-  const [scrollVideos, setScrollVideos] = useState<
-    { video_id: string; thumbnail_url: string | null; tiktok_url: string | null }[]
-  >([]);
-  const [loadingTrending, setLoadingTrending] = useState(true);
-  const [loadingHooks, setLoadingHooks] = useState(true);
+const SIGNAL_EXAMPLES = [
+  { label: "Hook số liệu shock", signal: "rising", desc: "Top pattern tuần này" },
+  { label: "Cảnh báo + reveal", signal: "early", desc: "Mới nổi, vào sớm" },
+  { label: "Before / After", signal: "stable", desc: "Ổn định, cạnh tranh cao" },
+];
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { supabase: sb } = await import("@/lib/supabase");
+const SIGNAL_DOT: Record<string, string> = {
+  rising: "bg-[var(--purple)]",
+  early: "bg-orange-400",
+  stable: "bg-[var(--muted)]",
+};
 
-      // Fetch niche name map
-      const { data: niches } = await sb
-        .from("niche_taxonomy")
-        .select("id, name_vn");
-      const nicheMap = new Map<number, string>(
-        (niches ?? []).map((n: { id: number; name_vn: string }) => [n.id, n.name_vn]),
-      );
+const HOOK_TYPE_LABELS: Record<string, string> = {
+  warning: "Cảnh báo",
+  number_shock: "Số liệu gây shock",
+  question: "Câu hỏi kích tò mò",
+  before_after: "Trước / sau",
+  reveal: "Tiết lộ bí mật",
+  challenge: "Thử thách",
+  story: "Kể chuyện ngắn",
+  comparison: "So sánh trực diện",
+  tutorial: "Hướng dẫn nhanh",
+};
 
-      // Fetch latest trending cards — get the latest week_of first, then fetch that week
-      const { data: weekRow } = await sb
-        .from("trending_cards")
-        .select("week_of")
-        .order("week_of", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const latestWeek = (weekRow as { week_of: string } | null)?.week_of ?? null;
-
-      const { data: cards, error: cardsError } = latestWeek
-        ? await sb
-            .from("trending_cards")
-            .select("title, signal, niche_id")
-            .eq("week_of", latestWeek)
-            .limit(40)
-        : { data: null, error: null };
-
-      if (cardsError) console.warn("[landing] trending_cards error:", cardsError.message);
-
-      if (!cancelled && cards && cards.length > 0) {
-        const SIGNAL_PRIORITY: Record<string, number> = { rising: 0, early: 1, stable: 2, declining: 3 };
-        const top4 = (cards as { title: string; signal: string; niche_id: number }[])
-          .sort((a, b) => (SIGNAL_PRIORITY[a.signal] ?? 99) - (SIGNAL_PRIORITY[b.signal] ?? 99))
-          .slice(0, 4)
-          .map((c) => ({
-            title: c.title,
-            views: c.signal === "rising" ? "↑ Đang bùng" : c.signal === "early" ? "↑ Mới nổi" : "Ổn định",
-            niche: nicheMap.get(c.niche_id) ?? "Đa niche",
-          }));
-        setTrendingVideos(top4);
-      }
-      if (!cancelled) setLoadingTrending(false);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { supabase: sb } = await import("@/lib/supabase");
-      const { data: videos, error: videosError } = await sb
-        .from("video_corpus")
-        .select("creator_handle, hook_phrase, views")
-        .not("hook_phrase", "is", null)
-        .order("views", { ascending: false })
-        .limit(5);
-      if (videosError) console.warn("[landing] video_corpus error:", videosError.message);
-
-      if (!cancelled && videos && videos.length > 0) {
-        setVideosToCopy(
-          (videos as { creator_handle: string | null; hook_phrase: string | null; views: number | null }[]).map((v) => ({
-            creator: v.creator_handle
-              ? (v.creator_handle.startsWith("@") ? v.creator_handle : `@${v.creator_handle}`)
-              : "@creator",
-            hook: v.hook_phrase ? `\u201c${v.hook_phrase}\u201d` : "",
-            views: v.views ? formatViewsShort(v.views) : "—",
-          })),
-        );
-      }
-      if (!cancelled) setLoadingHooks(false);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { supabase: sb } = await import("@/lib/supabase");
-      const { r2FrameUrl } = await import("@/lib/services/corpus-service");
-      const { data: vids } = await sb
-        .from("video_corpus")
-        .select("video_id, thumbnail_url, tiktok_url")
-        .not("thumbnail_url", "is", null)
-        .order("views", { ascending: false })
-        .limit(24);
-      if (!cancelled && vids && vids.length > 0) {
-        const resolved = (vids as { video_id: string; thumbnail_url: string | null; tiktok_url: string | null }[])
-          .map((v) => ({
-            video_id: v.video_id,
-            thumbnail_url: v.thumbnail_url ?? r2FrameUrl(v.video_id),
-            tiktok_url: v.tiktok_url,
-          }))
-          .filter((v) => v.thumbnail_url !== null);
-        if (resolved.length > 0) setScrollVideos(resolved);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_views: number; sample_size: number }[]; thumb_ids: string[] } }) {
 
   return (
     <section className="px-4 py-16 md:py-20 bg-white">
@@ -469,37 +380,20 @@ function LiveDemoSection() {
             className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-[var(--ink)]">Thịnh Hành Tuần Này</h3>
-              <button className="text-xs text-[var(--ink)] font-medium hover:underline transition-colors duration-200 hover:text-[var(--purple)]">Xem tất cả →</button>
+              <h3 className="font-bold text-[var(--ink)]">Tín Hiệu Trend</h3>
+              <Link to="/app/trends" className="text-xs text-[var(--ink)] font-medium hover:underline transition-colors duration-200 hover:text-[var(--purple)]">Xem tất cả →</Link>
             </div>
             <div className="space-y-3">
-              {loadingTrending
-                ? Array(4).fill(null).map((_, i) => (
-                    <div key={i} className="flex items-start gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0">
-                      <div className="w-12 h-16 bg-[var(--surface-alt)] border border-[var(--border)] rounded flex-shrink-0 animate-pulse" />
-                      <div className="flex-1 space-y-2 pt-1">
-                        <div className="h-3 bg-[var(--surface-alt)] rounded animate-pulse w-full" />
-                        <div className="h-3 bg-[var(--surface-alt)] rounded animate-pulse w-3/4" />
-                        <div className="h-2.5 bg-[var(--surface-alt)] rounded animate-pulse w-1/3" />
-                      </div>
-                    </div>
-                  ))
-                : trendingVideos.map((video, i) => (
-                    <div key={i} className="flex items-start gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 transition-colors duration-200 hover:bg-[var(--surface-alt)] -mx-2 px-2 rounded cursor-pointer">
-                      <div className="w-12 h-16 bg-[var(--surface-alt)] border border-[var(--border)] rounded flex-shrink-0 flex items-center justify-center">
-                        <span className="text-xs text-[var(--muted)]">9:16</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-[var(--ink)] line-clamp-2 leading-snug mb-1">{video.title}</p>
-                        <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-                          <span>{video.views}</span>
-                          <span>·</span>
-                          <span>{video.niche}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-              }
+              {SIGNAL_EXAMPLES.map((item) => (
+                <div key={item.signal} className="flex items-center gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0">
+                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${SIGNAL_DOT[item.signal] ?? "bg-[var(--muted)]"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[var(--ink)] leading-snug">{item.label}</p>
+                    <p className="text-xs text-[var(--muted)]">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-[var(--ink-soft)] pt-1">Cập nhật mỗi tuần từ 46.000+ video thực</p>
             </div>
           </motion.div>
 
@@ -511,22 +405,23 @@ function LiveDemoSection() {
             className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6"
           >
             <h3 className="font-bold text-[var(--ink)] mb-4">Mẫu Hook "Ăn" Tiền</h3>
-            <div className="space-y-3">
-              {loadingHooks
-                ? Array(5).fill(null).map((_, i) => (
-                    <div key={i} className="pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 space-y-1.5">
-                      <div className="h-3 bg-[var(--surface-alt)] rounded animate-pulse w-full" />
-                      <div className="h-2.5 bg-[var(--surface-alt)] rounded animate-pulse w-2/3" />
+            <div className="divide-y divide-[var(--border)]">
+              {stats.hooks.length > 0
+                ? stats.hooks.slice(0, 5).map((h) => (
+                    <div key={h.hook_type} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                      <div>
+                        <p className="text-sm font-medium text-[var(--ink)]">
+                          {HOOK_TYPE_LABELS[h.hook_type] ?? h.hook_type}
+                        </p>
+                        <p className="text-xs text-[var(--muted)]">{h.sample_size.toLocaleString("vi-VN")} video mẫu</p>
+                      </div>
+                      <p className="font-mono text-xs font-semibold text-[var(--purple)] tabular-nums">
+                        {(h.avg_views / 1_000_000).toFixed(1)}M avg
+                      </p>
                     </div>
                   ))
-                : videosToCopy.map((video, i) => (
-                    <div key={i} className="pb-3 border-b border-[var(--border)] last:border-0 last:pb-0 transition-colors duration-200 hover:bg-[var(--surface-alt)] -mx-2 px-2 rounded cursor-pointer">
-                      <p className="font-medium text-xs text-[var(--ink)] mb-1 line-clamp-2">{video.hook}</p>
-                      <div className="flex items-center justify-between text-[10px] text-[var(--muted)]">
-                        <span>{video.creator}</span>
-                        <span>{video.views} view</span>
-                      </div>
-                    </div>
+                : Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-10 animate-pulse rounded bg-[var(--surface-alt)] my-1" />
                   ))
               }
             </div>
@@ -546,43 +441,26 @@ function LiveDemoSection() {
           </div>
           <div className="overflow-hidden">
             <div className="flex gap-2 animate-scroll-infinite">
-              {(scrollVideos.length > 0 ? [...scrollVideos, ...scrollVideos] : Array(16).fill(null)).map((v, i) => {
-                const inner = v ? (
-                  <div className="relative w-full h-full">
-                    {v.thumbnail_url ? (
+              {(stats.thumb_ids.length > 0 ? [...stats.thumb_ids, ...stats.thumb_ids] : Array(12).fill(null)).map((id, i) => {
+                const url = id ? r2FrameUrl(id) : null;
+                return (
+                  <div
+                    key={`${id ?? "sk"}-${i}`}
+                    className="relative flex-shrink-0 overflow-hidden rounded border border-[var(--border)] bg-[var(--surface-alt)] transition-transform duration-200 hover:scale-105"
+                    style={{ width: 48, paddingBottom: "85.33%" /* 48 × 16/9 */ }}
+                  >
+                    {url ? (
                       <img
-                        src={v.thumbnail_url}
+                        src={url}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-cover"
+                        className="absolute inset-0 h-full w-full object-cover"
                         loading="lazy"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                       />
                     ) : (
-                      <div className="absolute inset-0 bg-[var(--surface-alt)] animate-pulse" />
+                      <div className="absolute inset-0 animate-pulse bg-[var(--surface-alt)]" />
                     )}
                   </div>
-                ) : (
-                  <div className="w-full h-full bg-[var(--surface-alt)] animate-pulse" />
                 );
-                const el = (
-                  <div
-                    key={i}
-                    className="w-12 flex-shrink-0 overflow-hidden rounded border border-[var(--border)] transition-transform duration-200 hover:scale-105 cursor-pointer"
-                    style={{ aspectRatio: "9/16" }}
-                  >
-                    {inner}
-                  </div>
-                );
-                return v?.tiktok_url ? (
-                  <a key={i} href={v.tiktok_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                    <div
-                      className="w-12 overflow-hidden rounded border border-[var(--border)] transition-transform duration-200 hover:scale-105 cursor-pointer"
-                      style={{ aspectRatio: "9/16" }}
-                    >
-                      {inner}
-                    </div>
-                  </a>
-                ) : el;
               })}
             </div>
           </div>
@@ -652,7 +530,12 @@ function HowItWorksSection() {
   );
 }
 
-export default function LandingPage() {
+interface LandingStats {
+  hooks: { hook_type: string; avg_views: number; sample_size: number }[];
+  thumb_ids: string[];
+}
+
+export default function LandingPage({ stats }: { stats: LandingStats }) {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "biannual" | "annual">("annual");
   const [stickyVisible, setStickyVisible] = useState(false);
 
@@ -932,7 +815,7 @@ export default function LandingPage() {
       <SolutionCardsSection />
 
       {/* ── Live Demo ───────────────────────────────────────────── */}
-      <LiveDemoSection />
+      <LiveDemoSection stats={stats} />
 
       {/* ── Results ─────────────────────────────────────────────── */}
       <section className="px-4 py-16 md:py-20 bg-white">
