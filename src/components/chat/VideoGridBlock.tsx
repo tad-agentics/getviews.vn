@@ -114,7 +114,7 @@ export function VideoGridBlock({ ids, labels }: Props) {
   return (
     <div className={`my-2 grid ${colsClass} gap-3`}>
       {ids.map((id, i) => (
-        <VideoGridCell key={`${id}-${i}`} videoId={id} label={labels[i] ?? ""} />
+        <VideoGridCell key={id} videoId={id} label={labels[i] ?? ""} />
       ))}
     </div>
   );
