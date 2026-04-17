@@ -220,40 +220,13 @@ function FilterChip({
       : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)] hover:border-[var(--border-active)] hover:text-[var(--ink)]"
   }`;
 
-  // When there's a remove action, render the X as a sibling button outside the
-  // main chip button so click events never bubble through the chip's onClick.
-  if (onRemove) {
-    return (
-      <div className="flex items-center">
-        <button
-          onClick={onClick}
-          className={`${baseClass} rounded-r-none border-r-0 pr-1.5`}
-        >
-          {label === "App" && (
-            <span className="flex items-center mr-0.5">
-              <TikTokIcon size={11} />
-            </span>
-          )}
-          <span>{label}</span>
-        </button>
-        <button
-          onClick={onRemove}
-          className={`flex items-center px-1.5 py-1 rounded-r-full text-xs border border-l-0 transition-all duration-[120ms] whitespace-nowrap ${
-            active
-              ? "border-[var(--ink)] text-[var(--ink)] bg-[var(--surface)] hover:bg-[var(--surface-alt)]"
-              : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)] hover:border-[var(--border-active)] hover:text-[var(--ink)]"
-          }`}
-          aria-label="Xóa bộ lọc"
-        >
-          <X className="w-3 h-3 opacity-60" strokeWidth={2} />
-        </button>
-      </div>
-    );
-  }
-
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        // If the click originated on the X remove button, don't also run onClick.
+        if ((e.target as HTMLElement).closest("[data-remove]")) return;
+        onClick?.();
+      }}
       className={baseClass}
     >
       {label === "App" && (
@@ -262,7 +235,19 @@ function FilterChip({
         </span>
       )}
       <span>{label}</span>
-      {hasArrow ? (
+      {onRemove ? (
+        <span
+          data-remove
+          role="button"
+          aria-label="Xóa bộ lọc"
+          tabIndex={0}
+          className="flex items-center rounded-full hover:opacity-100 opacity-60"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onRemove(); } }}
+        >
+          <X className="w-3 h-3" strokeWidth={2} />
+        </span>
+      ) : hasArrow ? (
         <ChevronDown className="w-3 h-3 opacity-60" strokeWidth={2} />
       ) : null}
     </button>
