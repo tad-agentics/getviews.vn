@@ -95,6 +95,237 @@ const nicheList = [
   "Thời trang", "Du lịch", "Tài chính", "Vlog đời sống",
 ];
 
+function SkeletonLine({ w = "full" }: { w?: string }) {
+  return <div className={`h-3 bg-[var(--surface-alt)] rounded animate-pulse w-${w}`} />;
+}
+
+function SolutionCardsSection() {
+  const [topCreator, setTopCreator] = useState<{ handle: string; count: number } | null>(null);
+  const [hireCreators, setHireCreators] = useState<{ handle: string; views: string }[]>([]);
+  const [topHooks, setTopHooks] = useState<{ phrase: string; avgViews: string }[]>([]);
+  const [topFormats, setTopFormats] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { supabase: sb } = await import("@/lib/supabase");
+
+      // Card 1: top creator by video count
+      const { data: creatorRows } = await sb
+        .from("video_corpus")
+        .select("creator_handle, views")
+        .not("creator_handle", "is", null)
+        .order("views", { ascending: false })
+        .limit(100);
+
+      // Card 2: top 3 unique creators by total views
+      const creatorMap = new Map<string, number>();
+      for (const r of (creatorRows ?? []) as { creator_handle: string | null; views: number | null }[]) {
+        if (!r.creator_handle) continue;
+        creatorMap.set(r.creator_handle, (creatorMap.get(r.creator_handle) ?? 0) + (r.views ?? 0));
+      }
+      const sortedCreators = [...creatorMap.entries()].sort((a, b) => b[1] - a[1]);
+
+      // Card 1: most prolific creator (most videos in our fetch)
+      const countMap = new Map<string, number>();
+      for (const r of (creatorRows ?? []) as { creator_handle: string | null }[]) {
+        if (!r.creator_handle) continue;
+        countMap.set(r.creator_handle, (countMap.get(r.creator_handle) ?? 0) + 1);
+      }
+      const topByCount = [...countMap.entries()].sort((a, b) => b[1] - a[1])[0];
+
+      // Card 3: top hook phrases by views (pick distinct, non-null)
+      const { data: hookRows } = await sb
+        .from("video_corpus")
+        .select("hook_phrase, views")
+        .not("hook_phrase", "is", null)
+        .order("views", { ascending: false })
+        .limit(60);
+
+      const hookMap = new Map<string, { total: number; count: number }>();
+      for (const r of (hookRows ?? []) as { hook_phrase: string | null; views: number | null }[]) {
+        if (!r.hook_phrase) continue;
+        const key = r.hook_phrase.slice(0, 50);
+        const prev = hookMap.get(key) ?? { total: 0, count: 0 };
+        hookMap.set(key, { total: prev.total + (r.views ?? 0), count: prev.count + 1 });
+      }
+      const sortedHooks = [...hookMap.entries()]
+        .map(([phrase, { total, count }]) => ({ phrase, avg: Math.round(total / count) }))
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 3);
+
+      // Card 4: top content_formats by avg views
+      const { data: formatRows } = await sb
+        .from("video_corpus")
+        .select("content_format, views")
+        .not("content_format", "is", null)
+        .order("views", { ascending: false })
+        .limit(200);
+
+      const fmtMap = new Map<string, { total: number; count: number }>();
+      for (const r of (formatRows ?? []) as { content_format: string | null; views: number | null }[]) {
+        if (!r.content_format) continue;
+        const prev = fmtMap.get(r.content_format) ?? { total: 0, count: 0 };
+        fmtMap.set(r.content_format, { total: prev.total + (r.views ?? 0), count: prev.count + 1 });
+      }
+      const sortedFormats = [...fmtMap.entries()]
+        .sort((a, b) => b[1].total / b[1].count - a[1].total / a[1].count)
+        .slice(0, 3)
+        .map(([fmt]) => fmt);
+
+      if (!cancelled) {
+        if (topByCount) setTopCreator({ handle: topByCount[0], count: topByCount[1] });
+        setHireCreators(
+          sortedCreators.slice(0, 3).map(([handle, views]) => ({
+            handle: handle.startsWith("@") ? handle : `@${handle}`,
+            views: formatViewsShort(views),
+          })),
+        );
+        setTopHooks(
+          sortedHooks.map(({ phrase, avg }) => ({ phrase, avgViews: `${formatViewsShort(avg)} avg` })),
+        );
+        setTopFormats(sortedFormats);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const cards = [
+    {
+      label: '\u201cĐối thủ đang đăng gì?\u201d',
+      content: (
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded bg-[var(--ink)] flex items-center justify-center text-white font-bold text-xs">TT</div>
+            <div className="flex-1 space-y-1">
+              {loading ? (
+                <>
+                  <SkeletonLine w="3/4" />
+                  <SkeletonLine w="1/2" />
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-medium text-[var(--ink)]">
+                    {topCreator ? (topCreator.handle.startsWith("@") ? topCreator.handle : `@${topCreator.handle}`) : "—"}
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">{topCreator ? `${topCreator.count} video trong corpus` : ""}</p>
+                </>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-[var(--ink-soft)]">Data thực từ 46.000+ video đã index</p>
+        </div>
+      ),
+    },
+    {
+      label: '\u201cCreator nào nên hire?\u201d',
+      content: (
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+          <div className="space-y-2 mb-3">
+            {loading
+              ? Array(3).fill(null).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-[var(--surface-alt)] border border-[var(--border)] animate-pulse flex-shrink-0" />
+                    <SkeletonLine w="2/3" />
+                  </div>
+                ))
+              : hireCreators.map((c) => (
+                  <div key={c.handle} className="flex items-center gap-2 text-xs">
+                    <div className="w-6 h-6 rounded bg-[var(--surface-alt)] border border-[var(--border)] flex-shrink-0" />
+                    <span className="text-[var(--ink)]">{c.handle}</span>
+                    <span className="text-[var(--muted)] ml-auto">{c.views} view</span>
+                  </div>
+                ))
+            }
+          </div>
+          <p className="text-xs text-[var(--ink-soft)]">Theo tổng lượt xem trong corpus</p>
+        </div>
+      ),
+    },
+    {
+      label: '\u201cHook nào viral nhất tuần này?\u201d',
+      content: (
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+          <div className="space-y-2 mb-3">
+            {loading
+              ? Array(3).fill(null).map((_, i) => (
+                  <div key={i} className="space-y-1">
+                    <SkeletonLine w="full" />
+                    <SkeletonLine w="1/3" />
+                  </div>
+                ))
+              : topHooks.map((h, i) => (
+                  <div key={i} className="text-xs">
+                    <span className="font-mono text-[var(--ink)]">{i + 1}.</span>
+                    <span className="text-[var(--ink)] ml-2 line-clamp-1">\u201c{h.phrase}\u201d</span>
+                    <span className="text-[var(--muted)] ml-2">{h.avgViews}</span>
+                  </div>
+                ))
+            }
+          </div>
+          <p className="text-xs text-[var(--ink-soft)]">Top hook phrase theo view trung bình</p>
+        </div>
+      ),
+    },
+    {
+      label: '\u201cFormat nào đang lên tuần này?\u201d',
+      content: (
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+          <div className="space-y-2 mb-3">
+            {loading
+              ? Array(3).fill(null).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="w-1 h-8 bg-[var(--surface-alt)] animate-pulse rounded" />
+                    <SkeletonLine w="1/2" />
+                  </div>
+                ))
+              : topFormats.map((f) => (
+                  <div key={f} className="flex items-center gap-2 text-xs">
+                    <div className="w-1 h-8 bg-[var(--ink)] rounded" />
+                    <span className="text-[var(--ink)]">{f}</span>
+                  </div>
+                ))
+            }
+          </div>
+          <p className="text-xs text-[var(--ink-soft)]">Theo view trung bình · Corpus thực</p>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <section className="px-4 py-16 md:py-20 bg-[var(--background)]">
+      <div className="max-w-5xl mx-auto">
+        <p className="text-center text-sm text-[var(--muted)] mb-2">Giải pháp</p>
+        <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+          Công Cụ Nghiên Cứu TikTok Của Bạn
+        </h2>
+        <p className="text-center text-sm text-[var(--ink-soft)] mb-12 max-w-2xl mx-auto leading-relaxed">
+          GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook viral, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
+        </p>
+        <div className="grid md:grid-cols-2 gap-6">
+          {cards.map(({ label, content }, i) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: i * 0.1 }}
+              whileHover={{ y: -4 }}
+              className="bg-white border border-[var(--border)] rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            >
+              <p className="font-bold text-[var(--ink)] mb-4">{label}</p>
+              {content}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function formatViewsShort(v: number): string {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
@@ -683,102 +914,7 @@ export default function LandingPage() {
       <HowItWorksSection />
 
       {/* ── Solutions ───────────────────────────────────────────── */}
-      <section className="px-4 py-16 md:py-20 bg-[var(--background)]">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-center text-sm text-[var(--muted)] mb-2">Giải pháp</p>
-          <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
-            Công Cụ Nghiên Cứu TikTok Của Bạn
-          </h2>
-          <p className="text-center text-sm text-[var(--ink-soft)] mb-12 max-w-2xl mx-auto leading-relaxed">
-            GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook viral, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
-          </p>
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              {
-                label: '"Đối thủ đang đăng gì?"',
-                content: (
-                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded bg-[var(--ink)] flex items-center justify-center text-white font-bold text-xs">TT</div>
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-[var(--ink)]">@mai_skincare</p>
-                        <p className="text-xs text-[var(--muted)]">52 video · 7 ngày</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-[var(--ink-soft)]">Hook "Cảnh Báo" + Product Demo</p>
-                  </div>
-                ),
-              },
-              {
-                label: '"Creator nào nên hire?"',
-                content: (
-                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
-                    <div className="space-y-2 mb-3">
-                      {["@review_thucte · 450K", "@lamdepcunglinh · 380K", "@tech_vn · 290K"].map((c) => (
-                        <div key={c} className="flex items-center gap-2 text-xs">
-                          <div className="w-6 h-6 rounded bg-[var(--surface-alt)] border border-[var(--border)]" />
-                          <span className="text-[var(--ink)]">{c}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-[var(--ink-soft)]">Skincare · 100K-500K followers</p>
-                  </div>
-                ),
-              },
-              {
-                label: '"Hook nào viral trong fitness app?"',
-                content: (
-                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
-                    <div className="space-y-2 mb-3">
-                      {[
-                        { n: "1.", t: '"Cảnh Báo: đừng..."', v: "2.5K avg" },
-                        { n: "2.", t: '"3 sai lầm khi..."', v: "1.8K avg" },
-                        { n: "3.", t: '"Tôi đã thử để..."', v: "1.2K avg" },
-                      ].map((row) => (
-                        <div key={row.n} className="text-xs">
-                          <span className="font-mono text-[var(--ink)]">{row.n}</span>
-                          <span className="text-[var(--ink)] ml-2">{row.t}</span>
-                          <span className="text-[var(--muted)] ml-2">{row.v}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-[var(--ink-soft)]">17 video · Tuần này</p>
-                  </div>
-                ),
-              },
-              {
-                label: '"Format nào đang lên tuần này?"',
-                content: (
-                  <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
-                    <div className="space-y-2 mb-3">
-                      {["Unboxing + So sánh", "Review thật · 60s", "Hook + Demo nhanh"].map((f) => (
-                        <div key={f} className="flex items-center gap-2 text-xs">
-                          <div className="w-1 h-8 bg-[var(--ink)]" />
-                          <span className="text-[var(--ink)]">{f}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-[var(--ink-soft)]">Tech & Review · Trending</p>
-                  </div>
-                ),
-              },
-            ].map(({ label, content }, i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-                whileHover={{ y: -4 }}
-                className="bg-white border border-[var(--border)] rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
-              >
-                <p className="font-bold text-[var(--ink)] mb-4">{label}</p>
-                {content}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <SolutionCardsSection />
 
       {/* ── Live Demo ───────────────────────────────────────────── */}
       <LiveDemoSection />
