@@ -110,12 +110,19 @@ const COMPETITOR_IDS = [
   "7616570339660713237", // 219K views
 ];
 
-// Card 2: Creator roster — top 4 unique creators by views
-const CREATOR_ROSTER: { id: string; handle: string; views: string }[] = [
+// Card 2: Creator avatars — scattered float layout (LightReel style)
+const CREATOR_AVATAR_IDS: { id: string; handle: string; views: string }[] = [
   { id: "7625127374316784916", handle: "@kietfei",              views: "101M" },
   { id: "7621134771292245266", handle: "@maria.bui1",           views: "17.6M" },
   { id: "7622669408665652488", handle: "@lynguyn.2002",         views: "7.3M" },
   { id: "7623726538600877332", handle: "@blogtamsu.taichinh",   views: "5.8M" },
+];
+
+const AVATAR_POSITIONS = [
+  { top: "10%", left: "30%" },
+  { top: "5%",  left: "62%" },
+  { top: "45%", left: "18%" },
+  { top: "50%", left: "58%" },
 ];
 
 // Card 3: Hook showcase — high-view video with strong hook phrase
@@ -204,29 +211,30 @@ function SolutionCardsSection() {
             <p className="text-xs text-[var(--muted)]">12 video trong corpus · 5.1M views tổng</p>
           </motion.div>
 
-          {/* ── Card 2: Creator Roster ────────────────────────────────── */}
+          {/* ── Card 2: Creator Avatars (scattered float) ─────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.1 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            style={{ minHeight: 220 }}
           >
-            <p className="font-bold text-[var(--ink)] mb-1">"Creator nào nên hire?"</p>
-            <p className="text-xs text-[var(--muted)] mb-4">Lọc KOL theo niche, view trung bình và tỉ lệ engagement</p>
-            <div className="space-y-3">
-              {CREATOR_ROSTER.map((c) => (
-                <div key={c.id} className="flex items-center gap-3">
-                  <div className="relative w-10 h-[71px] flex-shrink-0 overflow-hidden rounded">
-                    <VideoThumb id={c.id} className="absolute inset-0 w-full h-full" />
+            <p className="text-lg font-bold text-[var(--ink)]">"Creator nào nên hire?"</p>
+            <div className="relative flex-1">
+              {CREATOR_AVATAR_IDS.map((c, i) => {
+                const pos = AVATAR_POSITIONS[i];
+                return (
+                  <div
+                    key={c.id}
+                    className="absolute overflow-hidden rounded-full border-2 border-white shadow-md bg-[var(--surface-alt)]"
+                    style={{ width: 64, height: 64, ...pos }}
+                  >
+                    <VideoThumb id={c.id} className="h-full w-full" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--ink)] truncate">{c.handle}</p>
-                    <p className="text-xs text-[var(--muted)]">{c.views} views</p>
-                  </div>
-                  <span className="text-xs font-mono text-[var(--purple)] font-semibold tabular-nums">{c.views}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
+            <p className="text-xs text-[var(--muted)]">Lọc KOL theo niche, view trung bình và tỉ lệ engagement</p>
           </motion.div>
 
           {/* ── Card 3: Hook Showcase ─────────────────────────────────── */}
