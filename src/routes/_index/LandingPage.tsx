@@ -11,27 +11,27 @@ import { pricingPlans, pricingSavings } from "@/lib/mock-data";
 const faqs = [
   {
     q: "Cái này khác gì ChatGPT?",
-    a: "ChatGPT không có data TikTok realtime và không xem được video. Nếu bạn hỏi \"hook nào đang hot trong skincare\" — ChatGPT sẽ bịa ra một câu trả lời nghe có vẻ hợp lý nhưng không dựa trên bất kỳ video thực tế nào. GetViews trả lời dựa trên 100% video thật, view thật, bạn có thể bấm vào xem để kiểm chứng ngay lập tức.",
+    a: "ChatGPT không có data TikTok thực và không xem được video. Hỏi \"hook nào đang hot trong skincare\" — ChatGPT sẽ bịa một câu trả lời nghe hợp lý nhưng không dựa trên video nào thật. GetViews trả lời từ 46.000+ video thật, view thật — bạn có thể bấm vào xem để kiểm chứng ngay.",
+  },
+  {
+    q: "Tôi không rành AI, dùng có khó không?",
+    a: "Không cần biết AI. Bạn chỉ cần gõ câu hỏi như nhắn tin — \"hook nào đang hot trong niche ẩm thực?\" hay \"phân tích kênh @tenkenhdoithu\" — GetViews tự xử lý phần còn lại và trả về kết quả cụ thể, có dẫn chứng video.",
   },
   {
     q: "Tôi mua khóa học rồi, có cần dùng thêm cái này không?",
-    a: "Khóa học dạy bạn tư duy nền tảng: thuật toán, cách quay, cách edit. Rất tốt. Nhưng nó không thể nói cho bạn biết tuần này, ngày hôm nay, mẫu video nào đang \"cắn\" đề xuất trong đúng niche của bạn. GetViews là công cụ thực chiến bổ sung đúng chỗ mà kiến thức lý thuyết không cover được: data tươi, cập nhật mỗi giờ.",
+    a: "Khóa học dạy tư duy nền tảng: thuật toán, cách quay, cách edit. Rất tốt. Nhưng không thể nói tuần này mẫu video nào đang \"cắn\" đề xuất trong đúng niche của bạn. GetViews lấp đúng chỗ đó: data tươi, cập nhật liên tục, không đoán mò.",
   },
   {
     q: "Khác gì Kalodata hay Shoplus?",
-    a: "Kalodata tập trung vào bán hàng (sản phẩm nào chạy). GetViews tp trung vào nội dung (TẠI SAO video đó viral) — từ cách mở đầu, nhịp cắt đến tâm lý người xem. Hai công cụ này bổ trợ cho nhau hoàn hảo nếu bạn làm Affiliate.",
+    a: "Kalodata và Shoplus tập trung vào bán hàng — sản phẩm nào chạy, doanh số bao nhiêu. GetViews tập trung vào nội dung — TẠI SAO video đó viral, hook mở đầu như thế nào, nhịp cắt và format ra sao. Hai loại công cụ bổ trợ nhau, không thay thế nhau.",
   },
   {
     q: "1 credit tính như thế nào?",
-    a: "1 credit = 1 lần phân tích sâu (soi video, phân tích đối thủ, viết brief chi tiết). Còn việc lướt xem xu hướng, tìm KOL và chat hỏi đáp thông thường là hoàn toàn miễn phí, không giới hạn.",
+    a: "Lướt xu hướng, tìm KOL, hỏi đáp thông thường — miễn phí hoàn toàn, không giới hạn. 1 credit dùng cho phân tích sâu: soi video frame-by-frame, phân tích toàn bộ kênh đối thủ, hoặc viết brief chi tiết cho video tiếp theo.",
   },
   {
     q: "Thanh toán có phức tạp không?",
-    a: "Cực kỳ đơn giản qua MoMo, VNPay, chuyển khoản ngân hàng hoặc thẻ Visa/Mastercard. Thanh toán xong là tài khoản được kích hoạt để dùng ngay.",
-  },
-  {
-    q: "Nếu dùng không hiệu quả thì sao?",
-    a: "GetViews không bắt cam kết dài hạn, bạn có thể hủy bất cứ lúc nào. Lời khuyên là hãy dùng gói tháng để trải nghiệm độ \"nhạy\" của data, khi thấy video bắt đầu có chuyển biến thì hãy nâng cấp gói năm để tiết kiệm hơn.",
+    a: "Không. MoMo, VNPay, chuyển khoản ngân hàng hoặc thẻ Visa/Mastercard. Thanh toán xong là dùng được ngay — không cần chờ duyệt, không cần xác minh thêm.",
   },
 ];
 
