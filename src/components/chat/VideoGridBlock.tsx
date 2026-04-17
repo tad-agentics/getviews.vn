@@ -18,6 +18,7 @@ interface VideoGridCellProps {
 
 function VideoGridCell({ videoId, label }: VideoGridCellProps) {
   const [meta, setMeta] = useState<VideoMeta | null>(null);
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,20 +37,22 @@ function VideoGridCell({ videoId, label }: VideoGridCellProps) {
       ? `https://www.tiktok.com/${meta.creator_handle.startsWith("@") ? meta.creator_handle : "@" + meta.creator_handle}/video/${videoId}`
       : null);
 
+  useEffect(() => {
+    setImgFailed(false);
+  }, [thumbnail]);
+
   const thumbnailEl = (
     <div
       className="relative w-full overflow-hidden rounded-xl bg-[var(--surface-alt)]"
       style={{ paddingBottom: "177.78%" /* 9:16 */ }}
     >
-      {thumbnail ? (
+      {thumbnail && !imgFailed ? (
         <img
           src={thumbnail}
           alt={label}
           className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = "none";
-          }}
+          onError={() => setImgFailed(true)}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
