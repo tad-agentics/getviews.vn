@@ -427,16 +427,18 @@ function LiveDemoSection() {
       const { data: vids } = await sb
         .from("video_corpus")
         .select("video_id, thumbnail_url, tiktok_url")
+        .not("thumbnail_url", "is", null)
         .order("views", { ascending: false })
         .limit(24);
       if (!cancelled && vids && vids.length > 0) {
-        setScrollVideos(
-          (vids as { video_id: string; thumbnail_url: string | null; tiktok_url: string | null }[]).map((v) => ({
+        const resolved = (vids as { video_id: string; thumbnail_url: string | null; tiktok_url: string | null }[])
+          .map((v) => ({
             video_id: v.video_id,
             thumbnail_url: v.thumbnail_url ?? r2FrameUrl(v.video_id),
             tiktok_url: v.tiktok_url,
-          })),
-        );
+          }))
+          .filter((v) => v.thumbnail_url !== null);
+        if (resolved.length > 0) setScrollVideos(resolved);
       }
     })();
     return () => { cancelled = true; };
