@@ -298,17 +298,11 @@ function formatViewsShort(v: number): string {
   return String(v);
 }
 
-const SIGNAL_EXAMPLES = [
-  { label: "Hook số liệu shock", signal: "rising", desc: "Top pattern tuần này" },
-  { label: "Cảnh báo + reveal", signal: "early", desc: "Mới nổi, vào sớm" },
-  { label: "Before / After", signal: "stable", desc: "Ổn định, cạnh tranh cao" },
+const SIGNALS: { key: keyof typeof SIGNAL_VIDEOS; dot: string; label: string; sub: string }[] = [
+  { key: "rising", dot: "bg-[var(--purple)]", label: "Hook số liệu shock", sub: "Top pattern tuần này" },
+  { key: "early",  dot: "bg-orange-400",       label: "Cảnh báo + reveal",  sub: "Mới nổi, vào sớm" },
+  { key: "stable", dot: "bg-gray-400",          label: "Before / After",     sub: "Ổn định, cạnh tranh cao" },
 ];
-
-const SIGNAL_DOT: Record<string, string> = {
-  rising: "bg-[var(--purple)]",
-  early: "bg-orange-400",
-  stable: "bg-[var(--muted)]",
-};
 
 // Confirmed R2 frames (probed 2026-04-09) — used for the scroll strip
 // Diverse niches: 2,3,4,6,7,8,9,10,11,12
@@ -402,30 +396,38 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6"
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex flex-col gap-1"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-[var(--ink)]">Tín Hiệu Trend</h3>
-              <Link to="/app/trends" className="text-xs text-[var(--ink)] font-medium hover:underline transition-colors duration-200 hover:text-[var(--purple)]">Xem tất cả →</Link>
+              <Link to="/app/trends" className="text-xs text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-200">Xem tất cả →</Link>
             </div>
-            <div className="space-y-3">
-              {SIGNAL_EXAMPLES.map((item, idx) => (
-                <div key={item.signal} className="flex items-center gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0">
-                  {/* Real video thumbnail as signal visual */}
-                  <div className="flex-shrink-0 overflow-hidden rounded bg-[var(--surface-alt)]" style={{ width: 36, height: 64 }}>
-                    <VideoThumb id={STRIP_FRAME_IDS[idx]} className="h-full w-full" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${SIGNAL_DOT[item.signal] ?? "bg-[var(--muted)]"}`} />
-                      <p className="text-sm font-medium text-[var(--ink)] leading-snug">{item.label}</p>
-                    </div>
-                    <p className="text-xs text-[var(--muted)]">{item.desc}</p>
+
+            {SIGNALS.map((s) => (
+              <div key={s.key} className="flex items-center justify-between py-2.5 border-b border-[var(--border)] last:border-0">
+                <div className="flex items-center gap-2.5">
+                  <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                  <div>
+                    <p className="text-sm font-medium text-[var(--ink)]">{s.label}</p>
+                    <p className="text-xs text-[var(--muted)]">{s.sub}</p>
                   </div>
                 </div>
-              ))}
-              <p className="text-xs text-[var(--ink-soft)] pt-1">Cập nhật mỗi tuần từ 46.000+ video thực</p>
-            </div>
+                {/* Overlapping thumbnail circles */}
+                <div className="flex -space-x-2 flex-shrink-0">
+                  {SIGNAL_VIDEOS[s.key].map((id, i) => (
+                    <div
+                      key={id}
+                      className="h-8 w-8 rounded-full overflow-hidden border-2 border-[var(--surface)] bg-[var(--surface-alt)]"
+                      style={{ zIndex: 3 - i }}
+                    >
+                      <VideoThumb id={id} className="h-full w-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <p className="text-xs text-[var(--muted)] mt-2">Cập nhật mỗi tuần từ 46.000+ video thực</p>
           </motion.div>
 
           <motion.div
