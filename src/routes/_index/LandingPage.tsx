@@ -98,24 +98,26 @@ const nicheList = [
 
 // ─── Hardcoded real video IDs from corpus (selected 2026-04-09) ──────────────
 
-// Card 1: Competitor intel — yeah1.giaitri (12 videos · 5.1M total views)
+// Card 1: Competitor intel — yeah1.giaitri (7 confirmed R2 frames + 1 fill)
+// All probed live 2026-04-09 — only IDs with HTTP 200 on /frames/{id}/0.png
 const COMPETITOR_IDS = [
-  "7615811534962330901", // 1.5M views
-  "7616572388544695573", // 612K views
-  "7620356499101011220", // 505K views
-  "7620356501630192916", // 500K views
-  "7616572382827973909", // 450K views
-  "7620342789313776917", // 381K views
-  "7617676901603101973", // 313K views
-  "7616570339660713237", // 219K views
+  "7615811534962330901", // 1.5M · ✓ frame
+  "7616572388544695573", // 612K · ✓ frame
+  "7620342789313776917", // 381K · ✓ frame
+  "7617676901603101973", // 313K · ✓ frame
+  "7616570339660713237", // 219K · ✓ frame
+  "7620352506454920469", // 160K · ✓ frame
+  "7615201094343396628", // 156K · ✓ frame
+  "7626372581448371464", // 220K · ✓ frame (fill — niche 4, same era)
 ];
 
 // Card 2: Creator avatars — scattered float layout (LightReel style)
+// All confirmed R2 frames
 const CREATOR_AVATAR_IDS: { id: string; handle: string; views: string }[] = [
-  { id: "7625127374316784916", handle: "@kietfei",              views: "101M" },
-  { id: "7621134771292245266", handle: "@maria.bui1",           views: "17.6M" },
-  { id: "7622669408665652488", handle: "@lynguyn.2002",         views: "7.3M" },
-  { id: "7623726538600877332", handle: "@blogtamsu.taichinh",   views: "5.8M" },
+  { id: "7622669408665652488", handle: "@lynguyn.2002",    views: "7.3M" },
+  { id: "7619285253022125333", handle: "@_ttqueen",        views: "4.6M" },
+  { id: "7616957249201638677", handle: "@emhoangnhapho",   views: "3.8M" },
+  { id: "7621463359350656277", handle: "@monkeyjuniorvn",  views: "2.4M" },
 ];
 
 const AVATAR_POSITIONS = [
@@ -125,31 +127,31 @@ const AVATAR_POSITIONS = [
   { top: "50%", left: "58%" },
 ];
 
-// Card 3: Hook showcase — high-view video with strong hook phrase (5.85M views)
+// Card 3: Hook showcase — confirmed R2 frame, strong Vietnamese hook phrase
 const HOOK_EXAMPLE = {
-  id: "7623726538600877332",
-  phrase: "Đỉnh cao của sự phô trương kín đáo: Biển số xe đẹp chưa là gì so với \"mật mã\" Zalo",
-  views: "5.8M",
-  handle: "@blogtamsu.taichinh",
+  id: "7619285253022125333",
+  phrase: "Hôm nay mời mọi người mukbang combo mì cay và trà sữa với mình nhé",
+  views: "4.6M",
+  handle: "@_ttqueen",
 };
 
-// Card 4: Dense video grid — 15 diverse high-view videos across niches (5 cols × 3 rows)
+// Card 4: Dense video grid — 15 confirmed R2 frames, diverse niches (5 cols × 3 rows)
 const GRID_VIDEO_IDS = [
-  "7625127374316784916", // niche 13 · 101M
-  "7621134771292245266", // niche 4  · 17.6M
-  "7622669408665652488", // niche 3  · 7.3M
-  "7623726538600877332", // niche 15 · 5.8M
-  "7625916587916152086", // niche 16 · 4.3M
-  "7626043613700558087", // niche 7  · 3.9M
-  "7616957249201638677", // niche 10 · 3.8M
-  "7627893160542260500", // niche 2  · 3.4M
-  "7627072266957884693", // niche 17 · 3.1M
-  "7623076368741436693", // niche 11 · 3.0M
-  "7619681088465571080", // niche 9  · 2.6M
-  "7615811534962330901", // niche 6  · 1.5M
-  "7618909735487835413", // niche 12 · 1.2M
-  "7625204222585228566", // niche 1  · 1.0M
-  "7624886649725504789", // niche 14 · 807K
+  "7622669408665652488", // niche 3  · 7.3M  · ✓
+  "7619285253022125333", // niche 4  · 4.6M  · ✓
+  "7616957249201638677", // niche 10 · 3.8M  · ✓
+  "7621463359350656277", // niche 11 · 2.4M  · ✓
+  "7626242462796778773", // niche 2  · 1.7M  · ✓
+  "7615811534962330901", // niche 6  · 1.5M  · ✓
+  "7626724853504068884", // niche 7  · 1.0M  · ✓
+  "7627432133937679624", // niche 8  · 746K  · ✓
+  "7626349423580204295", // niche 9  · 335K  · ✓
+  "7625661777463872788", // niche 1  · 271K  · ✓
+  "7627166762894740757", // niche 12 · 92K   · ✓
+  "7624842569465220368", // niche 4  · 2.2M  · ✓
+  "7625973407997267221", // niche 11 · 2.0M  · ✓
+  "7624501870622444821", // niche 3  · 1.8M  · ✓
+  "7616572388544695573", // niche 6  · 612K  · ✓
 ];
 
 function VideoThumb({ id, className = "" }: { id: string; className?: string }) {
