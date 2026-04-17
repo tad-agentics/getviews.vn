@@ -21,6 +21,7 @@ from getviews_pipeline.config import (
     ENSEMBLEDATA_POST_INFO_URL,
     ENSEMBLEDATA_POST_MULTI_INFO_URL,
     ENSEMBLEDATA_USER_POSTS_URL,
+    ENSEMBLEDATA_USER_SEARCH_URL,
     require_ensembledata_token,
 )
 from getviews_pipeline.models import Author, ContentType, Metrics, Music, VideoMetadata
@@ -346,6 +347,45 @@ async def fetch_user_posts(
     )
     data = payload.get("data")
     return iter_awemes_from_search_payload(data)
+
+
+async def fetch_user_search(
+    keyword: str,
+    *,
+    cursor: int = 0,
+) -> tuple[list[dict[str, Any]], int | None]:
+    """TikTok user search by keyword — returns (user_info_list, next_cursor).
+
+    Each item in the list is a raw TikTok userInfo dict with keys:
+      user.uniqueId, user.nickname, stats.followerCount, stats.heartCount,
+      stats.videoCount, user.verified, user.avatarLarger.
+
+    Caller is responsible for filtering by min_followers / min_er and country
+    because EnsembleData does not expose server-side filters for these fields.
+    """
+    kw = keyword.strip()
+    if not kw:
+        raise ValueError("user search requires a non-empty keyword")
+    payload = await _ensemble_get(
+        ENSEMBLEDATA_USER_SEARCH_URL,
+        {"keyword": kw, "cursor": cursor},
+    )
+    data = payload.get("data")
+    users: list[dict[str, Any]] = []
+    next_cursor: int | None = None
+    if isinstance(data, dict):
+        raw_users = data.get("user_list") or data.get("userList") or data.get("data") or []
+        if isinstance(raw_users, list):
+            users = [u for u in raw_users if isinstance(u, dict)]
+        raw_cursor = data.get("nextCursor") or data.get("next_cursor")
+        if raw_cursor is not None:
+            try:
+                next_cursor = int(raw_cursor)
+            except (TypeError, ValueError):
+                next_cursor = None
+    elif isinstance(data, list):
+        users = [u for u in data if isinstance(u, dict)]
+    return users, next_cursor
 
 
 async def fetch_post_multi_info(aweme_ids: list[str]) -> list[dict[str, Any]]:

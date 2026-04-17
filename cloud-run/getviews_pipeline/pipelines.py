@@ -1122,6 +1122,199 @@ async def run_kol_search(
     }
 
 
+async def run_creator_search(
+    niche: str,
+    session: dict[str, Any],
+    questions: list[str],
+) -> dict[str, Any]:
+    """KOL/KOC finder — EnsembleData user search + corpus lookup + Gemini per-creator reason.
+
+    Flow:
+    1. Extract product/niche keywords from questions via Gemini (cheap call).
+    2. Search EnsembleData /tt/user/search for creators in that niche.
+    3. Filter: min_followers=5 000, compute ER = heartCount / followerCount * 100, min_er=5.
+    4. Pick top 3 by ER.
+    5. For each, look up 1 representative video from video_corpus (by creator_handle).
+    6. Call Gemini to write a 2-sentence "why this creator fits" reason per creator.
+    7. Return synthesis with inline creator_card JSON blocks.
+    """
+    from getviews_pipeline.gemini import (
+        _generate_content_models,
+        _response_text,
+        GEMINI_KNOWLEDGE_MODEL,
+        GEMINI_KNOWLEDGE_FALLBACKS,
+        GEMINI_SYNTHESIS_MODEL,
+        GEMINI_SYNTHESIS_FALLBACKS,
+    )
+    from google.genai import types as _types  # type: ignore
+
+    # ── Step 1: extract search keyword ────────────────────────────────────────
+    search_niche = await run_sync(_extract_kol_target_niche, questions, session.get("niche"))
+    logger.info("[creator_search] search_niche=%r", search_niche)
+
+    # ── Step 2: EnsembleData user search ──────────────────────────────────────
+    MIN_FOLLOWERS = 5_000
+    MIN_ER = 5.0
+
+    try:
+        raw_users, _ = await ensemble.fetch_user_search(search_niche)
+    except Exception as exc:
+        logger.warning("[creator_search] EnsembleData user search failed: %s", exc)
+        raw_users = []
+
+    # ── Step 3: filter and score ───────────────────────────────────────────────
+    def _parse_user(u: dict[str, Any]) -> dict[str, Any] | None:
+        """Normalise one EnsembleData userInfo dict to our schema."""
+        # EnsembleData may nest under .user / .stats or at top level
+        user_obj = u.get("user") or u
+        stats_obj = u.get("stats") or u
+
+        handle = str(
+            user_obj.get("uniqueId") or user_obj.get("unique_id") or ""
+        ).strip().lstrip("@")
+        if not handle:
+            return None
+
+        followers = int(stats_obj.get("followerCount") or stats_obj.get("follower_count") or 0)
+        hearts = int(stats_obj.get("heartCount") or stats_obj.get("heart_count") or 0)
+
+        if followers < MIN_FOLLOWERS:
+            return None
+
+        er = round(hearts / followers * 100, 1) if followers > 0 else 0.0
+        if er < MIN_ER:
+            return None
+
+        return {
+            "handle": f"@{handle}",
+            "followers": followers,
+            "er": er,
+            "hearts": hearts,
+            "nickname": str(user_obj.get("nickname") or handle),
+        }
+
+    candidates: list[dict[str, Any]] = []
+    for raw in raw_users:
+        parsed = _parse_user(raw)
+        if parsed:
+            candidates.append(parsed)
+
+    # Sort by ER desc, take top 3
+    top3 = sorted(candidates, key=lambda c: c["er"], reverse=True)[:3]
+
+    if not top3:
+        logger.warning("[creator_search] no qualifying creators for niche=%r", search_niche)
+
+    # ── Step 4: corpus lookup — 1 representative video per creator ─────────────
+    def _get_anon() -> Any:
+        from getviews_pipeline.corpus_context import _anon_client as _ac
+        return _ac()
+
+    def _fetch_avatar_video(handle_raw: str) -> str | None:
+        """Return video_id of highest-view video for this creator in video_corpus."""
+        try:
+            client = _get_anon()
+            h = handle_raw.lstrip("@")
+            result = (
+                client.table("video_corpus")
+                .select("video_id")
+                .ilike("creator_handle", h)
+                .order("views", desc=True)
+                .limit(1)
+                .execute()
+            )
+            rows = result.data or []
+            if rows:
+                return str(rows[0]["video_id"])
+        except Exception as exc:
+            logger.warning("[creator_search] corpus lookup failed for %s: %s", handle_raw, exc)
+        return None
+
+    # Run corpus lookups concurrently
+    avatar_video_ids = await asyncio.gather(
+        *[run_sync(_fetch_avatar_video, c["handle"]) for c in top3]
+    )
+
+    for creator, vid in zip(top3, avatar_video_ids):
+        creator["avatar_video_id"] = vid or ""
+
+    # ── Step 5: Gemini per-creator reason ─────────────────────────────────────
+    question_text = " | ".join(questions)
+
+    async def _reason_for(creator: dict[str, Any]) -> str:
+        prompt = (
+            f"Người dùng cần tìm creator cho: \"{question_text}\"\n\n"
+            f"Creator: {creator['handle']} — {creator['followers']:,} followers, "
+            f"ER {creator['er']}%\n\n"
+            "Viết ĐÚNG 2 câu tiếng Việt ngắn gọn giải thích tại sao creator này phù hợp "
+            "cho chiến dịch trên. Câu 1: mô tả phong cách/content của họ. "
+            "Câu 2: tại sao phù hợp với thương hiệu/sản phẩm này. "
+            "Chỉ trả về 2 câu, không thêm gì khác."
+        )
+        try:
+            cfg = _types.GenerateContentConfig(temperature=0.7, max_output_tokens=128)
+            resp = _generate_content_models(
+                [prompt],
+                primary_model=GEMINI_KNOWLEDGE_MODEL,
+                fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
+                config=cfg,
+            )
+            return _response_text(resp).strip()
+        except Exception as exc:
+            logger.warning("[creator_search] reason generation failed for %s: %s", creator["handle"], exc)
+            return f"Creator với {creator['followers']:,} followers và ER {creator['er']}%."
+
+    reasons = await asyncio.gather(*[_reason_for(c) for c in top3])
+    for creator, reason in zip(top3, reasons):
+        creator["reason"] = reason
+
+    # ── Step 6: build output with creator_card JSON blocks ────────────────────
+    if not top3:
+        synthesis = (
+            f"Mình chưa tìm được creator phù hợp với **{search_niche}** trong kết quả hiện tại.\n\n"
+            "Thử mô tả cụ thể hơn về sản phẩm hoặc phong cách nội dung bạn cần — "
+            "ví dụ: 'creator nấu ăn ở Hà Nội', 'KOC skincare dưới 50K followers'."
+        )
+    else:
+        intro = (
+            f"Mình tìm được **{len(top3)} creator** phù hợp với **{search_niche}** "
+            f"— lọc theo tối thiểu 5.000 followers và engagement rate ≥ 5%:\n\n"
+        )
+        cards: list[str] = []
+        for c in top3:
+            card_data = {
+                "type": "creator_card",
+                "handle": c["handle"],
+                "avatar_video_id": c["avatar_video_id"],
+                "followers": c["followers"],
+                "er": c["er"],
+                "reason": c["reason"],
+            }
+            cards.append(_json.dumps(card_data, ensure_ascii=False))
+
+        synthesis = intro + "\n\n".join(cards) + "\n\n"
+        synthesis += (
+            "---\n"
+            "_Dán @handle vào đây để mình phân tích chi tiết kênh đó — "
+            "hook pattern, top video, và chiến lược content._"
+        )
+
+    session.setdefault("completed_intents", []).append("creator_search")
+    _bump_analyses_summary(
+        session,
+        niche=search_niche,
+        delta_videos=0,
+        intent_label="creator_search",
+    )
+
+    return {
+        "intent": "creator_search",
+        "niche": search_niche,
+        "synthesis": synthesis,
+        "creators": top3,
+    }
+
+
 async def run_own_channel(
     niche: str,
     session: dict[str, Any],

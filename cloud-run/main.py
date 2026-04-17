@@ -45,6 +45,7 @@ from getviews_pipeline.pipelines import (
     run_brief_generation,
     run_competitor_profile,
     run_content_directions,
+    run_creator_search,
     run_kol_search,
     run_own_channel,
     run_shot_list,
@@ -72,6 +73,7 @@ def _normalize_intent_name(raw: str | None) -> str | None:
         "tiktok_url_diagnosis": "video_diagnosis",
         "kol_search": "find_creators",
         "followup": "follow_up",
+        "kol_finder": "creator_search",
     }
     return aliases.get(raw, raw)
 
@@ -514,6 +516,10 @@ async def stream(
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
                 pipeline_coro = run_kol_search(niche, session, questions)
 
+            elif normalized == "creator_search":
+                niche = session.get("niche") or _infer_niche_from_query(body.query)
+                pipeline_coro = run_creator_search(niche, session, questions)
+
             else:
                 # Safety net: unknown intent routed here — treat as follow-up text
                 logger.warning("Unexpected intent in /stream: %s — falling back to gemini_text_only", normalized)
@@ -610,6 +616,9 @@ async def stream(
             elif normalized == "find_creators":
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+            elif normalized == "creator_search":
+                full_text = (out.get("synthesis") or "").strip()
+                structured = {k: out[k] for k in ("niche", "creators") if k in out} or None
             else:
                 full_text = (out.get("synthesis") or out.get("diagnosis") or "").strip()
                 structured = None
