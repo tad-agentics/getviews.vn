@@ -722,10 +722,9 @@ export default function ChatScreen() {
                     setShowJumpToBottom(false);
                     scrollToBottom("smooth");
                   }}
-                  className="absolute bottom-4 right-8 flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] shadow-md transition-colors duration-[120ms] hover:bg-[var(--surface-alt)]"
+                  className="absolute bottom-4 right-8 flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] p-2 shadow-md transition-colors duration-[120ms] hover:border-[var(--purple)] hover:text-[var(--purple)]"
                 >
                   <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.2} />
-                  Tin mới nhất
                 </button>
               ) : null}
             </div>
