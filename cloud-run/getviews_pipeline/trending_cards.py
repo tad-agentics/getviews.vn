@@ -140,26 +140,37 @@ def _call_gemini_trending_card(
     niche_en: str,
     hook_type: str,
     signal: str,
-    video_ids: list[str],
+    video_data: list[dict[str, Any]],
 ) -> tuple[str, str] | None:
-    n_videos = len(video_ids)
-    n_str = _format_vn_int(n_videos) if n_videos else "0"
-    prompt = f"""Bạn là đồng hành creator TikTok Việt Nam. Tạo MỘT thẻ xu hướng cho tuần này.
+    # Build the video examples block — top 5 by position (already sorted by breakout)
+    examples_lines: list[str] = []
+    for i, v in enumerate(video_data[:5], 1):
+        hook = v["hook_phrase"] or "(không có hook text)"
+        fmt = v["content_format"] or "—"
+        views_str = _format_vn_int(v["views"]) if v["views"] else "—"
+        examples_lines.append(f'{i}. Hook: "{hook}" | Format: {fmt} | {views_str} views')
+    examples_block = "\n".join(examples_lines) if examples_lines else "(không có dữ liệu)"
+
+    n_str = _format_vn_int(len(video_data)) if video_data else "0"
+    prompt = f"""Bạn là chuyên gia phân tích content TikTok Việt Nam. Dựa vào {n_str} video đang bùng nổ trong corpus, hãy đặt tên MỘT execution pattern đang thống trị niche này tuần này.
+
+Video bùng nổ nhất (sắp xếp theo breakout multiplier):
+{examples_block}
 
 Ngữ cảnh:
-- Niche (VN): {niche_vn}
-- Niche (EN): {niche_en}
-- Hook type: {hook_type or "(không rõ)"}
+- Niche: {niche_vn} ({niche_en})
+- Hook category: {hook_type or "(không rõ)"}
 - Tín hiệu: {signal}
-- Số video corpus minh họa tuần này: {n_str}
 
 Quy tắc:
-- Trả về JSON đúng schema (title + description).
-- title: tiếng Việt, tối đa 50 ký tự, gọn, hấp dẫn.
-- description: 1–2 câu, giọng nói chuyện với creator (không học thuật).
-- Trong description phải có cụm "Chạy vì:" giải thích ngắn gọn (sau dấu hai chấm là lý do).
+- title: đặt tên CẤU TRÚC THỰC THI cụ thể, không phải tên niche chung chung, tối đa 50 ký tự.
+  Ví dụ tốt: "Hook số liệu shock → reveal sai lầm phổ biến"
+  Ví dụ tốt: "POV bí mật insider + CTA so sánh giá"
+  Ví dụ xấu: "Video câu hỏi đang hot trong niche skincare tuần này"
+- description: 1–2 câu, giọng creator-to-creator, giải thích cách làm theo pattern này.
+- description phải có cụm "Chạy vì:" giải thích ngắn gọn tại sao pattern này đang work.
 - Dùng "tuần này" (không dùng "7 ngày gần nhất").
-- Số đếm trong text dùng dấu chấm ngàn kiểu Việt Nam (ví dụ 1.200).
+- Số đếm dùng dấu chấm ngàn kiểu Việt Nam (ví dụ 1.200).
 
 Chỉ trả về JSON, không markdown."""
 
@@ -197,14 +208,14 @@ async def _gemini_with_sem(
     niche_en: str,
     hook_type: str,
     signal: str,
-    video_ids: list[str],
+    video_data: list[dict[str, Any]],
 ) -> tuple[str, str] | None:
     async with _GEMINI_SEM:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
             None,
             lambda: _call_gemini_trending_card(
-                niche_vn, niche_en, hook_type, signal, video_ids
+                niche_vn, niche_en, hook_type, signal, video_data
             ),
         )
 
@@ -248,7 +259,7 @@ async def _process_niche(
             continue
 
         vid_ids = [v["video_id"] for v in video_dicts]
-        gen = await _gemini_with_sem(name_vn, name_en, hook_type, sig, vid_ids)
+        gen = await _gemini_with_sem(name_vn, name_en, hook_type, sig, video_dicts)
         if not gen:
             errors.append(f"niche {nid} hook {hook_type}: Gemini trống hoặc lỗi parse")
             continue
