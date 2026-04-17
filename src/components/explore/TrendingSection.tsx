@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { SignalBadge } from "@/components/chat/SignalBadge";
 import { getVideoMeta, type VideoMeta } from "@/lib/services/corpus-service";
 import { useTrendingCards, type TrendingCardRow } from "@/hooks/useTrendingCards";
+import { VideoPlayerModal, type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
+import { formatViews, formatDate } from "@/lib/formatters";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -17,6 +19,23 @@ function signalBarColor(signal: string): string {
   if (s === "early") return "#F59E0B";
   if (s === "declining") return "#EF4444";
   return "var(--border)";
+}
+
+function metaToExploreVideo(meta: VideoMeta): ExploreGridVideo {
+  return {
+    id: meta.video_id,
+    views: meta.views ? formatViews(meta.views) : "—",
+    time: meta.indexed_at ? formatDate(meta.indexed_at) : "—",
+    img: meta.thumbnail_url ?? PLACEHOLDER_THUMB,
+    text: meta.hook_phrase ?? "",
+    handle: meta.creator_handle ? `@${meta.creator_handle}` : "@—",
+    caption: meta.hook_phrase || (meta.creator_handle ? `Video @${meta.creator_handle}` : "Video"),
+    likes: meta.likes != null ? formatViews(meta.likes) : "—",
+    comments: meta.comments != null ? formatViews(meta.comments) : "—",
+    shares: meta.shares != null ? formatViews(meta.shares) : "—",
+    videoUrl: meta.video_url ?? "",
+    tiktok_url: meta.tiktok_url,
+  };
 }
 
 function TrendingCardSkeleton() {
@@ -38,14 +57,9 @@ function TrendingCardSkeleton() {
   );
 }
 
-function OverlappingThumbs({
-  thumbs,
-}: {
-  thumbs: (VideoMeta | null | undefined)[];
-}) {
+function OverlappingThumbs({ thumbs }: { thumbs: (VideoMeta | null | undefined)[] }) {
   const valid = thumbs.filter((t): t is VideoMeta => t != null && Boolean(t.thumbnail_url));
   if (valid.length === 0) return null;
-
   return (
     <div className="mt-2 flex items-center pl-1">
       {valid.slice(0, 3).map((m, idx) => (
@@ -54,7 +68,15 @@ function OverlappingThumbs({
           className="h-5 w-5 flex-shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-alt)]"
           style={{ marginLeft: idx === 0 ? 0 : -4, zIndex: 3 - idx }}
         >
-          <img src={m.thumbnail_url ?? PLACEHOLDER_THUMB} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = PLACEHOLDER_THUMB; }} />
+          <img
+            src={m.thumbnail_url ?? PLACEHOLDER_THUMB}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = PLACEHOLDER_THUMB;
+            }}
+          />
         </div>
       ))}
     </div>
@@ -65,10 +87,12 @@ function TrendingCardItem({
   card,
   metaById,
   index,
+  onClick,
 }: {
   card: TrendingCardRow;
   metaById: Record<string, VideoMeta | null | undefined>;
   index: number;
+  onClick: () => void;
 }) {
   const ids = (card.video_ids ?? []).slice(0, 3);
   const thumbs = ids.map((id) => metaById[id]);
@@ -78,12 +102,20 @@ function TrendingCardItem({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
-      className="min-w-[240px] max-w-[260px] flex-shrink-0 snap-start overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)]"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick();
+      }}
+      className="min-w-[240px] max-w-[260px] flex-shrink-0 snap-start overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)] cursor-pointer hover:border-[var(--purple)] hover:shadow-sm transition-all duration-[150ms]"
     >
       <div className="h-[3px] w-full" style={{ background: signalBarColor(card.signal) }} />
       <div className="p-3">
         <div className="flex items-start gap-2">
-          <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug text-[var(--ink)] line-clamp-2">{card.title}</h3>
+          <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug text-[var(--ink)] line-clamp-2">
+            {card.title}
+          </h3>
           <div className="flex-shrink-0 pt-0.5">
             <SignalBadge signal={card.signal} size="sm" />
           </div>
@@ -100,6 +132,7 @@ function TrendingCardItem({
 
 export function TrendingSection({ nicheId }: Props) {
   const { data: cards = [], isPending } = useTrendingCards(nicheId);
+  const [openCard, setOpenCard] = useState<TrendingCardRow | null>(null);
 
   const videoIdsAll = useMemo(() => {
     const ids = new Set<string>();
@@ -128,33 +161,57 @@ export function TrendingSection({ nicheId }: Props) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const modalVideos = useMemo<ExploreGridVideo[]>(() => {
+    if (!openCard) return [];
+    return (openCard.video_ids ?? [])
+      .map((id) => metaById[id])
+      .filter((m): m is VideoMeta => m != null && Boolean(m.video_url))
+      .map(metaToExploreVideo);
+  }, [openCard, metaById]);
+
   const showSkeleton = nicheId === null || isPending;
 
   return (
-    <div className="mb-4">
-      <h2 className="mb-3 text-sm font-bold text-[var(--ink)]">Xu hướng tuần này</h2>
+    <>
+      {openCard && modalVideos.length > 0 ? (
+        <VideoPlayerModal
+          video={modalVideos[0]}
+          allVideos={modalVideos}
+          onClose={() => setOpenCard(null)}
+        />
+      ) : null}
 
-      {showSkeleton ? (
-        <div
-          className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] lg:-mx-7 lg:px-7 [&::-webkit-scrollbar]:hidden"
-          style={{ scrollSnapType: "x mandatory" }}
-        >
-          <TrendingCardSkeleton />
-          <TrendingCardSkeleton />
-          <TrendingCardSkeleton />
-        </div>
-      ) : cards.length === 0 ? (
-        <p className="text-sm text-[var(--faint)]">Dữ liệu tuần này đang được cập nhật...</p>
-      ) : (
-        <div
-          className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] lg:-mx-7 lg:px-7 [&::-webkit-scrollbar]:hidden"
-          style={{ scrollSnapType: "x mandatory" }}
-        >
-          {cards.map((card, i) => (
-            <TrendingCardItem key={card.id} card={card} metaById={metaById} index={i} />
-          ))}
-        </div>
-      )}
-    </div>
+      <div className="mb-4">
+        <h2 className="mb-3 text-sm font-bold text-[var(--ink)]">Xu hướng tuần này</h2>
+
+        {showSkeleton ? (
+          <div
+            className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] lg:-mx-7 lg:px-7 [&::-webkit-scrollbar]:hidden"
+            style={{ scrollSnapType: "x mandatory" }}
+          >
+            <TrendingCardSkeleton />
+            <TrendingCardSkeleton />
+            <TrendingCardSkeleton />
+          </div>
+        ) : cards.length === 0 ? (
+          <p className="text-sm text-[var(--faint)]">Dữ liệu tuần này đang được cập nhật...</p>
+        ) : (
+          <div
+            className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] lg:-mx-7 lg:px-7 [&::-webkit-scrollbar]:hidden"
+            style={{ scrollSnapType: "x mandatory" }}
+          >
+            {cards.map((card, i) => (
+              <TrendingCardItem
+                key={card.id}
+                card={card}
+                metaById={metaById}
+                index={i}
+                onClick={() => setOpenCard(card)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
