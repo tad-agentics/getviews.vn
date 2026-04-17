@@ -68,7 +68,9 @@ export function CreatorCard({ data }: { data: CreatorCardData }) {
           </span>
         </div>
         <p className="text-xs text-[var(--muted)] mb-1.5">
-          {(data.followers / 1000).toFixed(0)}K followers
+          {data.followers >= 1_000_000
+            ? `${(data.followers / 1_000_000).toFixed(1)}M views`
+            : `${(data.followers / 1000).toFixed(0)}K views`}
         </p>
         <p className="text-xs leading-snug text-[var(--ink-soft)]">{data.reason}</p>
       </div>

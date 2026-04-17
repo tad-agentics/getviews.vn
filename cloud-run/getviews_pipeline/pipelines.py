@@ -1127,91 +1127,86 @@ async def run_creator_search(
     session: dict[str, Any],
     questions: list[str],
 ) -> dict[str, Any]:
-    """KOL/KOC finder — EnsembleData user search + corpus lookup + Gemini per-creator reason.
+    """KOL/KOC finder — corpus-based creator aggregation + Gemini per-creator reason.
 
     Flow:
-    1. Extract product/niche keywords from questions via Gemini (cheap call).
-    2. Search EnsembleData /tt/user/search for creators in that niche.
-    3. Filter: min_followers=5 000, compute ER = heartCount / followerCount * 100, min_er=5.
-    4. Pick top 3 by ER.
-    5. For each, look up 1 representative video from video_corpus (by creator_handle).
-    6. Call Gemini to write a 2-sentence "why this creator fits" reason per creator.
-    7. Return synthesis with inline creator_card JSON blocks.
+    1. Extract product/niche keyword from questions via Gemini (cheap call).
+    2. Pull a video pool for that niche via keyword + hashtag search (same as run_kol_search).
+    3. Aggregate by creator_handle — pick the 3 handles with the highest total views.
+       Use video ER (from aweme statistics) not account-level heartCount ratio.
+    4. For each creator, look up their best video_id from video_corpus for the avatar thumbnail.
+    5. Call Gemini to write a 2-sentence "why this creator fits" reason per creator.
+    6. Return synthesis with inline creator_card JSON blocks.
     """
     from getviews_pipeline.gemini import (
         _generate_content_models,
         _response_text,
         GEMINI_KNOWLEDGE_MODEL,
         GEMINI_KNOWLEDGE_FALLBACKS,
-        GEMINI_SYNTHESIS_MODEL,
-        GEMINI_SYNTHESIS_FALLBACKS,
     )
     from google.genai import types as _types  # type: ignore
 
-    # ── Step 1: extract search keyword ────────────────────────────────────────
+    # ── Step 1: extract niche keyword ─────────────────────────────────────────
     search_niche = await run_sync(_extract_kol_target_niche, questions, session.get("niche"))
     logger.info("[creator_search] search_niche=%r", search_niche)
 
-    # ── Step 2: EnsembleData user search ──────────────────────────────────────
-    MIN_FOLLOWERS = 5_000
-    MIN_ER = 5.0
+    # ── Step 2: pull video pool (keyword + hashtag) ────────────────────────────
+    pool = await _niche_aweme_pool(search_niche, period=30)
+    logger.info("[creator_search] pool size=%d for niche=%r", len(pool), search_niche)
 
-    try:
-        raw_users, _ = await ensemble.fetch_user_search(search_niche)
-    except Exception as exc:
-        logger.warning("[creator_search] EnsembleData user search failed: %s", exc)
-        raw_users = []
-
-    # ── Step 3: filter and score ───────────────────────────────────────────────
-    def _parse_user(u: dict[str, Any]) -> dict[str, Any] | None:
-        """Normalise one EnsembleData userInfo dict to our schema."""
-        # EnsembleData may nest under .user / .stats or at top level
-        user_obj = u.get("user") or u
-        stats_obj = u.get("stats") or u
-
-        handle = str(
-            user_obj.get("uniqueId") or user_obj.get("unique_id") or ""
-        ).strip().lstrip("@")
+    # ── Step 3: aggregate by handle → pick top 3 by total views ───────────────
+    # Each aweme has author.unique_id, statistics.play_count, statistics.digg_count,
+    # statistics.comment_count, statistics.share_count.
+    handle_stats: dict[str, dict[str, Any]] = {}
+    for aweme in pool:
+        author = aweme.get("author") or {}
+        handle = str(author.get("unique_id") or author.get("uniqueId") or "").strip()
         if not handle:
-            return None
+            continue
+        stats = aweme.get("statistics") or {}
+        views = int(stats.get("play_count") or 0)
+        likes = int(stats.get("digg_count") or 0)
+        comments = int(stats.get("comment_count") or 0)
+        shares = int(stats.get("share_count") or 0)
+        aweme_id = str(aweme.get("aweme_id") or "")
 
-        followers = int(stats_obj.get("followerCount") or stats_obj.get("follower_count") or 0)
-        hearts = int(stats_obj.get("heartCount") or stats_obj.get("heart_count") or 0)
+        if handle not in handle_stats:
+            handle_stats[handle] = {
+                "handle": f"@{handle}",
+                "total_views": 0,
+                "total_engage": 0,
+                "video_count": 0,
+                "best_aweme_id": aweme_id,
+                "best_views": 0,
+            }
+        s = handle_stats[handle]
+        s["total_views"] += views
+        s["total_engage"] += likes + comments + shares
+        s["video_count"] += 1
+        if views > s["best_views"]:
+            s["best_views"] = views
+            s["best_aweme_id"] = aweme_id
 
-        if followers < MIN_FOLLOWERS:
-            return None
-
-        er = round(hearts / followers * 100, 1) if followers > 0 else 0.0
-        if er < MIN_ER:
-            return None
-
-        return {
-            "handle": f"@{handle}",
-            "followers": followers,
-            "er": er,
-            "hearts": hearts,
-            "nickname": str(user_obj.get("nickname") or handle),
+    # ER = total_engage / total_views * 100, require at least 2 videos
+    MIN_VIDEOS = 2
+    MIN_FOLLOWERS_PROXY = 1  # no follower data from keyword pool — skip follower filter
+    candidates = [
+        {
+            **s,
+            "er": round(s["total_engage"] / s["total_views"] * 100, 1) if s["total_views"] > 0 else 0.0,
         }
+        for s in handle_stats.values()
+        if s["video_count"] >= MIN_VIDEOS and s["total_views"] > 0
+    ]
+    top3 = sorted(candidates, key=lambda c: c["total_views"], reverse=True)[:3]
+    logger.info("[creator_search] top3=%s", [c["handle"] for c in top3])
 
-    candidates: list[dict[str, Any]] = []
-    for raw in raw_users:
-        parsed = _parse_user(raw)
-        if parsed:
-            candidates.append(parsed)
-
-    # Sort by ER desc, take top 3
-    top3 = sorted(candidates, key=lambda c: c["er"], reverse=True)[:3]
-
-    if not top3:
-        logger.warning("[creator_search] no qualifying creators for niche=%r", search_niche)
-
-    # ── Step 4: corpus lookup — 1 representative video per creator ─────────────
+    # ── Step 4: corpus lookup — best video_id per creator for avatar thumbnail ─
     def _get_anon() -> Any:
         from getviews_pipeline.corpus_context import _anon_client as _ac
         return _ac()
 
-    def _fetch_avatar_video(handle_raw: str) -> str | None:
-        """Return video_id of highest-view video for this creator in video_corpus."""
+    def _fetch_avatar_video(handle_raw: str, fallback_aweme_id: str) -> str:
         try:
             client = _get_anon()
             h = handle_raw.lstrip("@")
@@ -1228,27 +1223,25 @@ async def run_creator_search(
                 return str(rows[0]["video_id"])
         except Exception as exc:
             logger.warning("[creator_search] corpus lookup failed for %s: %s", handle_raw, exc)
-        return None
+        return fallback_aweme_id
 
-    # Run corpus lookups concurrently
     avatar_video_ids = await asyncio.gather(
-        *[run_sync(_fetch_avatar_video, c["handle"]) for c in top3]
+        *[run_sync(_fetch_avatar_video, c["handle"], c["best_aweme_id"]) for c in top3]
     )
-
     for creator, vid in zip(top3, avatar_video_ids):
-        creator["avatar_video_id"] = vid or ""
+        creator["avatar_video_id"] = vid
 
     # ── Step 5: Gemini per-creator reason ─────────────────────────────────────
     question_text = " | ".join(questions)
 
     async def _reason_for(creator: dict[str, Any]) -> str:
         prompt = (
-            f"Người dùng cần tìm creator cho: \"{question_text}\"\n\n"
-            f"Creator: {creator['handle']} — {creator['followers']:,} followers, "
-            f"ER {creator['er']}%\n\n"
-            "Viết ĐÚNG 2 câu tiếng Việt ngắn gọn giải thích tại sao creator này phù hợp "
-            "cho chiến dịch trên. Câu 1: mô tả phong cách/content của họ. "
-            "Câu 2: tại sao phù hợp với thương hiệu/sản phẩm này. "
+            f"Người dùng cần tìm creator TikTok Việt Nam cho: \"{question_text}\"\n\n"
+            f"Creator: {creator['handle']} — {creator['total_views']:,} tổng views "
+            f"từ {creator['video_count']} video, ER {creator['er']}%\n\n"
+            "Viết ĐÚNG 2 câu tiếng Việt ngắn gọn. "
+            "Câu 1: mô tả phong cách hoặc loại content của creator này dựa trên niche. "
+            "Câu 2: lý do phù hợp với sản phẩm/thương hiệu người dùng cần. "
             "Chỉ trả về 2 câu, không thêm gì khác."
         )
         try:
@@ -1261,42 +1254,39 @@ async def run_creator_search(
             )
             return _response_text(resp).strip()
         except Exception as exc:
-            logger.warning("[creator_search] reason generation failed for %s: %s", creator["handle"], exc)
-            return f"Creator với {creator['followers']:,} followers và ER {creator['er']}%."
+            logger.warning("[creator_search] reason failed for %s: %s", creator["handle"], exc)
+            return f"{creator['handle']} có {creator['video_count']} video trong niche này với ER {creator['er']}%."
 
     reasons = await asyncio.gather(*[_reason_for(c) for c in top3])
     for creator, reason in zip(top3, reasons):
         creator["reason"] = reason
 
-    # ── Step 6: build output with creator_card JSON blocks ────────────────────
+    # ── Step 6: build synthesis with creator_card JSON blocks ─────────────────
     if not top3:
         synthesis = (
             f"Mình chưa tìm được creator phù hợp với **{search_niche}** trong kết quả hiện tại.\n\n"
-            "Thử mô tả cụ thể hơn về sản phẩm hoặc phong cách nội dung bạn cần — "
-            "ví dụ: 'creator nấu ăn ở Hà Nội', 'KOC skincare dưới 50K followers'."
+            "Thử mô tả cụ thể hơn — ví dụ: 'creator làm đẹp ở Hà Nội', 'KOC skincare dưới 50K followers'."
         )
     else:
         intro = (
-            f"Mình tìm được **{len(top3)} creator** phù hợp với **{search_niche}** "
-            f"— lọc theo tối thiểu 5.000 followers và engagement rate ≥ 5%:\n\n"
+            f"Mình tìm được **{len(top3)} creator** đang hoạt động tốt trong niche **{search_niche}**:\n\n"
         )
-        cards: list[str] = []
+        card_blocks: list[str] = []
         for c in top3:
             card_data = {
                 "type": "creator_card",
                 "handle": c["handle"],
                 "avatar_video_id": c["avatar_video_id"],
-                "followers": c["followers"],
+                "followers": c["total_views"],  # use total_views as proxy — followers not available
                 "er": c["er"],
                 "reason": c["reason"],
             }
-            cards.append(_json.dumps(card_data, ensure_ascii=False))
+            card_blocks.append(_json.dumps(card_data, ensure_ascii=False))
 
-        synthesis = intro + "\n\n".join(cards) + "\n\n"
+        synthesis = intro + "\n\n".join(card_blocks) + "\n\n"
         synthesis += (
             "---\n"
-            "_Dán @handle vào đây để mình phân tích chi tiết kênh đó — "
-            "hook pattern, top video, và chiến lược content._"
+            "_Dán @handle vào đây để mình phân tích chi tiết kênh đó._"
         )
 
     session.setdefault("completed_intents", []).append("creator_search")
