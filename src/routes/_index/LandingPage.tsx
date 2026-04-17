@@ -310,6 +310,41 @@ const SIGNAL_DOT: Record<string, string> = {
   stable: "bg-[var(--muted)]",
 };
 
+// Confirmed R2 frames (probed 2026-04-09) — used for the scroll strip
+// Diverse niches: 2,3,4,6,7,8,9,10,11,12
+const STRIP_FRAME_IDS = [
+  "7622669408665652488", // niche 3  · 7.3M
+  "7619285253022125333", // niche 4  · 4.6M
+  "7616957249201638677", // niche 10 · 3.8M
+  "7621463359350656277", // niche 11 · 2.4M
+  "7624842569465220368", // niche 4  · 2.2M
+  "7625973407997267221", // niche 11 · 2.0M
+  "7624501870622444821", // niche 3  · 1.8M
+  "7626242462796778773", // niche 2  · 1.7M
+  "7621904918978252039", // niche 4  · 1.6M
+  "7615811534962330901", // niche 6  · 1.6M
+  "7627854030705839380", // niche 2  · 1.2M
+  "7626756818085203207", // niche 4  · 1.1M
+  "7626724853504068884", // niche 7  · 1.0M
+  "7624064318136536328", // niche 2  · 840K
+  "7627475293153905941", // niche 7  · 830K
+  "7627432133937679624", // niche 8  · 750K
+  "7626727359231675669", // niche 2  · 750K
+  "7627069060844457233", // niche 8  · 740K
+  "7624108179890228496", // niche 4  · 730K
+  "7620672683994402069", // niche 8  · 660K
+  "7625901708295671048", // niche 2  · 640K
+  "7616572388544695573", // niche 6  · 610K
+  "7627068868820864276", // niche 11 · 560K
+  "7626349423580204295", // niche 9  · 330K
+  "7617676901603101973", // niche 6  · 310K
+  "7625661777463872788", // niche 1  · 270K
+  "7620112412523433237", // niche 3  · 260K
+  "7624873937884826900", // niche 11 · 250K
+  "7616570339660713237", // niche 6  · 220K
+  "7626372581448371464", // niche 4  · 220K
+];
+
 const HOOK_TYPE_LABELS: Record<string, string> = {
   warning: "Cảnh báo",
   number_shock: "Số liệu gây shock",
@@ -348,11 +383,17 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
               <Link to="/app/trends" className="text-xs text-[var(--ink)] font-medium hover:underline transition-colors duration-200 hover:text-[var(--purple)]">Xem tất cả →</Link>
             </div>
             <div className="space-y-3">
-              {SIGNAL_EXAMPLES.map((item) => (
+              {SIGNAL_EXAMPLES.map((item, idx) => (
                 <div key={item.signal} className="flex items-center gap-3 pb-3 border-b border-[var(--border)] last:border-0 last:pb-0">
-                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${SIGNAL_DOT[item.signal] ?? "bg-[var(--muted)]"}`} />
+                  {/* Real video thumbnail as signal visual */}
+                  <div className="flex-shrink-0 overflow-hidden rounded bg-[var(--surface-alt)]" style={{ width: 36, height: 64 }}>
+                    <VideoThumb id={STRIP_FRAME_IDS[idx]} className="h-full w-full" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--ink)] leading-snug">{item.label}</p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${SIGNAL_DOT[item.signal] ?? "bg-[var(--muted)]"}`} />
+                      <p className="text-sm font-medium text-[var(--ink)] leading-snug">{item.label}</p>
+                    </div>
                     <p className="text-xs text-[var(--muted)]">{item.desc}</p>
                   </div>
                 </div>
@@ -405,23 +446,21 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
           </div>
           <div className="overflow-hidden">
             <div className="flex gap-2 animate-scroll-infinite">
-              {(stats.thumb_ids.length > 0 ? [...stats.thumb_ids, ...stats.thumb_ids] : Array(12).fill(null)).map((id, i) => {
-                const url = id ? r2FrameUrl(id) : null;
+              {[...STRIP_FRAME_IDS, ...STRIP_FRAME_IDS].map((id, i) => {
+                const url = r2FrameUrl(id);
                 return (
                   <div
-                    key={`${id ?? "sk"}-${i}`}
+                    key={`${id}-${i}`}
                     className="flex-shrink-0 overflow-hidden rounded border border-[var(--border)] bg-[var(--surface-alt)] transition-transform duration-200 hover:scale-105"
-                    style={{ width: 48, height: 85 /* ~9:16 at w=48 */ }}
+                    style={{ width: 48, height: 85 }}
                   >
-                    {url ? (
+                    {url && (
                       <img
                         src={url}
                         alt=""
                         className="h-full w-full object-cover"
                         loading="lazy"
                       />
-                    ) : (
-                      <div className="h-full w-full animate-pulse bg-[var(--surface-alt)]" />
                     )}
                   </div>
                 );
