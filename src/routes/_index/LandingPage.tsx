@@ -446,18 +446,18 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
                 return (
                   <div
                     key={`${id ?? "sk"}-${i}`}
-                    className="relative flex-shrink-0 overflow-hidden rounded border border-[var(--border)] bg-[var(--surface-alt)] transition-transform duration-200 hover:scale-105"
-                    style={{ width: 48, paddingBottom: "85.33%" /* 48 × 16/9 */ }}
+                    className="flex-shrink-0 overflow-hidden rounded border border-[var(--border)] bg-[var(--surface-alt)] transition-transform duration-200 hover:scale-105"
+                    style={{ width: 48, height: 85 /* ~9:16 at w=48 */ }}
                   >
                     {url ? (
                       <img
                         src={url}
                         alt=""
-                        className="absolute inset-0 h-full w-full object-cover"
+                        className="h-full w-full object-cover"
                         loading="lazy"
                       />
                     ) : (
-                      <div className="absolute inset-0 animate-pulse bg-[var(--surface-alt)]" />
+                      <div className="h-full w-full animate-pulse bg-[var(--surface-alt)]" />
                     )}
                   </div>
                 );
