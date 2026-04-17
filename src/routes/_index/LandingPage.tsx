@@ -215,7 +215,6 @@ function SolutionCardsSection() {
               )}
             </div>
           </div>
-          <p className="text-xs text-[var(--ink-soft)]">Data thực từ 46.000+ video đã index</p>
         </div>
       ),
     },
@@ -240,7 +239,6 @@ function SolutionCardsSection() {
                 ))
             }
           </div>
-          <p className="text-xs text-[var(--ink-soft)]">Theo tổng lượt xem trong corpus</p>
         </div>
       ),
     },
@@ -265,7 +263,6 @@ function SolutionCardsSection() {
                 ))
             }
           </div>
-          <p className="text-xs text-[var(--ink-soft)]">Top hook phrase theo view trung bình</p>
         </div>
       ),
     },
@@ -289,7 +286,6 @@ function SolutionCardsSection() {
                 ))
             }
           </div>
-          <p className="text-xs text-[var(--ink-soft)]">Theo view trung bình · Corpus thực</p>
         </div>
       ),
     },
