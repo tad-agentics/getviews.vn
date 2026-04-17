@@ -343,6 +343,36 @@ def _normalize_hook_type(raw: str) -> str:
 def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     """Classify a video's content format from its Gemini analysis.
 
+    ━━━ TAXONOMY LOCK — READ BEFORE CHANGING ━━━
+    The 15 values this function can return are a hard contract shared across 7 layers:
+
+        corpus_ingest.py     → writes content_format into video_corpus (DB column)
+        output_redesign.py   → FORMAT_ANALYSIS_WEIGHTS keyed to these 15 values;
+                               get_analysis_focus() switches on them; diagnosis prompt
+                               injects format-specific signal priorities
+        gemini.py            → reads content_format from corpus; passes to
+                               build_diagnosis_narrative_prompt() and
+                               build_carousel_diagnosis_narrative_prompt()
+        layer0_niche.py      → queries content_format for formula detection
+                               (top formula = best hook_type × content_format pair)
+        layer0_migration.py  → groups migration signals by content_format per week
+        niche_intelligence   → format_distribution JSONB aggregated from content_format;
+                               used in diagnosis framing and Layer 0A synthesis
+        prompts.py           → format_distribution injected into corpus citation blocks
+
+    ANY taxonomy change (add / rename / remove a value) requires ALL of the above to
+    change atomically in a single migration + deploy. Backfilling existing DB rows via
+    SQL UPDATE is also required — old values will silently fall through to the "other"
+    branch in FORMAT_ANALYSIS_WEIGHTS, degrading diagnosis quality.
+
+    The plan §M.8 proposal (Gemini Flash-Lite reclassification into react/unbox/list/
+    trending_hook) was evaluated and DEFERRED. Regex classification is intentional here:
+    it is deterministic, zero-cost, and zero-latency. Switching to Gemini classification
+    adds ~$0.002/video in extraction cost and a round-trip latency with no quality gain
+    for the primary use-case (format_distribution benchmarking). If the taxonomy is
+    expanded in the future, add new values to FORMAT_ANALYSIS_WEIGHTS FIRST, run the
+    migration + backfill SECOND, then update this function THIRD.
+
     PRIORITY ORDER — intentional, highest specificity first:
 
     1. mukbang   — eating/ASMR signals are highly specific; checked before recipe/review.

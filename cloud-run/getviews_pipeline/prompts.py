@@ -712,86 +712,6 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "- Sau tất cả JSON beats, thêm **Ghi chú sản xuất tổng** (1 đoạn ngắn: setup, nhạc nền gợi ý, tone)\n"
         "- Kết thúc bằng **CTA beat**: câu kết + overlay kêu gọi hành động"
     ),
-    "video_diagnosis": (
-        "MỤC TIÊU: Chẩn đoán video — thiết lập chuẩn niche từ niche_norms + video tham chiếu, sau đó đo video của người dùng so với chuẩn đó.\n\n"
-
-        "## INPUT BẠN NHẬN ĐƯỢC (từ JSON bên dưới)\n"
-        "- user_video: kết quả Gemini extraction của video người dùng (hook_analysis, scenes, tone, text_overlays, transcript, transitions_per_second, metadata)\n"
-        "- reference_videos: 3 video top-performing cùng niche (metadata + analysis)\n"
-        "- niche_norms: từ materialized view niche_intelligence. Các trường quan trọng:\n"
-        "    • Kỹ thuật video: avg_face_appears_at, pct_face_in_half_sec, avg_transitions_per_second, avg_text_overlays, has_cta_pct, median_duration\n"
-        "    • Phân phối: pct_has_specific_hashtags (% top video dùng hashtag cụ thể cho ngách — không phải #trending #fyp chung chung), pct_has_caption_text (% top video có caption mô tả thật), avg_hashtag_count (số hashtag trung bình), pct_original_sound (% dùng âm thanh gốc tự tạo)\n"
-        "    • Performance: avg_engagement_rate, commerce_pct, sample_size\n"
-        "    • Phân bố nội dung: hook_distribution, format_distribution\n"
-        "    CÁCH DÙNG pct_has_specific_hashtags và pct_has_caption_text: nếu user dùng hashtag chung chung hoặc thiếu caption, so sánh với % này trong niche để đưa ra nhận định phân phối cụ thể.\n"
-        "- corpus_size: tổng video trong niche 30 ngày qua\n\n"
-
-        "## CẤU TRÚC OUTPUT BẮT BUỘC\n\n"
-
-        "**Dòng mở đầu (verdict):** 1–2 câu, KHÔNG có tiêu đề, nhảy thẳng vào.\n"
-        'Format: "Video bạn [X]x views so với niche [tên niche]. Dựa trên {corpus_size} video tháng này."\n'
-        "- Breakout > 2x: dùng cụm vượt trội\n"
-        "- Breakout 0.5–2x: ngang mức trung bình niche\n"
-        "- Breakout < 0.5x: thấp hơn norm, nêu rõ khoảng cách\n"
-        "- Nếu không có breakout_multiplier trong metadata: mở bằng nhận định mạnh nhất từ data có trong tay\n\n"
-
-        "**Chẩn đoán theo timeline video** — theo thứ tự xuất hiện, dùng **bold** cho label:\n\n"
-
-        "**Hook: [🔴🟡🟢] [Tên hook type tiếng Việt]**\n"
-        "1 câu mô tả hook cụ thể của video — KHÔNG mô tả chung chung.\n"
-        '"Chạy vì: [mechanism — tại sao hook này chạy hoặc flop]."\n'
-        "Nếu 🔴: thêm 'Gợi ý: [hook template copy-paste được, dùng [ngoặc vuông] tiếng Việt cho placeholder].'\n"
-        "So sánh với niche: 'Top hook niche [tên niche]: [tên hook] — [X]% top video dùng.' (dùng hook_distribution từ niche_norms nếu có)\n\n"
-
-        "**Mặt xuất hiện: [🔴🟡🟢] [X]s (chuẩn niche: [avg_face_appears_at]s)**\n"
-        "Chỉ hiển thị nếu face_appears_at có trong analysis. Nếu chậm hơn norm: trích pct_face_in_half_sec.\n\n"
-
-        "**Text overlay: [🔴🟡🟢] [X] overlays (chuẩn niche: [avg_text_overlays])**\n"
-        "Nếu 0: nhắc Vietnamese viewers đọc text mạnh, thêm text hook trong 0,5s đầu.\n"
-        "QUAN TRỌNG — CAROUSEL: Nếu content_type = 'carousel', text không nằm trong text_overlays (trường đó dành cho video timeline). "
-        "Text trên ảnh carousel nằm trong slides[].text_on_slide và slides[].text_density. "
-        "Đánh giá text từ slides[] — KHÔNG báo '0 text overlays' cho carousel.\n\n"
-
-        "**Nhịp cắt cảnh: [🔴🟡🟢] [X] transitions/s (chuẩn niche: [avg_transitions_per_second])**\n"
-        "Nếu thấp: gợi ý cụ thể (B-roll, cắt cảnh). Nếu có timestamp lặp: chỉ ra khoảng giây đó.\n"
-        "QUAN TRỌNG: Nếu content_type = 'carousel', KHÔNG đề cập transitions/s — không áp dụng cho carousel.\n\n"
-
-        "**CTA: [🔴🟡🟢]**\n"
-        "Nếu không có: gợi ý CTA cụ thể kèm lý do save rate. Nếu có: nhận xét ngắn.\n\n"
-
-        "**So với niche — video tham chiếu:**\n"
-        "Liệt kê 3 reference_videos: @handle — [views] views — hook: [hook_type_vi] — [days_ago] ngày trước\n"
-        "Với mỗi video tham chiếu: xuất JSON block trên dòng riêng ngay sau câu nhắc đến video:\n"
-        '{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số từ metadata>, "breakout": <số nếu >1>}\n\n'
-
-        "**Video tiếp theo nên làm gì:**\n"
-        "2–3 dòng max. Kết thúc bằng hook template copy-paste được.\n"
-        "'Hook template: [câu mở đầu dùng [ngoặc vuông] tiếng Việt cho phần thay thế]'\n\n"
-
-        "## 14 RULES BẮT BUỘC\n\n"
-
-        "R1: KHÔNG tự giới thiệu. KHÔNG 'Chào bạn', KHÔNG 'với tư cách là chuyên gia'. Nhảy thẳng vào verdict.\n"
-        "R2: Dùng 'Chạy vì:' cho MỌI mechanism. KHÔNG 'Cơ chế:', KHÔNG 'Tại sao hiệu quả:', KHÔNG 'Lý do:'.\n"
-        "R3: KHÔNG fabricate metrics. KHÔNG 'Dự kiến >45%', KHÔNG 'Hook rate ước tính'. Chỉ report số từ data thật trong JSON. Nếu không có data → KHÔNG đề cập metric đó.\n"
-        "R4: MỌI nhận định phải có data backing từ JSON. 'Vượt chuẩn' → vượt bao nhiêu x? So với bao nhiêu video? Timeframe?\n"
-        "R5: Corpus citation BẮT BUỘC ở dòng đầu. Dùng corpus_size và niche từ JSON.\n"
-        "R6: 3 reference videos BẮT BUỘC — hiển thị @handle + views + hook type + days_ago. Xuất video_ref JSON block cho mỗi video.\n"
-        "R7: Hook template BẮT BUỘC ở cuối — copy-paste được, dùng [ngoặc vuông] tiếng Việt cho placeholder.\n"
-        "R8: Số dùng format Vietnamese: dấu chấm cho hàng nghìn (1.200), dấu phẩy cho thập phân (3,2x, 4,5%).\n"
-        "R9: English loanwords giữ nguyên: hook, content, view, save, format, trend, CTA, creator, viral, share, comment, like, follower. MỌI TỪ KHÁC viết tiếng Việt. KHÔNG để English trong ngoặc đơn.\n"
-        "R10: KHÔNG dùng heading markdown (##, ###, ####). Dùng **bold** cho label section. Output là chat, không phải report.\n"
-        "R11: KHÔNG dùng cụm báo chí: 'làm mưa làm gió', 'gây bão', 'hot hit', 'đình đám'.\n"
-        "R12: KHÔNG đánh số section (1., 2., 3.). Chẩn đoán chảy tự nhiên theo timeline video.\n"
-        "R13: 'Gợi ý:' cho fix recommendation. KHÔNG 'Sửa lỗi:' (nghe như bug report).\n"
-        "R14: Tone: creator nói chuyện với creator. Casual nhưng professional. Dùng 'bạn', không dùng 'quý vị'. Dùng 'chạy/flop' tự nhiên.\n\n"
-
-        "NẾU niche_norms rỗng hoặc thiếu trường: bỏ qua so sánh với chuẩn niche cho trường đó — KHÔNG tự tạo số."
-    ),
-    "kol_search": (
-        "MỤC TIÊU: Tìm KOL/creator — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản đáng xem và lý do.\n"
-        "CẤU TRÚC: Liệt kê 3-5 tài khoản, mỗi tài khoản: **@handle** — nhận định chính (hook style, ER, niche fit) + vì sao nên theo dõi/hợp tác. "
-        "Kết thúc bằng **Pattern chung** (1-2 câu — điểm chung giữa các KOL top)."
-    ),
     "find_creators": (
         "MỤC TIÊU: Tìm KOC/creator phù hợp để quay UGC — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản và lý do phù hợp với sản phẩm/thương hiệu của người dùng.\n"
         "QUAN TRỌNG: Niche trong payload là niche đã được suy ra từ câu hỏi của người dùng — dùng niche đó để đánh giá mức độ phù hợp của từng KOC với sản phẩm.\n"
@@ -822,7 +742,7 @@ def build_synthesis_prompt(
         collapsed_questions:  Optional multi-question list from the user.
         niche_key:            Optional niche identifier (e.g. "skincare") — when provided,
                               injects niche-specific hook guidance from knowledge_base.py.
-                              Particularly useful for brief_generation and video_diagnosis.
+                              Particularly useful for brief_generation and content_directions.
         corpus_citation:      Optional pre-built citation block from corpus_context.py
                               (build_corpus_citation_block). Injected above the framing
                               so Gemini grounds every claim in real corpus size + timeframe.
@@ -843,7 +763,7 @@ def build_synthesis_prompt(
     citation_block = f"\n{corpus_citation}" if corpus_citation else ""
 
     # Static knowledge blocks — injected per intent to keep token count lean.
-    # Note: video_diagnosis is never routed here — it uses build_diagnosis_synthesis_prompt_v2().
+    # Note: video_diagnosis routes to build_diagnosis_synthesis_prompt_v2(), not here.
     knowledge_block = ""
     if intent_key == "brief_generation":
         knowledge_block = "\n" + build_commerce_structure_block()

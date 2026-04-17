@@ -177,6 +177,14 @@ class CarouselAnalysis(BaseModel):
     Intentionally omits text_overlays (timestamped video burns — not applicable to
     static images). Per-slide text lives in slides[].text_on_slide and
     slides[].text_density instead.
+
+    transitions_per_second and key_timestamps are kept for schema compatibility with
+    VideoAnalysis (shared ingest path reads both models uniformly) but are always 0/[]
+    for carousels. The carousel diagnosis path (build_carousel_diagnosis_narrative_prompt)
+    marks both as "skip" in FORMAT_ANALYSIS_WEIGHTS and never surfaces them to Gemini or
+    users. Removing them would require a DB backfill migration and ingest code changes
+    across corpus_ingest.py, layer0_niche.py, and layer0_sound.py for ~$0 token savings
+    (~2 schema tokens per carousel call). Not worth the churn — leave them in place.
     """
 
     hook_analysis: HookAnalysis
