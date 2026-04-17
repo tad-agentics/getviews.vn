@@ -43,6 +43,8 @@ type CorpusRow = {
   likes: number | null;
   shares: number | null;
   comments: number | null;
+  content_format: string | null;
+  breakout_multiplier: number | null;
 };
 
 /** Shape expected by VideoCard / VideoPlayerModal (replaces Make exploreVideos items). */
@@ -59,6 +61,8 @@ type ExploreGridVideo = {
   shares: string;
   videoUrl: string;
   tiktok_url: string | null;
+  breakout: string | null;
+  contentFormat: string | null;
 };
 
 function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
@@ -76,6 +80,10 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
     shares: row.shares != null ? formatViews(row.shares) : "—",
     videoUrl: row.video_url ?? "",
     tiktok_url: row.tiktok_url,
+    breakout: row.breakout_multiplier != null
+      ? `${row.breakout_multiplier.toFixed(1)}×`
+      : null,
+    contentFormat: row.content_format ?? null,
   };
 }
 
@@ -390,7 +398,12 @@ function VideoCard({
         )}
         <div className="absolute bottom-0 inset-x-0 px-2 py-2 bg-gradient-to-t from-black/80 to-transparent flex flex-col gap-1.5">
           <div className="flex items-end justify-between w-full">
-            <span className="text-white text-[11px] font-semibold">{video.views} views</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-white text-[11px] font-semibold">{video.views} views</span>
+              {video.breakout ? (
+                <span className="text-[10px] font-mono text-emerald-300">{video.breakout}</span>
+              ) : null}
+            </div>
             <span className="text-white/70 text-[10px]">{video.time}</span>
           </div>
           {onNavigate ? (
@@ -524,6 +537,16 @@ const VIEW_FILTER_OPTIONS: { label: string; value: number }[] = [
   { label: "1M+",   value: 1_000_000 },
 ];
 
+const TYPE_FORMAT_OPTIONS: { label: string; value: string }[] = [
+  { label: "Tutorial",     value: "tutorial" },
+  { label: "Review",       value: "review" },
+  { label: "Haul",         value: "haul" },
+  { label: "Recipe",       value: "recipe" },
+  { label: "Storytelling", value: "storytelling" },
+  { label: "Vlog",         value: "vlog" },
+  { label: "So sánh",      value: "comparison" },
+];
+
 export default function ExploreScreen() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -531,6 +554,8 @@ export default function ExploreScreen() {
   const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("indexed_at");
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [activeFormat, setActiveFormat] = useState<string | null>(null);
+  const [showFormatMenu, setShowFormatMenu] = useState(false);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -624,6 +649,7 @@ export default function ExploreScreen() {
     sortOrder: "desc",
     search: searchQuery || undefined,
     minViews: activeViewFilter ?? undefined,
+    contentFormat: activeFormat ?? undefined,
   });
 
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
@@ -665,6 +691,27 @@ export default function ExploreScreen() {
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [activeViewFilter]);
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [activeFormat]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (showSortMenu || showFormatMenu) {
+        const menus = document.querySelectorAll("[data-dropdown-menu]");
+        let inside = false;
+        menus.forEach((m) => { if (m.contains(target)) inside = true; });
+        if (!inside) {
+          setShowSortMenu(false);
+          setShowFormatMenu(false);
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showSortMenu, showFormatMenu]);
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
@@ -859,7 +906,7 @@ export default function ExploreScreen() {
                   placeholder="Tim video..."
                 />
               </div>
-              <div className="relative">
+              <div className="relative" data-dropdown-menu>
                 <FilterChip
                   label={SORT_LABELS[sortBy]}
                   hasArrow
@@ -882,6 +929,35 @@ export default function ExploreScreen() {
                         className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${sortBy === opt ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
                       >
                         {SORT_LABELS[opt]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <div className="relative" data-dropdown-menu>
+                <FilterChip
+                  label={activeFormat
+                    ? (TYPE_FORMAT_OPTIONS.find((o) => o.value === activeFormat)?.label ?? "Type")
+                    : "Type"}
+                  hasArrow={!activeFormat}
+                  active={!!activeFormat}
+                  onRemove={activeFormat ? () => { setActiveFormat(null); setShowFormatMenu(false); } : undefined}
+                  onClick={() => setShowFormatMenu((v) => !v)}
+                />
+                {showFormatMenu ? (
+                  <div className="absolute left-0 top-full mt-1 z-30 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
+                    {TYPE_FORMAT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => { setActiveFormat(opt.value); setShowFormatMenu(false); }}
+                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${
+                          activeFormat === opt.value
+                            ? "font-semibold text-[var(--purple)]"
+                            : "text-[var(--ink)]"
+                        }`}
+                      >
+                        {opt.label}
                       </button>
                     ))}
                   </div>
