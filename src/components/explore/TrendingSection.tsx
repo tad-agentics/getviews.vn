@@ -195,12 +195,22 @@ export function TrendingSection({ nicheId }: Props) {
 
   return (
     <>
-      {openCard && modalVideos.length > 0 ? (
-        <VideoPlayerModal
-          video={modalVideos[0]}
-          allVideos={modalVideos}
-          onClose={() => setOpenCard(null)}
-        />
+      {openCard ? (
+        modalVideos.length > 0 ? (
+          <VideoPlayerModal
+            video={modalVideos[0]}
+            allVideos={modalVideos}
+            onClose={() => setOpenCard(null)}
+          />
+        ) : (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+            onClick={() => setOpenCard(null)}
+          >
+            <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+          </div>
+        )
       ) : null}
 
       <div className="mb-4">
