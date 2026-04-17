@@ -354,18 +354,29 @@ function LiveDemoSection() {
         (niches ?? []).map((n: { id: number; name_vn: string }) => [n.id, n.name_vn]),
       );
 
-      // Fetch latest trending cards
-      const { data: cards } = await sb
+      // Fetch latest trending cards — get the latest week_of first, then fetch that week
+      const { data: weekRow } = await sb
         .from("trending_cards")
-        .select("title, signal, niche_id, week_of")
+        .select("week_of")
         .order("week_of", { ascending: false })
-        .limit(40);
+        .limit(1)
+        .maybeSingle();
+
+      const latestWeek = (weekRow as { week_of: string } | null)?.week_of ?? null;
+
+      const { data: cards, error: cardsError } = latestWeek
+        ? await sb
+            .from("trending_cards")
+            .select("title, signal, niche_id")
+            .eq("week_of", latestWeek)
+            .limit(40)
+        : { data: null, error: null };
+
+      if (cardsError) console.warn("[landing] trending_cards error:", cardsError.message);
 
       if (!cancelled && cards && cards.length > 0) {
-        const latestWeek = (cards[0] as { week_of: string }).week_of;
         const SIGNAL_PRIORITY: Record<string, number> = { rising: 0, early: 1, stable: 2, declining: 3 };
-        const top4 = (cards as { title: string; signal: string; niche_id: number; week_of: string }[])
-          .filter((c) => c.week_of === latestWeek)
+        const top4 = (cards as { title: string; signal: string; niche_id: number }[])
           .sort((a, b) => (SIGNAL_PRIORITY[a.signal] ?? 99) - (SIGNAL_PRIORITY[b.signal] ?? 99))
           .slice(0, 4)
           .map((c) => ({
@@ -384,12 +395,13 @@ function LiveDemoSection() {
     let cancelled = false;
     (async () => {
       const { supabase: sb } = await import("@/lib/supabase");
-      const { data: videos } = await sb
+      const { data: videos, error: videosError } = await sb
         .from("video_corpus")
         .select("creator_handle, hook_phrase, views")
         .not("hook_phrase", "is", null)
         .order("views", { ascending: false })
         .limit(5);
+      if (videosError) console.warn("[landing] video_corpus error:", videosError.message);
 
       if (!cancelled && videos && videos.length > 0) {
         setVideosToCopy(
