@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-/** Row shape for `trending_cards` (weekly pre-generated trend cards). */
 export interface TrendingCardRow {
   id: string;
   niche_id: number;
@@ -15,18 +14,22 @@ export interface TrendingCardRow {
   week_of: string;
 }
 
+const SIGNAL_PRIORITY: Record<string, number> = {
+  rising: 0,
+  early: 1,
+  stable: 2,
+  declining: 3,
+};
+
 export function useTrendingCards(nicheId: number | null) {
   return useQuery({
-    queryKey: ["trending_cards", nicheId] as const,
+    queryKey: ["trending_cards_cross", nicheId] as const,
     queryFn: async (): Promise<TrendingCardRow[]> => {
-      if (nicheId == null) return [];
-
       const { data, error } = await supabase
         .from("trending_cards")
         .select("*")
-        .eq("niche_id", nicheId)
         .order("week_of", { ascending: false })
-        .limit(30);
+        .limit(120);
 
       if (error) {
         console.warn("[useTrendingCards]", error.message);
@@ -39,9 +42,42 @@ export function useTrendingCards(nicheId: number | null) {
       const latestWeek = rows[0]?.week_of;
       if (latestWeek == null) return [];
 
-      return rows.filter((r) => r.week_of === latestWeek).slice(0, 10);
+      const latestRows = rows.filter((r) => r.week_of === latestWeek);
+
+      // Deduplicate by hook_type — same hook in multiple niches → keep best card.
+      // Priority: selected niche > better signal (rising > early > stable > declining).
+      const byHookType = new Map<string, TrendingCardRow>();
+      for (const row of latestRows) {
+        const key = row.hook_type ?? `__unique_${row.id}`;
+        const existing = byHookType.get(key);
+        if (!existing) {
+          byHookType.set(key, row);
+          continue;
+        }
+        const rowIsSelected = row.niche_id === nicheId;
+        const existingIsSelected = existing.niche_id === nicheId;
+        if (rowIsSelected && !existingIsSelected) {
+          byHookType.set(key, row);
+          continue;
+        }
+        if (!rowIsSelected && !existingIsSelected) {
+          const rp = SIGNAL_PRIORITY[row.signal] ?? 99;
+          const ep = SIGNAL_PRIORITY[existing.signal] ?? 99;
+          if (rp < ep) byHookType.set(key, row);
+        }
+      }
+
+      // Sort: selected niche cards first, then by signal strength.
+      return [...byHookType.values()]
+        .sort((a, b) => {
+          const aSelected = a.niche_id === nicheId ? 0 : 1;
+          const bSelected = b.niche_id === nicheId ? 0 : 1;
+          if (aSelected !== bSelected) return aSelected - bSelected;
+          return (SIGNAL_PRIORITY[a.signal] ?? 99) - (SIGNAL_PRIORITY[b.signal] ?? 99);
+        })
+        .slice(0, 8);
     },
-    enabled: nicheId != null,
+    enabled: true,
     staleTime: 30 * 60 * 1000,
   });
 }
