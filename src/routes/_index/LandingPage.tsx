@@ -485,7 +485,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
             ))}
           </div>
 
-          <p className="text-xs text-[var(--muted)] mt-3 text-center">Đầy đủ 17 niche thịnh hành nhất tại Việt Nam</p>
+          <p className="text-xs text-[var(--muted)] mt-3 text-center">Đầy đủ 20 niche thịnh hành nhất tại Việt Nam</p>
         </motion.div>
       </div>
     </section>
@@ -495,7 +495,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
 const INFRA_FEATURES = [
   { icon: Database,      label: "46.000+ Video Thực",      sub: "Corpus TikTok Việt Nam, kiểm chứng được" },
   { icon: Play,          label: "Phân Tích Video Thật",    sub: "AI xem frame thực, không đoán mò" },
-  { icon: Globe,         label: "17 Niche Việt Nam",       sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
+  { icon: Globe,         label: "20 Niche Việt Nam",       sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
   { icon: Zap,           label: "Hook Pattern Thực Tế",    sub: "Từ video đã viral, không phải lý thuyết" },
   { icon: Search,        label: "Tìm Đối Thủ Ngay",       sub: "Tra @handle, ra ngay chiến lược của họ" },
   { icon: MessageCircle, label: "AI Hiểu Tiếng Việt",     sub: "Hỏi tiếng Việt, trả lời tiếng Việt" },
@@ -610,7 +610,7 @@ function CredibilitySection() {
               </div>
             </div>
             <p className="text-[10px] text-[var(--muted)] text-center mt-2">
-              46.000+ video · 17 niche · Cập nhật hàng tuần
+              46.000+ video · 20 niche · Cập nhật hàng tuần
             </p>
           </div>
         </div>
@@ -860,7 +860,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
 
               {/* Floating Niche Badge */}
               <div className="absolute -bottom-4 -right-4 bg-[var(--ink)] text-white rounded-xl px-5 py-3 shadow-lg">
-                <p className="text-xs opacity-70 mb-0.5">Phủ sóng 17 niche creator</p>
+                <p className="text-xs opacity-70 mb-0.5">Phủ sóng 20 niche creator</p>
                 <p className="font-bold text-sm">Skincare · Review · Food · Affiliate...</p>
               </div>
             </motion.div>
@@ -877,7 +877,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             <div className="hidden sm:block w-px h-4 bg-[var(--border)]" />
             <div className="flex items-center gap-2"><span>Cập nhật hàng giờ</span></div>
             <div className="hidden sm:block w-px h-4 bg-[var(--border)]" />
-            <div className="flex items-center gap-2"><span>Chuyên biệt cho 17 niche creator</span></div>
+            <div className="flex items-center gap-2"><span>Chuyên biệt cho 20 niche creator</span></div>
           </motion.div>
 
           {/* Hook Ticker */}
