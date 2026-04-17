@@ -1,4 +1,5 @@
 import type { MetaFunction } from "react-router";
+import type { Route } from "./+types/route";
 import LandingPage from "./LandingPage";
 
 const PAGE_TITLE = "GetViews — Phân tích TikTok cho Creator Việt";
@@ -14,4 +15,19 @@ export const meta: MetaFunction = () => [
   { name: "twitter:card", content: "summary_large_image" },
 ];
 
-export default LandingPage;
+export async function loader(_: Route.LoaderArgs) {
+  try {
+    const res = await fetch("/api/landing-stats");
+    if (!res.ok) throw new Error("stats unavailable");
+    return (await res.json()) as {
+      hooks: { hook_type: string; avg_views: number; sample_size: number }[];
+      thumb_ids: string[];
+    };
+  } catch {
+    return { hooks: [], thumb_ids: [] };
+  }
+}
+
+export default function Route({ loaderData }: Route.ComponentProps) {
+  return <LandingPage stats={loaderData} />;
+}
