@@ -408,7 +408,12 @@ export default function ChatScreen() {
   }, [message]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const desktop = scrollContainerDesktopRef.current;
+    if (desktop) {
+      desktop.scrollTo({ top: desktop.scrollHeight, behavior });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    }
   }, []);
 
   // Auto-scroll when new messages arrive or streaming text updates — only if
@@ -719,7 +724,6 @@ export default function ChatScreen() {
                   type="button"
                   onClick={() => {
                     autoScrollRef.current = true;
-                    setShowJumpToBottom(false);
                     scrollToBottom("smooth");
                   }}
                   className="absolute bottom-4 right-8 flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] p-2 shadow-md transition-colors duration-[120ms] hover:border-[var(--purple)] hover:text-[var(--purple)]"
