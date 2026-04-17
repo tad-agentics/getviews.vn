@@ -25,9 +25,10 @@ export interface VideoRefData {
 
 interface Props {
   data: VideoRefData;
+  className?: string;
 }
 
-export function VideoRefCard({ data }: Props) {
+export function VideoRefCard({ data, className = "" }: Props) {
   const [meta, setMeta] = useState<VideoMeta | null>(null);
   const [metaLoaded, setMetaLoaded] = useState(false);
 
@@ -63,7 +64,7 @@ export function VideoRefCard({ data }: Props) {
   const thumbSrc = metaLoaded || data.thumbnail_url ? thumbnail : null;
 
   return (
-    <div className="w-36 flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <div className={`overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] ${className}`}>
       <VideoThumb
         thumbnail={thumbSrc}
         handle={handle}
