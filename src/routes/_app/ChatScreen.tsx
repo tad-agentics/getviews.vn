@@ -84,9 +84,9 @@ function detectIntent(
     return { intentType: "shot_list", isFree: false, confidence: "medium" };
   }
 
-  // ── 4. FIND CREATORS ──────────────────────────────────────────────────────
-  if (/tìm creator|tìm kol|tìm koc|ai đang làm tốt|creator nào|kol nào|koc nào|giới thiệu creator|gợi ý kol|gợi ý creator/i.test(ql)) {
-    return { intentType: "find_creators", isFree: true, confidence: "medium" };
+  // ── 4. CREATOR SEARCH (paid — EnsembleData query) ─────────────────────────
+  if (/tìm\s*(creator|kol|koc|influencer|người.*quay)|gợi\s*ý\s*(kol|koc|creator)|creator\s*nào|kol\s*nào|thuê\s*(creator|kol)|ai đang làm tốt|koc nào|giới thiệu creator/i.test(ql)) {
+    return { intentType: "creator_search", isFree: false, confidence: "medium" };
   }
 
   // ── 5. OWN CHANNEL ────────────────────────────────────────────────────────

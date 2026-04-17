@@ -14,7 +14,7 @@ const CLOUD_RUN_INTENTS = new Set([
   "own_channel",
   "content_directions",
   "trend_spike",
-  "find_creators",
+  "creator_search",
   "shot_list",
 ]);
 

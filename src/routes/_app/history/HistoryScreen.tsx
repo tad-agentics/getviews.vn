@@ -30,7 +30,7 @@ const INTENT_BADGES: Record<string, string> = {
   shot_list: "Kịch bản",
   brief_generation: "Brief",   // historical — no longer routable but may exist in DB
   trend_spike: "Xu hướng",
-  find_creators: "Tìm KOL",
+  creator_search: "Tìm KOL",
   format_lifecycle: "Format",
   follow_up: "",
   content_directions: "",
