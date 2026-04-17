@@ -446,15 +446,18 @@ function FilterChip({
   label,
   active = false,
   onRemove,
+  onClick,
   hasArrow = false,
 }: {
   label: string;
   active?: boolean;
   onRemove?: () => void;
+  onClick?: () => void;
   hasArrow?: boolean;
 }) {
   return (
     <button
+      onClick={onClick}
       className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all duration-[120ms] whitespace-nowrap ${
         active
           ? "border-[var(--ink)] text-[var(--ink)] bg-[var(--surface)]"
@@ -515,10 +518,16 @@ const SORT_LABELS: Record<SortOption, string> = {
   engagement_rate: "Tương tác",
 };
 
+const VIEW_FILTER_OPTIONS: { label: string; value: number }[] = [
+  { label: "100K+", value: 100_000 },
+  { label: "500K+", value: 500_000 },
+  { label: "1M+",   value: 1_000_000 },
+];
+
 export default function ExploreScreen() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeViewFilter, setActiveViewFilter] = useState("100K+");
+  const [activeViewFilter, setActiveViewFilter] = useState<number | null>(null);
   const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("indexed_at");
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -614,6 +623,7 @@ export default function ExploreScreen() {
     sortBy,
     sortOrder: "desc",
     search: searchQuery || undefined,
+    minViews: activeViewFilter ?? undefined,
   });
 
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
@@ -651,6 +661,10 @@ export default function ExploreScreen() {
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
   }, [searchQuery]);
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [activeViewFilter]);
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
@@ -873,9 +887,17 @@ export default function ExploreScreen() {
                   </div>
                 ) : null}
               </div>
-              {activeViewFilter ? (
-                <FilterChip label={activeViewFilter} active onRemove={() => setActiveViewFilter("")} />
-              ) : null}
+              <div className="flex gap-1.5">
+                {VIEW_FILTER_OPTIONS.map((opt) => (
+                  <FilterChip
+                    key={opt.label}
+                    label={opt.label}
+                    active={activeViewFilter === opt.value}
+                    onRemove={activeViewFilter === opt.value ? () => setActiveViewFilter(null) : undefined}
+                    onClick={activeViewFilter !== opt.value ? () => setActiveViewFilter(opt.value) : undefined}
+                  />
+                ))}
+              </div>
             </div>
 
             {isPending ? <ExploreGridSkeleton /> : null}
