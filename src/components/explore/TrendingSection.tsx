@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { SignalBadge } from "@/components/chat/SignalBadge";
 import { getVideoMeta, type VideoMeta } from "@/lib/services/corpus-service";
 import { useTrendingCards, type TrendingCardRow } from "@/hooks/useTrendingCards";
+import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { VideoPlayerModal, type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
 import { formatViews, formatDate } from "@/lib/formatters";
 
@@ -88,11 +89,13 @@ function TrendingCardItem({
   metaById,
   index,
   onClick,
+  nicheName,
 }: {
   card: TrendingCardRow;
   metaById: Record<string, VideoMeta | null | undefined>;
   index: number;
   onClick: () => void;
+  nicheName?: string;
 }) {
   const ids = (card.video_ids ?? []).slice(0, 3);
   const thumbs = ids.map((id) => metaById[id]);
@@ -125,6 +128,11 @@ function TrendingCardItem({
           <p className="mt-2 font-mono text-[10px] text-[var(--faint)]">{card.corpus_cite}</p>
         ) : null}
         {ids.length > 0 ? <OverlappingThumbs thumbs={thumbs} /> : null}
+        {nicheName ? (
+          <p className="mt-2 truncate text-[10px] font-medium text-[var(--faint)]">
+            {nicheName}
+          </p>
+        ) : null}
       </div>
     </motion.article>
   );
@@ -133,6 +141,11 @@ function TrendingCardItem({
 export function TrendingSection({ nicheId }: Props) {
   const { data: cards = [], isPending } = useTrendingCards(nicheId);
   const [openCard, setOpenCard] = useState<TrendingCardRow | null>(null);
+  const { data: niches = [] } = useNicheTaxonomy();
+  const nicheNameById = useMemo(
+    () => Object.fromEntries(niches.map((n) => [n.id, n.name])),
+    [niches],
+  );
 
   // Eager: only the first 3 IDs per card — for thumbnail circles on mount
   const thumbIdsAll = useMemo(() => {
@@ -158,7 +171,7 @@ export function TrendingSection({ nicheId }: Props) {
       );
       return Object.fromEntries(entries) as Record<string, VideoMeta | null>;
     },
-    enabled: nicheId != null && thumbIdsAll.length > 0,
+    enabled: thumbIdsAll.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -189,9 +202,9 @@ export function TrendingSection({ nicheId }: Props) {
       .map((id) => openCardMeta[id])
       .filter((m): m is VideoMeta => m != null && Boolean(m.video_url))
       .map(metaToExploreVideo);
-  }, [openCard, metaById]);
+  }, [openCard, openCardMeta]);
 
-  const showSkeleton = nicheId === null || isPending;
+  const showSkeleton = isPending;
 
   return (
     <>
@@ -239,6 +252,7 @@ export function TrendingSection({ nicheId }: Props) {
                 metaById={metaById}
                 index={i}
                 onClick={() => setOpenCard(card)}
+                nicheName={nicheNameById[card.niche_id]}
               />
             ))}
           </div>
