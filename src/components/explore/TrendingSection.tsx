@@ -134,37 +134,59 @@ export function TrendingSection({ nicheId }: Props) {
   const { data: cards = [], isPending } = useTrendingCards(nicheId);
   const [openCard, setOpenCard] = useState<TrendingCardRow | null>(null);
 
-  const videoIdsAll = useMemo(() => {
+  // Eager: only the first 3 IDs per card — for thumbnail circles on mount
+  const thumbIdsAll = useMemo(() => {
     const ids = new Set<string>();
     for (const c of cards) {
-      for (const id of c.video_ids ?? []) {
+      for (const id of (c.video_ids ?? []).slice(0, 3)) {
         if (id) ids.add(id);
       }
     }
     return [...ids];
   }, [cards]);
 
-  const videoMetaQueryKey = useMemo(() => [...videoIdsAll].sort().join("|"), [videoIdsAll]);
+  const thumbQueryKey = useMemo(() => [...thumbIdsAll].sort().join("|"), [thumbIdsAll]);
 
   const { data: metaById = {} } = useQuery({
-    queryKey: ["trending_video_meta", nicheId, videoMetaQueryKey],
+    queryKey: ["trending_thumb_meta", nicheId, thumbQueryKey],
     queryFn: async () => {
       const entries = await Promise.all(
-        videoIdsAll.map(async (id) => {
+        thumbIdsAll.map(async (id) => {
           const meta = await getVideoMeta(id);
           return [id, meta] as const;
         }),
       );
       return Object.fromEntries(entries) as Record<string, VideoMeta | null>;
     },
-    enabled: nicheId != null && videoIdsAll.length > 0,
+    enabled: nicheId != null && thumbIdsAll.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Lazy: fetch all video IDs for the clicked card, only when openCard changes
+  const openCardVideoIds = useMemo(
+    () => (openCard?.video_ids ?? []).filter(Boolean) as string[],
+    [openCard],
+  );
+
+  const { data: openCardMeta = {} } = useQuery({
+    queryKey: ["trending_modal_meta", openCard?.id ?? "none"],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        openCardVideoIds.map(async (id) => {
+          const meta = await getVideoMeta(id);
+          return [id, meta] as const;
+        }),
+      );
+      return Object.fromEntries(entries) as Record<string, VideoMeta | null>;
+    },
+    enabled: openCardVideoIds.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 
   const modalVideos = useMemo<ExploreGridVideo[]>(() => {
     if (!openCard) return [];
     return (openCard.video_ids ?? [])
-      .map((id) => metaById[id])
+      .map((id) => openCardMeta[id])
       .filter((m): m is VideoMeta => m != null && Boolean(m.video_url))
       .map(metaToExploreVideo);
   }, [openCard, metaById]);
