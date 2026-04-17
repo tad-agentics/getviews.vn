@@ -91,9 +91,13 @@ const painPoints = [
 ];
 
 const nicheList = [
-  "Skincare", "Review đồ gia dụng", "Hài hước", "Ẩm thực / Food",
-  "Công nghệ", "Làm đẹp", "Affiliate Shopee", "Mẹ bỉm sữa",
-  "Thời trang", "Du lịch", "Tài chính", "Vlog đời sống",
+  "Thời trang / Outfit", "Làm đẹp / Skincare", "Review đồ Shopee",
+  "Review đồ ăn / F&B", "Nấu ăn / Công thức", "Mẹ bỉm sữa",
+  "Gym / Fitness & Sức khoẻ", "Thể thao & Ngoài trời", "Gaming",
+  "Công nghệ / Tech", "EduTok VN", "Tài chính / Đầu tư",
+  "Du lịch / Travel", "Ô tô / Xe máy", "Bất động sản",
+  "Hài / Giải trí", "Shopee Live", "Kiếm tiền online",
+  "Chị đẹp", "Thú cưng", "Nhà cửa / Nội thất",
 ];
 
 // ─── Hardcoded real video IDs from corpus (selected 2026-04-09) ──────────────
@@ -911,7 +915,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       {/* ── Niche Chips ─────────────────────────────────────────── */}
       <div className="px-4 pb-16 bg-white">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs text-center text-[var(--muted)] mb-4">Dành cho 17 nhóm creator thịnh hành tại Việt Nam</p>
+          <p className="text-xs text-center text-[var(--muted)] mb-4">Dành cho 21 nhóm creator thịnh hành tại Việt Nam</p>
           <div className="flex flex-wrap justify-center gap-2">
             {nicheList.map((niche) => (
               <span

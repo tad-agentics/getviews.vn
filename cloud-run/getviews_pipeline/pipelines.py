@@ -52,7 +52,7 @@ from getviews_pipeline.step_events import (
 
 logger = logging.getLogger(__name__)
 
-REF_N = 3
+REF_N = 5
 
 # audio_transcript character limit before synthesis — full transcripts can be
 # 500+ tokens each; 3 refs × 500 tokens = 1500 extra tokens for low-value text.
@@ -845,7 +845,7 @@ async def run_video_diagnosis(
     # Prefer curated corpus (niche-tagged, ≥20k views) over live search to
     # ensure reference videos are actually in the same niche as the user's video.
     corpus_pool = await fetch_corpus_reference_pool(
-        niche, days=30, limit=20, exclude_video_id=uid or None
+        niche, days=30, limit=40, exclude_video_id=uid or None
     )
     if len(corpus_pool) >= REF_N:
         # Corpus has enough — sort by pre-computed engagement_rate (most accurate)

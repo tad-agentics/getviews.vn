@@ -1,7 +1,8 @@
-// Vercel Edge — text intents ⑤⑥⑦ + follow-ups (Gemini 3.x only)
+// Vercel Edge — text intents ⑤⑥⑦ + follow-ups (Claude Haiku 4.5)
 export const config = { runtime: "edge" };
 
 import { createClient } from "@supabase/supabase-js";
+import Anthropic from "@anthropic-ai/sdk";
 
 // Vercel Edge Runtime receives all env vars (including VITE_-prefixed ones).
 // VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are the canonical names
@@ -14,9 +15,9 @@ const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ??
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
   "";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-const GEMINI_MODEL =
-  process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-3.1-flash-lite-preview";
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
 const FREE_INTENTS = new Set([
   "format_lifecycle",
@@ -124,14 +125,12 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const systemPrompt = buildSystemPrompt(intent_type, niche_label);
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
 
-  // For conversational intents, fetch recent message history so Gemini has
+  // For conversational intents, fetch recent message history so Claude has
   // context for pronouns like "video đó", "format này", "kênh đó", etc.
   // Cap at 12 turns to stay within Edge CPU/memory budget.
-  let contents: Array<{ role: string; parts: Array<{ text: string }> }> = [
-    { role: "user", parts: [{ text: query }] },
-  ];
+  type ClaudeMessage = { role: "user" | "assistant"; content: string };
+  let messages: ClaudeMessage[] = [{ role: "user", content: query }];
   if (intent_type === "follow_up" || intent_type === "format_lifecycle") {
     const { data: history } = await supabase
       .from("chat_messages")
@@ -140,36 +139,21 @@ export default async function handler(req: Request): Promise<Response> {
       .order("created_at", { ascending: true })
       .limit(12);
     if (history && history.length > 0) {
-      const historyContents = history
+      const historyMessages: ClaudeMessage[] = history
         .filter((m) => m.content && (m.role === "user" || m.role === "assistant"))
         .map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: (m.content as string).slice(0, 2000) }],
+          role: m.role as "user" | "assistant",
+          content: (m.content as string).slice(0, 2000),
         }));
-      contents = [...historyContents, { role: "user", parts: [{ text: query }] }];
+      messages = [...historyMessages, { role: "user", content: query }];
     }
   }
 
-  const geminiRes = await fetch(geminiUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens:
-          intent_type === "follow_up" ? 900
-          : intent_type === "format_lifecycle" ? 1200
-          : 2048,
-      },
-    }),
-  });
-
-  if (!geminiRes.ok) {
-    if (!isFree) await supabase.from("profiles").update({ is_processing: false }).eq("id", user.id);
-    return new Response("Upstream error", { status: 502 });
-  }
+  const maxTokens =
+    intent_type === "follow_up" ? 900
+    : intent_type === "format_lifecycle" ? 1200
+    : intent_type === "find_creators" || intent_type === "creator_search" ? 600
+    : 900;
 
   const newStreamId = stream_id ?? crypto.randomUUID();
   let seq = last_seq ?? 0;
@@ -177,52 +161,40 @@ export default async function handler(req: Request): Promise<Response> {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = geminiRes.body!.getReader();
-      const decoder = new TextDecoder();
+      const enc = new TextEncoder();
+      const enqueue = (obj: Record<string, unknown>) =>
+        controller.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
 
       try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        const claudeStream = await anthropic.messages.stream({
+          model: CLAUDE_MODEL,
+          max_tokens: maxTokens,
+          temperature: 0.7,
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              // Prompt caching: cache reads cost 10% of base price (~40–50% effective cost reduction)
+              cache_control: { type: "ephemeral" },
+            },
+          ],
+          messages,
+        });
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data) as {
-                candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-              };
-              const delta = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-              if (!delta) continue;
-
-              fullText += delta;
-              seq += 1;
-
-              const token = JSON.stringify({
-                stream_id: newStreamId,
-                seq,
-                delta,
-                done: false,
-              });
-              controller.enqueue(new TextEncoder().encode(`data: ${token}\n\n`));
-            } catch {
-              /* skip malformed chunks */
-            }
+        for await (const event of claudeStream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            const delta = event.delta.text;
+            if (!delta) continue;
+            fullText += delta;
+            seq += 1;
+            enqueue({ stream_id: newStreamId, seq, delta, done: false });
           }
         }
 
-        const doneToken = JSON.stringify({
-          stream_id: newStreamId,
-          seq,
-          delta: "",
-          done: true,
-        });
-        controller.enqueue(new TextEncoder().encode(`data: ${doneToken}\n\n`));
+        enqueue({ stream_id: newStreamId, seq, delta: "", done: true });
 
         await supabase.from("chat_messages").insert({
           session_id,
@@ -240,14 +212,7 @@ export default async function handler(req: Request): Promise<Response> {
         }
       } catch {
         if (!isFree) await supabase.from("profiles").update({ is_processing: false }).eq("id", user.id);
-        const errToken = JSON.stringify({
-          stream_id: newStreamId,
-          seq,
-          delta: "",
-          done: true,
-          error: "stream_failed",
-        });
-        controller.enqueue(new TextEncoder().encode(`data: ${errToken}\n\n`));
+        enqueue({ stream_id: newStreamId, seq, delta: "", done: true, error: "stream_failed" });
       } finally {
         controller.close();
       }

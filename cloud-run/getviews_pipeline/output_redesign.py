@@ -245,11 +245,22 @@ Sau đó chẩn đoán từng yếu tố THEO THỨ TỰ QUAN TRỌNG của form
 - Nếu yếu tố "critical" mà thiếu data: ghi "(không có dữ liệu)" và bỏ qua
 
 **PHẦN 3 — VIDEO THAM CHIẾU (phân tích riêng từng video)**
-Phân tích 3 reference_videos. Với mỗi video:
+Phân tích tất cả reference_videos. Viết TOÀN BỘ phân tích text trước, sau đó xuất TẤT CẢ video_ref JSON blocks LIÊN TIẾP nhau ở cuối — KHÔNG xen kẽ JSON vào giữa các đoạn text.
+
+Với mỗi video (phần text):
 - "@handle — [views] views — hook: [tên hook type] — [days_ago] ngày trước"
 - 1-2 câu mô tả cụ thể CẢNH (nếu có scenes) và TẠI SAO chạy
-- Xuất video_ref JSON block ngay sau
-Format JSON bắt buộc: {"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số nếu >1>, "thumbnail_url": "<thumbnail_url từ metadata nếu có, nếu không bỏ qua field này>"}
+
+Sau khi kết thúc tất cả phân tích text, xuất các JSON blocks LIÊN TIẾP:
+{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số nếu >1>, "thumbnail_url": "<thumbnail_url từ metadata nếu có, nếu không bỏ qua field này>"}
+
+Thứ tự ĐÚNG:
+  @handle1 — ... — câu mô tả...
+  @handle2 — ... — câu mô tả...
+  @handle3 — ... — câu mô tả...
+  {"type":"video_ref","video_id":"id1",...}
+  {"type":"video_ref","video_id":"id2",...}
+  {"type":"video_ref","video_id":"id3",...}
 
 **PHẦN 4 — VIDEO TIẾP THEO**
 1 khuyến nghị duy nhất — không phải danh sách 5-7 điểm.
@@ -491,7 +502,7 @@ Format được phát hiện: **{content_format}**
 **User video stats:**
 {user_stats_json}
 
-**Reference videos (3 top-performing):**
+**Reference videos (top-performing):**
 {ref_videos_json}
 {examples_section}
 ---
@@ -504,7 +515,7 @@ R3: "Chạy vì:" tối đa 1-2 câu. Không giải thích dài dòng.
 R4: KHÔNG fabricate metrics. Chỉ dùng số thật từ data JSON.
 R5: Hook type phải từ 14 tên cố định. Không đặt tên mới.
 R6: Bỏ qua yếu tố có weight "skip" cho format {content_format}.
-R7: 3 reference videos BẮT BUỘC — video_ref JSON block cho mỗi video.
+R7: Tất cả reference videos BẮT BUỘC — xuất video_ref JSON blocks LIÊN TIẾP ở cuối PHẦN 3, KHÔNG xen kẽ với text mô tả.
 R8: Hook template BẮT BUỘC ở cuối PHẦN 4.
 R9: 1 khuyến nghị duy nhất ở PHẦN 4, không phải danh sách.
 R10: Số dùng format Vietnamese: 1.200 (hàng nghìn), 3,2x (thập phân).
@@ -564,11 +575,14 @@ Sau đó đánh giá từng điểm THEO THỨ TỰ QUAN TRỌNG của format (x
 ④ Slide cuối → chuyển đổi: CHỈ 1 CTA, tỷ lệ lưu >3% = tốt, >5% = xuất sắc
 
 PHẦN 2B — CAROUSEL THAM CHIẾU (phân tích riêng từng carousel)
-Phân tích 3 reference_carousels. Với mỗi carousel:
+Phân tích tất cả reference_carousels. Viết TOÀN BỘ phân tích text trước, sau đó xuất TẤT CẢ video_ref JSON blocks LIÊN TIẾP ở cuối phần này — KHÔNG xen kẽ JSON vào giữa các đoạn text.
+
+Với mỗi carousel (phần text):
 - "@handle — [views] views — arc: [content_arc] — [days_ago] ngày trước"
 - 1-2 câu mô tả cụ thể LOGIC LƯỚT và TẠI SAO chạy (dùng tên tâm lý lướt)
-- Xuất video_ref JSON block ngay sau:
-  {"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số nếu >1>, "thumbnail_url": "<thumbnail_url từ metadata nếu có, nếu không bỏ qua field này>"}
+
+Sau khi kết thúc tất cả phân tích text, xuất các JSON blocks LIÊN TIẾP:
+{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số nếu >1>, "thumbnail_url": "<thumbnail_url từ metadata nếu có, nếu không bỏ qua field này>"}
 
 PHẦN 2C — CAROUSEL TIẾP THEO
 1 khuyến nghị duy nhất — không phải danh sách 5-7 điểm.
