@@ -181,7 +181,7 @@ export function TrendingSection({ nicheId }: Props) {
     [openCard],
   );
 
-  const { data: openCardMeta = {} } = useQuery({
+  const { data: openCardMeta = {}, isFetching: isModalFetching } = useQuery({
     queryKey: ["trending_modal_meta", openCard?.id ?? "none"],
     queryFn: async () => {
       const entries = await Promise.all(
@@ -214,6 +214,8 @@ export function TrendingSection({ nicheId }: Props) {
             video={modalVideos[0]}
             allVideos={modalVideos}
             onClose={() => setOpenCard(null)}
+            cardTitle={openCard.title}
+            hookTemplate={openCard.hook_template ?? undefined}
           />
         ) : (
           <div
@@ -221,7 +223,21 @@ export function TrendingSection({ nicheId }: Props) {
             style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
             onClick={() => setOpenCard(null)}
           >
-            <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+            {isModalFetching ? (
+              <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+            ) : (
+              <div className="flex flex-col items-center gap-3 rounded-2xl bg-[var(--surface)] px-8 py-6 text-center shadow-xl">
+                <p className="text-sm font-semibold text-[var(--ink)]">Không có video khả dụng</p>
+                <p className="text-xs text-[var(--muted)]">Video trong thẻ này chưa được lưu trữ.</p>
+                <button
+                  type="button"
+                  onClick={() => setOpenCard(null)}
+                  className="mt-1 rounded-lg bg-[var(--surface-alt)] px-4 py-1.5 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--border)] transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            )}
           </div>
         )
       ) : null}

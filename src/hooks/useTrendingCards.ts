@@ -8,6 +8,7 @@ export interface TrendingCardRow {
   description: string;
   signal: string;
   hook_type: string | null;
+  hook_template: string | null;
   video_ids: string[] | null;
   corpus_cite: string | null;
   computed_at: string | null;

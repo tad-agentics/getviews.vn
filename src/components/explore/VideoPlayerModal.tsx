@@ -57,13 +57,18 @@ export function VideoPlayerModal({
   video,
   allVideos,
   onClose,
+  cardTitle,
+  hookTemplate,
 }: {
   video: ExploreGridVideo;
   allVideos: ExploreGridVideo[];
   onClose: () => void;
+  cardTitle?: string;
+  hookTemplate?: string;
 }) {
   const [selected, setSelected] = useState(video);
   const [muted, setMuted] = useState(true);
+  const [copied, setCopied] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -136,6 +141,33 @@ export function VideoPlayerModal({
                 </span>
               </div>
             </div>
+
+            {hookTemplate ? (
+              <div className="px-3 py-2.5 border-b border-[var(--border)] bg-[var(--surface-alt)] flex-shrink-0">
+                {cardTitle ? (
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[var(--faint)] line-clamp-1">
+                    {cardTitle}
+                  </p>
+                ) : null}
+                <div className="flex items-start gap-2">
+                  <p className="flex-1 text-[11px] font-mono leading-snug text-[var(--ink)]">
+                    {hookTemplate}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(hookTemplate).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1500);
+                      });
+                    }}
+                    className="flex-shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[10px] font-semibold text-[var(--muted)] transition-colors hover:border-[var(--border-active)] hover:text-[var(--ink)]"
+                  >
+                    {copied ? "Đã copy ✓" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             {/* Mobile: horizontal scroll */}
             <div className="flex md:hidden flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>

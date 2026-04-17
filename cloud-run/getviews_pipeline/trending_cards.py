@@ -28,10 +28,11 @@ _SIGNAL_ORDER = {"rising": 0, "early": 1, "stable": 2, "declining": 3}
 _TRENDING_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "title": {"type": "string"},
-        "description": {"type": "string"},
+        "title":         {"type": "string"},
+        "description":   {"type": "string"},
+        "hook_template": {"type": "string"},
     },
-    "required": ["title", "description"],
+    "required": ["title", "description", "hook_template"],
 }
 
 _GEMINI_SEM = asyncio.Semaphore(4)
@@ -141,7 +142,7 @@ def _call_gemini_trending_card(
     hook_type: str,
     signal: str,
     video_data: list[dict[str, Any]],
-) -> tuple[str, str] | None:
+) -> tuple[str, str, str] | None:
     # Build the video examples block — top 5 by position (already sorted by breakout)
     examples_lines: list[str] = []
     for i, v in enumerate(video_data[:5], 1):
@@ -169,6 +170,10 @@ Quy tắc:
   Ví dụ xấu: "Video câu hỏi đang hot trong niche skincare tuần này"
 - description: 1–2 câu, giọng creator-to-creator, giải thích cách làm theo pattern này.
 - description phải có cụm "Chạy vì:" giải thích ngắn gọn tại sao pattern này đang work.
+- hook_template: công thức hook ngắn gọn để creator điền vào ngay, dùng [ngoặc vuông] cho phần thay thế. Tối đa 80 ký tự.
+  Ví dụ tốt: "[Con số % gây sốc] + Reveal [Sai lầm phổ biến] → Tutorial [Giải pháp]"
+  Ví dụ tốt: "[Câu hỏi tạo tò mò về niche]? Sự thật là [Reveal bất ngờ]"
+  Ví dụ xấu: "Dùng hook câu hỏi để thu hút người xem" (mô tả, không phải template)
 - Dùng "tuần này" (không dùng "7 ngày gần nhất").
 - Số đếm dùng dấu chấm ngàn kiểu Việt Nam (ví dụ 1.200).
 
@@ -196,11 +201,14 @@ Chỉ trả về JSON, không markdown."""
         return None
     title = str(data.get("title", "")).strip()
     desc = str(data.get("description", "")).strip()
+    template = str(data.get("hook_template", "")).strip()
+    if len(template) > 80:
+        template = template[:80].rstrip()
     if not title or not desc:
         return None
     if len(title) > 50:
         title = title[:50].rstrip()
-    return title, desc
+    return title, desc, template
 
 
 async def _gemini_with_sem(
@@ -209,7 +217,7 @@ async def _gemini_with_sem(
     hook_type: str,
     signal: str,
     video_data: list[dict[str, Any]],
-) -> tuple[str, str] | None:
+) -> tuple[str, str, str] | None:
     async with _GEMINI_SEM:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
@@ -263,7 +271,7 @@ async def _process_niche(
         if not gen:
             errors.append(f"niche {nid} hook {hook_type}: Gemini trống hoặc lỗi parse")
             continue
-        title, description = gen
+        title, description, hook_template = gen
         cite = _build_corpus_cite(name_vn, len(video_dicts))
         payload = {
             "niche_id": nid,
@@ -274,6 +282,7 @@ async def _process_niche(
             "video_ids": vid_ids,
             "corpus_cite": cite,
             "week_of": week_of.isoformat(),
+            "hook_template": hook_template or None,
         }
         try:
             ins = client.table("trending_cards").insert(payload).execute()

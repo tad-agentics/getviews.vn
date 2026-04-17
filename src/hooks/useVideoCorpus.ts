@@ -45,8 +45,10 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
         query = query.lte("indexed_at", dateTo);
       }
       if (search && search.trim().length > 0) {
-        const term = `%${search.trim()}%`;
-        query = query.or(`hook_phrase.ilike.${term},creator_handle.ilike.${term}`);
+        query = query.textSearch("search_vector", search.trim(), {
+          config: "simple",
+          type: "plain",
+        });
       }
       if (minViews != null && minViews > 0) {
         query = query.gte("views", minViews);
