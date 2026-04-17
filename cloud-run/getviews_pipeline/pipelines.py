@@ -260,6 +260,58 @@ def _inject_video_ref_blocks(synthesis: str, analyzed: list[dict[str, Any]]) -> 
     return synthesis
 
 
+def _inject_creator_card_blocks(synthesis: str, analyzed: list[dict[str, Any]]) -> str:
+    """Append creator_card JSON blocks for each unique creator in analyzed KOL videos.
+
+    One block per creator handle — uses the creator's best video_id as avatar source.
+    The R2 frame URL for that video_id gives a stable thumbnail (not expiring TikTok CDN).
+    """
+    seen_handles: set[str] = set()
+    blocks: list[str] = []
+
+    for ref in analyzed:
+        meta = ref.get("metadata") or {}
+        author = meta.get("author") or {}
+        handle = str(author.get("username") or "")
+        if not handle or handle in seen_handles:
+            continue
+        seen_handles.add(handle)
+
+        video_id = str(meta.get("video_id") or ref.get("aweme_id") or "")
+        followers_raw = int(author.get("follower_count") or 0)
+        if followers_raw >= 1_000_000:
+            followers_str = f"{followers_raw / 1_000_000:.1f}M"
+        elif followers_raw >= 1_000:
+            followers_str = f"{followers_raw / 1_000:.0f}K"
+        else:
+            followers_str = str(followers_raw) if followers_raw > 0 else "?"
+
+        views = int(meta.get("views") or 0)
+        likes = int(meta.get("likes") or meta.get("digg_count") or 0)
+        comments = int(meta.get("comments") or meta.get("comment_count") or 0)
+        shares = int(meta.get("shares") or meta.get("share_count") or 0)
+        er = round((likes + comments + shares) / views * 100, 1) if views > 0 else 0.0
+
+        analysis = ref.get("analysis") or {}
+        hook_type = str(analysis.get("hook_type") or "")
+
+        block: dict = {
+            "type": "creator_card",
+            "handle": f"@{handle}" if not handle.startswith("@") else handle,
+            "avatar_video_id": video_id,
+            "followers": followers_str,
+            "er": f"{er}%",
+        }
+        if hook_type:
+            block["hook_style"] = hook_type
+
+        blocks.append(_json.dumps(block, ensure_ascii=False))
+
+    if blocks:
+        synthesis = synthesis.rstrip() + "\n\n" + "\n".join(blocks)
+    return synthesis
+
+
 async def run_content_directions(
     niche: str,
     session: dict[str, Any],
@@ -1064,62 +1116,82 @@ async def run_kol_search(
     niche: str,
     session: dict[str, Any],
     questions: list[str],
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
-    """KOL / creator discovery — reference posts + synthesis (free intent on product).
+    """KOL / creator discovery — reference posts + synthesis + creator_card blocks.
 
     niche passed from main.py is the session niche, which may be unset or set to
     an unrelated niche from a previous question (e.g. the user asked about skincare
     before now asking for watch-brand KOCs). We always re-derive the target niche
     from the current questions so the video pool matches what the user actually asked.
     """
-    sem = get_analysis_semaphore()
-    # Re-derive search niche from the current question — session niche is often
-    # stale or unrelated when the user asks about a specific product/brand.
-    search_niche = await run_sync(_extract_kol_target_niche, questions, session.get("niche"))
-    pool = await _niche_aweme_pool(search_niche, period=30)
-    fa: dict[str, Any] = session.setdefault("full_analyses", {})
-    cached_ids = set(fa.keys())
-    picks = select_reference_videos(
-        pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
-    )
+    try:
+        sem = get_analysis_semaphore()
 
-    async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
-        async with sem:
-            return await analyze_aweme(
-                aweme, include_diagnosis=False, full_analyses=fa
-            )
+        emit(step_queue, step_start("Đang tìm creator phù hợp..."))
 
-    results = await asyncio.gather(*[_one(a) for a in picks])
-    analyzed = [r for r in results if "analysis" in r]
+        # Re-derive search niche from the current question — session niche is often
+        # stale or unrelated when the user asks about a specific product/brand.
+        search_niche = await run_sync(_extract_kol_target_niche, questions, session.get("niche"))
 
-    payload = {
-        "niche": search_niche,
-        "reference_count": len(analyzed),
-        "analyzed_videos": analyzed,
-    }
-    synthesis = await run_sync(
-        synthesize_intent_markdown,
-        "find_creators",
-        payload,
-        collapsed_questions=questions if len(questions) > 1 else None,
-        niche_key=search_niche,
-    )
-    session["kol_search"] = synthesis
-    completed = session.setdefault("completed_intents", [])
-    if "find_creators" not in completed:
-        completed.append("find_creators")
-    _bump_analyses_summary(
-        session,
-        niche=search_niche,
-        delta_videos=len(analyzed),
-        intent_label="find_creators",
-    )
-    return {
-        "intent": "find_creators",
-        "niche": search_niche,
-        "synthesis": synthesis,
-        "analyzed_videos": analyzed,
-    }
+        emit(step_queue, step_search("ensemble", search_niche or "TikTok"))
+
+        pool = await _niche_aweme_pool(search_niche, period=30)
+
+        emit(step_queue, step_count(len(pool), []))
+
+        fa: dict[str, Any] = session.setdefault("full_analyses", {})
+        cached_ids = set(fa.keys())
+        picks = select_reference_videos(
+            pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+        )
+
+        async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+            async with sem:
+                return await analyze_aweme(
+                    aweme, include_diagnosis=False, full_analyses=fa
+                )
+
+        results = await asyncio.gather(*[_one(a) for a in picks])
+        analyzed = [r for r in results if "analysis" in r]
+
+        emit(step_queue, step_process("Đang đánh giá mức độ phù hợp..."))
+
+        payload = {
+            "niche": search_niche,
+            "reference_count": len(analyzed),
+            "analyzed_videos": analyzed,
+        }
+        synthesis = await run_sync(
+            synthesize_intent_markdown,
+            "find_creators",
+            payload,
+            collapsed_questions=questions if len(questions) > 1 else None,
+            niche_key=search_niche,
+        )
+
+        synthesis = _inject_creator_card_blocks(synthesis, analyzed)
+
+        emit(step_queue, step_done(f"Tìm thấy {len(analyzed)} creator tiềm năng"))
+
+        session["kol_search"] = synthesis
+        completed = session.setdefault("completed_intents", [])
+        if "find_creators" not in completed:
+            completed.append("find_creators")
+        _bump_analyses_summary(
+            session,
+            niche=search_niche,
+            delta_videos=len(analyzed),
+            intent_label="find_creators",
+        )
+        return {
+            "intent": "find_creators",
+            "niche": search_niche,
+            "synthesis": synthesis,
+            "analyzed_videos": analyzed,
+        }
+    finally:
+        await emit_sentinel(step_queue)
 
 
 async def run_creator_search(

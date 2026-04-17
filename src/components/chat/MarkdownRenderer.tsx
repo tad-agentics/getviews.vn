@@ -34,7 +34,7 @@ import { TrendingSoundCard, type TrendingSoundData } from "./TrendingSoundCard";
 import { ShotListCard, type ShotItemData } from "./ShotListCard";
 import { FollowUpChips } from "./FollowUpChips";
 import { VideoGridBlock, type VideoGridData } from "./VideoGridBlock";
-import { CreatorCard, type CreatorCardData } from "./CreatorCard";
+import { CreatorGridCard, type CreatorCardData } from "./CreatorGridCard";
 
 // ---------------------------------------------------------------------------
 // Segment types
@@ -610,7 +610,7 @@ export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props)
 
   if (!segments.length && !followUps.length) return null;
 
-  // Group consecutive creator_card segments so they render as a single unified list.
+  // Group consecutive creator_card segments into a 2-col grid.
   type RenderGroup =
     | { kind: "single"; seg: Segment; idx: number }
     | { kind: "creator_group"; cards: CreatorCardSegment[]; startIdx: number };
@@ -638,9 +638,9 @@ export function MarkdownRenderer({ text, streaming = false, onFollowUp }: Props)
       {groups.map((group) => {
         if (group.kind === "creator_group") {
           return (
-            <div key={`creator-group-${group.startIdx}`} className="space-y-2">
+            <div key={`creator-group-${group.startIdx}`} className="my-3 grid grid-cols-2 gap-2">
               {group.cards.map((seg) => (
-                <CreatorCard key={`creator-${seg.cardIndex}`} data={seg.data} />
+                <CreatorGridCard key={`creator-${seg.cardIndex}`} data={seg.data} />
               ))}
             </div>
           );

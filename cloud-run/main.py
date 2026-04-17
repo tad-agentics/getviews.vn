@@ -514,7 +514,7 @@ async def stream(
 
             elif normalized == "find_creators":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
-                pipeline_coro = run_kol_search(niche, session, questions)
+                pipeline_coro = run_kol_search(niche, session, questions, step_queue=step_q)
 
             elif normalized == "creator_search":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
