@@ -125,10 +125,10 @@ const AVATAR_POSITIONS = [
   { top: "50%", left: "58%" },
 ];
 
-// Card 3: Hook showcase — high-view video with strong hook phrase
+// Card 3: Hook showcase — high-view video with strong hook phrase (5.85M views)
 const HOOK_EXAMPLE = {
   id: "7623726538600877332",
-  hook: "Đỉnh cao của sự phô trương kín đáo: Biển số xe đẹp chưa là gì...",
+  phrase: "Đỉnh cao của sự phô trương kín đáo: Biển số xe đẹp chưa là gì so với \"mật mã\" Zalo",
   views: "5.8M",
   handle: "@blogtamsu.taichinh",
 };
@@ -237,37 +237,33 @@ function SolutionCardsSection() {
             <p className="text-xs text-[var(--muted)]">Lọc KOL theo niche, view trung bình và tỉ lệ engagement</p>
           </motion.div>
 
-          {/* ── Card 3: Hook Showcase ─────────────────────────────────── */}
+          {/* ── Card 3: Hook Showcase — chat bubble + sparkline ──────── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.2 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
           >
-            <p className="font-bold text-[var(--ink)] mb-1">"Hook nào viral nhất?"</p>
-            <p className="text-xs text-[var(--muted)] mb-4">Phân tích frame-by-frame để tìm khoảnh khắc "bắt view"</p>
-            <div className="flex gap-4 items-start">
-              <div className="relative flex-shrink-0 overflow-hidden rounded-lg" style={{ width: 80, height: 142 }}>
-                <VideoThumb id={HOOK_EXAMPLE.id} className="absolute inset-0 w-full h-full" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                <div className="absolute bottom-1.5 left-1.5 right-1.5">
-                  <span className="text-[10px] font-mono text-white font-semibold">{HOOK_EXAMPLE.views}</span>
-                </div>
+            <p className="text-lg font-bold text-[var(--ink)]">"Hook nào viral nhất tuần này?"</p>
+            <div className="flex gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
+              <div className="flex-shrink-0 overflow-hidden rounded-lg bg-[var(--surface-alt)]" style={{ width: 48, height: 64 }}>
+                <VideoThumb id={HOOK_EXAMPLE.id} className="h-full w-full" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="bg-[var(--surface)] rounded-lg p-3 mb-2">
-                  <p className="text-xs font-medium text-[var(--ink)] leading-snug line-clamp-3">
-                    "{HOOK_EXAMPLE.hook}"
-                  </p>
-                </div>
-                <p className="text-xs text-[var(--muted)]">{HOOK_EXAMPLE.handle} · {HOOK_EXAMPLE.views} views</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {["Hook mạnh", "Số liệu shock", "Kéo tò mò"].map((tag) => (
-                    <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--ink-soft)]">{tag}</span>
-                  ))}
-                </div>
+              <div className="flex flex-col justify-center gap-1 min-w-0">
+                <p className="text-sm font-semibold text-[var(--ink)] line-clamp-2">"{HOOK_EXAMPLE.phrase}"</p>
+                <p className="text-xs text-[var(--purple)] font-mono font-semibold">{HOOK_EXAMPLE.views} views</p>
               </div>
             </div>
+            {/* Sparkline — pure SVG, no chart lib */}
+            <svg viewBox="0 0 200 40" className="w-full opacity-40" fill="none">
+              <polyline
+                points="0,38 40,30 80,20 120,12 160,6 200,2"
+                stroke="var(--purple)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </motion.div>
 
           {/* ── Card 4: Video Grid ────────────────────────────────────── */}
