@@ -333,7 +333,28 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
   await page.goto("/app");
   await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible();
 
-  // Reset event log for this action.
+  // ── Playwright-level network capture (authoritative) ────────────────────
+  // Broader URL match than the fetch wrapper — catches anything that looks
+  // like a chat POST regardless of host/path.
+  const isChatUrl = (u: string) =>
+    /\/api\/chat(\?|$)/.test(u) || /\/stream(\?|$)/.test(u) || /\/chat(\?|$)/.test(u);
+  const netRequests: Array<{ t: number; url: string; body: string | null }> = [];
+  const netResponses: Array<{ t: number; url: string; status: number }> = [];
+  const allPosts: string[] = []; // diagnostic — every POST URL seen
+  const onReq = (req: import("@playwright/test").Request) => {
+    if (req.method() !== "POST") return;
+    allPosts.push(req.url());
+    if (!isChatUrl(req.url())) return;
+    netRequests.push({ t: performance.now(), url: req.url(), body: req.postData() });
+  };
+  const onResp = (resp: import("@playwright/test").Response) => {
+    if (!isChatUrl(resp.url())) return;
+    netResponses.push({ t: performance.now(), url: resp.url(), status: resp.status() });
+  };
+  page.on("request", onReq);
+  page.on("response", onResp);
+
+  // Reset event log for this action (fetch-wrapper SSE frames, best-effort).
   await page.evaluate(() => {
     (window as unknown as { __GV_EVENTS: Event[] }).__GV_EVENTS = [];
   });
@@ -359,14 +380,20 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
   await submit.click();
   row.t.submit_click = Date.now() - t0;
 
-  // Poll the event log until we see stream_end OR a done frame OR 90s.
+  // Wait for stream to end. Two signals, whichever fires first:
+  //   (a) fetch-wrapper done/stream_end frame (best)
+  //   (b) "Đang suy nghĩ…" / "Đang phân tích…" / "Đang tải video…" status
+  //       text appears then disappears (DOM-level fallback)
+  // Hard timeout 90s.
   const deadline = Date.now() + 90_000;
+  const STATUS_RE = /Đang (suy nghĩ|phân tích|tải video|tạo)/i;
   let events: Event[] = [];
+  let sawStatus = false;
   while (Date.now() < deadline) {
     events = await page.evaluate(
       () => (window as unknown as { __GV_EVENTS: Event[] }).__GV_EVENTS.slice(),
     );
-    const done = events.find(
+    const wrapperDone = events.find(
       (e) =>
         e.type === "stream_end" ||
         e.type === "stream_error" ||
@@ -375,12 +402,17 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
           e.payload !== null &&
           (e.payload as { done?: boolean }).done === true),
     );
-    if (done) break;
+    if (wrapperDone) break;
+    const statusVisible = await page.getByText(STATUS_RE).first().isVisible().catch(() => false);
+    if (statusVisible) sawStatus = true;
+    // If we saw the streaming indicator at some point and it's now gone, stream is done.
+    if (sawStatus && !statusVisible && netResponses.length > 0) break;
     await page.waitForTimeout(250);
   }
   const streamWallEnd = Date.now();
 
-  // Interpret events.
+  // Interpret events from both sources. Playwright network layer is primary;
+  // fetch wrapper provides SSE frame-level granularity when it fires.
   const firstBy = (pred: (e: Event) => boolean) => events.find(pred);
   const requestSent = firstBy((e) => e.type === "request_sent");
   const headers = firstBy((e) => e.type === "response_headers");
@@ -394,7 +426,20 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
   );
   const streamEnd = firstBy((e) => e.type === "stream_end" || e.type === "stream_error");
 
-  if (requestSent) {
+  // Primary source: Playwright network capture.
+  const netReq = netRequests[0];
+  const netResp = netResponses[0];
+
+  if (netReq) {
+    row.t.request_sent = Math.round(netReq.t);
+    try {
+      const parsed = netReq.body ? JSON.parse(netReq.body) : null;
+      row.requestBody = parsed;
+      row.observedIntent = (parsed as { intent_type?: string } | null)?.intent_type ?? null;
+    } catch {
+      row.requestBody = netReq.body;
+    }
+  } else if (requestSent) {
     row.t.request_sent = Math.round(requestSent.t);
     try {
       const parsed = requestSent.body ? JSON.parse(requestSent.body) : null;
@@ -404,9 +449,16 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
       row.requestBody = requestSent.body;
     }
   } else {
-    row.errors.push("no request_sent event captured (did interceptor install?)");
+    row.errors.push(
+      `no chat request seen. ${allPosts.length} POST(s) observed: ${allPosts.slice(0, 5).join(", ") || "none"}`,
+    );
   }
-  if (headers) {
+  if (netResp) {
+    row.t.response_headers = Math.round(netResp.t);
+    row.responseStatus = netResp.status;
+    if (netResp.status === 402) row.errors.push("402 insufficient_credits");
+    else if (netResp.status >= 400) row.errors.push(`HTTP ${netResp.status}`);
+  } else if (headers) {
     row.t.response_headers = Math.round(headers.t);
     row.responseStatus = headers.status ?? null;
     if (headers.status === 402) row.errors.push("402 insufficient_credits");
@@ -493,6 +545,9 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
     row.responseText.length > 40 &&
     row.missingChecks.length === 0 &&
     row.errorFrames.length === 0;
+
+  page.off("request", onReq);
+  page.off("response", onResp);
 
   RESULTS.push(row);
 }
