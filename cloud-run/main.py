@@ -135,7 +135,24 @@ def _pick_video_url(urls: list[str]) -> str | None:
 
 
 def _infer_niche_from_query(query: str) -> str:
-    """Best-effort niche from free-text query when session has no niche yet."""
+    """Best-effort niche from free-text query when session has no niche yet.
+
+    Tries the taxonomy-backed matcher first so prose like
+    "review đồ skincare Hàn Quốc cho da dầu mụn" resolves to the canonical
+    niche label ("làm đẹp" / "skincare") rather than the raw first 40 chars,
+    which downstream fails to match niche_taxonomy and drops the corpus
+    into all-niches fallback (off-domain references).
+    """
+    try:
+        from getviews_pipeline.corpus_context import _anon_client
+        from getviews_pipeline.niche_match import find_niche_match
+
+        match = find_niche_match(_anon_client(), query)
+        if match is not None:
+            return match.label
+    except Exception:
+        # Any import/query failure falls through to the legacy hashtag/desc path.
+        pass
     return infer_niche_from_hashtags([], query) or "tiktok"
 
 
@@ -600,7 +617,17 @@ async def stream(
                 structured = {k: out[k] for k in ("handle", "analyzed_videos") if k in out} or None
             elif normalized == "content_directions":
                 full_text = (out.get("synthesis") or "").strip()
-                structured = {k: out[k] for k in ("niche", "directions", "analyzed_videos") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in (
+                        "niche",
+                        "directions",
+                        "analyzed_videos",
+                        "coverage",
+                        "follow_ups",
+                    )
+                    if k in out
+                } or None
             elif normalized == "own_channel":
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
