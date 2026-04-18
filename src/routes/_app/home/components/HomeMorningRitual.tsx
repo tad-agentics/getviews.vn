@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
-import { Kicker } from "@/components/v2/Kicker";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
 
 /**
@@ -55,7 +54,7 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
     return (
       <section>
         <SectionHeader
-          kicker="KỊCH BẢN SÁNG NAY"
+          kicker="SÁNG NAY · 06:00"
           title="Đang tạo kịch bản cho ngày đầu"
           caption="Cron sáng sẽ xếp sẵn 3 kịch bản mới vào 7h. Ghé lại sáng mai nhé."
         />
@@ -68,14 +67,14 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
   return (
     <section>
       <SectionHeader
-        kicker="KỊCH BẢN SÁNG NAY"
+        kicker="SÁNG NAY · 06:00"
         title={
           <>3 kịch bản sẵn sàng <em className="gv-serif-italic text-[color:var(--gv-accent)]">cho bạn</em></>
         }
         caption={
           isThin
             ? "Dữ liệu ngách đang thưa — các retention estimate dưới đây là định hướng, không chính xác tuyệt đối."
-            : "Được tạo qua đêm từ dữ liệu ngách tuần này. Bấm vào để viết kịch bản chi tiết."
+            : "Tổng hợp từ pattern thắng trong ngách của bạn qua đêm qua."
         }
       />
 
@@ -95,45 +94,66 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
               }
             >
               <div className="flex items-center justify-between">
-                <Kicker tone={isHero ? "pos" : "muted"}>
-                  {(s.hook_type_vi || "hook").toUpperCase()}
-                </Kicker>
                 <span
                   className={
-                    "text-xs font-semibold " +
-                    (isHero ? "text-[color:var(--gv-pos)]" : "text-[color:var(--gv-pos-deep)]")
+                    "inline-flex items-center rounded-[3px] px-2 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] " +
+                    (isHero
+                      ? "bg-[color:var(--gv-accent)] text-white"
+                      : "bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)]")
                   }
                 >
-                  ~{s.retention_est_pct}% giữ chân
+                  HOOK #{idx + 1}
+                </span>
+                <span
+                  className={
+                    "gv-mono text-[10px] " +
+                    (isHero ? "text-white/60" : "text-[color:var(--gv-ink-4)]")
+                  }
+                >
+                  {s.shot_count} shot · {s.length_sec}s
                 </span>
               </div>
 
               <p
                 className={
-                  "gv-serif-italic text-[18px] leading-snug " +
+                  "gv-serif-italic text-[20px] leading-tight " +
                   (isHero ? "text-[color:var(--gv-canvas)]" : "text-[color:var(--gv-ink)]")
                 }
               >
-                “{s.title_vi}”
+                "{s.title_vi}"
               </p>
 
               <p
                 className={
-                  "flex-1 text-[13px] leading-snug " +
-                  (isHero ? "text-[color:var(--gv-ink-4)]" : "text-[color:var(--gv-ink-3)]")
+                  "flex-1 text-xs leading-snug " +
+                  (isHero ? "text-white/70" : "text-[color:var(--gv-ink-3)]")
                 }
               >
                 {s.why_works}
               </p>
 
-              <p
+              {/* Footer: ▲ est on the left, "Mở kịch bản →" action on the right */}
+              <div
                 className={
-                  "gv-mono gv-uc text-[10px] tracking-[0.14em] " +
-                  (isHero ? "text-[color:var(--gv-ink-4)]" : "text-[color:var(--gv-ink-4)]")
+                  "flex items-center justify-between pt-2.5 border-t " +
+                  (isHero ? "border-white/15" : "border-[color:var(--gv-rule-2)]")
                 }
               >
-                {s.shot_count} shot · {s.length_sec}s
-              </p>
+                <span
+                  className="gv-mono text-[11px]"
+                  style={{ color: "var(--gv-pos)" }}
+                >
+                  ▲ ~{s.retention_est_pct}% giữ chân
+                </span>
+                <span
+                  className={
+                    "gv-mono text-[11px] " +
+                    (isHero ? "text-white" : "text-[color:var(--gv-ink)]")
+                  }
+                >
+                  Mở kịch bản →
+                </span>
+              </div>
             </button>
           );
         })}

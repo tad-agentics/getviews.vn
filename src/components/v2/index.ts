@@ -18,3 +18,4 @@ export { Card } from "./Card";
 export { Composer } from "./Composer";
 export { Segmented } from "./Segmented";
 export { Bignum } from "./Bignum";
+export { TopBar } from "./TopBar";

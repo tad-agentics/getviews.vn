@@ -103,7 +103,9 @@ describe("HomeScreen", () => {
 
   it("greets the user with their first name and niche label", () => {
     renderHome();
-    const headline = screen.getByRole("heading", { level: 1 });
+    const headline = screen
+      .getAllByRole("heading", { level: 1 })
+      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
     const text = headline.textContent ?? "";
     expect(text).toContain("Chào Do");  // last token of "An Do"
     expect(text).toContain("Ẩm thực");
@@ -111,7 +113,9 @@ describe("HomeScreen", () => {
 
   it("omits the hook-count clause when pulse has no new_hooks", () => {
     renderHome();
-    const headline = screen.getByRole("heading", { level: 1 });
+    const headline = screen
+      .getAllByRole("heading", { level: 1 })
+      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
     expect(headline.textContent).not.toContain("hook mới đang nổ");
     expect(headline.textContent).toContain("đang có gì mới");
   });
@@ -134,7 +138,9 @@ describe("HomeScreen", () => {
       isPending: false,
     });
     renderHome();
-    const headline = screen.getByRole("heading", { level: 1 });
+    const headline = screen
+      .getAllByRole("heading", { level: 1 })
+      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
     expect(headline.textContent).toContain("3 hook mới");
   });
 
@@ -143,7 +149,9 @@ describe("HomeScreen", () => {
       data: { id: "u", display_name: "", primary_niche: null },
     });
     renderHome();
-    const headline = screen.getByRole("heading", { level: 1 });
+    const headline = screen
+      .getAllByRole("heading", { level: 1 })
+      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
     expect(headline.textContent).toContain("Chào bạn");
     expect(headline.textContent).toContain("ngách của bạn");
   });

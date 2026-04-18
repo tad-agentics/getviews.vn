@@ -353,9 +353,10 @@
 
 /* ── Utility classes ────────────────────────────────────────────────── */
 
-/* Kicker: mono all-caps label prefixed with a pink bullet.
- * Usage: <span class="gv-kicker">STUDIO</span> → "● STUDIO"
- * Accepts a data-bullet attribute to customise the dot colour inline. */
+/* Kicker: mono all-caps label. The ● bullet is opt-in — pass the
+ * `.gv-kicker--dot` modifier (SectionHeader does this automatically; plain
+ * inline kickers like "STUDIO · CREATOR" skip the dot to match the design).
+ */
 .gv-kicker {
   font-family: var(--gv-font-mono);
   font-size: 10px;
@@ -366,8 +367,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  font-weight: 600;
 }
-.gv-kicker::before {
+.gv-kicker--dot::before {
   content: "";
   width: 6px;
   height: 6px;
@@ -376,8 +378,8 @@
   display: inline-block;
   flex-shrink: 0;
 }
-.gv-kicker--muted::before { background: var(--gv-ink-4); }
-.gv-kicker--pos::before   { background: var(--gv-pos); }
+.gv-kicker--dot.gv-kicker--muted::before { background: var(--gv-ink-4); }
+.gv-kicker--dot.gv-kicker--pos::before   { background: var(--gv-pos); }
 
 /* Tight: headline weight + aggressive letter-spacing for display numbers
  * and section titles. Pair with font-size in the component. */
@@ -387,22 +389,32 @@
   font-family: var(--gv-font-display);
 }
 
-/* Bignum: the big pulse / KPI number. 56px/-0.04em. */
+/* Bignum: display KPI number. Sans (not serif), tight tracking, tight
+ * line-height. Responsive scale matches the design: 56 → 40 → 34 at the
+ * 900 / 560 breakpoints. */
 .gv-bignum {
-  font-family: var(--gv-font-display);
+  font-family: var(--gv-font-sans);
   font-size: 56px;
-  line-height: 1;
+  line-height: 0.95;
   letter-spacing: -0.04em;
   font-weight: 600;
 }
+@media (max-width: 900px) {
+  .gv-bignum { font-size: 40px; }
+}
+@media (max-width: 560px) {
+  .gv-bignum { font-size: 34px; }
+}
 
-/* Serif-italic accent: used on quoted titles + italicised nouns in the
- * redesign. Space Grotesk doesn't have a true italic at all weights, so
- * we lean on Instrument Serif as a transitive fallback. */
+/* Italic accent: emphasis words inside headlines + quoted script titles.
+ * Uses the display stack with a synthesized italic — the design relies
+ * on Space Grotesk's browser-italicised form, NOT a separate serif.
+ * When the Tweaks panel swaps the display font to a real serif later,
+ * this class inherits that change for free. */
 .gv-serif-italic {
-  font-family: "Instrument Serif", "Space Grotesk", Georgia, serif;
+  font-family: var(--gv-font-display);
   font-style: italic;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 /* Mono: standalone utility (kicker already covers the common case). */
@@ -416,6 +428,23 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-family: var(--gv-font-mono);
+}
+
+/* Focus: design uses accent pink, not neutral ink. Applied globally so
+ * every keyboard-tab target picks up the same ring. Components with
+ * their own ring (e.g. Btn) should still override with consistency. */
+.gv-focus,
+.gv-focus:focus-visible,
+.gv-scope :focus-visible {
+  outline: 2px solid var(--gv-accent);
+  outline-offset: 2px;
+}
+
+/* Ticker live-dot pulse — referenced in home HomeScreen.tsx via the
+ * animation shorthand. Declared here so it's available site-wide. */
+@keyframes gv-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.82); }
 }
 
 /* ── Hard-edge neo-brutalist surface.

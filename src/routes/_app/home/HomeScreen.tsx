@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Paperclip, Film, Eye, Mic } from "lucide-react";
+import { Paperclip, Film, Eye, Mic, Bookmark, Plus } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { Btn } from "@/components/v2/Btn";
 import { Composer } from "@/components/v2/Composer";
+import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useHomePulse } from "@/hooks/useHomePulse";
@@ -109,6 +111,29 @@ export default function HomeScreen() {
   return (
     <AppLayout active="home" enableMobileSidebar>
       <div className="min-h-full w-full bg-[color:var(--gv-canvas)]">
+        <TopBar
+          kicker="STUDIO"
+          title="Sảnh Sáng Tạo"
+          right={
+            <>
+              <span className="hide-narrow hidden md:inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)]">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
+                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
+                />
+                Dữ liệu cập nhật {asOfRelative}
+              </span>
+              <Btn variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
+                Đã Lưu
+              </Btn>
+              <Btn variant="ink" size="sm" onClick={() => navigate("/app/chat")}>
+                <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                Phân tích mới
+              </Btn>
+            </>
+          }
+        />
         <TickerMarquee />
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px] px-4 py-8 md:px-6 md:py-10">
@@ -120,7 +145,7 @@ export default function HomeScreen() {
             >
               <span
                 className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-ink)]"
-                style={{ animation: "pulse 1.6s ease-in-out infinite" }}
+                style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
               />
               Live · Cập nhật {asOfRelative}
             </span>
