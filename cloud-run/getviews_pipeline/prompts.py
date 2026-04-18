@@ -665,7 +665,12 @@ ER 6.1% cao hơn video 2 triệu view. Format "đừng làm điều này" outper
 
 INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
     "content_directions": (
-        "MỤC TIÊU: Xu hướng nội dung nổi bật trong niche. Xác định những gì các video tham chiếu thực hiện về mặt cấu trúc (hook, nhịp độ, format). Nêu 2–3 hướng nội dung kèm bằng chứng từ JSON."
+        "MỤC TIÊU: Xu hướng nội dung nổi bật trong niche. Xác định những gì các video tham chiếu thực hiện về mặt cấu trúc (hook, nhịp độ, format). Nêu 2–3 hướng nội dung kèm bằng chứng từ JSON.\n\n"
+        "TIẾT CHẾ: KHÔNG elaborate những mục dưới đây — mỗi cái có nút follow-up riêng:\n"
+        "  - Ưu tiên hướng nào trước (có nút 'Hướng nào nên thử trước?').\n"
+        "  - Kế hoạch 30 ngày trộn 3 hướng (cadence / tần suất đăng từng hướng).\n"
+        "  - Metric target tuần đầu cho mỗi hướng (% ER, views kỳ vọng).\n"
+        "Chỉ đưa 1 câu gợi ý cho mỗi hướng về '3 lần thử đầu nên làm gì' — không cần full kế hoạch."
     ),
     "trend_spike": (
         "MỤC TIÊU: Trend đang tăng tốc — nhấn mạnh những gì đang bứt phá gần đây so với các format đã ổn định.\n\n"
@@ -676,7 +681,7 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "- Chỉ dùng video_id từ JSON bên dưới — KHÔNG tự tạo ID\n"
         '- signal: "rising" = đang tăng nhanh, "early" = mới xuất hiện, "stable" = ổn định, "declining" = đang giảm\n'
         "- breakout: tỷ lệ views/trung bình niche — dùng dấu phẩy Việt Nam: 3,2x không 3.2x\n"
-        "- Sau JSON block, thêm 2-3 dòng phân tích sâu về trend đó (cơ chế, timing, rủi ro)\n"
+        "- Sau JSON block, thêm 1-2 dòng về cơ chế — KHÔNG giải thích dài về timing / rủi ro / saturation (dành cho follow-up)\n"
         "- Kết thúc bằng mục **Cơ hội giao nhau** nếu có pattern xuyên trend"
         "\n\nÂM THANH XU HƯỚNG (từ khóa trending_sounds trong JSON):\n"
         "- Nếu JSON chứa trending_sounds với usage_count >= 3, xuất mỗi âm thanh là một JSON block:\n"
@@ -684,7 +689,13 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "- Đặt sound_card block ngay sau trend_card block liên quan nhất (cùng niche/format)\n"
         "- commerce_signal: true nếu âm thanh được dùng nhiều trong video TikTok Shop / review sản phẩm\n"
         "- Bỏ qua nếu danh sách trending_sounds rỗng hoặc tất cả usage_count < 3\n"
-        "- Không thêm prose giải thích quanh sound_card block — tự nó là đủ"
+        "- Không thêm prose giải thích quanh sound_card block — tự nó là đủ\n\n"
+        "TIẾT CHẾ: KHÔNG elaborate những mục dưới đây — mỗi cái có nút follow-up riêng:\n"
+        "  - Mức độ cạnh tranh / bão hoà của từng trend (saturation score).\n"
+        "  - Dự báo dải uplift (VD: 'early adopters +5-10x baseline').\n"
+        "  - Chi phí sản xuất / độ khó entry (easy/medium/hard).\n"
+        "  - Adaptation cụ thể cho ngách khác ngoài trend gốc.\n"
+        "  - Hashtag + sound bundle dạng copy-paste đầy đủ (dùng sound_card JSON đã đủ cho core response)."
     ),
     "competitor_profile": (
         "MỤC TIÊU: Phân tích tài khoản đối thủ — tóm tắt công thức nội dung lặp lại của họ từ các bài đăng.\n"
@@ -705,9 +716,19 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "**Bài đứng đầu và vì sao** (1-2 gạch, trích số liệu), **Bài yếu nhất và vì sao** (1-2 gạch), **Hành động tiếp** (2-3 gạch cụ thể)."
     ),
     "brief_generation": (
-        "MỤC TIÊU: Brief sản xuất — xuất brief quay phim ngắn gọn.\n"
-        "CẤU TRÚC: **Hook** (câu mở + hành động khung đầu), **Beat sheet** (3-5 beat, mỗi beat 1 dòng: thời lượng + hành động + chữ trên màn hình), "
-        "**CTA** (câu kết + overlay), **Ghi chú sản xuất** (setup, prop, âm nhạc nếu cần). Ngắn gọn — creator cần đọc trong 30 giây."
+        "MỤC TIÊU: Brief sản xuất — xuất brief quay phim ngắn gọn, seller/agency có thể gửi thẳng Zalo cho KOL.\n"
+        "CẤU TRÚC (core — seller đọc trong 30 giây):\n"
+        "- **Hook** (câu mở + hành động khung đầu, 1 dòng).\n"
+        "- **Beat sheet** (3-5 beat, mỗi beat 1 dòng: thời lượng + hành động + chữ trên màn hình).\n"
+        "- **CTA** (câu kết + overlay).\n"
+        "- **Ghi chú sản xuất** (1-2 dòng: setup, prop, tone).\n\n"
+        "TIẾT CHẾ: KHÔNG thêm vào response này — mỗi mục có nút follow-up riêng:\n"
+        "  - Budget / giá ước / KPI commitment (mức views / ER target, điều kiện reshoot).\n"
+        "  - Deliverables checklist chi tiết (video chính + Story + Caption + Usage rights clause).\n"
+        "  - Template disclosure / nhãn #hợp tác / #ad theo luật VN.\n"
+        "  - Thời hạn, timeline sản xuất + posting window.\n"
+        "  - Usage rights (brand repost thời gian bao lâu, kênh nào).\n"
+        "Brief core phải là phần CREATIVE — phần hợp đồng/thương mại để seller mở chip khi cần."
     ),
     "shot_list": (
         "MỤC TIÊU: Danh sách cảnh quay chi tiết — xuất shot list dạng có cấu trúc, mỗi beat là một JSON block.\n\n"

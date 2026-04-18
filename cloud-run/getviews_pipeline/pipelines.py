@@ -356,17 +356,17 @@ def _build_follow_ups(
 
     chips: list[str] = []
     if intent == "content_directions":
-        chips.append("Cho mình hook mẫu cho hướng 1")
-        if picked_handle:
-            chips.append(f"Phân tích chi tiết @{picked_handle}")
-        chips.append(f"Tìm KOL {n} đang post đều")
+        # Progressive disclosure — Phase 2 chips unlock prioritisation + cadence
+        # + metrics the core response intentionally defers.
+        chips.append("Hướng nào nên thử trước?")
+        chips.append(f"Lên kế hoạch 30 ngày trộn 3 hướng cho {n}")
+        chips.append("Metric target tuần đầu cho mỗi hướng")
     elif intent == "trend_spike":
-        chips.append(f"Trend nào đang breakout trong {n}")
-        chips.append("Cho mình hook mẫu từ xu hướng top 1")
-        if picked_handle:
-            chips.append(f"Phân tích chi tiết @{picked_handle}")
-        else:
-            chips.append(f"Gợi ý định dạng video cho {n}")
+        # Progressive disclosure — deferred saturation, urgency, adaptation,
+        # and production-cost details each get a dedicated chip.
+        chips.append("Trend nào ít cạnh tranh nhất (low saturation)?")
+        chips.append("Trend này bao giờ hết hot?")
+        chips.append(f"Adapt trend top 1 cho ngách {n} thế nào?")
     elif intent == "video_diagnosis":
         # Progressive disclosure — each chip maps to a deferred section the
         # synthesis prompt intentionally didn't elaborate. See
@@ -389,9 +389,11 @@ def _build_follow_ups(
         chips.append("Gợi ý cover/thumbnail")
         chips.append("Checklist chuẩn bị quay (dụng cụ, ánh sáng)")
     elif intent == "brief_generation":
-        chips.append("Thêm 1 option hook cho brief này")
-        chips.append("Tạo shot list từ brief này")
-        chips.append(f"Tìm KOL {n} để gửi brief")
+        # Progressive disclosure — commercial / legal / KPI layers each
+        # get a dedicated chip so the creative core stays readable.
+        chips.append("Thêm budget + KPI target cho brief này")
+        chips.append("Viết disclosure (#hợp tác) + usage rights clause")
+        chips.append("Tạo checklist deliverables (video + story + caption)")
     elif intent == "own_channel":
         chips.append(f"Gợi ý hướng content mới cho {n}")
         chips.append("Cho mình 3 hook để thử tuần tới")
