@@ -55,6 +55,41 @@ CRITICAL RULES:
 - Map slides to the provided batch indices precisely."""
 
 
+# ---------------------------------------------------------------------------
+# Thumbnail / cover-frame analysis — focused one-shot on t=0 frame.
+# Called by thumbnail_analysis.analyze_thumbnail. Schema enforced via
+# ThumbnailAnalysis.model_json_schema().
+# ---------------------------------------------------------------------------
+
+THUMBNAIL_PROMPT = """Analyze this TikTok cover frame for stop-power.
+Return ONLY JSON matching the schema — no markdown.
+
+- stop_power_score (0.0–10.0): composite of face presence, facial expression
+  intensity, colour contrast, text readability. Calibration examples:
+    3 = bored neutral face on beige, no text
+    5 = product shot, clean but generic
+    7 = face + clear overlay, decent contrast
+    9 = extreme close-up startled expression + bold 3-word text, yellow on black
+- dominant_element: ONE of face / product / text / environment. Pick the element
+  a thumb-sized viewer's eye lands on first, not just what's largest.
+- text_on_thumbnail: EXACT visible text, verbatim Vietnamese with diacritics.
+  Max 40 chars. null if the frame has no readable text at all (watermarks /
+  tiny timestamps don't count).
+- facial_expression: REQUIRED when dominant_element=face. Use the 5 listed
+  values. null when no face is prominent.
+- colour_contrast: high = vibrant or complementary palette (yellow+black,
+  red+white, high-saturation). medium = mid-tone, natural. low = washed,
+  monochrome, flat.
+- why_it_stops: ONE Vietnamese sentence naming the SPECIFIC element —
+  not generic praise.
+    GOOD: "Mặt lớn cận + biểu cảm ngạc nhiên + chữ vàng trên đen — dừng scroll."
+    BAD:  "Hình đẹp và thu hút." (không nêu cụ thể)
+  Max 120 chars. If stop_power is low, say WHY it fails
+  (e.g. "Ảnh sản phẩm tĩnh, không mặt, màu nhạt — dễ bị scroll qua.")."""
+
+
+
+
 
 # ---------------------------------------------------------------------------
 # Domain knowledge — benchmarks, failure taxonomy, signal hierarchy.

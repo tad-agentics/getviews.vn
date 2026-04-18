@@ -290,6 +290,31 @@ class CarouselAnalyzeResult(BaseModel):
     diagnosis: str
 
 
+# ── Thumbnail / frame-0 analysis ───────────────────────────────────────────
+
+ThumbnailDominantElement = Literal["face", "product", "text", "environment"]
+ThumbnailFacialExpression = Literal[
+    "neutral", "surprised", "confused", "smiling", "focused"
+]
+ThumbnailColourContrast = Literal["high", "medium", "low"]
+
+
+class ThumbnailAnalysis(BaseModel):
+    """Gemini's read on why (or whether) the first frame stops the scroll.
+
+    Emitted by a focused image-understanding call on the t=0 frame URL
+    (R2-hosted for corpus videos, skipped for videos without extracted
+    frames until a later extraction-on-demand path lands).
+    """
+
+    stop_power_score: float = Field(..., ge=0.0, le=10.0)
+    dominant_element: ThumbnailDominantElement
+    text_on_thumbnail: str | None = None  # verbatim, max 40 chars
+    facial_expression: ThumbnailFacialExpression | None = None
+    colour_contrast: ThumbnailColourContrast
+    why_it_stops: str  # one Vietnamese sentence, <= 120 chars
+
+
 class BatchSummary(BaseModel):
     avg_face_appears_at: float | None = None
     avg_first_speech_at: float | None = None

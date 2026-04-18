@@ -1353,13 +1353,17 @@ async def run_video_diagnosis(
     )
     await emit_sentinel(step_queue)
 
+    # Parallel side-queries — each fails open so a miss never blocks the
+    # primary diagnosis path. Share the resolved video_id so both reads hit
+    # the same row.
+    user_video_id = str((user_res.get("metadata") or {}).get("video_id") or "")
+
     # Comment radar — sentiment + purchase intent from the video's comment
     # section. Fails open: any fetch / parse error leaves the field unset.
     comment_radar: dict[str, Any] | None = None
     try:
         from getviews_pipeline.comment_radar_cache import resolve_comment_radar
 
-        user_video_id = str((user_res.get("metadata") or {}).get("video_id") or "")
         comment_count_hint = int(
             ((user_res.get("metadata") or {}).get("metrics") or {}).get("comments") or 0
         )
@@ -1369,6 +1373,21 @@ async def run_video_diagnosis(
             )
     except Exception as exc:
         logger.warning("[video_diagnosis] comment_radar resolve failed: %s", exc)
+
+    # Thumbnail tile — one Gemini image call on the t=0 frame URL stored in
+    # video_corpus.frame_urls. Resolves to None for user-submitted videos not
+    # yet in the corpus (no frame extracted) or on any Gemini / Supabase
+    # failure; the frontend tile hides gracefully in that case.
+    thumbnail_analysis: dict[str, Any] | None = None
+    try:
+        from getviews_pipeline.thumbnail_analysis_cache import (
+            resolve_thumbnail_analysis,
+        )
+
+        if user_video_id:
+            thumbnail_analysis = await resolve_thumbnail_analysis(user_video_id)
+    except Exception as exc:
+        logger.warning("[video_diagnosis] thumbnail resolve failed: %s", exc)
 
     # Flatten user result for backward compatibility with VideoAnalyzeResult consumers
     out: dict[str, Any] = {
@@ -1387,6 +1406,8 @@ async def run_video_diagnosis(
     }
     if comment_radar is not None:
         out["comment_radar"] = comment_radar
+    if thumbnail_analysis is not None:
+        out["thumbnail_analysis"] = thumbnail_analysis
     if "metadata" in user_res:
         out["metadata"] = user_res["metadata"]
     if "analysis" in user_res:
