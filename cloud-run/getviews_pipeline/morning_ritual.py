@@ -396,10 +396,11 @@ def run_morning_ritual_batch(
     """
     summary = RitualBatchSummary()
 
+    # profiles stores the user's niche as `primary_niche` (INTEGER FK → niche_taxonomy)
     query = (
         client.table("profiles")
-        .select("id, niche_id, reference_channel_handles")
-        .not_.is_("niche_id", None)
+        .select("id, primary_niche, reference_channel_handles")
+        .not_.is_("primary_niche", None)
     )
     if user_ids:
         query = query.in_("id", user_ids)
@@ -415,7 +416,7 @@ def run_morning_ritual_batch(
     }
 
     for prof in profiles:
-        nid = prof.get("niche_id")
+        nid = prof.get("primary_niche")
         if nid is None:
             summary.users_no_niche += 1
             continue
