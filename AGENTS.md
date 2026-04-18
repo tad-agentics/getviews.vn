@@ -6,7 +6,7 @@
 
 ## Stack
 
-React Router v7 (Vite) · Supabase (DB + Auth + RLS + Edge Functions + Storage) · TanStack React Query · Vercel · Tailwind CSS · Figma Make
+React Router v7 (Vite) · Supabase (DB + Auth + RLS + Edge Functions + Storage) · TanStack React Query · Vercel · Tailwind CSS · Studio UIUX (`artifacts/uiux-reference/`)
 
 ---
 
@@ -67,7 +67,7 @@ All specialists are used proactively. When choosing which subagent to launch:
 | **Office Hours** | `/office-hours` | Tech Lead | Northstar validated — all 12 sections pass + stack fit check |
 | **Init** | `/init` | Tech Lead | Phase 1 artifacts present + validated |
 | **Phase 2** | `/phase2` | Product Designer | Human approves screen specs + Figma Make brief |
-| **Figma Make** | _(human-driven)_ | Human in Figma Make | Make code copied to `src/make-import/` |
+| **UIUX reference** | _(repo-tracked)_ | `artifacts/uiux-reference/` | Shell + screens + `styles.css` — primary design map (optional legacy dump in gitignored `src/make-import/`) |
 | **Phase 4** | `/phase4` | Tech Lead | Human approves tech spec |
 | **Setup** | `/setup` | Tech Lead | Human approves build plan |
 | **Foundation** | `/foundation` | Backend (infra + SEO/PWA) → Frontend (Make import + component inventory + Tailwind config + landing + auth) | Auto-proceeds after commit |
@@ -116,7 +116,8 @@ Blocking gates are enforced — no agent self-proceeds to the next phase.
 
 | Path | Purpose |
 |---|---|
-| `src/make-import/` | Figma Make code dump (temporary — human copies here, agent decomposes, deleted after porting) |
+| `artifacts/uiux-reference/` | Studio UIUX Upgrade pack (JSX + `styles.css` + `data.js`) — **tracked** design reference |
+| `src/make-import/` | _(optional, gitignored)_ Legacy Figma Make dump if someone pastes one |
 | `src/routes/_index/route.tsx` | Landing page (pre-rendered at build time for SEO) |
 | `src/routes/_auth/login/route.tsx` | Login screen |
 | `src/routes/_auth/signup/route.tsx` | Signup screen |
@@ -124,7 +125,7 @@ Blocking gates are enforced — no agent self-proceeds to the next phase.
 | `src/routes/_app/layout.tsx` | Auth guard layout — checks session, redirects to /login |
 | `src/routes/_app/[feature]/route.tsx` | Feature screen (copied from Figma Make TSX, targeted edits applied) |
 | `src/routes/_app/[feature]/components/` | Route-specific components |
-| `src/components/ui/` | Make's UI primitives (moved from `src/make-import/components/ui/` as-is) |
+| `src/components/ui/` | Radix-style UI primitives (historically from Make import; treat as the app library) |
 | `src/components/` | Shared components (used by 2+ screens) |
 | `src/hooks/` | Shared hooks (`useAuth`, `useProfile`, `useInstallPrompt`) |
 | `src/lib/supabase.ts` | Single Supabase client (publishable key) |

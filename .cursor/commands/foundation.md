@@ -61,7 +61,7 @@ Read:
 - .cursor/skills/design-system/SKILL.md (component inventory process)
 - .cursor/rules/copy-rules.mdc (copy quality test for landing page copy validation)
 - agent-workspace/ACTIVE_CONTEXT.md
-- src/make-import/ (Make's code output — read App.tsx + routes.tsx first)
+- artifacts/uiux-reference/ (tracked UIUX pack — read app.jsx + shell.jsx first; optional src/make-import/)
 - artifacts/docs/emotional-design-system.md — §6 Dopamine Moments (check if motion/react-countup are needed)
 - artifacts/docs/screen-specs-[app]-v1.md — landing page metadata block
 - artifacts/docs/northstar-[app].html — §7b Landing Page Content
@@ -70,7 +70,7 @@ Read:
 Mode: Foundation
 
 Step 0: Install Make's dependencies — scan imports across Make's files (not just package.json). Run npm install [packages]. Verify npm run build passes.
-Step 1: Copy src/make-import/components/ui/ → src/components/ui/ as-is. Copy other shared components (ScreenHeader, CreditGate, etc.) → src/components/. Fix import paths. Catalog Make's components and produce artifacts/docs/design-system-spec.md (per design-system SKILL.md). Build any additional shared components Make didn't generate (EmptyState, ErrorBanner, SkeletonCard).
+Step 1: Ensure src/components/ui/ exists (copy from legacy src/make-import/components/ui/ if Foundation never ran). Catalog components and produce artifacts/docs/design-system-spec.md (per design-system SKILL.md). Build any missing shared pieces (EmptyState, ErrorBanner, SkeletonCard).
 Step 2: Copy Make's theme.css (CSS custom properties + @theme inline) into src/app.css. Replace Google Fonts CDN imports with self-hosted .woff2. Fix next-themes import in sonner.tsx.
 Step 3: Create src/lib/query-client.ts (QueryClient with default staleTime: 60s) and src/lib/query-keys.ts per frontend-data.mdc. Wrap app in QueryClientProvider in src/root.tsx. Create src/hooks/useCredits.ts shared hook.
 Step 4: Create src/hooks/useInstallPrompt.ts (spec in tech-spec §18).

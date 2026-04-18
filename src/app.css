@@ -44,7 +44,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── GetViews.vn Design System Tokens ───────────────────────────── */
-/* Source of truth: src/make-import/src/styles/theme.css (Figma Make output) */
+/* Legacy Make theme + Phase A Studio tokens; UIUX reference: artifacts/uiux-reference/styles.css */
 :root {
   --font-size: 16px;
 
@@ -282,11 +282,10 @@
  * .gv-bignum, .gv-serif-italic).
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Space Grotesk — display + sans for the redesign. ──────────────────
- * Google-hosted for A3.1 speed. Self-host follow-up can swap woff2 files
- * into /fonts/ and update the @font-face block without touching components.
+/* ── Space Grotesk + JetBrains Mono — matches UIUX `styles.css` (--sans / --mono). ──
+ * Google-hosted; self-host follow-up can swap woff2 into /fonts/.
  */
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
 
 :root {
   /* ── Surfaces (cool near-white, per design iteration 3) ─────────── */
@@ -338,7 +337,11 @@
   /* ── Font stacks ────────────────────────────────────────────────── */
   --gv-font-display:   "Space Grotesk", "TikTok Sans", "Inter", system-ui, sans-serif;
   --gv-font-sans:      "Space Grotesk", "TikTok Sans", "Inter", system-ui, sans-serif;
-  --gv-font-mono:      "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --gv-font-mono:      "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  /* Body copy scale — UIUX ref `html, body`: 14px / 1.5 on Space Grotesk sans */
+  --gv-text-body:      14px;
+  --gv-leading-body:   1.5;
 
   /* ── Spacing (4/8/12/16/24/32/48/64) ───────────────────────────── */
   --gv-space-1:        4px;
@@ -423,6 +426,31 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Authenticated /app/* shell (see routes/_app/layout.tsx): same base as UIUX `styles.css` body. */
+.gv-studio-type {
+  font-family: var(--gv-font-sans);
+  font-size: var(--gv-text-body);
+  line-height: var(--gv-leading-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Sonner injects [data-sonner-toaster]{ font-family: system stack } — higher specificity keeps studio type when that sheet runs after app.css. */
+[data-sonner-toaster].gv-studio-type {
+  font-family: var(--gv-font-sans);
+  font-size: var(--gv-text-body);
+  line-height: var(--gv-leading-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+[data-sonner-toaster].gv-studio-type [data-sonner-toast][data-styled="true"] {
+  font-size: var(--gv-text-body);
+  line-height: var(--gv-leading-body);
+}
+
 /* Uppercase-tracked: for small labels that aren't a kicker. */
 .gv-uc {
   text-transform: uppercase;
@@ -445,6 +473,45 @@
 @keyframes gv-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.4; transform: scale(0.82); }
+}
+
+/* Studio Home main column — UIUX ref: max 1320px, padding 36px 28px 80px */
+.gv-home-wrap {
+  padding: 2rem 1rem 4rem;
+}
+@media (min-width: 768px) {
+  .gv-home-wrap {
+    padding: 36px 28px 80px;
+  }
+}
+
+/* UIUX ref `fade-up` — light entrance; respects reduced-motion via Tailwind if layered */
+@keyframes gv-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.gv-fade-up {
+  animation: gv-fade-up 0.45s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gv-fade-up {
+    animation: none;
+  }
+}
+.gv-fade-up-delay-1 {
+  animation-delay: 60ms;
+}
+.gv-fade-up-delay-2 {
+  animation-delay: 120ms;
+}
+.gv-fade-up-delay-3 {
+  animation-delay: 140ms;
 }
 
 /* ── Hard-edge neo-brutalist surface.

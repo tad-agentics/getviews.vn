@@ -7,7 +7,7 @@ alwaysApply: true
 
 App: GetViews.vn
 Deployment mode: pwa
-Stack: React Router v7 (Vite) · Supabase (DB + Auth + RLS + Edge Functions) · TanStack React Query · Vercel · Tailwind CSS · Figma Make
+Stack: React Router v7 (Vite) · Supabase (DB + Auth + RLS + Edge Functions) · TanStack React Query · Vercel · Tailwind CSS · Studio UIUX reference (`artifacts/uiux-reference/`)
 
 ## Architecture summary
 
@@ -16,7 +16,7 @@ Stack: React Router v7 (Vite) · Supabase (DB + Auth + RLS + Edge Functions) · 
 - **Server logic — Edge Functions:** Webhooks (PayOS payment confirmation), cron (expiry check, free query reset, webhook prune, stale processing guard), email (Resend via `send-email` Edge Function), PayOS payment creation.
 - **Server logic — Cloud Run (Python):** Video analysis pipeline (Intents ①③④ — avoids Vercel 60s timeout). Streams SSE directly to client. JWT-validated against `SUPABASE_JWT_SECRET`. Two services: user-facing (`min-instances: 1`, `/stream` SSE endpoint) + batch (`min-instances: 0`, daily 4 AM ICT indexer).
 - **Text intents:** Intents ⑤⑥⑦ + follow-ups route through Vercel Edge Runtime (`/api/chat`). Gemini API call, stream via Vercel Edge.
-- **Design:** Figma Make output in `src/make-import/`. Screens copied into route files with hooks, auth, and loading/error/empty states added. Make components used as-is.
+- **Design:** Tracked reference in `artifacts/uiux-reference/` (shell + screens + tokens file). Production screens live under `src/routes/` with hooks, auth, and states. Optional gitignored `src/make-import/` only if pasting a legacy Figma Make dump.
 
 ## State management
 

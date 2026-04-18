@@ -1,6 +1,7 @@
 // Renders a subtle circular arc showing analysis usage.
 // Invisible below 70% — appears amber at or above 90%.
 // Never shows a number in the sidebar; tooltip only on hover.
+import { useId } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -13,6 +14,7 @@ interface UsageArcProps {
 }
 
 export function UsageArc({ used, limit }: UsageArcProps) {
+  const gradId = useId().replace(/:/g, "");
   const pct = limit > 0 ? used / limit : 0;
 
   if (pct < 0.7) return null;
@@ -35,9 +37,9 @@ export function UsageArc({ used, limit }: UsageArcProps) {
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <defs>
-                <linearGradient id="arc-purple" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#7c3aed" />
+                <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="var(--gv-accent)" />
+                  <stop offset="100%" stopColor="var(--gv-accent-deep)" />
                 </linearGradient>
               </defs>
               {/* Track */}
@@ -45,7 +47,7 @@ export function UsageArc({ used, limit }: UsageArcProps) {
                 cx={cx}
                 cy={cy}
                 r={r}
-                stroke="var(--border)"
+                stroke="var(--gv-rule)"
                 strokeWidth={2.5}
                 fill="none"
               />
@@ -54,7 +56,7 @@ export function UsageArc({ used, limit }: UsageArcProps) {
                 cx={cx}
                 cy={cy}
                 r={r}
-                stroke="url(#arc-purple)"
+                stroke={`url(#${gradId})`}
                 strokeWidth={2.5}
                 fill="none"
                 strokeDasharray={circumference}

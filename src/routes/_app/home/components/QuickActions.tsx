@@ -6,7 +6,8 @@ import {
 import { SectionHeader } from "@/components/v2/SectionHeader";
 
 /**
- * QuickActions — 6 cards in a 2x3 grid (1 col on mobile). Matches the
+ * QuickActions — 6 cards in a 3×2 grid from 901px up (1 col below, matching UIUX
+ * `quick-grid` + 900px breakpoint). Matches the
  * design's Home "Thao tác" block: each cell shows a squircle icon + mono
  * numeric badge (01..06), `.tight` title + short description.
  *
@@ -48,7 +49,7 @@ export const QuickActions = memo(function QuickActions() {
         title="Bắt đầu nhanh"
         caption="6 cửa vào — chọn cửa hợp với ý tưởng của bạn."
       />
-      <div className="mt-5 grid grid-cols-1 gap-px overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-rule)] md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-px overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-rule)] min-[901px]:grid-cols-2">
         {ACTIONS.map((a, idx) => {
           const Icon = a.icon;
           return (

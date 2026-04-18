@@ -66,14 +66,14 @@ function NicheOfYoursBlock() {
   if (niches.length === 0) return null;
 
   return (
-    <div className="px-4 mb-3">
-      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)] mb-2">
-        Ngách của bạn
+    <div className="mb-3 px-4 pb-2.5 pt-3.5">
+      <p className="gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)] mb-2.5">
+        Ngách Của Bạn
       </p>
-      <ul className="flex flex-col gap-0.5">
+      <ul className="flex flex-col gap-1">
         {niches.map((n) => (
           <li key={n.id}>
-            <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-black/[0.04]">
+            <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-[7px] text-xs hover:bg-[rgba(20,17,12,0.04)]">
               <span className="truncate text-[color:var(--gv-ink-2)]">{n.name}</span>
               <span className="gv-mono text-[10px] text-[color:var(--gv-pos-deep)] shrink-0">
                 ↑ {n.hot}
@@ -108,15 +108,21 @@ function NavItem({
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       aria-disabled={disabled || undefined}
-      className={`w-full text-left px-2.5 py-2 rounded-lg text-sm ${
-        active ? 'bg-[var(--border)] text-[var(--ink)]' : 'text-[var(--ink-soft)]'
-      } ${disabled ? 'opacity-60 cursor-default' : 'hover:bg-[var(--border)] hover:text-[var(--ink)]'} transition-colors duration-[120ms]`}
+      className={[
+        "w-full rounded-md text-left text-[13px] transition-colors duration-150",
+        "flex items-center gap-2.5 px-3 py-[9px]",
+        disabled
+          ? "cursor-default opacity-60 font-medium text-[color:var(--gv-ink-2)]"
+          : active
+            ? "bg-[color:var(--gv-ink)] font-semibold text-[color:var(--gv-canvas)]"
+            : "font-medium text-[color:var(--gv-ink-2)] hover:bg-[rgba(20,17,12,0.05)] hover:text-[color:var(--gv-ink)]",
+      ].join(" ")}
     >
-      <div className="flex items-center gap-2.5">
-        <Icon className="w-4 h-4" strokeWidth={1.8} />
-        <span className="font-semibold flex-1">{label}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <Icon className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
+        <span className="min-w-0 flex-1 whitespace-nowrap">{label}</span>
         {badge ? (
-          <span className="text-[9px] uppercase tracking-wider text-[var(--faint)] font-medium">
+          <span className="text-[9px] uppercase tracking-wider text-[color:var(--gv-ink-4)] font-medium">
             {badge}
           </span>
         ) : null}
@@ -148,31 +154,31 @@ function DeleteConfirmDialog({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed z-[301] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] bg-[var(--surface)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden"
+        className="fixed z-[301] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-              <Trash2 className="w-4 h-4 text-[var(--danger)]" strokeWidth={1.8} />
+            <div className="w-8 h-8 rounded-full bg-[color:var(--gv-neg-soft)] flex items-center justify-center flex-shrink-0">
+              <Trash2 className="w-4 h-4 text-[color:var(--gv-neg)]" strokeWidth={1.8} />
             </div>
-            <p className="font-extrabold text-sm text-[var(--ink)]">Xoá cuộc trò chuyện</p>
+            <p className="font-extrabold text-sm text-[color:var(--gv-ink)]">Xoá cuộc trò chuyện</p>
           </div>
-          <p className="text-xs text-[var(--ink-soft)] leading-relaxed mb-5">
+          <p className="text-xs text-[color:var(--gv-ink-2)] leading-relaxed mb-5">
             Bạn có chắc muốn xoá cuộc trò chuyện này không?
             <br />
-            <span className="text-[var(--ink)] font-semibold">Tất cả phân tích và insights sẽ bị xoá vĩnh viễn.</span>
+            <span className="text-[color:var(--gv-ink)] font-semibold">Tất cả phân tích và insights sẽ bị xoá vĩnh viễn.</span>
           </p>
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-[var(--ink-soft)] bg-[var(--surface-alt)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
+              className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-[color:var(--gv-ink-2)] bg-[color:var(--gv-canvas-2)] hover:bg-[color:var(--gv-rule)] transition-colors duration-[120ms]"
             >
               Huỷ
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-white bg-[var(--danger)] hover:opacity-90 transition-opacity duration-[120ms]"
+              className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-white bg-[color:var(--gv-neg)] hover:opacity-90 transition-opacity duration-[120ms]"
             >
               Xoá vĩnh viễn
             </button>
@@ -212,13 +218,13 @@ function ContextMenu({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: -4 }}
         transition={{ duration: 0.1, ease: 'easeOut' }}
-        className="fixed z-[200] w-[152px] bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden"
+        className="fixed z-[200] w-[152px] bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-lg shadow-xl overflow-hidden"
         style={{ top, left }}
         onClick={(e) => e.stopPropagation()}
       >
       <button
         onClick={() => { onPin(); onClose(); }}
-        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--ink-soft)] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[100ms]"
+        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)] transition-colors duration-[100ms]"
       >
         {isPinned
           ? <PinOff className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
@@ -228,15 +234,15 @@ function ContextMenu({
       </button>
       <button
         onClick={() => { onRename(); onClose(); }}
-        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--ink-soft)] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[100ms]"
+        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)] transition-colors duration-[100ms]"
       >
         <Pencil className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
         <span className="font-semibold">Đổi tên</span>
       </button>
-      <div className="mx-2 border-t border-[var(--border)]" />
+      <div className="mx-2 border-t border-[color:var(--gv-rule)]" />
       <button
         onClick={() => { onDelete(); onClose(); }}
-        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--danger)] hover:bg-red-50/40 transition-colors duration-[100ms]"
+        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[color:var(--gv-neg)] hover:bg-[color:var(--gv-neg-soft)]/60 transition-colors duration-[100ms]"
       >
         <Trash2 className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.8} />
         <span className="font-semibold">Xoá</span>
@@ -314,24 +320,24 @@ function SessionRow({
               if (e.key === 'Escape') { setDraft(displayLabel); setRenaming(false); }
             }}
             onBlur={commitRename}
-            className="flex-1 min-w-0 text-xs bg-[var(--surface-alt)] border border-[var(--purple)]/60 rounded px-2 py-1 text-[var(--ink)] outline-none"
+            className="flex-1 min-w-0 text-xs bg-[color:var(--gv-paper)] border border-[color:var(--gv-accent)]/50 rounded px-2 py-1 text-[color:var(--gv-ink)] outline-none"
           />
           <button
             onMouseDown={(e) => { e.preventDefault(); commitRename(); }}
-            className="w-5 h-5 flex items-center justify-center rounded text-[var(--purple)] hover:bg-[var(--border)] flex-shrink-0"
+            className="w-5 h-5 flex items-center justify-center rounded text-[color:var(--gv-accent)] hover:bg-[color:var(--gv-rule)] flex-shrink-0"
           >
             <Check className="w-3 h-3" strokeWidth={2.5} />
           </button>
         </div>
       ) : (
-        <div className="flex items-center rounded-lg hover:bg-[var(--border)] transition-colors duration-[120ms]">
+        <div className="flex items-center rounded-md transition-colors duration-[120ms] hover:bg-[rgba(20,17,12,0.04)]">
           <button
             onClick={onNavigate}
             title={displayLabel}
-            className="flex-1 min-w-0 text-left flex items-center gap-1 pl-2.5 py-2 text-xs text-[var(--ink-soft)] hover:text-[var(--ink)]"
+            className="flex flex-1 items-center gap-1 py-[7px] pl-2.5 pr-1 text-left text-xs text-[color:var(--gv-ink-2)] hover:text-[color:var(--gv-ink)]"
           >
             {isPinned && (
-              <Pin className="w-2.5 h-2.5 flex-shrink-0 text-[var(--purple)] rotate-45" strokeWidth={2} />
+              <Pin className="w-2.5 h-2.5 flex-shrink-0 text-[color:var(--gv-accent)] rotate-45" strokeWidth={2} />
             )}
             <span className="truncate min-w-0">{displayLabel}</span>
           </button>
@@ -344,9 +350,9 @@ function SessionRow({
             aria-label="Tuỳ chọn phiên chat"
             className={`flex-shrink-0 flex items-center justify-center rounded transition-colors duration-[100ms]
               w-9 h-9 lg:w-6 lg:h-6
-              hover:text-[var(--ink-soft)] hover:bg-[var(--border)]
+              hover:text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-rule)]
               lg:opacity-0 lg:group-hover/row:opacity-100
-              ${menuOpen ? 'lg:opacity-100 text-[var(--ink-soft)]' : 'text-[var(--faint)]'}`}
+              ${menuOpen ? 'lg:opacity-100 text-[color:var(--gv-ink-2)]' : 'text-[color:var(--gv-ink-4)]'}`}
           >
             <MoreHorizontal className="w-3.5 h-3.5" strokeWidth={1.8} />
           </button>
@@ -468,18 +474,18 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   function SidebarContent({ onClose }: { onClose?: () => void }) {
     return (
       <>
-        {/* Brand mark — 30x30 ink logo + wordmark with cyan dot + mono kicker */}
-        <div className="flex items-center justify-between px-3 mb-4">
-          <div className="flex items-center gap-2.5 min-w-0">
+        {/* Brand mark — UIUX shell.jsx: 20px/18px padding, then full-width rule */}
+        <div className="flex items-center justify-between px-5 pb-[18px] pt-5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <LogoMark />
             <div className="min-w-0">
               <span
-                className="block text-[20px] font-bold text-[color:var(--gv-ink)] leading-none"
+                className="block text-[20px] font-bold leading-none text-[color:var(--gv-ink)]"
                 style={{ letterSpacing: "-0.04em" }}
               >
                 Getviews<span className="text-[color:var(--gv-accent-2-deep)]">.</span>
               </span>
-              <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+              <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
                 Studio · Creator
               </p>
             </div>
@@ -491,23 +497,25 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 navigate("/app/chat");
                 onClose?.();
               }}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--faint)] hover:text-[var(--ink-soft)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
             >
-              <Plus className="w-4 h-4" strokeWidth={1.8} />
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
             </button>
             {onClose && (
               <button
                 onClick={onClose}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--faint)] hover:text-[var(--ink-soft)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
               >
-                <X className="w-4 h-4" strokeWidth={1.8} />
+                <X className="h-3.5 w-3.5" strokeWidth={1.8} />
               </button>
             )}
           </div>
         </div>
 
+        <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
+
         {/* Primary nav — the 4 design surfaces (2 live, 2 "Sắp có"). */}
-        <div className="flex flex-col gap-0.5 px-2 mb-3">
+        <div className="mb-3 flex flex-col gap-0.5 px-3 py-3">
           <NavItem
             icon={Home}
             label="Studio"
@@ -519,7 +527,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           />
           <NavItem
             icon={TrendingUp}
-            label="Xu hướng"
+            label="Xu Hướng"
             active={active === "trends"}
             onClick={() => {
               navigate("/app/trends");
@@ -528,20 +536,22 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           />
           <NavItem
             icon={Users}
-            label="Kênh tham chiếu"
+            label="Kênh Tham Chiếu"
             badge="Sắp có"
             disabled
           />
           <NavItem
             icon={FileText}
-            label="Kịch bản"
+            label="Kịch Bản"
             badge="Sắp có"
             disabled
           />
         </div>
 
+        <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
+
         {/* Chat — secondary, kept accessible while Answer isn't built. */}
-        <div className="flex flex-col gap-0.5 px-2 mb-3">
+        <div className="mb-3 flex flex-col gap-0.5 px-3">
           <NavItem
             icon={MessageCircle}
             label="Chat"
@@ -553,11 +563,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           />
         </div>
 
+        <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
+
         {/* Ngách của bạn — mini-block above the recents list. */}
         <NicheOfYoursBlock />
 
-        {/* Divider */}
-        <div className="mx-3 mb-3 border-t border-[var(--border)]" />
+        <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
         {/* Session lists */}
         <div className="flex-1 overflow-y-auto px-2 flex flex-col min-h-0" style={{ scrollbarWidth: 'none' }}>
@@ -571,8 +582,8 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 transition={{ duration: 0.18, ease: 'easeInOut' }}
                 className="overflow-hidden"
               >
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)] px-2 mb-1 mt-0.5 flex items-center gap-1.5">
-                  <Pin className="w-2.5 h-2.5 rotate-45" strokeWidth={2} />
+                <p className="mb-2.5 mt-0.5 flex items-center gap-1.5 px-2 gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+                  <Pin className="h-2.5 w-2.5 rotate-45" strokeWidth={2} />
                   Ghim
                 </p>
                 <div className="flex flex-col gap-0.5 mb-3">
@@ -597,8 +608,8 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
           {recent.length > 0 && (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)] px-2 mb-1 flex items-center gap-1.5">
-                Gần đây
+              <p className="gv-mono mb-2.5 px-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+                Gần Đây
               </p>
               <div className="flex flex-col gap-0.5">
                 {recent.map((session) => (
@@ -620,23 +631,23 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           )}
 
           {sessions.length === 0 && (
-            <p className="px-2 py-3 text-[11px] text-[var(--faint)]">
+            <p className="px-2 py-3 text-[11px] text-[color:var(--gv-ink-4)]">
               Chưa có hội thoại nào.
             </p>
           )}
         </div>
 
-        {/* Divider */}
-        <div className="mx-3 mt-3 mb-2 border-t border-[var(--border)]" />
-
-        {/* Bottom: settings + arc + avatar */}
-        <div className="flex items-center justify-between px-3">
+        {/* Footer — UIUX: border-top rule, settings label + avatar */}
+        <div className="mt-2 border-t border-[color:var(--gv-rule)] px-3 pb-1 pt-2.5">
+        <div className="flex items-center justify-between gap-2">
           <button
+            type="button"
             onClick={() => { navigate('/app/settings'); onClose?.(); }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--faint)] hover:text-[var(--ink-soft)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
+            className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-[color:var(--gv-ink-3)] transition-colors hover:bg-[rgba(20,17,12,0.05)]"
             title="Cài đặt"
           >
-            <Settings className="w-[18px] h-[18px]" strokeWidth={1.7} />
+            <Settings className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
+            <span className="truncate">Cài đặt</span>
           </button>
           {profile ? (
             <UsageArc
@@ -648,23 +659,24 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             type="button"
             title={displayName}
             onClick={() => setShowProfileModal((v) => !v)}
-            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[var(--border-active)]"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
           >
             {avatarUrl ? (
               <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
             ) : (
-              <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#a855f7] to-[#7c3aed] text-[10px] font-extrabold text-white">
+              <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[color:var(--gv-accent)] to-[color:var(--gv-accent-deep)] text-[10px] font-extrabold text-white">
                 {initials}
               </span>
             )}
           </button>
+        </div>
         </div>
       </>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--background)]">
+    <div className="flex flex-col h-screen bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
       <div className="hidden lg:flex flex-1 overflow-hidden">
         <div className="flex w-full h-full">
@@ -675,7 +687,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           </aside>
 
           {/* ── Main content ─────── */}
-          <div className="flex-1 bg-[var(--surface-alt)] flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 bg-[color:var(--gv-canvas)] flex flex-col min-h-0 overflow-hidden">
             {children}
           </div>
         </div>
@@ -702,7 +714,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             {/* Hamburger — top left */}
             <button
               onClick={() => setMobileSidebarOpen(true)}
-              className="fixed top-3 left-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--ink-soft)] shadow-sm active:scale-95 transition-all duration-[120ms]"
+              className="fixed top-3 left-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] text-[color:var(--gv-ink-2)] shadow-sm active:scale-95 transition-all duration-[120ms]"
               style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
             >
               <Menu className="w-4 h-4" strokeWidth={1.8} />
@@ -711,7 +723,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             {/* New chat — top right */}
             <button
               onClick={() => navigate('/app/chat')}
-              className="fixed top-3 right-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--ink-soft)] shadow-sm active:scale-95 transition-all duration-[120ms]"
+              className="fixed top-3 right-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] text-[color:var(--gv-ink-2)] shadow-sm active:scale-95 transition-all duration-[120ms]"
               style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
             >
               <Plus className="w-4 h-4" strokeWidth={1.8} />
@@ -782,19 +794,19 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               className="fixed z-50 w-[260px]"
               style={{ bottom: '16px', left: '12px' }}
             >
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
+              <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl shadow-2xl overflow-hidden">
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#a855f7] to-[#7c3aed] flex items-center justify-center flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[color:var(--gv-accent)] to-[color:var(--gv-accent-deep)] flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-extrabold text-xs">{initials}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-extrabold text-[var(--ink)]">{displayName}</p>
-                      <p className="truncate text-xs text-[var(--muted)]">{email}</p>
+                      <p className="truncate text-sm font-extrabold text-[color:var(--gv-ink)]">{displayName}</p>
+                      <p className="truncate text-xs text-[color:var(--gv-ink-3)]">{email}</p>
                     </div>
                     <button
                       onClick={() => setShowProfileModal(false)}
-                      className="w-6 h-6 flex items-center justify-center rounded-md text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface-alt)] transition-colors duration-[120ms] flex-shrink-0"
+                      className="w-6 h-6 flex items-center justify-center rounded-md text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] transition-colors duration-[120ms] flex-shrink-0"
                     >
                       <X className="w-3.5 h-3.5" strokeWidth={1.8} />
                     </button>
@@ -802,22 +814,22 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                   <div className="space-y-0.5">
                     <button
                       onClick={() => { setShowProfileModal(false); navigate('/app/settings'); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[var(--ink-soft)] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)] transition-colors duration-[120ms]"
                     >
                       <Settings className="w-3.5 h-3.5" strokeWidth={1.8} />
                       <span className="font-semibold">Cài đặt</span>
                     </button>
                     <button
                       onClick={() => { setShowProfileModal(false); navigate('/app/learn-more'); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[var(--ink-soft)] hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)] transition-colors duration-[120ms]"
                     >
                       <BookOpen className="w-3.5 h-3.5" strokeWidth={1.8} />
                       <span className="font-semibold">Tìm hiểu thêm</span>
                     </button>
-                    <div className="mx-1 my-1 border-t border-[var(--border)]" />
+                    <div className="mx-1 my-1 border-t border-[color:var(--gv-rule)]" />
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[var(--danger)] hover:bg-red-50/60 transition-colors duration-[120ms]"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[color:var(--gv-neg)] hover:bg-[color:var(--gv-neg-soft)]/70 transition-colors duration-[120ms]"
                     >
                       <LogOut className="w-3.5 h-3.5" strokeWidth={1.8} />
                       <span className="font-semibold">Đăng xuất</span>

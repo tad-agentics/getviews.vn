@@ -37,7 +37,7 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
     return (
       <section>
         <SectionHeader
-          kicker="KỊCH BẢN SÁNG NAY"
+          kicker="SÁNG NAY · 06:00"
           title="3 kịch bản sẵn sàng cho bạn"
           caption="Được tạo qua đêm từ dữ liệu ngách tuần này."
         />
@@ -68,9 +68,7 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
     <section>
       <SectionHeader
         kicker="SÁNG NAY · 06:00"
-        title={
-          <>3 kịch bản sẵn sàng <em className="gv-serif-italic text-[color:var(--gv-accent)]">cho bạn</em></>
-        }
+        title="3 kịch bản sẵn sàng cho bạn"
         caption={
           isThin
             ? "Dữ liệu ngách đang thưa — các retention estimate dưới đây là định hướng, không chính xác tuyệt đối."

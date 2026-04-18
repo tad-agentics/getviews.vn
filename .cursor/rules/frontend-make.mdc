@@ -1,126 +1,95 @@
 ---
-description: Figma Make copy-then-edit methodology — how to integrate Make's React TSX into route files
+description: UI integration methodology — copy-then-edit from tracked UIUX reference (or legacy Make dump) into route files
 globs:
   - src/routes/**/*.tsx
+  - artifacts/uiux-reference/**/*
   - src/make-import/**/*
 alwaysApply: false
 ---
 
-## Figma Make Porting
+## UI integration (UIUX reference + legacy Make)
 
-Make produces a complete working React app with mock data — every button works, every form submits, every list renders, just with hardcoded data. The frontend agent's role is **integrator**: copy Make's files directly, then make targeted edits. **Never rewrite a Make file from scratch. Never "port" by reading Make's code and writing new code inspired by it.**
+The tracked **Studio UIUX pack** lives in **`artifacts/uiux-reference/`** (`app.jsx`, `shell.jsx`, `screens/*.jsx`, `styles.css`, `data.js`). It is the **primary** visual/source map for shell + Home + related screens. The frontend agent’s role is **integrator**: copy reference files into `src/routes/` (as `.tsx`), then targeted edits — **never rewrite from memory.**
 
-Human copies all Make code files into `src/make-import/`.
+Optional **legacy Figma Make** dumps may still be pasted into gitignored **`src/make-import/`** (same workflow).
 
-### Step 0 — Install Make's dependencies
+### Step 0 — Dependencies
 
-**Scan import statements across Make's files**, not just `package.json` (Make often includes phantom deps like `@emotion/*`, `@mui/*` that are never imported). Install only packages that are actually imported (`@radix-ui/react-*`, `lucide-react`, `clsx`, `tailwind-merge`, `motion`, `react-countup`, `date-fns`, `vaul`, `sonner`, `cmdk`, `embla-carousel-react`, `tw-animate-css`, etc.). Run `npm install [packages]` and verify `npm run build` passes.
+**Scan import statements** across the reference files, not just `package.json`. Install only packages actually imported (`@radix-ui/react-*`, `lucide-react`, `clsx`, `tailwind-merge`, `motion`, `react-countup`, `date-fns`, `vaul`, `sonner`, `cmdk`, `embla-carousel-react`, `tw-animate-css`, etc.). Run `npm install [packages]` and verify `npm run build` passes.
 
-### Step 1 — Read Make's router as a reference map
+### Step 1 — Read the reference app as a route map
 
-Read `src/make-import/App.tsx` and `src/make-import/**/routes.tsx` (or similar router config) to understand the screen-to-component mapping. **Do not copy App.tsx or routes.tsx into the project.** Make generates its own router, provider tree, and layout wrappers that conflict with the template's React Router setup. These files are a reference map only.
+Read **`artifacts/uiux-reference/app.jsx`** (and `shell.jsx`) to understand **screen ids → components**. **Do not copy `App()` into the project** — React Router + `src/routes/` already own routing. These files are a **reference map only**.
 
-### Step 2 — Copy Make's shared components
+If using legacy Make: read `src/make-import/App.tsx` / `routes.tsx` the same way.
 
-- **Copy** `src/make-import/components/ui/` → `src/components/ui/` (entire directory, as-is)
-- **Copy** other shared components from `src/make-import/components/` → `src/components/` (e.g., `ScreenHeader.tsx`, `CreditGate.tsx`, `BottomNav.tsx`)
-- Fix import paths in copied files: `../../lib/` → `@/lib/`, `../components/ui/` → `@/components/ui/` (or whatever the alias resolves to)
-- Do NOT add shadcn/ui, HeroUI, or any other library. Make's components ARE the component library.
+### Step 2 — Shared components
 
-### Step 3 — Copy Make's styles
+- **Radix primitives:** `src/components/ui/` is already the app library (historically from Make). **Do not** add parallel UI kits.
+- When the UIUX pack introduces **new** shared pieces, add them under `src/components/` and wire imports with `@/`.
 
-- **Copy** Make's `theme.css` (CSS custom properties + `@theme inline`) into `src/app.css` or import it
-- **Copy** Make's `tailwind.css` directives
-- Replace Google Fonts CDN `@import url(...)` with self-hosted `.woff2` in `public/fonts/` + `@font-face`
-- Fix `next-themes` import in `sonner.tsx` — replace `useTheme()` with a static value
+### Step 3 — Styles / tokens
 
-### Step 4 — Copy Make's lib files
+- **`artifacts/uiux-reference/styles.css`** defines `:root` tokens that align with **`src/app.css`** Phase A (`--gv-*`) and legacy Make tokens — keep **one** production stylesheet (`src/app.css`); merge token intent from the reference, do not fork duplicate theme files.
+- Replace Google Fonts CDN `@import url(...)` with self-hosted `.woff2` in `public/fonts/` + `@font-face` when touching fonts.
+- Fix `next-themes` import in `sonner.tsx` — replace `useTheme()` with a static value (`theme="light"`).
 
-- **Copy** `src/make-import/lib/mock-data.ts` → `src/lib/mock-data.ts` (keep temporarily — screens import from it)
-- **Copy** `src/make-import/lib/nav-config.ts` → `src/lib/nav-config.ts` (if Make has navigation config)
-- Do NOT copy `user-context.tsx` — the template's `AuthProvider` replaces it
+### Step 4 — Data / lib
 
-### Step 5 — Copy each screen file, then make targeted edits
+- **`artifacts/uiux-reference/data.js`** — mock shapes for parity; prefer aligning **`src/lib/`** and hooks with these shapes when wiring Supabase.
+- Legacy path: `src/make-import/lib/mock-data.ts` → `src/lib/mock-data.ts` if still used.
 
-**This is the critical step. The method is COPY then EDIT, not read then rebuild.**
+### Step 5 — Copy each screen, then targeted edits
+
+**COPY then EDIT**, not read then rebuild.
 
 For each screen in `build-plan.md`:
 
 ```
-a. COPY the Make screen file directly:
-   cp src/make-import/screens/Home.tsx → src/routes/_app/home/route.tsx
+a. COPY the reference screen into the route file (rename .jsx → .tsx):
+   cp artifacts/uiux-reference/screens/home.jsx → src/routes/_app/home/HomeScreen.tsx
+   (or the appropriate route module your feature uses)
 
-b. Fix import paths in the copied file:
-   - ../../lib/mock-data  → @/lib/mock-data (temporary)
-   - ../../lib/user-context → @/lib/auth (swap useUser → useAuth)
-   - ../components/  → @/components/
-   - ../components/ui/  → @/components/ui/
-   - react-router imports stay as-is (Make uses react-router too)
+b. Fix import paths:
+   - ../ → @/ as needed
+   - ../../lib/user-context → @/lib/auth (useAuth)
 
-c. str_replace ONLY the mock data lines (see replacement table below)
-   — leave ALL other code untouched
+c. str_replace ONLY mock data / navigation / auth
+   — preserve layout and class names from the reference
 
-d. Add loading/error/empty states BELOW existing JSX
-   — do not restructure Make's component tree
+d. Add loading/error/empty states without flattening the component tree
 
-e. Add errorElement on the route definition
+e. Add errorElement on the route where required
 
-f. Verify copy against copy-rules.mdc
+f. Verify against copy-rules.mdc
 ```
 
-**90% of Make's code should be UNTOUCHED after porting.** If you find yourself rewriting more than ~10 lines per screen, you are doing it wrong. Stop and use `str_replace` on the original file instead.
+**If the source is `.jsx`**, rename to `.tsx` and add types to props only; do not rewrite the body.
 
-**If Make output is `.jsx`**, rename to `.tsx` and add type annotations to props only. Do not rewrite the component body.
+### Targeted `str_replace` patterns
 
-### Targeted `str_replace` Patterns
-
-Use `str_replace` (not full rewrites) to swap these specific patterns in each copied file:
-
-| Find in Make file | Replace with |
+| Find in reference | Replace with |
 |---|---|
-| `import { useUser } from '../../lib/user-context'` | `import { useAuth } from '@/lib/auth'` |
-| `const { credits, name, ... } = useUser()` | `const { user, session } = useAuth()` + Supabase profile query |
-| `import { MOCK_... } from '../../lib/mock-data'` | Supabase query hook (inline or from `@/hooks/`) |
-| `const items = MOCK_DATA` or `const items = [{...}]` | `const { data: items } = useQuery(...)` — see `frontend-data.mdc` |
-| `localStorage.getItem(...)` / `localStorage.setItem(...)` | Supabase profile or preference query |
-| `navigate('/path')` | `navigate('/app/path')` (add `/app` prefix for authenticated routes) |
-| `<Link to="/path">` | `<Link to="/app/path">` (add `/app` prefix) |
+| `useUser` / user-context | `useAuth` + profile hooks |
+| Mock arrays / `data.js` imports | TanStack Query + Supabase |
+| `setRoute('x')` / local route state | `navigate('/app/...')` |
+| `navigate('/path')` | `navigate('/app/path')` for authenticated routes |
 
-### What NEVER changes (enforced)
+### What to preserve
 
-These are off-limits during porting. If any of these differ between Make and production, it's a bug:
+Match **spacing, typography, colors, structure** from **`artifacts/uiux-reference/`** unless product explicitly changes them. **Data and auth wiring** are what change.
 
-- **Every Tailwind class** — colors, spacing, typography, borders, shadows, radius
-- **Every `style={{}}` prop** — inline styles Make applied
-- **Component JSX structure** — div nesting, component hierarchy, prop passing
-- **Animation code** — motion components, transition props, timing values, easing
-- **Layout** — flex/grid structure, padding, margin, gap values
-- **Visual hierarchy** — what's bigger, what's bolder, what's muted
+### Error boundaries
 
-**The ONLY lines that change are data sources, auth checks, navigation paths, and import paths.** Everything else stays exactly as Make wrote it.
+Route groups should expose `errorElement` where appropriate so failures are not white screens.
 
-### Error Boundaries
+**Do not** rely on Figma MCP for Figma Make / UIUX JSX files — the repo copy is the source of truth.
 
-Every route group must have an `errorElement` so crashes render a user-friendly page, not a white screen.
-
-```typescript
-// src/routes/_app/layout.tsx
-export function ErrorBoundary() {
-  return <ErrorPage message="Something went wrong. Please try again." />;
-}
-```
-
-The root layout in `src/root.tsx` must also include a top-level `errorElement` as the final fallback.
-
-**Do not** call Figma MCP tools (`get_design_context`, `get_screenshot`, etc.). Make's code output is the source of truth. Figma MCP does not work with Make files.
-
-### Known Make Issues (fix during Foundation)
+### Known fixes (Foundation)
 
 | Issue | Fix |
 |---|---|
-| **`next-themes` import in `sonner.tsx`** — crashes at runtime. | Remove import. Replace `useTheme()` with `const theme = "light"`. |
-| **`localStorage`/`sessionStorage` for user state** — mock persistence. | `str_replace` with Supabase Auth + queries. Discard `UserProvider`/`UserContext`. |
-| **Google Fonts via CDN import** — render-blocking. | Replace with self-hosted `.woff2` + `@font-face`. |
-| **CSS tokens via `@theme inline`** — not in `tailwind.config.ts`. | **Keep as-is** — correct Tailwind v4 pattern. Copy into `src/app.css`. |
-| **`src/app/` prefix** — Make's directory structure. | File copies remap: `screens/` → `src/routes/`, `components/` → `src/components/`. |
-| **`tw-animate-css` (Magic Animator)** — Radix UI transitions. | Install as dep. No code changes needed — classes work automatically. |
+| **`next-themes` in `sonner.tsx`** | Static `theme="light"` |
+| **`localStorage` for user state** | Supabase Auth + queries |
+| **Google Fonts CDN** | Self-host `.woff2` |
+| **Tokens in `@theme inline`** | Keep in `src/app.css` (Tailwind v4) |

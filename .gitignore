@@ -50,8 +50,11 @@ yarn-error.log*
 # Dev Workspace
 .local/
 
-# RAD — Figma Make import staging dir (temporary, deleted after porting)
+# RAD — optional legacy Figma Make dump (human paste); primary reference is artifacts/uiux-reference/
 src/make-import/
+
+# RAD — duplicate UIUX extract (use artifacts/uiux-reference/ only)
+artifacts/uiux-ref-extract/
 
 # RAD — Figma Make reference for native translation (temporary)
 artifacts/docs/make-reference/

@@ -22,7 +22,12 @@ function formatViews(n: number): string {
   return n.toLocaleString("vi-VN");
 }
 
-export const PulseCard = memo(function PulseCard() {
+export const PulseCard = memo(function PulseCard({
+  omitKicker = false,
+}: {
+  /** When a parent `SectionHeader` (“NHỊP TUẦN”) wraps the card, hide the in-card kicker. */
+  omitKicker?: boolean;
+} = {}) {
   const { data: pulse, isPending } = useHomePulse();
 
   if (isPending || !pulse) {
@@ -42,9 +47,9 @@ export const PulseCard = memo(function PulseCard() {
 
   return (
     <Card variant="ink" className="p-6">
-      <Kicker tone="pos">NHỊP TUẦN</Kicker>
+      {omitKicker ? null : <Kicker tone="pos">NHỊP TUẦN</Kicker>}
 
-      <div className="mt-4 flex items-end gap-6">
+      <div className={omitKicker ? "flex items-end gap-6" : "mt-4 flex items-end gap-6"}>
         <div>
           <p className="text-[11px] uppercase tracking-wider text-[color:var(--gv-ink-4)]">
             View tuần này

@@ -1,12 +1,12 @@
 # /phase4
 
-Tech Lead writes the tech spec directly. Runs after Make code is in `src/make-import/`.
+Tech Lead writes the tech spec directly. Runs after the UI reference is available (`artifacts/uiux-reference/` and/or optional `src/make-import/`).
 
 ## Pre-flight checks
 
 Before starting, confirm:
 - [ ] `artifacts/docs/screen-specs-[app]-v1.md` exists and is approved
-- [ ] `src/make-import/` exists with Make's code output
+- [ ] `artifacts/uiux-reference/` is current (or optional `src/make-import/` exists)
 - [ ] `artifacts/docs/northstar-[app].html` exists
 - [ ] `artifacts/docs/tech-spec.md` does NOT exist (not already run)
 
@@ -18,7 +18,7 @@ If any check fails: report to human, do not proceed.
 artifacts/docs/northstar-[app].html
 artifacts/docs/screen-specs-[app]-v1.md
 artifacts/docs/emotional-design-system.md
-src/make-import/                        ← read mock data structures to derive schema
+artifacts/uiux-reference/data.js       ← read mock data shapes to derive schema (optional src/make-import/)
 .cursor/skills/tech-spec/SKILL.md      ← full output format and quality checks
 ```
 

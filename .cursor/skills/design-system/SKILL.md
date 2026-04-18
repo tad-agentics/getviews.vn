@@ -1,28 +1,28 @@
 ---
 name: design-system
-description: Minimal design system reference for Figma Make projects. Produces a component inventory from Make's code output and any EDS color/font summary needed for the Make prompt guide. No token generation — Make handles visual design. Read this when running /foundation to catalog Make's components.
+description: Minimal design system reference. Produces a component inventory from `artifacts/uiux-reference/` + `src/components/ui/` and any EDS color/font summary. Read when running /foundation to catalog components.
 disable-model-invocation: true
 ---
 
-# Design System — Make Component Inventory
+# Design System — Component inventory
 
-Figma Make handles visual design — colors, typography, spacing, component styling. There is no separate token extraction or theme generation step. This skill produces a component inventory from Make's code output during Foundation.
+Visual reference: **`artifacts/uiux-reference/`** (JSX + `styles.css`) plus production **`src/components/ui/`**. This skill produces a component inventory during Foundation.
 
 **Output:** `artifacts/docs/design-system-spec.md` — component inventory only.
 
-**Why this exists:** Product teams often add a **design system rules** layer so agents stop guessing. Figma’s MCP-oriented version ([Create Design System Rules](https://developers.figma.com/docs/figma-mcp-server/skill-figma-create-design-system-rules/)) bakes in discovery paths, tokens, and a mandatory implement flow. RAD does **not** require Figma MCP; this skill produces the **same kind of contract** from **Make’s code output** — a single inventory doc agents read before integrating screens or adding shared UI, so conventions stay consistent without re-prompting.
+**Why this exists:** Product teams often add a **design system rules** layer so agents stop guessing. RAD does **not** require Figma MCP; this skill produces a **contract** from **the tracked UIUX pack + live `src/components/ui/`** — a single inventory doc agents read before integrating screens or adding shared UI.
 
 ---
 
 ## When This Runs
 
-During `/foundation`, before building screens. The Product Designer or Tech Lead catalogs Make's output to give the Frontend Developer a clear component map.
+During `/foundation`, before building screens. The Product Designer or Tech Lead catalogs the reference + primitives to give the Frontend Developer a clear component map.
 
 ## Process
 
-1. **Read `src/make-import/`** — understand the full component tree from `App.tsx`
+1. **Read `artifacts/uiux-reference/app.jsx`** — route ids and screen wiring (and optional gitignored `src/make-import/App.tsx`).
 
-2. **Catalog `src/make-import/components/ui/`** — list every UI primitive Make generated:
+2. **Catalog `src/components/ui/`** — list every UI primitive (historically from Make):
    - Component name, props, variants
    - Note: these move to `src/components/ui/` as-is during Foundation
 

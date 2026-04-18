@@ -4,10 +4,11 @@ import type { ComponentProps } from "react";
 import { Toaster as Sonner } from "sonner";
 
 const Toaster = ({ ...props }: ComponentProps<typeof Sonner>) => {
+  // Sonner portals to the document; gv-studio-type matches /app shell typography.
   return (
     <Sonner
       theme="light"
-      className="toaster group"
+      className="toaster group gv-studio-type"
       style={
         {
           "--normal-bg": "var(--popover)",

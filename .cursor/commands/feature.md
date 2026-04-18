@@ -53,7 +53,7 @@ Read:
 - artifacts/docs/emotional-design-system.md — read §6 if any screen has a dopamine moment flag (D1–D4)
 
 Mode: Feature
-For each screen: COPY the Make screen file from src/make-import/screens/ directly into the route file. Then apply targeted str_replace edits per frontend-make.mdc (fix imports, swap mock data → Supabase queries, swap mock auth → useAuth). Do NOT rewrite any Make file from scratch — 90% of Make's code stays untouched.
+For each screen: COPY from **`artifacts/uiux-reference/screens/`** (or optional `src/make-import/screens/`) into the route file. Then apply targeted str_replace edits per frontend-make.mdc (fix imports, swap mock data → Supabase queries, swap mock auth → useAuth). Do NOT rewrite any Make file from scratch — 90% of Make's code stays untouched.
 - Implement interaction flows exactly as specified in screen spec metadata
 - Copy slots are production-ready — use verbatim
 - Add loading/error/empty states below existing JSX (Make output only has happy path)

@@ -220,9 +220,9 @@ Take the Figma Make brief and build the complete app prototype. This is the most
 - Include 3–5 items in lists for visual density
 - Let Make handle all visual decisions — colors, typography, spacing, animations
 
-**When done:**
-1. Go to Make's Code tab
-2. Copy ALL files into `src/make-import/`
+**When done (options):**
+1. **Preferred:** Add/update the tracked **`artifacts/uiux-reference/`** pack (shell + screens + `styles.css`) from your UIUX export.
+2. **Legacy:** Copy a Figma Make dump into gitignored **`src/make-import/`** if you still use Make’s Code tab.
 3. Tell the Tech Lead to proceed
 
 ---
@@ -536,7 +536,7 @@ flowchart TD
     OH -->|"all sections validated"| B
     B -->|".env.local + MCP tokens"| C
     C -->|"design in Make"| C2
-    C2 -->|"src/make-import/"| D
+    C2 -->|"artifacts/uiux-reference/"| D
     D --> E
     C2 -->|"no integrations"| E
     E -->|"approve"| F

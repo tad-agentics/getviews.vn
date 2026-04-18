@@ -3,7 +3,7 @@
 ## Planning Phases
 
 - [x] Phase 2 — Screen Specs + Figma Make Brief (commit a3c0ae1)
-- [x] Figma Make — Human built prototype; code copied to `src/make-import/` (11 screens, 85 files)
+- [x] Studio UIUX — Reference pack in `artifacts/uiux-reference/` (replaces ad-hoc `src/make-import/` as primary design map)
 - [x] Phase 4 — Tech Spec (2026-04-09) → `artifacts/docs/tech-spec.md`
 - [x] Setup (2026-04-09) → `project.mdc` written, `build-plan.md` generated, `@payos/node` + `resend` installed
 

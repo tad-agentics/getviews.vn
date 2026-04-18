@@ -8,14 +8,14 @@ alwaysApply: false
 
 ## Design system contract (Make + EDS, not Figma MCP)
 
-This section encodes the **same intent** as project-level “design system rules” in tools like Figma’s [Create Design System Rules](https://developers.figma.com/docs/figma-mcp-server/skill-figma-create-design-system-rules/) — *where things live, what to reuse, what never to hardcode* — but RAD’s **source of truth is Figma Make exports + EDS**, not MCP `get_design_context`.
+This section encodes the **same intent** as project-level “design system rules” in tools like Figma’s [Create Design System Rules](https://developers.figma.com/docs/figma-mcp-server/skill-figma-create-design-system-rules/) — *where things live, what to reuse, what never to hardcode* — but RAD’s **visual source of truth is the tracked UIUX pack + EDS**, not MCP `get_design_context`.
 
 | Figma-rules idea | RAD equivalent |
 | --- | --- |
-| Fetch structured design + screenshot before coding | **Read** Make TSX in `src/make-import/` or `artifacts/docs/make-reference/`, **plus** `artifacts/docs/screen-specs-*-v1.md` and **`artifacts/docs/design-system-spec.md`** after Foundation catalogs Make |
-| Token / component discovery | **`design-system-spec.md`** (inventory + gaps); live primitives in **`src/components/ui/`**; tokens in **`src/app.css`** (Make theme) |
-| Do not bolt on duplicate libraries | **IMPORTANT:** Make’s `components/ui` **is** the library — same as elsewhere in this file |
-| Asset discipline | Use images/icons **from the Make bundle**; self-host fonts per `frontend-make.mdc`; do **not** add icon packages to replicate glyphs Make already ships |
+| Fetch structured design + screenshot before coding | **Read** `artifacts/uiux-reference/` (`shell.jsx`, `screens/*.jsx`, `styles.css`) and **`artifacts/docs/screen-specs-*-v1.md`**, **`artifacts/docs/design-system-spec.md`**; optional legacy dump in gitignored `src/make-import/` |
+| Token / component discovery | **`design-system-spec.md`** (inventory + gaps); live primitives in **`src/components/ui/`**; tokens in **`src/app.css`** (Make theme + `--gv-*` Studio) |
+| Do not bolt on duplicate libraries | **IMPORTANT:** `src/components/ui/` **is** the library — same as elsewhere in this file |
+| Asset discipline | Match UIUX reference + self-host fonts per `frontend-make.mdc`; do **not** add icon packages to duplicate what `lucide-react` already covers |
 
 **Before changing layout, colors, or adding a “new” UI primitive:** Check `design-system-spec.md` and existing `src/components/ui/` — extend or compose; do not introduce a parallel component set.
 

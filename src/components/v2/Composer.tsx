@@ -1,10 +1,14 @@
 import { forwardRef, useRef, type KeyboardEvent, type TextareaHTMLAttributes } from "react";
+import { ArrowUp } from "lucide-react";
 import { Btn } from "./Btn";
 
 /**
  * Neo-brutalist composer card — 2px ink border, 6px hard offset shadow,
  * pink "Gửi" submit button. Used on Home as the launcher into the research
  * session; also on FollowUpComposer in the answer screen (A3.3+).
+ *
+ * `layout="studio"` matches the UIUX ref: border between textarea and toolbar,
+ * chips on the left, mic + Gửi (with arrow) on the right.
  *
  * Uncontrolled by default (internal ref-based read on submit) so the caller
  * doesn't need to store a message state just to render the button. Pass
@@ -16,6 +20,10 @@ export type ComposerProps = {
   onSubmit: (text: string) => void;
   disabled?: boolean;
   leftChips?: React.ReactNode;
+  /** UIUX Home: bordered footer row, submit + arrow grouped on the right. */
+  layout?: "default" | "studio";
+  /** Shown before submit on the right in studio layout (e.g. mic). */
+  toolbarEnd?: React.ReactNode;
 } & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onSubmit">;
 
 export const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function Composer(
@@ -25,6 +33,8 @@ export const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function 
     onSubmit,
     disabled,
     leftChips,
+    layout = "default",
+    toolbarEnd,
     className,
     value,
     onChange,
@@ -51,12 +61,31 @@ export const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function 
     }
   };
 
+  const submitBtn = (
+    <Btn
+      type="button"
+      variant="accent"
+      size="md"
+      onClick={handleSubmit}
+      disabled={disabled}
+    >
+      <span>{submitLabel}</span>
+      {layout === "studio" ? (
+        <ArrowUp className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+      ) : null}
+    </Btn>
+  );
+
   return (
     <div className={["gv-surface-brutal p-4 md:p-5", className ?? ""].filter(Boolean).join(" ")}>
       <textarea
         ref={resolved}
         placeholder={placeholder}
-        className="block w-full resize-none bg-transparent text-base leading-snug text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] focus:outline-none"
+        className={[
+          "block w-full resize-none bg-transparent text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] focus:outline-none",
+          /* UIUX composer: 17px / 1.5 on --sans; inherits Space Grotesk from .gv-studio-type on /app */
+          layout === "studio" ? "text-[17px] leading-[1.5]" : "text-base leading-snug",
+        ].join(" ")}
         rows={3}
         value={value}
         onChange={onChange}
@@ -64,20 +93,20 @@ export const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function 
         disabled={disabled}
         {...rest}
       />
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {leftChips}
-        <div className="ml-auto">
-          <Btn
-            type="button"
-            variant="accent"
-            size="md"
-            onClick={handleSubmit}
-            disabled={disabled}
-          >
-            {submitLabel}
-          </Btn>
+      {layout === "studio" ? (
+        <div className="mt-3 flex flex-col gap-3 border-t border-[color:var(--gv-rule)] pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{leftChips}</div>
+          <div className="flex shrink-0 items-center gap-2">
+            {toolbarEnd}
+            {submitBtn}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {leftChips}
+          <div className="ml-auto">{submitBtn}</div>
+        </div>
+      )}
     </div>
   );
 });

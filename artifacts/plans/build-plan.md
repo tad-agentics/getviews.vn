@@ -44,11 +44,11 @@
    - `src/app.css` — already synced with Make design tokens ✓
    - AppLayout + BottomNav shared components (from Make: `AppLayout.tsx`)
 
-### Make files to port in Foundation
+### Reference sources to port in Foundation
 
-All Make files are under `src/make-import/` (git-ignored). Full paths shown below.
+**Primary:** tracked **`artifacts/uiux-reference/`** (shell, screens, styles). **Optional:** gitignored **`src/make-import/`** if a legacy Figma Make tree is pasted. Historical table used Make paths; map screens by name to `artifacts/uiux-reference/screens/*.jsx` where applicable.
 
-| Make file (under `src/make-import/`) | Destination route/component |
+| Reference / legacy Make file | Destination route/component |
 |---|---|
 | `src/app/screens/LandingPage.tsx` | `src/routes/_index/route.tsx` |
 | `src/app/screens/LoginScreen.tsx` | `src/routes/_auth/login/route.tsx` |

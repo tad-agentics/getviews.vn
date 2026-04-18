@@ -21,8 +21,7 @@ export default function AppLayout() {
   if (loading) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ background: "var(--background)", color: "var(--ink-soft)" }}
+        className="gv-studio-type flex min-h-screen items-center justify-center bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink-2)]"
         role="status"
         aria-label="Đang tải"
       >
@@ -37,7 +36,9 @@ export default function AppLayout() {
 
   return (
     <>
-      <Outlet />
+      <div className="gv-studio-type min-h-screen bg-[color:var(--gv-canvas)]">
+        <Outlet />
+      </div>
       <Toaster />
     </>
   );

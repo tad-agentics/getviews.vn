@@ -32,11 +32,11 @@ Read:
 
 Staging URL: [staging-url]
 
-Compare staging screens against the original Make component code in src/make-import/ (or git history if already deleted).
+Compare staging screens against **`artifacts/uiux-reference/screens/`** (or git history / optional `src/make-import/`).
 Do NOT use Figma MCP tools — they do not work with Make.
 
 Run the full visual fidelity audit:
-- **Make fidelity (CRITICAL)** — since screens are copied directly from Make, every Tailwind class, spacing value, color, font-weight, border-radius, and animation timing must be IDENTICAL to Make's original code. Any visual difference means the agent modified code it shouldn't have. Compare staging against Make's original files in src/make-import/ (or git history). Flag every deviation as BLOCKING.
+- **Make fidelity (CRITICAL)** — since screens are copied directly from Make, every Tailwind class, spacing value, color, font-weight, border-radius, and animation timing must be IDENTICAL to Make's original code. Any visual difference means the agent modified code it shouldn't have. Compare staging against the tracked UIUX reference (or git history). Flag every deviation as BLOCKING.
 - AI Slop Guard rules (design-system.mdc)
 - Token compliance — no raw colors, no arbitrary spacing
 - Mobile viewport at 375px — every screen

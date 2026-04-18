@@ -1,4 +1,6 @@
 import { memo } from "react";
+import { Link } from "react-router";
+import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { useTopBreakouts, type BreakoutVideo } from "@/hooks/useTopBreakouts";
 
@@ -27,7 +29,7 @@ export const BreakoutGrid = memo(function BreakoutGrid({
   if (isPending) {
     return (
       <section>
-        <SectionHeader kicker="VIDEO BỨT PHÁ" title="Tuần này trong ngách" />
+        <SectionHeader kicker="BIÊN TẬP CHỌN" title="3 video đột phá" caption="View vượt 10× so với trung bình kênh trong 48 giờ qua." />
         <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className="aspect-[9/12] animate-pulse rounded-[12px] bg-[color:var(--gv-canvas-2)]" />
@@ -44,9 +46,18 @@ export const BreakoutGrid = memo(function BreakoutGrid({
   return (
     <section>
       <SectionHeader
-        kicker="VIDEO BỨT PHÁ"
-        title="Tuần này trong ngách"
-        caption="Video có breakout ≥ trung bình kênh × 2."
+        kicker="BIÊN TẬP CHỌN"
+        title="3 video đột phá"
+        caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
+        right={
+          <Link
+            to="/app/trends"
+            className="inline-flex items-center gap-1.5 rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[color:var(--gv-ink-3)] transition-colors hover:border-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink)]"
+          >
+            Xem tất cả
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        }
       />
       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
         {videos.map((v: BreakoutVideo) => (

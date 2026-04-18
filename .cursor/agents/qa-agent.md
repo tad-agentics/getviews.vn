@@ -67,7 +67,7 @@ Use this scope to prioritize: spend more time on changed areas, less on untouche
 
 **Goal:** Catch any code the frontend agent modified that it shouldn't have.
 
-- Compare every route file against its source in `src/make-import/` — diff should show ONLY: import path changes, mock data → Supabase queries, mock auth → useAuth(), navigation path prefixes
+- Compare every route file against its source in **`artifacts/uiux-reference/screens/`** (or optional gitignored `src/make-import/`) — diff should show ONLY: import path changes, mock data → Supabase queries, mock auth → useAuth(), navigation path prefixes
 - Flag BLOCKING: any Tailwind class changed, any animation timing modified, any layout structure altered, any component hierarchy restructured
 - Verify Make's `components/ui/` files are unmodified copies
 - Verify copy slots match `copy-rules.mdc` — run the 5-question Copy Quality Test on every visible string

@@ -1,6 +1,6 @@
 # Design system spec — GetViews.vn (Foundation)
 
-**Source:** Figma Make export in `src/make-import/` → primitives in `src/components/ui/`. Tokens live in `src/app.css` (`@theme inline` + `:root` CSS variables).
+**Source:** Studio UI/UX reference in **`artifacts/uiux-reference/`** (shell + screens + `styles.css`); Radix primitives in `src/components/ui/`. Legacy Figma Make dumps may still land in gitignored `src/make-import/` during porting. Tokens live in `src/app.css` (`@theme inline` + `:root` + Phase A `--gv-*`).
 
 ## Tokens
 

@@ -26,13 +26,13 @@ export function SectionHeader({
       <div className="min-w-0">
         <Kicker tone={kickerTone} dot>{kicker}</Kicker>
         <h2
-          className="gv-tight mt-2 text-[28px] leading-[1.1] text-[color:var(--gv-ink)]"
+          className="gv-tight mt-2 text-[28px] leading-none text-[color:var(--gv-ink)]"
           style={{ fontFamily: "var(--gv-font-display)" }}
         >
           {title}
         </h2>
         {caption ? (
-          <p className="mt-2 max-w-prose text-sm leading-snug text-[color:var(--gv-ink-3)]">
+          <p className="mt-2 max-w-prose text-[13px] leading-snug text-[color:var(--gv-ink-3)]">
             {caption}
           </p>
         ) : null}
