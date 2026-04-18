@@ -22,8 +22,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
-import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
-import { useHomePulse } from "@/hooks/useHomePulse";
+import { useTopNiches } from "@/hooks/useTopNiches";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { chatKeys } from "@/hooks/useChatSession";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,14 +36,14 @@ type Session = {
   label?: string;
 };
 
-/* ── Logo mark ── */
+/* ── Logo mark — 30x30 ink square, accent-pink compass spoke icon. ── */
 function LogoMark() {
   return (
-    <div className="w-9 h-9 rounded-[10px] bg-[var(--ink)] flex items-center justify-center flex-shrink-0">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div className="w-[30px] h-[30px] rounded-[6px] bg-[color:var(--gv-ink)] flex items-center justify-center flex-shrink-0">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path
           d="M8 1v14M1 8h14M3.05 3.05l9.9 9.9M12.95 3.05l-9.9 9.9"
-          stroke="white"
+          stroke="var(--gv-accent)"
           strokeWidth="1.8"
           strokeLinecap="round"
         />
@@ -54,53 +53,35 @@ function LogoMark() {
 }
 
 /* ── NicheOfYoursBlock ──────────────────────────────────────────────────────
- * "Ngách của bạn" mini-card — shown above the recents list. Renders the
- * creator's primary_niche label plus the weekly views-delta from the same
- * pulse endpoint that feeds HomeScreen, so the sidebar always shows a
- * matching pulse the creator sees on Home.
+ * "Ngách Của Bạn" sidebar block — 3 rows with label + weekly hot count.
  *
- * Gracefully absent when the profile lacks a niche or the pulse call
- * returns nothing yet (a fresh account).
+ * The user's primary niche floats to the top; the other two slots fill by
+ * weekly video count (from niche_intelligence.video_count_7d). No schema
+ * for "tracked niches" exists yet, so the 2nd/3rd rows are the hottest
+ * niches overall — pragmatic until a Settings-level picker lands.
  */
 function NicheOfYoursBlock() {
   const { data: profile } = useProfile();
-  const { data: niches } = useNicheTaxonomy();
-  const { data: pulse } = useHomePulse();
-
-  const niche = profile?.primary_niche
-    ? niches?.find((n) => n.id === profile.primary_niche)
-    : null;
-  if (!niche) return null;
-
-  const hasPrev = (pulse?.views_last_week ?? 0) > 0;
-  const delta = pulse?.views_delta_pct ?? null;
-  const isThin = pulse?.adequacy === "none";
+  const { data: niches = [] } = useTopNiches(profile?.primary_niche ?? null, 3);
+  if (niches.length === 0) return null;
 
   return (
-    <div className="px-2 mb-3">
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)]">
-          Ngách của bạn
-        </p>
-        <p className="mt-1 text-sm font-semibold text-[var(--ink)] truncate">
-          {niche.name}
-        </p>
-        {hasPrev && !isThin && delta != null ? (
-          <p
-            className={`mt-0.5 text-[11px] font-medium ${
-              delta >= 0
-                ? "text-[color:var(--gv-pos-deep)]"
-                : "text-[color:var(--gv-neg-deep)]"
-            }`}
-          >
-            {delta >= 0 ? "↑" : "↓"} {Math.abs(delta).toFixed(1)}% tuần này
-          </p>
-        ) : isThin ? (
-          <p className="mt-0.5 text-[11px] text-[var(--faint)]">
-            Dữ liệu đang thưa
-          </p>
-        ) : null}
-      </div>
+    <div className="px-4 mb-3">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)] mb-2">
+        Ngách của bạn
+      </p>
+      <ul className="flex flex-col gap-0.5">
+        {niches.map((n) => (
+          <li key={n.id}>
+            <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs hover:bg-black/[0.04]">
+              <span className="truncate text-[color:var(--gv-ink-2)]">{n.name}</span>
+              <span className="gv-mono text-[10px] text-[color:var(--gv-pos-deep)] shrink-0">
+                ↑ {n.hot}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -487,13 +468,21 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   function SidebarContent({ onClose }: { onClose?: () => void }) {
     return (
       <>
-        {/* Logo + new chat */}
+        {/* Brand mark — 30x30 ink logo + wordmark with cyan dot + mono kicker */}
         <div className="flex items-center justify-between px-3 mb-4">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <LogoMark />
-            <span className="font-extrabold text-[var(--ink)] text-sm tracking-tight">
-              Getviews<span style={{ color: 'var(--brand-red, #EE1D52)' }}>.vn</span>
-            </span>
+            <div className="min-w-0">
+              <span
+                className="block text-[20px] font-bold text-[color:var(--gv-ink)] leading-none"
+                style={{ letterSpacing: "-0.04em" }}
+              >
+                Getviews<span className="text-[color:var(--gv-accent-2-deep)]">.</span>
+              </span>
+              <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+                Studio · Creator
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -521,7 +510,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         <div className="flex flex-col gap-0.5 px-2 mb-3">
           <NavItem
             icon={Home}
-            label="Trang chủ"
+            label="Studio"
             active={active === "home"}
             onClick={() => {
               navigate("/app");
@@ -681,7 +670,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         <div className="flex w-full h-full">
 
           {/* ── Sidebar ─── */}
-          <aside className="w-[240px] flex-shrink-0 bg-[var(--surface)] flex flex-col py-4 border-r border-[var(--border)]">
+          <aside className="w-[240px] flex-shrink-0 bg-[color:var(--gv-canvas-2)] flex flex-col py-4 border-r border-[color:var(--gv-rule)]">
             <SidebarContent />
           </aside>
 
@@ -753,7 +742,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                   animate={{ x: 0 }}
                   exit={{ x: '-100%' }}
                   transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                  className="fixed top-0 left-0 bottom-0 z-50 flex flex-col py-4 bg-[var(--surface)] border-r border-[var(--border)]"
+                  className="fixed top-0 left-0 bottom-0 z-50 flex flex-col py-4 bg-[color:var(--gv-canvas-2)] border-r border-[color:var(--gv-rule)]"
                   style={{ width: 280 }}
                 >
                   <SidebarContent onClose={() => setMobileSidebarOpen(false)} />
