@@ -86,3 +86,8 @@ rad-rr7-template/.sync-target
 
 # Supabase CLI cache
 supabase/.temp/
+
+# Playwright
+/.auth/
+/playwright-report/
+/test-results/
