@@ -342,6 +342,19 @@ function SessionRow({
             <span className="truncate min-w-0">{displayLabel}</span>
           </button>
 
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            aria-label="Xóa phiên chat"
+            title="Xóa"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-[color:var(--gv-ink-4)] transition-colors hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)]"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+
           {/* More button — separate element so it never competes with row navigation.
               44×44 touch target on mobile; fades in on desktop hover only. */}
           <button
@@ -475,7 +488,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     return (
       <>
         {/* Brand mark — UIUX shell.jsx: 20px/18px padding, then full-width rule */}
-        <div className="flex items-center justify-between px-5 pb-[18px] pt-5">
+        <div className="flex items-center justify-between px-5 pb-3 pt-2">
           <div className="flex min-w-0 items-center gap-2.5">
             <LogoMark />
             <div className="min-w-0">
@@ -678,25 +691,25 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   return (
     <div className="flex flex-col h-screen bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
-      <div className="hidden lg:flex flex-1 overflow-hidden">
-        <div className="flex w-full h-full">
+      <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex min-h-0 w-full flex-1">
 
           {/* ── Sidebar ─── */}
-          <aside className="w-[240px] flex-shrink-0 bg-[color:var(--gv-canvas-2)] flex flex-col py-4 border-r border-[color:var(--gv-rule)]">
+          <aside className="flex h-full min-h-0 w-[240px] flex-shrink-0 flex-col overflow-hidden border-r border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] pt-2 pb-4">
             <SidebarContent />
           </aside>
 
-          {/* ── Main content ─────── */}
-          <div className="flex-1 bg-[color:var(--gv-canvas)] flex flex-col min-h-0 overflow-hidden">
+          {/* ── Main content — scrolls; overflow-hidden here was clipping Home past the viewport. ── */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-[color:var(--gv-canvas)]">
             {children}
           </div>
         </div>
       </div>
 
       {/* ── Mobile ─────────────────────────── */}
-      <div className="flex flex-col flex-1 lg:hidden overflow-hidden relative">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
         <div
-          className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+          className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${
             enableMobileSidebar
               ? "pb-[calc(3.5rem+env(safe-area-inset-bottom))]"
               : ""

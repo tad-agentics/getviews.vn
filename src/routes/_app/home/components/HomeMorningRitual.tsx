@@ -85,10 +85,10 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
               type="button"
               onClick={() => onSelectPrompt(promptFromScript(s, nicheLabel))}
               className={
-                "group flex h-full flex-col gap-3 rounded-[12px] p-5 text-left transition-all hover:-translate-y-0.5 " +
+                "group flex h-full flex-col gap-3 rounded-[12px] border border-[color:var(--gv-ink)] p-5 text-left transition-all hover:-translate-y-0.5 " +
                 (isHero
-                  ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:shadow-[4px_4px_0_var(--gv-ink)]"
-                  : "border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)] hover:shadow-[4px_4px_0_var(--gv-ink)]")
+                  ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:shadow-[4px_4px_0_var(--gv-accent)]"
+                  : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:shadow-[4px_4px_0_var(--gv-ink)]")
               }
             >
               <div className="flex items-center justify-between">

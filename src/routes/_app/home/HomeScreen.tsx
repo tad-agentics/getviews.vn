@@ -190,7 +190,7 @@ export default function HomeScreen() {
             </div>
 
             <h1
-              className="gv-tight mt-6 max-w-[880px] text-[clamp(36px,4.6vw,60px)] leading-[1.02] text-[color:var(--gv-ink)]"
+              className="gv-tight mt-6 w-full max-w-[min(1180px,100%)] text-[clamp(36px,4.6vw,60px)] leading-[1.02] text-[color:var(--gv-ink)]"
               style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
             >
               Chào {firstName}. Hôm nay{" "}
@@ -215,7 +215,7 @@ export default function HomeScreen() {
             </h1>
           </div>
 
-          <div className="gv-fade-up gv-fade-up-delay-1 mt-7 max-w-[860px]">
+          <div className="gv-fade-up gv-fade-up-delay-1 mt-7 w-full max-w-[min(1180px,100%)]">
             <Composer
               ref={composerRef}
               layout="studio"
@@ -226,7 +226,7 @@ export default function HomeScreen() {
             />
           </div>
 
-          <div className="gv-fade-up gv-fade-up-delay-2 mt-6 flex max-w-[860px] flex-wrap gap-2">
+          <div className="gv-fade-up gv-fade-up-delay-2 mt-6 flex w-full max-w-[min(1180px,100%)] flex-wrap gap-2">
             {suggestedPrompts.map((p) => (
               <button
                 key={p}
