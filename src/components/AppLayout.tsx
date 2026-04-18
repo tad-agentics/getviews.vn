@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useNavigate } from 'react-router';
 import {
   Plus,
+  Home,
   MessageCircle,
   TrendingUp,
   Settings,
@@ -324,7 +325,7 @@ function SessionRow({
    AppLayout
 ════════════════════════════════════════════════ */
 interface AppLayoutProps {
-  active?: "chat" | "trends";
+  active?: "home" | "chat" | "trends";
   children: ReactNode;
   enableMobileSidebar?: boolean;
 }
@@ -449,6 +450,15 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
         {/* Nav items */}
         <div className="flex flex-col gap-0.5 px-2 mb-3">
+          <NavItem
+            icon={Home}
+            label="Trang chủ"
+            active={active === "home"}
+            onClick={() => {
+              navigate("/app/home");
+              onClose?.();
+            }}
+          />
           <NavItem
             icon={MessageCircle}
             label="Chat"

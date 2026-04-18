@@ -312,9 +312,16 @@ export default function ChatScreen() {
   const [showMessages, setShowMessages] = useState(false);
 
   useEffect(() => {
-    const prefillUrl = (location.state as { prefillUrl?: string } | null | undefined)?.prefillUrl;
-    if (!prefillUrl || typeof prefillUrl !== "string") return;
-    setMessage(prefillUrl);
+    const state = location.state as
+      | { prefillUrl?: string; initialPrompt?: string }
+      | null
+      | undefined;
+    // initialPrompt comes from the Home composer handoff (A3.2); prefillUrl
+    // is the older TikTok-URL prefill path. Either one just populates the
+    // textarea then clears location.state so a refresh doesn't re-prefill.
+    const incoming = state?.initialPrompt ?? state?.prefillUrl;
+    if (!incoming || typeof incoming !== "string") return;
+    setMessage(incoming);
     navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
   }, [location.state, location.pathname, location.search, navigate]);
   const [freePillKey, setFreePillKey] = useState(0);
