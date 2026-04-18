@@ -395,9 +395,10 @@ def _build_follow_ups(
         chips.append("Viết disclosure (#hợp tác) + usage rights clause")
         chips.append("Tạo checklist deliverables (video + story + caption)")
     elif intent == "own_channel":
-        chips.append(f"Gợi ý hướng content mới cho {n}")
-        chips.append("Cho mình 3 hook để thử tuần tới")
-        chips.append(f"Xu hướng {n} tuần này")
+        # Progressive disclosure — each chip unlocks a deferred audit layer.
+        chips.append("Phân tích content mix của tôi (% review/GRWM/trend)")
+        chips.append("Cho mình 3 hook thí nghiệm cho tuần sau")
+        chips.append("Metric target 4 tuần tới — views + ER cần tăng bao nhiêu?")
     elif intent == "creator_search":
         chips.append(f"Gợi ý brief cho KOL đầu danh sách")
         chips.append(f"Xu hướng {n} tuần này")

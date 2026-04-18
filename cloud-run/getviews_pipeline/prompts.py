@@ -762,8 +762,16 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
     ),
     "own_channel": (
         "MỤC TIÊU: Soi kênh của người dùng — đối chiếu với benchmark niche từ video tham chiếu; chỉ ra điểm khớp/lệch và hành động.\n"
-        "CẤU TRÚC: Mở bằng nhận định chính (1-2 câu). **Đang làm đúng** (2-3 gạch — pattern khớp niche benchmark), "
-        "**Đang lệch** (2-3 gạch — so sánh cụ thể với reference videos), **Hành động ưu tiên** (2-3 gạch — việc cụ thể, đo được)."
+        "CẤU TRÚC (core — ngắn, hành động được):\n"
+        "- Nhận định chính (1-2 câu): momentum + điểm cần sửa lớn nhất.\n"
+        "- **Đang làm đúng** (2 gạch — không 3).\n"
+        "- **Đang lệch** (2 gạch — so sánh cụ thể với reference).\n"
+        "- **Hành động ưu tiên** (1 gạch duy nhất — việc user làm tuần này).\n\n"
+        "TIẾT CHẾ: KHÔNG elaborate những mục dưới đây — mỗi cái có nút follow-up riêng:\n"
+        "  - Phân tích content mix (% review / GRWM / trend) của user.\n"
+        "  - Niche drift check (5 video gần nhất có còn đúng ngách không).\n"
+        "  - 3 hook thí nghiệm cụ thể cho tuần sau.\n"
+        "  - Metric target 4 tuần tới (views / ER tăng bao nhiêu)."
     ),
 }
 
