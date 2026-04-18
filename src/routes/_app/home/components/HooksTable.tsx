@@ -3,13 +3,11 @@ import { SectionHeader } from "@/components/v2/SectionHeader";
 import { useTopPatterns, type TopPattern } from "@/hooks/useTopPatterns";
 
 /**
- * HooksTable — top 6 patterns in the user's niche, ranked by weekly
- * instance count. Columns: rank / pattern / tăng (weekly delta) / uses
- * (weekly instance count) / tổng (all-time). Matches the design's
- * 6-col Home table.
+ * HooksTable — 6-col table matching the design's Home block:
+ *   #, MẪU HOOK, TĂNG, LƯỢT DÙNG, VIEW TB, VÍ DỤ
  *
- * Delta colouring is semantic (pos blue / neg pink); no colour when the
- * pattern is brand new (prev = 0) — "mới" badge instead.
+ * VIEW TB + VÍ DỤ come from the top-viewed video_corpus row in each
+ * pattern bucket (see useTopPatterns); other fields from video_patterns.
  */
 
 function deltaCell(curr: number, prev: number) {
@@ -25,14 +23,24 @@ function deltaCell(curr: number, prev: number) {
   return (
     <span
       className={
-        "inline-flex items-center gap-1 text-xs font-semibold " +
+        "inline-flex items-center gap-1 gv-mono text-xs font-semibold " +
         (up ? "text-[color:var(--gv-pos)]" : "text-[color:var(--gv-neg)]")
       }
     >
       <span aria-hidden="true">{up ? "▲" : "▼"}</span>
-      {Math.abs(deltaPct)}%
+      {up ? "+" : "-"}{Math.abs(deltaPct)}%
     </span>
   );
+}
+
+function formatViews(n: number | null): string {
+  if (n == null) return "—";
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return m >= 10 ? `${Math.round(m)}M` : `${m.toFixed(1).replace(/\.0$/, "")}M`;
+  }
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return n.toString();
 }
 
 export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: number | null }) {
@@ -65,19 +73,20 @@ export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: numbe
     <section className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
       <SectionHeader
         kicker="BẢNG XẾP HẠNG"
-        title="Hook đang chạy trong ngách"
-        caption="Top pattern trong tuần — xếp theo số video dùng."
+        title="Hook đang chạy"
+        caption="Top 6 mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua."
       />
 
       <div className="mt-5 overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)]">
         <table className="w-full text-sm">
           <thead className="bg-[color:var(--gv-canvas-2)]">
-            <tr className="text-left">
-              <Th className="w-10 text-center">#</Th>
-              <Th>PATTERN</Th>
-              <Th className="w-20">TĂNG</Th>
-              <Th className="w-20 text-right">USES</Th>
-              <Th className="w-24 text-right">TỔNG</Th>
+            <tr>
+              <Th className="w-[60px] text-center">#</Th>
+              <Th>MẪU HOOK</Th>
+              <Th className="w-[100px]">TĂNG</Th>
+              <Th className="w-[90px] text-right">LƯỢT DÙNG</Th>
+              <Th className="w-[100px] text-right">VIEW TB</Th>
+              <Th>VÍ DỤ</Th>
             </tr>
           </thead>
           <tbody>
@@ -86,20 +95,23 @@ export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: numbe
                 key={p.id}
                 className="border-t border-[color:var(--gv-rule-2)] first:border-t-0 hover:bg-[color:var(--gv-canvas-2)]/60"
               >
-                <td className="px-3 py-3 text-center gv-mono text-xs text-[color:var(--gv-ink-4)]">
+                <td className="px-3 py-3 text-center gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
                   {String(idx + 1).padStart(2, "0")}
                 </td>
-                <td className="px-3 py-3 font-medium text-[color:var(--gv-ink)]">
-                  <span className="gv-serif-italic">“{p.display_name || "Pattern"}”</span>
+                <td className="px-3 py-3 gv-tight text-[17px] font-semibold text-[color:var(--gv-ink)]">
+                  "{p.display_name || "Pattern"}"
                 </td>
                 <td className="px-3 py-3">
                   {deltaCell(p.weekly_instance_count, p.weekly_instance_count_prev)}
                 </td>
-                <td className="px-3 py-3 text-right gv-mono text-[color:var(--gv-ink)]">
-                  {p.weekly_instance_count}
+                <td className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]">
+                  {p.weekly_instance_count.toLocaleString("vi-VN")}
                 </td>
-                <td className="px-3 py-3 text-right gv-mono text-[color:var(--gv-ink-3)]">
-                  {p.instance_count.toLocaleString("vi-VN")}
+                <td className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]">
+                  {formatViews(p.avg_views)}
+                </td>
+                <td className="px-3 py-3 text-xs text-[color:var(--gv-ink-3)] italic truncate max-w-[260px]">
+                  {p.sample_hook ? `"${p.sample_hook}"` : "—"}
                 </td>
               </tr>
             ))}
@@ -113,8 +125,9 @@ export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: numbe
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <th
+      scope="col"
       className={[
-        "px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--gv-ink-4)]",
+        "px-3 py-2 text-left gv-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]",
         className ?? "",
       ].filter(Boolean).join(" ")}
     >

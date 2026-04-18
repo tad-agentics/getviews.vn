@@ -23,6 +23,8 @@ const mockUseHomeTicker = vi.fn();
 const mockUseDailyRitual = vi.fn();
 const mockUseTopPatterns = vi.fn();
 const mockUseTopBreakouts = vi.fn();
+const mockUseTopNiches = vi.fn();
+const mockUseUpdateProfile = vi.fn();
 
 vi.mock("@/hooks/useProfile", () => ({ useProfile: () => mockUseProfile() }));
 vi.mock("@/hooks/useNicheTaxonomy", () => ({
@@ -33,6 +35,8 @@ vi.mock("@/hooks/useHomeTicker", () => ({ useHomeTicker: () => mockUseHomeTicker
 vi.mock("@/hooks/useDailyRitual", () => ({ useDailyRitual: () => mockUseDailyRitual() }));
 vi.mock("@/hooks/useTopPatterns", () => ({ useTopPatterns: () => mockUseTopPatterns() }));
 vi.mock("@/hooks/useTopBreakouts", () => ({ useTopBreakouts: () => mockUseTopBreakouts() }));
+vi.mock("@/hooks/useTopNiches", () => ({ useTopNiches: () => mockUseTopNiches() }));
+vi.mock("@/hooks/useUpdateProfile", () => ({ useUpdateProfile: () => mockUseUpdateProfile() }));
 
 // AppLayout pulls in a large tree — stub it; we don't test shell here.
 vi.mock("@/components/AppLayout", () => ({
@@ -65,6 +69,8 @@ function setHooksDefaults() {
   mockUseDailyRitual.mockReturnValue({ data: null, isPending: false });
   mockUseTopPatterns.mockReturnValue({ data: [], isPending: false });
   mockUseTopBreakouts.mockReturnValue({ data: [], isPending: false });
+  mockUseTopNiches.mockReturnValue({ data: [{ id: 4, name: "Ẩm thực", hot: 24 }] });
+  mockUseUpdateProfile.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({}), isPending: false });
 }
 
 function renderHome() {
@@ -89,6 +95,8 @@ describe("HomeScreen", () => {
     mockUseDailyRitual.mockReset();
     mockUseTopPatterns.mockReset();
     mockUseTopBreakouts.mockReset();
+    mockUseTopNiches.mockReset();
+    mockUseUpdateProfile.mockReset();
     setHooksDefaults();
   });
   afterEach(cleanup);
