@@ -53,7 +53,7 @@ CREATE POLICY "Authenticated users read starter_creators"
 -- (is_curated = TRUE) intact — only overwrites auto-seeded rows. Safe to
 -- re-run after new ingests.
 CREATE OR REPLACE FUNCTION seed_starter_creators(p_top_n INTEGER DEFAULT 10)
-RETURNS TABLE (niche_id INTEGER, seeded INTEGER)
+RETURNS TABLE (out_niche_id INTEGER, out_seeded INTEGER)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -63,8 +63,8 @@ BEGIN
   RETURN QUERY
   WITH ranked AS (
     SELECT
-      v.niche_id,
-      v.creator_handle AS handle,
+      v.niche_id                                                     AS r_niche_id,
+      v.creator_handle                                               AS handle,
       MAX(COALESCE(v.creator_followers, 0))                         AS followers,
       AVG(COALESCE(v.views, 0))::BIGINT                              AS avg_views,
       COUNT(*)::INT                                                  AS video_count,
@@ -81,7 +81,7 @@ BEGIN
       niche_id, handle, display_name, followers, avg_views,
       video_count, is_curated, rank, last_seeded_at
     )
-    SELECT r.niche_id, r.handle, NULL, r.followers, r.avg_views,
+    SELECT r.r_niche_id, r.handle, NULL, r.followers, r.avg_views,
            r.video_count, FALSE, r.rk::INT, now()
     FROM ranked r
     WHERE r.rk <= p_top_n
@@ -93,9 +93,9 @@ BEGIN
           last_seeded_at = now()
       -- Don't clobber a human edit.
       WHERE starter_creators.is_curated = FALSE
-    RETURNING starter_creators.niche_id
+    RETURNING starter_creators.niche_id AS t_niche_id
   )
-  SELECT t.niche_id, COUNT(*)::INT FROM touched t GROUP BY t.niche_id;
+  SELECT t.t_niche_id, COUNT(*)::INT FROM touched t GROUP BY t.t_niche_id;
 END;
 $$;
 
