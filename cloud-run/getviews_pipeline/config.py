@@ -70,6 +70,10 @@ ENSEMBLEDATA_KEYWORD_SEARCH_URL = f"{ENSEMBLEDATA_BASE}/tt/keyword/search"
 ENSEMBLEDATA_HASHTAG_POSTS_URL = f"{ENSEMBLEDATA_BASE}/tt/hashtag/posts"
 ENSEMBLEDATA_USER_POSTS_URL = f"{ENSEMBLEDATA_BASE}/tt/user/posts"
 ENSEMBLEDATA_USER_SEARCH_URL = f"{ENSEMBLEDATA_BASE}/tt/user/search"
+# /tt/post/comments returns up to ~50 comments per aweme_id at cursor=0.
+# Used on-demand only (paid intents) — cached for 7 days in
+# video_corpus.comment_radar. See comment_radar.fetch_comments_for_video.
+ENSEMBLEDATA_POST_COMMENTS_URL = f"{ENSEMBLEDATA_BASE}/tt/post/comments"
 
 TIKTOK_ALLOWED_HOSTS: frozenset[str] = frozenset(
     {
