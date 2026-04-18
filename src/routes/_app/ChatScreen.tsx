@@ -26,6 +26,7 @@ import { BriefBlock } from "@/routes/_app/components/BriefBlock";
 import { CreatorCard, type CreatorCardData } from "@/routes/_app/components/CreatorCard";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
+import { detectIntent } from "@/routes/_app/intent-router";
 
 type ChatMsg = {
   id: string;
@@ -53,77 +54,8 @@ function isResumeQuery(q: string): boolean {
   return ["tiếp", "tiếp tục", "continue", "resume", "/tiếp"].includes(s);
 }
 
-/**
- * detectIntent — maps a raw user message to a pipeline intent.
- *
- * Two tiers only:
- *   Tier 1 (high)   — structural signals: TikTok URL → video_diagnosis / competitor_profile
- *                     @handle → competitor_profile / own_channel
- *   Tier 2 (medium) — explicit keyword patterns for specialized pipelines
- *
- * Everything else → follow_up (free), which routes to the Gemini chat backend.
- * Natural language, general questions, greetings, and anything ambiguous all
- * land here so the chat behaves like a real LLM assistant rather than a broken
- * intent router.
- */
-function detectIntent(
-  query: string,
-  priorAssistant: boolean,
-): { intentType: string; isFree: boolean; confidence: "high" | "medium" | "low" } {
-  const q = query.trim();
-  const ql = q.toLowerCase();
-
-  // ── 1. URL DETECTION (highest confidence — structural) ────────────────────
-  if (/https?:\/\/[^\s]*tiktok\.com/i.test(q)) {
-    const hasTiktokProfileUrl = /tiktok\.com\/@[^\s/]+(?:\/(?!video|photo)[^\s]*)?(?:\s|$)/i.test(q)
-      && !/\/video\//i.test(q)
-      && !/\/photo\//i.test(q);
-    return hasTiktokProfileUrl
-      ? { intentType: "competitor_profile", isFree: false, confidence: "high" }
-      : { intentType: "video_diagnosis", isFree: false, confidence: "high" };
-  }
-
-  // ── 2. HANDLE DETECTION (structural) ─────────────────────────────────────
-  if (/@\w/.test(q)) {
-    const ownChannelHandle = /soi kênh|kênh (của )?(mình|tôi|tao|tui)|review kênh|phân tích kênh|đánh giá kênh|channel (của )?(mình|tôi|tao|tui)/i.test(ql);
-    return ownChannelHandle
-      ? { intentType: "own_channel", isFree: false, confidence: "high" }
-      : { intentType: "competitor_profile", isFree: false, confidence: "high" };
-  }
-
-  // ── 3. SHOT LIST ──────────────────────────────────────────────────────────
-  if (/shot list|kịch bản|cách quay|hướng dẫn quay|quay như nào|quay thế nào|quay video|lên ý tưởng quay|plan quay|danh sách cảnh|cảnh quay/i.test(ql)) {
-    return { intentType: "shot_list", isFree: false, confidence: "medium" };
-  }
-
-  // ── 4. CREATOR SEARCH (paid — EnsembleData query) ─────────────────────────
-  if (/tìm\s*(creator|kol|koc|influencer|người.*quay)|gợi\s*ý\s*(kol|koc|creator)|creator\s*nào|kol\s*nào|thuê\s*(creator|kol)|ai đang làm tốt|koc nào|giới thiệu creator/i.test(ql)) {
-    return { intentType: "creator_search", isFree: false, confidence: "medium" };
-  }
-
-  // ── 5. OWN CHANNEL ────────────────────────────────────────────────────────
-  if (/soi kênh|kênh (của )?(mình|tôi|tao|tui)|review kênh|phân tích kênh|đánh giá kênh|channel (của )?(mình|tôi|tao)/i.test(ql)) {
-    return { intentType: "own_channel", isFree: false, confidence: "medium" };
-  }
-
-  // ── 6. CONTENT_DIRECTIONS + TREND disambiguation ──────────────────────────
-  const isTrend = /đang viral|video viral|viral rồi|xu hướng|đang lên|bùng nổ|đang nổ|gì đang chạy|trend|tuần này|7 ngày|gần đây|đang trending|mới nổi/i.test(ql)
-    || /\b(trending|viral)\b/i.test(ql);
-
-  const isContent = /nên quay gì|quay gì|làm gì|video gì|format nào|hook nào|kiểu video|đang chạy tốt|đang work|đang hiệu quả|hướng content|content direction|hướng nội dung|nên làm gì|nên làm video|ý tưởng video|gì đang hot|gợi ý nội dung|loại video/i.test(ql);
-
-  if (isContent) return { intentType: "content_directions", isFree: false, confidence: "medium" };
-  if (isTrend) return { intentType: "trend_spike", isFree: true, confidence: "medium" };
-
-  // ── 7. DEFAULT ────────────────────────────────────────────────────────────
-  // Anything that doesn't match a structural signal or an explicit keyword is
-  // treated as natural-language chat and routed to the Gemini follow_up handler.
-  return {
-    intentType: "follow_up",
-    isFree: true,
-    confidence: priorAssistant ? "medium" : "low",
-  };
-}
+// detectIntent lives in intent-router.ts so the routing logic can be
+// unit-tested without mounting the chat component. Imported above.
 
 type ParsedAssistant = {
   diagnosis_rows?: DiagnosisRowData[];
