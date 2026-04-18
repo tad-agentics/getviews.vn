@@ -19,12 +19,12 @@ export type CreatorCardData = {
     primary_niche: string;
     confidence: number;
     secondary_niches: string[];
-  };
+  } | null;
   audience: {
     top_age_bucket: string | null;
     gender_skew: "female" | "male" | "balanced" | null;
     top_region: string | null;
-  };
+  } | null;
 
   engagement_rate_followers: number;
   comment_rate: number;
@@ -43,13 +43,13 @@ export type CreatorCardData = {
     shop_linked: boolean;
     recent_sponsored_count: number;
     competitor_conflicts: string[];
-  };
+  } | null;
   red_flags: string[];
   contact: {
     email: string | null;
     zalo: string | null;
     management: string | null;
-  };
+  } | null;
 
   reason: string;
   rate_ballpark: {
@@ -131,9 +131,9 @@ export function CreatorCard({
 }) {
   const trend = trendLabel(data.engagement_trend);
   const audienceBits = [
-    data.audience.top_age_bucket,
-    genderLabel(data.audience.gender_skew),
-    data.audience.top_region,
+    data.audience?.top_age_bucket ?? null,
+    genderLabel(data.audience?.gender_skew ?? null),
+    data.audience?.top_region ?? null,
   ].filter(Boolean);
   const audienceText = audienceBits.length ? audienceBits.join(" · ") : null;
 
@@ -163,8 +163,8 @@ export function CreatorCard({
 
   const commerceText = (() => {
     const parts: string[] = [];
-    if (data.commerce.shop_linked) parts.push("TikTok Shop / Shopee");
-    if (data.commerce.recent_sponsored_count > 0)
+    if (data.commerce?.shop_linked) parts.push("TikTok Shop / Shopee");
+    if (data.commerce && data.commerce.recent_sponsored_count > 0)
       parts.push(`${data.commerce.recent_sponsored_count} sponsored 90 ngày`);
     return parts.length ? parts.join(" · ") : null;
   })();
@@ -214,7 +214,7 @@ export function CreatorCard({
         <Row
           label="Niche match"
           value={
-            data.niche_match.confidence > 0
+            data.niche_match && data.niche_match.confidence > 0
               ? `${Math.round(data.niche_match.confidence * 100)}% · ${data.niche_match.primary_niche}`
               : null
           }
@@ -259,10 +259,10 @@ export function CreatorCard({
       ) : null}
 
       {/* Red flags */}
-      {data.red_flags.length > 0 ? (
+      {(data.red_flags?.length ?? 0) > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <AlertTriangle className="h-3.5 w-3.5 text-amber-500" strokeWidth={2.5} />
-          {data.red_flags.map((f) => (
+          {(data.red_flags ?? []).map((f) => (
             <span
               key={f}
               className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300"
@@ -274,21 +274,21 @@ export function CreatorCard({
       ) : null}
 
       {/* Contact */}
-      {(data.contact.email || data.contact.zalo || data.contact.management) ? (
+      {(data.contact?.email || data.contact?.zalo || data.contact?.management) ? (
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
-          {data.contact.email ? (
+          {data.contact?.email ? (
             <span className="inline-flex items-center gap-1">
               <Mail className="h-3 w-3" strokeWidth={2} />
               <span className="break-all text-[var(--ink)]">{data.contact.email}</span>
             </span>
           ) : null}
-          {data.contact.zalo ? (
+          {data.contact?.zalo ? (
             <span className="inline-flex items-center gap-1">
               <Phone className="h-3 w-3" strokeWidth={2} />
               <span className="text-[var(--ink)]">Zalo {data.contact.zalo}</span>
             </span>
           ) : null}
-          {data.contact.management ? (
+          {data.contact?.management ? (
             <span className="inline-flex items-center gap-1">
               <span className="text-[var(--muted)]">MCN:</span>
               <span className="text-[var(--ink)]">{data.contact.management}</span>
@@ -311,9 +311,9 @@ export function CreatorCard({
       </div>
 
       {/* Action chips */}
-      {data.actions.length > 0 ? (
+      {(data.actions?.length ?? 0) > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {data.actions.map((a, i) => (
+          {(data.actions ?? []).map((a, i) => (
             <button
               key={i}
               type="button"
