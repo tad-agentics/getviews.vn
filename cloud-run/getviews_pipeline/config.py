@@ -139,8 +139,16 @@ R2_VIDEO_PUBLIC_URL = os.environ.get("R2_VIDEO_PUBLIC_URL", "").rstrip("/")
 # 0s = hook frame, 1s = after hook, 3s = body start.
 FRAME_TIMESTAMPS_SEC: list[float] = [0.0, 1.0, 3.0]
 
-FILES_API_POLL_INTERVAL_SEC = 2
-FILES_API_POLL_MAX_ATTEMPTS = 15  # 30s max wait for Gemini file ACTIVE state
+FILES_API_POLL_INITIAL_SEC = 1.0
+FILES_API_POLL_MAX_SEC = 8.0
+FILES_API_POLL_TIMEOUT_SEC = 90.0  # upper bound; creators uploading dense 60s
+                                    # videos occasionally need 40-60s to reach
+                                    # ACTIVE. Was 30s, raised after "Gemini silently
+                                    # times out on large videos" audit finding.
+
+# Backward-compat aliases — keep older callers working.
+FILES_API_POLL_INTERVAL_SEC = FILES_API_POLL_INITIAL_SEC
+FILES_API_POLL_MAX_ATTEMPTS = int(FILES_API_POLL_TIMEOUT_SEC / FILES_API_POLL_INITIAL_SEC)
 
 logger.info(
     "Resolved GEMINI_MODEL=%s extraction=%s synthesis=%s knowledge=%s diagnosis=%s "
