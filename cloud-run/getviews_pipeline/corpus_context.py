@@ -259,6 +259,62 @@ def set_cached_count(
     cache[str(niche_id)] = {"count": count, "niche_name": niche_name}
 
 
+# ---------------------------------------------------------------------------
+# Niche label map — resolve niche_id → human label for UI rendering.
+# ---------------------------------------------------------------------------
+
+_niche_label_cache: dict[int, str] | None = None
+_niche_label_cache_lock = threading.Lock()
+
+
+def _niche_label_map_sync(client: Any) -> dict[int, str]:
+    """Build {niche_id: label} from niche_taxonomy. Prefers Vietnamese name."""
+    global _niche_label_cache
+    with _niche_label_cache_lock:
+        if _niche_label_cache is not None:
+            return _niche_label_cache
+        try:
+            r = (
+                client.table("niche_taxonomy")
+                .select("id, name_en, name_vn")
+                .execute()
+            )
+            mapping: dict[int, str] = {}
+            for row in r.data or []:
+                nid = row.get("id")
+                if not isinstance(nid, int):
+                    continue
+                label = row.get("name_vn") or row.get("name_en") or str(nid)
+                mapping[nid] = str(label)
+            _niche_label_cache = mapping
+        except Exception as exc:
+            logger.warning("[corpus_context] niche label map fetch failed: %s", exc)
+            _niche_label_cache = {}
+        return _niche_label_cache
+
+
+async def get_niche_label_map() -> dict[int, str]:
+    """Return {niche_id: label} — cached in-process.
+
+    Used to turn pattern_fingerprint.niche_spread (int array) into display
+    chips in the frontend without sending raw integers over the wire.
+    """
+    from getviews_pipeline.runtime import run_sync
+
+    try:
+        return await run_sync(_niche_label_map_sync, _anon_client())
+    except Exception as exc:
+        logger.warning("[corpus_context] get_niche_label_map failed: %s", exc)
+        return {}
+
+
+def _invalidate_niche_label_cache() -> None:
+    """Test hook — clear the in-process niche label map cache."""
+    global _niche_label_cache
+    with _niche_label_cache_lock:
+        _niche_label_cache = None
+
+
 async def get_corpus_count_cached(
     session: dict[str, Any],
     niche_id: int | None,

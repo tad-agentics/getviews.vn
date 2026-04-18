@@ -660,7 +660,7 @@ async def stream(
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {
                     k: out[k]
-                    for k in ("niche", "analyzed_videos", "coverage", "follow_ups")
+                    for k in ("niche", "analyzed_videos", "coverage", "follow_ups", "patterns")
                     if k in out
                 } or None
             elif normalized == "shot_list":
