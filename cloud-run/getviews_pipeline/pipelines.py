@@ -1353,6 +1353,23 @@ async def run_video_diagnosis(
     )
     await emit_sentinel(step_queue)
 
+    # Comment radar — sentiment + purchase intent from the video's comment
+    # section. Fails open: any fetch / parse error leaves the field unset.
+    comment_radar: dict[str, Any] | None = None
+    try:
+        from getviews_pipeline.comment_radar_cache import resolve_comment_radar
+
+        user_video_id = str((user_res.get("metadata") or {}).get("video_id") or "")
+        comment_count_hint = int(
+            ((user_res.get("metadata") or {}).get("metrics") or {}).get("comments") or 0
+        )
+        if user_video_id:
+            comment_radar = await resolve_comment_radar(
+                user_video_id, comment_count_hint=comment_count_hint,
+            )
+    except Exception as exc:
+        logger.warning("[video_diagnosis] comment_radar resolve failed: %s", exc)
+
     # Flatten user result for backward compatibility with VideoAnalyzeResult consumers
     out: dict[str, Any] = {
         "intent": "video_diagnosis",
@@ -1368,6 +1385,8 @@ async def run_video_diagnosis(
             handle=(user_res.get("metadata") or {}).get("author", {}).get("username"),
         ),
     }
+    if comment_radar is not None:
+        out["comment_radar"] = comment_radar
     if "metadata" in user_res:
         out["metadata"] = user_res["metadata"]
     if "analysis" in user_res:
