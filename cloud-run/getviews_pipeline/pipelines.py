@@ -368,16 +368,26 @@ def _build_follow_ups(
         else:
             chips.append(f"Gợi ý định dạng video cho {n}")
     elif intent == "video_diagnosis":
-        chips.append("Cho mình 3 hook thay thế")
-        chips.append("Gợi ý hướng content tương tự")
+        # Progressive disclosure — each chip maps to a deferred section the
+        # synthesis prompt intentionally didn't elaborate. See
+        # artifacts/docs/features/output-discipline.md.
+        chips.append("Cho mình 3 hook thay thế chi tiết")
+        chips.append("Gợi ý 3 thay đổi cụ thể cho video tiếp theo")
+        chips.append("Thumbnail nên chỉnh thế nào?")
+    elif intent == "competitor_profile":
+        # Deferred depths: hook library, posting pattern, monetization, style-clone brief.
+        chips.append("3 công thức hook hay nhất của họ")
+        chips.append("Họ đăng vào khung giờ nào, tuần mấy post?")
         if picked_handle:
-            chips.append(f"Phân tích chi tiết @{picked_handle}")
+            chips.append(f"Tạo brief nhái phong cách của @{picked_handle}")
         else:
-            chips.append(f"Xu hướng {n} tuần này")
+            chips.append("Họ đang kiếm tiền thế nào?")
     elif intent == "shot_list":
-        chips.append("Viết caption + hashtag cho kịch bản này")
-        chips.append("Gợi ý hook thay thế")
-        chips.append(f"Xu hướng {n} tuần này")
+        # Progressive disclosure — each chip unlocks a deferred artifact
+        # (caption bundle / cover / prep checklist / length variants).
+        chips.append("Viết caption + 5 hashtag cho video này")
+        chips.append("Gợi ý cover/thumbnail")
+        chips.append("Checklist chuẩn bị quay (dụng cụ, ánh sáng)")
     elif intent == "brief_generation":
         chips.append("Thêm 1 option hook cho brief này")
         chips.append("Tạo shot list từ brief này")
@@ -765,6 +775,12 @@ async def run_competitor_profile(
         "handle": handle,
         "synthesis": synthesis,
         "analyzed_videos": analyzed,
+        "follow_ups": _build_follow_ups(
+            "competitor_profile",
+            session.get("niche") or "ngách này",
+            analyzed,
+            handle=handle,
+        ),
     }
 
 

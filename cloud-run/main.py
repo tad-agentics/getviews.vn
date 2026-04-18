@@ -622,7 +622,11 @@ async def stream(
                 } or None
             elif normalized == "competitor_profile":
                 full_text = (out.get("synthesis") or "").strip()
-                structured = {k: out[k] for k in ("handle", "analyzed_videos") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in ("handle", "analyzed_videos", "follow_ups")
+                    if k in out
+                } or None
             elif normalized == "content_directions":
                 full_text = (out.get("synthesis") or "").strip()
                 structured = {
