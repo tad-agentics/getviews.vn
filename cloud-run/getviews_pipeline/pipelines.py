@@ -14,6 +14,7 @@ from getviews_pipeline.supabase_client import get_service_client
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_tiktok_url
+from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
     fetch_corpus_reference_pool,
@@ -742,6 +743,11 @@ async def run_trend_spike(
                 out.append({"id": i, "label": label})
             return out
 
+        # Drop patterns too thin to cite — per claim_tiers.pattern_spread
+        # threshold (10 weekly instances). A pattern with fewer instances is
+        # coincidence, not signal, and "lan sang N ngách" fires misleadingly
+        # on those. Cross-niche vs single-niche is still decided downstream
+        # from niche_spread_count.
         patterns_payload = [
             {
                 "display_name": p.get("display_name") or "Pattern",
@@ -754,6 +760,7 @@ async def run_trend_spike(
                 "signature": p.get("signature") or {},
             }
             for p in top_patterns
+            if int(p.get("weekly_instance_count") or 0) >= PATTERN_SPREAD_MIN_INSTANCES
         ]
 
         emit(step_queue, step_done("Đã tổng hợp dữ liệu — đang viết phân tích..."))

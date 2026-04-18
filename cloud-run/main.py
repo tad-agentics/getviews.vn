@@ -19,6 +19,7 @@ import re
 import time
 import uuid
 from collections.abc import AsyncIterator
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -949,3 +950,143 @@ async def batch_layer0(request: Request) -> JSONResponse:
         result["layer0c_migration"] = {"error": str(exc)}
 
     return JSONResponse(result)
+
+
+@app.get("/admin/corpus-health")
+async def admin_corpus_health(request: Request) -> JSONResponse:
+    """Per-niche corpus-adequacy snapshot for claim tiers.
+
+    Returns one row per niche with:
+      - videos_7d / videos_30d / videos_90d (ingest timestamps)
+      - last_ingest_at — most recent video_corpus.created_at
+      - last_pattern_at — most recent video_patterns.last_seen_at touching
+        this niche (via niche_spread @> ARRAY[niche_id])
+      - claim_tiers — pass/fail for each tier given videos_30d
+
+    Plus a summary counting niches per highest-passing tier. Use this to
+    answer "which claims are statistically valid today, per niche?".
+
+    Protected by X-Batch-Secret. See artifacts/docs/corpus-health.md.
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.claim_tiers import flags_for_count
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    now = datetime.now(timezone.utc)
+    cutoff_7d = now - timedelta(days=7)
+    cutoff_30d = now - timedelta(days=30)
+    cutoff_90d = now - timedelta(days=90)
+
+    try:
+        tax_res = client.table("niche_taxonomy").select("id, name_en, name_vn").execute()
+        niches = tax_res.data or []
+    except Exception as exc:
+        logger.exception("[corpus-health] niche_taxonomy fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"niche_taxonomy: {exc}") from exc
+
+    # Pull the last 90 days of (niche_id, created_at) once and aggregate in
+    # Python. Corpus is ~700 rows; any per-niche roundtrip would be wasteful.
+    try:
+        corpus_res = (
+            client.table("video_corpus")
+            .select("niche_id, created_at")
+            .gte("created_at", cutoff_90d.isoformat())
+            .execute()
+        )
+        corpus_rows = corpus_res.data or []
+    except Exception as exc:
+        logger.exception("[corpus-health] video_corpus fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"video_corpus: {exc}") from exc
+
+    counts_7d: dict[int, int] = {}
+    counts_30d: dict[int, int] = {}
+    counts_90d: dict[int, int] = {}
+    last_ingest: dict[int, str] = {}
+    for row in corpus_rows:
+        nid = row.get("niche_id")
+        created = row.get("created_at")
+        if nid is None or not created:
+            continue
+        try:
+            created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        counts_90d[nid] = counts_90d.get(nid, 0) + 1
+        if created_dt >= cutoff_30d:
+            counts_30d[nid] = counts_30d.get(nid, 0) + 1
+        if created_dt >= cutoff_7d:
+            counts_7d[nid] = counts_7d.get(nid, 0) + 1
+        prev = last_ingest.get(nid)
+        if prev is None or created > prev:
+            last_ingest[nid] = created
+
+    # video_patterns: pull all active rows, fold niche_spread into a per-niche
+    # last_seen_at. Pattern table is tiny (hundreds of rows max).
+    last_pattern: dict[int, str] = {}
+    try:
+        pat_res = (
+            client.table("video_patterns")
+            .select("niche_spread, last_seen_at, is_active")
+            .eq("is_active", True)
+            .execute()
+        )
+        for row in pat_res.data or []:
+            seen = row.get("last_seen_at")
+            if not seen:
+                continue
+            for nid in row.get("niche_spread") or []:
+                prev = last_pattern.get(nid)
+                if prev is None or seen > prev:
+                    last_pattern[nid] = seen
+    except Exception as exc:
+        # Fail open — patterns info is nice-to-have, not required for tiers.
+        logger.warning("[corpus-health] video_patterns fetch failed: %s", exc)
+
+    per_niche: list[dict[str, Any]] = []
+    tier_histogram = {
+        "none": 0, "reference_pool": 0, "basic_citation": 0,
+        "niche_norms": 0, "hook_effectiveness": 0, "trend_delta": 0,
+    }
+    for n in niches:
+        nid = n.get("id")
+        if nid is None:
+            continue
+        v30 = counts_30d.get(nid, 0)
+        flags = flags_for_count(v30)
+        tier_histogram[flags.highest_passing_tier] = (
+            tier_histogram.get(flags.highest_passing_tier, 0) + 1
+        )
+        per_niche.append({
+            "niche_id": nid,
+            "name_en": n.get("name_en"),
+            "name_vn": n.get("name_vn"),
+            "videos_7d": counts_7d.get(nid, 0),
+            "videos_30d": v30,
+            "videos_90d": counts_90d.get(nid, 0),
+            "last_ingest_at": last_ingest.get(nid),
+            "last_pattern_at": last_pattern.get(nid),
+            "claim_tiers": flags.asdict(),
+            "highest_passing_tier": flags.highest_passing_tier,
+        })
+
+    per_niche.sort(key=lambda r: (-r["videos_30d"], r["niche_id"]))
+
+    summary = {
+        "niches_total": len(per_niche),
+        "videos_7d_total":  sum(counts_7d.values()),
+        "videos_30d_total": sum(counts_30d.values()),
+        "videos_90d_total": sum(counts_90d.values()),
+        "tier_histogram": tier_histogram,
+    }
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": now.isoformat(),
+        "summary": summary,
+        "niches": per_niche,
+    })
