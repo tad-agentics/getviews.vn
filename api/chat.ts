@@ -24,7 +24,6 @@ const GEMINI_MODEL =
 const FREE_INTENTS = new Set([
   "format_lifecycle",
   "follow_up",
-  "find_creators",
   "creator_search",
 ]);
 
@@ -135,7 +134,7 @@ export default async function handler(req: Request): Promise<Response> {
   let contents: Array<{ role: string; parts: Array<{ text: string }> }> = [
     { role: "user", parts: [{ text: query }] },
   ];
-  if (intent_type === "follow_up" || intent_type === "format_lifecycle" || intent_type === "find_creators" || intent_type === "creator_search") {
+  if (intent_type === "follow_up" || intent_type === "format_lifecycle" || intent_type === "creator_search") {
     const { data: history } = await supabase
       .from("chat_messages")
       .select("role, content")
@@ -164,7 +163,7 @@ export default async function handler(req: Request): Promise<Response> {
         maxOutputTokens:
           intent_type === "follow_up" ? 900
           : intent_type === "format_lifecycle" ? 1200
-          : intent_type === "find_creators" || intent_type === "creator_search" ? 600
+          : intent_type === "creator_search" ? 600
           : 900,
       },
     }),
@@ -391,7 +390,6 @@ Dựa vào lịch sử hội thoại để trả lời đúng ngữ cảnh.
 ${nonDisclosure}`;
     }
 
-    case "find_creators":
     case "creator_search":
       return `Bạn là chuyên gia phân tích TikTok creator cho thị trường Việt Nam.
 ${nicheLabel ? `Niche tập trung: ${nicheLabel}.` : ""}

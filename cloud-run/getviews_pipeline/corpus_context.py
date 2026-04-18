@@ -19,7 +19,7 @@ import os
 import threading
 from typing import Any
 
-from getviews_pipeline.formatters import citation_vi
+from getviews_pipeline.formatters import citation_vi, timeframe_vi
 
 logger = logging.getLogger(__name__)
 
@@ -156,28 +156,84 @@ async def get_corpus_count(
 # Citation block builder — returns a string ready for prompt injection
 # ---------------------------------------------------------------------------
 
-def build_corpus_citation_block(count: int, niche_name: str, days: int) -> str:
+def build_corpus_citation_block(
+    count: int,
+    niche_name: str,
+    days: int,
+    *,
+    reference_count: int | None = None,
+    source: str = "corpus",
+) -> str:
     """Return a Vietnamese citation instruction block for synthesis prompt injection.
 
-    When count > 0:
-        Bạn đang phân tích dựa trên 412 video review đồ gia dụng tháng này.
-        Luôn trích dẫn số lượng video và khung thời gian trong mọi nhận định.
-        Dùng cách nói tự nhiên: "tháng này", "tuần này" — không nói "30 ngày gần nhất".
-        Mọi phản hồi có nhận định về xu hướng phải bắt đầu bằng hoặc chứa:
-        "Dựa trên {count} video {niche} {timeframe}"
+    The first sentence of the model's output is REQUIRED to echo the citation
+    verbatim so the user always sees which corpus slice the answer came from.
 
-    When count == 0 (failed query or empty corpus):
-        Returns an empty string — no citation injected.
+    Args:
+        count:            Total corpus rows matching (niche_id, days).
+        niche_name:       Vietnamese niche label (e.g. "skincare").
+        days:             Recency window (used for timeframe phrasing).
+        reference_count:  How many were actually pulled into this synthesis
+                          (len(analyzed_videos)). Defaults to `count` when None.
+        source:           "corpus" — filtered query hit the corpus pool.
+                          "live_search" — corpus was too sparse, fell back to
+                          keyword/hashtag search; model must disclaim freshness.
+                          "sparse_fallback" — no corpus rows at all in niche.
+
+    Modes:
+      • count > 0 & source == "corpus"  → canonical citation. Opening sentence required.
+      • 0 < count < THRESHOLD           → sparsity disclaimer included.
+      • count == 0                       → transparency disclaimer about missing data.
     """
-    if count <= 0:
-        return ""
+    SPARSE_THRESHOLD = 20
+    cite = citation_vi(count, niche_name, days) if count > 0 else ""
+    ref = reference_count if reference_count is not None else count
 
-    cite = citation_vi(count, niche_name, days)
+    # Required opening sentence template — the model MUST echo this verbatim.
+    if count >= SPARSE_THRESHOLD and source == "corpus":
+        required_opening = (
+            f"Dựa trên phân tích {ref} video TikTok về {niche_name} {timeframe_vi(days)}, "
+            f"đây là {min(max(ref, 3), 5)} hướng content hiệu quả"
+        )
+        return (
+            f"NGỮ CẢNH DỮ LIỆU: {cite}.\n"
+            "BẮT BUỘC: Câu đầu tiên của phản hồi phải bắt đầu bằng: "
+            f'"{required_opening}..."\n'
+            "Luôn trích dẫn số lượng video và khung thời gian trong mọi nhận định.\n"
+            'Dùng cách nói tự nhiên: "tháng này", "tuần này" — không nói "30 ngày gần nhất".\n'
+            f'Mọi nhận định xu hướng phải chứa cụm: "{cite}"'
+        )
+
+    if 0 < count < SPARSE_THRESHOLD:
+        example = (
+            f'Chỉ có {count} video {niche_name} trong corpus {timeframe_vi(days)} '
+            "— đây là insight sơ bộ, cần kiểm chứng thêm."
+        )
+        return (
+            f"NGỮ CẢNH DỮ LIỆU (DỮ LIỆU THƯA): {cite}.\n"
+            "BẮT BUỘC: Câu đầu tiên của phản hồi phải nói rõ số lượng video tham chiếu "
+            f'có hạn, VD: "{example}"\n'
+            "Không đưa ra tuyên bố mạnh về xu hướng khi dữ liệu thưa."
+        )
+
+    if source == "live_search":
+        return (
+            "NGỮ CẢNH DỮ LIỆU: Corpus không đủ video cho ngách này. "
+            "Video tham chiếu lấy từ live search theo từ khóa, không đảm bảo cùng ngách.\n"
+            'BẮT BUỘC: Câu đầu tiên phản hồi phải nói: "Chưa có đủ dữ liệu về '
+            f'{niche_name} trong corpus — đây là insight từ các video tương tự theo '
+            'từ khóa, nên kiểm chứng bằng dữ liệu chuyên ngành."\n'
+            "Ghi rõ khi một nhận định suy đoán từ các ngách lân cận."
+        )
+
+    # count == 0 and not live_search
     return (
-        f"NGỮ CẢNH DỮ LIỆU: {cite}.\n"
-        "Luôn trích dẫn số lượng video và khung thời gian trong mọi nhận định có dữ liệu.\n"
-        'Dùng cách nói tự nhiên: "tháng này", "tuần này" — không nói "30 ngày gần nhất".\n'
-        f'Mọi nhận định xu hướng phải chứa cụm: "{cite}"'
+        f"NGỮ CẢNH DỮ LIỆU: Chưa có video nào về {niche_name} trong corpus "
+        f"{timeframe_vi(days)}.\n"
+        f'BẮT BUỘC: Câu đầu tiên phản hồi phải nói: "Chưa có đủ dữ liệu về '
+        f'{niche_name} trong corpus — đây là insight từ các ngách tương tự, cần '
+        'kiểm chứng bằng dữ liệu gần đây."\n'
+        "Không trích dẫn số lượng cụ thể khi không có dữ liệu."
     )
 
 

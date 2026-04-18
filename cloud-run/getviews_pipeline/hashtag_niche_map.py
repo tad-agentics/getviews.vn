@@ -132,6 +132,57 @@ async def classify_from_hashtags(
     return max(scores, key=lambda k: scores[k])
 
 
+def score_niche_match(
+    posts_hashtags: list[list[str]],
+    target_niche_id: int,
+    *,
+    hashtag_map: dict[str, int] | None = None,
+    generic_set: frozenset[str] | None = None,
+) -> float:
+    """Share of posts that classify to `target_niche_id`.
+
+    Used by the creator finder to answer "how much of this creator's recent
+    activity is actually in my target niche?" — distinguishes a skincare
+    creator who posted one acne video from a true acne specialist.
+
+    Pure: takes the hashtag map as a parameter so unit tests don't need a
+    live Supabase client. Callers in pipelines.py pass the module-level
+    cache after calling `_refresh_cache(client)`.
+
+    Returns 0.0 for empty input (no data = no confidence).
+    """
+    if not posts_hashtags:
+        return 0.0
+    hmap = hashtag_map if hashtag_map is not None else _hashtag_to_niche
+    gset = generic_set if generic_set is not None else _generic_set
+
+    matches = 0
+    counted = 0
+    for post in posts_hashtags:
+        cleaned = [
+            h.lower().lstrip("#")
+            for h in (post or [])
+            if h and h.lower().lstrip("#") not in gset
+        ]
+        if not cleaned:
+            continue  # post with only generic hashtags is unclassifiable
+        counted += 1
+        scores: dict[int, int] = {}
+        for ht in cleaned:
+            nid = hmap.get(ht)
+            if nid is not None:
+                scores[nid] = scores.get(nid, 0) + 1
+        if not scores:
+            continue
+        best_nid = max(scores, key=lambda k: scores[k])
+        if best_nid == target_niche_id:
+            matches += 1
+
+    if counted == 0:
+        return 0.0
+    return matches / counted
+
+
 # ---------------------------------------------------------------------------
 # learn_hashtag_mappings
 # ---------------------------------------------------------------------------

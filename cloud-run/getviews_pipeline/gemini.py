@@ -378,6 +378,8 @@ def synthesize_diagnosis_v2(
     collapsed_questions: list[str] | None = None,
     wants_directions: bool = False,
     layer0_context: str = "",
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """V2 narrative diagnosis — format-aware, 5-part structure (incl. distribution).
 
@@ -395,6 +397,8 @@ def synthesize_diagnosis_v2(
         user_stats=user_stats,
         wants_directions=wants_directions,
         layer0_context=layer0_context,
+        corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )
     if collapsed_questions:
         question_block = (
@@ -432,6 +436,8 @@ def synthesize_diagnosis_carousel_v2(
     wants_directions: bool = False,
     collapsed_questions: list[str] | None = None,
     layer0_context: str = "",
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """V2 carousel diagnosis — 2-layer narrative (distribution + swipe logic), corpus-aware.
 
@@ -451,6 +457,8 @@ def synthesize_diagnosis_carousel_v2(
         user_stats=user_stats,
         wants_directions=wants_directions,
         layer0_context=layer0_context,
+        corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )
     if collapsed_questions:
         question_block = (
@@ -614,6 +622,7 @@ def synthesize_intent_markdown(
     collapsed_questions: list[str] | None = None,
     niche_key: str | None = None,
     corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """Multi-video / niche synthesis using §18 intent framing.
 
@@ -624,6 +633,10 @@ def synthesize_intent_markdown(
         corpus_citation:  Optional pre-built citation block from corpus_context.py
                           (build_corpus_citation_block). Grounds all claims in real
                           corpus size + timeframe. Injected above the framing block.
+        persona_block:    Optional persona-slot block from persona.py
+                          (build_persona_block). Instructs the model to target
+                          the audience attributes (age, pain points, geography)
+                          the user mentioned instead of dropping them.
     """
     prompt = build_synthesis_prompt(
         intent_key,
@@ -631,6 +644,7 @@ def synthesize_intent_markdown(
         collapsed_questions=collapsed_questions,
         niche_key=niche_key,
         corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )
     cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=4096)
     response = _generate_content_models(
