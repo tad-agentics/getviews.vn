@@ -40,6 +40,10 @@ from getviews_pipeline.hashtag_niche_map import (
     score_niche_match,
 )
 from getviews_pipeline.output_redesign import hook_type_vi
+from getviews_pipeline.pattern_fingerprint import (
+    annotate_with_pattern_names,
+    get_top_delta_patterns,
+)
 from getviews_pipeline.gemini import (
     synthesize_diagnosis_carousel_v2,
     synthesize_diagnosis_v2,
@@ -495,6 +499,22 @@ async def run_content_directions(
             if "analysis" in r:
                 analyzed.append(r)
 
+        # Annotate each analyzed reference with its pattern display_name so the
+        # synthesis can group directions by pattern family. Fails open —
+        # missing pattern_id leaves the field unset; the prompt tolerates it.
+        try:
+            from getviews_pipeline.corpus_context import _anon_client as _ac
+
+            vid_ids = [str((r.get("metadata") or {}).get("video_id") or "") for r in analyzed]
+            vid_ids = [v for v in vid_ids if v]
+            name_by_vid = await annotate_with_pattern_names(_ac(), vid_ids)
+            for r in analyzed:
+                vid = str((r.get("metadata") or {}).get("video_id") or "")
+                if vid and vid in name_by_vid:
+                    r.setdefault("metadata", {})["pattern_display_name"] = name_by_vid[vid]
+        except Exception as exc:
+            logger.warning("[content_directions] pattern annotate failed: %s", exc)
+
         niche_id = await resolve_niche_id_cached(session, niche)
         count, niche_name = await get_corpus_count_cached(
             session, niche_id=niche_id, days=30, niche_name=niche
@@ -685,6 +705,16 @@ async def run_trend_spike(
             except Exception as exc:
                 logger.warning("trending_sounds fetch failed: %s", exc)
 
+        # Pattern fingerprints — top 3 rising patterns for this niche. Empty
+        # list on missing table / never-run clustering — prompt handles both.
+        top_patterns: list[dict[str, Any]] = []
+        try:
+            from getviews_pipeline.corpus_context import _anon_client as _ac
+
+            top_patterns = await get_top_delta_patterns(_ac(), niche_id, limit=3)
+        except Exception as exc:
+            logger.warning("[trend_spike] top_delta_patterns fetch failed: %s", exc)
+
         emit(step_queue, step_done("Đã tổng hợp dữ liệu — đang viết phân tích..."))
         payload = {
             "niche": niche,
@@ -693,6 +723,18 @@ async def run_trend_spike(
             "breakout_videos": breakout_videos,
             "signal_grades": signal_grades,
             "trending_sounds": trending_sounds,
+            "patterns": [
+                {
+                    "display_name": p.get("display_name") or "Pattern",
+                    "instance_count_week": int(p.get("weekly_instance_count") or 0),
+                    "instance_count_prev_week": int(p.get("weekly_instance_count_prev") or 0),
+                    "weekly_delta": int(p.get("weekly_instance_count") or 0)
+                    - int(p.get("weekly_instance_count_prev") or 0),
+                    "niche_spread_count": len(p.get("niche_spread") or []),
+                    "signature": p.get("signature") or {},
+                }
+                for p in top_patterns
+            ],
         }
         synthesis = await run_sync(
             synthesize_intent_markdown,

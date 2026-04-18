@@ -667,6 +667,8 @@ ER 6.1% cao hơn video 2 triệu view. Format "đừng làm điều này" outper
 INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
     "content_directions": (
         "MỤC TIÊU: Xu hướng nội dung nổi bật trong niche. Xác định những gì các video tham chiếu thực hiện về mặt cấu trúc (hook, nhịp độ, format). Nêu 2–3 hướng nội dung kèm bằng chứng từ JSON.\n\n"
+        "NẾU reference videos có metadata.pattern_display_name: gom 2-3 video cùng pattern thành một hướng (VD: 'Hướng 1: Pattern Câu hỏi + trước/sau — đã thấy trong 3 video tham chiếu'). Đặt tên pattern làm tiêu đề hướng để người đọc nhận ra sự lặp lại.\n"
+        "NẾU không có pattern_display_name: giữ cấu trúc 3 hướng dựa trên cấu trúc cá nhân của từng video — đừng ép pattern khi không có dữ liệu.\n\n"
         "TIẾT CHẾ: KHÔNG elaborate những mục dưới đây — mỗi cái có nút follow-up riêng:\n"
         "  - Ưu tiên hướng nào trước (có nút 'Hướng nào nên thử trước?').\n"
         "  - Kế hoạch 30 ngày trộn 3 hướng (cadence / tần suất đăng từng hướng).\n"
@@ -675,6 +677,10 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
     ),
     "trend_spike": (
         "MỤC TIÊU: Trend đang tăng tốc — nhấn mạnh những gì đang bứt phá gần đây so với các format đã ổn định.\n\n"
+        "MỞ ĐẦU — Nếu payload có trường `patterns` với ≥1 phần tử:\n"
+        "  Mở bằng 1-2 câu ĐẦU TIÊN đề cập pattern có weekly_delta cao nhất, VD:\n"
+        "  \"Tuần này pattern **{display_name}** bứt phá — {instance_count_week} video, tăng +{weekly_delta} so với tuần trước, đã lan sang {niche_spread_count} ngách.\"\n"
+        "  Sau đó mới vào các trend_card riêng lẻ. Nếu `patterns` rỗng, bỏ qua — mở bằng trend_card luôn.\n\n"
         "ĐỊNH DẠNG BẮT BUỘC — mỗi trend PHẢI là một JSON block trên một dòng riêng, ngay sau câu giới thiệu trend:\n"
         '{"type":"trend_card","title":"<tên trend>","recency":"<vd: Mới 3 ngày>","signal":"<rising|early|stable|declining>",'
         '"breakout":"<vd: 4,2x hoặc bỏ trống nếu không rõ>","videos":["<video_id1>","<video_id2>","<video_id3>"],'

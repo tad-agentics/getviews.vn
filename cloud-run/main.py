@@ -852,12 +852,23 @@ async def batch_analytics(request: Request) -> JSONResponse:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
 
     from getviews_pipeline.batch_analytics import run_analytics
+    from getviews_pipeline.corpus_context import _anon_client
+    from getviews_pipeline.pattern_fingerprint import recompute_weekly_counts
     from getviews_pipeline.signal_classifier import run_signal_grading
 
     logger.info("POST /batch/analytics triggered")
     try:
         analytics = await run_analytics()
         signal = await run_signal_grading()
+        # Piggyback the pattern weekly-delta refresh on the analytics cron — the
+        # trend_spike "Tuần này pattern X bứt phá +N" callout reads from the
+        # columns this touches. Fails open so pattern drift never breaks the
+        # analytics job.
+        patterns_touched = 0
+        try:
+            patterns_touched = await recompute_weekly_counts(_anon_client())
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning("pattern weekly recompute failed: %s", exc)
     except Exception as exc:
         logger.exception("Batch analytics failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -873,6 +884,9 @@ async def batch_analytics(request: Request) -> JSONResponse:
             "grades_written": signal.grades_written,
             "niches_processed": signal.niches_processed,
             "errors": signal.errors,
+        },
+        "patterns": {
+            "rows_updated": patterns_touched,
         },
     })
 

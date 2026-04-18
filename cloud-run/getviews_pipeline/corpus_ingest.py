@@ -908,6 +908,22 @@ async def ingest_niche(
         if row is None:
             result.skipped += 1
         else:
+            # Pattern fingerprint — stamp pattern_id on the row so downstream
+            # reads (trend_spike, content_directions) can pull clustering-aware
+            # references. Fails open: a None pattern_id leaves the column NULL
+            # and the rest of the corpus insert proceeds unchanged.
+            try:
+                from getviews_pipeline.pattern_fingerprint import (
+                    compute_and_upsert_pattern,
+                )
+
+                pattern_id = await compute_and_upsert_pattern(
+                    client, analysis.get("analysis") or {}, niche_id,
+                )
+                if pattern_id:
+                    row["pattern_id"] = pattern_id
+            except Exception as exc:
+                logger.warning("[corpus] pattern fingerprint failed: %s", exc)
             rows.append(row)
             if frame_urls:
                 frame_urls_by_video_id[row["video_id"]] = frame_urls
