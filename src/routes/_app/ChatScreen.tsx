@@ -33,6 +33,17 @@ type ChatMsg = {
   content: string | null;
   intent_type?: string | null;
   is_free?: boolean | null;
+  structured_output?: {
+    follow_ups?: string[];
+    coverage?: {
+      niche_id?: number | null;
+      niche_label?: string;
+      corpus_count?: number;
+      reference_count?: number;
+      source?: string;
+      freshness_days?: number;
+    };
+  } | null;
 };
 
 
@@ -618,6 +629,10 @@ export default function ChatScreen() {
               parsed.error_video);
           const hasPlain = parsed?.plain && parsed.plain.trim().length > 0;
           if (!hasStructured && !hasPlain) return null;
+          const followUps =
+            isLastAssistant && !inFlightVisible
+              ? m.structured_output?.follow_ups?.filter((s) => s.trim().length > 0) ?? []
+              : [];
           return (
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
@@ -627,6 +642,23 @@ export default function ChatScreen() {
                   streaming={false}
                   onFollowUp={isLastAssistant && !inFlightVisible ? (q) => void handleSend(q) : undefined}
                 />
+              ) : null}
+              {followUps.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2" data-testid="follow-up-chips">
+                  <p className="w-full text-xs font-semibold uppercase tracking-widest text-[var(--faint)]">
+                    Gợi ý câu hỏi tiếp theo
+                  </p>
+                  {followUps.slice(0, 3).map((q, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => void handleSend(q)}
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-1.5 text-xs font-medium text-[var(--ink)] transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
               ) : null}
             </div>
           );
