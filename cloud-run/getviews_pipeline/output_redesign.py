@@ -17,6 +17,28 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from getviews_pipeline.claim_tiers import CLAIM_TIERS, should_cite_niche_norms
+
+
+def _niche_norms_adequacy_block(corpus_size: int) -> str:
+    """Warning block when corpus is too thin to cite niche_norms percentages.
+
+    Inserted above the niche_norms JSON dump so the model knows not to quote
+    exact percentages when the sample size hasn't cleared the niche_norms
+    tier (see claim_tiers.py).
+    """
+    if should_cite_niche_norms(corpus_size):
+        return ""
+    threshold = CLAIM_TIERS["niche_norms"]
+    return (
+        f"**CẢNH BÁO DỮ LIỆU THƯA — niche_norms chỉ mang tính ĐỊNH HƯỚNG:**\n"
+        f"Corpus chỉ có {corpus_size} video < {threshold} — các phần trăm "
+        f"trong niche_norms dưới đây KHÔNG đủ mẫu để trích chính xác.\n"
+        f'Dùng ngôn ngữ định hướng: "có xu hướng", "phần lớn", "thường là". '
+        f'TUYỆT ĐỐI không nói "42% top video dùng X" — thay bằng "phần lớn '
+        f'top video trong mẫu này dùng X, cần thêm dữ liệu để xác nhận".\n'
+    )
+
 # ---------------------------------------------------------------------------
 # Format → signal weights
 # ---------------------------------------------------------------------------
@@ -450,6 +472,7 @@ def build_diagnosis_narrative_prompt(
     """
     analysis_focus = get_analysis_focus(content_format)
     niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
+    niche_norms_adequacy = _niche_norms_adequacy_block(corpus_size)
     ref_videos_json = json.dumps(reference_videos, ensure_ascii=False, indent=2)
     user_analysis_json = json.dumps(user_analysis, ensure_ascii=False, indent=2)
     user_stats_json = json.dumps(user_stats, ensure_ascii=False, indent=2)
@@ -504,6 +527,7 @@ Format được phát hiện: **{content_format}**
 **Niche:** {niche_name}
 **Corpus size (30 ngày):** {corpus_size} video
 
+{niche_norms_adequacy}
 **Niche norms (từ niche_intelligence):**
 {niche_norms_json}
 
@@ -687,6 +711,7 @@ def build_carousel_diagnosis_narrative_prompt(
     """
     analysis_focus = get_carousel_analysis_focus(carousel_format)
     niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
+    niche_norms_adequacy = _niche_norms_adequacy_block(corpus_size)
     ref_carousels_json = json.dumps(reference_carousels, ensure_ascii=False, indent=2)
     user_analysis_json = json.dumps(user_analysis, ensure_ascii=False, indent=2)
     user_stats_json = json.dumps(user_stats, ensure_ascii=False, indent=2)
@@ -739,6 +764,7 @@ Format được phát hiện: **{carousel_format}**
 **Ngách:** {niche_name}
 **Corpus size (30 ngày):** {corpus_size} carousel
 
+{niche_norms_adequacy}
 **Niche norms (carousel):**
 {niche_norms_json}
 

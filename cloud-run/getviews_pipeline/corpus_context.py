@@ -19,6 +19,11 @@ import os
 import threading
 from typing import Any
 
+from getviews_pipeline.claim_tiers import (
+    CLAIM_TIERS,
+    HOOK_EFFECTIVENESS_MIN_PER_BUCKET,
+    should_cite_hook_effectiveness,
+)
 from getviews_pipeline.formatters import citation_vi, timeframe_vi
 
 logger = logging.getLogger(__name__)
@@ -185,7 +190,7 @@ def build_corpus_citation_block(
       • 0 < count < THRESHOLD           → sparsity disclaimer included.
       • count == 0                       → transparency disclaimer about missing data.
     """
-    SPARSE_THRESHOLD = 20
+    SPARSE_THRESHOLD = CLAIM_TIERS["basic_citation"]
     cite = citation_vi(count, niche_name, days) if count > 0 else ""
     ref = reference_count if reference_count is not None else count
 
@@ -625,25 +630,47 @@ async def get_signal_grades_for_niche(
 ) -> dict[str, str]:
     """Return {hook_type: signal} for most recent week in a niche.
 
+    Gated by the hook_effectiveness claim tier (claim_tiers.py):
+      - Total samples across all hook types must clear CLAIM_TIERS[
+        "hook_effectiveness"] (50) — otherwise returns {}. A niche with
+        <50 samples is too thin to cite per-hook ER claims honestly.
+      - Per-hook rows below HOOK_EFFECTIVENESS_MIN_PER_BUCKET (5) are
+        dropped — an individual bucket needs ≥5 instances before its
+        reading is anything other than noise.
+
     Falls back to {} on any error (signal grades may not be computed yet).
     """
     try:
         client = _anon_client()
         result = (
             client.table("signal_grades")
-            .select("hook_type, signal")
+            .select("hook_type, signal, sample_size")
             .eq("niche_id", niche_id)
             .order("week_start", desc=True)
-            .limit(20)
+            .limit(50)
             .execute()
         )
         seen: dict[str, str] = {}
+        sample_by_hook: dict[str, int] = {}
         for row in (result.data or []):
             ht = row.get("hook_type", "")
             sig = row.get("signal", "stable")
+            ss = int(row.get("sample_size") or 0)
             if ht and ht not in seen:
                 seen[ht] = sig
-        return seen
+                sample_by_hook[ht] = ss
+        total_samples = sum(sample_by_hook.values())
+        if not should_cite_hook_effectiveness(total_samples):
+            logger.info(
+                "[corpus_context] niche_id=%s: hook_effectiveness gated — "
+                "total_samples=%d < %d",
+                niche_id, total_samples, CLAIM_TIERS["hook_effectiveness"],
+            )
+            return {}
+        return {
+            ht: sig for ht, sig in seen.items()
+            if sample_by_hook.get(ht, 0) >= HOOK_EFFECTIVENESS_MIN_PER_BUCKET
+        }
     except Exception as exc:
         logger.warning("[corpus_context] get_signal_grades_for_niche failed: %s", exc)
         return {}
