@@ -614,6 +614,7 @@ def synthesize_intent_markdown(
     collapsed_questions: list[str] | None = None,
     niche_key: str | None = None,
     corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """Multi-video / niche synthesis using §18 intent framing.
 
@@ -624,6 +625,10 @@ def synthesize_intent_markdown(
         corpus_citation:  Optional pre-built citation block from corpus_context.py
                           (build_corpus_citation_block). Grounds all claims in real
                           corpus size + timeframe. Injected above the framing block.
+        persona_block:    Optional persona-slot block from persona.py
+                          (build_persona_block). Instructs the model to target
+                          the audience attributes (age, pain points, geography)
+                          the user mentioned instead of dropping them.
     """
     prompt = build_synthesis_prompt(
         intent_key,
@@ -631,6 +636,7 @@ def synthesize_intent_markdown(
         collapsed_questions=collapsed_questions,
         niche_key=niche_key,
         corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )
     cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=4096)
     response = _generate_content_models(

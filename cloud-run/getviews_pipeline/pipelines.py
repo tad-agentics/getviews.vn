@@ -38,6 +38,7 @@ from getviews_pipeline.helpers import (
     select_reference_videos,
 )
 from getviews_pipeline.intents import QueryIntent
+from getviews_pipeline.persona import build_persona_block, extract_persona_slots
 from getviews_pipeline.runtime import get_analysis_semaphore, run_sync
 from getviews_pipeline.step_events import (
     emit,
@@ -312,6 +313,34 @@ def _inject_creator_card_blocks(synthesis: str, analyzed: list[dict[str, Any]]) 
     return synthesis
 
 
+def _build_follow_ups_content_directions(
+    niche_label: str,
+    analyzed: list[dict[str, Any]],
+    directions: list[dict[str, Any]],
+) -> list[str]:
+    """Rule-based Vietnamese follow-up suggestions shown as chips after the response.
+
+    Kept rule-based (not another Gemini call) so they're free to render and
+    ship instantly. Clicks route to the free `follow_up` intent on the client.
+    """
+    suggestions: list[str] = []
+    if directions:
+        suggestions.append("Cho mình hook mẫu cho hướng 1")
+    handle = ""
+    for a in analyzed:
+        meta = a.get("metadata") or {}
+        author = meta.get("author") or {}
+        handle = str(author.get("username") or "").lstrip("@")
+        if handle:
+            break
+    if handle:
+        suggestions.append(f"Phân tích chi tiết @{handle}")
+    if niche_label:
+        suggestions.append(f"Tìm KOL {niche_label} đang post đều")
+    # Always cap at 3 chips to keep the UI tight.
+    return suggestions[:3]
+
+
 async def run_content_directions(
     niche: str,
     session: dict[str, Any],
@@ -326,14 +355,17 @@ async def run_content_directions(
         cached_ids = set(fa.keys())
 
         corpus_pool = await fetch_corpus_reference_pool(niche, days=30, limit=20)
+        corpus_source = "corpus"
         if len(corpus_pool) >= REF_N:
             corpus_pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
             picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
             pool = corpus_pool
         else:
+            # P0-2: tag the provenance so the synthesis prompt knows to disclaim.
+            corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
             logger.info(
-                "[content_directions] corpus pool too small (%d) for niche '%s', using live search",
-                len(corpus_pool), niche,
+                "[content_directions] corpus pool too small (%d) for niche '%s', using live search (source=%s)",
+                len(corpus_pool), niche, corpus_source,
             )
             emit(step_queue, step_search("ensemble", niche))
             pool = await _niche_aweme_pool(niche, period=30)
@@ -377,13 +409,27 @@ async def run_content_directions(
         count, niche_name = await get_corpus_count_cached(
             session, niche_id=niche_id, days=30, niche_name=niche
         )
-        citation = build_corpus_citation_block(count, niche_name, days=30)
+        citation = build_corpus_citation_block(
+            count,
+            niche_name,
+            days=30,
+            reference_count=len(analyzed),
+            source=corpus_source,
+        )
+        logger.info(
+            "[content_directions] niche_input=%r resolved=%r niche_id=%s corpus_count=%d refs=%d source=%s",
+            niche, niche_name, niche_id, count, len(analyzed), corpus_source,
+        )
         emit(step_queue, step_done("Đã phân tích xong — đang tổng hợp hướng nội dung..."))
+
+        persona = extract_persona_slots(" ".join(questions))
+        persona_block = build_persona_block(persona)
 
         payload = {
             "niche": niche,
             "reference_count": len(analyzed),
             "analyzed_videos": analyzed,
+            "persona": persona.asdict() if not persona.is_empty() else None,
         }
         synthesis = await run_sync(
             synthesize_intent_markdown,
@@ -392,6 +438,7 @@ async def run_content_directions(
             collapsed_questions=questions if len(questions) > 1 else None,
             niche_key=niche,
             corpus_citation=citation,
+            persona_block=persona_block,
         )
         synthesis = _inject_video_ref_blocks(synthesis, analyzed)
         directions_struct = [
@@ -418,12 +465,25 @@ async def run_content_directions(
                 if a.get("analysis")
             ],
         )
+        coverage = {
+            "niche_id": niche_id,
+            "niche_label": niche_name,
+            "corpus_count": count,
+            "reference_count": len(analyzed),
+            "source": corpus_source,
+            "freshness_days": 30,
+        }
+        follow_ups = _build_follow_ups_content_directions(
+            niche_name, analyzed, directions_struct
+        )
         return {
             "intent": "content_directions",
             "niche": niche,
             "synthesis": synthesis,
             "analyzed_videos": analyzed,
             "directions": directions_struct,
+            "coverage": coverage,
+            "follow_ups": follow_ups,
         }
     finally:
         await emit_sentinel(step_queue)

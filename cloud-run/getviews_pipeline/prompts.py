@@ -736,6 +736,7 @@ def build_synthesis_prompt(
     collapsed_questions: list[str] | None = None,
     niche_key: str | None = None,
     corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """§18 item 17 — intent-specific framing + optional collapsed questions.
 
@@ -764,6 +765,8 @@ def build_synthesis_prompt(
 
     # P0-1: corpus citation block — grounds all claims in real data size + timeframe
     citation_block = f"\n{corpus_citation}" if corpus_citation else ""
+    # P2-1: persona block — keeps audience_age / pain_points / geography in output
+    persona_context = f"\n{persona_block}" if persona_block else ""
 
     # Static knowledge blocks — injected per intent to keep token count lean.
     # Note: video_diagnosis routes to build_diagnosis_synthesis_prompt_v2(), not here.
@@ -795,6 +798,7 @@ Viết phân tích giống ví dụ dưới — học giọng, cấu trúc, đ�
 {_DOMAIN_KNOWLEDGE}
 {knowledge_block}
 {citation_block}
+{persona_context}
 {framing}
 {qblock}
 {few_shot_block}
