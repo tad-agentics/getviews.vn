@@ -1195,3 +1195,84 @@ async def home_starter_creators(
         "niche_id": niche_id,
         "creators": res.data or [],
     })
+
+
+@app.get("/home/daily-ritual")
+async def home_daily_ritual(
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """Today's 3 ready-to-shoot scripts for the calling creator.
+
+    Returns the most recent daily_ritual row for this user (<= today). If no
+    row exists yet, returns 404 — the UI should render a "sắp có" state
+    rather than blocking on generation, since generation is async (nightly).
+
+    Response (200):
+      {
+        "generated_for_date": "2026-04-23",
+        "niche_id": 4,
+        "adequacy": "niche_norms",
+        "scripts": [{hook_type_en, hook_type_vi, title_vi, why_works,
+                     retention_est_pct, shot_count, length_sec}, ...]
+      }
+    """
+    sb = user_supabase(user["access_token"])
+    try:
+        res = (
+            sb.table("daily_ritual")
+            .select("generated_for_date, niche_id, scripts, adequacy, generated_at")
+            .order("generated_for_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[home_daily_ritual] user=%s failed: %s", user["user_id"], exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    rows = res.data or []
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sắp có — kịch bản đang được tạo.",
+        )
+    return JSONResponse(rows[0])
+
+
+class RitualBatchRequest(BaseModel):
+    user_ids: list[str] | None = Field(
+        default=None,
+        description="Restrict to specific user ids. Omit for all users.",
+    )
+
+
+@app.post("/batch/morning-ritual")
+async def batch_morning_ritual(
+    request: Request,
+    body: RitualBatchRequest = RitualBatchRequest(),
+) -> JSONResponse:
+    """Nightly cron: generate 3 scripts for every creator with a niche set.
+
+    Protected by X-Batch-Secret. Called by Cloud Scheduler at ~07:00 Asia/
+    Ho_Chi_Minh so the ritual is ready when the creator opens the app.
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.morning_ritual import run_morning_ritual_batch
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        summary = await run_sync(run_morning_ritual_batch, get_service_client(), body.user_ids)
+    except Exception as exc:
+        logger.exception("[batch/morning-ritual] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({
+        "ok": True,
+        "generated":     summary.generated,
+        "skipped_thin":  summary.skipped_thin,
+        "failed_schema": summary.failed_schema,
+        "failed_gemini": summary.failed_gemini,
+        "users_no_niche": summary.users_no_niche,
+    })

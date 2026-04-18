@@ -14,6 +14,7 @@ import { ArrowUp, Database, BarChart2, Search, TrendingUp, Video } from "lucide-
 import { PromptCards } from "@/routes/_app/components/PromptCards";
 import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 import { NicheSelector } from "@/routes/_app/components/NicheSelector";
+import { MorningRitualBanner } from "@/routes/_app/components/MorningRitualBanner";
 
 export { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 
@@ -105,11 +106,14 @@ export const MobileEmptyState = memo(function MobileEmptyState({
         >
           Sẵn sàng phân tích content của bạn.
         </motion.h1>
+        <div className="mt-2 w-full">
+          <MorningRitualBanner nicheLabel={nicheLabel} onSelectPrompt={onSelectPrompt} />
+        </div>
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, delay: 0.05, ease: "easeOut" }}
-          className="mt-2 w-full"
+          className="mt-4 w-full"
         >
           <p className="mb-2.5 text-center text-xs font-semibold uppercase tracking-widest text-[var(--faint)]">
             Thao tác nhanh
@@ -286,6 +290,10 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
           </div>
 
           <div className="mt-3">
+            <MorningRitualBanner nicheLabel={nicheLabel} onSelectPrompt={(p) => { setMsg(p); }} />
+          </div>
+
+          <div className="mt-6">
             <PromptCards nicheLabel={nicheLabel} onSelect={(p) => { setMsg(p); }} />
           </div>
 
