@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -175,6 +176,122 @@ def build_display_name(signature: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Gemini display-name generator — called once per brand-new pattern.
+# Fails open to build_display_name(signature) so the pipeline never blocks
+# on a Gemini outage / missing API key.
+# ---------------------------------------------------------------------------
+
+
+def _name_prompt(signature: dict[str, Any], analysis: dict[str, Any] | None) -> str:
+    hook_vi = _HOOK_TYPE_VI.get(signature.get("hook_type", "other"), "Khác")
+    arc_vi = _ARC_VI.get(signature.get("content_arc", "none"), "") or "không có arc rõ"
+    pace_vi = _PACE_VI.get(signature.get("tps_bucket", "standard"), "") or "nhịp chuẩn"
+    energy = str(signature.get("energy_level", "medium"))
+    face = "Có mặt người trong 1s đầu" if signature.get("face_first") else "Không có mặt người sớm"
+    text_overlay = "Có text overlay" if signature.get("has_text_overlay") else "Không có text overlay"
+
+    hook_phrase = ""
+    what_works = ""
+    if isinstance(analysis, dict):
+        hook_phrase = str(((analysis.get("hook_analysis") or {}).get("hook_phrase") or "")).strip()[:160]
+        what_works = str(((analysis.get("content_direction") or {}).get("what_works") or "")).strip()[:200]
+
+    example_block = ""
+    if hook_phrase or what_works:
+        parts: list[str] = []
+        if hook_phrase:
+            parts.append(f'- Hook phrase: "{hook_phrase}"')
+        if what_works:
+            parts.append(f"- Cơ chế chạy: {what_works}")
+        example_block = "\n\nVí dụ video thuộc pattern này:\n" + "\n".join(parts)
+
+    return (
+        "Đặt cho pattern TikTok này một cái tên tiếng Việt ngắn gọn, dễ nhớ (3-6 từ).\n\n"
+        "Đặc điểm pattern:\n"
+        f"- Hook type: {hook_vi}\n"
+        f"- Content arc: {arc_vi}\n"
+        f"- Nhịp: {pace_vi}\n"
+        f"- Năng lượng: {energy}\n"
+        f"- {face}\n"
+        f"- {text_overlay}"
+        f"{example_block}\n\n"
+        "Yêu cầu:\n"
+        '- 3-6 từ tiếng Việt, gợi hình (VD: "Cảnh báo phá vỡ niềm tin", "Trước sau cắt dồn dập", "Cận mặt bất ngờ")\n'
+        "- KHÔNG dùng dấu câu cuối, KHÔNG bọc trong dấu ngoặc kép\n"
+        "- KHÔNG giải thích, CHỈ trả về tên pattern\n\n"
+        "Tên pattern:"
+    )
+
+
+# Sanity limits for the returned name. Gemini occasionally streams Markdown
+# bullets or trailing commentary despite the "chỉ trả về tên" instruction.
+_NAME_MAX_CHARS = 60
+
+
+def _clean_generated_name(raw: str) -> str:
+    """Trim / sanitize a Gemini-returned pattern name.
+
+    Strips quotes, Markdown prefixes, trailing punctuation, and caps length.
+    Returns "" when the cleaned string is too short to be useful — caller
+    then falls back to the rule-based builder.
+    """
+    if not raw:
+        return ""
+    name = str(raw).strip()
+    # Drop common Gemini pre-ambles.
+    name = re.sub(r"^\s*(tên pattern\s*:|pattern name\s*:|name\s*:)\s*", "", name, flags=re.IGNORECASE)
+    # Take the first line only.
+    name = name.split("\n", 1)[0].strip()
+    # Strip wrapping quotes + Markdown bullets.
+    name = name.strip("\"'`*•- ").strip()
+    # Strip trailing punctuation.
+    name = re.sub(r"[.;!?,]+$", "", name).strip()
+    if len(name) > _NAME_MAX_CHARS:
+        name = name[:_NAME_MAX_CHARS].rstrip() + "…"
+    # Require at least one Vietnamese/latin letter or 3+ chars total.
+    if len(name) < 3:
+        return ""
+    return name
+
+
+def _generate_gemini_pattern_name(
+    signature: dict[str, Any], analysis: dict[str, Any] | None,
+) -> str | None:
+    """Ask Gemini Flash-Lite for a snappy Vietnamese pattern name.
+
+    Returns None on any failure so callers fall back to build_display_name.
+    Synchronous — caller already runs this under a thread-pool executor via
+    the async compute_and_upsert_pattern wrapper.
+    """
+    try:
+        from google.genai import types as _types  # type: ignore
+
+        from getviews_pipeline.config import (
+            GEMINI_KNOWLEDGE_FALLBACKS,
+            GEMINI_KNOWLEDGE_MODEL,
+        )
+        from getviews_pipeline.gemini import _generate_content_models, _response_text
+    except Exception as exc:
+        logger.info("[pattern_fingerprint] Gemini unavailable for naming: %s", exc)
+        return None
+
+    try:
+        prompt = _name_prompt(signature, analysis)
+        cfg = _types.GenerateContentConfig(temperature=0.4, max_output_tokens=64)
+        response = _generate_content_models(
+            [prompt],
+            primary_model=GEMINI_KNOWLEDGE_MODEL,
+            fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
+            config=cfg,
+        )
+        cleaned = _clean_generated_name(_response_text(response) or "")
+        return cleaned or None
+    except Exception as exc:
+        logger.warning("[pattern_fingerprint] Gemini naming failed: %s", exc)
+        return None
+
+
+# ---------------------------------------------------------------------------
 # DB helpers — upsert + read
 # ---------------------------------------------------------------------------
 
@@ -185,6 +302,7 @@ def _upsert_pattern_sync(
     sig_hash: str,
     niche_id: int,
     now_iso: str,
+    analysis: dict[str, Any] | None = None,
 ) -> str | None:
     """Insert or touch a video_patterns row and return its id.
 
@@ -216,8 +334,11 @@ def _upsert_pattern_sync(
             client.table("video_patterns").update(update).eq("id", row["id"]).execute()
             return str(row["id"])
 
-        # Fresh pattern — insert.
-        display = build_display_name(signature)
+        # Fresh pattern — insert. Try Gemini for a snappier Vietnamese name;
+        # fall back to the rule-based builder on any failure. Only runs on
+        # brand-new patterns (maybe a handful/week after first-run bootstrap),
+        # so Gemini cost is negligible.
+        display = _generate_gemini_pattern_name(signature, analysis) or build_display_name(signature)
         insert_res = (
             client.table("video_patterns")
             .insert(
@@ -259,7 +380,9 @@ async def compute_and_upsert_pattern(
     sig = compute_signature(analysis)
     sig_hash = signature_hash(sig)
     now_iso = datetime.now(tz=timezone.utc).isoformat()
-    return await run_sync(_upsert_pattern_sync, client, sig, sig_hash, niche_id, now_iso)
+    return await run_sync(
+        _upsert_pattern_sync, client, sig, sig_hash, niche_id, now_iso, analysis,
+    )
 
 
 def _annotate_with_pattern_names_sync(
