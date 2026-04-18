@@ -24,7 +24,7 @@ export function SectionHeader({
   return (
     <header className={["flex items-start justify-between gap-4", className ?? ""].join(" ").trim()}>
       <div className="min-w-0">
-        <Kicker tone={kickerTone}>{kicker}</Kicker>
+        <Kicker tone={kickerTone} dot>{kicker}</Kicker>
         <h2
           className="gv-tight mt-2 text-[28px] leading-[1.1] text-[color:var(--gv-ink)]"
           style={{ fontFamily: "var(--gv-font-display)" }}

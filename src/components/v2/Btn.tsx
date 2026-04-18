@@ -6,17 +6,21 @@ type BtnSize = "sm" | "md" | "lg";
 const BASE =
   "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all " +
   "disabled:opacity-50 disabled:pointer-events-none " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[color:var(--gv-ink)]";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[color:var(--gv-accent)]";
 
 const VARIANTS: Record<BtnVariant, string> = {
+  // `.btn` in the design: 1px ink border, ink bg, canvas text, hover lift.
   ink:
-    "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:bg-[color:var(--gv-ink-2)]",
+    "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] border border-[color:var(--gv-ink)] " +
+    "hover:-translate-y-[1px] hover:shadow-[0_8px_20px_-8px_rgba(0,0,0,0.3)]",
   ghost:
-    "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-4)]",
+    "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:bg-[color:var(--gv-canvas-2)]",
   accent:
-    "bg-[color:var(--gv-accent)] text-white hover:bg-[color:var(--gv-accent-deep)]",
+    "bg-[color:var(--gv-accent)] text-white border border-[color:var(--gv-accent)] " +
+    "hover:bg-[color:var(--gv-accent-deep)] hover:border-[color:var(--gv-accent-deep)]",
   pos:
-    "bg-[color:var(--gv-pos)] text-white hover:bg-[color:var(--gv-pos-deep)]",
+    "bg-[color:var(--gv-pos)] text-white border border-[color:var(--gv-pos)] " +
+    "hover:bg-[color:var(--gv-pos-deep)] hover:border-[color:var(--gv-pos-deep)]",
 };
 
 const SIZES: Record<BtnSize, string> = {
