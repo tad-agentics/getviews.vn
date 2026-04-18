@@ -170,6 +170,10 @@ Everything not requiring new EnsembleData endpoints or ML:
 - Persona-aware reason (Gemini — persona slots already extracted)
 - Rate ballpark (rule-based per tier)
 - Action chips (brief / deep_dive / similar)
+- **Product-context follow-up prompt** injected into `follow_ups[]` when the
+  current query has no product/price/competitor slots — re-fires
+  `creator_search` with the enriched context on the second turn.
+- Frontend card hides rows whose data is null (no "—" placeholders).
 
 ### Phase 2
 - Audience demographics (EnsembleData user-info endpoint — wire + fall back to comment-language inference)
@@ -220,11 +224,11 @@ A seller reading this knows in 10 seconds: fits product, reachable audience, eng
 - **`find_creators` / `kol_search` / `kol_finder` aliases** resolved to `creator_search` in `_normalize_intent_name`. Old shapes stop being emitted.
 - **`is_free_intent` in `main.py:85`** updated: `creator_search` joins the free list so the Cloud Run check matches `FREE_INTENTS` in `api/chat.ts`.
 
-## Open questions
+## Open questions — **resolved**
 
-1. Does the user want to pass a `product_context` slot when invoking the card? Today the prompt is free-text. If we added a small structured form ("Sản phẩm + giá + đối thủ") the rationale and competitor-conflict check get sharper. Low effort to add.
-2. Phase-1 rate_ballpark uses fixed tier bands — fine for v1 but needs localisation to Vietnam norms (numbers above are rough; Product Designer should validate against 2-3 real quotes).
-3. Audience demographics — when the EnsembleData endpoint returns null for a creator (common), do we show "—" or do we hide the row entirely? Recommendation: show "— (dữ liệu thô không có)" so the seller doesn't think it's a card bug.
+1. **Product context** — not collected in the modal. Instead, the assistant surfaces it as a follow-up in the output after the first 3 cards render: *"Nếu bạn cho mình biết sản phẩm + giá + đối thủ, mình sẽ lọc lại danh sách phù hợp hơn."* This keeps the first response fast and the interaction conversational. The answer re-fires `creator_search` with the extra context passed in `questions[]` so the rationale + competitor-conflict check sharpen on the second turn.
+2. **Rate ballpark** — ship with the tier bands below; tune after we see real quotes.
+3. **Missing audience data** — **hide the row entirely** when the field is null. No "—" placeholders. Fewer UI cells is cleaner than empty-looking ones.
 
 ## Action
 
