@@ -618,6 +618,7 @@ async def stream(
                         "coverage",
                         "follow_ups",
                         "comment_radar",
+                        "thumbnail_analysis",
                     )
                     if k in out
                 } or None

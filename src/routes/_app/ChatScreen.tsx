@@ -28,6 +28,10 @@ import {
   HookTimelineStrip,
   type HookTimelineEvent,
 } from "@/routes/_app/components/HookTimelineStrip";
+import {
+  ThumbnailTile,
+  type ThumbnailAnalysisData,
+} from "@/routes/_app/components/ThumbnailTile";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
 import { detectIntent } from "@/routes/_app/intent-router";
@@ -49,12 +53,14 @@ type ChatMsg = {
       freshness_days?: number;
     };
     creators?: CreatorCardData[];
+    thumbnail_analysis?: ThumbnailAnalysisData;
     user_video?: {
       analysis?: {
         hook_analysis?: {
           hook_timeline?: HookTimelineEvent[];
         };
       };
+      metadata?: { thumbnail_url?: string | null };
     };
   } | null;
 };
@@ -588,8 +594,14 @@ export default function ChatScreen() {
           const richCreators = m.structured_output?.creators ?? [];
           const hookTimeline =
             m.structured_output?.user_video?.analysis?.hook_analysis?.hook_timeline ?? [];
+          const thumbnailAnalysis = m.structured_output?.thumbnail_analysis ?? null;
+          const thumbnailFrameUrl =
+            m.structured_output?.user_video?.metadata?.thumbnail_url ?? null;
           return (
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
+              {thumbnailAnalysis ? (
+                <ThumbnailTile data={thumbnailAnalysis} frameUrl={thumbnailFrameUrl} />
+              ) : null}
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
               {hasPlain && !hasStructured ? (
                 <MarkdownRenderer
