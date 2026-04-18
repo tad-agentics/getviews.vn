@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -215,7 +215,43 @@ type AuditRow = {
 
 const RESULTS: AuditRow[] = [];
 
+// ── Supabase config (read from env so the test file has no secrets) ─────────
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
+
+/**
+ * Reset is_processing for the test user before each action so a stuck flag
+ * from a previous run/test doesn't silently block every paid intent.
+ * Reads the access_token from the saved storageState so no extra secret is needed.
+ */
+async function resetProcessingFlag() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  try {
+    // Pull JWT from the saved auth storage state.
+    const raw = readFileSync(".auth/user.json", "utf-8");
+    const state = JSON.parse(raw) as { origins: Array<{ localStorage: Array<{ name: string; value: string }> }> };
+    const lsEntry = state.origins.flatMap((o) => o.localStorage).find((e) => e.name.includes("auth-token"));
+    if (!lsEntry) return;
+    const authToken = JSON.parse(lsEntry.value) as { access_token: string };
+    const jwt = authToken.access_token;
+
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id`, {
+      method: "PATCH",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${jwt}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ is_processing: false }),
+    });
+  } catch {
+    // Non-fatal — test continues; the flag may or may not block.
+  }
+}
+
 test.beforeEach(async ({ page }) => {
+  await resetProcessingFlag();
   await page.addInitScript(INTERCEPTOR);
 });
 
@@ -382,11 +418,12 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
 
   // Wait for stream to end. Two signals, whichever fires first:
   //   (a) fetch-wrapper done/stream_end frame (best)
-  //   (b) "Đang suy nghĩ…" / "Đang phân tích…" / "Đang tải video…" status
+  //   (b) "Đang suy nghĩ…" / "Đang phân tích…" / "Đang tải video…" / "ĐANG XỬ LÝ" status
   //       text appears then disappears (DOM-level fallback)
-  // Hard timeout 90s.
+  // Hard timeout 90s. Video analysis pipelines need the full 90s.
   const deadline = Date.now() + 90_000;
-  const STATUS_RE = /Đang (suy nghĩ|phân tích|tải video|tạo)/i;
+  // Covers both sentence-case streaming labels and the all-caps "ĐANG XỬ LÝ…" sentinel.
+  const STATUS_RE = /Đang (suy nghĩ|phân tích|tải video|tạo|tìm)|ĐANG XỬ LÝ/i;
   let events: Event[] = [];
   let sawStatus = false;
   while (Date.now() < deadline) {
@@ -494,10 +531,15 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
   row.stages.first_to_done = diff(T.first_frame, T.done_frame ?? T.stream_end);
 
   // Wait for the assistant bubble to settle in the DOM.
+  // video_diagnosis pipelines download + analyse a video (20-30s) — the DOM
+  // goes quiet during that window. Use a longer deadline and stability window
+  // for intents that route to Cloud Run's video pipeline.
+  const isVideoIntent = spec.expectedIntent === "video_diagnosis" || spec.expectedIntent === "competitor_profile";
   const bodyLocator = page.locator("main, body").first();
   let lastLen = 0;
   let stableFor = 0;
-  const domDeadline = Date.now() + 10_000;
+  const domDeadline = Date.now() + (isVideoIntent ? 60_000 : 10_000);
+  const stableThreshold = isVideoIntent ? 5_000 : 1_500;
   while (Date.now() < domDeadline) {
     const txt = await bodyLocator.innerText();
     if (txt.length > lastLen) {
@@ -505,7 +547,7 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
       stableFor = 0;
     } else {
       stableFor += 300;
-      if (stableFor >= 1_500) break;
+      if (stableFor >= stableThreshold) break;
     }
     await page.waitForTimeout(300);
   }

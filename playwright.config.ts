@@ -1,4 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+// Load .env.local manually so VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are
+// available to test helpers (resetProcessingFlag etc.) without a dotenv dep.
+try {
+  const lines = readFileSync(".env.local", "utf-8").split("\n");
+  for (const line of lines) {
+    const m = line.match(/^([A-Z0-9_]+)="?([^"]*)"?$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+} catch { /* file absent in CI — env vars come from the environment */ }
 
 const BASE_URL = process.env.GV_BASE_URL ?? "https://getviews.vn";
 
