@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from getviews_pipeline.pattern_fingerprint import (
+    _clean_generated_name,
+    _name_prompt,
     bucket_tps,
     build_display_name,
     compute_signature,
@@ -160,3 +162,86 @@ def test_display_name_unknown_hook_fallback() -> None:
     sig = compute_signature({"hook_analysis": {"hook_type": "made_up_type"}})
     # Unknown hook types map to "Khác" (other).
     assert build_display_name(sig).startswith("Khác")
+
+
+# ── Gemini-generated display name helpers ─────────────────────────────────
+
+
+def test_clean_generated_name_strips_quotes() -> None:
+    assert _clean_generated_name('"Cảnh báo phá vỡ"') == "Cảnh báo phá vỡ"
+    assert _clean_generated_name("'Cảnh báo phá vỡ'") == "Cảnh báo phá vỡ"
+    assert _clean_generated_name("`Cảnh báo phá vỡ`") == "Cảnh báo phá vỡ"
+
+
+def test_clean_generated_name_strips_markdown_bullets() -> None:
+    assert _clean_generated_name("- Cảnh báo + trước sau") == "Cảnh báo + trước sau"
+    assert _clean_generated_name("* Hook cận mặt") == "Hook cận mặt"
+    assert _clean_generated_name("• Trước sau bật ngược") == "Trước sau bật ngược"
+
+
+def test_clean_generated_name_takes_first_line_only() -> None:
+    raw = "Cảnh báo phá vỡ\nPattern này chạy vì hook bất ngờ..."
+    assert _clean_generated_name(raw) == "Cảnh báo phá vỡ"
+
+
+def test_clean_generated_name_strips_trailing_punct() -> None:
+    assert _clean_generated_name("Cảnh báo phá vỡ.") == "Cảnh báo phá vỡ"
+    assert _clean_generated_name("Cận mặt bất ngờ!") == "Cận mặt bất ngờ"
+    assert _clean_generated_name("Trend lift.....") == "Trend lift"
+
+
+def test_clean_generated_name_strips_prefix_labels() -> None:
+    assert _clean_generated_name("Tên pattern: Cảnh báo phá vỡ") == "Cảnh báo phá vỡ"
+    assert _clean_generated_name("Pattern name: Hook direct") == "Hook direct"
+    assert _clean_generated_name("Name: Trước sau") == "Trước sau"
+
+
+def test_clean_generated_name_caps_length() -> None:
+    raw = "Đây là một tên rất dài vượt quá giới hạn cho phép của pattern fingerprint module cần bị cắt"
+    cleaned = _clean_generated_name(raw)
+    # _NAME_MAX_CHARS is 60; the helper truncates and adds "…".
+    assert len(cleaned) <= 61  # 60 chars + 1-char ellipsis
+    assert cleaned.endswith("…")
+
+
+def test_clean_generated_name_rejects_too_short() -> None:
+    assert _clean_generated_name("ab") == ""
+    assert _clean_generated_name("") == ""
+    assert _clean_generated_name('""') == ""
+
+
+def test_name_prompt_includes_signature_fields() -> None:
+    sig = compute_signature(_mk_analysis(
+        hook_type="pain_point",
+        content_arc="before_after",
+        tps=1.6,
+        face_at=0.3,
+        overlays=2,
+    ))
+    prompt = _name_prompt(sig, None)
+    # Vietnamese labels for the signature features appear.
+    assert "Chạm đau" in prompt
+    assert "trước/sau" in prompt
+    assert "cắt nhanh" in prompt
+    assert "Có mặt người" in prompt
+    assert "Có text overlay" in prompt
+
+
+def test_name_prompt_includes_example_hook_when_available() -> None:
+    sig = compute_signature(_mk_analysis())
+    analysis = {
+        "hook_analysis": {"hook_phrase": "ĐỪNG MUA KEM NÀY nếu chưa xem"},
+        "content_direction": {"what_works": "Cận mặt + chữ vàng trên đen giây 0.5"},
+    }
+    prompt = _name_prompt(sig, analysis)
+    assert "ĐỪNG MUA KEM NÀY" in prompt
+    assert "Cận mặt" in prompt
+
+
+def test_name_prompt_omits_example_block_when_analysis_empty() -> None:
+    sig = compute_signature(_mk_analysis())
+    prompt = _name_prompt(sig, None)
+    assert "Ví dụ video" not in prompt
+    # Empty analysis dict also → no example block.
+    prompt2 = _name_prompt(sig, {})
+    assert "Ví dụ video" not in prompt2
