@@ -9,6 +9,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.config import CAROUSEL_EXTRACT_MAX_SLIDES, CAROUSEL_MAX_SLIDES
 from getviews_pipeline.corpus_context import get_cached_analysis
+from getviews_pipeline.entry_cost import score_entry_cost
 from getviews_pipeline.gemini import analyze_carousel, analyze_video, synthesize_diagnosis
 from getviews_pipeline.models import (
     CarouselAnalyzeResult,
@@ -56,11 +57,20 @@ async def _finish_analysis(
             analysis=analysis_obj,
             diagnosis=diagnosis,
         ).model_dump()
-    return VideoAnalyzeResult(
+    out = VideoAnalyzeResult(
         metadata=metadata,
         analysis=analysis_obj,
         diagnosis=diagnosis,
     ).model_dump()
+    # Entry-cost badge (easy / medium / hard) — attached to every video analysis
+    # so any downstream consumer (trend_spike card, content_directions reference,
+    # competitor_profile card) can render it without re-deriving.
+    try:
+        tier, reasons = score_entry_cost(out.get("analysis") or {})
+        out["entry_cost"] = {"tier": tier, "reasons": reasons}
+    except Exception as exc:  # pragma: no cover — score_entry_cost is pure
+        logger.warning("entry_cost scoring failed: %s", exc)
+    return out
 
 
 async def _analyze_video(

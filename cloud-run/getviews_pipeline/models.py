@@ -94,6 +94,30 @@ _HOOK_TYPE_ALIASES: dict[str, str] = {
 }
 
 
+HookTimelineEventType = Literal[
+    "face_enter",
+    "first_word",
+    "text_overlay",
+    "sound_drop",
+    "cut",
+    "product_enter",
+    "reveal",
+]
+
+
+class HookTimelineEvent(BaseModel):
+    """One notable moment inside the opening hook window (0.0–3.0s).
+
+    Gemini is asked to report 2-5 of these per video so creators see the
+    frame-by-frame choreography of the hook instead of a single
+    face_appears_at number. Optional — older corpus rows won't have it.
+    """
+
+    t: float = Field(..., ge=0.0, le=5.0, description="Seconds from video start.")
+    event: HookTimelineEventType
+    note: str = ""  # optional 1-3 word descriptor, e.g. "zoom-in" / "sản phẩm"
+
+
 class HookAnalysis(BaseModel):
     first_frame_type: FirstFrameType
     face_appears_at: float | None = None
@@ -101,6 +125,7 @@ class HookAnalysis(BaseModel):
     hook_phrase: str
     hook_type: HookType
     hook_notes: str
+    hook_timeline: list[HookTimelineEvent] = Field(default_factory=list)
 
     @field_validator("hook_type", mode="before")
     @classmethod
