@@ -46,7 +46,6 @@ from getviews_pipeline.pipelines import (
     run_competitor_profile,
     run_content_directions,
     run_creator_search,
-    run_kol_search,
     run_own_channel,
     run_shot_list,
     run_trend_spike,
@@ -69,26 +68,30 @@ _PROFILE_HANDLE_RE = re.compile(r"tiktok\.com/@([a-zA-Z0-9_.]+)", re.IGNORECASE)
 def _normalize_intent_name(raw: str | None) -> str | None:
     if raw is None:
         return None
+    # All KOL-finder aliases resolve to the single seller-first creator_search
+    # pipeline. find_creators / kol_search / kol_finder survive only so old
+    # clients / cached chat rows keep working.
     aliases = {
         "tiktok_url_diagnosis": "video_diagnosis",
-        "kol_search": "find_creators",
-        "followup": "follow_up",
+        "kol_search": "creator_search",
+        "find_creators": "creator_search",
         "kol_finder": "creator_search",
+        "followup": "follow_up",
     }
     return aliases.get(raw, raw)
 
 
 def is_free_intent(intent: str) -> bool:
-    # The three intents routed to Cloud Run (video_diagnosis, competitor_profile,
-    # own_channel) are always paid. This function exists for completeness —
-    # credits_used is always 1 in the /stream handler.
-    return intent in ("trend_spike", "kol_search", "find_creators")
+    # Free intents match the Vercel Edge FREE_INTENTS set (api/chat.ts:24) so
+    # the two gates agree. `creator_search` is the unified KOL finder (formerly
+    # kol_search / find_creators — aliased above).
+    return intent in ("trend_spike", "creator_search")
 
 
 # §13 mandate: max 100 free queries per user per day for abuse prevention
 FREE_DAILY_LIMIT = 100
 # Intents that consume from the daily free quota (not the deep-credit pool)
-_FREE_GATED_INTENTS = frozenset({"trend_spike", "find_creators"})
+_FREE_GATED_INTENTS = frozenset({"trend_spike", "creator_search"})
 
 
 def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:
@@ -529,10 +532,6 @@ async def stream(
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
                 pipeline_coro = run_shot_list(body.query, niche, session, questions, step_queue=step_q)
 
-            elif normalized == "find_creators":
-                niche = session.get("niche") or _infer_niche_from_query(body.query)
-                pipeline_coro = run_kol_search(niche, session, questions, step_queue=step_q)
-
             elif normalized == "creator_search":
                 niche = session.get("niche") or _infer_niche_from_query(body.query)
                 pipeline_coro = run_creator_search(niche, session, questions)
@@ -663,13 +662,6 @@ async def stream(
                 structured = {
                     k: out[k]
                     for k in ("topic", "niche", "coverage", "follow_ups")
-                    if k in out
-                } or None
-            elif normalized == "find_creators":
-                full_text = (out.get("synthesis") or "").strip()
-                structured = {
-                    k: out[k]
-                    for k in ("niche", "analyzed_videos", "coverage", "follow_ups")
                     if k in out
                 } or None
             elif normalized == "creator_search":
