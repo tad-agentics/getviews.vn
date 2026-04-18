@@ -41,7 +41,7 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
           title="3 kịch bản sẵn sàng cho bạn"
           caption="Được tạo qua đêm từ dữ liệu ngách tuần này."
         />
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-52 animate-pulse rounded-[12px] bg-[color:var(--gv-canvas-2)]" />
           ))}
@@ -76,7 +76,7 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
         }
       />
 
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {ritual.scripts.map((s, idx) => {
           const isHero = idx === 0;
           return (
@@ -85,10 +85,10 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
               type="button"
               onClick={() => onSelectPrompt(promptFromScript(s, nicheLabel))}
               className={
-                "group flex h-full flex-col gap-3 rounded-[12px] border border-[color:var(--gv-ink)] p-5 text-left transition-all hover:-translate-y-0.5 " +
+                "group flex min-h-[180px] h-full flex-col gap-2.5 rounded-[12px] border border-[color:var(--gv-ink)] px-[18px] pb-4 pt-[18px] text-left transition-[transform,box-shadow] duration-150 " +
                 (isHero
-                  ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:shadow-[4px_4px_0_var(--gv-accent)]"
-                  : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:shadow-[4px_4px_0_var(--gv-ink)]")
+                  ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--gv-accent)]"
+                  : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--gv-ink)]")
               }
             >
               <div className="flex items-center justify-between">

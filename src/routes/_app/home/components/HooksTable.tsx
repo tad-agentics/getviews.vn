@@ -77,7 +77,7 @@ export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: numbe
         caption="Top 6 mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua."
       />
 
-      <div className="mt-5 overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)]">
+      <div className="overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)]">
         <table className="w-full text-sm">
           <thead className="bg-[color:var(--gv-canvas-2)]">
             <tr>

@@ -76,36 +76,55 @@ export const Composer = forwardRef<HTMLTextAreaElement, ComposerProps>(function 
     </Btn>
   );
 
+  const shellClass =
+    layout === "studio"
+      ? ["gv-surface-brutal p-1", className ?? ""].filter(Boolean).join(" ")
+      : ["gv-surface-brutal p-4 md:p-5", className ?? ""].filter(Boolean).join(" ");
+
   return (
-    <div className={["gv-surface-brutal p-4 md:p-5", className ?? ""].filter(Boolean).join(" ")}>
-      <textarea
-        ref={resolved}
-        placeholder={placeholder}
-        className={[
-          "block w-full resize-none bg-transparent text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] focus:outline-none",
-          /* UIUX composer: 17px / 1.5 on --sans; inherits Space Grotesk from .gv-studio-type on /app */
-          layout === "studio" ? "text-[17px] leading-[1.5]" : "text-base leading-snug",
-        ].join(" ")}
-        rows={3}
-        value={value}
-        onChange={onChange}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        {...rest}
-      />
+    <div className={shellClass}>
       {layout === "studio" ? (
-        <div className="mt-3 flex flex-col gap-3 border-t border-[color:var(--gv-rule)] pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{leftChips}</div>
-          <div className="flex shrink-0 items-center gap-2">
-            {toolbarEnd}
-            {submitBtn}
+        <>
+          {/* UIUX home.jsx: outer padding 4px; textarea inset 18px 22px 8px */}
+          <div className="px-[22px] pb-2 pt-[18px]">
+            <textarea
+              ref={resolved}
+              placeholder={placeholder}
+              className="block w-full resize-none bg-transparent text-[17px] leading-[1.5] text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] focus:outline-none"
+              rows={3}
+              value={value}
+              onChange={onChange}
+              onKeyDown={handleKeyDown}
+              disabled={disabled}
+              {...rest}
+            />
           </div>
-        </div>
+          <div className="flex flex-col gap-3 border-t border-[color:var(--gv-rule)] px-[14px] py-[10px] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">{leftChips}</div>
+            <div className="flex shrink-0 items-center gap-2">
+              {toolbarEnd}
+              {submitBtn}
+            </div>
+          </div>
+        </>
       ) : (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {leftChips}
-          <div className="ml-auto">{submitBtn}</div>
-        </div>
+        <>
+          <textarea
+            ref={resolved}
+            placeholder={placeholder}
+            className="block w-full resize-none bg-transparent text-base leading-snug text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] focus:outline-none"
+            rows={3}
+            value={value}
+            onChange={onChange}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            {...rest}
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {leftChips}
+            <div className="ml-auto">{submitBtn}</div>
+          </div>
+        </>
       )}
     </div>
   );

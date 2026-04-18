@@ -49,7 +49,7 @@ export const QuickActions = memo(function QuickActions() {
         title="Bắt đầu nhanh"
         caption="6 cửa vào — chọn cửa hợp với ý tưởng của bạn."
       />
-      <div className="mt-5 grid grid-cols-1 gap-px overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-rule)] min-[901px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-rule)] min-[901px]:grid-cols-2">
         {ACTIONS.map((a, idx) => {
           const Icon = a.icon;
           return (

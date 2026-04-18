@@ -39,8 +39,8 @@ type Session = {
 /* ── Logo mark — 30x30 ink square, accent-pink compass spoke icon. ── */
 function LogoMark() {
   return (
-    <div className="w-[30px] h-[30px] rounded-[6px] bg-[color:var(--gv-ink)] flex items-center justify-center flex-shrink-0">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[6px] bg-[color:var(--gv-ink)]">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path
           d="M8 1v14M1 8h14M3.05 3.05l9.9 9.9M12.95 3.05l-9.9 9.9"
           stroke="var(--gv-accent)"
@@ -66,17 +66,17 @@ function NicheOfYoursBlock() {
   if (niches.length === 0) return null;
 
   return (
-    <div className="mb-3 px-4 pb-2.5 pt-3.5">
-      <p className="gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)] mb-2.5">
+    <div className="px-4 pb-2.5 pt-[14px]">
+      <p className="gv-mono mb-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
         Ngách Của Bạn
       </p>
       <ul className="flex flex-col gap-1">
         {niches.map((n) => (
           <li key={n.id}>
-            <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-[7px] text-xs hover:bg-[rgba(20,17,12,0.04)]">
+            <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-[7px] text-[12px] hover:bg-[rgba(20,17,12,0.04)]">
               <span className="truncate text-[color:var(--gv-ink-2)]">{n.name}</span>
-              <span className="gv-mono text-[10px] text-[color:var(--gv-pos-deep)] shrink-0">
-                ↑ {n.hot}
+              <span className="gv-mono shrink-0 text-[10px] text-[color:var(--gv-pos-deep)]">
+                ↑{n.hot}
               </span>
             </div>
           </li>
@@ -109,24 +109,21 @@ function NavItem({
       disabled={disabled}
       aria-disabled={disabled || undefined}
       className={[
-        "w-full rounded-md text-left text-[13px] transition-colors duration-150",
-        "flex items-center gap-2.5 px-3 py-[9px]",
+        "flex w-full items-center gap-2.5 rounded-md px-3 py-[9px] text-left text-[13px] transition-colors duration-150",
         disabled
-          ? "cursor-default opacity-60 font-medium text-[color:var(--gv-ink-2)]"
+          ? "cursor-default font-medium text-[color:var(--gv-ink-2)] opacity-60"
           : active
             ? "bg-[color:var(--gv-ink)] font-semibold text-[color:var(--gv-canvas)]"
             : "font-medium text-[color:var(--gv-ink-2)] hover:bg-[rgba(20,17,12,0.05)] hover:text-[color:var(--gv-ink)]",
       ].join(" ")}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2.5">
-        <Icon className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
-        <span className="min-w-0 flex-1 whitespace-nowrap">{label}</span>
-        {badge ? (
-          <span className="text-[9px] uppercase tracking-wider text-[color:var(--gv-ink-4)] font-medium">
-            {badge}
-          </span>
-        ) : null}
-      </div>
+      <Icon className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
+      <span className="min-w-0 flex-1 whitespace-nowrap">{label}</span>
+      {badge ? (
+        <span className="shrink-0 text-[9px] font-medium uppercase tracking-wider text-[color:var(--gv-ink-4)]">
+          {badge}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -330,16 +327,16 @@ function SessionRow({
           </button>
         </div>
       ) : (
-        <div className="flex items-center rounded-md transition-colors duration-[120ms] hover:bg-[rgba(20,17,12,0.04)]">
+        <div className="flex items-center gap-2 rounded-md px-2.5 py-[7px] transition-colors duration-100 hover:bg-[rgba(20,17,12,0.04)]">
           <button
             onClick={onNavigate}
             title={displayLabel}
-            className="flex flex-1 items-center gap-1 py-[7px] pl-2.5 pr-1 text-left text-xs text-[color:var(--gv-ink-2)] hover:text-[color:var(--gv-ink)]"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left text-[12px] text-[color:var(--gv-ink-2)] hover:text-[color:var(--gv-ink)]"
           >
             {isPinned && (
-              <Pin className="w-2.5 h-2.5 flex-shrink-0 text-[color:var(--gv-accent)] rotate-45" strokeWidth={2} />
+              <Pin className="h-2.5 w-2.5 flex-shrink-0 rotate-45 text-[color:var(--gv-accent)]" strokeWidth={2} />
             )}
-            <span className="truncate min-w-0">{displayLabel}</span>
+            <span className="min-w-0 truncate">{displayLabel}</span>
           </button>
 
           <button
@@ -348,26 +345,22 @@ function SessionRow({
               e.stopPropagation();
               onDelete();
             }}
-            aria-label="Xóa phiên chat"
+            aria-label="Xóa khỏi danh sách"
             title="Xóa"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-[color:var(--gv-ink-4)] transition-colors hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)]"
+            className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded text-[color:var(--gv-ink-4)] transition-[opacity,background,color] duration-100 hover:bg-[color:var(--gv-accent-soft)] hover:text-[color:var(--gv-accent-deep)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100"
           >
-            <X className="h-3.5 w-3.5" strokeWidth={2} />
+            <X className="h-[11px] w-[11px]" strokeWidth={2.2} />
           </button>
 
-          {/* More button — separate element so it never competes with row navigation.
-              44×44 touch target on mobile; fades in on desktop hover only. */}
           <button
             ref={moreRef}
             onClick={openMenu}
             aria-label="Tuỳ chọn phiên chat"
-            className={`flex-shrink-0 flex items-center justify-center rounded transition-colors duration-[100ms]
-              w-9 h-9 lg:w-6 lg:h-6
-              hover:text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-rule)]
-              lg:opacity-0 lg:group-hover/row:opacity-100
-              ${menuOpen ? 'lg:opacity-100 text-[color:var(--gv-ink-2)]' : 'text-[color:var(--gv-ink-4)]'}`}
+            className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded transition-colors duration-100 hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
+              menuOpen ? "lg:opacity-100 text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-4)]"
+            }`}
           >
-            <MoreHorizontal className="w-3.5 h-3.5" strokeWidth={1.8} />
+            <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
           </button>
         </div>
       )}
@@ -487,25 +480,26 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   function SidebarContent({ onClose }: { onClose?: () => void }) {
     return (
       <>
-        {/* Brand mark — UIUX shell.jsx: 20px/18px padding, then full-width rule */}
-        <div className="flex items-center justify-between px-5 pb-3 pt-2">
+        {/* Brand — shell.jsx: padding 20px 20px 18px; logo gap 10; + 28×28 rule border */}
+        <div className="flex items-center justify-between px-5 pb-[18px] pt-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <LogoMark />
-            <div className="min-w-0">
+            <div className="min-w-0 leading-none">
               <span
-                className="block text-[20px] font-bold leading-none text-[color:var(--gv-ink)]"
+                className="gv-tight block text-[20px] font-bold leading-none text-[color:var(--gv-ink)]"
                 style={{ letterSpacing: "-0.04em" }}
               >
                 Getviews<span className="text-[color:var(--gv-accent-2-deep)]">.</span>
               </span>
-              <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+              <p className="gv-mono mt-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
                 Studio · Creator
               </p>
             </div>
           </div>
           <div className="flex items-center gap-1">
             <button
-              title="Chat mới"
+              type="button"
+              title="Cuộc trò chuyện mới"
               onClick={() => {
                 navigate("/app/chat");
                 onClose?.();
@@ -527,8 +521,8 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
         <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-        {/* Primary nav — the 4 design surfaces (2 live, 2 "Sắp có"). */}
-        <div className="mb-3 flex flex-col gap-0.5 px-3 py-3">
+        {/* Primary nav — shell.jsx: padding 12px, gap 2px between items; Chat grouped here like extra surface */}
+        <nav className="flex flex-col gap-0.5 p-3">
           <NavItem
             icon={Home}
             label="Studio"
@@ -559,12 +553,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             badge="Sắp có"
             disabled
           />
-        </div>
-
-        <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
-
-        {/* Chat — secondary, kept accessible while Answer isn't built. */}
-        <div className="mb-3 flex flex-col gap-0.5 px-3">
           <NavItem
             icon={MessageCircle}
             label="Chat"
@@ -574,7 +562,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
-        </div>
+        </nav>
 
         <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
@@ -583,23 +571,26 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
         <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-        {/* Session lists */}
-        <div className="flex-1 overflow-y-auto px-2 flex flex-col min-h-0" style={{ scrollbarWidth: 'none' }}>
+        {/* Pinned + Gần đây — shell.jsx “Gần Đây” block: padding 14px 16px 10px, list gap 2 */}
+        <div
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-2.5 pt-[14px]"
+          style={{ scrollbarWidth: "none" }}
+        >
           <AnimatePresence initial={false}>
             {pinned.length > 0 && (
               <motion.div
                 key="pinned-section"
                 initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
+                animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.18, ease: 'easeInOut' }}
+                transition={{ duration: 0.18, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <p className="mb-2.5 mt-0.5 flex items-center gap-1.5 px-2 gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+                <p className="mb-2.5 flex items-center gap-1.5 gv-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
                   <Pin className="h-2.5 w-2.5 rotate-45" strokeWidth={2} />
                   Ghim
                 </p>
-                <div className="flex flex-col gap-0.5 mb-3">
+                <div className="mb-3 flex flex-col gap-0.5">
                   {pinned.map((session) => (
                     <SessionRow
                       key={session.id}
@@ -621,7 +612,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
           {recent.length > 0 && (
             <>
-              <p className="gv-mono mb-2.5 px-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+              <p className="gv-mono mb-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
                 Gần Đây
               </p>
               <div className="flex flex-col gap-0.5">
@@ -644,45 +635,46 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           )}
 
           {sessions.length === 0 && (
-            <p className="px-2 py-3 text-[11px] text-[color:var(--gv-ink-4)]">
+            <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
               Chưa có hội thoại nào.
             </p>
           )}
         </div>
 
-        {/* Footer — UIUX: border-top rule, settings label + avatar */}
-        <div className="mt-2 border-t border-[color:var(--gv-rule)] px-3 pb-1 pt-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => { navigate('/app/settings'); onClose?.(); }}
-            className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium text-[color:var(--gv-ink-3)] transition-colors hover:bg-[rgba(20,17,12,0.05)]"
-            title="Cài đặt"
-          >
-            <Settings className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
-            <span className="truncate">Cài đặt</span>
-          </button>
-          {profile ? (
-            <UsageArc
-              used={((profile as { deep_credits_total?: number }).deep_credits_total ?? 50) - (profile.deep_credits_remaining ?? 0)}
-              limit={(profile as { deep_credits_total?: number }).deep_credits_total ?? 50}
-            />
-          ) : null}
-          <button
-            type="button"
-            title={displayName}
-            onClick={() => setShowProfileModal((v) => !v)}
-            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
-          >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[color:var(--gv-accent)] to-[color:var(--gv-accent-deep)] text-[10px] font-extrabold text-white">
-                {initials}
-              </span>
-            )}
-          </button>
-        </div>
+        {/* Footer — shell.jsx: padding 10px 12px, border-top, gap 8; settings 6px 8px 12px; avatar 28px */}
+        <div className="flex flex-col gap-2 border-t border-[color:var(--gv-rule)] px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                navigate("/app/settings");
+                onClose?.();
+              }}
+              className="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium text-[color:var(--gv-ink-3)] transition-colors hover:bg-[rgba(20,17,12,0.05)]"
+              title="Cài đặt"
+            >
+              <Settings className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
+              <span className="truncate">Cài đặt</span>
+            </button>
+            {profile ? (
+              <UsageArc
+                used={((profile as { deep_credits_total?: number }).deep_credits_total ?? 50) - (profile.deep_credits_remaining ?? 0)}
+                limit={(profile as { deep_credits_total?: number }).deep_credits_total ?? 50}
+              />
+            ) : null}
+            <button
+              type="button"
+              title={displayName}
+              onClick={() => setShowProfileModal((v) => !v)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--gv-accent)] text-[11px] font-semibold text-white ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center">{initials}</span>
+              )}
+            </button>
+          </div>
         </div>
       </>
     );
@@ -695,7 +687,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         <div className="flex min-h-0 w-full flex-1">
 
           {/* ── Sidebar ─── */}
-          <aside className="flex h-full min-h-0 w-[240px] flex-shrink-0 flex-col overflow-hidden border-r border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] pt-2 pb-4">
+          <aside className="flex h-full min-h-0 w-[240px] flex-shrink-0 flex-col overflow-hidden border-r border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]">
             <SidebarContent />
           </aside>
 
@@ -767,8 +759,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                   animate={{ x: 0 }}
                   exit={{ x: '-100%' }}
                   transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                  className="fixed top-0 left-0 bottom-0 z-50 flex flex-col py-4 bg-[color:var(--gv-canvas-2)] border-r border-[color:var(--gv-rule)]"
-                  style={{ width: 280 }}
+                  className="fixed bottom-0 left-0 top-0 z-50 flex h-full min-h-0 w-[240px] flex-col overflow-hidden border-r border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
                 >
                   <SidebarContent onClose={() => setMobileSidebarOpen(false)} />
                 </motion.aside>

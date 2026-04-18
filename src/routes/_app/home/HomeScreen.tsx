@@ -167,7 +167,7 @@ export default function HomeScreen() {
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
           <div className="gv-fade-up">
-            <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="mb-3.5 flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2.5">
                 <span
                   className="inline-flex items-center gap-2 rounded-full border-transparent px-3 py-1 gv-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink)]"
@@ -190,7 +190,7 @@ export default function HomeScreen() {
             </div>
 
             <h1
-              className="gv-tight mt-6 w-full max-w-[min(1180px,100%)] text-[clamp(36px,4.6vw,60px)] leading-[1.02] text-[color:var(--gv-ink)]"
+              className="gv-tight mt-0 w-full max-w-[880px] text-[clamp(36px,4.6vw,60px)] leading-[1.02] text-[color:var(--gv-ink)]"
               style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
             >
               Chào {firstName}. Hôm nay{" "}
@@ -215,7 +215,7 @@ export default function HomeScreen() {
             </h1>
           </div>
 
-          <div className="gv-fade-up gv-fade-up-delay-1 mt-7 w-full max-w-[min(1180px,100%)]">
+          <div className="gv-fade-up gv-fade-up-delay-1 mt-7 w-full max-w-[880px]">
             <Composer
               ref={composerRef}
               layout="studio"
@@ -226,13 +226,13 @@ export default function HomeScreen() {
             />
           </div>
 
-          <div className="gv-fade-up gv-fade-up-delay-2 mt-6 flex w-full max-w-[min(1180px,100%)] flex-wrap gap-2">
+          <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 flex w-full max-w-[880px] flex-wrap gap-2">
             {suggestedPrompts.map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => fillComposer(p)}
-                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-[13px] leading-snug text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)]"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-xs font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]"
               >
                 <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
                 <span className="min-w-0">{p}</span>
@@ -240,15 +240,15 @@ export default function HomeScreen() {
             ))}
           </div>
 
-          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)] md:my-10" />
+          <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <div className="gv-fade-up gv-fade-up-delay-3">
+          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
             <HomeMorningRitual nicheLabel={nicheLabel} onSelectPrompt={launchChat} />
           </div>
 
-          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)] md:my-10" />
+          <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <div className="gv-fade-up gv-fade-up-delay-3 grid grid-cols-1 gap-6 min-[901px]:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+          <div className="gv-fade-up gv-fade-up-delay-3 mb-14 grid grid-cols-1 gap-9 min-[901px]:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
             <QuickActions />
             <div>
               <SectionHeader
@@ -256,17 +256,17 @@ export default function HomeScreen() {
                 title="Pulse"
                 caption="Tín hiệu sống trong ngách của bạn."
               />
-              <div className="mt-4">
+              <div>
                 <PulseCard omitKicker />
               </div>
             </div>
           </div>
 
-          <div className="mt-12">
+          <div className="mt-12 mb-12">
             <HooksTable nicheId={profile?.primary_niche ?? null} />
           </div>
 
-          <div className="mt-12">
+          <div className="mt-0">
             <BreakoutGrid nicheId={profile?.primary_niche ?? null} />
           </div>
         </main>

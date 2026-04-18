@@ -75,20 +75,13 @@ export const TickerMarquee = memo(function TickerMarquee() {
         {rowItems.map((it, idx) => (
           <span
             key={`${it.bucket}-${it.target_id ?? idx}-${idx}`}
-            className="inline-flex items-center gap-2.5 text-[11px] leading-normal"
+            className="gv-mono inline-flex items-center gap-2.5 text-[11px] leading-normal"
           >
-            <span
-              className={
-                "gv-mono gv-uc text-[10px] font-semibold tracking-[0.14em] " +
-                BUCKET_TONE[it.bucket]
-              }
-            >
-              {it.label_vi}
+            <span className={"font-semibold " + BUCKET_TONE[it.bucket]}>{it.label_vi}</span>
+            <span className="font-medium text-[color:var(--gv-canvas)] opacity-[0.85]">{it.headline_vi}</span>
+            <span aria-hidden="true" className="text-[color:var(--gv-canvas)] opacity-40">
+              ·
             </span>
-            <span className="font-medium text-[color:var(--gv-canvas)]" style={{ fontFamily: "var(--gv-font-sans)" }}>
-              {it.headline_vi}
-            </span>
-            <span aria-hidden="true" className="text-[color:var(--gv-ink-4)]">·</span>
           </span>
         ))}
       </div>

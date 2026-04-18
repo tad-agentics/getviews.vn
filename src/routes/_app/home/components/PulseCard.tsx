@@ -5,12 +5,8 @@ import { Card } from "@/components/v2/Card";
 import { useHomePulse } from "@/hooks/useHomePulse";
 
 /**
- * PulseCard — the niche's week in one bignum + 4 supporting stats.
- *
- * - ink-filled hero surface with the big views number
- * - blue/pink delta chip rendered off pos/neg semantics
- * - 2×2 stats grid (videos / creators / viral / hooks)
- * - softens delta+bignum when adequacy is "none" (too thin to claim)
+ * PulseCard — UIUX reference: paper `.card`, padding 22px, column gap 18px,
+ * mono kicker 9px ink-4, bignum in ink on light ground, pos-deep delta, rule separator.
  */
 
 function formatViews(n: number): string {
@@ -25,14 +21,13 @@ function formatViews(n: number): string {
 export const PulseCard = memo(function PulseCard({
   omitKicker = false,
 }: {
-  /** When a parent `SectionHeader` (“NHỊP TUẦN”) wraps the card, hide the in-card kicker. */
   omitKicker?: boolean;
 } = {}) {
   const { data: pulse, isPending } = useHomePulse();
 
   if (isPending || !pulse) {
     return (
-      <Card variant="ink" className="min-h-[240px] animate-pulse p-6">
+      <Card variant="paper" className="min-h-[240px] animate-pulse p-[22px]">
         {null}
       </Card>
     );
@@ -41,20 +36,19 @@ export const PulseCard = memo(function PulseCard({
   const isThin = pulse.adequacy === "none";
   const hasPrev = pulse.views_last_week > 0;
   const deltaTone: "pos" | "neg" | "ink" =
-    !hasPrev || isThin ? "ink" :
-    pulse.views_delta_pct >= 0 ? "pos" : "neg";
+    !hasPrev || isThin ? "ink" : pulse.views_delta_pct >= 0 ? "pos" : "neg";
   const deltaSign = pulse.views_delta_pct >= 0 ? "▲" : "▼";
 
   return (
-    <Card variant="ink" className="p-6">
-      {omitKicker ? null : <Kicker tone="pos">NHỊP TUẦN</Kicker>}
+    <Card variant="paper" className="flex flex-col gap-[18px] p-[22px] text-[color:var(--gv-ink)]">
+      {omitKicker ? null : <Kicker tone="muted">NHỊP TUẦN</Kicker>}
 
-      <div className={omitKicker ? "flex items-end gap-6" : "mt-4 flex items-end gap-6"}>
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-[color:var(--gv-ink-4)]">
+      <div className="flex flex-wrap items-end gap-2.5">
+        <div className="min-w-0">
+          <p className="gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
             View tuần này
           </p>
-          <Bignum tone="ink" className="mt-1 !text-[color:var(--gv-canvas)]">
+          <Bignum tone="ink" className="mt-1.5 !text-[color:var(--gv-ink)]">
             {formatViews(pulse.views_this_week)}
           </Bignum>
         </div>
@@ -62,31 +56,31 @@ export const PulseCard = memo(function PulseCard({
         {hasPrev && !isThin ? (
           <div
             className={
-              "mb-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold " +
+              "mb-0.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[13px] font-semibold " +
               (deltaTone === "pos"
-                ? "bg-[color:var(--gv-pos-soft)] text-[color:var(--gv-pos-deep)]"
-                : "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]")
+                ? "text-[color:var(--gv-pos-deep)]"
+                : "text-[color:var(--gv-neg-deep)]")
             }
           >
             <span>{deltaSign}</span>
             <span>{Math.abs(pulse.views_delta_pct).toFixed(1)}%</span>
           </div>
         ) : (
-          <div className="mb-1 inline-flex items-center rounded-full bg-[color:var(--gv-ink-2)] px-2 py-1 text-xs text-[color:var(--gv-ink-4)]">
+          <div className="mb-0.5 inline-flex items-center rounded-full bg-[color:var(--gv-canvas-2)] px-2 py-1 text-xs text-[color:var(--gv-ink-4)]">
             —
           </div>
         )}
       </div>
 
       {isThin ? (
-        <p className="mt-3 text-xs text-[color:var(--gv-ink-4)]">
+        <p className="text-xs leading-snug text-[color:var(--gv-ink-3)]">
           Corpus ngách này đang thưa — tuần tới sẽ chính xác hơn.
         </p>
       ) : null}
 
-      <hr className="my-5 border-[color:var(--gv-ink-2)]" />
+      <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+      <dl className="grid grid-cols-2 gap-x-3.5 gap-y-3.5">
         <Stat label="Video mới" value={pulse.videos_this_week} />
         <Stat label="Creator mới" value={pulse.new_creators_this_week} />
         <Stat label="Viral" value={pulse.viral_count_this_week} />
@@ -94,9 +88,9 @@ export const PulseCard = memo(function PulseCard({
       </dl>
 
       {pulse.top_hook_name ? (
-        <p className="mt-5 text-[11px] uppercase tracking-wider text-[color:var(--gv-ink-4)]">
-          HOOK NỔI BẬT ·{" "}
-          <span className="gv-serif-italic text-[color:var(--gv-canvas)] normal-case tracking-normal">
+        <p className="gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+          Hook nổi bật ·{" "}
+          <span className="gv-serif-italic text-[13px] font-medium normal-case tracking-normal text-[color:var(--gv-ink-2)]">
             “{pulse.top_hook_name}”
           </span>
         </p>
@@ -108,10 +102,10 @@ export const PulseCard = memo(function PulseCard({
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-wider text-[color:var(--gv-ink-4)]">
+      <dt className="gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
         {label}
       </dt>
-      <dd className="gv-tight mt-1 text-2xl text-[color:var(--gv-canvas)]">
+      <dd className="gv-tight mt-0.5 text-[26px] leading-[1.1] text-[color:var(--gv-ink)]">
         {value.toLocaleString("vi-VN")}
       </dd>
     </div>
