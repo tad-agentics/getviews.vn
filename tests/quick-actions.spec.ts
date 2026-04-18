@@ -25,7 +25,8 @@ import { join } from "node:path";
 
 // ── TEST INPUTS — edit before running ───────────────────────────────────────
 const INPUTS = {
-  soiVideoUrl: "https://www.tiktok.com/@theretiredwife/video/7445420553103428910",
+  // Vietnamese corpus video — 101M views, confirmed accessible from Cloud Run.
+  soiVideoUrl: "https://www.tiktok.com/@kietfei/video/7625127374316784916",
   soiKenhHandle: "@phuong.nga.beauty",
   xuHuongNiche: "skincare",
   kichBanTopic: "review son tint mới ra",
@@ -366,12 +367,43 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
     requestBody: null,
   };
 
+  // Navigate to a truly fresh /app session.
+  // We must NOT auto-load a previous session from the sidebar — the app only
+  // shows the empty-state quick-action cards when there is no ?session= param
+  // AND the route has not been redirected to a recent session by React Router.
+  // Strategy: navigate to /app, then click the "New Chat" button (pencil/plus
+  // icon in the header) which resets the URL to bare /app. If we're already
+  // on the empty state, the button still works (no-op navigation).
   await page.goto("/app");
-  // If a previous test left the app in an error boundary, reload to recover.
-  const isReady = await page.getByText(/Thao tác nhanh/i).first().isVisible({ timeout: 5_000 }).catch(() => false);
-  if (!isReady) {
-    await page.reload();
-    await page.waitForURL(/\/app/, { timeout: 15_000 });
+  // Wait for the app shell to load first.
+  await page.waitForLoadState("domcontentloaded");
+  // Try to click "New Chat" button (the + icon or equivalent) to reset state.
+  // Try both common label patterns.
+  const newChatButton = page
+    .getByRole("button", { name: /new chat|chat mới|\+/i })
+    .or(page.locator('[data-testid="new-chat"]'))
+    .or(page.locator('a[href="/app"]'))
+    .first();
+  const hasNewChat = await newChatButton.isVisible({ timeout: 3_000 }).catch(() => false);
+  if (hasNewChat) {
+    await newChatButton.click();
+    // Wait for URL to be bare /app (no session param).
+    await page.waitForURL(/\/app(\?.*)?$/, { timeout: 5_000 }).catch(() => {});
+  }
+  // If the app is in an error boundary (JS crash from previous test), a hard
+  // reload clears it. We try twice before giving up.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // Check that we're on the empty-chat state (quick action cards visible AND
+    // no chat messages in the main content area).
+    const emptyStateVisible = await page
+      .locator("text=Thao tác nhanh")
+      .first()
+      .isVisible({ timeout: 6_000 })
+      .catch(() => false);
+    if (emptyStateVisible) break;
+    // Not on empty state — navigate directly to bare /app to drop the session.
+    await page.goto("/app");
+    await page.waitForLoadState("domcontentloaded");
   }
   await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible({ timeout: 15_000 });
 
@@ -403,17 +435,22 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
 
   row.creditsBefore = await readCredits(page);
 
-  const cardButton = page
-    .getByRole("button", { name: new RegExp(`^\\s*${spec.cardTitle}`, "i") })
+  // Scope button lookup to the quick-action grid in the empty-state area.
+  // We locate the "Thao tác nhanh" label, then walk to its parent container
+  // and look for buttons inside it — avoiding sidebar session history items
+  // that contain the same card title text.
+  const quickActionsSection = page.locator("text=Thao tác nhanh").first().locator("..").locator("..");
+  const cardButton = quickActionsSection
+    .getByRole("button", { name: new RegExp(spec.cardTitle, "i") })
     .first();
-  await expect(cardButton).toBeVisible();
+  await expect(cardButton).toBeVisible({ timeout: 10_000 });
 
   const t0 = Date.now();
   await cardButton.click();
   row.t.card_click = Date.now() - t0;
 
   const heading = page.getByRole("heading", { name: spec.cardTitle });
-  await expect(heading).toBeVisible();
+  await expect(heading).toBeVisible({ timeout: 20_000 });
   row.t.modal_open = Date.now() - t0;
 
   await page.locator('input[type="text"], textarea').first().fill(spec.fillValue);

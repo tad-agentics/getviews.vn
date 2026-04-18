@@ -1,0 +1,271 @@
+{
+  "date": "2026-04-18T11:03:41.829Z",
+  "baseURL": "https://getviews.vn",
+  "summary": {
+    "pass": 6,
+    "total": 6,
+    "avg": {
+      "ttfb_ms": 5922,
+      "ttft_ms": -123431,
+      "stream_ms": 13654,
+      "total_ms": 27718
+    }
+  },
+  "results": [
+    {
+      "key": "soi-video",
+      "cardTitle": "Soi Video",
+      "input": "https://www.tiktok.com/@kietfei/video/7625127374316784916",
+      "ok": true,
+      "errors": [],
+      "t": {
+        "card_click": 260,
+        "modal_open": 420,
+        "submit_click": 928,
+        "request_sent": 15833,
+        "response_headers": 17483,
+        "first_frame": 13051,
+        "dom_settled": 29827
+      },
+      "stages": {
+        "click_to_modal": 160,
+        "modal_to_submit": 508,
+        "submit_to_request": 14905,
+        "request_to_headers": 1650,
+        "headers_to_first_frame": -4432,
+        "total": 29567
+      },
+      "observedIntent": "video_diagnosis",
+      "observedIsFree": null,
+      "responseStatus": 200,
+      "creditsBefore": null,
+      "creditsAfter": null,
+      "creditDelta": null,
+      "frameCount": 6,
+      "errorFrames": [],
+      "responseText": "Hướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review sản phẩm đồng hồ mới ra mắt — nên làm video gì, format nào đang hiệu quả, hook mẫu\nAD\n\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\n\nBình luận(27 / ~50.553)\n\n7% tích cực · 93% trung tính · 0% tiêu cực\n\n4 câu hỏi\nKhán giả ngoài Việt Nam\n\nChưa có đủ dữ liệu về Hài / Giải trí trong corpus — đây là insight từ các video tương tự theo từ khóa, nên kiểm chứng bằng dữ liệu chuyên ngành.\n\n117.726.420 views · 10.514.987 likes · 2.880.832 shares · 719.374 lưu — Tỷ lệ tương tác (ER) đạt 11,42%, mức cực kỳ ấn tượng cho ngách giải trí.\n\nHashtag: Video thiếu hashtag cụ thể của ngách hài, chỉ dùng hashtag chung chung - thuật toán mất tín hiệu để phân phối tới nhóm khán giả tiềm năng nhất.\n\nCaption: Không có mô tả, chỉ có nội dung video - video đang tự chạy tốt nhờ nội dung mạnh nhưng bạn đang bỏ lỡ cơ hội tiếp cận thêm khán giả từ thanh tìm kiếm.\n\nKết luận: Nội dung đang làm quá tốt, phân phối ổn định nhưng cần tối ưu hashtag để giữ tốc độ viral bền vững.\n\nTrong ngách Hài / Giải trí, 35% top video tháng này dùng \"story_open\" - mở đầu bằng một tình huống gây tò mò hoặc nghịch lý khiến người xem phải dừng lại để xem diễn biến tiếp theo.\n\nVideo bạn đang chạy vượt trội so với mức trung bình của ngách - content mạnh, giữ chân người xem cực tốt.\n\nHook: 🟢 Tốt\n\nSử dụng kiểu \"story_open\" - tình huống đối lập giữa người giàu và người nghèo tạo xung đột thị giác ngay từ giây đầu tiên.\n\nChạy vì: não người bị thu hút bởi sự tương phản xã hội - người xem phải xem tiếp để biết kết quả của tình huống đó.\n\nMặt xuất hiện: 🟢 0s\n\nMặt xuất hiện ngay từ frame đầu - phù hợp với mức chuẩn của ngách hài (92% video top đầu xuất hiện mặt trong 0,5s đầu).\n\nChạy vì: kết nối cảm xúc với nhân vật diễn ra ngay lập tức - người xem không cần thời gian để làm quen với bối cảnh.\n\nNhịp cắt: 🟢 0,38 lần chuyển cảnh/giây (mức chuẩn ngách: 0,31)\n\nNhịp nhanh và dứt khoát - giúp duy trì năng lượng cao xuyên suốt 12s thời lượng video.\n\nChạy vì: ngách giải trí cần tốc độ để tránh cảm giác bị dead air - nhịp cắt này giữ người xem không có cơ hội lướt đi.\n\nChữ trên màn hình: 🟡 1 lần (mức chuẩn ngách: 8,6)\n\nQuá ít so với mức trung bình - người xem tắt tiếng sẽ bỏ lỡ thông điệp \"Loving yourself...\" ở cuối video.\n\nGợi ý: Thêm 2-3 dòng chữ bổ trợ tình huống ở giữa video để dẫn dắt cảm xúc tốt hơn cho người xem tắt tiếng nha.\n\n@nkn1989s — 2.161.594 views — hook: Tuyên Bố Mạnh — 0 ngày trước\n\nSử dụng hook \"2 người có thể đi vệ sinh trong cùng một lúc\" đánh thẳng vào sự phi lý của sản phẩm - video này chạy mạnh nhờ yếu tố gây sốc và nhịp cắt nhanh, hài hước.\n\n@nkn1989s\n2.161.594 views\nHôm nay\n@nkn1989s\n\nVideo tiếp: Giữ nguyên phong cách kể chuyện bằng hình ảnh, nhưng thêm 2-3 dòng chữ trên màn hình ở các đoạn cao trào để nhấn mạnh thông điệp hài hước hoặc cảm động nha.\n\n\"Không ai nói cho bạn biết điều này về [chủ đề gây tranh cãi]\"\n\nGỢI Ý CÂU HỎI TIẾP THEO\n\nCho mình 3 hook thay thế chi tiết\nGợi ý 3 thay đổi cụ thể cho video tiếp theo\nThumbnail nên chỉnh thế nào?",
+      "responseExcerpt": "Hướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh q",
+      "missingChecks": [],
+      "requestBody": {
+        "session_id": "b0d635d0-8aa0-4a6b-9e6c-ee274c3d9778",
+        "query": "Phân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916",
+        "intent_type": "video_diagnosis",
+        "niche_label": "Công nghệ / Tech"
+      }
+    },
+    {
+      "key": "soi-kenh",
+      "cardTitle": "Soi Kênh Đối Thủ",
+      "input": "@phuong.nga.beauty",
+      "ok": true,
+      "errors": [],
+      "t": {
+        "card_click": 166,
+        "modal_open": 238,
+        "submit_click": 810,
+        "request_sent": 79722,
+        "response_headers": 80977,
+        "first_frame": 10287,
+        "dom_settled": 8096
+      },
+      "stages": {
+        "click_to_modal": 72,
+        "modal_to_submit": 572,
+        "submit_to_request": 78912,
+        "request_to_headers": 1255,
+        "headers_to_first_frame": -70690,
+        "total": 7930
+      },
+      "observedIntent": "competitor_profile",
+      "observedIsFree": null,
+      "responseStatus": 200,
+      "creditsBefore": null,
+      "creditsAfter": null,
+      "creditDelta": null,
+      "frameCount": 5,
+      "errorFrames": [],
+      "responseText": "— phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review sản phẩm đồng hồ mới ra mắt — nên làm video gì, format nào đang hiệu quả, hook mẫu\nAD\n\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\n\nTài khoản @phuong.nga.beauty đang chạy tốt nhờ tập trung vào tệp khán giả ngách yêu thích phong cách \"đẹp tự nhiên nhưng có đầu tư\", biến các video review trở nên đáng tin cậy hơn hẳn so với những nội dung quảng cáo đại trà. Cách bạn ấy xây dựng độ tin cậy thông qua việc chia sẻ các routine skincare thực tế, kết hợp với góc quay cận cảnh làn da, tạo ra sự kết nối rất mạnh với người xem đang tìm kiếm giải pháp thực sự cho vấn đề da của họ.\n\nContent mix: 60% review sản phẩm skincare · 30% hướng dẫn routine cá nhân · 10% bắt trend biến hình.\n\nCông thức copy được: Sử dụng kiểu hook \"Bằng Chứng\" - show trực tiếp tình trạng da trước và sau khi dùng sản phẩm trong 3s đầu để tạo uy tín ngay lập tức.\n\n*Ví dụ:* \"Trước khi dùng [tên sản phẩm] da mình đầy mụn ẩn, sau 2 tuần thì [kết quả cụ thể] - chỉ vì thay đổi đúng 1 bước này trong routine.\"\n\nKhoảng trống: Bạn có thể khai thác thêm các nội dung \"bóc phốt\" hoặc so sánh các sản phẩm skincare cùng phân khúc giá, bởi hiện tại kênh chủ yếu tập trung vào review đơn lẻ mà chưa có nhiều content giúp người xem phân vân giữa các lựa chọn đối đầu.\n\nGỢI Ý CÂU HỎI TIẾP THEO\n\n3 công thức hook hay nhất của họ\nHọ đăng vào khung giờ nào, tuần mấy post?\nTạo brief nhái phong cách của @phuong.nga.beauty",
+      "responseExcerpt": "— phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm cre",
+      "missingChecks": [],
+      "requestBody": {
+        "session_id": "3331112c-8626-4fbb-ad80-4053cd0a6424",
+        "query": "Soi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ",
+        "intent_type": "competitor_profile",
+        "niche_label": "Công nghệ / Tech"
+      }
+    },
+    {
+      "key": "xu-huong",
+      "cardTitle": "Xu Hướng Tuần Này",
+      "input": "skincare",
+      "ok": true,
+      "errors": [],
+      "t": {
+        "card_click": 65,
+        "modal_open": 74,
+        "submit_click": 259,
+        "request_sent": 104090,
+        "response_headers": 106106,
+        "first_frame": 6645,
+        "dom_settled": 53186
+      },
+      "stages": {
+        "click_to_modal": 9,
+        "modal_to_submit": 185,
+        "submit_to_request": 103831,
+        "request_to_headers": 2016,
+        "headers_to_first_frame": -99461,
+        "total": 53121
+      },
+      "observedIntent": "trend_spike",
+      "observedIsFree": null,
+      "responseStatus": 200,
+      "creditsBefore": null,
+      "creditsAfter": null,
+      "creditDelta": null,
+      "frameCount": 7,
+      "errorFrames": [],
+      "responseText": "— hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review sản phẩm đồng hồ mới ra mắt — nên làm video gì, format nào đang hiệu quả, hook mẫu\nAD\n\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\n\nMiễn phí ✓\n\nChưa có đủ dữ liệu về Làm đẹp / Skincare trong corpus — đây là insight từ các video tương tự theo từ khóa, nên kiểm chứng bằng dữ liệu chuyên ngành.\n\nVideo của @rinabeauty859 đang chạy rất tốt với ER 12,4% - con số này cực cao nhờ tạo được \"cơn sốt\" quà tặng. Hook \"Mùa hè rồi ai chưa có đồ dưỡng sáng da bơi hết vô đây\" đánh trúng tâm lý cần giải pháp cho mùa hè của khán giả, kết hợp với hình ảnh chồng hộp quà đầy ắp tạo cảm giác khan hiếm và uy tín ngay lập tức.\n\nĐiểm cộng về cấu trúc:\n\nTận dụng Authority: Việc liệt kê hàng loạt brand hi-end (Chanel, Dior, Sisley) tạo độ tin cậy cực lớn cho phần quà, dù là sample nhưng giá trị cảm nhận vẫn rất cao.\nTăng tốc pacing: Nhịp chuyển cảnh ở giữa video rất nhanh, không để \"dead air\" xuất hiện — người xem bị cuốn vào việc tò mò xem trong 7 hộp quà có gì khác nhau.\nCTA chuẩn chỉnh: Yêu cầu \"follow và comment để dễ chọn\" là một nước đi khôn ngoan để tăng tương tác thật, đẩy video lên Sóng 1 và Sóng 2 rất mạnh.\n\nTại sao video này bùng nổ:\n\nTính utility cao: Save rate ổn định (4,5k bookmarks) chứng tỏ người xem lưu lại để \"canh\" ngày công bố hoặc lấy thông tin thương hiệu.\nĐòn bẩy comment: Tỷ lệ comment trên 17k là con số khổng lồ, thuật toán cực thích điều này vì nó chứng tỏ nội dung có tính kích thích người xem để lại \"tín hiệu\" mạnh ngay trong giờ đầu.\n\nGợi ý tối ưu thêm cho các video sau:\n\nSửa Promise-content mismatch: Video có đoạn giới thiệu kem L'Oreal hơi bị lạc quẻ so với tổng thể giveaway, cần lồng ghép khéo hơn bằng cách nhấn mạnh đây là \"món quà chủ đạo\" trong các hộp quà để người xem không thấy bị \"bán hàng\" quá lộ liễu.\nCải thiện CTA: Phần thông tin ngày kết thúc (19/4) và ngày công bố (21/4) nên để text overlay cố định ở 10s cuối thay vì chỉ xuất hiện chớp nhoáng, giúp người xem không phải tua lại để tìm thông tin.\nTận dụng Engagement: Với 17k comment, các video sau nên dùng chính các câu hỏi trong comment của video này để làm nội dung (VD: \"Có bạn hỏi mình cách dùng sample Dior này, đây là cách...\") — đây là cách giữ chân tệp follower cực kỳ bền vững luôn nha.\n@rinabeauty859\n562.360 views\nHôm nay\n@rinabeauty859\n\nGỢI Ý CÂU HỎI TIẾP THEO\n\nTrend nào ít cạnh tranh nhất (low saturation)?\nTrend này bao giờ hết hot?\nAdapt trend top 1 cho ngách Làm đẹp / Skincare thế nào?",
+      "responseExcerpt": "— hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách re",
+      "missingChecks": [],
+      "requestBody": {
+        "session_id": "a366d3b8-39b6-4f49-a379-b33c3d14e3f1",
+        "query": "Xu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?",
+        "intent_type": "trend_spike",
+        "niche_label": "Công nghệ / Tech"
+      }
+    },
+    {
+      "key": "kich-ban",
+      "cardTitle": "Lên Kịch Bản Quay",
+      "input": "review son tint mới ra",
+      "ok": true,
+      "errors": [],
+      "t": {
+        "card_click": 64,
+        "modal_open": 69,
+        "submit_click": 225,
+        "request_sent": 168009,
+        "response_headers": 169339,
+        "first_frame": 6070,
+        "done_frame": 9680,
+        "dom_settled": 6461
+      },
+      "stages": {
+        "click_to_modal": 5,
+        "modal_to_submit": 156,
+        "submit_to_request": 167784,
+        "request_to_headers": 1330,
+        "headers_to_first_frame": -163269,
+        "first_to_done": 3610,
+        "done_to_dom": -3219,
+        "total": 6397
+      },
+      "observedIntent": "shot_list",
+      "observedIsFree": null,
+      "responseStatus": 200,
+      "creditsBefore": null,
+      "creditsAfter": 1,
+      "creditDelta": null,
+      "frameCount": 41,
+      "errorFrames": [],
+      "responseText": "— bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review sản phẩm đồng hồ mới ra mắt — nên làm video gì, format nào đang hiệu quả, hook mẫu\nAD\n\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\n\nChưa có đủ dữ liệu về Lên kịch bản quay video TikTok cho chủ đ trong corpus — đây là insight từ các ngách tương tự, cần kiểm chứng bằng dữ liệu gần đây.\n\nVới ngách review son tint, chiến lược tốt nhất là tập trung vào \"phản ứng thật\" và \"test độ lì\" ngay trên da. Khán giả trong ngách làm đẹp cực kỳ dị ứng với những video quảng cáo lộ liễu, nên bạn phải dùng kiểu hook tò mò hoặc \"bóc phốt\" nhẹ nhàng để giữ chân người xem ngay từ những frame đầu tiên.\n\nDưới đây là kịch bản chuẩn cho một video review son tint hút view:\n\nDANH SÁCH CẢNH QUAY\n\n1\n0:00–0:03\n\nCầm thỏi son, test vệt màu lên tay, mặt biểu cảm bất ngờ\n\nĐỪNG mua thỏi son [tên son] nếu chưa xem video này\n\nHook phủ định, tạo sự tò mò\n\n2\n0:03–0:08\n\nĐánh son lên môi, zoom cận cảnh chất son, không dùng filter làm mịn da\n\nChất son này lạ lắm...\n\nShow cận cảnh chất son, tăng độ tin cậy\n\n3\n0:08–0:15\n\nUống nước hoặc dùng khăn giấy lau thử để test độ bám màu\n\nThử độ bám: 4 tiếng vẫn còn nguyên?\n\nBằng chứng trực quan, giải quyết nỗi lo 'bay màu'\n\n4\n0:15–0:20\n\nNói trực tiếp vào camera về cảm giác trên môi (có khô không, mùi thế nào)\n\nCó nên mua không?\n\nTạo trust, chia sẻ cảm nhận thật\n\n5\n0:20–0:25\n\nChỉ tay vào giỏ hàng bên trái màn hình, cười tự nhiên\n\nLink mình để ở giỏ hàng nha!\n\nCTA trực tiếp, gắn liền với sản phẩm\n\nTổng ~25s · Tone: chân thật, nhanh, gọn.\n\nCTA beat: \"Mọi người đã thử màu nào chưa, comment cho mình biết với nha! Mua ngay ở giỏ hàng bên dưới đó.\"\n\nGỢI Ý CÂU HỎI TIẾP THEO\n\nViết caption + 5 hashtag cho video này\nGợi ý cover/thumbnail\nChecklist chuẩn bị quay (dụng cụ, ánh sáng)",
+      "responseExcerpt": "— bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: ",
+      "missingChecks": [],
+      "requestBody": {
+        "session_id": "1d2b581e-da60-4c53-a323-53bc4f6e2602",
+        "query": "Lên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA",
+        "intent_type": "shot_list",
+        "niche_label": "Công nghệ / Tech"
+      }
+    },
+    {
+      "key": "tim-kol",
+      "cardTitle": "Tìm KOL / Creator",
+      "input": "mỹ phẩm Hàn Quốc cho da dầu",
+      "ok": true,
+      "errors": [],
+      "t": {
+        "card_click": 145,
+        "modal_open": 191,
+        "submit_click": 565,
+        "request_sent": 188392,
+        "response_headers": 215313,
+        "first_frame": 34771,
+        "done_frame": 34786,
+        "dom_settled": 28321
+      },
+      "stages": {
+        "click_to_modal": 46,
+        "modal_to_submit": 374,
+        "submit_to_request": 187827,
+        "request_to_headers": 26921,
+        "headers_to_first_frame": -180542,
+        "first_to_done": 15,
+        "done_to_dom": -6465,
+        "total": 28176
+      },
+      "observedIntent": "creator_search",
+      "observedIsFree": null,
+      "responseStatus": 200,
+      "creditsBefore": null,
+      "creditsAfter": null,
+      "creditDelta": null,
+      "frameCount": 4,
+      "errorFrames": [],
+      "responseText": "— gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review sản phẩm đồng hồ mới ra mắt — nên làm video gì, format nào đang hiệu quả, hook mẫu\nAD\n\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\n\nMình tìm được 3 creator đang hoạt động tốt cho tiktok vietnam. Các card dưới đây kèm theo lý do fit cụ thể, điểm mạnh và cách liên hệ.\n\n@beatvn_official\n\nMEGA\n\nBEATVN · 10.0 triệu followers\n\nTần suất\nđăng hôm nay\nPerformance\nER thật 0.6% · median 706K views\n\nVideo hay nhất · 3.4 triệu views\n\nHook hiệu quả + CTA rõ trong nhịp đầu (suy luận từ ER).\n\nMở trên TikTok\n\nVì sao hợp với bạn\n\n@beatvn_official post đều trong ngách tiktok vietnam với ER thật 0.58%. Phù hợp làm điểm khởi đầu để brief.\n\nGiá ước (Mega tier): 20 triệu–80 triệu VND / post\n\nTạo brief cho @beatvn_official\nPhân tích chi tiết @beatvn_official\nXem các post sponsored gần đây của @beatvn_official\nTìm thêm creator tương tự @beatvn_official\n\n@theanh28entertainment\n\nMEGA\n\nTheanh28 Entertainment · 14.5 triệu followers\n\nTần suất\nđăng hôm nay\nPerformance\nER thật 1.2% · median 431K views\n\nVideo hay nhất · 28.0 triệu views\n\nHook hiệu quả + CTA rõ trong nhịp đầu (suy luận từ ER).\n\nMở trên TikTok\nsales@kenh28.vn\nZalo 0983663092\n\nVì sao hợp với bạn\n\n@theanh28entertainment post đều trong ngách tiktok vietnam với ER thật 1.2%. Phù hợp làm điểm khởi đầu để brief.\n\nGiá ước (Mega tier): 20 triệu–80 triệu VND / post\n\nTạo brief cho @theanh28entertainment\nPhân tích chi tiết @theanh28entertainment\nXem các post sponsored gần đây của @theanh28entertainment\nTìm thêm creator tương tự @theanh28entertainment\n\n@theanh28trending\n\nMEGA\n\nTHEANH28 TRENDING · 8.9 triệu followers\n\nTần suất\nđăng hôm nay\nPerformance\nER thật 0.8% · median 397K views\n\nVideo hay nhất · 6.5 triệu views\n\nHook hiệu quả + CTA rõ trong nhịp đầu (suy luận từ ER).\n\nMở trên TikTok\nsales@kenh28.vn\n\nVì sao hợp với bạn\n\n@theanh28trending post đều trong ngách tiktok vietnam với ER thật 0.76%. Phù hợp làm điểm khởi đầu để brief.\n\nGiá ước (Mega tier): 20 triệu–80 triệu VND / post\n\nTạo brief cho @theanh28trending\nPhân tích chi tiết @theanh28trending\nXem các post sponsored gần đây của @theanh28trending\nTìm thêm creator tương tự @theanh28trending\n\nGỢI Ý CÂU HỎI TIẾP THEO\n\nSản phẩm + giá + đối thủ của bạn là gì? Mình sẽ lọc lại cho đúng hơn.\nGợi ý brief cho KOL đầu danh sách\nXu hướng tiktok vietnam tuần này",
+      "responseExcerpt": "— gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang",
+      "missingChecks": [],
+      "requestBody": {
+        "session_id": "c6e6b844-30a2-4f8c-ad6a-6c2ee9ae1986",
+        "query": "Tìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do",
+        "intent_type": "creator_search",
+        "niche_label": "Công nghệ / Tech"
+      }
+    },
+    {
+      "key": "tu-van",
+      "cardTitle": "Tư Vấn Content",
+      "input": "review đồ skincare",
+      "ok": true,
+      "errors": [],
+      "t": {
+        "card_click": 76,
+        "modal_open": 82,
+        "submit_click": 348,
+        "request_sent": 226804,
+        "response_headers": 229163,
+        "first_frame": 6968,
+        "done_frame": 44304,
+        "dom_settled": 41190
+      },
+      "stages": {
+        "click_to_modal": 6,
+        "modal_to_submit": 266,
+        "submit_to_request": 226456,
+        "request_to_headers": 2359,
+        "headers_to_first_frame": -222195,
+        "first_to_done": 37336,
+        "done_to_dom": -3114,
+        "total": 41114
+      },
+      "observedIntent": "content_directions",
+      "observedIsFree": null,
+      "responseStatus": 200,
+      "creditsBefore": null,
+      "creditsAfter": null,
+      "creditDelta": null,
+      "frameCount": 51,
+      "errorFrames": [],
+      "responseText": "— nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@theretiredwife/video/7445420553103428910\nHướng nội dung TikTok cho ngách review sản phẩm đồng hồ mới ra mắt — nên làm video gì, format nào đang hiệu quả, hook mẫu\nAD\n\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\n\nChưa có đủ dữ liệu về Làm đẹp / Skincare trong corpus — đây là insight từ các video tương tự theo từ khóa, nên kiểm chứng bằng dữ liệu chuyên ngành. Dù chưa có data cụ thể cho kênh của bạn, nhưng phân tích từ các video đang chạy tốt nhất trong ngách Skincare tại Việt Nam cho thấy người xem đang ưu tiên nội dung có tính xác thực cao thay vì chỉ quảng cáo bóng bẩy.\n\nHướng 1: Hook \"Sự thật/Bóc phốt\" — Đánh vào tâm lý sợ sai\n\nCác video có lượt xem cao thường dùng kiểu \"Sự thật về [tên sản phẩm] mà không ai nói cho bạn\" - cách này tạo cảm giác người xem đang được \"nằm vùng\" trong ngành, giúp tăng độ tin cậy ngay từ 3 giây đầu.\nGợi ý: Thử quay một clip ngắn về một thành phần mỹ phẩm bị hiểu lầm, mở đầu bằng \"Đừng dùng [thành phần] nếu chưa biết điều này\" để kích thích sự tò mò.\n\nHướng 2: Pattern \"Trước/Sau\" — Bằng chứng trực quan\n\nĐây là công thức \"xương sống\" cho ngách skincare tại Việt Nam - người xem cần thấy hiệu quả thực tế trên da thay vì nghe lý thuyết. Video có nhịp cắt nhanh giữa cảnh da chưa dùng và da sau 7-14 ngày đang có completion rate rất ổn định.\nGợi ý: Hãy quay cận cảnh da (không filter) kèm thời gian cụ thể trên text overlay, ví dụ \"Ngày 1 vs Ngày 14\" - sự thay đổi rõ ràng chính là lý do khiến người xem lưu video lại để đối chứng.\n\nHướng 3: Review dạng \"Thử nghiệm 30 ngày\" — Tạo hành trình\n\nNhững nội dung theo dạng challenge/thử thách giúp giữ chân khán giả lâu hơn vì họ muốn biết kết quả cuối cùng - đây là cách xây dựng tệp follower trung thành rất tốt.\nGợi ý: Thay vì review một lần, hãy làm series \"Thử dùng [sản phẩm] trong 30 ngày\", mỗi tập là một cập nhật ngắn về tình trạng da - cách này giúp bạn giữ watch time cao cho cả chuỗi video.\n\nKhoảng trống chưa khai thác\n\nHiện tại, các video skincare Việt Nam đang thiếu dạng so sánh trực tiếp (A vs B) với texture sản phẩm đặt cạnh nhau trên màn hình - khán giả thường phải xem hai video riêng biệt mới so sánh được, đây là cơ hội để bạn tạo ra video có giá trị tiện ích (utility) cao hơn.\nCarousel ảnh review cũng là một \"mỏ vàng\" ít người làm - hãy thử chụp ảnh swatch sản phẩm kèm các tips nhỏ, tỷ lệ save sẽ cao hơn hẳn so với video ngắn nếu nội dung của bạn có tính hướng dẫn.\n\nGỢI Ý CÂU HỎI TIẾP THEO\n\nHướng nào nên thử trước?\nLên kế hoạch 30 ngày trộn 3 hướng cho Làm đẹp / Skincare\nMetric target tuần đầu cho mỗi hướng",
+      "responseExcerpt": "— nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nLên kịch bản quay video TikTok cho chủ đề: review son tint mới ra — bao gồm hook, danh sách cảnh quay, CTA\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nSoi kênh đối thủ @phuong.nga.beauty — phân tích công thức content, hook, format của họ\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn Quốc cho da dầu — gợi ý KOL và lý do\nXu hướng TikTok đang hot tuần này trong lĩnh vực skincare — hook nào đang chạy, format nào đang lên?\nPhân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: https://www.tiktok.com/@kietfei/video/7625127374316784916\nHướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu\nTìm creator TikTok phù hợp để marketing sản phẩm: mỹ phẩm Hàn",
+      "missingChecks": [],
+      "requestBody": {
+        "session_id": "98124836-00a1-4aaa-afc6-941dcc7ff5c0",
+        "query": "Hướng nội dung TikTok cho ngách review đồ skincare — nên làm video gì, format nào đang hiệu quả, hook mẫu",
+        "intent_type": "content_directions",
+        "niche_label": "Công nghệ / Tech"
+      }
+    }
+  ]
+}
