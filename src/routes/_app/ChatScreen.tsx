@@ -32,6 +32,10 @@ import {
   ThumbnailTile,
   type ThumbnailAnalysisData,
 } from "@/routes/_app/components/ThumbnailTile";
+import {
+  CommentRadarTile,
+  type CommentRadarData,
+} from "@/routes/_app/components/CommentRadarTile";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
 import { detectIntent } from "@/routes/_app/intent-router";
@@ -54,6 +58,7 @@ type ChatMsg = {
     };
     creators?: CreatorCardData[];
     thumbnail_analysis?: ThumbnailAnalysisData;
+    comment_radar?: CommentRadarData;
     user_video?: {
       analysis?: {
         hook_analysis?: {
@@ -597,11 +602,13 @@ export default function ChatScreen() {
           const thumbnailAnalysis = m.structured_output?.thumbnail_analysis ?? null;
           const thumbnailFrameUrl =
             m.structured_output?.user_video?.metadata?.thumbnail_url ?? null;
+          const commentRadar = m.structured_output?.comment_radar ?? null;
           return (
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {thumbnailAnalysis ? (
                 <ThumbnailTile data={thumbnailAnalysis} frameUrl={thumbnailFrameUrl} />
               ) : null}
+              {commentRadar ? <CommentRadarTile data={commentRadar} /> : null}
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
               {hasPlain && !hasStructured ? (
                 <MarkdownRenderer
