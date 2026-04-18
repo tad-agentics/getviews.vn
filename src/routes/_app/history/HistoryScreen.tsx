@@ -248,7 +248,7 @@ export default function HistoryScreen() {
                   <p className="text-[var(--ink-soft)] mb-4">
                     Chưa có phiên nào. Dán link TikTok hoặc hỏi câu đầu tiên để bắt đầu.
                   </p>
-                  <Button type="button" onClick={() => navigate("/app")} variant="primary">
+                  <Button type="button" onClick={() => navigate("/app/chat")} variant="primary">
                     Bắt đầu phân tích →
                   </Button>
                 </>
@@ -276,7 +276,7 @@ export default function HistoryScreen() {
                       >
                         <button
                           type="button"
-                          onClick={() => navigate(`/app?session=${session.id}`)}
+                          onClick={() => navigate(`/app/chat?session=${session.id}`)}
                           className="min-h-[44px] flex-1 px-2 py-2 text-left rounded-lg"
                         >
                           {editing ? (

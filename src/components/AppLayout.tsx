@@ -5,6 +5,8 @@ import {
   Home,
   MessageCircle,
   TrendingUp,
+  Users,
+  FileText,
   Settings,
   LogOut,
   X,
@@ -20,10 +22,13 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
+import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useHomePulse } from "@/hooks/useHomePulse";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { chatKeys } from "@/hooks/useChatSession";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
+import { BottomTabBar } from "@/components/BottomTabBar";
 
 type Session = {
   id: string;
@@ -48,28 +53,92 @@ function LogoMark() {
   );
 }
 
+/* ── NicheOfYoursBlock ──────────────────────────────────────────────────────
+ * "Ngách của bạn" mini-card — shown above the recents list. Renders the
+ * creator's primary_niche label plus the weekly views-delta from the same
+ * pulse endpoint that feeds HomeScreen, so the sidebar always shows a
+ * matching pulse the creator sees on Home.
+ *
+ * Gracefully absent when the profile lacks a niche or the pulse call
+ * returns nothing yet (a fresh account).
+ */
+function NicheOfYoursBlock() {
+  const { data: profile } = useProfile();
+  const { data: niches } = useNicheTaxonomy();
+  const { data: pulse } = useHomePulse();
+
+  const niche = profile?.primary_niche
+    ? niches?.find((n) => n.id === profile.primary_niche)
+    : null;
+  if (!niche) return null;
+
+  const hasPrev = (pulse?.views_last_week ?? 0) > 0;
+  const delta = pulse?.views_delta_pct ?? null;
+  const isThin = pulse?.adequacy === "none";
+
+  return (
+    <div className="px-2 mb-3">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--faint)]">
+          Ngách của bạn
+        </p>
+        <p className="mt-1 text-sm font-semibold text-[var(--ink)] truncate">
+          {niche.name}
+        </p>
+        {hasPrev && !isThin && delta != null ? (
+          <p
+            className={`mt-0.5 text-[11px] font-medium ${
+              delta >= 0
+                ? "text-[color:var(--gv-pos-deep)]"
+                : "text-[color:var(--gv-neg-deep)]"
+            }`}
+          >
+            {delta >= 0 ? "↑" : "↓"} {Math.abs(delta).toFixed(1)}% tuần này
+          </p>
+        ) : isThin ? (
+          <p className="mt-0.5 text-[11px] text-[var(--faint)]">
+            Dữ liệu đang thưa
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /* ── Nav item ── */
 function NavItem({
   icon: Icon,
   label,
   active = false,
+  disabled = false,
+  badge,
   onClick,
 }: {
   icon: React.ElementType;
   label: string;
   active?: boolean;
+  disabled?: boolean;
+  /** Small right-aligned label, e.g. "Sắp có" on placeholder entries. */
+  badge?: string;
   onClick?: () => void;
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
       className={`w-full text-left px-2.5 py-2 rounded-lg text-sm ${
         active ? 'bg-[var(--border)] text-[var(--ink)]' : 'text-[var(--ink-soft)]'
-      } hover:bg-[var(--border)] hover:text-[var(--ink)] transition-colors duration-[120ms]`}
+      } ${disabled ? 'opacity-60 cursor-default' : 'hover:bg-[var(--border)] hover:text-[var(--ink)]'} transition-colors duration-[120ms]`}
     >
       <div className="flex items-center gap-2.5">
         <Icon className="w-4 h-4" strokeWidth={1.8} />
-        <span className="font-semibold">{label}</span>
+        <span className="font-semibold flex-1">{label}</span>
+        {badge ? (
+          <span className="text-[9px] uppercase tracking-wider text-[var(--faint)] font-medium">
+            {badge}
+          </span>
+        ) : null}
       </div>
     </button>
   );
@@ -325,7 +394,7 @@ function SessionRow({
    AppLayout
 ════════════════════════════════════════════════ */
 interface AppLayoutProps {
-  active?: "home" | "chat" | "trends";
+  active?: "home" | "chat" | "trends" | "settings";
   children: ReactNode;
   enableMobileSidebar?: boolean;
 }
@@ -381,7 +450,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           return next;
         });
         const activeId = new URLSearchParams(window.location.search).get("session");
-        if (activeId === id) navigate("/app");
+        if (activeId === id) navigate("/app/chat");
       },
     });
   };
@@ -430,7 +499,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             <button
               title="Chat mới"
               onClick={() => {
-                navigate("/app");
+                navigate("/app/chat");
                 onClose?.();
               }}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--faint)] hover:text-[var(--ink-soft)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
@@ -448,21 +517,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           </div>
         </div>
 
-        {/* Nav items */}
+        {/* Primary nav — the 4 design surfaces (2 live, 2 "Sắp có"). */}
         <div className="flex flex-col gap-0.5 px-2 mb-3">
           <NavItem
             icon={Home}
             label="Trang chủ"
             active={active === "home"}
-            onClick={() => {
-              navigate("/app/home");
-              onClose?.();
-            }}
-          />
-          <NavItem
-            icon={MessageCircle}
-            label="Chat"
-            active={active === "chat"}
             onClick={() => {
               navigate("/app");
               onClose?.();
@@ -477,7 +537,35 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
+          <NavItem
+            icon={Users}
+            label="Kênh tham chiếu"
+            badge="Sắp có"
+            disabled
+          />
+          <NavItem
+            icon={FileText}
+            label="Kịch bản"
+            badge="Sắp có"
+            disabled
+          />
         </div>
+
+        {/* Chat — secondary, kept accessible while Answer isn't built. */}
+        <div className="flex flex-col gap-0.5 px-2 mb-3">
+          <NavItem
+            icon={MessageCircle}
+            label="Chat"
+            active={active === "chat"}
+            onClick={() => {
+              navigate("/app/chat");
+              onClose?.();
+            }}
+          />
+        </div>
+
+        {/* Ngách của bạn — mini-block above the recents list. */}
+        <NicheOfYoursBlock />
 
         {/* Divider */}
         <div className="mx-3 mb-3 border-t border-[var(--border)]" />
@@ -505,7 +593,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       session={session}
                       isPinned
                       onNavigate={() => {
-                        navigate(`/app?session=${session.id}`);
+                        navigate(`/app/chat?session=${session.id}`);
                         onClose?.();
                       }}
                       onPin={() => handlePin(session.id)}
@@ -530,7 +618,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                     session={session}
                     isPinned={false}
                     onNavigate={() => {
-                      navigate(`/app?session=${session.id}`);
+                      navigate(`/app/chat?session=${session.id}`);
                       onClose?.();
                     }}
                     onPin={() => handlePin(session.id)}
@@ -606,9 +694,18 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
       {/* ── Mobile ─────────────────────────── */}
       <div className="flex flex-col flex-1 lg:hidden overflow-hidden relative">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+            enableMobileSidebar
+              ? "pb-[calc(3.5rem+env(safe-area-inset-bottom))]"
+              : ""
+          }`}
+        >
           {children}
         </div>
+
+        {/* Mobile bottom tab bar — only on /_app/ screens that opt in. */}
+        {enableMobileSidebar ? <BottomTabBar active={active} /> : null}
 
         {/* Mobile sidebar trigger buttons (only when enableMobileSidebar) */}
         {enableMobileSidebar && !mobileSidebarOpen && (
@@ -624,7 +721,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
             {/* New chat — top right */}
             <button
-              onClick={() => navigate('/app')}
+              onClick={() => navigate('/app/chat')}
               className="fixed top-3 right-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--ink-soft)] shadow-sm active:scale-95 transition-all duration-[120ms]"
               style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
             >

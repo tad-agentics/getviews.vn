@@ -144,12 +144,17 @@ import { Kicker, SectionHeader, Chip, Btn, Card, Composer,
 
 ## What this ships
 
-- A3.1 uses these only in `ReferenceChannelsStep` (onboarding step 2) and
-  the refactored `NicheSelector`. The rest of the app still renders on
-  the purple tokens.
-- A3.2 introduces `/app/home` built entirely on v2 primitives.
-- A3.3 restructures the shell and migrates the remaining purple-era
-  surfaces.
+- A3.1 wired the token layer + primitives into `ReferenceChannelsStep`
+  (onboarding step 2) and the refactored `NicheSelector`. The rest of
+  the app stayed on purple tokens.
+- A3.2 added `/app/home` built entirely on v2 primitives; `/app/home`
+  and `/app` both rendered HomeScreen.
+- A3.3 is the route swap: `/app` IS Home; chat moves to `/app/chat`.
+  Legacy `/app?session=X` URLs redirect into `/app/chat?session=X`. The
+  sidebar gains two "Sắp có" placeholder nav entries for the forthcoming
+  Kênh Tham Chiếu + Kịch Bản screens, plus a "Ngách của bạn" mini-block
+  backed by the same pulse endpoint HomeScreen uses. Mobile adds a
+  4-item bottom tab bar (Trang chủ / Chat / Xu hướng / Cài đặt).
 
 ## What not to do
 

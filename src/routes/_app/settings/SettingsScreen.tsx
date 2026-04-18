@@ -976,7 +976,7 @@ export default function SettingsScreen() {
 
   if (profileError) {
     return (
-      <AppLayout enableMobileSidebar>
+      <AppLayout active="settings" enableMobileSidebar>
         <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
           <div className="max-w-md text-center space-y-3">
             <p className="text-sm text-[var(--ink-soft)]">Không tải được thông tin tài khoản — thử lại.</p>
@@ -994,7 +994,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <AppLayout enableMobileSidebar>
+    <AppLayout active="settings" enableMobileSidebar>
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
         <div className="max-w-2xl mx-auto px-4 lg:px-8 pt-16 lg:pt-8 pb-8 space-y-8">
           <motion.div
