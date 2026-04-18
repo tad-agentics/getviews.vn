@@ -609,7 +609,16 @@ async def stream(
                 full_text = (out.get("diagnosis") or "").strip()
                 structured: dict[str, Any] | None = {
                     k: out[k]
-                    for k in ("niche", "user_video", "reference_videos", "metadata", "analysis", "content_type")
+                    for k in (
+                        "niche",
+                        "user_video",
+                        "reference_videos",
+                        "metadata",
+                        "analysis",
+                        "content_type",
+                        "coverage",
+                        "follow_ups",
+                    )
                     if k in out
                 } or None
             elif normalized == "competitor_profile":
@@ -630,22 +639,46 @@ async def stream(
                 } or None
             elif normalized == "own_channel":
                 full_text = (out.get("synthesis") or "").strip()
-                structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in ("niche", "analyzed_videos", "coverage", "follow_ups")
+                    if k in out
+                } or None
             elif normalized == "brief_generation":
                 full_text = (out.get("brief") or "").strip()
-                structured = {k: out[k] for k in ("topic", "niche") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in ("topic", "niche", "coverage", "follow_ups")
+                    if k in out
+                } or None
             elif normalized == "trend_spike":
                 full_text = (out.get("synthesis") or "").strip()
-                structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in ("niche", "analyzed_videos", "coverage", "follow_ups")
+                    if k in out
+                } or None
             elif normalized == "shot_list":
                 full_text = (out.get("shot_list") or "").strip()
-                structured = {k: out[k] for k in ("topic", "niche") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in ("topic", "niche", "coverage", "follow_ups")
+                    if k in out
+                } or None
             elif normalized == "find_creators":
                 full_text = (out.get("synthesis") or "").strip()
-                structured = {k: out[k] for k in ("niche", "analyzed_videos") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in ("niche", "analyzed_videos", "coverage", "follow_ups")
+                    if k in out
+                } or None
             elif normalized == "creator_search":
                 full_text = (out.get("synthesis") or "").strip()
-                structured = {k: out[k] for k in ("niche", "creators") if k in out} or None
+                structured = {
+                    k: out[k]
+                    for k in ("niche", "creators", "coverage", "follow_ups")
+                    if k in out
+                } or None
             else:
                 full_text = (out.get("synthesis") or out.get("diagnosis") or "").strip()
                 structured = None

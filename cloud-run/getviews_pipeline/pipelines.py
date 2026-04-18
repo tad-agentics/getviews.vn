@@ -313,32 +313,95 @@ def _inject_creator_card_blocks(synthesis: str, analyzed: list[dict[str, Any]]) 
     return synthesis
 
 
-def _build_follow_ups_content_directions(
-    niche_label: str,
-    analyzed: list[dict[str, Any]],
-    directions: list[dict[str, Any]],
-) -> list[str]:
-    """Rule-based Vietnamese follow-up suggestions shown as chips after the response.
-
-    Kept rule-based (not another Gemini call) so they're free to render and
-    ship instantly. Clicks route to the free `follow_up` intent on the client.
-    """
-    suggestions: list[str] = []
-    if directions:
-        suggestions.append("Cho mình hook mẫu cho hướng 1")
-    handle = ""
+def _first_handle(analyzed: list[dict[str, Any]]) -> str:
     for a in analyzed:
         meta = a.get("metadata") or {}
         author = meta.get("author") or {}
-        handle = str(author.get("username") or "").lstrip("@")
-        if handle:
-            break
-    if handle:
-        suggestions.append(f"Phân tích chi tiết @{handle}")
-    if niche_label:
-        suggestions.append(f"Tìm KOL {niche_label} đang post đều")
-    # Always cap at 3 chips to keep the UI tight.
-    return suggestions[:3]
+        h = str(author.get("username") or "").lstrip("@")
+        if h:
+            return h
+    return ""
+
+
+def _build_follow_ups(
+    intent: str,
+    niche_label: str,
+    analyzed: list[dict[str, Any]] | None = None,
+    *,
+    handle: str | None = None,
+    topic: str = "",
+) -> list[str]:
+    """Rule-based Vietnamese follow-up suggestions shown as chips after each response.
+
+    Kept rule-based (not another Gemini call) so the chips are free to render and
+    ship instantly. Clicks route to the free `follow_up` intent on the client.
+    Capped at 3 chips per response to keep the UI tight.
+    """
+    n = niche_label or "ngách này"
+    picked_handle = handle or _first_handle(analyzed or [])
+
+    chips: list[str] = []
+    if intent == "content_directions":
+        chips.append("Cho mình hook mẫu cho hướng 1")
+        if picked_handle:
+            chips.append(f"Phân tích chi tiết @{picked_handle}")
+        chips.append(f"Tìm KOL {n} đang post đều")
+    elif intent == "trend_spike":
+        chips.append(f"Trend nào đang breakout trong {n}")
+        chips.append("Cho mình hook mẫu từ xu hướng top 1")
+        if picked_handle:
+            chips.append(f"Phân tích chi tiết @{picked_handle}")
+        else:
+            chips.append(f"Gợi ý định dạng video cho {n}")
+    elif intent == "video_diagnosis":
+        chips.append("Cho mình 3 hook thay thế")
+        chips.append("Gợi ý hướng content tương tự")
+        if picked_handle:
+            chips.append(f"Phân tích chi tiết @{picked_handle}")
+        else:
+            chips.append(f"Xu hướng {n} tuần này")
+    elif intent == "shot_list":
+        chips.append("Viết caption + hashtag cho kịch bản này")
+        chips.append("Gợi ý hook thay thế")
+        chips.append(f"Xu hướng {n} tuần này")
+    elif intent == "brief_generation":
+        chips.append("Thêm 1 option hook cho brief này")
+        chips.append("Tạo shot list từ brief này")
+        chips.append(f"Tìm KOL {n} để gửi brief")
+    elif intent == "own_channel":
+        chips.append(f"Gợi ý hướng content mới cho {n}")
+        chips.append("Cho mình 3 hook để thử tuần tới")
+        chips.append(f"Xu hướng {n} tuần này")
+    elif intent == "creator_search":
+        chips.append(f"Gợi ý brief cho KOL đầu danh sách")
+        chips.append(f"Xu hướng {n} tuần này")
+        chips.append(f"Hướng content đang chạy cho {n}")
+    # Dedupe while preserving order, cap at 3.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for c in chips:
+        if c and c not in seen:
+            unique.append(c)
+            seen.add(c)
+    return unique[:3]
+
+
+def _coverage_dict(
+    niche_id: int | None,
+    niche_name: str,
+    count: int,
+    ref_count: int,
+    source: str,
+    freshness_days: int,
+) -> dict[str, Any]:
+    return {
+        "niche_id": niche_id,
+        "niche_label": niche_name,
+        "corpus_count": count,
+        "reference_count": ref_count,
+        "source": source,
+        "freshness_days": freshness_days,
+    }
 
 
 async def run_content_directions(
@@ -465,17 +528,8 @@ async def run_content_directions(
                 if a.get("analysis")
             ],
         )
-        coverage = {
-            "niche_id": niche_id,
-            "niche_label": niche_name,
-            "corpus_count": count,
-            "reference_count": len(analyzed),
-            "source": corpus_source,
-            "freshness_days": 30,
-        }
-        follow_ups = _build_follow_ups_content_directions(
-            niche_name, analyzed, directions_struct
-        )
+        coverage = _coverage_dict(niche_id, niche_name, count, len(analyzed), corpus_source, 30)
+        follow_ups = _build_follow_ups("content_directions", niche_name, analyzed)
         return {
             "intent": "content_directions",
             "niche": niche,
@@ -504,15 +558,17 @@ async def run_trend_spike(
 
         # Prefer corpus (7-day window) for niche-accurate trend videos.
         corpus_pool = await fetch_corpus_reference_pool(niche, days=7, limit=20)
+        corpus_source = "corpus"
         if len(corpus_pool) >= REF_N:
             # Sort by breakout_multiplier for trend spike — highest breakout wins
             corpus_pool.sort(key=lambda v: float(v.get("_corpus_breakout") or 0.0), reverse=True)
             picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
             pool = corpus_pool
         else:
+            corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
             logger.info(
-                "[trend_spike] corpus pool too small (%d) for niche '%s' (7d), using live search",
-                len(corpus_pool), niche,
+                "[trend_spike] corpus pool too small (%d) for niche '%s' (7d), using live search (source=%s)",
+                len(corpus_pool), niche, corpus_source,
             )
             emit(step_queue, step_search("ensemble", niche))
             pool = await _niche_aweme_pool(niche, period=7)
@@ -552,7 +608,17 @@ async def run_trend_spike(
         count, niche_name = await get_corpus_count_cached(
             session, niche_id=niche_id, days=7, niche_name=niche
         )
-        citation = build_corpus_citation_block(count, niche_name, days=7)
+        citation = build_corpus_citation_block(
+            count, niche_name, days=7,
+            reference_count=len(picks),
+            source=corpus_source,
+        )
+        persona = extract_persona_slots(" ".join(questions))
+        persona_block = build_persona_block(persona)
+        logger.info(
+            "[trend_spike] niche_input=%r resolved=%r niche_id=%s corpus_count=%d source=%s",
+            niche, niche_name, niche_id, count, corpus_source,
+        )
 
         # Enrich with real breakout + signal data (P1-7 + P1-8)
         emit(step_queue, step_search("corpus", f"breakout videos {niche}"))
@@ -608,6 +674,7 @@ async def run_trend_spike(
             collapsed_questions=questions if len(questions) > 1 else None,
             niche_key=niche,
             corpus_citation=citation,
+            persona_block=persona_block,
         )
         synthesis = _inject_video_ref_blocks(synthesis, analyzed)
         session["directions"] = session.get("directions") or []
@@ -623,6 +690,8 @@ async def run_trend_spike(
             "niche": niche,
             "synthesis": synthesis,
             "analyzed_videos": analyzed,
+            "coverage": _coverage_dict(niche_id, niche_name, count, len(analyzed), corpus_source, 7),
+            "follow_ups": _build_follow_ups("trend_spike", niche_name, analyzed),
         }
     finally:
         await emit_sentinel(step_queue)
@@ -699,7 +768,16 @@ async def run_brief_generation(
         count, niche_name = await get_corpus_count_cached(
             session, niche_id=niche_id, days=30, niche_name=niche
         )
-        citation = build_corpus_citation_block(count, niche_name, days=30)
+        source = "corpus" if count > 0 else "sparse_fallback"
+        citation = build_corpus_citation_block(
+            count, niche_name, days=30, reference_count=0, source=source,
+        )
+        persona = extract_persona_slots(" ".join(questions) + " " + (topic or ""))
+        persona_block = build_persona_block(persona)
+        logger.info(
+            "[brief_generation] topic=%r niche_input=%r resolved=%r corpus_count=%d",
+            topic, niche, niche_name, count,
+        )
         emit(step_queue, step_process("Đang tạo brief dựa trên dữ liệu corpus..."))
 
         payload = {
@@ -717,6 +795,7 @@ async def run_brief_generation(
             collapsed_questions=questions if len(questions) > 1 else None,
             niche_key=niche,
             corpus_citation=citation,
+            persona_block=persona_block,
         )
         emit(step_queue, step_done("Brief xong — đang hiển thị..."))
         _append_completed(session, QueryIntent.BRIEF_GENERATION)
@@ -726,7 +805,14 @@ async def run_brief_generation(
             delta_videos=0,
             intent_label="brief_generation",
         )
-        return {"intent": "brief_generation", "topic": topic, "niche": niche, "brief": brief}
+        return {
+            "intent": "brief_generation",
+            "topic": topic,
+            "niche": niche,
+            "brief": brief,
+            "coverage": _coverage_dict(niche_id, niche_name, count, 0, source, 30),
+            "follow_ups": _build_follow_ups("brief_generation", niche_name, topic=topic),
+        }
     finally:
         await emit_sentinel(step_queue)
 
@@ -746,7 +832,20 @@ async def run_shot_list(
         count, niche_name = await get_corpus_count_cached(
             session, niche_id=niche_id, days=30, niche_name=niche
         )
-        citation = build_corpus_citation_block(count, niche_name, days=30)
+        # shot_list doesn't fetch corpus videos itself — source is always implied
+        # as "context" (pulled from prior session turns). If the niche has no
+        # corpus rows at all, the citation builder will emit the zero-data
+        # disclaimer so the shot list doesn't claim niche benchmarks it lacks.
+        source = "corpus" if count > 0 else "sparse_fallback"
+        citation = build_corpus_citation_block(
+            count, niche_name, days=30, reference_count=0, source=source,
+        )
+        persona = extract_persona_slots(" ".join(questions) + " " + (topic or ""))
+        persona_block = build_persona_block(persona)
+        logger.info(
+            "[shot_list] topic=%r niche_input=%r resolved=%r corpus_count=%d",
+            topic, niche, niche_name, count,
+        )
         emit(step_queue, step_process("Đang xây dựng shot list dựa trên corpus..."))
 
         payload = {
@@ -764,6 +863,7 @@ async def run_shot_list(
             collapsed_questions=questions if len(questions) > 1 else None,
             niche_key=niche,
             corpus_citation=citation,
+            persona_block=persona_block,
         )
         emit(step_queue, step_done("Shot list xong — đang hiển thị..."))
         _append_completed(session, QueryIntent.SHOT_LIST)
@@ -778,6 +878,8 @@ async def run_shot_list(
             "topic": topic,
             "niche": niche,
             "shot_list": shot_list,
+            "coverage": _coverage_dict(niche_id, niche_name, count, 0, source, 30),
+            "follow_ups": _build_follow_ups("shot_list", niche_name, topic=topic),
         }
     finally:
         await emit_sentinel(step_queue)
@@ -907,6 +1009,7 @@ async def run_video_diagnosis(
     corpus_pool = await fetch_corpus_reference_pool(
         niche, days=30, limit=40, exclude_video_id=uid or None
     )
+    corpus_source = "corpus"
     if len(corpus_pool) >= REF_N:
         # Corpus has enough — sort by pre-computed engagement_rate (most accurate)
         corpus_pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
@@ -922,12 +1025,14 @@ async def run_video_diagnosis(
         # Each fallback costs EnsembleData API units (keyword + hashtag search).
         # Monitor corpus_hit=false frequency per niche in Cloud Run logs to identify
         # niches where the corpus needs broader coverage.
+        corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
         logger.warning(
-            "[ref_source] niche=%s corpus_hit=false corpus_size=%d threshold=%d — "
+            "[ref_source] niche=%s corpus_hit=false corpus_size=%d threshold=%d source=%s — "
             "falling back to live EnsembleData search (costs API units)",
             niche,
             len(corpus_pool),
             REF_N,
+            corpus_source,
         )
         pool = await _niche_aweme_pool(niche, period=30)
         picks = select_reference_videos(
@@ -992,7 +1097,21 @@ async def run_video_diagnosis(
     count, niche_name = await get_corpus_count_cached(
         session, niche_id=niche_id, days=30, niche_name=niche
     )
-    citation = build_corpus_citation_block(count, niche_name, days=30)
+    citation = build_corpus_citation_block(
+        count,
+        niche_name,
+        days=30,
+        reference_count=len(references),
+        source=corpus_source,
+    )
+    # P2-1: extract persona from user_message so audience age / pain points /
+    # geography aren't silently dropped by the synthesis prompt.
+    persona = extract_persona_slots(user_message or "")
+    persona_block = build_persona_block(persona)
+    logger.info(
+        "[video_diagnosis] niche_input=%r resolved=%r niche_id=%s corpus_count=%d refs=%d source=%s",
+        niche, niche_name, niche_id, count, len(references), corpus_source,
+    )
 
     # Fetch niche norms from materialized view — fail-open, never raises
     niche_norms = await get_niche_intelligence(niche)
@@ -1087,6 +1206,8 @@ async def run_video_diagnosis(
                 wants_directions=include_carousel_directions,
                 collapsed_questions=questions if questions and len(questions) > 1 else None,
                 layer0_context=layer0_context,
+                corpus_citation=citation,
+                persona_block=persona_block,
             )
         else:
             diagnosis = await run_sync(
@@ -1101,6 +1222,8 @@ async def run_video_diagnosis(
                 collapsed_questions=questions if questions and len(questions) > 1 else None,
                 wants_directions=_wants_directions(user_message),
                 layer0_context=layer0_context,
+                corpus_citation=citation,
+                persona_block=persona_block,
             )
         # Server-side guarantee: ensure all reference videos appear as video_ref
         # blocks regardless of whether Gemini emitted them. Appended only for refs
@@ -1162,6 +1285,13 @@ async def run_video_diagnosis(
         "user_video": user_res,
         "reference_videos": references,
         "diagnosis": diagnosis,
+        "coverage": _coverage_dict(niche_id, niche_name, count, len(references), corpus_source, 30),
+        "follow_ups": _build_follow_ups(
+            "video_diagnosis",
+            niche_name,
+            references,
+            handle=(user_res.get("metadata") or {}).get("author", {}).get("username"),
+        ),
     }
     if "metadata" in user_res:
         out["metadata"] = user_res["metadata"]
@@ -1429,11 +1559,30 @@ async def run_creator_search(
         intent_label="creator_search",
     )
 
+    niche_id = await resolve_niche_id_cached(session, search_niche)
+    count, niche_name = await get_corpus_count_cached(
+        session, niche_id=niche_id, days=30, niche_name=search_niche,
+    )
+    logger.info(
+        "[creator_search] niche_input=%r resolved=%r niche_id=%s corpus_count=%d top3=%d",
+        search_niche, niche_name, niche_id, count, len(top3),
+    )
+
     return {
         "intent": "creator_search",
         "niche": search_niche,
         "synthesis": synthesis,
         "creators": top3,
+        "coverage": _coverage_dict(
+            niche_id, niche_name, count, len(top3),
+            "live_search" if len(top3) == 0 else "live_aggregate",
+            30,
+        ),
+        "follow_ups": _build_follow_ups(
+            "creator_search",
+            niche_name,
+            handle=(top3[0]["handle"].lstrip("@") if top3 else None),
+        ),
     }
 
 
@@ -1442,18 +1591,49 @@ async def run_own_channel(
     session: dict[str, Any],
     questions: list[str],
 ) -> dict[str, Any]:
-    """Soi kênh — same reference pull as content directions, own-channel framing."""
+    """Soi kênh — prefer curated corpus for niche-accurate references; fall back to
+    live search only when the corpus is too sparse. Mirrors run_content_directions
+    so the same transparency/citation/persona guarantees apply."""
     sem = get_analysis_semaphore()
-    pool = await _niche_aweme_pool(niche, period=30)
     fa: dict[str, Any] = session.setdefault("full_analyses", {})
     cached_ids = set(fa.keys())
-    picks = select_reference_videos(
-        pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
-    )
+
+    corpus_pool = await fetch_corpus_reference_pool(niche, days=30, limit=20)
+    corpus_source = "corpus"
+    if len(corpus_pool) >= REF_N:
+        corpus_pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
+        picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
+        pool = corpus_pool
+    else:
+        corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
+        logger.info(
+            "[own_channel] corpus too small (%d) for niche '%s', live search (source=%s)",
+            len(corpus_pool), niche, corpus_source,
+        )
+        pool = await _niche_aweme_pool(niche, period=30)
+        picks = select_reference_videos(
+            pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+        )
 
     analyzed: list[dict[str, Any]] = []
 
     async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+        if aweme.get("_from_corpus") and aweme.get("_corpus_analysis"):
+            stats = aweme.get("statistics") or {}
+            handle = (aweme.get("author") or {}).get("unique_id") or ""
+            return {
+                "aweme_id": aweme["aweme_id"],
+                "analysis": aweme["_corpus_analysis"],
+                "metadata": {
+                    "video_id": aweme["aweme_id"],
+                    "author": {"username": handle},
+                    "views": int(stats.get("play_count") or 0),
+                    "tiktok_url": aweme.get("_corpus_tiktok_url", ""),
+                    "thumbnail_url": aweme.get("thumbnail_url"),
+                    "days_ago": aweme.get("_corpus_days_ago", 0),
+                    "breakout": aweme.get("_corpus_breakout", 0.0),
+                },
+            }
         async with sem:
             return await analyze_aweme(
                 aweme, include_diagnosis=False, full_analyses=fa
@@ -1465,6 +1645,22 @@ async def run_own_channel(
         if "analysis" in r:
             analyzed.append(r)
 
+    niche_id = await resolve_niche_id_cached(session, niche)
+    count, niche_name = await get_corpus_count_cached(
+        session, niche_id=niche_id, days=30, niche_name=niche
+    )
+    citation = build_corpus_citation_block(
+        count, niche_name, days=30,
+        reference_count=len(analyzed),
+        source=corpus_source,
+    )
+    persona = extract_persona_slots(" ".join(questions))
+    persona_block = build_persona_block(persona)
+    logger.info(
+        "[own_channel] niche_input=%r resolved=%r niche_id=%s corpus_count=%d source=%s",
+        niche, niche_name, niche_id, count, corpus_source,
+    )
+
     payload = {
         "niche": niche,
         "reference_count": len(analyzed),
@@ -1475,7 +1671,11 @@ async def run_own_channel(
         "own_channel",
         payload,
         collapsed_questions=questions if len(questions) > 1 else None,
+        niche_key=niche,
+        corpus_citation=citation,
+        persona_block=persona_block,
     )
+    synthesis = _inject_video_ref_blocks(synthesis, analyzed)
     session["own_channel_audit"] = synthesis
     completed = session.setdefault("completed_intents", [])
     if "own_channel" not in completed:
@@ -1498,4 +1698,6 @@ async def run_own_channel(
         "niche": niche,
         "synthesis": synthesis,
         "analyzed_videos": analyzed,
+        "coverage": _coverage_dict(niche_id, niche_name, count, len(analyzed), corpus_source, 30),
+        "follow_ups": _build_follow_ups("own_channel", niche_name, analyzed),
     }
