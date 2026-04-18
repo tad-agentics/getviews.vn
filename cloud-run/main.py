@@ -1090,3 +1090,108 @@ async def admin_corpus_health(request: Request) -> JSONResponse:
         "summary": summary,
         "niches": per_niche,
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Home screen endpoints — Phase A · A1
+# ══════════════════════════════════════════════════════════════════════════
+# Each endpoint resolves the caller's niche from profiles.niche_id. If the
+# user hasn't picked one yet (returns 404 rather than inventing one).
+# ──────────────────────────────────────────────────────────────────────────
+
+
+async def _resolve_caller_niche_id(access_token: str) -> int:
+    """Fetch profiles.niche_id for the calling user. 404 if unset."""
+    sb = user_supabase(access_token)
+    try:
+        res = sb.table("profiles").select("niche_id").single().execute()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"profile lookup: {exc}") from exc
+    nid = (res.data or {}).get("niche_id")
+    if nid is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chưa chọn ngách — chạy onboarding trước.",
+        )
+    return int(nid)
+
+
+@app.get("/home/pulse")
+async def home_pulse(
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """PulseCard payload for the caller's primary niche.
+
+    Returns the 4-bignum + delta shape the design's PulseCard renders:
+      { views_this_week, views_delta_pct, videos_this_week, new_creators,
+        viral_count, new_hooks, top_hook_name, adequacy, as_of }
+
+    `adequacy` is a claim_tiers tier name — the UI uses it to soften deltas
+    when the niche is too thin to cite percentages honestly.
+    """
+    from getviews_pipeline.pulse import compute_pulse
+    from getviews_pipeline.supabase_client import get_service_client
+
+    niche_id = await _resolve_caller_niche_id(user["access_token"])
+    try:
+        stats = await compute_pulse(get_service_client(), niche_id)
+    except Exception as exc:
+        logger.exception("[home_pulse] niche=%s failed: %s", niche_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(stats.to_json())
+
+
+@app.get("/home/ticker")
+async def home_ticker(
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """Marquee ticker items for the caller's primary niche.
+
+    Returns up to 10 TickerItems across 5 buckets (breakout / hook_mới /
+    cảnh_báo / kol_nổi / âm_thanh), round-robin-interleaved so the marquee
+    reads mixed. Fails open per-bucket — if one query errors, that bucket
+    is silently omitted.
+    """
+    from getviews_pipeline.ticker import compute_ticker
+    from getviews_pipeline.supabase_client import get_service_client
+
+    niche_id = await _resolve_caller_niche_id(user["access_token"])
+    try:
+        items = await compute_ticker(get_service_client(), niche_id)
+    except Exception as exc:
+        logger.exception("[home_ticker] niche=%s failed: %s", niche_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse({
+        "niche_id": niche_id,
+        "items": [it.to_json() for it in items],
+    })
+
+
+@app.get("/home/starter-creators")
+async def home_starter_creators(
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """Onboarding step 2 — starter creators to pick reference channels from.
+
+    Returns up to 10 starter_creators rows for the caller's niche, ordered
+    by rank. Drives the second step of the onboarding flow where the user
+    picks 1–3 kênh tham chiếu.
+    """
+    sb = user_supabase(user["access_token"])
+    niche_id = await _resolve_caller_niche_id(user["access_token"])
+    try:
+        res = (
+            sb.table("starter_creators")
+            .select("handle, display_name, followers, avg_views, video_count, rank")
+            .eq("niche_id", niche_id)
+            .order("rank", desc=False)
+            .limit(10)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[home_starter_creators] niche=%s failed: %s", niche_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse({
+        "niche_id": niche_id,
+        "creators": res.data or [],
+    })
