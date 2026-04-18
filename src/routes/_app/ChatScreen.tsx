@@ -23,7 +23,7 @@ import { AnalysisLimitCard } from "@/routes/_app/components/AnalysisLimitCard";
 import { NicheSelector } from "@/routes/_app/components/NicheSelector";
 import { HookRankingBar } from "@/routes/_app/components/HookRankingBar";
 import { BriefBlock } from "@/routes/_app/components/BriefBlock";
-import { CreatorCard } from "@/routes/_app/components/CreatorCard";
+import { CreatorCard, type CreatorCardData } from "@/routes/_app/components/CreatorCard";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
 
@@ -43,6 +43,7 @@ type ChatMsg = {
       source?: string;
       freshness_days?: number;
     };
+    creators?: CreatorCardData[];
   } | null;
 };
 
@@ -209,8 +210,16 @@ function AssistantStructuredBlock({ parsed }: { parsed: ParsedAssistant | null }
       ) : null}
       {parsed.creators?.length ? (
         <div className="mt-4 grid gap-2 border-t border-[var(--border)] pt-4">
+          {/* Legacy shape — {handle, meta} strings. New cards render via
+              structured_output.creators in the outer message map. */}
           {parsed.creators.map((c, i) => (
-            <CreatorCard key={i} handle={c.handle} meta={c.meta} index={i} />
+            <div
+              key={i}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3"
+            >
+              <p className="font-semibold text-[var(--ink)]">{c.handle}</p>
+              <p className="text-xs text-[var(--muted)]">{c.meta}</p>
+            </div>
           ))}
         </div>
       ) : null}
@@ -633,6 +642,7 @@ export default function ChatScreen() {
             isLastAssistant && !inFlightVisible
               ? m.structured_output?.follow_ups?.filter((s) => s.trim().length > 0) ?? []
               : [];
+          const richCreators = m.structured_output?.creators ?? [];
           return (
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
@@ -642,6 +652,18 @@ export default function ChatScreen() {
                   streaming={false}
                   onFollowUp={isLastAssistant && !inFlightVisible ? (q) => void handleSend(q) : undefined}
                 />
+              ) : null}
+              {richCreators.length > 0 ? (
+                <div className="mt-4 grid gap-3 border-t border-[var(--border)] pt-4">
+                  {richCreators.map((c, i) => (
+                    <CreatorCard
+                      key={c.handle + i}
+                      data={c}
+                      index={i}
+                      onAction={(q) => void handleSend(q)}
+                    />
+                  ))}
+                </div>
               ) : null}
               {followUps.length > 0 ? (
                 <div className="mt-4 flex flex-wrap gap-2" data-testid="follow-up-chips">
