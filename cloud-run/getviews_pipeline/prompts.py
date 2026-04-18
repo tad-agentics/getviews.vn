@@ -31,6 +31,7 @@ VIDEO_EXTRACTION_PROMPT = """Analyze this TikTok video. Return ONLY JSON matchin
 CRITICAL RULES:
 - audio_transcript: Transcribe EXACTLY in the original language (mostly Vietnamese). Do NOT translate to English. Preserve Vietnamese diacritics (ă, â, đ, ê, ô, ơ, ư, etc.). If words are unclear, write "[không rõ]".
 - hook_phrase: The EXACT opening spoken words in Vietnamese — verbatim, not paraphrased, not translated. If no speech in the first 3s, use the first visible text overlay instead.
+- hook_timeline: 2-5 events that happen inside the hook window (0.0–3.0s). Ordered by t (ascending). Each event is one of: "face_enter" (first human face prominently visible), "first_word" (first spoken word), "text_overlay" (text appears on screen), "sound_drop" (music/audio sharply starts or drops), "cut" (first visual cut), "product_enter" (product first visible), "reveal" (punchline frame). Include t in seconds with 0.1s precision. Omit events that don't occur in the first 3 seconds. This is the creator's micro-choreography map — skip entries with weak signal.
 - scenes: Mark a new scene at EVERY visual cut, camera angle change, or significant subject change. Err toward more scenes rather than fewer. A 15s video typically has 3–8 scenes; a 30s video has 5–15.
 - transitions_per_second: Count total scene boundaries ÷ video duration in seconds.
 - face_appears_at: The FIRST timestamp (in seconds) where a human face is prominently visible. Set to null if no face appears in the entire video.
