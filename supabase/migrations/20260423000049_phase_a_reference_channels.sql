@@ -16,19 +16,21 @@
 
 -- ── profiles.reference_channel_handles ────────────────────────────────────
 ALTER TABLE profiles
-  ADD COLUMN reference_channel_handles TEXT[] NOT NULL DEFAULT '{}'
+  ADD COLUMN IF NOT EXISTS reference_channel_handles TEXT[] NOT NULL DEFAULT '{}'
     CHECK (cardinality(reference_channel_handles) <= 3);
 
-CREATE INDEX idx_profiles_reference_channel_handles
+CREATE INDEX IF NOT EXISTS idx_profiles_reference_channel_handles
   ON profiles USING GIN (reference_channel_handles);
 
 -- ── starter_creators ──────────────────────────────────────────────────────
-CREATE TABLE starter_creators (
+-- followers / avg_views are BIGINT to match video_corpus.creator_followers
+-- (BIGINT since migration 0020) and video_corpus.views (BIGINT since 0005).
+CREATE TABLE IF NOT EXISTS starter_creators (
   niche_id         INTEGER NOT NULL REFERENCES niche_taxonomy (id) ON DELETE CASCADE,
   handle           TEXT    NOT NULL,
   display_name     TEXT,
-  followers        INTEGER NOT NULL DEFAULT 0,
-  avg_views        INTEGER NOT NULL DEFAULT 0,
+  followers        BIGINT  NOT NULL DEFAULT 0,
+  avg_views        BIGINT  NOT NULL DEFAULT 0,
   video_count      INTEGER NOT NULL DEFAULT 0,
   is_curated       BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE once a human edits the row
   rank             INTEGER NOT NULL DEFAULT 0,      -- 1 = most prominent in niche
@@ -64,7 +66,7 @@ BEGIN
       v.niche_id,
       v.creator_handle AS handle,
       MAX(COALESCE(v.creator_followers, 0))                         AS followers,
-      AVG(COALESCE(v.views, 0))::INT                                AS avg_views,
+      AVG(COALESCE(v.views, 0))::BIGINT                              AS avg_views,
       COUNT(*)::INT                                                  AS video_count,
       ROW_NUMBER() OVER (
         PARTITION BY v.niche_id

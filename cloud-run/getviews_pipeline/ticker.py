@@ -97,7 +97,7 @@ def _breakout_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
         .select("video_id, creator_handle, views, breakout_multiplier")
         .eq("niche_id", niche_id)
         .gte("created_at", since)
-        .not_.is_("breakout_multiplier", "null")
+        .not_.is_("breakout_multiplier", None)
         .order("breakout_multiplier", desc=True)
         .limit(2)
         .execute()
