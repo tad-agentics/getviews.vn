@@ -533,6 +533,11 @@ R10: Số dùng format Vietnamese: 1.200 (hàng nghìn), 3,2x (thập phân).
 R11: KHÔNG dùng heading markdown (##, ###). Dùng **bold** cho label.
 R12: KHÔNG đánh số section.
 R13: Hoàn thành đủ 5 phần (bao gồm PHẦN 0 — Phân phối) — không truncate.
+R14: TIẾT CHẾ ĐỘ SÂU — những mục dưới đây ĐÃ CÓ nút follow-up riêng, KHÔNG elaborate trong response này (người dùng sẽ hỏi khi cần):
+  - Danh sách chi tiết hook thay thế (chỉ đưa 1 hook rewrite trong PHẦN 4, không liệt kê 3).
+  - Đề xuất thumbnail/cover cụ thể.
+  - Benchmark percentiles chi tiết cho niche (so sánh top 10%, 25%, 50%).
+  - Kế hoạch cụ thể cho video tiếp theo (3 thay đổi, A/B test, dự báo uplift).
 {directions_block}
 Viết chẩn đoán ngay."""
 
@@ -765,5 +770,10 @@ R11: KHÔNG dùng heading markdown (##, ###). Dùng **bold** cho label.
 R12: KHÔNG đánh số section.
 R13: Hoàn thành đủ 2 tầng — không truncate.
 R14: Giải thích swipe psychology bằng tên đúng: completion bias, information gap, Zeigarnik effect, goal gradient, micro-commitment.
+R15: TIẾT CHẾ ĐỘ SÂU — những mục dưới đây ĐÃ CÓ nút follow-up riêng, KHÔNG elaborate trong response này:
+  - Danh sách chi tiết 3 hook slide 1 thay thế (chỉ đưa 1 trong PHẦN 2C).
+  - Đề xuất thumbnail/cover slide 1.
+  - Benchmark percentiles chi tiết (top 10%, 25%, 50%) cho niche.
+  - Kế hoạch cụ thể cho carousel tiếp theo (3 thay đổi, dự báo uplift).
 
 Viết chẩn đoán ngay."""

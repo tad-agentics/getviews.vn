@@ -688,8 +688,16 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
     ),
     "competitor_profile": (
         "MỤC TIÊU: Phân tích tài khoản đối thủ — tóm tắt công thức nội dung lặp lại của họ từ các bài đăng.\n"
-        "CẤU TRÚC: Mở bằng nhận định chính về đối thủ (1-2 câu). Sau đó: **Công thức lặp** (hook style, format, nhịp — 2-3 gạch đầu dòng), "
-        "**Điểm mạnh cần học** (2-3 gạch), **Điểm yếu khai thác được** (2-3 gạch), **Khoảng trống** (1-2 gạch — chủ đề/format họ chưa đụng)."
+        "CẤU TRÚC (GIỮ NGẮN — cốt lõi + dưới 250 từ):\n"
+        "- Nhận định chính (1-2 câu): vì sao họ đang chạy tốt.\n"
+        "- **Content mix** 1 dòng: tỉ lệ xấp xỉ các loại content (VD: 70% review · 20% GRWM · 10% trend).\n"
+        "- **Công thức copy được** — chỉ 1 hook pattern duy nhất (không liệt kê 3), kèm ví dụ cụ thể từ data.\n"
+        "- **Khoảng trống** — 1 câu về chủ đề/format họ CHƯA đụng mà user có thể chiếm.\n\n"
+        "TIẾT CHẾ: KHÔNG elaborate những mục dưới đây (có nút follow-up riêng, user sẽ hỏi khi cần):\n"
+        "  - Top 3 hook formula chi tiết kèm template (có nút 'công thức hook hay nhất của họ').\n"
+        "  - Posting pattern / khung giờ tối ưu.\n"
+        "  - Tín hiệu monetization (TikTok Shop, sponsored posts).\n"
+        "  - Brief nhái phong cách của họ."
     ),
     "series_audit": (
         "MỤC TIÊU: Kiểm tra series — so sánh pattern xuyên suốt các video của người dùng; ghi nhận tính nhất quán và khoảng trống.\n"
@@ -716,8 +724,14 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "- action: hành động camera/diễn viên, ngắn gọn, tiếng Việt\n"
         "- overlay: chữ trên màn hình — LUÔN dùng tiếng Việt, dùng [ngoặc] cho phần thay thế\n"
         "- note: ghi chú sản xuất (setup, prop, ánh sáng) — để trống nếu không cần\n"
-        "- Sau tất cả JSON beats, thêm **Ghi chú sản xuất tổng** (1 đoạn ngắn: setup, nhạc nền gợi ý, tone)\n"
-        "- Kết thúc bằng **CTA beat**: câu kết + overlay kêu gọi hành động"
+        "- Sau tất cả JSON beats, chỉ thêm 1 dòng tổng runtime + tone (VD: 'Tổng ~45s · Tone: tự nhiên, reaction mạnh').\n"
+        "- Kết thúc bằng **CTA beat**: câu kết + overlay kêu gọi hành động\n\n"
+        "TIẾT CHẾ: KHÔNG viết trong response này (có nút follow-up riêng):\n"
+        "  - Caption draft + 5 hashtag bundle.\n"
+        "  - Đề xuất cover/thumbnail chi tiết.\n"
+        "  - Checklist chuẩn bị quay (dụng cụ, ánh sáng, prop — chỉ ghi qua trong 'note').\n"
+        "  - Bản variant 15s / 30s / 60s.\n"
+        "Lý do: mỗi mục trên đều là 1 câu chat follow-up riêng — người dùng sẽ nhấn khi cần."
     ),
     "find_creators": (
         "MỤC TIÊU: Tìm KOC/creator phù hợp để quay UGC — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản và lý do phù hợp với sản phẩm/thương hiệu của người dùng.\n"
