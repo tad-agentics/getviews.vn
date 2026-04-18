@@ -616,16 +616,21 @@ export type Database = {
       video_corpus: {
         Row: {
           analysis_json: Json
+          breakout_multiplier: number | null
           comments: number
           content_type: string
           created_at: string
           creator_handle: string
+          creator_followers: number | null
           engagement_rate: number
           frame_urls: string[]
+          hook_phrase: string | null
+          hook_type: string | null
           id: string
           indexed_at: string
           likes: number
           niche_id: number
+          pattern_id: string | null
           shares: number
           thumbnail_url: string | null
           tiktok_url: string
@@ -635,16 +640,21 @@ export type Database = {
         }
         Insert: {
           analysis_json: Json
+          breakout_multiplier?: number | null
           comments?: number
           content_type: string
           created_at?: string
           creator_handle: string
+          creator_followers?: number | null
           engagement_rate?: number
           frame_urls?: string[]
+          hook_phrase?: string | null
+          hook_type?: string | null
           id?: string
           indexed_at?: string
           likes?: number
           niche_id: number
+          pattern_id?: string | null
           shares?: number
           thumbnail_url?: string | null
           tiktok_url: string
@@ -654,16 +664,21 @@ export type Database = {
         }
         Update: {
           analysis_json?: Json
+          breakout_multiplier?: number | null
           comments?: number
           content_type?: string
           created_at?: string
           creator_handle?: string
+          creator_followers?: number | null
           engagement_rate?: number
           frame_urls?: string[]
+          hook_phrase?: string | null
+          hook_type?: string | null
           id?: string
           indexed_at?: string
           likes?: number
           niche_id?: number
+          pattern_id?: string | null
           shares?: number
           thumbnail_url?: string | null
           tiktok_url?: string
@@ -687,6 +702,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      video_patterns: {
+        Row: {
+          id: string
+          signature_hash: string
+          signature: Json
+          display_name: string | null
+          first_seen_at: string
+          last_seen_at: string
+          instance_count: number
+          niche_spread: number[]
+          weekly_instance_count: number
+          weekly_instance_count_prev: number
+          is_active: boolean
+          computed_at: string
+        }
+        Insert: {
+          id?: string
+          signature_hash: string
+          signature: Json
+          display_name?: string | null
+          first_seen_at: string
+          last_seen_at: string
+          instance_count?: number
+          niche_spread?: number[]
+          weekly_instance_count?: number
+          weekly_instance_count_prev?: number
+          is_active?: boolean
+          computed_at?: string
+        }
+        Update: {
+          id?: string
+          signature_hash?: string
+          signature?: Json
+          display_name?: string | null
+          first_seen_at?: string
+          last_seen_at?: string
+          instance_count?: number
+          niche_spread?: number[]
+          weekly_instance_count?: number
+          weekly_instance_count_prev?: number
+          is_active?: boolean
+          computed_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
