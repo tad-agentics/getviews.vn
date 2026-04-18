@@ -367,7 +367,13 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
   };
 
   await page.goto("/app");
-  await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible();
+  // If a previous test left the app in an error boundary, reload to recover.
+  const isReady = await page.getByText(/Thao tác nhanh/i).first().isVisible({ timeout: 5_000 }).catch(() => false);
+  if (!isReady) {
+    await page.reload();
+    await page.waitForURL(/\/app/, { timeout: 15_000 });
+  }
+  await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible({ timeout: 15_000 });
 
   // ── Playwright-level network capture (authoritative) ────────────────────
   // Broader URL match than the fetch wrapper — catches anything that looks
