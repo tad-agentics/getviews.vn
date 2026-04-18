@@ -407,6 +407,8 @@ def build_carousel_diagnosis_prompt_v2(
     user_stats: dict[str, Any],
     wants_directions: bool = False,
     layer0_context: str = "",
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """V2 carousel diagnosis prompt — 2-layer narrative, corpus-aware.
 
@@ -448,6 +450,8 @@ def build_carousel_diagnosis_prompt_v2(
         user_analysis=user_analysis,
         user_stats=user_stats,
         wants_directions=wants_directions,
+        corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )
 
 
@@ -822,6 +826,8 @@ def build_diagnosis_synthesis_prompt_v2(
     user_stats: dict[str, Any],
     wants_directions: bool = False,
     layer0_context: str = "",
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """V2 diagnosis synthesis prompt — narrative structure, format-aware.
 
@@ -856,4 +862,6 @@ def build_diagnosis_synthesis_prompt_v2(
         user_analysis=user_analysis,
         user_stats=user_stats,
         wants_directions=wants_directions,
+        corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )

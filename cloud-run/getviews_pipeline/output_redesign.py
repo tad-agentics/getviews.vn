@@ -425,6 +425,8 @@ def build_diagnosis_narrative_prompt(
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
     wants_directions: bool = False,
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """V2 diagnosis synthesis prompt — narrative structure, format-aware.
 
@@ -440,6 +442,11 @@ def build_diagnosis_narrative_prompt(
         user_analysis:     Gemini extraction result for the user's video.
         user_stats:        User video stats dict (views, breakout_multiplier, etc.).
         wants_directions:  If True, appends 4-5 content direction suggestions after diagnosis.
+        corpus_citation:   Pre-built citation/disclaimer block from corpus_context.
+                           Injected above the narrative structure so the required
+                           opening sentence is visible to the model.
+        persona_block:     Pre-built persona-slot block from persona.py so audience
+                           attributes (age, pain points, geography) aren't dropped.
     """
     analysis_focus = get_analysis_focus(content_format)
     niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
@@ -464,12 +471,16 @@ lý do chạy trong niche này (1 câu), hook template điền vào ([ngoặc vu
 Không lặp lại định dạng đã được chẩn đoán ở phần trên — gợi ý hướng mới chưa thử.
 """
 
+    citation_section = f"\n{corpus_citation}\n" if corpus_citation else ""
+    persona_section = f"\n{persona_block}\n" if persona_block else ""
+
     return f"""{voice_block}
 
 ---
 
 {HOOK_TYPE_NAMES_CONSTRAINT}
-
+{citation_section}
+{persona_section}
 ---
 
 {PATTERN_EXTRACTION_PROMPT}
@@ -645,6 +656,8 @@ def build_carousel_diagnosis_narrative_prompt(
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
     wants_directions: bool = False,
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """Carousel v2 diagnosis prompt — 2-layer narrative, format-aware.
 
@@ -688,12 +701,16 @@ Zeigarnik effect, micro-commitment), hook slide 1, nội dung slide giữa, CTA 
 Kèm gợi ý hashtag tiếng Việt ngách cụ thể + caption mẫu ≥200 ký tự.
 """
 
+    citation_section = f"\n{corpus_citation}\n" if corpus_citation else ""
+    persona_section = f"\n{persona_block}\n" if persona_block else ""
+
     return f"""{voice_block}
 
 ---
 
 {carousel_synthesis_framing}
-
+{citation_section}
+{persona_section}
 ---
 
 {carousel_knowledge_block}

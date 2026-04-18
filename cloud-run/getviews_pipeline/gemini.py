@@ -378,6 +378,8 @@ def synthesize_diagnosis_v2(
     collapsed_questions: list[str] | None = None,
     wants_directions: bool = False,
     layer0_context: str = "",
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """V2 narrative diagnosis — format-aware, 5-part structure (incl. distribution).
 
@@ -395,6 +397,8 @@ def synthesize_diagnosis_v2(
         user_stats=user_stats,
         wants_directions=wants_directions,
         layer0_context=layer0_context,
+        corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )
     if collapsed_questions:
         question_block = (
@@ -432,6 +436,8 @@ def synthesize_diagnosis_carousel_v2(
     wants_directions: bool = False,
     collapsed_questions: list[str] | None = None,
     layer0_context: str = "",
+    corpus_citation: str = "",
+    persona_block: str = "",
 ) -> str:
     """V2 carousel diagnosis — 2-layer narrative (distribution + swipe logic), corpus-aware.
 
@@ -451,6 +457,8 @@ def synthesize_diagnosis_carousel_v2(
         user_stats=user_stats,
         wants_directions=wants_directions,
         layer0_context=layer0_context,
+        corpus_citation=corpus_citation,
+        persona_block=persona_block,
     )
     if collapsed_questions:
         question_block = (
