@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from getviews_pipeline import ensemble
+from getviews_pipeline.analysis_guards import (
+    TRANSCRIPT_UNAVAILABLE_MARKER,
+    apply_timestamp_guards,
+    validate_transcript,
+)
 from getviews_pipeline.config import CAROUSEL_EXTRACT_MAX_SLIDES, CAROUSEL_MAX_SLIDES
 from getviews_pipeline.corpus_context import get_cached_analysis
 from getviews_pipeline.entry_cost import score_entry_cost
@@ -62,11 +67,32 @@ async def _finish_analysis(
         analysis=analysis_obj,
         diagnosis=diagnosis,
     ).model_dump()
+    # Trust guards — run before downstream pipelines read the analysis dict.
+    # Fail-soft throughout: a guard that raises never blocks the primary flow,
+    # it just skips its own protection.
+    analysis_dict = out.get("analysis") or {}
+    try:
+        apply_timestamp_guards(analysis_dict, getattr(metadata, "duration_sec", None))
+    except Exception as exc:  # pragma: no cover — pure helper
+        logger.warning("apply_timestamp_guards failed: %s", exc)
+    try:
+        transcript = str(analysis_dict.get("audio_transcript") or "")
+        verdict = validate_transcript(transcript)
+        if not verdict.ok:
+            logger.warning(
+                "[analysis_guards] transcript rejected reason=%s vi_ratio=%.3f — "
+                "replacing with marker",
+                verdict.reason, verdict.vi_ratio,
+            )
+            analysis_dict["audio_transcript"] = TRANSCRIPT_UNAVAILABLE_MARKER
+        out["transcript_quality"] = verdict.asdict()
+    except Exception as exc:  # pragma: no cover — pure helper
+        logger.warning("validate_transcript failed: %s", exc)
     # Entry-cost badge (easy / medium / hard) — attached to every video analysis
     # so any downstream consumer (trend_spike card, content_directions reference,
     # competitor_profile card) can render it without re-deriving.
     try:
-        tier, reasons = score_entry_cost(out.get("analysis") or {})
+        tier, reasons = score_entry_cost(analysis_dict)
         out["entry_cost"] = {"tier": tier, "reasons": reasons}
     except Exception as exc:  # pragma: no cover — score_entry_cost is pure
         logger.warning("entry_cost scoring failed: %s", exc)

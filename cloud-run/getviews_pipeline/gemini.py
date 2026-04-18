@@ -15,8 +15,11 @@ from google.genai import types
 from pydantic import BaseModel, ValidationError
 
 from getviews_pipeline.config import (
+    FILES_API_POLL_INITIAL_SEC,
     FILES_API_POLL_INTERVAL_SEC,
     FILES_API_POLL_MAX_ATTEMPTS,
+    FILES_API_POLL_MAX_SEC,
+    FILES_API_POLL_TIMEOUT_SEC,
     GEMINI_DIAGNOSIS_MODEL,
     GEMINI_EXTRACTION_FALLBACKS,
     GEMINI_EXTRACTION_MODEL,
@@ -186,17 +189,26 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
         uploaded = client.files.upload(file=str(path))
         name = uploaded.name
         try:
+            # Exponential backoff with a 90s overall budget. Creators uploading
+            # dense 60s videos occasionally need 40-60s for ACTIVE state — the
+            # previous 30s hard cap silently failed those.
             info = uploaded
-            for _ in range(FILES_API_POLL_MAX_ATTEMPTS):
+            deadline = time.monotonic() + FILES_API_POLL_TIMEOUT_SEC
+            delay = FILES_API_POLL_INITIAL_SEC
+            while True:
                 info = client.files.get(name=name)
                 state = getattr(info.state, "name", None) or str(info.state)
                 if state == "ACTIVE":
                     break
                 if state == "FAILED":
                     raise RuntimeError(f"Gemini file processing failed: {name}")
-                time.sleep(FILES_API_POLL_INTERVAL_SEC)
-            else:
-                raise TimeoutError("Gemini file never became ACTIVE within 60 seconds")
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        f"Gemini file never became ACTIVE within "
+                        f"{FILES_API_POLL_TIMEOUT_SEC:.0f}s (last state={state})"
+                    )
+                time.sleep(delay)
+                delay = min(delay * 1.5, FILES_API_POLL_MAX_SEC)
 
             response = _generate_content_models(
                 [info, VIDEO_EXTRACTION_PROMPT],
@@ -422,6 +434,22 @@ def synthesize_diagnosis_v2(
     text = _response_text(response)
     if not text.strip():
         raise ValueError("synthesize_diagnosis_v2 returned empty response")
+    # Fabricated-metric scan — logs only, never blocks. The voice_guide warns
+    # against invented numbers; this catches the slips so we can track
+    # frequency in production logs and tighten the prompt if needed.
+    try:
+        from getviews_pipeline.analysis_guards import (
+            scan_synthesis_for_fabricated_metrics,
+        )
+
+        scan = scan_synthesis_for_fabricated_metrics(text)
+        if not scan.clean:
+            logger.warning(
+                "[synthesis_guard] possible fabricated metric(s) in diagnosis_v2 output: %s",
+                scan.flags,
+            )
+    except Exception as exc:  # pragma: no cover — pure helper
+        logger.warning("[synthesis_guard] scan failed: %s", exc)
     return text.strip()
 
 
@@ -482,6 +510,19 @@ def synthesize_diagnosis_carousel_v2(
     text = _response_text(response)
     if not text.strip():
         raise ValueError("synthesize_diagnosis_carousel_v2 returned empty response")
+    try:
+        from getviews_pipeline.analysis_guards import (
+            scan_synthesis_for_fabricated_metrics,
+        )
+
+        scan = scan_synthesis_for_fabricated_metrics(text)
+        if not scan.clean:
+            logger.warning(
+                "[synthesis_guard] possible fabricated metric(s) in diagnosis_carousel_v2: %s",
+                scan.flags,
+            )
+    except Exception as exc:  # pragma: no cover
+        logger.warning("[synthesis_guard] carousel scan failed: %s", exc)
     return text.strip()
 
 
@@ -656,6 +697,20 @@ def synthesize_intent_markdown(
     text = _response_text(response)
     if not text.strip():
         raise ValueError("synthesize_intent_markdown returned empty response")
+    try:
+        from getviews_pipeline.analysis_guards import (
+            scan_synthesis_for_fabricated_metrics,
+        )
+
+        scan = scan_synthesis_for_fabricated_metrics(text)
+        if not scan.clean:
+            logger.warning(
+                "[synthesis_guard] possible fabricated metric(s) in intent_markdown "
+                "intent=%s: %s",
+                intent_key, scan.flags,
+            )
+    except Exception as exc:  # pragma: no cover
+        logger.warning("[synthesis_guard] intent_markdown scan failed: %s", exc)
     return text.strip()
 
 

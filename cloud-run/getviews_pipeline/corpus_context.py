@@ -397,10 +397,12 @@ async def get_cached_analysis(video_id: str) -> dict[str, Any] | None:
     if not video_id:
         return None
     try:
+        from getviews_pipeline.analysis_guards import is_cached_analysis_fresh
+
         client = _anon_client()
         result = (
             client.table("video_corpus")
-            .select("analysis_json, creator_handle, views, tiktok_url, thumbnail_url")
+            .select("analysis_json, creator_handle, views, tiktok_url, thumbnail_url, indexed_at")
             .eq("video_id", video_id)
             .limit(1)
             .execute()
@@ -412,10 +414,21 @@ async def get_cached_analysis(video_id: str) -> dict[str, Any] | None:
         analysis = row.get("analysis_json") or {}
         if not analysis:
             return None
-        logger.info("[corpus_context] cache hit for video_id=%s — skipping download", video_id)
+        indexed_at = row.get("indexed_at")
+        fresh = is_cached_analysis_fresh(indexed_at)
+        if fresh:
+            logger.info("[corpus_context] cache hit (fresh) for video_id=%s", video_id)
+        else:
+            logger.info(
+                "[corpus_context] cache hit (stale, indexed_at=%s) for video_id=%s — "
+                "serving with _stale flag so the synthesis can disclaim",
+                indexed_at, video_id,
+            )
         return {
             "analysis": analysis,
             "_from_corpus_cache": True,
+            "_stale": not fresh,
+            "_indexed_at": indexed_at,
             "_corpus_handle": row.get("creator_handle") or "",
             "_corpus_views": int(row.get("views") or 0),
             "_corpus_tiktok_url": row.get("tiktok_url") or "",
