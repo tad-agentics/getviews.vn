@@ -269,3 +269,164 @@
 .animate-accordion-up {
   animation: accordion-up 0.2s ease-out;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Phase A · A3 — redesign foundation (Getviews Studio)
+ *
+ * New tokens live under --gv-* so they can't collide with the shadcn/Radix
+ * alias layer (--accent / --primary / --radius are already bound upstream).
+ * Components that opt into the new design system reference --gv-* directly.
+ *
+ * Scope: colors, type, spacing, radius, plus a handful of scoped utility
+ * classes used everywhere in the new screens (.gv-kicker, .gv-tight,
+ * .gv-bignum, .gv-serif-italic).
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Space Grotesk — display + sans for the redesign. ──────────────────
+ * Google-hosted for A3.1 speed. Self-host follow-up can swap woff2 files
+ * into /fonts/ and update the @font-face block without touching components.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
+
+:root {
+  /* ── Surfaces (cool near-white, per design iteration 3) ─────────── */
+  --gv-canvas:         #FBFCFD;
+  --gv-canvas-2:       #F2F4F6;
+  --gv-paper:          #FFFFFF;
+
+  /* ── Ink scale ─────────────────────────────────────────────────── */
+  --gv-ink:            #0A0D12;
+  --gv-ink-2:          #1A1E26;
+  --gv-ink-3:          #4A5260;
+  --gv-ink-4:          #8A94A3;
+
+  /* ── Rules ─────────────────────────────────────────────────────── */
+  --gv-rule:           #E6EAEF;
+  --gv-rule-2:         #F0F3F6;
+
+  /* ── Accent 1: TikTok pink ─────────────────────────────────────── */
+  --gv-accent:         #FE2C55;
+  --gv-accent-soft:    #FFE8ED;
+  --gv-accent-deep:    #D11840;
+
+  /* ── Accent 2: TikTok cyan ─────────────────────────────────────── */
+  --gv-accent-2:       #25F4EE;
+  --gv-accent-2-soft:  #D8FBFA;
+  --gv-accent-2-deep:  #06B6B0;
+
+  /* ── Semantic positive/negative (every delta in the redesign)
+   * Blue for up, pink for down. --gv-neg shares colour with --gv-accent
+   * by design — the accent is used equally for emphasis and for "down".
+   */
+  --gv-pos:            #009FFA;
+  --gv-pos-soft:       #DBF0FF;
+  --gv-pos-deep:       #0070B8;
+  --gv-neg:            #FE2C55;
+  --gv-neg-soft:       #FFE8ED;
+  --gv-neg-deep:       #D11840;
+
+  /* ── Secondary hues used in data viz ───────────────────────────── */
+  --gv-lime:           oklch(0.92 0.18 122);
+  --gv-azure:          oklch(0.70 0.18 235);
+
+  /* ── Radii ─────────────────────────────────────────────────────── */
+  --gv-radius-sm:      6px;
+  --gv-radius-md:      12px;
+  --gv-radius-lg:      18px;
+  --gv-radius-xl:      20px;  /* neo-brutalist composer */
+
+  /* ── Font stacks ────────────────────────────────────────────────── */
+  --gv-font-display:   "Space Grotesk", "TikTok Sans", "Inter", system-ui, sans-serif;
+  --gv-font-sans:      "Space Grotesk", "TikTok Sans", "Inter", system-ui, sans-serif;
+  --gv-font-mono:      "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  /* ── Spacing (4/8/12/16/24/32/48/64) ───────────────────────────── */
+  --gv-space-1:        4px;
+  --gv-space-2:        8px;
+  --gv-space-3:        12px;
+  --gv-space-4:        16px;
+  --gv-space-5:        24px;
+  --gv-space-6:        32px;
+  --gv-space-7:        48px;
+  --gv-space-8:        64px;
+}
+
+/* ── Utility classes ────────────────────────────────────────────────── */
+
+/* Kicker: mono all-caps label prefixed with a pink bullet.
+ * Usage: <span class="gv-kicker">STUDIO</span> → "● STUDIO"
+ * Accepts a data-bullet attribute to customise the dot colour inline. */
+.gv-kicker {
+  font-family: var(--gv-font-mono);
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gv-ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.gv-kicker::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gv-accent);
+  display: inline-block;
+  flex-shrink: 0;
+}
+.gv-kicker--muted::before { background: var(--gv-ink-4); }
+.gv-kicker--pos::before   { background: var(--gv-pos); }
+
+/* Tight: headline weight + aggressive letter-spacing for display numbers
+ * and section titles. Pair with font-size in the component. */
+.gv-tight {
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  font-family: var(--gv-font-display);
+}
+
+/* Bignum: the big pulse / KPI number. 56px/-0.04em. */
+.gv-bignum {
+  font-family: var(--gv-font-display);
+  font-size: 56px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 600;
+}
+
+/* Serif-italic accent: used on quoted titles + italicised nouns in the
+ * redesign. Space Grotesk doesn't have a true italic at all weights, so
+ * we lean on Instrument Serif as a transitive fallback. */
+.gv-serif-italic {
+  font-family: "Instrument Serif", "Space Grotesk", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Mono: standalone utility (kicker already covers the common case). */
+.gv-mono {
+  font-family: var(--gv-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Uppercase-tracked: for small labels that aren't a kicker. */
+.gv-uc {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--gv-font-mono);
+}
+
+/* ── Hard-edge neo-brutalist surface.
+ * Composer / primary CTA card. 2px ink border + 6px hard offset shadow. */
+.gv-surface-brutal {
+  background: var(--gv-paper);
+  border: 2px solid var(--gv-ink);
+  border-radius: var(--gv-radius-xl);
+  box-shadow: 6px 6px 0 var(--gv-ink);
+}
+.gv-surface-brutal--compact {
+  border-radius: var(--gv-radius-lg);
+  box-shadow: 4px 4px 0 var(--gv-ink);
+}
