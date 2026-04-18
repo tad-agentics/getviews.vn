@@ -365,7 +365,7 @@ export default function ChatScreen() {
   // Guard: session was deleted externally or URL is stale — reset to new chat
   useEffect(() => {
     if (sessionId && sessionStatus === "error") {
-      navigate("/app");
+      navigate("/app/chat");
     }
   }, [sessionId, sessionStatus, navigate]);
 

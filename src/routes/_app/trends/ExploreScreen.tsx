@@ -677,7 +677,7 @@ export default function ExploreScreen() {
                       video={video}
                       allVideos={videos}
                       onNavigate={() =>
-                        navigate("/app", {
+                        navigate("/app/chat", {
                           state: video.tiktok_url ? { prefillUrl: video.tiktok_url } : undefined,
                         })
                       }
@@ -844,7 +844,7 @@ export default function ExploreScreen() {
                     key={`b-${idx}`}
                     item={item}
                     rank={idx + 1}
-                    onClick={item.tiktok_url ? () => navigate("/app", { state: { prefillUrl: item.tiktok_url } }) : undefined}
+                    onClick={item.tiktok_url ? () => navigate("/app/chat", { state: { prefillUrl: item.tiktok_url } }) : undefined}
                   />
                 ))}
               </div>
@@ -875,7 +875,7 @@ export default function ExploreScreen() {
                     key={`v-${idx}`}
                     item={item}
                     rank={idx + 6}
-                    onClick={item.tiktok_url ? () => navigate("/app", { state: { prefillUrl: item.tiktok_url } }) : undefined}
+                    onClick={item.tiktok_url ? () => navigate("/app/chat", { state: { prefillUrl: item.tiktok_url } }) : undefined}
                   />
                 ))}
               </div>

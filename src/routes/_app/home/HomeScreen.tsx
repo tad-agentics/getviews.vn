@@ -69,7 +69,7 @@ export default function HomeScreen() {
 
   /** Chat launcher — prefill ChatScreen textarea via navigation state. */
   const launchChat = (text: string) => {
-    navigate("/app", { state: { initialPrompt: text } });
+    navigate("/app/chat", { state: { initialPrompt: text } });
   };
 
   return (

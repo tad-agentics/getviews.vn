@@ -142,7 +142,7 @@ export function VideoDangHocSidebar() {
               key={`${row.list_type}-${row.video_id}`}
               row={row}
               showVelocity={showVelocity}
-              onClick={row.tiktok_url ? () => navigate("/app", { state: { prefillUrl: row.tiktok_url } }) : undefined}
+              onClick={row.tiktok_url ? () => navigate("/app/chat", { state: { prefillUrl: row.tiktok_url } }) : undefined}
             />
           ))}
         </div>
