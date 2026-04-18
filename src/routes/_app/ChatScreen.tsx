@@ -24,6 +24,10 @@ import { NicheSelector } from "@/routes/_app/components/NicheSelector";
 import { HookRankingBar } from "@/routes/_app/components/HookRankingBar";
 import { BriefBlock } from "@/routes/_app/components/BriefBlock";
 import { CreatorCard, type CreatorCardData } from "@/routes/_app/components/CreatorCard";
+import {
+  HookTimelineStrip,
+  type HookTimelineEvent,
+} from "@/routes/_app/components/HookTimelineStrip";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
 
@@ -44,6 +48,13 @@ type ChatMsg = {
       freshness_days?: number;
     };
     creators?: CreatorCardData[];
+    user_video?: {
+      analysis?: {
+        hook_analysis?: {
+          hook_timeline?: HookTimelineEvent[];
+        };
+      };
+    };
   } | null;
 };
 
@@ -643,6 +654,8 @@ export default function ChatScreen() {
               ? m.structured_output?.follow_ups?.filter((s) => s.trim().length > 0) ?? []
               : [];
           const richCreators = m.structured_output?.creators ?? [];
+          const hookTimeline =
+            m.structured_output?.user_video?.analysis?.hook_analysis?.hook_timeline ?? [];
           return (
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
@@ -652,6 +665,9 @@ export default function ChatScreen() {
                   streaming={false}
                   onFollowUp={isLastAssistant && !inFlightVisible ? (q) => void handleSend(q) : undefined}
                 />
+              ) : null}
+              {hookTimeline.length > 0 ? (
+                <HookTimelineStrip events={hookTimeline} />
               ) : null}
               {richCreators.length > 0 ? (
                 <div className="mt-4 grid gap-3 border-t border-[var(--border)] pt-4">
