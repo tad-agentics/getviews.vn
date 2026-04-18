@@ -93,8 +93,12 @@ export function detectIntent(
 
   const isContent = /nên quay gì|quay gì|làm gì|video gì|format nào|hook nào|kiểu video|đang chạy tốt|đang work|đang hiệu quả|hướng content|content direction|hướng nội dung|nên làm gì|nên làm video|ý tưởng video|gì đang hot|gợi ý nội dung|loại video/i.test(ql);
 
-  if (isContent) return { intentType: "content_directions", isFree: false, confidence: "medium" };
+  // trend_spike checked first — "tuần này / đang hot" is more specific than
+  // generic content-direction keywords like "hook nào / format nào".
+  // A prompt can match both (e.g. "xu hướng tuần này — hook nào đang chạy?"),
+  // and trend_spike is the correct intent in that case.
   if (isTrend) return { intentType: "trend_spike", isFree: true, confidence: "medium" };
+  if (isContent) return { intentType: "content_directions", isFree: false, confidence: "medium" };
 
   // ── 7. DEFAULT ────────────────────────────────────────────────────────────
   // Anything that doesn't match a structural signal or an explicit keyword is
