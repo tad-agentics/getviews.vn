@@ -36,6 +36,10 @@ import {
   CommentRadarTile,
   type CommentRadarData,
 } from "@/routes/_app/components/CommentRadarTile";
+import {
+  PatternSpreadStrip,
+  type TrendPattern,
+} from "@/routes/_app/components/PatternSpreadStrip";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
 import { detectIntent } from "@/routes/_app/intent-router";
@@ -59,6 +63,7 @@ type ChatMsg = {
     creators?: CreatorCardData[];
     thumbnail_analysis?: ThumbnailAnalysisData;
     comment_radar?: CommentRadarData;
+    patterns?: TrendPattern[];
     user_video?: {
       analysis?: {
         hook_analysis?: {
@@ -603,12 +608,16 @@ export default function ChatScreen() {
           const thumbnailFrameUrl =
             m.structured_output?.user_video?.metadata?.thumbnail_url ?? null;
           const commentRadar = m.structured_output?.comment_radar ?? null;
+          const trendPatterns = m.structured_output?.patterns ?? [];
           return (
             <div key={m.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 lg:p-5">
               {thumbnailAnalysis ? (
                 <ThumbnailTile data={thumbnailAnalysis} frameUrl={thumbnailFrameUrl} />
               ) : null}
               {commentRadar ? <CommentRadarTile data={commentRadar} /> : null}
+              {trendPatterns.length > 0 ? (
+                <PatternSpreadStrip patterns={trendPatterns} />
+              ) : null}
               {hasStructured ? <AssistantStructuredBlock parsed={parsed} /> : null}
               {hasPlain && !hasStructured ? (
                 <MarkdownRenderer

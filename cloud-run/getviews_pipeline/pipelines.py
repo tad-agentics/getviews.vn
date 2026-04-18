@@ -715,6 +715,47 @@ async def run_trend_spike(
         except Exception as exc:
             logger.warning("[trend_spike] top_delta_patterns fetch failed: %s", exc)
 
+        # Resolve niche_spread id[] → [{id, label}] so the frontend can render
+        # spread chips without a second round-trip. Fails open to empty labels.
+        from getviews_pipeline.corpus_context import get_niche_label_map
+
+        try:
+            niche_label_map = await get_niche_label_map()
+        except Exception as exc:
+            logger.warning("[trend_spike] niche label map failed: %s", exc)
+            niche_label_map = {}
+
+        def _spread_with_labels(raw_ids: list[int] | None) -> list[dict[str, Any]]:
+            if not raw_ids:
+                return []
+            out: list[dict[str, Any]] = []
+            seen: set[int] = set()
+            for nid in raw_ids:
+                try:
+                    i = int(nid)
+                except (TypeError, ValueError):
+                    continue
+                if i in seen:
+                    continue
+                seen.add(i)
+                label = niche_label_map.get(i) or str(i)
+                out.append({"id": i, "label": label})
+            return out
+
+        patterns_payload = [
+            {
+                "display_name": p.get("display_name") or "Pattern",
+                "instance_count_week": int(p.get("weekly_instance_count") or 0),
+                "instance_count_prev_week": int(p.get("weekly_instance_count_prev") or 0),
+                "weekly_delta": int(p.get("weekly_instance_count") or 0)
+                - int(p.get("weekly_instance_count_prev") or 0),
+                "niche_spread_count": len(p.get("niche_spread") or []),
+                "niche_spread": _spread_with_labels(p.get("niche_spread")),
+                "signature": p.get("signature") or {},
+            }
+            for p in top_patterns
+        ]
+
         emit(step_queue, step_done("Đã tổng hợp dữ liệu — đang viết phân tích..."))
         payload = {
             "niche": niche,
@@ -723,18 +764,7 @@ async def run_trend_spike(
             "breakout_videos": breakout_videos,
             "signal_grades": signal_grades,
             "trending_sounds": trending_sounds,
-            "patterns": [
-                {
-                    "display_name": p.get("display_name") or "Pattern",
-                    "instance_count_week": int(p.get("weekly_instance_count") or 0),
-                    "instance_count_prev_week": int(p.get("weekly_instance_count_prev") or 0),
-                    "weekly_delta": int(p.get("weekly_instance_count") or 0)
-                    - int(p.get("weekly_instance_count_prev") or 0),
-                    "niche_spread_count": len(p.get("niche_spread") or []),
-                    "signature": p.get("signature") or {},
-                }
-                for p in top_patterns
-            ],
+            "patterns": patterns_payload,
         }
         synthesis = await run_sync(
             synthesize_intent_markdown,
@@ -761,6 +791,7 @@ async def run_trend_spike(
             "analyzed_videos": analyzed,
             "coverage": _coverage_dict(niche_id, niche_name, count, len(analyzed), corpus_source, 7),
             "follow_ups": _build_follow_ups("trend_spike", niche_name, analyzed),
+            "patterns": patterns_payload,
         }
     finally:
         await emit_sentinel(step_queue)
