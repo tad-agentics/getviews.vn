@@ -19,7 +19,6 @@ export default defineConfig({
     trace: "retain-on-failure",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
-    storageState: ".auth/user.json",
     locale: "vi-VN",
     viewport: { width: 1280, height: 900 },
   },
@@ -27,13 +26,12 @@ export default defineConfig({
     {
       name: "setup",
       testMatch: /auth\.setup\.ts/,
-      use: { storageState: undefined },
     },
     {
       name: "quick-actions",
       testMatch: /quick-actions\.spec\.ts/,
       dependencies: ["setup"],
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], storageState: ".auth/user.json" },
     },
   ],
 });
