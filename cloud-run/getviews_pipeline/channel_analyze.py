@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -32,6 +33,18 @@ TOP_VIDEO_TILE_COLORS = (
     "#C5F0E8",
     "#F5E6C8",
 )
+
+
+@dataclass
+class LiveSignals:
+    """B.3.2 — deterministic KPI + posting signals from ``video_corpus`` (created_at + ER)."""
+
+    posting_cadence: str = ""
+    posting_time: str = ""
+    views_mom_delta: str = "—"
+    reach_lift_delta: str = "—"
+    optimal_band: str = "—"
+    duration_sample_n: int = 0
 
 
 class InsufficientCreditsError(Exception):
@@ -206,7 +219,7 @@ def _top_hook_from_types(types_list: list[str]) -> tuple[str, float]:
     return top, round(100.0 * n / len(types_list), 1)
 
 
-def _optimal_length_band(rows: list[dict[str, Any]]) -> str:
+def _optimal_length_band_with_count(rows: list[dict[str, Any]]) -> tuple[str, int]:
     durs: list[float] = []
     for row in rows:
         aj = row.get("analysis_json")
@@ -221,12 +234,168 @@ def _optimal_length_band(rows: list[dict[str, Any]]) -> str:
         if d and d > 3:
             durs.append(float(d))
     if len(durs) < 3:
-        return "—"
+        return "—", 0
     durs.sort()
     n = len(durs)
     lo = durs[int(0.25 * (n - 1))]
     hi = durs[int(0.75 * (n - 1))]
-    return f"{int(round(lo))}–{int(round(hi))}s"
+    return f"{int(round(lo))}–{int(round(hi))}s", n
+
+
+def _optimal_length_band(rows: list[dict[str, Any]]) -> str:
+    s, _ = _optimal_length_band_with_count(rows)
+    return s
+
+
+def _median(nums: list[float]) -> float:
+    if not nums:
+        return 0.0
+    s = sorted(nums)
+    m = len(s) // 2
+    if len(s) % 2:
+        return float(s[m])
+    return (float(s[m - 1]) + float(s[m])) / 2.0
+
+
+def _parse_row_created_at(row: dict[str, Any]) -> datetime | None:
+    return _parse_ts(row.get("created_at"))
+
+
+def _fetch_temporal_corpus_rows(user_sb: Any, *, handle: str, niche_id: int, limit: int) -> list[dict[str, Any]]:
+    try:
+        res = (
+            user_sb.table("video_corpus")
+            .select("created_at,views,engagement_rate")
+            .ilike("creator_handle", handle)
+            .eq("niche_id", niche_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return list(res.data or [])
+    except Exception as exc:
+        logger.warning("[channel_analyze] temporal corpus rows failed: %s", exc)
+        return []
+
+
+def _compute_posting_cadence_time_peak(rows: list[dict[str, Any]]) -> tuple[str, str, int | None]:
+    """Peak (weekday, hour) by video count; cadence from posts/week heuristic."""
+    parsed: list[tuple[datetime, dict[str, Any]]] = []
+    for r in rows:
+        dt = _parse_row_created_at(r)
+        if dt:
+            parsed.append((dt, r))
+    if len(parsed) < 3:
+        return "", "", None
+
+    buckets: Counter[tuple[int, int]] = Counter()
+    for dt, _ in parsed:
+        buckets[(dt.weekday(), dt.hour)] += 1
+    peak_wd, peak_hr = max(buckets, key=lambda k: buckets[k])
+
+    days_span = max((parsed[0][0].date() - parsed[-1][0].date()).days, 1)
+    weeks = max(days_span / 7.0, 0.25)
+    per_week = len(parsed) / weeks
+    if per_week >= 5.5:
+        cad = "Hàng ngày"
+    elif per_week >= 3.0:
+        cad = "~4–5 lần/tuần"
+    elif per_week >= 1.5:
+        cad = f"~{max(2, int(round(per_week)))} lần/tuần"
+    else:
+        cad = f"~{max(1, int(round(per_week)))} lần/tuần"
+
+    wd_short = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][peak_wd]
+    if 5 <= peak_hr < 12:
+        slot = "sáng"
+    elif peak_hr == 12:
+        slot = "trưa"
+    elif 12 < peak_hr < 18:
+        slot = "chiều"
+    elif 18 <= peak_hr < 22:
+        slot = "tối"
+    else:
+        slot = "đêm"
+    time_lbl = f"{peak_hr:02d}:00 {slot} · {wd_short}"
+    return cad, time_lbl, peak_hr
+
+
+def _compute_views_mom_delta(rows: list[dict[str, Any]]) -> str:
+    now = datetime.now(timezone.utc)
+    t30 = now - timedelta(days=30)
+    t60 = now - timedelta(days=60)
+    last_views: list[int] = []
+    prev_views: list[int] = []
+    for r in rows:
+        dt = _parse_row_created_at(r)
+        if not dt:
+            continue
+        v = int(r.get("views") or 0)
+        if v <= 0:
+            continue
+        if dt >= t30:
+            last_views.append(v)
+        elif t60 <= dt < t30:
+            prev_views.append(v)
+    if len(last_views) < 3 or len(prev_views) < 3:
+        return "—"
+    a1 = sum(last_views) / len(last_views)
+    a0 = sum(prev_views) / len(prev_views)
+    if a0 < 100:
+        return "—"
+    pct = (a1 - a0) / a0 * 100.0
+    if abs(pct) < 1.0:
+        return "ổn định MoM"
+    arrow = "↑" if pct >= 0 else "↓"
+    return f"{arrow} {abs(pct):.0f}% MoM"
+
+
+def _compute_reach_lift_delta(rows: list[dict[str, Any]], peak_hour: int | None) -> str:
+    if peak_hour is None:
+        return "—"
+    peak_ers: list[float] = []
+    off_ers: list[float] = []
+    for r in rows:
+        dt = _parse_row_created_at(r)
+        if not dt:
+            continue
+        er = float(r.get("engagement_rate") or 0.0)
+        if er <= 0:
+            continue
+        h = dt.hour
+        circ = min(abs(h - peak_hour), 24 - abs(h - peak_hour))
+        in_peak = circ <= 1
+        (peak_ers if in_peak else off_ers).append(er)
+    if len(peak_ers) < 3 or len(off_ers) < 3:
+        return "—"
+    mp = _median(peak_ers)
+    mo = _median(off_ers)
+    if mo <= 1e-9:
+        return "—"
+    lift = (mp - mo) / mo * 100.0
+    if lift < 3.0:
+        return "—"
+    return f"+{lift:.0f}% reach vs khác giờ"
+
+
+def compute_live_signals(
+    user_sb: Any,
+    *,
+    handle: str,
+    niche_id: int,
+    top_rows: list[dict[str, Any]],
+) -> LiveSignals:
+    temporal = _fetch_temporal_corpus_rows(user_sb, handle=handle, niche_id=niche_id, limit=3000)
+    cad, pt, peak_h = _compute_posting_cadence_time_peak(temporal)
+    band, n_dur = _optimal_length_band_with_count(top_rows)
+    return LiveSignals(
+        posting_cadence=cad,
+        posting_time=pt,
+        views_mom_delta=_compute_views_mom_delta(temporal),
+        reach_lift_delta=_compute_reach_lift_delta(temporal, peak_h),
+        optimal_band=band,
+        duration_sample_n=n_dur,
+    )
 
 
 def _call_channel_gemini(
@@ -285,9 +454,15 @@ def _build_kpis(
     hook_pct: float,
     optimal_length: str,
     total_videos: int,
+    views_mom_delta: str,
+    posting_time: str,
+    reach_lift_delta: str,
+    duration_sample_n: int,
 ) -> list[dict[str, str]]:
+    dur_n = duration_sample_n if duration_sample_n > 0 else min(total_videos, 500) if total_videos else 0
+    dur_delta = f"từ {dur_n} video gần" if total_videos and dur_n > 0 else "—"
     return [
-        {"label": "VIEW TRUNG BÌNH", "value": _fmt_int_short(int(avg_views)), "delta": "—"},
+        {"label": "VIEW TRUNG BÌNH", "value": _fmt_int_short(int(avg_views)), "delta": views_mom_delta},
         {
             "label": "HOOK CHỦ ĐẠO",
             "value": f"\"{top_hook}\"",
@@ -296,9 +471,9 @@ def _build_kpis(
         {
             "label": "ĐỘ DÀI TỐI ƯU",
             "value": optimal_length,
-            "delta": f"từ {min(total_videos, 500)} video gần" if total_videos else "—",
+            "delta": dur_delta,
         },
-        {"label": "THỜI GIAN POST", "value": "—", "delta": "—"},
+        {"label": "THỜI GIAN POST", "value": posting_time or "—", "delta": reach_lift_delta},
     ]
 
 
@@ -331,10 +506,11 @@ def _assemble_response(
     lessons: list[dict[str, Any]] | None,
     bio: str,
     top_hook: str | None,
-    optimal_length: str | None,
-    posting_cadence: str,
-    posting_time: str,
+    cached_optimal: str | None,
+    live: LiveSignals,
     formula_gate: str | None,
+    computed_at: str | None = None,
+    cache_hit: bool | None = None,
 ) -> dict[str, Any]:
     total = int(stats.get("total") or 0)
     avg_views = int(stats.get("avg_views") or 0)
@@ -344,7 +520,10 @@ def _assemble_response(
         hook_types if hook_types else [str(r.get("hook_type") or "").strip() for r in top_rows if r.get("hook_type")]
     )
     resolved_top_hook = (top_hook or "").strip() or th
-    resolved_optimal = (optimal_length or "").strip() or _optimal_length_band(top_rows)
+    resolved_optimal = (cached_optimal or "").strip() or live.optimal_band or _optimal_length_band(top_rows)
+    dur_n = live.duration_sample_n
+    if dur_n <= 0 and resolved_optimal and resolved_optimal != "—":
+        _, dur_n = _optimal_length_band_with_count(top_rows)
 
     if resolved_top_hook and resolved_top_hook != "—" and hook_types:
         hook_pct = 100.0 * sum(1 for h in hook_types if h == resolved_top_hook) / len(hook_types)
@@ -356,7 +535,7 @@ def _assemble_response(
     if followers <= 0 and top_rows:
         followers = max(int(r.get("creator_followers") or 0) for r in top_rows)
 
-    return {
+    out: dict[str, Any] = {
         "handle": handle,
         "niche_id": niche_id,
         "niche_label": niche_label,
@@ -366,8 +545,8 @@ def _assemble_response(
         "total_videos": total,
         "avg_views": avg_views,
         "engagement_pct": round(avg_er, 6),
-        "posting_cadence": posting_cadence,
-        "posting_time": posting_time,
+        "posting_cadence": live.posting_cadence,
+        "posting_time": live.posting_time,
         "top_hook": resolved_top_hook,
         "formula": formula,
         "lessons": lessons or [],
@@ -378,9 +557,18 @@ def _assemble_response(
             hook_pct=hook_pct,
             optimal_length=resolved_optimal or "—",
             total_videos=total,
+            views_mom_delta=live.views_mom_delta,
+            posting_time=live.posting_time,
+            reach_lift_delta=live.reach_lift_delta,
+            duration_sample_n=dur_n,
         ),
         "top_videos": _build_top_videos(top_rows),
     }
+    if computed_at is not None:
+        out["computed_at"] = computed_at
+    if cache_hit is not None:
+        out["cache_hit"] = cache_hit
+    return out
 
 
 def run_channel_analyze_sync(
@@ -415,6 +603,7 @@ def run_channel_analyze_sync(
 
     top_rows = _fetch_top_corpus_rows(user_sb, handle=handle, niche_id=niche_id, limit=80)
     hook_types = _fetch_hook_types(user_sb, handle=handle, niche_id=niche_id)
+    live = compute_live_signals(user_sb, handle=handle, niche_id=niche_id, top_rows=top_rows)
 
     if total < CORPUS_GATE_MIN:
         return _assemble_response(
@@ -429,9 +618,8 @@ def run_channel_analyze_sync(
             lessons=[],
             bio="",
             top_hook=None,
-            optimal_length=None,
-            posting_cadence="",
-            posting_time="",
+            cached_optimal=None,
+            live=live,
             formula_gate="thin_corpus",
         )
 
@@ -450,6 +638,9 @@ def run_channel_analyze_sync(
         cached = None
 
     if cached and _cache_fresh(cached) and not force_refresh:
+        raw_ct = cached.get("computed_at")
+        ct = _parse_ts(raw_ct)
+        computed_at_iso = ct.isoformat() if ct else (str(raw_ct) if raw_ct else None)
         return _assemble_response(
             handle=handle,
             niche_id=niche_id,
@@ -462,10 +653,11 @@ def run_channel_analyze_sync(
             lessons=list(cached.get("lessons") or []),
             bio=str(cached.get("bio") or ""),
             top_hook=str(cached.get("top_hook") or "") or None,
-            optimal_length=str(cached.get("optimal_length") or "") or None,
-            posting_cadence=str(cached.get("posting_cadence") or ""),
-            posting_time=str(cached.get("posting_time") or ""),
+            cached_optimal=(str(cached.get("optimal_length") or "").strip() or None),
+            live=live,
             formula_gate=None,
+            computed_at=computed_at_iso,
+            cache_hit=True,
         )
 
     _decrement_credit_or_raise(user_sb, user_id=user_id)
@@ -476,7 +668,7 @@ def run_channel_analyze_sync(
     formula_dicts = _normalize_formula_pcts([x.model_dump() for x in llm.formula])
     lessons_dicts = [x.model_dump() for x in llm.lessons]
     th2, _ = _top_hook_from_types(hook_types)
-    opt = _optimal_length_band(top_rows)
+    opt, _opt_n = _optimal_length_band_with_count(top_rows)
 
     upsert = {
         "handle": handle,
@@ -485,8 +677,8 @@ def run_channel_analyze_sync(
         "lessons": lessons_dicts,
         "top_hook": th2,
         "optimal_length": opt,
-        "posting_time": "",
-        "posting_cadence": "",
+        "posting_time": live.posting_time,
+        "posting_cadence": live.posting_cadence,
         "avg_views": int(stats.get("avg_views") or 0),
         "engagement_pct": float(stats.get("avg_er") or 0),
         "total_videos": int(stats.get("total") or 0),
@@ -499,6 +691,7 @@ def run_channel_analyze_sync(
         logger.exception("[channel_analyze] upsert failed handle=%s niche=%s: %s", handle, niche_id, exc)
         raise
 
+    now_iso = str(upsert["computed_at"])
     return _assemble_response(
         handle=handle,
         niche_id=niche_id,
@@ -511,8 +704,9 @@ def run_channel_analyze_sync(
         lessons=lessons_dicts,
         bio=upsert["bio"],
         top_hook=th2,
-        optimal_length=opt,
-        posting_cadence="",
-        posting_time="",
+        cached_optimal=None,
+        live=live,
         formula_gate=None,
+        computed_at=now_iso,
+        cache_hit=False,
     )

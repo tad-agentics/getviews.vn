@@ -183,6 +183,10 @@ export interface ChannelAnalyzeResponse {
   niche_label: string | null;
   kpis: ChannelKpiCell[];
   optimal_length?: string | null;
+  /** ISO timestamp of cached row (``channel_formulas.computed_at``) or fresh run. */
+  computed_at?: string | null;
+  /** True when served from fresh ``channel_formulas`` row (< 7d) without Gemini. */
+  cache_hit?: boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,9 @@ import pytest
 
 from getviews_pipeline.channel_analyze import (
     CORPUS_GATE_MIN,
+    LiveSignals,
+    _compute_views_mom_delta,
+    _median,
     _normalize_formula_pcts,
     _optimal_length_band,
     _top_hook_from_types,
@@ -44,6 +47,38 @@ def test_optimal_length_band_from_duration_seconds() -> None:
     assert _optimal_length_band(rows) == "30–50s"
 
 
+def test_median_middle_value() -> None:
+    assert _median([1.0, 3.0, 9.0]) == 3.0
+    assert _median([1.0, 2.0, 3.0, 4.0]) == 2.5
+
+
+def test_views_mom_delta_with_synthetic_windows() -> None:
+    """Last 30d avg vs prior 30d — enough samples → MoM string."""
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    rows = []
+    for i in range(15):
+        rows.append(
+            {
+                "created_at": (now - timedelta(days=10 + i)).isoformat(),
+                "views": 1000 + i * 10,
+                "engagement_rate": 0.05,
+            }
+        )
+    for i in range(15):
+        rows.append(
+            {
+                "created_at": (now - timedelta(days=40 + i)).isoformat(),
+                "views": 500 + i * 5,
+                "engagement_rate": 0.04,
+            }
+        )
+    out = _compute_views_mom_delta(rows)
+    assert "MoM" in out
+    assert out.startswith("↑")
+
+
 def test_run_channel_analyze_thin_corpus_no_credit() -> None:
     """Below gate video count → thin_corpus; must not call decrement_credit."""
     user_sb = MagicMock()
@@ -60,6 +95,10 @@ def test_run_channel_analyze_thin_corpus_no_credit() -> None:
         patch("getviews_pipeline.channel_analyze._fetch_starter_row", return_value=None),
         patch("getviews_pipeline.channel_analyze._fetch_top_corpus_rows", return_value=[]),
         patch("getviews_pipeline.channel_analyze._fetch_hook_types", return_value=[]),
+        patch(
+            "getviews_pipeline.channel_analyze.compute_live_signals",
+            return_value=LiveSignals(),
+        ),
         patch("getviews_pipeline.channel_analyze._decrement_credit_or_raise") as dec,
     ):
         out = run_channel_analyze_sync(service_sb, user_sb, user_id="u1", raw_handle="@foo")
