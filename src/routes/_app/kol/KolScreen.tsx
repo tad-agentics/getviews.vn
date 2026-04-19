@@ -398,74 +398,67 @@ export default function KolScreen() {
               </div>
             </div>
 
-            {/* kol.jsx ribbon padding 8px 0 18px — kicker stacked here vs inline in reference */}
-            <div className="pb-[18px] pt-1.5">
-              <div className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
-                LỌC THEO
-              </div>
-              <FilterChipRow
-                label=""
-                trailing={
-                  <>
-                    <div className="relative flex min-w-[160px] max-w-[240px] flex-1 items-center">
-                      <Search
-                        className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[color:var(--gv-ink-4)]"
-                        strokeWidth={1.75}
-                        aria-hidden
-                      />
-                      <input
-                        value={searchQ}
-                        onChange={(e) => setSearchQ(e.target.value)}
-                        placeholder="Tìm @handle…"
-                        className="gv-mono h-9 w-full rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-2 pl-8 pr-3 text-xs text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] outline-none ring-[color:var(--gv-accent)] focus:ring-2"
-                        aria-label="Tìm theo handle hoặc tên (server)"
-                      />
-                    </div>
-                    {tab === "pinned" ? (
-                      <Btn type="button" variant="ink" size="sm" disabled title="Sắp có">
-                        <Plus className="h-3 w-3" strokeWidth={2} aria-hidden />
-                        Ghim kênh
-                      </Btn>
-                    ) : (
-                      <Btn type="button" variant="ink" size="sm" disabled title="Sắp có">
-                        <Sparkles className="h-3 w-3" strokeWidth={1.75} aria-hidden />
-                        Gợi ý cho ngách của tôi
-                      </Btn>
-                    )}
-                  </>
-                }
-              >
-                <Chip size="sm" variant="accent" active>
-                  {nicheLabel}
-                </Chip>
-                {FOLLOWER_PRESETS.map(({ id, label }) => (
-                  <Chip
-                    key={id}
-                    size="sm"
-                    type="button"
-                    active={followerPreset === id}
-                    onClick={() => setFollowerPreset(followerPreset === id ? "" : id)}
-                  >
-                    {label}
-                  </Chip>
-                ))}
-                <Chip size="sm" type="button" disabled title="Corpus chưa gắn mã quốc gia — sắp có">
-                  Việt Nam
-                </Chip>
+            <FilterChipRow
+              trailing={
+                <>
+                  <div className="relative flex h-9 w-full min-w-[160px] max-w-[240px] items-center sm:w-[220px]">
+                    <Search
+                      className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[color:var(--gv-ink-4)]"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    <input
+                      value={searchQ}
+                      onChange={(e) => setSearchQ(e.target.value)}
+                      placeholder="Tìm @handle…"
+                      className="gv-mono h-9 w-full rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-2 pl-8 pr-3 text-xs text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] outline-none ring-[color:var(--gv-accent)] focus:ring-2"
+                      aria-label="Tìm theo handle hoặc tên (server)"
+                    />
+                  </div>
+                  {tab === "pinned" ? (
+                    <Btn type="button" variant="ink" size="sm" disabled title="Sắp có">
+                      <Plus className="h-3 w-3" strokeWidth={2} aria-hidden />
+                      Ghim kênh
+                    </Btn>
+                  ) : (
+                    <Btn type="button" variant="ink" size="sm" disabled title="Sắp có">
+                      <Sparkles className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                      Gợi ý cho ngách của tôi
+                    </Btn>
+                  )}
+                </>
+              }
+            >
+              <Chip size="sm" variant="accent" active>
+                {nicheLabel}
+              </Chip>
+              {FOLLOWER_PRESETS.map(({ id, label }) => (
                 <Chip
+                  key={id}
                   size="sm"
                   type="button"
-                  active={growthFast}
-                  onClick={toggleGrowthFast}
-                  title="Ưu tiên kênh view TB cao trong pool (proxy tăng trưởng)"
+                  active={followerPreset === id}
+                  onClick={() => setFollowerPreset(followerPreset === id ? "" : id)}
                 >
-                  Tăng trưởng nhanh
+                  {label}
                 </Chip>
-                <Chip size="sm" type="button" disabled title="Sắp có">
-                  + Thêm điều kiện
-                </Chip>
-              </FilterChipRow>
-            </div>
+              ))}
+              <Chip size="sm" type="button" disabled title="Corpus chưa gắn mã quốc gia — sắp có">
+                Việt Nam
+              </Chip>
+              <Chip
+                size="sm"
+                type="button"
+                active={growthFast}
+                onClick={toggleGrowthFast}
+                title="Ưu tiên kênh view TB cao trong pool (proxy tăng trưởng)"
+              >
+                Tăng trưởng nhanh
+              </Chip>
+              <Chip size="sm" type="button" disabled title="Sắp có">
+                + Thêm điều kiện
+              </Chip>
+            </FilterChipRow>
 
             <div className="grid grid-cols-1 gap-7 min-[1100px]:grid-cols-[1fr_380px] min-[1100px]:gap-7">
               <div className="min-w-0 overflow-x-auto">
