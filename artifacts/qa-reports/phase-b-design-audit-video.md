@@ -53,7 +53,7 @@
 
 | Reference | Shipped | Tier |
 |-----------|---------|------|
-| Client toggle switching fixtures | API-driven `data.mode` only | **Consider** — data-driven is correct for production; toggle only needed for design preview. |
+| Client toggle (win vs flop) | `Segmented` on `VideoScreen`; `?mode=` syncs URL; `useVideoAnalysis` sends `mode` on POST; `viewMode` drives layout while `data.mode` follows API | **Pass (shipped)** — heuristics remain default; explicit `mode` recomputes flop/win path per Cloud Run contract. |
 
 ### Primitives (RetentionCurve, Timeline, SectionMini, etc.)
 
