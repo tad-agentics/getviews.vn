@@ -1199,6 +1199,68 @@ async def video_analyze_endpoint(
     return JSONResponse(out)
 
 
+class KolTogglePinRequest(BaseModel):
+    handle: str = Field(..., min_length=1, max_length=200)
+
+
+@app.get("/kol/browse")
+async def kol_browse_endpoint(
+    user: dict = Depends(require_user),
+    tab: Literal["pinned", "discover"] = Query("discover"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    niche_id: int | None = Query(
+        None,
+        ge=1,
+        description="Optional; must equal caller profiles.primary_niche when set.",
+    ),
+) -> JSONResponse:
+    """B.2.1 — KOL browse rows + rule-based match_score (Phase B / B.0.2)."""
+    from getviews_pipeline.kol_browse import run_kol_browse_sync
+
+    token = user["access_token"]
+    sb = user_supabase(token)
+    nid = niche_id if niche_id is not None else await _resolve_caller_niche_id(token)
+    try:
+        out = await run_sync(
+            run_kol_browse_sync,
+            sb,
+            niche_id=int(nid),
+            tab=tab,
+            page=page,
+            page_size=page_size,
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        if "Chưa chọn ngách" in msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
+    except Exception as exc:
+        logger.exception("[kol/browse] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
+@app.post("/kol/toggle-pin")
+async def kol_toggle_pin_endpoint(
+    body: KolTogglePinRequest,
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """B.2.1 — toggle profiles.reference_channel_handles via Supabase RPC (cap 10)."""
+    from getviews_pipeline.kol_browse import normalize_handle
+
+    norm = normalize_handle(body.handle)
+    if not norm:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="handle rỗng")
+    sb = user_supabase(user["access_token"])
+    try:
+        sb.rpc("toggle_reference_channel", {"p_handle": norm}).execute()
+    except Exception as exc:
+        logger.exception("[kol/toggle-pin] failed handle=%s: %s", norm, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse({"ok": True})
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Home screen endpoints — Phase A · A1
 # ══════════════════════════════════════════════════════════════════════════
