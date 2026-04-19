@@ -113,10 +113,24 @@ export default defineConfig({
       registerType: "autoUpdate",
       manifest: false, // Use static public/manifest.json
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // React Router v7 client build writes here (not Vite default ``dist/``).
+        globDirectory: "build/client",
+        globPatterns: ["**/*.{js,mjs,css,html,ico,png,svg,webp,woff2,json}"],
         navigateFallback: "/index.html",
         navigateFallbackAllowlist: [/^\/app/],
         navigateFallbackDenylist: [/^\/api\//],
+        cleanupOutdatedCaches: true,
+        // Ensures Workbox always has a runtime strategy even if globs miss (Rolldown edge cases).
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts",
+              expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
       },
     }),
   ],

@@ -364,11 +364,12 @@ function VideoAnalysisBodyInner({
     const phases = data.hook_phases ?? [];
     const first = phases[0];
     const hookFromPhase = first ? `${first.label}: ${first.body}` : null;
+    const headlineHook = stringifyAnalysisHeadline(data.analysis_headline).trim();
     navigate(
       scriptPrefillFromVideo({
         niche_id: meta.niche_id,
         topic,
-        hook: hookFromPhase ?? stringifyAnalysisHeadline(data.analysis_headline).trim() || null,
+        hook: (hookFromPhase ?? headlineHook) || null,
         duration_sec: duration,
       }),
     );
