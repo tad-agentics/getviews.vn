@@ -17,6 +17,7 @@ export default [
     route("app/history", "routes/_app/history/route.tsx"),
     route("app/trends", "routes/_app/trends/route.tsx"),
     route("app/video", "routes/_app/video/route.tsx"),
+    route("app/channel", "routes/_app/channel/route.tsx"),
     route("app/kol", "routes/_app/kol/route.tsx"),
     route("app/settings", "routes/_app/settings/route.tsx"),
     route("app/learn-more", "routes/_app/learn-more/route.tsx"),

@@ -36,6 +36,8 @@ export interface VideoKpi {
   label: string;
   value: string;
   delta: string;
+  /** Optional Tailwind classes for the delta line (e.g. negative MoM). */
+  deltaClassName?: string;
 }
 
 export interface VideoSegment {
