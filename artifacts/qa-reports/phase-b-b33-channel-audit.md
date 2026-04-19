@@ -40,3 +40,5 @@
 **B.3.3 functional requirements:** met (route, JWT GET wiring, `FormulaBar`, thin gate, `KpiGrid`, top videos → `/app/video`, lessons).  
 **Gaps closed above:** thin empty typography/copy; posting chip join string.  
 **B.3.4 (same rollout):** chat no longer streams `competitor_profile` / `own_channel` for new sends — navigates to `/app/channel` (handle from message, profile `tiktok_handle`, or empty). Empty-state **Soi Kênh** modal + home **QuickActions** “Soi kênh đối thủ” → `/app/channel`. KOL **Phân tích kênh đầy đủ** → `/app/channel?handle=…`. Helpers in `src/lib/channelHandle.ts` + Vitest coverage.
+
+**Re-verify (B.3.5 pass):** Must-fix rows in this file were confirmed still satisfied in `FormulaBar.tsx` + `ChannelScreen.tsx` before closing B.3.5; full design audit + any extra parity fixes live in [`phase-b-design-audit-channel.md`](phase-b-design-audit-channel.md).

@@ -118,7 +118,7 @@ export default function ChannelScreen() {
         }
       />
       <main className="gv-route-main gv-route-main--1280">
-        <div className="mb-5">
+        <div className="mb-[18px]">
           <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app")}>
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             Về Studio
@@ -240,8 +240,8 @@ function ChannelBody({
         </Btn>
       </form>
 
-      {/* Hero — ref channel.jsx ch-hero */}
-      <div className="ch-hero grid gap-8 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-7 min-[900px]:grid-cols-2">
+      {/* Hero — ref channel.jsx ch-hero (padding 28×32, radius 12, gap 32) */}
+      <div className="ch-hero grid gap-8 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-8 py-7 min-[900px]:grid-cols-2">
         <div>
           <div className="gv-uc mb-2.5 text-[9.5px] text-[color:var(--gv-ink-4)]">{nicheKicker}</div>
           <div className="mb-3.5 flex items-center gap-4">
@@ -267,7 +267,7 @@ function ChannelBody({
           ) : (
             <p className="text-sm text-[color:var(--gv-ink-4)]">Chưa có bio trong corpus.</p>
           )}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-[18px] flex flex-wrap gap-2">
             {postingChip ? (
               <Chip size="md" variant="default">
                 Đăng {postingChip}
@@ -289,7 +289,7 @@ function ChannelBody({
       <section>
         <SectionMini
           kicker="CÔNG THỨC PHÁT HIỆN"
-          title={`"${data.name || data.handle} Formula" — các bước lặp lại`}
+          title={`"${data.name || data.handle} Formula" — 4 bước lặp đi lặp lại`}
         />
         <FormulaBar steps={data.formula} formulaGate={data.formula_gate} />
       </section>
@@ -297,7 +297,7 @@ function ChannelBody({
       {/* Two col — ref ch-grid */}
       <div className="ch-grid grid gap-8 min-[900px]:grid-cols-2">
         <div>
-          <SectionMini kicker="VIDEO ĐỈNH" title="Top video gây tiếng vang" />
+          <SectionMini kicker="VIDEO ĐỈNH" title="Top 4 video gây tiếng vang" />
           <div className="grid grid-cols-2 gap-3">
             {data.top_videos.slice(0, 4).map((v) => (
               <Link

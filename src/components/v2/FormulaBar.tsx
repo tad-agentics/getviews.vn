@@ -23,7 +23,7 @@ export function FormulaBar({ steps, formulaGate, className = "" }: FormulaBarPro
 
   return (
     <div
-      className={`flex h-20 overflow-hidden rounded-lg border border-[color:var(--gv-ink)] ${className}`.trim()}
+      className={`flex h-20 overflow-hidden rounded-[8px] border border-[color:var(--gv-ink)] ${className}`.trim()}
       role="region"
       aria-label="Công thức phát hiện"
     >
