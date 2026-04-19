@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Bookmark, ChevronLeft, ChevronRight, Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -180,6 +180,12 @@ export default function KolScreen() {
     const i = rows.findIndex((r) => r.handle === focused.handle);
     return i >= 0 ? i : 0;
   }, [rows, focused]);
+
+  const openChannelAnalyze = useCallback(() => {
+    const h = focused?.handle?.trim();
+    if (!h) return;
+    navigate(`/app/channel?handle=${encodeURIComponent(h)}`);
+  }, [focused?.handle, navigate]);
 
   useEffect(() => {
     if (!browse.isSuccess || !browse.data || nicheId == null) return;
@@ -553,7 +559,8 @@ export default function KolScreen() {
                   isPinned={isPinned}
                   pinPending={togglePin.isPending}
                   onTogglePin={() => void handleTogglePin()}
-                  onChannel={() => {}}
+                  channelEnabled
+                  onChannel={openChannelAnalyze}
                   onScript={() => {}}
                 />
               </div>
@@ -567,7 +574,8 @@ export default function KolScreen() {
                 pinPending={togglePin.isPending}
                 sticky={false}
                 onTogglePin={() => void handleTogglePin()}
-                onChannel={() => {}}
+                channelEnabled
+                onChannel={openChannelAnalyze}
                 onScript={() => {}}
               />
             </div>

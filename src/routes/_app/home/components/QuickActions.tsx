@@ -12,7 +12,7 @@ import { SectionHeader } from "@/components/v2/SectionHeader";
  * numeric badge (01..06), `.tight` title + short description.
  *
  * Six "cửa" (doors) the creator can walk through. Tìm KOL → `/app/kol` (B.2.3).
- * Tư vấn still routes into chat until Answer screen ships.
+ * Soi kênh đối thủ → `/app/channel` (B.3.4). Tư vấn still routes into chat until Answer screen ships.
  */
 
 type ActionId = "video" | "channel" | "trends" | "script" | "kol" | "consult";
@@ -33,7 +33,7 @@ const ACTIONS: ReadonlyArray<{
 
 const ROUTE: Record<ActionId, string> = {
   video:   "/app/video",
-  channel: "/app/chat",
+  channel: "/app/channel",
   trends:  "/app/trends",
   script:  "/app/chat",
   kol:     "/app/kol",

@@ -3,8 +3,9 @@ import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Live-site audit for the four chat-modal quick-action cards on the empty
- * chat screen. Soi Video → `/app/video` and Tìm KOL → `/app/kol` (B.2.3) use
+ * Live-site audit for chat-modal quick-action cards on the empty chat screen
+ * (excluding Soi Kênh — B.3.4 routes that flow to `/app/channel`, see dedicated
+ * test below). Soi Video → `/app/video` and Tìm KOL → `/app/kol` (B.2.3) use
  * separate navigation tests — no modal / no chat stream for those.
  *
  * Captures per-stage pipeline timings so you can see where latency/errors
@@ -33,7 +34,7 @@ const INPUTS = {
   tuVanNiche: "review đồ skincare",
 };
 
-type ActionKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tu-van";
+type ActionKey = "xu-huong" | "kich-ban" | "tu-van";
 
 const ACTIONS: Array<{
   key: ActionKey;
@@ -43,17 +44,6 @@ const ACTIONS: Array<{
   expectedFree: boolean;
   contentChecks: RegExp[];
 }> = [
-  {
-    key: "soi-kenh",
-    cardTitle: "Soi Kênh Đối Thủ",
-    fillValue: INPUTS.soiKenhHandle,
-    // KNOWN GAP: when user types @handle (not URL), detectIntent routes to
-    // own_channel instead of competitor_profile because "soi kênh" matches
-    // the ownChannelHandle regex (ChatScreen.tsx:76). Recorded, not failed.
-    expectedIntent: "competitor_profile",
-    expectedFree: false,
-    contentChecks: [/(công thức|pattern|format)/i, /hook/i],
-  },
   {
     key: "xu-huong",
     cardTitle: "Xu Hướng Tuần Này",
@@ -555,14 +545,11 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
   row.stages.first_to_done = diff(T.first_frame, T.done_frame ?? T.stream_end);
 
   // Wait for the assistant bubble to settle in the DOM.
-  // Competitor profile (and similar) pipelines can keep the DOM quiet for a
-  // long window. Use a longer deadline and stability window for those intents.
-  const isVideoIntent = spec.expectedIntent === "competitor_profile";
   const bodyLocator = page.locator("main, body").first();
   let lastLen = 0;
   let stableFor = 0;
-  const domDeadline = Date.now() + (isVideoIntent ? 60_000 : 10_000);
-  const stableThreshold = isVideoIntent ? 5_000 : 1_500;
+  const domDeadline = Date.now() + 10_000;
+  const stableThreshold = 1_500;
   while (Date.now() < domDeadline) {
     const txt = await bodyLocator.innerText();
     if (txt.length > lastLen) {
@@ -646,6 +633,40 @@ test("quick-action: Soi Video navigates to /app/video (no chat modal)", async ({
   await expect(page.getByText(/Soi video trong corpus|Dán link TikTok/i).first()).toBeVisible({
     timeout: 15_000,
   });
+});
+
+test("quick-action: Soi Kênh Đối Thủ modal navigates to /app/channel (B.3.4)", async ({ page }) => {
+  await page.goto("/app");
+  await page.waitForLoadState("domcontentloaded");
+  const newChatButton = page
+    .getByRole("button", { name: /new chat|chat mới|\+/i })
+    .or(page.locator('[data-testid="new-chat"]'))
+    .or(page.locator('a[href="/app"]'))
+    .first();
+  if (await newChatButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await newChatButton.click();
+    await page.waitForURL(/\/app(\?.*)?$/, { timeout: 5_000 }).catch(() => {});
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const visible = await page
+      .locator("text=Thao tác nhanh")
+      .first()
+      .isVisible({ timeout: 6_000 })
+      .catch(() => false);
+    if (visible) break;
+    await page.goto("/app");
+    await page.waitForLoadState("domcontentloaded");
+  }
+  await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible({ timeout: 15_000 });
+  const quickActionsSection = page.locator("text=Thao tác nhanh").first().locator("..").locator("..");
+  await quickActionsSection.getByRole("button", { name: /Soi Kênh Đối Thủ/i }).first().click();
+  await expect(page.getByRole("heading", { name: /Soi Kênh Đối Thủ/i })).toBeVisible({ timeout: 20_000 });
+  await page.locator('input[type="text"], textarea').first().fill(INPUTS.soiKenhHandle);
+  await page.getByRole("button", { name: /^Tiếp tục$/i }).click();
+  await expect(page).toHaveURL(/\/app\/channel\?handle=/);
+  await expect(
+    page.getByText(/Phân Tích Kênh|Soi kênh trong corpus|Đang tải phân tích kênh/i).first(),
+  ).toBeVisible({ timeout: 20_000 });
 });
 
 test("quick-action: Tìm KOL / Creator navigates to /app/kol (no chat modal, B.2.3)", async ({ page }) => {

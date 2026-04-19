@@ -42,6 +42,7 @@ import {
 } from "@/routes/_app/components/PatternSpreadStrip";
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer";
 import { AgentStepLogger } from "@/components/chat/AgentStepLogger";
+import { extractChannelHandleFromMessage, normalizeChannelHandleInput } from "@/lib/channelHandle";
 import { detectIntent } from "@/routes/_app/intent-router";
 
 type ChatMsg = {
@@ -445,17 +446,35 @@ export default function ChatScreen() {
         // Pre-flight: downgrade structural intents when required URL/handle is absent,
         // so Gemini asks a clarifying question instead of failing in Cloud Run.
         const hasUrl = /https?:\/\/[^\s]*tiktok\.com/i.test(trimmed);
-        const hasHandle = /@\w/.test(trimmed);
-        // own_channel is Tier 2 keyword-detected (no structural signal required),
-        // so it can fire without a URL or handle — downgrade to follow_up so Gemini asks.
-        if (intentType === "own_channel" && !hasUrl && !hasHandle) {
-          intentType = "follow_up";
-          isFree = true;
-        }
         if (intentType === "video_diagnosis" && !hasUrl) {
           intentType = "follow_up";
           isFree = true;
         }
+      }
+
+      // B.3.4 — channel deep-dive lives on `/app/channel`; do not bill chat for these intents.
+      if (!isResume && intentType === "competitor_profile") {
+        const h = extractChannelHandleFromMessage(trimmed);
+        if (h) {
+          navigate(`/app/channel?handle=${encodeURIComponent(h)}`);
+          reset();
+          return;
+        }
+        intentType = "follow_up";
+        isFree = true;
+      }
+      if (!isResume && intentType === "own_channel") {
+        const fromMsg = extractChannelHandleFromMessage(trimmed);
+        const selfHandle = normalizeChannelHandleInput(
+          profile && typeof profile === "object" && "tiktok_handle" in profile
+            ? (profile as { tiktok_handle?: string | null }).tiktok_handle
+            : null,
+        );
+        const h = fromMsg ?? selfHandle;
+        if (h) navigate(`/app/channel?handle=${encodeURIComponent(h)}`);
+        else navigate("/app/channel");
+        reset();
+        return;
       }
 
       if (!isFree && credits <= 0) {
@@ -515,6 +534,8 @@ export default function ChatScreen() {
       stream,
       refetchSession,
       reset,
+      navigate,
+      profile,
     ],
   );
 

@@ -42,8 +42,10 @@ export function FormulaBar({ steps, formulaGate, className = "" }: FormulaBarPro
         ))
       ) : (
         <div className="flex flex-1 items-center justify-center bg-[color:var(--gv-canvas-2)] px-4">
-          <p className="gv-mono m-0 text-center text-[11px] text-[color:var(--gv-ink-3)]">
-            {formulaGate === "thin_corpus" ? "Chưa đủ video" : "Chưa có công thức"}
+          <p className="gv-mono m-0 text-center text-[11px] text-[color:var(--gv-ink-4)]">
+            {formulaGate === "thin_corpus"
+              ? "Chưa đủ video để dựng công thức"
+              : "Chưa có công thức"}
           </p>
         </div>
       )}

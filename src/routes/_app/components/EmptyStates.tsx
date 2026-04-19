@@ -12,6 +12,7 @@ import { memo, useState, useRef, useEffect, type ElementType } from "react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router";
 import { ArrowUp, Database, BarChart2, Search, TrendingUp, Users, Video } from "lucide-react";
+import { extractChannelHandleFromMessage } from "@/lib/channelHandle";
 import { PromptCards } from "@/routes/_app/components/PromptCards";
 import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 import { NicheSelector } from "@/routes/_app/components/NicheSelector";
@@ -95,7 +96,13 @@ export const MobileEmptyState = memo(function MobileEmptyState({
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const handleModalContinue = (prompt: string) => {
+    const key = activeModal;
     setActiveModal(null);
+    if (key === "soi-kenh") {
+      const h = extractChannelHandleFromMessage(prompt);
+      navigate(h ? `/app/channel?handle=${encodeURIComponent(h)}` : "/app/channel");
+      return;
+    }
     onSelectPrompt(prompt);
   };
 
@@ -220,7 +227,13 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
   };
 
   const handleModalContinue = (prompt: string) => {
+    const key = activeModal;
     setActiveModal(null);
+    if (key === "soi-kenh") {
+      const h = extractChannelHandleFromMessage(prompt);
+      navigate(h ? `/app/channel?handle=${encodeURIComponent(h)}` : "/app/channel");
+      return;
+    }
     onSend(prompt);
   };
 

@@ -49,7 +49,7 @@ export function KolStickyDetailCard({
   /** When false, omit sticky positioning (e.g. mobile duplicate below table). */
   sticky?: boolean;
   className?: string;
-  /** B.3 / B.4 routes not shipped yet — buttons stay disabled when false. */
+  /** B.3.4 — `/app/channel` shipped; keep false to hide until product wants it off. */
   channelEnabled?: boolean;
   scriptEnabled?: boolean;
   /** Row index in the visible table (0..n); drives same avatar token as `SortableCreatorsTable`. */

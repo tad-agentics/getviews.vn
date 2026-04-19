@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChannelAnalyzeResponse } from "@/lib/api-types";
+import { normalizeChannelHandleInput } from "@/lib/channelHandle";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
 /** Strip @ and whitespace for cache keys and API query. */
 export function channelAnalyzeHandleKey(handle: string | null | undefined): string | null {
-  const h = (handle ?? "").trim().replace(/^@+/, "");
-  return h || null;
+  return normalizeChannelHandleInput(handle);
 }
 
 export type UseChannelAnalyzeOptions = {

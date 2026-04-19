@@ -14,6 +14,10 @@
  * Extracted from ChatScreen.tsx so the routing logic is unit-testable without
  * mounting the chat component. Lives here (not src/lib) because it's only used
  * by the app route — pathwise co-location.
+ *
+ * **B.3.4:** ``competitor_profile`` / ``own_channel`` are still detected here for
+ * tests and clarity, but ChatScreen short-circuits sends to ``/app/channel``
+ * instead of the paid chat / Cloud Run channel pipelines.
  */
 
 export type IntentDecision = {

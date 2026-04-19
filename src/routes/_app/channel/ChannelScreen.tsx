@@ -24,6 +24,15 @@ function engagementDisplay(pct: number): string {
   return `${v.toFixed(1)}%`;
 }
 
+function postingCadenceChipText(cadence: string | null, time: string | null): string | null {
+  const c = cadence?.trim();
+  const t = time?.trim();
+  if (c && t) return `${c} · ${t}`;
+  if (c) return c;
+  if (t) return t;
+  return null;
+}
+
 function kpiDeltaClassName(delta: string): string | undefined {
   const base = "gv-mono mt-1.5 text-[10px]";
   if (/↓|−/.test(delta) || /-\s*\d/.test(delta)) {
@@ -200,6 +209,10 @@ function ChannelBody({
     : "HỒ SƠ KÊNH";
   const at = handleDisplay.startsWith("@") ? handleDisplay : `@${handleDisplay}`;
   const kpis = useMemo(() => mapChannelKpis(data), [data]);
+  const postingChip = useMemo(
+    () => postingCadenceChipText(data.posting_cadence, data.posting_time),
+    [data.posting_cadence, data.posting_time],
+  );
 
   return (
     <div className="flex flex-col gap-7">
@@ -255,9 +268,9 @@ function ChannelBody({
             <p className="text-sm text-[color:var(--gv-ink-4)]">Chưa có bio trong corpus.</p>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
-            {data.posting_cadence ? (
+            {postingChip ? (
               <Chip size="md" variant="default">
-                Đăng {data.posting_cadence}
+                Đăng {postingChip}
               </Chip>
             ) : null}
             <Chip size="md" variant="accent">
