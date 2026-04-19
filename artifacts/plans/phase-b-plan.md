@@ -353,8 +353,12 @@ Service-role writes only. No RLS INSERT policy. Authenticated users may read.
 5. **B.1.5** (2d) — Flop mode + URL input flow (reuse prefillUrl pattern)
 6. **B.1.6** (1d) — retire `video_diagnosis` chat CTA; "Soi video"
    quick-action routes to `/app/video`
-7. **B.1.7** (1d) — design-audit pass: pixel-compare against `video.jsx`
-   reference, fix spacing/color/font regressions before merging PR
+7. **B.1.7** (1d) — **Design audit** — compare shipped `/app/video` against
+   `video.jsx` section-by-section: primitives, tokens, kickers, spacing,
+   copy, responsive behaviour (900px breakpoint). Produce
+   `artifacts/qa-reports/phase-b-design-audit-video.md` with `must-fix /
+   should-fix / consider` tiers. Ship all must-fix items before closing B.1.
+   **Non-negotiable: B.1 cannot close without a green audit report.**
 
 ### B.1 checkpoint (measure for 2 weeks post-ship)
 
@@ -511,7 +515,12 @@ $$;
    detail card + tab switching + toggle-pin mutation
 3. **B.2.3** (1d) — retire `find_creators` / `creator_search` chat CTA;
    "Tìm KOL" quick-action routes to `/app/kol`
-4. **B.2.4** (0.5d) — design-audit pass against `kol.jsx` reference
+4. **B.2.4** (1d) — **Design audit** — compare shipped `/app/kol` against
+   `kol.jsx` section-by-section: primitives, tokens, kickers, spacing, copy,
+   responsive behaviour (1100px breakpoint). Produce
+   `artifacts/qa-reports/phase-b-design-audit-kol.md` with `must-fix /
+   should-fix / consider` tiers. Ship all must-fix items before closing B.2.
+   **Non-negotiable: B.2 cannot close without a green audit report.**
 
 ---
 
@@ -637,7 +646,12 @@ half-computed bar.
    thin-corpus empty state + data wiring
 4. **B.3.4** (2d) — retire `competitor_profile` + `own_channel` chat CTAs;
    "Soi Kênh" quick-action routes to `/channel`
-5. **B.3.5** (1d) — design-audit pass against `channel.jsx` reference
+5. **B.3.5** (1d) — **Design audit** — compare shipped `/app/channel` against
+   `channel.jsx` section-by-section: primitives, tokens, kickers, spacing,
+   copy, responsive behaviour (900px breakpoint). Produce
+   `artifacts/qa-reports/phase-b-design-audit-channel.md` with `must-fix /
+   should-fix / consider` tiers. Ship all must-fix items before closing B.3.
+   **Non-negotiable: B.3 cannot close without a green audit report.**
 
 ---
 
@@ -827,7 +841,12 @@ Mapped to `HOOKS` fixture: `{pattern, delta, uses, avg}`.
 4. **B.4.4** (2d) — morning-ritual → `/script` prefill (hook + niche)
 5. **B.4.5** (2d) — `/channel` → `/script` formula prefill; retire
    `shot_list` chat CTA
-6. **B.4.6** (1d) — design-audit pass against `script.jsx` reference
+6. **B.4.6** (1d) — **Design audit** — compare shipped `/app/script` against
+   `script.jsx` section-by-section: primitives, tokens, kickers, spacing,
+   copy, responsive behaviour (1240px and 880px breakpoints). Produce
+   `artifacts/qa-reports/phase-b-design-audit-script.md` with `must-fix /
+   should-fix / consider` tiers. Ship all must-fix items before closing B.4.
+   **Non-negotiable: B.4 cannot close without a green audit report.**
 
 ---
 
