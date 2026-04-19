@@ -39,13 +39,17 @@ export function scriptPrefillFromChannel(data: {
 
 /** Path + query from a winning video analysis screen. */
 export function scriptPrefillFromVideo(opts: {
-  niche_id: number;
+  /** When omitted (default for video → script), URL has no ``niche_id`` — ``ScriptScreen`` uses ``profiles.primary_niche``. */
+  niche_id?: number | null;
   topic: string;
   hook?: string | null;
   duration_sec?: number | null;
 }): string {
   const qs = new URLSearchParams();
-  qs.set("niche_id", String(opts.niche_id));
+  const nid = opts.niche_id;
+  if (nid != null && Number.isFinite(nid) && nid > 0) {
+    qs.set("niche_id", String(Math.trunc(nid)));
+  }
   const topic = opts.topic.trim().slice(0, 500) || "Kịch bản từ video";
   qs.set("topic", topic);
   appendHookAndDuration(qs, opts.hook, opts.duration_sec ?? null);

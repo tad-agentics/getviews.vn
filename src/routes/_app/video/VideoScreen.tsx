@@ -367,7 +367,6 @@ function VideoAnalysisBodyInner({
     const headlineHook = stringifyAnalysisHeadline(data.analysis_headline).trim();
     navigate(
       scriptPrefillFromVideo({
-        niche_id: meta.niche_id,
         topic,
         hook: (hookFromPhase ?? headlineHook) || null,
         duration_sec: duration,

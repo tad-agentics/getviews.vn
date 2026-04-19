@@ -76,8 +76,8 @@ accent doubles as the "down" colour).
 
 **TikTok Sans** is the primary UI sans: variable + static `@font-face` rules
 at the top of `src/app.css` (files under `public/fonts/`). **Inter** loads from
-Google Fonts in `app/root.tsx` as a fallback. **JetBrains Mono** loads via
-`@import` in the Phase A block of `app.css` for `--gv-font-mono`.
+Google Fonts in `app/root.tsx` as a fallback. **JetBrains Mono** loads via `@import` on the **first** line of `src/app.css`
+(before `@import "tailwindcss"`) so the stylesheet stays valid CSS.
 
 | Token / class | Stack |
 |---|---|

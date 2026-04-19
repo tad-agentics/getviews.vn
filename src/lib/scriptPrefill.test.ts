@@ -51,4 +51,14 @@ describe("scriptPrefillFromVideo", () => {
     expect((qs.get("topic") ?? "").length).toBe(500);
     expect(qs.get("duration")).toBe("58");
   });
+
+  it("omits niche_id when not provided", () => {
+    const path = scriptPrefillFromVideo({
+      topic: "Chủ đề",
+      hook: null,
+    });
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("niche_id")).toBeNull();
+    expect(qs.get("topic")).toBe("Chủ đề");
+  });
 });
