@@ -282,7 +282,7 @@ Source fixture: `VIDEOS[10]` + inline literals in `video.jsx`.
 | `{ label:'SAVE RATE', value:'2.9%', delta:'rất cao' }` | `kpis[2]: {label, value, delta}` — `saves/views`, delta label is client-side tier ('rất cao' if > 2%) | `video_corpus.saves / views` |
 | `{ label:'SHARE', value:'4.2K', delta:'lan ra Threads' }` | `kpis[3]: {label, value, delta}` — `meta.shares`; delta text is **LLM-generated** bounded string, cached | `video_corpus.shares` + Gemini |
 | Timeline `segs[]` `{name, pct, color}` (8 segments) | `segments[]: {name, pct, color_key}` — color_key maps to CSS var client-side | `video_diagnostics.segments` ← `decompose_segments(analysis_json.scenes[])` |
-| Hook phase cards `{t, label, body}` × 3 | `hook_phases[]: {t_range, label, body}` | `video_diagnostics.hook_phases` ← `extract_hook_phases(analysis_json)` |
+| Hook phase cards `{t, label, body}` × 3 | `hook_phases[]: {t_range, label, body}` | `video_diagnostics.hook_phases` ← `extract_hook_phases` (deterministic `t_range`/`label` + bounded LLM `body`) |
 | Lessons `[title, body]` × 3 | `lessons[]: {title, body}` | `video_diagnostics.lessons` ← Gemini win-mode, cached |
 | Analysis headline ("Tại sao … lại nổ?") | `analysis_headline` | `video_diagnostics.analysis_headline` ← Gemini |
 | Analysis subtext (15px ink-3) | `analysis_subtext` | `video_diagnostics.analysis_subtext` ← Gemini |
@@ -328,14 +328,17 @@ Service-role writes only. No RLS INSERT policy. Authenticated users may read.
 
 - `decompose_segments(analysis_json)` → list of `{name, pct, color_key}`
   from `scenes[]` timestamps. Pure deterministic.
-- `extract_hook_phases(analysis_json)` → 3 `{t_range, label, body}` cards
-  from `hook_analysis` + `scenes[0]`. Gemini labels body text only.
+- `extract_hook_phases(analysis_json)` → 3 `{t_range, label, body}` cards:
+  `t_range` + `label` from structured `hook_analysis` + `scenes[0]`
+  (deterministic); **`body`** is the only LLM-filled slot here (bounded
+  Vietnamese blurbs, same `video_diagnostics` write path as win copy).
 - `model_retention_curve(views, breakout_multiplier, niche_benchmark)` →
   20-point curve. Parameterized sigmoid anchored to known drop-off zones.
 - `diagnose_flop(video_data, niche_benchmark)` → Gemini call with pydantic
   schema. Only fires when flop threshold met.
 - `generate_win_analysis(video_data, corpus_context)` → Gemini call for
-  headline + subtext + 3 lessons. Cached in `video_diagnostics`.
+  **analysis headline + subtext + 3 lesson rows only** — not hook phase
+  cards (those are `extract_hook_phases`). Cached in `video_diagnostics`.
 
 ### New Cloud Run endpoints
 
@@ -369,12 +372,12 @@ Service-role writes only. No RLS INSERT policy. Authenticated users may read.
 - Reads `?url=` or `?video_id=` query param (prefillUrl pattern from Chat)
 - TanStack Query key: `['video-analysis', videoIdOrUrl]`
 - `staleTime: 1000 * 60 * 60` (1h — diagnostics don't change by the hour)
-- New primitives needed:
-  - `RetentionCurveSVG` — SVG component, two paths, annotation text,
-    timestamp axis. Exact viewBox `0 0 400 80`.
-  - `TimelineBar` — flex bar with named segments, color_key → CSS var map,
-    timestamp labels below.
-  - `IssueCard` — grid `80px 1fr auto`, left-border severity indicator.
+- New primitives needed (names align with `### New design primitives`):
+  - `RetentionCurve` — two curves + annotations; `viewBox="0 0 400 80"`,
+    height 80px.
+  - `Timeline` — 8-segment flex bar, `color_key` → CSS var, timestamps below.
+  - `HookPhaseCard` — win mode 3-card hook grid (composed from `Card`).
+  - `IssueCard` — flop mode issue row, grid `80px 1fr auto`, severity border.
   - `KpiGrid` — `repeat(auto-fit, minmax(140px, 1fr))`, shared with
     later screens.
   - `SectionMini` — already in `video.jsx`: kicker + title +
@@ -390,7 +393,7 @@ blocked on primitives.
 
 | Component | Description | Source |
 |---|---|---|
-| `RetentionCurve` | 280×60 SVG, area fill + polyline for your video, niche benchmark as dashed overlay curve. viewBox `0 0 400 80`. | `video.jsx` `FlopDiagnostic` |
+| `RetentionCurve` | SVG: `viewBox="0 0 400 80"`, rendered height 80px — area fill + polyline (video) + dashed overlay (niche benchmark), matching `video.jsx` `FlopDiagnostic`. | `video.jsx` `FlopDiagnostic` |
 | `Timeline` | 8-segment horizontal flex bar, `color_key` → CSS var map, pct labels per segment, timestamp axis below. | `video.jsx` `WinAnalysis` |
 | `HookPhaseCard` | 3-card grid (0–0.8s / 0.8–1.8s / 1.8–3s), each card: `t_range` kicker + label + body text. | `video.jsx` |
 | `KpiGrid` | 2×2 grid, ink-filled or paper per design token. Shared with B.3. | `video.jsx` |
@@ -1049,9 +1052,10 @@ Source fixtures: `HOOKS[]` in `data.js` + inline literals in `script.jsx`.
 
 ### Endpoints
 
-- `POST /script/generate` — body `{hook, hook_delay_ms, duration, tone,
-  niche_id}`. Returns shot list + pacing data + forecast. Auth-required,
-  credit deducted.
+- `POST /script/generate` — body `{topic, hook, hook_delay_ms, duration,
+  tone, niche_id}`. Returns shot list + pacing inputs (`shots[]` with
+  `t0`/`t1`/`cam`/`voice`/`viz`/`overlay`); **ForecastBar numbers stay
+  client-only** (see Fixture mapping). Auth-required, credit deducted.
 - `GET /script/scene-intelligence?niche_id=X` — all scene types for the
   niche. Cached; refreshed nightly.
 - `GET /script/hook-patterns?niche_id=X` — from `hook_effectiveness`,
@@ -1090,8 +1094,9 @@ Reuses from B.1: `KpiGrid`. Reuses from B.2: `FilterChipRow` (chip row for tone 
 
 1. **B.4.1** (3d) — `scene_intelligence` migration + nightly batch job +
    aggregation from `video_corpus.analysis_json.scenes[]` + tests
-2. **B.4.2** (2d) — `/script/scene-intelligence` endpoint + forecast formula
-   + `/script/hook-patterns` endpoint
+2. **B.4.2** (2d) — `/script/scene-intelligence` + `/script/hook-patterns`
+   endpoints; document ForecastBar math in `api-types.ts` (client-only —
+   no forecast API)
 3. **B.4.3** (5d) — 3-col layout + pacing ribbon (deterministic, no API) +
    shot row editor + scene intelligence panel (on-hover, reads cached
    `scene_intelligence`) + overlay library
