@@ -34,3 +34,5 @@
 | S-4 | `61264fe` | Tone field removed end-to-end; `MatchScoreBar.test.tsx` added. |
 
 **Earlier B.2 screen + API baseline:** `7d77a80` — `feat(kol): ship Phase B.2 Kênh Tham Chiếu screen and API` (browse, toggle-pin, `KolScreen` v1, Playwright B.2.3, audits).
+
+**Doc-only follow-up:** `a8e3855` — `docs(kol): align supplementary bundle SHA with parity commit` (tables above reference **`61264fe`**; no code changes).
