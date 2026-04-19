@@ -30,13 +30,8 @@ export function TopBar({
       ].filter(Boolean).join(" ")}
     >
       <div className="min-w-0">
-        <p className="gv-mono text-[9.5px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
-          {kicker}
-        </p>
-        <p
-          className="gv-tight mt-0.5 truncate text-[19px] md:text-[24px] leading-none text-[color:var(--gv-ink)]"
-          style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.03em" }}
-        >
+        <p className="gv-uc mb-[3px] text-[9.5px] text-[color:var(--gv-ink-4)]">{kicker}</p>
+        <p className="gv-tight mt-0 truncate text-[19px] leading-none tracking-[-0.03em] text-[color:var(--gv-ink)] md:text-[24px]">
           {title}
         </p>
       </div>

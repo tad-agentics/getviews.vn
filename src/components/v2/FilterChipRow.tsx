@@ -23,9 +23,7 @@ export function FilterChipRow({
     >
       <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-[10px]">
         {label ? (
-          <span className="gv-mono shrink-0 text-[9px] font-medium uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
-            {label}
-          </span>
+          <span className="gv-uc shrink-0 text-[9px] text-[color:var(--gv-ink-4)]">{label}</span>
         ) : null}
         {children}
       </div>

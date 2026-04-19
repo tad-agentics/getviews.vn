@@ -54,7 +54,7 @@ export function RetentionCurve({
     <div
       className={`border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[18px] ${className}`.trim()}
     >
-      <div className="gv-mono mb-3 text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <div className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
         {kickerPrimary}
       </div>
       <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="h-20 w-full" role="img" aria-label="Biểu đồ giữ chân">

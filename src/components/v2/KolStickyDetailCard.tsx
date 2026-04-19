@@ -90,27 +90,25 @@ export function KolStickyDetailCard({
 
         <div className="mb-4 grid grid-cols-2 gap-3.5 rounded-lg bg-[color:var(--gv-canvas-2)] p-3.5">
           <div>
-            <div className="gv-mono text-[9px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">NGÁCH</div>
+            <div className="gv-uc text-[9px] text-[color:var(--gv-ink-4)]">NGÁCH</div>
             <div className="mt-0.5 text-[13px] text-[color:var(--gv-ink)]">{row.niche_label ?? "—"}</div>
           </div>
           <div>
-            <div className="gv-mono text-[9px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">FOLLOW</div>
+            <div className="gv-uc text-[9px] text-[color:var(--gv-ink-4)]">FOLLOW</div>
             <div className="mt-0.5 text-[13px] text-[color:var(--gv-ink)]">{formatCompactVi(row.followers)}</div>
           </div>
           <div>
-            <div className="gv-mono text-[9px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">VIEW TB</div>
+            <div className="gv-uc text-[9px] text-[color:var(--gv-ink-4)]">VIEW TB</div>
             <div className="mt-0.5 text-[13px] text-[color:var(--gv-ink)]">{formatCompactVi(row.avg_views)}</div>
           </div>
           <div>
-            <div className="gv-mono text-[9px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">TĂNG 30D</div>
+            <div className="gv-uc text-[9px] text-[color:var(--gv-ink-4)]">TĂNG 30D</div>
             <div className="mt-0.5 text-[13px] font-medium text-[color:var(--gv-pos-deep)]">{growthLabel(row.growth_30d_pct)}</div>
           </div>
         </div>
 
         <div className="mb-3.5">
-          <div className="gv-mono mb-1.5 text-[9px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
-            ĐỘ KHỚP NGÁCH BẠN
-          </div>
+          <div className="gv-uc mb-1.5 text-[9px] text-[color:var(--gv-ink-4)]">ĐỘ KHỚP NGÁCH BẠN</div>
           <div className="flex flex-wrap items-start gap-2.5">
             <div className="gv-tight text-[36px] leading-none text-[color:var(--gv-accent)]">
               {Math.round(row.match_score)}

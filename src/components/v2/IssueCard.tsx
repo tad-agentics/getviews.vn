@@ -42,9 +42,7 @@ export function IssueCard({ issue, onApplyToScript, className = "" }: IssueCardP
         </h4>
         <p className="mt-1.5 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">{issue.detail}</p>
         <div className="mt-2 inline-block bg-[color:var(--gv-canvas-2)] px-2.5 py-1.5 text-xs text-[color:var(--gv-ink-2)]">
-          <span className="gv-mono mr-1.5 text-[9px] uppercase tracking-[0.14em] text-[color:var(--gv-accent)]">
-            Fix
-          </span>
+          <span className="gv-uc mr-1.5 text-[9px] text-[color:var(--gv-accent)]">Fix</span>
           {issue.fix}
         </div>
       </div>

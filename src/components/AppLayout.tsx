@@ -67,9 +67,7 @@ function NicheOfYoursBlock() {
 
   return (
     <div className="px-4 pb-2.5 pt-[14px]">
-      <p className="gv-mono mb-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-        Ngách Của Bạn
-      </p>
+      <p className="gv-uc mb-2.5 text-[9px] text-[color:var(--gv-ink-4)]">Ngách Của Bạn</p>
       <ul className="flex flex-col gap-1">
         {niches.map((n) => (
           <li key={n.id}>
@@ -491,7 +489,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               >
                 Getviews<span className="text-[color:var(--gv-accent-2-deep)]">.</span>
               </span>
-              <p className="gv-mono mt-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+              <p className="gv-uc mt-0.5 text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
                 Studio · Creator
               </p>
             </div>
@@ -589,7 +587,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 transition={{ duration: 0.18, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <p className="mb-2.5 flex items-center gap-1.5 gv-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+                <p className="mb-2.5 flex items-center gap-1.5 gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
                   <Pin className="h-2.5 w-2.5 rotate-45" strokeWidth={2} />
                   Ghim
                 </p>
@@ -615,9 +613,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
           {recent.length > 0 && (
             <>
-              <p className="gv-mono mb-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-                Gần Đây
-              </p>
+              <p className="gv-uc mb-2.5 text-[9px] text-[color:var(--gv-ink-4)]">Gần Đây</p>
               <div className="flex flex-col gap-0.5">
                 {recent.map((session) => (
                   <SessionRow

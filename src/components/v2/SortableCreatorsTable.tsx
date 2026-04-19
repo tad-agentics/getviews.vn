@@ -66,7 +66,7 @@ export function SortableCreatorsTable({
             key={c.key}
             type="button"
             role="columnheader"
-            className="gv-mono text-left text-[9px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)] outline-none hover:text-[color:var(--gv-ink-3)] focus-visible:text-[color:var(--gv-ink)] focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2"
+            className="gv-uc text-left text-[9px] text-[color:var(--gv-ink-4)] outline-none hover:text-[color:var(--gv-ink-3)] focus-visible:text-[color:var(--gv-ink)] focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2"
             onClick={() => onSort(c.key)}
           >
             {c.label}

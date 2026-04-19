@@ -23,7 +23,8 @@ const VARIANTS: Record<ChipVariant, string> = {
 };
 
 const SIZES: Record<ChipSize, string> = {
-  sm: "h-6 px-2 text-[11px]",
+  /* Reference .chip: 12px / 500 (styles.css) */
+  sm: "h-6 px-2 text-xs",
   md: "h-7 px-3 text-xs",
 };
 
