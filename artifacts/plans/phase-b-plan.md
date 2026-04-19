@@ -340,6 +340,19 @@ Service-role writes only. No RLS INSERT policy. Authenticated users may read.
     `src/components/SectionMini.tsx`.
 - Reuses: `Btn`, `Card`, existing icon set.
 
+### New design primitives
+
+New files under `src/components/v2/` — build these during the
+backend-finishing overlap (B.1.1–B.1.3) so B.1.4 frontend work is never
+blocked on primitives.
+
+| Component | Description | Source |
+|---|---|---|
+| `RetentionCurve` | 280×60 SVG, area fill + polyline for your video, niche benchmark as dashed overlay curve. viewBox `0 0 400 80`. | `video.jsx` `FlopDiagnostic` |
+| `Timeline` | 8-segment horizontal flex bar, `color_key` → CSS var map, pct labels per segment, timestamp axis below. | `video.jsx` `WinAnalysis` |
+| `HookPhaseCard` | 3-card grid (0–0.8s / 0.8–1.8s / 1.8–3s), each card: `t_range` kicker + label + body text. | `video.jsx` |
+| `KpiGrid` | 2×2 grid, ink-filled or paper per design token. Shared with B.3. | `video.jsx` |
+
 ### Milestones
 
 1. **B.1.1** (3d) — `video_diagnostics` migration + `src/lib/api-types.ts`
@@ -507,6 +520,18 @@ $$;
 - Tab state in URL search param `?tab=pinned|discover` for deep-linking.
 - Pin/unpin: optimistic update via TanStack `useMutation`.
 
+### New design primitives
+
+New files under `src/components/v2/` — build during B.2.1 backend work so
+the B.2.2 frontend milestone is unblocked.
+
+| Component | Description | Source |
+|---|---|---|
+| `FilterChipRow` | Horizontally scrollable pill row: `LỌC THEO` label (mono 9px uc, ink-4) + `Chip` / `chip-accent` pills. Wraps existing `Chip`. | `kol.jsx` filter ribbon |
+| `SortableTable` | `grid-template-columns: 40px 2fr 100px 100px 100px 80px`, sortable column headers (mono 9px uc, ink-4), active row `background: paper`. | `kol.jsx` left column |
+| `StickyDetailCard` | `position: sticky, top: 86px`, 2×2 stats grid (`background: canvas-2, borderRadius: 8`), match score display, 3-CTA column. | `kol.jsx` right column |
+| `MatchScoreBar` | Progress bar `height: 4, borderRadius: 999, background: rule`, fill `width: {match}%, background: accent`, score label mono 10px. | `kol.jsx` MATCH column |
+
 ### Milestones
 
 1. **B.2.1** (2d) — `toggle_reference_channel` RPC migration + match score
@@ -634,6 +659,18 @@ half-computed bar.
 - Reuses: `KpiGrid` (from B.1), `SectionMini`, video tile grid shape from
   Win mode.
 - Navigation: KOL detail card "Phân tích kênh đầy đủ" → `/channel?handle=X`.
+
+### New design primitives
+
+New files under `src/components/v2/` — build during B.3.1–B.3.2 backend
+overlap.
+
+| Component | Description | Source |
+|---|---|---|
+| `FormulaBar` | `height: 80`, `border: 1px solid ink`, 4 flex segments (`flex: {pct}`), colors `[accent, ink-2, ink-3, accent-deep]`. Each segment: `padding: 12`, top `{step} · {pct}%` (mono 10px uc, opacity 0.9), bottom `{detail}` (11px). Empty state: "Chưa đủ video" mono 11px centered. | `channel.jsx` formula bar |
+| `PostingHeatmap` | *(deferred from v1 scope but spec here for B.3 reference)* Day×hour grid derived from `video_corpus.created_at` distribution. Only implement if time allows; otherwise reuse chip display of `postingCadence` string. | `channel.jsx` |
+
+Reuses from B.1: `KpiGrid`, `SectionMini`.
 
 ### Milestones
 
@@ -828,6 +865,23 @@ Mapped to `HOOKS` fixture: `{pattern, delta, uses, avg}`.
 - Overlay samples and scene intelligence: single TanStack Query per niche,
   `staleTime: 1000 * 60 * 60 * 6` (6h).
 - Shot rows: local state only (`useState`). No DB persistence in v1.
+
+### New design primitives
+
+New files under `src/components/v2/` — build during B.4.1–B.4.2 backend
+overlap so B.4.3 (the largest frontend milestone) is fully unblocked.
+
+| Component | Description | Source |
+|---|---|---|
+| `PacingRibbon` | `border: 1px solid ink, background: paper, padding: 14`. Shot bar group `height: 38`. Two sub-bars per shot (yours at 20% left, niche at 55% left), `flex: {width}`. Slow shots: accent; ok: blue 50% opacity. Timeline row `height: 16`. | `script.jsx` middle col |
+| `ShotRow` | `grid-template-columns: 90px 100px 1fr 1fr`. 4-col grid: time cell (active=`background: ink`), camera viz (color-keyed bg), voice text (serif 13.5px), visual + pacing badge. Active box-shadow `3px 3px 0 var(--ink)`. | `script.jsx` |
+| `HookTimingMeter` | 14px tall bar, sweet-spot band 0.8–1.4s in `rgba(0,159,250,0.22)` with dashed borders, cursor line in accent. Sits below range slider. | `script.jsx` left col panel 3 |
+| `MiniBarCompare` | 3 vertical bars (Của bạn / Ngách TB / Winner), fixed height, labeled below (mono 9px ink-4). | `script.jsx` right col card 2 |
+| `OverlaySample` | Chip button `padding: 7px 10px, fontSize: 11`, text left + plus icon right. Rendered 3× from `OVERLAY_SAMPLES[overlay]`. | `script.jsx` right col card 3 |
+| `SceneIntelligencePanel` | Stacked 4-card right column: tip card (ink bg), shot-length diagnostic + `MiniBarCompare`, overlay library + `OverlaySample` chips, reference clips `width: 80, aspectRatio: 9/13`. | `script.jsx` right col |
+| `ForecastBar` | `background: ink, color: canvas, padding: 16px 20px`. Kicker + serif 28px view forecast + inline retention % (blue) + hook score (accent/10). | `script.jsx` middle col |
+
+Reuses from B.1: `KpiGrid`. Reuses from B.2: `FilterChipRow` (chip row for tone picker).
 
 ### Milestones
 
