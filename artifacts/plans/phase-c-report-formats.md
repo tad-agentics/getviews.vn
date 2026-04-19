@@ -1,5 +1,8 @@
 # Phase C — intents × reports (Claude Design handoff)
 
+> Superseded by `artifacts/plans/phase-c-plan.md` — kept as reference for the §1 intent map and §6 data contract.
+
+
 **Purpose:** Enumerate every user intent the Studio composer will route. Each intent either **dispatches to a destination screen** (already shipped in Phase B) or **lands on `/answer` as one of 4 report formats**. This doc specifies the content contract for each report format so Claude Design can produce the visuals.
 
 **Scope note:** This is a content/layout spec. It does not prescribe pixel treatments — those are Claude Design's call. It DOES prescribe what sections must exist, what data each section shows, and where the reference design (`answer.jsx`, `thread-turns.jsx`, `idea-directions.jsx`) is sufficient vs where we need new layouts.
