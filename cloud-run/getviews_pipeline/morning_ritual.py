@@ -210,6 +210,7 @@ QUY TẮC:
 - Title phải ngắn, punchy, tiếng Việt tự nhiên — không dịch Anh-Việt cứng.
 - KHÔNG lặp lại y nguyên hook của video trong grounding — chắt lọc pattern, không copy-paste.
 - 3 kịch bản phải ĐA DẠNG hook_type (VD: pov + shock_stat + story_open, không phải 3 pov).
+- TRÁNH TUYỆT ĐỐI các cụm sáo rỗng: "tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", "hack não", "đừng bỏ qua", "xem ngay kẻo muộn". Thay bằng chi tiết cụ thể từ ngách.
 {reference_note}"""
 
 
@@ -349,14 +350,18 @@ def generate_ritual_for_user(
     )
 
 
-def upsert_ritual(client: Any, result: RitualResult) -> None:
-    """Write a successful RitualResult to daily_ritual. No-op on thin/errored."""
+def upsert_ritual(client: Any, result: RitualResult) -> bool:
+    """Write a successful RitualResult to daily_ritual. No-op on thin/errored.
+
+    Returns True only when the DB write succeeds — callers must not count a
+    user as generated until this confirms the row landed.
+    """
     if result.error or not result.scripts:
         logger.info(
             "[ritual] skipping upsert user=%s reason=%s",
             result.user_id, result.error,
         )
-        return
+        return False
     row = {
         "user_id":            result.user_id,
         "generated_for_date": result.generated_for_date.isoformat(),
@@ -370,8 +375,10 @@ def upsert_ritual(client: Any, result: RitualResult) -> None:
         client.table("daily_ritual").upsert(
             row, on_conflict="user_id,generated_for_date",
         ).execute()
+        return True
     except Exception as exc:
         logger.exception("[ritual] upsert failed user=%s: %s", result.user_id, exc)
+        return False
 
 
 # ── Batch orchestration ───────────────────────────────────────────────────
@@ -382,6 +389,8 @@ class RitualBatchSummary:
     skipped_thin: int = 0
     failed_schema: int = 0
     failed_gemini: int = 0
+    failed_duplicate_hooks: int = 0   # Gemini returned <3 distinct hook types
+    failed_upsert: int = 0            # DB write failed after successful generation
     users_no_niche: int = 0
 
 
@@ -428,14 +437,18 @@ def run_morning_ritual_batch(
             reference_handles=list(prof.get("reference_channel_handles") or []),
         )
         if result.error is None and result.scripts:
-            upsert_ritual(client, result)
-            summary.generated += 1
+            if upsert_ritual(client, result):
+                summary.generated += 1
+            else:
+                summary.failed_upsert += 1
         elif result.error and result.error.startswith("thin_corpus"):
             summary.skipped_thin += 1
         elif result.error and result.error.startswith("schema_error"):
             summary.failed_schema += 1
         elif result.error and result.error.startswith("gemini_error"):
             summary.failed_gemini += 1
+        elif result.error and result.error.startswith("duplicate_hook_types"):
+            summary.failed_duplicate_hooks += 1
     return summary
 
 

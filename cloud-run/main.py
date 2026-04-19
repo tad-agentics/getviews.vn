@@ -1270,9 +1270,11 @@ async def batch_morning_ritual(
 
     return JSONResponse({
         "ok": True,
-        "generated":     summary.generated,
-        "skipped_thin":  summary.skipped_thin,
-        "failed_schema": summary.failed_schema,
-        "failed_gemini": summary.failed_gemini,
-        "users_no_niche": summary.users_no_niche,
+        "generated":              summary.generated,
+        "skipped_thin":           summary.skipped_thin,
+        "failed_schema":          summary.failed_schema,
+        "failed_gemini":          summary.failed_gemini,
+        "failed_duplicate_hooks": summary.failed_duplicate_hooks,
+        "failed_upsert":          summary.failed_upsert,
+        "users_no_niche":         summary.users_no_niche,
     })
