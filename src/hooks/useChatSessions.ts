@@ -39,8 +39,10 @@ export function useDeleteSession() {
     onMutate: async (sessionId: string) => {
       await qc.cancelQueries({ queryKey: chatKeys.sessions() });
       const previous = qc.getQueryData(chatKeys.sessions());
-      qc.setQueryData(chatKeys.sessions(), (old: unknown[] | undefined) =>
-        old ? old.filter((s: { id: string }) => s.id !== sessionId) : [],
+      qc.setQueryData(
+        chatKeys.sessions(),
+        (old: { id: string }[] | undefined) =>
+          old ? old.filter((s) => s.id !== sessionId) : [],
       );
       return { previous };
     },

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { Json } from "@/lib/database.types";
 
 /**
  * Fire-and-forget product analytics (B.1 checkpoint + plan §Measurement).
@@ -15,7 +16,7 @@ export function logUsage(action: string, metadata?: Record<string, unknown>): vo
     const { error } = await supabase.from("usage_events").insert({
       user_id: uid,
       action,
-      metadata: metadata ?? {},
+      metadata: (metadata ?? {}) as Json,
     });
     if (error && import.meta.env.DEV) {
       console.warn("[logUsage]", action, error.message);

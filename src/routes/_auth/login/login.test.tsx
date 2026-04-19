@@ -3,6 +3,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import Login from "./route";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+
+type OAuthResult = Awaited<ReturnType<typeof supabase.auth.signInWithOAuth>>;
 
 function facebookButton() {
   const list = screen.getAllByRole("button", { name: /Đăng nhập với Facebook/ });
@@ -36,7 +39,10 @@ describe("LoginScreen", () => {
     });
     const { supabase } = await import("@/lib/supabase");
     vi.mocked(supabase.auth.signInWithOAuth).mockReset();
-    vi.mocked(supabase.auth.signInWithOAuth).mockResolvedValue({ data: { provider: "facebook", url: null }, error: null });
+    vi.mocked(supabase.auth.signInWithOAuth).mockResolvedValue({
+      data: { provider: "facebook", url: "" },
+      error: null,
+    } as OAuthResult);
   });
 
   it("renders Facebook and Google buttons", () => {
@@ -54,7 +60,14 @@ describe("LoginScreen", () => {
     vi.mocked(supabase.auth.signInWithOAuth).mockImplementationOnce(
       () =>
         new Promise((resolve) => {
-          setTimeout(() => resolve({ data: { provider: "facebook", url: null }, error: null }), 250);
+          setTimeout(
+            () =>
+              resolve({
+                data: { provider: "facebook", url: "" },
+                error: null,
+              } as OAuthResult),
+            250,
+          );
         }),
     );
     render(
@@ -105,9 +118,9 @@ describe("LoginScreen", () => {
         message: "OAuth failed",
         status: 400,
         name: "AuthApiError",
-        __isAuthError: true,
-      } as import("@supabase/supabase-js").AuthError,
-    });
+        code: "oauth_error",
+      } as unknown as import("@supabase/supabase-js").AuthError,
+    } as OAuthResult);
     render(
       <MemoryRouter>
         <Login />

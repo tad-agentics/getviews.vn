@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), react()],
+  plugins: [tsconfigPaths({ projects: ["./tsconfig.app.json"] }), react()],
   test: {
     environment: "jsdom",
     // Playwright lives under /tests and uses its own runner.

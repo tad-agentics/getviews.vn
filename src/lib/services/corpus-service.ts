@@ -59,7 +59,7 @@ export async function getVideoMeta(videoId: string): Promise<VideoMeta | null> {
     return null;
   }
 
-  const result = (data as VideoMeta) ?? null;
+  const result = (data as unknown as VideoMeta) ?? null;
   _cache.set(videoId, { data: result, ts: Date.now() });
   return result;
 }

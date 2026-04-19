@@ -613,7 +613,49 @@ export type Database = {
           },
         ]
       }
-      usage_events: {
+      trending_cards: {
+        Row: {
+          id: string
+          niche_id: number
+          title: string
+          description: string
+          signal: string
+          hook_type: string | null
+          hook_template: string | null
+          video_ids: string[] | null
+          corpus_cite: string | null
+          computed_at: string | null
+          week_of: string
+        }
+        Insert: {
+          id?: string
+          niche_id: number
+          title: string
+          description: string
+          signal: string
+          hook_type?: string | null
+          hook_template?: string | null
+          video_ids?: string[] | null
+          corpus_cite?: string | null
+          computed_at?: string | null
+          week_of: string
+        }
+        Update: {
+          id?: string
+          niche_id?: number
+          title?: string
+          description?: string
+          signal?: string
+          hook_type?: string | null
+          hook_template?: string | null
+          video_ids?: string[] | null
+          corpus_cite?: string | null
+          computed_at?: string | null
+          week_of?: string
+        }
+        Relationships: []
+      }
+            usage_events: {
         Row: {
           action: string
           created_at: string
@@ -637,12 +679,37 @@ export type Database = {
         }
         Relationships: []
       }
+      video_dang_hoc: {
+        Row: {
+          video_id: string
+          list_type: string
+          rank: number
+          breakout_multiplier: number | null
+          velocity: number | null
+        }
+        Insert: {
+          video_id: string
+          list_type: string
+          rank: number
+          breakout_multiplier?: number | null
+          velocity?: number | null
+        }
+        Update: {
+          video_id?: string
+          list_type?: string
+          rank?: number
+          breakout_multiplier?: number | null
+          velocity?: number | null
+        }
+        Relationships: []
+      }
       video_corpus: {
         Row: {
           analysis_json: Json
           breakout_multiplier: number | null
           comments: number
           content_type: string
+          content_format: string | null
           created_at: string
           creator_handle: string
           creator_followers: number | null
@@ -661,12 +728,14 @@ export type Database = {
           video_id: string
           video_url: string | null
           views: number
+          video_duration: number | null
         }
         Insert: {
           analysis_json: Json
           breakout_multiplier?: number | null
           comments?: number
           content_type: string
+          content_format?: string | null
           created_at?: string
           creator_handle: string
           creator_followers?: number | null
@@ -685,12 +754,14 @@ export type Database = {
           video_id: string
           video_url?: string | null
           views?: number
+          video_duration?: number | null
         }
         Update: {
           analysis_json?: Json
           breakout_multiplier?: number | null
           comments?: number
           content_type?: string
+          content_format?: string | null
           created_at?: string
           creator_handle?: string
           creator_followers?: number | null
@@ -709,6 +780,7 @@ export type Database = {
           video_id?: string
           video_url?: string | null
           views?: number
+          video_duration?: number | null
         }
         Relationships: [
           {

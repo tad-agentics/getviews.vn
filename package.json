@@ -78,6 +78,7 @@
     "dev": "react-router dev",
     "build": "react-router build",
     "preview": "npx serve build/client",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "react-router typegen && tsc --build --force"
   }
 }

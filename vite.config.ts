@@ -32,11 +32,11 @@ function vercelEdgeDev(): Plugin {
           else if (Array.isArray(value)) headers[key] = value.join(", ");
         }
 
-        // Construct a Web API Request the handler expects.
+        // Construct a Web API Request the handler expects (BodyInit, not Node Buffer).
         const webReq = new Request(`http://localhost${req.url}`, {
           method: req.method ?? "GET",
           headers,
-          ...(body.length > 0 ? { body } : {}),
+          ...(body.length > 0 ? { body: new Uint8Array(body) } : {}),
         });
 
         try {
@@ -107,7 +107,7 @@ export default defineConfig({
     vercelEdgeDev(),
     tailwindcss(),
     reactRouter(),
-    tsconfigPaths(),
+    tsconfigPaths({ projects: ["./tsconfig.app.json"] }),
 
     VitePWA({
       registerType: "autoUpdate",
