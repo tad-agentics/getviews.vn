@@ -263,7 +263,7 @@ function ChannelBody({
           </div>
           {data.bio ? (
             <p className="gv-tight m-0 max-w-[460px] text-lg italic leading-[1.4] text-[color:var(--gv-ink-2)]">
-              &quot;{data.bio}&quot;
+              {`"${data.bio}"`}
             </p>
           ) : (
             <p className="text-sm text-[color:var(--gv-ink-4)]">Chưa có bio trong corpus.</p>
