@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
@@ -263,7 +263,7 @@ function ChannelBody({
           </div>
           {data.bio ? (
             <p className="gv-tight m-0 max-w-[460px] text-lg italic leading-[1.4] text-[color:var(--gv-ink-2)]">
-              &ldquo;{data.bio}&rdquo;
+              &quot;{data.bio}&quot;
             </p>
           ) : (
             <p className="text-sm text-[color:var(--gv-ink-4)]">Chưa có bio trong corpus.</p>
@@ -363,6 +363,7 @@ function ChannelBody({
             )}
           </div>
           <Btn className="mt-4 w-full justify-center" variant="accent" type="button" disabled title="Sắp có">
+            <FileText className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
             Tạo kịch bản theo công thức này
           </Btn>
         </div>
@@ -371,7 +372,7 @@ function ChannelBody({
       {data.computed_at ? (
         <p className="gv-mono text-center text-[10px] text-[color:var(--gv-ink-4)]">
           Phân tích kênh cập nhật: {new Date(data.computed_at).toLocaleString("vi-VN")}
-          {data.cache_hit === true ? " · cache" : null}
+          {import.meta.env.DEV && data.cache_hit === true ? " · cache" : null}
         </p>
       ) : null}
     </div>
