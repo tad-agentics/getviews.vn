@@ -46,10 +46,14 @@ evidence shows a stable time-series field on post payloads.
 
 ---
 
-## Supabase — apply `video_diagnostics` migration
+## Supabase — `video_diagnostics` migration alignment
 
-This environment was not `supabase link`ed; migrations ship in-repo only until
-you push.
+- **Production:** table first created via Supabase MCP as migration
+  `video_diagnostics_phase_b` (project **Getviews.vn**).
+- **Repository:** `supabase/migrations/20260423000051_video_diagnostics.sql` is
+  **idempotent** (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`,
+  `DROP POLICY IF EXISTS` + `CREATE POLICY`) so `supabase db push` on a fresh
+  database or a remote that already has the table converges without errors.
 
 From the repo root (with CLI installed):
 
@@ -58,7 +62,18 @@ supabase link   # once, per project ref
 supabase db push
 ```
 
-Migration file: `supabase/migrations/20260423000051_video_diagnostics.sql`.
+---
+
+## B.1.2 — Niche benchmark HTTP (implemented)
+
+- **Endpoint:** `GET /video/niche-benchmark?niche_id=<int>&duration_sec=<float>`
+  on Cloud Run (JWT required). Source: `niche_intelligence` MV via user-scoped
+  Supabase client.
+- **Cache:** in-process TTL **3600s**, keyed by `(niche_id, round(duration_sec))`.
+- **Code:** `cloud-run/getviews_pipeline/video_niche_benchmark.py` +
+  `main.py` handler. Curve points from `model_niche_benchmark_curve()`; response
+  field `retention_source` is always `"modeled"` until B.0.1 is re-opened for
+  real telemetry.
 
 ---
 

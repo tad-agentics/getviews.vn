@@ -76,6 +76,16 @@ export interface VideoNicheMeta {
   sample_size: number;
 }
 
+/** GET `/video/niche-benchmark` (Cloud Run, JWT). */
+export interface VideoNicheBenchmarkResponse {
+  niche_id: number;
+  niche_meta: VideoNicheMeta | null;
+  niche_benchmark_curve: RetentionPoint[];
+  retention_source: RetentionCurveSource;
+  computed_at: string | null;
+  reference_duration_sec: number;
+}
+
 /** Response body for `POST /video/analyze`. */
 export interface VideoAnalyzeResponse {
   video_id: string;

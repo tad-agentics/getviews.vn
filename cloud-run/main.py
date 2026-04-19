@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -1090,6 +1090,61 @@ async def admin_corpus_health(request: Request) -> JSONResponse:
         "summary": summary,
         "niches": per_niche,
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Phase B · /video — niche benchmark (B.1.2)
+# ══════════════════════════════════════════════════════════════════════════
+
+_NICHE_BENCH_CACHE: dict[tuple[int, int], tuple[float, dict[str, Any]]] = {}
+_NICHE_BENCH_TTL_SEC = 3600.0
+
+
+def _niche_bench_cache_key(niche_id: int, duration_sec: float) -> tuple[int, int]:
+    return niche_id, int(round(duration_sec))
+
+
+@app.get("/video/niche-benchmark")
+async def video_niche_benchmark(
+    user: dict = Depends(require_user),
+    niche_id: int = Query(..., ge=1, description="niche_taxonomy.id"),
+    duration_sec: float = Query(
+        58.0,
+        ge=5.0,
+        le=600.0,
+        description="Video duration for benchmark curve shape (seconds).",
+    ),
+) -> JSONResponse:
+    """Niche aggregates + modeled benchmark retention curve for /video Flop UI.
+
+    Reads ``niche_intelligence`` via the caller's JWT (RLS: authenticated SELECT).
+    Cached in-process for ``_NICHE_BENCH_TTL_SEC`` — MV refresh is batch-driven.
+    """
+    now = time.monotonic()
+    ck = _niche_bench_cache_key(niche_id, duration_sec)
+    cached = _NICHE_BENCH_CACHE.get(ck)
+    if cached and now - cached[0] < _NICHE_BENCH_TTL_SEC:
+        return JSONResponse(cached[1])
+
+    from getviews_pipeline.video_niche_benchmark import (
+        build_niche_benchmark_payload,
+        fetch_niche_intelligence_sync,
+    )
+
+    sb = user_supabase(user["access_token"])
+    try:
+        row = await run_sync(fetch_niche_intelligence_sync, sb, niche_id)
+    except Exception as exc:
+        logger.exception("[video/niche-benchmark] niche=%s failed: %s", niche_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    payload = build_niche_benchmark_payload(
+        row,
+        niche_id=niche_id,
+        duration_sec=duration_sec,
+    )
+    _NICHE_BENCH_CACHE[ck] = (now, payload)
+    return JSONResponse(payload)
 
 
 # ══════════════════════════════════════════════════════════════════════════
