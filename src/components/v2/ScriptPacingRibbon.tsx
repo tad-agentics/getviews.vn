@@ -8,7 +8,7 @@ export type ScriptPacingRibbonProps = {
 
 function LegendDot({ colorVar, label }: { colorVar: string; label: string }) {
   return (
-    <span className="gv-mono inline-flex items-center gap-1.5 text-[10px] text-[color:var(--gv-ink-3)]">
+    <span className="gv-mono inline-flex items-center gap-[5px] text-[10px] text-[color:var(--gv-ink-3)]">
       <span className="inline-block h-2 w-2 shrink-0" style={{ background: `var(${colorVar})` }} />
       {label}
     </span>
@@ -20,10 +20,10 @@ export function ScriptPacingRibbon({ shots, activeShot, onSelectShot }: ScriptPa
   const total = shots[shots.length - 1]!.t1;
 
   return (
-    <div className="rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] p-3.5">
+    <div className="rounded-none border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] p-3.5">
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="gv-mono mb-1 text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+          <div className="gv-mono gv-uc mb-1 text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
             NHỊP ĐỘ · PACING RIBBON
           </div>
           <p className="text-[13px] leading-snug text-[color:var(--gv-ink-2)]">

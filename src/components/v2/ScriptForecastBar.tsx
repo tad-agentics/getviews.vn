@@ -35,7 +35,7 @@ export function ScriptForecastBar({ durationSec, hookDelayMs }: ScriptForecastBa
         <p className="text-sm leading-snug">
           <span className="gv-serif text-[28px] font-medium tracking-tight">~{viewsK}K</span>
           <span className="opacity-60"> view · </span>
-          giữ chân <span className="text-[color:var(--gv-chart-benchmark)]">{ret}%</span> · hook{" "}
+          giữ chân <span className="text-[rgb(0,159,250)]">{ret}%</span> · hook{" "}
           <span className="text-[color:var(--gv-accent)]">{hookScore.toFixed(1)}/10</span>
         </p>
       </div>

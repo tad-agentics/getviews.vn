@@ -42,44 +42,46 @@ export function SceneIntelligencePanel({
   return (
     <div className="flex flex-col gap-3.5">
       {thinCorpus ? (
-        <p className="gv-mono rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)] px-3 py-2 text-[10px] leading-snug text-[color:var(--gv-accent-deep)]">
+        <p className="gv-mono rounded-none border border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)] px-3 py-2 text-[10px] leading-snug text-[color:var(--gv-accent-deep)]">
           Ngách đang thưa ({sceneSampleSize} video / scene) — pacing và overlay là định hướng, không tuyệt đối.
         </p>
       ) : null}
-      <div className="rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] p-4 text-[color:var(--gv-canvas)]">
-        <div className="gv-mono mb-2 text-[10px] uppercase tracking-[0.16em] opacity-60">
+      <div className="rounded-none border border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] p-4 text-[color:var(--gv-canvas)]">
+        <div className="gv-mono gv-uc mb-2 text-[10px] tracking-[0.16em] opacity-60">
           SHOT {String(shotIndex + 1).padStart(2, "0")} · PHÂN TÍCH CẤU TRÚC
         </div>
-        <p className="gv-serif text-pretty text-lg font-medium leading-snug tracking-tight">{shot.tip}</p>
+        <p className="gv-serif text-pretty text-lg font-medium leading-[1.25] tracking-[-0.01em] text-[color:var(--gv-canvas)]">
+          {shot.tip}
+        </p>
       </div>
 
-      <div className="rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3.5">
-        <div className="gv-mono mb-2.5 text-[9.5px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <div className="rounded-none border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3.5">
+        <div className="gv-mono gv-uc mb-2.5 text-[9.5px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
           ĐỘ DÀI SHOT
         </div>
         <div className="mb-2.5 flex items-baseline justify-between gap-2">
-          <span className="gv-serif text-[28px] font-medium tracking-tight">{span.toFixed(1)}s</span>
+          <span className="gv-tight gv-serif text-[28px] font-medium tracking-[-0.02em] text-[color:var(--gv-ink)]">
+            {span.toFixed(1)}s
+          </span>
           <span
-            className={`gv-mono text-[11px] ${
-              slow ? "text-[color:var(--gv-accent)]" : "text-[color:var(--gv-chart-benchmark)]"
-            }`}
+            className={`gv-mono text-[11px] ${slow ? "text-[color:var(--gv-accent)]" : "text-[rgb(0,159,250)]"}`}
           >
             {slow ? `▲ dài hơn ${(span - shot.winnerAvg).toFixed(1)}s` : "✓ đúng nhịp ngách"}
           </span>
         </div>
         <MiniBarCompare yoursSec={span} corpusSec={shot.corpusAvg} winnerSec={shot.winnerAvg} />
-        <p className="mt-2.5 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
+        <p className="mt-2.5 text-[11px] leading-[1.5] text-[color:var(--gv-ink-4)]">
           Ngách trung bình <span className="gv-mono text-[color:var(--gv-ink-2)]">{shot.corpusAvg}s</span> · winner{" "}
-          <span className="gv-mono text-[color:var(--gv-chart-benchmark)]">{shot.winnerAvg}s</span>
+          <span className="gv-mono text-[rgb(0,159,250)]">{shot.winnerAvg}s</span>
         </p>
       </div>
 
-      <div className="rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3.5">
-        <div className="gv-mono mb-2.5 text-[9.5px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <div className="rounded-none border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3.5">
+        <div className="gv-mono gv-uc mb-2.5 text-[9.5px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
           TEXT OVERLAY · THƯ VIỆN
         </div>
-        <p className="mb-2.5 text-xs leading-snug text-[color:var(--gv-ink-3)]">
-          Trong các video thắng, scene loại này hay dùng:
+        <p className="mb-2.5 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
+          Trong các video thắng, scene loại này dùng:
           <span className="gv-mono mt-1 block text-[13px] font-medium text-[color:var(--gv-ink)]">
             {shot.overlayWinner}
           </span>
@@ -90,7 +92,7 @@ export function SceneIntelligencePanel({
               <button
                 key={`${o}-${i}`}
                 type="button"
-                className="gv-mono flex items-center justify-between rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-2.5 py-1.5 text-left text-[11px] text-[color:var(--gv-ink)]"
+                className="gv-mono flex items-center justify-between rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-[7px] text-left text-[11px] font-medium text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)]"
               >
                 <span className="min-w-0 truncate">{o}</span>
                 <Plus className="h-2.5 w-2.5 shrink-0 opacity-60" strokeWidth={2} aria-hidden />
@@ -100,8 +102,8 @@ export function SceneIntelligencePanel({
         ) : null}
       </div>
 
-      <div className="rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3.5">
-        <div className="gv-mono mb-2.5 text-[9.5px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+      <div className="rounded-none border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3.5">
+        <div className="gv-mono gv-uc mb-2.5 text-[9.5px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
           CLIP THAM KHẢO
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -142,7 +144,7 @@ export function SceneIntelligencePanel({
                 </div>
               ))}
         </div>
-        <p className="mt-2.5 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
+        <p className="mt-2.5 text-[11px] leading-[1.45] text-[color:var(--gv-ink-4)]">
           {referenceClips.length
             ? "Scene cùng mục đích từ video thắng gần đây."
             : "3 scene cùng mục đích từ video thắng tuần này (đang chờ dữ liệu)."}

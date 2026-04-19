@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Copy, Download, Film, Loader2, Sparkles } from "lucide-react";
+import { useSearchParams } from "react-router";
+import { Copy, Download, Film, Loader2, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -13,7 +13,6 @@ import { SceneIntelligencePanel, type ScriptReferenceClip } from "@/components/v
 import { ScriptForecastBar } from "@/components/v2/ScriptForecastBar";
 import { ScriptPacingRibbon } from "@/components/v2/ScriptPacingRibbon";
 import { ScriptShotRow } from "@/components/v2/ScriptShotRow";
-import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
 import { useScriptGenerate } from "@/hooks/useScriptGenerate";
 import { useScriptHookPatterns } from "@/hooks/useScriptHookPatterns";
@@ -121,8 +120,14 @@ function parseNicheId(raw: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Match ``script.jsx`` hook rows: benchmark prefix ``▲`` without duplicating if API already sends it. */
+function formatHookDeltaDisplay(delta: string): string {
+  const t = delta.trim();
+  if (!t) return "▲";
+  return t.startsWith("▲") ? t : `▲${t}`;
+}
+
 export default function ScriptScreen() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: profile } = useProfile();
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
@@ -257,30 +262,28 @@ export default function ScriptScreen() {
 
   return (
     <AppLayout active="script" enableMobileSidebar>
-      <TopBar kicker="CREATOR" title="Xưởng Viết" />
       <main className="gv-route-main gv-route-main--1280">
-        <div className="mb-[18px]">
-          <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app")}>
-            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-            Về Studio
-          </Btn>
-        </div>
-
         {!cloudConfigured ? (
-          <p className="text-sm text-[color:var(--gv-ink-3)]">
-            Cần <span className="font-[family-name:var(--gv-font-mono)]">VITE_CLOUD_RUN_API_URL</span> trong môi
-            trường build.
-          </p>
+          <div className="mx-auto max-w-[1380px] px-4 pb-20 pt-6 min-[376px]:px-7">
+            <p className="gv-mono text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+              Cần <span className="font-[family-name:var(--gv-font-mono)]">VITE_CLOUD_RUN_API_URL</span> trong môi
+              trường build.
+            </p>
+          </div>
         ) : effectiveNicheId == null ? (
-          <p className="text-sm text-[color:var(--gv-ink-3)]">Chọn ngách trong onboarding hoặc Cài đặt để dùng Xưởng Viết.</p>
+          <div className="mx-auto max-w-[1380px] px-4 pb-20 pt-6 min-[376px]:px-7">
+            <p className="gv-mono text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+              Chọn ngách trong onboarding hoặc Cài đặt để dùng Xưởng Viết.
+            </p>
+          </div>
         ) : (
-          <div className="mx-auto max-w-[1380px] px-4 pb-20 pt-2 min-[376px]:px-7">
+          <div className="mx-auto max-w-[1380px] px-4 pb-20 pt-6 min-[376px]:px-7">
             <header className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b-2 border-[color:var(--gv-ink)] pb-4">
               <div className="min-w-0 flex-1">
-                <div className="gv-mono mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+                <div className="gv-mono mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
                   XƯỞNG VIẾT · KỊCH BẢN SỐ {scriptNo}
                 </div>
-                <h1 className="gv-tight gv-serif m-0 text-[clamp(1.625rem,3vw,2.25rem)] font-medium leading-tight tracking-tight text-[color:var(--gv-ink)]">
+                <h1 className="gv-tight gv-serif m-0 text-[clamp(26px,3vw,36px)] font-medium leading-[1.1] tracking-[-0.02em] text-[color:var(--gv-ink)]">
                   {topic}
                 </h1>
               </div>
@@ -302,7 +305,7 @@ export default function ScriptScreen() {
 
             {loadingPanel ? (
               <div
-                className="flex min-h-[30vh] items-center justify-center text-sm text-[color:var(--gv-ink-3)]"
+                className="flex min-h-[30vh] items-center justify-center gv-mono text-[13px] text-[color:var(--gv-ink-3)]"
                 role="status"
                 aria-label="Đang tải dữ liệu ngách"
               >
@@ -323,7 +326,7 @@ export default function ScriptScreen() {
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
                       rows={2}
-                      className="gv-serif m-0 w-full resize-none border-0 bg-transparent p-0 text-base leading-snug text-[color:var(--gv-ink)] outline-none"
+                      className="gv-serif m-0 w-full resize-none border-0 bg-transparent p-0 text-[16px] leading-[1.3] text-[color:var(--gv-ink)] outline-none"
                     />
                   </CardInput>
 
@@ -337,14 +340,16 @@ export default function ScriptScreen() {
                               key={h.pattern}
                               type="button"
                               onClick={() => setHookPattern(h.pattern)}
-                              className={`flex cursor-pointer items-center justify-between rounded px-2.5 py-2 text-left text-xs ${
+                              className={`flex cursor-pointer items-center justify-between rounded-[4px] px-2.5 py-2 text-left text-xs ${
                                 active
                                   ? "border border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
                                   : "border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-2)]"
                               }`}
                             >
                               <span className="gv-tight text-[13px]">{`"${h.pattern}"`}</span>
-                              <span className="gv-mono text-[10px] text-[color:var(--gv-chart-benchmark)]">{h.delta}</span>
+                              <span className="gv-mono text-[10px] text-[rgb(0,159,250)]">
+                                {formatHookDeltaDisplay(h.delta)}
+                              </span>
                             </button>
                           );
                         })
@@ -359,7 +364,7 @@ export default function ScriptScreen() {
                       <span>
                         HOOK RƠI LÚC{" "}
                         <span
-                          className={`gv-mono ${hookDelayMs > 1400 ? "text-[color:var(--gv-accent)]" : "text-[color:var(--gv-chart-benchmark)]"}`}
+                          className={`gv-mono ${hookDelayMs > 1400 ? "text-[color:var(--gv-accent)]" : "text-[rgb(0,159,250)]"}`}
                         >
                           {(hookDelayMs / 1000).toFixed(1)}s
                         </span>
@@ -376,8 +381,8 @@ export default function ScriptScreen() {
                       className="w-full accent-[color:var(--gv-accent)]"
                     />
                     <HookTimingMeter delayMs={hookDelayMs} />
-                    <p className="gv-mono mt-2 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
-                      Video thắng trong ngách thường rơi hook tại{" "}
+                    <p className="gv-mono mt-2 text-[11px] leading-[1.45] text-[color:var(--gv-ink-4)]">
+                      Video thắng trong ngách Tech rơi hook tại{" "}
                       <span className="text-[color:var(--gv-ink-2)]">0.8–1.4s</span>. Sau 1.4s, retention giảm{" "}
                       <span className="text-[color:var(--gv-accent)]">38%</span>.
                     </p>

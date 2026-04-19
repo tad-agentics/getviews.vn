@@ -9,9 +9,9 @@ const BASE =
 
 const VARIANTS: Record<ChipVariant, string> = {
   default:
-    "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink-4)]",
+    "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] hover:bg-[color:var(--gv-canvas-2)]",
   accent:
-    "border-transparent bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)] hover:bg-[color:var(--gv-accent)] hover:text-white",
+    "border-transparent bg-[color:var(--gv-accent-soft)] font-semibold text-[color:var(--gv-accent-deep)] hover:bg-[color:var(--gv-accent-soft)]",
   pos:
     "border-transparent bg-[color:var(--gv-pos-soft)] text-[color:var(--gv-pos-deep)]",
   neg:
@@ -23,9 +23,9 @@ const VARIANTS: Record<ChipVariant, string> = {
 };
 
 const SIZES: Record<ChipSize, string> = {
-  /* Reference .chip: 12px / 500 (styles.css) */
-  sm: "h-6 px-2 text-xs",
-  md: "h-7 px-3 text-xs",
+  /* Reference ``styles.css`` .chip: 12px, padding 6px 12px, weight 500 */
+  sm: "min-h-0 py-1 px-2.5 text-xs font-medium leading-none",
+  md: "min-h-0 py-1.5 px-3 text-xs font-medium leading-none",
 };
 
 /**

@@ -62,21 +62,21 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
         </span>
       </div>
       <div className="border-r border-[color:var(--gv-rule)] p-3">
-        <div className="gv-mono mb-1 text-[9px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
           LỜI THOẠI
         </div>
         <p className="gv-serif text-[13.5px] leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
       </div>
       <div className="relative p-3">
-        <div className="gv-mono mb-1 text-[9px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+        <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
           HÌNH ẢNH · {shot.overlay}
         </div>
-        <p className="mb-2 text-xs leading-snug text-[color:var(--gv-ink-3)]">{shot.viz}</p>
+        <p className="mb-2 text-xs leading-[1.4] text-[color:var(--gv-ink-3)]">{shot.viz}</p>
         <div
-          className={`gv-mono inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+          className={`gv-mono inline-flex items-center gap-[5px] rounded-[3px] px-[7px] py-0.5 text-[10px] font-medium ${
             slow
               ? "bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)]"
-              : "bg-[color:color-mix(in_srgb,var(--gv-chart-benchmark)_12%,transparent)] text-[color:var(--gv-chart-benchmark)]"
+              : "bg-[rgba(0,159,250,0.12)] text-[rgb(0,159,250)]"
           }`}
         >
           {slow ? "⚠" : "✓"} {span.toFixed(1)}s · ngách {shot.winnerAvg}s
