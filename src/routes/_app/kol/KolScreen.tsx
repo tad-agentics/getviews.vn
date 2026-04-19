@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Bookmark, ChevronLeft, ChevronRight, Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -307,15 +307,6 @@ export default function KolScreen() {
         }
       />
       <main className="mx-auto max-w-[1320px] px-6 pb-[80px] pt-6 min-[900px]:px-7">
-        <div className="mb-4">
-          <Link
-            to="/app/trends"
-            className="inline-flex items-center gap-1.5 text-sm text-[color:var(--gv-ink-3)] transition-colors hover:text-[color:var(--gv-ink)]"
-          >
-            ← Quay lại Xu hướng
-          </Link>
-        </div>
-
         {!cloudConfigured ? (
           <p className="text-sm text-[color:var(--gv-ink-3)]">
             Cần <span className="font-[family-name:var(--gv-font-mono)]">VITE_CLOUD_RUN_API_URL</span> trong env build.

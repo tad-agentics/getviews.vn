@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
-  ArrowLeft,
   ArrowRight,
   Bookmark,
   Copy,
@@ -221,16 +220,6 @@ export default function VideoScreen() {
         }
       />
       <main className="mx-auto max-w-[1280px] px-6 pb-20 pt-6 min-[900px]:px-7">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <Link
-            to="/app/trends"
-            className="inline-flex items-center gap-1.5 text-sm text-[color:var(--gv-ink-3)] transition-colors hover:text-[color:var(--gv-ink)]"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Quay lại Xu hướng
-          </Link>
-        </div>
-
         {emptyParams ? (
           <div className="flex flex-col gap-6">
             <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6 text-center text-[color:var(--gv-ink-3)]">
