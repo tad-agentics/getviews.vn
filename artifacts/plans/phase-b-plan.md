@@ -31,33 +31,101 @@ fixtures for `CHANNEL_DETAIL`, `VIDEOS`, `CREATORS`, `HOOKS`.
 | B.3 | `/channel` Phân Tích Kênh | Extends B.1's structural decomposition from single video → creator scale. |
 | B.4 | `/script` Xưởng Viết | Most generative + most complex. Closes the morning-ritual loop (hook card → full shot list). Save for last. |
 
-Estimated **~8 weeks** at steady pace (one engineer, full-time).
+Estimated **10–12 weeks** (includes 1 spike week + 1 week buffer for
+design-audit rounds per screen).
 
 ---
 
 ## Pre-kickoff decisions (lock before B.1 starts)
 
-1. **Retention curve** — estimate from `breakout_multiplier` + niche median
-   **(A, default)** vs fetch real per-video data from EnsembleData **(B)**.
-   Spike EnsembleData API on day 1 of B.1.2 (1 day). If they expose it, use
-   it. If not, use A and mark the curve as modeled in the UI.
-2. **Match score** (B.2) — rule-based (cheap, directional) is the default.
-   Embedding-based if rule-based proves too coarse after first user feedback.
-3. **Channel formula refresh** (B.3) — TTL cache: recompute only if
+Decisions 1–2 are resolved in B.0. Remaining:
+
+1. **Channel formula refresh** (B.3) — TTL cache: recompute only if
    `computed_at` > 7 days old. Never recompute on open.
-4. **Scene intelligence** (B.4) — nightly batch job per niche (not
+2. **Scene intelligence** (B.4) — nightly batch job per niche (not
    recomputed on open). Skip niches with < 30 winning videos per scene type.
-5. **`niche_intelligence` already covers niche benchmark** — no new columns
+3. **`niche_intelligence` already covers niche benchmark** — no new columns
    needed for B.1.2's niche side. The view already has `avg_face_appears_at`,
    `pct_face_in_half_sec`, `avg_transitions_per_second`, duration stats,
    `hook_distribution`. Refresh after corpus ingest, not per-video.
-6. **B.4 forecast vs Phase C `/answer`** — B.4's forecast is deterministic
+4. **B.4 forecast vs Phase C `/answer`** — B.4's forecast is deterministic
    (formula: hook_score × duration_band × niche median). Phase C's is
    LLM-driven reasoning. No overlap if that line holds.
 
 ---
 
-## B.1 — `/video` Phân Tích Video (~2.5 weeks)
+## B.0 — Spike & pre-kickoff (1 week)
+
+Unblock three decisions before writing a line of B.1 code.
+
+### B.0.1 Retention curve source (1–2d)
+
+Hit the EnsembleData API. Check whether any endpoint returns a per-video
+retention curve (time-series % of viewers remaining at each second).
+
+- **If yes**: document the endpoint, response shape, and rate limits.
+  Wire it into `video_structural.model_retention_curve()` as the primary
+  source. Skip the sigmoid model.
+- **If no**: write a one-page proxy spec — parameterized sigmoid anchored to
+  `breakout_multiplier` + niche median retention from `niche_intelligence`.
+  UI labels the curve `ĐƯỜNG ƯỚC TÍNH` (not `ĐƯỜNG GIỮ CHÂN`) when modeled.
+
+**Deliverable**: `artifacts/plans/retention-curve-decision.md` — decision
+record with chosen approach, evidence, and UI label spec.
+
+### B.0.2 Match score formula (1d)
+
+Define the rule-based formula with weights summing to 1.0:
+
+```text
+match = 0.40 × niche_match
+      + 0.30 × follower_range_overlap
+      + 0.20 × growth_percentile
+      + 0.10 × reference_channel_overlap
+```
+
+Each component normalized 0–1:
+
+- `niche_match`: 1.0 if creator `niche_id` == user `primary_niche`, else 0.
+- `follower_range_overlap`: `1 − |log10(creator_followers / user_followers)| / 2`,
+  clamped 0–1. Zero if gap > 100×.
+- `growth_percentile`: creator's `growth_30d_pct` percentile rank within
+  same niche in `creator_velocity`. Normalized 0–1.
+- `reference_channel_overlap`: fraction of `profiles.reference_channel_handles`
+  that are also in `starter_creators` for the same niche. 1.0 if all overlap.
+
+Worked example — user has 50K followers, niche=Tech, references=[@sammie]:
+- niche_match: 1.0 → 0.40
+- follower_range (creator 412K): `1 − log10(412/50)/2 = 1 − 0.46 = 0.54` → 0.16
+- growth_percentile (12% → 70th pct): 0.70 → 0.14
+- reference_overlap (1/1): 1.0 → 0.10
+- **total: 0.80 → displayed as 80/100**
+
+Score cached per `(user_id, handle)` in `creator_velocity` or a separate
+`match_scores` JSONB column on `profiles`. Invalidated when user updates
+`primary_niche` or `reference_channel_handles`.
+
+**Deliverable**: formula section merged into B.2 spec (below). No new file.
+
+### B.0.3 `creator_pins` vs `reference_channel_handles` (0.5d)
+
+**Decision**: drop `creator_pins` table. `profiles.reference_channel_handles`
+is the pin list, capped at 10 handles. The "Đang theo dõi" tab reads directly
+from this column. "Ghim" / "Bỏ ghim" buttons call a Supabase RPC
+`toggle_reference_channel(handle TEXT)` that upserts/removes from the array,
+respecting the cap.
+
+"Khám phá" tab is a read-only view: `starter_creators` filtered by
+`niche_id = user.primary_niche`, sorted by `avg_views` desc. No separate
+pin store.
+
+**Impact on B.2**: remove `creator_pins` table + `/kol/pin` + `/kol/unpin`
+endpoints. Replace with single `POST /kol/toggle-pin` (calls
+`toggle_reference_channel` RPC). B.2 spec updated below.
+
+---
+
+## B.1 — `/video` Phân Tích Video (~3 weeks)
 
 ### Exact design spec (from `video.jsx`)
 
@@ -180,8 +248,9 @@ routes to `/script`.
 - Same video fields as Win, plus niche benchmark from `niche_intelligence`:
   `avg_face_appears_at`, `avg_transitions_per_second`, duration stats,
   `hook_distribution`, `avg_engagement_rate`
-- Retention curve: modeled (Option A) unless EnsembleData spike (B.1.2
-  day 1) confirms real data available
+- Retention curve: approach resolved in B.0.1 decision record
+  (`artifacts/plans/retention-curve-decision.md`). B.1.2 implements that
+  outcome — no further decision needed here.
 - Issues list: Gemini structured output
   `[{sev: "high"|"mid"|"low", t, end, title, detail, fix}]` — schema-
   enforced via pydantic, cached in `video_diagnostics`
@@ -270,18 +339,33 @@ Service-role writes only. No RLS INSERT policy. Authenticated users may read.
 1. **B.1.1** (3d) — `video_diagnostics` migration + `src/lib/api-types.ts`
    (all Phase B types) + `video_structural.py` segment decomposition + hook
    phase extraction + unit tests
-2. **B.1.2** (3d) — EnsembleData spike (1d) → retention curve (modeled or
-   real) + niche benchmark endpoint + cache wiring
+2. **B.1.2** (3d) — retention curve per B.0.1 decision record + niche
+   benchmark endpoint + cache wiring (no spike here — B.0.1 already decided)
 3. **B.1.3** (2d) — flop diagnostic Gemini endpoint + pydantic schema +
    win-mode LLM generation + `video_diagnostics` upsert + tests
 4. **B.1.4** (4d) — `/app/video` Win mode + all new primitives + data wiring
 5. **B.1.5** (2d) — Flop mode + URL input flow (reuse prefillUrl pattern)
 6. **B.1.6** (1d) — retire `video_diagnosis` chat CTA; "Soi video"
    quick-action routes to `/app/video`
+7. **B.1.7** (1d) — design-audit pass: pixel-compare against `video.jsx`
+   reference, fix spacing/color/font regressions before merging PR
+
+### B.1 checkpoint (measure for 2 weeks post-ship)
+
+Gate metric: **≥ 30% of `/app/video` Flop-mode sessions end with an
+"Áp vào kịch bản" CTA click** (tracked as a `chat_sessions` row with
+`intent_type = 'shot_list'` opened within 10 min of `/video` load).
+
+Instrument: Supabase query — count sessions where `created_at` within 10 min
+of a `/video` page load event (log page loads as `anonymous_usage` rows with
+`action = 'video_screen_load'`). Both events exist in current schema.
+
+If gate fails after 2 weeks: pause B.2, revisit whether the deterministic-slot
+thesis holds or whether users need a different entry point.
 
 ---
 
-## B.2 — `/kol` Kênh Tham Chiếu (~1 week)
+## B.2 — `/kol` Kênh Tham Chiếu (~1.5 weeks)
 
 ### Exact design spec (from `kol.jsx`)
 
@@ -349,39 +433,54 @@ breakpoint at 1100px (detail card drops below list).
 `handle, name, niche, followers, avg_views, growth_30d_pct, match_score,
 tone` — matches `creator_velocity` + `starter_creators` + computed match.
 
-**Match score formula** (rule-based):
-- Niche overlap: same `niche_id` as user → 50 pts
-- Follower range overlap: creator within 5× or 0.2× of user's follower
-  count → 20 pts
-- Growth signal: `growth_30d_pct > 10%` → 15 pts
-- Tone diversity: creator's dominant `tone` ≠ user's profile tone → 15 pts
-  (complement, not clone)
-- Total: 0–100, cached per `(user_id, handle)`.
+**Match score formula** (rule-based, weights from B.0.2):
 
-**New table: `creator_pins`**:
-```sql
-CREATE TABLE creator_pins (
-  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  handle     TEXT NOT NULL,
-  pinned_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, handle)
-);
-ALTER TABLE creator_pins ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own pins" ON creator_pins
-  FOR ALL TO authenticated USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+```
+match = 0.40 × niche_match
+      + 0.30 × follower_range_overlap
+      + 0.20 × growth_percentile
+      + 0.10 × reference_channel_overlap
 ```
 
-"Đang theo dõi" tab seeds from `creator_pins` + auto-imports
-`profiles.reference_channel_handles` on first open (upsert, no duplicate).
+Each component 0–1; result × 100 = displayed score. Cached per
+`(user_id, handle)`. Invalidated on `primary_niche` or
+`reference_channel_handles` change.
+
+**No `creator_pins` table** (resolved in B.0.3). Pin list is
+`profiles.reference_channel_handles TEXT[]`, cap 10. "Đang theo dõi" tab
+reads this column directly. "Khám phá" tab reads `starter_creators` filtered
+by `niche_id = user.primary_niche`.
+
+New Supabase RPC (migration in B.2.1):
+
+```sql
+CREATE OR REPLACE FUNCTION toggle_reference_channel(p_handle TEXT)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  IF p_handle = ANY(
+    SELECT reference_channel_handles FROM profiles WHERE id = auth.uid()
+  ) THEN
+    UPDATE profiles SET reference_channel_handles =
+      array_remove(reference_channel_handles, p_handle)
+    WHERE id = auth.uid();
+  ELSE
+    UPDATE profiles SET reference_channel_handles =
+      array_append(reference_channel_handles, p_handle)
+    WHERE id = auth.uid()
+      AND cardinality(reference_channel_handles) < 10;
+  END IF;
+END;
+$$;
+```
 
 ### Endpoints
 
 - `GET /kol/browse?niche_id&tab=pinned|discover&page` — returns table rows
-  with match_score. Pinned: join `creator_pins`. Discover: `starter_creators`
-  + `creator_velocity` filtered by niche.
-- `POST /kol/pin` — body `{handle}`. Upsert to `creator_pins`.
-- `DELETE /kol/pin` — body `{handle}`. Delete from `creator_pins`.
+  with match_score. Pinned: filter `creator_velocity` by handles in
+  `profiles.reference_channel_handles`. Discover: `starter_creators` filtered
+  by niche.
+- `POST /kol/toggle-pin` — body `{handle}`. Calls
+  `toggle_reference_channel` RPC via service client.
 
 ### Frontend: `/app/kol` route
 
@@ -394,17 +493,17 @@ CREATE POLICY "Users manage own pins" ON creator_pins
 
 ### Milestones
 
-1. **B.2.1** (2d) — `creator_pins` migration + match score computation +
-   `/kol/browse` + `/kol/pin` + `/kol/unpin` endpoints + tests. Auto-import
-   `reference_channel_handles` on first pin.
+1. **B.2.1** (2d) — `toggle_reference_channel` RPC migration + match score
+   computation + `/kol/browse` + `/kol/toggle-pin` endpoints + tests
 2. **B.2.2** (4d) — `/app/kol` full screen: table + filter ribbon + sticky
-   detail card + tab switching + pin/unpin mutation.
+   detail card + tab switching + toggle-pin mutation
 3. **B.2.3** (1d) — retire `find_creators` / `creator_search` chat CTA;
-   "Tìm KOL" quick-action routes to `/app/kol`.
+   "Tìm KOL" quick-action routes to `/app/kol`
+4. **B.2.4** (0.5d) — design-audit pass against `kol.jsx` reference
 
 ---
 
-## B.3 — `/channel` Phân Tích Kênh (~2 weeks)
+## B.3 — `/channel` Phân Tích Kênh (~2.5 weeks)
 
 ### Exact design spec (from `channel.jsx`)
 
@@ -477,6 +576,15 @@ CREATE TABLE channel_formulas (
 ```
 TTL: recompute only if `computed_at < now() - interval '7 days'`.
 
+**Claim-tier gate for formula generation**: a `channel_formulas` row is only
+computed when the creator has **≥ 10 videos** in `video_corpus` for the
+requested `niche_id` (reuses `CLAIM_TIERS["pattern_spread"] = 10` from
+`claim_tiers.py`). Fewer than 10 videos → `/channel/analyze` returns
+`{"formula": null, "formula_gate": "thin_corpus"}`. Frontend renders the
+Formula bar as a "Chưa đủ video để dựng công thức" empty state (mono 11px,
+ink-4, centered inside the `height: 80` bar container) instead of a
+half-computed bar.
+
 **Posting cadence**: aggregate `created_at` distribution across creator's
 `video_corpus` rows → best weekday + hour bucket. (Note: uses `created_at`
 = ingest time, not TikTok `posted_at` — acceptable 24h lag.)
@@ -484,11 +592,11 @@ TTL: recompute only if `computed_at < now() - interval '7 days'`.
 ### Endpoints
 
 - `GET /channel/analyze?handle=X` — reads `channel_formulas` cache. If
-  stale or missing: fetch creator's top 20 videos from `video_corpus` →
-  Gemini call (formula + lessons, pydantic schema) → compute KPIs from
-  corpus → upsert `channel_formulas` → return. Auth-required, credit
-  deducted via `decrement_credit()` RPC (only on cache miss, not on
-  cached reads).
+  stale or missing AND creator has ≥ 10 corpus videos: fetch top 20 videos
+  → Gemini call (formula + lessons, pydantic schema) → compute KPIs →
+  upsert `channel_formulas` → return. If < 10 videos → return thin_corpus
+  gate response. Auth-required, credit deducted via `decrement_credit()` RPC
+  (only on cache miss that triggers Gemini, not on cached reads or gate hits).
 
 ### Frontend: `/app/channel` route
 
@@ -502,18 +610,20 @@ TTL: recompute only if `computed_at < now() - interval '7 days'`.
 
 ### Milestones
 
-1. **B.3.1** (3d) — `channel_formulas` migration + Gemini schema + formula
-   aggregation + `/channel/analyze` endpoint + tests
+1. **B.3.1** (3d) — `channel_formulas` migration + claim-tier gate (≥ 10
+   videos check) + Gemini schema + formula aggregation + `/channel/analyze`
+   endpoint + tests
 2. **B.3.2** (2d) — posting cadence computation + KPI aggregation from
    `video_corpus` + cache TTL logic
 3. **B.3.3** (4d) — `/app/channel` full screen + `FormulaBar` primitive +
-   data wiring
+   thin-corpus empty state + data wiring
 4. **B.3.4** (2d) — retire `competitor_profile` + `own_channel` chat CTAs;
    "Soi Kênh" quick-action routes to `/channel`
+5. **B.3.5** (1d) — design-audit pass against `channel.jsx` reference
 
 ---
 
-## B.4 — `/script` Xưởng Viết (~2.5 weeks)
+## B.4 — `/script` Xưởng Viết (~3 weeks)
 
 ### Exact design spec (from `script.jsx`)
 
@@ -608,12 +718,30 @@ Formula: `hookDelay ≤ 1400 → hookScore 8.4`, ≤2000 → 6.2, else 4.1.
 
 ### Data model
 
-**Shot data per scene**:
-- `t0, t1` — from user input (script builder state)
+**Two independent backend concerns:**
+
+**1 — Pacing ribbon** (pre-shoot, deterministic from draft times):
+The user types shot time markers (`t0, t1` per shot). The ribbon renders
+"your draft tempo vs niche-winner tempo" — no API call needed. All data
+is derived client-side from the shot list + niche benchmark loaded once:
+- `winnerAvg` per scene type → from `scene_intelligence` (loaded at
+  screen open, cached 6h)
+- `corpusAvg` per scene type → same source
+- Slow flag: `(t1 − t0) > winnerAvg × 1.2` — computed in the component
+
+**2 — Scene intelligence panel** (on-hover reference, separate concern):
+Activated when user clicks a shot row. Fetches (or reads from cache) the
+`scene_intelligence` row for `(niche_id, scene_type_of_active_shot)`.
+Returns: tip, shot-length diagnostic, overlay library, 3 reference clips.
+This is a read-only reference panel — it does not affect the draft or pacing
+ribbon. No write path.
+
+**Shot state** (local only, no DB in v1):
+- `t0, t1` — user input
 - `cam, voice, viz, overlay` — user-authored
-- `corpusAvg, winnerAvg` — from `scene_intelligence` by `(niche_id, scene_type)`
+- `corpusAvg, winnerAvg` — from `scene_intelligence` loaded at screen open
 - `overlayWinner` — from `scene_intelligence.winner_overlay_style`
-- `tip` — from `scene_intelligence.tip` (deterministic rule or brief Gemini)
+- `tip` — from `scene_intelligence.tip`
 - `OVERLAY_SAMPLES[overlay]` — from `scene_intelligence.overlay_samples` JSONB
 
 **New table: `scene_intelligence`**:
@@ -667,14 +795,15 @@ Mapped to `HOOKS` fixture: `{pattern, delta, uses, avg}`.
 
 1. **B.4.1** (3d) — `scene_intelligence` migration + nightly batch job +
    aggregation from `video_corpus.analysis_json.scenes[]` + tests
-2. **B.4.2** (2d) — pacing data endpoint + forecast formula + hook-patterns
-   endpoint
-3. **B.4.3** (5d) — 3-col layout + all new primitives + shot row editor +
-   scene intelligence panel + overlay library
-4. **B.4.4** (2d) — morning-ritual → `/script` prefill (hook + niche from
-   ritual card)
+2. **B.4.2** (2d) — `/script/scene-intelligence` endpoint + forecast formula
+   + `/script/hook-patterns` endpoint
+3. **B.4.3** (5d) — 3-col layout + pacing ribbon (deterministic, no API) +
+   shot row editor + scene intelligence panel (on-hover, reads cached
+   `scene_intelligence`) + overlay library
+4. **B.4.4** (2d) — morning-ritual → `/script` prefill (hook + niche)
 5. **B.4.5** (2d) — `/channel` → `/script` formula prefill; retire
    `shot_list` chat CTA
+6. **B.4.6** (1d) — design-audit pass against `script.jsx` reference
 
 ---
 
@@ -698,18 +827,67 @@ Mapped to `HOOKS` fixture: `{pattern, delta, uses, avg}`.
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| EnsembleData has no retention curve | Medium | Spike B.1.2 day 1. If no, model from `breakout_multiplier`. Mark as "modeled" in UI. |
+| EnsembleData has no retention curve | Medium | Resolved in B.0.1. Fallback: modeled sigmoid, labeled `ĐƯỜNG ƯỚC TÍNH` in UI. |
 | Scene intelligence sparse (<30 winners/scene in small niches) | High | Claim-tier gate: hide `SceneIntelligence` right rail if `sample_size < 30`. Show "corpus too thin" empty state. |
-| Channel formula Gemini cost at scale | Medium | `computed_at` TTL gate (7 days). Batch nightly for creators in `creator_pins` across all users (not on-demand). |
+| Channel formula thin corpus (<10 creator videos) | High | Resolved via claim-tier gate in B.3.1. Formula bar shows empty state, no Gemini call, no credit deducted. |
+| Channel formula Gemini cost at scale | Medium | `computed_at` TTL gate (7 days). Nightly batch for pinned creators only. |
 | B.4 shot state not persisted | Low | Acceptable for v1. Add `draft_scripts` table in Phase C. |
 | `api-types.ts` drift between screens | Low | Single file created B.1.1 day 1. All four screens share it. |
+| B.1 checkpoint gate fails | Medium | Pause B.2, revisit entry-point design. B.0.3 simplified pin model reduces this risk. |
+
+### Chat middle-state UX
+
+While B.1–B.4 are in flight, quick-action cards pointing to unreleased screens
+show a mono `TUẦN X` countdown chip instead of "Sắp có". Drop when the screen
+ships.
+
+| Quick-action | Chip shows while | Drop when |
+|---|---|---|
+| Soi Video | B.1 in progress | B.1.6 merges |
+| Tìm KOL / Creator | B.2 in progress | B.2.3 merges |
+| Soi Kênh Đối Thủ | B.3 in progress | B.3.4 merges |
+| Lên Kịch Bản Quay | B.4 in progress | B.4.5 merges |
+
+Add optional `countdown?: string` to the `QUICK_ACTIONS` config. Home screen
+renders it as a `mono uc` chip in `ink-4` at top-right of the card.
+
+### Measurement
+
+One event per screen. Log to `anonymous_usage` (existing table) via a
+`logUsage(action, metadata)` wrapper — fire-and-forget, no await in UI path.
+
+| Screen | Gate metric | Event | Instrument |
+|---|---|---|---|
+| `/video` | ≥ 30% flop sessions → "Áp vào kịch bản" click | `flop_cta_click` | row count vs `video_screen_load` |
+| `/kol` | ≥ 20% sessions → pin or channel click | `kol_pin` / `kol_to_channel` | row count |
+| `/channel` | ≥ 25% sessions → "Tạo kịch bản" click | `channel_to_script` | row count |
+| `/script` | ≥ 15% scripts → "Lưu vào lịch quay" click | `script_save` | row count |
+
+No new instrumentation dependency — `anonymous_usage` table exists.
+
+### Testing strategy
+
+Per screen: pytest ≥ 80% branch coverage on new backend aggregators, vitest
+smoke for the route component, shell smoke in `artifacts/qa-reports/`.
+
+| Screen | pytest target | vitest smoke | shell smoke |
+|---|---|---|---|
+| `/video` | `video_structural.py` — all four functions | Win + Flop modes render | `smoke-video.sh` |
+| `/kol` | match score, `toggle_reference_channel` | pinned + discover tabs render | `smoke-kol.sh` |
+| `/channel` | formula aggregation, thin-corpus gate | full card + empty FormulaBar | `smoke-channel.sh` |
+| `/script` | `scene_intelligence` batch aggregator, slow flag | 3-col layout, PacingRibbon, ForecastBar | `smoke-script.sh` |
+
+Shell smokes follow the existing pattern in `artifacts/qa-reports/` — curl
+the Cloud Run endpoint, assert HTTP 200 and key JSON fields present.
 
 ### Revised timeline
 
-| Screen | Original | Revised | Reason |
+| Screen | Previous | Revised | Reason |
 |---|---|---|---|
-| B.1 `/video` | 2w | **2.5w** | EnsembleData spike + `api-types.ts` creation |
-| B.2 `/kol` | 1w | **1w** | `creator_velocity` + `starter_creators` exist; match score is the work |
-| B.3 `/channel` | 2w | **2w** | Accurate |
-| B.4 `/script` | 2w | **2.5w** | `scene_intelligence` aggregation is novel per-scene-type corpus slicing |
-| **Total** | **7w** | **~8w** | |
+| B.0 spike | — | **1w** | Retention curve + match score + pins data-model |
+| B.1 `/video` | 2.5w | **3w** | Design-audit milestone + checkpoint period |
+| B.2 `/kol` | 1w | **1.5w** | Design-audit + simplified pin model |
+| B.3 `/channel` | 2w | **2.5w** | Claim-tier gate + design-audit |
+| B.4 `/script` | 2.5w | **3w** | Pacing/intelligence split + design-audit |
+| Buffer | — | **1w** | Design-audit round-trips per screen |
+| **Total** | **~8w** | **~12w** | |
