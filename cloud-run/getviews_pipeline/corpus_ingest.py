@@ -19,15 +19,30 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
+from getviews_pipeline.config import (
+    ADAPTIVE_HASHTAG_MIN_FETCH,
+    CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
+    HASHTAG_YIELD_THRESHOLD,
+)
+from getviews_pipeline.ed_budget import theoretical_ed_pool_requests
 from getviews_pipeline.hashtag_niche_map import learn_hashtag_mappings
-from getviews_pipeline.helpers import DISTRIBUTION_GENERIC_HASHTAGS, filter_recency, merge_aweme_lists
-from getviews_pipeline.r2 import download_and_upload_thumbnail, download_and_upload_video, extract_and_upload, r2_configured
+from getviews_pipeline.helpers import (
+    DISTRIBUTION_GENERIC_HASHTAGS,
+    filter_recency,
+    merge_aweme_lists,
+)
+from getviews_pipeline.r2 import (
+    download_and_upload_thumbnail,
+    download_and_upload_video,
+    extract_and_upload,
+    r2_configured,
+)
 from getviews_pipeline.runtime import get_analysis_semaphore
 
 logger = logging.getLogger(__name__)
@@ -56,6 +71,39 @@ BATCH_CAROUSEL_MIN_LIKES = int(os.environ.get("BATCH_CAROUSEL_MIN_LIKES", "500")
 # but we cap EnsembleData calls to avoid unit limit exhaustion.
 # All hashtags are still used for in-DB matching (no API cost); only fetch is capped.
 BATCH_HASHTAG_FETCH_LIMIT = int(os.environ.get("BATCH_HASHTAG_FETCH_LIMIT", "6"))
+
+# Reingest multi-info chunk size (URL limits + ED billing — tune via REINGEST_MULTI_CHUNK).
+REINGEST_MULTI_CHUNK = max(1, int(os.environ.get("REINGEST_MULTI_CHUNK", "12") or "12"))
+
+
+def _norm_corpus_hashtag(ht: str) -> str:
+    return ht.strip().lstrip("#").lower()
+
+
+def _pick_hashtags_for_pool_fetch(
+    signal_hashtags: list[str],
+    yields_by_tag: dict[str, int],
+    limit: int,
+) -> list[str]:
+    """Order hashtags by recent ingest yield; trim adaptive fetch list (see plan §10)."""
+    if not signal_hashtags or limit <= 0:
+        return []
+    tags = list(signal_hashtags)
+    tags.sort(
+        key=lambda t: yields_by_tag.get(_norm_corpus_hashtag(t), 0),
+        reverse=True,
+    )
+    high = [
+        t
+        for t in tags
+        if yields_by_tag.get(_norm_corpus_hashtag(t), 0) >= HASHTAG_YIELD_THRESHOLD
+    ]
+    if len(high) >= ADAPTIVE_HASHTAG_MIN_FETCH:
+        return high[:limit]
+    if high:
+        rest = [t for t in tags if t not in high]
+        return (high + rest)[:limit]
+    return tags[:limit]
 
 
 # ── Result containers ───────────────────────────────────────────────────────────
@@ -87,6 +135,33 @@ def _service_client() -> Any:
     from getviews_pipeline.supabase_client import get_service_client
 
     return get_service_client()
+
+
+def _load_hashtag_yields_all_sync(client: Any) -> dict[int, dict[str, int]]:
+    """niche_id → { normalized_hashtag → ingest_count } for last 14d (RPC)."""
+    try:
+        result = client.rpc("corpus_hashtag_yields_14d", {}).execute()
+    except Exception as exc:
+        logger.warning(
+            "[corpus] corpus_hashtag_yields_14d RPC failed (run migration 20260429180000?): %s",
+            exc,
+        )
+        return {}
+    out: dict[int, dict[str, int]] = {}
+    for row in result.data or []:
+        try:
+            nid = int(row.get("niche_id"))
+        except (TypeError, ValueError):
+            continue
+        ht = _norm_corpus_hashtag(str(row.get("hashtag") or ""))
+        if not ht:
+            continue
+        try:
+            cnt = int(row.get("ingest_count") or 0)
+        except (TypeError, ValueError):
+            cnt = 0
+        out.setdefault(nid, {})[ht] = cnt
+    return out
 
 
 # ── Distribution annotations ────────────────────────────────────────────────────
@@ -150,21 +225,46 @@ async def _existing_video_ids(client: Any, niche_id: int) -> set[str]:
 
 # ── Post pool fetch ─────────────────────────────────────────────────────────────
 
-async def _fetch_keyword_pages(term: str) -> list[dict[str, Any]]:
-    """Fetch BATCH_KEYWORD_PAGES pages of keyword search results, following nextCursor."""
+async def _fetch_keyword_pages(
+    term: str,
+    *,
+    max_pages: int | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch keyword search results, following nextCursor.
+
+    ``max_pages`` defaults to BATCH_KEYWORD_PAGES (deep-pool ingest can pass a larger cap).
+    Stops early when a page contributes **no** new ``aweme_id`` values vs prior pages
+    (adaptive keyword paging — saves ED units when the feed is exhausted / duplicate-heavy).
+    """
+    pages = max_pages if max_pages is not None else BATCH_KEYWORD_PAGES
     all_awemes: list[dict[str, Any]] = []
     cursor: int = 0
-    for page in range(BATCH_KEYWORD_PAGES):
+    seen_aweme_ids: set[str] = set()
+    for page in range(pages):
         try:
             awemes, next_cursor = await ensemble.fetch_keyword_search(
                 term, period=BATCH_RECENCY_DAYS, cursor=cursor
             )
+            new_ids = 0
+            for a in awemes:
+                aid = str(a.get("aweme_id") or "")
+                if aid and aid not in seen_aweme_ids:
+                    seen_aweme_ids.add(aid)
+                    new_ids += 1
             all_awemes.extend(awemes)
             logger.debug(
-                "[corpus] keyword='%s' page=%d fetched=%d next_cursor=%s",
-                term, page, len(awemes), next_cursor,
+                "[corpus] keyword='%s' page=%d fetched=%d new_ids=%d next_cursor=%s",
+                term, page, len(awemes), new_ids, next_cursor,
             )
             if next_cursor is None or not awemes:
+                break
+            # Only skip further pages when a non-first page repeats only IDs we already saw.
+            if page > 0 and awemes and new_ids == 0:
+                logger.info(
+                    "[corpus] keyword='%s' early-exit after page=%d (0 new aweme_ids)",
+                    term,
+                    page,
+                )
                 break
             cursor = next_cursor
         except Exception as exc:
@@ -173,16 +273,23 @@ async def _fetch_keyword_pages(term: str) -> list[dict[str, Any]]:
     return all_awemes
 
 
-async def _fetch_niche_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
+async def _fetch_niche_pool(
+    niche: dict[str, Any],
+    *,
+    keyword_pages: int | None = None,
+    hashtag_yields: dict[str, int] | None = None,
+) -> list[dict[str, Any]]:
     """Fetch posts for a niche via keyword search (paginated) + all signal hashtags, merged + deduped."""
     term = (niche.get("name_en") or "").strip()
     hashtags: list[str] = niche.get("signal_hashtags") or []
 
     # Keyword search: paginated — broadens pool beyond a single page of ~20 posts
-    keyword_task = _fetch_keyword_pages(term)
-    # Cap hashtag fetch calls to BATCH_HASHTAG_FETCH_LIMIT highest-signal tags.
-    # The full signal_hashtags array is used for in-DB niche matching (no API cost).
-    fetch_hashtags = hashtags[:BATCH_HASHTAG_FETCH_LIMIT]
+    keyword_task = _fetch_keyword_pages(term, max_pages=keyword_pages)
+    # Cap hashtag fetch calls; order by recent ingest yield when RPC data exists.
+    yields = hashtag_yields or {}
+    fetch_hashtags = _pick_hashtags_for_pool_fetch(
+        hashtags, yields, BATCH_HASHTAG_FETCH_LIMIT
+    )
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
         for ht in fetch_hashtags
@@ -247,6 +354,24 @@ async def _fetch_carousel_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
     logger.info(
         "[corpus] carousel pool for niche '%s': %d carousels from %d total hashtag posts",
         niche.get("name_en", "?"), len(carousels), len(all_awemes),
+    )
+    return filter_recency(carousels, BATCH_RECENCY_DAYS)
+
+
+def _carousel_pool_from_merged_video_pool(
+    pool: list[dict[str, Any]],
+    *,
+    niche_name: str,
+) -> list[dict[str, Any]]:
+    """Derive carousel candidates from the same merged pool as videos (no 2nd hashtag pass)."""
+    carousels = [
+        a for a in pool if ensemble.detect_content_type(a) == "carousel"
+    ]
+    logger.info(
+        "[corpus] carousel pool (merged) niche='%s': %d carousels from pool size %d",
+        niche_name,
+        len(carousels),
+        len(pool),
     )
     return filter_recency(carousels, BATCH_RECENCY_DAYS)
 
@@ -493,7 +618,7 @@ def _classify_creator_tier(followers: int | None) -> str | None:
 def _vietnam_hour(create_time: int | None) -> int | None:
     if not create_time:
         return None
-    dt = datetime.fromtimestamp(create_time, tz=timezone.utc)
+    dt = datetime.fromtimestamp(create_time, tz=UTC)
     return (dt.hour + 7) % 24
 
 
@@ -594,7 +719,7 @@ def _build_corpus_row(
     is_duet = bool(duet_setting.get("duet_type") == 1 or duet_setting.get("duetType") == 1)
 
     posted_at = (
-        datetime.fromtimestamp(create_time, tz=timezone.utc).isoformat()
+        datetime.fromtimestamp(create_time, tz=UTC).isoformat()
         if create_time else None
     )
 
@@ -698,11 +823,250 @@ def _build_corpus_row(
     }
 
 
+def _video_pool_gate_diagnostics(
+    pool: list[dict[str, Any]],
+    existing_ids: set[str],
+) -> dict[str, int]:
+    """Count why video awemes from the keyword/hashtag pool are not selected (mirrors ingest gates)."""
+    d: dict[str, int] = {
+        "pool_awemes": len(pool),
+        "already_in_corpus_this_niche": 0,
+        "no_aweme_id": 0,
+        "play_count_zero": 0,
+        "below_min_views": 0,
+        "failed_vn_gate": 0,
+        "below_min_er": 0,
+        "passed_video_gates": 0,
+    }
+    for a in pool:
+        vid = str(a.get("aweme_id", "") or "")
+        if not vid:
+            d["no_aweme_id"] += 1
+            continue
+        if vid in existing_ids:
+            d["already_in_corpus_this_niche"] += 1
+            continue
+        stats = a.get("statistics") or {}
+        play_count = int(stats.get("play_count") or stats.get("playCount") or 0)
+        if play_count == 0:
+            d["play_count_zero"] += 1
+            continue
+        if play_count < BATCH_MIN_VIEWS:
+            d["below_min_views"] += 1
+            continue
+        author = a.get("author") or {}
+        region = str(author.get("region") or "").upper()
+        if region and region not in ("VN", ""):
+            d["failed_vn_gate"] += 1
+            continue
+        if not region:
+            desc = str(a.get("desc") or "")
+            if desc and not _has_vietnamese_chars(desc):
+                d["failed_vn_gate"] += 1
+                continue
+        likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
+        comments = int(stats.get("comment_count") or stats.get("commentCount") or 0)
+        shares = int(stats.get("share_count") or stats.get("shareCount") or 0)
+        er = _safe_engagement_rate(
+            er_from_analysis=None,
+            views=play_count,
+            likes=likes,
+            comments=comments,
+            shares=shares,
+        )
+        if er < BATCH_MIN_ER:
+            d["below_min_er"] += 1
+            continue
+        d["passed_video_gates"] += 1
+    return d
+
+
+async def _ingest_candidate_awemes(
+    client: Any,
+    niche_id: int,
+    niche_name: str,
+    candidates: list[dict[str, Any]],
+) -> IngestResult:
+    """Analyze prepared aweme dicts and upsert rows (shared by pool ingest + explicit reingest)."""
+    result = IngestResult(niche_id=niche_id, niche_name=niche_name)
+    if not candidates:
+        return result
+
+    logger.info("[corpus] niche=%s — analyzing %d candidates", niche_name, len(candidates))
+
+    sem = get_analysis_semaphore()
+
+    async def _analyze_one(aweme: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+        """Return (analysis_dict, frame_urls). frame_urls is [] for carousels or on failure."""
+        async with sem:
+            ct = ensemble.detect_content_type(aweme)
+            if ct == "carousel":
+                analysis = await analyze_aweme(aweme, include_diagnosis=False)
+                return analysis, []
+
+            video_urls = ensemble.extract_video_urls(aweme)
+            if not video_urls:
+                return {
+                    "error": "No video URLs in aweme",
+                    "metadata": ensemble.parse_metadata(aweme).model_dump(),
+                }, []
+
+            video_path: Path | None = None
+            try:
+                try:
+                    video_path = await ensemble.download_video(video_urls)
+                except Exception as e:
+                    return {
+                        "error": str(e),
+                        "metadata": ensemble.parse_metadata(aweme).model_dump(),
+                    }, []
+
+                vid = str(aweme.get("aweme_id", "") or "")
+                async def _noop_frames() -> list[str]:
+                    return []
+
+                frame_coro = (
+                    extract_and_upload(video_path, vid)
+                    if r2_configured()
+                    else _noop_frames()
+                )
+                analysis, frame_urls = await asyncio.gather(
+                    analyze_aweme_from_path(aweme, video_path, include_diagnosis=False),
+                    frame_coro,
+                )
+                return analysis, frame_urls if isinstance(frame_urls, list) else []
+            finally:
+                if video_path is not None:
+                    video_path.unlink(missing_ok=True)
+
+    gather_results = await asyncio.gather(
+        *[_analyze_one(a) for a in candidates], return_exceptions=True
+    )
+
+    rows: list[dict[str, Any]] = []
+    frame_urls_by_video_id: dict[str, list[str]] = {}
+
+    for aweme, gather_result in zip(candidates, gather_results):
+        if isinstance(gather_result, Exception):
+            logger.warning("[corpus] analyze error: %s", gather_result)
+            result.failed += 1
+            result.errors.append(str(gather_result))
+            continue
+        analysis, frame_urls = gather_result
+        row = _build_corpus_row(aweme, analysis, niche_id)
+        vid = str(aweme.get("aweme_id", "") or "")
+        if row is None:
+            result.skipped += 1
+            err = analysis.get("error")
+            logger.warning(
+                "[corpus] niche=%s skip video_id=%s (no corpus row) keys=%s err=%s",
+                niche_name,
+                vid,
+                list(analysis.keys())[:14],
+                (str(err)[:400] if err is not None else None),
+            )
+        else:
+            try:
+                from getviews_pipeline.pattern_fingerprint import (
+                    compute_and_upsert_pattern,
+                )
+
+                pattern_id = await compute_and_upsert_pattern(
+                    client, analysis.get("analysis") or {}, niche_id,
+                )
+                if pattern_id:
+                    row["pattern_id"] = pattern_id
+            except Exception as exc:
+                logger.warning("[corpus] pattern fingerprint failed: %s", exc)
+            rows.append(row)
+            if frame_urls:
+                frame_urls_by_video_id[row["video_id"]] = frame_urls
+
+    if rows and r2_configured():
+        video_rows = [r for r in rows if r.get("content_type", "video") == "video" and r.get("video_url")]
+
+        for row in video_rows:
+            pre_frames = frame_urls_by_video_id.get(row["video_id"], [])
+            if pre_frames:
+                row["frame_urls"] = pre_frames
+                logger.info("[corpus] %s — %d frame(s) from shared download", row["video_id"], len(pre_frames))
+
+        logger.info(
+            "[corpus] niche=%s — R2 upload: %d video clips + %d thumbnails",
+            niche_name,
+            len(video_rows),
+            len(rows),
+        )
+
+        video_upload_tasks = [
+            download_and_upload_video(
+                [row["video_url"]],
+                row["video_id"],
+            )
+            for row in video_rows
+        ]
+        thumb_tasks = [
+            download_and_upload_thumbnail(
+                row.get("thumbnail_url") or "",
+                row["video_id"],
+            )
+            for row in rows
+        ]
+
+        video_results, thumb_results = await asyncio.gather(
+            asyncio.gather(*video_upload_tasks, return_exceptions=True),
+            asyncio.gather(*thumb_tasks, return_exceptions=True),
+        )
+
+        for row, video_result in zip(video_rows, video_results):
+            if isinstance(video_result, str) and video_result:
+                row["video_url"] = video_result
+                logger.info("[corpus] %s — video uploaded to R2: %s", row["video_id"], video_result)
+            elif isinstance(video_result, Exception):
+                logger.warning("[corpus] video upload error for %s: %s", row["video_id"], video_result)
+
+        for row, thumb_result in zip(rows, thumb_results):
+            if isinstance(thumb_result, str) and thumb_result:
+                row["thumbnail_url"] = thumb_result
+                logger.info("[corpus] %s — thumbnail uploaded to R2: %s", row["video_id"], thumb_result)
+            elif isinstance(thumb_result, Exception):
+                logger.warning("[corpus] thumbnail upload error for %s: %s", row["video_id"], thumb_result)
+
+    if rows:
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None, lambda: _upsert_rows_sync(client, rows)
+            )
+            result.inserted += len(rows)
+            logger.info("[corpus] niche=%s — upserted %d rows", niche_name, len(rows))
+
+            for row in rows:
+                row_hashtags: list[str] = row.get("hashtags") or []
+                if row_hashtags:
+                    await learn_hashtag_mappings(
+                        video_hashtags=row_hashtags,
+                        niche_id=niche_id,
+                        niche_source="corpus_batch",
+                        client=client,
+                    )
+        except Exception as exc:
+            logger.error("[corpus] niche=%s upsert failed: %s", niche_name, exc)
+            result.failed += len(rows)
+            result.errors.append(f"upsert: {exc}")
+
+    return result
+
+
 # ── Per-niche ingest ─────────────────────────────────────────────────────────────
 
 async def ingest_niche(
     niche: dict[str, Any],
     client: Any,
+    *,
+    keyword_pages_override: int | None = None,
+    videos_per_niche_override: int | None = None,
+    carousels_per_niche_override: int | None = None,
+    hashtag_yields_for_niche: dict[str, int] | None = None,
 ) -> IngestResult:
     niche_id: int = niche["id"]
     niche_name: str = niche.get("name_en") or niche.get("name_vn") or str(niche_id)
@@ -711,7 +1075,11 @@ async def ingest_niche(
     logger.info("[corpus] niche=%s id=%d — fetching pool", niche_name, niche_id)
 
     try:
-        pool = await _fetch_niche_pool(niche)
+        pool = await _fetch_niche_pool(
+            niche,
+            keyword_pages=keyword_pages_override,
+            hashtag_yields=hashtag_yields_for_niche,
+        )
     except Exception as exc:
         logger.error("[corpus] niche=%s pool fetch failed: %s", niche_name, exc)
         result.errors.append(f"pool_fetch: {exc}")
@@ -722,8 +1090,12 @@ async def ingest_niche(
         None, lambda: _existing_video_ids_sync(client, niche_id)
     )
 
-    # Fetch carousel pool in parallel with the video pool
-    carousel_pool = await _fetch_carousel_pool(niche)
+    if CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH:
+        carousel_pool = await _fetch_carousel_pool(niche)
+    else:
+        carousel_pool = _carousel_pool_from_merged_video_pool(
+            pool, niche_name=niche_name
+        )
 
     # ── Quality gates ────────────────────────────────────────────────────────────
     # Shared helper — applies Gates 3+4 (Vietnamese creator/caption checks)
@@ -786,7 +1158,8 @@ async def ingest_niche(
         key=lambda a: int((a.get("statistics") or {}).get("play_count", 0) or 0),
         reverse=True,
     )
-    candidates = candidates[:BATCH_VIDEOS_PER_NICHE]
+    vpn = videos_per_niche_override if videos_per_niche_override is not None else BATCH_VIDEOS_PER_NICHE
+    candidates = candidates[:vpn]
 
     # ── Carousel candidates ──────────────────────────────────────────────────────
     # Carousel quality gates differ from video:
@@ -821,7 +1194,8 @@ async def ingest_niche(
         key=lambda a: int((a.get("statistics") or {}).get("digg_count", 0) or 0),
         reverse=True,
     )
-    carousel_candidates = carousel_candidates[:BATCH_CAROUSELS_PER_NICHE]
+    cpn = carousels_per_niche_override if carousels_per_niche_override is not None else BATCH_CAROUSELS_PER_NICHE
+    carousel_candidates = carousel_candidates[:cpn]
 
     if carousel_candidates:
         logger.info(
@@ -833,184 +1207,33 @@ async def ingest_niche(
     candidates = candidates + carousel_candidates
 
     if not candidates:
-        logger.info("[corpus] niche=%s — all posts already indexed, skipping", niche_name)
+        vdiag = _video_pool_gate_diagnostics(pool, existing_ids)
+        logger.info(
+            "[corpus] niche=%s — no ingestible candidates this run "
+            "(misleading legacy label was 'all posts already indexed'). "
+            "carousel_raw_pool=%d video_gate_diag=%s",
+            niche_name,
+            len(carousel_pool),
+            vdiag,
+        )
         return result
 
-    logger.info("[corpus] niche=%s — analyzing %d candidates", niche_name, len(candidates))
-
-    sem = get_analysis_semaphore()
-
-    # For video candidates: download once via proxy → run Gemini analysis and R2
-    # frame extraction concurrently on the same file → then upload the 30s clip
-    # separately (ffmpeg reads directly from CDN, not the proxy, so it stays cheap).
-    # For carousels: fall through to the existing analyze_aweme path (no local file).
-    async def _analyze_one(aweme: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-        """Return (analysis_dict, frame_urls). frame_urls is [] for carousels or on failure."""
-        async with sem:
-            ct = ensemble.detect_content_type(aweme)
-            if ct == "carousel":
-                analysis = await analyze_aweme(aweme, include_diagnosis=False)
-                return analysis, []
-
-            video_urls = ensemble.extract_video_urls(aweme)
-            if not video_urls:
-                return {
-                    "error": "No video URLs in aweme",
-                    "metadata": ensemble.parse_metadata(aweme).model_dump(),
-                }, []
-
-            video_path: Path | None = None
-            try:
-                try:
-                    video_path = await ensemble.download_video(video_urls)
-                except Exception as e:
-                    return {
-                        "error": str(e),
-                        "metadata": ensemble.parse_metadata(aweme).model_dump(),
-                    }, []
-
-                vid = str(aweme.get("aweme_id", "") or "")
-                # Run Gemini analysis and R2 frame extraction concurrently on the same file.
-                # extract_and_upload never raises (returns [] on any failure).
-                async def _noop_frames() -> list[str]:
-                    return []
-
-                frame_coro = (
-                    extract_and_upload(video_path, vid)
-                    if r2_configured()
-                    else _noop_frames()
-                )
-                analysis, frame_urls = await asyncio.gather(
-                    analyze_aweme_from_path(aweme, video_path, include_diagnosis=False),
-                    frame_coro,
-                )
-                return analysis, frame_urls if isinstance(frame_urls, list) else []
-            finally:
-                if video_path is not None:
-                    video_path.unlink(missing_ok=True)
-
-    gather_results = await asyncio.gather(
-        *[_analyze_one(a) for a in candidates], return_exceptions=True
+    id_strs = [str(c.get("aweme_id", "") or "") for c in candidates if c.get("aweme_id") is not None]
+    preview = ",".join(id_strs[:60])
+    if len(id_strs) > 60:
+        preview = f"{preview},...(+{len(id_strs) - 60} more)"
+    logger.info(
+        "[corpus] niche=%s — candidate_aweme_ids n=%d: %s",
+        niche_name,
+        len(id_strs),
+        preview,
     )
 
-    rows: list[dict[str, Any]] = []
-    # frame_urls_by_video_id holds pre-extracted frames from the shared download
-    frame_urls_by_video_id: dict[str, list[str]] = {}
-
-    for aweme, gather_result in zip(candidates, gather_results):
-        if isinstance(gather_result, Exception):
-            logger.warning("[corpus] analyze error: %s", gather_result)
-            result.failed += 1
-            result.errors.append(str(gather_result))
-            continue
-        analysis, frame_urls = gather_result
-        row = _build_corpus_row(aweme, analysis, niche_id)
-        if row is None:
-            result.skipped += 1
-        else:
-            # Pattern fingerprint — stamp pattern_id on the row so downstream
-            # reads (trend_spike, content_directions) can pull clustering-aware
-            # references. Fails open: a None pattern_id leaves the column NULL
-            # and the rest of the corpus insert proceeds unchanged.
-            try:
-                from getviews_pipeline.pattern_fingerprint import (
-                    compute_and_upsert_pattern,
-                )
-
-                pattern_id = await compute_and_upsert_pattern(
-                    client, analysis.get("analysis") or {}, niche_id,
-                )
-                if pattern_id:
-                    row["pattern_id"] = pattern_id
-            except Exception as exc:
-                logger.warning("[corpus] pattern fingerprint failed: %s", exc)
-            rows.append(row)
-            if frame_urls:
-                frame_urls_by_video_id[row["video_id"]] = frame_urls
-
-    # R2 upload:
-    #   Frames: already extracted above from the shared proxy download — apply them now.
-    #   Video clip: download 30s clip via ffmpeg directly from CDN (no proxy, cheap).
-    #   Thumbnail: download from CDN and upload to R2 for permanent storage.
-    # Failures are non-fatal — frame_urls stays [] and video/thumbnail_url stay as CDN URLs.
-    if rows and r2_configured():
-        video_rows = [r for r in rows if r.get("content_type", "video") == "video" and r.get("video_url")]
-
-        # Apply pre-extracted frame URLs from the shared download
-        for row in video_rows:
-            pre_frames = frame_urls_by_video_id.get(row["video_id"], [])
-            if pre_frames:
-                row["frame_urls"] = pre_frames
-                logger.info("[corpus] %s — %d frame(s) from shared download", row["video_id"], len(pre_frames))
-
-        logger.info(
-            "[corpus] niche=%s — R2 upload: %d video clips + %d thumbnails",
-            niche_name,
-            len(video_rows),
-            len(rows),
-        )
-
-        video_upload_tasks = [
-            download_and_upload_video(
-                [row["video_url"]],
-                row["video_id"],
-            )
-            for row in video_rows
-        ]
-        # Thumbnail upload for ALL rows (including carousels that may not have video_url)
-        thumb_tasks = [
-            download_and_upload_thumbnail(
-                row.get("thumbnail_url") or "",
-                row["video_id"],
-            )
-            for row in rows
-        ]
-
-        video_results, thumb_results = await asyncio.gather(
-            asyncio.gather(*video_upload_tasks, return_exceptions=True),
-            asyncio.gather(*thumb_tasks, return_exceptions=True),
-        )
-
-        for row, video_result in zip(video_rows, video_results):
-            if isinstance(video_result, str) and video_result:
-                row["video_url"] = video_result
-                logger.info("[corpus] %s — video uploaded to R2: %s", row["video_id"], video_result)
-            elif isinstance(video_result, Exception):
-                logger.warning("[corpus] video upload error for %s: %s", row["video_id"], video_result)
-
-        for row, thumb_result in zip(rows, thumb_results):
-            if isinstance(thumb_result, str) and thumb_result:
-                row["thumbnail_url"] = thumb_result
-                logger.info("[corpus] %s — thumbnail uploaded to R2: %s", row["video_id"], thumb_result)
-            elif isinstance(thumb_result, Exception):
-                logger.warning("[corpus] thumbnail upload error for %s: %s", row["video_id"], thumb_result)
-
-    if rows:
-        try:
-            await asyncio.get_event_loop().run_in_executor(
-                None, lambda: _upsert_rows_sync(client, rows)
-            )
-            result.inserted += len(rows)
-            logger.info("[corpus] niche=%s — upserted %d rows", niche_name, len(rows))
-
-            # Learn hashtag→niche mappings only after a successful upsert.
-            # Placed inside try so it never runs when _upsert_rows_sync fails —
-            # learning from videos that weren't persisted would create orphaned
-            # entries in hashtag_niche_map and pollute future classification.
-            for row in rows:
-                row_hashtags: list[str] = row.get("hashtags") or []
-                if row_hashtags:
-                    await learn_hashtag_mappings(
-                        video_hashtags=row_hashtags,
-                        niche_id=niche_id,
-                        niche_source="corpus_batch",
-                        client=client,
-                    )
-        except Exception as exc:
-            logger.error("[corpus] niche=%s upsert failed: %s", niche_name, exc)
-            result.failed += len(rows)
-            result.errors.append(f"upsert: {exc}")
-
+    sub = await _ingest_candidate_awemes(client, niche_id, niche_name, candidates)
+    result.inserted = sub.inserted
+    result.skipped = sub.skipped
+    result.failed = sub.failed
+    result.errors = sub.errors
     return result
 
 
@@ -1047,15 +1270,148 @@ async def _refresh_niche_intelligence(client: Any) -> bool:
         return False
 
 
+async def run_reingest_video_items(
+    items: list[dict[str, Any]],
+    *,
+    refresh_mv: bool = True,
+) -> BatchSummary:
+    """Re-fetch posts by TikTok ``video_id`` / ``aweme_id`` and run analyze+upsert.
+
+    Each item is ``{"video_id": "<aweme_id>", "niche_id": <int>}`` (``aweme_id`` alias allowed).
+    Does not run Sunday weekly analytics — only analyze/upsert + optional MV refresh.
+    """
+    from collections import defaultdict
+
+    summary = BatchSummary()
+    client = _service_client()
+
+    seen: set[tuple[str, int]] = set()
+    ordered: list[tuple[str, int]] = []
+    for it in items:
+        vid = str(it.get("video_id") or it.get("aweme_id") or "").strip()
+        raw_nid = it.get("niche_id")
+        if not vid or raw_nid is None:
+            continue
+        try:
+            nid = int(raw_nid)
+        except (TypeError, ValueError):
+            continue
+        key = (vid, nid)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append((vid, nid))
+
+    if len(ordered) > 400:
+        logger.warning("[corpus] reingest capped from %d to 400 items", len(ordered))
+        ordered = ordered[:400]
+
+    if not ordered:
+        logger.warning("[corpus] reingest: no valid items")
+        return summary
+
+    niches: list[dict[str, Any]] = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _fetch_niches_sync(client)
+    )
+    niches_by_id = {int(n["id"]): n for n in niches}
+
+    by_niche: dict[int, list[str]] = defaultdict(list)
+    for vid, nid in ordered:
+        by_niche[nid].append(vid)
+
+    with ensemble.ed_batch_metering() as batch_id:
+        for niche_id, ids in by_niche.items():
+            niche = niches_by_id.get(niche_id)
+            if not niche:
+                logger.error("[corpus] reingest: unknown niche_id=%s", niche_id)
+                summary.total_failed += len(ids)
+                summary.niches_processed += 1
+                summary.niche_results.append({
+                    "niche_id": niche_id,
+                    "niche_name": str(niche_id),
+                    "inserted": 0,
+                    "skipped": 0,
+                    "failed": len(ids),
+                    "errors": ["unknown niche_id"],
+                })
+                continue
+
+            niche_name = niche.get("name_en") or niche.get("name_vn") or str(niche_id)
+            candidates: list[dict[str, Any]] = []
+            missing = 0
+            for i in range(0, len(ids), REINGEST_MULTI_CHUNK):
+                chunk = ids[i : i + REINGEST_MULTI_CHUNK]
+                raw_posts = await ensemble.fetch_post_multi_info(chunk)
+                fresh_by_id: dict[str, dict[str, Any]] = {}
+                for post in raw_posts:
+                    detail = post.get("aweme_detail") or post
+                    vid_id = str(detail.get("aweme_id") or "")
+                    if vid_id:
+                        fresh_by_id[vid_id] = detail
+                for vid in chunk:
+                    detail = fresh_by_id.get(vid)
+                    if not detail:
+                        missing += 1
+                        continue
+                    candidates.append(detail)
+
+            if missing:
+                logger.warning(
+                    "[corpus] reingest niche=%s — EnsembleData missing %d/%d aweme payloads",
+                    niche_name,
+                    missing,
+                    len(ids),
+                )
+
+            sub = await _ingest_candidate_awemes(client, niche_id, niche_name, candidates)
+            sub_failed = sub.failed + missing
+            err_extra = ([f"multi_info_missing:{missing}"] if missing else [])
+            summary.total_inserted += sub.inserted
+            summary.total_skipped += sub.skipped
+            summary.total_failed += sub_failed
+            summary.niches_processed += 1
+            summary.niche_results.append({
+                "niche_id": niche_id,
+                "niche_name": niche_name,
+                "inserted": sub.inserted,
+                "skipped": sub.skipped,
+                "failed": sub_failed,
+                "errors": sub.errors + err_extra,
+            })
+
+        if refresh_mv:
+            summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
+        else:
+            summary.materialized_view_refreshed = False
+
+        logger.info(
+            ensemble.format_ed_meter_summary(
+                batch_id=batch_id,
+                niches=summary.niches_processed,
+                inserted=summary.total_inserted,
+                skipped=summary.total_skipped,
+                failed=summary.total_failed,
+                label="reingest_videos",
+                theoretical_pool=None,
+            )
+        )
+
+    return summary
+
+
 # ── Main batch entry point ───────────────────────────────────────────────────────
 
 async def run_batch_ingest(
     niche_ids: list[int] | None = None,
+    *,
+    deep_pool: bool = False,
 ) -> BatchSummary:
     """Run full batch ingest. Optionally restrict to specific niche_ids.
 
     Args:
         niche_ids: If provided, only ingest these niche IDs. Otherwise all niches.
+        deep_pool: When True, widen keyword pagination and per-niche caps so a follow-up
+            run can overlap more of a prior candidate set (e.g. after a model outage).
 
     Returns:
         BatchSummary with per-niche counts and materialized view status.
@@ -1074,73 +1430,125 @@ async def run_batch_ingest(
         logger.warning("[corpus] No niches to process")
         return summary
 
+    kw: int | None = None
+    vpn: int | None = None
+    cpn: int | None = None
+    if deep_pool:
+        kw = min(BATCH_KEYWORD_PAGES * 3, 8)
+        vpn = min(BATCH_VIDEOS_PER_NICHE * 2, 40)
+        cpn = min(BATCH_CAROUSELS_PER_NICHE * 2, 12)
+        logger.info(
+            "[corpus] deep_pool ingest: keyword_pages=%d videos_per_niche=%d carousels=%d",
+            kw,
+            vpn,
+            cpn,
+        )
+
     logger.info("[corpus] Starting batch ingest for %d niches", len(niches))
 
-    # Process niches in batches of BATCH_CONCURRENCY to avoid overwhelming APIs
-    for i in range(0, len(niches), BATCH_CONCURRENCY):
-        batch = niches[i : i + BATCH_CONCURRENCY]
-        results = await asyncio.gather(
-            *[ingest_niche(n, client) for n in batch],
-            return_exceptions=True,
-        )
-        for res in results:
-            if isinstance(res, Exception):
-                logger.error("[corpus] niche ingest raised: %s", res)
-                summary.total_failed += 1
-                continue
-            summary.total_inserted += res.inserted
-            summary.total_skipped += res.skipped
-            summary.total_failed += res.failed
-            summary.niches_processed += 1
-            summary.niche_results.append({
-                "niche_id": res.niche_id,
-                "niche_name": res.niche_name,
-                "inserted": res.inserted,
-                "skipped": res.skipped,
-                "failed": res.failed,
-                "errors": res.errors,
-            })
-
-    # Refresh materialized view once all niches are done
-    summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
-
-    # Daily: refresh Video Đáng Học rankings
-    try:
-        from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
-
-        vdh_result = await run_video_dang_hoc(client)
-        logger.info(
-            "[video_dang_hoc] bung_no=%d dang_hot=%d errors=%s",
-            vdh_result.bung_no_count,
-            vdh_result.dang_hot_count,
-            vdh_result.errors or "none",
-        )
-    except Exception as exc:
-        logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
-
-    # Daily: Layer 0B — emerging sound insights
-    try:
-        from getviews_pipeline.layer0_sound import run_sound_insights
-        l0b_result = await run_sound_insights(client)
-        logger.info("[layer0b] sounds_analyzed=%d", l0b_result.get("analyzed", 0))
-    except Exception as exc:
-        logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
-
-    # Weekly analytics (Sunday only — day 6 in Python's weekday())
-    today = date.today()
-    is_sunday = today.weekday() == 6
-    if is_sunday:
-        logger.info("[corpus] Sunday — running weekly analytics (trend_velocity + P1-7 + P1-8)...")
-        await _run_weekly_analytics(client)
-
-    logger.info(
-        "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d mv_refreshed=%s",
-        summary.total_inserted,
-        summary.total_skipped,
-        summary.total_failed,
-        summary.niches_processed,
-        summary.materialized_view_refreshed,
+    eff_kw_pages = kw if kw is not None else BATCH_KEYWORD_PAGES
+    theory_pool = theoretical_ed_pool_requests(
+        len(niches),
+        keyword_pages=eff_kw_pages,
+        hashtag_limit=BATCH_HASHTAG_FETCH_LIMIT,
+        legacy_carousel_second_hashtag_pass=CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
     )
+    logger.info("[corpus] theoretical_ed_pool %s", theory_pool["formula"])
+
+    hashtag_yields_all = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _load_hashtag_yields_all_sync(client)
+    )
+
+    with ensemble.ed_batch_metering() as batch_id:
+        # Process niches in batches of BATCH_CONCURRENCY to avoid overwhelming APIs
+        for i in range(0, len(niches), BATCH_CONCURRENCY):
+            batch = niches[i : i + BATCH_CONCURRENCY]
+            results = await asyncio.gather(
+                *[
+                    ingest_niche(
+                        n,
+                        client,
+                        keyword_pages_override=kw,
+                        videos_per_niche_override=vpn,
+                        carousels_per_niche_override=cpn,
+                        hashtag_yields_for_niche=hashtag_yields_all.get(int(n["id"]), {}),
+                    )
+                    for n in batch
+                ],
+                return_exceptions=True,
+            )
+            for res in results:
+                if isinstance(res, Exception):
+                    logger.error("[corpus] niche ingest raised: %s", res)
+                    summary.total_failed += 1
+                    continue
+                summary.total_inserted += res.inserted
+                summary.total_skipped += res.skipped
+                summary.total_failed += res.failed
+                summary.niches_processed += 1
+                summary.niche_results.append({
+                    "niche_id": res.niche_id,
+                    "niche_name": res.niche_name,
+                    "inserted": res.inserted,
+                    "skipped": res.skipped,
+                    "failed": res.failed,
+                    "errors": res.errors,
+                })
+
+        # Refresh materialized view once all niches are done
+        summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
+
+        # Daily: refresh Video Đáng Học rankings
+        try:
+            from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
+
+            vdh_result = await run_video_dang_hoc(client)
+            logger.info(
+                "[video_dang_hoc] bung_no=%d dang_hot=%d errors=%s",
+                vdh_result.bung_no_count,
+                vdh_result.dang_hot_count,
+                vdh_result.errors or "none",
+            )
+        except Exception as exc:
+            logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
+
+        # Daily: Layer 0B — emerging sound insights
+        try:
+            from getviews_pipeline.layer0_sound import run_sound_insights
+
+            l0b_result = await run_sound_insights(client)
+            logger.info("[layer0b] sounds_analyzed=%d", l0b_result.get("analyzed", 0))
+        except Exception as exc:
+            logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
+
+        # Weekly analytics (Sunday only — day 6 in Python's weekday())
+        today = date.today()
+        is_sunday = today.weekday() == 6
+        if is_sunday:
+            logger.info(
+                "[corpus] Sunday — running weekly analytics (trend_velocity + P1-7 + P1-8)..."
+            )
+            await _run_weekly_analytics(client)
+
+        logger.info(
+            "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d mv_refreshed=%s",
+            summary.total_inserted,
+            summary.total_skipped,
+            summary.total_failed,
+            summary.niches_processed,
+            summary.materialized_view_refreshed,
+        )
+        logger.info(
+            ensemble.format_ed_meter_summary(
+                batch_id=batch_id,
+                niches=len(niches),
+                inserted=summary.total_inserted,
+                skipped=summary.total_skipped,
+                failed=summary.total_failed,
+                label="batch_ingest",
+                theoretical_pool=theory_pool,
+            )
+        )
     return summary
 
 

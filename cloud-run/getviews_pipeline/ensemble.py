@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import contextvars
 import logging
 import os
+import time
 import uuid
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -16,14 +20,20 @@ from getviews_pipeline.config import (
     CAROUSEL_EXTRACT_MAX_SLIDES,
     CAROUSEL_MAX_IMAGE_BYTES,
     CDN_HEADERS,
+    ED_BATCH_BUDGET_ENFORCE,
+    ED_BATCH_DAILY_REQUEST_MAX,
+    ENSEMBLE_USER_PATH_CACHE_MAX,
+    ENSEMBLE_USER_PATH_CACHE_TTL_SEC,
     ENSEMBLEDATA_HASHTAG_POSTS_URL,
     ENSEMBLEDATA_KEYWORD_SEARCH_URL,
     ENSEMBLEDATA_POST_INFO_URL,
     ENSEMBLEDATA_POST_MULTI_INFO_URL,
     ENSEMBLEDATA_USER_POSTS_URL,
     ENSEMBLEDATA_USER_SEARCH_URL,
+    KEYWORD_SEARCH_AUTHOR_STATS,
     require_ensembledata_token,
 )
+from getviews_pipeline.ed_budget import endpoint_key_from_url, estimate_units_from_counts
 from getviews_pipeline.models import Author, ContentType, Metrics, Music, VideoMetadata
 
 # EnsembleData echoes TikTok's mobile API. Photo carousels use aweme_type == 2; slide
@@ -31,6 +41,129 @@ from getviews_pipeline.models import Author, ContentType, Metrics, Music, VideoM
 AWEME_TYPE_PHOTO_CAROUSEL = 2
 
 logger = logging.getLogger(__name__)
+
+
+class EnsembleDailyBudgetExceeded(ValueError):
+    """Raised when ED_BATCH_DAILY_REQUEST_MAX is exceeded for batch-class traffic (UTC day)."""
+
+
+# ── EnsembleData metering (ContextVar — safe under asyncio.gather) ───────────
+_ed_meter: contextvars.ContextVar[dict[str, int] | None] = contextvars.ContextVar(
+    "ed_meter", default=None
+)
+_ed_hashtag_cache: contextvars.ContextVar[
+    dict[tuple[str, int], tuple[list[dict[str, Any]], int | None]] | None
+] = contextvars.ContextVar("ed_hashtag_cache", default=None)
+_ed_batch_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "ed_batch_id", default=None
+)
+_ed_request_class: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "ed_request_class", default="user"
+)
+
+_budget_lock = asyncio.Lock()
+_batch_request_counts_by_utc_day: dict[str, int] = {}
+
+
+def _utc_day() -> str:
+    return time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def _meter_increment(endpoint: str) -> None:
+    bag = _ed_meter.get()
+    if bag is None:
+        return
+    bag[endpoint] = bag.get(endpoint, 0) + 1
+
+
+def snapshot_ed_meter_counts() -> dict[str, int]:
+    bag = _ed_meter.get()
+    if not bag:
+        return {}
+    return dict(bag)
+
+
+def format_ed_meter_summary(
+    *,
+    batch_id: str | None,
+    niches: int | None,
+    inserted: int,
+    skipped: int,
+    failed: int,
+    label: str,
+    theoretical_pool: dict[str, Any] | None = None,
+) -> str:
+    counts = snapshot_ed_meter_counts()
+    est = estimate_units_from_counts(counts)
+    safe_div = inserted if inserted > 0 else 0
+    per_ins = f"{est / safe_div:.2f}" if safe_div else "n/a"
+    parts = [
+        f"[ed-meter] label={label} batch_id={batch_id or 'n/a'}",
+        f"niches={niches if niches is not None else 'n/a'}",
+        f"inserted={inserted} skipped={skipped} failed={failed}",
+        f"requests={counts}",
+        f"est_units={est:.2f} est_units_per_insert={per_ins}",
+    ]
+    if theoretical_pool:
+        parts.append(f"theoretical_pool={theoretical_pool}")
+    return " ".join(parts)
+
+
+@contextlib.contextmanager
+def ed_batch_metering() -> Iterator[str]:
+    """Start a batch-scoped ED meter + hashtag response cache + batch request class."""
+    bid = str(uuid.uuid4())
+    t_bid = _ed_batch_id.set(bid)
+    t_meter = _ed_meter.set({})
+    t_class = _ed_request_class.set("batch")
+    t_ht = _ed_hashtag_cache.set({})
+    try:
+        yield bid
+    finally:
+        _ed_batch_id.reset(t_bid)
+        _ed_meter.reset(t_meter)
+        _ed_request_class.reset(t_class)
+        _ed_hashtag_cache.reset(t_ht)
+
+
+class _TTLStrCache:
+    """Tiny in-proc TTL cache keyed by str (monotonic TTL)."""
+
+    __slots__ = ("_ttl", "_max", "_data")
+
+    def __init__(self, maxsize: int, ttl_sec: float) -> None:
+        self._ttl = ttl_sec
+        self._max = max(1, maxsize)
+        self._data: dict[str, tuple[float, Any]] = {}
+
+    def get(self, key: str) -> Any | None:
+        if self._ttl <= 0:
+            return None
+        hit = self._data.get(key)
+        if not hit:
+            return None
+        ts, val = hit
+        if time.monotonic() - ts > self._ttl:
+            del self._data[key]
+            return None
+        return val
+
+    def set(self, key: str, val: Any) -> None:
+        if self._ttl <= 0:
+            return
+        if len(self._data) >= self._max:
+            # Evict oldest half (by insertion order — arbitrary but cheap).
+            for i, k in enumerate(list(self._data.keys())):
+                if i >= self._max // 2:
+                    break
+                self._data.pop(k, None)
+        self._data[key] = (time.monotonic(), val)
+
+
+_user_path_cache = _TTLStrCache(
+    ENSEMBLE_USER_PATH_CACHE_MAX, float(ENSEMBLE_USER_PATH_CACHE_TTL_SEC)
+)
+
 
 _api_client: httpx.AsyncClient | None = None
 _cdn_client: httpx.AsyncClient | None = None
@@ -129,10 +262,16 @@ def _ensembledata_error_message(code: int) -> str | None:
 
 async def fetch_post_info(url: str) -> dict[str, Any]:
     """Fetch TikTok post info; return aweme_detail dict."""
+    cache_key = f"post_info:{url}"
+    cached = _user_path_cache.get(cache_key)
+    if cached is not None:
+        return dict(cached)
+
     is_photo_url = "/photo/" in url
     if is_photo_url:
         logger.info("[carousel] /photo/ URL detected — expecting aweme_type=2: %s", url)
 
+    await _ensemble_budget_gate()
     token = require_ensembledata_token()
     client = await get_api_client()
     r = await client.get(
@@ -193,14 +332,43 @@ async def fetch_post_info(url: str) -> dict[str, Any]:
         # Always tag with hint so detect_content_type can use URL as tiebreaker.
         aweme_detail["_photo_url_hint"] = True
 
+    _meter_increment("tt/post/info")
+    _user_path_cache.set(cache_key, aweme_detail)
     return aweme_detail
+
+
+async def _ensemble_budget_gate() -> None:
+    """Optional daily cap for batch-class EnsembleData HTTP (UTC day)."""
+    if _ed_request_class.get() != "batch":
+        return
+    maxr = ED_BATCH_DAILY_REQUEST_MAX
+    if maxr <= 0:
+        return
+    async with _budget_lock:
+        day = _utc_day()
+        cur = _batch_request_counts_by_utc_day.get(day, 0)
+        if cur >= maxr:
+            msg = (
+                f"ED batch daily HTTP budget hit: {cur}>={maxr} (UTC {day}). "
+                "Raise ED_BATCH_DAILY_REQUEST_MAX or wait for UTC rollover."
+            )
+            if ED_BATCH_BUDGET_ENFORCE:
+                raise EnsembleDailyBudgetExceeded(msg)
+            logger.warning(
+                "[ed-budget] %s (log-only; set ED_BATCH_BUDGET_ENFORCE=true to block)",
+                msg,
+            )
+            return
+        _batch_request_counts_by_utc_day[day] = cur + 1
 
 
 async def _ensemble_get(path_url: str, params: dict[str, Any]) -> dict[str, Any]:
     """GET EnsembleData API; return parsed JSON object."""
+    await _ensemble_budget_gate()
     token = require_ensembledata_token()
     client = await get_api_client()
     q = {**params, "token": token}
+    endpoint = endpoint_key_from_url(path_url)
     r = await client.get(path_url, params=q)
     msg = _ensembledata_error_message(r.status_code)
     if msg:
@@ -225,6 +393,7 @@ async def _ensemble_get(path_url: str, params: dict[str, Any]) -> dict[str, Any]
         r.raise_for_status()
     if not isinstance(payload, dict):
         raise ValueError("Unexpected EnsembleData response: not a JSON object")
+    _meter_increment(endpoint)
     return payload
 
 
@@ -273,7 +442,8 @@ async def fetch_keyword_search(
     """TikTok keyword search; ``sorting`` 1 ≈ likes/engagement. Returns (awemes, next_cursor).
 
     Defaults to country="vn" so corpus stays Vietnamese-creator focused.
-    get_author_stats=True ensures aweme.statistics includes play_count.
+    When KEYWORD_SEARCH_AUTHOR_STATS is true, ED may attach richer author stats
+    (possible extra unit cost — confirm against ED pricing).
     """
     kw = keyword.strip().lstrip("#")
     if not kw:
@@ -287,7 +457,7 @@ async def fetch_keyword_search(
             "cursor": cursor,
             "country": country.lower(),
             "match_exactly": "False",
-            "get_author_stats": "True",
+            "get_author_stats": "True" if KEYWORD_SEARCH_AUTHOR_STATS else "False",
         },
     )
     data = payload.get("data")
@@ -310,6 +480,12 @@ async def fetch_hashtag_posts(
     tag = hashtag.strip().lstrip("#")
     if not tag:
         raise ValueError("hashtag posts requires a non-empty name")
+    cache = _ed_hashtag_cache.get()
+    ckey = (tag.lower(), int(cursor))
+    if cache is not None and ckey in cache:
+        aw_cached, nc_cached = cache[ckey]
+        return (list(aw_cached), nc_cached)
+
     payload = await _ensemble_get(
         ENSEMBLEDATA_HASHTAG_POSTS_URL,
         {"name": tag, "cursor": cursor},
@@ -322,6 +498,9 @@ async def fetch_hashtag_posts(
             next_cursor = int(data["nextCursor"])
         except (TypeError, ValueError):
             next_cursor = None
+    cstore = _ed_hashtag_cache.get()
+    if cstore is not None:
+        cstore[ckey] = (awemes, next_cursor)
     return awemes, next_cursor
 
 
@@ -335,6 +514,11 @@ async def fetch_user_posts(
     u = username.strip().lstrip("@")
     if not u:
         raise ValueError("user posts requires a username")
+    cache_key = f"user_posts:{u}:{depth}:{start_cursor}"
+    cached = _user_path_cache.get(cache_key)
+    if cached is not None:
+        return list(cached)
+
     payload = await _ensemble_get(
         ENSEMBLEDATA_USER_POSTS_URL,
         {
@@ -346,7 +530,9 @@ async def fetch_user_posts(
         },
     )
     data = payload.get("data")
-    return iter_awemes_from_search_payload(data)
+    out = iter_awemes_from_search_payload(data)
+    _user_path_cache.set(cache_key, out)
+    return out
 
 
 async def fetch_user_search(

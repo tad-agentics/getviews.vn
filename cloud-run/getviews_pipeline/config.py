@@ -17,7 +17,8 @@ SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
 
 ENSEMBLEDATA_API_TOKEN = os.environ.get("ENSEMBLE_DATA_API_KEY") or os.environ.get("ENSEMBLEDATA_API_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001")
+# Default matches cloud-run/.env.example — gemini-2.0-flash-001 is no longer served (404).
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
 # §11 hybrid: extraction (Flash-Lite) vs synthesis (Flash) vs knowledge (Flash-Lite).
 GEMINI_EXTRACTION_MODEL = os.environ.get("GEMINI_EXTRACTION_MODEL", "").strip() or GEMINI_MODEL
 GEMINI_SYNTHESIS_MODEL = os.environ.get("GEMINI_SYNTHESIS_MODEL", "").strip() or GEMINI_MODEL
@@ -74,6 +75,55 @@ ENSEMBLEDATA_USER_SEARCH_URL = f"{ENSEMBLEDATA_BASE}/tt/user/search"
 # Used on-demand only (paid intents) — cached for 7 days in
 # video_corpus.comment_radar. See comment_radar.fetch_comments_for_video.
 ENSEMBLEDATA_POST_COMMENTS_URL = f"{ENSEMBLEDATA_BASE}/tt/post/comments"
+
+
+def _float_env(name: str, default: str) -> float:
+    try:
+        return float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def _bool_env(name: str, default: bool = False) -> bool:
+    v = os.environ.get(name)
+    if v is None:
+        return default
+    return v.strip().lower() in ("1", "true", "yes", "on")
+
+
+# ── EnsembleData metering & unit estimates ([ed-meter] logs) ─────────────────
+# Override per endpoint after calibrating vs ED dashboard
+# (artifacts/docs/ed-pricing-map.md).
+ED_UNIT_KEYWORD_SEARCH = _float_env("ED_UNIT_KEYWORD_SEARCH", "1")
+ED_UNIT_HASHTAG_POSTS = _float_env("ED_UNIT_HASHTAG_POSTS", "1")
+ED_UNIT_POST_INFO = _float_env("ED_UNIT_POST_INFO", "1")
+ED_UNIT_POST_MULTI_INFO = _float_env("ED_UNIT_POST_MULTI_INFO", "1")
+ED_UNIT_USER_POSTS = _float_env("ED_UNIT_USER_POSTS", "1")
+ED_UNIT_USER_SEARCH = _float_env("ED_UNIT_USER_SEARCH", "1")
+ED_UNIT_POST_COMMENTS = _float_env("ED_UNIT_POST_COMMENTS", "1")
+
+# Keyword search: extra author payload. Default false — set
+# KEYWORD_SEARCH_AUTHOR_STATS=true if play_count is missing.
+KEYWORD_SEARCH_AUTHOR_STATS = _bool_env("KEYWORD_SEARCH_AUTHOR_STATS", False)
+
+# Carousel pool: legacy mode runs a second hashtag pass (2× hashtag cost per niche).
+CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH = _bool_env("CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH", False)
+
+# Batch-only daily request ceiling (UTC day). 0 = disabled. Prefer log-only first.
+ED_BATCH_DAILY_REQUEST_MAX = int(os.environ.get("ED_BATCH_DAILY_REQUEST_MAX", "0") or "0")
+ED_BATCH_BUDGET_ENFORCE = _bool_env("ED_BATCH_BUDGET_ENFORCE", False)
+
+# TTL cache for hot user-path ED calls (seconds). 0 = disabled.
+ENSEMBLE_USER_PATH_CACHE_TTL_SEC = int(
+    os.environ.get("ENSEMBLE_USER_PATH_CACHE_TTL_SEC", "300") or "300"
+)
+ENSEMBLE_USER_PATH_CACHE_MAX = int(
+    os.environ.get("ENSEMBLE_USER_PATH_CACHE_MAX", "2000") or "2000"
+)
+
+# Adaptive hashtag fetch: minimum tags to fetch when DB yields exist (safety floor).
+ADAPTIVE_HASHTAG_MIN_FETCH = int(os.environ.get("ADAPTIVE_HASHTAG_MIN_FETCH", "2") or "2")
+HASHTAG_YIELD_THRESHOLD = int(os.environ.get("HASHTAG_YIELD_THRESHOLD", "1") or "1")
 
 TIKTOK_ALLOWED_HOSTS: frozenset[str] = frozenset(
     {

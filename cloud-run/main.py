@@ -738,6 +738,22 @@ class BatchIngestRequest(BaseModel):
         default=None,
         description="Restrict to specific niche IDs. Omit to ingest all niches.",
     )
+    deep_pool: bool = Field(
+        default=False,
+        description=(
+            "Widen keyword pagination and per-niche video/carousel caps to re-overlap "
+            "a prior candidate pool after outages (e.g. Gemini model 404s)."
+        ),
+    )
+
+
+class BatchReingestVideosRequest(BaseModel):
+    items: list[dict[str, Any]] = Field(
+        ...,
+        min_length=1,
+        description='Each item: {"video_id": "<aweme_id>", "niche_id": <int>} (aweme_id alias allowed).',
+    )
+    refresh_mv: bool = Field(default=True, description="Refresh niche_intelligence after upserts.")
 
 
 @app.post("/batch/ingest")
@@ -758,12 +774,68 @@ async def batch_ingest(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
 
     from getviews_pipeline.corpus_ingest import run_batch_ingest
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
 
-    logger.info("POST /batch/ingest triggered — niche_ids=%s", body.niche_ids)
+    logger.info(
+        "POST /batch/ingest triggered — niche_ids=%s deep_pool=%s",
+        body.niche_ids,
+        body.deep_pool,
+    )
     try:
-        summary = await run_batch_ingest(niche_ids=body.niche_ids)
+        summary = await run_batch_ingest(niche_ids=body.niche_ids, deep_pool=body.deep_pool)
+    except EnsembleDailyBudgetExceeded as exc:
+        logger.error("Batch ingest aborted (ED daily budget): %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
     except Exception as exc:
         logger.exception("Batch ingest failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({
+        "ok": True,
+        "total_inserted": summary.total_inserted,
+        "total_skipped": summary.total_skipped,
+        "total_failed": summary.total_failed,
+        "niches_processed": summary.niches_processed,
+        "materialized_view_refreshed": summary.materialized_view_refreshed,
+        "niche_results": summary.niche_results,
+    })
+
+
+@app.post("/batch/reingest-videos")
+async def batch_reingest_videos(
+    request: Request,
+    body: BatchReingestVideosRequest,
+) -> JSONResponse:
+    """Re-analyze explicit TikTok video IDs and upsert into video_corpus.
+
+    Protected by X-Batch-Secret. Intended for recovery after a bad model rollout
+    when logs did not retain the original hashtag-pool ordering.
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.corpus_ingest import run_reingest_video_items
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+
+    logger.info("POST /batch/reingest-videos — %d items", len(body.items))
+    try:
+        summary = await run_reingest_video_items(
+            body.items,
+            refresh_mv=body.refresh_mv,
+        )
+    except EnsembleDailyBudgetExceeded as exc:
+        logger.error("Batch reingest aborted (ED daily budget): %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Batch reingest failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return JSONResponse({
