@@ -1095,19 +1095,19 @@ async def admin_corpus_health(request: Request) -> JSONResponse:
 # ══════════════════════════════════════════════════════════════════════════
 # Home screen endpoints — Phase A · A1
 # ══════════════════════════════════════════════════════════════════════════
-# Each endpoint resolves the caller's niche from profiles.niche_id. If the
+# Each endpoint resolves the caller's niche from profiles.primary_niche. If the
 # user hasn't picked one yet (returns 404 rather than inventing one).
 # ──────────────────────────────────────────────────────────────────────────
 
 
 async def _resolve_caller_niche_id(access_token: str) -> int:
-    """Fetch profiles.niche_id for the calling user. 404 if unset."""
+    """Fetch profiles.primary_niche for the calling user. 404 if unset."""
     sb = user_supabase(access_token)
     try:
-        res = sb.table("profiles").select("niche_id").single().execute()
+        res = sb.table("profiles").select("primary_niche").single().execute()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"profile lookup: {exc}") from exc
-    nid = (res.data or {}).get("niche_id")
+    nid = (res.data or {}).get("primary_niche")
     if nid is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
