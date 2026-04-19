@@ -31,16 +31,16 @@
 | Kicker | `HỒ SƠ KÊNH · {niche}`, mono uc ~9.5px, ink-4 | `gv-uc` + `text-[9.5px]` + `gv-ink-4` | OK |
 | Avatar | 64×64, accent fill, initial ~22px | `h-16 w-16`, `gv-accent`, `text-[22px]` | OK |
 | Name / handle row | tight 38px; mono 12px ink-3 | `gv-tight text-[38px]`; `text-xs` mono ink-3 | OK |
-| Bio | italic 18px ink-2, maxWidth 460 | `text-lg italic` + `max-w-[460px]` + ink-2 | OK |
+| Bio | italic 18px ink-2, maxWidth 460, **lh 1.4** | `text-lg italic` + `max-w-[460px]` + **`leading-[1.4]`** | **must-fix** → fixed |
 | Chips | `gap: 8`, `marginTop: 18`; cadence + engagement + count | `gap-2`, **`mt-[18px]`**; posting joined with ` · ` (B.3.3); `Chip` variants | **must-fix** → fixed |
-| KPI strip | 2×2 in hero right, rule border, radius 10, pad 18 | `KpiGrid` (matches B.1 / reference) | OK |
+| KPI strip | 2×2 in hero right, rule border, radius 10, pad **18**, cells **canvas**, value **22px** lh **1.1**, label mb **4px**, delta mt **4px** | `KpiGrid variant="channel"` (video strip unchanged) | **must-fix** → fixed (see `phase-b-b3-full-audit.md`) |
 | Formula kicker/title | `CÔNG THỨC PHÁT HIỆN`; `"{name} Formula" — 4 bước…` | Same kicker; title uses **“4 bước lặp đi lặp lại”** | **must-fix** → fixed |
-| Formula bar | Height 80, `borderRadius: 8`, `border: 1px solid ink`, 4 flex segments, token colors | `h-20`, `rounded-lg` (8px), `border-gv-ink`, segment stack | OK |
+| Formula bar | Height 80, `borderRadius: 8`, `border: 1px solid ink`, detail **lh 1.3** | `h-20`, `rounded-[8px]`, ink border, **`leading-[1.3]`** on detail | **must-fix** → fixed |
 | Thin corpus | Empty bar, mono 11px ink-4, prescribed copy | `FormulaBar` — B.3.3 must-fix copy + ink-4 | OK |
-| Two-col grid | `gap: 32`, 900px stack | `gap-8`, `min-[900px]:grid-cols-2` | OK |
-| Video tiles | 2×2, gap 12, thumb radius 6, mono views | `gap-3`, `rounded-md`, views row | OK |
+| Two-col grid | `gap: 32`, **max-width 900px** → 1 col | `gap-8`, **`min-[901px]:grid-cols-2`** + `grid-cols-1`; **`mt-9`** after formula | **must-fix** → fixed |
+| Video tiles | 2×2, gap 12, thumb radius 6, mono views, **no** extra border / icon | `gap-3`, `rounded-md`, overlay only | **must-fix** → fixed |
 | Video section title | “Top 4 video gây tiếng vang” | Aligned to reference string | **must-fix** → fixed |
-| Lessons | Card pad 14, gap 12, index accent-deep, title 13px | `p-3.5`, `gap-3`, mono index, `text-[13px]` title | OK |
+| Lessons | Card pad 14, gap 12, index accent-deep, title 13px **mb 2** | `p-3.5`, `gap-3`, index; title **`mb-0.5`** | **must-fix** → fixed |
 | Script CTA | Full-width accent | `Btn` accent, disabled until `/script` | OK (stub) |
 
 ---
@@ -68,13 +68,13 @@
 
 | Item | Note |
 |------|------|
-| Vertical rhythm | Reference mixes `mb: 28` (hero) and `36` (formula block); uniform `gap-7`/`gap-8` is close enough unless pixel-perfect pass requested. |
 | `PostingHeatmap` | Still deferred per plan. |
+| Extra shell chrome | `TopBar`, “Kênh khác” form — product choice vs static reference. |
 
 ---
 
 ## Verdict
 
-**Green for B.3.5 closure:** token sweep clean; section-by-section parity **must-fix** items above are implemented; remaining gaps are **should-fix** / **consider** only.
+**Green for B.3.5 closure:** token sweep clean; section-by-section parity **must-fix** items (including KPI `channel` variant, **36px** rhythm, **901px** breakpoint, video tile chrome, line-heights) are implemented — see **`phase-b-b3-full-audit.md`** for the consolidated B.3 closure report.
 
 Follow-up: keep `artifacts/qa-reports/phase-b-b33-channel-audit.md` as the narrower B.3.3 compliance note; this file is the **design-audit** artifact required by §B.3.5.

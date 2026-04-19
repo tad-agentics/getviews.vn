@@ -41,4 +41,4 @@
 **Gaps closed above:** thin empty typography/copy; posting chip join string.  
 **B.3.4 (same rollout):** chat no longer streams `competitor_profile` / `own_channel` for new sends — navigates to `/app/channel` (handle from message, profile `tiktok_handle`, or empty). Empty-state **Soi Kênh** modal + home **QuickActions** “Soi kênh đối thủ” → `/app/channel`. KOL **Phân tích kênh đầy đủ** → `/app/channel?handle=…`. Helpers in `src/lib/channelHandle.ts` + Vitest coverage.
 
-**Re-verify (B.3.5 pass):** Must-fix rows in this file were confirmed still satisfied in `FormulaBar.tsx` + `ChannelScreen.tsx` before closing B.3.5; full design audit + any extra parity fixes live in [`phase-b-design-audit-channel.md`](phase-b-design-audit-channel.md).
+**Re-verify (B.3.5 pass):** Must-fix rows in this file were confirmed still satisfied in `FormulaBar.tsx` + `ChannelScreen.tsx` before closing B.3.5; channel-only design audit: [`phase-b-design-audit-channel.md`](phase-b-design-audit-channel.md). **Full B.3** (milestones + pixel parity table): [`phase-b-b3-full-audit.md`](phase-b-b3-full-audit.md).

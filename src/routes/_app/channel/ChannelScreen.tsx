@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Loader2, Play } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
@@ -34,7 +34,7 @@ function postingCadenceChipText(cadence: string | null, time: string | null): st
 }
 
 function kpiDeltaClassName(delta: string): string | undefined {
-  const base = "gv-mono mt-1.5 text-[10px]";
+  const base = "gv-mono mt-1 text-[10px]";
   if (/↓|−/.test(delta) || /-\s*\d/.test(delta)) {
     return `${base} text-[color:var(--gv-neg-deep)]`;
   }
@@ -215,33 +215,34 @@ function ChannelBody({
   );
 
   return (
-    <div className="flex flex-col gap-7">
-      <form
-        className="flex flex-col gap-2 border-b border-[color:var(--gv-rule)] pb-4 sm:flex-row sm:items-end sm:gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onChangeHandle(another);
-        }}
-      >
-        <label className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="gv-mono text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
-            Kênh khác
-          </span>
-          <input
-            value={another}
-            onChange={(e) => setAnother(e.target.value)}
-            placeholder={at}
-            className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
-            autoComplete="off"
-          />
-        </label>
-        <Btn type="submit" variant="ghost" size="sm" disabled={!another.trim()}>
-          Tải
-        </Btn>
-      </form>
+    <div className="flex flex-col">
+      <div className="flex flex-col gap-7">
+        <form
+          className="flex flex-col gap-2 border-b border-[color:var(--gv-rule)] pb-4 sm:flex-row sm:items-end sm:gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onChangeHandle(another);
+          }}
+        >
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="gv-mono text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+              Kênh khác
+            </span>
+            <input
+              value={another}
+              onChange={(e) => setAnother(e.target.value)}
+              placeholder={at}
+              className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
+              autoComplete="off"
+            />
+          </label>
+          <Btn type="submit" variant="ghost" size="sm" disabled={!another.trim()}>
+            Tải
+          </Btn>
+        </form>
 
-      {/* Hero — ref channel.jsx ch-hero (padding 28×32, radius 12, gap 32) */}
-      <div className="ch-hero grid gap-8 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-8 py-7 min-[900px]:grid-cols-2">
+        {/* Hero — ref channel.jsx ch-hero (padding 28×32, radius 12, gap 32, mb 28 to formula) */}
+        <div className="ch-hero grid grid-cols-1 gap-8 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-8 py-7 min-[901px]:grid-cols-2">
         <div>
           <div className="gv-uc mb-2.5 text-[9.5px] text-[color:var(--gv-ink-4)]">{nicheKicker}</div>
           <div className="mb-3.5 flex items-center gap-4">
@@ -261,7 +262,7 @@ function ChannelBody({
             </div>
           </div>
           {data.bio ? (
-            <p className="gv-tight m-0 max-w-[460px] text-lg italic leading-snug text-[color:var(--gv-ink-2)]">
+            <p className="gv-tight m-0 max-w-[460px] text-lg italic leading-[1.4] text-[color:var(--gv-ink-2)]">
               &ldquo;{data.bio}&rdquo;
             </p>
           ) : (
@@ -282,20 +283,21 @@ function ChannelBody({
           </div>
         </div>
         <div className="self-center">
-          <KpiGrid kpis={kpis} />
+          <KpiGrid variant="channel" kpis={kpis} />
         </div>
       </div>
 
-      <section>
-        <SectionMini
-          kicker="CÔNG THỨC PHÁT HIỆN"
-          title={`"${data.name || data.handle} Formula" — 4 bước lặp đi lặp lại`}
-        />
-        <FormulaBar steps={data.formula} formulaGate={data.formula_gate} />
-      </section>
+        <section>
+          <SectionMini
+            kicker="CÔNG THỨC PHÁT HIỆN"
+            title={`"${data.name || data.handle} Formula" — 4 bước lặp đi lặp lại`}
+          />
+          <FormulaBar steps={data.formula} formulaGate={data.formula_gate} />
+        </section>
+      </div>
 
-      {/* Two col — ref ch-grid */}
-      <div className="ch-grid grid gap-8 min-[900px]:grid-cols-2">
+      {/* Two col — ref ch-grid; mt-9 = 36px after formula block (channel.jsx marginBottom 36) */}
+      <div className="ch-grid mt-9 grid grid-cols-1 gap-8 min-[901px]:grid-cols-2">
         <div>
           <SectionMini kicker="VIDEO ĐỈNH" title="Top 4 video gây tiếng vang" />
           <div className="grid grid-cols-2 gap-3">
@@ -306,7 +308,7 @@ function ChannelBody({
                 className="group block text-left"
               >
                 <div
-                  className="relative aspect-[9/16] overflow-hidden rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
+                  className="relative aspect-[9/16] overflow-hidden rounded-md bg-[color:var(--gv-canvas-2)]"
                   style={
                     v.bg_color
                       ? { backgroundColor: v.bg_color }
@@ -321,8 +323,7 @@ function ChannelBody({
                       loading="lazy"
                     />
                   ) : null}
-                  <div className="absolute inset-x-2.5 bottom-2 flex items-center gap-1 text-white drop-shadow-md">
-                    <Play className="h-3 w-3 shrink-0 opacity-90" aria-hidden />
+                  <div className="absolute inset-x-2.5 bottom-2 text-white drop-shadow-md">
                     <span className="gv-mono text-[10px]">↑ {formatViews(v.views)}</span>
                   </div>
                 </div>
@@ -352,8 +353,10 @@ function ChannelBody({
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <div>
-                    <p className="m-0 text-[13px] font-medium text-[color:var(--gv-ink)]">{lesson.title}</p>
-                    <p className="mt-0.5 text-xs leading-snug text-[color:var(--gv-ink-3)]">{lesson.body}</p>
+                    <p className="mb-0.5 text-[13px] font-medium leading-none text-[color:var(--gv-ink)]">
+                      {lesson.title}
+                    </p>
+                    <p className="text-xs leading-normal text-[color:var(--gv-ink-3)]">{lesson.body}</p>
                   </div>
                 </div>
               ))

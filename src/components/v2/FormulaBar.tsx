@@ -37,7 +37,7 @@ export function FormulaBar({ steps, formulaGate, className = "" }: FormulaBarPro
             <div className="gv-mono text-[10px] font-medium uppercase tracking-[0.08em] opacity-90">
               {s.step} · {s.pct}%
             </div>
-            <div className="text-[11px] leading-snug">{s.detail}</div>
+            <div className="text-[11px] leading-[1.3]">{s.detail}</div>
           </div>
         ))
       ) : (
