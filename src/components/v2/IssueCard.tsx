@@ -20,8 +20,10 @@ export function IssueCard({ issue, onApplyToScript, className = "" }: IssueCardP
   const isHigh = issue.sev === "high";
   return (
     <div
-      className={`grid grid-cols-[80px_1fr_auto] items-start gap-4 border border-[color:var(--gv-rule)] border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 ${
-        isHigh ? "border-l-[color:var(--gv-accent)]" : "border-l-[color:var(--gv-ink-4)]"
+      className={`grid grid-cols-[80px_1fr_auto] items-start gap-4 border border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 ${
+        isHigh
+          ? "border-[color:var(--gv-accent)] border-l-[color:var(--gv-accent)]"
+          : "border-[color:var(--gv-rule)] border-l-[color:var(--gv-ink-4)]"
       } ${className}`.trim()}
     >
       <div>

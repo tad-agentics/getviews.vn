@@ -99,13 +99,7 @@ export default function HomeScreen() {
       >
         <Paperclip className="h-4 w-4" strokeWidth={1.7} />
       </button>
-      <button
-        type="button"
-        className={CHIP_BTN}
-        onClick={() =>
-          fillComposer("Dán link video TikTok bạn muốn soi (dán link vào tin nhắn):\n")
-        }
-      >
+      <button type="button" className={CHIP_BTN} onClick={() => navigate("/app/video")}>
         <Film className="h-3.5 w-3.5" strokeWidth={1.7} />
         Dán link video
       </button>

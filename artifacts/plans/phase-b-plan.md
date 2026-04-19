@@ -409,9 +409,9 @@ blocked on primitives.
    win-mode LLM generation + `video_diagnostics` upsert + tests
 4. **B.1.4** (4d) — `/app/video` Win mode + all new primitives + data wiring
 5. **B.1.5** (2d) — Flop mode + URL input flow (reuse prefillUrl pattern)
-6. **B.1.6** (1d) — retire `video_diagnosis` chat CTA; "Soi video"
-   quick-action routes to `/app/video`
-7. **B.1.7** (1d) — **Design audit** — compare shipped `/app/video` against
+6. **B.1.6** ✅ (1d) — retire `video_diagnosis` chat CTA; "Soi video"
+   quick-action routes to `/app/video` *(audit: `artifacts/qa-reports/phase-b-design-audit-video.md` §B.1.6)*.
+7. **B.1.7** ✅ (1d) — **Design audit** — compare shipped `/app/video` against
    `video.jsx` section-by-section: primitives, tokens, kickers, spacing,
    copy, responsive behaviour (900px breakpoint). Produce
    `artifacts/qa-reports/phase-b-design-audit-video.md` with `must-fix /
@@ -421,17 +421,23 @@ blocked on primitives.
      in new screen files. Every color reference must resolve to a
      `var(--gv-*)` token. Grep new files for `#[0-9a-fA-F]{3,6}` and the
      banned token list as part of the audit — any hit is a `must-fix`.
-   **Non-negotiable: B.1 cannot close without a green audit report.**
+   **Non-negotiable: B.1 cannot close without a green audit report.**  
+   *Shipped 2026-04-19: report green; must-fix parity items in same commit (padding, flop high border, win BREAKOUT pill).*
 
 ### B.1 checkpoint (measure for 2 weeks post-ship)
 
 Gate metric: **≥ 30% of `/app/video` Flop-mode sessions end with an
-"Áp vào kịch bản" CTA click** (tracked as a `chat_sessions` row with
-`intent_type = 'shot_list'` opened within 10 min of `/video` load).
+"Áp vào kịch bản" CTA click** (operationalized as `flop_cta_click` /
+`video_screen_load` where `metadata.mode = 'flop'` in `usage_events`; see
+`artifacts/sql/b1-checkpoint-flop-cta.sql`).
 
-Instrument: Supabase query — count sessions where `created_at` within 10 min
-of a `/video` page load event (log page loads as `anonymous_usage` rows with
-`action = 'video_screen_load'`). Both events exist in current schema.
+Narrative cross-check (optional): a `chat_sessions` row with
+`intent_type = 'shot_list'` opened within **10 min** of the same user’s flop
+`video_screen_load` — second query in the same SQL file.
+
+Instrument: SPA `logUsage()` → **`usage_events`** (`video_screen_load` on
+analysis render, `flop_cta_click` on flop handoff CTAs). Migration:
+`supabase/migrations/20260419120000_usage_events_b1_checkpoint.sql`.
 
 If gate fails after 2 weeks: pause B.2, revisit whether the deterministic-slot
 thesis holds or whether users need a different entry point.
@@ -1153,7 +1159,7 @@ ships.
 
 | Quick-action | Chip shows while | Drop when |
 |---|---|---|
-| Soi Video | B.1 in progress | B.1.6 merges |
+| Soi Video | — | B.1.6 ✅ (routes `/app/video`) |
 | Tìm KOL / Creator | B.2 in progress | B.2.3 merges |
 | Soi Kênh Đối Thủ | B.3 in progress | B.3.4 merges |
 | Lên Kịch Bản Quay | B.4 in progress | B.4.5 merges |
@@ -1163,17 +1169,19 @@ renders it as a `mono uc` chip in `ink-4` at top-right of the card.
 
 ### Measurement
 
-One event per screen. Log to `anonymous_usage` (existing table) via a
-`logUsage(action, metadata)` wrapper — fire-and-forget, no await in UI path.
+Product events: **`usage_events`** (auth users) via `src/lib/logUsage.ts` —
+fire-and-forget `insert`, no `await` on the UI hot path. B.1 ships the table +
+RLS + `/app/video` logging; later screens add their own `action` names.
 
 | Screen | Gate metric | Event | Instrument |
 |---|---|---|---|
-| `/video` | ≥ 30% flop sessions → "Áp vào kịch bản" click | `flop_cta_click` | row count vs `video_screen_load` |
+| `/video` | ≥ 30% flop sessions → "Áp vào kịch bản" click | `flop_cta_click` | row count vs `video_screen_load` (`metadata.mode = flop`) |
 | `/kol` | ≥ 20% sessions → pin or channel click | `kol_pin` / `kol_to_channel` | row count |
 | `/channel` | ≥ 25% sessions → "Tạo kịch bản" click | `channel_to_script` | row count |
 | `/script` | ≥ 15% scripts → "Lưu vào lịch quay" click | `script_save` | row count |
 
-No new instrumentation dependency — `anonymous_usage` table exists.
+*Note:* `anonymous_usage` remains IP-scoped for the landing free Soi Kênh trial;
+it is **not** used for in-app screen analytics.
 
 ### Testing strategy
 

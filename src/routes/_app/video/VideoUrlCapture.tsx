@@ -25,6 +25,8 @@ function looksLikeTikTokUrl(raw: string): boolean {
 /**
  * B.1.5 — TikTok URL field + analyze CTA (matches `video.jsx` flop input row, gv tokens).
  */
+const helpId = (v: "hero" | "compact") => `${v}-tiktok-url-help`;
+
 export function VideoUrlCapture({
   onSubmitUrl,
   defaultValue = "",
@@ -33,6 +35,7 @@ export function VideoUrlCapture({
 }: VideoUrlCaptureProps) {
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
+  const hid = helpId(variant);
 
   const submit = () => {
     const t = value.trim();
@@ -63,6 +66,7 @@ export function VideoUrlCapture({
           ) : null}
         </div>
         <input
+          id={`${variant}-tiktok-url`}
           type="url"
           name="tiktok_url"
           autoComplete="url"
@@ -70,6 +74,8 @@ export function VideoUrlCapture({
           placeholder="https://www.tiktok.com/@…/video/… hoặc vm.tiktok.com/…"
           value={value}
           disabled={disabled}
+          aria-describedby={error ? `${variant}-tiktok-err` : hid}
+          aria-invalid={error ? true : undefined}
           onChange={(e) => {
             setValue(e.target.value);
             if (error) setError(null);
@@ -95,12 +101,18 @@ export function VideoUrlCapture({
         </Btn>
       </div>
       {error ? (
-        <p className="mt-2 text-xs text-[color:var(--gv-neg-deep)]" role="alert">
+        <p id={`${variant}-tiktok-err`} className="mt-2 text-xs text-[color:var(--gv-neg-deep)]" role="alert">
           {error}
         </p>
-      ) : variant === "hero" ? (
-        <p className="mt-2 text-xs text-[color:var(--gv-ink-4)]">
+      ) : null}
+      {!error && variant === "hero" ? (
+        <p id={hid} className="mt-2 text-xs text-[color:var(--gv-ink-4)]">
           Video phải đã có trong kho corpus Getviews (cùng URL đã ingest).
+        </p>
+      ) : null}
+      {!error && variant === "compact" ? (
+        <p id={hid} className="sr-only">
+          Dán URL TikTok đã có trong corpus; Enter hoặc nút Phân tích để tải lại.
         </p>
       ) : null}
     </div>

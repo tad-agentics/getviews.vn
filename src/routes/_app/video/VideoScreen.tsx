@@ -11,6 +11,7 @@ import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { IssueCard } from "@/components/v2/IssueCard";
 import { env } from "@/lib/env";
+import { logUsage } from "@/lib/logUsage";
 import type { VideoAnalyzeMeta, VideoAnalyzeResponse, VideoNicheMeta } from "@/lib/api-types";
 import { useVideoAnalysis, videoAnalysisKey } from "@/hooks/useVideoAnalysis";
 import { VideoUrlCapture } from "./VideoUrlCapture";
@@ -32,9 +33,12 @@ function retentionEndPct(curve: { t: number; pct: number }[] | null | undefined)
 }
 
 /** Chat handoff — matches ``ChatScreen`` `location.state.initialPrompt` consumption. */
-function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse): string {
+function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: string | null): string {
   const issues = d.flop_issues ?? [];
   const lines = [
+    `Corpus video_id: ${d.video_id}`,
+    ...(analyzeUrl?.trim() ? [`Link TikTok đã soi: ${analyzeUrl.trim()}`] : []),
+    "",
     "Mình vừa soi video flop trên Getviews — giúp mình lên shot-list / kịch bản, ưu tiên sửa các điểm sau:",
     ...issues.slice(0, 8).map((i) => `• ${i.title}\n  Fix gợi ý: ${i.fix}`),
   ];
@@ -120,7 +124,7 @@ export default function VideoScreen() {
   return (
     <AppLayout>
       <TopBar title="Soi video" />
-      <main className="mx-auto max-w-[1280px] px-5 pb-20 pt-6 min-[900px]:px-7">
+      <main className="mx-auto max-w-[1280px] px-6 pb-20 pt-6 min-[900px]:px-7">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Link
             to="/app/trends"
@@ -194,7 +198,7 @@ export default function VideoScreen() {
                 <VideoUrlCapture key={cacheKey} variant="compact" onSubmitUrl={submitNewUrl} />
               </div>
             ) : null}
-            <VideoAnalysisBodyInner data={data} />
+            <VideoAnalysisBodyInner data={data} analyzeUrl={url} />
           </div>
         ) : null}
       </main>
@@ -202,7 +206,14 @@ export default function VideoScreen() {
   );
 }
 
-function VideoAnalysisBodyInner({ data }: { data: VideoAnalyzeResponse }) {
+function VideoAnalysisBodyInner({
+  data,
+  analyzeUrl,
+}: {
+  data: VideoAnalyzeResponse;
+  /** Query ``url`` when user analyzed by TikTok URL (for chat handoff). */
+  analyzeUrl: string | null;
+}) {
   const navigate = useNavigate();
   const meta = data.meta;
   const duration = meta.duration_sec || 58;
@@ -211,9 +222,14 @@ function VideoAnalysisBodyInner({ data }: { data: VideoAnalyzeResponse }) {
   const retEnd = retentionEndPct(userCurve);
   const isFlop = data.mode === "flop";
 
+  useEffect(() => {
+    logUsage("video_screen_load", { mode: data.mode, video_id: data.video_id });
+  }, [data.mode, data.video_id]);
+
   const goScript = () => {
+    if (isFlop) logUsage("flop_cta_click", { video_id: data.video_id });
     navigate("/app/chat", {
-      state: { initialPrompt: buildFlopScriptHandoffPrompt(data) },
+      state: { initialPrompt: buildFlopScriptHandoffPrompt(data, analyzeUrl) },
     });
   };
 
@@ -229,6 +245,13 @@ function VideoAnalysisBodyInner({ data }: { data: VideoAnalyzeResponse }) {
             backgroundPosition: "center",
           }}
         >
+          {!isFlop && meta.is_breakout ? (
+            <div className="pointer-events-none absolute left-3 top-3 z-[1]">
+              <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] text-[color:var(--gv-paper)]">
+                BREAKOUT
+              </span>
+            </div>
+          ) : null}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:color-mix(in_srgb,var(--gv-ink)_55%,transparent)]" />
           <div className="absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
             <div className="gv-mono text-[11px] opacity-90">

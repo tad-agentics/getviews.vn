@@ -15,19 +15,6 @@ interface ModalConfig {
 }
 
 const MODAL_CONFIGS: Record<string, ModalConfig> = {
-  "soi-video": {
-    title: "Soi Video",
-    fields: [
-      {
-        label: "Dán link TikTok video",
-        placeholder: "https://vm.tiktok.com/... hoặc https://www.tiktok.com/@user/video/...",
-        type: "input",
-        key: "url",
-      },
-    ],
-    buildPrompt: (v) =>
-      `Phân tích video TikTok này, chỉ ra hook, điểm mạnh, điểm yếu, và cách cải thiện: ${v.url}`,
-  },
   "soi-kenh": {
     title: "Soi Kênh Đối Thủ",
     fields: [

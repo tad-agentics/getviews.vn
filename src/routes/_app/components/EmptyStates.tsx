@@ -8,8 +8,9 @@
  * motion animations use `initial` only on first mount. Because these
  * components are stable across parent re-renders they will not re-fire.
  */
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect, type ElementType } from "react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router";
 import { ArrowUp, Database, BarChart2, Search, TrendingUp, Video } from "lucide-react";
 import { PromptCards } from "@/routes/_app/components/PromptCards";
 import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
@@ -19,20 +20,30 @@ import { MorningRitualBanner } from "@/routes/_app/components/MorningRitualBanne
 export { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 
 /* ─── Quick action config ─────────────────────────────────────────────── */
-interface QuickAction {
-  text: string;
-  subtext: string;
-  Icon: React.ElementType;
-  modalKey: string;
-  isFree: boolean;
-}
+type QuickActionModalKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tim-kol" | "tu-van";
+
+type QuickAction =
+  | {
+      text: string;
+      subtext: string;
+      Icon: ElementType;
+      isFree: boolean;
+      modalKey: QuickActionModalKey;
+    }
+  | {
+      text: string;
+      subtext: string;
+      Icon: ElementType;
+      isFree: boolean;
+      href: "/app/video";
+    };
 
 const QUICK_ACTIONS: QuickAction[] = [
   {
     text: "Soi Video",
     subtext: "Dán link TikTok — phân tích hook, nhịp, CTA",
     Icon: Video,
-    modalKey: "soi-video",
+    href: "/app/video",
     isFree: false,
   },
   {
@@ -80,11 +91,17 @@ export const MobileEmptyState = memo(function MobileEmptyState({
   nicheLabel: string;
   onSelectPrompt: (p: string) => void;
 }) {
+  const navigate = useNavigate();
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const handleModalContinue = (prompt: string) => {
     setActiveModal(null);
     onSelectPrompt(prompt);
+  };
+
+  const openQuickAction = (action: QuickAction) => {
+    if ("href" in action) navigate(action.href);
+    else setActiveModal(action.modalKey);
   };
 
   return (
@@ -128,7 +145,7 @@ export const MobileEmptyState = memo(function MobileEmptyState({
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
-                  onClick={() => setActiveModal(action.modalKey)}
+                  onClick={() => openQuickAction(action)}
                   className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
                 >
                   <Icon
@@ -169,6 +186,7 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
   userId: string | undefined;
   onSend: (text: string) => void;
 }) {
+  const navigate = useNavigate();
   const [msg, setMsg] = useState(initialValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
@@ -204,6 +222,11 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
   const handleModalContinue = (prompt: string) => {
     setActiveModal(null);
     onSend(prompt);
+  };
+
+  const openQuickAction = (action: QuickAction) => {
+    if ("href" in action) navigate(action.href);
+    else setActiveModal(action.modalKey);
   };
 
   return (
@@ -309,7 +332,7 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
-                    onClick={() => setActiveModal(action.modalKey)}
+                    onClick={() => openQuickAction(action)}
                     className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
                   >
                     <Icon

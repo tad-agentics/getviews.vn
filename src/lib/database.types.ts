@@ -613,6 +613,30 @@ export type Database = {
           },
         ]
       }
+      usage_events: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       video_corpus: {
         Row: {
           analysis_json: Json

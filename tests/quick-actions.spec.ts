@@ -3,7 +3,8 @@ import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Live-site audit for the 6 quick-action cards on the empty chat screen.
+ * Live-site audit for the five chat-modal quick-action cards on the empty
+ * chat screen (Soi Video routes to `/app/video` — see separate test).
  *
  * Captures per-stage pipeline timings so you can see where latency/errors
  * accumulate:
@@ -25,8 +26,6 @@ import { join } from "node:path";
 
 // ── TEST INPUTS — edit before running ───────────────────────────────────────
 const INPUTS = {
-  // Vietnamese corpus video — 101M views, confirmed accessible from Cloud Run.
-  soiVideoUrl: "https://www.tiktok.com/@kietfei/video/7625127374316784916",
   soiKenhHandle: "@phuong.nga.beauty",
   xuHuongNiche: "skincare",
   kichBanTopic: "review son tint mới ra",
@@ -34,7 +33,7 @@ const INPUTS = {
   tuVanNiche: "review đồ skincare",
 };
 
-type ActionKey = "soi-video" | "soi-kenh" | "xu-huong" | "kich-ban" | "tim-kol" | "tu-van";
+type ActionKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tim-kol" | "tu-van";
 
 const ACTIONS: Array<{
   key: ActionKey;
@@ -44,14 +43,6 @@ const ACTIONS: Array<{
   expectedFree: boolean;
   contentChecks: RegExp[];
 }> = [
-  {
-    key: "soi-video",
-    cardTitle: "Soi Video",
-    fillValue: INPUTS.soiVideoUrl,
-    expectedIntent: "video_diagnosis",
-    expectedFree: false,
-    contentChecks: [/hook/i, /(mở đầu|3 giây|giây đầu)/i, /(cải thiện|điểm yếu|điểm mạnh)/i],
-  },
   {
     key: "soi-kenh",
     cardTitle: "Soi Kênh Đối Thủ",
@@ -574,10 +565,9 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
   row.stages.first_to_done = diff(T.first_frame, T.done_frame ?? T.stream_end);
 
   // Wait for the assistant bubble to settle in the DOM.
-  // video_diagnosis pipelines download + analyse a video (20-30s) — the DOM
-  // goes quiet during that window. Use a longer deadline and stability window
-  // for intents that route to Cloud Run's video pipeline.
-  const isVideoIntent = spec.expectedIntent === "video_diagnosis" || spec.expectedIntent === "competitor_profile";
+  // Competitor profile (and similar) pipelines can keep the DOM quiet for a
+  // long window. Use a longer deadline and stability window for those intents.
+  const isVideoIntent = spec.expectedIntent === "competitor_profile";
   const bodyLocator = page.locator("main, body").first();
   let lastLen = 0;
   let stableFor = 0;
@@ -636,6 +626,37 @@ async function runAction(page: Page, spec: (typeof ACTIONS)[number]) {
 
   RESULTS.push(row);
 }
+
+test("quick-action: Soi Video navigates to /app/video (no chat modal)", async ({ page }) => {
+  await page.goto("/app");
+  await page.waitForLoadState("domcontentloaded");
+  const newChatButton = page
+    .getByRole("button", { name: /new chat|chat mới|\+/i })
+    .or(page.locator('[data-testid="new-chat"]'))
+    .or(page.locator('a[href="/app"]'))
+    .first();
+  if (await newChatButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await newChatButton.click();
+    await page.waitForURL(/\/app(\?.*)?$/, { timeout: 5_000 }).catch(() => {});
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const visible = await page
+      .locator("text=Thao tác nhanh")
+      .first()
+      .isVisible({ timeout: 6_000 })
+      .catch(() => false);
+    if (visible) break;
+    await page.goto("/app");
+    await page.waitForLoadState("domcontentloaded");
+  }
+  await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible({ timeout: 15_000 });
+  const quickActionsSection = page.locator("text=Thao tác nhanh").first().locator("..").locator("..");
+  await quickActionsSection.getByRole("button", { name: /Soi Video/i }).first().click();
+  await expect(page).toHaveURL(/\/app\/video(\/?|\?|$)/);
+  await expect(page.getByText(/Soi video trong corpus|Dán link TikTok/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
+});
 
 for (const spec of ACTIONS) {
   test(`quick-action: ${spec.cardTitle}`, async ({ page }) => {
