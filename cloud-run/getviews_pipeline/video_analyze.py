@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
@@ -58,8 +58,27 @@ class FlopIssueLLM(BaseModel):
     fix: str = Field(max_length=400)
 
 
+class FlopHeadline(BaseModel):
+    """Structured flop H1 segments; stored JSON-serialised in ``video_diagnostics.analysis_headline``."""
+
+    prefix: str = Field(max_length=120, description='e.g. "Video dừng ở"')
+    view_accent: str = Field(max_length=40, description='e.g. "8.4K view"')
+    middle: str = Field(max_length=200, description="Diagnosis clause between view and prediction.")
+    prediction_pos: str = Field(max_length=40, description='e.g. "~34K"')
+    suffix: str = Field(max_length=120, description="Closing punctuation or short tail.")
+
+    @model_validator(mode="after")
+    def _total_chars_le_400(self) -> FlopHeadline:
+        total = len(self.prefix) + len(self.view_accent) + len(self.middle) + len(self.prediction_pos) + len(
+            self.suffix
+        )
+        if total > 400:
+            raise ValueError(f"FlopHeadline total length {total} exceeds 400")
+        return self
+
+
 class FlopAnalysisLLM(BaseModel):
-    analysis_headline: str = Field(max_length=400)
+    analysis_headline: FlopHeadline
     flop_issues: list[FlopIssueLLM] = Field(min_length=1, max_length=8)
 
 
@@ -193,6 +212,36 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
     return data
 
 
+def _coerce_analysis_headline_for_api(raw: Any, mode: Literal["win", "flop"]) -> Any:
+    """Win: plain string. Flop: parse JSON ``FlopHeadline`` from TEXT column; legacy plain string passthrough."""
+    if mode == "win":
+        if raw is None:
+            return None
+        return raw if isinstance(raw, str) else str(raw)
+
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        try:
+            return FlopHeadline.model_validate(raw).model_dump()
+        except Exception:
+            logger.warning("[video_analyze] flop headline dict failed FlopHeadline validation")
+            return str(raw)
+
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s.startswith("{"):
+            try:
+                parsed = json.loads(s)
+                if isinstance(parsed, dict):
+                    return FlopHeadline.model_validate(parsed).model_dump()
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.warning("[video_analyze] flop headline JSON invalid: %s", exc)
+        return s
+
+    return str(raw)
+
+
 def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
     """``niche_taxonomy.name_vn`` preferred; empty string if missing or lookup fails."""
     if not niche_id:
@@ -261,7 +310,7 @@ def _response_from_diagnostics_row(
         "segments": diag.get("segments") or [],
         "hook_phases": diag.get("hook_phases") or [],
         "lessons": diag.get("lessons") or [],
-        "analysis_headline": diag.get("analysis_headline"),
+        "analysis_headline": _coerce_analysis_headline_for_api(diag.get("analysis_headline"), mode),
         "analysis_subtext": diag.get("analysis_subtext"),
         "flop_issues": diag.get("flop_issues"),
         "retention_curve": ret_curve,
@@ -331,7 +380,13 @@ Video: @{video.get("creator_handle","")} | views {int(video.get("views") or 0)} 
 Hook phrase: {hook.get("hook_phrase") or ""}
 
 Trả về JSON theo schema:
-- analysis_headline: 1 câu serif-style (có thể nhúng số view) giải thích vì sao flop.
+- analysis_headline: object với đúng 5 trường (tiếng Việt, không HTML):
+  - prefix: mở đầu ngắn (vd "Video dừng ở")
+  - view_accent: cụm view ngắn (vd "8.4K view") — số khớp views video
+  - middle: chẩn đoán flop (hook/scene…)
+  - prediction_pos: dự đoán ngắn (vd "~34K") nếu có ý dự báo; có thể "~0" nếu không nêu số
+  - suffix: kết (vd "." hoặc " nếu áp fix.")
+  Tổng độ dài nối 5 chuỗi ≤ 400 ký tự.
 - flop_issues: 3-6 mục, sắp xếp theo ảnh hưởng. sev high/mid/low. t/end là giây trên timeline. detail + fix cụ thể, tiếng Việt.
 """
     config = types.GenerateContentConfig(
@@ -480,7 +535,7 @@ def run_video_analyze_pipeline(
         llm = _call_flop_gemini(
             video=video, analysis=analysis, niche_label=gemini_niche_label, niche_row=niche_intel
         )
-        headline = llm.analysis_headline
+        headline = llm.analysis_headline.model_dump_json()
         subtext = None
         lessons = []
         flop_issues = [x.model_dump() for x in llm.flop_issues]

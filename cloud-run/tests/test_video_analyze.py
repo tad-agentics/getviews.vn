@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -10,8 +11,10 @@ import pytest
 from postgrest.exceptions import APIError
 
 from getviews_pipeline.video_analyze import (
+    FlopHeadline,
     LessonSlot,
     WinAnalysisLLM,
+    _coerce_analysis_headline_for_api,
     _diagnostics_fresh,
     _fetch_corpus_row,
     _response_from_diagnostics_row,
@@ -39,6 +42,84 @@ def test_is_flop_mode_low_er() -> None:
     }
     video = {"views": 80_000, "engagement_rate": 0.02}
     assert is_flop_mode(video, niche) is True
+
+
+def test_flop_headline_total_at_400_ok() -> None:
+    FlopHeadline(
+        prefix="a" * 120,
+        view_accent="b" * 40,
+        middle="c" * 200,
+        prediction_pos="d" * 39,
+        suffix="e",
+    )
+
+
+def test_flop_headline_rejects_over_400_chars() -> None:
+    with pytest.raises(ValueError, match="exceeds 400"):
+        FlopHeadline(
+            prefix="a" * 120,
+            view_accent="b" * 40,
+            middle="c" * 200,
+            prediction_pos="d" * 40,
+            suffix="e",
+        )
+
+
+def test_coerce_flop_headline_parses_json_string() -> None:
+    payload = {
+        "prefix": "Video dừng ở ",
+        "view_accent": "8.4K view",
+        "middle": " vì hook rơi muộn.",
+        "prediction_pos": "~34K",
+        "suffix": "",
+    }
+    raw = json.dumps(payload, ensure_ascii=False)
+    out = _coerce_analysis_headline_for_api(raw, "flop")
+    assert out == payload
+
+
+def test_coerce_flop_headline_legacy_plain_string() -> None:
+    assert _coerce_analysis_headline_for_api("Một headline cũ dạng text", "flop") == "Một headline cũ dạng text"
+
+
+def test_response_from_diagnostics_row_flop_structured_headline() -> None:
+    fh = {
+        "prefix": "P",
+        "view_accent": "V",
+        "middle": "M",
+        "prediction_pos": "~1K",
+        "suffix": ".",
+    }
+    video = {
+        "video_id": "v1",
+        "creator_handle": "u",
+        "views": 1000,
+        "likes": 1,
+        "comments": 1,
+        "shares": 1,
+        "saves": 10,
+        "save_rate": None,
+        "analysis_json": {},
+        "created_at": None,
+    }
+    diag = {
+        "analysis_headline": json.dumps(fh, ensure_ascii=False),
+        "segments": [],
+        "hook_phases": [],
+        "lessons": [],
+        "flop_issues": [{"sev": "high", "t": 0, "end": 1, "title": "t", "detail": "d", "fix": "f"}],
+    }
+    out = _response_from_diagnostics_row(
+        video,
+        diag,
+        mode="flop",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Tech",
+        retention_source="modeled",
+    )
+    assert out["analysis_headline"] == fh
 
 
 def test_is_flop_mode_winning() -> None:

@@ -57,6 +57,15 @@ export interface VideoLesson {
 
 export type FlopIssueSeverity = "high" | "mid" | "low";
 
+/** Flop-mode ``analysis_headline`` — five segments for serif/accent layout (JSON in DB). */
+export interface FlopHeadline {
+  prefix: string;
+  view_accent: string;
+  middle: string;
+  prediction_pos: string;
+  suffix: string;
+}
+
 export interface VideoFlopIssue {
   sev: FlopIssueSeverity;
   t: number;
@@ -97,7 +106,8 @@ export interface VideoAnalyzeResponse {
   segments: VideoSegment[];
   hook_phases: VideoHookPhase[];
   lessons: VideoLesson[];
-  analysis_headline: string | null;
+  /** Win: plain string. Flop: structured segments or legacy plain string. */
+  analysis_headline: string | FlopHeadline | null;
   analysis_subtext: string | null;
   flop_issues: VideoFlopIssue[] | null;
   retention_curve: RetentionPoint[] | null;

@@ -12,7 +12,13 @@ import { KpiGrid } from "@/components/v2/KpiGrid";
 import { IssueCard } from "@/components/v2/IssueCard";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
-import type { VideoAnalyzeMeta, VideoAnalyzeResponse, VideoLesson, VideoNicheMeta } from "@/lib/api-types";
+import type {
+  FlopHeadline,
+  VideoAnalyzeMeta,
+  VideoAnalyzeResponse,
+  VideoLesson,
+  VideoNicheMeta,
+} from "@/lib/api-types";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { useVideoAnalysis, videoAnalysisKey } from "@/hooks/useVideoAnalysis";
 import { VideoUrlCapture } from "./VideoUrlCapture";
@@ -30,6 +36,16 @@ function relativeVi(now: Date, since: Date | null): string {
   if (hours < 24) return `${hours} giờ trước`;
   const days = Math.floor(hours / 24);
   return `${days} ngày trước`;
+}
+
+function isFlopHeadline(v: string | FlopHeadline | null | undefined): v is FlopHeadline {
+  return v != null && typeof v === "object" && "prefix" in v && "view_accent" in v;
+}
+
+function stringifyAnalysisHeadline(h: string | FlopHeadline | null | undefined): string {
+  if (h == null) return "";
+  if (typeof h === "string") return h;
+  return `${h.prefix}${h.view_accent}${h.middle}${h.prediction_pos}${h.suffix}`;
 }
 
 function formatSaveRatePct(meta: VideoAnalyzeMeta): string {
@@ -54,7 +70,7 @@ function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: strin
     "Mình vừa soi video flop trên Getviews — giúp mình lên shot-list / kịch bản, ưu tiên sửa các điểm sau:",
     ...issues.slice(0, 8).map((i) => `• ${i.title}\n  Fix gợi ý: ${i.fix}`),
   ];
-  if (d.analysis_headline) lines.push("", `Chẩn đoán tổng: ${d.analysis_headline}`);
+  if (d.analysis_headline) lines.push("", `Chẩn đoán tổng: ${stringifyAnalysisHeadline(d.analysis_headline)}`);
   return lines.join("\n");
 }
 
@@ -66,7 +82,7 @@ function buildWinScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: string
     "Mình vừa soi video đang nổ trên Getviews — giúp mình lên kịch bản quay mới, áp các điểm sau:",
     ...d.lessons.slice(0, 8).map((l) => `• ${l.title}\n  ${l.body}`),
   ];
-  if (d.analysis_headline) lines.push("", `Góc chính: ${d.analysis_headline}`);
+  if (d.analysis_headline) lines.push("", `Góc chính: ${stringifyAnalysisHeadline(d.analysis_headline)}`);
   return lines.join("\n");
 }
 
@@ -319,7 +335,7 @@ function VideoAnalysisBodyInner({
     const first = phases[0];
     const text = first
       ? `${first.t_range} · ${first.label}\n${first.body}`
-      : (data.analysis_headline ?? "");
+      : stringifyAnalysisHeadline(data.analysis_headline);
     if (!text.trim()) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -421,7 +437,29 @@ function VideoAnalysisBodyInner({
               isFlop ? "text-pretty font-medium leading-[1.1]" : "font-semibold leading-[1.05]"
             }`}
           >
-            {data.analysis_headline ?? "—"}
+            {isFlop ? (
+              data.analysis_headline == null ? (
+                "—"
+              ) : isFlopHeadline(data.analysis_headline) ? (
+                <>
+                  {data.analysis_headline.prefix}
+                  {data.analysis_headline.view_accent ? (
+                    <em className="gv-serif-italic text-[color:var(--gv-accent)]">
+                      {data.analysis_headline.view_accent}
+                    </em>
+                  ) : null}
+                  {data.analysis_headline.middle}
+                  {data.analysis_headline.prediction_pos ? (
+                    <span className="text-[color:var(--gv-pos)]">{data.analysis_headline.prediction_pos}</span>
+                  ) : null}
+                  {data.analysis_headline.suffix}
+                </>
+              ) : (
+                (data.analysis_headline as string)
+              )
+            ) : (
+              (data.analysis_headline as string | null) ?? "—"
+            )}
           </h1>
           {!isFlop && data.analysis_subtext ? (
             <p className="mt-2 max-w-[640px] text-[15px] text-[color:var(--gv-ink-3)]">{data.analysis_subtext}</p>
