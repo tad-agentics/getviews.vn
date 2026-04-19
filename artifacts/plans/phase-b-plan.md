@@ -127,6 +127,12 @@ endpoints. Replace with single `POST /kol/toggle-pin` (calls
 
 ## B.1 — `/video` Phân Tích Video (~3 weeks)
 
+> **Design source**: `artifacts/uiux-reference/screens/video.jsx`
+> + `artifacts/uiux-reference/styles.css` (tokens)
+> + `artifacts/uiux-reference/data.js` (fixture shapes that drive the API contract)
+>
+> Every px / kicker / token must trace back to one of these files.
+
 ### Exact design spec (from `video.jsx`)
 
 **Layout**: `maxWidth: 1280`, `padding: 24px 28px 80px`, responsive breakpoint
@@ -367,6 +373,12 @@ thesis holds or whether users need a different entry point.
 
 ## B.2 — `/kol` Kênh Tham Chiếu (~1.5 weeks)
 
+> **Design source**: `artifacts/uiux-reference/screens/kol.jsx`
+> + `artifacts/uiux-reference/styles.css` (tokens)
+> + `artifacts/uiux-reference/data.js` (fixture shapes that drive the API contract)
+>
+> Every px / kicker / token must trace back to one of these files.
+
 ### Exact design spec (from `kol.jsx`)
 
 **Layout**: `maxWidth: 1320`, `padding: 24px 28px 80px`. Responsive
@@ -505,6 +517,12 @@ $$;
 
 ## B.3 — `/channel` Phân Tích Kênh (~2.5 weeks)
 
+> **Design source**: `artifacts/uiux-reference/screens/channel.jsx`
+> + `artifacts/uiux-reference/styles.css` (tokens)
+> + `artifacts/uiux-reference/data.js` (fixture shapes that drive the API contract)
+>
+> Every px / kicker / token must trace back to one of these files.
+
 ### Exact design spec (from `channel.jsx`)
 
 **Layout**: `maxWidth: 1280`, `padding: 24px 28px 80px`. Responsive at 900px
@@ -624,6 +642,12 @@ half-computed bar.
 ---
 
 ## B.4 — `/script` Xưởng Viết (~3 weeks)
+
+> **Design source**: `artifacts/uiux-reference/screens/script.jsx`
+> + `artifacts/uiux-reference/styles.css` (tokens)
+> + `artifacts/uiux-reference/data.js` (fixture shapes that drive the API contract)
+>
+> Every px / kicker / token must trace back to one of these files.
 
 ### Exact design spec (from `script.jsx`)
 
