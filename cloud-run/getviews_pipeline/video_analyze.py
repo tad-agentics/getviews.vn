@@ -1,0 +1,517 @@
+"""Phase B · B.1.3 — /video/analyze: cache, structural slots, Gemini LLM, diagnostics upsert.
+
+Deterministic pieces reuse ``video_structural`` + ``video_niche_benchmark``.
+Writes go through **service_role** (see migration: no authenticated INSERT).
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+from getviews_pipeline.video_niche_benchmark import (
+    build_niche_benchmark_payload,
+    fetch_niche_intelligence_sync,
+    niche_row_to_video_meta,
+)
+from getviews_pipeline.video_structural import (
+    decompose_segments,
+    extract_hook_phases,
+    model_retention_curve,
+    video_duration_sec,
+)
+
+logger = logging.getLogger(__name__)
+
+DIAGNOSTICS_STALE_AFTER = timedelta(hours=1)
+
+
+# ── Gemini output schemas (text-only, JSON) ───────────────────────────────
+
+
+class LessonSlot(BaseModel):
+    title: str = Field(max_length=120)
+    body: str = Field(max_length=800)
+
+
+class WinAnalysisLLM(BaseModel):
+    analysis_headline: str = Field(max_length=200)
+    analysis_subtext: str = Field(max_length=700)
+    lessons: list[LessonSlot] = Field(min_length=3, max_length=3)
+    hook_bodies: list[str] = Field(
+        min_length=3,
+        max_length=3,
+        description="Vietnamese body copy for the 3 hook-phase cards, in time order.",
+    )
+
+
+class FlopIssueLLM(BaseModel):
+    sev: Literal["high", "mid", "low"]
+    t: float = Field(ge=0.0, le=600.0)
+    end: float = Field(ge=0.0, le=600.0)
+    title: str = Field(max_length=200)
+    detail: str = Field(max_length=900)
+    fix: str = Field(max_length=400)
+
+
+class FlopAnalysisLLM(BaseModel):
+    analysis_headline: str = Field(max_length=400)
+    flop_issues: list[FlopIssueLLM] = Field(min_length=1, max_length=8)
+
+
+# ── Mode + KPI helpers ─────────────────────────────────────────────────────
+
+
+def _median_views_proxy(niche_row: dict[str, Any] | None) -> float:
+    if not niche_row:
+        return 10_000.0
+    o = float(niche_row.get("organic_avg_views") or 0)
+    c = float(niche_row.get("commerce_avg_views") or 0)
+    if o > 0 and c > 0:
+        return (o + c) / 2.0
+    return max(o, c, 5_000.0)
+
+
+def is_flop_mode(video: dict[str, Any], niche_row: dict[str, Any] | None) -> bool:
+    """Heuristic from phase-b-plan: views or engagement vs niche medians."""
+    views = int(video.get("views") or 0)
+    er = float(video.get("engagement_rate") or 0.0)
+    if not niche_row:
+        return False
+    niche_views = _median_views_proxy(niche_row)
+    median_er = float(niche_row.get("median_er") or 0.04)
+    if niche_views > 0 and views < niche_views * 0.5:
+        return True
+    if median_er > 0 and er < median_er * 0.6:
+        return True
+    return False
+
+
+def projected_views_heuristic(
+    views: int,
+    niche_avg_views: int,
+    flop_issues: list[dict[str, Any]],
+) -> int:
+    high = sum(1 for x in flop_issues if str(x.get("sev")) == "high")
+    base = max(int(niche_avg_views * 0.35), int(views * 2.2))
+    boost = int(high * niche_avg_views * 0.06)
+    # No niche row / avg_views=0: skip niche-relative cap (otherwise cap=0 → min(0, …)=0).
+    if niche_avg_views <= 0:
+        return max(0, base + boost)
+    cap = max(niche_avg_views, int(niche_avg_views * 1.15))
+    return min(cap, base + boost)
+
+
+def _fmt_int_short(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M".replace(".0M", "M")
+    if n >= 1000:
+        return f"{n / 1000:.1f}K".replace(".0K", "K")
+    return str(n)
+
+
+def build_kpis(
+    video: dict[str, Any],
+    niche_meta: dict[str, Any],
+    *,
+    mode: Literal["win", "flop"],
+    retention_end_pct: float,
+) -> list[dict[str, str]]:
+    views = int(video.get("views") or 0)
+    shares = int(video.get("shares") or 0)
+    saves = int(video.get("saves") or 0)
+    niche_avg = max(int(niche_meta.get("avg_views") or 0), 1)
+    mult = views / niche_avg if niche_avg else 0.0
+    delta_views = f"{mult:.1f}× kênh" if mult >= 0.1 else "—"
+    ret_pct = f"{retention_end_pct:.0f}%"
+    ret_delta = "top 5%" if retention_end_pct >= 70 else "ngách TB"
+    save_rate = (saves / views * 100.0) if views else 0.0
+    sr_delta = "rất cao" if save_rate > 2.0 else "TB"
+    return [
+        {"label": "VIEW", "value": _fmt_int_short(views), "delta": delta_views},
+        {"label": "GIỮ CHÂN", "value": ret_pct, "delta": ret_delta},
+        {"label": "SAVE RATE", "value": f"{save_rate:.1f}%", "delta": sr_delta},
+        {"label": "SHARE", "value": _fmt_int_short(shares), "delta": "lan toả"},
+    ]
+
+
+def _parse_ts(ts: Any) -> datetime | None:
+    if not ts:
+        return None
+    if isinstance(ts, datetime):
+        return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+    try:
+        s = str(ts).replace("Z", "+00:00")
+        return datetime.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _diagnostics_fresh(row: dict[str, Any] | None) -> bool:
+    if not row:
+        return False
+    ct = _parse_ts(row.get("computed_at"))
+    if not ct:
+        return False
+    return datetime.now(timezone.utc) - ct < DIAGNOSTICS_STALE_AFTER
+
+
+def _cache_age_minutes(row: dict[str, Any]) -> int:
+    ct = _parse_ts(row.get("computed_at"))
+    if not ct:
+        return 0
+    delta = datetime.now(timezone.utc) - ct
+    return max(0, int(delta.total_seconds() // 60))
+
+
+def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
+    """Load one ``video_corpus`` row; never surfaces PostgREST 0-row as a 500."""
+    from postgrest.exceptions import APIError
+
+    cols = (
+        "video_id,creator_handle,views,likes,comments,shares,saves,save_rate,"
+        "engagement_rate,thumbnail_url,created_at,niche_id,analysis_json,"
+        "breakout_multiplier,tiktok_url"
+    )
+    try:
+        vres = user_sb.table("video_corpus").select(cols).eq("video_id", vid).maybe_single().execute()
+    except APIError as exc:
+        code = getattr(exc, "code", None)
+        details = str(getattr(exc, "details", "") or "")
+        if code == "PGRST116" or "0 rows" in details:
+            raise ValueError("video not in corpus") from exc
+        raise
+    if vres is None:
+        raise ValueError("video not in corpus")
+    data = getattr(vres, "data", None)
+    if not isinstance(data, dict) or not data.get("video_id"):
+        raise ValueError("video not in corpus")
+    return data
+
+
+def _response_from_diagnostics_row(
+    video: dict[str, Any],
+    diag: dict[str, Any],
+    *,
+    mode: Literal["win", "flop"],
+    niche_meta: dict[str, Any],
+    niche_benchmark: list[dict[str, float]],
+    retention_user: list[dict[str, float]],
+) -> dict[str, Any]:
+    analysis = video.get("analysis_json") or {}
+    if isinstance(analysis, str):
+        try:
+            analysis = json.loads(analysis)
+        except json.JSONDecodeError:
+            analysis = {}
+    if not isinstance(analysis, dict):
+        analysis = {}
+    dur = video_duration_sec(analysis)
+    hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
+    title_hint = str(hook.get("hook_phrase") or "")[:200]
+    ret_curve = diag.get("retention_curve") or retention_user
+    bench_curve = diag.get("niche_benchmark_curve") or niche_benchmark
+    ret_end = float(ret_curve[-1]["pct"]) if ret_curve else 0.0
+    return {
+        "video_id": video["video_id"],
+        "mode": mode,
+        "meta": {
+            "creator": video.get("creator_handle") or "",
+            "views": int(video.get("views") or 0),
+            "likes": int(video.get("likes") or 0),
+            "comments": int(video.get("comments") or 0),
+            "shares": int(video.get("shares") or 0),
+            "save_rate": float(video.get("save_rate") or 0.0)
+            if video.get("save_rate") is not None
+            else (int(video.get("saves") or 0) / max(int(video.get("views") or 1), 1)),
+            "duration_sec": dur,
+            "thumbnail_url": video.get("thumbnail_url"),
+            "date_posted": (video.get("created_at") or "")[:10]
+            if video.get("created_at")
+            else None,
+            "title": title_hint or None,
+            "retention_source": "modeled",
+        },
+        "kpis": build_kpis(video, niche_meta, mode=mode, retention_end_pct=ret_end),
+        "segments": diag.get("segments") or [],
+        "hook_phases": diag.get("hook_phases") or [],
+        "lessons": diag.get("lessons") or [],
+        "analysis_headline": diag.get("analysis_headline"),
+        "analysis_subtext": diag.get("analysis_subtext"),
+        "flop_issues": diag.get("flop_issues"),
+        "retention_curve": ret_curve,
+        "niche_benchmark_curve": bench_curve,
+        "niche_meta": niche_meta,
+    }
+
+
+def _call_win_gemini(
+    *,
+    video: dict[str, Any],
+    analysis: dict[str, Any],
+    niche_label: str,
+) -> WinAnalysisLLM:
+    from google.genai import types
+
+    from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
+    from getviews_pipeline.gemini import _generate_content_models, _normalize_response, _response_text
+
+    hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
+    prompt = f"""Bạn là biên tập TikTok tiếng Việt. Viết JSON theo schema cho màn "Vì sao video NỔ".
+
+Ngách: {niche_label}
+Video: creator @{video.get("creator_handle","")} | views ~{int(video.get("views") or 0)}
+Hook phrase: {hook.get("hook_phrase") or ""}
+Hook type: {hook.get("hook_type") or ""}
+
+Quy tắc:
+- Headline + subtext súc tích, không sáo rỗng, không cụm cấm trong playbook GetViews.
+- 3 lessons: title ngắn + body 1-2 câu, khả năng áp dụng thực tế.
+- hook_bodies: đúng 3 đoạn cho 3 ô 0.0–0.8s / 0.8–1.8s / 1.8–3.0s — mỗi đoạn 2-4 câu tiếng Việt, mô tả cơ chế hook (không copy nguyên hook phrase).
+"""
+    config = types.GenerateContentConfig(
+        temperature=0.55,
+        response_mime_type="application/json",
+        response_json_schema=WinAnalysisLLM.model_json_schema(),
+    )
+    response = _generate_content_models(
+        [prompt],
+        primary_model=GEMINI_SYNTHESIS_MODEL,
+        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+        config=config,
+    )
+    raw = _response_text(response)
+    return WinAnalysisLLM.model_validate_json(_normalize_response(raw))
+
+
+def _call_flop_gemini(
+    *,
+    video: dict[str, Any],
+    analysis: dict[str, Any],
+    niche_label: str,
+    niche_row: dict[str, Any] | None,
+) -> FlopAnalysisLLM:
+    from google.genai import types
+
+    from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
+    from getviews_pipeline.gemini import _generate_content_models, _normalize_response, _response_text
+
+    hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
+    niche_hint = json.dumps(niche_row or {}, ensure_ascii=False)[:2500]
+    prompt = f"""Bạn là chẩn đoán cấu trúc TikTok tiếng Việt. Video đang FLOP so với ngách.
+
+Ngách: {niche_label}
+Context niche (JSON rút gọn): {niche_hint}
+Video: @{video.get("creator_handle","")} | views {int(video.get("views") or 0)} | ER {float(video.get("engagement_rate") or 0):.4f}
+Hook phrase: {hook.get("hook_phrase") or ""}
+
+Trả về JSON theo schema:
+- analysis_headline: 1 câu serif-style (có thể nhúng số view) giải thích vì sao flop.
+- flop_issues: 3-6 mục, sắp xếp theo ảnh hưởng. sev high/mid/low. t/end là giây trên timeline. detail + fix cụ thể, tiếng Việt.
+"""
+    config = types.GenerateContentConfig(
+        temperature=0.45,
+        response_mime_type="application/json",
+        response_json_schema=FlopAnalysisLLM.model_json_schema(),
+    )
+    response = _generate_content_models(
+        [prompt],
+        primary_model=GEMINI_SYNTHESIS_MODEL,
+        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+        config=config,
+    )
+    raw = _response_text(response)
+    return FlopAnalysisLLM.model_validate_json(_normalize_response(raw))
+
+
+def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -> str:
+    if video_id and str(video_id).strip():
+        return str(video_id).strip()
+    if not tiktok_url or not str(tiktok_url).strip():
+        raise ValueError("Cần video_id hoặc tiktok_url")
+    url = str(tiktok_url).strip()
+    res = (
+        sb.table("video_corpus")
+        .select("video_id")
+        .eq("tiktok_url", url)
+        .limit(1)
+        .execute()
+    )
+    rows = res.data or []
+    if not rows:
+        raise ValueError("Không tìm thấy video trong corpus cho URL này")
+    return str(rows[0]["video_id"])
+
+
+def run_video_analyze_pipeline(
+    service_sb: Any,
+    user_sb: Any,
+    *,
+    video_id: str | None,
+    tiktok_url: str | None,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
+    """Sync pipeline: read cache, else compute + Gemini + upsert. Returns API dict.
+
+    When ``force_refresh`` is True, skip the 1h ``video_diagnostics`` TTL and
+    always re-run Gemini + curve modeling (then upsert). Intended for debugging
+    / prompt iteration only.
+    """
+    vid = resolve_video_id(user_sb, video_id=video_id, tiktok_url=tiktok_url)
+
+    dres = (
+        user_sb.table("video_diagnostics")
+        .select("*")
+        .eq("video_id", vid)
+        .limit(1)
+        .execute()
+    )
+    diag_row = (dres.data or [None])[0]
+
+    video = _fetch_corpus_row(user_sb, vid)
+
+    niche_id = int(video.get("niche_id") or 0)
+    niche_intel = fetch_niche_intelligence_sync(user_sb, niche_id) if niche_id else None
+    niche_meta = niche_row_to_video_meta(niche_intel) if niche_intel else {
+        "avg_views": 0,
+        "avg_retention": 0.5,
+        "avg_ctr": 0.04,
+        "sample_size": 0,
+    }
+    if isinstance(video.get("analysis_json"), str):
+        try:
+            analysis = json.loads(video["analysis_json"])
+        except json.JSONDecodeError:
+            analysis = {}
+    else:
+        analysis = video.get("analysis_json") or {}
+    if not isinstance(analysis, dict):
+        analysis = {}
+    dur = video_duration_sec(analysis)
+
+    mode: Literal["win", "flop"] = "flop" if is_flop_mode(video, niche_intel) else "win"
+
+    bench_payload = build_niche_benchmark_payload(
+        niche_intel,
+        niche_id=niche_id or 0,
+        duration_sec=max(dur, 5.0),
+    )
+    niche_benchmark = bench_payload["niche_benchmark_curve"]
+    bm = float(video.get("breakout_multiplier") or 1.0)
+    retention_user = model_retention_curve(
+        max(dur, 5.0),
+        niche_median_retention=float(niche_meta["avg_retention"]),
+        breakout_multiplier=bm,
+        n_points=20,
+    )
+
+    if diag_row and _diagnostics_fresh(diag_row) and not force_refresh:
+        age_min = _cache_age_minutes(diag_row)
+        logger.info(
+            "[video_analyze] cache hit: video_id=%s age_min=%d force_refresh=%s",
+            vid,
+            age_min,
+            force_refresh,
+        )
+        return _response_from_diagnostics_row(
+            video,
+            diag_row,
+            mode=mode,
+            niche_meta=niche_meta,
+            niche_benchmark=niche_benchmark,
+            retention_user=retention_user,
+        )
+
+    # Niche label resolution (in priority order):
+    # 1. niche_taxonomy.name_vn (Vietnamese, preferred for Gemini prompt)
+    # 2. niche_taxonomy.name_en (English fallback)
+    # 3. "niche_{id}" (last-resort literal — triggers when taxonomy lookup fails)
+    # The last-resort form is visible in Gemini's output; surfacing it in logs
+    # means the taxonomy read silently failed.
+    niche_label = ""
+    if niche_id:
+        try:
+            tres = (
+                user_sb.table("niche_taxonomy")
+                .select("name_vn,name_en")
+                .eq("id", niche_id)
+                .limit(1)
+                .execute()
+            )
+            tr = (tres.data or [{}])[0]
+            niche_label = str(tr.get("name_vn") or tr.get("name_en") or "")
+        except Exception:
+            niche_label = ""
+
+    segments = decompose_segments(analysis)
+    hook_cards = extract_hook_phases(analysis)
+    if not niche_label:
+        niche_label = f"niche_{niche_id}" if niche_id else "unknown"
+        if niche_id:
+            logger.warning(
+                "[video_analyze] niche label fallback niche_%s (taxonomy read empty/failed) video_id=%s",
+                niche_id,
+                vid,
+            )
+
+    if mode == "win":
+        llm = _call_win_gemini(video=video, analysis=analysis, niche_label=niche_label)
+        for i, body in enumerate(llm.hook_bodies[:3]):
+            if i < len(hook_cards):
+                hook_cards[i]["body"] = body
+        lessons = [x.model_dump() for x in llm.lessons]
+        headline = llm.analysis_headline
+        subtext = llm.analysis_subtext
+        flop_issues = None
+        projected = None
+    else:
+        llm = _call_flop_gemini(
+            video=video, analysis=analysis, niche_label=niche_label, niche_row=niche_intel
+        )
+        headline = llm.analysis_headline
+        subtext = None
+        lessons = []
+        flop_issues = [x.model_dump() for x in llm.flop_issues]
+        projected = projected_views_heuristic(
+            int(video.get("views") or 0),
+            int(niche_meta["avg_views"] or 0),
+            flop_issues,
+        )
+
+    upsert_payload = {
+        "video_id": vid,
+        "analysis_headline": headline,
+        "analysis_subtext": subtext,
+        "lessons": lessons,
+        "hook_phases": hook_cards,
+        "segments": segments,
+        "flop_issues": flop_issues,
+        "retention_curve": retention_user,
+        "niche_benchmark_curve": niche_benchmark,
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        service_sb.table("video_diagnostics").upsert(
+            upsert_payload,
+            on_conflict="video_id",
+        ).execute()
+    except Exception as exc:
+        logger.exception("[video_analyze] upsert failed video_id=%s: %s", vid, exc)
+        raise
+
+    diag_read = upsert_payload
+    out = _response_from_diagnostics_row(
+        video,
+        diag_read,
+        mode=mode,
+        niche_meta=niche_meta,
+        niche_benchmark=niche_benchmark,
+        retention_user=retention_user,
+    )
+    if projected is not None:
+        out["projected_views"] = projected
+    return out

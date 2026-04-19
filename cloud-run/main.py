@@ -1147,6 +1147,55 @@ async def video_niche_benchmark(
     return JSONResponse(payload)
 
 
+class VideoAnalyzeRequest(BaseModel):
+    video_id: str | None = None
+    tiktok_url: str | None = None
+    force_refresh: bool = False
+
+
+@app.post("/video/analyze")
+async def video_analyze_endpoint(
+    body: VideoAnalyzeRequest,
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """Phase B · B.1.3 — structural slots + Gemini copy, cached in ``video_diagnostics``.
+
+    ``force_refresh`` bypasses the 1h diagnostics TTL and always re-runs Gemini +
+    curve modeling (then upsert). Use only for debugging / prompt iteration — it
+    increases latency and model cost.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+    from getviews_pipeline.video_analyze import run_video_analyze_pipeline
+
+    vid = (body.video_id or "").strip() if body.video_id else ""
+    url = (body.tiktok_url or "").strip() if body.tiktok_url else ""
+    if not vid and not url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cần video_id hoặc tiktok_url",
+        )
+
+    sb_user = user_supabase(user["access_token"])
+    try:
+        out = await run_sync(
+            run_video_analyze_pipeline,
+            get_service_client(),
+            sb_user,
+            video_id=vid or None,
+            tiktok_url=url or None,
+            force_refresh=body.force_refresh,
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        if msg == "video not in corpus" or "Không tìm thấy" in msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
+    except Exception as exc:
+        logger.exception("[video/analyze] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Home screen endpoints — Phase A · A1
 # ══════════════════════════════════════════════════════════════════════════
