@@ -1185,6 +1185,20 @@ smoke for the route component, shell smoke in `artifacts/qa-reports/`.
 Shell smokes follow the existing pattern in `artifacts/qa-reports/` — curl
 the Cloud Run endpoint, assert HTTP 200 and key JSON fields present.
 
+**Responsive breakpoints (all four screens, non-negotiable).**
+Every new screen must respect the reference stylesheet's breakpoints before
+the design audit closes. QA at all four viewport widths:
+
+| Breakpoint | Behaviour | Reference |
+|---|---|---|
+| ≤ 1100px | `.hide-narrow` elements hidden (e.g. live-data chip in KOL header) | `styles.css` `.hide-narrow` |
+| ≤ 900px | Multi-column grids collapse to 1 column (video 2-col, channel hero, channel bottom grid) | `video.jsx`, `channel.jsx` |
+| ≤ 640px | H1 `font-size` shrinks to 30px | `styles.css` |
+| ≤ 560px | Big-number / `.bignum` font-size shrinks to 34px | `styles.css` |
+
+Manual QA: resize browser to each width and verify against the reference JSX.
+Any layout break at a listed breakpoint is a `must-fix` in the audit report.
+
 ### Revised timeline
 
 | Screen | Previous | Revised | Reason |
