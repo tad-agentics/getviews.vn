@@ -145,6 +145,13 @@ export default function ScriptScreen() {
   }, [searchParams]);
 
   useEffect(() => {
+    const d = searchParams.get("duration");
+    if (!d) return;
+    const n = Number.parseInt(d, 10);
+    if (Number.isFinite(n) && n >= 15 && n <= 90) setDuration(n);
+  }, [searchParams]);
+
+  useEffect(() => {
     const h = searchParams.get("hook");
     if (!h?.trim() || !hookData?.hook_patterns?.length) return;
     const decoded = decodeURIComponent(h.trim());
@@ -212,7 +219,7 @@ export default function ScriptScreen() {
   const loadingPanel = cloudConfigured && effectiveNicheId != null && (scenePending || hookPending);
 
   return (
-    <AppLayout enableMobileSidebar>
+    <AppLayout active="script" enableMobileSidebar>
       <TopBar kicker="CREATOR" title="Xưởng Viết" />
       <main className="gv-route-main gv-route-main--1280">
         <div className="mb-[18px]">
@@ -420,6 +427,7 @@ export default function ScriptScreen() {
                       shotIndex={activeShot}
                       overlaySamples={overlaySamples}
                       referenceClips={referenceClips}
+                      sceneSampleSize={activeIntel?.sample_size ?? null}
                     />
                   </div>
                 </aside>

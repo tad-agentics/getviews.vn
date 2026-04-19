@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 const ScriptScreen = lazy(() => import("./ScriptScreen"));
 
 /**
- * `/app/script` — Phase B · B.4.3 Xưởng Viết. Query: ``?hook=``, ``?niche_id=``, ``?topic=``.
+ * `/app/script` — Phase B · B.4.3 Xưởng Viết. Query: ``?hook=``, ``?niche_id=``, ``?topic=``, ``?duration=``.
  */
 export default function AppScriptRoute() {
   return (

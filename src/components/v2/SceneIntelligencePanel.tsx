@@ -17,6 +17,8 @@ export type SceneIntelligencePanelProps = {
   /** Up to 5 overlay strings from ``scene_intelligence.overlay_samples`` or presets. */
   overlaySamples: string[];
   referenceClips: ScriptReferenceClip[];
+  /** When set and below 30, shows a thin-corpus banner (plan risk · scene intelligence). */
+  sceneSampleSize?: number | null;
 };
 
 const CLIP_FALLBACK_BG = [
@@ -30,12 +32,20 @@ export function SceneIntelligencePanel({
   shotIndex,
   overlaySamples,
   referenceClips,
+  sceneSampleSize = null,
 }: SceneIntelligencePanelProps) {
   const span = shot.t1 - shot.t0;
   const slow = span > shot.winnerAvg * 1.2;
+  const thinCorpus =
+    typeof sceneSampleSize === "number" && sceneSampleSize > 0 && sceneSampleSize < 30;
 
   return (
     <div className="flex flex-col gap-3.5">
+      {thinCorpus ? (
+        <p className="gv-mono rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)] px-3 py-2 text-[10px] leading-snug text-[color:var(--gv-accent-deep)]">
+          Ngách đang thưa ({sceneSampleSize} video / scene) — pacing và overlay là định hướng, không tuyệt đối.
+        </p>
+      ) : null}
       <div className="rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] p-4 text-[color:var(--gv-canvas)]">
         <div className="gv-mono mb-2 text-[10px] uppercase tracking-[0.16em] opacity-60">
           SHOT {String(shotIndex + 1).padStart(2, "0")} · PHÂN TÍCH CẤU TRÚC
@@ -100,7 +110,7 @@ export function SceneIntelligencePanel({
                 <Link
                   key={c.video_id}
                   to={`/app/video?video_id=${encodeURIComponent(c.video_id)}`}
-                  className={`relative flex aspect-[9/13] w-20 shrink-0 flex-col justify-end overflow-hidden rounded p-1.5 text-left text-white ${
+                  className={`relative flex aspect-[9/13] w-20 shrink-0 flex-col justify-end overflow-hidden rounded p-1.5 text-left text-[color:var(--gv-canvas)] ${
                     !c.thumbnail_url ? CLIP_FALLBACK_BG[i % CLIP_FALLBACK_BG.length] : ""
                   }`}
                   style={
@@ -117,7 +127,7 @@ export function SceneIntelligencePanel({
                     @{c.creator_handle.replace(/^@/, "")}
                   </span>
                   <span className="text-[10px] leading-tight drop-shadow">{c.label}</span>
-                  <span className="gv-mono absolute right-1 top-1 rounded bg-black/55 px-1 text-[9px]">
+                  <span className="gv-mono absolute right-1 top-1 rounded bg-[color:color-mix(in_srgb,var(--gv-ink)_58%,transparent)] px-1 text-[9px] text-[color:var(--gv-canvas)]">
                     {c.duration_sec.toFixed(1)}s
                   </span>
                 </Link>
@@ -125,7 +135,7 @@ export function SceneIntelligencePanel({
             : [0, 1, 2].map((i) => (
                 <div
                   key={`clip-ph-${i}`}
-                  className={`flex aspect-[9/13] w-20 shrink-0 flex-col justify-end rounded p-1.5 text-white ${CLIP_FALLBACK_BG[i % CLIP_FALLBACK_BG.length]}`}
+                  className={`flex aspect-[9/13] w-20 shrink-0 flex-col justify-end rounded p-1.5 text-[color:var(--gv-canvas)] ${CLIP_FALLBACK_BG[i % CLIP_FALLBACK_BG.length]}`}
                 >
                   <span className="gv-mono text-[9px] opacity-70">—</span>
                   <span className="text-[10px] leading-tight">Sắp có clip</span>

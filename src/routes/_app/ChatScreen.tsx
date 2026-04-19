@@ -761,6 +761,7 @@ export default function ChatScreen() {
         {!showMessages ? (
           <DesktopCenteredEmpty
             nicheLabel={nicheLabel}
+            nicheId={profile?.primary_niche ?? null}
             initialValue={message}
             inputDisabled={inputDisabled}
             needsNiche={needsNiche}
@@ -814,6 +815,7 @@ export default function ChatScreen() {
             {!showMessages ? (
               <MobileEmptyState
                 nicheLabel={nicheLabel}
+                nicheId={profile?.primary_niche ?? null}
                 onSelectPrompt={(p) => {
                   setMessage(p);
                   setShowMessages(true);

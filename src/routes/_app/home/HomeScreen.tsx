@@ -227,7 +227,11 @@ export default function HomeScreen() {
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
           <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
-            <HomeMorningRitual nicheLabel={nicheLabel} onSelectPrompt={launchChat} />
+            <HomeMorningRitual
+              nicheLabel={nicheLabel}
+              nicheId={profile?.primary_niche ?? null}
+              onSelectPrompt={launchChat}
+            />
           </div>
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />

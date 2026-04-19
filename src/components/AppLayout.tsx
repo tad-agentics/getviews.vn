@@ -550,8 +550,11 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           <NavItem
             icon={FileText}
             label="Kịch Bản"
-            badge="Sắp có"
-            disabled
+            active={active === "script"}
+            onClick={() => {
+              navigate("/app/script");
+              onClose?.();
+            }}
           />
         </nav>
 

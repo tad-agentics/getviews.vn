@@ -11,7 +11,7 @@ export function DurationInsight({ durationSec }: DurationInsightProps) {
     toneClass = "text-[color:var(--gv-ink-4)]";
   } else if (durationSec <= 40) {
     msg = "★ Vùng vàng — 71% video thắng nằm đây";
-    toneClass = "text-[color:var(--gv-pos-deep)]";
+    toneClass = "text-[color:var(--gv-chart-benchmark)]";
   } else if (durationSec <= 60) {
     msg = "Dài hơn TB — cần payoff rõ lúc 40s";
     toneClass = "text-[color:var(--gv-ink-4)]";

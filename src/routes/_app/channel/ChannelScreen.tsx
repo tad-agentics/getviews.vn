@@ -11,6 +11,7 @@ import { TopBar } from "@/components/v2/TopBar";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
 import { env } from "@/lib/env";
+import { scriptPrefillFromChannel } from "@/lib/scriptPrefill";
 import type { ChannelAnalyzeResponse, VideoKpi } from "@/lib/api-types";
 import { formatFollowers, formatRelativeSinceVi, formatViews } from "@/lib/formatters";
 
@@ -203,6 +204,7 @@ function ChannelBody({
   handleDisplay: string;
   onChangeHandle: (h: string) => void;
 }) {
+  const navigate = useNavigate();
   const [another, setAnother] = useState("");
   const nicheKicker = data.niche_label?.trim()
     ? `HỒ SƠ KÊNH · ${data.niche_label.trim().toUpperCase()}`
@@ -213,6 +215,8 @@ function ChannelBody({
     () => postingCadenceChipText(data.posting_cadence, data.posting_time),
     [data.posting_cadence, data.posting_time],
   );
+
+  const scriptFromFormulaHref = useMemo(() => scriptPrefillFromChannel(data), [data]);
 
   return (
     <div className="flex flex-col">
@@ -362,7 +366,12 @@ function ChannelBody({
               ))
             )}
           </div>
-          <Btn className="mt-4 w-full justify-center" variant="accent" type="button" disabled title="Sắp có">
+          <Btn
+            className="mt-4 w-full justify-center"
+            variant="accent"
+            type="button"
+            onClick={() => navigate(scriptFromFormulaHref)}
+          >
             <FileText className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
             Tạo kịch bản theo công thức này
           </Btn>

@@ -1,6 +1,8 @@
 import { memo } from "react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
+import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 
 /**
  * Phase A · A2 — rendered above the quick-action cards on ChatScreen's
@@ -25,11 +27,14 @@ function promptFromScript(script: RitualScript, nicheLabel: string) {
 
 export const MorningRitualBanner = memo(function MorningRitualBanner({
   nicheLabel,
+  nicheId,
   onSelectPrompt,
 }: {
   nicheLabel: string;
+  nicheId: number | null;
   onSelectPrompt: (prompt: string) => void;
 }) {
+  const navigate = useNavigate();
   const { data: ritual, isLoading } = useDailyRitual();
 
   // Render nothing while loading — the banner is additive, not blocking.
@@ -64,7 +69,11 @@ export const MorningRitualBanner = memo(function MorningRitualBanner({
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, delay: 0.08 + idx * 0.04, ease: "easeOut" }}
-            onClick={() => onSelectPrompt(promptFromScript(script, nicheLabel))}
+            onClick={() =>
+              nicheId != null
+                ? navigate(scriptPrefillFromRitual(script, nicheId))
+                : onSelectPrompt(promptFromScript(script, nicheLabel))
+            }
             className={
               "group flex flex-col gap-2 rounded-xl border p-3.5 text-left transition-all duration-[120ms] " +
               (idx === 0

@@ -43,7 +43,7 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
           active
             ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
             : idx === 0
-              ? "bg-[color:var(--gv-accent)] text-white"
+              ? "bg-[color:var(--gv-accent)] text-[color:var(--gv-canvas)]"
               : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-2)]"
         }`}
       >
@@ -57,7 +57,9 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
         className="relative flex items-end p-2"
         style={{ backgroundColor: camBg }}
       >
-        <span className="gv-mono text-[11px] text-white/85">{shot.cam}</span>
+        <span className="gv-mono text-[11px] text-[color:color-mix(in_srgb,var(--gv-canvas)_85%,transparent)]">
+          {shot.cam}
+        </span>
       </div>
       <div className="border-r border-[color:var(--gv-rule)] p-3">
         <div className="gv-mono mb-1 text-[9px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
@@ -74,7 +76,7 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
           className={`gv-mono inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${
             slow
               ? "bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)]"
-              : "bg-[color:color-mix(in_srgb,var(--gv-chart-benchmark)_12%,transparent)] text-[color:var(--gv-pos-deep)]"
+              : "bg-[color:color-mix(in_srgb,var(--gv-chart-benchmark)_12%,transparent)] text-[color:var(--gv-chart-benchmark)]"
           }`}
         >
           {slow ? "⚠" : "✓"} {span.toFixed(1)}s · ngách {shot.winnerAvg}s

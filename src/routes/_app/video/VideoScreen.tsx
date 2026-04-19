@@ -21,6 +21,7 @@ import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { IssueCard } from "@/components/v2/IssueCard";
 import { env } from "@/lib/env";
+import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import type {
@@ -72,18 +73,6 @@ function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: strin
     ...issues.slice(0, 8).map((i) => `• ${i.title}\n  Fix gợi ý: ${i.fix}`),
   ];
   if (d.analysis_headline) lines.push("", `Chẩn đoán tổng: ${stringifyAnalysisHeadline(d.analysis_headline)}`);
-  return lines.join("\n");
-}
-
-function buildWinScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: string | null): string {
-  const lines = [
-    `Corpus video_id: ${d.video_id}`,
-    ...(analyzeUrl?.trim() ? [`Link TikTok: ${analyzeUrl.trim()}`] : []),
-    "",
-    "Mình vừa soi video đang nổ trên Getviews — giúp mình lên kịch bản quay mới, áp các điểm sau:",
-    ...d.lessons.slice(0, 8).map((l) => `• ${l.title}\n  ${l.body}`),
-  ];
-  if (d.analysis_headline) lines.push("", `Góc chính: ${stringifyAnalysisHeadline(d.analysis_headline)}`);
   return lines.join("\n");
 }
 
@@ -367,9 +356,21 @@ function VideoAnalysisBodyInner({
   };
 
   const goWinScript = () => {
-    navigate("/app/chat", {
-      state: { initialPrompt: buildWinScriptHandoffPrompt(data, analyzeUrl) },
-    });
+    const topic =
+      meta.title?.trim() ||
+      stringifyAnalysisHeadline(data.analysis_headline).trim() ||
+      `Video từ @${meta.creator?.trim() || "creator"}`;
+    const phases = data.hook_phases ?? [];
+    const first = phases[0];
+    const hookFromPhase = first ? `${first.label}: ${first.body}` : null;
+    navigate(
+      scriptPrefillFromVideo({
+        niche_id: meta.niche_id,
+        topic,
+        hook: hookFromPhase ?? stringifyAnalysisHeadline(data.analysis_headline).trim() || null,
+        duration_sec: duration,
+      }),
+    );
   };
 
   const copyHook = async () => {

@@ -1,6 +1,8 @@
 import { memo } from "react";
+import { useNavigate } from "react-router";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
+import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 
 /**
  * MorningRitual on the Home screen — the design's hero block.
@@ -26,11 +28,15 @@ function promptFromScript(script: RitualScript, nicheLabel: string) {
 
 export const HomeMorningRitual = memo(function HomeMorningRitual({
   nicheLabel,
+  nicheId,
   onSelectPrompt,
 }: {
   nicheLabel: string;
+  /** When set, ritual cards open Xưởng Viết with prefill instead of chat. */
+  nicheId: number | null;
   onSelectPrompt: (prompt: string) => void;
 }) {
+  const navigate = useNavigate();
   const { data: ritual, isPending } = useDailyRitual();
 
   if (isPending) {
@@ -83,7 +89,11 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
             <button
               key={`${s.hook_type_en}-${idx}`}
               type="button"
-              onClick={() => onSelectPrompt(promptFromScript(s, nicheLabel))}
+              onClick={() =>
+                nicheId != null
+                  ? navigate(scriptPrefillFromRitual(s, nicheId))
+                  : onSelectPrompt(promptFromScript(s, nicheLabel))
+              }
               className={
                 "group flex min-h-[180px] h-full flex-col gap-2.5 rounded-[12px] border border-[color:var(--gv-ink)] px-[18px] pb-4 pt-[18px] text-left transition-[transform,box-shadow] duration-150 " +
                 (isHero

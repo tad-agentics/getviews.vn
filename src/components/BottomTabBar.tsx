@@ -10,7 +10,7 @@ import {
 type Tab = "home" | "chat" | "trends" | "settings";
 
 /** Shell-wide active section; values not in the bottom bar show no tab as selected. */
-export type AppShellActive = Tab | "kol";
+export type AppShellActive = Tab | "kol" | "script";
 
 /**
  * Mobile bottom tab bar (Phase A · A3.3).

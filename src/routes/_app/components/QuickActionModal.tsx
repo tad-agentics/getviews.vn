@@ -49,19 +49,6 @@ const MODAL_CONFIGS: Record<string, ModalConfig> = {
         : "Xu hướng TikTok đang hot tuần này — hook nào đang chạy, format nào đang lên?";
     },
   },
-  "kich-ban": {
-    title: "Lên Kịch Bản Quay",
-    fields: [
-      {
-        label: "Chủ đề video",
-        placeholder: "VD: review son mới, so sánh điện thoại, recipe nấu ăn nhanh",
-        type: "input",
-        key: "topic",
-      },
-    ],
-    buildPrompt: (v) =>
-      `Lên kịch bản quay video TikTok cho chủ đề: ${v.topic} — bao gồm hook, danh sách cảnh quay, CTA`,
-  },
   "tu-van": {
     title: "Tư Vấn Content",
     fields: [

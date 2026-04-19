@@ -21,7 +21,7 @@ import { MorningRitualBanner } from "@/routes/_app/components/MorningRitualBanne
 export { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 
 /* ─── Quick action config ─────────────────────────────────────────────── */
-type QuickActionModalKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tu-van";
+type QuickActionModalKey = "soi-kenh" | "xu-huong" | "tu-van";
 
 type QuickAction =
   | {
@@ -36,7 +36,7 @@ type QuickAction =
       subtext: string;
       Icon: ElementType;
       isFree: boolean;
-      href: "/app/video" | "/app/kol";
+      href: "/app/video" | "/app/kol" | "/app/script";
     };
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -65,7 +65,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     text: "Lên Kịch Bản Quay",
     subtext: "Từ chủ đề → shot list sẵn sàng quay",
     Icon: Video,
-    modalKey: "kich-ban",
+    href: "/app/script",
     isFree: false,
   },
   {
@@ -87,9 +87,11 @@ const QUICK_ACTIONS: QuickAction[] = [
 /* ─── MobileEmptyState ────────────────────────────────────────────────── */
 export const MobileEmptyState = memo(function MobileEmptyState({
   nicheLabel,
+  nicheId,
   onSelectPrompt,
 }: {
   nicheLabel: string;
+  nicheId: number | null;
   onSelectPrompt: (p: string) => void;
 }) {
   const navigate = useNavigate();
@@ -131,7 +133,7 @@ export const MobileEmptyState = memo(function MobileEmptyState({
           Sẵn sàng phân tích content của bạn.
         </motion.h1>
         <div className="mt-2 w-full">
-          <MorningRitualBanner nicheLabel={nicheLabel} onSelectPrompt={onSelectPrompt} />
+          <MorningRitualBanner nicheLabel={nicheLabel} nicheId={nicheId} onSelectPrompt={onSelectPrompt} />
         </div>
         <motion.div
           initial={{ opacity: 0, y: 6 }}
@@ -180,6 +182,7 @@ export const MobileEmptyState = memo(function MobileEmptyState({
  */
 export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
   nicheLabel,
+  nicheId,
   initialValue,
   inputDisabled,
   needsNiche,
@@ -187,6 +190,7 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
   onSend,
 }: {
   nicheLabel: string;
+  nicheId: number | null;
   initialValue: string;
   inputDisabled: boolean;
   needsNiche: boolean;
@@ -326,7 +330,7 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
           </div>
 
           <div className="mt-3">
-            <MorningRitualBanner nicheLabel={nicheLabel} onSelectPrompt={(p) => { setMsg(p); }} />
+            <MorningRitualBanner nicheLabel={nicheLabel} nicheId={nicheId} onSelectPrompt={(p) => { setMsg(p); }} />
           </div>
 
           <div className="mt-6">

@@ -67,3 +67,30 @@ def test_aggregate_emits_row_when_threshold_met() -> None:
     assert r["corpus_avg_duration"] == 2.0
     assert len(r["reference_video_ids"]) == 3
     assert r["winner_overlay_style"] == "TEXT_TITLE"
+
+
+def test_overlay_samples_capped_at_five_across_winner_events() -> None:
+    """Inner ``break`` only exits the text loop; outer must stop once ``samples`` reaches 5."""
+    events = []
+    for i in range(40):
+        overlays: list[str] = []
+        if i == 30:
+            overlays = ["a", "b", "c"]
+        elif i == 31:
+            overlays = ["d", "e", "f"]
+        elif i >= 32:
+            overlays = ["should-not-appear"]
+        events.append(
+            {
+                "niche_id": 2,
+                "scene_type": "demo_cap",
+                "video_id": f"v{i}",
+                "views": 1000 + i * 50,
+                "duration": 2.0,
+                "overlay_texts": overlays,
+            }
+        )
+    rows = aggregate_scene_intelligence(events, min_videos=30)
+    assert len(rows) == 1
+    assert len(rows[0]["overlay_samples"]) == 5
+    assert "should-not-appear" not in rows[0]["overlay_samples"]

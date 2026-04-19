@@ -141,6 +141,8 @@ def aggregate_scene_intelligence(
                 samples.append(t)
                 if len(samples) >= 5:
                     break
+            if len(samples) >= 5:
+                break
 
         style = "TEXT_TITLE" if samples else "NONE"
         tip = (

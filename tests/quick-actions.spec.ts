@@ -30,11 +30,10 @@ import { join } from "node:path";
 const INPUTS = {
   soiKenhHandle: "@phuong.nga.beauty",
   xuHuongNiche: "skincare",
-  kichBanTopic: "review son tint mới ra",
   tuVanNiche: "review đồ skincare",
 };
 
-type ActionKey = "xu-huong" | "kich-ban" | "tu-van";
+type ActionKey = "xu-huong" | "tu-van";
 
 const ACTIONS: Array<{
   key: ActionKey;
@@ -51,14 +50,6 @@ const ACTIONS: Array<{
     expectedIntent: "trend_spike",
     expectedFree: true,
     contentChecks: [/(xu hướng|trend|đang hot|viral)/i, /hook/i],
-  },
-  {
-    key: "kich-ban",
-    cardTitle: "Lên Kịch Bản Quay",
-    fillValue: INPUTS.kichBanTopic,
-    expectedIntent: "shot_list",
-    expectedFree: false,
-    contentChecks: [/(cảnh|shot)/i, /hook/i, /cta/i],
   },
   {
     key: "tu-van",
@@ -667,6 +658,37 @@ test("quick-action: Soi Kênh Đối Thủ modal navigates to /app/channel (B.3.
   await expect(
     page.getByText(/Phân Tích Kênh|Soi kênh trong corpus|Đang tải phân tích kênh/i).first(),
   ).toBeVisible({ timeout: 20_000 });
+});
+
+test("quick-action: Lên Kịch Bản Quay navigates to /app/script (no chat modal, B.4.5)", async ({ page }) => {
+  await page.goto("/app");
+  await page.waitForLoadState("domcontentloaded");
+  const newChatButton = page
+    .getByRole("button", { name: /new chat|chat mới|\+/i })
+    .or(page.locator('[data-testid="new-chat"]'))
+    .or(page.locator('a[href="/app"]'))
+    .first();
+  if (await newChatButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await newChatButton.click();
+    await page.waitForURL(/\/app(\?.*)?$/, { timeout: 5_000 }).catch(() => {});
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const visible = await page
+      .locator("text=Thao tác nhanh")
+      .first()
+      .isVisible({ timeout: 6_000 })
+      .catch(() => false);
+    if (visible) break;
+    await page.goto("/app");
+    await page.waitForLoadState("domcontentloaded");
+  }
+  await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible({ timeout: 15_000 });
+  const quickActionsSection = page.locator("text=Thao tác nhanh").first().locator("..").locator("..");
+  await quickActionsSection.getByRole("button", { name: /Lên Kịch Bản Quay/i }).first().click();
+  await expect(page).toHaveURL(/\/app\/script(\/?|\?|$)/);
+  await expect(
+    page.getByText(/Xưởng Viết|Chọn ngách trong onboarding|Cần .*VITE_CLOUD_RUN_API_URL/i).first(),
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("quick-action: Tìm KOL / Creator navigates to /app/kol (no chat modal, B.2.3)", async ({ page }) => {
