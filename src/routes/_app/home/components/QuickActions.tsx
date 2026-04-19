@@ -11,8 +11,8 @@ import { SectionHeader } from "@/components/v2/SectionHeader";
  * design's Home "Thao tác" block: each cell shows a squircle icon + mono
  * numeric badge (01..06), `.tight` title + short description.
  *
- * Six "cửa" (doors) the creator can walk through. Five go to known
- * destinations; Tư vấn still routes into chat until Answer screen ships.
+ * Six "cửa" (doors) the creator can walk through. Tìm KOL → `/app/kol` (B.2.3).
+ * Tư vấn still routes into chat until Answer screen ships.
  */
 
 type ActionId = "video" | "channel" | "trends" | "script" | "kol" | "consult";
@@ -36,7 +36,7 @@ const ROUTE: Record<ActionId, string> = {
   channel: "/app/chat",
   trends:  "/app/trends",
   script:  "/app/chat",
-  kol:     "/app/chat",
+  kol:     "/app/kol",
   consult: "/app/chat",
 };
 

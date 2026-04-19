@@ -11,7 +11,7 @@
 import { memo, useState, useRef, useEffect, type ElementType } from "react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router";
-import { ArrowUp, Database, BarChart2, Search, TrendingUp, Video } from "lucide-react";
+import { ArrowUp, Database, BarChart2, Search, TrendingUp, Users, Video } from "lucide-react";
 import { PromptCards } from "@/routes/_app/components/PromptCards";
 import { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 import { NicheSelector } from "@/routes/_app/components/NicheSelector";
@@ -20,7 +20,7 @@ import { MorningRitualBanner } from "@/routes/_app/components/MorningRitualBanne
 export { QuickActionModal } from "@/routes/_app/components/QuickActionModal";
 
 /* ─── Quick action config ─────────────────────────────────────────────── */
-type QuickActionModalKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tim-kol" | "tu-van";
+type QuickActionModalKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tu-van";
 
 type QuickAction =
   | {
@@ -35,7 +35,7 @@ type QuickAction =
       subtext: string;
       Icon: ElementType;
       isFree: boolean;
-      href: "/app/video";
+      href: "/app/video" | "/app/kol";
     };
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -70,8 +70,8 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     text: "Tìm KOL / Creator",
     subtext: "Gợi ý tài khoản đáng theo dõi hoặc hợp tác",
-    Icon: Search,
-    modalKey: "tim-kol",
+    Icon: Users,
+    href: "/app/kol",
     isFree: true,
   },
   {

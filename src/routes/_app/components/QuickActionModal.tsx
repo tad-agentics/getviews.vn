@@ -62,19 +62,6 @@ const MODAL_CONFIGS: Record<string, ModalConfig> = {
     buildPrompt: (v) =>
       `Lên kịch bản quay video TikTok cho chủ đề: ${v.topic} — bao gồm hook, danh sách cảnh quay, CTA`,
   },
-  "tim-kol": {
-    title: "Tìm KOL / Creator",
-    fields: [
-      {
-        label: "Mô tả sản phẩm hoặc lĩnh vực",
-        placeholder: "VD: ứng dụng fitness AI, mỹ phẩm Hàn Quốc, đồ gia dụng thông minh",
-        type: "input",
-        key: "product",
-      },
-    ],
-    buildPrompt: (v) =>
-      `Tìm creator TikTok phù hợp để marketing sản phẩm: ${v.product} — gợi ý KOL và lý do`,
-  },
   "tu-van": {
     title: "Tư Vấn Content",
     fields: [

@@ -9,6 +9,8 @@ import math
 from typing import Any, Literal
 
 Tab = Literal["pinned", "discover"]
+SortKey = Literal["pinned", "rank", "match", "followers", "avg_views", "growth", "name"]
+KOL_SORT_QUERY_KEYS = frozenset({"pinned", "rank", "match", "followers", "avg_views", "growth", "name"})
 
 
 def normalize_handle(raw: str | None) -> str:
@@ -132,6 +134,81 @@ def _corpus_fallback_rows(sb: Any, *, niche_id: int, handles: list[str]) -> dict
     return out
 
 
+def _apply_follower_bounds(
+    rows: list[dict[str, Any]],
+    followers_min: int | None,
+    followers_max: int | None,
+) -> list[dict[str, Any]]:
+    if followers_min is None and followers_max is None:
+        return rows
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        f = int(r.get("followers") or 0)
+        if followers_min is not None and f < int(followers_min):
+            continue
+        if followers_max is not None and f > int(followers_max):
+            continue
+        out.append(r)
+    return out
+
+
+def _apply_growth_fast_proxy(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """No growth_30d in starter_creators yet — keep top ~third by avg_views in pool."""
+    if len(rows) <= 2:
+        return rows
+    avs = sorted(float(r.get("avg_views") or 0) for r in rows)
+    n = len(avs)
+    cut_i = min(n - 1, max(0, int(math.floor(0.66 * (n - 1)))))
+    cutoff = avs[cut_i]
+    return [r for r in rows if float(r.get("avg_views") or 0) >= cutoff]
+
+
+def _growth_display_pct(avg_views: float, niche_avg_views: list[float]) -> float:
+    """Proxy momentum for TĂNG 30D column (no real 30d series in DB). ~−22%…+22%."""
+    gp = growth_percentile_from_avgs(avg_views, niche_avg_views)
+    return round((gp - 0.5) * 0.44, 4)
+
+
+def _sort_decorated_rows(
+    rows: list[dict[str, Any]],
+    *,
+    sort: SortKey,
+    desc: bool,
+    pinned_handles_order: list[str] | None,
+) -> None:
+    """In-place sort of API-shaped rows (already decorated)."""
+    if sort == "rank":
+        return
+    if sort == "pinned" and pinned_handles_order:
+        rank = {h: i for i, h in enumerate(pinned_handles_order)}
+        rows.sort(key=lambda r: rank.get(str(r.get("handle") or ""), 9999), reverse=desc)
+        return
+    key_fn: dict[str, Any] = {
+        "match": lambda r: int(r.get("match_score") or 0),
+        "followers": lambda r: int(r.get("followers") or 0),
+        "avg_views": lambda r: int(r.get("avg_views") or 0),
+        "growth": lambda r: float(r.get("growth_30d_pct") or 0.0),
+        "name": lambda r: str(r.get("name") or "").lower(),
+    }
+    fn = key_fn.get(sort, key_fn["match"])
+    rows.sort(key=fn, reverse=desc)
+
+
+def _match_description_sentence(score: int, niche_label: str) -> str:
+    label = (niche_label or "").strip() or "ngách của bạn"
+    if score >= 78:
+        return (
+            f"Cùng audience overlap, khác giọng — bổ sung tốt cho catalog của bạn "
+            f"trong {label} (điểm khớp {score}/100)."
+        )
+    if score >= 55:
+        return (
+            f"Khớp tốt với {label} — có thể mở rộng tầng viewer hoặc format quen thuộc "
+            f"({score}/100)."
+        )
+    return f"Mức khớp vừa phải với {label} — tham khảo tone hoặc hook khác biệt ({score}/100)."
+
+
 def _niche_label(sb: Any, niche_id: int) -> str:
     res = (
         sb.table("niche_taxonomy")
@@ -154,6 +231,11 @@ def run_kol_browse_sync(
     tab: Tab,
     page: int,
     page_size: int,
+    followers_min: int | None = None,
+    followers_max: int | None = None,
+    growth_fast: bool = False,
+    sort: str | None = None,
+    sort_desc: bool | None = None,
 ) -> dict[str, Any]:
     """Build /kol/browse JSON for the authenticated user (JWT-scoped client)."""
     prof = (
@@ -205,23 +287,41 @@ def run_kol_browse_sync(
             starter_handles_in_niche=starter_handle_set,
         )
         name = row.get("display_name") or h
+        md = _match_description_sentence(score, niche_label)
+        g_pct = _growth_display_pct(av, niche_avg_views)
         return {
             "handle": h,
             "name": name,
             "niche_label": niche_label or None,
             "followers": cf,
             "avg_views": int(round(av)),
-            "growth_30d_pct": 0.0,
+            "growth_30d_pct": g_pct,
             "match_score": score,
             "tone": "",
             "is_pinned": h in pinned_set,
+            "match_description": md,
         }
 
     if tab == "discover":
-        total = len(starter_rows)
+        pool: list[dict[str, Any]] = [dict(r) for r in starter_rows]
+        pool = _apply_follower_bounds(pool, followers_min, followers_max)
+        if growth_fast:
+            pool = _apply_growth_fast_proxy(pool)
+        decorated = [decorate(dict(r)) for r in pool]
+        sk_disc: SortKey = sort if sort in (
+            "rank",
+            "match",
+            "followers",
+            "avg_views",
+            "growth",
+            "name",
+        ) else "match"
+        sd_disc = bool(sort_desc) if sort_desc is not None else True
+        if sk_disc != "rank":
+            _sort_decorated_rows(decorated, sort=sk_disc, desc=sd_disc, pinned_handles_order=None)
+        total = len(decorated)
         start = (page - 1) * page_size
-        slice_rows = starter_rows[start : start + page_size]
-        rows = [decorate(dict(r)) for r in slice_rows]
+        rows = decorated[start : start + page_size]
         return {
             "tab": tab,
             "niche_id": niche_id,
@@ -267,10 +367,35 @@ def run_kol_browse_sync(
                     "is_curated": False,
                 }
             )
-    total = len(ordered_rows)
+    pool_pin: list[dict[str, Any]] = [dict(r) for r in ordered_rows]
+    pool_pin = _apply_follower_bounds(pool_pin, followers_min, followers_max)
+    if growth_fast:
+        pool_pin = _apply_growth_fast_proxy(pool_pin)
+    decorated_pin = [decorate(dict(r)) for r in pool_pin]
+    sk_pin: SortKey = sort if sort in (
+        "pinned",
+        "rank",
+        "match",
+        "followers",
+        "avg_views",
+        "growth",
+        "name",
+    ) else "pinned"
+    sd_pin = bool(sort_desc) if sort_desc is not None else False
+    if sk_pin == "rank":
+        pass
+    elif sk_pin == "pinned":
+        _sort_decorated_rows(
+            decorated_pin,
+            sort="pinned",
+            desc=sd_pin,
+            pinned_handles_order=handles_ordered,
+        )
+    else:
+        _sort_decorated_rows(decorated_pin, sort=sk_pin, desc=sd_pin, pinned_handles_order=None)
+    total = len(decorated_pin)
     start = (page - 1) * page_size
-    slice_rows = ordered_rows[start : start + page_size]
-    rows = [decorate(dict(r)) for r in slice_rows]
+    rows = decorated_pin[start : start + page_size]
     return {
         "tab": tab,
         "niche_id": niche_id,

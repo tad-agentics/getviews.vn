@@ -7,6 +7,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from getviews_pipeline.kol_browse import (
+    _apply_follower_bounds,
+    _apply_growth_fast_proxy,
+    _match_description_sentence,
     compute_match_score,
     follower_range_overlap,
     growth_percentile_from_avgs,
@@ -71,3 +74,29 @@ def test_run_kol_browse_niche_mismatch() -> None:
     )
     with pytest.raises(ValueError, match="không khớp"):
         run_kol_browse_sync(sb, niche_id=3, tab="discover", page=1, page_size=10)
+
+
+def test_apply_follower_bounds() -> None:
+    rows = [{"followers": 50_000}, {"followers": 500_000}, {"followers": 2_000_000}]
+    out = _apply_follower_bounds(rows, 100_000, 1_000_000)
+    assert [int(r["followers"]) for r in out] == [500_000]
+
+
+def test_apply_growth_fast_proxy_keeps_upper_third() -> None:
+    rows = [
+        {"avg_views": 1000},
+        {"avg_views": 2000},
+        {"avg_views": 3000},
+        {"avg_views": 4000},
+        {"avg_views": 5000},
+        {"avg_views": 6000},
+    ]
+    out = _apply_growth_fast_proxy(rows)
+    assert len(out) < len(rows)
+    assert all(float(r["avg_views"]) >= 4000 for r in out)
+
+
+def test_match_description_sentence_includes_score() -> None:
+    s = _match_description_sentence(82, "Skincare")
+    assert "82" in s or "/100" in s
+    assert "Skincare" in s

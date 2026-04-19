@@ -629,18 +629,25 @@ the B.2.2 frontend milestone is unblocked.
 2. **B.2.2** (4d) — `/app/kol` full screen: table + filter ribbon + sticky
    detail card + tab switching + toggle-pin mutation
 3. **B.2.3** (1d) — retire `find_creators` / `creator_search` chat CTA;
-   "Tìm KOL" quick-action routes to `/app/kol`
+   "Tìm KOL" quick-action routes to `/app/kol` ✅
 4. **B.2.4** (1d) — **Design audit** — compare shipped `/app/kol` against
    `kol.jsx` section-by-section: primitives, tokens, kickers, spacing, copy,
    responsive behaviour (1100px breakpoint). Produce
    `artifacts/qa-reports/phase-b-design-audit-kol.md` with `must-fix /
    should-fix / consider` tiers. Ship all must-fix items before closing B.2.
+   **✅** Report: `artifacts/qa-reports/phase-b-design-audit-kol.md` (GREEN).
+   Should-fix follow-ups (server sort, growth proxy column) merged in same pass
+   as audit closure — see report revision date.
    - **Token check**: zero raw hex codes in JSX; zero purple-era tokens
      (`--ink-soft`, `--purple`, `--border-active`, or any `--gv-purple-*`)
      in new screen files. Every color reference must resolve to a
      `var(--gv-*)` token. Grep new files for `#[0-9a-fA-F]{3,6}` and the
      banned token list as part of the audit — any hit is a `must-fix`.
    **Non-negotiable: B.2 cannot close without a green audit report.**
+
+5. **B.2.5** (0.5d) — **Measurement + smoke** — `usage_events` for `/kol`:
+   `kol_screen_load`, `kol_pin` via `src/lib/logUsage.ts`; shell smoke
+   `artifacts/qa-reports/smoke-kol.sh` (JWT + `CLOUD_RUN_URL`). **✅**
 
 ---
 
@@ -1127,9 +1134,11 @@ Reuses from B.1: `KpiGrid`. Reuses from B.2: `FilterChipRow` (chip row for tone 
 
 ### Things retired when Phase B lands
 
-`/app/chat` quick-action CTAs for: `video_diagnosis`, `creator_search`,
-`competitor_profile`, `own_channel`, `shot_list`. Chat stays for `follow_up`
-/ general Q&A only.
+`/app/chat` quick-action CTAs for: `video_diagnosis`, `competitor_profile`,
+`own_channel`, `shot_list`. **B.2.3:** Tìm KOL cards route to `/app/kol` (no
+`creator_search` modal from empty chat / home quick grid). Typed messages that
+match `detectIntent` may still use `creator_search` on Cloud Run. Chat stays
+for `follow_up` / general Q&A.
 
 ### Deliberately deferred to Phase C
 
@@ -1160,7 +1169,7 @@ ships.
 | Quick-action | Chip shows while | Drop when |
 |---|---|---|
 | Soi Video | — | B.1.6 ✅ (routes `/app/video`) |
-| Tìm KOL / Creator | B.2 in progress | B.2.3 merges |
+| Tìm KOL / Creator | — | B.2.3 ✅ (`/app/kol`) |
 | Soi Kênh Đối Thủ | B.3 in progress | B.3.4 merges |
 | Lên Kịch Bản Quay | B.4 in progress | B.4.5 merges |
 
@@ -1191,7 +1200,7 @@ smoke for the route component, shell smoke in `artifacts/qa-reports/`.
 | Screen | pytest target | vitest smoke | shell smoke |
 |---|---|---|---|
 | `/video` | `video_structural.py` — all four functions | Win + Flop modes render | `smoke-video.sh` |
-| `/kol` | match score, `toggle_reference_channel` | pinned + discover tabs render | `smoke-kol.sh` |
+| `/kol` | match score, `toggle_reference_channel` | pinned + discover tabs render | `artifacts/qa-reports/smoke-kol.sh` |
 | `/channel` | formula aggregation, thin-corpus gate | full card + empty FormulaBar | `smoke-channel.sh` |
 | `/script` | `scene_intelligence` batch aggregator, slow flag | 3-col layout, PacingRibbon, ForecastBar | `smoke-script.sh` |
 

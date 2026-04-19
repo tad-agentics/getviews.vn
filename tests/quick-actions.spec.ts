@@ -3,8 +3,9 @@ import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Live-site audit for the five chat-modal quick-action cards on the empty
- * chat screen (Soi Video routes to `/app/video` — see separate test).
+ * Live-site audit for the four chat-modal quick-action cards on the empty
+ * chat screen. Soi Video → `/app/video` and Tìm KOL → `/app/kol` (B.2.3) use
+ * separate navigation tests — no modal / no chat stream for those.
  *
  * Captures per-stage pipeline timings so you can see where latency/errors
  * accumulate:
@@ -29,11 +30,10 @@ const INPUTS = {
   soiKenhHandle: "@phuong.nga.beauty",
   xuHuongNiche: "skincare",
   kichBanTopic: "review son tint mới ra",
-  timKolProduct: "mỹ phẩm Hàn Quốc cho da dầu",
   tuVanNiche: "review đồ skincare",
 };
 
-type ActionKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tim-kol" | "tu-van";
+type ActionKey = "soi-kenh" | "xu-huong" | "kich-ban" | "tu-van";
 
 const ACTIONS: Array<{
   key: ActionKey;
@@ -69,16 +69,6 @@ const ACTIONS: Array<{
     expectedIntent: "shot_list",
     expectedFree: false,
     contentChecks: [/(cảnh|shot)/i, /hook/i, /cta/i],
-  },
-  {
-    key: "tim-kol",
-    cardTitle: "Tìm KOL / Creator",
-    fillValue: INPUTS.timKolProduct,
-    // KNOWN GAP: card claims free (EmptyStates.tsx:63) but creator_search is
-    // paid per detectIntent. Credit delta will reveal which side is authoritative.
-    expectedIntent: "creator_search",
-    expectedFree: true,
-    contentChecks: [/(creator|kol|koc)/i, /(@[a-z0-9._]+|follower)/i],
   },
   {
     key: "tu-van",
@@ -656,6 +646,49 @@ test("quick-action: Soi Video navigates to /app/video (no chat modal)", async ({
   await expect(page.getByText(/Soi video trong corpus|Dán link TikTok/i).first()).toBeVisible({
     timeout: 15_000,
   });
+});
+
+test("quick-action: Tìm KOL / Creator navigates to /app/kol (no chat modal, B.2.3)", async ({ page }) => {
+  await page.goto("/app");
+  await page.waitForLoadState("domcontentloaded");
+  const newChatButton = page
+    .getByRole("button", { name: /new chat|chat mới|\+/i })
+    .or(page.locator('[data-testid="new-chat"]'))
+    .or(page.locator('a[href="/app"]'))
+    .first();
+  if (await newChatButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await newChatButton.click();
+    await page.waitForURL(/\/app(\?.*)?$/, { timeout: 5_000 }).catch(() => {});
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const visible = await page
+      .locator("text=Thao tác nhanh")
+      .first()
+      .isVisible({ timeout: 6_000 })
+      .catch(() => false);
+    if (visible) break;
+    await page.goto("/app");
+    await page.waitForLoadState("domcontentloaded");
+  }
+  await expect(page.getByText(/Thao tác nhanh/i).first()).toBeVisible({ timeout: 15_000 });
+  const quickActionsSection = page.locator("text=Thao tác nhanh").first().locator("..").locator("..");
+  await quickActionsSection.getByRole("button", { name: /Tìm KOL/i }).first().click();
+  await expect(page).toHaveURL(/\/app\/kol(\/?|\?|$)/);
+  await expect(page.getByText(/Kênh Tham Chiếu|Chọn ngách trước|Cần .*VITE_CLOUD_RUN_API_URL/i).first()).toBeVisible({
+    timeout: 15_000,
+  });
+});
+
+test("home: Tìm KOL quick action navigates to /app/kol (B.2.3)", async ({ page }) => {
+  await page.goto("/app");
+  await page.waitForLoadState("domcontentloaded");
+  if (/\/app\/chat/i.test(page.url())) {
+    await page.goto("/app");
+    await page.waitForLoadState("domcontentloaded");
+  }
+  await expect(page.getByText(/Bắt đầu nhanh|Sảnh Sáng Tạo/i).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: /^Tìm KOL$/ }).first().click();
+  await expect(page).toHaveURL(/\/app\/kol(\/?|\?|$)/);
 });
 
 for (const spec of ACTIONS) {

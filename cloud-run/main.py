@@ -1214,13 +1214,50 @@ async def kol_browse_endpoint(
         ge=1,
         description="Optional; must equal caller profiles.primary_niche when set.",
     ),
+    followers_min: int | None = Query(
+        None,
+        ge=0,
+        description="Optional lower bound on creator followers (discover + pinned).",
+    ),
+    followers_max: int | None = Query(
+        None,
+        ge=0,
+        description="Optional upper bound on creator followers.",
+    ),
+    growth_fast: bool = Query(
+        False,
+        description="When true, keep ~top third by avg_views in the niche pool (growth proxy).",
+    ),
+    sort: str | None = Query(
+        None,
+        description="Sort key: pinned | rank | match | followers | avg_views | growth | name.",
+    ),
+    order_dir: Literal["asc", "desc"] | None = Query(
+        None,
+        description="asc or desc; server defaults per tab when omitted.",
+    ),
 ) -> JSONResponse:
     """B.2.1 — KOL browse rows + rule-based match_score (Phase B / B.0.2)."""
-    from getviews_pipeline.kol_browse import run_kol_browse_sync
+    from getviews_pipeline.kol_browse import KOL_SORT_QUERY_KEYS, run_kol_browse_sync
 
     token = user["access_token"]
     sb = user_supabase(token)
     nid = niche_id if niche_id is not None else await _resolve_caller_niche_id(token)
+    if (
+        followers_min is not None
+        and followers_max is not None
+        and int(followers_min) > int(followers_max)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="followers_min không được lớn hơn followers_max.",
+        )
+    if sort is not None and sort not in KOL_SORT_QUERY_KEYS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"sort không hợp lệ: {sort}",
+        )
+    sort_desc = None if order_dir is None else (order_dir == "desc")
     try:
         out = await run_sync(
             run_kol_browse_sync,
@@ -1229,6 +1266,11 @@ async def kol_browse_endpoint(
             tab=tab,
             page=page,
             page_size=page_size,
+            followers_min=followers_min,
+            followers_max=followers_max,
+            growth_fast=growth_fast,
+            sort=sort,
+            sort_desc=sort_desc,
         )
     except ValueError as exc:
         msg = str(exc)

@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
  * Fire-and-forget product analytics (B.1 checkpoint + plan §Measurement).
  * Requires an authenticated session; no-ops if none.
  *
- * Common `action` values: `video_screen_load`, `flop_cta_click`.
+ * Common `action` values: `video_screen_load`, `flop_cta_click`, `kol_screen_load`,
+ * `kol_pin` (plan §Measurement / B.2.5).
  */
 export function logUsage(action: string, metadata?: Record<string, unknown>): void {
   void (async () => {

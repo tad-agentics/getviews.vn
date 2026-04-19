@@ -134,23 +134,6 @@ export interface VideoDiagnosticsRow {
 }
 
 // ---------------------------------------------------------------------------
-// B.2 — GET /kol/browse
-// ---------------------------------------------------------------------------
-
-export interface KolBrowseRow {
-  handle: string;
-  name: string;
-  niche_label: string;
-  followers: number;
-  avg_views: number;
-  growth_30d_pct: number;
-  match_score: number;
-  tone: string | null;
-  is_pinned?: boolean;
-  match_description?: string | null;
-}
-
-// ---------------------------------------------------------------------------
 // B.3 — GET /channel/analyze
 // ---------------------------------------------------------------------------
 
@@ -275,4 +258,34 @@ export interface ScriptReferenceClip {
   handle: string;
   label: string;
   duration_sec: number;
+}
+
+// ---------------------------------------------------------------------------
+// B.2 — GET /kol/browse, POST /kol/toggle-pin (Cloud Run)
+// ---------------------------------------------------------------------------
+
+export type KolBrowseTab = "pinned" | "discover";
+
+export interface KolBrowseRow {
+  handle: string;
+  name: string;
+  niche_label: string | null;
+  followers: number;
+  avg_views: number;
+  growth_30d_pct: number;
+  match_score: number;
+  tone: string;
+  is_pinned: boolean;
+  /** One-sentence rationale from Cloud Run (B.2.2 gap). */
+  match_description?: string | null;
+}
+
+export interface KolBrowseResponse {
+  tab: KolBrowseTab;
+  niche_id: number;
+  page: number;
+  page_size: number;
+  total: number;
+  reference_handles: string[];
+  rows: KolBrowseRow[];
 }
