@@ -4,17 +4,14 @@ import { retentionDropAnnotations, VB_W } from "./retentionCurveMath";
 const D60 = 60;
 
 describe("retentionDropAnnotations", () => {
-  it("returns empty for no-drop (too few points)", () => {
+  it("returns empty when too few points or when drops stay below minDrop", () => {
     expect(retentionDropAnnotations([{ t: 0, pct: 100 }], D60)).toEqual([]);
-  });
-
-  it("returns empty for flat curve (all steps below minDrop)", () => {
-    const curve = [
+    const flat = [
       { t: 0, pct: 90 },
       { t: 30, pct: 89 },
       { t: 60, pct: 88 },
     ];
-    expect(retentionDropAnnotations(curve, D60)).toEqual([]);
+    expect(retentionDropAnnotations(flat, D60)).toEqual([]);
   });
 
   it("single steep drop yields one annotation", () => {

@@ -430,12 +430,20 @@ def run_video_analyze_pipeline(
     video_id: str | None,
     tiktok_url: str | None,
     force_refresh: bool = False,
+    mode: Literal["win", "flop"] | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline: read cache, else compute + Gemini + upsert. Returns API dict.
 
     When ``force_refresh`` is True, skip the 1h ``video_diagnostics`` TTL and
     always re-run Gemini + curve modeling (then upsert). Intended for debugging
     / prompt iteration only.
+
+    When ``mode`` is ``"win"`` or ``"flop"``, that branch is used instead of
+    the ``is_flop_mode`` heuristic. Because ``video_diagnostics`` is keyed only
+    by ``video_id`` (one row holds either win- or flop-shaped analysis from the
+    last run), a mode override always skips the fresh-diagnostics cache — same
+    as an implicit ``force_refresh`` — so the response matches the requested path
+    and the row is recomputed/upserted.
     """
     vid = resolve_video_id(user_sb, video_id=video_id, tiktok_url=tiktok_url)
 
@@ -470,7 +478,19 @@ def run_video_analyze_pipeline(
         analysis = {}
     dur = video_duration_sec(analysis)
 
-    mode: Literal["win", "flop"] = "flop" if is_flop_mode(video, niche_intel) else "win"
+    mode_override = mode is not None
+    bypass_cache = force_refresh or mode_override
+    if mode in ("win", "flop"):
+        mode_resolved: Literal["win", "flop"] = mode
+    else:
+        mode_resolved = "flop" if is_flop_mode(video, niche_intel) else "win"
+
+    if mode_override:
+        logger.info(
+            "[video_analyze] mode override: bypassing diagnostics cache video_id=%s mode=%s",
+            vid,
+            mode,
+        )
 
     bench_payload = build_niche_benchmark_payload(
         niche_intel,
@@ -493,7 +513,7 @@ def run_video_analyze_pipeline(
         n_points=20,
     )
 
-    if diag_row and _diagnostics_fresh(diag_row) and not force_refresh:
+    if diag_row and _diagnostics_fresh(diag_row) and not bypass_cache:
         age_min = _cache_age_minutes(diag_row)
         logger.info(
             "[video_analyze] cache hit: video_id=%s age_min=%d force_refresh=%s",
@@ -504,7 +524,7 @@ def run_video_analyze_pipeline(
         return _response_from_diagnostics_row(
             video,
             diag_row,
-            mode=mode,
+            mode=mode_resolved,
             niche_meta=niche_meta,
             niche_benchmark=niche_benchmark,
             retention_user=retention_user,
@@ -524,7 +544,7 @@ def run_video_analyze_pipeline(
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
 
-    if mode == "win":
+    if mode_resolved == "win":
         llm = _call_win_gemini(video=video, analysis=analysis, niche_label=gemini_niche_label)
         for i, body in enumerate(llm.hook_bodies[:3]):
             if i < len(hook_cards):
@@ -573,7 +593,7 @@ def run_video_analyze_pipeline(
     out = _response_from_diagnostics_row(
         video,
         diag_read,
-        mode=mode,
+        mode=mode_resolved,
         niche_meta=niche_meta,
         niche_benchmark=niche_benchmark,
         retention_user=retention_user,

@@ -1,9 +1,20 @@
 import { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, ArrowRight, Bookmark, Copy, Loader2, Play, Plus } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Bookmark,
+  Copy,
+  Flame,
+  Loader2,
+  Play,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
+import { Segmented } from "@/components/v2/Segmented";
 import { TopBar } from "@/components/v2/TopBar";
 import { RetentionCurve } from "@/components/v2/RetentionCurve";
 import { Timeline } from "@/components/v2/Timeline";
@@ -15,6 +26,7 @@ import { logUsage } from "@/lib/logUsage";
 import type {
   FlopHeadline,
   VideoAnalyzeMeta,
+  VideoAnalyzeMode,
   VideoAnalyzeResponse,
   VideoLesson,
   VideoNicheMeta,
@@ -129,13 +141,17 @@ function FlopDiagnosisStrip({
 }
 
 export default function VideoScreen() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const videoId = searchParams.get("video_id");
   const url = searchParams.get("url");
 
   const cacheKey = useMemo(() => videoAnalysisKey(videoId, url), [videoId, url]);
+  const urlMode = useMemo((): VideoAnalyzeMode | null => {
+    const raw = searchParams.get("mode");
+    return raw === "win" || raw === "flop" ? raw : null;
+  }, [searchParams]);
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
   const { data: pulse } = useHomePulse(cloudConfigured);
 
@@ -159,8 +175,14 @@ export default function VideoScreen() {
     videoId,
     url,
     forceRefresh: false,
+    mode: urlMode,
     enabled: Boolean(cacheKey && cloudConfigured),
   });
+
+  const effectiveMode = useMemo((): VideoAnalyzeMode => {
+    if (urlMode) return urlMode;
+    return data?.mode ?? "win";
+  }, [urlMode, data?.mode]);
 
   const emptyParams = !cacheKey;
   const showCompactUrlBar = Boolean(
@@ -272,7 +294,40 @@ export default function VideoScreen() {
                 <VideoUrlCapture key={cacheKey} variant="compact" onSubmitUrl={submitNewUrl} />
               </div>
             ) : null}
-            <VideoAnalysisBodyInner data={data} analyzeUrl={url} />
+            <Segmented<VideoAnalyzeMode>
+              value={effectiveMode}
+              onChange={(m) => {
+                setSearchParams(
+                  (prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("mode", m);
+                    return next;
+                  },
+                  { replace: true },
+                );
+              }}
+              options={[
+                {
+                  value: "win",
+                  label: (
+                    <span className="inline-flex items-center justify-center gap-1">
+                      <Sparkles className="h-3 w-3 shrink-0" aria-hidden />
+                      Vì sao video NỔ
+                    </span>
+                  ),
+                },
+                {
+                  value: "flop",
+                  label: (
+                    <span className="inline-flex items-center justify-center gap-1">
+                      <Flame className="h-3 w-3 shrink-0" aria-hidden />
+                      Vì sao video FLOP
+                    </span>
+                  ),
+                },
+              ]}
+            />
+            <VideoAnalysisBodyInner data={data} analyzeUrl={url} viewMode={effectiveMode} />
           </div>
         ) : null}
       </main>
@@ -283,10 +338,13 @@ export default function VideoScreen() {
 function VideoAnalysisBodyInner({
   data,
   analyzeUrl,
+  viewMode,
 }: {
   data: VideoAnalyzeResponse;
   /** Query ``url`` when user analyzed by TikTok URL (for chat handoff). */
   analyzeUrl: string | null;
+  /** Win vs flop layout; may differ from ``data.mode`` briefly while refetching. */
+  viewMode: VideoAnalyzeMode;
 }) {
   const navigate = useNavigate();
   const meta = data.meta;
@@ -294,7 +352,7 @@ function VideoAnalysisBodyInner({
   const userCurve = data.retention_curve ?? [];
   const bench = data.niche_benchmark_curve;
   const retEnd = retentionEndPct(userCurve);
-  const isFlop = data.mode === "flop";
+  const isFlop = viewMode === "flop";
   const flopIssueCount = data.flop_issues?.length ?? 0;
 
   const tiktokWatchUrl = useMemo(() => {
@@ -319,8 +377,8 @@ function VideoAnalysisBodyInner({
   }, [meta]);
 
   useEffect(() => {
-    logUsage("video_screen_load", { mode: data.mode, video_id: data.video_id });
-  }, [data.mode, data.video_id]);
+    logUsage("video_screen_load", { mode: viewMode, video_id: data.video_id });
+  }, [viewMode, data.video_id]);
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: data.video_id });
@@ -491,14 +549,14 @@ function VideoAnalysisBodyInner({
           <Timeline segments={data.segments} durationSec={duration} />
         </section>
 
-        {data.mode === "win" ? (
+        {viewMode === "win" ? (
           <section>
             <SectionMini kicker="Giải mã hook" title="3 giây đầu — vì sao bạn không lướt qua?" />
             <HookPhaseGrid phases={data.hook_phases} />
           </section>
         ) : null}
 
-        {data.mode === "win" && data.lessons.length ? (
+        {viewMode === "win" && data.lessons.length ? (
           <section>
             <SectionMini kicker="Bài học áp dụng" title="3 điều bạn có thể copy" />
             <ul className="flex list-none flex-col gap-2.5 p-0">
@@ -527,7 +585,7 @@ function VideoAnalysisBodyInner({
           </section>
         ) : null}
 
-        {data.mode === "flop" && data.flop_issues?.length ? (
+        {viewMode === "flop" && data.flop_issues?.length ? (
           <section>
             <SectionMini kicker="Lỗi cấu trúc" title="Xếp theo ảnh hưởng" />
             <div className="flex flex-col gap-3">

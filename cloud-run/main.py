@@ -20,7 +20,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
@@ -1152,6 +1152,7 @@ class VideoAnalyzeRequest(BaseModel):
     video_id: str | None = None
     tiktok_url: str | None = None
     force_refresh: bool = False
+    mode: Literal["win", "flop"] | None = None
 
 
 @app.post("/video/analyze")
@@ -1185,6 +1186,7 @@ async def video_analyze_endpoint(
             video_id=vid or None,
             tiktok_url=url or None,
             force_refresh=body.force_refresh,
+            mode=body.mode,
         )
     except ValueError as exc:
         msg = str(exc)

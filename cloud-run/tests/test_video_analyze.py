@@ -11,7 +11,9 @@ import pytest
 from postgrest.exceptions import APIError
 
 from getviews_pipeline.video_analyze import (
+    FlopAnalysisLLM,
     FlopHeadline,
+    FlopIssueLLM,
     LessonSlot,
     WinAnalysisLLM,
     _coerce_analysis_headline_for_api,
@@ -438,4 +440,79 @@ def test_force_refresh_skips_cache_hit() -> None:
 
     assert gemini_called == ["win"]
     assert out["analysis_headline"] == "fresh from mock"
+    service_sb.table.assert_called_once_with("video_diagnostics")
+
+
+def test_run_pipeline_respects_mode_override() -> None:
+    """Heuristic would choose win; ``mode='flop'`` must run flop Gemini, not win."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    video_row = {
+        "video_id": "vid-mode-override",
+        "creator_handle": "creator",
+        "views": 600_000,
+        "likes": 2,
+        "comments": 2,
+        "shares": 2,
+        "saves": 200,
+        "save_rate": None,
+        "engagement_rate": 0.09,
+        "thumbnail_url": None,
+        "created_at": "2025-06-01T12:00:00Z",
+        "niche_id": 3,
+        "analysis_json": {},
+        "breakout_multiplier": 1.0,
+        "tiktok_url": "https://tiktok.com/@x/video/99",
+    }
+    niche_intel = [
+        {
+            "niche_id": 3,
+            "sample_size": 200,
+            "organic_avg_views": 30_000,
+            "commerce_avg_views": 0,
+            "median_er": 0.04,
+            "avg_engagement_rate": 0.05,
+            "computed_at": now_iso,
+        }
+    ]
+    user_sb, service_sb = _make_analyze_mocks(
+        diag_row=None,
+        video_row=video_row,
+        niche_rows=niche_intel,
+    )
+    llm_flop = FlopAnalysisLLM(
+        analysis_headline=FlopHeadline(
+            prefix="p",
+            view_accent="v",
+            middle="m",
+            prediction_pos="~1",
+            suffix=".",
+        ),
+        flop_issues=[FlopIssueLLM(sev="high", t=0, end=1, title="t", detail="d", fix="f")],
+    )
+    gemini_called: list[str] = []
+
+    def fake_flop(**kwargs: object) -> FlopAnalysisLLM:
+        gemini_called.append("flop")
+        return llm_flop
+
+    with patch("getviews_pipeline.video_analyze._call_flop_gemini", side_effect=fake_flop):
+        with patch(
+            "getviews_pipeline.video_analyze._call_win_gemini",
+            side_effect=AssertionError("win Gemini must not run when mode=flop override"),
+        ):
+            out = run_video_analyze_pipeline(
+                service_sb,
+                user_sb,
+                video_id="vid-mode-override",
+                tiktok_url=None,
+                mode="flop",
+            )
+
+    assert gemini_called == ["flop"]
+    assert out["mode"] == "flop"
+    assert isinstance(out["flop_issues"], list)
+    assert len(out["flop_issues"]) >= 1
+    assert out["flop_issues"][0].get("title") == "t"
+    assert out["lessons"] == []
+    assert out["analysis_subtext"] is None
     service_sb.table.assert_called_once_with("video_diagnostics")

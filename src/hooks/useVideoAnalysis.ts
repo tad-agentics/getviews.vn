@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { RetentionCurveSource, VideoAnalyzeResponse } from "@/lib/api-types";
+import type { RetentionCurveSource, VideoAnalyzeMode, VideoAnalyzeResponse } from "@/lib/api-types";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
@@ -19,6 +19,8 @@ export type UseVideoAnalysisOptions = {
   url?: string | null;
   /** Bypass Cloud Run 1h diagnostics cache (debug / prompt iteration). */
   forceRefresh?: boolean;
+  /** When set, POST body asks Cloud Run for this branch (skips heuristic + cache). */
+  mode?: VideoAnalyzeMode | null;
   enabled?: boolean;
 };
 
@@ -26,22 +28,22 @@ export type UseVideoAnalysisOptions = {
  * POST `/video/analyze` (Cloud Run, JWT). ``staleTime`` 1h — diagnostics MV.
  *
  * Query key matches plan: ``['video-analysis', videoIdOrUrl]`` where the second
- * segment is ``id:…`` / ``url:…`` from ``videoAnalysisKey``. When ``forceRefresh``
- * is true, a third segment busts the cache for the same corpus target.
+ * segment is ``id:…`` / ``url:…`` from ``videoAnalysisKey``. ``mode`` and
+ * ``forceRefresh`` are included so win/flop and busted runs cache separately.
  */
 export function useVideoAnalysis({
   videoId = null,
   url = null,
   forceRefresh = false,
+  mode = null,
   enabled = true,
 }: UseVideoAnalysisOptions) {
   const key = videoAnalysisKey(videoId, url);
   const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
+  const modeKey = mode ?? "auto";
 
   const queryKey = key
-    ? forceRefresh
-      ? (["video-analysis", key, "force"] as const)
-      : (["video-analysis", key] as const)
+    ? (["video-analysis", key, modeKey, forceRefresh ? "force" : "ok"] as const)
     : (["video-analysis", "__idle__"] as const);
 
   return useQuery<VideoAnalyzeResponse>({
@@ -53,6 +55,7 @@ export function useVideoAnalysis({
       if (!session?.access_token) throw new Error("Chưa đăng nhập");
 
       const body: Record<string, unknown> = { force_refresh: forceRefresh };
+      if (mode === "win" || mode === "flop") body.mode = mode;
       if (videoId?.trim()) body.video_id = videoId.trim();
       else if (url?.trim()) body.tiktok_url = url.trim();
 
