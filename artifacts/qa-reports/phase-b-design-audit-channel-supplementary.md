@@ -108,4 +108,4 @@ All surfaces resolve through `--gv-*` tokens. The only literal hex in the B.3 su
 | Supplementary doc (initial) | `ce826c2` |
 | Supplementary fixes M-1, S-2 | `377c162` |
 | Supplementary fix S-1 (ASCII bio quotes) | `9a4b42f` |
-| `FormulaBar` Vitest coverage + supplementary audit doc closure | `57f538d` |
+| `FormulaBar` Vitest coverage + supplementary audit doc closure | `d9acc72` |
