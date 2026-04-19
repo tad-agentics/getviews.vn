@@ -285,14 +285,38 @@ Pre-decided:
 - `payload` JSONB is **schema-validated server-side** by the matching §J
   pydantic model before insert. Bad payloads fail the stream rather than
   persist a broken session.
-- `credits_used` ticks on `kind === 'primary'` (1 credit) and `kind in
-  ('timing','creators','script','generic')` (0.5 credit, rounded up to 1
-  per session day). Free for `kind === 'generic'` when
-  `intent_confidence === 'low'` — see §C.5.
+- **Credit accounting is integer-only** (matches the existing
+  `profiles.credits INTEGER` + `decrement_credit()` RPC contract — no
+  fractional accounting):
+  - `kind === 'primary'` → **1 credit** (deducted via TD-1 RPC, see
+    below).
+  - `kind ∈ ('timing','creators','script')` → **0 credits** (free
+    follow-ups; the primary turn already paid for the session).
+  - `kind === 'generic'` → **0 credits** (humility fallback is always
+    free — restated in §C.5).
+- **TD-1 (atomic credit deduction) is non-negotiable.** Primary-turn
+  credit deduction goes through the existing Supabase RPC
+  `decrement_credit()` with its `WHERE credits > 0` guard. **Never** a
+  client-side read-then-write. The deduction happens server-side in
+  Cloud Run **before** the SSE stream begins; if it fails (insufficient
+  credits), the endpoint returns `402 Payment Required` and no
+  `answer_turns` row is written.
+- **TD-4 (SSE reconnection) inherited.** `/answer/sessions/:id/turns`
+  uses the same `stream_id` + `seq` per-token replay buffer pattern that
+  Cloud Run already runs for video analysis (`runtime.py` 60s in-memory
+  buffer). Mid-turn dropouts resume from `seq` rather than re-billing.
+  Reconnect query: `?resume_from_seq=<n>`. Document the contract in
+  `artifacts/docs/answer-session-contract.md`.
+- **Idempotency on session creation.** `POST /answer/sessions` accepts
+  an `Idempotency-Key` header (UUIDv4 generated client-side, cached for
+  60s server-side keyed on `(user_id, key)`). Replays return the same
+  `session_id`. Prevents double-clicks and page-reload races during the
+  C.7.1 chat-redirect pre-flight from creating duplicate sessions.
 - Soft-delete via `archived_at`. UI hides archived; user can restore.
 
 **Deliverable**: migration file checked in **but not pushed** to staging
-until C.1.1. Contract docs in `artifacts/docs/answer-session-contract.md`.
+until C.1.1. Contract docs in `artifacts/docs/answer-session-contract.md`
+including the TD-4 resume protocol and idempotency-key cache TTL.
 
 ### C.0 milestones
 
@@ -301,7 +325,10 @@ until C.1.1. Contract docs in `artifacts/docs/answer-session-contract.md`.
 3. **C.0.3** (1d) — sample coverage table + adaptive-window policy
 4. **C.0.4** (0.5d) — width decision (default: 1280 platform-wide)
 5. **C.0.5** (1.5d) — `answer_sessions` + `answer_turns` migration + RLS + pydantic schemas drafted
-6. **C.0.6** (1d) — **Spike close-out** review with three deliverables shipped to `artifacts/plans/` + this doc updated to lock the decisions. Required before C.1 starts.
+6. **C.0.6** (1d) — **Spike close-out** review with three deliverables shipped to `artifacts/plans/` + this doc updated to lock the decisions. Required before C.1 starts. Three additional one-line locks land in this milestone:
+   - **Token additions in `src/app.css`:** `--gv-danger` (seeded from the Phase B accent-red precedent — final hex pinned by design review). Consumed by `WhatStalledRow` (C.2) and the `chat_classified_redirect` toast variant if needed (C.7). No other danger-color literal allowed in C surfaces.
+   - **Migration sequencing:** placeholder filenames `2026XXXXXXXXXX_*.sql` resolved to real `YYYYMMDDHHmmss_` stamps before any sub-phase opens its PR. C.0.6 picks the date floor; subsequent migrations bump from there.
+   - **TD-1 / TD-4 / idempotency contract** (per C.0.5 above) restated in `artifacts/docs/answer-session-contract.md` with worked example payloads.
 
 ---
 
@@ -556,16 +583,26 @@ the body until C.2.
 
 ### New Cloud Run endpoints
 
+All `/answer/*` endpoints validate the user JWT via the same Supabase
+JWKS path Cloud Run already uses for `/stream` (`main.py`), and inherit
+the existing CORS handling.
+
 - `POST /answer/sessions` — body `{initial_q, intent_type, niche_id,
-  format}`. Returns `{session_id}`. Inserts an empty session row;
-  C.1 clients then call `POST /answer/sessions/:id/turns` to append the
-  primary turn.
-- `POST /answer/sessions/:id/turns` — body `{query, kind}`. Streams the
-  matching aggregator (`report_pattern.py` etc.); on completion,
-  schema-validates and inserts the turn. C.1 ships the **fixture**
-  aggregator (returns `ANSWER_FIXTURE_PATTERN`); C.2–C.5 replace it.
-  Auth-required, credit-deducted (1 for primary, 0.5 for follow-ups
-  rounded per session day).
+  format}`. **Header `Idempotency-Key: <uuidv4>` required** (per
+  C.0.5); replays within 60s return the same `session_id`. Inserts an
+  empty session row; C.1 clients then call `POST /answer/sessions/:id/
+  turns` to append the primary turn.
+- `POST /answer/sessions/:id/turns` — body `{query, kind}`. Optional
+  query `?resume_from_seq=<n>` for TD-4 SSE replay (inherits the same
+  60s `stream_id` + `seq` buffer Cloud Run uses for `/stream`).
+  Auth-required. **Credit semantics (per C.0.5):**
+  `kind === 'primary'` deducts 1 credit via the `decrement_credit()`
+  RPC (TD-1) **before** the SSE stream opens; insufficient credits →
+  `402 Payment Required` and no `answer_turns` write. All other `kind`s
+  are free. On completion, payload is schema-validated against the
+  matching §J pydantic model and the turn is inserted.
+  C.1 ships the **fixture** aggregator (returns
+  `ANSWER_FIXTURE_PATTERN`); C.2–C.5 replace it.
 - `GET /answer/sessions` — pagination `?cursor=…&limit=20`. Returns
   drawer rows.
 - `GET /answer/sessions/:id` — full session + ordered turns. RLS-bounded.
@@ -709,8 +746,8 @@ Render order — locked. Every section is a child of `AnswerBlock`.
    - **Lifecycle row** — `marginTop: 10, display: flex, gap: 14, flexWrap:
      wrap, fontFamily: var(--mono), fontSize: 11, color: var(--ink-3)`.
      Content: `Xuất hiện {first_seen} · Đỉnh {peak} · {momentum_label}`
-     where `momentum_label ∈ {"đang lên" (accent), "đứng yên" (ink-3),
-     "đang giảm" (rgb(0,159,250)... no, use ink-2 for declining)}`.
+     where `momentum_label ∈ {"đang lên" (var(--accent)), "đứng yên"
+     (var(--ink-3)), "đang giảm" (var(--ink-2))}`.
    - **Contrast row** — `marginTop: 8, fontSize: 12, color: var(--ink-2),
      lineHeight: 1.5`. Content: `Thắng vì: {why_this_won} · So với:
      "{contrast_against.pattern}"`.
@@ -719,14 +756,16 @@ Render order — locked. Every section is a child of `AnswerBlock`.
      2px 8px, background: var(--canvas-2), color: var(--ink-3)`.
 5. **`WhatStalled × 2..3`** (negative) — **THE NON-NEGOTIABLE, see §5
    below.** Kicker `ĐÃ THỬ NHƯNG RƠI` (mono uc 10px, letterSpacing
-   0.18em, color: red-600 token to be added or `rgb(220, 38, 38)`
-   pinned via design audit), title "Pattern không còn hiệu quả".
-   Same layout as `HookFinding` but: `borderLeft: 3px solid {red-token}`
-   (vs accent), rank serif greyed (`var(--ink-4)` instead of `ink-3`),
-   `RETENTION` value w/o ▲ chip, `delta` shown as `▼ {delta}` in
-   `var(--ink-2)`. Plus `why_stalled` paragraph in place of `insight`
-   (same 13.5px serif, ink-2). Lifecycle row reads `{first_seen} ·
-   Đỉnh {peak} · đang giảm`.
+   0.18em, `color: var(--gv-danger)`), title "Pattern không còn hiệu
+   quả". Same layout as `HookFinding` but: `borderLeft: 3px solid
+   var(--gv-danger)` (vs accent), rank serif greyed (`var(--ink-4)`
+   instead of `var(--ink-3)`), `RETENTION` value w/o ▲ chip, `delta`
+   shown as `▼ {delta}` in `var(--ink-2)`. Plus `why_stalled` paragraph
+   in place of `insight` (same 13.5px serif, `var(--ink-2)`). Lifecycle
+   row reads `{first_seen} · Đỉnh {peak} · đang giảm`. The
+   `--gv-danger` token is added to `src/app.css` in **C.0.6** (see
+   "Token additions" below) — value seeded from the Phase B accent-red
+   precedent; final hex pinned in C.0.6 design review.
 6. **`EvidenceVideos × 6`** — kicker `VIDEO MẪU`, title "6 video dùng
    pattern này đang bùng nổ" (`answer.jsx:166-180`). 3-col grid, gap 14;
    ≤ 1100 → 2-col, ≤ 720 → 1-col. Reuses `EvidenceCard`.
@@ -890,7 +929,7 @@ around.**
 | `WoWDiffBand` | Optional accent band above TL;DR. `padding: 10px 14px, background: var(--accent-soft), border: 1px solid var(--accent), borderRadius: 6`. | NEW |
 | `HumilityBanner` | Box `padding: 16 18, background: var(--canvas-2), border: 1px solid var(--rule), borderRadius: 8, fontSize: 14`. Always shown when `confidence.sample_size < threshold`. | NEW |
 | `HookFinding` (extended) | Adds lifecycle row, contrast row, prerequisites row inside the existing 40px / 1fr / auto grid. | `answer.jsx:440-487` + new |
-| `WhatStalledRow` | Negative variant: `borderLeft: 3px solid {red-token}`, rank in `var(--ink-4)`, `delta` shown as `▼` in ink-2, `why_stalled` paragraph. | NEW |
+| `WhatStalledRow` | Negative variant: `borderLeft: 3px solid var(--gv-danger)`, rank in `var(--ink-4)`, `delta` shown as `▼` in `var(--ink-2)`, `why_stalled` paragraph. Consumes the `--gv-danger` token added in C.0.6. | NEW |
 | `ActionCard` (extended) | Existing card (`answer.jsx:639-671`) + forecast row above CTA strip. | `answer.jsx:639-671` + new |
 | `PatternCell` | Existing 2×2 grid cell. Composed unchanged. | `answer.jsx:553-573` |
 | `PatternBody` | Composes the 8 sections in fixed render order. The site of the "render order is locked" rule. | NEW |
@@ -1332,10 +1371,19 @@ matrix (client-side). C.5 ships:
 - `build_generic_report(query, niche_id?, intent_confidence) →
   GenericPayload`.
 - Gemini bounded with hedging system prompt.
+- **Length cap (per §J):** `narrative.paragraphs[]` max 2 entries, each
+  ≤ 320 chars. Enforced server-side; over-cap responses are truncated
+  at the last sentence boundary and logged `[generic-truncated]`.
+  `test_report_generic.py` asserts both bounds.
 
 ### New endpoint behaviour
 
 - `POST /answer/sessions/:id/turns` extended for `format == "generic"`.
+- **Generic is always free** (per C.0.5): credit deduction is skipped
+  regardless of `intent_confidence`. The point of the humility format
+  is "we couldn't confidently answer this" — charging for that would
+  be backwards. Restated here so the C.5 implementation matches the
+  C.0.5 contract.
 
 ### Frontend: extends `/app/answer` route
 
@@ -1943,7 +1991,8 @@ never silent holes.**
 | Low classifier confidence inflates Gemini cost | Medium | C.0.1 budget guard reuses `EnsembleDailyBudgetExceeded` pattern; deterministic fallback when daily quota exceeded; `[classifier-budget]` log tracks consumption |
 | Sample-size sparsity per niche (Pattern < 30, Ideas < 60, Timing < 80) | High | C.0.3 adaptive-window policy widens 7d → 14d; below 14d → degrade to Generic; `HumilityBanner` always visible |
 | `WhatStalled` corpus coverage too thin to surface 2–3 negatives | Medium | Pydantic schema allows `what_stalled: []` only when `confidence.what_stalled_reason` is set; UI renders an explicit empty row, never a missing section |
-| Follow-up turn credit semantics surprise users | Medium | C.0.5 sets clear policy (1 credit primary, 0.5 follow-up rounded per session day); `ConfidenceStrip` shows credit usage on hover; pricing copy update concurrent with C.1 ship |
+| Follow-up turn credit semantics surprise users | Low | C.0.5 sets a simple integer-only policy: **1 credit per primary, 0 per follow-up, 0 for Generic.** `ConfidenceStrip` shows the deduction inline at primary-turn open; pricing copy + chat / answer entry-point copy updated concurrent with C.1 ship |
+| In-flight chat stream interrupted by C.7 redirect | Medium | C.7.1 redirect fires only on initial `runSend` pre-flight; in-flight streams continue uninterrupted. Vitest covers the "stream already started" branch that bypasses redirect. Behind a `?legacy=chat` escape hatch for one release per the B.4 precedent |
 | Purple-token leakage across `/history` regressing | Low | C.6.3 grep gate; CI lint adds `--purple` / `--ink-soft` / `--border-active` / `--gv-purple-*` to the Phase B token-scan job |
 | `/answer` session schema change after launch | Low | RLS + service-role-only payload writes; payload validated server-side against pydantic before insert; bad payloads fail the stream rather than persist |
 | `script_save` PDF rendering brittle (weasyprint deps) | Medium | C.8.1 spike-day evaluates weasyprint vs lighter alt; export endpoint returns 503 with clear copy if PDF stack fails; "Copy" path always works |
