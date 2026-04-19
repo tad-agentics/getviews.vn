@@ -10,6 +10,7 @@ import { MatchScoreBar } from "@/components/v2/MatchScoreBar";
 import { SortableCreatorsTable, type KolSortDir, type KolSortKey } from "@/components/v2/SortableCreatorsTable";
 import { TopBar } from "@/components/v2/TopBar";
 import { env } from "@/lib/env";
+import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import type { KolBrowseRow, KolBrowseTab } from "@/lib/api-types";
 import { useAuth } from "@/lib/auth";
@@ -114,6 +115,17 @@ export default function KolScreen() {
     search: debouncedSearchNorm || undefined,
     enabled: Boolean(cloudConfigured && nicheId != null),
   });
+
+  const browseAsOf = useMemo(() => {
+    const t = browse.dataUpdatedAt;
+    if (!t) return null;
+    const d = new Date(t);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [browse.dataUpdatedAt]);
+  const browseAsOfRelative = useMemo(
+    () => formatRelativeSinceVi(new Date(), browseAsOf),
+    [browseAsOf],
+  );
 
   const discoverTotalQ = useKolDiscoverTotal(nicheId, Boolean(cloudConfigured && nicheId != null), {
     followerPreset,
@@ -295,18 +307,31 @@ export default function KolScreen() {
   const noNiche = nicheId == null;
 
   return (
-    <AppLayout active="kol">
+    <AppLayout active="kol" enableMobileSidebar>
       <TopBar
         kicker="THEO DÕI"
         title="Kênh Tham Chiếu"
         right={
-          <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/chat")}>
-            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-            Phân tích mới
-          </Btn>
+          <>
+            <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)] md:inline-flex">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
+                style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
+              />
+              Dữ liệu cập nhật {browseAsOfRelative}
+            </span>
+            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
+              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
+              Đã Lưu
+            </Btn>
+            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/chat")}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              Phân tích mới
+            </Btn>
+          </>
         }
       />
-      <main className="mx-auto max-w-[1320px] px-6 pb-[80px] pt-6 min-[900px]:px-7">
+      <main className="gv-route-main">
         {!cloudConfigured ? (
           <p className="text-sm text-[color:var(--gv-ink-3)]">
             Cần <span className="font-[family-name:var(--gv-font-mono)]">VITE_CLOUD_RUN_API_URL</span> trong env build.

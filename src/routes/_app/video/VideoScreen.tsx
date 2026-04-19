@@ -21,6 +21,7 @@ import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { IssueCard } from "@/components/v2/IssueCard";
 import { env } from "@/lib/env";
+import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import type {
   FlopHeadline,
@@ -36,17 +37,6 @@ import { VideoUrlCapture } from "./VideoUrlCapture";
 
 function formatViewsVi(n: number): string {
   return n.toLocaleString("vi-VN");
-}
-
-function relativeVi(now: Date, since: Date | null): string {
-  if (!since) return "—";
-  const mins = Math.floor((now.getTime() - since.getTime()) / 60000);
-  if (mins < 2) return "vừa xong";
-  if (mins < 60) return `${mins} phút trước`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  const days = Math.floor(hours / 24);
-  return `${days} ngày trước`;
 }
 
 function isFlopHeadline(v: string | FlopHeadline | null | undefined): v is FlopHeadline {
@@ -159,7 +149,7 @@ export default function VideoScreen() {
     const d = new Date(pulse.as_of);
     return Number.isNaN(d.getTime()) ? null : d;
   }, [pulse?.as_of]);
-  const asOfRelative = useMemo(() => relativeVi(new Date(), asOf), [asOf]);
+  const asOfRelative = useMemo(() => formatRelativeSinceVi(new Date(), asOf), [asOf]);
 
   /** B.1.5 — same handoff as chat: `location.state.prefillUrl` → stable `?url=` query. */
   useEffect(() => {
@@ -193,7 +183,7 @@ export default function VideoScreen() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout enableMobileSidebar>
       <TopBar
         kicker="BÁO CÁO"
         title="Phân Tích Video"
@@ -219,7 +209,7 @@ export default function VideoScreen() {
           </>
         }
       />
-      <main className="mx-auto max-w-[1280px] px-6 pb-20 pt-6 min-[900px]:px-7">
+      <main className="gv-route-main gv-route-main--1280">
         {emptyParams ? (
           <div className="flex flex-col gap-6">
             <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6 text-center text-[color:var(--gv-ink-3)]">

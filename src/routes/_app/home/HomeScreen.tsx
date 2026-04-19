@@ -9,6 +9,7 @@ import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useHomePulse } from "@/hooks/useHomePulse";
+import { formatRelativeSinceVi } from "@/lib/formatters";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { PulseCard } from "./components/PulseCard";
 import { HooksTable } from "./components/HooksTable";
@@ -24,17 +25,6 @@ import { NichePicker } from "./components/NichePicker";
  * Matches UIUX reference order: ticker → greeting → composer → suggested
  * chips → <hr> → morning ritual → <hr> → quick actions + pulse → hooks → breakouts.
  */
-
-function relativeVi(now: Date, since: Date | null): string {
-  if (!since) return "—";
-  const mins = Math.floor((now.getTime() - since.getTime()) / 60000);
-  if (mins < 2) return "vừa xong";
-  if (mins < 60) return `${mins} phút trước`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  const days = Math.floor(hours / 24);
-  return `${days} ngày trước`;
-}
 
 function formatCount(n: number): string {
   return n.toLocaleString("vi-VN");
@@ -67,7 +57,7 @@ export default function HomeScreen() {
     const d = new Date(pulse.as_of);
     return Number.isNaN(d.getTime()) ? null : d;
   }, [pulse?.as_of]);
-  const asOfRelative = useMemo(() => relativeVi(new Date(), asOf), [asOf]);
+  const asOfRelative = useMemo(() => formatRelativeSinceVi(new Date(), asOf), [asOf]);
 
   const suggestedPrompts = useMemo(
     () => [

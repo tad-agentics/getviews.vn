@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import {
   Plus,
   Home,
-  MessageCircle,
   TrendingUp,
   Users,
   FileText,
@@ -519,7 +518,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
         <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-        {/* Primary nav — shell.jsx: padding 12px, gap 2px between items; Chat grouped here like extra surface */}
+        {/* Primary nav — shell.jsx: Studio → Xu Hướng → Kênh Tham Chiếu → Kịch Bản; Chat via + only */}
         <nav className="flex flex-col gap-0.5 p-3">
           <NavItem
             icon={Home}
@@ -553,15 +552,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             label="Kịch Bản"
             badge="Sắp có"
             disabled
-          />
-          <NavItem
-            icon={MessageCircle}
-            label="Chat"
-            active={active === "chat"}
-            onClick={() => {
-              navigate("/app/chat");
-              onClose?.();
-            }}
           />
         </nav>
 

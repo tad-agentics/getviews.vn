@@ -35,7 +35,7 @@ export function TopBar({
           {title}
         </p>
       </div>
-      {right ? <div className="shrink-0 flex items-center gap-2">{right}</div> : null}
+      {right ? <div className="shrink-0 flex items-center gap-2.5">{right}</div> : null}
     </header>
   );
 }

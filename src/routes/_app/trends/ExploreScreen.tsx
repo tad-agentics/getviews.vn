@@ -538,7 +538,7 @@ export default function ExploreScreen() {
       <div className="flex-1 overflow-hidden flex min-h-0">
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-w-0" style={{ scrollbarWidth: "thin" }}>
           {/* ── Zone 1: Discovery (always visible) ─────────────────────── */}
-          <section className="px-5 lg:px-7 pt-14 lg:pt-2 pb-4">
+          <section className="px-7 pt-14 md:pt-6 pb-4">
             <TrendingSection nicheId={selectedNicheId} />
             <TrendingSoundsSection nicheId={selectedNicheId} />
             {selectedNicheId !== null && lowVideoCorpus ? (
@@ -548,7 +548,7 @@ export default function ExploreScreen() {
             ) : null}
           </section>
 
-          <section className="px-5 lg:px-7 pb-8">
+          <section className="px-7 pb-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-extrabold text-[var(--ink)]">{exploreTitle}</h2>
             </div>
@@ -701,7 +701,7 @@ export default function ExploreScreen() {
           </section>
 
           {/* ── Zone 2: Analytics (requires niche) ─────────────────────── */}
-          <section className="px-5 lg:px-7 pb-8">
+          <section className="px-7 pb-15">
             {selectedNicheId === null ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-5 py-6 text-center">
                 <p className="text-sm font-semibold text-[var(--ink)] mb-1">Phân tích chuyên sâu</p>
@@ -716,7 +716,7 @@ export default function ExploreScreen() {
                 {hookData && hookData.length > 0 && !lowVideoCorpus ? (
                   <section
                     key={`hook-ranking-${selectedNicheId}`}
-                    className="mt-4 pt-4 border-t border-[var(--border)] -mx-5 lg:-mx-7 px-5 lg:px-7"
+                    className="mt-4 pt-4 border-t border-[var(--border)] -mx-7 px-7"
                   >
                     {hookDataStale ? (
                       <p className="text-xs font-medium text-[var(--ink-soft)] mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
@@ -779,7 +779,7 @@ export default function ExploreScreen() {
                 ) : null}
 
                 {(risingFormats.length > 0 || fallingFormats.length > 0) && !lowVideoCorpus ? (
-                  <section className="mt-4 pt-4 border-t border-[var(--border)] -mx-5 lg:-mx-7 px-5 lg:px-7">
+                  <section className="mt-4 pt-4 border-t border-[var(--border)] -mx-7 px-7">
                     {risingFormats.length > 0 ? (
                       <>
                         <h2 className="font-extrabold text-[var(--ink)] mb-3">Format đang lên</h2>

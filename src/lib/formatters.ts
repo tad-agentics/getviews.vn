@@ -51,3 +51,15 @@ export function formatRecencyVI(daysAgo: number): string {
 export function formatBreakoutVI(ratio: number): string {
   return `${ratio.toFixed(1).replace(".", ",")}x`;
 }
+
+/** Natural Vietnamese relative time from `since` to `now` (minutes/hours/days). */
+export function formatRelativeSinceVi(now: Date, since: Date | null): string {
+  if (!since) return "—";
+  const mins = Math.floor((now.getTime() - since.getTime()) / 60000);
+  if (mins < 2) return "vừa xong";
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  return `${days} ngày trước`;
+}
