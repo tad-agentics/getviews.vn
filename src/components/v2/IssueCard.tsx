@@ -37,10 +37,7 @@ export function IssueCard({ issue, onApplyToScript, className = "" }: IssueCardP
         </div>
       </div>
       <div className="min-w-0">
-        <h4
-          className="gv-tight m-0 text-[18px] font-medium leading-snug tracking-tight text-[color:var(--gv-ink)]"
-          style={{ fontFamily: "var(--gv-font-serif)", letterSpacing: "-0.01em", lineHeight: 1.25 }}
-        >
+        <h4 className="gv-serif m-0 text-[18px] font-medium leading-[1.25] text-[color:var(--gv-ink)]">
           {issue.title}
         </h4>
         <p className="mt-1.5 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">{issue.detail}</p>

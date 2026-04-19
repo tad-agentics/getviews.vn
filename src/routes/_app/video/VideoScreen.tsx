@@ -438,8 +438,10 @@ function VideoAnalysisBodyInner({
             </div>
           )}
           <h1
-            className={`gv-tight m-0 max-w-[820px] text-[clamp(26px,3vw,36px)] tracking-tight text-[color:var(--gv-ink)] ${
-              isFlop ? "text-pretty font-medium leading-[1.1]" : "font-semibold leading-[1.05]"
+            className={`m-0 max-w-[820px] text-[clamp(26px,3vw,36px)] text-[color:var(--gv-ink)] ${
+              isFlop
+                ? "gv-serif text-pretty font-medium leading-[1.1]"
+                : "gv-tight font-semibold leading-[1.05] tracking-tight"
             }`}
           >
             {isFlop ? (

@@ -279,7 +279,7 @@
  *
  * Scope: colors, type, spacing, radius, plus a handful of scoped utility
  * classes used everywhere in the new screens (.gv-kicker, .gv-tight,
- * .gv-bignum, .gv-serif-italic).
+ * .gv-bignum, .gv-serif, .gv-serif-italic).
  * ══════════════════════════════════════════════════════════════════════ */
 
 /* ── Space Grotesk + JetBrains Mono — matches UIUX `styles.css` (--sans / --mono). ──
@@ -422,6 +422,13 @@
   font-family: var(--gv-font-display);
   font-style: italic;
   font-weight: 500;
+}
+
+/* Non-italic “serif” stack — matches uiux-reference ``--serif`` (Space Grotesk). */
+.gv-serif {
+  font-family: "Space Grotesk", serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
 /* Mono: standalone utility (kicker already covers the common case). */
