@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
-import { Copy, Download, Film, Loader2, Sparkles } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router";
+import { Bookmark, Copy, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -13,12 +13,15 @@ import { SceneIntelligencePanel, type ScriptReferenceClip } from "@/components/v
 import { ScriptForecastBar } from "@/components/v2/ScriptForecastBar";
 import { ScriptPacingRibbon } from "@/components/v2/ScriptPacingRibbon";
 import { ScriptShotRow } from "@/components/v2/ScriptShotRow";
+import { TopBar } from "@/components/v2/TopBar";
+import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
 import { useScriptGenerate } from "@/hooks/useScriptGenerate";
 import { useScriptHookPatterns } from "@/hooks/useScriptHookPatterns";
 import { useScriptSceneIntelligence } from "@/hooks/useScriptSceneIntelligence";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
+import { formatRelativeSinceVi } from "@/lib/formatters";
 import { apiShotsToEditorShots, mergeSceneIntelIntoShots, type ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import type { ScriptTone } from "@/lib/api-types";
 import { supabase } from "@/lib/supabase";
@@ -122,8 +125,17 @@ function parseNicheId(raw: string | null): number | null {
 
 export default function ScriptScreen() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { data: profile } = useProfile();
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
+  const { data: pulse } = useHomePulse(cloudConfigured);
+
+  const asOf = useMemo(() => {
+    if (!pulse?.as_of) return null;
+    const d = new Date(pulse.as_of);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [pulse?.as_of]);
+  const asOfRelative = useMemo(() => formatRelativeSinceVi(new Date(), asOf), [asOf]);
 
   const paramNiche = parseNicheId(searchParams.get("niche_id"));
   const effectiveNicheId = paramNiche ?? profile?.primary_niche ?? null;
@@ -255,25 +267,50 @@ export default function ScriptScreen() {
 
   return (
     <AppLayout active="script" enableMobileSidebar>
+      <TopBar
+        kicker="CREATOR"
+        title="Xưởng Viết"
+        right={
+          <>
+            {pulse?.as_of ? (
+              <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)] md:inline-flex">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
+                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
+                />
+                Dữ liệu cập nhật {asOfRelative}
+              </span>
+            ) : null}
+            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
+              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
+              Đã Lưu
+            </Btn>
+            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/chat")}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+              Phân tích mới
+            </Btn>
+          </>
+        }
+      />
       <main className="gv-route-main gv-route-main--1280">
         {!cloudConfigured ? (
-          <div className="mx-auto max-w-[1380px] px-4 pb-20 pt-6 min-[376px]:px-7">
+          <div className="mx-auto w-full max-w-[1380px]">
             <p className="gv-mono text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
               Cần <span className="font-[family-name:var(--gv-font-mono)]">VITE_CLOUD_RUN_API_URL</span> trong môi
               trường build.
             </p>
           </div>
         ) : effectiveNicheId == null ? (
-          <div className="mx-auto max-w-[1380px] px-4 pb-20 pt-6 min-[376px]:px-7">
+          <div className="mx-auto w-full max-w-[1380px]">
             <p className="gv-mono text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
               Chọn ngách trong onboarding hoặc Cài đặt để dùng Xưởng Viết.
             </p>
           </div>
         ) : (
-          <div className="mx-auto max-w-[1380px] px-4 pb-20 pt-6 min-[376px]:px-7">
+          <div className="mx-auto w-full max-w-[1380px]">
             <header className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b-2 border-[color:var(--gv-ink)] pb-4">
               <div className="min-w-0 flex-1">
-                <div className="gv-mono mb-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
+                <div className="gv-mono gv-uc mb-1.5 text-[10px] font-semibold leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
                   XƯỞNG VIẾT · KỊCH BẢN SỐ {scriptNo}
                 </div>
                 <h1 className="gv-tight gv-serif m-0 text-[clamp(26px,3vw,36px)] font-medium leading-[1.1] tracking-[-0.02em] text-[color:var(--gv-ink)]">
