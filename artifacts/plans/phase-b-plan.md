@@ -263,6 +263,48 @@ routes to `/script`.
 - Flop threshold: `views < niche_median_views × 0.5` OR
   `engagement_rate < niche_median_er × 0.6` — either triggers flop mode
 
+### Fixture mapping (design → backend)
+
+Source fixture: `VIDEOS[10]` + inline literals in `video.jsx`.
+**The fixtures are the contract; the backend serves them. Not the other way around.**
+
+| Design field (fixture / JSX literal) | `/video/analyze` response field | Source |
+|---|---|---|
+| `v.title` | `meta.title` | `video_corpus.title` |
+| `v.creator` | `meta.creator_handle` | `video_corpus.creator_handle` |
+| `v.dur` | `meta.duration_sec` (formatted client-side "M:SS") | `analysis_json.duration_seconds` |
+| `v.views` ("234K") | `meta.views` (raw int, formatted client-side) | `video_corpus.views` |
+| `v.bg` | `meta.thumbnail_url` (bg color fallback derived client-side from `niche_id` color map) | `video_corpus.thumbnail_url` |
+| `v.breakout` badge | `meta.is_breakout` bool (`breakout_multiplier ≥ 3`) | computed from `video_corpus.breakout_multiplier` |
+| "Đăng 18.04 · 234K view · 6.8K save · 4.2K share" | `meta.date_posted`, `meta.views`, `meta.saves`, `meta.shares` | `video_corpus.*` |
+| `{ label:'VIEW', value:'234K', delta:'12× kênh' }` | `kpis[0]: {label, value, delta}` — delta computed as `views / niche_avg_views` | `video_corpus.views` + `niche_intelligence.avg_views` |
+| `{ label:'GIỮ CHÂN', value:'78%', delta:'top 5%' }` | `kpis[1]: {label, value, delta}` — retention % + percentile rank | `retention_curve` last point + niche distribution |
+| `{ label:'SAVE RATE', value:'2.9%', delta:'rất cao' }` | `kpis[2]: {label, value, delta}` — `saves/views`, delta label is client-side tier ('rất cao' if > 2%) | `video_corpus.saves / views` |
+| `{ label:'SHARE', value:'4.2K', delta:'lan ra Threads' }` | `kpis[3]: {label, value, delta}` — `meta.shares`; delta text is **LLM-generated** bounded string, cached | `video_corpus.shares` + Gemini |
+| Timeline `segs[]` `{name, pct, color}` (8 segments) | `segments[]: {name, pct, color_key}` — color_key maps to CSS var client-side | `video_diagnostics.segments` ← `decompose_segments(analysis_json.scenes[])` |
+| Hook phase cards `{t, label, body}` × 3 | `hook_phases[]: {t_range, label, body}` | `video_diagnostics.hook_phases` ← `extract_hook_phases(analysis_json)` |
+| Lessons `[title, body]` × 3 | `lessons[]: {title, body}` | `video_diagnostics.lessons` ← Gemini win-mode, cached |
+| Analysis headline ("Tại sao … lại nổ?") | `analysis_headline` | `video_diagnostics.analysis_headline` ← Gemini |
+| Analysis subtext (15px ink-3) | `analysis_subtext` | `video_diagnostics.analysis_subtext` ← Gemini |
+| Retention curve SVG paths | `retention_curve[]: {t, pct}` × 20 | `video_diagnostics.retention_curve` ← B.0.1 decision |
+| Niche benchmark dashed curve | `niche_benchmark_curve[]: {t, pct}` × 20 | `video_diagnostics.niche_benchmark_curve` ← `niche_intelligence` |
+| "Ngách Tech TB: 42K · 58% ret · 3.4% CTR" | `niche_meta: {avg_views, avg_retention, avg_ctr, sample_size}` | `niche_intelligence` |
+| Flop issues `{sev, t, end, title, detail, fix}` × N | `flop_issues[]: {sev, t, end, title, detail, fix}` | `video_diagnostics.flop_issues` ← Gemini pydantic schema |
+| Flop summary headline + projected views ("~34K") | `analysis_headline` + `projected_views` | `video_diagnostics.analysis_headline` ← Gemini; `projected_views` computed deterministically from fix count × niche median |
+| "BÁO CÁO PHÂN TÍCH · TECH" kicker niche label | `meta.niche_label` | `niche_taxonomy.label` joined via `video_corpus.niche_id` |
+
+**Client-side only (no backend field needed):**
+- `v.bg` color fallback when `thumbnail_url` is null → `NICHE_COLOR_MAP[niche_id]`
+- "M:SS" duration format from `meta.duration_sec`
+- `12× kênh` delta label formatted from `meta.views / niche_meta.avg_views`
+- `top 5%` percentile label derived from niche retention distribution (front-end bucket)
+- `rất cao` / tier labels for save rate (static threshold table, client-side)
+- Segment `color` CSS variable resolved from `color_key` via a static map in `Timeline.tsx`
+- `BREAKOUT` badge visibility from `meta.is_breakout`
+
+**TODO flagged for spike (B.0.1):**
+- `retention_curve[]` exact shape: real API vs modeled sigmoid. Decision record determines field population strategy. UI label (`ĐƯỜNG GIỮ CHÂN` vs `ĐƯỜNG ƯỚC TÍNH`) toggles based on `meta.retention_source: "real"|"modeled"`.
+
 ### New table: `video_diagnostics`
 
 ```sql
@@ -502,6 +544,40 @@ END;
 $$;
 ```
 
+### Fixture mapping (design → backend)
+
+Source fixture: `CREATORS[]` in `data.js` + inline literals in `kol.jsx`.
+**The fixtures are the contract; the backend serves them. Not the other way around.**
+
+| Design field (fixture / JSX literal) | `/kol/browse` response field | Source |
+|---|---|---|
+| `c.handle` | `handle` | `creator_velocity.handle` / `starter_creators.handle` |
+| `c.name` | `name` | `creator_velocity.name` / `starter_creators.name` |
+| `c.niche` | `niche_label` | `niche_taxonomy.label` joined via `niche_id` |
+| `c.followers` ("412K") | `followers` (raw int, formatted client-side) | `creator_velocity.followers` |
+| `c.avg` ("89K") | `avg_views` (raw int, formatted client-side) | `creator_velocity.avg_views` |
+| `c.growth` ("+12%") | `growth_30d_pct` (numeric, formatted client-side with sign) | `creator_velocity.growth_30d_pct` |
+| `c.match` (94) | `match_score` (0–100 int) | computed per B.0.2 formula, cached per `(user_id, handle)` |
+| `c.tone` ("Giải thích — chậm, rõ") | `tone` | `starter_creators.tone` / `creator_velocity.tone` |
+| `# 01 02 …` row index | sequence number — client-side from array index | n/a |
+| Avatar circle letter + color | first letter of `name`; color from `AVATAR_COLOR_CYCLE[idx % 6]` | client-side |
+| `GHIM` badge (when `isPinned && tab === 'discover'`) | `is_pinned: bool` — derived client-side from `profiles.reference_channel_handles.includes(handle)` | `profiles.reference_channel_handles` loaded once at screen open |
+| Detail card stats 2×2: NGÁCH / FOLLOW / VIEW TB / TĂNG 30D | same fields as table row | same sources |
+| `ĐỘ KHỚP NGÁCH BẠN {match}/100` | `match_score` | computed per B.0.2 |
+| Match score description (11px ink-3) | `match_description` — **LLM-generated** 1-sentence string, cached per `(user_id, handle)` in B.2 spike if time allows; otherwise static template client-side | computed or static |
+| Filter chip options (niche / follower range / region / growth) | filter params passed as query string to `/kol/browse` | `niche_taxonomy`, hardcoded ranges |
+| `{count}` badge in tab toggle | count of pinned handles / count of discover results | `profiles.reference_channel_handles.length` / query total |
+
+**Client-side only (no backend field needed):**
+- Avatar color from `AVATAR_COLOR_CYCLE[idx % 6]` static array
+- `#01 02 …` row index from array position
+- `GHIM` badge visibility: `profiles.reference_channel_handles` fetched once, set compared client-side
+- `{match}/100` typography split (tight 36px + 16px ink-4 "/100") — formatting only
+- Tab count badges formatted from response metadata
+
+**TODO flagged for spike:**
+- `match_description` — decide static template vs Gemini in B.2.1. If Gemini: bounded to 1 sentence, cached per `(user_id, handle)`, no credit deducted.
+
 ### Endpoints
 
 - `GET /kol/browse?niche_id&tab=pinned|discover&page` — returns table rows
@@ -640,6 +716,46 @@ half-computed bar.
 **Posting cadence**: aggregate `created_at` distribution across creator's
 `video_corpus` rows → best weekday + hour bucket. (Note: uses `created_at`
 = ingest time, not TikTok `posted_at` — acceptable 24h lag.)
+
+### Fixture mapping (design → backend)
+
+Source fixture: `CHANNEL_DETAIL` in `data.js` + inline literals in `channel.jsx`.
+**The fixtures are the contract; the backend serves them. Not the other way around.**
+
+| Design field (fixture / JSX literal) | `/channel/analyze` response field | Source |
+|---|---|---|
+| `CHANNEL_DETAIL.handle` | `handle` | `channel_formulas.handle` |
+| `CHANNEL_DETAIL.name` | `name` | `creator_velocity.name` / `starter_creators.name` |
+| `CHANNEL_DETAIL.bio` | `bio` | `creator_velocity.bio` (if available) — **LLM-generated fallback** 1-sentence string, cached |
+| `CHANNEL_DETAIL.followers` ("412K") | `followers` (raw int, formatted client-side) | `creator_velocity.followers` |
+| `CHANNEL_DETAIL.totalVideos` (248) | `total_videos` | `channel_formulas.total_videos` ← count from `video_corpus` |
+| `CHANNEL_DETAIL.avgViews` ("89K") | `avg_views` (raw int, formatted client-side) | `channel_formulas.avg_views` |
+| `CHANNEL_DETAIL.engagement` ("6.4%") | `engagement_pct` (numeric, formatted client-side) | `channel_formulas.engagement_pct` |
+| `CHANNEL_DETAIL.postingCadence` ("Hàng ngày · 7:30 sáng") | `posting_cadence` + `posting_time` (joined client-side with ` · `) | `channel_formulas.posting_cadence` + `.posting_time` |
+| `CHANNEL_DETAIL.topHook` ("Khi bạn ___") | `top_hook` | `channel_formulas.top_hook` ← most frequent `hook_type` in creator's `video_corpus` |
+| `CHANNEL_DETAIL.formula[{step, detail, pct}]` × 4 | `formula[]: {step, detail, pct}` | `channel_formulas.formula` JSONB ← Gemini pydantic schema |
+| KPI cell "VIEW TRUNG BÌNH / {avgViews} / ↑ 12% MoM" | `kpis[0]: {label, value, delta}` — delta MoM computed from 30-day window | `channel_formulas.avg_views` + windowed aggregation |
+| KPI cell "HOOK CHỦ ĐẠO / "{topHook}" / 62% video dùng" | `kpis[1]: {label, value, delta}` — pct computed as `count(top_hook) / total_videos` | `channel_formulas.top_hook` + `video_corpus` count |
+| KPI cell "ĐỘ DÀI TỐI ƯU / 42–58s / từ {n} video gần" | `kpis[2]: {label, value, delta}` — `optimal_length` string + `sample_size` | `channel_formulas.optimal_length` + count |
+| KPI cell "THỜI GIAN POST / 7:30 sáng / reach +28%" | `kpis[3]: {label, value, delta}` — posting_time + reach delta **computed deterministically** from engagement quartile vs off-peak baseline | `channel_formulas.posting_time` + engagement aggregation |
+| Formula bar segments `{step, detail, pct}` × 4 | same as `formula[]` above — rendered as `flex: {pct}` | `channel_formulas.formula` |
+| `formula_gate: "thin_corpus"` empty state | `formula_gate` field (`null` or `"thin_corpus"`) | `/channel/analyze` gating logic |
+| Top 4 video tiles (bg color, views, title) | `top_videos[]: {video_id, title, views, bg_color, thumbnail_url}` | top 4 by views from `video_corpus` for this `handle` |
+| 4 lesson cards `{number, title, body}` | `lessons[]: {title, body}` | `channel_formulas.lessons` JSONB ← Gemini |
+| Hero kicker `HỒ SƠ KÊNH · {niche}` | `niche_label` | `niche_taxonomy.label` |
+| Chips: `Đăng {postingCadence}` + `Engagement {rate}` + `{n} video` | derived client-side from `posting_cadence`, `engagement_pct`, `total_videos` | same fields above |
+
+**Client-side only (no backend field needed):**
+- Avatar circle first letter + accent bg — from `name[0]`
+- "M:SS" duration format, follower/view "K" abbreviation — formatting
+- Hero chip text assembled client-side from `posting_cadence` + `engagement_pct` + `total_videos`
+- Formula bar `flex: {pct}` widths from `formula[].pct`; color map is static `[accent, ink-2, ink-3, accent-deep]`
+- FormulaBar empty state shown when `formula_gate === "thin_corpus"`
+- "← Về Studio" back button — router navigation, no data
+
+**TODO flagged for spike (B.3.1):**
+- `bio` field — confirm if `creator_velocity` stores bio; if not, decide: scrape-at-ingest or 1-sentence Gemini summary from top videos.
+- KPI "reach +28%" for posting time — verify derivable from existing engagement data before committing to the delta string.
 
 ### Endpoints
 
@@ -843,6 +959,78 @@ Mapped to `HOOKS` fixture: `{pattern, delta, uses, avg}`.
 
 **`OVERLAY_SAMPLES`** lookup — materialized from `scene_intelligence
 .overlay_samples` by scene_type. Client fetches once per niche, caches.
+
+### Fixture mapping (design → backend)
+
+Source fixtures: `HOOKS[]` in `data.js` + inline literals in `script.jsx`.
+**The fixtures are the contract; the backend serves them. Not the other way around.**
+
+**Left panel inputs → `/script/generate` request body:**
+
+| Design field (JSX literal) | Request body field | Notes |
+|---|---|---|
+| Topic textarea value | `topic` (string) | User-authored, no backend source |
+| Selected hook button `{pattern}` | `hook` (string) | User-selected from `HOOKS[]` list |
+| Hook delay slider value (ms) | `hook_delay_ms` (int, 400–3000) | User input |
+| Duration slider value (s) | `duration` (int, 15–90) | User input |
+| Selected tone chip | `tone` (string: 'Hài'|'Chuyên gia'|'Tâm sự'|'Năng lượng'|'Mỉa mai') | User input |
+| `niche_id` | `niche_id` | From `profiles.primary_niche` loaded at screen open |
+
+**`HOOKS[]` fixture → `/script/hook-patterns` response:**
+
+| Design field | Response field | Source |
+|---|---|---|
+| `HOOKS[i].pattern` ("Khi bạn ___") | `hook_patterns[i].pattern` | `hook_effectiveness.hook_type` |
+| `HOOKS[i].delta` ("+248%") | `hook_patterns[i].delta` (computed: `(avg_views / niche_avg) - 1`, formatted with sign) | `hook_effectiveness.avg_views` vs `niche_intelligence.avg_views` |
+| `HOOKS[i].uses` (1240) | `hook_patterns[i].uses` | `hook_effectiveness.sample_size` |
+| `HOOKS[i].avg` ("128K") | `hook_patterns[i].avg_views` (raw int, formatted client-side) | `hook_effectiveness.avg_views` |
+
+**`CitationTag` ("✻ Gợi ý dựa trên {n} video…") → from hook-patterns metadata:**
+
+| Design field | Response field | Source |
+|---|---|---|
+| `{n} video trong ngách {niche}` | `citation: {sample_size, niche_label, window_days}` | `hook_effectiveness.sample_size` + `niche_taxonomy.label` |
+
+**`/script/generate` response → shot list (middle col):**
+
+| Design field (JSX) | Response field | Source |
+|---|---|---|
+| `ShotRow` `{t0, t1}` per shot | `shots[i].t0`, `shots[i].t1` (seconds) | Gemini structured output via pydantic schema |
+| `ShotRow` camera label | `shots[i].cam` (string) | Gemini |
+| `ShotRow` voice text | `shots[i].voice` (string) | Gemini |
+| `ShotRow` visual description | `shots[i].viz` (string) | Gemini |
+| `ShotRow` overlay type | `shots[i].overlay` (string key: 'NONE'|'TEXT\_TITLE'|…) | Gemini |
+| Pacing badge "⚠ {n}s · ngách {winner}s" / "✓" | `shots[i].corpus_avg`, `shots[i].winner_avg` — slow flag `(t1-t0) > winner_avg × 1.2` computed client-side | `scene_intelligence.corpus_avg_duration` + `.winner_avg_duration` loaded at screen open |
+
+**`scene_intelligence` → right panel (SceneIntelligencePanel):**
+
+| Design field | Response field | Source |
+|---|---|---|
+| Tip card text | `tip` | `scene_intelligence.tip` |
+| Shot length diagnostic duration + status | `corpus_avg_duration`, `winner_avg_duration` | `scene_intelligence.*` |
+| MiniBarCompare bars | `corpus_avg_duration`, `winner_avg_duration` + `(t1-t0)` from local shot state | `scene_intelligence.*` + client-side |
+| OverlaySample chips × 3 | `overlay_samples[]` (string) | `scene_intelligence.overlay_samples` JSONB |
+| Reference clips × 3 (thumbnail, handle, label, duration) | `reference_clips[]: {video_id, thumbnail_url, handle, label, duration_sec}` | `scene_intelligence.reference_video_ids` → joined to `video_corpus` |
+
+**`ForecastBar` → deterministic formula, no backend call:**
+
+| Design field | Derivation | Source |
+|---|---|---|
+| View forecast ("62K" / "34K") | `goodLen = duration ≥ 22 && ≤ 40; goodLen ? 62K : 34K` | Static formula from `script.jsx` — client-side only |
+| Retention % ("72%" / "54%") | `goodLen ? 72% : 54%` | Static formula — client-side only |
+| Hook score ("/10") | `hookDelay ≤ 1400 → 8.4; ≤ 2000 → 6.2; else 4.1` | Static formula — client-side only |
+
+**Client-side only (no backend field needed):**
+- `KỊCH BẢN SỐ {n}` header counter — incremented per session in `useState`
+- `{topic}` H1 updated live from textarea
+- Shot row `active` state — `useState` local
+- `DurationInsight` tier labels (<22s / 22–40s / 41–60s / >60s) — static threshold table
+- All forecast bar values — static formula as above
+- Overlay chip `+` icon — opens text-insert flow, no API
+
+**TODO flagged for spike (B.4.1):**
+- `shots[].overlay` key mapping to `OVERLAY_SAMPLES[overlay]` — confirm enum values match between Gemini output and `scene_intelligence.overlay_samples` keys before building the lookup.
+- `reference_clips` thumbnail availability — confirm `video_corpus.thumbnail_url` is populated for the top-3 reference videos before committing to the panel design.
 
 ### Endpoints
 
