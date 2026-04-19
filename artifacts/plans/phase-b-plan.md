@@ -413,6 +413,11 @@ blocked on primitives.
    copy, responsive behaviour (900px breakpoint). Produce
    `artifacts/qa-reports/phase-b-design-audit-video.md` with `must-fix /
    should-fix / consider` tiers. Ship all must-fix items before closing B.1.
+   - **Token check**: zero raw hex codes in JSX; zero purple-era tokens
+     (`--ink-soft`, `--purple`, `--border-active`, or any `--gv-purple-*`)
+     in new screen files. Every color reference must resolve to a
+     `var(--gv-*)` token. Grep new files for `#[0-9a-fA-F]{3,6}` and the
+     banned token list as part of the audit — any hit is a `must-fix`.
    **Non-negotiable: B.1 cannot close without a green audit report.**
 
 ### B.1 checkpoint (measure for 2 weeks post-ship)
@@ -621,6 +626,11 @@ the B.2.2 frontend milestone is unblocked.
    responsive behaviour (1100px breakpoint). Produce
    `artifacts/qa-reports/phase-b-design-audit-kol.md` with `must-fix /
    should-fix / consider` tiers. Ship all must-fix items before closing B.2.
+   - **Token check**: zero raw hex codes in JSX; zero purple-era tokens
+     (`--ink-soft`, `--purple`, `--border-active`, or any `--gv-purple-*`)
+     in new screen files. Every color reference must resolve to a
+     `var(--gv-*)` token. Grep new files for `#[0-9a-fA-F]{3,6}` and the
+     banned token list as part of the audit — any hit is a `must-fix`.
    **Non-negotiable: B.2 cannot close without a green audit report.**
 
 ---
@@ -804,6 +814,11 @@ Reuses from B.1: `KpiGrid`, `SectionMini`.
    copy, responsive behaviour (900px breakpoint). Produce
    `artifacts/qa-reports/phase-b-design-audit-channel.md` with `must-fix /
    should-fix / consider` tiers. Ship all must-fix items before closing B.3.
+   - **Token check**: zero raw hex codes in JSX; zero purple-era tokens
+     (`--ink-soft`, `--purple`, `--border-active`, or any `--gv-purple-*`)
+     in new screen files. Every color reference must resolve to a
+     `var(--gv-*)` token. Grep new files for `#[0-9a-fA-F]{3,6}` and the
+     banned token list as part of the audit — any hit is a `must-fix`.
    **Non-negotiable: B.3 cannot close without a green audit report.**
 
 ---
@@ -1088,6 +1103,11 @@ Reuses from B.1: `KpiGrid`. Reuses from B.2: `FilterChipRow` (chip row for tone 
    copy, responsive behaviour (1240px and 880px breakpoints). Produce
    `artifacts/qa-reports/phase-b-design-audit-script.md` with `must-fix /
    should-fix / consider` tiers. Ship all must-fix items before closing B.4.
+   - **Token check**: zero raw hex codes in JSX; zero purple-era tokens
+     (`--ink-soft`, `--purple`, `--border-active`, or any `--gv-purple-*`)
+     in new screen files. Every color reference must resolve to a
+     `var(--gv-*)` token. Grep new files for `#[0-9a-fA-F]{3,6}` and the
+     banned token list as part of the audit — any hit is a `must-fix`.
    **Non-negotiable: B.4 cannot close without a green audit report.**
 
 ---
