@@ -1348,6 +1348,56 @@ async def channel_analyze_endpoint(
     return JSONResponse(out)
 
 
+@app.get("/script/scene-intelligence")
+async def script_scene_intelligence_endpoint(
+    user: dict = Depends(require_user),
+    niche_id: int | None = Query(
+        default=None,
+        ge=1,
+        description="Ngách; mặc định lấy ``profiles.primary_niche`` của user.",
+    ),
+) -> JSONResponse:
+    """B.4.2 — Rows from ``scene_intelligence`` (nightly aggregate) for script studio."""
+    from getviews_pipeline.script_data import fetch_scene_intelligence_for_niche
+
+    token = user["access_token"]
+    nid = niche_id if niche_id is not None else await _resolve_caller_niche_id(token)
+    sb = user_supabase(token)
+    try:
+        out = await run_sync(fetch_scene_intelligence_for_niche, sb, nid)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[script/scene-intelligence] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
+@app.get("/script/hook-patterns")
+async def script_hook_patterns_endpoint(
+    user: dict = Depends(require_user),
+    niche_id: int | None = Query(
+        default=None,
+        ge=1,
+        description="Ngách; mặc định lấy ``profiles.primary_niche`` của user.",
+    ),
+) -> JSONResponse:
+    """B.4.2 — Hook leaderboard + citation for script studio (wraps ``hook_effectiveness``)."""
+    from getviews_pipeline.script_data import fetch_hook_patterns_for_niche
+
+    token = user["access_token"]
+    nid = niche_id if niche_id is not None else await _resolve_caller_niche_id(token)
+    sb = user_supabase(token)
+    try:
+        out = await run_sync(fetch_hook_patterns_for_niche, sb, nid)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[script/hook-patterns] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Home screen endpoints — Phase A · A1
 # ══════════════════════════════════════════════════════════════════════════
@@ -1534,3 +1584,27 @@ async def batch_morning_ritual(
         "failed_upsert":          summary.failed_upsert,
         "users_no_niche":         summary.users_no_niche,
     })
+
+
+@app.post("/batch/scene-intelligence")
+async def batch_scene_intelligence(request: Request) -> JSONResponse:
+    """Nightly cron: rebuild ``scene_intelligence`` from ``video_corpus`` scenes.
+
+    Protected by ``X-Batch-Secret`` (same as other batch jobs). Requires
+    ``SUPABASE_SERVICE_ROLE_KEY`` on the Cloud Run service.
+    """
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.scene_intelligence_refresh import refresh_scene_intelligence_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        stats = await run_sync(refresh_scene_intelligence_sync, get_service_client())
+    except Exception as exc:
+        logger.exception("[batch/scene-intelligence] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({"ok": True, **stats})

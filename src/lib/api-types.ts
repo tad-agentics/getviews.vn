@@ -226,6 +226,12 @@ export interface ScriptGenerateResponse {
   shots: ScriptShot[];
 }
 
+/**
+ * B.4 — ``ForecastBar`` view/retention/hook-score math is **client-only** (no API).
+ * Implementations: ``scriptForecastViews``, ``scriptForecastRetentionPct``, ``scriptHookScore``
+ * in ``src/components/v2/ScriptForecastBar.tsx`` (used by ``/app/script``).
+ */
+
 export interface HookPatternRow {
   pattern: string;
   delta: string;
@@ -234,6 +240,7 @@ export interface HookPatternRow {
 }
 
 export interface HookPatternsResponse {
+  niche_id: number;
   hook_patterns: HookPatternRow[];
   citation?: {
     sample_size: number;
@@ -256,6 +263,7 @@ export interface SceneIntelligenceRow {
 }
 
 export interface SceneIntelligenceResponse {
+  niche_id: number;
   scenes: SceneIntelligenceRow[];
 }
 

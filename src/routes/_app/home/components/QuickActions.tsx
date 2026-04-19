@@ -35,7 +35,7 @@ const ROUTE: Record<ActionId, string> = {
   video:   "/app/video",
   channel: "/app/channel",
   trends:  "/app/trends",
-  script:  "/app/chat",
+  script:  "/app/script",
   kol:     "/app/kol",
   consult: "/app/chat",
 };
