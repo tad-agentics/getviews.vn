@@ -21,16 +21,16 @@
 
 ## Shipped in commit (per M / S item)
 
-**Bundle:** `673a42d` — `fix(kol): supplementary M/S parity — shell, ribbon, search, avatars, tests`
+**Bundle:** `61264fe` — `fix(kol): supplementary M/S parity — shell, ribbon, search, avatars, tests`
 
 | ID | Shipped in commit | Notes |
 |----|-------------------|--------|
-| M-1 | `673a42d` | `AppLayout` + `BottomTabBar` `AppShellActive`; live sidebar link + `active="kol"` on `KolScreen`. |
-| M-2 | `673a42d` | `TopBar` kicker `THEO DÕI` vs hero `KÊNH THAM CHIẾU · NGÁCH`. |
-| M-3 | `673a42d` | CSS tokens `--gv-avatar-1..6`; shared `kolAvatarPalette`; detail card `avatarPaletteIndex` prop. |
-| S-1 | `673a42d` | `KolScreen` stacked **LỌC THEO**; `FilterChipRow` conditional inline label. |
-| S-2 | `673a42d` | `kol_browse.py` + `main.py` + `useKolBrowse.ts` + `KolScreen` debounced `search`. |
-| S-3 | `673a42d` | Pinned empty card + CTA to discover tab. |
-| S-4 | `673a42d` | Tone field removed end-to-end; `MatchScoreBar.test.tsx` added. |
+| M-1 | `61264fe` | `AppLayout` + `BottomTabBar` `AppShellActive`; live sidebar link + `active="kol"` on `KolScreen`. |
+| M-2 | `61264fe` | `TopBar` kicker `THEO DÕI` vs hero `KÊNH THAM CHIẾU · NGÁCH`. |
+| M-3 | `61264fe` | CSS tokens `--gv-avatar-1..6`; shared `kolAvatarPalette`; detail card `avatarPaletteIndex` prop. |
+| S-1 | `61264fe` | `KolScreen` stacked **LỌC THEO**; `FilterChipRow` conditional inline label. |
+| S-2 | `61264fe` | `kol_browse.py` + `main.py` + `useKolBrowse.ts` + `KolScreen` debounced `search`. |
+| S-3 | `61264fe` | Pinned empty card + CTA to discover tab. |
+| S-4 | `61264fe` | Tone field removed end-to-end; `MatchScoreBar.test.tsx` added. |
 
 **Earlier B.2 screen + API baseline:** `7d77a80` — `feat(kol): ship Phase B.2 Kênh Tham Chiếu screen and API` (browse, toggle-pin, `KolScreen` v1, Playwright B.2.3, audits).
