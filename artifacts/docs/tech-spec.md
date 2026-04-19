@@ -573,8 +573,7 @@ export interface VideoCorpusSummary {
 
 **Routing split:**
 - Vercel: SPA host + pre-rendered `/` + text intent routing (`/api/chat` for ⑤⑥⑦) via Edge Runtime
-- Cloud Run (user-facing service, `min-instances: 1`): video analysis SSE endpoint (`/stream`)
-- Cloud Run (batch service, `min-instances: 0`): daily 4 AM ICT indexing job
+- Cloud Run (`getviews-pipeline`, Singapore, `min-instances: 1`): same service serves SSE `/stream`, authenticated JSON routes, and `POST /batch/*` corpus jobs. **Capacity (see `cloud-run/deploy.sh`):** `4Gi` RAM, `2` vCPU, **3600s** max request time — needed so multi-niche corpus ingest (parallel video pulls + Gemini) does not OOM or hit a 300s wall.
 
 **Streaming:** Client connects directly to Cloud Run SSE with Supabase JWT. Cloud Run validates JWT via `jsonwebtoken.verify()` against `SUPABASE_JWT_SECRET` — no Supabase call on hot path. Vercel never proxies video analysis.
 
@@ -1184,12 +1183,14 @@ Common codes: `UNAUTHORIZED`, `NOT_FOUND`, `VALIDATION_ERROR`, `RATE_LIMITED`, `
 
 | Job | Schedule | Edge Function | What it does | Auth |
 |---|---|---|---|---|
-| Daily batch indexing | `0 21 * * *` UTC (4 AM ICT) | Cloud Run scheduled job (separate service) | Crawl 17 niches, download+analyze ~255 videos, update video_corpus + frame/video R2 storage | Service role |
+| Daily batch indexing | `0 21 * * *` UTC (4 AM ICT) | Cloud Run HTTP job (same `getviews-pipeline` service; Cloud Scheduler `POST /batch/ingest`) | Crawl all niches (~21), download+analyze up to cap/niche, update `video_corpus` + refresh `niche_intelligence`; optional R2 frame/video | `X-Batch-Secret` + service env |
 | Weekly intelligence layer recompute | `0 16 * * 0` UTC (Sunday 11 PM ICT) | Cloud Run batch | Refresh niche_intelligence materialized view, recompute trend_velocity, hook_effectiveness, format_lifecycle, creator_velocity | Service role |
 | Daily expiry check + reminders | `0 2 * * *` UTC (9 AM ICT) | `supabase/functions/cron-expiry-check` | Send expiry emails (7d/3d/1d windows), expire subscriptions, downgrade tiers | Service role |
 | Daily free query reset | `0 17 * * *` UTC (midnight ICT) | `supabase/functions/cron-reset-free-queries` | Reset `daily_free_query_count = 0` for all users | Service role |
 | Weekly webhook event prune | `0 20 * * 0` UTC (Sunday 3 AM ICT) | `supabase/functions/cron-prune-webhooks` | Delete `processed_webhook_events` older than 30 days | Service role |
 | Stale processing guard reset | `*/5 * * * *` UTC (every 5 min) | `supabase/functions/cron-reset-processing` | Set `is_processing = false` on profiles where `is_processing = true AND updated_at < now() - 5 minutes` | Service role |
+
+**Cloud Scheduler → Cloud Run:** For `POST /batch/ingest`, set HTTP `attempt-deadline` to **30m** (GCP maximum for Scheduler) and keep Cloud Run **request timeout ≥ that** (`deploy.sh` uses **3600s**). Shorter deadlines cut long batches off mid-flight.
 
 ---
 

@@ -11,14 +11,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 gcloud builds submit --tag "gcr.io/$PROJECT_ID/$SERVICE_NAME" "$SCRIPT_DIR"
 
 echo "Deploying to Cloud Run..."
+# 4Gi / 2 CPU / 3600s — corpus batch downloads multiple TikTok MP4s per wave and
+# runs Gemini in parallel; 1Gi was OOM-killing mid-batch (~1min). 300s timeout
+# was too short for all-niche ingest (often 10–30+ min).
 gcloud run deploy "$SERVICE_NAME" \
   --image "gcr.io/$PROJECT_ID/$SERVICE_NAME" \
   --region "$REGION" \
   --platform managed \
   --allow-unauthenticated \
-  --memory 1Gi \
-  --cpu 1 \
-  --timeout 300 \
+  --memory 4Gi \
+  --cpu 2 \
+  --timeout 3600 \
   --concurrency 20 \
   --min-instances 1 \
   --max-instances 5
@@ -61,7 +64,7 @@ echo "    --message-body '{}' \\"
 echo "    --headers 'X-Batch-Secret=<YOUR_BATCH_SECRET>,Content-Type=application/json' \\"
 echo "    --http-method POST \\"
 echo "    --time-zone 'Asia/Ho_Chi_Minh' \\"
-echo "    --attempt-deadline 25m"
+echo "    --attempt-deadline 30m"
 echo ""
 echo "To set up Cloud Scheduler for nightly morning ritual (22:00 ICT = before users wake):"
 echo "  gcloud scheduler jobs create http getviews-morning-ritual \\"

@@ -74,7 +74,7 @@ No Python function populates `trend_velocity` with real week-over-week hook shif
 --min-instances 1 \
 ```
 
-**Cost impact:** +~$10–15/mo (one warm instance in Singapore at 1 CPU / 1Gi). Worth it.
+**Cost impact:** Warm `min-instances: 1` in Singapore; production sizing is **2 vCPU / 4Gi** (see `cloud-run/deploy.sh`) so batch ingest does not OOM — check current GCP pricing vs the old 1 vCPU / 1Gi ballpark.
 
 **Effort:** 1 minute. Requires a `deploy.sh` run to apply.
 
