@@ -376,7 +376,7 @@ function ChannelBody({
               navigate(scriptFromFormulaHref);
             }}
           >
-            <FileText className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
+            <FileText className="mr-1.5 size-[13px] shrink-0" strokeWidth={1.7} aria-hidden />
             Tạo kịch bản theo công thức này
           </Btn>
         </div>
