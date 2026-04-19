@@ -1,8 +1,8 @@
 import type { RetentionCurveSource, RetentionPoint } from "@/lib/api-types";
 import {
   areaPath,
-  largestRetentionDropAnnotation,
   polylinePoints,
+  retentionDropAnnotations,
   retentionTMax,
   VB_H,
   VB_W,
@@ -19,7 +19,7 @@ export type RetentionCurveProps = {
 
 /**
  * SVG retention chart — user curve (accent) + optional dashed niche benchmark (pos blue).
- * B.1.4 tighten: shared scale math, round caps, one drop annotation when slope is steep.
+ * B.1.4 tighten: shared scale math, round caps, up to two drop annotations when slopes are steep.
  */
 export function RetentionCurve({
   durationSec,
@@ -34,7 +34,7 @@ export function RetentionCurve({
       ? polylinePoints(benchmarkCurve, durationSec)
       : "";
   const fillD = userCurve.length ? areaPath(userCurve, durationSec) : "";
-  const dropNote = userCurve.length ? largestRetentionDropAnnotation(userCurve, durationSec) : null;
+  const dropNotes = userCurve.length ? retentionDropAnnotations(userCurve, durationSec) : [];
 
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((frac) => {
     const sec = durationSec * frac;
@@ -96,17 +96,20 @@ export function RetentionCurve({
             Chưa có dữ liệu đường cong
           </text>
         )}
-        {dropNote && userPts ? (
-          <text
-            x={dropNote.cx}
-            y={dropNote.cy}
-            fill="var(--gv-accent-deep)"
-            fontSize={9}
-            fontFamily="var(--gv-font-mono)"
-          >
-            {dropNote.label}
-          </text>
-        ) : null}
+        {userPts
+          ? dropNotes.map((note, i) => (
+              <text
+                key={`${note.label}-${i}`}
+                x={note.cx}
+                y={note.cy}
+                fill="var(--gv-accent-deep)"
+                fontSize={9}
+                fontFamily="var(--gv-font-mono)"
+              >
+                {note.label}
+              </text>
+            ))
+          : null}
       </svg>
       <div className="mt-1 flex justify-between font-[family-name:var(--gv-font-mono)] text-[10px] text-[color:var(--gv-ink-4)]">
         {ticks.map((t, i) => (
