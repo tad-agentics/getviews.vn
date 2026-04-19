@@ -221,7 +221,7 @@ function VideoAnalysisBodyInner({ data }: { data: VideoAnalyzeResponse }) {
     <div className="grid grid-cols-1 gap-8 min-[900px]:grid-cols-[320px_1fr]">
       <aside>
         <div
-          className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_rgba(10,13,18,0.35)]"
+          className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
           style={{
             backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
             backgroundColor: "var(--gv-canvas-2)",
@@ -229,7 +229,7 @@ function VideoAnalysisBodyInner({ data }: { data: VideoAnalyzeResponse }) {
             backgroundPosition: "center",
           }}
         >
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:rgba(10,13,18,0.55)]" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:color-mix(in_srgb,var(--gv-ink)_55%,transparent)]" />
           <div className="absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
             <div className="gv-mono text-[11px] opacity-90">
               @{meta.creator} · {Math.round(duration)}s

@@ -1,4 +1,12 @@
 import type { RetentionPoint } from "@/lib/api-types";
+import {
+  areaPath,
+  largestRetentionDropAnnotation,
+  polylinePoints,
+  retentionTMax,
+  VB_H,
+  VB_W,
+} from "./retentionCurveMath";
 
 export type RetentionCurveProps = {
   durationSec: number;
@@ -7,43 +15,9 @@ export type RetentionCurveProps = {
   className?: string;
 };
 
-const VB_W = 400;
-const VB_H = 80;
-
-function polylinePoints(curve: RetentionPoint[], durationSec: number): string {
-  if (!curve.length) return "";
-  const lastT = curve[curve.length - 1]?.t ?? 0;
-  const tMax = Math.max(durationSec, lastT, 0.001);
-  return curve
-    .map((p) => {
-      const x = (p.t / tMax) * VB_W;
-      const pct = Math.min(100, Math.max(0, p.pct));
-      const y = VB_H - (pct / 100) * (VB_H - 10) - 5;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-}
-
-function areaPath(curve: RetentionPoint[], durationSec: number): string {
-  if (!curve.length) return "";
-  const lastT = curve[curve.length - 1]?.t ?? 0;
-  const tMax = Math.max(durationSec, lastT, 0.001);
-  const xy = curve.map((p) => {
-    const x = (p.t / tMax) * VB_W;
-    const pct = Math.min(100, Math.max(0, p.pct));
-    const y = VB_H - (pct / 100) * (VB_H - 10) - 5;
-    return [x, y] as const;
-  });
-  let d = `M 0,${VB_H} L ${xy[0][0]},${xy[0][1]}`;
-  for (let i = 1; i < xy.length; i++) {
-    d += ` L ${xy[i][0]},${xy[i][1]}`;
-  }
-  d += ` L ${xy[xy.length - 1][0]},${VB_H} Z`;
-  return d;
-}
-
 /**
  * SVG retention chart — user curve (accent) + optional dashed niche benchmark (pos blue).
+ * B.1.4 tighten: shared scale math, round caps, one drop annotation when slope is steep.
  */
 export function RetentionCurve({
   durationSec,
@@ -57,15 +31,18 @@ export function RetentionCurve({
       ? polylinePoints(benchmarkCurve, durationSec)
       : "";
   const fillD = userCurve.length ? areaPath(userCurve, durationSec) : "";
+  const dropNote = userCurve.length ? largestRetentionDropAnnotation(userCurve, durationSec) : null;
 
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => {
-    const sec = durationSec * f;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((frac) => {
+    const sec = durationSec * frac;
     const label =
       sec >= 60
         ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`
         : `${Math.round(sec)}s`;
-    return { f, label };
+    return label;
   });
+
+  const tMaxUser = userCurve.length ? retentionTMax(userCurve, durationSec) : durationSec;
 
   return (
     <div className={`border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 ${className}`.trim()}>
@@ -87,6 +64,8 @@ export function RetentionCurve({
             stroke="var(--gv-pos)"
             strokeWidth={1.5}
             strokeDasharray="4 3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         ) : null}
         {userPts ? (
@@ -95,6 +74,8 @@ export function RetentionCurve({
             points={userPts}
             stroke="var(--gv-accent)"
             strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         ) : (
           <text
@@ -107,12 +88,26 @@ export function RetentionCurve({
             Chưa có dữ liệu đường cong
           </text>
         )}
+        {dropNote && userPts ? (
+          <text
+            x={dropNote.cx}
+            y={dropNote.cy}
+            fill="var(--gv-accent-deep)"
+            fontSize={9}
+            fontFamily="var(--gv-font-mono)"
+          >
+            {dropNote.label}
+          </text>
+        ) : null}
       </svg>
       <div className="mt-1 flex justify-between font-[family-name:var(--gv-font-mono)] text-[10px] text-[color:var(--gv-ink-4)]">
-        {ticks.map((t) => (
-          <span key={t.label}>{t.label}</span>
+        {ticks.map((t, i) => (
+          <span key={`${i}-${t}`}>{t}</span>
         ))}
       </div>
+      <p className="sr-only">
+        Trục thời gian tối đa khoảng {Math.round(tMaxUser)} giây; phần trăm giữ chân từ 0 đến 100.
+      </p>
     </div>
   );
 }

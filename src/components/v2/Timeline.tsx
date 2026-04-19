@@ -36,7 +36,7 @@ export function Timeline({ segments, durationSec, className = "" }: TimelineProp
             <div
               key={`${s.name}-${i}`}
               role="listitem"
-              className="flex min-w-0 flex-1 items-center justify-center px-0.5 text-center font-[family-name:var(--gv-font-mono)] text-[10px] font-semibold uppercase tracking-[0.05em]"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 py-0.5 text-center font-[family-name:var(--gv-font-mono)] text-[10px] font-semibold uppercase leading-tight tracking-[0.05em]"
               style={{
                 flexGrow: Math.max(s.pct, 1),
                 flexBasis: 0,
@@ -46,6 +46,13 @@ export function Timeline({ segments, durationSec, className = "" }: TimelineProp
               title={`${s.name} · ${s.pct}%`}
             >
               <span className="truncate">{s.name}</span>
+              <span
+                className={`text-[8px] font-normal normal-case tabular-nums tracking-normal ${
+                  isEdge ? "text-[color:color-mix(in_srgb,var(--gv-paper)_82%,transparent)]" : "text-[color:color-mix(in_srgb,var(--gv-canvas)_55%,var(--gv-ink)_45%)]"
+                }`}
+              >
+                {s.pct}%
+              </span>
             </div>
           );
         })}

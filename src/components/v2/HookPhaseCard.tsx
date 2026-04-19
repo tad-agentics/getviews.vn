@@ -5,10 +5,11 @@ export type HookPhaseCardProps = {
   className?: string;
 };
 
+/** Card-shaped surface (gv tokens only — shadcn ``Card`` still uses legacy purple). */
 export function HookPhaseCard({ phase, className = "" }: HookPhaseCardProps) {
   return (
     <article
-      className={`rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 ${className}`.trim()}
+      className={`rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 shadow-[0_1px_0_color-mix(in_srgb,var(--gv-ink)_06%,transparent)] ${className}`.trim()}
     >
       <div className="gv-mono mb-1.5 text-[10px] text-[color:var(--gv-accent-deep)]">{phase.t_range}</div>
       <h4 className="gv-tight m-0 mb-1.5 text-base text-[color:var(--gv-ink)]">{phase.label}</h4>

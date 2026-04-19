@@ -23,7 +23,11 @@ export type UseVideoAnalysisOptions = {
 };
 
 /**
- * POST `/video/analyze` (Cloud Run, JWT). Aligns with ``staleTime`` 1h — diagnostics MV.
+ * POST `/video/analyze` (Cloud Run, JWT). ``staleTime`` 1h — diagnostics MV.
+ *
+ * Query key matches plan: ``['video-analysis', videoIdOrUrl]`` where the second
+ * segment is ``id:…`` / ``url:…`` from ``videoAnalysisKey``. When ``forceRefresh``
+ * is true, a third segment busts the cache for the same corpus target.
  */
 export function useVideoAnalysis({
   videoId = null,
@@ -34,8 +38,14 @@ export function useVideoAnalysis({
   const key = videoAnalysisKey(videoId, url);
   const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
 
+  const queryKey = key
+    ? forceRefresh
+      ? (["video-analysis", key, "force"] as const)
+      : (["video-analysis", key] as const)
+    : (["video-analysis", "__idle__"] as const);
+
   return useQuery<VideoAnalyzeResponse>({
-    queryKey: ["video-analysis", key, forceRefresh],
+    queryKey,
     queryFn: async () => {
       if (!cloudRunUrl) throw new Error("Cloud Run URL chưa cấu hình");
       if (!key) throw new Error("Thiếu video_id hoặc url");
