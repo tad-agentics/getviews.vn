@@ -85,6 +85,8 @@ export interface VideoNicheMeta {
   avg_retention: number;
   avg_ctr: number;
   sample_size: number;
+  /** Corpus “winner” pool in niche (breakout ≥1.5 or ER > median_er); null if not computed. */
+  winners_sample_size: number | null;
 }
 
 /** GET `/video/niche-benchmark` (Cloud Run, JWT). */

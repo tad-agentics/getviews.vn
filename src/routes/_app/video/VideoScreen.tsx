@@ -86,6 +86,9 @@ function buildWinScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: string
   return lines.join("\n");
 }
 
+/** Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers into this strip. */
+const WINNERS_CLAIM_MIN = 10;
+
 function FlopDiagnosisStrip({
   meta,
   nicheMeta,
@@ -99,7 +102,7 @@ function FlopDiagnosisStrip({
   const nicheViews = nicheMeta?.avg_views != null ? formatViewsVi(nicheMeta.avg_views) : "—";
   const nicheRet =
     nicheMeta?.avg_retention != null ? `${Math.round(nicheMeta.avg_retention * 100)}% ret ngách TB` : null;
-  const sample = nicheMeta?.sample_size;
+  const winnersN = nicheMeta?.winners_sample_size ?? null;
 
   return (
     <div className="border-t-2 border-[color:var(--gv-ink)] pt-5">
@@ -112,12 +115,14 @@ function FlopDiagnosisStrip({
           Ngách TB: {nicheViews}
           {nicheRet ? ` · ${nicheRet}` : ""}
         </span>
-        {sample != null && sample > 0 ? (
-          <>
-            <span className="text-[color:var(--gv-ink-4)]">/</span>
-            <span className="text-[color:var(--gv-ink-4)]">Mẫu MV ~{sample} video</span>
-          </>
-        ) : null}
+        <span className="text-[color:var(--gv-ink-4)]">/</span>
+        {winnersN != null && winnersN >= WINNERS_CLAIM_MIN ? (
+          <span>So sánh với {winnersN} video thắng</span>
+        ) : (
+          <span className="text-[color:var(--gv-ink-4)]">
+            Đang xây dựng pool (≥10 video cần thu thập)
+          </span>
+        )}
       </div>
     </div>
   );

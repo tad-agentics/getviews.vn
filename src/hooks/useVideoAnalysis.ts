@@ -84,6 +84,9 @@ export function useVideoAnalysis({
         ...row.meta,
         retention_source: (row.meta.retention_source ?? "modeled") as RetentionCurveSource,
       },
+      niche_meta: row.niche_meta
+        ? { ...row.niche_meta, winners_sample_size: row.niche_meta.winners_sample_size ?? null }
+        : null,
     }),
   });
 }

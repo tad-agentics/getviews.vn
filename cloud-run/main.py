@@ -1142,6 +1142,7 @@ async def video_niche_benchmark(
         row,
         niche_id=niche_id,
         duration_sec=duration_sec,
+        user_sb=sb,
     )
     _NICHE_BENCH_CACHE[ck] = (now, payload)
     return JSONResponse(payload)

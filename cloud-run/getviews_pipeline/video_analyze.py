@@ -452,11 +452,12 @@ def run_video_analyze_pipeline(
 
     niche_id = int(video.get("niche_id") or 0)
     niche_intel = fetch_niche_intelligence_sync(user_sb, niche_id) if niche_id else None
-    niche_meta = niche_row_to_video_meta(niche_intel) if niche_intel else {
+    default_niche_meta = {
         "avg_views": 0,
         "avg_retention": 0.5,
         "avg_ctr": 0.04,
         "sample_size": 0,
+        "winners_sample_size": None,
     }
     if isinstance(video.get("analysis_json"), str):
         try:
@@ -475,8 +476,10 @@ def run_video_analyze_pipeline(
         niche_intel,
         niche_id=niche_id or 0,
         duration_sec=max(dur, 5.0),
+        user_sb=user_sb,
     )
     niche_benchmark = bench_payload["niche_benchmark_curve"]
+    niche_meta = bench_payload["niche_meta"] if bench_payload.get("niche_meta") is not None else default_niche_meta
     rs = bench_payload.get("retention_source") or "modeled"
     retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
 

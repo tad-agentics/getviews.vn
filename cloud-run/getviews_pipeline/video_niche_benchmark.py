@@ -40,6 +40,28 @@ def _to_int(v: Any, default: int = 0) -> int:
         return default
 
 
+def count_winners_sample_in_niche_sync(sb: Any, niche_id: int, median_er: float) -> int | None:
+    """Corpus rows in ``niche_id`` with ``breakout_multiplier >= 1.5`` OR ``engagement_rate > median_er``."""
+    if not niche_id or sb is None:
+        return None
+    er = float(median_er)
+    er_s = f"{er:.10f}".rstrip("0").rstrip(".")
+    if er_s == "" or er_s == "-":
+        er_s = "0"
+    try:
+        res = (
+            sb.table("video_corpus")
+            .select("video_id", count="exact")
+            .eq("niche_id", niche_id)
+            .or_(f"breakout_multiplier.gte.1.5,engagement_rate.gt.{er_s}")
+            .execute()
+        )
+        return int(res.count or 0)
+    except Exception as exc:
+        logger.warning("[niche_benchmark] winners_sample count niche=%s: %s", niche_id, exc)
+        return None
+
+
 def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
     """Map `niche_intelligence` MV row → `VideoNicheMeta` shape (api-types.ts)."""
     organic = _to_float(row.get("organic_avg_views"))
@@ -70,8 +92,14 @@ def build_niche_benchmark_payload(
     *,
     niche_id: int,
     duration_sec: float = DEFAULT_CURVE_DURATION_SEC,
+    user_sb: Any | None = None,
 ) -> dict[str, Any]:
-    """JSON body for ``GET /video/niche-benchmark``."""
+    """JSON body for ``GET /video/niche-benchmark``.
+
+    When ``user_sb`` is set, ``niche_meta.winners_sample_size`` counts corpus
+    winners in the niche (``breakout_multiplier >= 1.5`` or ``engagement_rate``
+    above MV ``median_er``). Otherwise the field is ``None``.
+    """
     dur = max(float(duration_sec), 1.0)
     if not row:
         return {
@@ -84,6 +112,8 @@ def build_niche_benchmark_payload(
         }
 
     meta = niche_row_to_video_meta(row)
+    median_er = _to_float(row.get("median_er"), 0.04)
+    meta["winners_sample_size"] = count_winners_sample_in_niche_sync(user_sb, niche_id, median_er)
     curve = model_niche_benchmark_curve(
         dur,
         niche_median_retention=float(meta["avg_retention"]),
