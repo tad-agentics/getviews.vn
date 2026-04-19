@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 /* ─── TikTok Sans — variable font (covers all weights 100-900) ───── */
 /* License: SIL Open Font License 1.1 — https://github.com/tiktok/TikTokSans */
@@ -81,8 +82,8 @@
   --gradient-purple-wash:     linear-gradient(34deg, rgba(176, 95, 217, 0.12) 0%, rgba(152, 84, 184, 0.08) 23%, rgba(129, 61, 161, 0.06) 43%, rgba(95, 31, 122, 0.04) 67%, rgba(49, 9, 64, 0.03) 100%);
 
   /* ── Font stacks */
-  /* Primary UI sans = reference pack (Space Grotesk); TikTok Sans for legacy / accent */
-  --font-sans: "Space Grotesk", "TikTok Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  /* Primary UI sans = TikTok Sans (self-hosted); Inter + system fallbacks */
+  --font-sans: "TikTok Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
 
   /* ── shadcn/Radix alias layer (maps Make tokens → shadcn expected names) */
@@ -283,11 +284,6 @@
  * .gv-bignum, .gv-serif, .gv-serif-italic).
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* ── Space Grotesk + JetBrains Mono — matches UIUX `styles.css` (--sans / --mono). ──
- * Google-hosted; self-host follow-up can swap woff2 into /fonts/.
- */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
-
 :root {
   /* ── Surfaces (cool near-white, per design iteration 3) ─────────── */
   --gv-canvas:         #FBFCFD;
@@ -345,14 +341,13 @@
   --gv-radius-lg:      18px;
   --gv-radius-xl:      20px;  /* neo-brutalist composer */
 
-  /* ── Font stacks (match artifacts/uiux-reference/styles.css --sans / --mono) ── */
-  --gv-font-display:   "Space Grotesk", "Inter", system-ui, sans-serif;
-  /* Mirrors uiux-reference ``--serif`` (display stack for analysis / issue titles). */
+  /* ── Font stacks — TikTok Sans everywhere UI needs a sans (consistency over UIUX ref Space Grotesk). ── */
+  --gv-font-display:   "TikTok Sans", "Inter", system-ui, sans-serif;
   --gv-font-serif:     var(--gv-font-display);
-  --gv-font-sans:      "Space Grotesk", "Inter", system-ui, sans-serif;
+  --gv-font-sans:      "TikTok Sans", "Inter", system-ui, sans-serif;
   --gv-font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Body copy scale — UIUX ref `html, body`: 14px / 1.5 on Space Grotesk sans */
+  /* Body copy scale — 14px / 1.5 (studio shell + gv-studio-type) */
   --gv-text-body:      14px;
   --gv-leading-body:   1.5;
 
@@ -423,20 +418,16 @@
   .gv-bignum { font-size: 34px; }
 }
 
-/* Italic accent: emphasis words inside headlines + quoted script titles.
- * Uses the display stack with a synthesized italic — the design relies
- * on Space Grotesk's browser-italicised form, NOT a separate serif.
- * When the Tweaks panel swaps the display font to a real serif later,
- * this class inherits that change for free. */
+/* Italic accent: emphasis words inside headlines + quoted script titles. */
 .gv-serif-italic {
   font-family: var(--gv-font-display);
   font-style: italic;
   font-weight: 500;
 }
 
-/* Non-italic “serif” stack — matches uiux-reference ``--serif`` (Space Grotesk). */
+/* Display-weight sans for “editorial” headings (same face as body — TikTok Sans). */
 .gv-serif {
-  font-family: "Space Grotesk", serif;
+  font-family: var(--gv-font-sans);
   font-weight: 500;
   letter-spacing: -0.02em;
 }

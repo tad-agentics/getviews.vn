@@ -74,22 +74,26 @@ accent doubles as the "down" colour).
 
 ## Typography
 
-Space Grotesk is loaded via Google Fonts (`@import` at the top of the v2
-block in `app.css`). Self-hosting is a follow-up.
+**TikTok Sans** is the primary UI sans: variable + static `@font-face` rules
+at the top of `src/app.css` (files under `public/fonts/`). **Inter** loads from
+Google Fonts in `app/root.tsx` as a fallback. **JetBrains Mono** loads via
+`@import` in the Phase A block of `app.css` for `--gv-font-mono`.
 
 | Token / class | Stack |
 |---|---|
-| `--gv-font-display`, `--gv-font-sans` | Space Grotesk → TikTok Sans → Inter → system |
-| `--gv-font-mono` | JetBrains Mono → SF Mono → Menlo |
+| `--font-sans` (shadcn / legacy Make) | TikTok Sans → Inter → system |
+| `--gv-font-display`, `--gv-font-sans`, `--gv-font-serif` | TikTok Sans → Inter → system (same stack; “serif” naming is legacy) |
+| `--gv-font-mono` | JetBrains Mono → IBM Plex Mono → ui-monospace |
 
 ### Utility classes
 
 | Class | Effect |
 |---|---|
 | `.gv-kicker` | Mono 10px / 0.18em tracked / uppercase / pink `●` prefix. Variants `.gv-kicker--pos` (blue dot), `.gv-kicker--muted` (grey dot). |
-| `.gv-tight` | Display font, `letter-spacing: -0.035em`, `font-weight: 600`. Pair with an explicit font-size at call sites. |
-| `.gv-bignum` | Display font, `56px / line-height 1 / letter-spacing -0.04em / font-weight 600`. For pulse numbers and KPIs. |
-| `.gv-serif-italic` | Instrument Serif fallback to Space Grotesk — italicised emphasis words in h1s ("ngách", "số liệu"). |
+| `.gv-tight` | Display stack (TikTok Sans), `letter-spacing: -0.035em`, `font-weight: 600`. Pair with an explicit font-size at call sites. |
+| `.gv-bignum` | Sans stack, `56px / line-height 1 / letter-spacing -0.04em / font-weight 600`. For pulse numbers and KPIs. |
+| `.gv-serif` | Same sans stack, `font-weight: 500`, `letter-spacing: -0.02em` — editorial headings without a second typeface. |
+| `.gv-serif-italic` | TikTok Sans italic emphasis (`font-style: italic`, weight 500). |
 | `.gv-mono` | JetBrains Mono + tabular nums. |
 | `.gv-uc` | Mono, uppercase, 0.08em tracked — for non-kicker small labels. |
 
