@@ -193,6 +193,24 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
     return data
 
 
+def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
+    """``niche_taxonomy.name_vn`` preferred; empty string if missing or lookup fails."""
+    if not niche_id:
+        return ""
+    try:
+        tres = (
+            user_sb.table("niche_taxonomy")
+            .select("name_vn,name_en")
+            .eq("id", niche_id)
+            .limit(1)
+            .execute()
+        )
+        tr = (tres.data or [{}])[0]
+        return str(tr.get("name_vn") or tr.get("name_en") or "")
+    except Exception:
+        return ""
+
+
 def _response_from_diagnostics_row(
     video: dict[str, Any],
     diag: dict[str, Any],
@@ -201,6 +219,8 @@ def _response_from_diagnostics_row(
     niche_meta: dict[str, Any],
     niche_benchmark: list[dict[str, float]],
     retention_user: list[dict[str, float]],
+    niche_label: str,
+    retention_source: Literal["real", "modeled"] = "modeled",
 ) -> dict[str, Any]:
     analysis = video.get("analysis_json") or {}
     if isinstance(analysis, str):
@@ -234,7 +254,8 @@ def _response_from_diagnostics_row(
             if video.get("created_at")
             else None,
             "title": title_hint or None,
-            "retention_source": "modeled",
+            "niche_label": niche_label or None,
+            "retention_source": retention_source,
         },
         "kpis": build_kpis(video, niche_meta, mode=mode, retention_end_pct=ret_end),
         "segments": diag.get("segments") or [],
@@ -401,6 +422,11 @@ def run_video_analyze_pipeline(
         duration_sec=max(dur, 5.0),
     )
     niche_benchmark = bench_payload["niche_benchmark_curve"]
+    rs = bench_payload.get("retention_source") or "modeled"
+    retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
+
+    niche_label_resolved = _resolve_niche_label(user_sb, niche_id) if niche_id else ""
+
     bm = float(video.get("breakout_multiplier") or 1.0)
     retention_user = model_retention_curve(
         max(dur, 5.0),
@@ -424,42 +450,24 @@ def run_video_analyze_pipeline(
             niche_meta=niche_meta,
             niche_benchmark=niche_benchmark,
             retention_user=retention_user,
+            niche_label=niche_label_resolved,
+            retention_source=retention_source,
         )
 
-    # Niche label resolution (in priority order):
-    # 1. niche_taxonomy.name_vn (Vietnamese, preferred for Gemini prompt)
-    # 2. niche_taxonomy.name_en (English fallback)
-    # 3. "niche_{id}" (last-resort literal — triggers when taxonomy lookup fails)
-    # The last-resort form is visible in Gemini's output; surfacing it in logs
-    # means the taxonomy read silently failed.
-    niche_label = ""
-    if niche_id:
-        try:
-            tres = (
-                user_sb.table("niche_taxonomy")
-                .select("name_vn,name_en")
-                .eq("id", niche_id)
-                .limit(1)
-                .execute()
-            )
-            tr = (tres.data or [{}])[0]
-            niche_label = str(tr.get("name_vn") or tr.get("name_en") or "")
-        except Exception:
-            niche_label = ""
+    # Gemini prompt label: last-resort literal when taxonomy row is missing.
+    gemini_niche_label = niche_label_resolved or (f"niche_{niche_id}" if niche_id else "unknown")
+    if not niche_label_resolved and niche_id:
+        logger.warning(
+            "[video_analyze] niche label fallback niche_%s for Gemini video_id=%s",
+            niche_id,
+            vid,
+        )
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
-    if not niche_label:
-        niche_label = f"niche_{niche_id}" if niche_id else "unknown"
-        if niche_id:
-            logger.warning(
-                "[video_analyze] niche label fallback niche_%s (taxonomy read empty/failed) video_id=%s",
-                niche_id,
-                vid,
-            )
 
     if mode == "win":
-        llm = _call_win_gemini(video=video, analysis=analysis, niche_label=niche_label)
+        llm = _call_win_gemini(video=video, analysis=analysis, niche_label=gemini_niche_label)
         for i, body in enumerate(llm.hook_bodies[:3]):
             if i < len(hook_cards):
                 hook_cards[i]["body"] = body
@@ -470,7 +478,7 @@ def run_video_analyze_pipeline(
         projected = None
     else:
         llm = _call_flop_gemini(
-            video=video, analysis=analysis, niche_label=niche_label, niche_row=niche_intel
+            video=video, analysis=analysis, niche_label=gemini_niche_label, niche_row=niche_intel
         )
         headline = llm.analysis_headline
         subtext = None
@@ -511,6 +519,8 @@ def run_video_analyze_pipeline(
         niche_meta=niche_meta,
         niche_benchmark=niche_benchmark,
         retention_user=retention_user,
+        niche_label=niche_label_resolved,
+        retention_source=retention_source,
     )
     if projected is not None:
         out["projected_views"] = projected

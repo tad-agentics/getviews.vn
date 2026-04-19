@@ -67,7 +67,8 @@ export function largestRetentionDropAnnotation(
   const { x, y } = retentionPointXY({ t: tMid, pct: pctMid }, tMax);
   const cx = Math.min(VB_W - 72, Math.max(8, x - 24));
   const cy = Math.max(12, y - 8);
-  const label = `−${Math.round(-best)}% @ ${tMid < 10 ? tMid.toFixed(1) : Math.round(tMid)}s`;
+  const tLabel = tMid < 10 ? tMid.toFixed(1) : String(Math.round(tMid));
+  const label = `drop −${Math.round(-best)}% @ ${tLabel}s`;
   return { cx, cy, label };
 }
 

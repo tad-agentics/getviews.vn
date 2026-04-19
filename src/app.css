@@ -318,6 +318,8 @@
    * by design — the accent is used equally for emphasis and for "down".
    */
   --gv-pos:            #009FFA;
+  /* Matches ``video.jsx`` benchmark stroke literal rgb(0, 159, 250). */
+  --gv-chart-benchmark: rgb(0, 159, 250);
   --gv-pos-soft:       #DBF0FF;
   --gv-pos-deep:       #0070B8;
   --gv-neg:            #FE2C55;
@@ -336,6 +338,8 @@
 
   /* ── Font stacks ────────────────────────────────────────────────── */
   --gv-font-display:   "Space Grotesk", "TikTok Sans", "Inter", system-ui, sans-serif;
+  /* Mirrors uiux-reference ``--serif`` (display stack for analysis / issue titles). */
+  --gv-font-serif:     var(--gv-font-display);
   --gv-font-sans:      "Space Grotesk", "TikTok Sans", "Inter", system-ui, sans-serif;
   --gv-font-mono:      "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
 

@@ -1,4 +1,4 @@
-import type { RetentionPoint } from "@/lib/api-types";
+import type { RetentionCurveSource, RetentionPoint } from "@/lib/api-types";
 import {
   areaPath,
   largestRetentionDropAnnotation,
@@ -12,6 +12,8 @@ export type RetentionCurveProps = {
   durationSec: number;
   userCurve: RetentionPoint[];
   benchmarkCurve?: RetentionPoint[] | null;
+  /** B.0.1 — kicker wording in ``retention-curve-decision.md``. */
+  retentionSource?: RetentionCurveSource;
   className?: string;
 };
 
@@ -23,6 +25,7 @@ export function RetentionCurve({
   durationSec,
   userCurve,
   benchmarkCurve,
+  retentionSource = "modeled",
   className = "",
 }: RetentionCurveProps) {
   const userPts = polylinePoints(userCurve, durationSec);
@@ -44,10 +47,15 @@ export function RetentionCurve({
 
   const tMaxUser = userCurve.length ? retentionTMax(userCurve, durationSec) : durationSec;
 
+  const kickerPrimary =
+    retentionSource === "real" ? "Đường giữ chân · vs ngách" : "Đường ước tính · vs ngách";
+
   return (
-    <div className={`border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 ${className}`.trim()}>
+    <div
+      className={`border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[18px] ${className}`.trim()}
+    >
       <div className="gv-mono mb-3 text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
-        Đường giữ chân · vs ngách
+        {kickerPrimary}
       </div>
       <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className="h-20 w-full" role="img" aria-label="Biểu đồ giữ chân">
         {fillD ? (
@@ -61,7 +69,7 @@ export function RetentionCurve({
           <polyline
             fill="none"
             points={benchPts}
-            stroke="var(--gv-pos)"
+            stroke="var(--gv-chart-benchmark)"
             strokeWidth={1.5}
             strokeDasharray="4 3"
             strokeLinecap="round"

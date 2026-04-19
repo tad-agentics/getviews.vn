@@ -3,6 +3,10 @@
 `niche_intelligence` is a materialized view (see migrations). This module maps
 columns to the `VideoNicheMeta` contract and builds the dashed benchmark curve
 using the B.0.1 modeled path (`video_structural.model_niche_benchmark_curve`).
+
+The JSON field ``retention_source`` (``"real"`` | ``"modeled"``) is mirrored into
+``POST /video/analyze`` → ``meta.retention_source`` so the SPA can pick the
+retention block kicker per ``artifacts/plans/retention-curve-decision.md``.
 """
 
 from __future__ import annotations

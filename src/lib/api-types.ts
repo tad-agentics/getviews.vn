@@ -24,9 +24,11 @@ export interface VideoAnalyzeMeta {
   date_posted: string | null;
   /** Fixture / UI: video title */
   title?: string;
+  /** ``niche_taxonomy.name_vn`` / ``name_en`` — win report kicker ``BÁO CÁO PHÂN TÍCH · …``. */
   niche_label?: string;
   is_breakout?: boolean;
   saves?: number;
+  /** Drives retention chart kicker (B.0.1): modeled vs real telemetry. */
   retention_source?: RetentionCurveSource;
 }
 

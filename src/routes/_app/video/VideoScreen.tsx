@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Copy, Loader2, Play, Plus } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
@@ -12,12 +12,24 @@ import { KpiGrid } from "@/components/v2/KpiGrid";
 import { IssueCard } from "@/components/v2/IssueCard";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
-import type { VideoAnalyzeMeta, VideoAnalyzeResponse, VideoNicheMeta } from "@/lib/api-types";
+import type { VideoAnalyzeMeta, VideoAnalyzeResponse, VideoLesson, VideoNicheMeta } from "@/lib/api-types";
+import { useHomePulse } from "@/hooks/useHomePulse";
 import { useVideoAnalysis, videoAnalysisKey } from "@/hooks/useVideoAnalysis";
 import { VideoUrlCapture } from "./VideoUrlCapture";
 
 function formatViewsVi(n: number): string {
   return n.toLocaleString("vi-VN");
+}
+
+function relativeVi(now: Date, since: Date | null): string {
+  if (!since) return "—";
+  const mins = Math.floor((now.getTime() - since.getTime()) / 60000);
+  if (mins < 2) return "vừa xong";
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  return `${days} ngày trước`;
 }
 
 function formatSaveRatePct(meta: VideoAnalyzeMeta): string {
@@ -46,6 +58,18 @@ function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: strin
   return lines.join("\n");
 }
 
+function buildWinScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: string | null): string {
+  const lines = [
+    `Corpus video_id: ${d.video_id}`,
+    ...(analyzeUrl?.trim() ? [`Link TikTok: ${analyzeUrl.trim()}`] : []),
+    "",
+    "Mình vừa soi video đang nổ trên Getviews — giúp mình lên kịch bản quay mới, áp các điểm sau:",
+    ...d.lessons.slice(0, 8).map((l) => `• ${l.title}\n  ${l.body}`),
+  ];
+  if (d.analysis_headline) lines.push("", `Góc chính: ${d.analysis_headline}`);
+  return lines.join("\n");
+}
+
 function FlopDiagnosisStrip({
   meta,
   nicheMeta,
@@ -63,9 +87,6 @@ function FlopDiagnosisStrip({
 
   return (
     <div className="border-t-2 border-[color:var(--gv-ink)] pt-5">
-      <div className="gv-mono mb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
-        Chẩn đoán · cấu trúc
-      </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 font-[family-name:var(--gv-font-mono)] text-xs text-[color:var(--gv-ink-3)]">
         <span>
           {formatViewsVi(meta.views)} view · {retLabel} · save {formatSaveRatePct(meta)}
@@ -95,6 +116,14 @@ export default function VideoScreen() {
 
   const cacheKey = useMemo(() => videoAnalysisKey(videoId, url), [videoId, url]);
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
+  const { data: pulse } = useHomePulse(cloudConfigured);
+
+  const asOf = useMemo(() => {
+    if (!pulse?.as_of) return null;
+    const d = new Date(pulse.as_of);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }, [pulse?.as_of]);
+  const asOfRelative = useMemo(() => relativeVi(new Date(), asOf), [asOf]);
 
   /** B.1.5 — same handoff as chat: `location.state.prefillUrl` → stable `?url=` query. */
   useEffect(() => {
@@ -123,7 +152,31 @@ export default function VideoScreen() {
 
   return (
     <AppLayout>
-      <TopBar title="Soi video" />
+      <TopBar
+        kicker="BÁO CÁO"
+        title="Phân Tích Video"
+        right={
+          <>
+            {pulse?.as_of ? (
+              <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)] md:inline-flex">
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
+                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
+                />
+                Dữ liệu cập nhật {asOfRelative}
+              </span>
+            ) : null}
+            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
+              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
+              Đã Lưu
+            </Btn>
+            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/chat")}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              Phân tích mới
+            </Btn>
+          </>
+        }
+      />
       <main className="mx-auto max-w-[1280px] px-6 pb-20 pt-6 min-[900px]:px-7">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <Link
@@ -221,6 +274,28 @@ function VideoAnalysisBodyInner({
   const bench = data.niche_benchmark_curve;
   const retEnd = retentionEndPct(userCurve);
   const isFlop = data.mode === "flop";
+  const flopIssueCount = data.flop_issues?.length ?? 0;
+
+  const tiktokWatchUrl = useMemo(() => {
+    const raw = meta.creator?.trim() ?? "";
+    if (!raw || !data.video_id) return null;
+    const handle = raw.startsWith("@") ? raw.slice(1) : raw;
+    if (!handle) return null;
+    return `https://www.tiktok.com/@${handle}/video/${data.video_id}`;
+  }, [meta.creator, data.video_id]);
+
+  const thumbStats = useMemo(() => {
+    const parts: string[] = [];
+    if (meta.date_posted) parts.push(`Đăng ${meta.date_posted}`);
+    parts.push(`${formatViewsVi(meta.views)} view`);
+    if (meta.saves != null && meta.saves > 0) {
+      parts.push(`${formatViewsVi(meta.saves)} save`);
+    } else {
+      parts.push(`save ${formatSaveRatePct(meta)}`);
+    }
+    if (meta.shares > 0) parts.push(`${formatViewsVi(meta.shares)} share`);
+    return parts.join(" · ");
+  }, [meta]);
 
   useEffect(() => {
     logUsage("video_screen_load", { mode: data.mode, video_id: data.video_id });
@@ -230,6 +305,40 @@ function VideoAnalysisBodyInner({
     if (isFlop) logUsage("flop_cta_click", { video_id: data.video_id });
     navigate("/app/chat", {
       state: { initialPrompt: buildFlopScriptHandoffPrompt(data, analyzeUrl) },
+    });
+  };
+
+  const goWinScript = () => {
+    navigate("/app/chat", {
+      state: { initialPrompt: buildWinScriptHandoffPrompt(data, analyzeUrl) },
+    });
+  };
+
+  const copyHook = async () => {
+    const phases = data.hook_phases ?? [];
+    const first = phases[0];
+    const text = first
+      ? `${first.t_range} · ${first.label}\n${first.body}`
+      : (data.analysis_headline ?? "");
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* clipboard denied or unavailable */
+    }
+  };
+
+  const applyLesson = (lesson: VideoLesson) => {
+    navigate("/app/chat", {
+      state: {
+        initialPrompt: [
+          `Corpus video_id: ${data.video_id}`,
+          "",
+          "Áp lesson từ video đang nổ trên Getviews:",
+          `**${lesson.title}**`,
+          lesson.body,
+        ].join("\n"),
+      },
     });
   };
 
@@ -253,7 +362,20 @@ function VideoAnalysisBodyInner({
             </div>
           ) : null}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:color-mix(in_srgb,var(--gv-ink)_55%,transparent)]" />
-          <div className="absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
+          {tiktokWatchUrl ? (
+            <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center">
+              <a
+                href={tiktokWatchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--gv-paper)_24%,transparent)] text-[color:var(--gv-paper)] outline-none ring-offset-2 backdrop-blur-sm transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
+                aria-label="Mở video trên TikTok"
+              >
+                <Play className="ml-0.5 h-7 w-7" strokeWidth={1.35} aria-hidden />
+              </a>
+            </div>
+          ) : null}
+          <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
             <div className="gv-mono text-[11px] opacity-90">
               @{meta.creator} · {Math.round(duration)}s
             </div>
@@ -263,16 +385,37 @@ function VideoAnalysisBodyInner({
           </div>
         </div>
         <p className="gv-mono mt-3 text-center text-[11px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-          {meta.date_posted ? `${meta.date_posted} · ` : ""}
-          {formatViewsVi(meta.views)} view
+          {thumbStats}
         </p>
       </aside>
 
       <div className="flex flex-col gap-7">
-        <header>
-          <div className="gv-mono mb-1 text-[9.5px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-            Báo cáo phân tích · {data.mode === "win" ? "Nổ" : "Flop"}
+        {!isFlop ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Btn variant="ghost" size="sm" type="button" disabled title="Sắp có">
+              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
+              Lưu
+            </Btn>
+            <Btn variant="ghost" size="sm" type="button" onClick={() => void copyHook()}>
+              <Copy className="h-3.5 w-3.5" strokeWidth={1.7} />
+              Copy hook
+            </Btn>
+            <Btn variant="ink" size="sm" type="button" onClick={goWinScript}>
+              Tạo kịch bản từ video này
+            </Btn>
           </div>
+        ) : null}
+        <header>
+          {isFlop ? (
+            <div className="gv-mono mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+              CHẨN ĐOÁN · {flopIssueCount} ĐIỂM LỖI CẤU TRÚC
+            </div>
+          ) : (
+            <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+              BÁO CÁO PHÂN TÍCH ·{" "}
+              <span className="normal-case text-[color:var(--gv-ink-3)]">{meta.niche_label ?? "—"}</span>
+            </div>
+          )}
           <h1
             className={`gv-tight m-0 max-w-[820px] text-[clamp(26px,3vw,36px)] tracking-tight text-[color:var(--gv-ink)] ${
               isFlop ? "text-pretty font-medium leading-[1.1]" : "font-semibold leading-[1.05]"
@@ -291,7 +434,12 @@ function VideoAnalysisBodyInner({
 
         <KpiGrid kpis={data.kpis} />
 
-        <RetentionCurve durationSec={duration} userCurve={userCurve} benchmarkCurve={bench} />
+        <RetentionCurve
+          durationSec={duration}
+          userCurve={userCurve}
+          benchmarkCurve={bench}
+          retentionSource={meta.retention_source ?? "modeled"}
+        />
 
         <section>
           <SectionMini kicker="Dòng thời gian" title={`Cấu trúc ${Math.round(duration)} giây`} />
@@ -300,25 +448,34 @@ function VideoAnalysisBodyInner({
 
         {data.mode === "win" ? (
           <section>
-            <SectionMini kicker="Giải mã hook" title="3 giây đầu — vì sao giữ chân?" />
+            <SectionMini kicker="Giải mã hook" title="3 giây đầu — vì sao bạn không lướt qua?" />
             <HookPhaseGrid phases={data.hook_phases} />
           </section>
         ) : null}
 
         {data.mode === "win" && data.lessons.length ? (
           <section>
-            <SectionMini kicker="Bài học áp dụng" title="Điểm rút ra từ video" />
+            <SectionMini kicker="Bài học áp dụng" title="3 điều bạn có thể copy" />
             <ul className="flex list-none flex-col gap-2.5 p-0">
               {data.lessons.map((lesson, i) => (
                 <li
                   key={`${lesson.title}-${i}`}
-                  className="grid grid-cols-[40px_1fr] items-center gap-4 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5 min-[520px]:grid-cols-[40px_1fr_auto]"
+                  className="grid grid-cols-1 items-center gap-3 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5 min-[520px]:grid-cols-[40px_1fr_auto] min-[520px]:gap-4"
                 >
                   <span className="gv-tight text-2xl text-[color:var(--gv-accent)]">0{i + 1}</span>
-                  <div>
+                  <div className="min-w-0">
                     <p className="gv-tight m-0 text-[17px] text-[color:var(--gv-ink)]">{lesson.title}</p>
                     <p className="mt-0.5 text-xs text-[color:var(--gv-ink-3)]">{lesson.body}</p>
                   </div>
+                  <Btn
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-center min-[520px]:w-auto"
+                    onClick={() => applyLesson(lesson)}
+                  >
+                    Áp dụng
+                  </Btn>
                 </li>
               ))}
             </ul>

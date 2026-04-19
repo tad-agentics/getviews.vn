@@ -135,9 +135,13 @@ def test_response_from_diagnostics_row_prefers_cached_curves() -> None:
         niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
         niche_benchmark=fallback_bench,
         retention_user=fallback_ret,
+        niche_label="Làm đẹp",
+        retention_source="modeled",
     )
     assert out["retention_curve"] == cached_ret
     assert out["niche_benchmark_curve"] == cached_bench
+    assert out["meta"]["niche_label"] == "Làm đẹp"
+    assert out["meta"]["retention_source"] == "modeled"
 
 
 def test_response_from_diagnostics_row_falls_back_when_curves_missing() -> None:
@@ -163,9 +167,12 @@ def test_response_from_diagnostics_row_falls_back_when_curves_missing() -> None:
         niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
         niche_benchmark=fallback_bench,
         retention_user=fallback_ret,
+        niche_label="",
+        retention_source="modeled",
     )
     assert out["retention_curve"] == fallback_ret
     assert out["niche_benchmark_curve"] == fallback_bench
+    assert out["meta"]["niche_label"] is None
 
 
 def _make_analyze_mocks(
@@ -271,6 +278,8 @@ def test_run_pipeline_cache_hit_skips_gemini() -> None:
             )
 
     assert out["analysis_headline"] == "from cache"
+    assert out["meta"]["niche_label"] == "Làm đẹp"
+    assert out["meta"]["retention_source"] == "modeled"
     service_sb.table.assert_not_called()
 
 

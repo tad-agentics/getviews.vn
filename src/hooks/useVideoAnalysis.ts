@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { VideoAnalyzeResponse } from "@/lib/api-types";
+import type { RetentionCurveSource, VideoAnalyzeResponse } from "@/lib/api-types";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
@@ -78,5 +78,12 @@ export function useVideoAnalysis({
     enabled: Boolean(enabled && key && cloudRunUrl),
     staleTime: 1000 * 60 * 60,
     retry: false,
+    select: (row) => ({
+      ...row,
+      meta: {
+        ...row.meta,
+        retention_source: (row.meta.retention_source ?? "modeled") as RetentionCurveSource,
+      },
+    }),
   });
 }
