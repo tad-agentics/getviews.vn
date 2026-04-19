@@ -1,0 +1,213 @@
+import { useMemo } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { AppLayout } from "@/components/AppLayout";
+import { SectionMini } from "@/components/SectionMini";
+import { Btn } from "@/components/v2/Btn";
+import { TopBar } from "@/components/v2/TopBar";
+import { RetentionCurve } from "@/components/v2/RetentionCurve";
+import { Timeline } from "@/components/v2/Timeline";
+import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
+import { KpiGrid } from "@/components/v2/KpiGrid";
+import { IssueCard } from "@/components/v2/IssueCard";
+import { env } from "@/lib/env";
+import { useVideoAnalysis, videoAnalysisKey } from "@/hooks/useVideoAnalysis";
+
+function formatViewsVi(n: number): string {
+  return n.toLocaleString("vi-VN");
+}
+
+export default function VideoScreen() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const videoId = searchParams.get("video_id");
+  const url = searchParams.get("url");
+
+  const cacheKey = useMemo(() => videoAnalysisKey(videoId, url), [videoId, url]);
+  const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
+
+  const { data, isPending, isError, error, refetch, isFetching } = useVideoAnalysis({
+    videoId,
+    url,
+    forceRefresh: false,
+    enabled: Boolean(cacheKey && cloudConfigured),
+  });
+
+  const emptyParams = !cacheKey;
+
+  return (
+    <AppLayout>
+      <TopBar title="Soi video" />
+      <main className="mx-auto max-w-[1280px] px-5 pb-20 pt-6 min-[900px]:px-7">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Link
+            to="/app/trends"
+            className="inline-flex items-center gap-1.5 text-sm text-[color:var(--gv-ink-3)] transition-colors hover:text-[color:var(--gv-ink)]"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Quay lại Xu hướng
+          </Link>
+        </div>
+
+        {emptyParams ? (
+          <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-8 text-center text-[color:var(--gv-ink-3)]">
+            <p className="gv-tight m-0 text-lg text-[color:var(--gv-ink)]">Thiếu tham số</p>
+            <p className="mt-2 text-sm">
+              Mở từ grid Xu hướng hoặc thêm{" "}
+              <span className="font-[family-name:var(--gv-font-mono)] text-[color:var(--gv-ink-2)]">
+                ?video_id=…
+              </span>{" "}
+              hoặc{" "}
+              <span className="font-[family-name:var(--gv-font-mono)] text-[color:var(--gv-ink-2)]">
+                ?url=…
+              </span>{" "}
+              vào URL.
+            </p>
+            <Btn className="mt-6" variant="ghost" type="button" onClick={() => navigate("/app/trends")}>
+              Đi tới Xu hướng
+            </Btn>
+          </div>
+        ) : !cloudConfigured ? (
+          <p className="text-sm text-[color:var(--gv-ink-3)]">
+            Phân tích video cần <span className="font-[family-name:var(--gv-font-mono)]">VITE_CLOUD_RUN_API_URL</span>{" "}
+            trong môi trường build.
+          </p>
+        ) : isPending || isFetching ? (
+          <div
+            className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-[color:var(--gv-ink-3)]"
+            role="status"
+            aria-label="Đang phân tích video"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-[color:var(--gv-accent)]" strokeWidth={1.5} />
+            <span className="text-sm">Đang tải phân tích…</span>
+          </div>
+        ) : isError ? (
+          <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
+            <p className="gv-tight m-0 text-lg text-[color:var(--gv-neg-deep)]">Không tải được phân tích</p>
+            <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">{error?.message ?? "Lỗi không xác định"}</p>
+            <Btn className="mt-4" type="button" variant="ghost" onClick={() => refetch()}>
+              Thử lại
+            </Btn>
+          </div>
+        ) : data ? (
+          <VideoAnalysisBodyInner data={data} />
+        ) : null}
+      </main>
+    </AppLayout>
+  );
+}
+
+function VideoAnalysisBodyInner({ data }: { data: import("@/lib/api-types").VideoAnalyzeResponse }) {
+  const navigate = useNavigate();
+  const meta = data.meta;
+  const duration = meta.duration_sec || 58;
+  const userCurve = data.retention_curve ?? [];
+  const bench = data.niche_benchmark_curve;
+
+  return (
+    <div className="grid grid-cols-1 gap-8 min-[900px]:grid-cols-[320px_1fr]">
+      <aside>
+        <div
+          className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_rgba(10,13,18,0.35)]"
+          style={{
+            backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
+            backgroundColor: "var(--gv-canvas-2)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:rgba(10,13,18,0.55)]" />
+          <div className="absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
+            <div className="gv-mono text-[11px] opacity-90">
+              @{meta.creator} · {Math.round(duration)}s
+            </div>
+            {meta.title ? (
+              <p className="gv-tight mt-1 text-lg leading-tight">{meta.title}</p>
+            ) : null}
+          </div>
+        </div>
+        <p className="gv-mono mt-3 text-center text-[11px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+          {meta.date_posted ? `${meta.date_posted} · ` : ""}
+          {formatViewsVi(meta.views)} view
+        </p>
+      </aside>
+
+      <div className="flex flex-col gap-7">
+        <header>
+          <div className="gv-mono mb-1 text-[9.5px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+            Báo cáo phân tích · {data.mode === "win" ? "Nổ" : "Flop"}
+          </div>
+          <h1 className="gv-tight m-0 text-[clamp(28px,3.2vw,40px)] font-semibold leading-[1.05] text-[color:var(--gv-ink)]">
+            {data.analysis_headline ?? "—"}
+          </h1>
+          {data.analysis_subtext ? (
+            <p className="mt-2 max-w-[640px] text-[15px] text-[color:var(--gv-ink-3)]">{data.analysis_subtext}</p>
+          ) : null}
+        </header>
+
+        <KpiGrid kpis={data.kpis} />
+
+        <RetentionCurve durationSec={duration} userCurve={userCurve} benchmarkCurve={bench} />
+
+        <section>
+          <SectionMini kicker="Dòng thời gian" title={`Cấu trúc ${Math.round(duration)} giây`} />
+          <Timeline segments={data.segments} durationSec={duration} />
+        </section>
+
+        {data.mode === "win" ? (
+          <section>
+            <SectionMini kicker="Giải mã hook" title="3 giây đầu — vì sao giữ chân?" />
+            <HookPhaseGrid phases={data.hook_phases} />
+          </section>
+        ) : null}
+
+        {data.mode === "win" && data.lessons.length ? (
+          <section>
+            <SectionMini kicker="Bài học áp dụng" title="Điểm rút ra từ video" />
+            <ul className="flex list-none flex-col gap-2.5 p-0">
+              {data.lessons.map((lesson, i) => (
+                <li
+                  key={`${lesson.title}-${i}`}
+                  className="grid grid-cols-[40px_1fr] items-center gap-4 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5 min-[520px]:grid-cols-[40px_1fr_auto]"
+                >
+                  <span className="gv-tight text-2xl text-[color:var(--gv-accent)]">0{i + 1}</span>
+                  <div>
+                    <p className="gv-tight m-0 text-[17px] text-[color:var(--gv-ink)]">{lesson.title}</p>
+                    <p className="mt-0.5 text-xs text-[color:var(--gv-ink-3)]">{lesson.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {data.mode === "flop" && data.flop_issues?.length ? (
+          <section>
+            <SectionMini kicker="Lỗi cấu trúc" title="Xếp theo ảnh hưởng" />
+            <div className="flex flex-col gap-3">
+              {data.flop_issues.map((issue, i) => (
+                <IssueCard
+                  key={`${issue.title}-${i}`}
+                  issue={issue}
+                  onApplyToScript={() => navigate(`/app/chat?prefill=${encodeURIComponent("Lên kịch bản sau khi soi video")}`)}
+                />
+              ))}
+            </div>
+            {data.projected_views != null ? (
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3 bg-[color:var(--gv-ink)] px-5 py-4 text-[color:var(--gv-paper)]">
+                <div>
+                  <div className="gv-mono text-[9.5px] uppercase tracking-[0.16em] opacity-60">
+                    Dự đoán nếu áp fix chính
+                  </div>
+                  <p className="gv-tight m-0 mt-1 text-xl font-medium">
+                    ~{formatViewsVi(data.projected_views)} view
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
+    </div>
+  );
+}

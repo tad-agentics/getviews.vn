@@ -181,7 +181,14 @@ function SidebarVideoRow({
   rank,
   onClick,
 }: {
-  item: { title: string; views: string; handle: string; time: string; img: string };
+  item: {
+    title: string;
+    views: string;
+    handle: string;
+    time: string;
+    img: string;
+    video_id?: string;
+  };
   rank?: number;
   onClick?: () => void;
 }) {
@@ -392,6 +399,7 @@ export default function ExploreScreen() {
         ? rawType.charAt(0).toUpperCase() + rawType.slice(1)
         : `@${r.creator_handle}`;
       return {
+        video_id: r.id as string,
         title,
         views: r.views != null ? formatViews(r.views) : "—",
         handle: `@${r.creator_handle ?? ""}`,
@@ -677,9 +685,7 @@ export default function ExploreScreen() {
                       video={video}
                       allVideos={videos}
                       onNavigate={() =>
-                        navigate("/app/chat", {
-                          state: video.tiktok_url ? { prefillUrl: video.tiktok_url } : undefined,
-                        })
+                        navigate(`/app/video?video_id=${encodeURIComponent(video.id)}`)
                       }
                     />
                   </motion.div>
@@ -844,7 +850,11 @@ export default function ExploreScreen() {
                     key={`b-${idx}`}
                     item={item}
                     rank={idx + 1}
-                    onClick={item.tiktok_url ? () => navigate("/app/chat", { state: { prefillUrl: item.tiktok_url } }) : undefined}
+                    onClick={
+                      item.video_id
+                        ? () => navigate(`/app/video?video_id=${encodeURIComponent(item.video_id)}`)
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -875,7 +885,11 @@ export default function ExploreScreen() {
                     key={`v-${idx}`}
                     item={item}
                     rank={idx + 6}
-                    onClick={item.tiktok_url ? () => navigate("/app/chat", { state: { prefillUrl: item.tiktok_url } }) : undefined}
+                    onClick={
+                      item.video_id
+                        ? () => navigate(`/app/video?video_id=${encodeURIComponent(item.video_id)}`)
+                        : undefined
+                    }
                   />
                 ))}
               </div>

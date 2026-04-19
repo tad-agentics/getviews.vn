@@ -32,7 +32,7 @@ const ACTIONS: ReadonlyArray<{
 ];
 
 const ROUTE: Record<ActionId, string> = {
-  video:   "/app/chat",
+  video:   "/app/video",
   channel: "/app/chat",
   trends:  "/app/trends",
   script:  "/app/chat",
