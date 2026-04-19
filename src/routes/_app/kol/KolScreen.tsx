@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Bookmark, ChevronLeft, ChevronRight, Loader2, Plus, Search, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -24,6 +24,7 @@ import {
   useKolBrowse,
   useKolDiscoverTotal,
   useKolTogglePin,
+  normalizeKolSearchInput,
 } from "@/hooks/useKolBrowse";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useProfile } from "@/hooks/useProfile";
@@ -91,6 +92,16 @@ export default function KolScreen() {
 
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
 
+  const [searchQ, setSearchQ] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearch(searchQ.trim()), 250);
+    return () => window.clearTimeout(id);
+  }, [searchQ]);
+
+  const debouncedSearchNorm = normalizeKolSearchInput(debouncedSearch);
+
   const browse = useKolBrowse({
     nicheId: nicheId ?? undefined,
     tab,
@@ -100,6 +111,7 @@ export default function KolScreen() {
     growthFast,
     sort: apiSort,
     orderDir,
+    search: debouncedSearchNorm || undefined,
     enabled: Boolean(cloudConfigured && nicheId != null),
   });
 
@@ -110,29 +122,52 @@ export default function KolScreen() {
 
   const togglePin = useKolTogglePin(userId);
 
-  const [searchQ, setSearchQ] = useState("");
-
   const rows = browse.data?.rows ?? [];
-  const filtered = useMemo(() => {
-    const q = searchQ.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.handle.toLowerCase().includes(q) ||
-        r.name.toLowerCase().includes(q) ||
-        `@${r.handle}`.toLowerCase().includes(q),
-    );
-  }, [rows, searchQ]);
 
   const [picked, setPicked] = useState<string | null>(null);
+
+  /** Reset to page 1 when debounced server search changes (skip initial mount). */
+  const prevDebouncedSearch = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevDebouncedSearch.current === null) {
+      prevDebouncedSearch.current = debouncedSearch;
+      return;
+    }
+    if (prevDebouncedSearch.current === debouncedSearch) return;
+    prevDebouncedSearch.current = debouncedSearch;
+    if (page <= 1) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("page", "1");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [debouncedSearch, page, setSearchParams]);
+
+  /** Keep selection in sync with visible rows (fixes card vs row after page/sort/refetch). */
+  useEffect(() => {
+    if (rows.length === 0) {
+      setPicked(null);
+      return;
+    }
+    const stillVisible = picked != null && rows.some((r) => r.handle === picked);
+    if (!stillVisible) {
+      setPicked(rows[0].handle);
+    }
+  }, [rows, picked]);
+
   const focused = useMemo(
-    () => filtered.find((r) => r.handle === picked) ?? filtered[0] ?? null,
-    [filtered, picked],
+    () => rows.find((r) => r.handle === picked) ?? rows[0] ?? null,
+    [rows, picked],
   );
 
-  useEffect(() => {
-    if (!picked && filtered[0]) setPicked(filtered[0].handle);
-  }, [picked, filtered]);
+  const avatarPaletteIndex = useMemo(() => {
+    if (!focused) return 0;
+    const i = rows.findIndex((r) => r.handle === focused.handle);
+    return i >= 0 ? i : 0;
+  }, [rows, focused]);
 
   useEffect(() => {
     if (!browse.isSuccess || !browse.data || nicheId == null) return;
@@ -145,6 +180,7 @@ export default function KolScreen() {
       order_dir: orderDir,
       followers: followerPreset || null,
       growth_fast: growthFast,
+      search: debouncedSearchNorm || null,
     });
   }, [
     browse.isSuccess,
@@ -156,6 +192,7 @@ export default function KolScreen() {
     orderDir,
     followerPreset,
     growthFast,
+    debouncedSearchNorm,
     browse.data?.total,
   ]);
 
@@ -258,9 +295,9 @@ export default function KolScreen() {
   const noNiche = nicheId == null;
 
   return (
-    <AppLayout>
+    <AppLayout active="kol">
       <TopBar
-        kicker="STUDIO"
+        kicker="THEO DÕI"
         title="Kênh Tham Chiếu"
         right={
           <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/chat")}>
@@ -313,7 +350,7 @@ export default function KolScreen() {
                 <div className="gv-mono mb-1.5 text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
                   KÊNH THAM CHIẾU · NGÁCH {nicheLabel.toUpperCase()}
                 </div>
-                <h1 className="gv-tight m-0 max-w-[640px] text-[clamp(28px,3.2vw,40px)] font-semibold leading-[1.05] tracking-tight text-[color:var(--gv-ink)]">
+                <h1 className="gv-tight m-0 max-w-[640px] text-[clamp(28px,3.2vw,40px)] font-semibold leading-[1.05] tracking-[-0.02em] text-[color:var(--gv-ink)]">
                   {tab === "pinned" ? (
                     <>
                       {pinnedCount} kênh bạn đang{" "}
@@ -370,8 +407,13 @@ export default function KolScreen() {
               </div>
             </div>
 
-            <div className="pb-[18px] pt-2">
+            {/* kol.jsx ribbon padding 8px 0 18px — kicker stacked here vs inline in reference */}
+            <div className="pb-[18px] pt-1.5">
+              <div className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+                LỌC THEO
+              </div>
               <FilterChipRow
+                label=""
                 trailing={
                   <>
                     <div className="relative flex min-w-[160px] max-w-[240px] flex-1 items-center">
@@ -385,7 +427,7 @@ export default function KolScreen() {
                         onChange={(e) => setSearchQ(e.target.value)}
                         placeholder="Tìm @handle…"
                         className="gv-mono h-9 w-full rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-2 pl-8 pr-3 text-xs text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] outline-none ring-[color:var(--gv-accent)] focus:ring-2"
-                        aria-label="Lọc theo handle hoặc tên (trang hiện tại)"
+                        aria-label="Tìm theo handle hoặc tên (server)"
                       />
                     </div>
                     {tab === "pinned" ? (
@@ -436,9 +478,20 @@ export default function KolScreen() {
 
             <div className="grid grid-cols-1 gap-7 min-[1100px]:grid-cols-[1fr_380px] min-[1100px]:gap-7">
               <div className="min-w-0 overflow-x-auto">
-                {filtered.length ? (
+                {rows.length === 0 && tab === "pinned" ? (
+                  <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-8 text-center">
+                    <p className="gv-tight text-lg text-[color:var(--gv-ink)]">Bạn chưa ghim kênh nào</p>
+                    <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">
+                      {'Chọn từ danh sách "Khám phá" để bắt đầu theo dõi.'}
+                    </p>
+                    <Btn className="mt-4" variant="ink" size="sm" type="button" onClick={() => setTab("discover")}>
+                      <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                      Mở Khám phá
+                    </Btn>
+                  </div>
+                ) : rows.length ? (
                   <SortableCreatorsTable
-                    rows={filtered}
+                    rows={rows}
                     selectedHandle={picked}
                     onSelect={setPicked}
                     sortKey={uiSortKey}
@@ -448,7 +501,9 @@ export default function KolScreen() {
                     renderMatch={(row: KolBrowseRow) => <MatchScoreBar match={row.match_score} />}
                   />
                 ) : (
-                  <p className="py-10 text-center text-sm text-[color:var(--gv-ink-3)]">Không có kênh phù hợp bộ lọc.</p>
+                  <p className="py-10 text-center text-sm text-[color:var(--gv-ink-3)]">
+                    Không có kênh phù hợp bộ lọc.
+                  </p>
                 )}
                 {totalRows > pageSize ? (
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--gv-rule)] pt-4">
@@ -485,6 +540,7 @@ export default function KolScreen() {
               <div className="hidden min-[1100px]:block">
                 <KolStickyDetailCard
                   row={focused}
+                  avatarPaletteIndex={avatarPaletteIndex}
                   isPinned={isPinned}
                   pinPending={togglePin.isPending}
                   onTogglePin={() => void handleTogglePin()}
@@ -497,6 +553,7 @@ export default function KolScreen() {
             <div className="mt-6 min-[1100px]:hidden">
               <KolStickyDetailCard
                 row={focused}
+                avatarPaletteIndex={avatarPaletteIndex}
                 isPinned={isPinned}
                 pinPending={togglePin.isPending}
                 sticky={false}

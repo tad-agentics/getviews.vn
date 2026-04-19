@@ -274,7 +274,6 @@ export interface KolBrowseRow {
   avg_views: number;
   growth_30d_pct: number;
   match_score: number;
-  tone: string;
   is_pinned: boolean;
   /** One-sentence rationale from Cloud Run (B.2.2 gap). */
   match_description?: string | null;

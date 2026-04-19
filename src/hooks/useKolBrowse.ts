@@ -54,8 +54,9 @@ function boundsForPreset(p: KolFollowerPreset): { min?: number; max?: number } {
   }
 }
 
-function kolBrowseFilterSig(preset: KolFollowerPreset, growthFast: boolean): string {
-  return `${preset || "none"}:${growthFast ? "1" : "0"}`;
+function kolBrowseFilterSig(preset: KolFollowerPreset, growthFast: boolean, search?: string): string {
+  const raw = (search ?? "").trim().toLowerCase().replace(/^@+/, "");
+  return `${preset || "none"}:${growthFast ? "1" : "0"}:search:${raw || "none"}`;
 }
 
 function kolSortSig(sort: KolApiSort, orderDir: KolOrderDir): string {
@@ -76,6 +77,11 @@ export const kolBrowseKeys = {
     [...kolBrowseKeys.all(), "discover-total", nicheId, filterSig] as const,
 };
 
+/** Normalized search for API (trim, lower, strip @). */
+export function normalizeKolSearchInput(raw: string | undefined): string {
+  return (raw ?? "").trim().toLowerCase().replace(/^@+/, "");
+}
+
 function isKolBrowseResponse(v: unknown): v is KolBrowseResponse {
   return (
     typeof v === "object" &&
@@ -95,6 +101,7 @@ async function fetchKolBrowse(params: {
   growthFast: boolean;
   sort: KolApiSort;
   orderDir: KolOrderDir;
+  search?: string;
 }): Promise<KolBrowseResponse> {
   const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
   if (!cloudRunUrl) throw new Error("Cloud Run URL chưa cấu hình");
@@ -113,6 +120,8 @@ async function fetchKolBrowse(params: {
   if (min != null) sp.set("followers_min", String(min));
   if (max != null) sp.set("followers_max", String(max));
   if (params.growthFast) sp.set("growth_fast", "true");
+  const qSearch = normalizeKolSearchInput(params.search);
+  if (qSearch) sp.set("search", qSearch);
 
   const res = await fetch(`${cloudRunUrl}/kol/browse?${sp.toString()}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
@@ -137,13 +146,16 @@ export function useKolBrowse(params: {
   growthFast?: boolean;
   sort: KolApiSort;
   orderDir: KolOrderDir;
+  /** Server substring filter (debounced in UI). */
+  search?: string;
   enabled?: boolean;
 }) {
   const pageSize = params.pageSize ?? 20;
   const nicheId = params.nicheId ?? null;
   const preset = params.followerPreset ?? "";
   const growthFast = Boolean(params.growthFast);
-  const filterSig = kolBrowseFilterSig(preset, growthFast);
+  const searchNorm = normalizeKolSearchInput(params.search);
+  const filterSig = kolBrowseFilterSig(preset, growthFast, searchNorm);
   const sortSig = kolSortSig(params.sort, params.orderDir);
   const enabled = Boolean(params.enabled !== false && nicheId != null && env.VITE_CLOUD_RUN_API_URL);
 
@@ -159,6 +171,7 @@ export function useKolBrowse(params: {
         growthFast,
         sort: params.sort,
         orderDir: params.orderDir,
+        search: searchNorm || undefined,
       }),
     enabled,
     staleTime: 60_000,

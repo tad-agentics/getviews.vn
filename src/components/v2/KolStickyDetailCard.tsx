@@ -1,6 +1,7 @@
 import { Bookmark, Eye, FileText } from "lucide-react";
 import type { KolBrowseRow } from "@/lib/api-types";
 import { Btn } from "@/components/v2/Btn";
+import { kolAvatarBgClassAt } from "@/lib/kolAvatarPalette";
 
 function formatCompactVi(n: number): string {
   if (n >= 1_000_000) {
@@ -13,12 +14,12 @@ function formatCompactVi(n: number): string {
 }
 
 function growthLabel(pct: number): string {
-  if (pct === 0) return "—";
-  const sign = pct > 0 ? "+" : "";
-  return `${sign}${Math.round(pct * 100)}%`;
+  if (!Number.isFinite(pct)) return "—";
+  const rounded = Math.round(pct * 100);
+  if (rounded === 0) return "0%";
+  if (rounded > 0) return `+${rounded}%`;
+  return `${rounded}%`;
 }
-
-const AVATAR_BG = "bg-[color:var(--gv-accent)] text-[color:var(--gv-canvas)]";
 
 const MATCH_FALLBACK =
   "Cùng audience overlap, khác giọng — bổ sung tốt cho catalog của bạn.";
@@ -37,6 +38,7 @@ export function KolStickyDetailCard({
   className = "",
   channelEnabled = false,
   scriptEnabled = false,
+  avatarPaletteIndex,
 }: {
   row: KolBrowseRow | null;
   isPinned: boolean;
@@ -50,8 +52,12 @@ export function KolStickyDetailCard({
   /** B.3 / B.4 routes not shipped yet — buttons stay disabled when false. */
   channelEnabled?: boolean;
   scriptEnabled?: boolean;
+  /** Row index in the visible table (0..n); drives same avatar token as `SortableCreatorsTable`. */
+  avatarPaletteIndex?: number;
 }) {
   const stickyCls = sticky ? "min-[1100px]:sticky min-[1100px]:top-[86px]" : "";
+  const avatarIdx = avatarPaletteIndex ?? 0;
+  const avatarBg = `${kolAvatarBgClassAt(avatarIdx)} text-[color:var(--gv-canvas)]`;
 
   if (!row) {
     return (
@@ -72,7 +78,7 @@ export function KolStickyDetailCard({
       <div className={`rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[22px] ${stickyCls}`.trim()}>
         <div className="mb-3.5 flex items-center gap-3.5">
           <div
-            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-[22px] font-medium ${AVATAR_BG}`}
+            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-[22px] font-medium ${avatarBg}`}
           >
             {letter}
           </div>

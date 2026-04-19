@@ -330,6 +330,14 @@
   --gv-lime:           oklch(0.92 0.18 122);
   --gv-azure:          oklch(0.70 0.18 235);
 
+  /* ── KOL table avatar cycle (kol.jsx) ──────────────────────────── */
+  --gv-avatar-1:       var(--gv-accent); /* pink accent */
+  --gv-avatar-2:       #3D2F4A;          /* dark plum */
+  --gv-avatar-3:       #2A3A5C;          /* deep blue */
+  --gv-avatar-4:       #1F3A5C;          /* navy */
+  --gv-avatar-5:       #4A2A5C;          /* dark violet */
+  --gv-avatar-6:       #5C2A3A;          /* dark magenta */
+
   /* ── Radii ─────────────────────────────────────────────────────── */
   --gv-radius-sm:      6px;
   --gv-radius-md:      12px;

@@ -1236,6 +1236,11 @@ async def kol_browse_endpoint(
         None,
         description="asc or desc; server defaults per tab when omitted.",
     ),
+    search: str | None = Query(
+        None,
+        max_length=80,
+        description="Optional substring filter on handle or display name (case-insensitive).",
+    ),
 ) -> JSONResponse:
     """B.2.1 — KOL browse rows + rule-based match_score (Phase B / B.0.2)."""
     from getviews_pipeline.kol_browse import KOL_SORT_QUERY_KEYS, run_kol_browse_sync
@@ -1271,6 +1276,7 @@ async def kol_browse_endpoint(
             growth_fast=growth_fast,
             sort=sort,
             sort_desc=sort_desc,
+            search=search,
         )
     except ValueError as exc:
         msg = str(exc)

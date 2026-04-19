@@ -21,9 +21,11 @@ export function FilterChipRow({
       className={`flex flex-col gap-3 min-[640px]:flex-row min-[640px]:items-center min-[640px]:justify-between ${className}`.trim()}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <span className="gv-mono shrink-0 text-[9px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
-          {label}
-        </span>
+        {label ? (
+          <span className="gv-mono shrink-0 text-[9px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+            {label}
+          </span>
+        ) : null}
         {children}
       </div>
       {trailing ? <div className="flex shrink-0 flex-wrap items-center gap-2">{trailing}</div> : null}

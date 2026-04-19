@@ -27,7 +27,7 @@ import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/use
 import { chatKeys } from "@/hooks/useChatSession";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
-import { BottomTabBar } from "@/components/BottomTabBar";
+import { BottomTabBar, type AppShellActive } from "@/components/BottomTabBar";
 
 type Session = {
   id: string;
@@ -387,7 +387,7 @@ function SessionRow({
    AppLayout
 ════════════════════════════════════════════════ */
 interface AppLayoutProps {
-  active?: "home" | "chat" | "trends" | "settings";
+  active?: AppShellActive;
   children: ReactNode;
   enableMobileSidebar?: boolean;
 }
@@ -544,8 +544,11 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           <NavItem
             icon={Users}
             label="Kênh Tham Chiếu"
-            badge="Sắp có"
-            disabled
+            active={active === "kol"}
+            onClick={() => {
+              navigate("/app/kol");
+              onClose?.();
+            }}
           />
           <NavItem
             icon={FileText}

@@ -6,7 +6,11 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 
+/** Keys rendered as bottom tabs (four slots). */
 type Tab = "home" | "chat" | "trends" | "settings";
+
+/** Shell-wide active section; values not in the bottom bar show no tab as selected. */
+export type AppShellActive = Tab | "kol";
 
 /**
  * Mobile bottom tab bar (Phase A · A3.3).
@@ -18,7 +22,7 @@ type Tab = "home" | "chat" | "trends" | "settings";
  * Sits above the browser safe area via `pb-[env(safe-area-inset-bottom)]`
  * so iOS home-indicator devices don't clip the labels.
  */
-export function BottomTabBar({ active }: { active?: Tab }) {
+export function BottomTabBar({ active }: { active?: AppShellActive }) {
   const navigate = useNavigate();
 
   const items: ReadonlyArray<{

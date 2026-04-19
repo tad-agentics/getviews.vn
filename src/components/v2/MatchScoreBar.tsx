@@ -6,7 +6,8 @@ export function MatchScoreBar({ match }: { match: number }) {
   const m = Math.max(0, Math.min(100, Math.round(match)));
   return (
     <div className="flex min-w-0 items-center gap-1.5">
-      <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-[color:var(--gv-rule)]">
+      {/* kol.jsx: track height 4px, radius 999 */}
+      <div className="h-1 min-h-[4px] min-w-0 flex-1 overflow-hidden rounded-full bg-[color:var(--gv-rule)]">
         <div
           className="h-full rounded-full bg-[color:var(--gv-accent)]"
           style={{ width: `${m}%` }}

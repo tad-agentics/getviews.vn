@@ -194,6 +194,22 @@ def _sort_decorated_rows(
     rows.sort(key=fn, reverse=desc)
 
 
+def _filter_decorated_by_search(rows: list[dict[str, Any]], search: str | None) -> list[dict[str, Any]]:
+    """Substring match on handle or display name (post-decorate, pre-sort / pre-page)."""
+    if not search:
+        return rows
+    q = search.strip().lower().lstrip("@")
+    if not q:
+        return rows
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        h = str(r.get("handle") or "").lower()
+        n = str(r.get("name") or "").lower()
+        if q in h or q in n:
+            out.append(r)
+    return out
+
+
 def _match_description_sentence(score: int, niche_label: str) -> str:
     label = (niche_label or "").strip() or "ngách của bạn"
     if score >= 78:
@@ -236,6 +252,7 @@ def run_kol_browse_sync(
     growth_fast: bool = False,
     sort: str | None = None,
     sort_desc: bool | None = None,
+    search: str | None = None,
 ) -> dict[str, Any]:
     """Build /kol/browse JSON for the authenticated user (JWT-scoped client)."""
     prof = (
@@ -297,7 +314,6 @@ def run_kol_browse_sync(
             "avg_views": int(round(av)),
             "growth_30d_pct": g_pct,
             "match_score": score,
-            "tone": "",
             "is_pinned": h in pinned_set,
             "match_description": md,
         }
@@ -308,6 +324,7 @@ def run_kol_browse_sync(
         if growth_fast:
             pool = _apply_growth_fast_proxy(pool)
         decorated = [decorate(dict(r)) for r in pool]
+        decorated = _filter_decorated_by_search(decorated, search)
         sk_disc: SortKey = sort if sort in (
             "rank",
             "match",
@@ -372,6 +389,7 @@ def run_kol_browse_sync(
     if growth_fast:
         pool_pin = _apply_growth_fast_proxy(pool_pin)
     decorated_pin = [decorate(dict(r)) for r in pool_pin]
+    decorated_pin = _filter_decorated_by_search(decorated_pin, search)
     sk_pin: SortKey = sort if sort in (
         "pinned",
         "rank",

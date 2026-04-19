@@ -100,3 +100,57 @@ def test_match_description_sentence_includes_score() -> None:
     s = _match_description_sentence(82, "Skincare")
     assert "82" in s or "/100" in s
     assert "Skincare" in s
+
+
+def test_run_kol_browse_search_filters_rows() -> None:
+    """S-2 — partial handle + partial display_name substring match after decorate."""
+    profile_exec = MagicMock(data={"primary_niche": 1, "reference_channel_handles": []})
+    starters_exec = MagicMock(
+        data=[
+            {
+                "handle": "alice",
+                "display_name": "Alice Nguyen",
+                "followers": 10_000,
+                "avg_views": 5000,
+                "video_count": 1,
+                "rank": 1,
+            },
+            {
+                "handle": "bobtech",
+                "display_name": "Bob",
+                "followers": 20_000,
+                "avg_views": 8000,
+                "video_count": 2,
+                "rank": 2,
+            },
+        ]
+    )
+    tax_exec = MagicMock(data=[{"name_vn": "Tech", "name_en": "Tech"}])
+
+    sb = MagicMock()
+
+    def table(name: str) -> MagicMock:
+        m = MagicMock()
+        if name == "profiles":
+            m.select.return_value.single.return_value.execute.return_value = profile_exec
+        elif name == "starter_creators":
+            m.select.return_value.eq.return_value.order.return_value.execute.return_value = starters_exec
+        elif name == "niche_taxonomy":
+            m.select.return_value.eq.return_value.limit.return_value.execute.return_value = tax_exec
+        else:
+            raise AssertionError(f"unexpected table {name!r}")
+        return m
+
+    sb.table.side_effect = table
+
+    out = run_kol_browse_sync(sb, niche_id=1, tab="discover", page=1, page_size=10, search="lice")
+    assert out["total"] == 1
+    assert out["rows"][0]["handle"] == "alice"
+
+    out2 = run_kol_browse_sync(sb, niche_id=1, tab="discover", page=1, page_size=10, search="bob")
+    assert out2["total"] == 1
+    assert out2["rows"][0]["handle"] == "bobtech"
+
+    out3 = run_kol_browse_sync(sb, niche_id=1, tab="discover", page=1, page_size=10, search="zzz")
+    assert out3["total"] == 0
+    assert out3["rows"] == []
