@@ -166,6 +166,7 @@ export interface ChannelKpiCell {
 
 export interface ChannelAnalyzeResponse {
   handle: string;
+  niche_id: number;
   name: string;
   bio: string | null;
   followers: number;

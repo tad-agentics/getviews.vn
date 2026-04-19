@@ -1309,6 +1309,45 @@ async def kol_toggle_pin_endpoint(
     return JSONResponse({"ok": True})
 
 
+@app.get("/channel/analyze")
+async def channel_analyze_endpoint(
+    user: dict = Depends(require_user),
+    handle: str = Query(..., min_length=1, max_length=200, description="TikTok handle, có hoặc không @"),
+    force_refresh: bool = Query(
+        False,
+        description="Bỏ qua cache 7 ngày và gọi lại Gemini (trừ thin_corpus).",
+    ),
+) -> JSONResponse:
+    """B.3.1 — Phân tích kênh: gate ≥10 video, cache ``channel_formulas``, Gemini + trừ credit khi miss."""
+    from getviews_pipeline.channel_analyze import InsufficientCreditsError, run_channel_analyze_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    sb_user = user_supabase(user["access_token"])
+    try:
+        out = await run_sync(
+            run_channel_analyze_sync,
+            get_service_client(),
+            sb_user,
+            user_id=user["user_id"],
+            raw_handle=handle,
+            force_refresh=force_refresh,
+        )
+    except InsufficientCreditsError:
+        return JSONResponse(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            content={"error": "insufficient_credits"},
+        )
+    except ValueError as exc:
+        msg = str(exc)
+        if "Chưa chọn ngách" in msg or "Không thấy kênh" in msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
+    except Exception as exc:
+        logger.exception("[channel/analyze] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Home screen endpoints — Phase A · A1
 # ══════════════════════════════════════════════════════════════════════════
