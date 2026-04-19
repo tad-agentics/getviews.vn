@@ -1,16 +1,16 @@
 ---
 name: wireframes
-description: Complete Phase 2 instructions — scope planning, anti-bloat rules, screen metadata format, Figma Make TC-EBC prompt framework, Guidelines.md structure, and quality checks. Read this when running /phase2.
+description: Complete Phase 2 instructions — scope planning, anti-bloat rules, screen metadata format, Make TC-EBC prompt framework, Guidelines.md structure, and quality checks. Read this when running /phase2.
 disable-model-invocation: true
 ---
 
-# Phase 2 — Screen Planning + Figma Make Brief
+# Phase 2 — Screen Planning + Make brief (appendix)
 
-Two jobs, two outputs:
+Two jobs, **one committed doc** (`artifacts/docs/screen-specs-[app]-v1.md`):
 1. **Screen specs** — scope planning, screen metadata with interaction flows, copy slots, states
-2. **Figma Make brief** — structured input for the human to use in Figma Make to generate visual designs
+2. **`## Make build brief` appendix** — structured input for the human to use in Make to generate visual designs (same file — no separate `figma-*.md`)
 
-Visual design is human-driven via Figma Make. This phase produces the structured input for that process, not wireframe visuals.
+Visual design is human-driven via Make. This phase produces the structured input for that process, not wireframe visuals.
 
 ---
 
@@ -274,9 +274,9 @@ Copy this block directly into `project.mdc` and the tech spec Not Building secti
 
 ---
 
-## Part B — Screen Metadata + Figma Make Brief
+## Part B — Screen Metadata + Make brief appendix
 
-Once the scope plan is confirmed, produce two outputs:
+Once the scope plan is confirmed, produce `artifacts/docs/screen-specs-[app]-v1.md` with screen metadata and the Make brief sections below:
 
 ### Output 1 — `artifacts/docs/screen-specs-[app]-v1.md`
 
@@ -359,7 +359,7 @@ All copy must be validated against `copy-rules.mdc` and the EDS copy formula bef
 
 ### What Goes Where
 
-| Information | In Figma Make brief | In screen metadata |
+| Information | In Make brief appendix | In screen metadata |
 |---|---|---|
 | Layout and visual hierarchy | ✓ (described for Make) | — |
 | Copy text and labels (production-ready) | ✓ (content hierarchy) | ✓ (copy slots with context types) |
@@ -395,9 +395,9 @@ All copy must be validated against `copy-rules.mdc` and the EDS copy formula bef
 
 ---
 
-### Output 2 — `artifacts/docs/figma-make-brief.md`
+### Output 2 — `## Make build brief` (inside screen specs)
 
-Structured input for the human to use in Figma Make. This is NOT an agent-executable step — the human takes this brief into Figma Make and generates a complete working React app with mock data.
+Structured input for the human to use in Make. **Write it as a `## Make build brief` appendix in `artifacts/docs/screen-specs-[app]-v1.md`** — do not create a separate tracked `figma-*.md` file. This is NOT an agent-executable step — the human takes this brief into Make and generates a complete working React app with mock data.
 
 **What Make produces:** A full React + Tailwind app where every button works, every form submits, every list renders — with hardcoded mock data. The frontend agent later swaps these mocks for real Supabase queries.
 
@@ -407,7 +407,7 @@ Structured input for the human to use in Figma Make. This is NOT an agent-execut
 
 ---
 
-#### Section 1 — Guidelines.md (paste into Figma Make custom rules)
+#### Section 1 — Guidelines.md (paste into Make custom rules)
 
 Guidelines.md is a persistent instruction file Make reads before EVERY generation. Set this up ONCE at the start of the Make project — it governs all subsequent prompts.
 
@@ -610,10 +610,10 @@ MAINTAIN: Button style, modal layout, blur overlay, all other copy
 
 ---
 
-#### Section 4 — Make Brief Output Template
+#### Section 4 — Make brief output template (paste under `## Make build brief` in screen specs)
 
 ```markdown
-# Figma Make Brief — [App Name]
+# Visual build brief (Make) — [App Name]
 
 ## Guidelines.md Setup
 
@@ -724,7 +724,7 @@ If northstar §13 (User Scenarios) is present, validate: does the wave order all
 - Dopamine moment field set on every screen — `none` or specific D[N] ID from EDS §6
 - Credit cost field set on paywall-gated screens — matches northstar §5 pricing table
 
-### Figma Make brief
+### Make build brief (appendix in screen specs)
 - Guidelines.md structure defined — styles.md, components.md, copy.md, anti-patterns.md all populated
 - styles.md includes OKLCH/hex brand colors, typography, spacing scale, border radius, dark mode from EDS §5
 - anti-patterns.md includes both EDS §8 and design-system.mdc Slop Guard rules

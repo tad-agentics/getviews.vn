@@ -35,22 +35,21 @@ artifacts/docs/emotional-design-system.md (Phase 1 input)
 + phase-specific files per the task dispatched
 ```
 
-## Phase 2 — Screen Planning + Figma Make Brief
+## Phase 2 — Screen Planning + Make brief (appendix)
 
 **Input:** `artifacts/docs/northstar-[app].html`, `artifacts/docs/emotional-design-system.md`, `.cursor/rules/copy-rules.mdc`
 
 **Output:**
-1. `artifacts/docs/screen-specs-[app]-v1.md` — screen metadata (interaction flows, copy slots, dopamine flags, credit costs)
-2. `artifacts/docs/figma-make-brief.md` — structured prompt/brief for the human to use in Figma Make
+1. `artifacts/docs/screen-specs-[app]-v1.md` — screen metadata (interaction flows, copy slots, dopamine flags, credit costs) **and**, when required by the wireframes skill, a `## Make build brief` appendix (Guidelines + prompts — single file, no separate `figma-*.md`).
 
-This phase produces the screen-level specifications AND the Figma Make input brief. The human then takes the brief into Figma Make to generate the visual designs and working prototype. This is a human-driven step — the agent does not generate visuals.
+This phase produces the screen-level specifications and the human-facing Make input in one doc. The human then uses Make to generate the visual designs and working prototype. This is a human-driven step — the agent does not generate visuals.
 
 **Screen metadata rules:**
 - All wireframe copy must be **production-ready** — validated against copy-rules.mdc quality test before delivery
 - Every screen metadata block must include: interaction flow (step-by-step with branch conditions), dopamine moment flag (from EDS §6), copy slots with context types, credit cost
 - `{{COPY:context}}` tokens are the exception (<10%), not the default
 
-**Commit on approval:** `docs(phase2): screen specs + figma make brief complete`
+**Commit on approval:** `docs(phase2): screen specs complete`
 
 ---
 

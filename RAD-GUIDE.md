@@ -520,7 +520,7 @@ flowchart TD
     A["Phase 1\nNorthstar + EDS"]
     OH["/office-hours\nValidate northstar + diagnostic"]
     B["/init\nScaffold · deps · staging · Vercel"]
-    C["/phase2\nScreen Specs + Figma Make Brief"]
+    C["/phase2\nScreen Specs + Make brief"]
     C2["Figma Make\n(human-driven design)"]
     D["/research\n(if integrations detected)"]
     E["/phase4\nComplexity Scan → Research → Invariants → Schema → Decisions"]

@@ -97,8 +97,7 @@ Blocking gates are enforced — no agent self-proceeds to the next phase.
 |---|---|
 | `artifacts/docs/northstar-[app].html` | Phase 1 input |
 | `artifacts/docs/emotional-design-system.md` (or `eds-[app].html`) | Phase 1 input |
-| `artifacts/docs/screen-specs-[app]-v1.md` | Phase 2 output — screen metadata |
-| `artifacts/docs/figma-make-brief.md` | Phase 2 output — Figma Make input brief |
+| `artifacts/docs/screen-specs-[app]-v1.md` | Phase 2 output — screen metadata (include a `## Make build brief` appendix when needed) |
 | `artifacts/docs/design-system-spec.md` | Make component inventory (produced during Foundation) |
 | `artifacts/docs/tech-spec.md` | Phase 4 output |
 | `artifacts/docs/ETHOS.md` | Builder ethos — completeness, search-before-building, user sovereignty |

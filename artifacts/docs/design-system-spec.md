@@ -66,7 +66,6 @@ Semantic colors: `--purple`, `--ink`, `--surface`, `--border`, `--danger`, `--su
 | `EmptyState.tsx` | Icon + title + body + optional CTA |
 | `ErrorBanner.tsx` | Error message + retry |
 | `SkeletonCard.tsx` | Pulsing placeholder card |
-| `figma/ImageWithFallback.tsx` | Image with fallback |
 
 ## Gaps addressed in Foundation
 

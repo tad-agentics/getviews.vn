@@ -65,7 +65,7 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
         <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
           LỜI THOẠI
         </div>
-        <p className="gv-serif text-[13.5px] leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
+        <p className="gv-serif font-semibold tracking-[-0.035em] text-[13.5px] leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
       </div>
       <div className="relative p-3">
         <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">

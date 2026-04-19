@@ -53,7 +53,7 @@ export function SceneIntelligencePanel({
         <div className="gv-mono gv-uc mb-2 text-[10px] tracking-[0.16em] opacity-60">
           SHOT {String(shotIndex + 1).padStart(2, "0")} · PHÂN TÍCH CẤU TRÚC
         </div>
-        <p className="gv-serif text-pretty text-lg font-medium leading-[1.25] tracking-[-0.01em] text-[color:var(--gv-canvas)]">
+        <p className="text-pretty text-[18px] font-medium leading-[1.25] tracking-[-0.01em] text-[color:var(--gv-canvas)] [font-family:var(--gv-font-serif)]">
           {shot.tip}
         </p>
       </div>

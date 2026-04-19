@@ -268,8 +268,8 @@ export default function ScriptScreen() {
   return (
     <AppLayout active="script" enableMobileSidebar>
       <TopBar
-        kicker="CREATOR"
-        title="Xưởng Viết"
+        kicker="XƯỞNG VIẾT"
+        title="Kịch Bản"
         right={
           <>
             {pulse?.as_of ? (
@@ -313,7 +313,7 @@ export default function ScriptScreen() {
                 <div className="gv-mono gv-uc mb-1.5 text-[10px] font-semibold leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
                   XƯỞNG VIẾT · KỊCH BẢN SỐ {scriptNo}
                 </div>
-                <h1 className="gv-tight gv-serif m-0 text-[clamp(26px,3vw,36px)] font-medium leading-[1.1] tracking-[-0.02em] text-[color:var(--gv-ink)]">
+                <h1 className="gv-serif m-0 text-[clamp(26px,3vw,36px)] leading-[1.1] text-[color:var(--gv-ink)]">
                   {topic}
                 </h1>
               </div>
@@ -411,7 +411,7 @@ export default function ScriptScreen() {
                       className="w-full accent-[color:var(--gv-accent)]"
                     />
                     <HookTimingMeter delayMs={hookDelayMs} />
-                    <p className="gv-mono mt-2 text-[11px] leading-[1.45] text-[color:var(--gv-ink-4)]">
+                    <p className="gv-mono mt-3 text-[11px] leading-[1.45] text-[color:var(--gv-ink-4)]">
                       Video thắng trong ngách Tech rơi hook tại{" "}
                       <span className="text-[color:var(--gv-ink-2)]">0.8–1.4s</span>. Sau 1.4s, retention giảm{" "}
                       <span className="text-[color:var(--gv-accent)]">38%</span>.
