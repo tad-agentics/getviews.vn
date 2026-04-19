@@ -120,13 +120,6 @@ function parseNicheId(raw: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** Match ``script.jsx`` hook rows: benchmark prefix ``▲`` without duplicating if API already sends it. */
-function formatHookDeltaDisplay(delta: string): string {
-  const t = delta.trim();
-  if (!t) return "▲";
-  return t.startsWith("▲") ? t : `▲${t}`;
-}
-
 export default function ScriptScreen() {
   const [searchParams] = useSearchParams();
   const { data: profile } = useProfile();
@@ -347,8 +340,8 @@ export default function ScriptScreen() {
                               }`}
                             >
                               <span className="gv-tight text-[13px]">{`"${h.pattern}"`}</span>
-                              <span className="gv-mono text-[10px] text-[rgb(0,159,250)]">
-                                {formatHookDeltaDisplay(h.delta)}
+                              <span className="gv-mono text-[10px] text-[color:var(--gv-chart-benchmark)]">
+                                ▲{h.delta}
                               </span>
                             </button>
                           );
@@ -488,6 +481,7 @@ export default function ScriptScreen() {
                       overlaySamples={overlaySamples}
                       referenceClips={referenceClips}
                       sceneSampleSize={activeIntel?.sample_size ?? null}
+                      overlayCorpusCount={activeIntel?.sample_size ?? null}
                     />
                   </div>
                 </aside>

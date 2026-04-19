@@ -19,6 +19,8 @@ export type SceneIntelligencePanelProps = {
   referenceClips: ScriptReferenceClip[];
   /** When set and below 30, shows a thin-corpus banner (plan risk · scene intelligence). */
   sceneSampleSize?: number | null;
+  /** Positive integer → anchors the "Trong N video thắng" copy; falls back to generic phrasing. */
+  overlayCorpusCount?: number | null;
 };
 
 const CLIP_FALLBACK_BG = [
@@ -33,6 +35,7 @@ export function SceneIntelligencePanel({
   overlaySamples,
   referenceClips,
   sceneSampleSize = null,
+  overlayCorpusCount = null,
 }: SceneIntelligencePanelProps) {
   const span = shot.t1 - shot.t0;
   const slow = span > shot.winnerAvg * 1.2;
@@ -80,8 +83,10 @@ export function SceneIntelligencePanel({
         <div className="gv-mono gv-uc mb-2.5 text-[9.5px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
           TEXT OVERLAY · THƯ VIỆN
         </div>
-        <p className="mb-2.5 text-xs leading-[1.5] text-[color:var(--gv-ink-3)]">
-          Trong các video thắng, scene loại này dùng:
+        <p className="mb-2.5 text-xs leading-snug text-[color:var(--gv-ink-3)]">
+          {typeof overlayCorpusCount === "number" && overlayCorpusCount > 0
+            ? `Trong ${overlayCorpusCount} video thắng, scene loại này dùng:`
+            : "Trong các video thắng, scene loại này hay dùng:"}
           <span className="gv-mono mt-1 block text-[13px] font-medium text-[color:var(--gv-ink)]">
             {shot.overlayWinner}
           </span>
