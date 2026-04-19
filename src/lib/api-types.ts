@@ -220,6 +220,9 @@ export interface ScriptShot {
   overlay: string;
   corpus_avg?: number;
   winner_avg?: number;
+  /** Join key for ``scene_intelligence`` merge on the client. */
+  intel_scene_type?: string;
+  overlay_winner?: string;
 }
 
 export interface ScriptGenerateResponse {

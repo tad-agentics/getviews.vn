@@ -53,6 +53,8 @@ from getviews_pipeline.pipelines import (
     run_video_diagnosis,
 )
 from getviews_pipeline.runtime import run_sync
+from getviews_pipeline.script_generate import InsufficientCreditsError as ScriptInsufficientCreditsError
+from getviews_pipeline.script_generate import ScriptGenerateBody
 from getviews_pipeline.session_store import (
     build_session_context_from_db,
     get_stream_chunks,
@@ -1394,6 +1396,38 @@ async def script_hook_patterns_endpoint(
         raise
     except Exception as exc:
         logger.exception("[script/hook-patterns] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
+@app.post("/script/generate")
+async def script_generate_endpoint(
+    body: ScriptGenerateBody,
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """B.4 — Generate shot scaffold (v1 deterministic template). Deducts one credit."""
+    from getviews_pipeline.script_generate import run_script_generate_sync
+
+    token = user["access_token"]
+    sb = user_supabase(token)
+    try:
+        nid = await _resolve_caller_niche_id(token)
+    except HTTPException:
+        raise
+    if body.niche_id != nid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="niche_id phải trùng ngách chính trong hồ sơ.",
+        )
+    try:
+        out = await run_sync(run_script_generate_sync, sb, user_id=user["user_id"], body=body)
+    except ScriptInsufficientCreditsError:
+        return JSONResponse(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            content={"error": "insufficient_credits"},
+        )
+    except Exception as exc:
+        logger.exception("[script/generate] failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return JSONResponse(out)
 

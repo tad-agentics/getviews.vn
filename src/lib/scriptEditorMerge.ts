@@ -1,4 +1,4 @@
-import type { SceneIntelligenceRow } from "@/lib/api-types";
+import type { SceneIntelligenceRow, ScriptShot } from "@/lib/api-types";
 
 /** In-memory shot row for the script studio (B.4.3) before ``POST /script/generate``. */
 export type ScriptEditorShot = {
@@ -15,6 +15,26 @@ export type ScriptEditorShot = {
   /** Join key for ``scene_intelligence.scene_type``. */
   intelSceneType: string;
 };
+
+/** Map ``POST /script/generate`` rows into editor state (tips fall back to templates). */
+export function apiShotsToEditorShots(rows: ScriptShot[], fallbacks: ScriptEditorShot[]): ScriptEditorShot[] {
+  return rows.map((s, i) => {
+    const fb = fallbacks[Math.min(i, fallbacks.length - 1)]!;
+    return {
+      t0: s.t0,
+      t1: s.t1,
+      cam: s.cam,
+      voice: s.voice,
+      viz: s.viz,
+      overlay: s.overlay,
+      tip: fb.tip,
+      corpusAvg: s.corpus_avg ?? fb.corpusAvg,
+      winnerAvg: s.winner_avg ?? fb.winnerAvg,
+      overlayWinner: s.overlay_winner ?? fb.overlayWinner,
+      intelSceneType: s.intel_scene_type ?? fb.intelSceneType,
+    };
+  });
+}
 
 export function mergeSceneIntelIntoShots(
   shots: ScriptEditorShot[],

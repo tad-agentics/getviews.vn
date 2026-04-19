@@ -1171,7 +1171,7 @@ ships.
 | Soi Video | — | B.1.6 ✅ (routes `/app/video`) |
 | Tìm KOL / Creator | — | B.2.3 ✅ (`/app/kol`) |
 | Soi Kênh Đối Thủ | B.3 in progress | B.3.4 merges |
-| Lên Kịch Bản Quay | B.4 in progress | B.4.5 merges |
+| Lên Kịch Bản Quay | — | B.4.5 ✅ (`/app/script`) |
 
 Add optional `countdown?: string` to the `QUICK_ACTIONS` config. Home screen
 renders it as a `mono uc` chip in `ink-4` at top-right of the card.
@@ -1187,7 +1187,9 @@ RLS + `/app/video` logging; later screens add their own `action` names.
 | `/video` | ≥ 30% flop sessions → "Áp vào kịch bản" click | `flop_cta_click` | row count vs `video_screen_load` (`metadata.mode = flop`) |
 | `/kol` | ≥ 20% sessions → pin or channel click | `kol_pin` / `kol_to_channel` | row count |
 | `/channel` | ≥ 25% sessions → "Tạo kịch bản" click | `channel_to_script` | row count |
-| `/script` | ≥ 15% scripts → "Lưu vào lịch quay" click | `script_save` | row count |
+| `/video` | Win analysis → script studio | `video_to_script` | row count vs `video_screen_load` (`mode=win`) |
+| `/script` | Studio entry + scaffold regen | `script_screen_load` / `script_generate` | row count |
+| `/script` | ≥ 15% scripts → "Lưu vào lịch quay" click | `script_save` | row count (fires when control ships) |
 
 *Note:* `anonymous_usage` remains IP-scoped for the landing free Soi Kênh trial;
 it is **not** used for in-app screen analytics.

@@ -74,7 +74,7 @@ rg -n '#[0-9a-fA-F]{3,8}\\b|--ink-soft|--purple|--border-active|--gv-purple|text
 | Hook meter + caption | Meter + 0.8–1.4s + 38% copy | `HookTimingMeter` + same copy (generic “trong ngách” vs ref “Tech”) | **Should-fix (parked)** — niche label in sentence optional follow-up. |
 | Duration + insight | Range + `DurationInsight` | Same | **OK** |
 | Tone row | chip / chip-accent | `Chip` component `accent` / `default` | **OK** |
-| CTA | Accent **Tạo lại với AI** | Disabled + tooltip for POST `/script/generate` | **OK** |
+| CTA | Accent **Tạo lại với AI** | **Live:** calls `POST /script/generate` (v1 deterministic scaffold, 1 credit) | **OK** |
 | Citation | Static `CitationTag n={47}` | `hookData.citation` when `sample_size > 0` | **OK** — product-correct. |
 
 ### Middle column — pacing + shots + forecast

@@ -32,7 +32,7 @@ All surfaces resolve through `--gv-*` tokens. The only literal hex in the B.3 su
 
 | ID | Item | Resolution |
 |----|------|--------------|
-| M-1 | CTA missing script icon vs `channel.jsx:118` | **Done:** `FileText` from `lucide-react` on “Tạo kịch bản…” (`ChannelScreen.tsx`); still `disabled` + `title="Sắp có"` until B.4. Commit **`377c162`**. |
+| M-1 | CTA missing script icon vs `channel.jsx:118` | **Done:** `FileText` on “Tạo kịch bản…”. **Update (B.4.5):** CTA enabled — navigates to `/app/script` with formula prefill + `channel_to_script` analytics. |
 
 ### should-fix
 
@@ -57,7 +57,7 @@ All surfaces resolve through `--gv-*` tokens. The only literal hex in the B.3 su
 ## Explicitly deferred / aligned-with-plan
 
 - **`PostingHeatmap`** — intentionally absent (plan §B.3 defers). Shipped surfaces cadence + time as a chip, plus the `THỜI GIAN POST` KPI cell — sufficient signal density for the hero strip.
-- **`Tạo kịch bản theo công thức này` CTA** — disabled (`title="Sắp có"`) until B.4 `/app/script` lands. Confirmed by reference: the design's CTA also has no `onClick`; parity is visual, not behavioral.
+- **`Tạo kịch bản theo công thức này` CTA** — **shipped (B.4.5):** opens Xưởng Viết with `scriptPrefillFromChannel` (niche, topic, top hook). Historical note: the static `channel.jsx` reference had no `onClick`; product chose behavioural routing for production.
 - **`force_refresh=1` querystring escape hatch** — shipped only, not a design concern. Correctly scoped to URL-level (not a visible control).
 
 ---

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Copy, Download, Film, Sparkles } from "lucide-react";
+import { ArrowLeft, Copy, Download, Film, Loader2, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -15,10 +15,12 @@ import { ScriptPacingRibbon } from "@/components/v2/ScriptPacingRibbon";
 import { ScriptShotRow } from "@/components/v2/ScriptShotRow";
 import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
+import { useScriptGenerate } from "@/hooks/useScriptGenerate";
 import { useScriptHookPatterns } from "@/hooks/useScriptHookPatterns";
 import { useScriptSceneIntelligence } from "@/hooks/useScriptSceneIntelligence";
 import { env } from "@/lib/env";
-import { mergeSceneIntelIntoShots, type ScriptEditorShot } from "@/lib/scriptEditorMerge";
+import { logUsage } from "@/lib/logUsage";
+import { apiShotsToEditorShots, mergeSceneIntelIntoShots, type ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import type { ScriptTone } from "@/lib/api-types";
 import { supabase } from "@/lib/supabase";
 
@@ -138,6 +140,9 @@ export default function ScriptScreen() {
   const [hookDelayMs, setHookDelayMs] = useState(1200);
   const [toneIdx, setToneIdx] = useState(1);
   const [scriptNo] = useState(() => 14);
+  const [shotsOverride, setShotsOverride] = useState<ScriptEditorShot[] | null>(null);
+
+  const generate = useScriptGenerate();
 
   useEffect(() => {
     const t = searchParams.get("topic");
@@ -166,9 +171,15 @@ export default function ScriptScreen() {
     if (partial) setHookPattern(partial.pattern);
   }, [searchParams, hookData]);
 
+  useEffect(() => {
+    if (cloudConfigured && effectiveNicheId != null) {
+      logUsage("script_screen_load", { niche_id: effectiveNicheId });
+    }
+  }, [cloudConfigured, effectiveNicheId]);
+
   const mergedShots = useMemo(
-    () => mergeSceneIntelIntoShots(BASE_SHOTS, sceneData?.scenes),
-    [sceneData?.scenes],
+    () => mergeSceneIntelIntoShots(shotsOverride ?? BASE_SHOTS, sceneData?.scenes),
+    [shotsOverride, sceneData?.scenes],
   );
 
   const activeRow = mergedShots[activeShot] ?? mergedShots[0]!;
@@ -215,6 +226,32 @@ export default function ScriptScreen() {
   const hookButtons = (hookData?.hook_patterns ?? []).slice(0, 4);
   const citation = hookData?.citation;
   const selectedHook = hookPattern || hookButtons[0]?.pattern || "";
+
+  const handleRegenerate = () => {
+    if (effectiveNicheId == null) return;
+    const hookLine = selectedHook.trim() || topic.trim().slice(0, 120) || "Hook mở đầu";
+    generate.mutate(
+      {
+        topic: topic.trim(),
+        hook: hookLine,
+        hook_delay_ms: hookDelayMs,
+        duration,
+        tone: TONES[toneIdx]!,
+        niche_id: effectiveNicheId,
+      },
+      {
+        onSuccess: (data) => {
+          setShotsOverride(apiShotsToEditorShots(data.shots, BASE_SHOTS));
+          setActiveShot(0);
+          logUsage("script_generate", {
+            niche_id: effectiveNicheId,
+            duration,
+            shots: data.shots.length,
+          });
+        },
+      },
+    );
+  };
 
   const loadingPanel = cloudConfigured && effectiveNicheId != null && (scenePending || hookPending);
 
@@ -380,10 +417,28 @@ export default function ScriptScreen() {
                     </div>
                   </CardInput>
 
-                  <Btn variant="accent" type="button" className="w-full justify-center" disabled title="Sắp có — B.4 POST /script/generate">
-                    <Sparkles className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                  <Btn
+                    variant="accent"
+                    type="button"
+                    className="w-full justify-center"
+                    disabled={!topic.trim() || generate.isPending}
+                    onClick={handleRegenerate}
+                  >
+                    {generate.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2} aria-hidden />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    )}
                     Tạo lại với AI
                   </Btn>
+                  {generate.isError ? (
+                    <p className="gv-mono text-[11px] text-[color:var(--gv-neg-deep)]">
+                      {generate.error.name === "InsufficientCredits" ||
+                      generate.error.message === "insufficient_credits"
+                        ? "Không đủ credit. Nạp thêm hoặc dùng thao tác miễn phí."
+                        : generate.error.message}
+                    </p>
+                  ) : null}
 
                   {citation && citation.sample_size > 0 ? (
                     <CitationTag

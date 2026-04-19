@@ -356,6 +356,7 @@ function VideoAnalysisBodyInner({
   };
 
   const goWinScript = () => {
+    logUsage("video_to_script", { video_id: data.video_id, mode: "win" });
     const topic =
       meta.title?.trim() ||
       stringifyAnalysisHeadline(data.analysis_headline).trim() ||

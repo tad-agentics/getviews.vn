@@ -11,6 +11,7 @@ import { TopBar } from "@/components/v2/TopBar";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
 import { env } from "@/lib/env";
+import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromChannel } from "@/lib/scriptPrefill";
 import type { ChannelAnalyzeResponse, VideoKpi } from "@/lib/api-types";
 import { formatFollowers, formatRelativeSinceVi, formatViews } from "@/lib/formatters";
@@ -370,7 +371,10 @@ function ChannelBody({
             className="mt-4 w-full justify-center"
             variant="accent"
             type="button"
-            onClick={() => navigate(scriptFromFormulaHref)}
+            onClick={() => {
+              logUsage("channel_to_script", { niche_id: data.niche_id, handle: data.handle });
+              navigate(scriptFromFormulaHref);
+            }}
           >
             <FileText className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
             Tạo kịch bản theo công thức này
