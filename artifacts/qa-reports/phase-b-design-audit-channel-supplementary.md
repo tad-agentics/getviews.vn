@@ -1,8 +1,14 @@
 # Phase B · B.3 — supplementary design parity (`/app/channel`)
 
-**Date:** 2026-04-19
-**Parent audits:** `phase-b-design-audit-channel.md` (B.3.5), `phase-b-b3-full-audit.md` (B.3 closure), `phase-b-b33-channel-audit.md` (B.3.3 compliance), `phase-b-b31-channel-analyze-audit.md` (B.3.1 API).
+**Date:** 2026-04-19 (original); **closure update:** 2026-04-19  
+**Parent audits:** `phase-b-design-audit-channel.md` (B.3.5), `phase-b-b3-full-audit.md` (B.3 closure), `phase-b-b33-channel-audit.md` (B.3.3 compliance), `phase-b-b31-channel-analyze-audit.md` (B.3.1 API).  
 **Scope:** Second-pass drift check against `artifacts/uiux-reference/screens/channel.jsx` + `CHANNEL_DETAIL` fixture in `data.js`, after the primary audit + pixel-parity pass (`82d64c2`) landed on `main`.
+
+---
+
+## Status (post-implementation)
+
+All **must-fix** and **should-fix** items from the drift table below are **closed in code** (see **Resolution** column). **S-3** and **C-*** rows remain intentional / parked per original notes. **`FormulaBar` unit tests** were added per the doc’s recommended follow-up.
 
 ---
 
@@ -20,31 +26,31 @@ All surfaces resolve through `--gv-*` tokens. The only literal hex in the B.3 su
 
 ---
 
-## Remaining drifts vs `channel.jsx` (after primary audit)
+## Drift table vs `channel.jsx` (historical) → resolution
 
 ### must-fix
 
-| ID | Item | Reference (`channel.jsx`) | Shipped (`ChannelScreen.tsx`) | Fix |
-|----|------|---------------------------|-------------------------------|------|
-| M-1 | Full-width CTA missing **script icon** | `<Icon name="script" size={13} /> Tạo kịch bản theo công thức này` (line 118) | `<Btn variant="accent" ... disabled title="Sắp có">Tạo kịch bản theo công thức này</Btn>` — **no icon** (line 365-367) | Import `FileText` (or the project's script glyph) and prefix the button children with `<FileText className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />`. Keep disabled state until B.4 route lands. |
+| ID | Item | Resolution |
+|----|------|--------------|
+| M-1 | CTA missing script icon vs `channel.jsx:118` | **Done:** `FileText` from `lucide-react` on “Tạo kịch bản…” (`ChannelScreen.tsx`); still `disabled` + `title="Sắp có"` until B.4. Commit **`377c162`**. |
 
 ### should-fix
 
-| ID | Item | Note |
-|----|------|------|
-| S-1 | Bio quote style — design uses **straight ASCII** `"..."` (`channel.jsx:35`); shipped wraps in curly `&ldquo;&rdquo;` at `ChannelScreen.tsx:266`. Cosmetic, but design spec is literal. | Either revert to straight quotes or document curly as a deliberate Vietnamese-typography upgrade. Low urgency — reviewer preference. |
-| S-2 | `" · cache"` suffix on the `computed_at` footer (`ChannelScreen.tsx:374`) exposes cache-hit state to end users. Design shows no such affordance. | Gate behind `import.meta.env.DEV`, or move to an `aria-hidden` mono tick, or drop entirely — the 7d cache is an implementation detail. |
-| S-3 | Top-video caption `line-clamp-2` (`ChannelScreen.tsx:330`) is a shipped enhancement not in the reference. Keeps as-is; reference titles are short by design, real TikTok titles are not. | Keep. Document as intentional for real data. |
+| ID | Item | Resolution |
+|----|------|--------------|
+| S-1 | Bio curly vs straight `"..."` | **Done:** bio rendered with straight ASCII U+0022 quotes via a template literal in `ChannelScreen.tsx`. Commit **`9a4b42f`**. |
+| S-2 | `· cache` in footer | **Done:** `import.meta.env.DEV && data.cache_hit === true` only. Commit **`377c162`**. |
+| S-3 | `line-clamp-2` on video titles | **Unchanged by design** — intentional for long TikTok titles (see original note). |
 
 ### consider
 
 | ID | Item | Note |
 |----|------|------|
-| C-1 | `drop-shadow-md` on video-tile view overlay (`ChannelScreen.tsx:326`) not in reference — safe legibility upgrade for pastel swatch backgrounds. | Keep. |
-| C-2 | `TopBar` + live pulse + KOL button + `"Kênh khác"` form — reference has only a **ghost back button** `Về Studio` at the top, then the hero card. Primary audit already parks this as "product choice; keep for parity with `/app/video`". | Parked. Re-verify when `/app/script` (B.4) lands whether all four creator screens share the same shell chrome. |
-| C-3 | `TOP_VIDEO_TILE_COLORS` backend palette is four pastels; reference `VIDEOS` uses darker saturated hexes (`#3D2F4A`, `#7C2A4A`, etc.). Visually softer than reference but consistent across real tiles (whose `thumbnail_url` usually renders on top). | Parked. If the design team wants the dark-pastel mood, move the palette into a `channel_tile_palette` token catalog and share with `/app/video` hero tiles. |
-| C-4 | Lesson empty-state copy — `"Cần ≥10 video trong ngách để tổng hợp bài học."` / `"Chưa có bài học từ mô hình."` (`ChannelScreen.tsx:343-344`) — reference has no empty state (lessons are hardcoded), so this is strictly additive for thin-corpus real data. | Keep. |
-| C-5 | Initial-avatar generalization — reference hardcodes `"S"`; shipped uses `channelInitial(data.name, data.handle)`. Necessary for real creators. | Keep. |
+| C-1 | `drop-shadow-md` on view overlay | Keep — legibility. |
+| C-2 | TopBar + pulse + KOL + “Kênh khác” | Parked until B.4 shell review. |
+| C-3 | Backend tile palette vs reference `VIDEOS` | Parked — design / token catalog optional. |
+| C-4 | Lesson empty-state copy | Keep — thin-corpus UX. |
+| C-5 | Dynamic avatar initial | Keep — real data. |
 
 ---
 
@@ -61,7 +67,7 @@ All surfaces resolve through `--gv-*` tokens. The only literal hex in the B.3 su
 `cloud-run/tests/test_channel_analyze.py` covers:
 
 | Test | Guarantees |
-|------|-----------|
+|------|------------|
 | `test_normalize_formula_pcts_targets_hundred` | `_normalize_formula_pcts` rescales 4 steps to sum = 100, each ≥ 4. |
 | `test_top_hook_from_types_mode` | Plurality hook + usage % for KPI `HOOK CHỦ ĐẠO`. |
 | `test_optimal_length_band_from_duration_seconds` | `ĐỘ DÀI TỐI ƯU` band from `analysis_json.duration_seconds`. |
@@ -69,15 +75,23 @@ All surfaces resolve through `--gv-*` tokens. The only literal hex in the B.3 su
 | `test_views_mom_delta_with_synthetic_windows` | `↑ N% MoM` string driven by 30d vs prior-30d averages. |
 | `test_run_channel_analyze_thin_corpus_no_credit` | **Gate**: `total < CORPUS_GATE_MIN (=10)` → `formula_gate="thin_corpus"`, `formula=None`, `decrement_credit` not called. Asserts `CORPUS_GATE_MIN == 10`. |
 
-Frontend tests: no dedicated `ChannelScreen.test.tsx` shipped. `FormulaBar` has no unit test either. Recommended follow-up (not a must-fix for closure): a lightweight render test asserting (a) 4 weighted segments when `steps` provided, (b) empty-state copy branches on `formulaGate`.
+### Frontend (supplementary follow-up)
+
+**`src/components/v2/FormulaBar.test.tsx`** — Vitest + Testing Library:
+
+| Case | Asserts |
+|------|---------|
+| Steps provided | Segment labels (`Hook · 22%`, …) and detail lines render. |
+| `formula_gate === "thin_corpus"` + no steps | Empty copy **“Chưa đủ video để dựng công thức”**. |
+| Empty steps + `gate === null` | **“Chưa có công thức”**. |
+
+`ChannelScreen.test.tsx` not added (heavier setup); optional later.
 
 ---
 
 ## Verdict
 
-**Green** for the primary B.3 ship, with one pixel-level must-fix carried forward (M-1, missing script icon on the CTA) and two low-urgency should-fix items (S-1 bio quotes, S-2 cache suffix). Primary audit already closed the structural drift (hero padding, 36px rhythm, 901px breakpoint, KPI `channel` variant, video-tile chrome, formula copy, lessons `mb-0.5`). Token gate clean. Backend gate + cache semantics covered by `test_channel_analyze.py`.
-
-Next: fold M-1 + S-2 into the next `/app/channel` polish commit, then hand off to **B.4 `/app/script`** (unblocks the currently-disabled "Tạo kịch bản theo công thức này" CTA).
+**Green / closed:** supplementary drifts **M-1**, **S-1**, **S-2** are implemented on `main`; token sweep unchanged; **FormulaBar** covered by lightweight unit tests. Hand off to **B.4 `/app/script`** when ready (enables the script CTA behavior).
 
 ---
 
@@ -91,3 +105,7 @@ Next: fold M-1 + S-2 into the next `/app/channel` polish commit, then hand off t
 | B.3.3 audit + must-fix UI / B.3.4 routing | `8c9d43a` |
 | B.3.5 design audit + reference parity | `b7eb6a7` |
 | B.3 pixel parity (KpiGrid, rhythm, 901 breakpoint) | `82d64c2` |
+| Supplementary doc (initial) | `ce826c2` |
+| Supplementary fixes M-1, S-2 | `377c162` |
+| Supplementary fix S-1 (ASCII bio quotes) | `9a4b42f` |
+| `FormulaBar` Vitest coverage + supplementary audit doc closure | `57f538d` |
