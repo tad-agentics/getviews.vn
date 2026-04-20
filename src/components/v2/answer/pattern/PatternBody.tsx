@@ -14,6 +14,7 @@ import { WhatStalledCard } from "./WhatStalledCard";
 import { WhatStalledRow } from "./WhatStalledRow";
 import { WoWDiffBand } from "./WoWDiffBand";
 import { wowDiffHasContent } from "./patternFormat";
+import { PatternSubreports } from "../multi/PatternSubreport";
 
 function sumToneClass(tone: SumStatData["tone"]): string {
   if (tone === "up") return "text-[color:var(--gv-pos)]";
@@ -110,6 +111,8 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
           <PatternCellGrid cells={report.patterns} />
         </section>
       ) : null}
+
+      <PatternSubreports report={report} />
 
       {report.actions.length > 0 ? (
         <section>

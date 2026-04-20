@@ -112,11 +112,17 @@ def append_turn(
 
     inner: dict[str, Any]
     if fmt == "pattern":
+        # C.5.3 — auto-merge timing subreport on "post gì khi nào" style queries
+        # (plan §A.4 Report + timing case; also covers intent #18 content_calendar).
+        from getviews_pipeline.intent_router import detect_pattern_subreports
+
+        subs = detect_pattern_subreports(query)
         inner = build_pattern_report(
             niche_pk,
             query,
             session.get("intent_type") or "trend_spike",
             window_days=window_days,
+            subreports=subs or None,
         )
     elif fmt == "ideas":
         inner = build_ideas_report(
