@@ -13,9 +13,10 @@ export function TemplatizeCard({ sessionId }: { sessionId: string | null }) {
           size="sm"
           type="button"
           disabled={!sessionId}
-          onClick={() =>
-            logUsage("templatize_click", { surface: "answer_shell", session_id: sessionId })
-          }
+          onClick={() => {
+            if (!sessionId) return;
+            logUsage("templatize_click", { surface: "answer_shell", session_id: sessionId });
+          }}
         >
           Lưu
         </Btn>

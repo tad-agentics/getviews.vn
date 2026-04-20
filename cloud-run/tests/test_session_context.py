@@ -77,18 +77,8 @@ def test_reconstructs_completed_intents_from_message_history():
     assert ctx["completed_intents"] == ["video_diagnosis", "content_directions", "trend_spike"]
 
 
-def test_niche_first_seen_wins_oldest_first_walk():
-    """Niche uses `not ctx.get("niche")` guard → oldest message's niche is kept.
-
-    The DB query returns rows desc (newest first).  build_session_context_from_db
-    reverses the list before iterating, so it walks oldest → newest.  The guard
-    `if niche and not ctx.get("niche")` means the *first* niche encountered
-    (oldest message) wins and subsequent messages cannot overwrite it.
-
-    Messages returned by DB (desc): fitness (newest) → skincare (oldest)
-    After reverse: skincare first → fitness second
-    Expected: niche == "skincare"
-    """
+def test_niche_most_recent_message_wins():
+    """Niche follows the latest message with structured_output.niche (session_store)."""
     messages = [
         _msg("video_diagnosis", {"niche": "fitness"}),   # newest (index 0 from DB)
         _msg("video_diagnosis", {"niche": "skincare"}),  # oldest (index 1 from DB)
@@ -96,7 +86,7 @@ def test_niche_first_seen_wins_oldest_first_walk():
     sb = _make_supabase(messages)
     ctx = build_session_context_from_db("session-niche", sb)
 
-    assert ctx["niche"] == "skincare"
+    assert ctx["niche"] == "fitness"
 
 
 def test_accumulates_videos_analyzed_across_messages():

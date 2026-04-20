@@ -37,7 +37,7 @@ export function SessionDrawer({
     <>
       <button
         type="button"
-        className="fixed inset-0 z-[100] bg-[rgba(10,12,16,0.35)]"
+        className="fixed inset-0 z-[100] bg-[color:var(--gv-scrim)]"
         aria-label="Đóng"
         onClick={onClose}
       />

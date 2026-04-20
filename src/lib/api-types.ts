@@ -468,6 +468,12 @@ export type ReportV1 =
   | { kind: "timing"; report: TimingReportPayload }
   | { kind: "generic"; report: GenericReportPayload };
 
+/** §J names — same shapes as `*ReportPayload` (plan uses `PatternPayload`, …). */
+export type PatternPayload = PatternReportPayload;
+export type IdeasPayload = IdeasReportPayload;
+export type TimingPayload = TimingReportPayload;
+export type GenericPayload = GenericReportPayload;
+
 export interface AnswerSessionRow {
   id: string;
   user_id: string;
@@ -489,4 +495,12 @@ export interface AnswerTurnRow {
   query: string;
   payload: ReportV1;
   credits_used?: number;
+  classifier_confidence?: "high" | "medium" | "low";
+  intent_confidence?: "high" | "medium" | "low";
+  cloud_run_run_id?: string | null;
+  created_at?: string;
 }
+
+/** §J — plan naming (`AnswerSession` / `AnswerTurn`); same shapes as `*Row` from Supabase. */
+export type AnswerSession = AnswerSessionRow;
+export type AnswerTurn = AnswerTurnRow;

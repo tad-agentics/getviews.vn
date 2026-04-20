@@ -8,6 +8,9 @@ import type { Json } from "@/lib/database.types";
  * Common `action` values: `video_screen_load`, `flop_cta_click`, `video_to_script`,
  * `script_screen_load`, `script_generate`, `channel_to_script`, `kol_screen_load`,
  * `kol_pin` (plan §Measurement / B.2.5 / B.4).
+ *
+ * Phase C.1 (`usage_events` partial index `idx_usage_events_c1_answer`): `answer_session_create`,
+ * `answer_turn_append`, `templatize_click`, `answer_drawer_open`.
  */
 export function logUsage(action: string, metadata?: Record<string, unknown>): void {
   void (async () => {

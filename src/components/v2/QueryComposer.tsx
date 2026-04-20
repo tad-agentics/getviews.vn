@@ -3,6 +3,7 @@
  * UIUX ref: artifacts/uiux-reference/screens/home.jsx Composer.
  */
 
+import { forwardRef } from "react";
 import { Paperclip, Mic, Film, Eye, ArrowUp } from "lucide-react";
 
 export type QueryComposerProps = {
@@ -14,29 +15,46 @@ export type QueryComposerProps = {
   corpusCount?: number;
   disabled?: boolean;
   showUrlChip?: boolean;
+  /** e.g. navigate to `/app/video` to paste a link */
+  onPasteVideoClick?: () => void;
+  /** e.g. seed textarea with @handle prompt */
+  onPasteHandleClick?: () => void;
 };
 
-export function QueryComposer({
-  value,
-  onChange,
-  onSubmit,
-  placeholder = "Hỏi về hook, trend, hay kênh…",
-  nicheLabel,
-  corpusCount,
-  disabled,
-  showUrlChip,
-}: QueryComposerProps) {
-  return (
+export const QueryComposer = forwardRef<HTMLTextAreaElement, QueryComposerProps>(
+  function QueryComposer(
+    {
+      value,
+      onChange,
+      onSubmit,
+      placeholder = "Hỏi về hook, trend, hay kênh…",
+      nicheLabel,
+      corpusCount,
+      disabled,
+      showUrlChip,
+      onPasteVideoClick,
+      onPasteHandleClick,
+    },
+    ref,
+  ) {
+    const submitIfNonEmpty = () => {
+      if (!value.trim() || disabled) return;
+      onSubmit();
+    };
+
+    return (
     <div className="gv-surface-brutal">
       <div className="px-5 pt-4 pb-2">
         <textarea
+          ref={ref}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSubmit();
-            }
+            if (e.key !== "Enter" || e.shiftKey) return;
+            // Empty: let Enter insert a newline (default) instead of submitting.
+            if (!value.trim()) return;
+            e.preventDefault();
+            submitIfNonEmpty();
           }}
           placeholder={placeholder}
           rows={3}
@@ -61,12 +79,14 @@ export function QueryComposer({
           <button
             type="button"
             className="inline-flex items-center gap-1 rounded-md border border-[var(--gv-rule)] bg-[var(--gv-paper)] px-2 py-1 text-[13px] text-[var(--gv-ink)]"
+            onClick={onPasteVideoClick}
           >
             <Film className="size-3" /> Dán link video
           </button>
           <button
             type="button"
             className="hidden items-center gap-1 rounded-md border border-[var(--gv-rule)] bg-[var(--gv-paper)] px-2 py-1 text-[13px] text-[var(--gv-ink)] sm:inline-flex"
+            onClick={onPasteHandleClick}
           >
             <Eye className="size-3" /> Dán @handle
           </button>
@@ -91,7 +111,7 @@ export function QueryComposer({
           </button>
           <button
             type="button"
-            onClick={onSubmit}
+            onClick={submitIfNonEmpty}
             disabled={disabled}
             className="btn btn-accent inline-flex items-center gap-1.5 px-3 py-2 disabled:opacity-40"
           >
@@ -101,5 +121,6 @@ export function QueryComposer({
         </div>
       </div>
     </div>
-  );
-}
+    );
+  },
+);

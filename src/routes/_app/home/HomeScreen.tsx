@@ -1,9 +1,9 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Paperclip, Film, Eye, Mic, Bookmark, Plus, Sparkles } from "lucide-react";
+import { Bookmark, Plus, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
-import { Composer } from "@/components/v2/Composer";
+import { QueryComposer } from "@/components/v2/QueryComposer";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
@@ -27,16 +27,14 @@ import { NichePicker } from "./components/NichePicker";
  * chips → <hr> → morning ritual → <hr> → quick actions + pulse → hooks → breakouts.
  */
 
-function formatCount(n: number): string {
-  return n.toLocaleString("vi-VN");
-}
-
-const CHIP_BTN =
-  "inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 text-xs text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]";
+/** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
+const URL_IN_TEXT =
+  /(?:https?:\/\/)?(?:www\.)?(?:vm\.|vt\.)?(?:tiktok\.com|youtube\.com|youtu\.be)\b/i;
 
 export default function HomeScreen() {
   const navigate = useNavigate();
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const [composerText, setComposerText] = useState("");
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
   const { data: pulse } = useHomePulse();
@@ -76,52 +74,16 @@ export default function HomeScreen() {
   };
 
   const fillComposer = (text: string) => {
-    const el = composerRef.current;
-    if (!el) return;
-    el.value = text;
-    el.focus();
+    setComposerText(text);
+    queueMicrotask(() => composerRef.current?.focus());
   };
 
-  const composerChips = (
-    <>
-      <button
-        type="button"
-        title="Đính kèm link / file"
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--gv-ink-4)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink-2)]"
-      >
-        <Paperclip className="h-4 w-4" strokeWidth={1.7} />
-      </button>
-      <button type="button" className={CHIP_BTN} onClick={() => navigate("/app/video")}>
-        <Film className="h-3.5 w-3.5" strokeWidth={1.7} />
-        Dán link video
-      </button>
-      <button
-        type="button"
-        className={`${CHIP_BTN} hidden sm:inline-flex`}
-        onClick={() =>
-          fillComposer("Soi kênh đối thủ — dán @handle TikTok vào đây:\n")
-        }
-      >
-        <Eye className="h-3.5 w-3.5" strokeWidth={1.7} />
-        Dán @handle
-      </button>
-      {videosInNiche != null ? (
-        <span className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
-          {formatCount(videosInNiche)}+ video
-        </span>
-      ) : null}
-    </>
-  );
-
-  const composerToolbarEnd = (
-    <button
-      type="button"
-      title="Đọc vào"
-      className="hidden h-8 w-8 items-center justify-center rounded-full text-[color:var(--gv-ink-4)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink-2)] sm:inline-flex"
-    >
-      <Mic className="h-4 w-4" strokeWidth={1.7} />
-    </button>
-  );
+  const submitStudioComposer = () => {
+    const text = composerText.trim();
+    if (!text) return;
+    setComposerText("");
+    launchChat(text);
+  };
 
   return (
     <AppLayout active="home" enableMobileSidebar>
@@ -202,13 +164,19 @@ export default function HomeScreen() {
           </div>
 
           <div className="gv-fade-up gv-fade-up-delay-1 mt-7 w-full max-w-[880px]">
-            <Composer
+            <QueryComposer
               ref={composerRef}
-              layout="studio"
-              toolbarEnd={composerToolbarEnd}
+              value={composerText}
+              onChange={setComposerText}
+              onSubmit={submitStudioComposer}
               placeholder={`Hỏi về hook, trend, hay kênh trong ngách ${nicheLabel}…`}
-              onSubmit={launchChat}
-              leftChips={composerChips}
+              nicheLabel={nicheLabel}
+              corpusCount={videosInNiche ?? undefined}
+              showUrlChip={URL_IN_TEXT.test(composerText)}
+              onPasteVideoClick={() => navigate("/app/video")}
+              onPasteHandleClick={() =>
+                fillComposer("Soi kênh đối thủ — dán @handle TikTok vào đây:\n")
+              }
             />
           </div>
 

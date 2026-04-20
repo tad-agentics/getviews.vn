@@ -59,7 +59,9 @@ export function useInvalidateAnswerSessions() {
   };
 }
 
-export function lastPayloadFromTurns(turns: Array<{ payload: ReportV1 }> | undefined): ReportV1 | null {
+export function lastPayloadFromTurns(
+  turns: Array<{ payload: ReportV1 }> | undefined,
+): ReportV1 | null {
   const last = turns?.at(-1);
   return last?.payload ?? null;
 }

@@ -2,9 +2,40 @@
  * Cloud Run `/answer/*` helpers (Phase C.1.2) — single place for base URL + auth header.
  */
 import { env } from "@/lib/env";
-import type { AnswerSessionRow, ReportV1 } from "@/lib/api-types";
+import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 
 export const answerApiBase = () => env.VITE_CLOUD_RUN_API_URL ?? "";
+
+export type CreateAnswerSessionBody = {
+  initial_q: string;
+  intent_type: string;
+  niche_id: number | null;
+  format: "pattern" | "ideas" | "timing" | "generic";
+};
+
+/** `POST /answer/sessions` — Idempotency-Key optional (120s server-side cache). */
+export async function createAnswerSession(
+  accessToken: string,
+  body: CreateAnswerSessionBody,
+  idempotencyKey?: string,
+): Promise<AnswerSessionRow> {
+  const base = answerApiBase();
+  if (!base) throw new Error("no_cloud_run");
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
+  }
+  const res = await fetch(`${base}/answer/sessions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`answer/sessions ${res.status}`);
+  return (await res.json()) as AnswerSessionRow;
+}
 
 export type AnswerSessionsListResponse = {
   sessions: AnswerSessionRow[];
@@ -56,6 +87,6 @@ export async function fetchAnswerSessionDetail(accessToken: string, sessionId: s
   if (!res.ok) throw new Error(`answer/session ${res.status}`);
   return (await res.json()) as {
     session: AnswerSessionRow & { title: string | null; initial_q: string };
-    turns: Array<{ payload: ReportV1 }>;
+    turns: AnswerTurnRow[];
   };
 }

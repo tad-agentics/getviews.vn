@@ -324,6 +324,8 @@
   --gv-neg-deep:       #D11840;
   /* Phase C — WhatStalled negative accent (distinct from trend "down" pink) */
   --gv-danger:         #B91C1C;
+  /* Modal / drawer backdrop (Phase C.1.5 — no raw rgba in answer JSX) */
+  --gv-scrim:          rgb(10 12 16 / 35%);
 
   /* Phase C.0.4 — single canonical main column width (all /video /kol /channel /script /answer /history) */
   --gv-route-max-width: 1280px;

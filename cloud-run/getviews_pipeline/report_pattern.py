@@ -17,6 +17,7 @@ from getviews_pipeline.report_types import (
     SourceRow,
     SumStat,
     WoWDiff,
+    validate_and_store_report,
 )
 
 
@@ -88,6 +89,13 @@ def build_fixture_pattern_report() -> dict[str, Any]:
         related_questions=["Hook nào đang giảm?", "Format nào oversaturated?", "Niche con nào đang nổi?"],
     )
     return payload.model_dump()
+
+
+# C.1.2 — full §J `ReportV1` envelope for pytest / smoke scripts (`kind` + `report`).
+ANSWER_FIXTURE_PATTERN: dict[str, Any] = validate_and_store_report(
+    "pattern",
+    build_fixture_pattern_report(),
+)
 
 
 def build_pattern_report(_niche_id: int, _query: str, _intent_type: str, window_days: int = 7) -> dict[str, Any]:

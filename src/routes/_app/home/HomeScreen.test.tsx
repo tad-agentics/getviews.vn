@@ -16,6 +16,15 @@ import { MemoryRouter } from "react-router";
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 
+vi.mock("@/lib/env", () => ({
+  env: {
+    VITE_SUPABASE_URL: "https://test.supabase.co",
+    VITE_SUPABASE_PUBLISHABLE_KEY: "test-key",
+    VITE_CLOUD_RUN_API_URL: undefined,
+    VITE_R2_PUBLIC_URL: undefined,
+  },
+}));
+
 const mockUseProfile = vi.fn();
 const mockUseNicheTaxonomy = vi.fn();
 const mockUseHomePulse = vi.fn();
