@@ -511,12 +511,17 @@ hand-tested at 360 / 720 / 1100 / 1280 px. Covers:
   chat/:sessionId` (legacy transcript viewer).
 - `/app/video`, `/app/channel`, `/app/kol`, `/app/script` (four Phase B
   creator screens).
-- `/app/settings`, `/app/trends`, `/app/onboarding` (post-C.7 legacy
-  surfaces — see D.4 for token purge).
+- `/app/onboarding` (2-step split-screen shipped in A.3.5; matches
+  `onboarding-settings.jsx` reference, token-gate clean). Verify
+  first-visit redirect from `/app` still fires when
+  `profile.primary_niche` is null (`src/routes/_app/route.tsx:40-41`)
+  and that completing both steps routes back to `/app`.
+- `/app/settings`, `/app/trends` (legacy-layout surfaces — see D.4 for
+  token purge; layout revamps deferred).
 - `/app/learn-more`, `/app/pricing`, `/app/checkout`,
   `/app/payment-success`.
 - `/login`, `/signup`, `/auth/callback` (auth flow).
-- `/` (landing, pre-rendered).
+- `/` (landing, pre-rendered; legacy layout — see D.4).
 
 **Deliverable:** `artifacts/qa-reports/phase-d-route-coverage.md` with
 pass/fail per `(route, state, breakpoint)` cell. Any fail → must-fix
@@ -600,8 +605,15 @@ md` + `phase-d-rls-audit.md`.
   corpus sizes).
 - Heading hierarchy (`h1` → `h2` → `h3`) correct per screen.
 - Touch-target check: every interactive element ≥ 44×44 px.
+- **`CLAUDE.md` staleness sweep.** The "Out of scope" block in
+  `CLAUDE.md` still says `OnboardingScreen (niche set inline on first
+  ChatScreen session)` — stale twice (OnboardingScreen shipped in
+  A.3.5; ChatScreen was deleted in Phase C). Correct the line to
+  reflect reality during this pass. Any other CLAUDE.md claims
+  contradicted by shipped code get the same treatment.
 
-**Deliverable:** `artifacts/qa-reports/phase-d-copy-a11y.md`.
+**Deliverable:** `artifacts/qa-reports/phase-d-copy-a11y.md` +
+any `CLAUDE.md` correction commit(s).
 
 ### D.3.6 — Performance + bundle (1d)
 
@@ -688,9 +700,12 @@ Per the cluster table in D.0.iii. Each cluster:
      `LandingPage.tsx`). Strictly token swap; **no JSX structure
      changes**. Rationale documented in the commit: the full layout
      revamps are feature work per the hard stop at Phase D.
-   - **`feat(token-purge): onboarding (safety)`** — even though
-     `OnboardingScreen` is dropped per CLAUDE.md, its route file
-     (`src/routes/_app/onboarding/route.tsx`) may carry stray tokens.
+   - **`feat(token-purge): onboarding (verify)`** — the
+     `OnboardingScreen` under `src/routes/_app/onboarding/` is live
+     (CLAUDE.md drop-rule is stale per D.3.5 note). Current grep
+     shows 0 legacy hits; this commit is a **verification pass** —
+     re-run the grep, confirm clean, no changes expected. Ships only
+     if something surfaces.
      Zero-out or confirm route is unmounted.
 
 `Badge.tsx` D.4.1.a alters `variant="purple"` to a dev-only
@@ -919,9 +934,18 @@ swap; layout remains pre-pivot):**
 
 **Already dropped (not a gap):**
 
-- **`OnboardingScreen`** — dropped per `CLAUDE.md` ("niche set inline
-  on first ChatScreen session"). Route file may be removed in D.4.1
-  onboarding-safety commit.
+- ~~**`OnboardingScreen`** — dropped per `CLAUDE.md`~~ **Stale CLAUDE.md
+  rule.** Inspection (2026-04-20) confirms
+  `src/routes/_app/onboarding/OnboardingScreen.tsx` is fully
+  implemented (Phase A.3.5): 2-step split-screen matching
+  `artifacts/uiux-reference/screens/onboarding-settings.jsx`
+  OnboardingScreen block; first-visit redirect wired at
+  `src/routes/_app/route.tsx:40-41` when `profile.primary_niche` is
+  null; token gate clean. The CLAUDE.md line ("OnboardingScreen
+  dropped in Figma phase; niche set inline on first ChatScreen
+  session") predates A.3.5 + Phase C's ChatScreen deletion — it
+  should be corrected during the D.3.5 copy pass. **Shipped, not
+  dropped.**
 
 ### Risks
 
