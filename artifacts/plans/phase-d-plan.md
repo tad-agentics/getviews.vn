@@ -1,10 +1,21 @@
 # Phase D — Hardening, scale, and Phase B/C carryovers
 
-Phase D adds **no new user-facing surfaces**. Every milestone either closes
-a tech-debt item from Phase B (the C.8 carryovers tracked in
-`artifacts/qa-reports/phase-c-closure.md` "Open follow-up") or wires
-observability that Phase C deferred. Commerce / Ship Next / loop closure
-/ long-form strategy are **Phase E** — see "Deliberately deferred" below.
+Phase D adds **no new user-facing surfaces and no new features**. Every
+milestone either closes a tech-debt item from Phase B (the C.8 carryovers
+tracked in `artifacts/qa-reports/phase-c-closure.md` "Open follow-up"),
+wires observability that Phase C deferred, or runs a systematic
+end-to-end review across every shipped surface to verify the new UIUX
+pivot actually holds up in production.
+
+**Hard stop at Phase D.** No Phase E is currently scheduled. Commerce /
+Ship Next / loop closure / long-form strategy, the three feature-shaped
+creator intents (`comparison`, `series_audit`, `own_flop_no_url`), and
+the layout revamps for the three still-legacy screens (`/app/trends`,
+`/app/settings`, `/`) all stay deferred indefinitely — see
+"Deliberately deferred (indefinite — no Phase E scheduled)" below. The
+Phase D direction is **make everything already on main work well**;
+anything that adds a new payload kind, new route, new intent handler
+layout, or new report format is out of scope.
 
 The canonical backlog reference is `artifacts/qa-reports/phase-c-closure.md`
 (the "Open follow-up (C.8 carryovers — Phase D backlog)" table + the
@@ -17,10 +28,15 @@ Phase C" matches the C.8 scope 1:1 — D.1 closes both.
 
 **Design source of truth**: same as Phase C —
 `artifacts/uiux-reference/screens/{answer,thread-turns,channel,script}.jsx`,
-`artifacts/uiux-reference/styles.css`. The only new primitives
-(`PostingHeatmap`, `ScriptSaveControls`, `ScriptShootScreen`,
-`PerVideoBreakdown`, `KolCompareView`) are specced inline in the relevant
-milestones. **No new top-level routes.**
+`artifacts/uiux-reference/styles.css`. The only new primitives allowed
+in D are the ones D.1 needs to close B carryovers: `PostingHeatmap`
+(D.1.4), `ScriptSaveControls` + `ScriptShootScreen` (D.1.1). **No new
+top-level routes. No new report payload kinds. No new intent handler
+layouts.** The three tracked-but-unimplemented layout references
+(`trends.jsx`, `SettingsScreen` block of `onboarding-settings.jsx`,
+new-landing HTML files) are **not implemented** in D — their
+corresponding live screens get a token-only swap in D.4 so the app-wide
+`--gv-*` gate goes green, but JSX structure is frozen.
 
 > **Non-negotiables that frame everything below** (carry forward from
 > `phase-c-plan.md`):
@@ -71,13 +87,20 @@ milestones. **No new top-level routes.**
 | D.0 | Spike (5 sub-tasks) | Five hard prerequisites — measurement read, Gemini cost audit, token rebind map, PDF stack decision, SSE drop-rate eval. Single dedicated week. |
 | D.1 | Phase B carryovers (parallel-safe) | Six atomic features, one per C.8 carryover. Original home: `phase-b-plan.md` §B.1–B.4. |
 | D.2 | Phase C polish | Real RPC bodies for `pattern_wow_diff_7d` + `timing_top_window_streak`; missing events; `/history` pagination + cross-type search; budget guard + structured-output binding. |
-| D.3 | New creator intents (#7 / #8 / #9) | Three intents Phase C explicitly deferred. All keep `/answer` + `/kol`; no new routes. |
-| D.4 | Token namespace deprecation | Global purge of legacy tokens (38 files as of 2026-04-20). Phased by directory. |
+| D.3 | **End-to-end review & closure** | Capstone QA pass. Seven streams: route coverage matrix, intent dispatch, report-format × edge cases, integration boundaries + TD invariants, copy + a11y, performance + bundle, fix-in-place. No new features. |
+| D.4 | Token namespace deprecation + legacy-layout screen purge | Global `--gv-*` purge across **every** `src/**` file including the three legacy-layout surfaces (`/app/trends`, `/app/settings`, `/`) that never caught the Phase B/C pivot. Token-only for those three; the full layout revamps (`trends.jsx`, new `SettingsScreen`, new landing) are out of scope — deferred indefinitely with no Phase E scheduled. |
 | D.5 | Observability + cost | Gemini cost dashboard, SSE drop instrumentation, RLS boundary audit, 90-day chat archival cron. |
 
 Estimated **~8–9 weeks** with D.1 running parallel to D.2 and D.3. D.4
 runs after D.1 to minimise merge churn against legacy-token consumers
 D.1 doesn't otherwise touch. D.5 closes the phase.
+
+**Hard stop at D.** No Phase E currently scheduled. Feature expansion
+items previously marked "defer to Phase E" (new creator intents,
+commerce, Ship Next, loop closure, long-form strategy, screen layout
+revamps for trends/settings/landing) stay deferred indefinitely until
+the roadmap explicitly opens a new phase. See "Deliberately deferred
+(indefinite)" in Cross-cutting below.
 
 ---
 
@@ -91,9 +114,16 @@ D.1 doesn't otherwise touch. D.5 closes the phase.
    D.4.3 adds the lint guard.
 4. **Cost surface is the call site** — D.5.1 dashboard groups by
    `metadata.call_site`, not `model_name`.
-5. **D.3 reuses Phase C surfaces only** — `series_audit` → `/answer`
-   Pattern + `per_video[]`; `own_flop_no_url` → composer URL prompt;
-   `comparison` → `/kol?mode=compare` query toggle.
+5. **Hard stop at Phase D — no new features.** D.3 is an end-to-end
+   review + fix-in-place pass, not a feature milestone. New creator
+   intents (`series_audit`, `own_flop_no_url`, `comparison`), commerce,
+   Ship Next, loop closure, long-form strategy, and the
+   trends/settings/landing layout revamps all stay deferred
+   indefinitely with no Phase E scheduled.
+6. **D.4 legacy-layout purge is token-only.** `ExploreScreen.tsx`,
+   `SettingsScreen.tsx`, `LandingPage.tsx` keep their existing JSX
+   structure — only color tokens swap to `--gv-*`. Any commit that
+   restructures these surfaces violates rule 5 and must revert.
 
 ---
 
@@ -456,101 +486,178 @@ Commit: `feat(observability): Generic budget guard + Pattern structured output`.
 
 ---
 
-## D.3 — New creator intents (~2 weeks)
+## D.3 — End-to-end review & closure (~2 weeks)
 
-Three intents Phase C explicitly deferred (per `phase-c-plan.md` §A.1
-rows 7/8/9 + "Deliberately deferred to Phase D"). All reuse existing
-surfaces — **no new top-level routes**. Wired through `intent-router.ts`;
-the Cloud Run Gemini classifier already ships with all 21 intents in
-its prompt (`gemini.py:552`).
+**No new features.** This is the capstone QA pass that exercises every
+user-facing surface, every classified intent, every integration
+boundary, and the five documented invariants (TD-1 through TD-5). Any
+drift between the plan and what actually works gets fixed in place
+before Phase D closes.
 
-### D.3.1 — Intent #8 `series_audit` (5d)
+Replaces the previously-planned "new creator intents" milestone (intent
+#7 `comparison`, intent #8 `series_audit`, intent #9 `own_flop_no_url`
+— all three reclassified as feature work and deferred indefinitely with
+the Phase D hard stop; see "Deliberately deferred (indefinite)" below).
 
-Multi-URL → Pattern with per-video breakdown.
+Seven parallel streams, each with its own evidence artifact. Phase D
+does not close until every stream is green.
 
-**Composer:** `QueryComposer` accepts ≥ 2 TikTok URLs (existing
-URL-detection regex extends to a list). `detectIntent` returns
-`series_audit` when `url_count ≥ 2`.
+### D.3.1 — Route coverage matrix (2d)
 
-**Routing:** lands on `/app/answer` rendering Pattern with a
-`per_video[]` extension on `PatternPayload` (additions-only):
+Every `/app/*` route × four states (empty / loading / error / success)
+hand-tested at 360 / 720 / 1100 / 1280 px. Covers:
 
-```ts
-export type PatternPayload = {
-  // ... existing fields ...
-  per_video?: {
-    video_id: string;
-    title: string;
-    retention: number;
-    hook_family: string;
-    flop_reasons: string[];      // why_stalled per video
-  }[];
-};
-```
+- `/app` (Studio home), `/app/answer`, `/app/history`, `/app/history/
+  chat/:sessionId` (legacy transcript viewer).
+- `/app/video`, `/app/channel`, `/app/kol`, `/app/script` (four Phase B
+  creator screens).
+- `/app/onboarding` (2-step split-screen shipped in A.3.5; matches
+  `onboarding-settings.jsx` reference, token-gate clean). Verify
+  first-visit redirect from `/app` still fires when
+  `profile.primary_niche` is null (`src/routes/_app/route.tsx:40-41`)
+  and that completing both steps routes back to `/app`.
+- `/app/settings`, `/app/trends` (legacy-layout surfaces — see D.4 for
+  token purge; layout revamps deferred).
+- `/app/learn-more`, `/app/pricing`, `/app/checkout`,
+  `/app/payment-success`.
+- `/login`, `/signup`, `/auth/callback` (auth flow).
+- `/` (landing, pre-rendered; legacy layout — see D.4).
 
-**Backend:** `report_pattern.py` accepts `video_ids[]`; when present,
-`pick_evidence_videos` is replaced by direct lookup + per-video
-flop-reason aggregation from `video_corpus`.
+**Deliverable:** `artifacts/qa-reports/phase-d-route-coverage.md` with
+pass/fail per `(route, state, breakpoint)` cell. Any fail → must-fix
+task under D.3.7.
 
-**Frontend:** new primitive `PerVideoBreakdown.tsx` rendered between
-`HookFindings` and `WhatStalled` when `per_video?.length > 0`. Vitest
-covers row rendering + empty-state. `smoke-series-audit.sh`: POST 2
-URLs; assert `payload.report.per_video.length === 2`.
+### D.3.2 — Intent dispatch coverage (2d)
 
-Commit: `feat(series-audit): multi-URL Pattern with per-video breakdown`.
+All 20 intents from `phase-c-plan.md` §A exercised end-to-end. Each
+intent gets a Playwright or manual trace: Studio composer →
+`detectIntent` (client) → `resolveDestination` → correct destination
+screen OR `/answer` with the correct report `format`. Special
+attention to the 11 intents newly classified in C.0.1 (plus the
+three feature-deferred intents — `series_audit` / `own_flop_no_url`
+/ `comparison` — all today fall through to nearest existing
+destination per the Phase C audit; verify the fallback is not a
+crash).
 
-### D.3.2 — Intent #9 `own_flop_no_url` (3d)
+Regression pytest under `cloud-run/tests/test_intent_dispatch_e2e.py`
+adds one case per intent that currently lacks coverage. `intent-router.
+test.ts` extended to cover any misrouting surfaced.
 
-URL-prompt UX on the composer when the user asks "tại sao video tôi
-ít view" without a URL.
+**Deliverable:** `artifacts/qa-reports/phase-d-intent-coverage.md` —
+20-row table with dispatch outcome + expected outcome + notes.
 
-**Composer (primary surface, no new screen, no backend change):**
-`detectIntent` matches `tại sao video|tôi ít view` + no URL detected.
-On detect, `QueryComposer` renders a non-blocking inline prompt
-(`border: 2px solid var(--gv-ink), padding: 12px 16px, marginTop: 8`)
-asking for the URL with two CTAs: **Dán link** (on paste → dispatch to
-`/app/video?video_id=…`) and **Bỏ qua** (→ `/app/answer:generic`).
+### D.3.3 — Report format × edge cases (2d)
 
-Vitest: `QueryComposer.test.tsx` adds 3 cases (intent detect, URL paste
-dispatch, skip dispatch).
+Each of Pattern / Ideas / Timing / Generic tested against real Gemini
+responses (not fixtures) across:
 
-Commit: `feat(composer): own_flop_no_url URL prompt`.
+- Full corpus (sample_size ≥ per-format floor).
+- Thin corpus (sample_size < floor) — confirms HumilityBanner + thin
+  shapes render as specified.
+- SSE mid-turn reconnect (TD-4) — kill the connection at `seq=3`,
+  reconnect with `?resume_from_seq=3`, confirm replay.
+- Credit=0 pre-check — confirms 402 fires before the stream opens and
+  no `answer_turns` row is written.
+- §J schema invariant violations (simulated malformed Gemini output) —
+  confirms the pydantic boundary rejects them rather than persists.
 
-### D.3.3 — Intent #7 `comparison` mode (4d)
+**Deliverable:** `artifacts/qa-reports/phase-d-format-edge-cases.md`.
 
-KOL A vs B side-by-side via `/app/kol?pinned=a,b&mode=compare`. The
-existing pinned tab gains a compare-mode toggle; **no new route**.
+### D.3.4 — Integration boundaries + TD invariants (2d)
 
-**Frontend:** `KolScreen.tsx` reads `mode` from URL; when
-`mode === "compare"` and `pinned.length === 2`, renders a
-`KolCompareView.tsx` primitive in place of the standard pinned table.
-Two-column side-by-side: handle / avg_views / growth_30d / match_score
-/ recent hook_family — pulled from existing `useKolBrowse` data without
-a new fetch.
+Each TD from `CLAUDE.md` exercised against a real data path:
 
-**Backend:** none — `kol_browse.py` already returns the columns the
-compare view needs.
+- **TD-1 (atomic credit deduction):** double-click same "send" button
+  → confirm only one `decrement_credit` call fires (RPC `WHERE credits
+  > 0` guard); insufficient credits → 402.
+- **TD-2 (PayOS webhook idempotency):** replay a `PAID` webhook with
+  the same `event_id` → `processed_webhook_events` UNIQUE rejects the
+  second write; no duplicate credit grant.
+- **TD-3 (`is_processing` concurrent request guard):** confirm
+  `cron-reset-processing` clears flags older than 5 min; manually set
+  one, wait 6 min, verify cron clears.
+- **TD-4 (SSE replay):** cross-pod reconnect (scale Cloud Run to 2
+  instances, force connection to a different pod) — confirm graceful
+  failure per C.0.5 acceptable-degradation note; single-pod reconnect
+  replays.
+- **TD-5 (credits granted upfront at PAID):** pay a test PayOS order;
+  confirm credits land in `profiles.credits` before the webhook
+  returns 200.
 
-**Composer:** `detectIntent` adds `comparison` for `@a vs @b` /
-`@a so với @b` patterns; routes to `/app/kol?pinned=a,b&mode=compare`.
+**RLS boundary audit:** read-access check for `answer_sessions`,
+`answer_turns`, `chat_sessions`, `chat_messages`, `video_corpus` —
+authenticated user cannot see another user's rows; service-role
+writes work as expected; `video_corpus` INSERT is blocked by RLS for
+client writes (batch-only path per CLAUDE.md).
 
-Vitest: `KolCompareView.test.tsx` covers side-by-side render +
-empty-handle gates. `intent-router.test.ts` adds 2 cases for compare
-detection.
+**Deliverable:** `artifacts/qa-reports/phase-d-integration-boundaries.
+md` + `phase-d-rls-audit.md`.
 
-Commit: `feat(kol-compare): pinned compare-mode side-by-side view`.
+### D.3.5 — Copy + a11y pass (1d)
+
+- Grep every `.tsx` under `src/` against `.cursor/rules/copy-rules.mdc`
+  forbidden openers (`Chào bạn`, `Tuyệt vời`, etc.) and forbidden
+  words (`bí mật`, `công thức vàng`, etc.). Expected hits: 0.
+- Keyboard-nav every interactive surface (tab order, focus
+  indicators, modal focus trap).
+- `aria-label` on every icon-only button. Every `<img>` has `alt`.
+- JetBrains Mono on all numerical data (credits, multipliers,
+  corpus sizes).
+- Heading hierarchy (`h1` → `h2` → `h3`) correct per screen.
+- Touch-target check: every interactive element ≥ 44×44 px.
+- **`CLAUDE.md` staleness sweep.** The "Out of scope" block in
+  `CLAUDE.md` still says `OnboardingScreen (niche set inline on first
+  ChatScreen session)` — stale twice (OnboardingScreen shipped in
+  A.3.5; ChatScreen was deleted in Phase C). Correct the line to
+  reflect reality during this pass. Any other CLAUDE.md claims
+  contradicted by shipped code get the same treatment.
+
+**Deliverable:** `artifacts/qa-reports/phase-d-copy-a11y.md` +
+any `CLAUDE.md` correction commit(s).
+
+### D.3.6 — Performance + bundle (1d)
+
+- `npm run build` size delta vs pre-C main; confirm `vite.config.ts`
+  `manualChunks` still splits `react-vendor`, `react-router`,
+  `@tanstack`, `@supabase`, `@radix-ui`, `lucide-react`, `motion`.
+- Lighthouse on `/`, `/app`, `/app/answer?session=<id>` — LCP, CLS,
+  TTI targets per CLAUDE.md mobile-first baseline.
+- React Query `staleTime` audit across all `use*` hooks in
+  `src/hooks/` — no accidental `0` that refetches per render.
+- Bundle-size regression budget: > 10% delta on any single chunk →
+  flag as must-fix.
+
+**Deliverable:** `artifacts/qa-reports/phase-d-perf-bundle.md` with
+Lighthouse scores + bundle sizes + regression deltas.
+
+### D.3.7 — Fix-in-place (open-ended, ≤ 1w)
+
+Every must-fix surfaced by D.3.1–D.3.6 gets a `fix(qa): d3-ISSUE-NNN`
+commit with a regression test. Should-fix items get filed in
+`artifacts/issues/` but don't block Phase D closure.
+
+**Sign-off rule for D.3:** 0 must-fix items remaining across all six
+streams. Any must-fix reclassification requires an explicit note in
+`phase-d-end-to-end-review.md`.
 
 ### D.3 milestones (rolled up)
 
-| # | Intent | Surface | Estimate | Commit |
-|---|---|---|---|---|
-| D.3.1 | `series_audit` (#8) | `/app/answer` Pattern + `per_video[]` | 5d | `feat(series-audit): multi-URL Pattern with per-video breakdown` |
-| D.3.2 | `own_flop_no_url` (#9) | `QueryComposer` URL prompt | 3d | `feat(composer): own_flop_no_url URL prompt` |
-| D.3.3 | `comparison` (#7) | `/app/kol?mode=compare` | 4d | `feat(kol-compare): pinned compare-mode side-by-side view` |
+| # | Stream | Estimate | Deliverable |
+|---|---|---|---|
+| D.3.1 | Route coverage matrix | 2d | `phase-d-route-coverage.md` |
+| D.3.2 | Intent dispatch coverage | 2d | `phase-d-intent-coverage.md` |
+| D.3.3 | Report format × edge cases | 2d | `phase-d-format-edge-cases.md` |
+| D.3.4 | Integration boundaries + TD invariants | 2d | `phase-d-integration-boundaries.md` + `phase-d-rls-audit.md` |
+| D.3.5 | Copy + a11y | 1d | `phase-d-copy-a11y.md` |
+| D.3.6 | Performance + bundle | 1d | `phase-d-perf-bundle.md` |
+| D.3.7 | Fix-in-place (open-ended) | ≤ 1w | `fix(qa): d3-ISSUE-NNN` commits |
+
+**Aggregate deliverable:** `artifacts/qa-reports/phase-d-end-to-end-review.md`
+summarising all seven streams with a scored "app health" matrix.
 
 ---
 
-## D.4 — Token namespace deprecation (~1 week)
+## D.4 — Token namespace deprecation + legacy-layout screen purge (~1 week)
 
 Closes `phase-c-plan.md` "Token namespace dualism" risk. Phased by
 directory per D.0.iii (38 files as of 2026-04-20). Order matters
@@ -558,7 +665,23 @@ because `src/components/ui/Badge.tsx` is the lowest-level primitive;
 updating it first stops route consumers inheriting `variant="purple"`
 on contact.
 
-### D.4.1 — Phased consumer purge (3d, six commits)
+**Three legacy-layout screens never caught the Phase B/C pivot** and
+retain the pre-pivot design + legacy-token namespace. Phase D closes
+them with a **token-only swap** (preserve existing layout, rebind
+colors to `--gv-*`). The full layout revamps to match the tracked
+UIUX references are feature work and stay deferred indefinitely (see
+"Deliberately deferred (indefinite)" below).
+
+| Legacy surface | Route | Current impl | Legacy-token hits (2026-04-20) | Tracked new layout ref |
+|---|---|---|---|---|
+| **Trends** (Phase A-era ExploreScreen) | `/app/trends` | `src/routes/_app/trends/ExploreScreen.tsx` | 17 | `artifacts/uiux-reference/screens/trends.jsx` |
+| **Settings** (legacy design) | `/app/settings` | `src/routes/_app/settings/SettingsScreen.tsx` | 23 | `artifacts/uiux-reference/screens/onboarding-settings.jsx` (SettingsScreen block, lines 121-226) |
+| **Landing** (pre-pivot HTML) | `/` (pre-rendered) | `src/routes/_index/LandingPage.tsx` | 34 | `artifacts/uiux-reference/Landing Page.html` + `Landing Page v1.html` |
+
+**Total legacy-token hits across the three screens: 74**, accounting
+for the bulk of the 38-file D.0.iii rebind-map inventory.
+
+### D.4.1 — Phased consumer purge (4d, seven commits)
 
 Per the cluster table in D.0.iii. Each cluster:
 
@@ -566,15 +689,33 @@ Per the cluster table in D.0.iii. Each cluster:
 2. Run grep on the cluster directory; assert 0 hits.
 3. Snapshot visual diff (Playwright `quick-actions` project) — no
    regression beyond intentional purple → accent re-tint.
-4. Commit per cluster: `feat(token-purge): src/components/ui`,
-   `feat(token-purge): src/components/chat`,
-   `feat(token-purge): src/components/explore`,
-   `feat(token-purge): src/routes/_app/components`,
-   `feat(token-purge): src/routes/_app/{checkout,pricing,…}`,
-   `feat(token-purge): src/routes/_auth`.
+4. Commit per cluster:
+   - `feat(token-purge): src/components/ui` (Badge + primitives)
+   - `feat(token-purge): src/components/chat` + `src/components/explore`
+   - `feat(token-purge): src/routes/_app/components`
+   - `feat(token-purge): src/routes/_app/{checkout,pricing,…}`
+   - `feat(token-purge): src/routes/_auth`
+   - **`feat(token-purge): legacy-layout screens`** — the three
+     layout-frozen surfaces (`ExploreScreen.tsx`, `SettingsScreen.tsx`,
+     `LandingPage.tsx`). Strictly token swap; **no JSX structure
+     changes**. Rationale documented in the commit: the full layout
+     revamps are feature work per the hard stop at Phase D.
+   - **`feat(token-purge): onboarding (verify)`** — the
+     `OnboardingScreen` under `src/routes/_app/onboarding/` is live
+     (CLAUDE.md drop-rule is stale per D.3.5 note). Current grep
+     shows 0 legacy hits; this commit is a **verification pass** —
+     re-run the grep, confirm clean, no changes expected. Ships only
+     if something surfaces.
+     Zero-out or confirm route is unmounted.
 
 `Badge.tsx` D.4.1.a alters `variant="purple"` to a dev-only
 deprecation shim that emits `console.warn` + maps to `variant="default"`.
+
+**Explicit scope boundary (D.4.1):** The rebind script edits `className`
+/ `style` property values only. Any attempt to restructure layout,
+add new primitives, or wire new behaviour inside the three
+legacy-layout screens is **out of scope** — the commits must match
+`git diff --stat` with 0 JSX element additions or removals.
 
 ### D.4.2 — Delete legacy defs from `src/app.css` (0.5d)
 
@@ -750,23 +891,68 @@ Commit: `feat(observability): 90-day chat archival cron`.
 - **TD-4 cross-pod caveat** — either escalated to Upstash Redis
   (D.5.2.b) or formally accepted per D.0.v decision record.
 
-### Deliberately deferred to Phase E
+### Deliberately deferred (indefinite — no Phase E scheduled)
 
-- **Commerce / TikTok Shop signals** — `phase-c-plan.md` §A.3 stub
-  reclassifies to Phase E. Requires net-new TikTok Shop ingest.
+The Phase D direction is **hard stop** — once D.0–D.5 close, no
+follow-up phase is currently planned. Everything below stays deferred
+until the roadmap explicitly opens a new phase. Call out here so
+nobody mistakes the list for "Phase E backlog":
+
+**Feature expansion (previously "Phase E" candidates):**
+
+- **Commerce / TikTok Shop signals** — `phase-c-plan.md` §A.3 stub.
+  Requires net-new TikTok Shop ingest.
 - **Personalized Ship Next** — 3-card morning ritual; needs creator-
   channel ingest + personalization model.
 - **Loop closure measurement** — `script_save → live post → views`
   instrumentation. Requires creator-channel ingest.
-- **Long-form channel strategy report** — needs a new `kind: "strategy"`
-  ReportV1 variant (first net-new payload kind since C).
-- **`OnboardingScreen`** — already dropped per `CLAUDE.md` Out-of-scope.
+- **Long-form channel strategy report** — needs a new `kind:
+  "strategy"` ReportV1 variant (first net-new payload kind since C).
+
+**Creator intents that would have been D.3 (now end-to-end review):**
+
+- **Intent #7 `comparison`** — KOL A vs B side-by-side on `/app/kol?
+  mode=compare`. Classification + routing shipped in C.0.1; destination
+  handler is a stub. Needs a `KolCompareView.tsx` primitive + new route
+  param wiring.
+- **Intent #8 `series_audit`** — multi-URL Pattern with `per_video[]`
+  extension. Classification shipped; needs `PerVideoBreakdown.tsx` +
+  `report_pattern.py` accepting `video_ids[]`.
+- **Intent #9 `own_flop_no_url`** — graceful-degrade URL prompt on the
+  `QueryComposer`. Classification shipped; needs composer prompt UX.
+
+**Layout revamps for legacy-layout screens (D.4 ships token-only
+swap; layout remains pre-pivot):**
+
+- **`/app/trends`** revamp per `artifacts/uiux-reference/screens/
+  trends.jsx`.
+- **`/app/settings`** revamp per
+  `artifacts/uiux-reference/screens/onboarding-settings.jsx`
+  (SettingsScreen block).
+- **`/` landing** revamp per `artifacts/uiux-reference/Landing Page.
+  html` + `Landing Page v1.html`.
+
+**Already dropped (not a gap):**
+
+- ~~**`OnboardingScreen`** — dropped per `CLAUDE.md`~~ **Stale CLAUDE.md
+  rule.** Inspection (2026-04-20) confirms
+  `src/routes/_app/onboarding/OnboardingScreen.tsx` is fully
+  implemented (Phase A.3.5): 2-step split-screen matching
+  `artifacts/uiux-reference/screens/onboarding-settings.jsx`
+  OnboardingScreen block; first-visit redirect wired at
+  `src/routes/_app/route.tsx:40-41` when `profile.primary_niche` is
+  null; token gate clean. The CLAUDE.md line ("OnboardingScreen
+  dropped in Figma phase; niche set inline on first ChatScreen
+  session") predates A.3.5 + Phase C's ChatScreen deletion — it
+  should be corrected during the D.3.5 copy pass. **Shipped, not
+  dropped.**
 
 ### Risks
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| D.4 token purge regresses landing / checkout / pricing visuals (highest legacy-purple density) | High | D.0.iii rebind map per consumer; D.4.1 phases by directory (six atomic commits) for surgical reverts; Playwright snapshot per cluster. |
+| D.4 token purge regresses landing / checkout / pricing / trends / settings visuals (highest legacy-purple density — 74 hits across the three legacy-layout screens alone) | High | D.0.iii rebind map per consumer; D.4.1 phases by directory (seven atomic commits) for surgical reverts; Playwright snapshot per cluster; legacy-layout commit is token-only (0 JSX element additions/removals asserted against `git diff --stat`). |
+| D.4 legacy-layout purge tempts someone to "just revamp while we're here" | Medium | Pre-kickoff rule 6 is the hard stop: any JSX structure change in `ExploreScreen.tsx` / `SettingsScreen.tsx` / `LandingPage.tsx` fails the Phase D sign-off. Layout revamps stay deferred indefinitely. |
 | D.5.1 Gemini cost surprises (spend > `$70/mo` ceiling) | Medium | D.0.ii pre-sizes the surface; D.2.5.b binding tightens worst offenders before D.5.1 dashboard ships; existing `ClassifierDailyBudgetExceeded` throttles classifier path. |
 | D.5.3 RLS audit surfaces `service_role` misuse on `chat_sessions` / `answer_turns` | Medium | Audit deliverable is the remediation log. Gaps → `fix(qa): rls-d53-…`. |
 | D.1.1 PDF dep installation bloat (~50MB image growth) | Medium | D.0.iv spike validates pre-merge; ReportLab fallback if > 50MB; Copy-only fallback if both fail. |
@@ -815,9 +1001,9 @@ aggregators (Phase C bar):
 - `test_classifier_budget.py` extended (D.2.3) — event emission.
 - `test_history_union.py` extended (D.2.4) — pagination cursor +
   cross-type search ranking.
-- `test_report_pattern.py` extended (D.2.5/D.3.1) — binding fallback +
-  `per_video[]` shape.
+- `test_report_pattern.py` extended (D.2.5) — binding fallback.
 - `test_report_generic.py` extended (D.2.5) — budget guard.
+- `test_intent_dispatch_e2e.py` (D.3.2) — one case per §A intent.
 - `test_gemini_helper.py` (D.5.1) — wrapper, `call_site` propagation,
   cost computation.
 - `test_cron_chat_archival.py` (D.5.4) — 90-day boundary, cascade,
@@ -829,15 +1015,19 @@ aggregators (Phase C bar):
   `ScriptSaveControls.test.tsx` (D.1.1); 5 v2/script primitives +
   `ChannelScreen.test.tsx` + `ScriptScreen.test.tsx` (D.1.6 backfill).
 - `HistoryScreen.test.tsx` extended (D.2.4); `useSessionStream.test.tsx`
-  extended (D.5.2); `QueryComposer.test.tsx` extended (D.3.2);
-  `KolCompareView.test.tsx` (D.3.3); `intent-router.test.ts` extended
-  (D.3.1/D.3.3); `Badge.test.tsx` (D.4.1.a shim warning).
+  extended (D.5.2); `intent-router.test.ts` extended (D.3.2 — one
+  case per §A intent); `Badge.test.tsx` (D.4.1.a shim warning).
 
 **Shell smokes** (`artifacts/qa-reports/`):
 `smoke-script-save.sh` (D.1.1), `smoke-script-generate.sh` (D.1.2 —
 re-runs B.4 pre/post Gemini swap), `smoke-kol-match-persist.sh`
-(D.1.3), `smoke-channel-heatmap.sh` (D.1.4), `smoke-series-audit.sh`
-(D.3.1).
+(D.1.3), `smoke-channel-heatmap.sh` (D.1.4).
+
+**D.3 end-to-end review deliverables** (replace what used to be D.3
+feature smokes): `phase-d-route-coverage.md`, `phase-d-intent-coverage.md`,
+`phase-d-format-edge-cases.md`, `phase-d-integration-boundaries.md`,
+`phase-d-rls-audit.md`, `phase-d-copy-a11y.md`, `phase-d-perf-bundle.md`,
+`phase-d-end-to-end-review.md` (aggregate).
 
 **Mandatory design audit per sub-phase**: same gate as Phase C — token
 grep hits **0 in new files**. After D.4.2 the gate extends to **0 in
@@ -852,9 +1042,10 @@ Same rules as B and C. Agent-authored fixed strings introduced in D:
 | `ScriptSaveControls` Lưu / Copy / PDF | `Lưu vào lịch quay` / `Sao chép kịch bản` / `Tải PDF` (`Sắp có` if PDF disabled) |
 | `ScriptShootScreen` H1 | `Chế độ quay` |
 | `PostingHeatmap` kicker | `LỊCH ĐĂNG GẦN ĐÂY` |
-| `KolCompareView` kicker | `SO SÁNH KÊNH` |
-| `PerVideoBreakdown` kicker | `PHÂN TÍCH TỪNG VIDEO` |
-| `QueryComposer` URL prompt (D.3.2) | `Dán link video bạn muốn phân tích để hiểu vì sao ít view.` + CTAs `Dán link` / `Bỏ qua` |
+
+(The three strings previously planned for `KolCompareView`,
+`PerVideoBreakdown`, and the `own_flop_no_url` composer prompt are
+dropped — those surfaces stay deferred indefinitely per the hard stop.)
 
 ### Responsive breakpoints
 
@@ -870,11 +1061,11 @@ reference JSX. Any layout break is a `must-fix` in the matching audit.
 | D.0 spike | **1w** | 5 sub-tasks |
 | D.1 Phase B carryovers | **3w (parallel-safe)** | 6 atomic commits; D.1.1 anchors with WeasyPrint dep + new `/app/script/shoot`; others ≤ 3d |
 | D.2 Phase C polish | **2w** | 5 milestones; D.2.4 (`/history` infinite + cross-type) is largest at 4d |
-| D.3 New creator intents | **2w** | 3 milestones; D.3.1 (`series_audit`) is largest at 5d |
-| D.4 Token namespace deprecation | **1w** | 6 cluster commits + lint rule; phased to minimise visual blast radius |
+| D.3 End-to-end review & closure | **2w** | 6 coverage streams (≤ 2d each) + ≤ 1w fix-in-place buffer. Open-ended tail bounded by "0 must-fix" sign-off rule. Replaces the previously-planned D.3 new-creator-intents work. |
+| D.4 Token namespace deprecation + legacy-layout screen purge | **1w** | 7 cluster commits (up from 6) + lint rule; phased to minimise visual blast radius. Legacy-layout purge (trends / settings / landing) is strictly token-only. |
 | D.5 Observability + cost | **1.5w** | 4 milestones; D.5.1 cost dashboard is largest at 3d (+ optional D.5.2.b Redis = 2d) |
 | Design-audit buffer | **1w** | Audit round-trips per sub-phase |
-| **Total** | **~8–9w** (D.1 in parallel with D.2/D.3 saves ~2w) | Six atomic D.1 commits, one per carryover |
+| **Total** | **~8–9w** (D.1 in parallel with D.2 saves ~1.5w; D.3 runs sequentially after D.2 because it audits what D.1 + D.2 shipped) | Six atomic D.1 commits, one per carryover |
 
 D.0.i is gating, not coding; consumes 0 dev time but must be green
 before any D behavior change ships.
