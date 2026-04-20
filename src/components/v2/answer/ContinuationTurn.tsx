@@ -4,6 +4,7 @@
  */
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { PatternBody } from "@/components/v2/answer/pattern/PatternBody";
+import { IdeasBody } from "@/components/v2/answer/ideas/IdeasBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 
 function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind" | "query"> }) {
@@ -29,12 +30,9 @@ function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
       );
     case "ideas":
       return (
-        <div className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-          <p className="font-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-accent)]">
-            Ideas
-          </p>
-          <p className="mt-4 text-sm text-[color:var(--gv-ink-2)]">{payload.report.lead}</p>
-        </div>
+        <AnswerBlock kicker="Ideas">
+          <IdeasBody report={payload.report} />
+        </AnswerBlock>
       );
     case "timing": {
       const tw = payload.report.top_window as Record<string, unknown>;
