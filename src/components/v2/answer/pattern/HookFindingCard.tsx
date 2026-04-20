@@ -51,7 +51,13 @@ export function HookFindingCard({ row }: { row: HookFindingData }) {
         <div className="flex items-center gap-1">
           <span className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">Δ</span>
           <TonePill tone={row.delta.numeric >= 0 ? "up" : "down"} />
-          <span className="gv-mono text-sm font-medium text-[color:var(--gv-pos)]">{row.delta.value}</span>
+          <span
+            className={`gv-mono text-sm font-medium ${
+              row.delta.numeric >= 0 ? "text-[color:var(--gv-pos)]" : "text-[color:var(--gv-neg)]"
+            }`}
+          >
+            {row.delta.value}
+          </span>
         </div>
         <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{row.uses} lượt</p>
       </div>

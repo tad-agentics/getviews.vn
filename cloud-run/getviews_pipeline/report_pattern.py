@@ -190,12 +190,16 @@ ANSWER_FIXTURE_PATTERN: dict[str, Any] = validate_and_store_report(
 )
 
 
-def build_thin_corpus_pattern_report() -> dict[str, Any]:
-    """Thin-corpus shape: N<30, humility reason, no stalled rows (C.2.1 pytest contract)."""
+def build_thin_corpus_pattern_report(*, sample_size: int = 12) -> dict[str, Any]:
+    """Thin-corpus shape: N<30, humility reason, no stalled rows (C.2.1 pytest contract).
+
+    ``sample_size`` defaults to 12 for standalone/fixture use. The live pipeline passes
+    the real ``niche_intelligence.sample_size`` so the UI shows the actual corpus count.
+    """
     inner = build_fixture_pattern_report()
     conf = inner["confidence"]
     if isinstance(conf, dict):
-        conf["sample_size"] = 12
+        conf["sample_size"] = max(0, int(sample_size))
         conf["what_stalled_reason"] = "ngách quá thưa — không đủ hook để xếp hạng âm"
     inner["tldr"] = {
         "thesis": "Mẫu nhỏ: chỉ dùng để định hướng, không kết luận toàn ngách.",
@@ -282,11 +286,12 @@ def build_pattern_report(
     sample_n = int(ni.get("sample_size") or 0)
     ranked = rank_hooks_for_pattern(he_rows)
     if niche_id <= 0 or sample_n < 30 or len(ranked) < 3:
-        thin = build_thin_corpus_pattern_report()
+        thin = build_thin_corpus_pattern_report(sample_size=sample_n)
         thin["wow_diff"] = wow
         if isinstance(thin.get("confidence"), dict):
             thin["confidence"]["window_days"] = window_days
             thin["confidence"]["niche_scope"] = niche_label
+            thin["confidence"]["freshness_hours"] = _freshness_hours_from_corpus(corpus)
         return thin
 
     org = float(ni.get("organic_avg_views") or 0)
