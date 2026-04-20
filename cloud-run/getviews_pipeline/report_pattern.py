@@ -224,8 +224,20 @@ def _freshness_hours_from_corpus(corpus: list[dict[str, Any]]) -> int:
     return max(1, int(delta.total_seconds() // 3600))
 
 
-def build_pattern_report(niche_id: int, query: str, _intent_type: str, window_days: int = 7) -> dict[str, Any]:
-    """C.2.2 — live pattern report: DB aggregators + optional Gemini copy + WoW merge."""
+def build_pattern_report(
+    niche_id: int,
+    query: str,
+    _intent_type: str,
+    window_days: int = 7,
+    *,
+    subreports: list[str] | None = None,
+) -> dict[str, Any]:
+    """C.2.2 — live pattern report: DB aggregators + optional Gemini copy + WoW merge.
+
+    C.5.3 — ``subreports`` attaches auxiliary payloads under ``payload.subreports``
+    (e.g. ``{"timing": TimingPayload}``). Only ``"timing"`` is supported today;
+    unknown keys are ignored with a ``[pattern]`` warning.
+    """
     wow = wow_rows_to_wow_diff(fetch_pattern_wow_diff_rows(niche_id)).model_dump()
 
     try:
@@ -238,6 +250,8 @@ def build_pattern_report(niche_id: int, query: str, _intent_type: str, window_da
         if isinstance(data.get("confidence"), dict):
             data["confidence"]["window_days"] = window_days
         data["wow_diff"] = wow
+        if subreports:
+            data["subreports"] = _build_pattern_subreports(niche_id, query, window_days, subreports)
         return data
 
     from getviews_pipeline.report_pattern_compute import (
@@ -355,8 +369,41 @@ def build_pattern_report(niche_id: int, query: str, _intent_type: str, window_da
         actions=static_action_cards(baseline_views),
         sources=sources,
         related_questions=list(narr.get("related_questions") or [])[:4],
+        subreports=(
+            _build_pattern_subreports(niche_id, query, window_days, subreports)
+            if subreports
+            else None
+        ),
     )
     return payload.model_dump()
+
+
+def _build_pattern_subreports(
+    niche_id: int,
+    query: str,
+    window_days: int,
+    subreports: list[str],
+) -> dict[str, Any] | None:
+    """Dispatch declared subreports to their respective builders.
+
+    Today only ``"timing"`` is auto-merged (C.5.3 §A.4 Report + timing case).
+    Unknown subreport keys are logged and dropped rather than failing the
+    whole turn — Pattern is the primary, subreports are nice-to-have.
+    Returns ``None`` when no subreports were built so the pydantic model
+    serialises ``subreports: null`` rather than ``{}`` (UI hides the block).
+    """
+    out: dict[str, Any] = {}
+    for key in subreports:
+        if key == "timing":
+            try:
+                from getviews_pipeline.report_timing import build_timing_report
+
+                out["timing"] = build_timing_report(niche_id, query, window_days=window_days)
+            except Exception as exc:
+                logger.warning("[pattern] timing subreport failed: %s — skipping", exc)
+        else:
+            logger.warning("[pattern] unknown subreport key %r — skipping", key)
+    return out if out else None
 
 
 def _pattern_label_from_he_row(r: dict[str, Any]) -> str:
