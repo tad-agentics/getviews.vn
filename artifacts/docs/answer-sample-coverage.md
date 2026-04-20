@@ -28,4 +28,11 @@
 |----------|-------|------|-------|------------|----------|-----------|-------|
 | *TBD* | — | — | — | — | — | — | Populate via SQL audit job pre-C.2 |
 
-> **Stub:** Run `SELECT` aggregations per active niche before C.2 ship; this document is the checklist location.
+### How to populate (ops / pre-C.2)
+
+1. Run the audit query in [`artifacts/sql/answer_sample_coverage_audit.sql`](../sql/answer_sample_coverage_audit.sql) (or paste its `SELECT` into the SQL editor). It emits per-niche **7d / 14d / 30d** counts and boolean **pattern_ok_7d** / **ideas_ok_7d** / **timing_ok_7d** against §C.0.3 floors.
+2. Optionally join **`corpus_hashtag_yields_14d()`** (see `20260429180000_corpus_hashtag_yields_rpc.sql`) for hashtag-level yields in the same niches.
+3. Copy results into the markdown table below (or attach CSV). Note any niche that needs **14d** or **30d** widening per adaptive policy.
+4. Wire recurring runs (monthly or pre-release) in your ops calendar.
+
+> Until that job runs, this file is the **checklist and policy anchor**, not a filled production report.

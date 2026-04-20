@@ -549,7 +549,8 @@ def _response_text(response: Any) -> str:
     return "".join(parts)
 
 
-_INTENT_LABELS = (
+# Phase C.0.1 — keep in sync with ``query_intent_to_gemini_primary`` in intents.py
+GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (
     "video_diagnosis",
     "content_directions",
     "trend_spike",
@@ -559,8 +560,19 @@ _INTENT_LABELS = (
     "own_channel",
     "series_audit",
     "find_creators",
+    "metadata_only",
+    "timing",
+    "fatigue",
+    "hook_variants",
+    "content_calendar",
+    "subniche_breakdown",
+    "format_lifecycle_optimize",
+    "comparison",
+    "own_flop_no_url",
     "follow_up",
 )
+
+_INTENT_LABELS = GEMINI_CLASSIFIER_PRIMARY_LABELS
 
 _INTENT_CLASSIFICATION_PROMPT = """\
 You are an intent classifier for a Vietnamese TikTok content strategy assistant.
@@ -575,13 +587,24 @@ Classify the user message into ONE primary intent from this fixed list:
 - own_channel          — user wants analysis of their OWN channel
 - series_audit         — user shares multiple URLs (a series) to compare performance
 - find_creators        — user wants to find/discover TikTok creators in a niche
+- metadata_only        — user only wants stats/metrics on a video or profile, not creative diagnosis
+- timing               — best time/day to post, posting window, schedule
+- fatigue              — declining format, pattern dying, trend exhaustion
+- hook_variants        — rewrite hooks, hook variations
+- content_calendar     — what to post this week, content calendar
+- subniche_breakdown   — sub-niche breakdown within a niche
+- format_lifecycle_optimize — carousel vs video, short vs long format tradeoffs
+- comparison           — compare two creators or two approaches
+- own_flop_no_url      — user's own videos/channel underperforming but no URL given
 - follow_up            — general question, follow-up to previous response, or unclear
 
 Also output a secondary intent if the message clearly requests TWO things (e.g. "why is this video low?" + "suggest formats").
 Secondary intent is null if there is only one clear intent.
 
+``primary_confidence`` must be a number from 0.0 to 1.0 — your estimated probability that ``primary`` is correct.
+
 Output valid JSON only — no markdown, no explanation:
-{{"primary": "<intent>", "secondary": "<intent or null>", "niche_hint": "<detected niche name in Vietnamese or English, or null>"}}
+{{"primary": "<intent>", "secondary": "<intent or null>", "niche_hint": "<detected niche name in Vietnamese or English, or null>", "primary_confidence": 0.85}}
 
 User message: {message}
 """
@@ -595,9 +618,10 @@ def classify_intent_gemini(
     """Tier-3 semantic intent classification via Gemini (Flash-Lite, JSON output).
 
     Returns a dict with keys:
-        primary   — one of _INTENT_LABELS
+        primary   — one of ``GEMINI_CLASSIFIER_PRIMARY_LABELS``
         secondary — second intent if compound query, else None
         niche_hint — detected niche name string, or None
+        primary_confidence — 0.0–1.0 when present (omitted on budget / error fallback)
 
     Falls back to {"primary": "follow_up", "secondary": None, "niche_hint": None}
     on any Gemini error so callers never crash.
@@ -613,14 +637,14 @@ def classify_intent_gemini(
     prompt = _INTENT_CLASSIFICATION_PROMPT.format(message=message)
     cfg = types.GenerateContentConfig(
         temperature=0.0,
-        max_output_tokens=128,
+        max_output_tokens=192,
         response_mime_type="application/json",
     )
     try:
         consume_classifier_gemini_budget_or_raise()
     except ClassifierDailyBudgetExceeded as exc:
         logger.warning(
-            "[classify_intent_gemini] %s — deterministic fallback (no Gemini call)",
+            "[classifier-budget] [classify_intent_gemini] %s — deterministic fallback (no Gemini call)",
             exc,
         )
         return {
@@ -636,7 +660,7 @@ def classify_intent_gemini(
             config=cfg,
         )
         raw = _response_text(response).strip()
-        result: dict[str, str | None] = json.loads(raw)
+        result: dict[str, Any] = json.loads(raw)
         primary = result.get("primary") or "follow_up"
         if primary not in _INTENT_LABELS:
             primary = "follow_up"
@@ -646,11 +670,23 @@ def classify_intent_gemini(
         # Structural URL/handle signals always win for primary
         if structural and primary == "follow_up":
             primary = structural
-        return {
+        conf_raw = result.get("primary_confidence")
+        pconf: float | None
+        try:
+            if conf_raw is None:
+                pconf = None
+            else:
+                pconf = max(0.0, min(1.0, float(conf_raw)))
+        except (TypeError, ValueError):
+            pconf = None
+        out: dict[str, str | float | None] = {
             "primary": primary,
             "secondary": secondary,
-            "niche_hint": result.get("niche_hint"),
+            "niche_hint": result.get("niche_hint") if isinstance(result.get("niche_hint"), str) else None,
         }
+        if pconf is not None:
+            out["primary_confidence"] = pconf
+        return out
     except Exception as exc:
         logger.warning("[classify_intent_gemini] failed: %s — falling back to follow_up", exc)
         return {"primary": structural or "follow_up", "secondary": None, "niche_hint": None}

@@ -32,7 +32,8 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     "creator_search": "kol",  # SPA alias for find_creators
     QueryIntent.SHOT_LIST.value: "script",
     QueryIntent.METADATA_ONLY.value: "video",
-    QueryIntent.SERIES_AUDIT.value: "video",
+    QueryIntent.SERIES_AUDIT.value: "answer:pattern",
+    QueryIntent.OWN_FLOP_NO_URL.value: "answer:pattern",
     # §A.2 — /answer report formats
     QueryIntent.TREND_SPIKE.value: "answer:pattern",
     QueryIntent.CONTENT_DIRECTIONS.value: "answer:pattern",
@@ -65,3 +66,32 @@ def resolve_destination(intent_id: str, *, follow_up_subject: str | None = None)
             return destination_for_follow_up_classifiable(follow_up_subject)  # type: ignore[arg-type]
         return None
     return destination_for_intent(intent_id)
+
+
+# Gemini classifier primary labels → same Destination union as §A (C.0.1 preview field).
+_GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
+    "video_diagnosis": "video",
+    "content_directions": "answer:pattern",
+    "trend_spike": "answer:pattern",
+    "brief_generation": "answer:ideas",
+    "shot_list": "script",
+    "competitor_profile": "channel",
+    "own_channel": "channel",
+    "series_audit": "answer:pattern",
+    "find_creators": "kol",
+    "metadata_only": "video",
+    "timing": "answer:timing",
+    "fatigue": "answer:pattern",
+    "hook_variants": "answer:ideas",
+    "content_calendar": "answer:pattern",
+    "subniche_breakdown": "answer:pattern",
+    "format_lifecycle_optimize": "answer:pattern",
+    "comparison": "kol",
+    "own_flop_no_url": "answer:pattern",
+    "follow_up": "answer:generic",
+}
+
+
+def destination_for_gemini_primary_label(primary: str) -> Destination:
+    """Map ``classify_intent_gemini`` / merged ``primary`` string → app destination."""
+    return _GEMINI_PRIMARY_TO_DESTINATION.get(primary, "answer:generic")

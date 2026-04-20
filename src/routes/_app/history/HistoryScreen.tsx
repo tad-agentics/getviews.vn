@@ -37,6 +37,8 @@ const INTENT_BADGES: Record<string, string> = {
   follow_up: "",
   follow_up_unclassifiable: "",
   content_directions: "",
+  series_audit: "Chuỗi video",
+  own_flop_no_url: "Kênh flop",
 };
 
 type SessionRow = {

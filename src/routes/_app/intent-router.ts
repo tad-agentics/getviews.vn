@@ -44,6 +44,8 @@ export type FixedIntentId =
   | "hook_variants"
   | "timing"
   | "content_calendar"
+  | "series_audit"
+  | "own_flop_no_url"
   | "follow_up_unclassifiable";
 
 export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
@@ -63,6 +65,8 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   hook_variants: "answer:ideas",
   timing: "answer:timing",
   content_calendar: "answer:pattern",
+  series_audit: "answer:pattern",
+  own_flop_no_url: "answer:pattern",
   follow_up_unclassifiable: "answer:generic",
 };
 
@@ -88,6 +92,25 @@ export function detectIntent(
 ): IntentDecision {
   const q = query.trim();
   const ql = q.toLowerCase();
+
+  // ── 0. MULTI-URL → series audit (before single-URL branch) ──────────────
+  const tiktokUrls = q.match(/https?:\/\/[^\s]*tiktok\.com\/[^\s]+/gi) ?? [];
+  if (tiktokUrls.length >= 2) {
+    return { intentType: "series_audit", isFree: false, confidence: "high" };
+  }
+
+  // ── OWN CHANNEL / VIDEO FLOP (no TikTok URL) ─────────────────────────────
+  if (
+    !/https?:\/\/[^\s]*tiktok\.com/i.test(q)
+    && (
+      /\b(video|kênh|channel)\s+(của\s+)?(mình|tôi|tao|tui)\b/i.test(ql)
+      || /\b(kênh|channel)\s+(mình|tôi)\b/i.test(ql)
+      || /\b(my|kênh mình)\s+(video|channel)\b/i.test(ql)
+    )
+    && /\b(flop|ít view|không lên|low view|dead|underperform|chết)\b/i.test(ql)
+  ) {
+    return { intentType: "own_flop_no_url", isFree: false, confidence: "medium" };
+  }
 
   // ── 1. URL DETECTION (highest confidence — structural) ────────────────────
   if (/https?:\/\/[^\s]*tiktok\.com/i.test(q)) {

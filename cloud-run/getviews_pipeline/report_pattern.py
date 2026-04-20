@@ -90,6 +90,15 @@ def build_fixture_pattern_report() -> dict[str, Any]:
     return payload.model_dump()
 
 
-def build_pattern_report(_niche_id: int, _query: str, _intent_type: str, _window_days: int = 7) -> dict[str, Any]:
-    """C.2 entry — currently returns fixture until aggregators wire to DB."""
-    return build_fixture_pattern_report()
+def build_pattern_report(_niche_id: int, _query: str, _intent_type: str, window_days: int = 7) -> dict[str, Any]:
+    """C.2 entry — fixture until aggregators wire to DB; ``window_days`` from C.0.3 adaptive."""
+    data = build_fixture_pattern_report()
+    conf = data.get("confidence")
+    if isinstance(conf, dict):
+        conf["window_days"] = window_days
+    if isinstance(data.get("sources"), list) and data["sources"]:
+        s0 = data["sources"][0]
+        if isinstance(s0, dict) and "sub" in s0:
+            scope = conf.get("niche_scope", "Tech") if isinstance(conf, dict) else "Tech"
+            s0["sub"] = f"{scope} · {window_days}d"
+    return data

@@ -26,6 +26,7 @@ class QueryIntent(StrEnum):
     TIMING = "timing"
     CONTENT_CALENDAR = "content_calendar"
     COMPARISON = "comparison"
+    OWN_FLOP_NO_URL = "own_flop_no_url"  # own channel/video underperforming, no TikTok URL
     FOLLOW_UP_CLASSIFIABLE = "follow_up_classifiable"
     FOLLOW_UP_UNCLASSIFIABLE = "follow_up_unclassifiable"
 
@@ -360,6 +361,17 @@ def classify_intent(
     ):
         return QueryIntent.COMPARISON
 
+    # Phase C — own content underperforming (no URL to analyze)
+    if not has_urls and not handles and (
+        re.search(r"\b(video|kênh|channel)\s+(của\s+)?(mình|tôi|tao|tui)\b", msg)
+        or re.search(r"\b(kênh|channel)\s+(mình|tôi)\b", msg)
+        or re.search(r"\b(my|kênh mình)\s+(video|channel)\b", msg)
+    ) and re.search(
+        r"\b(flop|ít view|không lên|low view|dead|underperform|chết)\b",
+        msg,
+    ):
+        return QueryIntent.OWN_FLOP_NO_URL
+
     if not has_urls and any(
         kw in msg
         for kw in [
@@ -564,6 +576,7 @@ def collapse_to_intents(
         QueryIntent.COMPETITOR_PROFILE,
         QueryIntent.COMPARISON,
         QueryIntent.OWN_CHANNEL,
+        QueryIntent.OWN_FLOP_NO_URL,
         QueryIntent.SERIES_AUDIT,
         QueryIntent.SHOT_LIST,
         QueryIntent.FIND_CREATORS,
@@ -603,4 +616,81 @@ def check_chain_dependencies(
         required.append(QueryIntent.COMPETITOR_PROFILE)
 
     return [r for r in required if r.value not in done]
+
+
+def query_intent_to_gemini_primary(qi: QueryIntent) -> str:
+    """Map server ``QueryIntent`` to Gemini classifier primary labels (keep in sync with gemini)."""
+    m: dict[QueryIntent, str] = {
+        QueryIntent.VIDEO_DIAGNOSIS: "video_diagnosis",
+        QueryIntent.CONTENT_DIRECTIONS: "content_directions",
+        QueryIntent.COMPETITOR_PROFILE: "competitor_profile",
+        QueryIntent.SERIES_AUDIT: "series_audit",
+        QueryIntent.BRIEF_GENERATION: "brief_generation",
+        QueryIntent.TREND_SPIKE: "trend_spike",
+        QueryIntent.METADATA_ONLY: "metadata_only",
+        QueryIntent.FOLLOWUP: "follow_up",
+        QueryIntent.OWN_CHANNEL: "own_channel",
+        QueryIntent.FIND_CREATORS: "find_creators",
+        QueryIntent.SHOT_LIST: "shot_list",
+        QueryIntent.SUBNICHE_BREAKDOWN: "subniche_breakdown",
+        QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE: "format_lifecycle_optimize",
+        QueryIntent.FATIGUE: "fatigue",
+        QueryIntent.HOOK_VARIANTS: "hook_variants",
+        QueryIntent.TIMING: "timing",
+        QueryIntent.CONTENT_CALENDAR: "content_calendar",
+        QueryIntent.COMPARISON: "comparison",
+        QueryIntent.OWN_FLOP_NO_URL: "own_flop_no_url",
+        QueryIntent.FOLLOW_UP_CLASSIFIABLE: "follow_up",
+        QueryIntent.FOLLOW_UP_UNCLASSIFIABLE: "follow_up",
+    }
+    return m.get(qi, "follow_up")
+
+
+# Phase C.0.1 — if Gemini disagrees with deterministic on two specific labels,
+# keep Gemini only when ``primary_confidence`` ≥ this (plan “≥ 0.3” threshold).
+GEMINI_DISAGREE_WIN_MIN_CONFIDENCE = 0.3
+
+
+def merge_deterministic_with_gemini(
+    deterministic: QueryIntent,
+    gemini_result: dict[str, str | None],
+) -> dict[str, str | float | None]:
+    """Layer deterministic ``classify_intent`` then Gemini (Phase C.0.1).
+
+    If deterministic is specific and Gemini returns ``follow_up``, keep deterministic.
+    If deterministic is ``follow_up`` and Gemini is specific, use Gemini.
+    If both are specific and disagree: Gemini wins only if ``primary_confidence``
+    is missing (treated as 1.0) or ≥ :data:`GEMINI_DISAGREE_WIN_MIN_CONFIDENCE`;
+    otherwise deterministic wins.
+    """
+    from getviews_pipeline.gemini import GEMINI_CLASSIFIER_PRIMARY_LABELS
+
+    det = query_intent_to_gemini_primary(deterministic)
+    g_pri = (gemini_result.get("primary") or "follow_up").strip()
+    if g_pri not in GEMINI_CLASSIFIER_PRIMARY_LABELS:
+        g_pri = "follow_up"
+
+    raw_conf = gemini_result.get("primary_confidence")
+    try:
+        llm_conf = float(raw_conf) if raw_conf is not None else 1.0
+    except (TypeError, ValueError):
+        llm_conf = 1.0
+    llm_conf = max(0.0, min(1.0, llm_conf))
+
+    out: dict[str, str | float | None] = {k: v for k, v in gemini_result.items()}
+    out["primary"] = g_pri
+    out["primary_confidence"] = llm_conf
+
+    if det != "follow_up" and g_pri == "follow_up":
+        out["primary"] = det
+        return out
+    if det == "follow_up" and g_pri != "follow_up":
+        return out
+    if det != "follow_up" and g_pri != "follow_up" and det != g_pri:
+        if llm_conf >= GEMINI_DISAGREE_WIN_MIN_CONFIDENCE:
+            return out
+        out["primary"] = det
+        return out
+    out["primary"] = det if det != "follow_up" else g_pri
+    return out
 

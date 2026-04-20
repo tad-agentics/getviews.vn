@@ -31,7 +31,7 @@ def build_timing_report(niche_id: int, query: str, window_days: int = 7) -> dict
             ActionCardPayload(icon="calendar", title="Lên lịch", sub="Cửa sổ mạnh nhất", cta="Copy", primary=True, forecast={"expected_range": "—", "baseline": "—"}),
             ActionCardPayload(icon="users", title="Đối thủ", sub="Ai đang post khung này", cta="Xem", forecast={"expected_range": "—", "baseline": "—"}),
         ],
-        sources=[SourceRow(kind="video", label="Mẫu", count=80, sub="7d")],
+        sources=[SourceRow(kind="video", label="Mẫu", count=80, sub=f"{window_days}d")],
         related_questions=["Đổi khung giờ theo ngách con?"],
     )
     return payload.model_dump()

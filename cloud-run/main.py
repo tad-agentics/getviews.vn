@@ -37,8 +37,11 @@ from getviews_pipeline.config import (
     SUPABASE_JWT_SECRET,
 )
 from getviews_pipeline.gemini import classify_intent_gemini, gemini_text_only
+from getviews_pipeline.intent_router import destination_for_gemini_primary_label
 from getviews_pipeline.intents import (
+    classify_intent,
     extract_urls_and_handles,
+    merge_deterministic_with_gemini,
     split_into_questions,
 )
 from getviews_pipeline.helpers import infer_niche_from_hashtags
@@ -365,6 +368,7 @@ async def auth_check(user: dict = Depends(require_user)) -> JSONResponse:
 
 class ClassifyIntentRequest(BaseModel):
     query: str
+    has_session: bool = False
 
 
 @app.post("/classify-intent")
@@ -374,20 +378,27 @@ async def classify_intent_endpoint(
 ) -> JSONResponse:
     """Tier-3 semantic intent classification — no credit cost.
 
-    Called by the frontend when tiers 1+2 (structural + keyword) produce a
-    low-confidence result (falls through to follow_up with no prior context).
-    Returns primary intent, optional secondary intent, and a niche hint.
+    Phase C.0.1: runs deterministic ``classify_intent`` first, then Gemini
+    ``classify_intent_gemini``, then merges. On two specific disagreeing labels,
+    Gemini wins only if ``primary_confidence`` ≥ 0.3 (see ``GEMINI_DISAGREE_WIN_MIN_CONFIDENCE``).
 
-    Response: {"primary": str, "secondary": str|null, "niche_hint": str|null}
+    Response adds ``destination_or_format`` (``video`` | ``channel`` | ``kol`` | ``script`` | ``answer:*``).
+
+    Response: primary, secondary, niche_hint, primary_confidence (0–1), destination_or_format
     """
     urls, handles = extract_urls_and_handles(body.query)
-    result = await run_sync(
+    det = classify_intent(body.query, urls, handles, body.has_session)
+    gem = await run_sync(
         classify_intent_gemini,
         body.query,
         has_url=bool(urls),
         has_handle=bool(handles),
     )
-    return JSONResponse(result)
+    merged = merge_deterministic_with_gemini(det, gem)
+    primary = str(merged.get("primary") or "follow_up")
+    merged_out: dict[str, object] = dict(merged)
+    merged_out["destination_or_format"] = destination_for_gemini_primary_label(primary)
+    return JSONResponse(merged_out)
 
 
 @app.post("/stream")

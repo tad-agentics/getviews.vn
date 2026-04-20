@@ -104,13 +104,29 @@ def append_turn(
             raise RuntimeError("insufficient_credits")
 
     fmt = session.get("format") or "pattern"
+    from getviews_pipeline.adaptive_window import ReportKind, choose_adaptive_window_days
+
+    niche_pk = int(session.get("niche_id") or 0)
+    adaptive_kind: ReportKind = fmt if fmt in ("pattern", "ideas", "timing") else "pattern"
+    window_days = choose_adaptive_window_days(niche_pk, adaptive_kind)
+
     inner: dict[str, Any]
     if fmt == "pattern":
-        inner = build_pattern_report(session.get("niche_id") or 0, query, session.get("intent_type") or "trend_spike")
+        inner = build_pattern_report(
+            niche_pk,
+            query,
+            session.get("intent_type") or "trend_spike",
+            window_days=window_days,
+        )
     elif fmt == "ideas":
-        inner = build_ideas_report(session.get("niche_id") or 0, query, session.get("intent_type") or "brief_generation")
+        inner = build_ideas_report(
+            niche_pk,
+            query,
+            session.get("intent_type") or "brief_generation",
+            window_days=window_days,
+        )
     elif fmt == "timing":
-        inner = build_timing_report(session.get("niche_id") or 0, query)
+        inner = build_timing_report(niche_pk, query, window_days=window_days)
     else:
         inner = build_generic_report(session.get("niche_id"), query)
 

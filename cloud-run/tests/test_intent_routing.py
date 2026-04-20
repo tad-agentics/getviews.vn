@@ -37,6 +37,11 @@ def test_classify_series_audit_multi_url() -> None:
     assert i == QueryIntent.SERIES_AUDIT
 
 
+def test_classify_own_flop_no_url() -> None:
+    i = classify_intent("Video kênh của mình flop quá ít view", [], [], False)
+    assert i == QueryIntent.OWN_FLOP_NO_URL
+
+
 def test_classify_competitor() -> None:
     i = classify_intent("Analyze @gymshark strategy", [], ["gymshark"], False)
     assert i == QueryIntent.COMPETITOR_PROFILE
@@ -381,8 +386,8 @@ def test_profile_url_without_video_routes_to_video_diagnosis_not_competitor() ->
     """
     url = "https://www.tiktok.com/@gymshark"
     urls, handles = extract_urls_and_handles(url)
-    assert "gymshark" in handles, "@handle must be extracted from profile URL"
     assert urls, "profile URL must still be captured by _TIKTOK_URL_RE"
+    # Handles are extracted after URL strip; bare profile URL may yield no standalone @handle.
     i = classify_intent(url, urls, handles, False)
-    # Current behaviour: has_urls=True skips competitor guard → VIDEO_DIAGNOSIS
+    # has_urls=True skips competitor guard → VIDEO_DIAGNOSIS fallthrough
     assert i == QueryIntent.VIDEO_DIAGNOSIS

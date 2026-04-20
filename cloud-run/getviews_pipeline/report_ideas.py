@@ -45,7 +45,7 @@ def build_ideas_report(
             ActionCardPayload(icon="sparkles", title="Mở script", sub="Ý #1", cta="Mở", primary=True, forecast={"expected_range": "—", "baseline": "—"}),
             ActionCardPayload(icon="save", title="Lưu template", sub="5 ý", cta="Lưu", forecast={"expected_range": "—", "baseline": "—"}),
         ],
-        sources=[SourceRow(kind="video", label="Corpus", count=60, sub="7d")],
+        sources=[SourceRow(kind="video", label="Corpus", count=60, sub=f"{window_days}d")],
         related_questions=["Thêm ý cho hook khác?"],
         variant="hook_variants" if variant == "hook_variants" else "standard",
     )
