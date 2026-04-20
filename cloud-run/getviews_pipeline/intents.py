@@ -18,6 +18,16 @@ class QueryIntent(StrEnum):
     OWN_CHANNEL = "own_channel"  # "Soi Kênh" — same pipeline as video_diagnosis
     FIND_CREATORS = "find_creators"  # KOL/creator search
     SHOT_LIST = "shot_list"  # detailed shot list for production
+    # Phase C §A.2 — `/answer` report intents (classify_intent + Gemini)
+    SUBNICHE_BREAKDOWN = "subniche_breakdown"
+    FORMAT_LIFECYCLE_OPTIMIZE = "format_lifecycle_optimize"
+    FATIGUE = "fatigue"
+    HOOK_VARIANTS = "hook_variants"
+    TIMING = "timing"
+    CONTENT_CALENDAR = "content_calendar"
+    COMPARISON = "comparison"
+    FOLLOW_UP_CLASSIFIABLE = "follow_up_classifiable"
+    FOLLOW_UP_UNCLASSIFIABLE = "follow_up_unclassifiable"
 
 
 KNOWLEDGE_SIGNALS = [
@@ -261,6 +271,95 @@ def classify_intent(
     ):
         return QueryIntent.TREND_SPIKE
 
+    # Phase C — timing (posting windows)
+    if not has_urls and any(
+        kw in msg
+        for kw in [
+            "đăng giờ nào",
+            "giờ nào tốt",
+            "thứ mấy",
+            "best time to post",
+            "when to post",
+            "posting time",
+            "khung giờ",
+            "lịch đăng",
+        ]
+    ):
+        return QueryIntent.TIMING
+
+    # Phase C — fatigue / declining patterns
+    if not has_urls and any(
+        kw in msg
+        for kw in [
+            "pattern hết",
+            "hết trend",
+            "đang chết",
+            "đang giảm dần",
+            "không còn hiệu",
+            "dead trend",
+            "declining format",
+        ]
+    ):
+        return QueryIntent.FATIGUE
+
+    # Phase C — format length / carousel vs video
+    if not has_urls and any(
+        kw in msg
+        for kw in [
+            "30s vs 60",
+            "60s vs 30",
+            "carousel vs video",
+            "ảnh vs video",
+            "short vs long",
+            "độ dài video",
+        ]
+    ):
+        return QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE
+
+    # Phase C — hook variant requests
+    if not has_urls and any(
+        kw in msg
+        for kw in [
+            "biến thể của hook",
+            "hook variants",
+            "5 cách viết hook",
+            "cách viết hook này",
+            "viết lại hook",
+        ]
+    ):
+        return QueryIntent.HOOK_VARIANTS
+
+    # Phase C — weekly content calendar
+    if not has_urls and any(
+        kw in msg
+        for kw in [
+            "tuần này post gì",
+            "lịch content tuần",
+            "content calendar",
+            "khi nào post gì",
+        ]
+    ):
+        return QueryIntent.CONTENT_CALENDAR
+
+    # Phase C — sub-niche breakdown (explicit)
+    if not has_urls and any(
+        kw in msg
+        for kw in [
+            "ngách con",
+            "subniche",
+            "sub-niche",
+            "phân ngách",
+        ]
+    ):
+        return QueryIntent.SUBNICHE_BREAKDOWN
+
+    # Phase C — A vs B creators (2+ handles, compare framing)
+    if len(handles) >= 2 and any(
+        kw in msg
+        for kw in ["so sánh", "compare", "vs ", "versus", "hay hơn", "ai hơn"]
+    ):
+        return QueryIntent.COMPARISON
+
     if not has_urls and any(
         kw in msg
         for kw in [
@@ -454,14 +553,23 @@ def collapse_to_intents(
     order = [
         QueryIntent.TREND_SPIKE,
         QueryIntent.CONTENT_DIRECTIONS,
+        QueryIntent.SUBNICHE_BREAKDOWN,
+        QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE,
+        QueryIntent.FATIGUE,
+        QueryIntent.TIMING,
+        QueryIntent.CONTENT_CALENDAR,
+        QueryIntent.HOOK_VARIANTS,
+        QueryIntent.BRIEF_GENERATION,
         QueryIntent.VIDEO_DIAGNOSIS,
         QueryIntent.COMPETITOR_PROFILE,
+        QueryIntent.COMPARISON,
         QueryIntent.OWN_CHANNEL,
         QueryIntent.SERIES_AUDIT,
-        QueryIntent.BRIEF_GENERATION,
         QueryIntent.SHOT_LIST,
         QueryIntent.FIND_CREATORS,
         QueryIntent.METADATA_ONLY,
+        QueryIntent.FOLLOW_UP_CLASSIFIABLE,
+        QueryIntent.FOLLOW_UP_UNCLASSIFIABLE,
         QueryIntent.FOLLOWUP,
     ]
     pairs = [(i, intent_groups[i]) for i in order if i in intent_groups]

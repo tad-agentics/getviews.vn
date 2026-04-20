@@ -10,6 +10,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { formatRelativeSinceVi } from "@/lib/formatters";
+import { logUsage } from "@/lib/logUsage";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { PulseCard } from "./components/PulseCard";
 import { HooksTable } from "./components/HooksTable";
@@ -70,7 +71,8 @@ export default function HomeScreen() {
   );
 
   const launchChat = (text: string) => {
-    navigate("/app/chat", { state: { initialPrompt: text } });
+    logUsage("studio_composer_submit", { surface: "home", length: text.length });
+    navigate(`/app/answer?q=${encodeURIComponent(text)}`);
   };
 
   const fillComposer = (text: string) => {
@@ -140,7 +142,7 @@ export default function HomeScreen() {
                 <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
                 Đã Lưu
               </Btn>
-              <Btn variant="ink" size="sm" onClick={() => navigate("/app/chat")}>
+              <Btn variant="ink" size="sm" onClick={() => navigate("/app/answer")}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới
               </Btn>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Search, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Badge } from "@/components/ui/Badge";
@@ -15,12 +15,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { logUsage } from "@/lib/logUsage";
 import {
   useChatSessions,
   useDeleteSession,
   useUpdateSession,
   useSearchSessions,
 } from "@/hooks/useChatSessions";
+import { useHistoryUnion, type HistoryUnionRow } from "@/hooks/useHistoryUnion";
 
 /** Copy slots + intent mapping (screen spec). */
 const INTENT_BADGES: Record<string, string> = {
@@ -33,6 +35,7 @@ const INTENT_BADGES: Record<string, string> = {
   creator_search: "Tìm KOL",
   format_lifecycle: "Format",
   follow_up: "",
+  follow_up_unclassifiable: "",
   content_directions: "",
 };
 
@@ -44,6 +47,20 @@ type SessionRow = {
   intent_type: string | null;
   credits_used: number;
 };
+
+type HistoryListRow = SessionRow & { _union?: HistoryUnionRow };
+
+function mapUnionToRows(rows: HistoryUnionRow[]): HistoryListRow[] {
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    first_message: null,
+    created_at: r.updated_at,
+    intent_type: r.format,
+    credits_used: 0,
+    _union: r,
+  }));
+}
 
 function formatDate(dateString: string) {
   const date = new Date(dateString);
@@ -96,6 +113,7 @@ function HistoryListSkeleton() {
 export default function HistoryScreen() {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
@@ -107,6 +125,7 @@ export default function HistoryScreen() {
 
   const trimmedQuery = debouncedQuery.trim();
   const isSearch = trimmedQuery.length > 0;
+  const answerFilterMode = searchParams.get("filter") === "answer" && !isSearch;
 
   const {
     data: listSessions,
@@ -120,6 +139,12 @@ export default function HistoryScreen() {
     isError: searchError,
     refetch: refetchSearch,
   } = useSearchSessions(trimmedQuery);
+  const {
+    data: unionRows,
+    isLoading: unionLoading,
+    isError: unionError,
+    refetch: refetchUnion,
+  } = useHistoryUnion("answer", Boolean(session && answerFilterMode));
 
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
@@ -128,12 +153,15 @@ export default function HistoryScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
 
-  const sessions: SessionRow[] = (isSearch ? searchResults : listSessions) as SessionRow[];
-  const isLoading = isSearch ? searchLoading : listLoading;
-  const isError = isSearch ? searchError : listError;
+  const sessions: HistoryListRow[] = answerFilterMode
+    ? mapUnionToRows(unionRows ?? [])
+    : ((isSearch ? searchResults : listSessions) as HistoryListRow[]);
+  const isLoading = answerFilterMode ? unionLoading : isSearch ? searchLoading : listLoading;
+  const isError = answerFilterMode ? unionError : isSearch ? searchError : listError;
 
   const refetchHistory = () => {
-    if (isSearch) void refetchSearch();
+    if (answerFilterMode) void refetchUnion();
+    else if (isSearch) void refetchSearch();
     else void refetchList();
   };
 
@@ -146,10 +174,10 @@ export default function HistoryScreen() {
       groups[dateGroup].push(sess);
       return groups;
     },
-    {} as Record<string, SessionRow[]>,
+    {} as Record<string, HistoryListRow[]>,
   );
 
-  const openRename = (s: SessionRow) => {
+  const openRename = (s: HistoryListRow) => {
     setEditingId(s.id);
     setDraftTitle(sessionPreview(s));
   };
@@ -219,8 +247,23 @@ export default function HistoryScreen() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9"
+            disabled={answerFilterMode}
           />
         </div>
+        {answerFilterMode ? (
+          <div className="max-w-2xl mx-auto mt-3 flex flex-wrap items-center gap-2 px-1">
+            <Badge variant="accent" className="text-xs">
+              Phiên nghiên cứu
+            </Badge>
+            <button
+              type="button"
+              onClick={() => navigate("/app/history")}
+              className="text-xs font-mono text-[color:var(--gv-accent)] hover:underline"
+            >
+              ← Lịch sử đầy đủ
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* Session List */}
@@ -232,7 +275,7 @@ export default function HistoryScreen() {
               <button
                 type="button"
                 onClick={() => refetchHistory()}
-                className="text-sm text-[var(--purple)] underline"
+                className="text-sm text-[color:var(--gv-accent)] underline"
               >
                 Thử lại
               </button>
@@ -242,13 +285,22 @@ export default function HistoryScreen() {
           ) : filteredSessions.length === 0 ? (
             <div className="px-4 py-12 text-center">
               {isSearch ? (
-                <p className="text-[var(--ink-soft)]">Không tìm thấy phiên nào với từ khoá này.</p>
+                <p className="text-[color:var(--gv-ink-3)]">Không tìm thấy phiên nào với từ khoá này.</p>
+              ) : answerFilterMode ? (
+                <>
+                  <p className="text-[color:var(--gv-ink-3)] mb-4">
+                    Chưa có phiên nghiên cứu nào. Mở Studio hoặc bắt đầu từ /app/answer.
+                  </p>
+                  <Button type="button" onClick={() => navigate("/app/answer")} variant="primary">
+                    Phiên nghiên cứu mới →
+                  </Button>
+                </>
               ) : (
                 <>
-                  <p className="text-[var(--ink-soft)] mb-4">
+                  <p className="text-[color:var(--gv-ink-3)] mb-4">
                     Chưa có phiên nào. Dán link TikTok hoặc hỏi câu đầu tiên để bắt đầu.
                   </p>
-                  <Button type="button" onClick={() => navigate("/app/chat")} variant="primary">
+                  <Button type="button" onClick={() => navigate("/app/answer")} variant="primary">
                     Bắt đầu phân tích →
                   </Button>
                 </>
@@ -264,9 +316,13 @@ export default function HistoryScreen() {
                 </div>
                 <div className="divide-y divide-[var(--border)] bg-[var(--surface)]">
                   {groupSessions.map((session) => {
-                    const badgeText = session.intent_type
-                      ? (INTENT_BADGES[session.intent_type] ?? "")
-                      : "";
+                    const badgeText = session._union
+                      ? session._union.format
+                        ? session._union.format.replace(/_/g, " ")
+                        : "Nghiên cứu"
+                      : session.intent_type
+                        ? (INTENT_BADGES[session.intent_type] ?? "")
+                        : "";
                     const editing = editingId === session.id;
 
                     return (
@@ -276,7 +332,18 @@ export default function HistoryScreen() {
                       >
                         <button
                           type="button"
-                          onClick={() => navigate(`/app/chat?session=${session.id}`)}
+                          onClick={() => {
+                            if (session._union) {
+                              logUsage("history_session_open", {
+                                type: "answer",
+                                session_id: session.id,
+                              });
+                              navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
+                            } else {
+                              logUsage("history_session_open", { type: "chat", session_id: session.id });
+                              navigate(`/app/history/chat/${session.id}`);
+                            }
+                          }}
                           className="min-h-[44px] flex-1 px-2 py-2 text-left rounded-lg"
                         >
                           {editing ? (
@@ -299,7 +366,7 @@ export default function HistoryScreen() {
                           ) : (
                             <div className="flex items-start gap-3 mb-2">
                               {badgeText ? (
-                                <Badge variant="purple" className="text-xs flex-shrink-0">
+                                <Badge variant="accent" className="text-xs flex-shrink-0">
                                   {badgeText}
                                 </Badge>
                               ) : (
@@ -316,14 +383,16 @@ export default function HistoryScreen() {
                                 {formatTime(session.created_at)}
                               </span>
                               <span className="font-mono text-[var(--muted)]">
-                                {session.credits_used === 0
-                                  ? "miễn phí"
-                                  : `−${session.credits_used} credit`}
+                                {session._union
+                                  ? `${session._union.turn_count} lượt`
+                                  : session.credits_used === 0
+                                    ? "miễn phí"
+                                    : `−${session.credits_used} credit`}
                               </span>
                             </div>
                           ) : null}
                         </button>
-                        {!editing ? (
+                        {!editing && !session._union ? (
                           <div className="flex flex-col justify-center gap-1 pr-1 flex-shrink-0">
                             <button
                               type="button"
@@ -348,6 +417,8 @@ export default function HistoryScreen() {
                               <Trash2 className="w-4 h-4" strokeWidth={1.8} />
                             </button>
                           </div>
+                        ) : !editing && session._union ? (
+                          <div className="w-2 flex-shrink-0" aria-hidden />
                         ) : null}
                       </div>
                     );

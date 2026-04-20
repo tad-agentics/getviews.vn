@@ -1,13 +1,13 @@
 import { useNavigate } from "react-router";
 import {
   Home as HomeIcon,
-  MessageCircle,
+  Sparkles,
   TrendingUp,
   Settings as SettingsIcon,
 } from "lucide-react";
 
 /** Keys rendered as bottom tabs (four slots). */
-type Tab = "home" | "chat" | "trends" | "settings";
+type Tab = "home" | "answer" | "trends" | "settings";
 
 /** Shell-wide active section; values not in the bottom bar show no tab as selected. */
 export type AppShellActive = Tab | "kol" | "script";
@@ -32,7 +32,7 @@ export function BottomTabBar({ active }: { active?: AppShellActive }) {
     to: string;
   }> = [
     { key: "home",     label: "Trang chủ", icon: HomeIcon,       to: "/app" },
-    { key: "chat",     label: "Chat",      icon: MessageCircle,  to: "/app/chat" },
+    { key: "answer",   label: "Nghiên cứu", icon: Sparkles,      to: "/app/answer" },
     { key: "trends",   label: "Xu hướng",  icon: TrendingUp,     to: "/app/trends" },
     { key: "settings", label: "Cài đặt",   icon: SettingsIcon,   to: "/app/settings" },
   ];

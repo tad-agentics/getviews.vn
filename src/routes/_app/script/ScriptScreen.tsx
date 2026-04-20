@@ -285,7 +285,7 @@ export default function ScriptScreen() {
               <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
               Đã Lưu
             </Btn>
-            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/chat")}>
+            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
               Phân tích mới
             </Btn>

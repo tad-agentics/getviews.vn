@@ -62,7 +62,7 @@ function retentionEndPct(curve: { t: number; pct: number }[] | null | undefined)
   return curve[curve.length - 1].pct;
 }
 
-/** Chat handoff — matches ``ChatScreen`` `location.state.initialPrompt` consumption. */
+/** Research handoff — ``AnswerScreen`` reads `location.state.initialPrompt` or `?q=`. */
 function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse, analyzeUrl: string | null): string {
   const issues = d.flop_issues ?? [];
   const lines = [
@@ -191,7 +191,7 @@ export default function VideoScreen() {
               <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
               Đã Lưu
             </Btn>
-            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/chat")}>
+            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               Phân tích mới
             </Btn>
@@ -350,7 +350,7 @@ function VideoAnalysisBodyInner({
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: data.video_id });
-    navigate("/app/chat", {
+    navigate("/app/answer", {
       state: { initialPrompt: buildFlopScriptHandoffPrompt(data, analyzeUrl) },
     });
   };
@@ -389,7 +389,7 @@ function VideoAnalysisBodyInner({
   };
 
   const applyLesson = (lesson: VideoLesson) => {
-    navigate("/app/chat", {
+    navigate("/app/answer", {
       state: {
         initialPrompt: [
           `Corpus video_id: ${data.video_id}`,

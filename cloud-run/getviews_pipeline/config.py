@@ -113,6 +113,9 @@ CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH = _bool_env("CORPUS_LEGACY_CAROUSEL_HASHTAG
 ED_BATCH_DAILY_REQUEST_MAX = int(os.environ.get("ED_BATCH_DAILY_REQUEST_MAX", "0") or "0")
 ED_BATCH_BUDGET_ENFORCE = _bool_env("ED_BATCH_BUDGET_ENFORCE", False)
 
+# Tier-3 `classify_intent_gemini` calls per UTC day. 0 = unlimited.
+CLASSIFIER_GEMINI_DAILY_MAX = int(os.environ.get("CLASSIFIER_GEMINI_DAILY_MAX", "0") or "0")
+
 # TTL cache for hot user-path ED calls (seconds). 0 = disabled.
 ENSEMBLE_USER_PATH_CACHE_TTL_SEC = int(
     os.environ.get("ENSEMBLE_USER_PATH_CACHE_TTL_SEC", "300") or "300"

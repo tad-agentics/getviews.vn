@@ -1,0 +1,84 @@
+import { useEffect, useState } from "react";
+
+const STEPS = ["Quét", "Phân tích", "Tìm pattern", "Tóm tắt"] as const;
+
+/** Four-step research narrative (Phase C.1.3). */
+export function ResearchStepStrip({
+  stage,
+  done = false,
+}: {
+  /** 0–3 current highlight while loading; `done` styles all steps complete. */
+  stage: number;
+  done?: boolean;
+}) {
+  const activeIndex = done ? STEPS.length : Math.min(Math.max(stage, 0), STEPS.length - 1);
+  return (
+    <ol className="mt-4 flex flex-wrap gap-2" aria-label="Tiến trình nghiên cứu">
+      {STEPS.map((label, i) => {
+        const isDone = done || i < activeIndex;
+        const isActive = !done && i === activeIndex;
+        return (
+          <li
+            key={label}
+            className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide transition-colors ${
+              isDone
+                ? "border-[color:var(--gv-accent)] bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-ink)]"
+                : isActive
+                  ? "border-[color:var(--gv-accent)] bg-[var(--gv-canvas-2)] text-[color:var(--gv-ink)]"
+                  : "border-[var(--gv-rule)] text-[var(--gv-ink-4)]"
+            }`}
+          >
+            {label}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Cycles stages 0→3 while `active`; resets when inactive. */
+export function useResearchStage(active: boolean): number {
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setStage(0);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setStage((s) => (s >= 3 ? 0 : s + 1));
+    }, 450);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return active ? stage : 0;
+}
+
+export function ProgressPill({
+  loading,
+  stepIndex,
+  total = 4,
+}: {
+  loading: boolean;
+  stepIndex: number;
+  total?: number;
+}) {
+  if (!loading) return null;
+  const n = Math.min(stepIndex + 1, total);
+  return (
+    <span className="inline-flex items-center rounded-full border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] px-2 py-0.5 font-mono text-[10px] text-[var(--gv-ink-3)]">
+      Đang nghiên cứu… {n}/{total}
+    </span>
+  );
+}
+
+/** Thin activity line under the header during load. */
+export function MiniResearchStrip({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div
+      className="mt-3 h-0.5 w-full overflow-hidden rounded-full bg-[var(--gv-rule)]"
+      aria-hidden
+    >
+      <div className="h-full w-1/3 animate-pulse rounded-full bg-[color:var(--gv-accent)] motion-reduce:animate-none" />
+    </div>
+  );
+}

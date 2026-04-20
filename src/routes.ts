@@ -12,7 +12,8 @@ export default [
   // Authenticated app routes — guarded by layout
   layout("routes/_app/layout.tsx", [
     route("app", "routes/_app/route.tsx"),
-    route("app/chat", "routes/_app/chat/route.tsx"),
+    route("app/answer", "routes/_app/answer/route.tsx"),
+    route("app/history/chat/:sessionId", "routes/_app/history/chat-session/route.tsx"),
     route("app/onboarding", "routes/_app/onboarding/route.tsx"),
     route("app/history", "routes/_app/history/route.tsx"),
     route("app/trends", "routes/_app/trends/route.tsx"),

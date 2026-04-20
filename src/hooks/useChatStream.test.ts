@@ -75,7 +75,7 @@ function mockFetchStream(chunks: string[], status = 200): Response {
 const BASE_PARAMS = {
   sessionId: "session-1",
   query: "test",
-  intentType: "follow_up", // not in CLOUD_RUN_INTENTS → hits /api/chat
+  intentType: "follow_up_unclassifiable", // not in CLOUD_RUN_INTENTS → hits /api/chat
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

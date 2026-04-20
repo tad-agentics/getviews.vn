@@ -34,6 +34,10 @@ from getviews_pipeline.config import (
     MAX_INLINE_SIZE_BYTES,
     require_gemini_api_key,
 )
+from getviews_pipeline.ensemble import (
+    ClassifierDailyBudgetExceeded,
+    consume_classifier_gemini_budget_or_raise,
+)
 from getviews_pipeline.models import BatchSummary, CarouselAnalysis, ContentType, VideoAnalysis
 from getviews_pipeline.prompts import (
     CAROUSEL_EXTRACTION_PROMPT,
@@ -577,7 +581,7 @@ Also output a secondary intent if the message clearly requests TWO things (e.g. 
 Secondary intent is null if there is only one clear intent.
 
 Output valid JSON only — no markdown, no explanation:
-{"primary": "<intent>", "secondary": "<intent or null>", "niche_hint": "<detected niche name in Vietnamese or English, or null>"}
+{{"primary": "<intent>", "secondary": "<intent or null>", "niche_hint": "<detected niche name in Vietnamese or English, or null>"}}
 
 User message: {message}
 """
@@ -612,6 +616,18 @@ def classify_intent_gemini(
         max_output_tokens=128,
         response_mime_type="application/json",
     )
+    try:
+        consume_classifier_gemini_budget_or_raise()
+    except ClassifierDailyBudgetExceeded as exc:
+        logger.warning(
+            "[classify_intent_gemini] %s — deterministic fallback (no Gemini call)",
+            exc,
+        )
+        return {
+            "primary": structural or "follow_up",
+            "secondary": None,
+            "niche_hint": None,
+        }
     try:
         response = _generate_content_models(
             [prompt],

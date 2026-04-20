@@ -440,7 +440,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           return next;
         });
         const activeId = new URLSearchParams(window.location.search).get("session");
-        if (activeId === id) navigate("/app/chat");
+        if (activeId === id) navigate("/app/answer");
       },
     });
   };
@@ -498,7 +498,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               type="button"
               title="Cuộc trò chuyện mới"
               onClick={() => {
-                navigate("/app/chat");
+                navigate("/app/answer");
                 onClose?.();
               }}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
@@ -591,7 +591,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       session={session}
                       isPinned
                       onNavigate={() => {
-                        navigate(`/app/chat?session=${session.id}`);
+                        navigate(`/app/history/chat/${session.id}`);
                         onClose?.();
                       }}
                       onPin={() => handlePin(session.id)}
@@ -614,7 +614,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                     session={session}
                     isPinned={false}
                     onNavigate={() => {
-                      navigate(`/app/chat?session=${session.id}`);
+                      navigate(`/app/history/chat/${session.id}`);
                       onClose?.();
                     }}
                     onPin={() => handlePin(session.id)}
@@ -719,7 +719,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
             {/* New chat — top right */}
             <button
-              onClick={() => navigate('/app/chat')}
+              onClick={() => navigate("/app/answer")}
               className="fixed top-3 right-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] text-[color:var(--gv-ink-2)] shadow-sm active:scale-95 transition-all duration-[120ms]"
               style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
             >

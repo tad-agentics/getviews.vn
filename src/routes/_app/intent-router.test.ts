@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectIntent } from "./intent-router";
+import { appendTurnKindForQuery, detectIntent, planAnswerEntry } from "./intent-router";
 
 /**
  * Regression guard for the "Soi kênh đối thủ @handle" routing bug.
@@ -51,9 +51,9 @@ describe("detectIntent — handle + 'Soi kênh đối thủ' regression", () => 
 });
 
 describe("detectIntent — own_channel without a handle requires self-reference", () => {
-  it("falls through to follow_up on bare 'Soi kênh' (ambiguous)", () => {
+  it("falls through to follow_up_unclassifiable on bare 'Soi kênh' (ambiguous)", () => {
     const r = detectIntent("Soi kênh", false);
-    expect(r.intentType).toBe("follow_up");
+    expect(r.intentType).toBe("follow_up_unclassifiable");
   });
 
   it("own_channel on 'Soi kênh của mình'", () => {
@@ -66,9 +66,9 @@ describe("detectIntent — own_channel without a handle requires self-reference"
     expect(r.intentType).toBe("own_channel");
   });
 
-  it("follow_up on 'Phân tích kênh' without self-reference", () => {
+  it("follow_up_unclassifiable on 'Phân tích kênh' without self-reference", () => {
     const r = detectIntent("Phân tích kênh này xem sao", false);
-    expect(r.intentType).toBe("follow_up");
+    expect(r.intentType).toBe("follow_up_unclassifiable");
   });
 });
 
@@ -111,15 +111,75 @@ describe("detectIntent — non-handle branches still work", () => {
     expect(r.intentType).toBe("trend_spike");
   });
 
-  it("follow_up on open-ended chat with prior context", () => {
+  it("follow_up_unclassifiable on open-ended chat with prior context", () => {
     const r = detectIntent("Tại sao vậy nhỉ?", true);
-    expect(r.intentType).toBe("follow_up");
+    expect(r.intentType).toBe("follow_up_unclassifiable");
     expect(r.confidence).toBe("medium");
   });
 
-  it("follow_up low-confidence without prior context", () => {
+  it("follow_up_unclassifiable low-confidence without prior context", () => {
     const r = detectIntent("Chào bạn", false);
-    expect(r.intentType).toBe("follow_up");
+    expect(r.intentType).toBe("follow_up_unclassifiable");
     expect(r.confidence).toBe("low");
+  });
+});
+
+describe("planAnswerEntry — /answer session vs redirect", () => {
+  it("timing query → session format timing + intent timing", () => {
+    const p = planAnswerEntry("Nên đăng TikTok giờ nào trong tuần?", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("timing");
+      expect(p.intent_type).toBe("timing");
+    }
+  });
+
+  it("brief_generation → ideas format", () => {
+    const p = planAnswerEntry("Viết brief tuần này cho kênh skincare", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("ideas");
+      expect(p.intent_type).toBe("brief_generation");
+    }
+  });
+
+  it("trend_spike → pattern format", () => {
+    const p = planAnswerEntry("Xu hướng TikTok đang hot tuần này", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("pattern");
+      expect(p.intent_type).toBe("trend_spike");
+    }
+  });
+
+  it("TikTok URL → redirect to /app/video", () => {
+    const p = planAnswerEntry("https://www.tiktok.com/@x/video/123", false);
+    expect(p.kind).toBe("redirect");
+    if (p.kind === "redirect") {
+      expect(p.to).toContain("/app/video");
+    }
+  });
+
+  it("unclassified query → generic session + follow_up_unclassifiable (aligned with INTENT_DESTINATIONS)", () => {
+    const p = planAnswerEntry("Chào bạn, cho mình hỏi chút", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("generic");
+      expect(p.intent_type).toBe("follow_up_unclassifiable");
+    }
+  });
+});
+
+describe("appendTurnKindForQuery", () => {
+  it("timing intent → timing kind", () => {
+    expect(appendTurnKindForQuery("Khung giờ vàng để post?", true)).toBe("timing");
+  });
+
+  it("creator_search → creators kind", () => {
+    expect(appendTurnKindForQuery("Tìm KOL làm review son", true)).toBe("creators");
+  });
+
+  it("default → generic kind", () => {
+    expect(appendTurnKindForQuery("Giải thích thêm giúp mình", true)).toBe("generic");
   });
 });

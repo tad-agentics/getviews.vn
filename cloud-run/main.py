@@ -1504,6 +1504,72 @@ async def script_generate_endpoint(
     return JSONResponse(out)
 
 
+class DraftScriptBody(BaseModel):
+    topic: str
+    hook: str
+    hook_delay_ms: int
+    duration_sec: int
+    tone: str
+    shots: list[Any] = Field(default_factory=list)
+    niche_id: int | None = None
+    source_session_id: str | None = None
+
+
+@app.post("/script/drafts")
+async def script_drafts_create(
+    body: DraftScriptBody,
+    user: dict[str, Any] = Depends(require_user),
+) -> JSONResponse:
+    """Phase C.8.1 — persist a script draft (RLS: caller owns row)."""
+    from getviews_pipeline.supabase_client import user_supabase
+
+    sb = user_supabase(user["access_token"])
+    row: dict[str, Any] = {
+        "user_id": user["user_id"],
+        "topic": body.topic,
+        "hook": body.hook,
+        "hook_delay_ms": body.hook_delay_ms,
+        "duration_sec": body.duration_sec,
+        "tone": body.tone,
+        "shots": body.shots,
+    }
+    if body.niche_id is not None:
+        row["niche_id"] = body.niche_id
+    if body.source_session_id is not None:
+        row["source_session_id"] = body.source_session_id
+    try:
+        res = sb.table("draft_scripts").insert(row).execute()
+    except Exception as exc:
+        logger.exception("[script/drafts] insert failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    data = res.data[0] if isinstance(res.data, list) else res.data
+    return JSONResponse(data)
+
+
+@app.get("/script/drafts")
+async def script_drafts_list(
+    user: dict[str, Any] = Depends(require_user),
+    limit: int = Query(20, ge=1, le=100),
+) -> JSONResponse:
+    """List recent script drafts for the authenticated user."""
+    from getviews_pipeline.supabase_client import user_supabase
+
+    sb = user_supabase(user["access_token"])
+    try:
+        res = (
+            sb.table("draft_scripts")
+            .select("*")
+            .eq("user_id", user["user_id"])
+            .order("updated_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[script/drafts] list failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse({"drafts": res.data or []})
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Home screen endpoints — Phase A · A1
 # ══════════════════════════════════════════════════════════════════════════
@@ -1714,3 +1780,138 @@ async def batch_scene_intelligence(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return JSONResponse({"ok": True, **stats})
+
+
+# ── Phase C — /answer sessions ───────────────────────────────────────────────
+
+
+class AnswerSessionCreateBody(BaseModel):
+    initial_q: str
+    intent_type: str
+    niche_id: int | None = None
+    format: Literal["pattern", "ideas", "timing", "generic"] = "pattern"
+
+
+class AnswerTurnAppendBody(BaseModel):
+    query: str
+    kind: Literal["primary", "timing", "creators", "script", "generic"] = "primary"
+
+
+class AnswerSessionPatchBody(BaseModel):
+    title: str | None = None
+    archived_at: str | None = None
+
+
+@app.post("/answer/sessions")
+async def answer_create_session(
+    request: Request,
+    body: AnswerSessionCreateBody,
+    user: dict[str, Any] = Depends(require_user),
+) -> JSONResponse:
+    """Create an empty answer session (C.1). Optional Idempotency-Key header (120s)."""
+    from getviews_pipeline.answer_session import create_session
+
+    idem = request.headers.get("Idempotency-Key")
+    try:
+        row = await run_sync(
+            create_session,
+            user["user_id"],
+            initial_q=body.initial_q,
+            intent_type=body.intent_type,
+            niche_id=body.niche_id,
+            format=body.format,
+            idempotency_key=idem,
+        )
+    except Exception as exc:
+        logger.exception("[answer/sessions] create failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(row)
+
+
+@app.post("/answer/sessions/{session_id}/turns")
+async def answer_append_turn(
+    session_id: str,
+    body: AnswerTurnAppendBody,
+    user: dict[str, Any] = Depends(require_user),
+) -> JSONResponse:
+    """Append primary or follow-up turn with validated ReportV1 payload."""
+    from getviews_pipeline.answer_session import append_turn
+
+    try:
+        out = await run_sync(
+            append_turn,
+            user["user_id"],
+            user["access_token"],
+            session_id,
+            query=body.query,
+            kind=body.kind,
+        )
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    except RuntimeError as exc:
+        if str(exc) == "insufficient_credits":
+            raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="insufficient_credits")
+        raise
+    except Exception as exc:
+        logger.exception("[answer/turns] append failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
+@app.get("/answer/sessions")
+async def answer_list_sessions(
+    user: dict[str, Any] = Depends(require_user),
+    limit: int = Query(20, ge=1, le=100),
+    include_archived: bool = False,
+    scope: Literal["30d", "all"] = Query("30d"),
+    cursor: str | None = Query(None),
+) -> JSONResponse:
+    """Drawer default ``scope=30d``; ``scope=all`` for unbounded history-style lists."""
+    from getviews_pipeline.answer_session import list_sessions
+
+    rows = await run_sync(
+        list_sessions,
+        user["user_id"],
+        limit=limit,
+        include_archived=include_archived,
+        scope=scope,
+        cursor=cursor,
+    )
+    next_cursor: str | None = None
+    if rows and len(rows) == limit:
+        last = rows[-1].get("updated_at")
+        if last is not None:
+            next_cursor = last if isinstance(last, str) else getattr(last, "isoformat", lambda: str(last))()
+    return JSONResponse({"sessions": rows, "next_cursor": next_cursor})
+
+
+@app.get("/answer/sessions/{session_id}")
+async def answer_get_session(session_id: str, user: dict[str, Any] = Depends(require_user)) -> JSONResponse:
+    from getviews_pipeline.answer_session import get_session_turns
+
+    try:
+        session, turns = await run_sync(get_session_turns, user["user_id"], session_id)
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    return JSONResponse({"session": session, "turns": turns})
+
+
+@app.patch("/answer/sessions/{session_id}")
+async def answer_patch_session(
+    session_id: str,
+    body: AnswerSessionPatchBody,
+    user: dict[str, Any] = Depends(require_user),
+) -> JSONResponse:
+    from getviews_pipeline.answer_session import patch_session
+
+    try:
+        row = await run_sync(
+            patch_session,
+            user["user_id"],
+            session_id,
+            title=body.title,
+            archived_at=body.archived_at,
+        )
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    return JSONResponse(row)

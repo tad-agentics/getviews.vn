@@ -37,7 +37,7 @@ const ROUTE: Record<ActionId, string> = {
   trends:  "/app/trends",
   script:  "/app/script",
   kol:     "/app/kol",
-  consult: "/app/chat",
+  consult: "/app/answer",
 };
 
 export const QuickActions = memo(function QuickActions() {

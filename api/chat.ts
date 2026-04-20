@@ -24,6 +24,7 @@ const GEMINI_MODEL =
 const FREE_INTENTS = new Set([
   "format_lifecycle",
   "follow_up",
+  "follow_up_unclassifiable",
   "creator_search",
 ]);
 
@@ -134,7 +135,12 @@ export default async function handler(req: Request): Promise<Response> {
   let contents: Array<{ role: string; parts: Array<{ text: string }> }> = [
     { role: "user", parts: [{ text: query }] },
   ];
-  if (intent_type === "follow_up" || intent_type === "format_lifecycle" || intent_type === "creator_search") {
+  if (
+    intent_type === "follow_up" ||
+    intent_type === "follow_up_unclassifiable" ||
+    intent_type === "format_lifecycle" ||
+    intent_type === "creator_search"
+  ) {
     const { data: history } = await supabase
       .from("chat_messages")
       .select("role, content")
@@ -161,9 +167,12 @@ export default async function handler(req: Request): Promise<Response> {
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens:
-          intent_type === "follow_up" ? 900
-          : intent_type === "format_lifecycle" ? 1200
-          : intent_type === "creator_search" ? 600
+          intent_type === "follow_up" || intent_type === "follow_up_unclassifiable"
+            ? 900
+          : intent_type === "format_lifecycle"
+            ? 1200
+          : intent_type === "creator_search"
+            ? 600
           : 900,
       },
     }),
@@ -273,7 +282,8 @@ function buildSystemPrompt(intentType: string, nicheLabel?: string): string {
 Khi không chắc: nói thẳng, không bịa số liệu.`;
 
   switch (intentType) {
-    case "follow_up": {
+    case "follow_up":
+    case "follow_up_unclassifiable": {
       const nicheCtx = nicheLabel
         ? `Người dùng đang làm content trong niche: ${nicheLabel}. Cá nhân hoá câu trả lời theo niche này khi có thể.\n\n`
         : "";

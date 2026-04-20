@@ -306,3 +306,187 @@ export interface KolBrowseResponse {
   reference_handles: string[];
   rows: KolBrowseRow[];
 }
+
+// ---------------------------------------------------------------------------
+// Phase C — §J ReportV1 + answer session (mirror `report_types.py`)
+// ---------------------------------------------------------------------------
+
+export interface ConfidenceStripData {
+  sample_size: number;
+  window_days: number;
+  niche_scope: string | null;
+  freshness_hours: number;
+  intent_confidence: "high" | "medium" | "low";
+  what_stalled_reason: string | null;
+}
+
+export interface MetricData {
+  value: string;
+  numeric: number;
+  definition: string;
+}
+
+export interface LifecycleData {
+  first_seen: string;
+  peak: string;
+  momentum: "rising" | "plateau" | "declining";
+}
+
+export interface ContrastAgainstData {
+  pattern: string;
+  why_this_won: string;
+}
+
+export interface HookFindingData {
+  rank: number;
+  pattern: string;
+  retention: MetricData;
+  delta: MetricData;
+  uses: number;
+  lifecycle: LifecycleData;
+  contrast_against: ContrastAgainstData;
+  prerequisites: string[];
+  insight: string;
+  evidence_video_ids: string[];
+}
+
+export interface SumStatData {
+  label: string;
+  value: string;
+  trend: string;
+  tone: "up" | "down" | "neutral";
+}
+
+export interface EvidenceCardPayloadData {
+  video_id: string;
+  creator_handle: string;
+  title: string;
+  views: number;
+  retention: number;
+  duration_sec: number;
+  bg_color: string;
+  hook_family: string;
+}
+
+export interface PatternCellPayloadData {
+  title: string;
+  finding: string;
+  detail: string;
+  chart_kind: "duration" | "hook_timing" | "sound_mix" | "cta_bars";
+  chart_data?: unknown;
+}
+
+export interface ActionCardPayloadData {
+  icon: string;
+  title: string;
+  sub: string;
+  cta: string;
+  primary?: boolean | null;
+  route?: string | null;
+  forecast: Record<string, string>;
+}
+
+export interface SourceRowData {
+  kind: "video" | "channel" | "creator" | "datapoint";
+  label: string;
+  count: number;
+  sub: string;
+}
+
+export interface WoWDiffData {
+  new_entries: Array<Record<string, unknown>>;
+  dropped: Array<Record<string, unknown>>;
+  rank_changes: Array<Record<string, unknown>>;
+}
+
+export interface PatternReportPayload {
+  confidence: ConfidenceStripData;
+  wow_diff: WoWDiffData | null;
+  tldr: { thesis: string; callouts?: SumStatData[] };
+  findings: HookFindingData[];
+  what_stalled: HookFindingData[];
+  evidence_videos: EvidenceCardPayloadData[];
+  patterns: PatternCellPayloadData[];
+  actions: ActionCardPayloadData[];
+  sources: SourceRowData[];
+  related_questions: string[];
+  subreports?: Record<string, unknown> | null;
+}
+
+export interface IdeaBlockPayloadData {
+  id: string;
+  title: string;
+  tag: string;
+  angle: string;
+  why_works: string;
+  evidence_video_ids: string[];
+  hook: string;
+  slides: Array<Record<string, unknown>>;
+  metric: Record<string, string>;
+  prerequisites: string[];
+  confidence: Record<string, number>;
+  style: string;
+}
+
+export interface IdeasReportPayload {
+  confidence: ConfidenceStripData;
+  lead: string;
+  ideas: IdeaBlockPayloadData[];
+  style_cards: Array<Record<string, unknown>>;
+  stop_doing: Array<Record<string, string>>;
+  actions: ActionCardPayloadData[];
+  sources: SourceRowData[];
+  related_questions: string[];
+  variant: "standard" | "hook_variants";
+}
+
+export interface TimingReportPayload {
+  confidence: ConfidenceStripData;
+  top_window: Record<string, unknown>;
+  top_3_windows: Array<Record<string, unknown>>;
+  lowest_window: Record<string, string>;
+  grid: number[][];
+  variance_note: Record<string, string>;
+  fatigue_band: Record<string, unknown> | null;
+  actions: ActionCardPayloadData[];
+  sources: SourceRowData[];
+  related_questions: string[];
+}
+
+export interface GenericReportPayload {
+  confidence: ConfidenceStripData;
+  off_taxonomy: Record<string, unknown>;
+  narrative: Record<string, unknown>;
+  evidence_videos: EvidenceCardPayloadData[];
+  sources: SourceRowData[];
+  related_questions: string[];
+}
+
+export type ReportV1 =
+  | { kind: "pattern"; report: PatternReportPayload }
+  | { kind: "ideas"; report: IdeasReportPayload }
+  | { kind: "timing"; report: TimingReportPayload }
+  | { kind: "generic"; report: GenericReportPayload };
+
+export interface AnswerSessionRow {
+  id: string;
+  user_id: string;
+  title: string | null;
+  initial_q: string;
+  intent_type: string;
+  format: "pattern" | "ideas" | "timing" | "generic";
+  niche_id: number | null;
+  created_at?: string;
+  updated_at?: string;
+  archived_at?: string | null;
+}
+
+export interface AnswerTurnRow {
+  id: string;
+  session_id: string;
+  turn_index: number;
+  kind: string;
+  query: string;
+  payload: ReportV1;
+  credits_used?: number;
+}

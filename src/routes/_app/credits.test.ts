@@ -5,8 +5,8 @@
  * Vitest (module-level env reads + createClient side-effects).  The constants
  * are replicated here so any divergence is caught at the assertion level.
  *
- * SOURCE OF TRUTH: api/chat.ts lines 21-24.
- * If FREE_INTENTS or FREE_DAILY_LIMIT change there, update this file too.
+ * SOURCE OF TRUTH: api/chat.ts `FREE_INTENTS` + `FREE_DAILY_LIMIT`.
+ * If those change there, update this file too.
  */
 
 import { describe, it, expect } from "vitest";
@@ -16,6 +16,8 @@ import { describe, it, expect } from "vitest";
 const FREE_INTENTS = new Set([
   "format_lifecycle",
   "follow_up",
+  "follow_up_unclassifiable",
+  "creator_search",
 ]);
 
 const FREE_DAILY_LIMIT = 100;
@@ -36,8 +38,9 @@ describe("api/chat.ts — FREE_INTENTS set", () => {
     expect(FREE_INTENTS.has("format_lifecycle")).toBe(true);
   });
 
-  it("contains follow_up and does not contain deep-credit intents", () => {
+  it("contains follow_up / follow_up_unclassifiable and does not contain deep-credit intents", () => {
     expect(FREE_INTENTS.has("follow_up")).toBe(true);
+    expect(FREE_INTENTS.has("follow_up_unclassifiable")).toBe(true);
     expect(FREE_INTENTS.has("video_diagnosis")).toBe(false);
     expect(FREE_INTENTS.has("brief_generation")).toBe(false);
     expect(FREE_INTENTS.has("shot_list")).toBe(false);

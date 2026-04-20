@@ -7,6 +7,7 @@ import contextlib
 import contextvars
 import logging
 import os
+import threading
 import time
 import uuid
 from collections.abc import Iterator
@@ -47,6 +48,14 @@ class EnsembleDailyBudgetExceeded(ValueError):
     """Raised when ED_BATCH_DAILY_REQUEST_MAX is exceeded for batch-class traffic (UTC day)."""
 
 
+class ClassifierDailyBudgetExceeded(ValueError):
+    """Raised when the daily Gemini classifier budget is exceeded (Phase C.0.1).
+
+    Mirror the EnsembleDailyBudgetExceeded pattern: deterministic-only fallback
+    when caught at `classify_intent_endpoint` / `classify_intent_gemini`.
+    """
+
+
 # ── EnsembleData metering (ContextVar — safe under asyncio.gather) ───────────
 _ed_meter: contextvars.ContextVar[dict[str, int] | None] = contextvars.ContextVar(
     "ed_meter", default=None
@@ -63,6 +72,33 @@ _ed_request_class: contextvars.ContextVar[str] = contextvars.ContextVar(
 
 _budget_lock = asyncio.Lock()
 _batch_request_counts_by_utc_day: dict[str, int] = {}
+
+_classifier_budget_lock = threading.Lock()
+_classifier_gemini_counts_by_utc_day: dict[str, int] = {}
+
+
+def consume_classifier_gemini_budget_or_raise() -> None:
+    """Increment Gemini classifier daily counter; raise if CLASSIFIER_GEMINI_DAILY_MAX exceeded."""
+    from getviews_pipeline import config as _cfg
+
+    maxr = _cfg.CLASSIFIER_GEMINI_DAILY_MAX
+    if maxr <= 0:
+        return
+    with _classifier_budget_lock:
+        day = _utc_day()
+        cur = _classifier_gemini_counts_by_utc_day.get(day, 0)
+        if cur >= maxr:
+            raise ClassifierDailyBudgetExceeded(
+                f"Classifier Gemini daily budget hit: {cur}>={maxr} (UTC {day}). "
+                "Raise CLASSIFIER_GEMINI_DAILY_MAX or wait for UTC rollover."
+            )
+        _classifier_gemini_counts_by_utc_day[day] = cur + 1
+
+
+def reset_classifier_gemini_budget_for_tests() -> None:
+    """Clear classifier budget counters (tests only)."""
+    with _classifier_budget_lock:
+        _classifier_gemini_counts_by_utc_day.clear()
 
 
 def _utc_day() -> str:
