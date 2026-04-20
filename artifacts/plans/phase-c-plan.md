@@ -4,8 +4,10 @@ The single research surface that the four Phase B screens point into. Every
 unclassified or report-shaped intent now lands on `/app/answer?session_id=…`
 as one of four typed payloads (Pattern, Ideas, Timing, Generic). The UI is a
 **pure function** of the payload — fields missing → humility state, never a
-silent hole. `/app/chat` retreats to a generic free-text fallback for
-unclassifiable follow-ups only.
+silent hole. **`/app/chat` is deleted in C.7** (`ChatScreen.tsx` removed,
+route unmounted, BottomTabBar slot swapped); every query funnels through the
+Studio composer (`QueryComposer`, C.1.0) and lands on either a destination
+screen or `/answer` Generic (the humility format owns the fallback).
 
 This plan supersedes `artifacts/plans/phase-c-report-formats.md`. The intent
 map (§A) and data contract (§J) below replace that document inline; the
@@ -66,7 +68,7 @@ those are flagged for Claude Design and gated by **C.0**.
 | C.4 | Timing format | Heatmap reuses `thread-turns.jsx` `TimingTurn`. New: `VarianceNote`, optional `FatigueBand`. |
 | C.5 | Generic fallback + multi-intent merge | Humility format. Closes the multi-intent merge rules from §A.4. |
 | C.6 | `/history` restyle | Closes 4 token violations. Aligns card shape to `SessionDrawer`. Adds "Phiên nghiên cứu" filter. |
-| C.7 | `/chat` retirement | `intent-router.ts` redirects all classifiable intents into `/app/answer`. Chat stays for unclassifiable `follow_up` only. |
+| C.7 | `/chat` deletion | `intent-router.ts` routes every query to a destination or `/app/answer`. `ChatScreen.tsx` + `/app/chat` route + BottomTabBar Chat slot are removed; Studio composer is the universal entry point. Legacy `chat_sessions` stay read-only via `history_union`. |
 | C.8 | Phase B carryovers | One milestone each: `draft_scripts` table + script_save, Gemini upgrade to `/script/generate`, KOL `match_score` persistence, `PostingHeatmap` for `/channel`, real 30d growth wiring, primitive render test backfill, 3–7 day measurement dashboard read **before** any C behavior change. |
 
 Estimated **10–13 weeks** including 1 spike week + 1 buffer week for
@@ -388,7 +390,7 @@ including the TD-4 resume protocol and idempotency-key cache TTL.
 4. **C.0.4** (0.5d) — width decision (default: 1280 platform-wide)
 5. **C.0.5** (1.5d) — `answer_sessions` + `answer_turns` migration + RLS + pydantic schemas drafted
 6. **C.0.6** (1d) — **Spike close-out** review with three deliverables shipped to `artifacts/plans/` + this doc updated to lock the decisions. Required before C.1 starts. Three additional one-line locks land in this milestone:
-   - **Token additions in `src/app.css`:** `--gv-danger` (seeded from the Phase B accent-red precedent — final hex pinned by design review). Consumed by `WhatStalledRow` (C.2) and the `chat_classified_redirect` toast variant if needed (C.7). No other danger-color literal allowed in C surfaces.
+   - **Token additions in `src/app.css`:** `--gv-danger` (seeded from the Phase B accent-red precedent — final hex pinned by design review). Consumed by `WhatStalledRow` (C.2) and any C.7 toast variants (e.g. the "Phiên chat cũ không còn" cutover toast). No other danger-color literal allowed in C surfaces.
    - **Migration sequencing:** placeholder filenames `2026XXXXXXXXXX_*.sql` resolved to real `YYYYMMDDHHmmss_` stamps before any sub-phase opens its PR. **Floor: `20260430000000`** (latest on-main as of 2026-04-20 is `20260429180000_corpus_hashtag_yields_rpc.sql`); subsequent migrations bump from there. C.0.6 assigns sequential stamps across C.0.5 (`answer_sessions` + `answer_turns`), C.2.1 (`pattern_wow_diff_7d` RPC), C.4.1 (`timing_top_window_streak`), C.6.1 (`history_union` RPC), C.8.1 (`draft_scripts`), C.8.3 (`creator_velocity.match_score` add).
    - **TD-1 / TD-4 / idempotency contract** (per C.0.5 above) restated in `artifacts/docs/answer-session-contract.md` with worked example payloads.
 
@@ -427,7 +429,7 @@ in C.0.1.
 | 17 | `timing` | "đăng giờ nào / thứ mấy tốt nhất" | **Timing** | C.4 |
 | 18 | `content_calendar` | "tuần này post gì khi nào" | **Pattern + Timing** (merged §A.4) | C.5 multi-intent rules |
 | 19 | `follow_up_classifiable` | Natural language, intent detected by §C.0.1 | Route to Pattern/Ideas/Timing by subject | C.7 |
-| 20 | `follow_up_unclassifiable` | Natural language, no intent | **Generic** fallback | C.5 |
+| 20 | `follow_up_unclassifiable` | Natural language, no intent | **Generic** fallback on `/answer` (no chat surface — C.7 deletes it) | C.5 |
 
 ### §A.3 Phase D (explicitly stubbed; not shipped in C)
 
@@ -732,7 +734,42 @@ Reuses from Phase B: `Btn`, `Chip`, `Card`, `Icon`, `SectionMini`,
 
 ### C.1 milestones
 
-1. **C.1.1** (3d) — `answer_sessions` + `answer_turns` migration applied
+1. **C.1.0** (1d) — **Extract from `ChatScreen.tsx` before it's deleted
+   in C.7.** Two artefacts land in a single atomic PR:
+   - `src/hooks/useSessionStream.ts` — lifted from `ChatScreen.tsx:433-540`
+     (the `runSend` / `stream` / credit-guard core). Owns: session
+     create (via `POST /answer/sessions` with `Idempotency-Key`), SSE
+     stream consumption with `stream_id` + `seq` resume, TD-1 credit
+     check, daily-free-limit handling, `"tiếp"` resume parsing, and
+     the in-flight stream guard that prevents duplicate sends. Generic
+     over payload kind — chat bubbles and report payloads both consume
+     it. Props: `{ sessionId?, niche, credits, onTokenDelta, onFinal,
+     onError, onResume }`. Returns the existing
+     `{ stream, reset, status, error, streamId, lastSeq }` shape so
+     both `ChatScreen` (pre-deletion) and the new `/app/answer` route
+     import it cleanly.
+   - `src/components/v2/QueryComposer.tsx` — lifted from
+     `artifacts/uiux-reference/screens/home.jsx:211-260` Composer
+     (the Studio composer). 2px ink border, 6px-offset shadow, 20px
+     radius, 3-row textarea, bottom bar with paperclip / "Dán link
+     video" / "Dán @handle" chips / corpus-count chip on left, mic +
+     "Gửi" btn-accent on right. Enter → submit, Shift+Enter → newline.
+     `URL detected` chip from current ChatScreen's URL-detection
+     pattern carries over. Props: `{ value, onChange, onSubmit,
+     placeholder, niche, disabled, showUrlChip? }`. Three consumers in
+     C: Studio home (`/app` — the universal starting point), `/app/answer`
+     `FollowUpComposer` slot mid-session, and eventually any future
+     surface that wants the same input.
+
+   `ChatScreen.tsx` refactors to import both so nothing about chat
+   behavior changes — this is a pure-refactor PR gated by the existing
+   vitest suite. C.7 then deletes `ChatScreen.tsx` + `/app/chat` route.
+
+   Vitest: `useSessionStream.test.tsx` (covers resume, credit-gate,
+   in-flight-guard), `QueryComposer.test.tsx` (Enter submits,
+   Shift+Enter newlines, URL-chip toggle, disabled state).
+
+2. **C.1.1** (3d) — `answer_sessions` + `answer_turns` migration applied
    to staging + RLS verified + service-role write path. `src/lib/api-types.ts`
    gets `AnswerSession`, `AnswerTurn`, `ReportV1` discriminated union, and
    four payload types (`PatternPayload`, `IdeasPayload`, `TimingPayload`,
@@ -1614,12 +1651,20 @@ chat rows. No icon, no color beyond the chip — keeps the row scannable.
 
 ---
 
-## C.7 — `/chat` retirement (~1 week)
+## C.7 — `/chat` deletion (~1 week)
 
-Routes all classifiable intents into `/app/answer` via `intent-router.ts`.
-`/app/chat` stays alive for unclassifiable `follow_up` queries only — a
-thin Gemini conversational fallback. Quick-action CTAs for report
-intents are removed.
+**The chat screen is removed entirely.** `/app/chat` comes out of
+`routes.ts`, `ChatScreen.tsx` is deleted, and the `BottomTabBar` Chat
+slot swaps to "Phiên nghiên cứu" → `/app/answer`. Every query funnels
+through the `QueryComposer` on Studio (`/app`) — the same primitive
+C.1.0 extracted — and classifies into either a destination screen
+(`/video`, `/channel`, `/kol`, `/script`) or `/answer` with one of the
+four report formats. **There is no conversational fallback surface;
+unclassifiable queries render the Generic report on `/answer`.**
+
+`chat_sessions` + `chat_messages` tables stay in place, read-only via
+`history_union` (C.6), so legacy transcripts remain browsable in
+`/history`. No data migration. No hard-delete.
 
 ### Behaviour change
 
@@ -1630,8 +1675,8 @@ Updated `intent-router.ts` (and the `INTENT_DESTINATIONS` matrix from
 // src/routes/_app/intent-router.ts (final shape, post-C.7)
 type Destination =
   | "video" | "channel" | "kol" | "script"
-  | "answer:pattern" | "answer:ideas" | "answer:timing" | "answer:generic"
-  | "chat";
+  | "answer:pattern" | "answer:ideas" | "answer:timing" | "answer:generic";
+// Note: no "chat" member. Every query lands somewhere concrete.
 
 // The static map handles the 13 fixed intents. follow_up_classifiable
 // is dispatched separately by resolveDestination() because it depends
@@ -1649,7 +1694,7 @@ const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   hook_variants:                "answer:ideas",
   timing:                       "answer:timing",
   content_calendar:             "answer:pattern", // multi-intent merges timing
-  follow_up_unclassifiable:     "chat",           // <- the only chat survivor
+  follow_up_unclassifiable:     "answer:generic", // <- Generic owns the fallback
 };
 
 export function resolveDestination(
@@ -1662,60 +1707,76 @@ export function resolveDestination(
 }
 ```
 
-`ChatScreen.tsx` `runSend` (the lines 433–537 area) gains a pre-flight
-that, when `resolveDestination(intent) !== "chat"`:
+**Studio composer wires to `resolveDestination`.** The Studio home
+(`/app`) mounts `<QueryComposer>` (C.1.0) with an `onSubmit` handler
+that:
 
-1. Creates an `answer_sessions` row server-side via `POST /answer/
-   sessions` (with `Idempotency-Key` header per C.0.5).
-2. Navigates to `/app/answer?session=<uuid>&q=<seed>` with `replace:
+1. Runs client-side `detectIntent()` → if `confidence === "high"` (URL
+   / handle / strong keyword), branches to the destination route
+   immediately, same as today's `ChatScreen` does at
+   `ChatScreen.tsx:455-478`.
+2. For `medium` / `low` confidence, creates an `answer_sessions` row
+   via `POST /answer/sessions` (with `Idempotency-Key` per C.0.5;
+   server-side Gemini classifier decides the final format on the
+   primary turn).
+3. Navigates to `/app/answer?session=<uuid>&q=<seed>` with `replace:
    true`.
-3. Returns early; no `insertUser` / `stream` against the chat backend.
 
-**In-flight stream guard.** Pre-flight runs only on the **initial**
-`runSend` call. If a chat stream is already in progress, the redirect
-is skipped and the existing stream completes; this prevents the C.7
-behavior cliff from interrupting active chat sessions. Vitest covers
-the "stream already started → no redirect" branch.
+No second composer on home — this one is THE composer, lifted verbatim
+from `home.jsx:211-260`. The `FollowUpComposer` slot on `/app/answer`
+is the same `<QueryComposer>` component with different props
+(placeholder, no initial focus, in-session cooldown).
 
-The existing `competitor_profile` / `own_channel` short-circuit at
-`ChatScreen.tsx:455-478` is the precedent — extend to all report intents.
+### Cutover discipline (replaces the earlier "escape hatch")
 
-### Staged rollout (escape hatch)
+The chat deletion is a hard cliff — no `?legacy=chat` override,
+because there is no surface to fall back to. Instead, cutover is
+gated on a 10-minute staging drain window:
 
-C.7.1 ships behind a single query-string flag matching the B.4
-`channel_to_script` rollout precedent:
+1. Before C.7.1 merges to `main`, `SELECT COUNT(*) FROM chat_sessions
+   WHERE updated_at > now() - interval '10 minutes'` must return **0**
+   in staging (no streams in flight).
+2. Production deploy runs at a low-traffic window (02:00–05:00 ICT).
+3. `useChatStream` callers (soon-to-be `useSessionStream`) that
+   mid-request find their session UUID referencing a deleted route
+   gracefully fail with a "Phiên chat cũ không còn — thử lại trên
+   Studio" toast routing to `/app`.
+4. Post-deploy, `usage_events` filter for `action LIKE 'chat_%'`
+   should drop to 0 within 24h; if any new events land, investigate a
+   stray caller that bypassed the route removal.
 
-- **Default** — all classifiable intents redirect to `/app/answer`.
-- **Override** — `?legacy=chat` on any URL bypasses the matrix and
-  routes the query through the legacy chat pipeline. Honored for **one
-  release** (one full deploy cycle, ~7 days), then removed in C.7.6
-  cleanup.
-- **Telemetry** — `chat_legacy_override` event fires whenever the
-  override is used so we can see if anyone is actually depending on it
-  before removal.
+### `BottomTabBar` swap
 
-The override is a paste-in-URL escape hatch for support, not a
-user-facing toggle. No UI exposes it. If the gate metric (`>= 25%
-follow-up rate from §C.2 checkpoint`) regresses sharply post-rollout,
-support can hand the override URL to affected users while we
-investigate.
+`src/components/BottomTabBar.tsx:10` currently has 4 tabs including
+**Chat**. C.7.2 swaps the `"chat"` slot:
 
-### `BottomTabBar` impact
+- **Label:** `Chat` → `Nghiên cứu`
+- **Icon:** `MessageCircle` → `Sparkles` (from `lucide-react`)
+- **Route:** `/app/chat` → `/app/answer` (lands on most-recent
+  `answer_sessions` row if one exists, else the Studio `/app` with
+  the composer primed).
 
-`src/components/BottomTabBar.tsx` currently has 5 tabs including
-**Chat**. After C.7 the chat tab survives but its **icon + label
-swap to "Phiên nghiên cứu"** and routes to `/app/answer` (most-recent
-session if one exists, else `/app/answer/new`). The literal `/app/chat`
-route stays mounted as a fallback for the override flag and for the
-unclassifiable `follow_up` redirect target — no user-discoverable nav
-points to it.
+Tab count stays 4. No fallback mount — `/app/chat` comes out of
+`routes.ts` entirely in the same PR.
 
-C.7.2 ships the swap; the `/app/chat` route stays in `routes.ts`
-unchanged (no removal).
+### Files removed in C.7.1
 
-### `/app/chat` quick-action retirements
+- `src/routes/_app/chat/` (entire directory — `route.tsx`,
+  `ChatScreen.tsx` moved out to C.1.0 extraction, any chat-specific
+  components)
+- The `route("app/chat", "routes/_app/chat/route.tsx")` line in
+  `src/routes.ts:15`
+- `src/routes/_app/ChatScreen.tsx` (the colocated screen)
+- Any `src/hooks/useChatStream.ts` leftovers after C.1.0 renames it
+  to `useSessionStream`
+- Quick-action grid entries on home / chat empty-state pointing to
+  report intents (already covered in the pruning below)
 
-The home / chat empty-state quick-action grid loses these cards:
+### Quick-action grid pruning
+
+The Studio home (`/app`) quick-action grid (from `home.jsx`) drops
+these entries — their intents now route through the composer +
+classifier path:
 
 - "Trend tuần này" (`trend_spike`)
 - "Hướng nội dung" (`content_directions`)
@@ -1724,45 +1785,49 @@ The home / chat empty-state quick-action grid loses these cards:
 - "Đăng giờ nào" (`timing`)
 - "Pattern hết trend" (`fatigue`)
 
-Replaced by a single "Mở phiên nghiên cứu mới" card routing to
-`/app/answer` with no seed query.
+The grid keeps the **destination** quick-actions (Soi Video, Tìm KOL,
+Soi Kênh, Lên Kịch Bản) since those are still real screens. No "Mở
+phiên nghiên cứu mới" card needed — the composer above the grid IS
+the entry point.
 
 ### Data model
 
-No schema. Extends the C.0.1 classifier matrix only.
+No schema changes on classifier matrix. `chat_sessions` +
+`chat_messages` stay in Postgres as read-only historical data,
+surfaced via `history_union` RPC (C.6). Optional Phase D cleanup:
+migrate useful chat transcripts into an export-able format; hard-delete
+at the 90-day mark.
 
 ### C.7 milestones
 
-1. **C.7.1** (2d) — `intent-router.ts` matrix update + `resolveDestination()`
-   helper + `ChatScreen.tsx` `runSend` pre-flight redirect for all
-   classifiable intents + `?legacy=chat` override + in-flight stream
-   guard. Vitest covers the routing matrix snapshot, the override
-   bypass, and the "stream already started → no redirect" branch.
-2. **C.7.2** (1d) — home / chat empty-state quick-action grid pruning;
-   adds single "Mở phiên nghiên cứu mới" card. **Plus the
-   `BottomTabBar.tsx` Chat tab swap** (icon + label → "Phiên nghiên
-   cứu", route → `/app/answer`); literal `/app/chat` route stays in
-   `routes.ts` unchanged for the override + unclassifiable fallback.
-3. **C.7.3** (2d) — Cloud Run server-side `intent_router.py` Gemini
-   wiring (the C.0.1 medium/low confidence path that defers to LLM).
-   Pytest covers high/medium/low confidence flows + budget guard
-   (`[classifier-budget]` log + deterministic fallback when daily quota
-   exceeded).
-4. **C.7.4** (1d) — measurement events `chat_classified_redirect`
-   (fires when chat would have handled but redirected to `/answer`),
-   `classifier_low_confidence` (fires on Generic fallback),
-   `chat_legacy_override` (fires on `?legacy=chat` use). All via
-   `logUsage`.
+1. **C.7.1** (2d) — Delete `/app/chat` route from `routes.ts`, delete
+   `ChatScreen.tsx` (its `useSessionStream` + `QueryComposer` are
+   already extracted per C.1.0). Update `intent-router.ts`:
+   `Destination` type minus `"chat"`, matrix maps
+   `follow_up_unclassifiable → answer:generic`,
+   `resolveDestination()` exhaustive over the matrix. Wire the Studio
+   composer's `onSubmit` to `detectIntent` + `resolveDestination`.
+   Vitest covers the matrix snapshot + composer submit paths.
+2. **C.7.2** (1d) — `BottomTabBar.tsx` Chat tab swap (label + icon +
+   route per spec above). Quick-action grid pruning on home. Vitest
+   on tab render + snapshot on quick-action grid.
+3. **C.7.3** (2d) — Cloud Run server-side `intent_router.py` final
+   wiring: the classifier's return shape gets the
+   `destination_or_format` field (pre-existed in Gemini prompt per
+   C.0.1, now consumed). Pytest covers high/medium/low confidence
+   flows + budget guard.
+4. **C.7.4** (1d) — measurement events. **New:**
+   `studio_composer_submit` (fires on every composer send;
+   `metadata.intent`, `metadata.destination`),
+   `classifier_low_confidence` (on Generic fallback). **Retired:**
+   `chat_classified_redirect`, `chat_legacy_override` — no chat, no
+   redirect, no override.
 5. **C.7.5** (1d) — **Design audit** —
-   `artifacts/qa-reports/phase-c-design-audit-chat-retirement.md`
-   confirming the retired CTAs are gone, the new tab + card are
-   present, and the classifier matrix is the single source of truth
-   (no orphaned routing code paths).
-6. **C.7.6** (0.5d, **+1 release after C.7.1**) — remove the
-   `?legacy=chat` override + the `chat_legacy_override` event after
-   the one-release window closes, contingent on `chat_legacy_override`
-   row count being ≤ 5 in the prior 7 days. If higher, escalate before
-   removing.
+   `artifacts/qa-reports/phase-c-design-audit-chat-deletion.md`
+   confirming `/app/chat` route is gone, `BottomTabBar` swap landed,
+   Studio composer matches `home.jsx:211-260` styling, no orphaned
+   imports of `ChatScreen` anywhere in `src/**`, and the classifier
+   matrix is the single source of truth.
 
 ---
 
@@ -2162,15 +2227,28 @@ never silent holes.**
 
 ### Things retired when Phase C lands
 
-- `/app/chat` quick-action CTAs for: `trend_spike`, `content_directions`,
-  `brief_generation`, `hook_variants`, `timing`, `fatigue`,
-  `format_lifecycle_optimize`, `subniche_breakdown`. Replaced by single
-  "Mở phiên nghiên cứu mới" card (C.7.2).
+- **`/app/chat` route + `ChatScreen.tsx` — fully removed in C.7.**
+  Deleted from `src/routes.ts` and `src/routes/_app/`. The
+  `BottomTabBar` Chat slot swaps to "Nghiên cứu" → `/app/answer`.
+  Legacy `chat_sessions` + `chat_messages` tables stay read-only via
+  `history_union` (C.6) so old transcripts remain browsable.
+- `ChatScreen.tsx` `runSend` core (credit guard, SSE stream with
+  `stream_id`/`seq` resume, "tiếp" handling) — extracted to
+  `src/hooks/useSessionStream.ts` (C.1.0) before deletion; reused by
+  `/app/answer` + the Studio composer.
+- Quick-action grid entries for report intents (`trend_spike`,
+  `content_directions`, `brief_generation`, `hook_variants`, `timing`,
+  `fatigue`) — removed; the Studio composer is the entry point.
+  Destination quick-actions (Soi Video / Tìm KOL / Soi Kênh / Lên
+  Kịch Bản) stay.
 - `SaveCard` component → renamed `TemplatizeCard` (C.1.3). Same visuals,
   new copy + new intent (Lưu / Chia sẻ / PDF wire to template flow in
   C.8.1). The old name is grep-removed.
 - Purple-era tokens in `/history` (`var(--purple)`, `var(--ink-soft)`,
   `Badge variant="purple"`) — closed in C.6.
+- Measurement events `chat_classified_redirect` + `chat_legacy_override`
+  — never shipped (superseded by `studio_composer_submit` once C.7
+  lands).
 
 ### Deliberately deferred to Phase D
 
@@ -2194,7 +2272,8 @@ never silent holes.**
 | Sample-size sparsity per niche (Pattern < 30, Ideas < 60, Timing < 80) | High | C.0.3 adaptive-window policy widens 7d → 14d; below 14d → degrade to Generic; `HumilityBanner` always visible |
 | `WhatStalled` corpus coverage too thin to surface 2–3 negatives | Medium | Pydantic schema allows `what_stalled: []` only when `confidence.what_stalled_reason` is set; UI renders an explicit empty row, never a missing section |
 | Follow-up turn credit semantics surprise users | Low | C.0.5 sets a simple integer-only policy: **1 credit per primary, 0 per follow-up, 0 for Generic.** `ConfidenceStrip` shows the deduction inline at primary-turn open; pricing copy + chat / answer entry-point copy updated concurrent with C.1 ship |
-| In-flight chat stream interrupted by C.7 redirect | Medium | C.7.1 redirect fires only on initial `runSend` pre-flight; in-flight streams continue uninterrupted. Vitest covers the "stream already started" branch that bypasses redirect. Behind a `?legacy=chat` escape hatch for one release per the B.4 precedent |
+| In-flight chat stream at C.7 cutover | Medium | C.7.1 is a hard cliff (no escape hatch — there's no chat surface to fall back to). Cutover discipline (C.7 "Cutover discipline" block): staging drain check (`chat_sessions` updated in last 10min must be 0) + low-traffic production window (02:00–05:00 ICT) + post-deploy monitor on `action LIKE 'chat_%'` events dropping to 0 within 24h. Active users mid-stream at deploy see a "Phiên chat cũ không còn — thử lại trên Studio" toast routing to `/app`. |
+| Users expect conversational chat and find none | Medium | The Generic format on `/answer` is the honest landing for unclassifiable queries — it's **research with humility banner**, not a bubble dialog. Copy on the Generic `OffTaxonomyBanner` explicitly says "thay vì đào sâu ở đây" + suggests the relevant destination screen. If dogfood + C.2 checkpoint reveal retention drop from chat deprivation, consider adding a "talk to the corpus" mode under `/app/answer` as a Phase D item; do not reverse C.7. |
 | Purple-token leakage across `/history` regressing | Low | C.6.3 grep gate; CI lint adds `--purple` / `--ink-soft` / `--border-active` / `--gv-purple-*` to the Phase B token-scan job |
 | Token namespace dualism (`--purple` vs `--gv-*`) surfacing on mixed surfaces | Medium | `src/app.css` still defines both the legacy Make tokens (`--purple`, `--ink-soft`, `--accent → --purple-light`) and the `--gv-*` family. New Phase C code uses `--gv-*` exclusively; **composing a legacy Make primitive inside a `/answer` screen would pull in purple shims.** C.1 frontend audit grep must scan the component tree for mixed-namespace consumers, not just files in `src/routes/_app/answer/**`. Full deprecation of `--purple` is a Phase D task, not C. |
 | `/answer` session schema change after launch | Low | RLS + service-role-only payload writes; payload validated server-side against pydantic before insert; bad payloads fail the stream rather than persist |
@@ -2214,7 +2293,7 @@ sub-phases:
 | `answer_format_rendered` | C.2.5 / C.3.5 / C.4.5 / C.5.5 | client renders the body section root; `metadata.kind ∈ {pattern, ideas, timing, generic}` |
 | `templatize_click` | C.1.4 | `TemplatizeCard` Lưu button click (C.1 placeholder; wires to real templating in C.8.1) |
 | `history_session_open` | C.6.4 | `/history` row click; `metadata.type ∈ {answer, chat}` |
-| `chat_classified_redirect` | C.7.4 | `ChatScreen.runSend` redirects to `/answer`; `metadata.intent` |
+| `studio_composer_submit` | C.7.4 | Studio composer `onSubmit` fires; `metadata.intent`, `metadata.destination ∈ {video, channel, kol, script, answer:pattern, answer:ideas, answer:timing, answer:generic}` |
 | `classifier_low_confidence` | C.7.4 | classifier returns Generic fallback; `metadata.intent_id` |
 | `script_save` | C.8.1 (the deferred B.4 event) | `POST /script/save` returns 200 |
 | `pattern_what_stalled_empty` | C.2.5 | Pattern payload ships with `what_stalled = []`; `metadata.reason` |
@@ -2306,13 +2385,13 @@ H1, 22→26px H2, 18→22px serif body) carry over from `answer.jsx`.
 | Sub-phase | Estimate | Reason |
 |---|---|---|
 | C.0 spike | **1w** | 5 hard blockers — classifier + idea-directions + sample gates + width + answer-session model |
-| C.1 `/answer` shell | **2w** | Migration + 5 endpoints + shell + 3 audits + smoke |
+| C.1 `/answer` shell (incl. C.1.0 extraction) | **2w** | C.1.0 (1d): extract `useSessionStream` + `QueryComposer` from `ChatScreen.tsx`. C.1.1–C.1.6: migration + 5 endpoints + shell + audits + smoke |
 | C.2 Pattern (incl. `WhatStalled`) | **2.5w** | Highest-value report + non-negotiable + design-audit |
 | C.3 Ideas | **1.5w** | (+1w if `idea-directions.jsx` commissioned in C.0.2) |
 | C.4 Timing | **1w** | Heatmap reuses; only 2 new sections |
 | C.5 Generic + multi-intent merge | **1w** | Lightweight format + classifier rules |
 | C.6 `/history` restyle | **1w** | Token-violation closure + filter ribbon |
-| C.7 `/chat` retirement | **1w** | Classifier matrix + chat redirect + grid pruning |
+| C.7 `/chat` deletion | **1w** | Route removal + `ChatScreen.tsx` deletion + BottomTabBar swap + cutover discipline |
 | C.8 Phase B carryovers | **3w (parallel)** | One milestone per carryover; can run alongside C.6/C.7 |
 | Design-audit buffer | **1w** | Audit round-trips per sub-phase |
 | **Total** | **~12–13w** (C.8 in parallel saves ~1.5w) | |
