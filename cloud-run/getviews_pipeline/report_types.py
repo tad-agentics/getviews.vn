@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ConfidenceStrip(BaseModel):
@@ -107,6 +107,27 @@ class PatternPayload(BaseModel):
     sources: list[SourceRow]
     related_questions: list[str]
     subreports: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def _what_stalled_invariant(self) -> PatternPayload:
+        """§5 non-negotiable: either 2–3 stalled patterns OR empty with reason.
+
+        A real Gemini call that returns `what_stalled=[]` without setting
+        `confidence.what_stalled_reason` is a model hallucination — reject
+        at the schema boundary rather than silently render a missing section.
+        The fixture path sets reason explicitly (see report_pattern.py).
+        """
+        n = len(self.what_stalled)
+        if n == 0 and not self.confidence.what_stalled_reason:
+            raise ValueError(
+                "what_stalled invariant violated: empty list requires "
+                "confidence.what_stalled_reason to be set"
+            )
+        if n > 3:
+            raise ValueError(
+                f"what_stalled invariant violated: at most 3 entries allowed, got {n}"
+            )
+        return self
 
 
 class IdeaBlockPayload(BaseModel):
