@@ -178,7 +178,7 @@ def _sse_line(payload: dict[str, Any]) -> bytes:
 def _classify_stream_error(exc: BaseException) -> str:
     """Map known exceptions to frontend-readable error codes.
 
-    These codes are handled by useChatStream.ts lines 109-111.
+    These codes are handled by useSessionStream.ts (the 402 / 429 branches).
     Called only AFTER the SSE stream has opened — do not raise, just return a code.
     """
     msg = str(exc).lower()
