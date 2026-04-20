@@ -1,10 +1,27 @@
-import { useState, useEffect } from "react";
+/**
+ * Phase C.6 — /history restyle.
+ *
+ * Unified browsing surface for both `/answer` research sessions and legacy
+ * `chat_sessions`. Uses the server-side `history_union` Postgres RPC
+ * (migration 20260430000003) to keep ordering + pagination authoritative
+ * across both tables — plan §C.6 data model.
+ *
+ * Rowsarechip-driven by a 3-option filter ribbon (`Tất cả` / `Phiên nghiên
+ * cứu` / `Hội thoại`). Search (existing chat-messages ILIKE path) remains
+ * chat-only for now and suspends the filter when active — plan §C.6
+ * scope note ("broader search is Phase D").
+ *
+ * Legacy rename / delete actions only surface on chat rows; answer
+ * sessions archive via their own PATCH endpoint (not wired here).
+ */
+
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Search, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Search, Trash2 } from "lucide-react";
+
 import { AppLayout } from "@/components/AppLayout";
-import { Badge } from "@/components/ui/Badge";
-import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -15,97 +32,64 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
-import { logUsage } from "@/lib/logUsage";
 import {
-  useChatSessions,
   useDeleteSession,
-  useUpdateSession,
   useSearchSessions,
+  useUpdateSession,
 } from "@/hooks/useChatSessions";
-import { useHistoryUnion, type HistoryUnionRow } from "@/hooks/useHistoryUnion";
+import {
+  type HistoryUnionRow,
+  useHistoryUnion,
+} from "@/hooks/useHistoryUnion";
+import { logUsage } from "@/lib/logUsage";
 
-/** Copy slots + intent mapping (screen spec). */
-const INTENT_BADGES: Record<string, string> = {
-  video_diagnosis: "Soi Video",
-  competitor_profile: "Đối thủ",
-  own_channel: "Soi Kênh",
-  shot_list: "Kịch bản",
-  brief_generation: "Brief",   // historical — no longer routable but may exist in DB
-  trend_spike: "Xu hướng",
-  creator_search: "Tìm KOL",
-  format_lifecycle: "Format",
-  follow_up: "",
-  follow_up_unclassifiable: "",
-  content_directions: "",
-  series_audit: "Chuỗi video",
-  own_flop_no_url: "Kênh flop",
-};
+import { HistoryFilterRibbon, type HistoryFilter } from "./HistoryFilterRibbon";
+import { HistoryRow, relativeTime } from "./HistoryRow";
 
-type SessionRow = {
+function parseFilter(raw: string | null): HistoryFilter {
+  if (raw === "answer" || raw === "chat" || raw === "all") return raw;
+  return "all";
+}
+
+function groupByDate(rows: HistoryUnionRow[]): Record<string, HistoryUnionRow[]> {
+  return rows.reduce<Record<string, HistoryUnionRow[]>>((acc, r) => {
+    const key = relativeTime(r.updated_at) || "—";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(r);
+    return acc;
+  }, {});
+}
+
+/** Convert a legacy chat search row (from `useSearchSessions`) into the
+ * HistoryUnionRow shape so the `HistoryRow` component renders both paths
+ * uniformly. Search only covers chat today (no answer-side full-text). */
+function searchRowToUnion(s: {
   id: string;
   title: string | null;
   first_message: string | null;
   created_at: string;
-  intent_type: string | null;
-  credits_used: number;
-};
-
-type HistoryListRow = SessionRow & { _union?: HistoryUnionRow };
-
-function mapUnionToRows(rows: HistoryUnionRow[]): HistoryListRow[] {
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    first_message: null,
-    created_at: r.updated_at,
-    intent_type: r.format,
-    credits_used: 0,
-    _union: r,
-  }));
-}
-
-function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const sessionDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-  if (sessionDate.getTime() === today.getTime()) return "Hôm nay";
-  if (sessionDate.getTime() === yesterday.getTime()) return "Hôm qua";
-  return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
-}
-
-function formatTime(dateString: string) {
-  return new Date(dateString).toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function sessionPreview(s: SessionRow) {
-  const t = s.title?.trim();
-  if (t) return t;
-  return s.first_message?.trim() || "Phiên chat";
+}): HistoryUnionRow {
+  return {
+    id: s.id,
+    type: "chat",
+    format: null,
+    niche_id: null,
+    title: (s.title || s.first_message || "Hội thoại cũ").trim() || "Hội thoại cũ",
+    turn_count: 0,
+    updated_at: s.created_at,
+  };
 }
 
 function HistoryListSkeleton() {
   return (
-    <div className="divide-y divide-[var(--border)] bg-[var(--surface)]">
-      {[0, 1, 2].map((i) => (
+    <div className="divide-y divide-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+      {[0, 1, 2, 3].map((i) => (
         <div key={i} className="px-4 py-4 animate-pulse">
-          <div className="flex items-start gap-3 mb-2">
-            <div className="h-5 w-16 rounded bg-[var(--border)] flex-shrink-0" />
-            <div className="flex-1 space-y-2 min-w-0">
-              <div className="h-3 w-full rounded bg-[var(--border)]" />
-              <div className="h-3 w-4/5 rounded bg-[var(--border)]" />
-            </div>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="h-4 w-16 rounded bg-[color:var(--gv-canvas-2)]" />
+            <div className="h-4 w-20 rounded bg-[color:var(--gv-canvas-2)]" />
           </div>
-          <div className="flex justify-between">
-            <div className="h-3 w-12 rounded bg-[var(--border)]" />
-            <div className="h-3 w-20 rounded bg-[var(--border)]" />
-          </div>
+          <div className="h-4 w-4/5 rounded bg-[color:var(--gv-canvas-2)]" />
         </div>
       ))}
     </div>
@@ -115,38 +99,27 @@ function HistoryListSkeleton() {
 export default function HistoryScreen() {
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const filter = parseFilter(searchParams.get("filter"));
+  const setFilter = (next: HistoryFilter) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === "all") params.delete("filter");
+    else params.set("filter", next);
+    setSearchParams(params, { replace: true });
+  };
+
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-
-  // Debounce search input — avoids firing an RPC on every keystroke
+  const [debounced, setDebounced] = useState("");
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 300);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setDebounced(query), 300);
+    return () => clearTimeout(t);
   }, [query]);
+  const trimmed = debounced.trim();
+  const isSearch = trimmed.length > 0;
 
-  const trimmedQuery = debouncedQuery.trim();
-  const isSearch = trimmedQuery.length > 0;
-  const answerFilterMode = searchParams.get("filter") === "answer" && !isSearch;
-
-  const {
-    data: listSessions,
-    isLoading: listLoading,
-    isError: listError,
-    refetch: refetchList,
-  } = useChatSessions();
-  const {
-    data: searchResults,
-    isLoading: searchLoading,
-    isError: searchError,
-    refetch: refetchSearch,
-  } = useSearchSessions(trimmedQuery);
-  const {
-    data: unionRows,
-    isLoading: unionLoading,
-    isError: unionError,
-    refetch: refetchUnion,
-  } = useHistoryUnion("answer", Boolean(session && answerFilterMode));
+  const unionQuery = useHistoryUnion(filter, Boolean(session) && !isSearch);
+  const searchQuery = useSearchSessions(trimmed);
 
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
@@ -155,47 +128,58 @@ export default function HistoryScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
 
-  const sessions: HistoryListRow[] = answerFilterMode
-    ? mapUnionToRows(unionRows ?? [])
-    : ((isSearch ? searchResults : listSessions) as HistoryListRow[]);
-  const isLoading = answerFilterMode ? unionLoading : isSearch ? searchLoading : listLoading;
-  const isError = answerFilterMode ? unionError : isSearch ? searchError : listError;
-
-  const refetchHistory = () => {
-    if (answerFilterMode) void refetchUnion();
-    else if (isSearch) void refetchSearch();
-    else void refetchList();
-  };
-
-  const filteredSessions = sessions ?? [];
-
-  const groupedSessions = filteredSessions.reduce(
-    (groups, sess) => {
-      const dateGroup = formatDate(sess.created_at);
-      if (!groups[dateGroup]) groups[dateGroup] = [];
-      groups[dateGroup].push(sess);
-      return groups;
-    },
-    {} as Record<string, HistoryListRow[]>,
-  );
-
-  const openRename = (s: HistoryListRow) => {
-    setEditingId(s.id);
-    setDraftTitle(sessionPreview(s));
-  };
-
-  const commitRename = (sessionId: string) => {
-    const t = draftTitle.trim();
-    if (t) {
-      void updateSession.mutateAsync({ sessionId, title: t });
+  const rows: HistoryUnionRow[] = useMemo(() => {
+    if (isSearch) {
+      const data = (searchQuery.data ?? []) as Array<{
+        id: string;
+        title: string | null;
+        first_message: string | null;
+        created_at: string;
+      }>;
+      return data.map(searchRowToUnion);
     }
+    return unionQuery.data ?? [];
+  }, [isSearch, searchQuery.data, unionQuery.data]);
+
+  // Client-side counts for the filter ribbon (cheap; driven by the current
+  // union response). When search is active the ribbon is disabled so
+  // counts are meaningless — we hide them.
+  const counts = useMemo(() => {
+    if (isSearch) return undefined;
+    const full = unionQuery.data ?? [];
+    // Counts only valid when `filter === "all"`; other filters would bias.
+    if (filter !== "all") return undefined;
+    let answer = 0;
+    let chat = 0;
+    for (const r of full) {
+      if (r.type === "answer") answer += 1;
+      else if (r.type === "chat") chat += 1;
+    }
+    return { all: full.length, answer, chat };
+  }, [filter, isSearch, unionQuery.data]);
+
+  const loading = isSearch ? searchQuery.isLoading : unionQuery.isLoading;
+  const errored = isSearch ? searchQuery.isError : unionQuery.isError;
+  const refetch = () => (isSearch ? searchQuery.refetch() : unionQuery.refetch());
+  const grouped = useMemo(() => groupByDate(rows), [rows]);
+
+  const handleRowClick = (row: HistoryUnionRow) => {
+    logUsage("history_session_open", { type: row.type, session_id: row.id });
+    if (row.type === "answer") {
+      navigate(`/app/answer?session=${encodeURIComponent(row.id)}`);
+    } else {
+      navigate(`/app/history/chat/${row.id}`);
+    }
+  };
+
+  const commitRename = (id: string) => {
+    const t = draftTitle.trim();
+    if (t) void updateSession.mutateAsync({ sessionId: id, title: t });
     setEditingId(null);
     setDraftTitle("");
   };
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
   return (
     <AppLayout enableMobileSidebar>
@@ -205,15 +189,19 @@ export default function HistoryScreen() {
           if (!open) setDeleteTargetId(null);
         }}
       >
-        <AlertDialogContent className="bg-[var(--surface)] border-[var(--border)]">
+        <AlertDialogContent className="bg-[color:var(--gv-paper)] border-[color:var(--gv-rule)]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[var(--ink)]">Xoá phiên này?</AlertDialogTitle>
-            <AlertDialogDescription className="text-[var(--muted)]">
-              Bạn sẽ mất toàn bộ lịch sử chat.
+            <AlertDialogTitle className="text-[color:var(--gv-ink)]">
+              Xoá phiên này?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[color:var(--gv-ink-3)]">
+              Bạn sẽ mất toàn bộ lịch sử hội thoại.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-[var(--border)]">Huỷ</AlertDialogCancel>
+            <AlertDialogCancel className="border-[color:var(--gv-rule)]">
+              Huỷ
+            </AlertDialogCancel>
             <Button
               type="button"
               variant="danger"
@@ -224,7 +212,7 @@ export default function HistoryScreen() {
                   try {
                     await deleteSession.mutateAsync(idToDelete);
                   } catch {
-                    // Optimistic rollback handled in useDeleteSession onError
+                    /* optimistic rollback handled in hook */
                   }
                 }
               }}
@@ -236,192 +224,146 @@ export default function HistoryScreen() {
       </AlertDialog>
 
       {/* Header */}
-      <div className="flex-shrink-0 h-14 bg-[var(--surface)] border-b border-[var(--border)] flex items-center px-6 pt-0 lg:px-6">
-        <span className="font-extrabold text-[var(--ink)] pl-10 lg:pl-0">Lịch sử phân tích</span>
-      </div>
-
-      {/* Search Bar */}
-      <div className="flex-shrink-0 p-4 bg-[var(--surface)] border-b border-[var(--border)]">
-        <div className="max-w-2xl mx-auto relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
-          <Input
-            placeholder="Tìm trong lịch sử..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-9"
-            disabled={answerFilterMode}
+      <div className="flex-shrink-0 border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-6 pt-4 pb-4 lg:px-6">
+        <p className="gv-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+          Lịch sử nghiên cứu
+        </p>
+        <h1 className="gv-serif mt-1 text-[28px] font-medium leading-tight text-[color:var(--gv-ink)]">
+          Tất cả các phiên
+        </h1>
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--gv-ink-4)]" />
+            <Input
+              placeholder="Tìm trong hội thoại cũ..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <HistoryFilterRibbon
+            value={filter}
+            onChange={setFilter}
+            disabled={isSearch}
+            counts={counts}
           />
         </div>
-        {answerFilterMode ? (
-          <div className="max-w-2xl mx-auto mt-3 flex flex-wrap items-center gap-2 px-1">
-            <Badge variant="accent" className="text-xs">
-              Phiên nghiên cứu
-            </Badge>
-            <button
-              type="button"
-              onClick={() => navigate("/app/history")}
-              className="text-xs font-mono text-[color:var(--gv-accent)] hover:underline"
-            >
-              ← Lịch sử đầy đủ
-            </button>
-          </div>
-        ) : null}
       </div>
 
-      {/* Session List */}
+      {/* List */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto">
-          {isError ? (
+        <div className="mx-auto max-w-3xl">
+          {errored ? (
             <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-              <p className="text-sm text-[var(--muted)]">Không tải được lịch sử — thử lại.</p>
+              <p className="text-sm text-[color:var(--gv-ink-3)]">
+                Không tải được lịch sử — thử lại.
+              </p>
               <button
                 type="button"
-                onClick={() => refetchHistory()}
+                onClick={() => void refetch()}
                 className="text-sm text-[color:var(--gv-accent)] underline"
               >
                 Thử lại
               </button>
             </div>
-          ) : isLoading ? (
+          ) : loading ? (
             <HistoryListSkeleton />
-          ) : filteredSessions.length === 0 ? (
+          ) : rows.length === 0 ? (
             <div className="px-4 py-12 text-center">
               {isSearch ? (
-                <p className="text-[color:var(--gv-ink-3)]">Không tìm thấy phiên nào với từ khoá này.</p>
-              ) : answerFilterMode ? (
+                <p className="text-[color:var(--gv-ink-3)]">
+                  Không tìm thấy phiên nào với từ khoá này.
+                </p>
+              ) : filter === "answer" ? (
                 <>
-                  <p className="text-[color:var(--gv-ink-3)] mb-4">
-                    Chưa có phiên nghiên cứu nào. Mở Studio hoặc bắt đầu từ /app/answer.
+                  <p className="mb-4 text-[color:var(--gv-ink-3)]">
+                    Chưa có phiên nghiên cứu nào. Mở Studio hoặc bắt đầu từ Phiên nghiên cứu
+                    mới.
                   </p>
-                  <Button type="button" onClick={() => navigate("/app/answer")} variant="primary">
+                  <Button type="button" variant="primary" onClick={() => navigate("/app/answer")}>
                     Phiên nghiên cứu mới →
                   </Button>
                 </>
+              ) : filter === "chat" ? (
+                <p className="text-[color:var(--gv-ink-3)]">
+                  Chưa có hội thoại cũ nào để hiển thị.
+                </p>
               ) : (
                 <>
-                  <p className="text-[color:var(--gv-ink-3)] mb-4">
-                    Chưa có phiên nào. Dán link TikTok hoặc hỏi câu đầu tiên để bắt đầu.
+                  <p className="mb-4 text-[color:var(--gv-ink-3)]">
+                    Chưa có phiên nào. Bắt đầu phân tích để tạo phiên đầu tiên.
                   </p>
-                  <Button type="button" onClick={() => navigate("/app/answer")} variant="primary">
+                  <Button type="button" variant="primary" onClick={() => navigate("/app/answer")}>
                     Bắt đầu phân tích →
                   </Button>
                 </>
               )}
             </div>
           ) : (
-            Object.entries(groupedSessions).map(([dateGroup, groupSessions]) => (
+            Object.entries(grouped).map(([dateGroup, groupRows]) => (
               <div key={dateGroup}>
-                <div className="px-4 py-2 bg-[var(--background)]">
-                  <p className="text-xs font-medium text-[var(--faint)] uppercase tracking-wide">
+                <div className="px-4 py-2 bg-[color:var(--gv-canvas-2)]">
+                  <p className="gv-mono text-[10px] font-medium uppercase tracking-wide text-[color:var(--gv-ink-4)]">
                     {dateGroup}
                   </p>
                 </div>
-                <div className="divide-y divide-[var(--border)] bg-[var(--surface)]">
-                  {groupSessions.map((session) => {
-                    const badgeText = session._union
-                      ? session._union.format
-                        ? session._union.format.replace(/_/g, " ")
-                        : "Nghiên cứu"
-                      : session.intent_type
-                        ? (INTENT_BADGES[session.intent_type] ?? "")
-                        : "";
-                    const editing = editingId === session.id;
-
+                <div className="divide-y divide-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+                  {groupRows.map((row) => {
+                    const editing = editingId === row.id;
                     return (
-                      <div
-                        key={session.id}
-                        className="flex w-full items-stretch gap-1 px-2 py-2 hover:bg-[var(--surface-alt)] transition-colors duration-[120ms]"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (session._union) {
-                              logUsage("history_session_open", {
-                                type: "answer",
-                                session_id: session.id,
-                              });
-                              navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
-                            } else {
-                              logUsage("history_session_open", { type: "chat", session_id: session.id });
-                              navigate(`/app/history/chat/${session.id}`);
-                            }
-                          }}
-                          className="min-h-[44px] flex-1 px-2 py-2 text-left rounded-lg"
-                        >
-                          {editing ? (
-                            <div className="mb-2" onClick={(e) => e.stopPropagation()}>
-                              <Input
-                                value={draftTitle}
-                                onChange={(e) => setDraftTitle(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") commitRename(session.id);
-                                  if (e.key === "Escape") {
-                                    setEditingId(null);
-                                    setDraftTitle("");
-                                  }
-                                }}
-                                onBlur={() => commitRename(session.id)}
-                                className="text-sm"
-                                autoFocus
-                              />
-                            </div>
-                          ) : (
-                            <div className="flex items-start gap-3 mb-2">
-                              {badgeText ? (
-                                <Badge variant="accent" className="text-xs flex-shrink-0">
-                                  {badgeText}
-                                </Badge>
-                              ) : (
-                                <span className="w-0 flex-shrink-0" aria-hidden />
-                              )}
-                              <p className="flex-1 text-sm text-[var(--ink)] line-clamp-2 min-w-0">
-                                {sessionPreview(session)}
-                              </p>
-                            </div>
-                          )}
-                          {!editing ? (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="font-mono text-[var(--faint)]">
-                                {formatTime(session.created_at)}
-                              </span>
-                              <span className="font-mono text-[var(--muted)]">
-                                {session._union
-                                  ? `${session._union.turn_count} lượt`
-                                  : session.credits_used === 0
-                                    ? "miễn phí"
-                                    : `−${session.credits_used} credit`}
-                              </span>
-                            </div>
-                          ) : null}
-                        </button>
-                        {!editing && !session._union ? (
-                          <div className="flex flex-col justify-center gap-1 pr-1 flex-shrink-0">
-                            <button
-                              type="button"
-                              title="Đổi tên"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openRename(session);
+                      <div key={row.id} className="relative">
+                        {editing ? (
+                          <div className="px-4 py-3">
+                            <Input
+                              value={draftTitle}
+                              onChange={(e) => setDraftTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitRename(row.id);
+                                if (e.key === "Escape") {
+                                  setEditingId(null);
+                                  setDraftTitle("");
+                                }
                               }}
-                              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--border)] transition-colors duration-[120ms]"
-                            >
-                              <Pencil className="w-4 h-4" strokeWidth={1.8} />
-                            </button>
-                            <button
-                              type="button"
-                              title="Xoá"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteTargetId(session.id);
-                              }}
-                              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[var(--danger)] hover:bg-red-50/40 transition-colors duration-[120ms]"
-                            >
-                              <Trash2 className="w-4 h-4" strokeWidth={1.8} />
-                            </button>
+                              onBlur={() => commitRename(row.id)}
+                              autoFocus
+                              className="text-sm"
+                            />
                           </div>
-                        ) : !editing && session._union ? (
-                          <div className="w-2 flex-shrink-0" aria-hidden />
-                        ) : null}
+                        ) : (
+                          <HistoryRow
+                            row={row}
+                            onClick={() => handleRowClick(row)}
+                            actions={
+                              row.type === "chat" ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    title="Đổi tên"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingId(row.id);
+                                      setDraftTitle(row.title ?? "");
+                                    }}
+                                    className="flex h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
+                                  >
+                                    <Pencil className="h-4 w-4" strokeWidth={1.8} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    title="Xoá"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteTargetId(row.id);
+                                    }}
+                                    className="flex h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[color:var(--gv-danger)] hover:bg-[color:var(--gv-canvas-2)]"
+                                  >
+                                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                                  </button>
+                                </>
+                              ) : null
+                            }
+                          />
+                        )}
                       </div>
                     );
                   })}
