@@ -23,7 +23,7 @@ function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
   switch (payload.kind) {
     case "pattern":
       return (
-        <AnswerBlock kicker="Pattern" c2Placeholder>
+        <AnswerBlock kicker="Pattern">
           <PatternBody report={payload.report} />
         </AnswerBlock>
       );

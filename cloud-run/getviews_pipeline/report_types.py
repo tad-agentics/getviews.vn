@@ -62,6 +62,7 @@ class EvidenceCardPayload(BaseModel):
     duration_sec: int
     bg_color: str
     hook_family: str
+    thumbnail_url: str | None = None
 
 
 class PatternCellPayload(BaseModel):

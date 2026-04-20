@@ -326,6 +326,8 @@
   --gv-danger:         #B91C1C;
   /* Modal / drawer backdrop (Phase C.1.5 — no raw rgba in answer JSX) */
   --gv-scrim:          rgb(10 12 16 / 35%);
+  /* Pattern action card forecast row on primary (Phase C.2.3) */
+  --gv-forecast-primary-bg: rgb(255 255 255 / 8%);
 
   /* Phase C.0.4 — single canonical main column width (all /video /kol /channel /script /answer /history) */
   --gv-route-max-width: 1280px;

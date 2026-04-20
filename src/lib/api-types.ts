@@ -366,6 +366,8 @@ export interface EvidenceCardPayloadData {
   duration_sec: number;
   bg_color: string;
   hook_family: string;
+  /** Cover URL when present (falls back to `bg_color` tile). */
+  thumbnail_url?: string | null;
 }
 
 export interface PatternCellPayloadData {
