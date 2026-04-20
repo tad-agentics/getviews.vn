@@ -155,8 +155,7 @@ matrix table + matching pytest stubs. **No Gemini wiring yet** — that's C.7.
 
 `phase-c-report-formats.md` §2.2 references `idea-directions.jsx` as the
 reference for `IdeaBlock`, `StyleCard`, `StopRow`. **The file does not
-exist in `artifacts/uiux-reference/screens/`.** Three options, decide before
-C.0 ends:
+exist in `artifacts/uiux-reference/screens/`.** Three options:
 
 1. **Locate it.** Search Claude Design's earlier handoff for the file. If
    present in stash/branch, lift into `artifacts/uiux-reference/screens/`.
@@ -167,8 +166,15 @@ C.0 ends:
    compositions of `AnswerBlock` + `HookFinding`-shape + custom slot rows.
    Lower fidelity but no design dependency. Default unless option 1 lands.
 
+**Hard cutoff: end of C.0 week (Fri 2026-04-24, 17:00 ICT).** If by then
+neither option 1 nor option 2 has produced a checked-in
+`artifacts/uiux-reference/screens/idea-directions.jsx`, option 3
+(re-scope from `answer.jsx`) takes effect automatically and C.3
+proceeds on the 1.5w base estimate. No further escalation; C.3 cannot
+sit waiting on a design ref past this date.
+
 **Deliverable**: line-item in `artifacts/plans/idea-directions-decision.md`
-recording option chosen + impact on C.3 estimate.
+recording option chosen + impact on C.3 estimate. Filed by 2026-04-24.
 
 ### C.0.3 — Sample-size gates (1d)
 
@@ -2255,7 +2261,11 @@ A sub-phase is "shipped" when **all** of the following hold:
 3. Frontend vitest passing on new primitives.
 4. Shell smoke green.
 5. Design-audit report green (token grep gate at 0).
-6. Measurement event(s) live and emitting non-zero in staging.
+6. Measurement event(s) confirmed live in production within 24h
+   post-merge — emit a smoke event (test user account, dummy session)
+   and verify the row lands in `usage_events` via the analytics
+   dashboard. There is no separate staging analytics surface;
+   production smoke is the contract.
 7. Documentation updated (this plan, `api-types.ts`, audit reports).
 8. For C.2 specifically: `WhatStalled` non-negotiable acceptance test
    green in CI.
