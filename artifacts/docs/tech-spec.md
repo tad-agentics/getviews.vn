@@ -1183,7 +1183,7 @@ Common codes: `UNAUTHORIZED`, `NOT_FOUND`, `VALIDATION_ERROR`, `RATE_LIMITED`, `
 
 | Job | Schedule | Edge Function | What it does | Auth |
 |---|---|---|---|---|
-| Daily batch indexing | `0 21 * * *` UTC (4 AM ICT) | Cloud Run HTTP job (same `getviews-pipeline` service; Cloud Scheduler `POST /batch/ingest`) | Crawl all niches (~21), download+analyze up to cap/niche, update `video_corpus` + refresh `niche_intelligence`; optional R2 frame/video | `X-Batch-Secret` + service env |
+| Daily corpus batch ingest | `0 2 * * *` · `Asia/Ho_Chi_Minh` (02:00 ICT; ≈ prior-day 19:00 UTC) | Cloud Scheduler → `getviews-pipeline` · `POST /batch/ingest` | Crawl all niches (~21), download+analyze up to cap/niche, update `video_corpus` + refresh `niche_intelligence`; optional R2 frame/video | `X-Batch-Secret` = Cloud Run `BATCH_SECRET` + service env |
 | Weekly intelligence layer recompute | `0 16 * * 0` UTC (Sunday 11 PM ICT) | Cloud Run batch | Refresh niche_intelligence materialized view, recompute trend_velocity, hook_effectiveness, format_lifecycle, creator_velocity | Service role |
 | Daily expiry check + reminders | `0 2 * * *` UTC (9 AM ICT) | `supabase/functions/cron-expiry-check` | Send expiry emails (7d/3d/1d windows), expire subscriptions, downgrade tiers | Service role |
 | Daily free query reset | `0 17 * * *` UTC (midnight ICT) | `supabase/functions/cron-reset-free-queries` | Reset `daily_free_query_count = 0` for all users | Service role |

@@ -11,7 +11,7 @@
 | [`cloud-run/getviews_pipeline/comment_radar.py`](../../cloud-run/getviews_pipeline/comment_radar.py) | Yes | Calls `_ensemble_get` for comments. |
 | [`cloud-run/main.py`](../../cloud-run/main.py) | Indirect | FastAPI routes invoke pipeline / batch code. |
 | [`cloud-run/scripts/run_batch_ingest.py`](../../cloud-run/scripts/run_batch_ingest.py) | Indirect | Documents env var for local runs. |
-| [`src/routes/_app/ChatScreen.tsx`](../../src/routes/_app/ChatScreen.tsx) | No | UI string `ensembledata_quota` only. |
+| [`src/routes/_app/answer/AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx) | No | No direct ED HTTP from browser in audit pass. |
 | [`artifacts/docs/tech-spec.md`](../../artifacts/docs/tech-spec.md) | Doc | Names secret for Edge — verify prod does **not** call ED from Vercel/Edge with the **same** key as Cloud Run. |
 
 ## Grep evidence (non–cloud-run)
@@ -28,6 +28,17 @@
 
 ## Scheduler mapping
 
-Record your project’s scheduler job name → URL → schedule (UTC) in this section when known:
+**Region:** `asia-southeast1` (prod Cloud Scheduler + Cloud Run `getviews-pipeline`).
 
-- _(fill in: e.g. `batch-ingest-daily` → `https://…/batch/ingest` → `0 2 * * *` UTC)_
+| Job | Target | Schedule | Auth |
+|-----|--------|----------|------|
+| `getviews-corpus-ingest` | `POST https://getviews-pipeline-qve2iyonqa-as.a.run.app/batch/ingest` | `0 2 * * *` · `Asia/Ho_Chi_Minh` (02:00 ICT) | Header `X-Batch-Secret` must equal Cloud Run env **`BATCH_SECRET`** |
+| `getviews-morning-ritual` | `POST …/batch/morning-ritual` (same service) | `0 22 * * *` · `Asia/Ho_Chi_Minh` | Same header pattern |
+
+**Attempt deadline:** `1500s` (25m) on `getviews-corpus-ingest` — long multi-niche runs may need the job deadline + Cloud Run timeout headroom (see `cloud-run/deploy.sh`).
+
+**Manual run:** `gcloud scheduler jobs run getviews-corpus-ingest --location=asia-southeast1`
+
+## Operational status
+
+- **2026-04-20:** `getviews-corpus-ingest` was returning **401** because `X-Batch-Secret` on the Scheduler job did not match Cloud Run `BATCH_SECRET`. Header was updated to match; subsequent runs show `POST /batch/ingest` accepted and EnsembleData traffic **200**. Re-verify if either secret rotates.
