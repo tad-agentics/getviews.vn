@@ -114,22 +114,53 @@ Resolve five hard blockers before writing a line of C.1 code.
 ### C.0.1 — Intent classifier v2 (1.5d)
 
 Map all 20 creator intents from §A.1–A.2 to `(destination | report_format)`
-and freeze the classifier behaviour.
+and freeze the classifier behaviour. **This is an extension of the live
+classifier, not a new build** — see "Existing infrastructure" below.
 
-Inputs:
-- §A intent map (this doc).
-- Existing `intent-router.ts` two-tier router (URL/handle → Cloud Run keyword).
-- Cloud Run `intent_classifier.py` (current Gemini path).
+**Existing infrastructure (confirmed live on main as of 2026-04-20):**
+
+- **Client deterministic layer:** `src/routes/_app/intent-router.ts`
+  `detectIntent()` classifies 7 intents today (`video_diagnosis`,
+  `competitor_profile`, `own_channel`, `shot_list`, `creator_search`,
+  `trend_spike`, `content_directions`, `follow_up`). **Missing 11 of
+  the plan's 20 intents:** `subniche_breakdown`,
+  `format_lifecycle_optimize`, `fatigue`, `brief_generation`,
+  `hook_variants`, `timing`, `content_calendar`, `comparison`,
+  `series_audit`, `metadata_only`, `own_flop_no_url`. C.0.1 owns
+  closing that gap — either by extending `detectIntent()` with 11 new
+  keyword branches (preferred; cheap; no LLM call) or by punting all
+  11 to `follow_up` on the client and letting the Cloud Run classifier
+  carry the whole load (simpler but costs ~11× more classifier calls).
+  **Default: extend `detectIntent()` for all 11** so the client
+  pre-qualifies with `confidence: "medium"` and Cloud Run only
+  disambiguates on tie-break.
+- **Server deterministic layer:** `cloud-run/getviews_pipeline/intents.py`
+  `classify_intent()` + `QueryIntent` enum. Currently 11 enum members;
+  extend to match the §A 20-intent taxonomy in the same PR as
+  `detectIntent()` so client and server stay synced.
+- **Server LLM layer:** `cloud-run/getviews_pipeline/gemini.py:586`
+  `classify_intent_gemini()` already runs with a 21-intent vocabulary
+  in its system prompt (line 552+). Endpoint wrapper lives at
+  `cloud-run/main.py:371 classify_intent_endpoint`. **C.0.1 adds the
+  `destination_or_format` return field + the `Destination` union; the
+  Gemini call itself is not net-new.**
+- **Budget guard:** `EnsembleDailyBudgetExceeded` is a bare
+  `ValueError` subclass at `ensemble.py:46`. Shape is reusable; wire
+  a sibling `ClassifierDailyBudgetExceeded` at the same pattern with
+  its own daily counter. The plan's earlier reference to
+  `ed_budget.py` is actually `ensemble.py` — corrected here.
 
 Decisions to land:
 
-1. **Gemini vs deterministic.** Two classifiers in parallel: a deterministic
-   keyword pass (Vietnamese-aware, handles the 6 keyword families in
-   `intent-router.ts`) runs first, returns `{intent, confidence}`. If
-   `confidence === "high"`, Cloud Run skips Gemini. If `"medium" | "low"`,
-   Cloud Run hands the query + the deterministic guess to Gemini for a final
-   decision. Gemini is bounded to `(intent_id ∈ §A list, confidence,
-   destination_or_format, niche_filter, format_emphasis)`.
+1. **Gemini vs deterministic.** Two classifiers in layered order (not
+   parallel): **client-side deterministic** (`detectIntent()`) runs
+   first and returns `{intent, confidence}`. If
+   `confidence === "high"` (URL/handle/keyword match), skip LLM. On
+   `"medium" | "low"`, the query + deterministic guess ship to Cloud
+   Run's existing `classify_intent_endpoint`, which runs
+   `classify_intent()` (deterministic) → `classify_intent_gemini()`
+   (LLM confirm). Gemini return shape extended to include
+   `destination_or_format`, `niche_filter`, `format_emphasis`.
 2. **Confidence thresholds.**
    - `high` → route immediately, no LLM call.
    - `medium` → Gemini classifier confirms; if it disagrees by ≥ 0.3, the
@@ -138,18 +169,27 @@ Decisions to land:
      intent is `follow_up` and renders **Generic** with the
      `intent_confidence: "low"` flag set on `ConfidenceStrip`.
 3. **Destination dispatch matrix.** Codified in `intent-router.ts` as
-   `INTENT_DESTINATIONS: Record<IntentId, "video" | "channel" | "kol" |
-   "script" | "answer:pattern" | "answer:ideas" | "answer:timing" |
-   "answer:generic">`. Source of truth. C.7 uses this map.
+   `INTENT_DESTINATIONS: Record<FixedIntentId, Destination>` (see C.7
+   for the full type). Source of truth. Mirrored server-side in a
+   new `cloud-run/getviews_pipeline/intent_router.py` that imports the
+   enum from `intents.py` and adds the destination map. **C.7 wires
+   this map into the final routing decision.**
 4. **Budget.** Gemini classifier call costs ≤ 1 unit / classification.
    Deterministic pass costs 0. Daily budget guard reuses the
-   `EnsembleDailyBudgetExceeded` pattern (`cloud-run/getviews_pipeline/
-   ed_budget.py`); when exceeded, fall back to deterministic-only and
-   log `[classifier-budget]`.
+   `EnsembleDailyBudgetExceeded` shape from
+   `cloud-run/getviews_pipeline/ensemble.py:46` (not `ed_budget.py` —
+   that module handles corpus ingest budgets, not classifier budgets).
+   Implement as `ClassifierDailyBudgetExceeded` at the same pattern;
+   when exceeded, fall back to deterministic-only and log
+   `[classifier-budget]`.
 
 **Deliverable**: `artifacts/plans/intent-classifier-v2.md` decision record
-+ `cloud-run/getviews_pipeline/intent_router.py` skeleton with the
-matrix table + matching pytest stubs. **No Gemini wiring yet** — that's C.7.
++ `cloud-run/getviews_pipeline/intent_router.py` module (imports
+`QueryIntent` from `intents.py`, owns the destination map) + extended
+`intent-router.ts` `detectIntent()` covering the 11 missing intents +
+matching pytest + vitest stubs. **No Gemini wiring changes yet** —
+`classify_intent_gemini()` already runs; C.7 adds the
+`destination_or_format` field to its return shape.
 
 ### C.0.2 — `idea-directions.jsx` design ref (0.5d, blocking)
 
@@ -191,14 +231,19 @@ Bars per format:
 
 Spike work:
 
-1. Query `niche_intelligence` + `video_corpus` per niche over 7d / 14d /
-   30d windows; produce a per-niche table of `(window, sample_size)` for
-   each of the 21 active niches.
-2. For every niche where 7d sample is below the Pattern floor, decide:
+1. Query `niche_intelligence` (materialized view) + `video_corpus` per
+   niche over 7d / 14d / 30d windows; produce a per-niche table of
+   `(window, sample_size)` for each of the 21 active niches.
+2. **Reuse `corpus_hashtag_yields_14d()` RPC** (landed 2026-04-29 in
+   `20260429180000_corpus_hashtag_yields_rpc.sql`) to validate
+   hashtag-level coverage within each niche — an adaptive yield table
+   already models this exact problem for corpus ingest; the spike
+   piggy-backs on it rather than re-running aggregations.
+3. For every niche where 7d sample is below the Pattern floor, decide:
    - widen window to 14d automatically (preferred), or
    - degrade to 14d Generic (acceptable fallback), or
    - exclude the niche from `/answer` until corpus depth catches up.
-3. Pattern + Ideas use **adaptive windows**: backend reports the actual
+4. Pattern + Ideas use **adaptive windows**: backend reports the actual
    window in `confidence.window_days` so the strip is honest.
 
 **Deliverable**: `artifacts/docs/answer-sample-coverage.md` — table of
@@ -309,15 +354,26 @@ Pre-decided:
   `answer_turns` row is written.
 - **TD-4 (SSE reconnection) inherited.** `/answer/sessions/:id/turns`
   uses the same `stream_id` + `seq` per-token replay buffer pattern that
-  Cloud Run already runs for video analysis (`runtime.py` 60s in-memory
-  buffer). Mid-turn dropouts resume from `seq` rather than re-billing.
-  Reconnect query: `?resume_from_seq=<n>`. Document the contract in
+  Cloud Run already runs for video analysis — `put_stream_chunks` /
+  `get_stream_chunks` in `cloud-run/getviews_pipeline/session_store.py`
+  (not `runtime.py` — that module holds only `run_sync` + the analysis
+  semaphore). Buffer TTL is **120s** (`_STREAM_REPLAY_TTL_SEC` in
+  `session_store.py:41`). Mid-turn dropouts resume from `seq` rather
+  than re-billing. Reconnect query: `?resume_from_seq=<n>`.
+  **Best-effort caveat:** the buffer is per-instance; with Cloud Run
+  `max-instances: 5` and `--concurrency 20`, a reconnect that hits a
+  different pod gets a fresh stream rather than a replay. Acceptable
+  for C.1 MVP (matches the precedent documented in
+  `session_store.py:8-10`); if measured drop-rate on answer follow-ups
+  exceeds 2% post-ship, promote to a Redis-backed buffer in Phase D.
+  Document the full contract in
   `artifacts/docs/answer-session-contract.md`.
 - **Idempotency on session creation.** `POST /answer/sessions` accepts
-  an `Idempotency-Key` header (UUIDv4 generated client-side, cached for
-  60s server-side keyed on `(user_id, key)`). Replays return the same
-  `session_id`. Prevents double-clicks and page-reload races during the
-  C.7.1 chat-redirect pre-flight from creating duplicate sessions.
+  an `Idempotency-Key` header (UUIDv4 generated client-side, cached
+  120s server-side keyed on `(user_id, key)` — matches the replay-TTL
+  for operational simplicity). Replays return the same `session_id`.
+  Prevents double-clicks and page-reload races during the C.7.1
+  chat-redirect pre-flight from creating duplicate sessions.
 - Soft-delete via `archived_at`. UI hides archived; user can restore.
 
 **Deliverable**: migration file checked in **but not pushed** to staging
@@ -333,7 +389,7 @@ including the TD-4 resume protocol and idempotency-key cache TTL.
 5. **C.0.5** (1.5d) — `answer_sessions` + `answer_turns` migration + RLS + pydantic schemas drafted
 6. **C.0.6** (1d) — **Spike close-out** review with three deliverables shipped to `artifacts/plans/` + this doc updated to lock the decisions. Required before C.1 starts. Three additional one-line locks land in this milestone:
    - **Token additions in `src/app.css`:** `--gv-danger` (seeded from the Phase B accent-red precedent — final hex pinned by design review). Consumed by `WhatStalledRow` (C.2) and the `chat_classified_redirect` toast variant if needed (C.7). No other danger-color literal allowed in C surfaces.
-   - **Migration sequencing:** placeholder filenames `2026XXXXXXXXXX_*.sql` resolved to real `YYYYMMDDHHmmss_` stamps before any sub-phase opens its PR. C.0.6 picks the date floor; subsequent migrations bump from there.
+   - **Migration sequencing:** placeholder filenames `2026XXXXXXXXXX_*.sql` resolved to real `YYYYMMDDHHmmss_` stamps before any sub-phase opens its PR. **Floor: `20260430000000`** (latest on-main as of 2026-04-20 is `20260429180000_corpus_hashtag_yields_rpc.sql`); subsequent migrations bump from there. C.0.6 assigns sequential stamps across C.0.5 (`answer_sessions` + `answer_turns`), C.2.1 (`pattern_wow_diff_7d` RPC), C.4.1 (`timing_top_window_streak`), C.6.1 (`history_union` RPC), C.8.1 (`draft_scripts`), C.8.3 (`creator_velocity.match_score` add).
    - **TD-1 / TD-4 / idempotency contract** (per C.0.5 above) restated in `artifacts/docs/answer-session-contract.md` with worked example payloads.
 
 ---
@@ -595,12 +651,14 @@ the existing CORS handling.
 
 - `POST /answer/sessions` — body `{initial_q, intent_type, niche_id,
   format}`. **Header `Idempotency-Key: <uuidv4>` required** (per
-  C.0.5); replays within 60s return the same `session_id`. Inserts an
-  empty session row; C.1 clients then call `POST /answer/sessions/:id/
-  turns` to append the primary turn.
+  C.0.5); replays within 120s return the same `session_id`. Inserts
+  an empty session row; C.1 clients then call `POST /answer/sessions/
+  :id/turns` to append the primary turn.
 - `POST /answer/sessions/:id/turns` — body `{query, kind}`. Optional
-  query `?resume_from_seq=<n>` for TD-4 SSE replay (inherits the same
-  60s `stream_id` + `seq` buffer Cloud Run uses for `/stream`).
+  query `?resume_from_seq=<n>` for TD-4 SSE replay (inherits the
+  120s per-instance `stream_id` + `seq` buffer Cloud Run uses for
+  `/stream` — `session_store.py`). Cross-pod resume degrades to a
+  fresh stream; see C.0.5.
   Auth-required. **Credit semantics (per C.0.5):**
   `kind === 'primary'` deducts 1 credit via the `decrement_credit()`
   RPC (TD-1) **before** the SSE stream opens; insufficient credits →
@@ -807,7 +865,7 @@ tables / RPCs:
 | Field | Source |
 |---|---|
 | `confidence.{sample_size, window_days, niche_scope, freshness_hours}` | `niche_intelligence` + `video_corpus` aggregations; `freshness_hours = now() - max(video_corpus.created_at)` for the niche |
-| `wow_diff.{new_entries, dropped, rank_changes}` | new RPC `pattern_wow_diff_7d(niche_id INT)` — diffs current 7d hook ranking vs prior 7d (8–14 days ago) |
+| `wow_diff.{new_entries, dropped, rank_changes}` | new RPC `pattern_wow_diff_7d(niche_id INT)` — **reads from `video_patterns` table** (landed 2026-04-29 in `20260429120000_video_patterns_reconcile.sql`; carries hook-signature hashes + weekly instance counts + delta columns, exactly the shape `wow_diff` needs) rather than re-aggregating from `hook_effectiveness` row by row |
 | `tldr.thesis` | Gemini bounded ≤ 280 chars, cached on `answer_turns.payload` |
 | `tldr.callouts[3]` | aggregated from `hook_effectiveness` (count, retention, sample) |
 | `findings[3]: HookFinding` | `hook_effectiveness` ranked by `avg_views * retention`, top 3, joined to `video_corpus` for evidence ids; `lifecycle.first_seen` from `min(video_corpus.created_at)` for that hook_type, `peak` from peak-week aggregation, `momentum` from 14-day slope |
@@ -873,6 +931,9 @@ around.**
 - `supabase/migrations/2026XXXXXXXXXX_pattern_wow_diff_rpc.sql`:
 
   ```sql
+  -- Reads from video_patterns (20260429120000_video_patterns_reconcile.sql)
+  -- which already stores per-hook-signature instance counts + weekly deltas.
+  -- Avoid re-aggregating from hook_effectiveness here.
   CREATE OR REPLACE FUNCTION public.pattern_wow_diff_7d(p_niche_id INT)
   RETURNS TABLE (
     hook_type   TEXT,
@@ -883,7 +944,13 @@ around.**
     is_dropped  BOOLEAN
   )
   LANGUAGE sql STABLE SET search_path = public AS $$
-    WITH now7 AS (...), prior7 AS (...) SELECT ... ;
+    WITH now7 AS (
+      SELECT hook_signature, instance_count_7d FROM video_patterns
+      WHERE niche_id = p_niche_id AND week_end = date_trunc('week', now())
+    ), prior7 AS (
+      SELECT hook_signature, instance_count_7d FROM video_patterns
+      WHERE niche_id = p_niche_id AND week_end = date_trunc('week', now()) - interval '7 days'
+    ) SELECT ... ;
   $$;
   GRANT EXECUTE ON FUNCTION public.pattern_wow_diff_7d(INT) TO service_role;
   ```
@@ -1457,10 +1524,10 @@ sessions live consistently. Adds a "Phiên nghiên cứu" filter to surface
 
 | Line | Violation | Replacement |
 |---|---|---|
-| 235 | `text-[var(--purple)] underline` | `text-[var(--accent)] underline` (on the `Thử lại` button) |
-| 245 | `text-[var(--ink-soft)]` | `text-[var(--ink-3)]` |
-| 248 | `text-[var(--ink-soft)] mb-4` | `text-[var(--ink-3)] mb-4` |
-| 302 | `<Badge variant="purple">` | `<Badge variant="accent">` (and add `accent` variant if missing) |
+| 235 | `text-[var(--purple)] underline` | `text-[var(--gv-accent)] underline` (on the `Thử lại` button) |
+| 245 | `text-[var(--ink-soft)]` | `text-[var(--gv-ink-3)]` |
+| 248 | `text-[var(--ink-soft)] mb-4` | `text-[var(--gv-ink-3)] mb-4` |
+| 302 | `<Badge variant="purple">` | `<Badge variant="accent">` — **new variant added to `src/components/ui/badge.tsx` that uses `var(--gv-accent)` + `var(--gv-accent-soft)`**. Do **not** target the legacy `--accent` token; per `src/app.css:100` it still aliases to `--purple-light`, so the swap would keep the color purple. |
 
 The audit grep run as part of C.6.5 must show **0 hits** for `--purple` /
 `--ink-soft` / `--border-active` / `--gv-purple-*` in
@@ -1490,8 +1557,11 @@ RETURNS TABLE (
   updated_at  TIMESTAMPTZ
 )
 LANGUAGE sql STABLE SET search_path = public AS $$
-  -- RLS-bounded by auth.uid(); union of answer_sessions + chat_sessions
-  -- WHERE archived_at IS NULL; ORDER BY updated_at DESC LIMIT p_limit;
+  -- RLS-bounded by auth.uid(); union of answer_sessions + chat_sessions.
+  -- answer_sessions filter: archived_at IS NULL (has the column per C.0.5).
+  -- chat_sessions filter: no deleted_at / archived_at filter — migration _036
+  -- removed soft-delete on chat_sessions (see CLAUDE.md + _034/_035/_036).
+  -- ORDER BY updated_at DESC LIMIT p_limit;
   -- p_cursor is the previous page's tail updated_at for keyset pagination.
 $$;
 GRANT EXECUTE ON FUNCTION public.history_union(TEXT, TIMESTAMPTZ, INT) TO authenticated;
@@ -2126,6 +2196,7 @@ never silent holes.**
 | Follow-up turn credit semantics surprise users | Low | C.0.5 sets a simple integer-only policy: **1 credit per primary, 0 per follow-up, 0 for Generic.** `ConfidenceStrip` shows the deduction inline at primary-turn open; pricing copy + chat / answer entry-point copy updated concurrent with C.1 ship |
 | In-flight chat stream interrupted by C.7 redirect | Medium | C.7.1 redirect fires only on initial `runSend` pre-flight; in-flight streams continue uninterrupted. Vitest covers the "stream already started" branch that bypasses redirect. Behind a `?legacy=chat` escape hatch for one release per the B.4 precedent |
 | Purple-token leakage across `/history` regressing | Low | C.6.3 grep gate; CI lint adds `--purple` / `--ink-soft` / `--border-active` / `--gv-purple-*` to the Phase B token-scan job |
+| Token namespace dualism (`--purple` vs `--gv-*`) surfacing on mixed surfaces | Medium | `src/app.css` still defines both the legacy Make tokens (`--purple`, `--ink-soft`, `--accent → --purple-light`) and the `--gv-*` family. New Phase C code uses `--gv-*` exclusively; **composing a legacy Make primitive inside a `/answer` screen would pull in purple shims.** C.1 frontend audit grep must scan the component tree for mixed-namespace consumers, not just files in `src/routes/_app/answer/**`. Full deprecation of `--purple` is a Phase D task, not C. |
 | `/answer` session schema change after launch | Low | RLS + service-role-only payload writes; payload validated server-side against pydantic before insert; bad payloads fail the stream rather than persist |
 | `script_save` PDF rendering brittle (weasyprint deps) | Medium | C.8.1 spike-day evaluates weasyprint vs lighter alt; export endpoint returns 503 with clear copy if PDF stack fails; "Copy" path always works |
 | Multi-intent merge confuses classifier | Medium | C.5.3 pytest covers all four §A.4 cases; observability tag `[multi-intent]` logs every classifier decision that includes a `subreports` field |
