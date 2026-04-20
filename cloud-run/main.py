@@ -1844,29 +1844,124 @@ async def answer_append_turn(
     session_id: str,
     body: AnswerTurnAppendBody,
     user: dict[str, Any] = Depends(require_user),
-) -> JSONResponse:
-    """Append primary or follow-up turn with validated ReportV1 payload."""
+    resume_stream_id: str | None = Query(None),
+    resume_from_seq: int | None = Query(None, ge=0),
+) -> StreamingResponse:
+    """Append primary or follow-up turn, streamed as SSE with TD-4 replay.
+
+    Wire protocol (two-token stream for the fixture path; C.2+ may emit
+    progressive `step` / `delta` tokens as the real Gemini builders land):
+
+    ```
+    data: {"stream_id": "<uuid>", "seq": 1, "payload": <ReportV1>, "done": false}
+    data: {"stream_id": "<uuid>", "seq": 2, "done": true}
+    ```
+
+    TD-4 resume: callers reconnect with `?resume_stream_id=<id>&resume_from_seq=<n>`
+    to replay chunks buffered in `session_store._stream_chunks` (120s TTL,
+    per-instance best-effort; cross-pod reconnect yields a fresh stream).
+    """
     from getviews_pipeline.answer_session import append_turn
 
-    try:
-        out = await run_sync(
-            append_turn,
-            user["user_id"],
-            user["access_token"],
-            session_id,
-            query=body.query,
-            kind=body.kind,
+    async def event_generator() -> AsyncIterator[bytes]:
+        stream_id = resume_stream_id or str(uuid.uuid4())
+        seq = resume_from_seq or 0
+
+        # ── Resume: replay cached chunks the client already missed ────────
+        if resume_stream_id and resume_from_seq is not None:
+            cached = get_stream_chunks(resume_stream_id)
+            if cached:
+                for i, chunk in enumerate(cached, start=1):
+                    if i <= resume_from_seq:
+                        continue
+                    seq = i
+                    yield _sse_line(
+                        {"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False}
+                    )
+                    await asyncio.sleep(0.005)
+                seq += 1
+                yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
+                return
+            # Cache miss (cross-pod or TTL expiry) — fall through to a fresh run.
+            logger.info(
+                "[answer/turns] resume cache miss stream_id=%s — running fresh",
+                resume_stream_id,
+            )
+
+        # ── Fresh run: build report, persist turn, emit payload + done ────
+        try:
+            out = await run_sync(
+                append_turn,
+                user["user_id"],
+                user["access_token"],
+                session_id,
+                query=body.query,
+                kind=body.kind,
+            )
+        except PermissionError:
+            seq += 1
+            yield _sse_line(
+                {
+                    "stream_id": stream_id,
+                    "seq": seq,
+                    "done": True,
+                    "error": "session_not_found",
+                }
+            )
+            return
+        except RuntimeError as exc:
+            if str(exc) == "insufficient_credits":
+                seq += 1
+                yield _sse_line(
+                    {
+                        "stream_id": stream_id,
+                        "seq": seq,
+                        "done": True,
+                        "error": "insufficient_credits",
+                    }
+                )
+                return
+            raise
+        except Exception as exc:
+            logger.exception("[answer/turns] append failed: %s", exc)
+            seq += 1
+            yield _sse_line(
+                {
+                    "stream_id": stream_id,
+                    "seq": seq,
+                    "done": True,
+                    "error": "stream_failed",
+                }
+            )
+            return
+
+        # Token 1 — payload. The handler returns ``{"turn": ..., "payload": ReportV1}``;
+        # the SSE ``payload`` field is the inner ReportV1 so ``useSessionStream<Report>``
+        # consumers narrow on ``payload.kind`` directly. Turn metadata rides alongside.
+        seq += 1
+        report_payload = out.get("payload", out)
+        turn_meta = out.get("turn")
+        payload_chunk = json.dumps(report_payload, ensure_ascii=False)
+        yield _sse_line(
+            {
+                "stream_id": stream_id,
+                "seq": seq,
+                "payload": report_payload,
+                "turn": turn_meta,
+                "done": False,
+            }
         )
-    except PermissionError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
-    except RuntimeError as exc:
-        if str(exc) == "insufficient_credits":
-            raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="insufficient_credits")
-        raise
-    except Exception as exc:
-        logger.exception("[answer/turns] append failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse(out)
+
+        # Token 2 — done marker
+        seq += 1
+        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
+
+        # Buffer both tokens for a 120s replay window. `session_store.put_stream_chunks`
+        # is an append-style cache keyed on stream_id — future reconnects within TTL
+        # can replay from `resume_from_seq` without re-billing or re-running Gemini.
+        put_stream_chunks(stream_id, [payload_chunk, ""])
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @app.get("/answer/sessions")
