@@ -169,8 +169,14 @@ export function detectIntent(
   }
 
   // ── Phase C — TIMING ───────────────────────────────────────────────────────
+  // Match "đăng giờ nào" even when filler words ("TikTok", "video", niche names)
+  // sit between the verb and the temporal question, and the reversed form. Keeps
+  // the standalone phrases ("khung giờ vàng", "best time to post") so pure-timing
+  // queries without a "post" verb still classify correctly.
   if (
-    /đăng giờ nào|giờ nào tốt|thứ mấy tốt|best time to post|when to post|posting time|khung giờ vàng|lịch đăng/i.test(ql)
+    /(đăng|post).{0,40}giờ nào/i.test(ql)
+    || /giờ nào.{0,40}(đăng|post)/i.test(ql)
+    || /giờ nào tốt|thứ mấy tốt|best time to post|when to post|posting time|khung giờ vàng|lịch đăng/i.test(ql)
   ) {
     return { intentType: "timing", isFree: false, confidence: "medium" };
   }
