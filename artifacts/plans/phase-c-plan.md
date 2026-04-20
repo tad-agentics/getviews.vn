@@ -603,8 +603,11 @@ the existing CORS handling.
   matching §J pydantic model and the turn is inserted.
   C.1 ships the **fixture** aggregator (returns
   `ANSWER_FIXTURE_PATTERN`); C.2–C.5 replace it.
-- `GET /answer/sessions` — pagination `?cursor=…&limit=20`. Returns
-  drawer rows.
+- `GET /answer/sessions` — keyset pagination `?cursor=<iso updated_at>
+  &limit=20&scope=30d|all`. Default `scope=30d` matches the drawer's
+  default; `scope=all` is used by `/history` for the unbounded view.
+  Returns rows ordered by `updated_at DESC`, RLS-bounded to `auth.uid()`,
+  excludes `archived_at IS NOT NULL` unless `?include_archived=true`.
 - `GET /answer/sessions/:id` — full session + ordered turns. RLS-bounded.
 - `PATCH /answer/sessions/:id` — body `{title?, archived_at?}`.
 
@@ -652,7 +655,7 @@ backend overlap so C.1.2 frontend work is never blocked.
 | `TimelineRail` | 1px-wide vertical rule, `position: absolute, left: -18, top: 20, bottom: 100, background: var(--rule)`. Hidden ≤ 1100px. | `answer.jsx:88-95` |
 | `TurnDivider` | Kicker `{LABEL} · LƯỢT {NN}` + serif H2 + `MiniResearch` strip + 9px node attached to `TimelineRail`. | `thread-turns.jsx:9-45` |
 | `MiniResearch` | 2-step research strip ("Dùng lại N nguồn" → "Trả lời") + completion chip. Pure animation; no API. | `thread-turns.jsx:47-67` |
-| `SessionDrawer` | Modal aside, 380px wide, `slideIn` keyframe animation, list of `answer_sessions` rows w/ active accent. Header serif title + new-session btn-accent. Footer count + Xem tất cả chip. | `thread-turns.jsx:407-472` |
+| `SessionDrawer` | Modal aside, 380px wide, `slideIn` keyframe animation, list of `answer_sessions` rows w/ active accent. Header serif title + new-session btn-accent. Footer count + "Xem tất cả" chip → routes to `/app/history?filter=answer`. **Pagination:** server-side keyset on `updated_at DESC LIMIT 20`; loads more on scroll (`IntersectionObserver` on the last row). **Default scope:** sessions where `updated_at > now() - INTERVAL '30 days' AND archived_at IS NULL`. The "Xem tất cả" chip is the only path to older / archived sessions (handled by `/history`, not the drawer). | `thread-turns.jsx:407-472` |
 | `FollowUpComposer` | `border: 2px solid var(--ink), borderRadius: 16, boxShadow: 4px 4px 0 var(--ink)`. Textarea + suggestion chips + accent send button. | `answer.jsx:677-735` |
 | `Sources` + `SourceRow` | Right-rail card; rows are 28×28 icon tile + label + sub-mono + big mono count. | `answer.jsx:741-785` |
 | `RelatedQs` | Right-rail card; click → `appendTurn(q)` calls the same composer flow. Hover color → accent. | `answer.jsx:787-820` |
@@ -1459,24 +1462,58 @@ The audit grep run as part of C.6.5 must show **0 hits** for `--purple` /
 
 ### Data model
 
-No schema changes. The filter chip drives a client-side query against
-both `answer_sessions` and `chat_sessions` (existing) with a tag for
-`type ∈ {answer, chat}` so the rendered row uses the right route on
-click (`/app/answer?session=…` vs `/app/chat?session=…`).
+No schema changes. Union happens **server-side via a new Postgres RPC**
+(not a client-side merge). Client-side merge would need two separate
+TanStack queries with manual interleave on `updated_at`, fragile when
+either side paginates. The RPC keeps ordering and pagination authoritative.
+
+```sql
+-- supabase/migrations/2026XXXXXXXXXX_history_union_rpc.sql
+CREATE OR REPLACE FUNCTION public.history_union(
+  p_filter TEXT DEFAULT 'all',  -- 'all' | 'answer' | 'chat'
+  p_cursor TIMESTAMPTZ DEFAULT NULL,
+  p_limit  INT DEFAULT 20
+)
+RETURNS TABLE (
+  id          UUID,
+  type        TEXT,        -- 'answer' | 'chat'
+  format      TEXT,        -- 'pattern'|'ideas'|'timing'|'generic' | NULL
+  niche_id    INT,
+  title       TEXT,
+  turn_count  INT,
+  updated_at  TIMESTAMPTZ
+)
+LANGUAGE sql STABLE SET search_path = public AS $$
+  -- RLS-bounded by auth.uid(); union of answer_sessions + chat_sessions
+  -- WHERE archived_at IS NULL; ORDER BY updated_at DESC LIMIT p_limit;
+  -- p_cursor is the previous page's tail updated_at for keyset pagination.
+$$;
+GRANT EXECUTE ON FUNCTION public.history_union(TEXT, TIMESTAMPTZ, INT) TO authenticated;
+```
+
+Client renders the row, and on click routes to the matching screen:
+`type === 'answer'` → `/app/answer?session=<id>`,
+`type === 'chat'` → `/app/chat?session=<id>` (the override-only chat
+route per C.7).
+
+Rows visually distinguish by a small mono pill on the right: `NGHIÊN CỨU`
+(`chip chip-accent`) for answer rows, `HỘI THOẠI` (`chip` neutral) for
+chat rows. No icon, no color beyond the chip — keeps the row scannable.
 
 ### Fixture mapping (design → backend)
 
 | Design field | Response field | Source |
 |---|---|---|
 | Filter chip count badges | `GET /history?counts_only=true` returns `{answer: N, chat: N}` | `count(answer_sessions) + count(chat_sessions)` |
-| Row type pill | derived client-side from query union | union |
+| Row type pill (`NGHIÊN CỨU` / `HỘI THOẠI`) | `type ∈ {answer, chat}` | `history_union` RPC |
+| Format sub-pill (Pattern / Ideas / …) | `format` | `history_union` RPC |
 | Active row underline | from `useParams().session_id` | router |
 
 ### New Cloud Run endpoints
 
-- Extend existing `GET /history` to include `answer_sessions`. Added
-  fields: `type ∈ {answer, chat}`, `format ∈ {pattern, ideas, timing,
-  generic, null}` (null for chat).
+- Extend existing `GET /history` to call the new `history_union` RPC.
+  Query params: `?filter=all|answer|chat&cursor=<iso>&limit=20`. Pure
+  pass-through to the RPC; no aggregation in the endpoint.
 
 ### Frontend
 
@@ -1487,9 +1524,9 @@ click (`/app/answer?session=…` vs `/app/chat?session=…`).
 
 ### C.6 milestones
 
-1. **C.6.1** (1d) — extend `GET /history` to union `answer_sessions` +
-   `chat_sessions`. Pytest covers union ordering by `updated_at` and
-   the new filter param.
+1. **C.6.1** (1d) — `history_union` RPC migration + extend `GET /history`
+   to call it. Pytest covers union ordering by `updated_at`, keyset
+   pagination via `p_cursor`, and the three filter values.
 2. **C.6.2** (2d) — `HistoryScreen.tsx` rewrite with filter ribbon, new
    row shape, fixed token violations. Extract `HistoryRow` shared with
    `SessionDrawer`.
@@ -1514,8 +1551,18 @@ Updated `intent-router.ts` (and the `INTENT_DESTINATIONS` matrix from
 §C.0.1):
 
 ```ts
-// Pseudocode summary; final code lives in src/routes/_app/intent-router.ts
-const INTENT_DESTINATIONS = {
+// src/routes/_app/intent-router.ts (final shape, post-C.7)
+type Destination =
+  | "video" | "channel" | "kol" | "script"
+  | "answer:pattern" | "answer:ideas" | "answer:timing" | "answer:generic"
+  | "chat";
+
+// The static map handles the 13 fixed intents. follow_up_classifiable
+// is dispatched separately by resolveDestination() because it depends
+// on the classifier's `subject` field (resolved at call time, not at
+// matrix definition time). Keeping the matrix purely string-typed lets
+// vitest snapshot it cleanly and lets C.7.5 audit grep it for orphans.
+const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // ... destination intents unchanged (1-7 per §A.1)
   trend_spike:                  "answer:pattern",
   content_directions:           "answer:pattern",
@@ -1526,22 +1573,69 @@ const INTENT_DESTINATIONS = {
   hook_variants:                "answer:ideas",
   timing:                       "answer:timing",
   content_calendar:             "answer:pattern", // multi-intent merges timing
-  follow_up_classifiable:       (subject) => `answer:${subject}`,
-  follow_up_unclassifiable:     "chat", // <- the only chat survivor
+  follow_up_unclassifiable:     "chat",           // <- the only chat survivor
 };
+
+export function resolveDestination(
+  intent: ClassifiedIntent,
+): Destination {
+  if (intent.id === "follow_up_classifiable") {
+    return `answer:${intent.subject}` as Destination;
+  }
+  return INTENT_DESTINATIONS[intent.id];
+}
 ```
 
 `ChatScreen.tsx` `runSend` (the lines 433–537 area) gains a pre-flight
-that, when `INTENT_DESTINATIONS[intent] !== "chat"`:
+that, when `resolveDestination(intent) !== "chat"`:
 
 1. Creates an `answer_sessions` row server-side via `POST /answer/
-   sessions`.
+   sessions` (with `Idempotency-Key` header per C.0.5).
 2. Navigates to `/app/answer?session=<uuid>&q=<seed>` with `replace:
    true`.
 3. Returns early; no `insertUser` / `stream` against the chat backend.
 
+**In-flight stream guard.** Pre-flight runs only on the **initial**
+`runSend` call. If a chat stream is already in progress, the redirect
+is skipped and the existing stream completes; this prevents the C.7
+behavior cliff from interrupting active chat sessions. Vitest covers
+the "stream already started → no redirect" branch.
+
 The existing `competitor_profile` / `own_channel` short-circuit at
 `ChatScreen.tsx:455-478` is the precedent — extend to all report intents.
+
+### Staged rollout (escape hatch)
+
+C.7.1 ships behind a single query-string flag matching the B.4
+`channel_to_script` rollout precedent:
+
+- **Default** — all classifiable intents redirect to `/app/answer`.
+- **Override** — `?legacy=chat` on any URL bypasses the matrix and
+  routes the query through the legacy chat pipeline. Honored for **one
+  release** (one full deploy cycle, ~7 days), then removed in C.7.6
+  cleanup.
+- **Telemetry** — `chat_legacy_override` event fires whenever the
+  override is used so we can see if anyone is actually depending on it
+  before removal.
+
+The override is a paste-in-URL escape hatch for support, not a
+user-facing toggle. No UI exposes it. If the gate metric (`>= 25%
+follow-up rate from §C.2 checkpoint`) regresses sharply post-rollout,
+support can hand the override URL to affected users while we
+investigate.
+
+### `BottomTabBar` impact
+
+`src/components/BottomTabBar.tsx` currently has 5 tabs including
+**Chat**. After C.7 the chat tab survives but its **icon + label
+swap to "Phiên nghiên cứu"** and routes to `/app/answer` (most-recent
+session if one exists, else `/app/answer/new`). The literal `/app/chat`
+route stays mounted as a fallback for the override flag and for the
+unclassifiable `follow_up` redirect target — no user-discoverable nav
+points to it.
+
+C.7.2 ships the swap; the `/app/chat` route stays in `routes.ts`
+unchanged (no removal).
 
 ### `/app/chat` quick-action retirements
 
@@ -1563,11 +1657,16 @@ No schema. Extends the C.0.1 classifier matrix only.
 
 ### C.7 milestones
 
-1. **C.7.1** (2d) — `intent-router.ts` matrix update + `ChatScreen.tsx`
-   `runSend` pre-flight redirect for all classifiable intents. Vitest
-   covers the routing matrix.
-2. **C.7.2** (1d) — home / chat empty-state quick-action grid pruning.
-   Adds the single "Mở phiên nghiên cứu mới" card.
+1. **C.7.1** (2d) — `intent-router.ts` matrix update + `resolveDestination()`
+   helper + `ChatScreen.tsx` `runSend` pre-flight redirect for all
+   classifiable intents + `?legacy=chat` override + in-flight stream
+   guard. Vitest covers the routing matrix snapshot, the override
+   bypass, and the "stream already started → no redirect" branch.
+2. **C.7.2** (1d) — home / chat empty-state quick-action grid pruning;
+   adds single "Mở phiên nghiên cứu mới" card. **Plus the
+   `BottomTabBar.tsx` Chat tab swap** (icon + label → "Phiên nghiên
+   cứu", route → `/app/answer`); literal `/app/chat` route stays in
+   `routes.ts` unchanged for the override + unclassifiable fallback.
 3. **C.7.3** (2d) — Cloud Run server-side `intent_router.py` Gemini
    wiring (the C.0.1 medium/low confidence path that defers to LLM).
    Pytest covers high/medium/low confidence flows + budget guard
@@ -1575,13 +1674,19 @@ No schema. Extends the C.0.1 classifier matrix only.
    exceeded).
 4. **C.7.4** (1d) — measurement events `chat_classified_redirect`
    (fires when chat would have handled but redirected to `/answer`),
-   `classifier_low_confidence` (fires on Generic fallback). Both via
+   `classifier_low_confidence` (fires on Generic fallback),
+   `chat_legacy_override` (fires on `?legacy=chat` use). All via
    `logUsage`.
 5. **C.7.5** (1d) — **Design audit** —
    `artifacts/qa-reports/phase-c-design-audit-chat-retirement.md`
-   confirming the retired CTAs are gone, the new card is on home / chat
-   empty-state, and the classifier matrix is the single source of
-   truth (no orphaned routing code paths).
+   confirming the retired CTAs are gone, the new tab + card are
+   present, and the classifier matrix is the single source of truth
+   (no orphaned routing code paths).
+6. **C.7.6** (0.5d, **+1 release after C.7.1**) — remove the
+   `?legacy=chat` override + the `chat_legacy_override` event after
+   the one-release window closes, contingent on `chat_legacy_override`
+   row count being ≤ 5 in the prior 7 days. If higher, escalate before
+   removing.
 
 ---
 
@@ -1632,9 +1737,30 @@ CREATE POLICY "draft_scripts_modify_own" ON draft_scripts
 - `GET /script/drafts` — list user's drafts.
 - `GET /script/drafts/:id` — single draft for restoration.
 - `POST /script/drafts/:id/export` — body `{format: "pdf" | "copy"}`.
-  PDF: server-rendered via existing `weasyprint` dep (or new lightweight
-  fallback — decision in C.8.1 spike, default weasyprint). Copy: returns
-  text payload formatted for clipboard (no server work).
+  Copy: returns text payload formatted for Zalo clipboard paste — no
+  formatting characters, mono dur prefixes per shot (matches B.4
+  `script_data.py` formatter). No server-state mutation.
+  PDF: server-rendered. **Dep decision (C.8.1.0 half-day spike, before
+  any code lands):** evaluate WeasyPrint vs ReportLab; default to
+  WeasyPrint if its system-package surface (Pango/Cairo) fits the
+  Cloud Run container without > 50MB image bloat. Whichever wins is
+  added to `cloud-run/pyproject.toml` as a real dep entry **in the
+  same PR** as the export endpoint — no "we'll add it later" hedging.
+  Fallback: if both fail, ship the Copy path only and disable the PDF
+  button with `title="Sắp có"`; record the deferral in C.8 milestones.
+
+**`cloud-run/pyproject.toml` change (C.8.1.0):**
+
+```toml
+dependencies = [
+  # ... existing ...
+  "weasyprint>=63.0",  # or "reportlab>=4.0" per spike outcome
+]
+```
+
+Plus the matching system-package install line in `cloud-run/Dockerfile`
+(WeasyPrint requires `libpango-1.0-0 libcairo2 libpangoft2-1.0-0`). Ship
+in the same PR; CI image build proves it works.
 
 **Frontend**:
 
