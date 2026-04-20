@@ -5,6 +5,7 @@
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { PatternBody } from "@/components/v2/answer/pattern/PatternBody";
 import { IdeasBody } from "@/components/v2/answer/ideas/IdeasBody";
+import { TimingBody } from "@/components/v2/answer/timing/TimingBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 
 function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind" | "query"> }) {
@@ -34,18 +35,12 @@ function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
           <IdeasBody report={payload.report} />
         </AnswerBlock>
       );
-    case "timing": {
-      const tw = payload.report.top_window as Record<string, unknown>;
-      const label = [tw.day, tw.hours].filter(Boolean).join(" · ");
+    case "timing":
       return (
-        <div className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-          <p className="font-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-accent)]">
-            Timing
-          </p>
-          <p className="mt-4 text-sm text-[color:var(--gv-ink-2)]">{label || "Khung giờ gợi ý"}</p>
-        </div>
+        <AnswerBlock kicker="Timing">
+          <TimingBody report={payload.report} />
+        </AnswerBlock>
       );
-    }
     case "generic": {
       const paras = (payload.report.narrative as { paragraphs?: string[] } | undefined)?.paragraphs;
       const text =
