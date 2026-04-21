@@ -11,6 +11,7 @@ import { PostingHeatmap } from "@/components/v2/channel/PostingHeatmap";
 import { TopBar } from "@/components/v2/TopBar";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
+import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromChannel } from "@/lib/scriptPrefill";
@@ -184,7 +185,7 @@ export default function ChannelScreen() {
         ) : isError ? (
           <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
             <p className="gv-tight m-0 text-lg text-[color:var(--gv-neg-deep)]">Không tải được phân tích</p>
-            <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">{error?.message ?? "Lỗi không xác định"}</p>
+            <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">{analysisErrorCopy(error)}</p>
             <Btn className="mt-4" type="button" variant="ghost" onClick={() => refetch()}>
               Thử lại
             </Btn>

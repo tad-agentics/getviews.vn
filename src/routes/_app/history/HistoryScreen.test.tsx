@@ -58,6 +58,17 @@ vi.mock("@/hooks/useChatSessions", () => ({
   useUpdateSession: () => ({ mutateAsync: vi.fn() }),
 }));
 
+vi.mock("@/hooks/useAnswerSessionQueries", async () => {
+  const actual = await vi.importActual<typeof import("@/hooks/useAnswerSessionQueries")>(
+    "@/hooks/useAnswerSessionQueries",
+  );
+  return {
+    ...actual,
+    useArchiveAnswerSession: () => ({ mutateAsync: vi.fn() }),
+    useRenameAnswerSession: () => ({ mutateAsync: vi.fn() }),
+  };
+});
+
 // IntersectionObserver stub — register callbacks so tests can trigger them.
 const ioInstances: Array<{
   cb: IntersectionObserverCallback;

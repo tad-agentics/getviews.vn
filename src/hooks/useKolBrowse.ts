@@ -234,8 +234,16 @@ export function useKolTogglePin(userId: string | undefined) {
     onMutate: async (handle) => {
       const norm = handle.trim().replace(/^@+/, "").toLowerCase();
       await qc.cancelQueries({ queryKey: kolBrowseKeys.all() });
+      // Snapshot affected cache entries BEFORE writing the optimistic
+      // state so onError can restore them synchronously. Relying on
+      // invalidateQueries alone was insufficient — a network failure or
+      // slow refetch left the wrong pinned state visible to the user
+      // until focus-refetch eventually corrected it, which users
+      // experience as "the pin button is broken".
+      const snapshots = new Map<readonly unknown[], KolBrowseResponse>();
       for (const [key, data] of qc.getQueriesData<KolBrowseResponse>({ queryKey: kolBrowseKeys.all() })) {
         if (!isKolBrowseResponse(data)) continue;
+        snapshots.set(key, data);
         const had = data.reference_handles.includes(norm);
         const nextRefs = had
           ? data.reference_handles.filter((h) => h !== norm)
@@ -247,8 +255,18 @@ export function useKolTogglePin(userId: string | undefined) {
         };
         qc.setQueryData(key, next);
       }
+      return { snapshots };
     },
-    onError: () => {
+    onError: (_err, _handle, context) => {
+      const snapshots = (context as { snapshots?: Map<readonly unknown[], KolBrowseResponse> } | undefined)?.snapshots;
+      if (snapshots) {
+        for (const [key, data] of snapshots) {
+          qc.setQueryData(key, data);
+        }
+      }
+      // Still trigger an invalidation so the eventual refetch reconciles
+      // with server truth — snapshot restore covers the slow-network gap,
+      // but a separate tab could have changed the pinned set concurrently.
       void qc.invalidateQueries({ queryKey: kolBrowseKeys.all() });
     },
     onSettled: () => {
