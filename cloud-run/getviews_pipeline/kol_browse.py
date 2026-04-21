@@ -5,12 +5,20 @@ Rule-based match (weights sum to 1.0), computed per request (no persistence yet)
 
 from __future__ import annotations
 
+import logging
 import math
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 Tab = Literal["pinned", "discover"]
 SortKey = Literal["pinned", "rank", "match", "followers", "avg_views", "growth", "name"]
 KOL_SORT_QUERY_KEYS = frozenset({"pinned", "rank", "match", "followers", "avg_views", "growth", "name"})
+
+# D.1.3 — cache TTL for creator_velocity.match_score. Beyond this window
+# we recompute + writeback; the profile-change trigger invalidates earlier.
+MATCH_SCORE_TTL = timedelta(days=7)
+
+_log = logging.getLogger(__name__)
 
 
 def normalize_handle(raw: str | None) -> str:
@@ -240,6 +248,83 @@ def _niche_label(sb: Any, niche_id: int) -> str:
     return str(data.get("name_vn") or data.get("name_en") or "")
 
 
+def _parse_computed_at(raw: Any) -> datetime | None:
+    """Accept the TIMESTAMPTZ shapes Supabase returns (ISO strings or datetime)."""
+    if raw is None:
+        return None
+    if isinstance(raw, datetime):
+        return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+    try:
+        txt = str(raw).strip()
+        if not txt:
+            return None
+        if txt.endswith("Z"):
+            txt = txt[:-1] + "+00:00"
+        dt = datetime.fromisoformat(txt)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:  # pragma: no cover — defensive
+        return None
+
+
+def _is_fresh(computed_at: datetime | None, *, now: datetime | None = None) -> bool:
+    """True when `computed_at` is within MATCH_SCORE_TTL of `now`."""
+    if computed_at is None:
+        return False
+    current = now or datetime.now(tz=timezone.utc)
+    return (current - computed_at) < MATCH_SCORE_TTL
+
+
+def _fetch_cached_match_scores(sb: Any, *, niche_id: int) -> dict[str, tuple[int, datetime | None]]:
+    """Read creator_velocity.match_score for the niche into a {handle: (score, ts)} map."""
+    try:
+        res = (
+            sb.table("creator_velocity")
+            .select("creator_handle, match_score, match_score_computed_at")
+            .eq("niche_id", niche_id)
+            .execute()
+        )
+    except Exception as exc:  # pragma: no cover — defensive
+        _log.warning("[kol-match-persist] cache read failed: %s", exc)
+        return {}
+    out: dict[str, tuple[int, datetime | None]] = {}
+    for row in res.data or []:
+        handle = normalize_handle(str(row.get("creator_handle") or ""))
+        if not handle:
+            continue
+        raw_score = row.get("match_score")
+        if raw_score is None:
+            continue
+        ts = _parse_computed_at(row.get("match_score_computed_at"))
+        out[handle] = (int(raw_score), ts)
+    return out
+
+
+def _writeback_match_scores(
+    sb: Any,
+    *,
+    niche_id: int,
+    scores: dict[str, int],
+    now: datetime | None = None,
+) -> None:
+    """UPDATE creator_velocity rows with freshly computed match scores. Misses are skipped."""
+    if not scores:
+        return
+    ts = (now or datetime.now(tz=timezone.utc)).isoformat()
+    for handle, score in scores.items():
+        if not handle:
+            continue
+        try:
+            (
+                sb.table("creator_velocity")
+                .update({"match_score": int(score), "match_score_computed_at": ts})
+                .eq("creator_handle", handle)
+                .eq("niche_id", niche_id)
+                .execute()
+            )
+        except Exception as exc:  # pragma: no cover — defensive
+            _log.warning("[kol-match-persist] cache write failed handle=%s: %s", handle, exc)
+
+
 def run_kol_browse_sync(
     user_sb: Any,
     *,
@@ -288,21 +373,33 @@ def run_kol_browse_sync(
 
     pinned_set = set(reference_handles)
 
+    # D.1.3 — cache read. `recomputed` tracks rows that need a writeback
+    # UPDATE on creator_velocity after decoration (TTL miss / null cache).
+    cached_scores = _fetch_cached_match_scores(user_sb, niche_id=niche_id)
+    recomputed: dict[str, int] = {}
+    _now = datetime.now(tz=timezone.utc)
+
     def decorate(row: dict[str, Any]) -> dict[str, Any]:
         h = normalize_handle(str(row.get("handle") or ""))
         cid = niche_id
         cf = int(row.get("followers") or 0)
         av = float(row.get("avg_views") or 0)
-        score = compute_match_score(
-            creator_niche_id=cid,
-            user_niche_id=primary_int,
-            creator_followers=cf,
-            user_followers=user_followers,
-            creator_avg_views=av,
-            niche_avg_views=niche_avg_views,
-            reference_handles=reference_handles,
-            starter_handles_in_niche=starter_handle_set,
-        )
+        cache_hit = cached_scores.get(h)
+        if cache_hit is not None and _is_fresh(cache_hit[1], now=_now):
+            score = int(cache_hit[0])
+        else:
+            score = compute_match_score(
+                creator_niche_id=cid,
+                user_niche_id=primary_int,
+                creator_followers=cf,
+                user_followers=user_followers,
+                creator_avg_views=av,
+                niche_avg_views=niche_avg_views,
+                reference_handles=reference_handles,
+                starter_handles_in_niche=starter_handle_set,
+            )
+            if h:
+                recomputed[h] = score
         name = row.get("display_name") or h
         md = _match_description_sentence(score, niche_label)
         g_pct = _growth_display_pct(av, niche_avg_views)
@@ -339,6 +436,7 @@ def run_kol_browse_sync(
         total = len(decorated)
         start = (page - 1) * page_size
         rows = decorated[start : start + page_size]
+        _writeback_match_scores(user_sb, niche_id=niche_id, scores=recomputed, now=_now)
         return {
             "tab": tab,
             "niche_id": niche_id,
@@ -414,6 +512,7 @@ def run_kol_browse_sync(
     total = len(decorated_pin)
     start = (page - 1) * page_size
     rows = decorated_pin[start : start + page_size]
+    _writeback_match_scores(user_sb, niche_id=niche_id, scores=recomputed, now=_now)
     return {
         "tab": tab,
         "niche_id": niche_id,
