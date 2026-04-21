@@ -7,9 +7,10 @@
  * global modal — the reference keeps destructive confirmations inline
  * per screen so ops never loses context).
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Btn } from "@/components/v2/Btn";
 import {
+  useAdminJobPoll,
   useAdminTrigger,
   useAdminTriggerCatalog,
   type AdminTriggerJob,
@@ -19,7 +20,9 @@ import {
 type DialogState =
   | { kind: "closed" }
   | { kind: "confirm"; job: AdminTriggerJob; body: Record<string, unknown> }
-  | { kind: "running"; job: AdminTriggerJob }
+  // `polling` — backend accepted the job and returned a job_id; we're
+  // waiting on the /admin/jobs/:id poll loop.
+  | { kind: "polling"; job: AdminTriggerJob; jobId: string }
   | { kind: "result"; job: AdminTriggerJob; result: AdminTriggerResult }
   | { kind: "error"; job: AdminTriggerJob; message: string };
 
@@ -158,6 +161,35 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
   const [showForm, setShowForm] = useState(false);
   const trigger = useAdminTrigger();
 
+  // Pull polling state only when we're in the polling dialog state.
+  // The hook fires a query with enabled=false when jobId is null so
+  // we don't waste network for idle rows.
+  const pollingId = dialog.kind === "polling" ? dialog.jobId : null;
+  const poll = useAdminJobPoll(pollingId);
+
+  // Transition out of polling when the backend row lands on a terminal
+  // status. Running this in a useEffect (not directly in render) keeps
+  // the state machine legal — React can't setState during render.
+  useEffect(() => {
+    if (dialog.kind !== "polling") return;
+    const row = poll.data?.job;
+    if (!row) return;
+    if (row.result_status === "ok") {
+      setDialog({
+        kind: "result",
+        job: dialog.job,
+        result: (row.result_json ?? { ok: true }) as AdminTriggerResult,
+      });
+    } else if (row.result_status === "error") {
+      setDialog({
+        kind: "error",
+        job: dialog.job,
+        message: row.error_message ?? "unknown_error",
+      });
+    }
+    // queued / running keep us in the polling state.
+  }, [dialog, poll.data]);
+
   const startWith = (body: Record<string, unknown>) => {
     setShowForm(false);
     setDialog({ kind: "confirm", job, body });
@@ -166,10 +198,18 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
   const confirmRun = async () => {
     if (dialog.kind !== "confirm") return;
     const { body } = dialog;
-    setDialog({ kind: "running", job });
     try {
-      const result = await trigger.mutateAsync({ job: job.id, body });
-      setDialog({ kind: "result", job, result });
+      const res = await trigger.mutateAsync({ job: job.id, body });
+      if (res.job_id) {
+        // Normal async path — hand off to the poll loop.
+        setDialog({ kind: "polling", job, jobId: res.job_id });
+      } else if (res.status === "ok" && res.result) {
+        // Backend audit insert failed; it ran sync and returned the
+        // payload inline.
+        setDialog({ kind: "result", job, result: res.result });
+      } else {
+        setDialog({ kind: "error", job, message: "unexpected_response" });
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : "unknown";
       setDialog({ kind: "error", job, message });
@@ -218,14 +258,21 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
         />
       ) : null}
 
-      {dialog.kind === "running" ? (
-        <div className="flex items-center gap-2 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-3">
-          <div
-            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[color:var(--gv-accent)] border-t-transparent"
-            aria-hidden
-          />
-          <span className="gv-mono text-[12px] text-[color:var(--gv-ink-3)]">
-            Đang chạy — có thể mất vài phút, đừng đóng tab…
+      {dialog.kind === "polling" ? (
+        <div className="flex flex-col gap-1.5 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div
+              className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[color:var(--gv-accent)] border-t-transparent"
+              aria-hidden
+            />
+            <span className="gv-mono text-[12px] text-[color:var(--gv-ink-3)]">
+              {poll.data?.job?.result_status === "running"
+                ? "Đang chạy — có thể đóng tab, kết quả sẽ xuất hiện ở Action log."
+                : "Đã nhận — đang chờ worker pick up…"}
+            </span>
+          </div>
+          <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+            job_id · {dialog.jobId.slice(0, 8)}… · poll mỗi 3s
           </span>
         </div>
       ) : null}

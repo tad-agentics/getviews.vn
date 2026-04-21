@@ -2,14 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
+export type AdminActionStatus = "queued" | "running" | "ok" | "error";
+
 export interface AdminActionLogEntry {
   id: string;
   user_id: string | null;
   action: string;
   params_json: Record<string, unknown>;
-  result_status: "ok" | "error";
+  result_status: AdminActionStatus;
   error_message: string | null;
   duration_ms: number | null;
+  result_json: Record<string, unknown> | null;
   created_at: string;
 }
 

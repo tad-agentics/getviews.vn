@@ -29,20 +29,28 @@ vi.mock("@/lib/env", () => ({
 
 const mockUseAdminTriggerCatalog = vi.fn();
 const mockMutateAsync = vi.fn();
+const mockUseAdminJobPoll = vi.fn();
 vi.mock("@/hooks/useAdminTriggers", () => ({
   useAdminTriggerCatalog: () => mockUseAdminTriggerCatalog(),
   useAdminTrigger: () => ({ mutateAsync: mockMutateAsync }),
+  useAdminJobPoll: (jobId: string | null) => mockUseAdminJobPoll(jobId),
 }));
 
 import { TriggersPanel } from "./TriggersPanel";
 
 function renderPanel() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const ui = (
     <QueryClientProvider client={qc}>
       <TriggersPanel />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const r = render(ui);
+  // Return a reRender helper the tests can use to force a re-render
+  // after flipping the useAdminJobPoll mock's return value — without
+  // this, the hook only re-evaluates on prop/state changes of its
+  // parent, which never happen here once the dialog state settles.
+  return { ...r, reRenderSame: () => r.rerender(ui) };
 }
 
 const STUB_CATALOG = [
@@ -67,6 +75,8 @@ beforeEach(() => {
     isError: false,
   });
   mockMutateAsync.mockReset();
+  // Default: poll returns "no data yet" — tests that care override.
+  mockUseAdminJobPoll.mockReturnValue({ data: undefined });
 });
 afterEach(cleanup);
 
@@ -133,33 +143,105 @@ describe("TriggersPanel", () => {
     expect(screen.getAllByRole("button", { name: "Run" }).length).toBe(2);
   });
 
-  it("confirms → running → success transitions to the result block with the JSON", async () => {
+  it("confirm → 202 accepted → polling state (awaiting worker)", async () => {
     mockMutateAsync.mockResolvedValue({
       ok: true,
-      analytics: { creators_updated: 4, videos_updated: 17, errors: [] },
+      job_id: "job-abc",
+      status: "queued",
     });
 
     renderPanel();
     fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
 
-    // mutateAsync called with the analytics job id and empty body.
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({ job: "analytics", body: {} });
     });
+    // Polling state visible — shows the "đã nhận" copy + short job id.
+    await screen.findByText(/đã nhận/i);
+    expect(screen.getByText(/job_id · job-abc/)).toBeTruthy();
+  });
 
-    // Result block renders with the response JSON.
+  it("polling → row becomes ok → result block renders with result_json", async () => {
+    mockMutateAsync.mockResolvedValue({ ok: true, job_id: "job-ok", status: "queued" });
+    // Return the terminal-ok row from the outset — the JobRow's
+    // useEffect sees it on the first render after entering the
+    // polling state and transitions straight to the result block.
+    mockUseAdminJobPoll.mockReturnValue({
+      data: {
+        ok: true,
+        job: {
+          id: "job-ok",
+          result_status: "ok",
+          result_json: { ok: true, analytics: { creators_updated: 4 } },
+          error_message: null,
+          action: "trigger.analytics",
+          params_json: {},
+          duration_ms: 1234,
+          user_id: null,
+          created_at: new Date().toISOString(),
+        },
+      },
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
+
     await screen.findByText(/Xong — kết quả/);
     expect(screen.getByText(/creators_updated/)).toBeTruthy();
   });
 
-  it("confirms → running → error transitions to the error block with the message", async () => {
-    mockMutateAsync.mockRejectedValue(new Error("ensemble_daily_budget_exceeded: over limit"));
+  it("polling → row becomes error → error block renders with error_message", async () => {
+    mockMutateAsync.mockResolvedValue({ ok: true, job_id: "job-err", status: "queued" });
+    mockUseAdminJobPoll.mockReturnValue({
+      data: {
+        ok: true,
+        job: {
+          id: "job-err",
+          result_status: "error",
+          result_json: null,
+          error_message: "ensemble_daily_budget_exceeded: over limit",
+          action: "trigger.analytics",
+          params_json: {},
+          duration_ms: 800,
+          user_id: null,
+          created_at: new Date().toISOString(),
+        },
+      },
+    });
 
     renderPanel();
     fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
 
     await screen.findByText(/ensemble_daily_budget_exceeded/);
+  });
+
+  it("backend sync fallback (no job_id) → skips polling, renders result immediately", async () => {
+    mockMutateAsync.mockResolvedValue({
+      ok: true,
+      job_id: null,
+      status: "ok",
+      result: { ok: true, analytics: { creators_updated: 9 } },
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
+
+    // No polling UI — jumps straight to the result block.
+    await screen.findByText(/Xong — kết quả/);
+    expect(screen.queryByText(/job_id ·/)).toBeNull();
+  });
+
+  it("mutateAsync reject → error block", async () => {
+    mockMutateAsync.mockRejectedValue(new Error("http_500"));
+
+    renderPanel();
+    fireEvent.click(screen.getAllByRole("button", { name: "Run" })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận chạy" }));
+
+    await screen.findByText(/http_500/);
   });
 });

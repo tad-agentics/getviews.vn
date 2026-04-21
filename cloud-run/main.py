@@ -1459,6 +1459,67 @@ async def admin_logs(
 # ══════════════════════════════════════════════════════════════════════════
 
 
+def _insert_admin_job_row(
+    *,
+    user_id: str,
+    action: str,
+    params: dict[str, Any],
+) -> str | None:
+    """Insert a `queued` row into admin_action_log and return its id.
+
+    Runs inline (not in a thread) because the caller needs the id to
+    return to the client. A failed insert returns None and the caller
+    skips async tracking — the trigger still runs synchronously, just
+    without poll support, so a Supabase blip never blocks ops.
+    """
+    try:
+        from getviews_pipeline.supabase_client import get_service_client
+
+        resp = (
+            get_service_client()
+            .table("admin_action_log")
+            .insert({
+                "user_id": user_id,
+                "action": action,
+                "params_json": params or {},
+                "result_status": "queued",
+            })
+            .execute()
+        )
+        rows = resp.data or []
+        return rows[0].get("id") if rows else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[admin_action_log] insert queued-row failed: %s", exc)
+        return None
+
+
+def _update_admin_job_row(
+    *,
+    job_id: str,
+    result_status: str,
+    error_message: str | None = None,
+    duration_ms: int | None = None,
+    result_json: dict[str, Any] | None = None,
+) -> None:
+    """Transition an admin_action_log row to its next state. Fire-and-forget."""
+    def _do() -> None:
+        try:
+            from getviews_pipeline.supabase_client import get_service_client
+
+            payload: dict[str, Any] = {"result_status": result_status}
+            if error_message is not None:
+                payload["error_message"] = error_message[:500]
+            if duration_ms is not None:
+                payload["duration_ms"] = duration_ms
+            if result_json is not None:
+                payload["result_json"] = result_json
+            get_service_client().table("admin_action_log").update(payload).eq("id", job_id).execute()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[admin_action_log] update row %s failed: %s", job_id, exc)
+
+    threading.Thread(target=_do, daemon=True, name=f"admin-audit-{job_id[:8]}").start()
+
+
 def _record_admin_action(
     *,
     user_id: str,
@@ -1468,13 +1529,11 @@ def _record_admin_action(
     error_message: str | None = None,
     duration_ms: int | None = None,
 ) -> None:
-    """Insert one row into admin_action_log. Fire-and-forget.
+    """Insert one terminal-state row into admin_action_log. Fire-and-forget.
 
-    A Supabase blip must never block the admin operation itself — the
-    audit row is best-effort. Failures are logged to stdout so they
-    surface in /admin/logs for investigation, but the caller doesn't
-    see them. Sanitise-on-input: the caller is responsible for passing
-    params without secrets; we don't inspect the payload here.
+    Retained for non-trigger actions that don't need the async lifecycle
+    (future read-action logging, etc.). Trigger handlers use the
+    queued→running→terminal transitions via _insert/_update above.
     """
     def _do() -> None:
         try:
@@ -1491,8 +1550,6 @@ def _record_admin_action(
         except Exception as exc:  # noqa: BLE001
             logger.warning("[admin_action_log] insert failed: %s", exc)
 
-    # Use a daemon thread so the audit write doesn't tie up the request
-    # thread — matches the pattern in gemini_cost.log_gemini_call.
     threading.Thread(target=_do, daemon=True, name=f"admin-audit-{action}").start()
 
 
@@ -1513,7 +1570,7 @@ async def admin_action_log(
         resp = (
             get_service_client()
             .table("admin_action_log")
-            .select("id, user_id, action, params_json, result_status, error_message, duration_ms, created_at")
+            .select("id, user_id, action, params_json, result_status, error_message, duration_ms, result_json, created_at")
             .order("created_at", desc=True)
             .limit(limit)
             .execute()
@@ -1526,6 +1583,39 @@ async def admin_action_log(
         "ok": True,
         "entries": resp.data or [],
     })
+
+
+@app.get("/admin/jobs/{job_id}")
+async def admin_job_status(
+    job_id: str,
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    """Poll a specific admin_action_log row.
+
+    Used by the SPA's TriggersPanel to wait on a long-running async job
+    started via /admin/trigger/*. Returns the full row (same shape as
+    /admin/action-log entries) so the caller can render the right state
+    at every lifecycle step without an extra round-trip.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("admin_action_log")
+            .select("id, user_id, action, params_json, result_status, error_message, duration_ms, result_json, created_at")
+            .eq("id", job_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[admin/jobs] fetch %s failed: %s", job_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    rows = resp.data or []
+    if not rows:
+        raise HTTPException(status_code=404, detail="job_not_found")
+    return JSONResponse({"ok": True, "job": rows[0]})
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1675,6 +1765,53 @@ async def admin_list_triggers(
     })
 
 
+async def _execute_trigger_task(
+    *,
+    job_id: str,
+    action: str,
+    runner: Any,
+) -> None:
+    """Run the trigger in the background and update its admin_action_log row.
+
+    Launched via asyncio.create_task so the HTTP handler can return a
+    202 Accepted with the job_id immediately. Cloud Run must be
+    deployed with CPU allocated to avoid the task being suspended
+    mid-flight — ops already runs with min-instances=1 (deploy.sh),
+    and the `--cpu-always-allocated` flag is documented in that script.
+    """
+    logger.info("[admin/trigger] %s job=%s started", action, job_id)
+    started = time.monotonic()
+    _update_admin_job_row(job_id=job_id, result_status="running")
+    try:
+        result = await runner()
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _update_admin_job_row(
+            job_id=job_id,
+            result_status="ok",
+            duration_ms=duration_ms,
+            result_json=result if isinstance(result, dict) else {"result": str(result)[:2000]},
+        )
+        logger.info("[admin/trigger] %s job=%s done in %dms", action, job_id, duration_ms)
+    except HTTPException as exc:
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _update_admin_job_row(
+            job_id=job_id,
+            result_status="error",
+            error_message=str(exc.detail),
+            duration_ms=duration_ms,
+        )
+        logger.warning("[admin/trigger] %s job=%s failed in %dms: %s", action, job_id, duration_ms, exc.detail)
+    except Exception as exc:  # noqa: BLE001
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _update_admin_job_row(
+            job_id=job_id,
+            result_status="error",
+            error_message=str(exc),
+            duration_ms=duration_ms,
+        )
+        logger.exception("[admin/trigger] %s job=%s crashed in %dms", action, job_id, duration_ms)
+
+
 async def _run_trigger_with_audit(
     *,
     user_id: str,
@@ -1682,48 +1819,49 @@ async def _run_trigger_with_audit(
     params: dict[str, Any],
     runner: Any,
 ) -> JSONResponse:
-    """Run an admin trigger while recording an admin_action_log row.
+    """Kick off an admin trigger as a background task + return the job id.
 
-    Captures duration_ms, flips result_status based on exception, and
-    re-raises so FastAPI's normal error path still produces the right
-    status code. The audit insert is fire-and-forget (daemon thread);
-    a logging-layer blip never blocks the real work.
+    Response shape is `{ok: true, job_id: "<uuid>", status: "queued"}`.
+    Caller polls `GET /admin/jobs/{job_id}` to watch the row transition
+    through running → ok / error. If the initial audit insert fails
+    (Supabase blip), we fall back to synchronous execution so ops isn't
+    blocked — the caller still gets a real response, just without a
+    poll ID.
     """
-    logger.info("[admin/trigger] %s params=%s invoked_by=%s", action, params, user_id)
-    started = time.monotonic()
-    try:
-        result = await runner()
-        duration_ms = int((time.monotonic() - started) * 1000)
-        _record_admin_action(
-            user_id=user_id,
-            action=action,
-            params=params,
-            result_status="ok",
-            duration_ms=duration_ms,
-        )
-        return JSONResponse(result)
-    except HTTPException as exc:
-        duration_ms = int((time.monotonic() - started) * 1000)
-        _record_admin_action(
-            user_id=user_id,
-            action=action,
-            params=params,
-            result_status="error",
-            error_message=str(exc.detail)[:500],
-            duration_ms=duration_ms,
-        )
-        raise
-    except Exception as exc:  # noqa: BLE001
-        duration_ms = int((time.monotonic() - started) * 1000)
-        _record_admin_action(
-            user_id=user_id,
-            action=action,
-            params=params,
-            result_status="error",
-            error_message=str(exc)[:500],
-            duration_ms=duration_ms,
-        )
-        raise
+    logger.info("[admin/trigger] %s queued params=%s invoked_by=%s", action, params, user_id)
+    job_id = _insert_admin_job_row(user_id=user_id, action=action, params=params)
+
+    if job_id is None:
+        # Audit insert failed — degrade gracefully to the sync path so
+        # a Supabase blip doesn't also take down ops triggers.
+        logger.warning("[admin/trigger] %s running sync (no job_id)", action)
+        started = time.monotonic()
+        try:
+            result = await runner()
+            _record_admin_action(
+                user_id=user_id, action=action, params=params,
+                result_status="ok",
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+            return JSONResponse({"ok": True, "job_id": None, "status": "ok", "result": result})
+        except Exception as exc:  # noqa: BLE001
+            _record_admin_action(
+                user_id=user_id, action=action, params=params,
+                result_status="error",
+                error_message=str(getattr(exc, "detail", exc))[:500],
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+            raise
+
+    # Normal path — schedule the runner on the event loop and return now.
+    asyncio.create_task(
+        _execute_trigger_task(job_id=job_id, action=action, runner=runner),
+        name=f"admin-trigger-{action}-{job_id[:8]}",
+    )
+    return JSONResponse(
+        {"ok": True, "job_id": job_id, "status": "queued"},
+        status_code=status.HTTP_202_ACCEPTED,
+    )
 
 
 @app.post("/admin/trigger/ingest")
