@@ -1284,6 +1284,50 @@ def _ensemble_fetch_used_units(date_iso: str) -> dict[str, Any]:
     return payload
 
 
+_ENSEMBLE_HISTORY_CACHE: dict[int, tuple[float, dict[str, Any]]] = {}
+_ENSEMBLE_HISTORY_TTL_SEC = 300.0  # 5 minutes per (days) bucket.
+
+
+def _ensemble_fetch_history(days: int) -> dict[str, Any]:
+    """Call EnsembleData's GET /customer/get-history for a days window.
+
+    Returns the raw parsed body — the exact shape is undocumented from
+    our side (upstream returns whatever their endpoint emits per-plan).
+    Downstream admin panel passes it through without strong typing;
+    the normaliser below handles the two most likely shapes so a UI
+    change on their side doesn't break the dashboard silently.
+
+    Cache key is `days`; anything else (endpoint filter, aggregation)
+    would be post-processed in Python, not re-fetched.
+    """
+    if not ENSEMBLEDATA_API_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ensemble_token_unset",
+        )
+    now = time.monotonic()
+    cached = _ENSEMBLE_HISTORY_CACHE.get(days)
+    if cached and now - cached[0] < _ENSEMBLE_HISTORY_TTL_SEC:
+        return cached[1]
+
+    qs = _urlparse.urlencode({"days": days, "token": ENSEMBLEDATA_API_TOKEN})
+    url = f"https://ensembledata.com/apis/customer/get-history?{qs}"
+    req = _urlrequest.Request(url, headers={"User-Agent": "getviews-admin/1.0"})
+    try:
+        with _urlrequest.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode("utf-8")
+            payload = json.loads(body)
+    except Exception as exc:
+        logger.warning("[admin/ensemble-history] fetch failed days=%s: %s", days, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"ensemble_fetch_failed: {exc}",
+        ) from exc
+
+    _ENSEMBLE_HISTORY_CACHE[days] = (now, payload)
+    return payload
+
+
 # `ED_MONTHLY_UNIT_BUDGET` is the configured plan ceiling, consumed so the
 # panel can render "remaining / limit". Zero / unset means "no ceiling
 # known" and the panel hides the remainder math.
@@ -1393,6 +1437,75 @@ async def admin_ensemble_call_sites(
         "by_call_site": _group("call_site"),
         "by_endpoint": _group("endpoint"),
         "by_request_class": _group("request_class"),
+    })
+
+
+@app.get("/admin/ensemble-history")
+async def admin_ensemble_history(
+    _admin: dict[str, Any] = Depends(require_admin),
+    days: int = Query(10, ge=1, le=90),
+) -> JSONResponse:
+    """EnsembleData's own per-endpoint history over the last N days.
+
+    Complements `/admin/ensemble-call-sites` (our local attribution
+    from `ensemble_calls`) with the authoritative endpoint log from
+    EnsembleData. When the two disagree, our table missed a call —
+    usually a new helper forgot to wrap with `ed_call_site`.
+
+    Response shape (tolerant of upstream drift):
+
+      {
+        ok: true,
+        as_of: <ISO>,
+        days: N,
+        raw: <whatever EnsembleData returned>,     # escape hatch
+        entries: [{ date?, endpoint?, units, count? }, …]
+                                                    # normalised list
+                                                    # when we can
+                                                    # recognise it
+      }
+
+    `entries` is a best-effort normalisation. If the upstream shape
+    changes the raw payload is still exposed so the operator isn't
+    stuck with a broken dashboard.
+    """
+    raw = _ensemble_fetch_history(days)
+
+    # Best-effort normalisation across the shapes EnsembleData might
+    # return. They've used `{data: [...]}`, `{history: [...]}`, bare
+    # array wrappers — handle whichever shows up and leave a `raw`
+    # escape hatch for anything else.
+    entries: list[dict[str, Any]] = []
+    candidates: list[Any] = []
+    if isinstance(raw, list):
+        candidates = raw
+    elif isinstance(raw, dict):
+        for key in ("history", "entries", "data", "results"):
+            val = raw.get(key)
+            if isinstance(val, list):
+                candidates = val
+                break
+            if isinstance(val, dict):
+                inner = val.get("history") or val.get("entries") or val.get("results")
+                if isinstance(inner, list):
+                    candidates = inner
+                    break
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+        entries.append({
+            "date": item.get("date") or item.get("day") or item.get("timestamp"),
+            "endpoint": item.get("endpoint") or item.get("path") or item.get("name"),
+            "units": item.get("units") or item.get("units_used") or item.get("cost") or 0,
+            "count": item.get("count") or item.get("calls") or item.get("requests"),
+        })
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": datetime.now(timezone.utc).isoformat(),
+        "days": days,
+        "entries": entries,
+        "raw": raw,
     })
 
 

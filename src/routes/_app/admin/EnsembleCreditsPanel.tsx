@@ -10,6 +10,7 @@
 import { useMemo } from "react";
 import { useEnsembleCredits, type EnsembleDailyUnits } from "@/hooks/useEnsembleCredits";
 import { useEnsembleCallSites, type EnsembleCallSiteBucket } from "@/hooks/useEnsembleCallSites";
+import { useEnsembleHistory, type EnsembleHistoryEntry } from "@/hooks/useEnsembleHistory";
 
 function formatInt(n: number): string {
   return n.toLocaleString("vi-VN");
@@ -167,6 +168,8 @@ export function EnsembleCreditsPanel() {
 
       <CallSiteBreakdown />
 
+      <EndpointHistory />
+
       <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
         As of {new Date(as_of).toLocaleString("vi-VN")} · {days.length} ngày (UTC)
         {monthly_budget == null
@@ -266,6 +269,145 @@ function CallSiteBreakdown() {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * EndpointHistory — surfaces EnsembleData's own per-endpoint history
+ * log (from `/customer/get-history`). Complements the local call-site
+ * attribution above: when EnsembleData reports an endpoint we don't
+ * have tagged in `ensemble_calls`, a helper is firing without an
+ * `ed_call_site()` wrapper and should be found + fixed.
+ *
+ * Best-effort rendering — the upstream response shape isn't formally
+ * documented from our side, so the backend normaliser passes through
+ * whatever it can recognise and leaves `raw` as an escape hatch.
+ */
+function HistoryRow({
+  entry,
+  maxUnits,
+}: {
+  entry: EnsembleHistoryEntry;
+  maxUnits: number;
+}) {
+  const width = maxUnits > 0 ? Math.max(2, Math.round((entry.units / maxUnits) * 100)) : 2;
+  return (
+    <tr className="border-b border-[color:var(--gv-rule)] last:border-0">
+      <td className="py-2 pr-3 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+        {entry.date ?? "—"}
+      </td>
+      <td className="py-2 pr-3 gv-mono text-[11px] text-[color:var(--gv-ink)]">
+        {entry.endpoint ?? "—"}
+      </td>
+      <td className="py-2 pr-3">
+        <div className="flex items-center gap-2">
+          <div
+            className="h-[6px] min-w-[20px] max-w-[120px] flex-1 overflow-hidden rounded-full"
+            style={{ background: "var(--gv-rule-2)" }}
+          >
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${width}%`, background: "var(--gv-accent)" }}
+            />
+          </div>
+          <span className="gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-3)]">
+            {entry.units.toLocaleString("vi-VN")}
+          </span>
+        </div>
+      </td>
+      <td className="py-2 gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-4)]">
+        {entry.count != null ? entry.count.toLocaleString("vi-VN") : "—"}
+      </td>
+    </tr>
+  );
+}
+
+function EndpointHistory() {
+  const q = useEnsembleHistory(10);
+
+  if (q.isLoading) {
+    return (
+      <div
+        role="status"
+        aria-label="Đang tải endpoint history"
+        className="h-24 animate-pulse rounded-[var(--gv-radius-md)] bg-[color:var(--gv-canvas-2)]"
+      />
+    );
+  }
+  if (q.isError) {
+    const msg = q.error instanceof Error ? q.error.message : "unknown";
+    if (msg === "ensemble_token_unset") return null;
+    // Surface other errors inline — this panel is best-effort; the
+    // primary credits + call-site sections above stay useful even
+    // when EnsembleData's history endpoint blips.
+    return (
+      <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+        Không tải được endpoint history ({msg}).
+      </p>
+    );
+  }
+  if (!q.data) return null;
+
+  const { entries, days } = q.data;
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="gv-kicker gv-kicker--dot gv-kicker--muted">
+          Endpoint history · {days} ngày · từ EnsembleData
+        </p>
+        <p className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+          EnsembleData chưa trả về history nào — có thể plan không expose
+          endpoint này, hoặc response shape đã đổi. Liên hệ support nếu
+          nghi ngờ.
+        </p>
+      </div>
+    );
+  }
+
+  const maxUnits = Math.max(0, ...entries.map((e) => e.units));
+  const totalUnits = entries.reduce((acc, e) => acc + e.units, 0);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between">
+        <p className="gv-kicker gv-kicker--dot gv-kicker--muted">
+          Endpoint history · {days} ngày · từ EnsembleData
+        </p>
+        <span className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+          {totalUnits.toLocaleString("vi-VN")} units total
+        </span>
+      </div>
+      <div className="overflow-x-auto rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-[color:var(--gv-rule)]">
+              <th className="py-2 pr-3 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+                Date
+              </th>
+              <th className="py-2 pr-3 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+                Endpoint
+              </th>
+              <th className="py-2 pr-3 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+                Units
+              </th>
+              <th className="py-2 text-left gv-uc text-[9.5px] font-semibold text-[color:var(--gv-ink-4)]">
+                Count
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.slice(0, 50).map((entry, i) => (
+              <HistoryRow key={`${entry.date ?? ""}-${entry.endpoint ?? ""}-${i}`} entry={entry} maxUnits={maxUnits} />
+            ))}
+          </tbody>
+        </table>
+        {entries.length > 50 ? (
+          <p className="mt-2 gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+            + {entries.length - 50} dòng khác (ẩn để giữ panel gọn)
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
