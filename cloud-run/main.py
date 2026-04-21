@@ -246,8 +246,20 @@ app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https://.*\.vercel\.app|https://(www\.)?getviews\.vn|http://localhost:\d+",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    # ``*`` → all methods (Starlette); avoids preflight 400 when clients add PATCH/HEAD/etc.
+    allow_methods=["*"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "Accept-Language",
+        "X-Requested-With",
+        "apikey",
+    ],
+    # Chrome Private Network Access: without this, preflight can return 400 and the
+    # browser reports "CORS ... does not have HTTP ok status" for cross-origin fetches.
+    allow_private_network=True,
+    max_age=86400,
 )
 
 # ── Global error handler ──────────────────────────────────────────────────────

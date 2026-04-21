@@ -24,7 +24,13 @@ function loadClientEnv(): ClientEnv {
     );
   }
 
-  return parsed.data;
+  const d = parsed.data;
+  const cloud = d.VITE_CLOUD_RUN_API_URL;
+  return {
+    ...d,
+    VITE_CLOUD_RUN_API_URL:
+      cloud != null && cloud !== "" ? cloud.replace(/\/+$/, "") : undefined,
+  };
 }
 
 /**
