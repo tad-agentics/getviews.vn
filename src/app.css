@@ -49,11 +49,6 @@
 :root {
   --font-size: 16px;
 
-  /* ── Brand color tokens (used directly in Make components as var(--purple) etc.) */
-  --purple:        oklch(0.53 0.26 295);   /* #7C3AED — primary action, active states */
-  --purple-dark:   oklch(0.45 0.28 295);   /* #6D28D9 — hover on purple elements */
-  --purple-light:  oklch(0.95 0.03 295);   /* #F3F0FF — tints, user bubble bg */
-
   /* ── Surface tokens */
   --background:    oklch(0.93 0.00 0);     /* #EDEDEE — page background */
   --surface:       oklch(1.00 0.00 0);     /* #FFFFFF — cards, inputs */
@@ -61,13 +56,11 @@
 
   /* ── Text tokens */
   --ink:           oklch(0.15 0.00 0);     /* #18181B — primary text, headings */
-  --ink-soft:      oklch(0.30 0.00 0);     /* #3F3F46 — body text */
   --muted:         oklch(0.55 0.00 0);     /* #71717A — secondary text, icons */
   --faint:         oklch(0.68 0.00 0);     /* #A1A1AA — placeholders, disabled */
 
   /* ── Border tokens */
   --border:        oklch(0.90 0.00 0);     /* #E4E4E7 — default borders (1px only) */
-  --border-active: oklch(0.85 0.00 0);     /* #D4D4D8 — focused/active borders */
 
   /* ── Semantic tokens */
   --brand-red:     oklch(0.60 0.28 15);    /* #FE2C55 — logo mark */
@@ -86,41 +79,49 @@
   --font-sans: "TikTok Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
 
-  /* ── shadcn/Radix alias layer (maps Make tokens → shadcn expected names) */
+  /* ── shadcn/Radix alias layer (maps gv-* tokens → shadcn expected names)
+   *
+   * After Phase D.4.2, the pre-pivot `--purple` / `--purple-light` /
+   * `--ink-soft` / `--border-active` roots no longer exist — every alias
+   * below now resolves through the `--gv-*` namespace instead. `--primary`
+   * / `--ring` / `--sidebar-primary` pick up the TikTok brand pink via
+   * `--gv-accent`; `--chart-2` + `--switch-background` go to `--gv-rule`
+   * (neutral divider) since both are data-viz / toggle chrome, not
+   * active-state borders. */
   --foreground:               var(--ink);
   --card:                     var(--surface);
   --card-foreground:          var(--ink);
   --popover:                  var(--surface);
   --popover-foreground:       var(--ink);
-  --primary:                  var(--purple);
+  --primary:                  var(--gv-accent);
   --primary-foreground:       var(--surface);
   --secondary:                var(--surface-alt);
   --secondary-foreground:     var(--ink);
   --muted-foreground:         var(--muted);
-  --accent:                   var(--purple-light);
-  --accent-foreground:        var(--purple);
+  --accent:                   var(--gv-accent-soft);
+  --accent-foreground:        var(--gv-accent);
   --destructive:              var(--danger);
   --destructive-foreground:   var(--surface);
   --input:                    transparent;
   --input-background:         var(--surface);
-  --switch-background:        var(--border-active);
+  --switch-background:        var(--gv-rule);
   --font-weight-medium:       500;
   --font-weight-normal:       400;
-  --ring:                     var(--purple);
-  --chart-1:                  var(--purple);
-  --chart-2:                  var(--border-active);
-  --chart-3:                  var(--ink-soft);
+  --ring:                     var(--gv-accent);
+  --chart-1:                  var(--gv-accent);
+  --chart-2:                  var(--gv-rule);
+  --chart-3:                  var(--gv-ink-3);
   --chart-4:                  var(--success);
   --chart-5:                  var(--danger);
   --radius:                   0.75rem;
   --sidebar:                  var(--surface);
   --sidebar-foreground:       var(--ink);
-  --sidebar-primary:          var(--purple);
+  --sidebar-primary:          var(--gv-accent);
   --sidebar-primary-foreground: var(--surface);
-  --sidebar-accent:           var(--purple-light);
-  --sidebar-accent-foreground: var(--purple);
+  --sidebar-accent:           var(--gv-accent-soft);
+  --sidebar-accent-foreground: var(--gv-accent);
   --sidebar-border:           var(--border);
-  --sidebar-ring:             var(--purple);
+  --sidebar-ring:             var(--gv-accent);
 }
 
 /* GetViews.vn is light mode only */
