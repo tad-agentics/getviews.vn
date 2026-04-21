@@ -86,7 +86,7 @@ const painPoints = [
   },
   {
     title: "Video flop không rõ nguyên nhân",
-    body: "Đầu tư quay dựng cả ngày, đăng lên lẹt đẹt 500 view. Không biết lỗi ở hook, nội dung hay format. Nhìn video đối thủ triệu view mà không biết họ làm gì khác mình.",
+    body: "Đầu tư quay dựng cả ngày, đăng lên lẹt đẹt 500 view. Không biết lỗi ở hook, nội dung hay format. Nhìn video đối thủ lên xu hướng mà không biết họ làm gì khác mình.",
   },
 ];
 
@@ -376,7 +376,7 @@ const HOOK_TYPE_LABELS: Record<string, string> = {
   number_shock: "Số liệu gây shock",
   question: "Câu hỏi kích tò mò",
   before_after: "Trước / sau",
-  reveal: "Tiết lộ bí mật",
+  reveal: "Tiết lộ sự thật",
   challenge: "Thử thách",
   story: "Kể chuyện ngắn",
   comparison: "So sánh trực diện",
@@ -393,7 +393,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
           Nắm bắt xu hướng,<br />cập nhật theo từng giờ
         </h2>
         <p className="text-center text-sm text-[var(--ink-soft)] mb-12 max-w-xl mx-auto leading-relaxed">
-          Đừng đoán mò nội dung. Hãy xem chiến lược nào thực sự đang mang lại triệu view cho đối thủ.
+          Đừng đoán mò nội dung. Hãy xem chiến lược nào đang đẩy view ổn định cho đối thủ.
         </p>
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-6">
@@ -842,7 +842,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="text-[var(--danger)] font-bold">✕</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[var(--ink)] mb-1">Thiếu "mặt người" ở đầu</p>
-                        <p className="text-xs text-[var(--ink-soft)]">89% video triệu view mở bằng mặt chính chủ</p>
+                        <p className="text-xs text-[var(--ink-soft)]">89% video top view mở bằng mặt chính chủ</p>
                       </div>
                     </div>
                   </div>

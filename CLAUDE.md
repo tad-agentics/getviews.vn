@@ -96,9 +96,9 @@ Other hard rules: `video_corpus` INSERT is batch-only via service_role (client w
 
 ### Route structure
 
-`src/routes.ts` declares the routes explicitly (not pure file-based). Landing at `/` (prerendered), `/login`, `/signup`, `/auth/callback`, then `layout("routes/_app/layout.tsx", …)` guards all `/app/*` routes: `chat`, `onboarding`, `history`, `trends`, `video`, `channel`, `script`, `kol`, `settings`, `learn-more`, `pricing`, `checkout`, `payment-success`.
+`src/routes.ts` declares the routes explicitly (not pure file-based). Landing at `/` (prerendered), `/login`, `/signup`, `/auth/callback`, then `layout("routes/_app/layout.tsx", …)` guards all `/app/*` routes: `answer`, `onboarding`, `history`, `history/chat/:sessionId` (read-only legacy transcript viewer), `trends`, `video`, `channel`, `script`, `script/shoot/:draftId`, `kol`, `settings`, `learn-more`, `pricing`, `checkout`, `payment-success`. The former `/app/chat` surface was removed in Phase C; active research happens through `/app/answer` sessions.
 
-Every `/app/*` leaf route **must** be code-split with `React.lazy` + `Suspense` in its `route.tsx`; the real screen lives alongside (e.g. `ChatScreen.tsx`). Keep the landing page, auth routes, and layout modules eager — they run on every navigation.
+Every `/app/*` leaf route **must** be code-split with `React.lazy` + `Suspense` in its `route.tsx`; the real screen lives alongside (e.g. `AnswerScreen.tsx`). Keep the landing page, auth routes, and layout modules eager — they run on every navigation.
 
 Do **not** use React Router v7 `clientLoader` for data. TanStack Query is the single source of truth.
 
@@ -140,4 +140,4 @@ Commit convention (bisect-friendly, one logical change per commit):
 
 ## Out of scope (do not build)
 
-English UI · MCP server access · Reels/Shorts · creator marketplace · video editing · scheduling/posting · Shopee analytics · admin dashboard · recurring subscriptions (PayOS is one-time, packs expire manually) · Zalo notifications (Wave 2) · full livestream analysis (Wave 3+) · OnboardingScreen (niche set inline on first ChatScreen session).
+English UI · MCP server access · Reels/Shorts · creator marketplace · video editing · scheduling/posting · Shopee analytics · admin dashboard · recurring subscriptions (PayOS is one-time, packs expire manually) · Zalo notifications (Wave 2) · full livestream analysis (Wave 3+).
