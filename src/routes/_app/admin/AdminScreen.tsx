@@ -12,18 +12,25 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { CorpusHealthPanel } from "./CorpusHealthPanel";
 
 function AdminPanelCard({
   title,
   subtitle,
   children,
+  fullWidth,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  fullWidth?: boolean;
 }) {
   return (
-    <section className="flex flex-col gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
+    <section
+      className={`flex flex-col gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 ${
+        fullWidth ? "md:col-span-2" : ""
+      }`}
+    >
       <header>
         <h2 className="gv-serif text-[18px] leading-snug text-[color:var(--gv-ink)]">
           {title}
@@ -85,10 +92,8 @@ export default function AdminScreen() {
         </header>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <AdminPanelCard title="Corpus health" subtitle="per-niche ingest + claim tiers">
-            <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-              Chưa kết nối — panel sẽ hiển thị lượng video 7d/30d/90d mỗi niche và claim tier hiện tại.
-            </p>
+          <AdminPanelCard title="Corpus health" subtitle="per-niche ingest + claim tiers" fullWidth>
+            <CorpusHealthPanel />
           </AdminPanelCard>
 
           <AdminPanelCard title="EnsembleData credits" subtitle="used units theo ngày">
