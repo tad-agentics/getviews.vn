@@ -45,6 +45,11 @@ vi.mock("@/hooks/useChatSession", () => ({
   },
 }));
 
+const { mockLogUsage } = vi.hoisted(() => ({ mockLogUsage: vi.fn() }));
+vi.mock("@/lib/logUsage", () => ({
+  logUsage: (...args: unknown[]) => mockLogUsage(...args),
+}));
+
 import { useSessionStream } from "./useSessionStream";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -212,6 +217,7 @@ describe("useSessionStream — answer_turn TD-4 retry on stream drop", () => {
   beforeEach(() => {
     qc = makeQc();
     mockGetSession.mockResolvedValue({ data: { session: { access_token: "test-token" } } });
+    mockLogUsage.mockClear();
   });
 
   const ANSWER_PARAMS = {
@@ -317,5 +323,139 @@ describe("useSessionStream — answer_turn TD-4 retry on stream drop", () => {
     await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
     expect(result.current.error).toBe("insufficient_credits");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useSessionStream — D.5.2 SSE drop-rate observability events", () => {
+  let qc: QueryClient;
+
+  beforeEach(() => {
+    qc = makeQc();
+    mockGetSession.mockResolvedValue({ data: { session: { access_token: "test-token" } } });
+    mockLogUsage.mockClear();
+  });
+
+  const ANSWER_PARAMS = {
+    mode: "answer_turn" as const,
+    answerSessionId: "sess-1",
+    query: "trend tuần này",
+    turnKind: "primary" as const,
+  };
+
+  it("fires sse_drop with reason:server on HTTP 5xx and does not retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 500 })),
+    );
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+    result.current.stream(ANSWER_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+
+    const drops = mockLogUsage.mock.calls.filter((c) => c[0] === "sse_drop");
+    expect(drops.length).toBe(1);
+    expect(drops[0][1]).toMatchObject({
+      endpoint: "/answer/sessions/:id/turns",
+      session_id: "sess-1",
+      reason: "server",
+      http_status: 500,
+    });
+  });
+
+  it("does not fire sse_drop on 402/429 (those are semantic, not drops)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 402 })),
+    );
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+    result.current.stream(ANSWER_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+    const drops = mockLogUsage.mock.calls.filter((c) => c[0] === "sse_drop");
+    expect(drops.length).toBe(0);
+  });
+
+  it("fires sse_drop → sse_resume_attempt → sse_resume_success on a recovered retry", async () => {
+    const payload = { kind: "pattern", report: { tldr: "carried" } };
+    const firstChunks = [
+      `data: {"stream_id":"sid-r","seq":1,"payload":${JSON.stringify(payload)},"done":false}\n\n`,
+    ];
+    const secondChunks = [
+      `data: {"stream_id":"sid-r","seq":2,"delta":"","done":true}\n\n`,
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFetchStream(firstChunks))
+      .mockResolvedValueOnce(mockFetchStream(secondChunks));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+    result.current.stream(ANSWER_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
+
+    const drops = mockLogUsage.mock.calls.filter((c) => c[0] === "sse_drop");
+    const attempts = mockLogUsage.mock.calls.filter(
+      (c) => c[0] === "sse_resume_attempt",
+    );
+    const successes = mockLogUsage.mock.calls.filter(
+      (c) => c[0] === "sse_resume_success",
+    );
+
+    // Attempt 1 dropped after seq=1 (no done marker) → one sse_drop emitted
+    // from the consumer EOF branch with reason:network.
+    expect(drops.length).toBe(1);
+    expect(drops[0][1]).toMatchObject({
+      endpoint: "/answer/sessions/:id/turns",
+      reason: "network",
+      last_seq: 1,
+    });
+
+    // Retry attempt fires sse_resume_attempt with the captured seq=1.
+    expect(attempts.length).toBe(1);
+    expect(attempts[0][1]).toMatchObject({
+      endpoint: "/answer/sessions/:id/turns",
+      session_id: "sess-1",
+      attempted_seq: 1,
+      cross_pod_likely: false,
+    });
+
+    // Retry consumed a successful done token → sse_resume_success.
+    expect(successes.length).toBe(1);
+    expect(successes[0][1]).toMatchObject({
+      endpoint: "/answer/sessions/:id/turns",
+      session_id: "sess-1",
+    });
+  });
+
+  it("fires sse_resume_attempt but not sse_resume_success when the retry also drops", async () => {
+    const dropChunks = () => [
+      `data: {"stream_id":"sid-z","seq":1,"payload":{"kind":"generic"},"done":false}\n\n`,
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFetchStream(dropChunks()))
+      .mockResolvedValueOnce(mockFetchStream(dropChunks()));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+    result.current.stream(ANSWER_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+
+    const drops = mockLogUsage.mock.calls.filter((c) => c[0] === "sse_drop");
+    const attempts = mockLogUsage.mock.calls.filter(
+      (c) => c[0] === "sse_resume_attempt",
+    );
+    const successes = mockLogUsage.mock.calls.filter(
+      (c) => c[0] === "sse_resume_success",
+    );
+
+    // Two drops (one per attempt), one resume_attempt (the retry), zero successes.
+    expect(drops.length).toBe(2);
+    expect(attempts.length).toBe(1);
+    expect(successes.length).toBe(0);
   });
 });

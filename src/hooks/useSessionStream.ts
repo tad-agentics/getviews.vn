@@ -10,8 +10,27 @@ import { useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react
 
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { logUsage } from "@/lib/logUsage";
 import { chatKeys } from "./useChatSession";
 import { type StepEvent } from "@/lib/types/sse-events";
+
+/**
+ * D.5.2 SSE observability — three usage_events fired from the answer_turn
+ * retry loop to make the drop-rate dashboard possible:
+ *
+ *   sse_drop             unexpected EOF, non-2xx, or body-less response.
+ *                         metadata: { endpoint, session_id, last_seq, reason }
+ *   sse_resume_attempt   retry issued with resume_stream_id + resume_from_seq.
+ *                         metadata: { endpoint, session_id, attempted_seq,
+ *                                     cross_pod_likely }
+ *   sse_resume_success   retry attempt produced a successful done token.
+ *                         metadata: { endpoint, session_id }
+ *
+ * See supabase/migrations/20260502000000_usage_events_d52_sse.sql for the
+ * dashboard allow-list + partial index.
+ */
+type SseDropReason = "network" | "server" | "abort" | "unknown";
+const ANSWER_SSE_ENDPOINT = "/answer/sessions/:id/turns";
 
 const CLOUD_RUN_URL = env.VITE_CLOUD_RUN_API_URL;
 const VERCEL_CHAT_URL = "/api/chat";
@@ -142,9 +161,26 @@ export function useSessionStream<TPayload = unknown>(
             const url = new URL(
               `${CLOUD_RUN_URL}/answer/sessions/${args.answerSessionId}/turns`,
             );
-            if (resumeStreamId && resumeSeq > 0) {
-              url.searchParams.set("resume_stream_id", resumeStreamId);
+            const isResume = Boolean(resumeStreamId) && resumeSeq > 0;
+            if (isResume) {
+              url.searchParams.set("resume_stream_id", resumeStreamId!);
               url.searchParams.set("resume_from_seq", String(resumeSeq));
+              // D.5.2 — record every retry attempt the client makes so the
+              // dashboard can compute retry-success vs retry-abandon ratios.
+              // `cross_pod_likely` is a hint for D.0.v — the server-side
+              // replay buffer is per-instance, so a reconnect to a fresh
+              // cold container produces a cache miss and re-runs Gemini.
+              // Internal retries (attempt > 0) reconnect within ~seconds,
+              // almost certainly to the same container. Caller-supplied
+              // resumes (attempt === 0 + resume params pre-populated — page
+              // refresh / tab reopen) have arbitrary delay and are the
+              // class the dashboard actually wants to threshold on.
+              logUsage("sse_resume_attempt", {
+                endpoint: ANSWER_SSE_ENDPOINT,
+                session_id: args.answerSessionId,
+                attempted_seq: resumeSeq,
+                cross_pod_likely: attempt === 0,
+              });
             }
             const res = await fetch(url.toString(), {
               method: "POST",
@@ -165,10 +201,23 @@ export function useSessionStream<TPayload = unknown>(
               return { ok: false, error: "daily_free_limit" };
             }
             if (!res.ok) {
+              logUsage("sse_drop", {
+                endpoint: ANSWER_SSE_ENDPOINT,
+                session_id: args.answerSessionId,
+                last_seq: resumeSeq,
+                reason: "server" satisfies SseDropReason,
+                http_status: res.status,
+              });
               setState((s) => ({ ...s, status: "error", error: `http_${res.status}` }));
               return { ok: false, error: `http_${res.status}` };
             }
             if (!res.body) {
+              logUsage("sse_drop", {
+                endpoint: ANSWER_SSE_ENDPOINT,
+                session_id: args.answerSessionId,
+                last_seq: resumeSeq,
+                reason: "server" satisfies SseDropReason,
+              });
               setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
               return { ok: false, error: "stream_failed" };
             }
@@ -186,8 +235,29 @@ export function useSessionStream<TPayload = unknown>(
             if (outcome.lastSeq > resumeSeq) resumeSeq = outcome.lastSeq;
 
             if (outcome.ok) {
+              if (isResume) {
+                // The retry paid off — the dashboard ratio `resume_success /
+                // resume_attempt` measures whether the server-side replay
+                // buffer is actually doing its job.
+                logUsage("sse_resume_success", {
+                  endpoint: ANSWER_SSE_ENDPOINT,
+                  session_id: args.answerSessionId,
+                });
+              }
               return { ok: true, finalPayload: outcome.payload };
             }
+            // Consumer failures are sse_drop. `stream_failed` is unexpected
+            // EOF / malformed frames; in-band `done: true` + `error` tokens
+            // surface as their own error string.
+            logUsage("sse_drop", {
+              endpoint: ANSWER_SSE_ENDPOINT,
+              session_id: args.answerSessionId,
+              last_seq: outcome.lastSeq,
+              reason: (outcome.error === "stream_failed"
+                ? "network"
+                : "unknown") satisfies SseDropReason,
+              error: outcome.error ?? "stream_failed",
+            });
             // Only `stream_failed` is retryable — semantic errors (e.g.
             // `insufficient_credits` from the server's in-band error token)
             // must surface on the first attempt.
