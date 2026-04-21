@@ -194,6 +194,10 @@ def append_turn(
     """
     from getviews_pipeline.supabase_client import user_supabase
 
+    logger.info(
+        "[answer/turns] append_turn user=%s session=%s kind=%s q_len=%d",
+        user_id, session_id, kind, len(query or ""),
+    )
     sb_srv = get_service_client()
     sess = (
         sb_srv.table("answer_sessions")
@@ -204,6 +208,10 @@ def append_turn(
     )
     session = sess.data
     if not session or session["user_id"] != user_id:
+        logger.warning(
+            "[answer/turns] session_not_found session=%s user=%s hit=%s",
+            session_id, user_id, bool(session),
+        )
         raise PermissionError("session_not_found")
 
     existing = (
@@ -216,6 +224,7 @@ def append_turn(
         sb_user = user_supabase(access_token)
         rpc = sb_user.rpc("decrement_credit", {"p_user_id": user_id}).execute()
         if rpc.data is False:
+            logger.warning("[answer/turns] insufficient_credits user=%s session=%s", user_id, session_id)
             raise RuntimeError("insufficient_credits")
 
     fmt = session.get("format") or "pattern"
@@ -224,34 +233,53 @@ def append_turn(
     niche_pk = int(session.get("niche_id") or 0)
     adaptive_kind: ReportKind = fmt if fmt in ("pattern", "ideas", "timing") else "pattern"
     window_days = choose_adaptive_window_days(niche_pk, adaptive_kind)
+    logger.info(
+        "[answer/turns] build fmt=%s niche=%s window_days=%s",
+        fmt, niche_pk, window_days,
+    )
 
     inner: dict[str, Any]
-    if fmt == "pattern":
-        # C.5.3 — auto-merge timing subreport on "post gì khi nào" style queries
-        # (plan §A.4 Report + timing case; also covers intent #18 content_calendar).
-        from getviews_pipeline.intent_router import detect_pattern_subreports
+    try:
+        if fmt == "pattern":
+            # C.5.3 — auto-merge timing subreport on "post gì khi nào"
+            # style queries (plan §A.4 Report + timing case; also covers
+            # intent #18 content_calendar).
+            from getviews_pipeline.intent_router import detect_pattern_subreports
 
-        subs = detect_pattern_subreports(query)
-        inner = build_pattern_report(
-            niche_pk,
-            query,
-            session.get("intent_type") or "trend_spike",
-            window_days=window_days,
-            subreports=subs or None,
+            subs = detect_pattern_subreports(query)
+            inner = build_pattern_report(
+                niche_pk,
+                query,
+                session.get("intent_type") or "trend_spike",
+                window_days=window_days,
+                subreports=subs or None,
+            )
+        elif fmt == "ideas":
+            inner = build_ideas_report(
+                niche_pk,
+                query,
+                session.get("intent_type") or "brief_generation",
+                window_days=window_days,
+            )
+        elif fmt == "timing":
+            inner = build_timing_report(niche_pk, query, window_days=window_days)
+        else:
+            inner = build_generic_report(session.get("niche_id"), query)
+    except Exception:
+        logger.exception(
+            "[answer/turns] build FAILED fmt=%s niche=%s session=%s",
+            fmt, niche_pk, session_id,
         )
-    elif fmt == "ideas":
-        inner = build_ideas_report(
-            niche_pk,
-            query,
-            session.get("intent_type") or "brief_generation",
-            window_days=window_days,
-        )
-    elif fmt == "timing":
-        inner = build_timing_report(niche_pk, query, window_days=window_days)
-    else:
-        inner = build_generic_report(session.get("niche_id"), query)
+        raise
 
-    payload_dict = validate_and_store_report(fmt, inner)
+    try:
+        payload_dict = validate_and_store_report(fmt, inner)
+    except Exception:
+        logger.exception(
+            "[answer/turns] validate FAILED fmt=%s session=%s inner_keys=%s",
+            fmt, session_id, list(inner.keys()) if isinstance(inner, dict) else type(inner).__name__,
+        )
+        raise
 
     confidence_label = _confidence_label(classifier_confidence_score)
     credits_used = 1 if kind == "primary" else 0
@@ -266,8 +294,20 @@ def append_turn(
         "cloud_run_run_id": str(uuid.uuid4()),
         "credits_used": credits_used,
     }
-    ins = sb_srv.table("answer_turns").insert(row_ins).execute()
+    try:
+        ins = sb_srv.table("answer_turns").insert(row_ins).execute()
+    except Exception:
+        logger.exception(
+            "[answer/turns] persist FAILED session=%s turn_index=%s kind=%s",
+            session_id, turn_index, kind,
+        )
+        raise
     turn = ins.data[0] if isinstance(ins.data, list) else ins.data
+    logger.info(
+        "[answer/turns] persisted session=%s turn_index=%s kind=%s payload_kind=%s",
+        session_id, turn_index, kind,
+        (payload_dict or {}).get("kind") if isinstance(payload_dict, dict) else None,
+    )
 
     # D.2.3 — observability events. Both go through the service-client
     # insert so usage_events RLS policies don't reject; failures are
