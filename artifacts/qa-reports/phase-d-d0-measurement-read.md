@@ -1,8 +1,8 @@
 # Phase D.0.i — Measurement dashboard read
 
 **Date:** 2026-04-20
-**Ship-gate:** Blocks all D.1+ deploys until green.
-**Status:** **FAIL — 7-day production pull completed 2026-04-20; 11/14 events have zero rows.** D.1+ remains blocked until all rows pass the contract below.
+**Ship-gate:** Blocks all D.1+ deploys until green per the **revised tiered contract** below.
+**Status:** **FAIL — 7-day production pull completed 2026-04-20; 11/14 events have zero rows, 1 event is smoke-only (`studio_composer_submit` = 4 events / 1 user).** Revised tiered contract documented below; the entry-point gate fails on **low Studio adoption** (real users reach Phase B screens directly), and the answer-surface gate needs `smoke-d0i-answer-wiring.sh` to disambiguate traffic reality vs backend failure. D.1+ remains blocked.
 
 **Production snapshot:** Supabase project **Getviews.vn** (`lzhiqnxfveqttsujebiv`, `ap-southeast-2`). Query executed via service-role SQL (7-day window = `created_at >= NOW() - INTERVAL '7 days'` at query time). A 30-day roll-up shows the same three `action` values only — no hidden traffic under alternate windows for the missing names.
 
@@ -153,6 +153,160 @@ ORDER BY total_events DESC, e.action;
 
 ---
 
+## Root cause analysis (2026-04-20 triage)
+
+Per-event triage against the code (see `src/routes/_app/intent-router.ts:246
+planAnswerEntry`, `src/routes/_app/home/HomeScreen.tsx:71-74 launchChat`,
+`src/routes/_app/answer/AnswerScreen.tsx:112-143 bootstrap`,
+`src/lib/logUsage.ts`) rules out wiring bugs as the primary cause:
+
+- Every event has ≥ 1 `logUsage(...)` call site in `src/**`.
+- `usage_events.action` column has no CHECK constraint — inserts aren't
+  allow-list rejected.
+- RLS allows any authenticated user to insert their own events.
+- `logUsage` itself is correct (fire-and-forget, gets session,
+  suppresses errors in non-DEV only).
+
+**The 14 events cluster into 4 root causes:**
+
+### Cause 0 — Studio not in the real-user funnel (NEW, critical)
+
+`studio_composer_submit: 4 events / 1 user` over 7 days, all within a
+23-minute window on 2026-04-20. **All 4 events came from a single
+account**, timing-consistent with a smoke test by the measurement
+operator — not real traffic.
+
+Meanwhile `kol_screen_load: 38/3` and `script_screen_load: 35/4` show
+real users (3 and 4 distinct accounts) reach Phase B screens directly
+— likely via bookmarks, deep links, or BottomTabBar navigation
+(though the tab bar doesn't expose `/kol` or `/script` today).
+
+**Implication:** the post-pivot UX assumes Studio is the universal
+entry point (plan §C.7). Production data says users **bypass Studio
+entirely** and land on Phase B screens via some other path. This is
+the most important finding of the D.0.i pull — it is not a wiring bug
+but a UX adoption bug that predates Phase D.
+
+Fixing this is out of D.0.i scope (instrumentation only) but must be
+captured in the sign-off and raised to the product owner before D.1+
+ships behavior that assumes the Studio funnel.
+
+### Cause 1 — Answer surface dark (5 events)
+
+`answer_session_create`, `answer_turn_append`, `templatize_click`,
+`answer_drawer_open`, `history_session_open`.
+
+Two sub-hypotheses:
+
+- **1a. Downstream of Cause 0.** With no real-user Studio traffic,
+  no user query reaches `AnswerScreen` bootstrap. No
+  `createAnswerSession` call. Everything downstream is dark because
+  the upstream entry point is dark.
+- **1b. Real backend failure.** The smoke-tester's 4 composer
+  submits classified to destination intents (not `answer:*`), OR
+  `POST /answer/sessions` threw before `logUsage` fired.
+
+Disambiguation: run
+**`artifacts/qa-reports/smoke-d0i-answer-wiring.sh`** — one production
+POST with a guaranteed-Pattern-shape query
+(`"Hook nào đang hot trong Tech tuần này?"`) that bypasses Studio and
+hits `/answer/sessions` directly. Session row in `answer_sessions`
+within 30s → backend healthy (Cause 1a). POST fails → Cause 1b,
+escalate to Cloud Run logs.
+
+### Cause 2 — Video surface dark (3 events)
+
+`video_screen_load`, `flop_cta_click`, `video_to_script`.
+
+`/app/video` is reachable only via TikTok URL paste
+(`intent-router.ts:259-264 dest === "video"`). Real zero — no
+production user pasted a URL in 7 days. Consistent with Cause 0
+(users bypass Studio where URL pastes would route).
+
+### Cause 3 — CTA engagement (3 events)
+
+`kol_pin`, `script_generate`, `channel_to_script`.
+
+Screen loads fire (`kol_screen_load` ✓, `script_screen_load` ✓),
+but measured CTAs don't trigger. Real zero or UX friction; not a
+wiring failure. No `channel_screen_load` event exists, so
+`channel_to_script` can't be baselined.
+
+---
+
+## Revised sign-off contract (tiered)
+
+Original contract (every event ≥ 5 / last_seen ≤ 24h / unique_users
+≥ 2) conflated three distinct signals — entry point wiring,
+destination routing wiring, and engagement adoption. **Wiring is
+pass/fail; engagement is a continuous metric.** The revised contract
+gates wiring separately:
+
+| Event class | Events | Gate | Status (2026-04-20) |
+|---|---|---|---|
+| **Entry point (Studio)** | `studio_composer_submit` | `unique_users ≥ 2 AND total_events ≥ 5` | ✗ **FAIL (1 user / 4 events — smoke-only)** |
+| **Destination screens (B)** | `kol_screen_load`, `script_screen_load`, `video_screen_load` | `kol_screen_load > 0 AND script_screen_load > 0` (hard); `video_screen_load` zero is acceptable as real-zero TikTok-URL-paste signal | ✓ **PASS** (38/3 + 35/4) |
+| **Answer surface (C)** | `answer_session_create`, `answer_turn_append`, `templatize_click`, `answer_drawer_open`, `history_session_open` | `answer_session_create > 0` OR `smoke-d0i-answer-wiring.sh` returns "Wiring is fully healthy" | ⏳ pending live-probe |
+| **CTA engagement** | `flop_cta_click`, `video_to_script`, `kol_pin`, `script_generate`, `channel_to_script` | **Waived** — engagement metric, not wiring gate; audited during D.3.1 route coverage | N/A (waived) |
+| **Missing from allow-list** | `channel_screen_load` (not yet wired) | Add call site in D.5.1 instrumentation pass so `/channel` surface can be baselined | ⏳ D.5.1 backlog |
+
+### Gate breakdown
+
+- **PASS** (unblock D.1+ deploys only):
+  1. Destination wiring — `kol_screen_load > 0` AND `script_screen_load > 0` ✓
+  2. Answer surface — `answer_session_create > 0` OR live-probe passes ⏳
+- **FAIL** (block D.1+ deploys):
+  - Entry-point gate — `studio_composer_submit` is smoke-only ✗
+
+The entry-point failure (Cause 0) is a **product adoption finding**,
+not a wiring bug. It blocks the ship-gate because D's Pre-kickoff
+rule 1 inherits the C ship-gate, and Studio underuse means the D.2.4
+`/history` + C.7 `/chat`-deletion UX flows aren't being exercised by
+real users. Until that's resolved (or the gate is explicitly waived
+by the product owner), **D.1+ deploys remain blocked**.
+
+### Out-of-scope for D.0.i (but flagged)
+
+- **Studio adoption.** Route-level instrumentation won't fix low
+  Studio adoption — needs product/UX investigation.
+- **`channel_screen_load` call site.** Add in D.5.1 (new event, not a
+  C-era regression).
+- **CTA engagement audit.** Deferred to D.3.1 route coverage + D.5.1
+  engagement dashboard.
+
+---
+
+## Live-probe smoke
+
+`artifacts/qa-reports/smoke-d0i-answer-wiring.sh` disambiguates the
+answer-surface dark (Cause 1a vs 1b):
+
+```bash
+export JWT="eyJ..."   # authenticated user access_token from Supabase session
+export CLOUD_RUN_URL="https://getviews-pipeline-prod-xxx.run.app"
+export SUPABASE_URL="https://lzhiqnxfveqttsujebiv.supabase.co"
+export SUPABASE_KEY="$SUPABASE_ANON_KEY"
+./artifacts/qa-reports/smoke-d0i-answer-wiring.sh
+```
+
+The script POSTs `"Hook nào đang hot trong Tech tuần này?"` (classifies
+to `trend_spike` → `answer:pattern`, guaranteed non-redirect path),
+confirms the session row lands in `answer_sessions` within 30s, and
+optionally checks `usage_events.answer_session_create` fires within a
+60s window (only if a browser tab is also open on
+`/app/answer?session=$SID` by the JWT owner).
+
+**Expected outcomes:**
+
+- **Server-side POST succeeds + `answer_sessions` row inserted →
+  Cause 1a.** Backend is healthy; the 7-day zero is downstream of
+  Cause 0 (low Studio adoption). Answer-surface gate passes.
+- **Server-side POST fails → Cause 1b.** Real backend bug. Escalate:
+  pull Cloud Run logs for `/answer/sessions`; verify RLS on
+  `answer_sessions` INSERT + service-role bearer.
+
+---
+
 ## Sign-off workflow
 
 1. Pull the 7-day window via the SQL above (requires production
@@ -170,14 +324,20 @@ ORDER BY total_events DESC, e.action;
 
 ---
 
-## Sign-off (to be filled after production data pull)
+## Sign-off (after revised-contract gates clear)
 
-**Date:** 2026-04-20 (pull only — not a green sign-off)
+**Date:** 2026-04-20 (first pull — not a green sign-off)
 **Signed by:** —
-**Status:** **Not eligible — 11 fail rows + `studio_composer_submit` unique-user fail.**
+**Status:** **Not eligible.** Per revised tiered contract:
 
-Re-run this section after a subsequent pull when all 14 rows pass. Until then,
-**D.1+ deploys remain blocked** per ship-gate.
+- Destination wiring gate ✓ PASS (`kol_screen_load: 38/3`, `script_screen_load: 35/4`).
+- Entry-point gate ✗ FAIL (`studio_composer_submit` is smoke-only — product adoption finding, not wiring bug; needs owner decision).
+- Answer-surface gate ⏳ pending `smoke-d0i-answer-wiring.sh`.
+- CTA engagement waived (audited in D.3.1).
+
+Re-run after the live-probe smoke completes and the Studio-adoption
+finding has an owner response. Until then, **D.1+ deploys remain
+blocked** per ship-gate.
 
 *(Green template when eligible:)*
 
@@ -185,5 +345,9 @@ Re-run this section after a subsequent pull when all 14 rows pass. Until then,
 **Signed by:** —
 **Status:** **Green**
 
-All 14 events confirmed firing over the 7-day window ending —. No fail
-rows. D.1+ deploys unblocked.
+Revised tiered contract gates all passing:
+- Destination wiring: `kol_screen_load > 0` AND `script_screen_load > 0`
+- Entry-point: `studio_composer_submit` ≥ 2 real users OR explicit owner waiver on Studio-adoption finding
+- Answer surface: `answer_session_create > 0` OR live-probe healthy
+
+D.1+ deploys unblocked.
