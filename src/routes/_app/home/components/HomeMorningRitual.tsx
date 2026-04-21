@@ -37,7 +37,7 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
   onSelectPrompt: (prompt: string) => void;
 }) {
   const navigate = useNavigate();
-  const { data: ritual, isPending } = useDailyRitual();
+  const { data: ritual, isPending } = useDailyRitual(true, nicheId);
 
   if (isPending) {
     return (

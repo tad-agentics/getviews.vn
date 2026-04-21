@@ -27,7 +27,8 @@ export type DailyRitual = {
 };
 
 export const ritualKeys = {
-  today: () => ["daily_ritual", "today"] as const,
+  /** Include ``primaryNicheId`` so changing ngách in Cài đặt invalidates cache. */
+  today: (primaryNicheId: number | null) => ["daily_ritual", "today", primaryNicheId] as const,
 };
 
 /**
@@ -40,9 +41,9 @@ export const ritualKeys = {
  * cron runs at 07:00 ICT and new creators won't have a row on day one.
  * The UI should render a "sắp có" state for both null and error cases.
  */
-export function useDailyRitual(enabled: boolean = true) {
+export function useDailyRitual(enabled: boolean = true, primaryNicheId: number | null = null) {
   return useQuery<DailyRitual | null>({
-    queryKey: ritualKeys.today(),
+    queryKey: ritualKeys.today(primaryNicheId),
     queryFn: async () => {
       const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
       if (!cloudRunUrl) return null; // local dev without cloud-run = no ritual
@@ -59,7 +60,7 @@ export function useDailyRitual(enabled: boolean = true) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as DailyRitual;
     },
-    enabled,
+    enabled: enabled && primaryNicheId != null,
     staleTime: 10 * 60 * 1000, // 10 min; rituals regenerate nightly
     retry: false,
   });
