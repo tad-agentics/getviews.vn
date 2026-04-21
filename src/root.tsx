@@ -31,13 +31,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // QueryClientProvider MUST wrap AuthProvider: the global
+  // SessionExpired listener in AuthProvider calls `useQueryClient()`
+  // (it subscribes to the query + mutation caches to auto-signout on
+  // 401s from Cloud Run). Without this order the prerender of `/`
+  // throws during Vercel build, and client-side hydration breaks the
+  // same way.
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
         <TooltipProvider delayDuration={200}>
           <Outlet />
         </TooltipProvider>
-      </QueryClientProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
