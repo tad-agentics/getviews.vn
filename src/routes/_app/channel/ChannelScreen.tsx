@@ -7,6 +7,7 @@ import { Btn } from "@/components/v2/Btn";
 import { Chip } from "@/components/v2/Chip";
 import { FormulaBar } from "@/components/v2/FormulaBar";
 import { KpiGrid } from "@/components/v2/KpiGrid";
+import { PostingHeatmap } from "@/components/v2/channel/PostingHeatmap";
 import { TopBar } from "@/components/v2/TopBar";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
@@ -289,6 +290,11 @@ function ChannelBody({
         </div>
         <div className="self-center">
           <KpiGrid variant="channel" kpis={kpis} />
+          {data.posting_heatmap && data.posting_heatmap.length > 0 ? (
+            <div className="mt-6">
+              <PostingHeatmap grid={data.posting_heatmap} />
+            </div>
+          ) : null}
         </div>
       </div>
 

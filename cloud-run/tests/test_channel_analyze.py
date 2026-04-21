@@ -9,6 +9,7 @@ import pytest
 from getviews_pipeline.channel_analyze import (
     CORPUS_GATE_MIN,
     LiveSignals,
+    _compute_posting_heatmap,
     _compute_views_mom_delta,
     _median,
     _normalize_formula_pcts,
@@ -77,6 +78,63 @@ def test_views_mom_delta_with_synthetic_windows() -> None:
     out = _compute_views_mom_delta(rows)
     assert "MoM" in out
     assert out.startswith("↑")
+
+
+# ── D.1.4 — posting_heatmap aggregation ────────────────────────────────────
+
+
+def test_posting_heatmap_empty_when_fewer_than_three_rows() -> None:
+    """Guard: < 3 parseable timestamps → [] so the frontend hides the panel."""
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    rows = [{"created_at": now.isoformat()}, {"created_at": now.isoformat()}]
+    assert _compute_posting_heatmap(rows) == []
+    # Also covers malformed timestamps — parser returns None, filter drops them.
+    assert _compute_posting_heatmap([{"created_at": "not-a-date"}] * 10) == []
+
+
+def test_posting_heatmap_returns_7_by_8_shape() -> None:
+    """Valid sample returns a dense 7×8 grid regardless of empty cells."""
+    from datetime import datetime, timezone
+
+    # Three Monday-18h posts land in (weekday=0, hour_bucket=4).
+    rows = [
+        {"created_at": datetime(2026, 4, 6, 18, tzinfo=timezone.utc).isoformat()},
+        {"created_at": datetime(2026, 4, 6, 19, tzinfo=timezone.utc).isoformat()},
+        {"created_at": datetime(2026, 4, 6, 19, 30, tzinfo=timezone.utc).isoformat()},
+    ]
+    grid = _compute_posting_heatmap(rows)
+    assert len(grid) == 7
+    assert all(len(row) == 8 for row in grid)
+    assert grid[0][4] == 3
+    # Other cells stay zero.
+    total_cells = sum(sum(row) for row in grid)
+    assert total_cells == 3
+
+
+def test_posting_heatmap_buckets_hours_correctly() -> None:
+    """Hours 3–5 are dropped; 0–2 land in bucket 7; 22–23 in bucket 6."""
+    from datetime import datetime, timezone
+
+    rows = [
+        # Dead zone — all dropped.
+        {"created_at": datetime(2026, 4, 6, 3, tzinfo=timezone.utc).isoformat()},
+        {"created_at": datetime(2026, 4, 6, 4, tzinfo=timezone.utc).isoformat()},
+        {"created_at": datetime(2026, 4, 6, 5, tzinfo=timezone.utc).isoformat()},
+        # 22–24 → bucket 6.
+        {"created_at": datetime(2026, 4, 7, 22, tzinfo=timezone.utc).isoformat()},
+        {"created_at": datetime(2026, 4, 7, 23, tzinfo=timezone.utc).isoformat()},
+        # 0–3 → bucket 7.
+        {"created_at": datetime(2026, 4, 8, 0, tzinfo=timezone.utc).isoformat()},
+        {"created_at": datetime(2026, 4, 8, 1, tzinfo=timezone.utc).isoformat()},
+        {"created_at": datetime(2026, 4, 8, 2, tzinfo=timezone.utc).isoformat()},
+    ]
+    grid = _compute_posting_heatmap(rows)
+    assert grid[1][6] == 2  # Tue 22–24
+    assert grid[2][7] == 3  # Wed 0–3
+    # Dead-zone hours produce zero across the whole grid when they're the only samples.
+    assert sum(sum(row) for row in grid) == 5
 
 
 def test_run_channel_analyze_thin_corpus_no_credit() -> None:
