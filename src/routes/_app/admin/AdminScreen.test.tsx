@@ -48,6 +48,9 @@ vi.mock("./TriggersPanel", () => ({
 vi.mock("./ActionLogPanel", () => ({
   ActionLogPanel: () => <div data-testid="panel-actionlog" />,
 }));
+vi.mock("./AlertsPanel", () => ({
+  AlertsPanel: () => <div data-testid="panel-alerts" />,
+}));
 
 // TopBar / SectionHeader — render enough structure to assert against.
 vi.mock("@/components/v2/TopBar", () => ({
@@ -134,13 +137,15 @@ describe("AdminScreen gate", () => {
     // Section kickers lock the rendering order / presence so a future
     // refactor that drops a section fails here rather than shipping a
     // half-empty dashboard.
+    expect(screen.getByTestId("kicker-ALERTS · THRESHOLD RULES")).toBeTruthy();
     expect(screen.getByTestId("kicker-CORPUS · INGEST + CLAIM TIERS")).toBeTruthy();
     expect(screen.getByTestId("kicker-ENSEMBLEDATA · USED UNITS")).toBeTruthy();
     expect(screen.getByTestId("kicker-CLOUD RUN · STDOUT TAIL")).toBeTruthy();
     expect(screen.getByTestId("kicker-MANUAL RUN · CRON JOBS")).toBeTruthy();
     expect(screen.getByTestId("kicker-AUDIT · WHO RAN WHAT")).toBeTruthy();
 
-    // All five panels mount.
+    // All six panels mount.
+    expect(screen.getByTestId("panel-alerts")).toBeTruthy();
     expect(screen.getByTestId("panel-corpus")).toBeTruthy();
     expect(screen.getByTestId("panel-ensemble")).toBeTruthy();
     expect(screen.getByTestId("panel-logs")).toBeTruthy();

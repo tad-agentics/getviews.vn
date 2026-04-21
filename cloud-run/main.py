@@ -1385,6 +1385,327 @@ async def admin_ensemble_call_sites(
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.10 · alert evaluator — Slack webhook on threshold crossing
+# ══════════════════════════════════════════════════════════════════════════
+#
+# POST /admin/evaluate-alerts runs on a 15-minute cron (Cloud Scheduler →
+# X-Batch-Secret). Each rule evaluator inspects a data source, decides
+# breached vs ok, compares against the most-recent admin_alert_fires
+# row, and on a state transition records a fire row + posts a Slack
+# webhook. No webhook URL = evaluator still records state; just no
+# Slack notification.
+
+_SLACK_ADMIN_WEBHOOK_URL = os.environ.get("SLACK_ADMIN_WEBHOOK_URL", "").strip()
+
+
+def _post_slack_admin_alert(message: str, severity: str) -> None:
+    """Fire-and-forget POST to SLACK_ADMIN_WEBHOOK_URL. A Slack 503 must
+    not skip the state row that dedupes future ticks.
+    """
+    if not _SLACK_ADMIN_WEBHOOK_URL:
+        return
+    icon = {"info": "ℹ️", "warn": "⚠️", "crit": "🚨"}.get(severity, "⚠️")
+
+    def _do() -> None:
+        try:
+            body = json.dumps({
+                "text": f"{icon} *[GetViews admin]* {message}",
+                "username": "getviews-admin",
+            }).encode("utf-8")
+            req = _urlrequest.Request(
+                _SLACK_ADMIN_WEBHOOK_URL,
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with _urlrequest.urlopen(req, timeout=10) as resp:
+                resp.read()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[alerts] slack webhook post failed: %s", exc)
+
+    threading.Thread(target=_do, daemon=True, name="slack-admin-alert").start()
+
+
+def _last_alert_phase(rule_key: str) -> str | None:
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("admin_alert_fires")
+            .select("phase")
+            .eq("rule_key", rule_key)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+        return rows[0]["phase"] if rows else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[alerts] _last_alert_phase(%s) failed: %s", rule_key, exc)
+        return None
+
+
+def _record_alert_fire(
+    *,
+    rule_key: str,
+    severity: str,
+    message: str,
+    context: dict[str, Any],
+    phase: str,
+    delivered: bool,
+) -> None:
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        get_service_client().table("admin_alert_fires").insert({
+            "rule_key": rule_key,
+            "severity": severity,
+            "message": message,
+            "context_json": context,
+            "phase": phase,
+            "delivered_at": datetime.now(timezone.utc).isoformat() if delivered else None,
+        }).execute()
+    except Exception as exc:
+        logger.exception("[alerts] _record_alert_fire(%s) failed: %s", rule_key, exc)
+
+
+def _evaluate_ensemble_runway_low(rule: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
+    runway_days_max = int(rule.get("threshold_json", {}).get("runway_days_max", 7))
+    if _ENSEMBLE_MONTHLY_BUDGET <= 0:
+        return (False, "ED_MONTHLY_UNIT_BUDGET unset — rule skipped", {"reason": "no_budget"})
+
+    now = datetime.now(timezone.utc)
+    total_used = 0
+    last7_sum = 0
+    last7_days = 0
+    for i in range(30):
+        day = (now - timedelta(days=i)).date().isoformat()
+        try:
+            payload = _ensemble_fetch_used_units(day)
+            units_raw = payload.get("units")
+            if units_raw is None and isinstance(payload.get("data"), dict):
+                units_raw = payload["data"].get("units")
+            units = int(units_raw or 0)
+        except Exception:  # noqa: BLE001
+            continue
+        total_used += units
+        if i < 7:
+            last7_sum += units
+            last7_days += 1
+    if last7_days == 0:
+        return (False, "no ED data — rule skipped", {"reason": "no_data"})
+
+    avg_daily = last7_sum / last7_days
+    remaining = max(0, _ENSEMBLE_MONTHLY_BUDGET - total_used)
+    runway = int(remaining / avg_daily) if avg_daily > 0 else 999
+    context = {
+        "runway_days": runway,
+        "runway_days_max": runway_days_max,
+        "monthly_budget": _ENSEMBLE_MONTHLY_BUDGET,
+        "total_used_30d": total_used,
+        "avg_daily_7d": round(avg_daily, 1),
+    }
+    breached = runway < runway_days_max
+    msg = (
+        f"EnsembleData runway {runway}d (< {runway_days_max}d threshold) · "
+        f"used {total_used:,}/{_ENSEMBLE_MONTHLY_BUDGET:,} units · "
+        f"avg {avg_daily:,.0f}/day"
+        if breached
+        else f"runway {runway}d — ok"
+    )
+    return (breached, msg, context)
+
+
+def _evaluate_corpus_stale(rule: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
+    hours = int(rule.get("threshold_json", {}).get("hours_since_last_ingest", 48))
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("video_corpus")
+            .select("created_at")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = resp.data or []
+    except Exception as exc:  # noqa: BLE001
+        return (False, f"query failed: {exc}", {"reason": "query_error"})
+    if not rows:
+        return (True, "video_corpus empty", {"reason": "empty"})
+    last_iso = rows[0].get("created_at")
+    if not last_iso:
+        return (True, "created_at null on latest row", {"reason": "null_ts"})
+    try:
+        last = datetime.fromisoformat(last_iso.replace("Z", "+00:00"))
+    except ValueError:
+        return (False, "created_at parse failed", {"reason": "parse_error"})
+    age_h = (datetime.now(timezone.utc) - last).total_seconds() / 3600
+    context = {"hours_since_last_ingest": round(age_h, 1), "threshold_hours": hours}
+    breached = age_h >= hours
+    msg = (
+        f"Corpus stale · {age_h:.1f}h since last ingest (≥ {hours}h)"
+        if breached
+        else f"corpus fresh · {age_h:.1f}h old"
+    )
+    return (breached, msg, context)
+
+
+def _evaluate_trigger_error_spike(rule: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
+    window = int(rule.get("threshold_json", {}).get("window_runs", 10))
+    error_pct_max = float(rule.get("threshold_json", {}).get("error_pct_max", 50))
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("admin_action_log")
+            .select("result_status")
+            .in_("result_status", ["ok", "error"])
+            .order("created_at", desc=True)
+            .limit(window)
+            .execute()
+        )
+        rows = resp.data or []
+    except Exception as exc:  # noqa: BLE001
+        return (False, f"query failed: {exc}", {"reason": "query_error"})
+    if len(rows) < 3:
+        return (False, "not enough samples yet", {"n": len(rows)})
+    errors = sum(1 for r in rows if r.get("result_status") == "error")
+    pct = (errors / len(rows)) * 100
+    context = {
+        "window_runs": len(rows),
+        "errors": errors,
+        "error_pct": round(pct, 1),
+        "error_pct_max": error_pct_max,
+    }
+    breached = pct > error_pct_max
+    msg = (
+        f"Trigger error rate {pct:.0f}% ({errors}/{len(rows)}) · threshold {error_pct_max:.0f}%"
+        if breached
+        else f"trigger errors {pct:.0f}% — ok"
+    )
+    return (breached, msg, context)
+
+
+_EVALUATORS: dict[str, Any] = {
+    "ensemble_runway_low": _evaluate_ensemble_runway_low,
+    "corpus_stale": _evaluate_corpus_stale,
+    "admin_trigger_error_spike": _evaluate_trigger_error_spike,
+}
+
+
+@app.post("/admin/evaluate-alerts")
+async def admin_evaluate_alerts(request: Request) -> JSONResponse:
+    """Run the admin alert evaluator. X-Batch-Secret gated (cron target)."""
+    if _BATCH_SECRET:
+        provided = request.headers.get("X-Batch-Secret", "")
+        if provided != _BATCH_SECRET:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
+
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        rules_resp = (
+            get_service_client()
+            .table("admin_alert_rules")
+            .select("rule_key, label, severity, threshold_json, enabled")
+            .eq("enabled", True)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[alerts] rules fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    rules = rules_resp.data or []
+    evaluations: list[dict[str, Any]] = []
+
+    for rule in rules:
+        rule_key = rule["rule_key"]
+        evaluator = _EVALUATORS.get(rule_key)
+        if evaluator is None:
+            evaluations.append({"rule_key": rule_key, "action": "no_evaluator"})
+            continue
+
+        try:
+            breached, message, context = evaluator(rule)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("[alerts] evaluator %s crashed: %s", rule_key, exc)
+            evaluations.append({
+                "rule_key": rule_key,
+                "action": "evaluator_crashed",
+                "error": str(exc)[:300],
+            })
+            continue
+
+        prev_phase = _last_alert_phase(rule_key)
+
+        if breached and prev_phase != "firing":
+            full_msg = f"[{rule['label']}] {message}"
+            _post_slack_admin_alert(full_msg, rule["severity"])
+            _record_alert_fire(
+                rule_key=rule_key,
+                severity=rule["severity"],
+                message=message,
+                context=context,
+                phase="firing",
+                delivered=bool(_SLACK_ADMIN_WEBHOOK_URL),
+            )
+            evaluations.append({
+                "rule_key": rule_key, "breached": True, "action": "fired", "message": message,
+            })
+        elif not breached and prev_phase == "firing":
+            _record_alert_fire(
+                rule_key=rule_key,
+                severity=rule["severity"],
+                message=message,
+                context=context,
+                phase="cleared",
+                delivered=False,
+            )
+            evaluations.append({
+                "rule_key": rule_key, "breached": False, "action": "cleared", "message": message,
+            })
+        else:
+            evaluations.append({
+                "rule_key": rule_key, "breached": breached, "action": "no_change", "message": message,
+            })
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": datetime.now(timezone.utc).isoformat(),
+        "slack_configured": bool(_SLACK_ADMIN_WEBHOOK_URL),
+        "evaluations": evaluations,
+    })
+
+
+@app.get("/admin/alert-fires")
+async def admin_alert_fires(
+    _admin: dict[str, Any] = Depends(require_admin),
+    limit: int = Query(50, ge=1, le=200),
+) -> JSONResponse:
+    """Recent alert fires + clears. Admin-dashboard read."""
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("admin_alert_fires")
+            .select("id, rule_key, severity, message, context_json, phase, delivered_at, created_at")
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[admin/alert-fires] fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({"ok": True, "fires": resp.data or []})
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # Phase D.6.4 · /admin/logs — Cloud Run log tail (feature-flagged)
 # ══════════════════════════════════════════════════════════════════════════
 #
