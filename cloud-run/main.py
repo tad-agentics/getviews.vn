@@ -1327,6 +1327,195 @@ async def admin_ensemble_credits(
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.3 · /admin/trigger/{job} — manual run of periodic batch jobs
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Each known job delegates to the underlying runner function (same callable
+# the /batch/* HTTP routes invoke) so this endpoint doesn't duplicate
+# business logic. The job catalog is a const dict — adding a new trigger
+# means adding a pydantic body model and one dispatcher entry.
+#
+# These operations are heavy (ingest / analytics / morning ritual all hit
+# Gemini + EnsembleData and can take minutes). We return synchronously; the
+# SPA uses a long request timeout and surfaces a spinner. Async job
+# tracking (status polling + audit table) is deferred — the current
+# admin is 1-3 people and blocking for a couple minutes is acceptable.
+
+
+class AdminTriggerIngestBody(BaseModel):
+    niche_ids: list[int] | None = None
+    deep_pool: bool = False
+
+
+class AdminTriggerMorningRitualBody(BaseModel):
+    user_ids: list[str] | None = None
+
+
+class AdminTriggerEmptyBody(BaseModel):
+    """Placeholder body for jobs that take no parameters. FastAPI requires
+    a body model for POST so the request can carry a Content-Type header
+    without being parsed as form data."""
+
+
+async def _admin_run_ingest(body: AdminTriggerIngestBody) -> dict[str, Any]:
+    from getviews_pipeline.corpus_ingest import run_batch_ingest
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+
+    try:
+        summary = await run_batch_ingest(niche_ids=body.niche_ids, deep_pool=body.deep_pool)
+    except EnsembleDailyBudgetExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"ensemble_daily_budget_exceeded: {exc}",
+        ) from exc
+    return {
+        "ok": True,
+        "total_inserted": summary.total_inserted,
+        "total_skipped": summary.total_skipped,
+        "total_failed": summary.total_failed,
+        "niches_processed": summary.niches_processed,
+        "materialized_view_refreshed": summary.materialized_view_refreshed,
+    }
+
+
+async def _admin_run_morning_ritual(body: AdminTriggerMorningRitualBody) -> dict[str, Any]:
+    from getviews_pipeline.morning_ritual import run_morning_ritual_batch
+    from getviews_pipeline.supabase_client import get_service_client
+
+    summary = await run_sync(run_morning_ritual_batch, get_service_client(), body.user_ids)
+    return {
+        "ok": True,
+        "generated": summary.generated,
+        "skipped_thin": summary.skipped_thin,
+        "failed_schema": summary.failed_schema,
+        "failed_gemini": summary.failed_gemini,
+        "failed_duplicate_hooks": summary.failed_duplicate_hooks,
+        "failed_upsert": summary.failed_upsert,
+        "users_no_niche": summary.users_no_niche,
+    }
+
+
+async def _admin_run_analytics() -> dict[str, Any]:
+    from getviews_pipeline.batch_analytics import run_analytics
+    from getviews_pipeline.corpus_context import _anon_client
+    from getviews_pipeline.pattern_fingerprint import recompute_weekly_counts
+    from getviews_pipeline.signal_classifier import run_signal_grading
+
+    analytics = await run_analytics()
+    signal = await run_signal_grading()
+    patterns_touched = 0
+    try:
+        patterns_touched = await recompute_weekly_counts(_anon_client())
+    except Exception as exc:  # pragma: no cover — fail open on pattern-recount
+        logger.warning("[admin/trigger/analytics] pattern weekly recompute failed: %s", exc)
+    return {
+        "ok": True,
+        "analytics": {
+            "creators_updated": analytics.creators_updated,
+            "videos_updated": analytics.videos_updated,
+            "errors": analytics.errors,
+        },
+        "signal": {
+            "grades_written": signal.grades_written,
+            "niches_processed": signal.niches_processed,
+            "errors": signal.errors,
+        },
+        "patterns": {"rows_updated": patterns_touched},
+    }
+
+
+async def _admin_run_scene_intelligence() -> dict[str, Any]:
+    from getviews_pipeline.scene_intelligence_refresh import refresh_scene_intelligence_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    stats = await run_sync(refresh_scene_intelligence_sync, get_service_client())
+    return {"ok": True, **stats}
+
+
+@app.get("/admin/triggers")
+async def admin_list_triggers(
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    """Enumerate the job catalog so the SPA doesn't hard-code it.
+
+    `body_schema` is a short hint (not JSON Schema) — the SPA renders a
+    matching form (checkboxes for deep_pool, CSV field for niche_ids).
+    `heavy: true` signals "warn operator this takes minutes".
+    """
+    return JSONResponse({
+        "ok": True,
+        "jobs": [
+            {
+                "id": "ingest",
+                "label": "Corpus ingest (/batch/ingest)",
+                "body_schema": {"niche_ids": "int[] | null", "deep_pool": "bool"},
+                "heavy": True,
+            },
+            {
+                "id": "morning_ritual",
+                "label": "Morning ritual scripts (/batch/morning-ritual)",
+                "body_schema": {"user_ids": "uuid[] | null"},
+                "heavy": True,
+            },
+            {
+                "id": "analytics",
+                "label": "Weekly analytics + signal grading (/batch/analytics)",
+                "body_schema": {},
+                "heavy": True,
+            },
+            {
+                "id": "scene_intelligence",
+                "label": "Scene intelligence refresh (/batch/scene-intelligence)",
+                "body_schema": {},
+                "heavy": True,
+            },
+        ],
+    })
+
+
+@app.post("/admin/trigger/ingest")
+async def admin_trigger_ingest(
+    body: AdminTriggerIngestBody = AdminTriggerIngestBody(),
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    logger.info(
+        "[admin/trigger] ingest niche_ids=%s deep_pool=%s invoked_by=%s",
+        body.niche_ids, body.deep_pool, _admin["user_id"],
+    )
+    return JSONResponse(await _admin_run_ingest(body))
+
+
+@app.post("/admin/trigger/morning_ritual")
+async def admin_trigger_morning_ritual(
+    body: AdminTriggerMorningRitualBody = AdminTriggerMorningRitualBody(),
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    logger.info(
+        "[admin/trigger] morning_ritual user_ids=%s invoked_by=%s",
+        body.user_ids, _admin["user_id"],
+    )
+    return JSONResponse(await _admin_run_morning_ritual(body))
+
+
+@app.post("/admin/trigger/analytics")
+async def admin_trigger_analytics(
+    _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    logger.info("[admin/trigger] analytics invoked_by=%s", _admin["user_id"])
+    return JSONResponse(await _admin_run_analytics())
+
+
+@app.post("/admin/trigger/scene_intelligence")
+async def admin_trigger_scene_intelligence(
+    _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    logger.info("[admin/trigger] scene_intelligence invoked_by=%s", _admin["user_id"])
+    return JSONResponse(await _admin_run_scene_intelligence())
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # Phase B · /video — niche benchmark (B.1.2)
 # ══════════════════════════════════════════════════════════════════════════
 

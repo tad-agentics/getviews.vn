@@ -14,6 +14,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
+import { TriggersPanel } from "./TriggersPanel";
 
 function AdminPanelCard({
   title,
@@ -108,9 +109,7 @@ export default function AdminScreen() {
           </AdminPanelCard>
 
           <AdminPanelCard title="Manual triggers" subtitle="chạy pipeline thủ công">
-            <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-              Chưa kết nối — panel sẽ có nút cho ingest_batch, monday_rituals, analytics refresh.
-            </p>
+            <TriggersPanel />
           </AdminPanelCard>
         </div>
       </div>
