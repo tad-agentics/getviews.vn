@@ -90,10 +90,19 @@ export default function ChannelScreen() {
   });
 
   const [draftHandle, setDraftHandle] = useState("");
+  const [handleError, setHandleError] = useState<string | null>(null);
 
   const openHandle = (h: string) => {
     const k = channelAnalyzeHandleKey(h);
-    if (!k) return;
+    if (!k) {
+      // The submit button is `disabled` when the input is empty, but
+      // pressing Enter still fires the form. Early-returning silently
+      // left users thinking the page was broken — surface a short
+      // validation line instead.
+      setHandleError("Nhập handle TikTok trước (ví dụ: @creator).");
+      return;
+    }
+    setHandleError(null);
     setSearchParams({ handle: k }, { replace: true });
   };
 
@@ -151,11 +160,20 @@ export default function ChannelScreen() {
                 </span>
                 <input
                   value={draftHandle}
-                  onChange={(e) => setDraftHandle(e.target.value)}
+                  onChange={(e) => {
+                    setDraftHandle(e.target.value);
+                    if (handleError) setHandleError(null);
+                  }}
                   placeholder="@creator hoặc creator"
                   className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
                   autoComplete="off"
+                  aria-invalid={handleError ? true : undefined}
                 />
+                {handleError ? (
+                  <span role="alert" className="text-xs text-[color:var(--gv-neg-deep)]">
+                    {handleError}
+                  </span>
+                ) : null}
               </label>
               <Btn type="submit" variant="ink" size="md" disabled={!draftHandle.trim()}>
                 Mở phân tích
