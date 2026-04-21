@@ -6,13 +6,18 @@ import type {
   ScriptSaveRequest,
   ScriptSaveResponse,
 } from "@/lib/api-types";
+import { throwSessionExpired } from "@/lib/authErrors";
+import { readErrorDetail } from "@/lib/cloudRunErrors";
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
 
 /**
  * D.1.1 — Wrappers for the four draft-script endpoints on Cloud Run.
  * Shares a single base URL + auth helper so the ScriptScreen wiring
- * stays declarative.
+ * stays declarative. Every fetch runs through `fetchWithTimeout` and
+ * branches on 401 so a stale JWT auto-signs the user out instead of
+ * bubbling an opaque "HTTP 500" that strands the draft.
  */
 
 async function authToken(): Promise<string> {
@@ -34,17 +39,20 @@ export function useScriptSave() {
     mutationFn: async (body) => {
       const base = baseOrThrow();
       const token = await authToken();
-      const res = await fetch(`${base}/script/save`, {
+      const res = await fetchWithTimeout(`${base}/script/save`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        timeoutMs: 30_000,
       });
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
+        throw new Error(await readErrorDetail(res));
       }
       return (await res.json()) as ScriptSaveResponse;
     },
@@ -59,10 +67,14 @@ export function useScriptDrafts(enabled: boolean = true) {
     queryFn: async () => {
       const base = baseOrThrow();
       const token = await authToken();
-      const res = await fetch(`${base}/script/drafts`, {
+      const res = await fetchWithTimeout(`${base}/script/drafts`, {
         headers: { Authorization: `Bearer ${token}` },
+        timeoutMs: 15_000,
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
+      if (!res.ok) throw new Error(await readErrorDetail(res));
       return (await res.json()) as ScriptDraftsListResponse;
     },
     enabled: enabled && Boolean(env.VITE_CLOUD_RUN_API_URL),
@@ -80,12 +92,15 @@ export function useScriptDraft(draftId: string | null | undefined) {
     queryFn: async () => {
       const base = baseOrThrow();
       const token = await authToken();
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${base}/script/drafts/${encodeURIComponent(draftId ?? "")}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` }, timeoutMs: 15_000 },
       );
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (res.status === 404) throw new Error("Không tìm thấy kịch bản");
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(await readErrorDetail(res));
       return (await res.json()) as ScriptDraftResponse;
     },
     enabled: Boolean(draftId) && Boolean(env.VITE_CLOUD_RUN_API_URL),
@@ -118,7 +133,7 @@ export function useScriptExport() {
     mutationFn: async ({ draftId, format, filenameHint }) => {
       const base = baseOrThrow();
       const token = await authToken();
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${base}/script/drafts/${encodeURIComponent(draftId)}/export`,
         {
           method: "POST",
@@ -127,16 +142,19 @@ export function useScriptExport() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ format }),
+          timeoutMs: 45_000,
         },
       );
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (res.status === 503) {
         const err = new Error("pdf_unavailable");
         err.name = "PdfUnavailable";
         throw err;
       }
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
+        throw new Error(await readErrorDetail(res));
       }
       if (format === "copy") {
         return { format: "copy", text: await res.text() };

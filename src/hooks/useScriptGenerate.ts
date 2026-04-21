@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import type { ScriptGenerateRequest, ScriptGenerateResponse } from "@/lib/api-types";
 import { throwSessionExpired } from "@/lib/authErrors";
+import { readErrorDetail } from "@/lib/cloudRunErrors";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
@@ -42,8 +43,7 @@ export function useScriptGenerate() {
         throw err;
       }
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
+        throw new Error(await readErrorDetail(res));
       }
       return (await res.json()) as ScriptGenerateResponse;
     },

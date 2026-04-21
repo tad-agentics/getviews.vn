@@ -251,12 +251,14 @@ def build_script_shots(body: ScriptGenerateBody) -> list[dict[str, Any]]:
             (s.cam, s.overlay, s.intel_scene_type, s.voice, s.viz, s.overlay_winner or "—")
             for s in llm.shots
         ]
+        logger.info("[script/generate] source=gemini niche=%s duration=%ds", body.niche_id, body.duration)
     except Exception as exc:
         logger.warning("[script/generate] Gemini path failed, falling back deterministic: %s", exc)
         creative = None
 
     if creative is None:
         creative = _deterministic_creative_rows(topic=topic, hook=hook, tone=body.tone)
+        logger.info("[script/generate] source=fallback niche=%s duration=%ds", body.niche_id, body.duration)
 
     return _assemble_shots(duration=body.duration, creative=creative)
 
