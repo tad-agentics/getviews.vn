@@ -35,18 +35,35 @@ function formatDuration(ms: number | null): string {
   return `${Math.round(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
 }
 
-function StatusChip({ status }: { status: "ok" | "error" }) {
-  const ok = status === "ok";
+function StatusChip({ status }: { status: "queued" | "running" | "ok" | "error" }) {
+  const config: Record<typeof status, { bg: string; fg: string; label: string }> = {
+    queued: {
+      bg: "bg-[color:var(--gv-canvas-2)]",
+      fg: "text-[color:var(--gv-ink-4)]",
+      label: "queued",
+    },
+    running: {
+      bg: "bg-[color:var(--gv-warn-soft)]",
+      fg: "text-[color:var(--gv-warn)]",
+      label: "running",
+    },
+    ok: {
+      bg: "bg-[color:var(--gv-pos-soft)]",
+      fg: "text-[color:var(--gv-pos-deep)]",
+      label: "ok",
+    },
+    error: {
+      bg: "bg-[color:var(--gv-accent-soft)]",
+      fg: "text-[color:var(--gv-danger)]",
+      label: "error",
+    },
+  };
+  const c = config[status];
   return (
     <span
-      className={
-        "inline-flex items-center rounded-full px-2 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] " +
-        (ok
-          ? "bg-[color:var(--gv-pos-soft)] text-[color:var(--gv-pos-deep)]"
-          : "bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-danger)]")
-      }
+      className={`inline-flex items-center rounded-full px-2 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] ${c.bg} ${c.fg}`}
     >
-      {ok ? "ok" : "error"}
+      {c.label}
     </span>
   );
 }

@@ -69,6 +69,14 @@ _ed_batch_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 _ed_request_class: contextvars.ContextVar[str] = contextvars.ContextVar(
     "ed_request_class", default="user"
 )
+# D.6.9 — per-call-site attribution. Callers wrap ensemble.* helpers
+# with `with ed_call_site("corpus_ingest.hashtag_search"):` so every
+# _ensemble_get success lands in ensemble_calls tagged with the right
+# bucket. Default "unknown" shows up on the dashboard as a visible TODO
+# rather than silently dropping.
+_ed_call_site: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "ed_call_site", default="unknown"
+)
 
 _budget_lock = asyncio.Lock()
 _batch_request_counts_by_utc_day: dict[str, int] = {}
@@ -160,6 +168,52 @@ def ed_batch_metering() -> Iterator[str]:
         _ed_meter.reset(t_meter)
         _ed_request_class.reset(t_class)
         _ed_hashtag_cache.reset(t_ht)
+
+
+@contextlib.contextmanager
+def ed_call_site(site: str) -> Iterator[None]:
+    """Tag every _ensemble_get call inside this block with `site`.
+
+    Convention: dotted "<module>.<operation>", e.g.
+    "corpus_ingest.hashtag_search", "video_diagnosis.post_info".
+    Nesting is allowed — the innermost site wins via contextvars reset.
+    """
+    token = _ed_call_site.set(site)
+    try:
+        yield
+    finally:
+        _ed_call_site.reset(token)
+
+
+def _record_ensemble_call(endpoint: str, duration_ms: int | None) -> None:
+    """Fire-and-forget INSERT into public.ensemble_calls.
+
+    Runs on a daemon thread so a Supabase blip never blocks the ED
+    HTTP path. Captures the current `_ed_call_site` + `_ed_request_class`
+    so the row carries the right attribution without the caller having
+    to pass anything.
+    """
+    call_site = _ed_call_site.get()
+    request_class = _ed_request_class.get()
+
+    def _do() -> None:
+        try:
+            from getviews_pipeline.supabase_client import get_service_client
+
+            get_service_client().table("ensemble_calls").insert({
+                "endpoint": endpoint,
+                "call_site": call_site,
+                "request_class": request_class,
+                "duration_ms": duration_ms,
+            }).execute()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[ensemble_calls] insert failed: %s", exc)
+
+    threading.Thread(
+        target=_do,
+        daemon=True,
+        name=f"ed-attr-{endpoint.replace('/', '-')}",
+    ).start()
 
 
 class _TTLStrCache:
@@ -310,6 +364,7 @@ async def fetch_post_info(url: str) -> dict[str, Any]:
     await _ensemble_budget_gate()
     token = require_ensembledata_token()
     client = await get_api_client()
+    started = time.monotonic()
     r = await client.get(
         ENSEMBLEDATA_POST_INFO_URL,
         params={"url": url, "token": token},
@@ -369,6 +424,10 @@ async def fetch_post_info(url: str) -> dict[str, Any]:
         aweme_detail["_photo_url_hint"] = True
 
     _meter_increment("tt/post/info")
+    # fetch_post_info uses its own httpx.get() instead of _ensemble_get —
+    # record the attribution row here so this path still shows up in the
+    # per-call-site dashboard.
+    _record_ensemble_call("tt/post/info", int((time.monotonic() - started) * 1000))
     _user_path_cache.set(cache_key, aweme_detail)
     return aweme_detail
 
@@ -405,6 +464,7 @@ async def _ensemble_get(path_url: str, params: dict[str, Any]) -> dict[str, Any]
     client = await get_api_client()
     q = {**params, "token": token}
     endpoint = endpoint_key_from_url(path_url)
+    started = time.monotonic()
     r = await client.get(path_url, params=q)
     msg = _ensembledata_error_message(r.status_code)
     if msg:
@@ -429,7 +489,9 @@ async def _ensemble_get(path_url: str, params: dict[str, Any]) -> dict[str, Any]
         r.raise_for_status()
     if not isinstance(payload, dict):
         raise ValueError("Unexpected EnsembleData response: not a JSON object")
+    duration_ms = int((time.monotonic() - started) * 1000)
     _meter_increment(endpoint)
+    _record_ensemble_call(endpoint, duration_ms)
     return payload
 
 

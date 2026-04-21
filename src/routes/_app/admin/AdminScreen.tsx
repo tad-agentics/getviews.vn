@@ -20,6 +20,7 @@ import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TopBar } from "@/components/v2/TopBar";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ActionLogPanel } from "./ActionLogPanel";
+import { AlertsPanel } from "./AlertsPanel";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 import { LogsPanel } from "./LogsPanel";
@@ -59,6 +60,18 @@ export default function AdminScreen() {
         <TopBar kicker="ADMIN · OPS CONSOLE" title="Sức khỏe hệ thống" />
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
+          <section className="gv-fade-up">
+            <SectionHeader
+              kicker="ALERTS · THRESHOLD RULES"
+              title="System alerts"
+              caption="Rule fires trong 24h gần nhất. Slack webhook gửi khi breach — không lặp khi đã firing."
+              kickerTone="pos"
+            />
+            <AlertsPanel />
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
           <section className="gv-fade-up">
             <SectionHeader
               kicker="CORPUS · INGEST + CLAIM TIERS"
