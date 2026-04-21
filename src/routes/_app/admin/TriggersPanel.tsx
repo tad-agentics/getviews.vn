@@ -1,21 +1,14 @@
 /**
- * Phase D.6.3 — Manual trigger buttons.
+ * Phase D.6.3 — Manual trigger buttons (UIUX reference-aligned).
  *
- * Lists the job catalog from `/admin/triggers` and renders one button per
- * job. Heavy jobs (every job currently in the catalog) go through a
- * confirm dialog — these hit Gemini + EnsembleData and cost real money,
- * so a misclick on "Run corpus ingest" can't be allowed to proceed
- * without a second tap. After a successful run the panel shows a small
- * collapsible with the response JSON so the operator can eyeball
- * inserted/skipped/errored counts without leaving the dashboard.
- *
- * The `ingest` job has a tiny inline form (CSV niche_ids + deep_pool
- * checkbox) because it's the only one with meaningful parameters an
- * operator wants to tune per-run. The others are parameter-less for
- * now; when a new job lands in the catalog with non-trivial body_schema
- * it'll need a matching form block here.
+ * Uses the shared Btn component for ink / ghost / accent variants and
+ * the gv-kicker + chip palette from the reference. Each job is a card
+ * with a confirm flow gated by a dialog-style inline block (not a
+ * global modal — the reference keeps destructive confirmations inline
+ * per screen so ops never loses context).
  */
 import { useState } from "react";
+import { Btn } from "@/components/v2/Btn";
 import {
   useAdminTrigger,
   useAdminTriggerCatalog,
@@ -43,6 +36,14 @@ function parseCsvInts(raw: string): number[] | null {
   return nums.length > 0 ? nums : null;
 }
 
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
+      {children}
+    </span>
+  );
+}
+
 function IngestForm({
   onConfirm,
   onCancel,
@@ -65,20 +66,18 @@ function IngestForm({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1">
-        <span className="gv-mono text-[10px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
-          niche_ids (bỏ trống = tất cả)
-        </span>
+    <div className="flex flex-col gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
+      <label className="flex flex-col gap-1.5">
+        <FieldLabel>niche_ids (bỏ trống = tất cả)</FieldLabel>
         <input
           type="text"
           value={nicheCsv}
           onChange={(e) => setNicheCsv(e.target.value)}
           placeholder="1, 3, 7"
-          className="rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-[14px] text-[color:var(--gv-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--gv-accent)]"
+          className="rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-[14px] text-[color:var(--gv-ink)] placeholder:text-[color:var(--gv-ink-4)] gv-focus"
         />
         {csvError ? (
-          <span className="text-[11px] text-[color:var(--gv-danger)]">{csvError}</span>
+          <span className="text-[12px] text-[color:var(--gv-danger)]">{csvError}</span>
         ) : null}
       </label>
       <label className="flex items-center gap-2">
@@ -86,32 +85,21 @@ function IngestForm({
           type="checkbox"
           checked={deepPool}
           onChange={(e) => setDeepPool(e.target.checked)}
+          className="accent-[color:var(--gv-accent)]"
         />
         <span className="text-[12px] text-[color:var(--gv-ink-3)]">
-          deep_pool (widen keyword pagination — dùng khi muốn re-overlap pool cũ sau outage)
+          <span className="gv-mono">deep_pool</span> — widen keyword pagination. Dùng khi muốn re-overlap pool cũ sau outage.
         </span>
       </label>
-      <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-[color:var(--gv-rule)] px-3 py-1.5 gv-mono text-[11px] text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-canvas-2)]"
-        >
-          Hủy
-        </button>
-        <button
-          type="button"
-          onClick={submit}
-          className="rounded-md bg-[color:var(--gv-accent)] px-3 py-1.5 gv-mono text-[11px] text-white hover:opacity-90"
-        >
-          Chạy ingest
-        </button>
+      <div className="flex justify-end gap-2">
+        <Btn variant="ghost" size="sm" onClick={onCancel}>Hủy</Btn>
+        <Btn variant="accent" size="sm" onClick={submit}>Chạy ingest</Btn>
       </div>
     </div>
   );
 }
 
-function ConfirmDialog({
+function ConfirmBlock({
   job,
   body,
   onConfirm,
@@ -123,35 +111,43 @@ function ConfirmDialog({
   onCancel: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
       <p className="text-[13px] text-[color:var(--gv-ink)]">
         Chạy <span className="font-semibold">{job.label}</span>?
       </p>
       {job.heavy ? (
-        <p className="text-[12px] text-[color:var(--gv-ink-3)]">
+        <p className="text-[12px] leading-relaxed text-[color:var(--gv-ink-3)]">
           Job này tốn Gemini / EnsembleData credits và có thể chạy vài phút. Không thể hủy giữa chừng.
         </p>
       ) : null}
       {Object.keys(body).length > 0 ? (
-        <pre className="overflow-x-auto rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+        <pre className="overflow-x-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
           {JSON.stringify(body, null, 2)}
         </pre>
       ) : null}
       <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-[color:var(--gv-rule)] px-3 py-1.5 gv-mono text-[11px] text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-canvas-2)]"
-        >
-          Hủy
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="rounded-md bg-[color:var(--gv-accent)] px-3 py-1.5 gv-mono text-[11px] text-white hover:opacity-90"
-        >
-          Xác nhận chạy
-        </button>
+        <Btn variant="ghost" size="sm" onClick={onCancel}>Hủy</Btn>
+        <Btn variant="ink" size="sm" onClick={onConfirm}>Xác nhận chạy</Btn>
+      </div>
+    </div>
+  );
+}
+
+function ResultBlock({
+  result,
+  onClose,
+}: {
+  result: AdminTriggerResult;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-pos-soft)] p-4">
+      <p className="gv-kicker gv-kicker--dot gv-kicker--pos">Xong — kết quả</p>
+      <pre className="max-h-64 overflow-auto rounded-[var(--gv-radius-sm)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+        {JSON.stringify(result, null, 2)}
+      </pre>
+      <div className="flex justify-end">
+        <Btn variant="ghost" size="sm" onClick={onClose}>Đóng</Btn>
       </div>
     </div>
   );
@@ -183,24 +179,29 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
   const hasParams = Object.keys(job.body_schema).length > 0;
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-[color:var(--gv-rule)] p-3">
-      <div className="flex items-start justify-between gap-3">
+    <article className="flex flex-col gap-3 rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-[color:var(--gv-ink)]">{job.label}</p>
+          <p className="gv-serif text-[15px] text-[color:var(--gv-ink)]">{job.label}</p>
           {hasParams ? (
-            <p className="mt-0.5 gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
-              params: {Object.keys(job.body_schema).join(", ")}
+            <p className="mt-1 gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+              params · {Object.keys(job.body_schema).join(", ")}
             </p>
+          ) : null}
+          {job.heavy ? (
+            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
+              heavy
+            </span>
           ) : null}
         </div>
         {dialog.kind === "closed" && !showForm ? (
-          <button
-            type="button"
+          <Btn
+            variant="ghost"
+            size="sm"
             onClick={() => (hasParams ? setShowForm(true) : startWith({}))}
-            className="shrink-0 rounded-md border border-[color:var(--gv-rule)] px-3 py-1.5 gv-mono text-[11px] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]"
           >
             Run
-          </button>
+          </Btn>
         ) : null}
       </div>
 
@@ -209,7 +210,7 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
       ) : null}
 
       {dialog.kind === "confirm" ? (
-        <ConfirmDialog
+        <ConfirmBlock
           job={job}
           body={dialog.body}
           onConfirm={() => void confirmRun()}
@@ -218,46 +219,32 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
       ) : null}
 
       {dialog.kind === "running" ? (
-        <div className="flex items-center gap-2 text-[12px] text-[color:var(--gv-ink-3)]">
+        <div className="flex items-center gap-2 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-3">
           <div
-            className="h-3 w-3 animate-spin rounded-full border-2 border-[color:var(--gv-accent)] border-t-transparent"
+            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[color:var(--gv-accent)] border-t-transparent"
             aria-hidden
           />
-          <span>Đang chạy — có thể mất vài phút, đừng đóng tab…</span>
+          <span className="gv-mono text-[12px] text-[color:var(--gv-ink-3)]">
+            Đang chạy — có thể mất vài phút, đừng đóng tab…
+          </span>
         </div>
       ) : null}
 
       {dialog.kind === "result" ? (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[12px] text-[color:var(--gv-pos)]">Xong ✓</p>
-          <pre className="max-h-64 overflow-auto rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-2 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
-            {JSON.stringify(dialog.result, null, 2)}
-          </pre>
-          <button
-            type="button"
-            onClick={() => setDialog({ kind: "closed" })}
-            className="self-end gv-mono text-[10px] text-[color:var(--gv-accent)] underline"
-          >
-            Đóng
-          </button>
-        </div>
+        <ResultBlock result={dialog.result} onClose={() => setDialog({ kind: "closed" })} />
       ) : null}
 
       {dialog.kind === "error" ? (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[12px] text-[color:var(--gv-danger)]">
-            Lỗi: {dialog.message}
+        <div className="flex items-center justify-between gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
+          <p className="gv-mono text-[12px] text-[color:var(--gv-danger)]">
+            Lỗi · {dialog.message}
           </p>
-          <button
-            type="button"
-            onClick={() => setDialog({ kind: "closed" })}
-            className="self-end gv-mono text-[10px] text-[color:var(--gv-accent)] underline"
-          >
+          <Btn variant="ghost" size="sm" onClick={() => setDialog({ kind: "closed" })}>
             Đóng
-          </button>
+          </Btn>
         </div>
       ) : null}
-    </div>
+    </article>
   );
 }
 
@@ -269,14 +256,14 @@ export function TriggersPanel() {
       <div
         role="status"
         aria-label="Đang tải trigger catalog"
-        className="h-32 animate-pulse rounded-md bg-[color:var(--gv-canvas-2)]"
+        className="h-40 animate-pulse rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
       />
     );
   }
   if (catalog.isError) {
     const msg = catalog.error instanceof Error ? catalog.error.message : "unknown";
     return (
-      <p className="text-[12px] text-[color:var(--gv-danger)]">
+      <p className="text-[13px] text-[color:var(--gv-danger)]">
         Không tải được trigger catalog ({msg}).
       </p>
     );
@@ -284,15 +271,10 @@ export function TriggersPanel() {
   if (!catalog.data) return null;
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-        Chạy thủ công các pipeline định kỳ. Mỗi job có confirm dialog trước khi fire.
-      </p>
-      <div className="flex flex-col gap-2">
-        {catalog.data.map((job) => (
-          <JobRow key={job.id} job={job} />
-        ))}
-      </div>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {catalog.data.map((job) => (
+        <JobRow key={job.id} job={job} />
+      ))}
     </div>
   );
 }

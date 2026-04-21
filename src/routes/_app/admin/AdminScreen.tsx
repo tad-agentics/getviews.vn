@@ -1,116 +1,106 @@
 /**
- * Phase D.6 — /app/admin operator dashboard shell.
+ * Phase D.6 — /app/admin operator dashboard.
  *
- * Mounts four panels (corpus health / ensemble credits / cloud-run logs /
- * manual triggers) behind a client-side `is_admin` gate. Each panel ships
- * in its own commit; this file is the routing + layout spine they hang
- * off. Server-side `require_admin` on every data endpoint is the real
- * authorization boundary — this screen only decides what the SPA bothers
- * to render.
+ * Editorial layout mirrors `artifacts/uiux-reference/screens/home.jsx`:
+ * sticky TopBar, 1320px main wrap, SectionHeader with kicker dot + tight
+ * 28px title for each panel, `<hr>` rules between sections, and
+ * `gv-fade-up` staggered entries. The four panels (CorpusHealth,
+ * EnsembleCredits, Logs, Triggers) handle their own data + visual
+ * density; this file is purely the routing + section rhythm.
+ *
+ * Gate: the SPA checks `useIsAdmin()` and bounces non-admins to /app.
+ * The server-side `require_admin` dep on every /admin/* endpoint is the
+ * authoritative boundary — this screen only decides what the SPA
+ * bothers to render.
  */
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { AppLayout } from "@/components/AppLayout";
+import { SectionHeader } from "@/components/v2/SectionHeader";
+import { TopBar } from "@/components/v2/TopBar";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 import { LogsPanel } from "./LogsPanel";
 import { TriggersPanel } from "./TriggersPanel";
 
-function AdminPanelCard({
-  title,
-  subtitle,
-  children,
-  fullWidth,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  fullWidth?: boolean;
-}) {
-  return (
-    <section
-      className={`flex flex-col gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 ${
-        fullWidth ? "md:col-span-2" : ""
-      }`}
-    >
-      <header>
-        <h2 className="gv-serif text-[18px] leading-snug text-[color:var(--gv-ink)]">
-          {title}
-        </h2>
-        {subtitle ? (
-          <p className="mt-1 gv-mono text-[11px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
-            {subtitle}
-          </p>
-        ) : null}
-      </header>
-      <div className="min-w-0">{children}</div>
-    </section>
-  );
-}
-
 export default function AdminScreen() {
   const { isAdmin, isLoading } = useIsAdmin();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect non-admins back to Studio. The server will also reject any
-    // /admin/* fetch with 403, but bouncing the route keeps the URL tidy
-    // and prevents render of the shell to someone who shouldn't see it.
+    // Bounce non-admins to Studio. The server's require_admin dep will
+    // also 403 any /admin/* fetch; routing away keeps the URL honest and
+    // prevents flashes of panel chrome before the first query fails.
     if (!isLoading && !isAdmin) navigate("/app", { replace: true });
   }, [isAdmin, isLoading, navigate]);
 
   if (isLoading) {
     return (
-      <AppLayout>
+      <AppLayout active="admin">
         <div
           role="status"
           aria-label="Đang tải"
-          className="min-h-[40vh] flex-1 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]"
+          className="min-h-[40vh] flex-1 animate-pulse rounded-[var(--gv-radius-lg)] bg-[color:var(--gv-canvas-2)]"
         />
       </AppLayout>
     );
   }
-
   if (!isAdmin) {
-    // Render a safe no-op frame while the redirect effect fires; prevents
-    // a flash of real admin content between the profile resolving and the
-    // navigate() landing.
-    return <AppLayout>{null}</AppLayout>;
+    // Keep the redirect-effect tick quiet — render the empty shell so the
+    // layout doesn't reflow between "loading" and "bounce".
+    return <AppLayout active="admin">{null}</AppLayout>;
   }
 
   return (
-    <AppLayout>
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-4 py-6 md:px-8">
-        <header className="flex flex-col gap-1">
-          <p className="gv-mono text-[11px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
-            Admin · Operator dashboard
-          </p>
-          <h1 className="gv-serif text-[28px] leading-tight text-[color:var(--gv-ink)]">
-            Sức khỏe hệ thống
-          </h1>
-          <p className="text-[13px] text-[color:var(--gv-ink-3)]">
-            Theo dõi Corpus, EnsembleData credits, Cloud Run logs và chạy thủ công các job định kỳ.
-          </p>
-        </header>
+    <AppLayout active="admin">
+      <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
+        <TopBar kicker="ADMIN · OPS CONSOLE" title="Sức khỏe hệ thống" />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <AdminPanelCard title="Corpus health" subtitle="per-niche ingest + claim tiers" fullWidth>
+        <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
+          <section className="gv-fade-up">
+            <SectionHeader
+              kicker="CORPUS · INGEST + CLAIM TIERS"
+              title="Corpus health"
+              caption="Lượng video 7d / 30d / 90d theo niche và tier claim hiện tại."
+            />
             <CorpusHealthPanel />
-          </AdminPanelCard>
+          </section>
 
-          <AdminPanelCard title="EnsembleData credits" subtitle="used units theo ngày" fullWidth>
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up gv-fade-up-delay-1">
+            <SectionHeader
+              kicker="ENSEMBLEDATA · USED UNITS"
+              title="Credit runway"
+              caption="Units đã dùng mỗi UTC-day và projection 30 ngày."
+            />
             <EnsembleCreditsPanel />
-          </AdminPanelCard>
+          </section>
 
-          <AdminPanelCard title="Cloud Run logs" subtitle="stdout tail theo filter" fullWidth>
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up gv-fade-up-delay-2">
+            <SectionHeader
+              kicker="CLOUD RUN · STDOUT TAIL"
+              title="Logs"
+              caption="Lọc theo severity và cửa sổ thời gian; click để mở rộng payload."
+              kickerTone="muted"
+            />
             <LogsPanel />
-          </AdminPanelCard>
+          </section>
 
-          <AdminPanelCard title="Manual triggers" subtitle="chạy pipeline thủ công">
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up gv-fade-up-delay-3">
+            <SectionHeader
+              kicker="MANUAL RUN · CRON JOBS"
+              title="Triggers"
+              caption="Chạy tay các pipeline định kỳ. Mỗi job có confirm trước khi fire."
+            />
             <TriggersPanel />
-          </AdminPanelCard>
-        </div>
+          </section>
+        </main>
       </div>
     </AppLayout>
   );
