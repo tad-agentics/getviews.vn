@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
@@ -445,9 +446,47 @@ Trả về JSON theo schema:
     return FlopAnalysisLLM.model_validate_json(_normalize_response(raw))
 
 
+_CORPUS_ROW_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
 def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -> str:
+    """Resolve whatever the caller passed into the canonical TikTok aweme_id.
+
+    Accepts three shapes for `video_id`:
+      - TikTok aweme_id (a numeric string like "7630766288574369045") —
+        the canonical shape, returned as-is.
+      - video_corpus.id (UUID) — some frontend callers (notably the
+        Explore grid at src/routes/_app/trends/ExploreScreen.tsx) pass
+        the corpus row PK instead of the aweme_id because the
+        ExploreGridVideo type only exposes the row id. Tolerate it by
+        looking the row up and returning its aweme_id.
+      - empty → fall through to tiktok_url lookup.
+
+    The UUID path exists because the shared URL vocab `?video_id=` is
+    semantically ambiguous; fixing every call site would touch more
+    code than fixing the resolver once. A surface-level frontend fix
+    would also make sense for future cleanliness but doesn't change
+    the server-side guarantee.
+    """
     if video_id and str(video_id).strip():
-        return str(video_id).strip()
+        vid = str(video_id).strip()
+        # UUID shape → treat as corpus row id, not aweme_id.
+        if _CORPUS_ROW_UUID_RE.match(vid):
+            res = (
+                sb.table("video_corpus")
+                .select("video_id")
+                .eq("id", vid)
+                .limit(1)
+                .execute()
+            )
+            rows = res.data or []
+            if not rows:
+                raise ValueError("Không tìm thấy video trong corpus cho id này")
+            return str(rows[0]["video_id"])
+        return vid
     if not tiktok_url or not str(tiktok_url).strip():
         raise ValueError("Cần video_id hoặc tiktok_url")
     url = str(tiktok_url).strip()

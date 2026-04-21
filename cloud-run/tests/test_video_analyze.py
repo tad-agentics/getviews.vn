@@ -23,6 +23,7 @@ from getviews_pipeline.video_analyze import (
     _response_from_diagnostics_row,
     is_flop_mode,
     projected_views_heuristic,
+    resolve_video_id,
     run_video_analyze_pipeline,
 )
 
@@ -569,3 +570,93 @@ def test_run_pipeline_respects_mode_override() -> None:
     assert out["lessons"] == []
     assert out["analysis_subtext"] is None
     service_sb.table.assert_called_once_with("video_diagnostics")
+
+
+# ── resolve_video_id — tolerates both aweme_id + video_corpus.id (UUID) ────
+
+
+def test_resolve_video_id_returns_aweme_id_as_is() -> None:
+    """Canonical shape: numeric aweme_id passes through unchanged."""
+    sb = MagicMock()
+    out = resolve_video_id(sb, video_id="7630766288574369045", tiktok_url=None)
+    assert out == "7630766288574369045"
+    # No corpus lookup needed for aweme_id input.
+    sb.table.assert_not_called()
+
+
+def test_resolve_video_id_tolerates_corpus_row_uuid() -> None:
+    """Explore grid passes video_corpus.id instead of aweme_id — resolve
+    by looking up the row and returning its video_id column."""
+    sb = MagicMock()
+    chain = sb.table.return_value.select.return_value.eq.return_value.limit.return_value
+    chain.execute.return_value = SimpleNamespace(
+        data=[{"video_id": "7630766288574369045"}]
+    )
+
+    out = resolve_video_id(
+        sb,
+        video_id="1298c980-1df3-4b24-aee1-7feff3427bfa",
+        tiktok_url=None,
+    )
+    assert out == "7630766288574369045"
+    sb.table.assert_called_with("video_corpus")
+    # Lookup must filter on `id`, not `video_id` — that's the whole point.
+    sb.table.return_value.select.assert_called_with("video_id")
+    sb.table.return_value.select.return_value.eq.assert_called_with(
+        "id", "1298c980-1df3-4b24-aee1-7feff3427bfa"
+    )
+
+
+def test_resolve_video_id_uuid_with_no_corpus_row_raises() -> None:
+    """If the UUID doesn't match any corpus row, surface a clear error
+    rather than silently returning the UUID (which would then fail
+    downstream with the misleading 'video not in corpus')."""
+    sb = MagicMock()
+    chain = sb.table.return_value.select.return_value.eq.return_value.limit.return_value
+    chain.execute.return_value = SimpleNamespace(data=[])
+
+    with pytest.raises(ValueError, match="Không tìm thấy video trong corpus cho id này"):
+        resolve_video_id(
+            sb,
+            video_id="00000000-0000-0000-0000-000000000000",
+            tiktok_url=None,
+        )
+
+
+def test_resolve_video_id_uppercase_uuid_matches_pattern() -> None:
+    """UUID matcher is case-insensitive — some callers upper-case."""
+    sb = MagicMock()
+    chain = sb.table.return_value.select.return_value.eq.return_value.limit.return_value
+    chain.execute.return_value = SimpleNamespace(
+        data=[{"video_id": "7630766288574369045"}]
+    )
+    out = resolve_video_id(
+        sb,
+        video_id="1298C980-1DF3-4B24-AEE1-7FEFF3427BFA",
+        tiktok_url=None,
+    )
+    assert out == "7630766288574369045"
+
+
+def test_resolve_video_id_falls_back_to_tiktok_url() -> None:
+    """No video_id, but tiktok_url present — look up by URL."""
+    sb = MagicMock()
+    chain = sb.table.return_value.select.return_value.eq.return_value.limit.return_value
+    chain.execute.return_value = SimpleNamespace(
+        data=[{"video_id": "7630766288574369045"}]
+    )
+    out = resolve_video_id(
+        sb,
+        video_id=None,
+        tiktok_url="https://www.tiktok.com/@bbskincare1/video/7630766288574369045",
+    )
+    assert out == "7630766288574369045"
+    sb.table.return_value.select.return_value.eq.assert_called_with(
+        "tiktok_url", "https://www.tiktok.com/@bbskincare1/video/7630766288574369045"
+    )
+
+
+def test_resolve_video_id_neither_raises() -> None:
+    sb = MagicMock()
+    with pytest.raises(ValueError, match="Cần video_id hoặc tiktok_url"):
+        resolve_video_id(sb, video_id=None, tiktok_url=None)
