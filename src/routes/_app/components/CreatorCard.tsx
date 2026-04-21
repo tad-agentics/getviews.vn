@@ -195,7 +195,7 @@ export function CreatorCard({
           <div className="flex items-center gap-1.5">
             <p className="truncate text-sm font-semibold text-[var(--ink)]">{data.handle}</p>
             {data.verified ? (
-              <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--purple)]" strokeWidth={2.5} />
+              <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--gv-accent)]" strokeWidth={2.5} />
             ) : null}
             <span className="ml-auto flex-shrink-0 rounded-full bg-[var(--surface-alt)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
               {TIER_LABEL[data.tier]}
@@ -249,7 +249,7 @@ export function CreatorCard({
                 href={data.best_video.tiktok_url}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--purple)] hover:underline"
+                className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--gv-accent)] hover:underline"
               >
                 Mở trên TikTok <ExternalLink className="h-2.5 w-2.5" strokeWidth={2.5} />
               </a>
@@ -318,7 +318,7 @@ export function CreatorCard({
               key={i}
               type="button"
               onClick={() => onAction(a.prompt)}
-              className="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-1 text-[11px] font-medium text-[var(--ink)] transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
+              className="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-1 text-[11px] font-medium text-[var(--ink)] transition-all duration-[120ms] hover:border-[var(--gv-ink)] hover:shadow-sm active:scale-[0.98]"
             >
               {a.prompt}
             </button>

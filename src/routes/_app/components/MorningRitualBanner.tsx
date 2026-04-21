@@ -78,7 +78,7 @@ export const MorningRitualBanner = memo(function MorningRitualBanner({
               "group flex flex-col gap-2 rounded-xl border p-3.5 text-left transition-all duration-[120ms] " +
               (idx === 0
                 ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--background)] hover:shadow-md"
-                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-active)] hover:shadow-sm")
+                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gv-ink)] hover:shadow-sm")
             }
           >
             <div

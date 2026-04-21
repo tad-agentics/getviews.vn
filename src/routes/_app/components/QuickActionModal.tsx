@@ -168,7 +168,7 @@ export function QuickActionModal({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleContinue();
                     }}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--ink)] transition-all duration-[120ms] placeholder:text-[var(--faint)] focus:border-[var(--purple)] focus:outline-none focus:ring-1 focus:ring-[var(--purple)]"
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--ink)] transition-all duration-[120ms] placeholder:text-[var(--faint)] focus:border-[var(--gv-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--gv-accent)]"
                     autoFocus={field.key === config.fields[0].key}
                   />
                 ) : (
@@ -177,7 +177,7 @@ export function QuickActionModal({
                     value={values[field.key]}
                     onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
                     rows={3}
-                    className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--ink)] transition-all duration-[120ms] placeholder:text-[var(--faint)] focus:border-[var(--purple)] focus:outline-none focus:ring-1 focus:ring-[var(--purple)]"
+                    className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--ink)] transition-all duration-[120ms] placeholder:text-[var(--faint)] focus:border-[var(--gv-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--gv-accent)]"
                   />
                 )}
               </div>

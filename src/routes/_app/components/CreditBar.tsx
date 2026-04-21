@@ -42,7 +42,7 @@ export function CreditBar({
     <motion.div
       animate={
         flash
-          ? { boxShadow: "0 0 0 2px var(--purple)" }
+          ? { boxShadow: "0 0 0 2px var(--gv-accent)" }
           : { boxShadow: "0 0 0 0px transparent" }
       }
       transition={{ duration: 0.2 }}
@@ -55,7 +55,7 @@ export function CreditBar({
         {showPricingLinks ? (
           <Link
             to="/app/pricing"
-            className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--purple)] hover:underline"
+            className="flex items-center gap-0.5 text-[10px] font-semibold text-[var(--gv-accent)] hover:underline"
           >
             <Zap className="h-2.5 w-2.5" strokeWidth={2.5} />
             Nâng cấp
@@ -75,7 +75,7 @@ export function CreditBar({
               animate={{ opacity: 0, y: -12 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
-              className="pointer-events-none absolute left-8 top-0 font-mono text-xs font-bold text-[var(--purple)]"
+              className="pointer-events-none absolute left-8 top-0 font-mono text-xs font-bold text-[var(--gv-accent)]"
             >
               −1
             </motion.span>
@@ -83,7 +83,7 @@ export function CreditBar({
         </AnimatePresence>
       </div>
       {showPricingLinks && deepCreditsRemaining === 0 ? (
-        <Link to="/app/pricing" className="mb-1.5 block text-xs font-semibold text-[var(--purple)] hover:underline">
+        <Link to="/app/pricing" className="mb-1.5 block text-xs font-semibold text-[var(--gv-accent)] hover:underline">
           Hết phân tích. Mở thêm →
         </Link>
       ) : null}
