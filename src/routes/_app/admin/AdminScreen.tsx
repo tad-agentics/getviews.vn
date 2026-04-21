@@ -19,6 +19,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TopBar } from "@/components/v2/TopBar";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { ActionLogPanel } from "./ActionLogPanel";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 import { LogsPanel } from "./LogsPanel";
@@ -99,6 +100,18 @@ export default function AdminScreen() {
               caption="Chạy tay các pipeline định kỳ. Mỗi job có confirm trước khi fire."
             />
             <TriggersPanel />
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up gv-fade-up-delay-3">
+            <SectionHeader
+              kicker="AUDIT · WHO RAN WHAT"
+              title="Action log"
+              caption="Lịch sử các trigger gần đây kèm status + duration."
+              kickerTone="muted"
+            />
+            <ActionLogPanel />
           </section>
         </main>
       </div>

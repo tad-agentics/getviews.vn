@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -1454,6 +1455,80 @@ async def admin_logs(
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.6 · admin_action_log — audit trail helper
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _record_admin_action(
+    *,
+    user_id: str,
+    action: str,
+    params: dict[str, Any] | None,
+    result_status: str,
+    error_message: str | None = None,
+    duration_ms: int | None = None,
+) -> None:
+    """Insert one row into admin_action_log. Fire-and-forget.
+
+    A Supabase blip must never block the admin operation itself — the
+    audit row is best-effort. Failures are logged to stdout so they
+    surface in /admin/logs for investigation, but the caller doesn't
+    see them. Sanitise-on-input: the caller is responsible for passing
+    params without secrets; we don't inspect the payload here.
+    """
+    def _do() -> None:
+        try:
+            from getviews_pipeline.supabase_client import get_service_client
+
+            get_service_client().table("admin_action_log").insert({
+                "user_id": user_id,
+                "action": action,
+                "params_json": params or {},
+                "result_status": result_status,
+                "error_message": error_message,
+                "duration_ms": duration_ms,
+            }).execute()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[admin_action_log] insert failed: %s", exc)
+
+    # Use a daemon thread so the audit write doesn't tie up the request
+    # thread — matches the pattern in gemini_cost.log_gemini_call.
+    threading.Thread(target=_do, daemon=True, name=f"admin-audit-{action}").start()
+
+
+@app.get("/admin/action-log")
+async def admin_action_log(
+    _admin: dict[str, Any] = Depends(require_admin),
+    limit: int = Query(50, ge=1, le=200),
+) -> JSONResponse:
+    """Recent admin actions newest-first.
+
+    Admin-only. Reads through service_role (bypasses RLS) since the
+    table has no authenticated grants. Response shape matches
+    `admin_action_log.Row` — the SPA renders a simple table.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("admin_action_log")
+            .select("id, user_id, action, params_json, result_status, error_message, duration_ms, created_at")
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[admin/action-log] fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({
+        "ok": True,
+        "entries": resp.data or [],
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # Phase D.6.3 · /admin/trigger/{job} — manual run of periodic batch jobs
 # ══════════════════════════════════════════════════════════════════════════
 #
@@ -1600,46 +1675,107 @@ async def admin_list_triggers(
     })
 
 
+async def _run_trigger_with_audit(
+    *,
+    user_id: str,
+    action: str,
+    params: dict[str, Any],
+    runner: Any,
+) -> JSONResponse:
+    """Run an admin trigger while recording an admin_action_log row.
+
+    Captures duration_ms, flips result_status based on exception, and
+    re-raises so FastAPI's normal error path still produces the right
+    status code. The audit insert is fire-and-forget (daemon thread);
+    a logging-layer blip never blocks the real work.
+    """
+    logger.info("[admin/trigger] %s params=%s invoked_by=%s", action, params, user_id)
+    started = time.monotonic()
+    try:
+        result = await runner()
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _record_admin_action(
+            user_id=user_id,
+            action=action,
+            params=params,
+            result_status="ok",
+            duration_ms=duration_ms,
+        )
+        return JSONResponse(result)
+    except HTTPException as exc:
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _record_admin_action(
+            user_id=user_id,
+            action=action,
+            params=params,
+            result_status="error",
+            error_message=str(exc.detail)[:500],
+            duration_ms=duration_ms,
+        )
+        raise
+    except Exception as exc:  # noqa: BLE001
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _record_admin_action(
+            user_id=user_id,
+            action=action,
+            params=params,
+            result_status="error",
+            error_message=str(exc)[:500],
+            duration_ms=duration_ms,
+        )
+        raise
+
+
 @app.post("/admin/trigger/ingest")
 async def admin_trigger_ingest(
     body: AdminTriggerIngestBody = AdminTriggerIngestBody(),
-    _admin: dict[str, Any] = Depends(require_admin),
+    admin: dict[str, Any] = Depends(require_admin),
 ) -> JSONResponse:
-    logger.info(
-        "[admin/trigger] ingest niche_ids=%s deep_pool=%s invoked_by=%s",
-        body.niche_ids, body.deep_pool, _admin["user_id"],
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.ingest",
+        params={"niche_ids": body.niche_ids, "deep_pool": body.deep_pool},
+        runner=lambda: _admin_run_ingest(body),
     )
-    return JSONResponse(await _admin_run_ingest(body))
 
 
 @app.post("/admin/trigger/morning_ritual")
 async def admin_trigger_morning_ritual(
     body: AdminTriggerMorningRitualBody = AdminTriggerMorningRitualBody(),
-    _admin: dict[str, Any] = Depends(require_admin),
+    admin: dict[str, Any] = Depends(require_admin),
 ) -> JSONResponse:
-    logger.info(
-        "[admin/trigger] morning_ritual user_ids=%s invoked_by=%s",
-        body.user_ids, _admin["user_id"],
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.morning_ritual",
+        params={"user_ids": body.user_ids},
+        runner=lambda: _admin_run_morning_ritual(body),
     )
-    return JSONResponse(await _admin_run_morning_ritual(body))
 
 
 @app.post("/admin/trigger/analytics")
 async def admin_trigger_analytics(
     _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
-    _admin: dict[str, Any] = Depends(require_admin),
+    admin: dict[str, Any] = Depends(require_admin),
 ) -> JSONResponse:
-    logger.info("[admin/trigger] analytics invoked_by=%s", _admin["user_id"])
-    return JSONResponse(await _admin_run_analytics())
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.analytics",
+        params={},
+        runner=_admin_run_analytics,
+    )
 
 
 @app.post("/admin/trigger/scene_intelligence")
 async def admin_trigger_scene_intelligence(
     _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
-    _admin: dict[str, Any] = Depends(require_admin),
+    admin: dict[str, Any] = Depends(require_admin),
 ) -> JSONResponse:
-    logger.info("[admin/trigger] scene_intelligence invoked_by=%s", _admin["user_id"])
-    return JSONResponse(await _admin_run_scene_intelligence())
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.scene_intelligence",
+        params={},
+        runner=_admin_run_scene_intelligence,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════
