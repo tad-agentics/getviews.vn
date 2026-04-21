@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import type { ScriptGenerateRequest, ScriptGenerateResponse } from "@/lib/api-types";
+import { throwSessionExpired } from "@/lib/authErrors";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
@@ -27,6 +28,9 @@ export function useScriptGenerate() {
         body: JSON.stringify(body),
         timeoutMs: 45_000,
       });
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (res.status === 402) {
         const err = new Error("insufficient_credits");
         err.name = "InsufficientCredits";

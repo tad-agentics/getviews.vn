@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { RetentionCurveSource, VideoAnalyzeMode, VideoAnalyzeResponse } from "@/lib/api-types";
+import { throwSessionExpired } from "@/lib/authErrors";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
@@ -73,6 +74,12 @@ export function useVideoAnalysis({
         timeoutMs: 60_000,
       });
 
+      if (res.status === 401) {
+        // Supabase's session refresh failed (or Cloud Run's JWT validator
+        // rejected the token). Surface as SessionExpired so the global
+        // listener in AuthProvider can sign out + bounce to /login.
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (res.status === 402) {
         // Semantic error — user is out of credits. Surface as named error
         // so `VideoScreen` can route it to the "buy credits" CTA instead

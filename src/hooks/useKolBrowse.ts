@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { KolBrowseResponse, KolBrowseTab } from "@/lib/api-types";
+import { throwSessionExpired } from "@/lib/authErrors";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
@@ -128,6 +129,9 @@ async function fetchKolBrowse(params: {
     headers: { Authorization: `Bearer ${session.access_token}` },
     timeoutMs: 30_000,
   });
+  if (res.status === 401) {
+    throwSessionExpired("401_from_cloud_run");
+  }
   if (res.status === 404) {
     const detail = (await res.json().catch(() => ({}))) as { detail?: string };
     throw new Error(detail.detail ?? "Chưa chọn ngách");
@@ -231,6 +235,9 @@ export function useKolTogglePin(userId: string | undefined) {
         // rolls back quickly rather than blocking the user for 30s.
         timeoutMs: 10_000,
       });
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || `HTTP ${res.status}`);

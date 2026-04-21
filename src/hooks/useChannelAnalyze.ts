@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChannelAnalyzeResponse } from "@/lib/api-types";
+import { throwSessionExpired } from "@/lib/authErrors";
 import { normalizeChannelHandleInput } from "@/lib/channelHandle";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
@@ -52,6 +53,9 @@ export function useChannelAnalyze({
         timeoutMs: 45_000,
       });
 
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (res.status === 402) {
         // Name the error so the screen can branch on err.name rather than
         // regex-matching the Vietnamese message string. Parity with
