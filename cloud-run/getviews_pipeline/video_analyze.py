@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field, model_validator
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
     fetch_niche_intelligence_sync,
-    niche_row_to_video_meta,
 )
 from getviews_pipeline.video_structural import (
     decompose_segments,

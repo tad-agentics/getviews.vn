@@ -7,7 +7,6 @@ Imported by layer0_niche.py, layer0_sound.py, and layer0_migration.py.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel
 

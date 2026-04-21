@@ -106,7 +106,7 @@ async def run_cross_niche_migration(client: Any | None = None) -> dict[str, Any]
     """Module 0C entry point. Called from _run_weekly_analytics in corpus_ingest.py."""
     from getviews_pipeline.supabase_client import get_service_client
     from getviews_pipeline.gemini import _generate_content_models, _response_text, _normalize_response
-    from getviews_pipeline.config import GEMINI_SYNTHESIS_MODEL, GEMINI_SYNTHESIS_FALLBACKS, GEMINI_TEMPERATURE
+    from getviews_pipeline.config import GEMINI_SYNTHESIS_MODEL, GEMINI_SYNTHESIS_FALLBACKS
     from getviews_pipeline.layer0_prompts import CROSS_NICHE_PROMPT_TEMPLATE, LAYER0_MIGRATION_RESPONSE_SCHEMA
     from google.genai import types
 

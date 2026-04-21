@@ -14,7 +14,6 @@ from getviews_pipeline.report_types import (
     Lifecycle,
     Metric,
     PatternCellPayload,
-    SourceRow,
     SumStat,
 )
 from getviews_pipeline.script_data import HOOK_TYPE_PATTERN_VI, latest_hook_effectiveness_rows
@@ -291,7 +290,6 @@ def build_tldr_callouts(ni: dict[str, Any], window_days: int) -> list[SumStat]:
 def build_pattern_cells(ni: dict[str, Any]) -> list[PatternCellPayload]:
     """Four cells from niche_intelligence norms (best-effort)."""
     med_dur = float(ni.get("median_duration") or ni.get("avg_video_length_seconds") or ni.get("avg_duration") or 28)
-    pct_sound = float(ni.get("pct_original_sound") or 0)
     md = int(med_dur)
     dur_bars = [
         max(8, md - 14),

@@ -16,8 +16,6 @@ from pydantic import BaseModel, ValidationError
 
 from getviews_pipeline.config import (
     FILES_API_POLL_INITIAL_SEC,
-    FILES_API_POLL_INTERVAL_SEC,
-    FILES_API_POLL_MAX_ATTEMPTS,
     FILES_API_POLL_MAX_SEC,
     FILES_API_POLL_TIMEOUT_SEC,
     GEMINI_DIAGNOSIS_MODEL,

@@ -27,7 +27,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Iterable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

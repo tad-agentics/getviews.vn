@@ -13,7 +13,7 @@ from typing import Any
 from getviews_pipeline.supabase_client import get_service_client
 
 from getviews_pipeline import ensemble
-from getviews_pipeline.analysis_core import analyze_aweme, analyze_tiktok_url
+from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
@@ -35,7 +35,6 @@ from getviews_pipeline.creator_enrich import (
     tier_from_followers,
 )
 from getviews_pipeline.hashtag_niche_map import (
-    _hashtag_to_niche,
     _refresh_cache as _refresh_hashtag_cache,
     classify_from_hashtags,
     score_niche_match,

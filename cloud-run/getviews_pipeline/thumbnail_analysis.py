@@ -13,7 +13,6 @@ Cache:  getviews_pipeline.thumbnail_analysis_cache.resolve_thumbnail_analysis
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 

@@ -16,7 +16,7 @@ from typing import Any
 
 from getviews_pipeline.report_generic import build_generic_report
 from getviews_pipeline.report_ideas import build_ideas_report
-from getviews_pipeline.report_pattern import ANSWER_FIXTURE_PATTERN, build_pattern_report
+from getviews_pipeline.report_pattern import build_pattern_report
 from getviews_pipeline.report_timing import build_timing_report
 from getviews_pipeline.report_types import validate_and_store_report
 from getviews_pipeline.supabase_client import get_service_client

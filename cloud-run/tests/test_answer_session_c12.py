@@ -7,11 +7,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from getviews_pipeline.answer_session import (
-    ANSWER_FIXTURE_PATTERN,
     create_session,
     get_session_turns,
     patch_session,
 )
+from getviews_pipeline.report_pattern import ANSWER_FIXTURE_PATTERN
 from getviews_pipeline.report_types import ReportV1
 
 

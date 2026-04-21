@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
