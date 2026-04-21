@@ -19,7 +19,8 @@ interface BreakoutSound {
   commerce_signal: boolean;
 }
 
-function mondayWeekOfDateString(): string {
+/** Week key for `trending_sounds.week_of` — exported so callers can share React Query keys. */
+export function mondayWeekOfDateString(): string {
   const d = new Date();
   const day = d.getDay();
   d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
