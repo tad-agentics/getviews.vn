@@ -129,7 +129,10 @@ def format_draft_for_copy(draft: dict[str, Any]) -> str:
     hook = (draft.get("hook") or "").strip()
     tone = (draft.get("tone") or "").strip()
     duration = int(draft.get("duration_sec") or 0)
-    shots = list(draft.get("shots") or [])
+    # Defend against corrupt rows (e.g. historical bug where ``shots`` was
+    # persisted as ``[null]``). Filtering non-dict entries keeps the
+    # downstream loops safe from attribute errors.
+    shots = [s for s in (draft.get("shots") or []) if isinstance(s, dict)]
 
     lines: list[str] = [f"[KỊCH BẢN] {topic}".rstrip()]
     if hook:
@@ -165,7 +168,10 @@ def _draft_pdf_html(draft: dict[str, Any]) -> str:
     hook = html.escape((draft.get("hook") or "").strip())
     tone = html.escape((draft.get("tone") or "").strip())
     duration = int(draft.get("duration_sec") or 0)
-    shots = list(draft.get("shots") or [])
+    # Defend against corrupt rows (e.g. historical bug where ``shots`` was
+    # persisted as ``[null]``). Filtering non-dict entries keeps the
+    # downstream loops safe from attribute errors.
+    shots = [s for s in (draft.get("shots") or []) if isinstance(s, dict)]
 
     rows: list[str] = []
     for i, s in enumerate(shots, start=1):
