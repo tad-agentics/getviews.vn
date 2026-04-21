@@ -235,33 +235,6 @@ export function detectDialect(
   return southScore > northScore ? 'southern' : 'northern';
 }
 
-// ── Creator tier classification ──────────────────────────────────────────────
-
-/**
- * Classify creator into tier by follower count.
- * Aligned with Vietnamese KOL/KOC/KOS taxonomy.
- */
-export function classifyCreatorTier(followers: number | undefined | null): string | null {
-  if (!followers || followers < 0) return null;
-  if (followers < 1_000) return 'nano';
-  if (followers < 10_000) return 'micro';
-  if (followers < 100_000) return 'mid';
-  if (followers < 1_000_000) return 'macro';
-  return 'mega';
-}
-
-// ── Posting time ─────────────────────────────────────────────────────────────
-
-/**
- * Convert Unix timestamp to Vietnam timezone hour (0-23, UTC+7).
- * Vietnamese peak hours: lunch 11-13, evening 19-22.
- */
-export function getVietnamHour(createTime: number | undefined | null): number | null {
-  if (!createTime) return null;
-  const date = new Date(createTime * 1000);
-  return (date.getUTCHours() + 7) % 24;
-}
-
 // ── Handle normalization ─────────────────────────────────────────────────────
 
 /**
