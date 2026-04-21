@@ -89,8 +89,8 @@ export function TrendCard({ data, index = 0 }: Props) {
             {data.signal ? <SignalBadge signal={data.signal} size="sm" /> : null}
             {data.breakout ? (
               <span
-                className="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold text-[var(--purple)]"
-                style={{ background: "var(--purple-light)" }}
+                className="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold text-[color:var(--gv-accent)]"
+                style={{ background: "var(--gv-accent-soft)" }}
               >
                 {data.breakout}
               </span>
@@ -127,7 +127,7 @@ export function TrendCard({ data, index = 0 }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2, delay: baseDelay + 0.3 }}
-            className="mt-2 text-xs leading-relaxed text-[var(--ink-soft)]"
+            className="mt-2 text-xs leading-relaxed text-[color:var(--gv-ink-3)]"
           >
             <span className="font-semibold text-[var(--ink)]">Chạy vì:</span>{" "}
             {data.mechanism}

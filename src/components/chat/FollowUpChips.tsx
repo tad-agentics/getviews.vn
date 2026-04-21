@@ -17,7 +17,7 @@ export const FollowUpChips = memo(function FollowUpChips({
           key={i}
           type="button"
           onClick={() => onSelect(q)}
-          className="rounded-full border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-1.5 text-xs text-[var(--ink-soft)] transition-all duration-[120ms] hover:border-[var(--border-active)] hover:bg-[var(--surface)] hover:text-[var(--ink)] active:scale-[0.97] whitespace-nowrap"
+          className="rounded-full border border-[color:var(--border)] bg-[color:var(--surface-alt)] px-3 py-1.5 text-xs text-[color:var(--gv-ink-3)] transition-all duration-[120ms] hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--surface)] hover:text-[color:var(--ink)] active:scale-[0.97] whitespace-nowrap"
         >
           {q}
         </button>

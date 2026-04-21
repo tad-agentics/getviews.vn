@@ -224,7 +224,7 @@ export default function LoginRoute() {
             <h1 className="gradient-text mb-2 text-xl font-extrabold leading-tight">
               Bắt trend TikTok trước khi nó viral
             </h1>
-            <p className="text-sm" style={{ color: "var(--ink-soft)", lineHeight: "1.6" }}>
+            <p className="text-sm" style={{ color: "var(--gv-ink-3)", lineHeight: "1.6" }}>
               Data thực từ <strong style={{ color: "var(--ink)" }}>46.000+</strong> video TikTok Việt Nam — phân tích trong{" "}
               <strong style={{ color: "var(--ink)" }}>1 phút</strong>.
             </p>
@@ -289,7 +289,7 @@ export default function LoginRoute() {
               className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 background: "var(--surface-alt)",
-                color: "var(--ink-soft)",
+                color: "var(--gv-ink-3)",
                 border: "1px solid var(--border)",
               }}
             >
@@ -327,7 +327,7 @@ export default function LoginRoute() {
                           border: "1px solid var(--border)",
                           color: "var(--ink)",
                         }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--purple)")}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gv-accent)")}
                         onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                       />
                     </div>
@@ -350,7 +350,7 @@ export default function LoginRoute() {
                           border: "1px solid var(--border)",
                           color: "var(--ink)",
                         }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--purple)")}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gv-accent)")}
                         onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                       />
                       <button
@@ -386,7 +386,7 @@ export default function LoginRoute() {
                         type="button"
                         onClick={() => setIsRegister((v) => !v)}
                         className="text-xs font-semibold transition-colors duration-[100ms]"
-                        style={{ color: "var(--purple)" }}
+                        style={{ color: "var(--gv-accent)" }}
                       >
                         {isRegister ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký"}
                       </button>
@@ -400,7 +400,7 @@ export default function LoginRoute() {
                       type="submit"
                       disabled={anyLoading}
                       className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                      style={{ background: "var(--purple)", color: "#fff" }}
+                      style={{ background: "var(--gv-accent)", color: "#fff" }}
                     >
                       {loadingEmail ? (
                         <><Spinner /> Đang xử lý...</>
@@ -426,16 +426,16 @@ export default function LoginRoute() {
           className="text-xs text-center"
           style={{ color: "var(--faint)" }}
         >
-          Đang theo dõi <strong style={{ color: "var(--ink-soft)" }}>46.000+</strong> video TikTok Việt Nam
+          Đang theo dõi <strong style={{ color: "var(--gv-ink-3)" }}>46.000+</strong> video TikTok Việt Nam
         </motion.p>
 
         <p className="text-[11px] text-center px-4" style={{ color: "var(--faint)", lineHeight: "1.7" }}>
           Bằng cách đăng nhập, bạn đồng ý với{" "}
-          <Link to="#" className="hover:underline" style={{ color: "var(--purple)" }}>
+          <Link to="#" className="hover:underline" style={{ color: "var(--gv-accent)" }}>
             Điều khoản dịch vụ
           </Link>{" "}
           và{" "}
-          <Link to="#" className="hover:underline" style={{ color: "var(--purple)" }}>
+          <Link to="#" className="hover:underline" style={{ color: "var(--gv-accent)" }}>
             Chính sách bảo mật
           </Link>{" "}
           của GetViews.

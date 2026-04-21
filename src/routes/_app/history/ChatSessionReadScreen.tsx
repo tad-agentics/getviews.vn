@@ -103,7 +103,7 @@ export default function ChatSessionReadScreen() {
               if (m.role === "user") {
                 return (
                   <div key={m.id} className="flex justify-end overflow-hidden">
-                    <div className="flex min-w-0 max-w-[85%] items-start gap-2 rounded-xl bg-[var(--purple-light)] px-4 py-3 lg:max-w-[75%]">
+                    <div className="flex min-w-0 max-w-[85%] items-start gap-2 rounded-xl bg-[var(--gv-accent-soft)] px-4 py-3 lg:max-w-[75%]">
                       <p className="min-w-0 break-all text-sm text-[var(--ink)]">{m.content}</p>
                     </div>
                   </div>

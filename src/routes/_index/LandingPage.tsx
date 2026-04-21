@@ -184,7 +184,7 @@ function SolutionCardsSection() {
         <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
           Công Cụ Nghiên Cứu TikTok Của Bạn
         </h2>
-        <p className="text-center text-sm text-[var(--ink-soft)] mb-12 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-center text-sm text-[var(--gv-ink-3)] mb-12 max-w-2xl mx-auto leading-relaxed">
           GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook viral, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
         </p>
         <div className="grid md:grid-cols-2 gap-4">
@@ -256,14 +256,14 @@ function SolutionCardsSection() {
               </div>
               <div className="flex flex-col justify-center gap-1 min-w-0">
                 <p className="text-sm font-semibold text-[var(--ink)] line-clamp-2">"{HOOK_EXAMPLE.phrase}"</p>
-                <p className="text-xs text-[var(--purple)] font-mono font-semibold">{HOOK_EXAMPLE.views} views</p>
+                <p className="text-xs text-[var(--gv-accent)] font-mono font-semibold">{HOOK_EXAMPLE.views} views</p>
               </div>
             </div>
             {/* Sparkline — pure SVG, no chart lib */}
             <svg viewBox="0 0 200 40" className="w-full opacity-40" fill="none">
               <polyline
                 points="0,38 40,30 80,20 120,12 160,6 200,2"
-                stroke="var(--purple)"
+                stroke="var(--gv-accent)"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -305,7 +305,7 @@ function formatViewsShort(v: number): string {
 }
 
 const SIGNALS: { key: keyof typeof SIGNAL_VIDEOS; dot: string; label: string; sub: string }[] = [
-  { key: "rising", dot: "bg-[var(--purple)]", label: "Hook số liệu shock", sub: "Top pattern tuần này" },
+  { key: "rising", dot: "bg-[var(--gv-accent)]", label: "Hook số liệu shock", sub: "Top pattern tuần này" },
   { key: "early",  dot: "bg-orange-400",       label: "Cảnh báo + reveal",  sub: "Mới nổi, vào sớm" },
   { key: "stable", dot: "bg-gray-400",          label: "Before / After",     sub: "Ổn định, cạnh tranh cao" },
 ];
@@ -392,7 +392,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
         <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
           Nắm bắt xu hướng,<br />cập nhật theo từng giờ
         </h2>
-        <p className="text-center text-sm text-[var(--ink-soft)] mb-12 max-w-xl mx-auto leading-relaxed">
+        <p className="text-center text-sm text-[var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
           Đừng đoán mò nội dung. Hãy xem chiến lược nào đang đẩy view ổn định cho đối thủ.
         </p>
 
@@ -452,7 +452,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
                   <VideoThumb id={h.id} className="h-full w-full" />
                 </div>
                 <p className="flex-1 text-xs text-[var(--ink)] line-clamp-2 leading-snug">{h.phrase}</p>
-                <p className="flex-shrink-0 font-mono text-xs font-semibold text-[var(--purple)] tabular-nums">{h.views}</p>
+                <p className="flex-shrink-0 font-mono text-xs font-semibold text-[var(--gv-accent)] tabular-nums">{h.views}</p>
               </div>
             ))}
           </motion.div>
@@ -536,7 +536,7 @@ function InfraGrid() {
               transition={{ duration: 0.35 }}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 flex flex-col gap-3"
             >
-              <Icon className="h-6 w-6 text-[var(--ink-soft)]" strokeWidth={1.5} />
+              <Icon className="h-6 w-6 text-[var(--gv-ink-3)]" strokeWidth={1.5} />
               <div>
                 <p className="text-sm font-bold text-[var(--ink)] leading-snug mb-1">{label}</p>
                 <p className="text-xs text-[var(--muted)] leading-snug">{sub}</p>
@@ -573,7 +573,7 @@ function CredibilitySection() {
             Bắt đầu tăng view{" "}
             <span className="gradient-text">ngay hôm nay</span>
           </h2>
-          <p className="text-sm text-[var(--ink-soft)] leading-relaxed mb-6">
+          <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed mb-6">
             Chúng tôi là những creator đã tự xây kênh TikTok từ 0 — và nhận ra rằng mọi quyết định nội dung đều đang được đưa ra dựa trên cảm tính. GetViews được xây để thay đổi điều đó: mỗi gợi ý đều có video thật làm bằng chứng, bạn bấm vào kiểm chứng được luôn.
           </p>
           <Link to="/login">
@@ -597,7 +597,7 @@ function CredibilitySection() {
               {SAMPLE_QUERIES.map((q) => (
                 <div
                   key={q}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs text-[var(--ink-soft)]"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs text-[var(--gv-ink-3)]"
                 >
                   {q}
                 </div>
@@ -607,7 +607,7 @@ function CredibilitySection() {
           <div className="px-4 pb-4">
             <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5">
               <p className="flex-1 text-xs text-[var(--muted)]">Dán link TikTok hoặc đặt câu hỏi...</p>
-              <div className="h-6 w-6 rounded-full bg-[var(--purple)] flex items-center justify-center flex-shrink-0">
+              <div className="h-6 w-6 rounded-full bg-[var(--gv-accent)] flex items-center justify-center flex-shrink-0">
                 <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
                   <path d="M3 8h10M9 4l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -670,7 +670,7 @@ function HowItWorksSection() {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-[var(--ink)] mb-2 text-base">{step.title}</h3>
-                  <p className="text-sm text-[var(--ink-soft)] leading-relaxed">{step.body}</p>
+                  <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed">{step.body}</p>
                 </div>
               </motion.div>
             ))}
@@ -747,7 +747,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 transition={{ duration: 0.5 }}
               >
                 <div className="inline-flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] rounded-full px-4 py-2 mb-6">
-                  <span className="text-sm font-medium text-[var(--ink-soft)]">Trợ lý AI số 1 cho TikTok Creator Việt</span>
+                  <span className="text-sm font-medium text-[var(--gv-ink-3)]">Trợ lý AI số 1 cho TikTok Creator Việt</span>
                 </div>
 
                 <h1 className="font-extrabold leading-[1.2] mb-6" style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)" }}>
@@ -756,7 +756,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   <span className="gradient-text">Để GetViews "cày"&nbsp;thay.</span>
                 </h1>
 
-                <p className="text-lg text-[var(--ink-soft)] mb-8 max-w-lg leading-relaxed">
+                <p className="text-lg text-[var(--gv-ink-3)] mb-8 max-w-lg leading-relaxed">
                   Quăng link video → Nhận phân tích sau 1 phút. Biết ngay{" "}
                   <span className="font-semibold text-[var(--ink)]">lỗi ở đâu</span>,{" "}
                   <span className="font-semibold text-[var(--ink)]">hook nào hot</span>,{" "}
@@ -775,7 +775,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                     </div>
                   </div>
                   <Link to="/login">
-                    <button className="w-full bg-[var(--ink)] hover:bg-[var(--ink-soft)] text-white font-semibold px-8 py-4 rounded-xl text-base transition-all duration-[120ms] active:scale-[0.98]">
+                    <button className="w-full bg-[var(--ink)] hover:bg-[var(--gv-ink-3)] text-white font-semibold px-8 py-4 rounded-xl text-base transition-all duration-[120ms] active:scale-[0.98]">
                       Soi Video Miễn Phí →
                     </button>
                   </Link>
@@ -833,7 +833,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="text-[var(--danger)] font-bold">✕</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[var(--ink)] mb-1">Hook vào quá chậm (2.3s)</p>
-                        <p className="text-xs text-[var(--ink-soft)]">Top video viral thường mở màn ở 0.5s</p>
+                        <p className="text-xs text-[var(--gv-ink-3)]">Top video viral thường mở màn ở 0.5s</p>
                       </div>
                     </div>
                   </div>
@@ -842,7 +842,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="text-[var(--danger)] font-bold">✕</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[var(--ink)] mb-1">Thiếu "mặt người" ở đầu</p>
-                        <p className="text-xs text-[var(--ink-soft)]">89% video top view mở bằng mặt chính chủ</p>
+                        <p className="text-xs text-[var(--gv-ink-3)]">89% video top view mở bằng mặt chính chủ</p>
                       </div>
                     </div>
                   </div>
@@ -851,7 +851,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       <span className="text-[var(--success)] font-bold">✓</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-[var(--ink)] mb-1">Dùng Hook "Cảnh Báo" là chuẩn</p>
-                        <p className="text-xs text-[var(--ink-soft)]">Mẫu này tăng 340% view so với "Kể Chuyện"</p>
+                        <p className="text-xs text-[var(--gv-ink-3)]">Mẫu này tăng 340% view so với "Kể Chuyện"</p>
                       </div>
                     </div>
                   </div>
@@ -875,7 +875,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-16 flex flex-wrap items-center justify-center gap-6 text-sm text-[var(--ink-soft)]"
+            className="mt-16 flex flex-wrap items-center justify-center gap-6 text-sm text-[var(--gv-ink-3)]"
           >
             <div className="flex items-center gap-2"><span>Data 100% từ TikTok Việt</span></div>
             <div className="hidden sm:block w-px h-4 bg-[var(--border)]" />
@@ -895,7 +895,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             <div className="flex gap-3 animate-scroll-ticker">
               {[...hookTicker, ...hookTicker].map((hook, i) => (
                 <div key={i} className="flex-shrink-0 border border-[var(--border)] rounded bg-white px-4 py-2">
-                  <span className="text-xs text-[var(--ink-soft)] whitespace-nowrap">{hook}</span>
+                  <span className="text-xs text-[var(--gv-ink-3)] whitespace-nowrap">{hook}</span>
                 </div>
               ))}
             </div>
@@ -920,7 +920,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             {nicheList.map((niche) => (
               <span
                 key={niche}
-                className="text-xs text-[var(--ink-soft)] border border-[var(--border)] rounded-full px-3 py-1.5 bg-[var(--surface)] transition-colors duration-[120ms] hover:border-[var(--border-active)] hover:text-[var(--ink)] cursor-default"
+                className="text-xs text-[var(--gv-ink-3)] border border-[var(--border)] rounded-full px-3 py-1.5 bg-[var(--surface)] transition-colors duration-[120ms] hover:border-[var(--gv-ink)] hover:text-[var(--ink)] cursor-default"
               >
                 {niche}
               </span>
@@ -952,7 +952,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   </div>
                 </div>
                 <h3 className="font-bold text-[var(--ink)] mb-4 text-base">{p.title}</h3>
-                <p className="text-sm text-[var(--ink-soft)] leading-relaxed max-w-xs mx-auto">{p.body}</p>
+                <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed max-w-xs mx-auto">{p.body}</p>
               </motion.div>
             ))}
           </div>
@@ -979,7 +979,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
             Số liệu nói thay lời
           </h2>
-          <p className="text-center text-sm text-[var(--ink-soft)] mb-12 max-w-xl mx-auto leading-relaxed">
+          <p className="text-center text-sm text-[var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
             Creator thật, kết quả đo được — không phải lời hứa.
           </p>
 
@@ -993,16 +993,16 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             <div className="grid md:grid-cols-[1fr_80px_1fr] gap-6 items-center">
               <div>
                 <p className="text-xs text-[var(--muted)] mb-4 uppercase tracking-wide">Trước</p>
-                <div className="font-mono font-bold text-[var(--ink-soft)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>2.000</div>
-                <p className="text-sm text-[var(--ink-soft)] mb-5">view · video review nồi chiên</p>
+                <div className="font-mono font-bold text-[var(--gv-ink-3)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>2.000</div>
+                <p className="text-sm text-[var(--gv-ink-3)] mb-5">view · video review nồi chiên</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[var(--danger)] font-bold text-sm">✕</span>
-                    <span className="text-sm text-[var(--ink-soft)]">Hook chậm 2.3 giây</span>
+                    <span className="text-sm text-[var(--gv-ink-3)]">Hook chậm 2.3 giây</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[var(--danger)] font-bold text-sm">✕</span>
-                    <span className="text-sm text-[var(--ink-soft)]">Không có mặt người 3 giây đầu</span>
+                    <span className="text-sm text-[var(--gv-ink-3)]">Không có mặt người 3 giây đầu</span>
                   </div>
                 </div>
               </div>
@@ -1016,15 +1016,15 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               <div>
                 <p className="text-xs text-[var(--muted)] mb-4 uppercase tracking-wide">Sau khi fix</p>
                 <div className="font-mono font-bold text-[var(--ink)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>45.000</div>
-                <p className="text-sm text-[var(--ink-soft)] mb-5">view · quay lại theo gợi ý</p>
+                <p className="text-sm text-[var(--gv-ink-3)] mb-5">view · quay lại theo gợi ý</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[var(--success)] font-bold text-sm">✓</span>
-                    <span className="text-sm text-[var(--ink-soft)]">Mặt nhìn camera từ frame 0</span>
+                    <span className="text-sm text-[var(--gv-ink-3)]">Mặt nhìn camera từ frame 0</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[var(--success)] font-bold text-sm">✓</span>
-                    <span className="text-sm text-[var(--ink-soft)]">Hook &ldquo;Cảnh Báo&rdquo; đúng pattern niche</span>
+                    <span className="text-sm text-[var(--gv-ink-3)]">Hook &ldquo;Cảnh Báo&rdquo; đúng pattern niche</span>
                   </div>
                 </div>
               </div>
@@ -1044,7 +1044,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 transition={{ duration: 0.4, delay: i * 0.1 }}
                 className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5"
               >
-                <p className="text-sm text-[var(--ink-soft)] leading-relaxed mb-5">&ldquo;{t.quote}&rdquo;</p>
+                <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed mb-5">&ldquo;{t.quote}&rdquo;</p>
                 <div className="flex items-center gap-3 pt-4 border-t border-[var(--border)]">
                   <div className="w-8 h-8 rounded bg-[var(--ink)] flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">{t.initials}</span>
@@ -1082,7 +1082,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-[120ms] relative ${
                     billingPeriod === period
                       ? "bg-[var(--ink)] text-white"
-                      : "text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                      : "text-[var(--gv-ink-3)] hover:text-[var(--ink)]"
                   }`}
                 >
                   {period === "monthly" ? "Tháng" : period === "biannual" ? "6 tháng" : "Năm"}
@@ -1121,7 +1121,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                     <span className="text-xs text-[var(--muted)]">/tháng</span>
                   )}
                 </div>
-                <p className="text-xs text-[var(--ink-soft)] mb-5" style={{ lineHeight: "1.5" }}>{plan.credits}</p>
+                <p className="text-xs text-[var(--gv-ink-3)] mb-5" style={{ lineHeight: "1.5" }}>{plan.credits}</p>
                 <Link to="/login">
                   <Button fullWidth variant={plan.popular ? "primary" : "outlined"} className="text-sm py-2">
                     {plan.name === "Free" ? "Bắt đầu miễn phí" : `Nâng cấp ${plan.name}`}
@@ -1132,7 +1132,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           </div>
 
           {pricingSavings[billingPeriod] && (
-            <p className="text-center text-sm text-[var(--ink-soft)]">{pricingSavings[billingPeriod]}</p>
+            <p className="text-center text-sm text-[var(--gv-ink-3)]">{pricingSavings[billingPeriod]}</p>
           )}
         </div>
       </section>
@@ -1163,7 +1163,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                     </Accordion.Trigger>
                   </Accordion.Header>
                   <Accordion.Content
-                    className="px-5 pb-4 text-sm text-[var(--ink-soft)] data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
+                    className="px-5 pb-4 text-sm text-[var(--gv-ink-3)] data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
                     style={{ lineHeight: "1.6" }}
                   >
                     {faq.a}

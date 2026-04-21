@@ -77,7 +77,7 @@ export default function PaymentSuccessScreen() {
           )}
 
           {hasRouterState && st?.planName ? (
-            <p className="text-sm text-[var(--ink-soft)] mb-8" style={{ lineHeight: "1.6" }}>
+            <p className="text-sm text-[var(--gv-ink-3)] mb-8" style={{ lineHeight: "1.6" }}>
               {st.planName}
             </p>
           ) : (
@@ -86,7 +86,7 @@ export default function PaymentSuccessScreen() {
 
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-8 mb-8">
             <div
-              className="font-mono font-extrabold text-[var(--purple)] mb-1"
+              className="font-mono font-extrabold text-[var(--gv-accent)] mb-1"
               style={{ fontSize: "3.5rem", lineHeight: "1" }}
             >
               {displayCredits}

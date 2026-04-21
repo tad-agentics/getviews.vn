@@ -87,7 +87,7 @@ function StepChild({ event }: { event: StepEvent }) {
           transition={{ duration: 0.2 }}
           className="ml-4"
         >
-          <span className="text-xs font-medium text-[var(--purple)]">{event.handle}</span>
+          <span className="text-xs font-medium text-[color:var(--gv-accent)]">{event.handle}</span>
         </motion.div>
       );
 

@@ -5,7 +5,7 @@ export function URLChip({ url }: { url: string }) {
     <div
       className={`mb-2 flex items-center gap-2 rounded-lg border-l-2 px-3 py-2 text-xs font-medium ${
         isValid
-          ? "border-l-[var(--purple)] bg-[var(--purple-light)] text-[var(--purple)]"
+          ? "border-l-[var(--gv-accent)] bg-[var(--gv-accent-soft)] text-[var(--gv-accent)]"
           : "border-l-[var(--danger)] bg-[var(--danger)]/5 text-[var(--danger)]"
       }`}
     >

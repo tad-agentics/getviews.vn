@@ -13,8 +13,8 @@ export function CopyButton({ textToCopy }: { textToCopy: string }) {
       }}
       className={`flex h-12 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-all duration-[120ms] ${
         copied
-          ? "border-[var(--purple)] bg-[var(--purple-light)] text-[var(--purple)]"
-          : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:border-[var(--border-active)] hover:bg-[var(--surface-alt)]"
+          ? "border-[var(--gv-accent)] bg-[var(--gv-accent-soft)] text-[var(--gv-accent)]"
+          : "border-[var(--border)] bg-[var(--surface)] text-[var(--ink)] hover:border-[var(--gv-ink)] hover:bg-[var(--surface-alt)]"
       }`}
     >
       {copied ? (

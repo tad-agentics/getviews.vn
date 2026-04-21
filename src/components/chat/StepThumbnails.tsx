@@ -23,7 +23,7 @@ export function StepThumbnails({ thumbnails, maxVisible = 4 }: Props) {
             width: 20,
             height: 20,
             marginLeft: i === 0 ? 0 : -6,
-            background: "var(--purple-light)",
+            background: "var(--gv-accent-soft)",
             flexShrink: 0,
           }}
         >
@@ -38,7 +38,7 @@ export function StepThumbnails({ thumbnails, maxVisible = 4 }: Props) {
           ) : (
             <span
               className="block h-full w-full rounded-full"
-              style={{ background: "var(--purple)" }}
+              style={{ background: "var(--gv-accent)" }}
             />
           )}
         </span>

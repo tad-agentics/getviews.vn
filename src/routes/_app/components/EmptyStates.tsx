@@ -155,7 +155,7 @@ export const MobileEmptyState = memo(function MobileEmptyState({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
                   onClick={() => openQuickAction(action)}
-                  className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
+                  className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--gv-ink)] hover:shadow-sm active:scale-[0.98]"
                 >
                   <Icon
                     className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"
@@ -350,7 +350,7 @@ export const DesktopCenteredEmpty = memo(function DesktopCenteredEmpty({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.18, delay: 0.1 + idx * 0.05, ease: "easeOut" }}
                     onClick={() => openQuickAction(action)}
-                    className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--border-active)] hover:shadow-sm active:scale-[0.98]"
+                    className="group flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3.5 text-left transition-all duration-[120ms] hover:border-[var(--gv-ink)] hover:shadow-sm active:scale-[0.98]"
                   >
                     <Icon
                       className="h-4 w-4 text-[var(--muted)] transition-colors duration-[120ms] group-hover:text-[var(--ink)]"

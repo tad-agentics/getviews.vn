@@ -14,13 +14,13 @@ export function AnalysisLimitCard({ onNavigatePricing }: AnalysisLimitCardProps)
       <p className="mb-1 text-sm font-medium text-[var(--ink)]">
         Bạn đã dùng hết phân tích tháng này.
       </p>
-      <p className="mb-3 text-xs text-[var(--ink-soft)]">
+      <p className="mb-3 text-xs text-[var(--gv-ink-3)]">
         Nâng cấp hoặc mở thêm phân tích để tiếp tục — browse và câu hỏi thường vẫn miễn phí.
       </p>
       <button
         type="button"
         onClick={onNavigatePricing}
-        className="inline-flex text-sm font-semibold text-[var(--purple)] hover:underline"
+        className="inline-flex text-sm font-semibold text-[var(--gv-accent)] hover:underline"
       >
         Mở thêm phân tích →
       </button>

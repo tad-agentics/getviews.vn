@@ -134,7 +134,7 @@ export default function CheckoutScreen() {
                   <p className="font-medium text-[var(--ink)]">{order.title}</p>
                   <p className="text-sm text-[var(--muted)]">{order.subtitle}</p>
                 </div>
-                <p className="font-mono font-bold text-[var(--purple)] shrink-0" style={{ fontSize: "1.25rem" }}>
+                <p className="font-mono font-bold text-[var(--gv-accent)] shrink-0" style={{ fontSize: "1.25rem" }}>
                   {order.amount}
                 </p>
               </div>
@@ -153,14 +153,14 @@ export default function CheckoutScreen() {
                     <RadioGroup.Item
                       key={value}
                       value={value}
-                      className="w-full flex items-center gap-3 p-4 bg-[var(--surface)] border rounded-xl cursor-pointer transition-all duration-[120ms] data-[state=checked]:border-[var(--purple)] data-[state=checked]:bg-[var(--purple-light)] hover:border-[var(--border-active)]"
+                      className="w-full flex items-center gap-3 p-4 bg-[var(--surface)] border rounded-xl cursor-pointer transition-all duration-[120ms] data-[state=checked]:border-[var(--gv-accent)] data-[state=checked]:bg-[var(--gv-accent-soft)] hover:border-[var(--gv-ink)]"
                     >
                       <div
                         className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors duration-[120ms] ${
-                          paymentMethod === value ? "border-[var(--purple)]" : "border-[var(--border)]"
+                          paymentMethod === value ? "border-[var(--gv-accent)]" : "border-[var(--border)]"
                         }`}
                       >
-                        {paymentMethod === value && <div className="w-2 h-2 rounded-full bg-[var(--purple)]" />}
+                        {paymentMethod === value && <div className="w-2 h-2 rounded-full bg-[var(--gv-accent)]" />}
                       </div>
                       <PaymentMethodIcon method={value} />
                       <span className="font-medium text-sm text-[var(--ink)]">{label}</span>

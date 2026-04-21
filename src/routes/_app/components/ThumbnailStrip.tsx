@@ -10,7 +10,7 @@ export function ThumbnailStrip({ thumbnails }: { thumbnails: ThumbnailItem[] }) 
             href={thumb.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="relative w-[120px] flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] transition-colors duration-[120ms] hover:border-[var(--purple)]"
+            className="relative w-[120px] flex-shrink-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] transition-colors duration-[120ms] hover:border-[var(--gv-accent)]"
             style={{ aspectRatio: "9/14" }}
           >
             <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 to-transparent p-2">

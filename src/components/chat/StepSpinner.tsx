@@ -1,5 +1,5 @@
 /**
- * StepSpinner — rotating ⟳ CSS animation (1s, --purple) → ✓ on complete.
+ * StepSpinner — rotating ⟳ CSS animation (1s, gv-accent) → ✓ on complete.
  * Purely CSS-driven, no JS timers.
  */
 
@@ -12,7 +12,7 @@ export function StepSpinner({ done = false, size = 14 }: Props) {
   if (done) {
     return (
       <span
-        className="inline-flex items-center justify-center rounded-full text-[var(--purple)]"
+        className="inline-flex items-center justify-center rounded-full text-[color:var(--gv-accent)]"
         style={{ width: size, height: size, fontSize: size * 0.9 }}
         aria-label="Xong"
       >
@@ -23,7 +23,7 @@ export function StepSpinner({ done = false, size = 14 }: Props) {
 
   return (
       <svg
-        className="inline-block animate-spin text-[var(--purple)]"
+        className="inline-block animate-spin text-[color:var(--gv-accent)]"
         style={{ width: size, height: size }}
         viewBox="0 0 24 24"
         fill="none"

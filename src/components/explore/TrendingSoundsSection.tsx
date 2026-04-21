@@ -32,12 +32,12 @@ function SoundRowSkeleton() {
 
 function BreakoutSoundBanner({ sound }: { sound: BreakoutSound }) {
   return (
-    <div className="mb-3 rounded-xl border border-[var(--purple)]/40 bg-gradient-to-r from-[var(--purple-light)] to-[var(--surface)] p-3.5">
+    <div className="mb-3 rounded-xl border border-[var(--gv-accent)]/40 bg-gradient-to-r from-[var(--gv-accent-soft)] to-[var(--surface)] p-3.5">
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--purple)]">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--gv-accent)]">
           Breakout xuyên niche
         </span>
-        <span className="rounded-full bg-[var(--purple)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--purple)]">
+        <span className="rounded-full bg-[var(--gv-accent)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--gv-accent)]">
           {sound.niche_count} niche
         </span>
       </div>

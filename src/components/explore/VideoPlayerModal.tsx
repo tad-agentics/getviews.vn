@@ -240,7 +240,7 @@ export function VideoPlayerModal({
                         setTimeout(() => setCopied(false), 1500);
                       });
                     }}
-                    className="flex-shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[10px] font-semibold text-[var(--muted)] transition-colors hover:border-[var(--border-active)] hover:text-[var(--ink)]"
+                    className="flex-shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[10px] font-semibold text-[var(--muted)] transition-colors hover:border-[var(--gv-ink)] hover:text-[var(--ink)]"
                   >
                     {copied ? "Đã copy ✓" : "Copy"}
                   </button>
@@ -260,14 +260,14 @@ export function VideoPlayerModal({
                       onClick={() => setSelected(v)}
                       aria-current={isSel ? "true" : undefined}
                       aria-label={v.caption || `Video ${v.handle}`}
-                      className={`flex flex-col items-start gap-1 p-1.5 rounded-xl border transition-colors duration-[120ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--purple)] ${isSel ? "border-[var(--purple)] bg-[var(--purple-light)]" : "border-[var(--border)]"}`}
+                      className={`flex flex-col items-start gap-1 p-1.5 rounded-xl border transition-colors duration-[120ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--gv-accent)] ${isSel ? "border-[var(--gv-accent)] bg-[var(--gv-accent-soft)]" : "border-[var(--border)]"}`}
                       style={{ width: 80, flexShrink: 0 }}
                     >
                       <div className="w-full rounded-lg overflow-hidden relative" style={{ height: 100 }}>
                         <SafeImg src={v.img} alt="" className="w-full h-full object-cover" />
-                        {isSel && <div className="absolute inset-0 bg-[var(--purple)]/20 flex items-center justify-center"><div className="w-3 h-3 rounded-full bg-white/90" /></div>}
+                        {isSel && <div className="absolute inset-0 bg-[var(--gv-accent)]/20 flex items-center justify-center"><div className="w-3 h-3 rounded-full bg-white/90" /></div>}
                       </div>
-                      {v.text && <p className={`text-[10px] font-semibold leading-snug line-clamp-2 w-full text-left ${isSel ? "text-[var(--purple)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
+                      {v.text && <p className={`text-[10px] font-semibold leading-snug line-clamp-2 w-full text-left ${isSel ? "text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
                       <p className="text-[10px] font-mono text-[var(--muted)]">{v.views}</p>
                     </button>
                   );
@@ -286,15 +286,15 @@ export function VideoPlayerModal({
                     onClick={() => setSelected(v)}
                     aria-current={isSel ? "true" : undefined}
                     aria-label={v.caption || `Video ${v.handle}`}
-                    className={`w-full flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-[120ms] border-b border-[var(--border)] last:border-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--purple)] ${isSel ? "bg-[var(--purple-light)]" : "hover:bg-[var(--surface-alt)]"}`}
+                    className={`w-full flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-[120ms] border-b border-[var(--border)] last:border-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--gv-accent)] ${isSel ? "bg-[var(--gv-accent-soft)]" : "hover:bg-[var(--surface-alt)]"}`}
                   >
                     <div className="flex-shrink-0 rounded-md overflow-hidden border border-[var(--border)] relative" style={{ width: 36, height: 50 }}>
                       <SafeImg src={v.img} alt="" className="w-full h-full object-cover" />
-                      {isSel && <div className="absolute inset-0 bg-[var(--purple)]/25 flex items-center justify-center"><div className="w-2.5 h-2.5 rounded-full bg-white/90" /></div>}
+                      {isSel && <div className="absolute inset-0 bg-[var(--gv-accent)]/25 flex items-center justify-center"><div className="w-2.5 h-2.5 rounded-full bg-white/90" /></div>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      {v.text && <p className={`text-[11px] font-semibold leading-snug line-clamp-2 mb-0.5 ${isSel ? "text-[var(--purple)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
-                      <p className={`text-[11px] ${v.text ? "text-[var(--faint)]" : isSel ? "text-[var(--purple)] font-semibold" : "text-[var(--ink)] font-semibold"} leading-snug line-clamp-1`}>{v.handle}</p>
+                      {v.text && <p className={`text-[11px] font-semibold leading-snug line-clamp-2 mb-0.5 ${isSel ? "text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}>{v.text}</p>}
+                      <p className={`text-[11px] ${v.text ? "text-[var(--faint)]" : isSel ? "text-[var(--gv-accent)] font-semibold" : "text-[var(--ink)] font-semibold"} leading-snug line-clamp-1`}>{v.handle}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-[11px] font-mono font-semibold text-[var(--ink)]">{v.views}</span>
                         <span className="text-[10px] text-[var(--faint)]">{v.time}</span>
