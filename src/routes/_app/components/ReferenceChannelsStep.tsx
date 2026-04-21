@@ -177,7 +177,7 @@ export function ReferenceChannelsStep({
             variant="ink"
             size="sm"
             onClick={() => commit(Array.from(selected))}
-            disabled={save.isPending || selected.size === 0}
+            disabled={save.isPending}
           >
             Tiếp tục
           </Btn>

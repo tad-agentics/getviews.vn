@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 import { useProfile } from "@/hooks/useProfile";
+import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useTopNiches } from "@/hooks/useTopNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import { ReferenceChannelsStep } from "@/routes/_app/components/ReferenceChannelsStep";
@@ -18,14 +19,39 @@ import { ReferenceChannelsStep } from "@/routes/_app/components/ReferenceChannel
  */
 export default function OnboardingScreen() {
   const navigate = useNavigate();
-  const { data: profile } = useProfile();
+  const { data: profile, isPending: profilePending } = useProfile();
   const save = useUpdateProfile();
-  const { data: niches = [] } = useTopNiches(profile?.primary_niche ?? null, 24);
+  const {
+    data: taxonomy,
+    isPending: taxonomyPending,
+    isError: taxonomyError,
+    refetch: refetchTaxonomy,
+  } = useNicheTaxonomy();
 
-  const [step, setStep] = useState<0 | 1>(profile?.primary_niche ? 1 : 0);
-  const [pendingNiche, setPendingNiche] = useState<number | null>(
-    profile?.primary_niche ?? null,
-  );
+  const [step, setStep] = useState<0 | 1>(0);
+  const [pendingNiche, setPendingNiche] = useState<number | null>(null);
+  const didInitFromProfile = useRef(false);
+
+  const primaryForOrdering =
+    typeof profile?.primary_niche === "number" ? profile.primary_niche : null;
+  const { data: topNiches } = useTopNiches(pendingNiche ?? primaryForOrdering, "all");
+
+  const niches = useMemo(() => {
+    const hotBy = new Map<number, number>();
+    for (const n of topNiches ?? []) hotBy.set(n.id, n.hot);
+    return (taxonomy ?? []).map((t) => ({ id: t.id, name: t.name, hot: hotBy.get(t.id) ?? 0 }));
+  }, [taxonomy, topNiches]);
+
+  useEffect(() => {
+    if (profilePending) return;
+    if (didInitFromProfile.current) return;
+    didInitFromProfile.current = true;
+    const pid = profile?.primary_niche;
+    if (pid != null && typeof pid === "number") {
+      setPendingNiche(pid);
+      setStep(1);
+    }
+  }, [profilePending, profile]);
 
   const onNichePicked = async (id: number) => {
     setPendingNiche(id);
@@ -34,6 +60,18 @@ export default function OnboardingScreen() {
   };
 
   const goHome = () => navigate("/app");
+
+  if (profilePending) {
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center bg-[color:var(--gv-canvas)]"
+        role="status"
+        aria-label="Đang tải"
+      >
+        <p className="text-sm text-[color:var(--gv-ink-4)]">Đang tải hồ sơ…</p>
+      </div>
+    );
+  }
 
   const leftCopy = useMemo(() => {
     if (step === 0) {
@@ -96,22 +134,37 @@ export default function OnboardingScreen() {
       {/* Right column — form */}
       <section className="flex flex-1 flex-col justify-center px-6 py-12 md:px-[60px] md:py-[60px]">
         <div className="w-full max-w-[640px] mx-auto">
-          {step === 0 ? (
+          {step === 0 && taxonomyError ? (
+            <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 text-center">
+              <p className="mb-4 text-sm text-[color:var(--gv-ink-3)]">Không tải được danh sách ngách.</p>
+              <Btn type="button" variant="ink" size="sm" onClick={() => void refetchTaxonomy()}>
+                Thử lại
+              </Btn>
+            </div>
+          ) : null}
+          {step === 0 && !taxonomyError && taxonomyPending ? (
+            <p className="text-sm text-[color:var(--gv-ink-4)]">Đang tải danh sách ngách…</p>
+          ) : null}
+          {step === 0 && !taxonomyError && !taxonomyPending && niches.length === 0 ? (
+            <p className="text-sm text-[color:var(--gv-ink-3)]">Chưa có ngách trong hệ thống. Liên hệ hỗ trợ.</p>
+          ) : null}
+          {step === 0 && !taxonomyError && !taxonomyPending && niches.length > 0 ? (
             <NicheGrid
               niches={niches}
               selectedId={pendingNiche}
               disabled={save.isPending}
               onPick={onNichePicked}
             />
-          ) : (
+          ) : null}
+          {step === 1 ? (
             <ReferenceChannelsStep
               onDone={goHome}
               onBack={() => setStep(0)}
             />
-          )}
+          ) : null}
 
           {/* Footer: back / progress pills / CTA (step 0 only; step 1 owns its own footer) */}
-          {step === 0 ? (
+          {step === 0 && !taxonomyError && !taxonomyPending && niches.length > 0 ? (
             <div className="mt-9 flex items-center justify-between">
               <Btn
                 type="button"

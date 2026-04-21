@@ -12,7 +12,7 @@ export type NicheWithHot = {
  * sidebar. Callers pass the user's primary niche id so it floats to the
  * top of the list even if another niche has more videos this week.
  */
-export function useTopNiches(primaryNicheId: number | null, limit = 3) {
+export function useTopNiches(primaryNicheId: number | null, limit: number | "all" = 3) {
   return useQuery<NicheWithHot[]>({
     queryKey: ["home", "top_niches", primaryNicheId, limit],
     queryFn: async () => {
@@ -38,7 +38,7 @@ export function useTopNiches(primaryNicheId: number | null, limit = 3) {
         if (b.id === primaryNicheId) return 1;
         return b.hot - a.hot;
       });
-      return rows.slice(0, limit);
+      return limit === "all" ? rows : rows.slice(0, limit);
     },
     staleTime: 10 * 60 * 1000,
     retry: false,
