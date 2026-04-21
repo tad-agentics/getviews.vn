@@ -57,7 +57,6 @@ AS $$
       LEFT JOIN public.chat_messages m ON m.session_id = cs.id,
       q
       WHERE cs.user_id = auth.uid()
-        AND COALESCE(cs.deleted_at, NULL) IS NULL
         AND q.pat IS NOT NULL
         AND (
           cs.title ILIKE q.pat
