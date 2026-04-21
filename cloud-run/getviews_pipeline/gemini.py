@@ -144,7 +144,22 @@ def _generate_content_models(
     primary_model: str,
     fallbacks: list[str],
     config: types.GenerateContentConfig | None = None,
+    call_site: str = "unknown",
+    user_id: str | None = None,
+    session_id: str | None = None,
 ) -> Any:
+    """Dispatch a ``generate_content`` call through the primary → fallback
+    chain, logging token usage + cost per successful response.
+
+    ``call_site`` names the calling helper (e.g. ``"video_extraction"``,
+    ``"pattern_narrative"``) and is the group-by column on the D.5.1
+    dashboard. Every call site should pass an explicit value — the
+    ``"unknown"`` default only exists so older helpers keep compiling
+    while migrations land, and shows up as its own column on the
+    dashboard so regressions surface immediately.
+    """
+    from getviews_pipeline.gemini_cost import extract_usage, log_gemini_call
+
     client = _get_client()
     chain = [primary_model, *fallbacks]
     seen: set[str] = set()
@@ -155,10 +170,23 @@ def _generate_content_models(
         seen.add(m)
         for attempt, delay in enumerate(_RETRY_DELAYS):
             try:
+                started = time.monotonic()
                 kwargs: dict[str, Any] = {"model": m, "contents": contents}
                 if config is not None:
                     kwargs["config"] = config
-                return client.models.generate_content(**kwargs)
+                response = client.models.generate_content(**kwargs)
+                duration_ms = int((time.monotonic() - started) * 1000)
+                tokens_in, tokens_out = extract_usage(response)
+                log_gemini_call(
+                    user_id=user_id,
+                    call_site=call_site,
+                    model_name=m,
+                    tokens_in=tokens_in,
+                    tokens_out=tokens_out,
+                    duration_ms=duration_ms,
+                    session_id=session_id,
+                )
+                return response
             except Exception as e:
                 is_transient = _is_transient_gemini_error(e)
                 is_last_attempt = attempt == len(_RETRY_DELAYS) - 1
@@ -187,6 +215,7 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
             primary_model=GEMINI_EXTRACTION_MODEL,
             fallbacks=GEMINI_EXTRACTION_FALLBACKS,
             config=json_cfg,
+            call_site="video_extraction",
         )
     else:
         client = _get_client()
@@ -219,6 +248,7 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
                 primary_model=GEMINI_EXTRACTION_MODEL,
                 fallbacks=GEMINI_EXTRACTION_FALLBACKS,
                 config=json_cfg,
+                call_site="video_extraction_filesapi",
             )
         finally:
             try:
@@ -294,6 +324,7 @@ def analyze_carousel(
         primary_model=GEMINI_EXTRACTION_MODEL,
         fallbacks=GEMINI_EXTRACTION_FALLBACKS,
         config=json_cfg,
+        call_site="carousel_extraction",
     )
     text = _response_text(response)
     if not text.strip():
@@ -376,6 +407,7 @@ def synthesize_diagnosis(
         primary_model=model,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
+        call_site="diagnosis_synthesis_v1",
     )
     text = _response_text(response)
     if not text.strip():
@@ -434,6 +466,7 @@ def synthesize_diagnosis_v2(
         primary_model=model,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
+        call_site="diagnosis_synthesis_v2",
     )
     text = _response_text(response)
     if not text.strip():
@@ -510,6 +543,7 @@ def synthesize_diagnosis_carousel_v2(
         primary_model=model,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
+        call_site="carousel_diagnosis_v2",
     )
     text = _response_text(response)
     if not text.strip():
@@ -658,6 +692,7 @@ def classify_intent_gemini(
             primary_model=GEMINI_INTENT_MODEL,
             fallbacks=[GEMINI_KNOWLEDGE_MODEL],
             config=cfg,
+            call_site="intent_classifier",
         )
         raw = _response_text(response).strip()
         result: dict[str, Any] = json.loads(raw)
@@ -701,6 +736,7 @@ def gemini_text_only(message: str, session_context: dict[str, Any]) -> str:
         primary_model=GEMINI_KNOWLEDGE_MODEL,
         fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
         config=cfg,
+        call_site="gemini_text_only",
     )
     text = _response_text(response)
     if not text.strip():
@@ -745,6 +781,7 @@ def synthesize_intent_markdown(
         primary_model=GEMINI_SYNTHESIS_MODEL,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
+        call_site="intent_markdown",
     )
     text = _response_text(response)
     if not text.strip():
@@ -779,6 +816,7 @@ def generate_summary(
         primary_model=GEMINI_SYNTHESIS_MODEL,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
+        call_site="batch_summary",
     )
     text = _response_text(response)
     if not text.strip():
@@ -846,6 +884,7 @@ def generate_niche_insight(
         primary_model=GEMINI_EXTRACTION_MODEL,
         fallbacks=GEMINI_EXTRACTION_FALLBACKS,
         config=cfg,
+        call_site="niche_insight",
     )
     text = _response_text(response)
     if not text.strip():
