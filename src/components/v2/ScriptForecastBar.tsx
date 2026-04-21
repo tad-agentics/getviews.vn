@@ -1,9 +1,18 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
+
+// TODO(forecast): scriptForecastViews / scriptForecastRetentionPct / scriptHookScore are
+// deterministic placeholders from phase-b-plan — replace with corpus-backed numbers when
+// the API exposes per-niche forecast (see phase-d-plan follow-ups).
 
 export type ScriptForecastBarProps = {
   durationSec: number;
   hookDelayMs: number;
+  /** When set, enables the save CTA (same flow as ScriptScreen `handleSave`). */
+  onSaveDraft?: () => void | Promise<void>;
+  savePending?: boolean;
+  /** Draft already persisted this session (e.g. after Copy/PDF); label shows "Đã lưu". */
+  saved?: boolean;
 };
 
 /** Deterministic forecast from ``phase-b-plan.md`` / ``script.jsx`` — no API. */
@@ -23,10 +32,19 @@ export function scriptHookScore(hookDelayMs: number): number {
   return 4.1;
 }
 
-export function ScriptForecastBar({ durationSec, hookDelayMs }: ScriptForecastBarProps) {
+export function ScriptForecastBar({
+  durationSec,
+  hookDelayMs,
+  onSaveDraft,
+  savePending = false,
+  saved = false,
+}: ScriptForecastBarProps) {
   const viewsK = scriptForecastViews(durationSec);
   const ret = scriptForecastRetentionPct(durationSec);
   const hookScore = scriptHookScore(hookDelayMs);
+
+  const saveLabel = savePending ? "Đang lưu…" : saved ? "Đã lưu" : "Lưu kịch bản";
+  const saveDisabled = !onSaveDraft || savePending;
 
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 bg-[color:var(--gv-ink)] px-5 py-4 text-[color:var(--gv-canvas)]">
@@ -41,9 +59,18 @@ export function ScriptForecastBar({ durationSec, hookDelayMs }: ScriptForecastBa
           <span className="text-[color:var(--gv-accent)]">{hookScore.toFixed(1)}/10</span>
         </div>
       </div>
-      <Btn variant="accent" type="button" className="shrink-0 gap-1" disabled title="Sắp có">
-        Lưu vào lịch quay
-        <ArrowRight className="h-3 w-3" strokeWidth={2} aria-hidden />
+      <Btn
+        variant="accent"
+        type="button"
+        className="shrink-0 gap-1"
+        disabled={saveDisabled}
+        onClick={() => void onSaveDraft?.()}
+      >
+        {savePending ? (
+          <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2} aria-hidden />
+        ) : null}
+        {saveLabel}
+        {!savePending ? <ArrowRight className="h-3 w-3" strokeWidth={2} aria-hidden /> : null}
       </Btn>
     </div>
   );

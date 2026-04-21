@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Bookmark, Copy, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
+import { Copy, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -15,6 +15,7 @@ import { ScriptPacingRibbon } from "@/components/v2/ScriptPacingRibbon";
 import { ScriptShotRow } from "@/components/v2/ScriptShotRow";
 import { TopBar } from "@/components/v2/TopBar";
 import { useHomePulse } from "@/hooks/useHomePulse";
+import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useProfile } from "@/hooks/useProfile";
 import { useScriptExport, useScriptSave } from "@/hooks/useScriptSave";
 import { useScriptGenerate } from "@/hooks/useScriptGenerate";
@@ -141,8 +142,19 @@ export default function ScriptScreen() {
   const paramNiche = parseNicheId(searchParams.get("niche_id"));
   const effectiveNicheId = paramNiche ?? profile?.primary_niche ?? null;
 
-  const { data: sceneData, isPending: scenePending } = useScriptSceneIntelligence(effectiveNicheId);
-  const { data: hookData, isPending: hookPending } = useScriptHookPatterns(effectiveNicheId);
+  const { data: niches } = useNicheTaxonomy();
+  const {
+    data: sceneData,
+    isPending: scenePending,
+    isError: sceneIsError,
+    refetch: refetchScene,
+  } = useScriptSceneIntelligence(effectiveNicheId);
+  const {
+    data: hookData,
+    isPending: hookPending,
+    isError: hookIsError,
+    refetch: refetchHook,
+  } = useScriptHookPatterns(effectiveNicheId);
 
   const [topic, setTopic] = useState("Review tai nghe 200k vs 2 triệu");
   const [hookPattern, setHookPattern] = useState("");
@@ -192,6 +204,14 @@ export default function ScriptScreen() {
       logUsage("script_screen_load", { niche_id: effectiveNicheId });
     }
   }, [cloudConfigured, effectiveNicheId]);
+
+  const nicheDisplayName = useMemo(() => {
+    const fromTax = niches?.find((n) => n.id === effectiveNicheId)?.name?.trim();
+    if (fromTax) return fromTax;
+    const fromCitation = hookData?.citation?.niche_label?.trim();
+    if (fromCitation) return fromCitation;
+    return null;
+  }, [niches, effectiveNicheId, hookData?.citation?.niche_label]);
 
   const mergedShots = useMemo(
     () => mergeSceneIntelIntoShots(shotsOverride ?? BASE_SHOTS, sceneData?.scenes),
@@ -389,17 +409,6 @@ export default function ScriptScreen() {
                 Dữ liệu cập nhật {asOfRelative}
               </span>
             ) : null}
-            <Btn
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-              type="button"
-              onClick={handleSave}
-              disabled={save.isPending}
-            >
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
-              {save.isPending ? "Đang lưu…" : savedDraftId ? "Đã lưu" : "Lưu"}
-            </Btn>
             <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
               Phân tích mới
@@ -469,6 +478,28 @@ export default function ScriptScreen() {
             {exportBanner ? (
               <div className="mb-4 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 gv-mono text-[12px] text-[color:var(--gv-ink-3)]">
                 {exportBanner}
+              </div>
+            ) : null}
+
+            {hookIsError || sceneIsError ? (
+              <div
+                role="status"
+                className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2"
+              >
+                <p className="m-0 gv-mono text-[12px] text-[color:var(--gv-ink-3)]">
+                  Không tải được dữ liệu ngách.
+                </p>
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => {
+                    void refetchHook();
+                    void refetchScene();
+                  }}
+                >
+                  Thử lại
+                </Btn>
               </div>
             ) : null}
 
@@ -551,9 +582,12 @@ export default function ScriptScreen() {
                     />
                     <HookTimingMeter delayMs={hookDelayMs} />
                     <p className="gv-mono mt-3 text-[11px] leading-[1.45] text-[color:var(--gv-ink-4)]">
-                      Video thắng trong ngách Tech rơi hook tại{" "}
-                      <span className="text-[color:var(--gv-ink-2)]">0.8–1.4s</span>. Sau 1.4s, retention giảm{" "}
-                      <span className="text-[color:var(--gv-accent)]">38%</span>.
+                      Hầu hết video thắng rơi hook trong{" "}
+                      <span className="text-[color:var(--gv-ink-2)]">0.8–1.4s</span>. Sau 1.4s, retention giảm rõ
+                      rệt.
+                      {nicheDisplayName ? (
+                        <span className="mt-1 block">Tham chiếu cho {nicheDisplayName}.</span>
+                      ) : null}
                     </p>
                   </CardInput>
 
@@ -640,7 +674,13 @@ export default function ScriptScreen() {
                       />
                     ))}
                   </div>
-                  <ScriptForecastBar durationSec={duration} hookDelayMs={hookDelayMs} />
+                  <ScriptForecastBar
+                    durationSec={duration}
+                    hookDelayMs={hookDelayMs}
+                    onSaveDraft={handleSave}
+                    savePending={save.isPending}
+                    saved={Boolean(savedDraftId)}
+                  />
                 </div>
 
                 <aside

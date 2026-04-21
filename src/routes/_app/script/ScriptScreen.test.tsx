@@ -12,7 +12,7 @@
 
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 
@@ -56,6 +56,10 @@ vi.mock("@/hooks/useScriptGenerate", () => ({
   useScriptGenerate: () => mockUseScriptGenerate(),
 }));
 
+vi.mock("@/hooks/useNicheTaxonomy", () => ({
+  useNicheTaxonomy: () => ({ data: [{ id: 4, name: "Làm đẹp" }] }),
+}));
+
 vi.mock("@/components/AppLayout", () => ({
   AppLayout: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -97,8 +101,18 @@ describe("ScriptScreen", () => {
 
     mockUseProfile.mockReturnValue({ data: { primary_niche: 4 } });
     mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
-    mockUseScriptSceneIntelligence.mockReturnValue({ data: null, isPending: false });
-    mockUseScriptHookPatterns.mockReturnValue({ data: null, isPending: false });
+    mockUseScriptSceneIntelligence.mockReturnValue({
+      data: null,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    mockUseScriptHookPatterns.mockReturnValue({
+      data: null,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     mockUseScriptGenerate.mockReturnValue({
       mutate: vi.fn(),
       isPending: false,
@@ -121,10 +135,49 @@ describe("ScriptScreen", () => {
   });
 
   it("renders the loading banner while scene or hook queries are pending", () => {
-    mockUseScriptSceneIntelligence.mockReturnValue({ data: null, isPending: true });
-    mockUseScriptHookPatterns.mockReturnValue({ data: null, isPending: false });
+    mockUseScriptSceneIntelligence.mockReturnValue({
+      data: null,
+      isPending: true,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    mockUseScriptHookPatterns.mockReturnValue({
+      data: null,
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     renderScreen();
     expect(screen.getByText(/Đang tải dữ liệu ngách/)).toBeTruthy();
+  });
+
+  it("shows niche data error banner with retry when hook-patterns query errors", () => {
+    const hookRefetch = vi.fn();
+    const sceneRefetch = vi.fn();
+    mockUseScriptHookPatterns.mockReturnValue({
+      data: null,
+      isPending: false,
+      isError: true,
+      refetch: hookRefetch,
+    });
+    mockUseScriptSceneIntelligence.mockReturnValue({
+      data: null,
+      isPending: false,
+      isError: false,
+      refetch: sceneRefetch,
+    });
+    renderScreen();
+    expect(screen.getByText(/Không tải được dữ liệu ngách/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Thử lại/i }));
+    expect(hookRefetch).toHaveBeenCalledTimes(1);
+    expect(sceneRefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("hook-timing helper mentions generic window and not hardcoded Tech", () => {
+    renderScreen();
+    expect(screen.getByText(/Hầu hết video thắng rơi hook/)).toBeTruthy();
+    expect(screen.getByText(/0\.8.*1\.4s/)).toBeTruthy();
+    expect(screen.queryByText(/ngách Tech/i)).toBeNull();
   });
 
   it("renders the topic heading + KỊCH BẢN SỐ kicker on the happy path", () => {
