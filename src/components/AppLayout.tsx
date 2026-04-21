@@ -16,10 +16,12 @@ import {
   MoreHorizontal,
   Check,
   BookOpen,
+  Shield,
 } from 'lucide-react';
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useTopNiches } from "@/hooks/useTopNiches";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { chatKeys } from "@/hooks/useChatSession";
@@ -392,6 +394,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
+  const { isAdmin } = useIsAdmin();
   const { data: sessionsData } = useChatSessions();
   const qc = useQueryClient();
   const deleteSession = useDeleteSession();
@@ -554,6 +557,17 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
+          {isAdmin ? (
+            <NavItem
+              icon={Shield}
+              label="Admin"
+              active={active === "admin"}
+              onClick={() => {
+                navigate("/app/admin");
+                onClose?.();
+              }}
+            />
+          ) : null}
         </nav>
 
         <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />

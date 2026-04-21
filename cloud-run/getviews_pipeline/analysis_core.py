@@ -391,7 +391,8 @@ async def analyze_tiktok_url(
     full_analyses: dict[str, dict[str, Any]] | None = None,
 ) -> dict:
     """Fetch post by URL then analyze (same contract as legacy ``_analyze_core``)."""
-    aweme = await ensemble.fetch_post_info(url)
+    with ensemble.ed_call_site("video_diagnosis.post_info"):
+        aweme = await ensemble.fetch_post_info(url)
     return await analyze_aweme(
         aweme,
         include_diagnosis=include_diagnosis,

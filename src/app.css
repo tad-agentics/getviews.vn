@@ -325,6 +325,11 @@
   --gv-neg-deep:       #D11840;
   /* Phase C — WhatStalled negative accent (distinct from trend "down" pink) */
   --gv-danger:         #B91C1C;
+  /* Phase D.6.5 — warn severity for ops dashboards (between info and danger).
+   * Amber-700 equivalent; used on /app/admin logs panel WARNING entries and
+   * future ops alerts that aren't yet "break glass" danger-red. */
+  --gv-warn:           #B45309;
+  --gv-warn-soft:      #FEF3C7;
   /* Modal / drawer backdrop (Phase C.1.5 — no raw rgba in answer JSX) */
   --gv-scrim:          rgb(10 12 16 / 35%);
   /* Pattern action card forecast row on primary (Phase C.2.3) */
