@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/lib/supabase";
-import { useVideoCorpus } from "@/hooks/useVideoCorpus";
+import { corpusKeys, useVideoCorpus } from "@/hooks/useVideoCorpus";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
@@ -159,16 +159,37 @@ function VideoCard({
   const [modalOpen, setModalOpen] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
+  // Describes the card to assistive tech — the thumbnail itself stays
+  // `alt=""` (decorative) because this label covers the equivalent content.
+  const cardLabel = video.text
+    ? `Video ${video.handle}: ${video.text}`
+    : `Video ${video.handle}`;
+
   return (
     <>
       {modalOpen && <VideoPlayerModal video={video} allVideos={allVideos} onClose={() => setModalOpen(false)} />}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={cardLabel}
         onClick={() => setModalOpen(true)}
-        className="relative rounded-xl overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--border-active)] transition-colors duration-[120ms]"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setModalOpen(true);
+          }
+        }}
+        className="relative rounded-xl overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--border-active)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--purple)] transition-colors duration-[120ms]"
         style={{ aspectRatio: "9/14" }}
       >
         {!imgFailed ? (
-          <img src={video.img} alt="" className="w-full h-full object-cover" onError={() => setImgFailed(true)} />
+          <img
+            src={video.img}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={() => setImgFailed(true)}
+          />
         ) : (
           <div className="w-full h-full bg-[var(--surface-alt)]" />
         )}
@@ -206,7 +227,11 @@ function VideoCard({
                 e.stopPropagation();
                 onNavigate();
               }}
-              className="w-full min-h-[36px] rounded-md bg-white/20 py-1.5 text-center text-[10px] font-semibold text-white backdrop-blur-sm"
+              onKeyDown={(e) => {
+                // Prevent the outer card's Enter/Space handler from also firing.
+                if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+              }}
+              className="w-full min-h-[44px] rounded-md bg-white/20 py-1.5 text-center text-[10px] font-semibold text-white backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"
             >
               Phân tích video này
             </button>
@@ -236,20 +261,34 @@ function SidebarVideoRow({
 }) {
   const [imgFailed, setImgFailed] = useState(false);
 
+  const rowLabel = onClick ? `${item.title} — ${item.handle}, ${item.views} lượt xem` : undefined;
+
   return (
     <div
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
+      aria-label={rowLabel}
       onClick={onClick}
-      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
-      className={`flex items-start gap-2.5 py-2.5 border-b border-[var(--border)] last:border-0 group ${onClick ? "cursor-pointer" : ""}`}
+      onKeyDown={onClick ? (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      } : undefined}
+      className={`flex items-start gap-2.5 py-2.5 border-b border-[var(--border)] last:border-0 group ${onClick ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--purple)]" : ""}`}
     >
       {rank !== undefined && (
         <span className="text-xs font-mono text-[var(--faint)] w-4 flex-shrink-0 pt-0.5 text-right">{rank}</span>
       )}
       <div className="w-9 h-12 flex-shrink-0 rounded-md overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)]">
         {!imgFailed ? (
-          <img src={item.img} alt="" className="w-full h-full object-cover" onError={() => setImgFailed(true)} />
+          <img
+            src={item.img}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={() => setImgFailed(true)}
+          />
         ) : (
           <div className="w-full h-full bg-[var(--surface-alt)]" />
         )}
@@ -349,6 +388,16 @@ const SORT_LABELS: Record<SortOption, string> = {
   engagement_rate: "Tương tác",
 };
 
+const SORT_VALUES: Set<string> = new Set(Object.keys(SORT_LABELS));
+
+/** Parse a positive integer query-string value, returning null on anything
+ *  non-numeric or ≤0. Used for `niche` + `min_views` URL params. */
+function parsePositiveInt(raw: string | null): number | null {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
 const VIEW_FILTER_OPTIONS: { label: string; value: number }[] = [
   { label: "100K+", value: 100_000 },
   { label: "500K+", value: 500_000 },
@@ -367,20 +416,52 @@ const TYPE_FORMAT_OPTIONS: { label: string; value: string }[] = [
 
 export default function ExploreScreen() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeViewFilter, setActiveViewFilter] = useState<number | null>(null);
-  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>("indexed_at");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Filter state lives in the URL so bookmarks/back-nav/reload restore the
+  // view, and filtered pages are shareable with a teammate. `setFilter`
+  // below is the single write path — direct setState for these removed.
+  const sortByParam = searchParams.get("sort");
+  const sortBy: SortOption = sortByParam && SORT_VALUES.has(sortByParam)
+    ? (sortByParam as SortOption)
+    : "indexed_at";
+  const activeFormat = searchParams.get("format");
+  const activeViewFilter = parsePositiveInt(searchParams.get("min_views"));
+  const searchQuery = searchParams.get("q") ?? "";
+  const nicheParam = parsePositiveInt(searchParams.get("niche"));
+  const nicheExplicitClear = searchParams.get("niche") === "0";
+
+  const setFilter = useCallback(
+    (patch: Record<string, string | null>) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          for (const [k, v] of Object.entries(patch)) {
+            if (v == null || v === "") next.delete(k);
+            else next.set(k, v);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  // Local UI state (dropdown open/closed etc.) stays in React — not worth
+  // round-tripping through URL params.
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [activeFormat, setActiveFormat] = useState<string | null>(null);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const formatMenuRef = useRef<HTMLDivElement>(null);
   const [showNicheMenu, setShowNicheMenu] = useState(false);
   const nicheMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  // True once the user has explicitly cleared the niche — prevents auto-restore from profile
-  const nicheUserCleared = useRef(false);
+
+  // Profile → niche auto-seed. `?niche=0` in the URL encodes "user cleared
+  // niche this session" and suppresses the seed. Any positive `?niche=N`
+  // wins over profile.
+  const selectedNicheId: number | null = nicheParam;
 
   const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
@@ -394,13 +475,15 @@ export default function ExploreScreen() {
 
   const hookData = hookDataRaw as HookEffectivenessRow[] | undefined;
 
-  // Auto-seed niche from profile on first load — skip if user has manually cleared it
+  // Auto-seed niche from profile on first load. Skip when the URL explicitly
+  // carries `?niche=0` (user cleared this session) or already carries a
+  // positive `?niche=N` (shared link / bookmark wins).
   useEffect(() => {
-    if (nicheUserCleared.current) return;
+    if (nicheExplicitClear) return;
     if (selectedNicheId !== null) return;
     const id = profile?.primary_niche;
-    if (id != null) setSelectedNicheId(id);
-  }, [profile?.primary_niche, selectedNicheId]);
+    if (id != null) setFilter({ niche: String(id) });
+  }, [profile?.primary_niche, selectedNicheId, nicheExplicitClear, setFilter]);
 
   const selectedNicheName = useMemo(
     () => niches?.find((n) => n.id === selectedNicheId)?.name,
@@ -417,7 +500,7 @@ export default function ExploreScreen() {
   );
 
   const { data: breakoutVideosRaw } = useQuery({
-    queryKey: ["breakout_videos", selectedNicheId],
+    queryKey: corpusKeys.breakout(selectedNicheId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("video_corpus")
@@ -487,7 +570,12 @@ export default function ExploreScreen() {
 
   // Exact total count for the current filter combination (head-only, no rows fetched)
   const { data: corpusCount } = useQuery({
-    queryKey: ["corpus_count", selectedNicheId, searchQuery, activeViewFilter, activeFormat],
+    queryKey: corpusKeys.count({
+      nicheId: selectedNicheId,
+      search: searchQuery || undefined,
+      minViews: activeViewFilter ?? undefined,
+      contentFormat: activeFormat ?? undefined,
+    }),
     queryFn: async () => {
       let q = supabase
         .from("video_corpus")
@@ -601,7 +689,7 @@ export default function ExploreScreen() {
                   label={selectedNicheName ?? "Niche"}
                   hasArrow={selectedNicheId === null}
                   active={selectedNicheId !== null}
-                  onRemove={selectedNicheId !== null ? () => { nicheUserCleared.current = true; setSelectedNicheId(null); setShowNicheMenu(false); } : undefined}
+                  onRemove={selectedNicheId !== null ? () => { setFilter({ niche: "0" }); setShowNicheMenu(false); } : undefined}
                   onClick={() => setShowNicheMenu((v) => !v)}
                 />
                 {showNicheMenu ? (
@@ -610,7 +698,7 @@ export default function ExploreScreen() {
                       <button
                         key={n.id}
                         type="button"
-                        onClick={() => { setSelectedNicheId(n.id); setShowNicheMenu(false); }}
+                        onClick={() => { setFilter({ niche: String(n.id) }); setShowNicheMenu(false); }}
                         className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
                       >
                         {n.name}
@@ -624,9 +712,12 @@ export default function ExploreScreen() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 text-xs bg-transparent border-none outline-none text-[var(--ink)] placeholder:text-[var(--faint)]"
+                  onChange={(e) => setFilter({ q: e.target.value || null })}
+                  // text-[16px] on mobile prevents iOS zoom-on-focus; md:text-xs
+                  // keeps the compact density on tablet+ where no zoom risk.
+                  className="flex-1 text-[16px] md:text-xs bg-transparent border-none outline-none text-[var(--ink)] placeholder:text-[var(--faint)]"
                   placeholder="Tìm video..."
+                  aria-label="Tìm video"
                 />
               </div>
               <div className="relative">
@@ -634,7 +725,7 @@ export default function ExploreScreen() {
                   label={SORT_LABELS[sortBy]}
                   hasArrow
                   active={sortBy !== "indexed_at"}
-                  onRemove={sortBy !== "indexed_at" ? () => setSortBy("indexed_at") : undefined}
+                  onRemove={sortBy !== "indexed_at" ? () => setFilter({ sort: null }) : undefined}
                 />
                 <button
                   type="button"
@@ -648,7 +739,7 @@ export default function ExploreScreen() {
                       <button
                         key={opt}
                         type="button"
-                        onClick={() => { setSortBy(opt); setShowSortMenu(false); }}
+                        onClick={() => { setFilter({ sort: opt === "indexed_at" ? null : opt }); setShowSortMenu(false); }}
                         className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${sortBy === opt ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
                       >
                         {SORT_LABELS[opt]}
@@ -662,7 +753,7 @@ export default function ExploreScreen() {
                   label={activeFormat ? (TYPE_FORMAT_OPTIONS.find((o) => o.value === activeFormat)?.label ?? "Loại") : "Loại"}
                   hasArrow={!activeFormat}
                   active={activeFormat !== null}
-                  onRemove={activeFormat !== null ? () => setActiveFormat(null) : undefined}
+                  onRemove={activeFormat !== null ? () => setFilter({ format: null }) : undefined}
                   onClick={() => setShowFormatMenu((v) => !v)}
                 />
                 {showFormatMenu ? (
@@ -671,7 +762,7 @@ export default function ExploreScreen() {
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => { setActiveFormat(opt.value); setShowFormatMenu(false); }}
+                        onClick={() => { setFilter({ format: opt.value }); setShowFormatMenu(false); }}
                         className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${activeFormat === opt.value ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
                       >
                         {opt.label}
@@ -686,8 +777,8 @@ export default function ExploreScreen() {
                     key={opt.label}
                     label={opt.label}
                     active={activeViewFilter === opt.value}
-                    onRemove={activeViewFilter === opt.value ? () => setActiveViewFilter(null) : undefined}
-                    onClick={activeViewFilter !== opt.value ? () => setActiveViewFilter(opt.value) : undefined}
+                    onRemove={activeViewFilter === opt.value ? () => setFilter({ min_views: null }) : undefined}
+                    onClick={activeViewFilter !== opt.value ? () => setFilter({ min_views: String(opt.value) }) : undefined}
                   />
                 ))}
               </div>

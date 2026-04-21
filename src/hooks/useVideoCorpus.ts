@@ -19,6 +19,12 @@ export const corpusKeys = {
   list: (filters: VideoCorpusFilters) => ["video_corpus", "list", filters] as const,
   detail: (id: string) => ["video_corpus", "detail", id] as const,
   related: (videoId: string, nicheId: number) => ["video_corpus", "related", videoId, nicheId] as const,
+  /** Top videos by views for a niche — powers the lg+ breakout sidebar on /app/trends. */
+  breakout: (nicheId: number | null) => ["video_corpus", "breakout", nicheId] as const,
+  /** Head-only count of rows matching the active filter combo. Used for the
+   *  filter chip's "N kết quả" affordance without paying for a full fetch. */
+  count: (filters: Pick<VideoCorpusFilters, "nicheId" | "search" | "minViews" | "contentFormat">) =>
+    ["video_corpus", "count", filters] as const,
 };
 
 export function useVideoCorpus(filters: VideoCorpusFilters = {}) {

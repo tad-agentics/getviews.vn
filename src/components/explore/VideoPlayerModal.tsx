@@ -9,7 +9,7 @@ const PLACEHOLDER_THUMB = "/placeholder.svg";
 function SafeImg({ src, alt, className }: { src: string; alt: string; className: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <div className={`${className} bg-[var(--surface-alt)]`} />;
-  return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} />;
+  return <img src={src} alt={alt} loading="lazy" className={className} onError={() => setFailed(true)} />;
 }
 
 export type ExploreGridVideo = {
@@ -61,6 +61,15 @@ function EngagementSidebar({
   );
 }
 
+const FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
 export function VideoPlayerModal({
   video,
   allVideos,
@@ -78,6 +87,8 @@ export function VideoPlayerModal({
   const [muted, setMuted] = useState(true);
   const [copied, setCopied] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -86,11 +97,61 @@ export function VideoPlayerModal({
     }
   }, [selected]);
 
+  // Save the element that had focus before the modal opened so we can restore
+  // on close — otherwise keyboard users lose their place entirely.
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    // Defer focus until after mount so the autoplay video doesn't steal it.
+    const raf = requestAnimationFrame(() => closeButtonRef.current?.focus());
+    return () => {
+      cancelAnimationFrame(raf);
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
+  // Keyboard: Esc closes, Tab cycles focus inside the dialog, ArrowUp/Down
+  // navigates through `allVideos` (TikTok-parity swipe-up/down expectation).
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Skip arrow-nav when the user is typing into a text field (there aren't
+      // any inside this modal today, but the guard keeps the pattern safe if a
+      // caption/search field lands here later).
+      const target = e.target as HTMLElement | null;
+      const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      if (!typing && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        e.preventDefault();
+        const idx = allVideos.findIndex((v) => v.id === selected.id);
+        if (idx < 0) return;
+        const next = e.key === "ArrowDown"
+          ? allVideos[Math.min(idx + 1, allVideos.length - 1)]
+          : allVideos[Math.max(idx - 1, 0)];
+        if (next && next.id !== selected.id) setSelected(next);
+        return;
+      }
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusables = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+        ).filter((el) => !el.hasAttribute("aria-hidden"));
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, allVideos, selected.id]);
 
   return (
     <AnimatePresence>
@@ -102,6 +163,10 @@ export function VideoPlayerModal({
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={selected.caption || `Video ${selected.handle}`}
           initial={{ opacity: 0, y: 48 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 48 }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
           className="relative flex flex-col md:flex-row bg-[var(--surface)] w-full md:rounded-2xl overflow-hidden"
@@ -116,14 +181,20 @@ export function VideoPlayerModal({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
             <button
+              ref={closeButtonRef}
+              type="button"
               onClick={onClose}
-              className="absolute top-3 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors duration-[120ms] backdrop-blur-sm"
+              aria-label="Đóng video"
+              className="absolute top-3 right-3 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors duration-[120ms] backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               <X className="w-4 h-4" strokeWidth={2} />
             </button>
             <button
+              type="button"
               onClick={() => setMuted((v) => !v)}
-              className="absolute top-3 left-3 z-20 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors duration-[120ms] backdrop-blur-sm"
+              aria-label={muted ? "Bật tiếng" : "Tắt tiếng"}
+              aria-pressed={!muted}
+              className="absolute top-3 left-3 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors duration-[120ms] backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               {muted ? <VolumeX className="w-4 h-4" strokeWidth={2} /> : <Volume2 className="w-4 h-4" strokeWidth={2} />}
             </button>
@@ -183,8 +254,13 @@ export function VideoPlayerModal({
                 {allVideos.map((v) => {
                   const isSel = v.id === selected.id;
                   return (
-                    <button key={v.id} onClick={() => setSelected(v)}
-                      className={`flex flex-col items-start gap-1 p-1.5 rounded-xl border transition-colors duration-[120ms] ${isSel ? "border-[var(--purple)] bg-[var(--purple-light)]" : "border-[var(--border)]"}`}
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setSelected(v)}
+                      aria-current={isSel ? "true" : undefined}
+                      aria-label={v.caption || `Video ${v.handle}`}
+                      className={`flex flex-col items-start gap-1 p-1.5 rounded-xl border transition-colors duration-[120ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--purple)] ${isSel ? "border-[var(--purple)] bg-[var(--purple-light)]" : "border-[var(--border)]"}`}
                       style={{ width: 80, flexShrink: 0 }}
                     >
                       <div className="w-full rounded-lg overflow-hidden relative" style={{ height: 100 }}>
@@ -204,8 +280,13 @@ export function VideoPlayerModal({
               {allVideos.map((v) => {
                 const isSel = v.id === selected.id;
                 return (
-                  <button key={v.id} onClick={() => setSelected(v)}
-                    className={`w-full flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-[120ms] border-b border-[var(--border)] last:border-0 ${isSel ? "bg-[var(--purple-light)]" : "hover:bg-[var(--surface-alt)]"}`}
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setSelected(v)}
+                    aria-current={isSel ? "true" : undefined}
+                    aria-label={v.caption || `Video ${v.handle}`}
+                    className={`w-full flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-[120ms] border-b border-[var(--border)] last:border-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--purple)] ${isSel ? "bg-[var(--purple-light)]" : "hover:bg-[var(--surface-alt)]"}`}
                   >
                     <div className="flex-shrink-0 rounded-md overflow-hidden border border-[var(--border)] relative" style={{ width: 36, height: 50 }}>
                       <SafeImg src={v.img} alt="" className="w-full h-full object-cover" />
