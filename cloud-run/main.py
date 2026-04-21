@@ -1224,6 +1224,109 @@ async def admin_corpus_health(
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.2 · /admin/ensemble-credits — EnsembleData used-units proxy
+# ══════════════════════════════════════════════════════════════════════════
+
+import urllib.parse as _urlparse
+import urllib.request as _urlrequest
+
+_ENSEMBLE_USAGE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_ENSEMBLE_USAGE_TTL_SEC = 300.0  # 5 minutes per (date) tuple.
+
+
+def _ensemble_fetch_used_units(date_iso: str) -> dict[str, Any]:
+    """Call EnsembleData's GET /customer/get-used-units for a single UTC date.
+
+    Returns the parsed JSON body. Raises HTTPException with the upstream
+    status code on non-2xx so the caller can surface "no token configured"
+    vs "ensemble returned 403" vs "transient 5xx" distinctly in the UI.
+    5-minute in-process cache per (date) is fine — EnsembleData themselves
+    rate-limit the endpoint and ops don't need sub-minute freshness.
+    """
+    if not ENSEMBLEDATA_API_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ensemble_token_unset",
+        )
+    now = time.monotonic()
+    cached = _ENSEMBLE_USAGE_CACHE.get(date_iso)
+    if cached and now - cached[0] < _ENSEMBLE_USAGE_TTL_SEC:
+        return cached[1]
+
+    qs = _urlparse.urlencode({"date": date_iso, "token": ENSEMBLEDATA_API_TOKEN})
+    url = f"https://ensembledata.com/apis/customer/get-used-units?{qs}"
+    req = _urlrequest.Request(url, headers={"User-Agent": "getviews-admin/1.0"})
+    try:
+        with _urlrequest.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8")
+            payload = json.loads(body)
+    except Exception as exc:
+        logger.warning("[admin/ensemble] fetch failed for %s: %s", date_iso, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"ensemble_fetch_failed: {exc}",
+        ) from exc
+
+    _ENSEMBLE_USAGE_CACHE[date_iso] = (now, payload)
+    return payload
+
+
+# `ED_MONTHLY_UNIT_BUDGET` is the configured plan ceiling, consumed so the
+# panel can render "remaining / limit". Zero / unset means "no ceiling
+# known" and the panel hides the remainder math.
+_ENSEMBLE_MONTHLY_BUDGET = int(os.environ.get("ED_MONTHLY_UNIT_BUDGET", "0"))
+
+
+@app.get("/admin/ensemble-credits")
+async def admin_ensemble_credits(
+    _admin: dict[str, Any] = Depends(require_admin),
+    days: int = Query(14, ge=1, le=60),
+) -> JSONResponse:
+    """Daily EnsembleData usage for the last N UTC days.
+
+    EnsembleData's `/customer/get-used-units` returns one day at a time,
+    so we iterate. `days=14` is the default: enough to see a weekly cycle
+    plus a lookback window without making 30+ upstream calls every render
+    (the 5-minute cache per date absorbs the cost on subsequent views).
+
+    Response:
+      {
+        "ok": true,
+        "as_of": <ISO>,
+        "monthly_budget": <int | null>,     # null if ED_MONTHLY_UNIT_BUDGET unset
+        "days": [{ "date": "YYYY-MM-DD", "units": <int>, "ok": true | false, "error"?: <str> }, …]
+      }
+    Per-day `ok: false` with an `error` field when a single date failed; we
+    still return 200 with partial data so a transient ED outage on one
+    date doesn't blank the whole panel.
+    """
+    now = datetime.now(timezone.utc)
+    results: list[dict[str, Any]] = []
+    for i in range(days):
+        day = (now - timedelta(days=i)).date().isoformat()
+        try:
+            payload = _ensemble_fetch_used_units(day)
+            # EnsembleData's shape: { "data": { "units": <int> } } (per their
+            # docs). Tolerate either top-level `units` or nested under `data`.
+            units_raw = payload.get("units")
+            if units_raw is None and isinstance(payload.get("data"), dict):
+                units_raw = payload["data"].get("units")
+            units = int(units_raw or 0)
+            results.append({"date": day, "units": units, "ok": True})
+        except HTTPException as exc:
+            results.append({"date": day, "units": 0, "ok": False, "error": str(exc.detail)})
+
+    results.reverse()  # oldest first for chart rendering.
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": now.isoformat(),
+        "monthly_budget": _ENSEMBLE_MONTHLY_BUDGET or None,
+        "days": results,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # Phase B · /video — niche benchmark (B.1.2)
 # ══════════════════════════════════════════════════════════════════════════
 

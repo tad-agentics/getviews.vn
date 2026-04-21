@@ -13,6 +13,7 @@ import { useNavigate } from "react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
+import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 
 function AdminPanelCard({
   title,
@@ -96,10 +97,8 @@ export default function AdminScreen() {
             <CorpusHealthPanel />
           </AdminPanelCard>
 
-          <AdminPanelCard title="EnsembleData credits" subtitle="used units theo ngày">
-            <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-              Chưa kết nối — panel sẽ hiển thị units đã dùng hôm nay và trend 30 ngày.
-            </p>
+          <AdminPanelCard title="EnsembleData credits" subtitle="used units theo ngày" fullWidth>
+            <EnsembleCreditsPanel />
           </AdminPanelCard>
 
           <AdminPanelCard title="Cloud Run logs" subtitle="stdout tail theo filter">
