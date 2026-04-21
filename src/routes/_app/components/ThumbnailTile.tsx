@@ -1,18 +1,18 @@
 import { motion } from "motion/react";
 
-export type ThumbnailDominantElement = "face" | "product" | "text" | "environment";
-export type ThumbnailFacialExpression =
-  | "neutral" | "surprised" | "confused" | "smiling" | "focused";
-export type ThumbnailColourContrast = "high" | "medium" | "low";
+import type {
+  ThumbnailAnalysisData,
+  ThumbnailColourContrast,
+  ThumbnailDominantElement,
+  ThumbnailFacialExpression,
+} from "@/lib/types/corpus-sidecars";
 
-export type ThumbnailAnalysisData = {
-  stop_power_score: number;               // 0–10
-  dominant_element: ThumbnailDominantElement;
-  text_on_thumbnail: string | null;
-  facial_expression: ThumbnailFacialExpression | null;
-  colour_contrast: ThumbnailColourContrast;
-  why_it_stops: string;
-};
+export type {
+  ThumbnailAnalysisData,
+  ThumbnailColourContrast,
+  ThumbnailDominantElement,
+  ThumbnailFacialExpression,
+} from "@/lib/types/corpus-sidecars";
 
 const DOMINANT_VI: Record<ThumbnailDominantElement, string> = {
   face: "Mặt người",

@@ -58,10 +58,13 @@ def _read_cached_sync(client: Any, video_id: str) -> tuple[dict[str, Any] | None
         return None, False
 
 
-def _write_cached_sync(client: Any, video_id: str, radar: dict[str, Any]) -> None:
+def _write_cached_sync(video_id: str, radar: dict[str, Any]) -> None:
+    """Persist comment radar using service_role — anon cannot UPDATE video_corpus."""
     try:
+        from getviews_pipeline.supabase_client import get_service_client
+
         now_iso = datetime.now(tz=timezone.utc).isoformat()
-        client.table("video_corpus").update(
+        get_service_client().table("video_corpus").update(
             {
                 "comment_radar": radar,
                 "comment_radar_fetched_at": now_iso,
@@ -130,12 +133,11 @@ async def resolve_comment_radar(
     )
     radar_dict = radar.asdict()
 
-    # Write-back — best effort, never blocks.
-    if client is not None:
-        try:
-            await run_sync(_write_cached_sync, client, vid, radar_dict)
-        except Exception as exc:  # pragma: no cover — defensive
-            logger.warning("[comment_radar_cache] post-fetch write failed: %s", exc)
+    # Write-back — service_role; best effort, never blocks.
+    try:
+        await run_sync(_write_cached_sync, vid, radar_dict)
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("[comment_radar_cache] post-fetch write failed: %s", exc)
 
     return radar_dict
 

@@ -41,8 +41,37 @@ type CorpusRow = {
   hook_phrase: string | null;
   content_format: string | null;
   breakout_multiplier: number | null;
+  tone: string | null;
+  cta_type: string | null;
+  is_commerce: boolean | null;
+  sound_name: string | null;
+  creator_tier: string | null;
+  posting_hour: number | null;
 };
 
+function corpusMetadataChips(row: CorpusRow): string[] {
+  const chips: string[] = [];
+  if (row.is_commerce === true) chips.push("Mua bán");
+  const tier = row.creator_tier?.trim();
+  if (tier) chips.push(tier);
+  const sound = row.sound_name?.trim();
+  if (sound) chips.push(sound.length > 22 ? `${sound.slice(0, 20)}…` : sound);
+  if (chips.length >= 3) return chips.slice(0, 3);
+  const tone = row.tone?.trim();
+  if (tone) chips.push(tone);
+  if (chips.length >= 3) return chips.slice(0, 3);
+  const cta = row.cta_type?.trim();
+  if (cta) chips.push(cta);
+  if (chips.length >= 3) return chips.slice(0, 3);
+  if (
+    row.posting_hour != null &&
+    row.posting_hour >= 0 &&
+    row.posting_hour <= 23
+  ) {
+    chips.push(`Đăng ${row.posting_hour}h`);
+  }
+  return chips.slice(0, 3);
+}
 
 function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
   const v = row.views ?? 0;
@@ -63,6 +92,7 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
       ? `${row.breakout_multiplier.toFixed(1)}×`
       : null,
     contentFormat: row.content_format ?? null,
+    metadataChips: corpusMetadataChips(row),
   };
 }
 
@@ -148,6 +178,18 @@ function VideoCard({
           </div>
         )}
         <div className="absolute bottom-0 inset-x-0 px-2 py-2 bg-gradient-to-t from-black/80 to-transparent flex flex-col gap-1.5">
+          {video.metadataChips && video.metadataChips.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {video.metadataChips.map((chip, i) => (
+                <span
+                  key={`${chip}-${i}`}
+                  className="max-w-full truncate rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-medium text-white backdrop-blur-sm"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="flex items-end justify-between w-full">
             <div className="flex items-center gap-1.5">
               <span className="text-white text-[11px] font-semibold">{video.views} views</span>

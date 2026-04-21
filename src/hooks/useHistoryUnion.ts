@@ -40,7 +40,8 @@ export function useHistoryUnion(filter: "all" | "answer" | "chat", enabled: bool
   return useInfiniteQuery({
     queryKey: historyUnionKeys.list(filter),
     queryFn: async ({ pageParam }) => {
-      const { data, error } = await supabase.rpc("history_union", {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC is in DB (20260430000003); regenerate `database.types` to narrow
+      const { data, error } = await (supabase as any).rpc("history_union", {
         p_filter: filter,
         p_cursor: (pageParam as string | null) ?? null,
         p_limit: HISTORY_PAGE_SIZE,

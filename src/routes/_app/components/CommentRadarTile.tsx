@@ -1,21 +1,9 @@
 import { motion } from "motion/react";
 import { MessageCircle, ShoppingBag, HelpCircle } from "lucide-react";
 
-export type CommentRadarData = {
-  sampled: number;
-  total_available: number;
-  sentiment: {
-    positive_pct: number;
-    negative_pct: number;
-    neutral_pct: number;
-  };
-  purchase_intent: {
-    count: number;
-    top_phrases: string[];
-  };
-  questions_asked: number;
-  language: "vi" | "mixed" | "non-vi" | "unknown";
-};
+import type { CommentRadarData } from "@/lib/types/corpus-sidecars";
+
+export type { CommentRadarData } from "@/lib/types/corpus-sidecars";
 
 const LANGUAGE_LABEL: Record<CommentRadarData["language"], string> = {
   vi: "Phần lớn tiếng Việt",

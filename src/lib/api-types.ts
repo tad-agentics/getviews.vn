@@ -3,6 +3,8 @@
  * Extend here before wiring routes or Python response models.
  */
 
+import type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";
+
 // ---------------------------------------------------------------------------
 // B.1 — POST /video/analyze (and Supabase `video_diagnostics` row)
 // ---------------------------------------------------------------------------
@@ -119,7 +121,13 @@ export interface VideoAnalyzeResponse {
   niche_meta: VideoNicheMeta | null;
   /** Flop summary bar; deterministic client may also recompute. */
   projected_views?: number | null;
+  /** Corpus thumbnail_analysis (Gemini on t=0 frame); null when unavailable. */
+  thumbnail_analysis?: ThumbnailAnalysisData | null;
+  /** Comment sentiment + purchase intent; null when sparse / fetch miss. */
+  comment_radar?: CommentRadarData | null;
 }
+
+export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";
 
 /** Row shape for `public.video_diagnostics` (no `mode` — join corpus for mode). */
 export interface VideoDiagnosticsRow {

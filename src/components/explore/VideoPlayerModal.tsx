@@ -27,6 +27,8 @@ export type ExploreGridVideo = {
   tiktok_url: string | null;
   breakout?: string | null;
   contentFormat?: string | null;
+  /** Up to 3 short labels from corpus classification (commerce, tier, sound, …). */
+  metadataChips?: string[];
 };
 
 function EngagementSidebar({

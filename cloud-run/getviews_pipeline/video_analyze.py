@@ -6,6 +6,7 @@ Writes go through **service_role** (see migration: no authenticated INSERT).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -28,6 +29,46 @@ from getviews_pipeline.video_structural import (
 logger = logging.getLogger(__name__)
 
 DIAGNOSTICS_STALE_AFTER = timedelta(hours=1)
+
+
+def _fetch_sidecars_sync(
+    video_id: str,
+    comment_count_hint: int,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Run async thumbnail + comment-radar resolvers from the sync pipeline (thread pool)."""
+    from getviews_pipeline.comment_radar_cache import resolve_comment_radar
+    from getviews_pipeline.thumbnail_analysis_cache import resolve_thumbnail_analysis
+
+    async def _both() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        return await asyncio.gather(
+            resolve_thumbnail_analysis(video_id),
+            resolve_comment_radar(video_id, comment_count_hint=comment_count_hint),
+        )
+
+    return asyncio.run(_both())
+
+
+def _merge_sidecars_into_response(
+    out: dict[str, Any],
+    *,
+    video_id: str,
+    comment_count_hint: int,
+) -> dict[str, Any]:
+    """Attach corpus sidecars; failures are logged and omitted from the payload."""
+    try:
+        thumb, radar = _fetch_sidecars_sync(video_id, comment_count_hint)
+    except Exception as exc:
+        logger.warning(
+            "[video_analyze] sidecar resolve failed video_id=%s: %s",
+            video_id,
+            exc,
+        )
+        return out
+    if thumb is not None:
+        out["thumbnail_analysis"] = thumb
+    if radar is not None:
+        out["comment_radar"] = radar
+    return out
 
 
 # ── Gemini output schemas (text-only, JSON) ───────────────────────────────
@@ -521,7 +562,7 @@ def run_video_analyze_pipeline(
             age_min,
             force_refresh,
         )
-        return _response_from_diagnostics_row(
+        base = _response_from_diagnostics_row(
             video,
             diag_row,
             mode=mode_resolved,
@@ -530,6 +571,11 @@ def run_video_analyze_pipeline(
             retention_user=retention_user,
             niche_label=niche_label_resolved,
             retention_source=retention_source,
+        )
+        return _merge_sidecars_into_response(
+            base,
+            video_id=vid,
+            comment_count_hint=int(video.get("comments") or 0),
         )
 
     # Gemini prompt label: last-resort literal when taxonomy row is missing.
@@ -602,4 +648,8 @@ def run_video_analyze_pipeline(
     )
     if projected is not None:
         out["projected_views"] = projected
-    return out
+    return _merge_sidecars_into_response(
+        out,
+        video_id=vid,
+        comment_count_hint=int(video.get("comments") or 0),
+    )

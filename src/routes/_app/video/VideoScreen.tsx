@@ -34,6 +34,9 @@ import type {
 } from "@/lib/api-types";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { useVideoAnalysis, videoAnalysisKey } from "@/hooks/useVideoAnalysis";
+import { r2FrameUrl } from "@/lib/services/corpus-service";
+import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
+import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
 import { VideoUrlCapture } from "./VideoUrlCapture";
 
 function formatViewsVi(n: number): string {
@@ -388,6 +391,10 @@ function VideoAnalysisBodyInner({
     }
   };
 
+  const showCommentRadarTile =
+    data.comment_radar != null && data.comment_radar.sampled > 0;
+  const showThumbnailTile = data.thumbnail_analysis != null;
+
   const applyLesson = (lesson: VideoLesson) => {
     navigate("/app/answer", {
       state: {
@@ -529,6 +536,22 @@ function VideoAnalysisBodyInner({
           <SectionMini kicker="Dòng thời gian" title={`Cấu trúc ${Math.round(duration)} giây`} />
           <Timeline segments={data.segments} durationSec={duration} />
         </section>
+
+        {showCommentRadarTile || showThumbnailTile ? (
+          <section aria-label="Thumbnail và bình luận">
+            <div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2">
+              {showCommentRadarTile && data.comment_radar ? (
+                <CommentRadarTile data={data.comment_radar} />
+              ) : null}
+              {showThumbnailTile && data.thumbnail_analysis ? (
+                <ThumbnailTile
+                  data={data.thumbnail_analysis}
+                  frameUrl={r2FrameUrl(data.video_id)}
+                />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         {viewMode === "win" ? (
           <section>

@@ -19,6 +19,7 @@ from getviews_pipeline.video_analyze import (
     _coerce_analysis_headline_for_api,
     _diagnostics_fresh,
     _fetch_corpus_row,
+    _merge_sidecars_into_response,
     _response_from_diagnostics_row,
     is_flop_mode,
     projected_views_heuristic,
@@ -297,6 +298,46 @@ def _make_analyze_mocks(
     return user_sb, service_sb
 
 
+def test_merge_sidecars_adds_optional_fields() -> None:
+    thumb = {"contrast_score": 0.8}
+    radar = {
+        "sampled": 10,
+        "total_available": 50,
+        "sentiment": {"positive_pct": 0.5, "negative_pct": 0.2, "neutral_pct": 0.3},
+        "purchase_intent": {"count": 1, "top_phrases": ["mua"]},
+        "questions_asked": 2,
+        "language": "vi",
+    }
+    base = {"video_id": "v1", "mode": "win"}
+    with patch(
+        "getviews_pipeline.video_analyze._fetch_sidecars_sync",
+        return_value=(thumb, radar),
+    ):
+        out = _merge_sidecars_into_response(
+            dict(base),
+            video_id="v1",
+            comment_count_hint=100,
+        )
+    assert out["thumbnail_analysis"] == thumb
+    assert out["comment_radar"] == radar
+
+
+def test_merge_sidecars_swallows_fetch_errors() -> None:
+    base = {"video_id": "v1", "mode": "win"}
+    with patch(
+        "getviews_pipeline.video_analyze._fetch_sidecars_sync",
+        side_effect=RuntimeError("network"),
+    ):
+        out = _merge_sidecars_into_response(
+            dict(base),
+            video_id="v1",
+            comment_count_hint=0,
+        )
+    assert out == base
+    assert "thumbnail_analysis" not in out
+    assert "comment_radar" not in out
+
+
 def test_run_pipeline_cache_hit_skips_gemini() -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
     diag_row = {
@@ -345,20 +386,24 @@ def test_run_pipeline_cache_hit_skips_gemini() -> None:
     )
 
     with patch(
-        "getviews_pipeline.video_analyze._call_win_gemini",
-        side_effect=AssertionError("Gemini must not run on cache hit"),
+        "getviews_pipeline.video_analyze._fetch_sidecars_sync",
+        return_value=(None, None),
     ):
         with patch(
-            "getviews_pipeline.video_analyze._call_flop_gemini",
-            side_effect=AssertionError("Flop Gemini must not run on cache hit"),
+            "getviews_pipeline.video_analyze._call_win_gemini",
+            side_effect=AssertionError("Gemini must not run on cache hit"),
         ):
-            out = run_video_analyze_pipeline(
-                service_sb,
-                user_sb,
-                video_id="vid-cache",
-                tiktok_url=None,
-                force_refresh=False,
-            )
+            with patch(
+                "getviews_pipeline.video_analyze._call_flop_gemini",
+                side_effect=AssertionError("Flop Gemini must not run on cache hit"),
+            ):
+                out = run_video_analyze_pipeline(
+                    service_sb,
+                    user_sb,
+                    video_id="vid-cache",
+                    tiktok_url=None,
+                    force_refresh=False,
+                )
 
     assert out["analysis_headline"] == "from cache"
     assert out["meta"]["niche_label"] == "Làm đẹp"
@@ -429,14 +474,18 @@ def test_force_refresh_skips_cache_hit() -> None:
         gemini_called.append("win")
         return llm_out
 
-    with patch("getviews_pipeline.video_analyze._call_win_gemini", side_effect=fake_win):
-        out = run_video_analyze_pipeline(
-            service_sb,
-            user_sb,
-            video_id="vid-refresh",
-            tiktok_url=None,
-            force_refresh=True,
-        )
+    with patch(
+        "getviews_pipeline.video_analyze._fetch_sidecars_sync",
+        return_value=(None, None),
+    ):
+        with patch("getviews_pipeline.video_analyze._call_win_gemini", side_effect=fake_win):
+            out = run_video_analyze_pipeline(
+                service_sb,
+                user_sb,
+                video_id="vid-refresh",
+                tiktok_url=None,
+                force_refresh=True,
+            )
 
     assert gemini_called == ["win"]
     assert out["analysis_headline"] == "fresh from mock"
@@ -495,18 +544,22 @@ def test_run_pipeline_respects_mode_override() -> None:
         gemini_called.append("flop")
         return llm_flop
 
-    with patch("getviews_pipeline.video_analyze._call_flop_gemini", side_effect=fake_flop):
-        with patch(
-            "getviews_pipeline.video_analyze._call_win_gemini",
-            side_effect=AssertionError("win Gemini must not run when mode=flop override"),
-        ):
-            out = run_video_analyze_pipeline(
-                service_sb,
-                user_sb,
-                video_id="vid-mode-override",
-                tiktok_url=None,
-                mode="flop",
-            )
+    with patch(
+        "getviews_pipeline.video_analyze._fetch_sidecars_sync",
+        return_value=(None, None),
+    ):
+        with patch("getviews_pipeline.video_analyze._call_flop_gemini", side_effect=fake_flop):
+            with patch(
+                "getviews_pipeline.video_analyze._call_win_gemini",
+                side_effect=AssertionError("win Gemini must not run when mode=flop override"),
+            ):
+                out = run_video_analyze_pipeline(
+                    service_sb,
+                    user_sb,
+                    video_id="vid-mode-override",
+                    tiktok_url=None,
+                    mode="flop",
+                )
 
     assert gemini_called == ["flop"]
     assert out["mode"] == "flop"

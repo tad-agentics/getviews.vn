@@ -9,7 +9,7 @@ export function TemplatizeCard({ sessionId }: { sessionId: string | null }) {
       <p className="mt-1 text-sm">Biến báo cáo này thành template cho các tuần sau.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Btn
-          variant="secondary"
+          variant="accent"
           size="sm"
           type="button"
           disabled={!sessionId}

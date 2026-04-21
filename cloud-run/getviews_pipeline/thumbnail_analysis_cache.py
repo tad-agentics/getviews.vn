@@ -71,10 +71,13 @@ def _read_cached_sync(
         return None, False, None
 
 
-def _write_cached_sync(client: Any, video_id: str, payload: dict[str, Any]) -> None:
+def _write_cached_sync(video_id: str, payload: dict[str, Any]) -> None:
+    """Persist thumbnail cache using service_role — anon cannot UPDATE video_corpus."""
     try:
+        from getviews_pipeline.supabase_client import get_service_client
+
         now_iso = datetime.now(tz=timezone.utc).isoformat()
-        client.table("video_corpus").update(
+        get_service_client().table("video_corpus").update(
             {
                 "thumbnail_analysis": payload,
                 "thumbnail_analysis_fetched_at": now_iso,
@@ -124,7 +127,7 @@ async def resolve_thumbnail_analysis(video_id: str) -> dict[str, Any] | None:
         return None
 
     try:
-        await run_sync(_write_cached_sync, client, vid, payload)
+        await run_sync(_write_cached_sync, vid, payload)
     except Exception as exc:  # pragma: no cover — defensive
         logger.warning("[thumbnail_cache] post-fetch write failed: %s", exc)
 
