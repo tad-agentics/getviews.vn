@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import type { ScriptGenerateRequest, ScriptGenerateResponse } from "@/lib/api-types";
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -17,13 +18,14 @@ export function useScriptGenerate() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Chưa đăng nhập");
-      const res = await fetch(`${base}/script/generate`, {
+      const res = await fetchWithTimeout(`${base}/script/generate`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        timeoutMs: 45_000,
       });
       if (res.status === 402) {
         const err = new Error("insufficient_credits");

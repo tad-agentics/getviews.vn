@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { KolBrowseResponse, KolBrowseTab } from "@/lib/api-types";
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -123,8 +124,9 @@ async function fetchKolBrowse(params: {
   const qSearch = normalizeKolSearchInput(params.search);
   if (qSearch) sp.set("search", qSearch);
 
-  const res = await fetch(`${cloudRunUrl}/kol/browse?${sp.toString()}`, {
+  const res = await fetchWithTimeout(`${cloudRunUrl}/kol/browse?${sp.toString()}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
+    timeoutMs: 30_000,
   });
   if (res.status === 404) {
     const detail = (await res.json().catch(() => ({}))) as { detail?: string };
@@ -218,13 +220,16 @@ export function useKolTogglePin(userId: string | undefined) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Chưa đăng nhập");
       const norm = handle.trim().replace(/^@+/, "").toLowerCase();
-      const res = await fetch(`${cloudRunUrl}/kol/toggle-pin`, {
+      const res = await fetchWithTimeout(`${cloudRunUrl}/kol/toggle-pin`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ handle: norm }),
+        // Pin toggle is lightweight — short timeout so a hung request
+        // rolls back quickly rather than blocking the user for 30s.
+        timeoutMs: 10_000,
       });
       if (!res.ok) {
         const text = await res.text();

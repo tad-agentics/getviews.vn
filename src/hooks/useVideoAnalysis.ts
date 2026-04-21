@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { RetentionCurveSource, VideoAnalyzeMode, VideoAnalyzeResponse } from "@/lib/api-types";
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
 
 export type VideoAnalysisKey = string | null;
@@ -59,13 +60,17 @@ export function useVideoAnalysis({
       if (videoId?.trim()) body.video_id = videoId.trim();
       else if (url?.trim()) body.tiktok_url = url.trim();
 
-      const res = await fetch(`${cloudRunUrl}/video/analyze`, {
+      const res = await fetchWithTimeout(`${cloudRunUrl}/video/analyze`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        // Video analysis hits Gemini multimodal — cold-start + long clip
+        // can stretch past the 30s default. 60s leaves headroom without
+        // letting a stuck request swallow the tab indefinitely.
+        timeoutMs: 60_000,
       });
 
       if (res.status === 402) {

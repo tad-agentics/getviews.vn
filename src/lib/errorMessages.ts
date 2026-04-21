@@ -24,5 +24,13 @@ export function analysisErrorCopy(error: unknown): string {
     return "Đã hết lượt miễn phí hôm nay. Quota sẽ reset lúc 00:00 UTC, hoặc dùng credit trả phí.";
   }
 
+  if (error.name === "FetchTimeout") {
+    return "Yêu cầu quá lâu — hệ thống đang chậm. Thử lại sau ít giây.";
+  }
+
+  if (error.name === "SessionExpired" || error.message === "session_expired") {
+    return "Phiên đăng nhập đã hết hạn — tự động đăng xuất sau giây lát.";
+  }
+
   return error.message || "Lỗi không xác định";
 }
