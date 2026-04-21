@@ -26,10 +26,7 @@ function severityTone(severity: string): string {
   if (severity === "ERROR" || severity === "CRITICAL" || severity === "ALERT" || severity === "EMERGENCY") {
     return "text-[color:var(--gv-danger)]";
   }
-  if (severity === "WARNING") {
-    // No dedicated --gv-warn token yet; bold ink provides the contrast.
-    return "text-[color:var(--gv-ink)]";
-  }
+  if (severity === "WARNING") return "text-[color:var(--gv-warn)]";
   return "text-[color:var(--gv-ink-4)]";
 }
 
