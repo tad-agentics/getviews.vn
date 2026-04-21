@@ -1,6 +1,9 @@
 /**
  * Phase C.1 — TanStack Query keys + fetchers for `/answer` sessions.
- * staleTime: list 60s, detail 30min (append-only after primary per plan).
+ * staleTime: list 60s, detail 2min. Short enough that a second tab picks
+ * up follow-up turns appended from another tab on the next focus refetch,
+ * and cheap enough that cache churn doesn't hit the cold-start path — the
+ * optimistic injection in AnswerScreen already keeps the active tab warm.
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -48,7 +51,7 @@ export function useAnswerSessionDetail(sessionId: string | null | undefined, use
       return fetchAnswerSessionDetail(t, sessionId);
     },
     enabled: Boolean(sessionId && userId),
-    staleTime: 30 * 60_000,
+    staleTime: 2 * 60_000,
   });
 }
 
