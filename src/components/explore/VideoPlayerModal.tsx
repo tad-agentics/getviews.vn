@@ -14,6 +14,11 @@ function SafeImg({ src, alt, className }: { src: string; alt: string; className:
 
 export type ExploreGridVideo = {
   id: string;
+  /** TikTok ``aweme_id`` — the value ``/app/video`` expects at ``?video_id=``.
+   *  Distinct from ``id`` (the Supabase row UUID) because corpus rows key on
+   *  a surrogate UUID while deep-links + scrape endpoints operate on the
+   *  external aweme_id. See ``useVideoCorpus.ts`` select list. */
+  video_id: string;
   views: string;
   time: string;
   img: string;

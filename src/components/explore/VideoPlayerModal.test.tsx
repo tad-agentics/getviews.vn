@@ -47,6 +47,7 @@ import { VideoPlayerModal, type ExploreGridVideo } from "./VideoPlayerModal";
 function mkVideo(id: string, overrides: Partial<ExploreGridVideo> = {}): ExploreGridVideo {
   return {
     id,
+    video_id: id,
     views: "100K",
     time: "2 giờ trước",
     img: "/thumb.jpg",
