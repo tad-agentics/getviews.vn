@@ -11,9 +11,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary: 'gradient-cta hover:opacity-90 disabled:opacity-50',
-      secondary: 'bg-[var(--surface)] border border-[var(--border)] text-[var(--ink)] hover:bg-[var(--surface-alt)] hover:border-[var(--border-active)]',
-      outlined: 'bg-transparent border border-[var(--border)] text-[var(--ink)] hover:bg-[var(--surface-alt)] hover:border-[var(--border-active)]',
-      danger: 'bg-[var(--danger)] text-white hover:opacity-90',
+      secondary: 'bg-[color:var(--surface)] border border-[color:var(--border)] text-[color:var(--ink)] hover:bg-[color:var(--surface-alt)] hover:border-[color:var(--gv-ink)]',
+      outlined: 'bg-transparent border border-[color:var(--border)] text-[color:var(--ink)] hover:bg-[color:var(--surface-alt)] hover:border-[color:var(--gv-ink)]',
+      danger: 'bg-[color:var(--danger)] text-white hover:opacity-90',
     };
 
     const widthClass = fullWidth ? 'w-full' : '';

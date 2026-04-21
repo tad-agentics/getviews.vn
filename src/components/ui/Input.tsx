@@ -9,7 +9,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const baseStyles = 'w-full px-4 py-3 rounded-lg border bg-[var(--surface)] text-[var(--ink)] placeholder:text-[var(--faint)] transition-all duration-[120ms]';
     const stateStyles = error
       ? 'border-[var(--danger)]'
-      : 'border-[var(--border)] focus:border-[var(--purple)] focus:outline-none focus:ring-1 focus:ring-[var(--purple)]';
+      : 'border-[color:var(--border)] focus:border-[color:var(--gv-accent)] focus:outline-none focus:ring-1 focus:ring-[color:var(--gv-accent)]';
 
     return (
       <input
@@ -32,7 +32,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     const baseStyles = 'w-full px-4 py-3 rounded-lg border bg-[var(--surface)] text-[var(--ink)] placeholder:text-[var(--faint)] transition-all duration-[120ms] resize-none';
     const stateStyles = error
       ? 'border-[var(--danger)]'
-      : 'border-[var(--border)] focus:border-[var(--purple)] focus:outline-none focus:ring-1 focus:ring-[var(--purple)]';
+      : 'border-[color:var(--border)] focus:border-[color:var(--gv-accent)] focus:outline-none focus:ring-1 focus:ring-[color:var(--gv-accent)]';
 
     return (
       <textarea

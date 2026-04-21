@@ -8,9 +8,9 @@ interface CardProps {
 }
 
 export function Card({ children, className = '', hover, onClick }: CardProps) {
-  const baseStyles = 'bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4';
+  const baseStyles = 'bg-[color:var(--surface)] border border-[color:var(--border)] rounded-xl p-4';
   const hoverStyles = hover
-    ? 'cursor-pointer transition-all duration-[120ms] hover:border-[var(--purple)] hover:bg-[var(--purple-light)]'
+    ? 'cursor-pointer transition-all duration-[120ms] hover:border-[color:var(--gv-accent)] hover:bg-[color:var(--gv-accent-soft)]'
     : '';
 
   return (
