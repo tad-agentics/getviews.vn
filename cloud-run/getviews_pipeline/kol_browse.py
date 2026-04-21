@@ -213,31 +213,6 @@ def _resolve_growth_display_pct(
     return _growth_display_pct_proxy(avg_views, niche_avg_views)
 
 
-def _fetch_view_velocity_map(
-    sb: Any, *, niche_id: int
-) -> dict[str, tuple[float, datetime | None]]:
-    """Read creator_velocity.view_velocity_30d_pct for the niche into a map."""
-    try:
-        res = (
-            sb.table("creator_velocity")
-            .select("creator_handle, view_velocity_30d_pct, view_velocity_computed_at")
-            .eq("niche_id", niche_id)
-            .execute()
-        )
-    except Exception as exc:  # pragma: no cover — defensive
-        _log.warning("[kol-growth] view_velocity read failed: %s", exc)
-        return {}
-    out: dict[str, tuple[float, datetime | None]] = {}
-    for row in res.data or []:
-        h = normalize_handle(str(row.get("creator_handle") or ""))
-        if not h:
-            continue
-        raw = row.get("view_velocity_30d_pct")
-        if raw is None:
-            continue
-        ts = _parse_computed_at(row.get("view_velocity_computed_at"))
-        out[h] = (float(raw), ts)
-    return out
 
 
 def _sort_decorated_rows(
@@ -337,29 +312,53 @@ def _is_fresh(computed_at: datetime | None, *, now: datetime | None = None) -> b
     return (current - computed_at) < MATCH_SCORE_TTL
 
 
-def _fetch_cached_match_scores(sb: Any, *, niche_id: int) -> dict[str, tuple[int, datetime | None]]:
-    """Read creator_velocity.match_score for the niche into a {handle: (score, ts)} map."""
+def _fetch_creator_velocity_cache(
+    sb: Any, *, niche_id: int
+) -> tuple[
+    dict[str, tuple[int, datetime | None]],
+    dict[str, tuple[float, datetime | None]],
+]:
+    """Single-round-trip read of both cache columns on ``creator_velocity``.
+
+    D.1 patch: folds the former ``_fetch_cached_match_scores`` (D.1.3) and
+    ``_fetch_view_velocity_map`` (D.1.5) into one SELECT so /kol/browse
+    issues one DB round-trip for the niche instead of two.
+
+    Returns ``(match_score_map, view_velocity_map)``. Rows with a NULL
+    column are absent from the respective map but may still appear in the
+    other — a creator with ``match_score`` populated but ``view_velocity``
+    still NULL (or vice versa) is a common transient state after either
+    cache is invalidated.
+    """
     try:
         res = (
             sb.table("creator_velocity")
-            .select("creator_handle, match_score, match_score_computed_at")
+            .select(
+                "creator_handle, match_score, match_score_computed_at, "
+                "view_velocity_30d_pct, view_velocity_computed_at"
+            )
             .eq("niche_id", niche_id)
             .execute()
         )
     except Exception as exc:  # pragma: no cover — defensive
-        _log.warning("[kol-match-persist] cache read failed: %s", exc)
-        return {}
-    out: dict[str, tuple[int, datetime | None]] = {}
+        _log.warning("[kol-browse] creator_velocity cache read failed: %s", exc)
+        return {}, {}
+
+    score_map: dict[str, tuple[int, datetime | None]] = {}
+    velocity_map: dict[str, tuple[float, datetime | None]] = {}
     for row in res.data or []:
         handle = normalize_handle(str(row.get("creator_handle") or ""))
         if not handle:
             continue
         raw_score = row.get("match_score")
-        if raw_score is None:
-            continue
-        ts = _parse_computed_at(row.get("match_score_computed_at"))
-        out[handle] = (int(raw_score), ts)
-    return out
+        if raw_score is not None:
+            ts = _parse_computed_at(row.get("match_score_computed_at"))
+            score_map[handle] = (int(raw_score), ts)
+        raw_velocity = row.get("view_velocity_30d_pct")
+        if raw_velocity is not None:
+            ts = _parse_computed_at(row.get("view_velocity_computed_at"))
+            velocity_map[handle] = (float(raw_velocity), ts)
+    return score_map, velocity_map
 
 
 def _writeback_match_scores(
@@ -438,8 +437,7 @@ def run_kol_browse_sync(
 
     # D.1.3 — cache read. `recomputed` tracks rows that need a writeback
     # UPDATE on creator_velocity after decoration (TTL miss / null cache).
-    cached_scores = _fetch_cached_match_scores(user_sb, niche_id=niche_id)
-    cached_velocities = _fetch_view_velocity_map(user_sb, niche_id=niche_id)
+    cached_scores, cached_velocities = _fetch_creator_velocity_cache(user_sb, niche_id=niche_id)
     recomputed: dict[str, int] = {}
     _now = datetime.now(tz=timezone.utc)
 

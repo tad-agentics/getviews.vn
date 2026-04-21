@@ -226,18 +226,24 @@ def test_match_score_cache_hit_uses_stored_value(monkeypatch) -> None:
     read_calls: list[int] = []
     writebacks: list[dict[str, int]] = []
 
-    def fake_fetch(_sb: object, *, niche_id: int) -> dict[str, tuple[int, datetime]]:
+    def fake_fetch(
+        _sb: object, *, niche_id: int
+    ) -> tuple[dict[str, tuple[int, datetime]], dict[str, tuple[float, datetime | None]]]:
         read_calls.append(niche_id)
-        return {"alice": (42, fresh_ts)}
+        return {"alice": (42, fresh_ts)}, {}
 
     def fake_writeback(_sb: object, *, niche_id: int, scores: dict[str, int], now=None) -> None:
         writebacks.append(dict(scores))
 
-    monkeypatch.setattr("getviews_pipeline.kol_browse._fetch_cached_match_scores", fake_fetch)
+    monkeypatch.setattr(
+        "getviews_pipeline.kol_browse._fetch_creator_velocity_cache", fake_fetch
+    )
     monkeypatch.setattr("getviews_pipeline.kol_browse._writeback_match_scores", fake_writeback)
 
     out = run_kol_browse_sync(sb, niche_id=1, tab="discover", page=1, page_size=10)
 
+    # Exactly one round-trip to creator_velocity regardless of which cache
+    # columns are populated — the post-consolidation contract.
     assert read_calls == [1]
     assert out["rows"][0]["handle"] == "alice"
     # Cached 42 wins over whatever compute_match_score would produce.
@@ -262,13 +268,17 @@ def test_match_score_cache_miss_recomputes_and_writes_back(monkeypatch) -> None:
 
     writebacks: list[dict[str, int]] = []
 
-    def fake_fetch(_sb: object, *, niche_id: int) -> dict[str, tuple[int, datetime]]:
-        return {}
+    def fake_fetch(
+        _sb: object, *, niche_id: int
+    ) -> tuple[dict[str, tuple[int, datetime]], dict[str, tuple[float, datetime | None]]]:
+        return {}, {}
 
     def fake_writeback(_sb: object, *, niche_id: int, scores: dict[str, int], now=None) -> None:
         writebacks.append(dict(scores))
 
-    monkeypatch.setattr("getviews_pipeline.kol_browse._fetch_cached_match_scores", fake_fetch)
+    monkeypatch.setattr(
+        "getviews_pipeline.kol_browse._fetch_creator_velocity_cache", fake_fetch
+    )
     monkeypatch.setattr("getviews_pipeline.kol_browse._writeback_match_scores", fake_writeback)
 
     out = run_kol_browse_sync(sb, niche_id=2, tab="discover", page=1, page_size=10)
@@ -282,38 +292,59 @@ def test_match_score_cache_miss_recomputes_and_writes_back(monkeypatch) -> None:
     assert writebacks[0]["bobtech"] == row["match_score"]
 
 
-def test_trigger_invalidated_rows_are_filtered_and_recomputed(monkeypatch) -> None:
+def test_trigger_invalidated_rows_are_filtered_and_recomputed() -> None:
     """Post-trigger state: match_score = NULL rows are treated as miss.
 
     The Postgres trigger sets match_score + match_score_computed_at to NULL
-    on profile change. _fetch_cached_match_scores must drop those rows so
-    run_kol_browse_sync recomputes + writes a new value back.
+    on profile change. The consolidated creator_velocity cache fetch must
+    drop those rows from the match-score map so run_kol_browse_sync
+    recomputes + writes a new value back.
     """
-    from getviews_pipeline.kol_browse import _fetch_cached_match_scores
+    from getviews_pipeline.kol_browse import _fetch_creator_velocity_cache
 
     # Simulate the Supabase select(...).eq(...).execute() chain returning
     # a mix of fresh, null-score, and null-timestamp rows.
     now = datetime.now(tz=timezone.utc)
     cv_rows = [
-        {"creator_handle": "fresh", "match_score": 55, "match_score_computed_at": now.isoformat()},
-        {"creator_handle": "trigger_nulled", "match_score": None, "match_score_computed_at": None},
-        {"creator_handle": "timestamp_null", "match_score": 70, "match_score_computed_at": None},
+        {
+            "creator_handle": "fresh",
+            "match_score": 55,
+            "match_score_computed_at": now.isoformat(),
+            "view_velocity_30d_pct": None,
+            "view_velocity_computed_at": None,
+        },
+        {
+            "creator_handle": "trigger_nulled",
+            "match_score": None,
+            "match_score_computed_at": None,
+            "view_velocity_30d_pct": None,
+            "view_velocity_computed_at": None,
+        },
+        {
+            "creator_handle": "timestamp_null",
+            "match_score": 70,
+            "match_score_computed_at": None,
+            "view_velocity_30d_pct": None,
+            "view_velocity_computed_at": None,
+        },
     ]
     sb = MagicMock()
     cv_select = sb.table.return_value.select.return_value.eq.return_value
     cv_select.execute.return_value = MagicMock(data=cv_rows)
 
-    cache = _fetch_cached_match_scores(sb, niche_id=9)
+    score_map, velocity_map = _fetch_creator_velocity_cache(sb, niche_id=9)
 
     # match_score IS NULL rows are excluded entirely.
-    assert "trigger_nulled" not in cache
+    assert "trigger_nulled" not in score_map
     # Fresh row lands with a parsed timestamp.
-    assert "fresh" in cache and cache["fresh"][0] == 55
-    assert cache["fresh"][1] is not None
+    assert "fresh" in score_map and score_map["fresh"][0] == 55
+    assert score_map["fresh"][1] is not None
     # NULL-timestamp row still enters the dict but _is_fresh(None) == False,
     # so run_kol_browse_sync will treat it as a miss.
-    assert "timestamp_null" in cache and cache["timestamp_null"][1] is None
-    assert _is_fresh(cache["timestamp_null"][1]) is False
+    assert "timestamp_null" in score_map and score_map["timestamp_null"][1] is None
+    assert _is_fresh(score_map["timestamp_null"][1]) is False
+    # view_velocity map is empty (all NULL view velocity in this fixture).
+    assert velocity_map == {}
     # Cross-check the TTL boundary behaviour for completeness.
     assert _is_fresh(now - timedelta(days=1)) is True
     assert _is_fresh(now - timedelta(days=8)) is False
@@ -398,18 +429,43 @@ def test_resolve_growth_display_pct_falls_back_when_stale(caplog) -> None:
     )
 
 
-def test_fetch_view_velocity_map_skips_null_rows() -> None:
-    """A creator_velocity row with NULL view_velocity is skipped entirely."""
-    from getviews_pipeline.kol_browse import _fetch_view_velocity_map
+def test_fetch_creator_velocity_cache_splits_populated_columns_independently() -> None:
+    """A creator with match_score populated but view_velocity NULL (or vice
+    versa) appears in only the populated map — the consolidated fetch
+    doesn't conflate the two cache states."""
+    from getviews_pipeline.kol_browse import _fetch_creator_velocity_cache
 
+    now_iso = datetime.now(tz=timezone.utc).isoformat()
     cv_rows = [
+        # Both populated.
         {
-            "creator_handle": "fresh",
+            "creator_handle": "both",
+            "match_score": 82,
+            "match_score_computed_at": now_iso,
             "view_velocity_30d_pct": 0.18,
-            "view_velocity_computed_at": datetime.now(tz=timezone.utc).isoformat(),
+            "view_velocity_computed_at": now_iso,
         },
+        # Only match_score populated.
+        {
+            "creator_handle": "only_score",
+            "match_score": 60,
+            "match_score_computed_at": now_iso,
+            "view_velocity_30d_pct": None,
+            "view_velocity_computed_at": None,
+        },
+        # Only view_velocity populated (e.g. new creator scored lazily).
+        {
+            "creator_handle": "only_velocity",
+            "match_score": None,
+            "match_score_computed_at": None,
+            "view_velocity_30d_pct": -0.12,
+            "view_velocity_computed_at": now_iso,
+        },
+        # Fully NULL — appears in neither map.
         {
             "creator_handle": "nulled",
+            "match_score": None,
+            "match_score_computed_at": None,
             "view_velocity_30d_pct": None,
             "view_velocity_computed_at": None,
         },
@@ -418,11 +474,23 @@ def test_fetch_view_velocity_map_skips_null_rows() -> None:
     cv_select = sb.table.return_value.select.return_value.eq.return_value
     cv_select.execute.return_value = MagicMock(data=cv_rows)
 
-    out = _fetch_view_velocity_map(sb, niche_id=3)
-    assert "fresh" in out
-    assert out["fresh"][0] == pytest.approx(0.18)
-    assert out["fresh"][1] is not None
-    assert "nulled" not in out
+    score_map, velocity_map = _fetch_creator_velocity_cache(sb, niche_id=3)
+
+    assert score_map.keys() == {"both", "only_score"}
+    assert score_map["both"][0] == 82
+    assert score_map["only_score"][0] == 60
+
+    assert velocity_map.keys() == {"both", "only_velocity"}
+    assert velocity_map["both"][0] == pytest.approx(0.18)
+    assert velocity_map["only_velocity"][0] == pytest.approx(-0.12)
+
+    assert "nulled" not in score_map and "nulled" not in velocity_map
+
+    # Exactly one SELECT on creator_velocity — the post-consolidation
+    # guarantee. The `.eq("niche_id", 3)` terminal is what the production
+    # call chain resolves to; verify the test mock saw the same call count.
+    assert sb.table.call_count == 1
+    sb.table.assert_called_with("creator_velocity")
 
 
 # ── D.1.5 — batch_analytics Pass 3 view-velocity compute ──────────────────
