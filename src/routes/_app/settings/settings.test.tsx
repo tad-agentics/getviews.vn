@@ -273,11 +273,13 @@ describe("PlanPanel — subscription copy", () => {
     } as never);
 
     const SettingsScreen = await importSettings();
-    return render(
+    const result = render(
       <Wrapper qc={qc}>
         <SettingsScreen />
       </Wrapper>,
     );
+    fireEvent.click(screen.getByRole("button", { name: "Gói & Thanh Toán" }));
+    return result;
   }
 
   it("shows free-tier lifetime copy when user has no subscription", async () => {
