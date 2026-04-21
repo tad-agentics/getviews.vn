@@ -16,6 +16,7 @@ import { ScriptShotRow } from "@/components/v2/ScriptShotRow";
 import { TopBar } from "@/components/v2/TopBar";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
+import { useScriptExport, useScriptSave } from "@/hooks/useScriptSave";
 import { useScriptGenerate } from "@/hooks/useScriptGenerate";
 import { useScriptHookPatterns } from "@/hooks/useScriptHookPatterns";
 import { useScriptSceneIntelligence } from "@/hooks/useScriptSceneIntelligence";
@@ -151,8 +152,13 @@ export default function ScriptScreen() {
   const [toneIdx, setToneIdx] = useState(1);
   const [scriptNo] = useState(() => 14);
   const [shotsOverride, setShotsOverride] = useState<ScriptEditorShot[] | null>(null);
+  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+  const [exportBanner, setExportBanner] = useState<string | null>(null);
+  const [pdfAvailable, setPdfAvailable] = useState(true);
 
   const generate = useScriptGenerate();
+  const save = useScriptSave();
+  const exporter = useScriptExport();
 
   useEffect(() => {
     const t = searchParams.get("topic");
@@ -263,6 +269,108 @@ export default function ScriptScreen() {
     );
   };
 
+  const apiShotsForSave = useMemo(
+     () =>
+      mergedShots.map((s) => ({
+        t0: s.t0,
+        t1: s.t1,
+        cam: s.cam,
+        voice: s.voice,
+        viz: s.viz,
+        overlay: s.overlay,
+        corpus_avg: s.corpusAvg,
+        winner_avg: s.winnerAvg,
+        intel_scene_type: s.intelSceneType,
+        overlay_winner: s.overlayWinner,
+      })),
+    [mergedShots],
+  );
+
+  const ensureSavedDraft = async (): Promise<string | null> => {
+    if (savedDraftId) return savedDraftId;
+    if (effectiveNicheId == null) return null;
+    try {
+      const out = await save.mutateAsync({
+        topic: topic.trim(),
+        hook: (selectedHook.trim() || topic.trim().slice(0, 120) || "Hook mở đầu"),
+        hook_delay_ms: hookDelayMs,
+        duration_sec: duration,
+        tone: TONES[toneIdx]!,
+        shots: apiShotsForSave,
+        niche_id: effectiveNicheId,
+      });
+      setSavedDraftId(out.draft_id);
+      logUsage("script_save", {
+        niche_id: effectiveNicheId,
+        draft_id: out.draft_id,
+        duration,
+      });
+      return out.draft_id;
+    } catch (exc) {
+      setExportBanner(exc instanceof Error ? exc.message : "Không lưu được kịch bản");
+      return null;
+    }
+  };
+
+  const handleSave = async () => {
+    setExportBanner(null);
+    const id = await ensureSavedDraft();
+    if (id) {
+      navigate("/app/history?type=script");
+    }
+  };
+
+  const handleCopy = async () => {
+    setExportBanner(null);
+    const id = await ensureSavedDraft();
+    if (!id) return;
+    try {
+      const res = await exporter.mutateAsync({ draftId: id, format: "copy" });
+      if (res.format === "copy") {
+        await navigator.clipboard.writeText(res.text);
+        setExportBanner("Đã copy kịch bản vào clipboard.");
+      }
+    } catch (exc) {
+      setExportBanner(exc instanceof Error ? exc.message : "Không copy được");
+    }
+  };
+
+  const handlePdf = async () => {
+    setExportBanner(null);
+    const id = await ensureSavedDraft();
+    if (!id) return;
+    try {
+      const res = await exporter.mutateAsync({
+        draftId: id,
+        format: "pdf",
+        filenameHint: topic.trim().slice(0, 48) || "kich-ban",
+      });
+      if (res.format === "pdf") {
+        const url = URL.createObjectURL(res.blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = res.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (exc) {
+      if (exc instanceof Error && exc.name === "PdfUnavailable") {
+        setPdfAvailable(false);
+        setExportBanner("PDF tạm thời không khả dụng — dùng Copy để gửi Zalo.");
+        return;
+      }
+      setExportBanner(exc instanceof Error ? exc.message : "Không tạo được PDF");
+    }
+  };
+
+  const handleShootMode = async () => {
+    setExportBanner(null);
+    const id = await ensureSavedDraft();
+    if (id) navigate(`/app/script/shoot/${id}`);
+  };
+
   const loadingPanel = cloudConfigured && effectiveNicheId != null && (scenePending || hookPending);
 
   return (
@@ -281,9 +389,16 @@ export default function ScriptScreen() {
                 Dữ liệu cập nhật {asOfRelative}
               </span>
             ) : null}
-            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
+            <Btn
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex"
+              type="button"
+              onClick={handleSave}
+              disabled={save.isPending}
+            >
               <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} aria-hidden />
-              Đã Lưu
+              {save.isPending ? "Đang lưu…" : savedDraftId ? "Đã lưu" : "Lưu"}
             </Btn>
             <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
@@ -318,20 +433,44 @@ export default function ScriptScreen() {
                 </h1>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Btn variant="ghost" size="sm" type="button" disabled title="Sắp có">
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={handleCopy}
+                  disabled={save.isPending || exporter.isPending}
+                >
                   <Copy className="h-3 w-3" strokeWidth={2} aria-hidden />
                   Copy
                 </Btn>
-                <Btn variant="ghost" size="sm" type="button" disabled title="Sắp có">
+                <Btn
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={handlePdf}
+                  disabled={save.isPending || exporter.isPending || !pdfAvailable}
+                  title={pdfAvailable ? undefined : "PDF tạm thời không khả dụng"}
+                >
                   <Download className="h-3 w-3" strokeWidth={2} aria-hidden />
                   PDF
                 </Btn>
-                <Btn variant="ink" size="sm" type="button" disabled title="Sắp có">
+                <Btn
+                  variant="ink"
+                  size="sm"
+                  type="button"
+                  onClick={handleShootMode}
+                  disabled={save.isPending}
+                >
                   <Film className="h-3 w-3" strokeWidth={2} aria-hidden />
                   Chế độ quay
                 </Btn>
               </div>
             </header>
+            {exportBanner ? (
+              <div className="mb-4 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 gv-mono text-[12px] text-[color:var(--gv-ink-3)]">
+                {exportBanner}
+              </div>
+            ) : null}
 
             {loadingPanel ? (
               <div

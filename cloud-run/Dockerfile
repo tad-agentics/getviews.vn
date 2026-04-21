@@ -1,8 +1,14 @@
 FROM python:3.12-slim
 
 # ffmpeg: frame extraction for R2 upload (corpus ingest pipeline)
+# libpango-1.0-0 + libcairo2 + libpangoft2-1.0-0: WeasyPrint renderer
+# for D.1.1 `/script/drafts/:id/export?format=pdf`. Shared libs only;
+# the Python wheel handles the bindings.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

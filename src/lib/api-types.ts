@@ -234,6 +234,51 @@ export interface ScriptGenerateResponse {
   shots: ScriptShot[];
 }
 
+// ---------------------------------------------------------------------------
+// D.1.1 — POST /script/save + /script/drafts + export
+// ---------------------------------------------------------------------------
+
+export interface ScriptSaveRequest {
+  topic: string;
+  hook: string;
+  hook_delay_ms: number;
+  duration_sec: number;
+  tone: ScriptTone;
+  shots: ScriptShot[];
+  niche_id?: number | null;
+  source_session_id?: string | null;
+}
+
+export interface ScriptDraftRow {
+  id: string;
+  user_id?: string;
+  topic: string;
+  hook: string;
+  hook_delay_ms: number;
+  duration_sec: number;
+  tone: ScriptTone;
+  shots: ScriptShot[];
+  niche_id?: number | null;
+  source_session_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ScriptSaveResponse {
+  draft_id: string;
+  draft: ScriptDraftRow;
+}
+
+export interface ScriptDraftsListResponse {
+  drafts: ScriptDraftRow[];
+}
+
+export interface ScriptDraftResponse {
+  draft: ScriptDraftRow;
+}
+
+export type ScriptExportFormat = "copy" | "pdf";
+
 /**
  * B.4 — ``ForecastBar`` view/retention/hook-score math is **client-only** (no API).
  * Implementations: ``scriptForecastViews``, ``scriptForecastRetentionPct``, ``scriptHookScore``
