@@ -872,7 +872,37 @@ export type Database = {
         Returns: Json
       }
       decrement_credit: { Args: { p_user_id: string }; Returns: number }
+      // C.6.1 — unified history view (answer_sessions + chat_sessions).
+      history_union: {
+        Args: {
+          p_filter?: string
+          p_cursor?: string | null
+          p_limit?: number
+        }
+        Returns: {
+          id: string
+          type: string
+          format: string | null
+          niche_id: number | null
+          title: string | null
+          turn_count: number
+          updated_at: string
+        }[]
+      }
       refresh_niche_intelligence: { Args: never; Returns: undefined }
+      // D.2.4 — cross-type history search (ILIKE + pg_trgm GIN).
+      search_history_union: {
+        Args: { p_query: string; p_limit?: number }
+        Returns: {
+          id: string
+          type: string
+          format: string | null
+          niche_id: number | null
+          title: string | null
+          turn_count: number
+          updated_at: string
+        }[]
+      }
       search_sessions: {
         Args: { p_user_id: string; search_query: string }
         Returns: {
