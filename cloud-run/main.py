@@ -26,7 +26,7 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import AliasChoices, BaseModel, Field
 
@@ -58,6 +58,7 @@ from getviews_pipeline.pipelines import (
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.script_generate import InsufficientCreditsError as ScriptInsufficientCreditsError
 from getviews_pipeline.script_generate import ScriptGenerateBody
+from getviews_pipeline.script_save import DraftCreateBody, DraftExportBody
 from getviews_pipeline.session_store import (
     build_session_context_from_db,
     get_stream_chunks,
@@ -1515,46 +1516,45 @@ async def script_generate_endpoint(
     return JSONResponse(out)
 
 
-class DraftScriptBody(BaseModel):
-    topic: str
-    hook: str
-    hook_delay_ms: int
-    duration_sec: int
-    tone: str
-    shots: list[Any] = Field(default_factory=list)
-    niche_id: int | None = None
-    source_session_id: str | None = None
+# ── D.1.1 — /script/save + /script/drafts + export ────────────────────────
+
+
+async def _run_script_save(
+    user: dict[str, Any],
+    body: DraftCreateBody,
+) -> JSONResponse:
+    from getviews_pipeline.script_save import insert_draft
+    from getviews_pipeline.supabase_client import user_supabase
+
+    sb = user_supabase(user["access_token"])
+    try:
+        row = await run_sync(insert_draft, sb, user_id=user["user_id"], body=body)
+    except Exception as exc:
+        logger.exception("[script/save] insert failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse({"draft_id": row.get("id"), "draft": row})
+
+
+@app.post("/script/save")
+async def script_save_endpoint(
+    body: DraftCreateBody,
+    user: dict[str, Any] = Depends(require_user),
+) -> JSONResponse:
+    """Phase D.1.1 — persist a script draft (RLS: caller owns row).
+
+    Returns ``{draft_id, draft}`` so the client can immediately route to
+    ``/app/script/shoot/:id`` or refetch ``GET /script/drafts/:id``.
+    """
+    return await _run_script_save(user, body)
 
 
 @app.post("/script/drafts")
 async def script_drafts_create(
-    body: DraftScriptBody,
+    body: DraftCreateBody,
     user: dict[str, Any] = Depends(require_user),
 ) -> JSONResponse:
-    """Phase C.8.1 — persist a script draft (RLS: caller owns row)."""
-    from getviews_pipeline.supabase_client import user_supabase
-
-    sb = user_supabase(user["access_token"])
-    row: dict[str, Any] = {
-        "user_id": user["user_id"],
-        "topic": body.topic,
-        "hook": body.hook,
-        "hook_delay_ms": body.hook_delay_ms,
-        "duration_sec": body.duration_sec,
-        "tone": body.tone,
-        "shots": body.shots,
-    }
-    if body.niche_id is not None:
-        row["niche_id"] = body.niche_id
-    if body.source_session_id is not None:
-        row["source_session_id"] = body.source_session_id
-    try:
-        res = sb.table("draft_scripts").insert(row).execute()
-    except Exception as exc:
-        logger.exception("[script/drafts] insert failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    data = res.data[0] if isinstance(res.data, list) else res.data
-    return JSONResponse(data)
+    """Alias for ``POST /script/save`` — keeps the B.4 scaffold URL working."""
+    return await _run_script_save(user, body)
 
 
 @app.get("/script/drafts")
@@ -1563,22 +1563,83 @@ async def script_drafts_list(
     limit: int = Query(20, ge=1, le=100),
 ) -> JSONResponse:
     """List recent script drafts for the authenticated user."""
+    from getviews_pipeline.script_save import list_drafts
     from getviews_pipeline.supabase_client import user_supabase
 
     sb = user_supabase(user["access_token"])
     try:
-        res = (
-            sb.table("draft_scripts")
-            .select("*")
-            .eq("user_id", user["user_id"])
-            .order("updated_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
+        rows = await run_sync(list_drafts, sb, user_id=user["user_id"], limit=limit)
     except Exception as exc:
         logger.exception("[script/drafts] list failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse({"drafts": res.data or []})
+    return JSONResponse({"drafts": rows})
+
+
+@app.get("/script/drafts/{draft_id}")
+async def script_draft_get(
+    draft_id: str,
+    user: dict[str, Any] = Depends(require_user),
+) -> JSONResponse:
+    """Single-draft restoration endpoint (D.1.1)."""
+    from getviews_pipeline.script_save import DraftNotFoundError, fetch_draft
+    from getviews_pipeline.supabase_client import user_supabase
+
+    sb = user_supabase(user["access_token"])
+    try:
+        draft = await run_sync(fetch_draft, sb, user_id=user["user_id"], draft_id=draft_id)
+    except DraftNotFoundError:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kịch bản") from None
+    except Exception as exc:
+        logger.exception("[script/drafts/%s] fetch failed: %s", draft_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse({"draft": draft})
+
+
+@app.post("/script/drafts/{draft_id}/export")
+async def script_draft_export(
+    draft_id: str,
+    body: DraftExportBody,
+    user: dict[str, Any] = Depends(require_user),
+) -> Response:
+    """Export the draft as clipboard-friendly text (`format="copy"`) or PDF.
+
+    ``copy`` is stateless: plain text matching the B.4 shot formatter.
+    ``pdf``  requires the WeasyPrint dep + Pango/Cairo system packages
+    (see `cloud-run/Dockerfile`). On dep failure we return HTTP 503 so the
+    frontend can disable the PDF button with humility copy.
+    """
+    from getviews_pipeline.script_save import (
+        DraftNotFoundError,
+        PdfRenderError,
+        export_draft,
+        fetch_draft,
+    )
+    from getviews_pipeline.supabase_client import user_supabase
+
+    sb = user_supabase(user["access_token"])
+    try:
+        draft = await run_sync(fetch_draft, sb, user_id=user["user_id"], draft_id=draft_id)
+    except DraftNotFoundError:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kịch bản") from None
+
+    try:
+        payload, content_type = await run_sync(export_draft, draft, fmt=body.format)
+    except PdfRenderError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "pdf_unavailable", "detail": str(exc)},
+        )
+    except Exception as exc:
+        logger.exception("[script/drafts/%s/export] failed: %s", draft_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    headers: dict[str, str] = {}
+    if body.format == "pdf":
+        safe_slug = (draft.get("topic") or "kich-ban").strip().replace("\n", " ")[:64]
+        headers["Content-Disposition"] = f'attachment; filename="{safe_slug}.pdf"'
+    if isinstance(payload, str):
+        return Response(content=payload, media_type=content_type, headers=headers)
+    return Response(content=payload, media_type=content_type, headers=headers)
 
 
 # ══════════════════════════════════════════════════════════════════════════
