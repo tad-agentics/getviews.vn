@@ -326,10 +326,9 @@ export default function KolScreen() {
               />
               Dữ liệu cập nhật {browseAsOfRelative}
             </span>
-            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Đã Lưu
-            </Btn>
+            {/* Bookmark / "Đã Lưu" stub removed (D.6-era cleanup) — orphan
+                 disabled button with no data model. The per-row pin/unpin
+                 is the real "saved kênh" UX. */}
             <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               Phân tích mới

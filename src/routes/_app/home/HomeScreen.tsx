@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Bookmark, Plus, Sparkles } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { QueryComposer } from "@/components/v2/QueryComposer";
@@ -100,10 +100,9 @@ export default function HomeScreen() {
                 />
                 Dữ liệu cập nhật {asOfRelative}
               </span>
-              <Btn variant="ghost" size="sm" className="hidden sm:inline-flex">
-                <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
-                Đã Lưu
-              </Btn>
+              {/* Bookmark / "Đã Lưu" stub removed — had no handler and
+                   no backing data model. Rein-introduce when the
+                   "save for later" feature actually exists. */}
               <Btn variant="ink" size="sm" onClick={() => navigate("/app/answer")}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới

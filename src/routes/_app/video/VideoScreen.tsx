@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   ArrowRight,
-  Bookmark,
   Copy,
   Flame,
   Loader2,
@@ -205,10 +204,9 @@ export default function VideoScreen() {
                 Dữ liệu cập nhật {asOfRelative}
               </span>
             ) : null}
-            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Đã Lưu
-            </Btn>
+            {/* Bookmark / "Đã Lưu" stub removed (D.6-era cleanup) — no
+                 handler, no data model, just visual clutter. Re-add
+                 when the "save video for later" feature lands. */}
             <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               Phân tích mới
@@ -484,10 +482,8 @@ function VideoAnalysisBodyInner({
       <div className="flex flex-col gap-7">
         {!isFlop ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Btn variant="ghost" size="sm" type="button" disabled title="Sắp có">
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Lưu
-            </Btn>
+            {/* Second bookmark stub removed alongside the top-bar one —
+                 "Lưu" with no backing model. */}
             <Btn variant="ghost" size="sm" type="button" onClick={() => void copyHook()}>
               <Copy className="h-3.5 w-3.5" strokeWidth={1.7} />
               Copy hook
