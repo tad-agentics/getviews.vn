@@ -96,7 +96,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
         <section>
           <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Video mẫu</p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
-            {evidence.length} video dùng pattern này đang bùng nổ
+            {evidence.length} video dùng pattern này đang lên
           </h3>
           <EvidenceGrid items={evidence} />
         </section>
