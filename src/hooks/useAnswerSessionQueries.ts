@@ -5,7 +5,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { fetchAnswerSessionDetail, fetchAnswerSessions } from "@/lib/answerApi";
-import type { AnswerSessionRow, ReportV1 } from "@/lib/api-types";
+import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 
 export const answerSessionKeys = {
   all: ["answer-sessions"] as const,
@@ -64,6 +64,33 @@ export function lastPayloadFromTurns(
 ): ReportV1 | null {
   const last = turns?.at(-1);
   return last?.payload ?? null;
+}
+
+export type AnswerDetailCache = {
+  session: AnswerSessionRow & { title: string | null; initial_q: string };
+  turns: AnswerTurnRow[];
+};
+
+/**
+ * Writes a just-streamed turn directly into the detail-query cache so the UI
+ * renders immediately, without waiting on a `GET /answer/sessions/:id` refetch
+ * that can race Supabase read-replica lag. Dedups by `turn_index` so the real
+ * server row replaces this synthesized one naturally when the cache is later
+ * refreshed.
+ */
+export function injectOptimisticTurn(
+  current: AnswerDetailCache | undefined,
+  fallbackSession: AnswerDetailCache["session"],
+  turn: AnswerTurnRow,
+): AnswerDetailCache {
+  if (!current) return { session: fallbackSession, turns: [turn] };
+  const existing = current.turns.findIndex((t) => t.turn_index === turn.turn_index);
+  if (existing >= 0) {
+    const next = current.turns.slice();
+    next[existing] = turn;
+    return { ...current, turns: next };
+  }
+  return { ...current, turns: [...current.turns, turn] };
 }
 
 export type { AnswerSessionRow };
