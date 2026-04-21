@@ -179,7 +179,7 @@ function VideoCard({
             setModalOpen(true);
           }
         }}
-        className="relative rounded-xl overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--border-active)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--purple)] transition-colors duration-[120ms]"
+        className="relative rounded-xl overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--gv-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)] transition-colors duration-[120ms]"
         style={{ aspectRatio: "9/14" }}
       >
         {!imgFailed ? (
@@ -275,7 +275,7 @@ function SidebarVideoRow({
           onClick();
         }
       } : undefined}
-      className={`flex items-start gap-2.5 py-2.5 border-b border-[var(--border)] last:border-0 group ${onClick ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--purple)]" : ""}`}
+      className={`flex items-start gap-2.5 py-2.5 border-b border-[var(--border)] last:border-0 group ${onClick ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--gv-accent)]" : ""}`}
     >
       {rank !== undefined && (
         <span className="text-xs font-mono text-[var(--faint)] w-4 flex-shrink-0 pt-0.5 text-right">{rank}</span>
@@ -294,7 +294,7 @@ function SidebarVideoRow({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-[12px] font-semibold text-[var(--ink)] leading-snug line-clamp-2 transition-colors duration-[120ms] ${onClick ? "group-hover:text-[var(--purple)]" : ""}`}>
+        <p className={`text-[12px] font-semibold text-[var(--ink)] leading-snug line-clamp-2 transition-colors duration-[120ms] ${onClick ? "group-hover:text-[var(--gv-accent)]" : ""}`}>
           {item.title}
         </p>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -324,7 +324,7 @@ function FilterChip({
   const baseClass = `flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all duration-[120ms] whitespace-nowrap ${
     active
       ? "border-[var(--ink)] text-[var(--ink)] bg-[var(--surface)]"
-      : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)] hover:border-[var(--border-active)] hover:text-[var(--ink)]"
+      : "border-[var(--border)] text-[var(--muted)] bg-[var(--surface)] hover:border-[var(--gv-ink)] hover:text-[var(--ink)]"
   }`;
 
   return (
@@ -699,7 +699,7 @@ export default function ExploreScreen() {
                         key={n.id}
                         type="button"
                         onClick={() => { setFilter({ niche: String(n.id) }); setShowNicheMenu(false); }}
-                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
+                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
                       >
                         {n.name}
                       </button>
@@ -707,7 +707,7 @@ export default function ExploreScreen() {
                   </div>
                 ) : null}
               </div>
-              <div className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-active)] transition-colors duration-[120ms]">
+              <div className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gv-ink)] transition-colors duration-[120ms]">
                 <Search className="w-3.5 h-3.5 text-[var(--faint)] flex-shrink-0" strokeWidth={1.8} />
                 <input
                   type="text"
@@ -740,7 +740,7 @@ export default function ExploreScreen() {
                         key={opt}
                         type="button"
                         onClick={() => { setFilter({ sort: opt === "indexed_at" ? null : opt }); setShowSortMenu(false); }}
-                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${sortBy === opt ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
+                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${sortBy === opt ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
                       >
                         {SORT_LABELS[opt]}
                       </button>
@@ -763,7 +763,7 @@ export default function ExploreScreen() {
                         key={opt.value}
                         type="button"
                         onClick={() => { setFilter({ format: opt.value }); setShowFormatMenu(false); }}
-                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${activeFormat === opt.value ? "font-semibold text-[var(--purple)]" : "text-[var(--ink)]"}`}
+                        className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${activeFormat === opt.value ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
                       >
                         {opt.label}
                       </button>
@@ -792,7 +792,7 @@ export default function ExploreScreen() {
                 <button
                   type="button"
                   onClick={() => void refetch()}
-                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--border-active)] transition-colors duration-[120ms]"
+                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold text-[var(--ink)] hover:border-[var(--gv-ink)] transition-colors duration-[120ms]"
                 >
                   Thử lại
                 </button>
@@ -801,7 +801,7 @@ export default function ExploreScreen() {
 
             {!isPending && !isError && videos.length === 0 ? (
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-                <p className="text-sm text-[var(--ink-soft)]">Chưa có video trong khoảng này — thử lại sau.</p>
+                <p className="text-sm text-[var(--gv-ink-3)]">Chưa có video trong khoảng này — thử lại sau.</p>
               </div>
             ) : null}
 
@@ -828,7 +828,7 @@ export default function ExploreScreen() {
 
             {!isPending && !isError ? (
               <div ref={loaderRef} className="flex min-h-[48px] items-center justify-center py-4" aria-hidden>
-                {isFetchingNextPage ? <Loader2 className="h-6 w-6 animate-spin text-[var(--purple)]" /> : null}
+                {isFetchingNextPage ? <Loader2 className="h-6 w-6 animate-spin text-[var(--gv-accent)]" /> : null}
               </div>
             ) : null}
           </section>
@@ -852,7 +852,7 @@ export default function ExploreScreen() {
                     className="mt-4 pt-4 border-t border-[var(--border)] -mx-7 px-7"
                   >
                     {hookDataStale ? (
-                      <p className="text-xs font-medium text-[var(--ink-soft)] mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
+                      <p className="text-xs font-medium text-[var(--gv-ink-3)] mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
                         Data cũ hơn 36 tiếng — đang cập nhật.
                       </p>
                     ) : null}
@@ -875,7 +875,7 @@ export default function ExploreScreen() {
                         const isTop = i === 0;
                         const mult = maxEr > 0 ? (er / maxEr).toFixed(2) : "—";
                         const barColor = isTop
-                          ? "var(--purple)"
+                          ? "var(--gv-accent)"
                           : `rgba(100, 100, 120, ${Math.max(0.10, 0.65 - i * 0.08)})`;
                         return (
                           <div key={h.id ?? i} className="flex flex-col gap-1">
@@ -884,9 +884,9 @@ export default function ExploreScreen() {
                                 {String(h.hook_type ?? "").replace(/_/g, " ")}
                               </span>
                               <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className="text-xs font-mono text-[var(--ink-soft)]">{(er * 100).toFixed(1)}%</span>
+                                <span className="text-xs font-mono text-[var(--gv-ink-3)]">{(er * 100).toFixed(1)}%</span>
                                 <motion.span
-                                  className="text-[10px] font-semibold text-[var(--purple)] tabular-nums"
+                                  className="text-[10px] font-semibold text-[var(--gv-accent)] tabular-nums"
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
                                   transition={{ duration: 0.25, delay: i * 0.1 + 0.35, ease: [0.16, 1, 0.3, 1] }}
@@ -936,7 +936,7 @@ export default function ExploreScreen() {
                         <div className="flex flex-col gap-2">
                           {fallingFormats.map((f, i) => (
                             <div key={f.id ?? `f-${i}`} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
-                              <span className="text-sm text-[var(--ink-soft)]">{f.format_type}</span>
+                              <span className="text-sm text-[var(--gv-ink-3)]">{f.format_type}</span>
                               <span className="text-xs font-semibold" style={{ color: "var(--danger, #ef4444)" }}>
                                 {((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
                               </span>
@@ -958,11 +958,11 @@ export default function ExploreScreen() {
         >
           <div className="px-4 pt-5 pb-3 border-b border-[var(--border)]">
             <button type="button" className="flex items-center gap-1 group">
-              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]">
+              <h2 className="font-extrabold text-[var(--ink)] group-hover:text-[var(--gv-accent)] transition-colors duration-[120ms]">
                 Video nên xem
               </h2>
               <ChevronRight
-                className="w-4 h-4 text-[var(--ink)] group-hover:text-[var(--purple)] transition-colors duration-[120ms]"
+                className="w-4 h-4 text-[var(--ink)] group-hover:text-[var(--gv-accent)] transition-colors duration-[120ms]"
                 strokeWidth={2.5}
               />
             </button>

@@ -83,13 +83,13 @@ function LearnMoreRow({ item, index }: { item: LearnMoreItem; index: number }) {
       className="flex items-start justify-between gap-3 px-4 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-alt)] transition-colors duration-[120ms] group"
     >
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-[var(--ink)] font-semibold mb-0.5 group-hover:text-[var(--purple)] transition-colors duration-[120ms]">
+        <p className="text-sm text-[var(--ink)] font-semibold mb-0.5 group-hover:text-[var(--gv-accent)] transition-colors duration-[120ms]">
           {item.title}
         </p>
         <p className="text-xs text-[var(--muted)]">{item.summary}</p>
       </div>
       <ExternalLink
-        className="w-3.5 h-3.5 text-[var(--faint)] group-hover:text-[var(--purple)] flex-shrink-0 mt-0.5 transition-colors duration-[120ms]"
+        className="w-3.5 h-3.5 text-[var(--faint)] group-hover:text-[var(--gv-accent)] flex-shrink-0 mt-0.5 transition-colors duration-[120ms]"
         strokeWidth={1.8}
       />
     </motion.a>
@@ -129,7 +129,7 @@ export default function LearnMoreScreen() {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="mt-1 w-10 h-10 flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-soft)] hover:bg-[var(--surface-alt)] transition-colors duration-[120ms] flex-shrink-0"
+              className="mt-1 w-10 h-10 flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--gv-ink-3)] hover:bg-[var(--surface-alt)] transition-colors duration-[120ms] flex-shrink-0"
               aria-label="Quay lại"
             >
               <ChevronLeft className="w-5 h-5" strokeWidth={2} />

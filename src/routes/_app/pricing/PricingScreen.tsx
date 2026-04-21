@@ -233,7 +233,7 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
           type="button"
           onClick={() => onChange(p)}
           className={`relative px-4 py-2 rounded-lg text-sm transition-colors duration-[120ms] z-10 ${
-            value === p ? "text-white font-semibold" : "text-[var(--ink-soft)] hover:text-[var(--ink)]"
+            value === p ? "text-white font-semibold" : "text-[var(--gv-ink-3)] hover:text-[var(--ink)]"
           }`}
         >
           {value === p && (
@@ -247,7 +247,7 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
           <span className="relative z-10 flex items-center gap-1.5">
             {periodLabels[p]}
             {p === "annual" && value !== "annual" && (
-              <span className="text-[9px] font-mono bg-[var(--purple)]/15 text-[var(--purple)] px-1.5 py-0.5 rounded-full">
+              <span className="text-[9px] font-mono bg-[var(--gv-accent)]/15 text-[var(--gv-accent)] px-1.5 py-0.5 rounded-full">
                 -20%
               </span>
             )}
@@ -308,7 +308,7 @@ function PlanCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: index * 0.06, ease: "easeOut" }}
       className={`relative rounded-xl overflow-hidden flex flex-col ${
-        plan.popular ? "border-2 border-[var(--purple)] shadow-lg" : "border border-[var(--border)]"
+        plan.popular ? "border-2 border-[var(--gv-accent)] shadow-lg" : "border border-[var(--border)]"
       } bg-[var(--surface)]`}
     >
       {plan.popular && (
@@ -395,7 +395,7 @@ function PlanCard({
               >
                 <Check className="w-2.5 h-2.5" strokeWidth={2.5} />
               </span>
-              <span className="text-xs text-[var(--ink-soft)]">{feat}</span>
+              <span className="text-xs text-[var(--gv-ink-3)]">{feat}</span>
             </li>
           ))}
         </ul>
@@ -404,7 +404,7 @@ function PlanCard({
           <button
             type="button"
             onClick={() => navigate("/app")}
-            className="w-full py-2.5 rounded-lg border border-[var(--border)] text-sm text-[var(--ink-soft)] font-semibold hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
+            className="w-full py-2.5 rounded-lg border border-[var(--border)] text-sm text-[var(--gv-ink-3)] font-semibold hover:bg-[var(--surface-alt)] hover:text-[var(--ink)] transition-colors duration-[120ms]"
           >
             {plan.cta}
           </button>
@@ -422,7 +422,7 @@ function PlanCard({
             <button
               type="button"
               onClick={goCheckoutStarter}
-              className="w-full py-2.5 rounded-lg border border-[var(--purple)]/40 text-sm text-[var(--purple)] font-semibold hover:bg-[var(--purple)]/5 transition-colors duration-[120ms]"
+              className="w-full py-2.5 rounded-lg border border-[var(--gv-accent)]/40 text-sm text-[var(--gv-accent)] font-semibold hover:bg-[var(--gv-accent)]/5 transition-colors duration-[120ms]"
             >
               {plan.cta}
             </button>
@@ -533,7 +533,7 @@ function PricingContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
                 transition={{ duration: 0.15 }}
-                className="text-xs font-semibold text-[var(--purple)] text-center"
+                className="text-xs font-semibold text-[var(--gv-accent)] text-center"
               >
                 ✦ {savingsMsg}
               </motion.p>
@@ -563,8 +563,8 @@ function PricingContent() {
                 onClick={() => navigate("/app/checkout", { state: { plan: pack.pack } })}
                 className={`relative flex flex-col items-center justify-center text-center p-4 rounded-xl border transition-all duration-[120ms] ${
                   pack.highlight
-                    ? "border-[var(--purple)] bg-[var(--surface)]"
-                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-active)]"
+                    ? "border-[var(--gv-accent)] bg-[var(--surface)]"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gv-ink)]"
                 }`}
               >
                 {pack.highlight && (
@@ -575,7 +575,7 @@ function PricingContent() {
                     Phổ biến
                   </span>
                 )}
-                <p className="text-[10px] sm:text-xs text-[var(--ink-soft)] leading-snug px-0.5 sm:px-1">
+                <p className="text-[10px] sm:text-xs text-[var(--gv-ink-3)] leading-snug px-0.5 sm:px-1">
                   {pack.line}
                 </p>
               </button>
