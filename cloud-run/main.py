@@ -1969,20 +1969,53 @@ async def answer_append_turn(
         seq = resume_from_seq or 0
 
         # ── Resume: replay cached chunks the client already missed ────────
+        #
+        # The answer_turn wire shape is fixed at exactly two tokens:
+        #   seq=1 — {..., "payload": <ReportV1>, "done": false}
+        #   seq=2 — {..., "delta": "",           "done": true }
+        # The per-instance buffer stores ``[payload_json_str, ""]`` (see the
+        # ``put_stream_chunks`` call at the bottom of the fresh-run branch).
+        # Emit the seq=1 token with the `payload` field re-parsed from JSON so
+        # clients narrow on ``token.payload.kind`` exactly as on first send,
+        # and the seq=2 token as a `delta` + done marker. (An older loop here
+        # incorrectly emitted both cached chunks as `delta`, leaving client
+        # reconnects with `finalPayload === null`.)
         if resume_stream_id and resume_from_seq is not None:
             cached = get_stream_chunks(resume_stream_id)
-            if cached:
-                for i, chunk in enumerate(cached, start=1):
-                    if i <= resume_from_seq:
-                        continue
-                    seq = i
+            if cached and len(cached) >= 2:
+                if resume_from_seq < 1:
+                    try:
+                        parsed_payload = json.loads(cached[0])
+                    except (TypeError, ValueError):
+                        logger.exception(
+                            "[answer/turns] replay payload re-parse failed "
+                            "stream_id=%s — falling through to fresh run",
+                            resume_stream_id,
+                        )
+                        parsed_payload = None
+                    if parsed_payload is not None:
+                        yield _sse_line(
+                            {
+                                "stream_id": stream_id,
+                                "seq": 1,
+                                "payload": parsed_payload,
+                                "done": False,
+                            }
+                        )
+                        await asyncio.sleep(0.005)
+                    else:
+                        cached = None  # trigger fresh-run fallback below
+                if cached is not None and resume_from_seq < 2:
                     yield _sse_line(
-                        {"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False}
+                        {
+                            "stream_id": stream_id,
+                            "seq": 2,
+                            "delta": "",
+                            "done": True,
+                        }
                     )
-                    await asyncio.sleep(0.005)
-                seq += 1
-                yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
-                return
+                if cached is not None:
+                    return
             # Cache miss (cross-pod or TTL expiry) — fall through to a fresh run.
             logger.info(
                 "[answer/turns] resume cache miss stream_id=%s — running fresh",
