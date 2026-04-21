@@ -492,7 +492,9 @@ async def download_and_upload_thumbnail(thumbnail_url: str, video_id: str) -> st
     zero recurring cost (R2 egress is free; storage is ~$0.015/GB).
 
     Flow:
-      1. HTTP GET the thumbnail URL (no auth needed — signed URL is public)
+      1. HTTP GET the thumbnail URL through the residential-proxy CDN client
+         with TikTok ``Referer`` / browser ``User-Agent`` (TikTok's CDN replies
+         ``403 host_not_allowed`` to bare datacenter IPs and wrong referers)
       2. Validate content-type is image/* and size < _MAX_THUMB_BYTES
       3. PUT bytes to R2 at thumbnails/{video_id}.jpg
       4. Return the permanent R2 public URL, or None on any failure (non-fatal)
@@ -507,36 +509,43 @@ async def download_and_upload_thumbnail(thumbnail_url: str, video_id: str) -> st
     if not thumbnail_url:
         return None
 
-    import httpx
+    # Lazy import avoids a circular dep (ensemble imports r2 transitively).
+    from getviews_pipeline.config import CDN_HEADERS
+    from getviews_pipeline.ensemble import get_cdn_client
 
     loop = asyncio.get_event_loop()
 
-    def _fetch() -> tuple[bytes, str] | None:
-        try:
-            with httpx.Client(timeout=15, follow_redirects=True) as client:
-                resp = client.get(thumbnail_url, headers={"User-Agent": "Mozilla/5.0"})
-                if resp.status_code != 200:
-                    logger.debug("[r2] thumbnail fetch returned %d for %s", resp.status_code, video_id)
-                    return None
-                ct = resp.headers.get("content-type", "image/jpeg")
-                if not ct.startswith("image/"):
-                    logger.debug("[r2] thumbnail content-type unexpected (%s) for %s", ct, video_id)
-                    return None
-                data = resp.content
-                if len(data) > _MAX_THUMB_BYTES:
-                    logger.warning("[r2] thumbnail too large (%dKB) for %s", len(data) // 1024, video_id)
-                    return None
-                return data, ct
-        except Exception as exc:
-            logger.debug("[r2] thumbnail download error for %s: %s", video_id, exc)
-            return None
+    try:
+        client = await get_cdn_client()
+        resp = await client.get(
+            thumbnail_url,
+            headers=CDN_HEADERS,
+            follow_redirects=True,
+            timeout=15.0,
+        )
+    except Exception as exc:
+        logger.debug("[r2] thumbnail download error for %s: %s", video_id, exc)
+        return None
+
+    if resp.status_code != 200:
+        logger.debug(
+            "[r2] thumbnail fetch returned %d for %s (deny=%s)",
+            resp.status_code, video_id, resp.headers.get("x-deny-reason", "-"),
+        )
+        return None
+    content_type = resp.headers.get("content-type", "image/jpeg")
+    if not content_type.startswith("image/"):
+        logger.debug("[r2] thumbnail content-type unexpected (%s) for %s", content_type, video_id)
+        return None
+    image_bytes = resp.content
+    if len(image_bytes) > _MAX_THUMB_BYTES:
+        logger.warning("[r2] thumbnail too large (%dKB) for %s", len(image_bytes) // 1024, video_id)
+        return None
 
     try:
-        result = await loop.run_in_executor(None, _fetch)
-        if result is None:
-            return None
-        image_bytes, content_type = result
-        return await loop.run_in_executor(None, upload_thumbnail_bytes, video_id, image_bytes, content_type)
+        return await loop.run_in_executor(
+            None, upload_thumbnail_bytes, video_id, image_bytes, content_type,
+        )
     except Exception as exc:
         logger.error("[r2] download_and_upload_thumbnail failed for %s: %s", video_id, exc)
         return None
