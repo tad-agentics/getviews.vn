@@ -340,6 +340,41 @@ async def require_user(request: Request) -> dict[str, Any]:
     return {"user_id": user_id, "payload": payload, "access_token": token}
 
 
+async def require_admin(user: dict[str, Any] = Depends(require_user)) -> dict[str, Any]:
+    """Admin gate for the `/app/admin` dashboard backend.
+
+    Layered on top of ``require_user`` so the 401 vs 403 split stays clean:
+    a missing/expired JWT bounces from ``require_user`` as 401; a valid JWT
+    whose owner isn't flagged admin bounces here as 403. ``profiles.is_admin``
+    is read through the service-role client — a user with the flag flipped
+    on but an otherwise-identical RLS story still passes, and we don't
+    re-pay the ``profiles_select_own`` RLS lookup per request.
+
+    Returns the same shape as ``require_user`` so admin endpoints can still
+    pull ``user_id`` / ``access_token`` off the returned dict.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("profiles")
+            .select("is_admin")
+            .eq("id", user["user_id"])
+            .single()
+            .execute()
+        )
+        row = resp.data or {}
+    except Exception as exc:
+        logger.warning("[require_admin] profiles lookup failed for %s: %s", user["user_id"], exc)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_check_failed") from exc
+
+    if not row.get("is_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_required")
+
+    return user
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -365,6 +400,15 @@ async def health() -> JSONResponse:
 async def auth_check(user: dict = Depends(require_user)) -> JSONResponse:
     """Smoke-test endpoint — returns user_id if JWT is valid."""
     return JSONResponse({"ok": True, "user_id": user["user_id"]})
+
+
+@app.get("/admin/ping")
+async def admin_ping(admin: dict = Depends(require_admin)) -> JSONResponse:
+    """Admin-only smoke test — returns 403 if the JWT owner isn't flagged
+    admin, 200 if they are. The SPA probes this once on /app/admin mount to
+    decide between rendering the dashboard and redirecting to /app.
+    """
+    return JSONResponse({"ok": True, "user_id": admin["user_id"]})
 
 
 class ClassifyIntentRequest(BaseModel):
@@ -1039,7 +1083,9 @@ async def batch_layer0(request: Request) -> JSONResponse:
 
 
 @app.get("/admin/corpus-health")
-async def admin_corpus_health(request: Request) -> JSONResponse:
+async def admin_corpus_health(
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
     """Per-niche corpus-adequacy snapshot for claim tiers.
 
     Returns one row per niche with:
@@ -1052,13 +1098,12 @@ async def admin_corpus_health(request: Request) -> JSONResponse:
     Plus a summary counting niches per highest-passing tier. Use this to
     answer "which claims are statistically valid today, per niche?".
 
-    Protected by X-Batch-Secret. See artifacts/docs/corpus-health.md.
+    Phase D.6 — auth moved from X-Batch-Secret to `require_admin` so the
+    Studio-side admin dashboard can reach it with a user JWT instead of a
+    shared machine secret. Cron callers that used to hit this with the
+    batch header should move to the Studio dashboard or a per-service
+    admin identity.
     """
-    if _BATCH_SECRET:
-        provided = request.headers.get("X-Batch-Secret", "")
-        if provided != _BATCH_SECRET:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
-
     from getviews_pipeline.claim_tiers import flags_for_count
     from getviews_pipeline.supabase_client import get_service_client
 

@@ -447,6 +447,7 @@ export type Database = {
           display_name: string
           email: string
           id: string
+          is_admin: boolean
           is_processing: boolean
           lifetime_credits_used: number
           primary_niche: number | null
@@ -465,6 +466,7 @@ export type Database = {
           display_name?: string
           email: string
           id: string
+          is_admin?: boolean
           is_processing?: boolean
           lifetime_credits_used?: number
           primary_niche?: number | null
@@ -483,6 +485,7 @@ export type Database = {
           display_name?: string
           email?: string
           id?: string
+          is_admin?: boolean
           is_processing?: boolean
           lifetime_credits_used?: number
           primary_niche?: number | null
