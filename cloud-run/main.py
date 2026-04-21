@@ -256,6 +256,7 @@ app.add_middleware(
         "Accept-Language",
         "X-Requested-With",
         "apikey",
+        "Idempotency-Key",
     ],
     # Chrome Private Network Access: without this, preflight can return 400 and the
     # browser reports "CORS ... does not have HTTP ok status" for cross-origin fetches.
