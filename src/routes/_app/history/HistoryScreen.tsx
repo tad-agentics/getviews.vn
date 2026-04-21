@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
+import { useArchiveAnswerSession, useRenameAnswerSession } from "@/hooks/useAnswerSessionQueries";
 import {
   type HistoryUnionRow,
   useHistoryUnion,
@@ -101,9 +102,15 @@ export default function HistoryScreen() {
 
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
+  const archiveAnswerSession = useArchiveAnswerSession();
+  const renameAnswerSession = useRenameAnswerSession();
 
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // Delete flow needs to know which surface the target belongs to so the
+  // confirm handler dispatches to the right mutation — chat sessions
+  // hard-delete via the RPC, answer sessions set archived_at via PATCH.
+  type DeleteTarget = { id: string; type: "chat" | "answer" } | null;
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [editingRow, setEditingRow] = useState<{ id: string; type: "chat" | "answer" } | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
 
   const pagedRows: HistoryUnionRow[] = useMemo(
@@ -178,10 +185,16 @@ export default function HistoryScreen() {
     }
   };
 
-  const commitRename = (id: string) => {
+  const commitRename = (id: string, type: "chat" | "answer") => {
     const t = draftTitle.trim();
-    if (t) void updateSession.mutateAsync({ sessionId: id, title: t });
-    setEditingId(null);
+    if (t) {
+      if (type === "chat") {
+        void updateSession.mutateAsync({ sessionId: id, title: t });
+      } else {
+        void renameAnswerSession.mutateAsync({ sessionId: id, title: t });
+      }
+    }
+    setEditingRow(null);
     setDraftTitle("");
   };
 
@@ -190,9 +203,9 @@ export default function HistoryScreen() {
   return (
     <AppLayout enableMobileSidebar>
       <AlertDialog
-        open={deleteTargetId !== null}
+        open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setDeleteTargetId(null);
+          if (!open) setDeleteTarget(null);
         }}
       >
         <AlertDialogContent className="bg-[color:var(--gv-paper)] border-[color:var(--gv-rule)]">
@@ -201,7 +214,12 @@ export default function HistoryScreen() {
               Xoá phiên này?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[color:var(--gv-ink-3)]">
-              Bạn sẽ mất toàn bộ lịch sử hội thoại.
+              {/* Answer sessions soft-delete (archived_at set); the turn rows
+                  + their costly Gemini/EnsembleData outputs stay in the DB
+                  for reversibility. Chat sessions hard-delete with cascade. */}
+              {deleteTarget?.type === "answer"
+                ? "Phiên sẽ bị ẩn khỏi lịch sử. Dữ liệu phân tích vẫn được giữ lại."
+                : "Bạn sẽ mất toàn bộ lịch sử hội thoại."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -212,14 +230,18 @@ export default function HistoryScreen() {
               type="button"
               variant="danger"
               onClick={async () => {
-                const idToDelete = deleteTargetId;
-                setDeleteTargetId(null);
-                if (idToDelete) {
-                  try {
-                    await deleteSession.mutateAsync(idToDelete);
-                  } catch {
-                    /* optimistic rollback handled in hook */
+                const target = deleteTarget;
+                setDeleteTarget(null);
+                if (!target) return;
+                try {
+                  if (target.type === "chat") {
+                    await deleteSession.mutateAsync(target.id);
+                  } else {
+                    await archiveAnswerSession.mutateAsync(target.id);
                   }
+                } catch {
+                  /* chat: optimistic rollback handled in hook;
+                     answer: invalidations re-fetch to reveal the failure */
                 }
               }}
             >
@@ -316,7 +338,7 @@ export default function HistoryScreen() {
                 </div>
                 <div className="divide-y divide-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
                   {groupRows.map((row) => {
-                    const editing = editingId === row.id;
+                    const editing = editingRow?.id === row.id;
                     return (
                       <div key={row.id} className="relative">
                         {editing ? (
@@ -325,13 +347,15 @@ export default function HistoryScreen() {
                               value={draftTitle}
                               onChange={(e) => setDraftTitle(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") commitRename(row.id);
+                                if (e.key === "Enter" && editingRow) commitRename(editingRow.id, editingRow.type);
                                 if (e.key === "Escape") {
-                                  setEditingId(null);
+                                  setEditingRow(null);
                                   setDraftTitle("");
                                 }
                               }}
-                              onBlur={() => commitRename(row.id)}
+                              onBlur={() => {
+                                if (editingRow) commitRename(editingRow.id, editingRow.type);
+                              }}
                               autoFocus
                               className="text-sm"
                             />
@@ -341,33 +365,31 @@ export default function HistoryScreen() {
                             row={row}
                             onClick={() => handleRowClick(row)}
                             actions={
-                              row.type === "chat" ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    title="Đổi tên"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingId(row.id);
-                                      setDraftTitle(row.title ?? "");
-                                    }}
-                                    className="flex h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
-                                  >
-                                    <Pencil className="h-4 w-4" strokeWidth={1.8} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    title="Xoá"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteTargetId(row.id);
-                                    }}
-                                    className="flex h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[color:var(--gv-danger)] hover:bg-[color:var(--gv-canvas-2)]"
-                                  >
-                                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-                                  </button>
-                                </>
-                              ) : null
+                              <>
+                                <button
+                                  type="button"
+                                  title="Đổi tên"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingRow({ id: row.id, type: row.type });
+                                    setDraftTitle(row.title ?? "");
+                                  }}
+                                  className="flex h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
+                                >
+                                  <Pencil className="h-4 w-4" strokeWidth={1.8} />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Xoá"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteTarget({ id: row.id, type: row.type });
+                                  }}
+                                  className="flex h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[color:var(--gv-danger)] hover:bg-[color:var(--gv-canvas-2)]"
+                                >
+                                  <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+                                </button>
+                              </>
                             }
                           />
                         )}

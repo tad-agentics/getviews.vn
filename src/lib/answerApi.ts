@@ -90,3 +90,32 @@ export async function fetchAnswerSessionDetail(accessToken: string, sessionId: s
     turns: AnswerTurnRow[];
   };
 }
+
+/**
+ * `PATCH /answer/sessions/:id` — update title and/or archived_at.
+ *
+ * Answer sessions have an `archived_at` column (history_union filters
+ * `archived_at IS NULL`, so setting it effectively hides the session from
+ * /app/history). Distinct from chat sessions which hard-delete via RPC —
+ * per phase-c-plan.md the soft-delete model stayed for answer because
+ * turn rows carry irreversible cost (Gemini + EnsembleData spend).
+ */
+export async function patchAnswerSession(
+  accessToken: string,
+  sessionId: string,
+  patch: { title?: string | null; archived_at?: string | null },
+): Promise<AnswerSessionRow> {
+  const base = answerApiBase();
+  if (!base) throw new Error("no_cloud_run");
+  const res = await fetch(`${base}/answer/sessions/${sessionId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(patch),
+  });
+  if (res.status === 404) throw new Error("session_not_found");
+  if (!res.ok) throw new Error(`answer/session PATCH ${res.status}`);
+  return (await res.json()) as AnswerSessionRow;
+}

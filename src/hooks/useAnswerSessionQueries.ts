@@ -5,9 +5,9 @@
  * and cheap enough that cache churn doesn't hit the cold-start path — the
  * optimistic injection in AnswerScreen already keeps the active tab warm.
  */
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { fetchAnswerSessionDetail, fetchAnswerSessions } from "@/lib/answerApi";
+import { fetchAnswerSessionDetail, fetchAnswerSessions, patchAnswerSession } from "@/lib/answerApi";
 import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 
 export const answerSessionKeys = {
@@ -60,6 +60,63 @@ export function useInvalidateAnswerSessions() {
   return (userId: string | undefined) => {
     if (userId) void qc.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(userId) });
   };
+}
+
+/**
+ * Archive (soft-delete) an answer session by PATCHing `archived_at` to now.
+ *
+ * Distinct from chat sessions which hard-delete via RPC — answer sessions
+ * carry irreversible Gemini + EnsembleData spend on their turn rows, so
+ * the model kept an `archived_at` column for reversibility. The history
+ * view's `history_union` RPC filters `archived_at IS NULL`, so setting
+ * it is effectively "delete" from the user's point of view.
+ *
+ * On success invalidates both the answer-sessions list cache (drawer on
+ * /app/answer) and the history-union cache (the /app/history list) so
+ * the row disappears from every surface without a manual reload.
+ */
+export function useArchiveAnswerSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const t = await getToken();
+      if (!t) throw new Error("auth");
+      return patchAnswerSession(t, sessionId, {
+        archived_at: new Date().toISOString(),
+      });
+    },
+    onSuccess: (_row, sessionId) => {
+      void qc.invalidateQueries({ queryKey: answerSessionKeys.all });
+      void qc.invalidateQueries({ queryKey: answerSessionKeys.detail(sessionId) });
+      // history_union + search_history_union filter archived_at IS NULL.
+      void qc.invalidateQueries({ queryKey: ["history_union"] });
+      void qc.invalidateQueries({ queryKey: ["search_history_union"] });
+    },
+  });
+}
+
+/**
+ * Rename an answer session via the same PATCH endpoint.
+ * Trims the title on the client so a whitespace-only rename is a no-op
+ * instead of a silent wipe of the title.
+ */
+export function useRenameAnswerSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, title }: { sessionId: string; title: string }) => {
+      const t = await getToken();
+      if (!t) throw new Error("auth");
+      const trimmed = title.trim();
+      if (!trimmed) throw new Error("empty_title");
+      return patchAnswerSession(t, sessionId, { title: trimmed });
+    },
+    onSuccess: (_row, { sessionId }) => {
+      void qc.invalidateQueries({ queryKey: answerSessionKeys.all });
+      void qc.invalidateQueries({ queryKey: answerSessionKeys.detail(sessionId) });
+      void qc.invalidateQueries({ queryKey: ["history_union"] });
+      void qc.invalidateQueries({ queryKey: ["search_history_union"] });
+    },
+  });
 }
 
 export function lastPayloadFromTurns(

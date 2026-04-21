@@ -20,6 +20,7 @@ import { Timeline } from "@/components/v2/Timeline";
 import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { IssueCard } from "@/components/v2/IssueCard";
+import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { formatRelativeSinceVi } from "@/lib/formatters";
@@ -249,7 +250,7 @@ export default function VideoScreen() {
             ) : null}
             <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
               <p className="gv-tight m-0 text-lg text-[color:var(--gv-neg-deep)]">Không tải được phân tích</p>
-              <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">{error?.message ?? "Lỗi không xác định"}</p>
+              <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">{analysisErrorCopy(error)}</p>
               <Btn className="mt-4" type="button" variant="ghost" onClick={() => refetch()}>
                 Thử lại
               </Btn>
