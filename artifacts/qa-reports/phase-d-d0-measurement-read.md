@@ -2,7 +2,9 @@
 
 **Date:** 2026-04-20
 **Ship-gate:** Blocks all D.1+ deploys until green.
-**Status:** **PENDING — awaiting 7-day production data**
+**Status:** **FAIL — 7-day production pull completed 2026-04-20; 11/14 events have zero rows.** D.1+ remains blocked until all rows pass the contract below.
+
+**Production snapshot:** Supabase project **Getviews.vn** (`lzhiqnxfveqttsujebiv`, `ap-southeast-2`). Query executed via service-role SQL (7-day window = `created_at >= NOW() - INTERVAL '7 days'` at query time). A 30-day roll-up shows the same three `action` values only — no hidden traffic under alternate windows for the missing names.
 
 ---
 
@@ -81,6 +83,30 @@ GROUP BY action
 ORDER BY total_events DESC;
 ```
 
+To list **all 14 expected actions including zeros** (easier for the table below):
+
+```sql
+WITH expected AS (
+  SELECT unnest(ARRAY[
+    'video_screen_load', 'flop_cta_click', 'video_to_script',
+    'kol_screen_load', 'kol_pin',
+    'script_screen_load', 'script_generate', 'channel_to_script',
+    'answer_session_create', 'answer_turn_append', 'templatize_click',
+    'answer_drawer_open', 'history_session_open', 'studio_composer_submit'
+  ]) AS action
+)
+SELECT e.action,
+  COALESCE(COUNT(u.*), 0)::bigint AS total_events,
+  COALESCE(COUNT(DISTINCT u.user_id), 0)::bigint AS unique_users,
+  MIN(u.created_at) AS first_seen,
+  MAX(u.created_at) AS last_seen
+FROM expected e
+LEFT JOIN usage_events u ON u.action = e.action
+  AND u.created_at >= NOW() - INTERVAL '7 days'
+GROUP BY e.action
+ORDER BY total_events DESC, e.action;
+```
+
 ---
 
 ## Pass / fail contract
@@ -104,27 +130,26 @@ ORDER BY total_events DESC;
 
 ---
 
-## 7-day measurement table (to be populated from production query)
+## 7-day measurement table (production pull 2026-04-20)
 
-Run this section's SQL, paste the result rows into the table below,
-then commit the audit.
+| # | Action | Total events | Unique users | First seen (UTC) | Last seen (UTC) | Pass / Fail | Notes |
+|---|---|---:|---:|---|---|---|---|
+| 1 | `video_screen_load` | 0 | 0 | — | — | **Fail** | No rows in 7d (none in 30d either). |
+| 2 | `flop_cta_click` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 3 | `video_to_script` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 4 | `kol_screen_load` | 38 | 3 | 2026-04-19 06:03:25 | 2026-04-20 09:14:39 | **Pass** | Meets volume; `last_seen` within 24h of pull; `unique_users ≥ 2`. |
+| 5 | `kol_pin` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 6 | `script_screen_load` | 35 | 4 | 2026-04-19 09:51:58 | 2026-04-20 09:13:19 | **Pass** | Meets volume; `last_seen` within 24h of pull. |
+| 7 | `script_generate` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 8 | `channel_to_script` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 9 | `answer_session_create` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 10 | `answer_turn_append` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 11 | `templatize_click` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 12 | `answer_drawer_open` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 13 | `history_session_open` | 0 | 0 | — | — | **Fail** | No rows in 7d. |
+| 14 | `studio_composer_submit` | 4 | 1 | 2026-04-20 08:45:53 | 2026-04-20 09:08:36 | **Fail** | `unique_users = 1` — contract asks ≥ 2; treat as **smoke-only** per fail-mode table. |
 
-| # | Action | Total events | Unique users | First seen | Last seen | Pass / Fail | Notes |
-|---|---|---|---|---|---|---|---|
-| 1 | `video_screen_load` | — | — | — | — | ⏳ pending | |
-| 2 | `flop_cta_click` | — | — | — | — | ⏳ pending | |
-| 3 | `video_to_script` | — | — | — | — | ⏳ pending | |
-| 4 | `kol_screen_load` | — | — | — | — | ⏳ pending | |
-| 5 | `kol_pin` | — | — | — | — | ⏳ pending | |
-| 6 | `script_screen_load` | — | — | — | — | ⏳ pending | |
-| 7 | `script_generate` | — | — | — | — | ⏳ pending | |
-| 8 | `channel_to_script` | — | — | — | — | ⏳ pending | |
-| 9 | `answer_session_create` | — | — | — | — | ⏳ pending | |
-| 10 | `answer_turn_append` | — | — | — | — | ⏳ pending | |
-| 11 | `templatize_click` | — | — | — | — | ⏳ pending | |
-| 12 | `answer_drawer_open` | — | — | — | — | ⏳ pending | |
-| 13 | `history_session_open` | — | — | — | — | ⏳ pending | |
-| 14 | `studio_composer_submit` | — | — | — | — | ⏳ pending | |
+**Summary:** **2 / 14** rows meet the full contract (`kol_screen_load`, `script_screen_load`). `studio_composer_submit` has non-zero volume but **`unique_users = 1`** (fails). The other **11** actions have **zero** rows in the 7-day window. **Gate is not green.** Next steps: trace missing events (`logUsage` + allow-list / RLS on insert), then re-pull after fixes.
 
 ---
 
@@ -147,11 +172,18 @@ then commit the audit.
 
 ## Sign-off (to be filled after production data pull)
 
+**Date:** 2026-04-20 (pull only — not a green sign-off)
+**Signed by:** —
+**Status:** **Not eligible — 11 fail rows + `studio_composer_submit` unique-user fail.**
+
+Re-run this section after a subsequent pull when all 14 rows pass. Until then,
+**D.1+ deploys remain blocked** per ship-gate.
+
+*(Green template when eligible:)*
+
 **Date:** —
 **Signed by:** —
-**Status:** —
+**Status:** **Green**
 
 All 14 events confirmed firing over the 7-day window ending —. No fail
 rows. D.1+ deploys unblocked.
-
-*(Template — fill in from the populated table above.)*
