@@ -19,8 +19,8 @@ export function AnswerShell({
       {crumb}
       {header}
       <section className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div>{main}</div>
-        <aside className="flex flex-col gap-4 lg:order-first xl:order-none">{aside}</aside>
+        <div className="min-w-0">{main}</div>
+        <aside className="flex min-w-0 flex-col gap-4">{aside}</aside>
       </section>
     </main>
   );

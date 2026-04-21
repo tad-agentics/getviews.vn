@@ -16,7 +16,6 @@ import {
   MoreHorizontal,
   Check,
   BookOpen,
-  Menu,
 } from 'lucide-react';
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
@@ -398,7 +397,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
@@ -704,61 +702,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
         {/* Mobile bottom tab bar — only on /_app/ screens that opt in. */}
         {enableMobileSidebar ? <BottomTabBar active={active} /> : null}
-
-        {/* Mobile sidebar trigger buttons (only when enableMobileSidebar) */}
-        {enableMobileSidebar && !mobileSidebarOpen && (
-          <>
-            {/* Hamburger — top left */}
-            <button
-              onClick={() => setMobileSidebarOpen(true)}
-              className="fixed top-3 left-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] text-[color:var(--gv-ink-2)] shadow-sm active:scale-95 transition-all duration-[120ms]"
-              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
-            >
-              <Menu className="w-4 h-4" strokeWidth={1.8} />
-            </button>
-
-            {/* New chat — top right */}
-            <button
-              onClick={() => navigate("/app/answer")}
-              className="fixed top-3 right-3 z-40 w-9 h-9 flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] text-[color:var(--gv-ink-2)] shadow-sm active:scale-95 transition-all duration-[120ms]"
-              style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.10)' }}
-            >
-              <Plus className="w-4 h-4" strokeWidth={1.8} />
-            </button>
-          </>
-        )}
-
-        {/* Mobile sidebar drawer */}
-        {enableMobileSidebar && (
-          <AnimatePresence>
-            {mobileSidebarOpen && (
-              <>
-                {/* Backdrop */}
-                <motion.div
-                  key="mob-backdrop"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="fixed inset-0 z-50"
-                  style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-                />
-
-                {/* Drawer panel */}
-                <motion.aside
-                  key="mob-drawer"
-                  initial={{ x: '-100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '-100%' }}
-                  transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
-                  className="fixed bottom-0 left-0 top-0 z-50 flex h-full min-h-0 w-[240px] flex-col overflow-hidden border-r border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]"
-                >
-                  <SidebarContent onClose={() => setMobileSidebarOpen(false)} />
-                </motion.aside>
-              </>
-            )}
-          </AnimatePresence>
-        )}
 
       </div>
 

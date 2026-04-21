@@ -15,9 +15,9 @@ export type AppShellActive = Tab | "kol" | "script";
 /**
  * Mobile bottom tab bar (Phase A · A3.3).
  *
- * Matches the design's 4-item bottom bar for screens ≤ 900px wide. The
- * sidebar drawer remains the full-menu surface; this is the fast-access
- * row. Active tab ink-filled, others subdued; tapping navigates.
+ * Matches the design's 4-item bottom bar for screens ≤ 900px wide. On
+ * viewports without the desktop sidebar, this row is the primary section switcher.
+ * Active tab ink-filled, others subdued; tapping navigates.
  *
  * Sits above the browser safe area via `pb-[env(safe-area-inset-bottom)]`
  * so iOS home-indicator devices don't clip the labels.
