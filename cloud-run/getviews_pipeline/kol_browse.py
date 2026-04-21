@@ -171,10 +171,73 @@ def _apply_growth_fast_proxy(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
     return [r for r in rows if float(r.get("avg_views") or 0) >= cutoff]
 
 
-def _growth_display_pct(avg_views: float, niche_avg_views: list[float]) -> float:
-    """Proxy momentum for TĂNG 30D column (no real 30d series in DB). ~−22%…+22%."""
+def _growth_display_pct_proxy(avg_views: float, niche_avg_views: list[float]) -> float:
+    """Proxy momentum for TĂNG 30D when no real view-velocity row exists.
+
+    Re-shapes the niche-wide avg_views percentile into a ±22% band. This
+    is the D.1.5 fallback — used when ``view_velocity_30d_pct`` is NULL
+    (e.g. new creators with < 2 corpus videos per window) or stale
+    (> ``VIEW_VELOCITY_TTL`` old).
+    """
     gp = growth_percentile_from_avgs(avg_views, niche_avg_views)
     return round((gp - 0.5) * 0.44, 4)
+
+
+# D.1.5 — real 30d view velocity freshness. Past this window we prefer the
+# avg-views proxy over a stale column read; `[kol-growth]` log attributes
+# the decision so D.5.1 can surface the mix of real vs proxy reads.
+VIEW_VELOCITY_TTL = timedelta(days=7)
+
+
+def _resolve_growth_display_pct(
+    *,
+    handle: str,
+    avg_views: float,
+    niche_avg_views: list[float],
+    cached_view_velocity: tuple[float, datetime | None] | None,
+    now: datetime,
+) -> float:
+    """D.1.5 — Real view-velocity first, proxy fallback. Logs the choice."""
+    if cached_view_velocity is not None:
+        value, ts = cached_view_velocity
+        if ts is not None and (now - ts) < VIEW_VELOCITY_TTL:
+            _log.info("[kol-growth] handle=%s source=real value=%.4f", handle, value)
+            return round(float(value), 4)
+        _log.info(
+            "[kol-growth] handle=%s source=proxy reason=stale_view_velocity age_days=%s",
+            handle,
+            int((now - ts).total_seconds() / 86400) if ts else "n/a",
+        )
+    else:
+        _log.info("[kol-growth] handle=%s source=proxy reason=missing_view_velocity", handle)
+    return _growth_display_pct_proxy(avg_views, niche_avg_views)
+
+
+def _fetch_view_velocity_map(
+    sb: Any, *, niche_id: int
+) -> dict[str, tuple[float, datetime | None]]:
+    """Read creator_velocity.view_velocity_30d_pct for the niche into a map."""
+    try:
+        res = (
+            sb.table("creator_velocity")
+            .select("creator_handle, view_velocity_30d_pct, view_velocity_computed_at")
+            .eq("niche_id", niche_id)
+            .execute()
+        )
+    except Exception as exc:  # pragma: no cover — defensive
+        _log.warning("[kol-growth] view_velocity read failed: %s", exc)
+        return {}
+    out: dict[str, tuple[float, datetime | None]] = {}
+    for row in res.data or []:
+        h = normalize_handle(str(row.get("creator_handle") or ""))
+        if not h:
+            continue
+        raw = row.get("view_velocity_30d_pct")
+        if raw is None:
+            continue
+        ts = _parse_computed_at(row.get("view_velocity_computed_at"))
+        out[h] = (float(raw), ts)
+    return out
 
 
 def _sort_decorated_rows(
@@ -376,6 +439,7 @@ def run_kol_browse_sync(
     # D.1.3 — cache read. `recomputed` tracks rows that need a writeback
     # UPDATE on creator_velocity after decoration (TTL miss / null cache).
     cached_scores = _fetch_cached_match_scores(user_sb, niche_id=niche_id)
+    cached_velocities = _fetch_view_velocity_map(user_sb, niche_id=niche_id)
     recomputed: dict[str, int] = {}
     _now = datetime.now(tz=timezone.utc)
 
@@ -402,7 +466,13 @@ def run_kol_browse_sync(
                 recomputed[h] = score
         name = row.get("display_name") or h
         md = _match_description_sentence(score, niche_label)
-        g_pct = _growth_display_pct(av, niche_avg_views)
+        g_pct = _resolve_growth_display_pct(
+            handle=h,
+            avg_views=av,
+            niche_avg_views=niche_avg_views,
+            cached_view_velocity=cached_velocities.get(h),
+            now=_now,
+        )
         return {
             "handle": h,
             "name": name,
