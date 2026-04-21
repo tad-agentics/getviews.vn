@@ -1,7 +1,14 @@
-"""Phase C.1 — answer_sessions / answer_turns orchestration (Cloud Run)."""
+"""Phase C.1 — answer_sessions / answer_turns orchestration (Cloud Run).
+
+D.2.3 additions: server-side usage-event emission for
+``classifier_low_confidence`` + ``pattern_what_stalled_empty`` so the
+D.5.1 cost / quality dashboard can attribute weak classifier rounds and
+empty Pattern diagnoses back to their source sessions.
+"""
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -14,8 +21,105 @@ from getviews_pipeline.report_timing import build_timing_report
 from getviews_pipeline.report_types import validate_and_store_report
 from getviews_pipeline.supabase_client import get_service_client
 
+logger = logging.getLogger(__name__)
+
 _IDEMPOTENCY: dict[str, tuple[str, float]] = {}
 _IDEMPOTENCY_TTL_SEC = 120.0
+
+# D.2.3 — classifier confidence thresholds. Aligned with Vercel Edge's
+# GEMINI_DISAGREE_WIN_MIN_CONFIDENCE (0.3) and the intent-router's practice
+# of treating < 0.6 as "not confident enough to ship a high-quality
+# narrative." The low-confidence event fires so D.5.1 can surface how
+# often paid turns run on shaky classifications.
+CLASSIFIER_LOW_CONFIDENCE_THRESHOLD = 0.6
+CLASSIFIER_MEDIUM_CONFIDENCE_THRESHOLD = 0.8
+
+
+def _confidence_label(score: float | None) -> str:
+    """Numeric confidence → enum label for ``answer_turns.classifier_confidence``."""
+    if score is None:
+        return "medium"
+    if score >= CLASSIFIER_MEDIUM_CONFIDENCE_THRESHOLD:
+        return "high"
+    if score >= CLASSIFIER_LOW_CONFIDENCE_THRESHOLD:
+        return "medium"
+    return "low"
+
+
+def log_usage_event_server(
+    sb: Any,
+    *,
+    user_id: str,
+    action: str,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    """Fire-and-forget server-side insert into ``public.usage_events``.
+
+    Uses the service client to bypass RLS (caller scopes `user_id` itself).
+    Never raises — a logging failure shouldn't break the /answer turn.
+    """
+    try:
+        sb.table("usage_events").insert(
+            {
+                "user_id": user_id,
+                "action": action,
+                "metadata": metadata or {},
+            }
+        ).execute()
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning("[usage_events] server emit failed action=%s: %s", action, exc)
+
+
+def resolve_turn_observability_events(
+    *,
+    fmt: str,
+    payload: dict[str, Any] | None,
+    classifier_confidence_score: float | None,
+    intent_id: str | None,
+    niche_id: int | None,
+    session_id: str,
+    turn_index: int,
+) -> list[tuple[str, dict[str, Any]]]:
+    """Pure predicate for D.2.3 observability events.
+
+    Returns a list of ``(action, metadata)`` pairs ready for
+    ``log_usage_event_server``. Extracted so the event firing logic is
+    testable in isolation from the full ``append_turn`` call chain.
+    """
+    out: list[tuple[str, dict[str, Any]]] = []
+    if (
+        classifier_confidence_score is not None
+        and classifier_confidence_score < CLASSIFIER_LOW_CONFIDENCE_THRESHOLD
+    ):
+        out.append(
+            (
+                "classifier_low_confidence",
+                {
+                    "intent_id": intent_id,
+                    "confidence_score": round(float(classifier_confidence_score), 4),
+                    "session_id": session_id,
+                    "turn_index": turn_index,
+                },
+            )
+        )
+    if fmt == "pattern":
+        body = payload or {}
+        ws = list(body.get("what_stalled") or [])
+        conf = body.get("confidence") or {}
+        ws_reason = conf.get("what_stalled_reason")
+        if not ws and ws_reason is not None:
+            out.append(
+                (
+                    "pattern_what_stalled_empty",
+                    {
+                        "niche_id": niche_id,
+                        "reason": ws_reason,
+                        "session_id": session_id,
+                        "turn_index": turn_index,
+                    },
+                )
+            )
+    return out
 
 
 def _prune_idempotency() -> None:
@@ -75,8 +179,19 @@ def append_turn(
     *,
     query: str,
     kind: str,
+    classifier_confidence_score: float | None = None,
+    intent_id: str | None = None,
 ) -> dict[str, Any]:
-    """Append validated turn; primary kind deducts credit via user client (caller passes token)."""
+    """Append validated turn; primary kind deducts credit via user client (caller passes token).
+
+    D.2.3 kwargs:
+      - ``classifier_confidence_score`` (0.0–1.0) from the Vercel Edge
+        classifier round. Derives the ``answer_turns.classifier_confidence``
+        enum label and gates the ``classifier_low_confidence`` event.
+      - ``intent_id`` is the classifier's ``primary`` label; included in
+        the event metadata so D.5.1 can attribute low-confidence rates
+        per intent.
+    """
     from getviews_pipeline.supabase_client import user_supabase
 
     sb_srv = get_service_client()
@@ -138,6 +253,7 @@ def append_turn(
 
     payload_dict = validate_and_store_report(fmt, inner)
 
+    confidence_label = _confidence_label(classifier_confidence_score)
     credits_used = 1 if kind == "primary" else 0
     row_ins = {
         "session_id": session_id,
@@ -145,7 +261,7 @@ def append_turn(
         "kind": kind,
         "query": query,
         "payload": payload_dict,
-        "classifier_confidence": "medium",
+        "classifier_confidence": confidence_label,
         "intent_confidence": "high" if kind == "primary" else "medium",
         "cloud_run_run_id": str(uuid.uuid4()),
         "credits_used": credits_used,
@@ -153,7 +269,19 @@ def append_turn(
     ins = sb_srv.table("answer_turns").insert(row_ins).execute()
     turn = ins.data[0] if isinstance(ins.data, list) else ins.data
 
-    from datetime import datetime, timezone
+    # D.2.3 — observability events. Both go through the service-client
+    # insert so usage_events RLS policies don't reject; failures are
+    # swallowed inside log_usage_event_server.
+    for action, metadata in resolve_turn_observability_events(
+        fmt=fmt,
+        payload=payload_dict,
+        classifier_confidence_score=classifier_confidence_score,
+        intent_id=intent_id,
+        niche_id=session.get("niche_id"),
+        session_id=session_id,
+        turn_index=turn_index,
+    ):
+        log_usage_event_server(sb_srv, user_id=user_id, action=action, metadata=metadata)
 
     sb_srv.table("answer_sessions").update(
         {"updated_at": datetime.now(timezone.utc).isoformat()}

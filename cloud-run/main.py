@@ -1867,6 +1867,12 @@ class AnswerSessionCreateBody(BaseModel):
 class AnswerTurnAppendBody(BaseModel):
     query: str
     kind: Literal["primary", "timing", "creators", "script", "generic"] = "primary"
+    # D.2.3 — classifier round provenance. Caller (Vercel Edge
+    # `/api/chat`) passes the `primary_confidence` + `primary` label from
+    # `classify_intent_gemini` so Cloud Run can persist the enum label and
+    # fire `classifier_low_confidence` when the score is < 0.6.
+    classifier_confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    intent_id: str | None = Field(default=None, max_length=80)
 
 
 class AnswerSessionPatchBody(BaseModel):
@@ -1958,6 +1964,8 @@ async def answer_append_turn(
                 session_id,
                 query=body.query,
                 kind=body.kind,
+                classifier_confidence_score=body.classifier_confidence_score,
+                intent_id=body.intent_id,
             )
         except PermissionError:
             seq += 1
