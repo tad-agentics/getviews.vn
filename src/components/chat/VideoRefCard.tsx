@@ -78,7 +78,7 @@ export function VideoRefCard({ data, className = "" }: Props) {
       <div className="px-2 py-1.5 space-y-1">
         {/* Breakout badge — not visible on thumbnail */}
         {data.breakout && data.breakout > 2 ? (
-          <span className="inline-block rounded bg-[var(--purple)]/80 px-1 py-0.5 text-[9px] font-semibold text-white">
+          <span className="inline-block rounded bg-[color:var(--gv-accent)]/80 px-1 py-0.5 text-[9px] font-semibold text-white">
             {formatBreakoutVI(data.breakout)}{data.breakout > 5 ? " ⭐" : ""}
           </span>
         ) : null}

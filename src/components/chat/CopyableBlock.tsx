@@ -2,7 +2,7 @@
  * CopyableBlock — highlighted block for hook formula templates (P0-3).
  *
  * Rendered when MarkdownRenderer detects a line starting with "Hook:" or "**Hook:**".
- * Visual spec: purple-light bg, 2px purple left-border, copy button right-aligned.
+ * Visual spec: gv-accent-soft bg, 2px gv-accent left-border, copy button right-aligned.
  */
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
@@ -41,8 +41,8 @@ export function CopyableBlock({ text }: Props) {
     <div
       className="my-2 flex items-start justify-between gap-3 rounded-lg px-3 py-2.5"
       style={{
-        background: "var(--purple-light)",
-        borderLeft: "2px solid var(--purple)",
+        background: "var(--gv-accent-soft)",
+        borderLeft: "2px solid var(--gv-accent)",
       }}
     >
       <p className="flex-1 text-sm font-semibold leading-snug text-[var(--ink)]">
@@ -51,12 +51,12 @@ export function CopyableBlock({ text }: Props) {
       <button
         type="button"
         onClick={() => void handleCopy()}
-        className="flex-shrink-0 rounded p-1 transition-colors duration-[120ms] hover:bg-[var(--purple-light)]"
+        className="flex-shrink-0 rounded p-1 transition-colors duration-[120ms] hover:bg-[color:var(--gv-accent-soft)]"
         aria-label="Copy hook formula"
         title={copied ? "Đã copy ✓" : "Copy"}
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5 text-[var(--purple)]" strokeWidth={2.5} />
+          <Check className="h-3.5 w-3.5 text-[color:var(--gv-accent)]" strokeWidth={2.5} />
         ) : (
           <Copy className="h-3.5 w-3.5 text-[var(--muted)]" strokeWidth={2} />
         )}

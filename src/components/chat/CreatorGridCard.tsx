@@ -37,8 +37,8 @@ export function CreatorGridCard({ data }: { data: CreatorCardData }) {
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-[var(--purple-light)]">
-            <span className="text-xl font-bold text-[var(--purple)]">{initial}</span>
+          <div className="flex h-full w-full items-center justify-center bg-[color:var(--gv-accent-soft)]">
+            <span className="text-xl font-bold text-[color:var(--gv-accent)]">{initial}</span>
           </div>
         )}
       </div>
@@ -56,7 +56,7 @@ export function CreatorGridCard({ data }: { data: CreatorCardData }) {
         </a>
         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--muted)]">
           {data.followers !== "?" ? <span>{data.followers} followers</span> : null}
-          <span className="font-semibold text-[var(--purple)]">ER {data.er}</span>
+          <span className="font-semibold text-[color:var(--gv-accent)]">ER {data.er}</span>
         </div>
         {data.hook_style ? (
           <p className="mt-1.5 text-[11px] leading-snug text-[var(--faint)]">{data.hook_style}</p>
