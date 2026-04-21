@@ -14,9 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir .
-
 COPY getviews_pipeline/ ./getviews_pipeline/
+RUN pip install --no-cache-dir -e ".[logs]"
+
 COPY main.py .
 
 ENV PORT=8080
