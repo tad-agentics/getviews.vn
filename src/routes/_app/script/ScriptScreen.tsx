@@ -317,7 +317,13 @@ export default function ScriptScreen() {
     setExportBanner(null);
     const id = await ensureSavedDraft();
     if (id) {
-      navigate("/app/history?type=script");
+      // Post-save landing was `/app/history?type=script` but the history
+      // filter ribbon only knows "all" | "answer" | "chat" — the
+      // ?type=script query fell through to "all" and the user couldn't
+      // find their draft. Shoot mode is the natural next step anyway:
+      // the saved draft is what you actually want to film against, and
+      // the shoot screen renders the same draft rows in read-only mode.
+      navigate(`/app/script/shoot/${encodeURIComponent(id)}`);
     }
   };
 
