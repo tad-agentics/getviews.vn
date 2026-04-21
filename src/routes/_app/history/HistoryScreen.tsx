@@ -1,21 +1,22 @@
 /**
  * Phase C.6 — /history restyle.
+ * Phase D.2.4 — IntersectionObserver pagination + cross-type search.
  *
  * Unified browsing surface for both `/answer` research sessions and legacy
  * `chat_sessions`. Uses the server-side `history_union` Postgres RPC
- * (migration 20260430000003) to keep ordering + pagination authoritative
- * across both tables — plan §C.6 data model.
+ * (migration 20260430000003) with keyset `p_cursor` pagination + an
+ * IntersectionObserver on the last row that triggers `fetchNextPage`.
  *
- * Rowsarechip-driven by a 3-option filter ribbon (`Tất cả` / `Phiên nghiên
- * cứu` / `Hội thoại`). Search (existing chat-messages ILIKE path) remains
- * chat-only for now and suspends the filter when active — plan §C.6
- * scope note ("broader search is Phase D").
+ * Search uses `search_history_union` (D.2.4 migration 20260501000001) so
+ * a single query box now covers answer_sessions.title / initial_q +
+ * chat_sessions.title / first_message + chat_messages.content. Filter
+ * ribbon stays disabled while searching.
  *
  * Legacy rename / delete actions only surface on chat rows; answer
  * sessions archive via their own PATCH endpoint (not wired here).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Pencil, Search, Trash2 } from "lucide-react";
 
@@ -32,14 +33,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  useDeleteSession,
-  useSearchSessions,
-  useUpdateSession,
-} from "@/hooks/useChatSessions";
+import { useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import {
   type HistoryUnionRow,
   useHistoryUnion,
+  useSearchHistoryUnion,
 } from "@/hooks/useHistoryUnion";
 import { logUsage } from "@/lib/logUsage";
 
@@ -58,26 +56,6 @@ function groupByDate(rows: HistoryUnionRow[]): Record<string, HistoryUnionRow[]>
     acc[key].push(r);
     return acc;
   }, {});
-}
-
-/** Convert a legacy chat search row (from `useSearchSessions`) into the
- * HistoryUnionRow shape so the `HistoryRow` component renders both paths
- * uniformly. Search only covers chat today (no answer-side full-text). */
-function searchRowToUnion(s: {
-  id: string;
-  title: string | null;
-  first_message: string | null;
-  created_at: string;
-}): HistoryUnionRow {
-  return {
-    id: s.id,
-    type: "chat",
-    format: null,
-    niche_id: null,
-    title: (s.title || s.first_message || "Hội thoại cũ").trim() || "Hội thoại cũ",
-    turn_count: 0,
-    updated_at: s.created_at,
-  };
 }
 
 function HistoryListSkeleton() {
@@ -119,7 +97,7 @@ export default function HistoryScreen() {
   const isSearch = trimmed.length > 0;
 
   const unionQuery = useHistoryUnion(filter, Boolean(session) && !isSearch);
-  const searchQuery = useSearchSessions(trimmed);
+  const searchQuery = useSearchHistoryUnion(trimmed);
 
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
@@ -128,40 +106,68 @@ export default function HistoryScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
 
-  const rows: HistoryUnionRow[] = useMemo(() => {
-    if (isSearch) {
-      const data = (searchQuery.data ?? []) as Array<{
-        id: string;
-        title: string | null;
-        first_message: string | null;
-        created_at: string;
-      }>;
-      return data.map(searchRowToUnion);
-    }
-    return unionQuery.data ?? [];
-  }, [isSearch, searchQuery.data, unionQuery.data]);
+  const pagedRows: HistoryUnionRow[] = useMemo(
+    () => unionQuery.data?.pages.flatMap((p) => p) ?? [],
+    [unionQuery.data],
+  );
 
-  // Client-side counts for the filter ribbon (cheap; driven by the current
-  // union response). When search is active the ribbon is disabled so
-  // counts are meaningless — we hide them.
+  const rows: HistoryUnionRow[] = useMemo(() => {
+    if (isSearch) return searchQuery.data ?? [];
+    return pagedRows;
+  }, [isSearch, searchQuery.data, pagedRows]);
+
+  // Client-side counts for the filter ribbon (cheap; driven by the
+  // currently-loaded union pages). When search is active the ribbon is
+  // disabled so counts are meaningless — we hide them.
   const counts = useMemo(() => {
     if (isSearch) return undefined;
-    const full = unionQuery.data ?? [];
-    // Counts only valid when `filter === "all"`; other filters would bias.
     if (filter !== "all") return undefined;
     let answer = 0;
     let chat = 0;
-    for (const r of full) {
+    for (const r of pagedRows) {
       if (r.type === "answer") answer += 1;
       else if (r.type === "chat") chat += 1;
     }
-    return { all: full.length, answer, chat };
-  }, [filter, isSearch, unionQuery.data]);
+    return { all: pagedRows.length, answer, chat };
+  }, [filter, isSearch, pagedRows]);
 
-  const loading = isSearch ? searchQuery.isLoading : unionQuery.isLoading;
+  const loading = isSearch
+    ? searchQuery.isLoading
+    : unionQuery.isLoading || unionQuery.isFetching && pagedRows.length === 0;
   const errored = isSearch ? searchQuery.isError : unionQuery.isError;
   const refetch = () => (isSearch ? searchQuery.refetch() : unionQuery.refetch());
   const grouped = useMemo(() => groupByDate(rows), [rows]);
+
+  // D.2.4 — IntersectionObserver pagination. `sentinelRef` is attached
+  // to a zero-height div rendered after the last row; when it enters
+  // viewport and the query still has more pages, fetch the next one.
+  // Skips when a search is active (search has no pagination yet).
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const observeSentinel = useCallback(
+    (node: HTMLDivElement | null) => {
+      sentinelRef.current = node;
+      if (!node) return;
+      const target = node;
+      const obs = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (
+              e.isIntersecting &&
+              !isSearch &&
+              unionQuery.hasNextPage &&
+              !unionQuery.isFetchingNextPage
+            ) {
+              void unionQuery.fetchNextPage();
+            }
+          }
+        },
+        { rootMargin: "200px 0px" },
+      );
+      obs.observe(target);
+      return () => obs.disconnect();
+    },
+    [isSearch, unionQuery],
+  );
 
   const handleRowClick = (row: HistoryUnionRow) => {
     logUsage("history_session_open", { type: row.type, session_id: row.id });
@@ -300,7 +306,8 @@ export default function HistoryScreen() {
               )}
             </div>
           ) : (
-            Object.entries(grouped).map(([dateGroup, groupRows]) => (
+            <>
+            {Object.entries(grouped).map(([dateGroup, groupRows]) => (
               <div key={dateGroup}>
                 <div className="px-4 py-2 bg-[color:var(--gv-canvas-2)]">
                   <p className="gv-mono text-[10px] font-medium uppercase tracking-wide text-[color:var(--gv-ink-4)]">
@@ -369,7 +376,27 @@ export default function HistoryScreen() {
                   })}
                 </div>
               </div>
-            ))
+            ))}
+            {/* D.2.4 — sentinel + loading stub for infinite scroll.
+                Rendered only in paginated mode (search is a single-shot). */}
+            {!isSearch && unionQuery.hasNextPage ? (
+              <div
+                ref={observeSentinel}
+                aria-hidden
+                className="h-12 flex items-center justify-center"
+              >
+                {unionQuery.isFetchingNextPage ? (
+                  <p
+                    role="status"
+                    aria-label="Đang tải thêm"
+                    className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]"
+                  >
+                    Đang tải thêm…
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            </>
           )}
         </div>
       </div>
