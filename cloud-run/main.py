@@ -2228,6 +2228,31 @@ async def _admin_run_scene_intelligence() -> dict[str, Any]:
     return {"ok": True, **stats}
 
 
+class AdminTriggerThumbnailBackfillBody(BaseModel):
+    batch_size: int = 20
+    limit: int | None = None
+    dry_run: bool = False
+
+
+async def _admin_run_thumbnail_backfill(
+    body: AdminTriggerThumbnailBackfillBody,
+) -> dict[str, Any]:
+    # Live under ``scripts/`` but imported module-path works: cloud-run is on
+    # PYTHONPATH in the container (see deploy.sh + pyproject.toml).
+    import sys
+    from pathlib import Path
+    scripts_dir = str(Path(__file__).resolve().parent / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    from backfill_thumbnails import run_thumbnail_backfill  # type: ignore[import-not-found]
+
+    return await run_thumbnail_backfill(
+        batch_size=body.batch_size,
+        limit=body.limit,
+        dry_run=body.dry_run,
+    )
+
+
 @app.get("/admin/triggers")
 async def admin_list_triggers(
     _admin: dict[str, Any] = Depends(require_admin),
@@ -2262,6 +2287,16 @@ async def admin_list_triggers(
             {
                 "id": "scene_intelligence",
                 "label": "Scene intelligence refresh (/batch/scene-intelligence)",
+                "body_schema": {},
+                "heavy": True,
+            },
+            {
+                # Params (``batch_size``, ``limit``, ``dry_run``) accepted by
+                # the endpoint but omitted from the catalog — the SPA only has
+                # a custom form for ``ingest``; run with defaults from the UI,
+                # curl if you need dry-run or a cap.
+                "id": "thumbnail_backfill",
+                "label": "Thumbnail backfill — rehost TikTok CDN → R2",
                 "body_schema": {},
                 "heavy": True,
             },
@@ -2417,6 +2452,23 @@ async def admin_trigger_scene_intelligence(
         action="trigger.scene_intelligence",
         params={},
         runner=_admin_run_scene_intelligence,
+    )
+
+
+@app.post("/admin/trigger/thumbnail_backfill")
+async def admin_trigger_thumbnail_backfill(
+    body: AdminTriggerThumbnailBackfillBody = AdminTriggerThumbnailBackfillBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.thumbnail_backfill",
+        params={
+            "batch_size": body.batch_size,
+            "limit": body.limit,
+            "dry_run": body.dry_run,
+        },
+        runner=lambda: _admin_run_thumbnail_backfill(body),
     )
 
 
