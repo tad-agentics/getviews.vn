@@ -18,6 +18,7 @@ COPY getviews_pipeline/ ./getviews_pipeline/
 RUN pip install --no-cache-dir -e ".[logs]"
 
 COPY main.py .
+COPY scripts/ ./scripts/
 
 ENV PORT=8080
 EXPOSE 8080
