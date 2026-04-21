@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -352,6 +353,41 @@ async def require_user(request: Request) -> dict[str, Any]:
     return {"user_id": user_id, "payload": payload, "access_token": token}
 
 
+async def require_admin(user: dict[str, Any] = Depends(require_user)) -> dict[str, Any]:
+    """Admin gate for the `/app/admin` dashboard backend.
+
+    Layered on top of ``require_user`` so the 401 vs 403 split stays clean:
+    a missing/expired JWT bounces from ``require_user`` as 401; a valid JWT
+    whose owner isn't flagged admin bounces here as 403. ``profiles.is_admin``
+    is read through the service-role client — a user with the flag flipped
+    on but an otherwise-identical RLS story still passes, and we don't
+    re-pay the ``profiles_select_own`` RLS lookup per request.
+
+    Returns the same shape as ``require_user`` so admin endpoints can still
+    pull ``user_id`` / ``access_token`` off the returned dict.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("profiles")
+            .select("is_admin")
+            .eq("id", user["user_id"])
+            .single()
+            .execute()
+        )
+        row = resp.data or {}
+    except Exception as exc:
+        logger.warning("[require_admin] profiles lookup failed for %s: %s", user["user_id"], exc)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_check_failed") from exc
+
+    if not row.get("is_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin_required")
+
+    return user
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -377,6 +413,15 @@ async def health() -> JSONResponse:
 async def auth_check(user: dict = Depends(require_user)) -> JSONResponse:
     """Smoke-test endpoint — returns user_id if JWT is valid."""
     return JSONResponse({"ok": True, "user_id": user["user_id"]})
+
+
+@app.get("/admin/ping")
+async def admin_ping(admin: dict = Depends(require_admin)) -> JSONResponse:
+    """Admin-only smoke test — returns 403 if the JWT owner isn't flagged
+    admin, 200 if they are. The SPA probes this once on /app/admin mount to
+    decide between rendering the dashboard and redirecting to /app.
+    """
+    return JSONResponse({"ok": True, "user_id": admin["user_id"]})
 
 
 class ClassifyIntentRequest(BaseModel):
@@ -1051,7 +1096,9 @@ async def batch_layer0(request: Request) -> JSONResponse:
 
 
 @app.get("/admin/corpus-health")
-async def admin_corpus_health(request: Request) -> JSONResponse:
+async def admin_corpus_health(
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
     """Per-niche corpus-adequacy snapshot for claim tiers.
 
     Returns one row per niche with:
@@ -1064,13 +1111,12 @@ async def admin_corpus_health(request: Request) -> JSONResponse:
     Plus a summary counting niches per highest-passing tier. Use this to
     answer "which claims are statistically valid today, per niche?".
 
-    Protected by X-Batch-Secret. See artifacts/docs/corpus-health.md.
+    Phase D.6 — auth moved from X-Batch-Secret to `require_admin` so the
+    Studio-side admin dashboard can reach it with a user JWT instead of a
+    shared machine secret. Cron callers that used to hit this with the
+    batch header should move to the Studio dashboard or a per-service
+    admin identity.
     """
-    if _BATCH_SECRET:
-        provided = request.headers.get("X-Batch-Secret", "")
-        if provided != _BATCH_SECRET:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid batch secret")
-
     from getviews_pipeline.claim_tiers import flags_for_count
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -1188,6 +1234,560 @@ async def admin_corpus_health(request: Request) -> JSONResponse:
         "summary": summary,
         "niches": per_niche,
     })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.2 · /admin/ensemble-credits — EnsembleData used-units proxy
+# ══════════════════════════════════════════════════════════════════════════
+
+import urllib.parse as _urlparse
+import urllib.request as _urlrequest
+
+_ENSEMBLE_USAGE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_ENSEMBLE_USAGE_TTL_SEC = 300.0  # 5 minutes per (date) tuple.
+
+
+def _ensemble_fetch_used_units(date_iso: str) -> dict[str, Any]:
+    """Call EnsembleData's GET /customer/get-used-units for a single UTC date.
+
+    Returns the parsed JSON body. Raises HTTPException with the upstream
+    status code on non-2xx so the caller can surface "no token configured"
+    vs "ensemble returned 403" vs "transient 5xx" distinctly in the UI.
+    5-minute in-process cache per (date) is fine — EnsembleData themselves
+    rate-limit the endpoint and ops don't need sub-minute freshness.
+    """
+    if not ENSEMBLEDATA_API_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ensemble_token_unset",
+        )
+    now = time.monotonic()
+    cached = _ENSEMBLE_USAGE_CACHE.get(date_iso)
+    if cached and now - cached[0] < _ENSEMBLE_USAGE_TTL_SEC:
+        return cached[1]
+
+    qs = _urlparse.urlencode({"date": date_iso, "token": ENSEMBLEDATA_API_TOKEN})
+    url = f"https://ensembledata.com/apis/customer/get-used-units?{qs}"
+    req = _urlrequest.Request(url, headers={"User-Agent": "getviews-admin/1.0"})
+    try:
+        with _urlrequest.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8")
+            payload = json.loads(body)
+    except Exception as exc:
+        logger.warning("[admin/ensemble] fetch failed for %s: %s", date_iso, exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"ensemble_fetch_failed: {exc}",
+        ) from exc
+
+    _ENSEMBLE_USAGE_CACHE[date_iso] = (now, payload)
+    return payload
+
+
+# `ED_MONTHLY_UNIT_BUDGET` is the configured plan ceiling, consumed so the
+# panel can render "remaining / limit". Zero / unset means "no ceiling
+# known" and the panel hides the remainder math.
+_ENSEMBLE_MONTHLY_BUDGET = int(os.environ.get("ED_MONTHLY_UNIT_BUDGET", "0"))
+
+
+@app.get("/admin/ensemble-credits")
+async def admin_ensemble_credits(
+    _admin: dict[str, Any] = Depends(require_admin),
+    days: int = Query(14, ge=1, le=60),
+) -> JSONResponse:
+    """Daily EnsembleData usage for the last N UTC days.
+
+    EnsembleData's `/customer/get-used-units` returns one day at a time,
+    so we iterate. `days=14` is the default: enough to see a weekly cycle
+    plus a lookback window without making 30+ upstream calls every render
+    (the 5-minute cache per date absorbs the cost on subsequent views).
+
+    Response:
+      {
+        "ok": true,
+        "as_of": <ISO>,
+        "monthly_budget": <int | null>,     # null if ED_MONTHLY_UNIT_BUDGET unset
+        "days": [{ "date": "YYYY-MM-DD", "units": <int>, "ok": true | false, "error"?: <str> }, …]
+      }
+    Per-day `ok: false` with an `error` field when a single date failed; we
+    still return 200 with partial data so a transient ED outage on one
+    date doesn't blank the whole panel.
+    """
+    now = datetime.now(timezone.utc)
+    results: list[dict[str, Any]] = []
+    for i in range(days):
+        day = (now - timedelta(days=i)).date().isoformat()
+        try:
+            payload = _ensemble_fetch_used_units(day)
+            # EnsembleData's shape: { "data": { "units": <int> } } (per their
+            # docs). Tolerate either top-level `units` or nested under `data`.
+            units_raw = payload.get("units")
+            if units_raw is None and isinstance(payload.get("data"), dict):
+                units_raw = payload["data"].get("units")
+            units = int(units_raw or 0)
+            results.append({"date": day, "units": units, "ok": True})
+        except HTTPException as exc:
+            results.append({"date": day, "units": 0, "ok": False, "error": str(exc.detail)})
+
+    results.reverse()  # oldest first for chart rendering.
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": now.isoformat(),
+        "monthly_budget": _ENSEMBLE_MONTHLY_BUDGET or None,
+        "days": results,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.4 · /admin/logs — Cloud Run log tail (feature-flagged)
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Opt-in: `ADMIN_LOGS_ENABLED=true` + the `[logs]` extra installed +
+# service-account JSON mounted (see pyproject.toml comment). With any
+# piece missing the endpoint returns a specific, actionable config state
+# so the frontend can render a "what to do next" message instead of a
+# generic error.
+
+_ADMIN_LOGS_ENABLED = os.environ.get("ADMIN_LOGS_ENABLED", "").lower() in ("1", "true", "yes")
+_GCP_PROJECT_ID_FOR_LOGS = os.environ.get("GCP_PROJECT_ID", "").strip()
+_CLOUD_RUN_SERVICE_NAME = os.environ.get("K_SERVICE", "").strip()
+
+
+@app.get("/admin/logs")
+async def admin_logs(
+    _admin: dict[str, Any] = Depends(require_admin),
+    limit: int = Query(100, ge=1, le=500),
+    severity: str = Query("INFO", pattern="^(DEFAULT|DEBUG|INFO|NOTICE|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY)$"),
+    minutes: int = Query(60, ge=1, le=1440),
+) -> JSONResponse:
+    """Tail recent Cloud Run logs.
+
+    Feature-flagged: returns { ok: true, enabled: false, reason: ... }
+    rather than raising so the SPA can render the right config hint
+    without retry-storming. Response shapes:
+
+      disabled           — ADMIN_LOGS_ENABLED is unset / false
+      sdk_missing        — google-cloud-logging not installed (the `[logs]` extra)
+      project_missing    — GCP_PROJECT_ID env var unset
+      credentials_error  — SDK loaded but auth failed
+      ok                 — entries array with { timestamp, severity, message, resource }
+    """
+    if not _ADMIN_LOGS_ENABLED:
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "disabled",
+            "hint": "Set ADMIN_LOGS_ENABLED=true on Cloud Run to enable this panel.",
+        })
+
+    if not _GCP_PROJECT_ID_FOR_LOGS:
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "project_missing",
+            "hint": "Set GCP_PROJECT_ID env var on Cloud Run.",
+        })
+
+    try:
+        # Lazy import — the dep is an optional extra. ImportError here ==
+        # installer didn't include the `[logs]` extra.
+        from google.cloud import logging as gcloud_logging
+    except ImportError:
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "sdk_missing",
+            "hint": "Install the `[logs]` extra (pip install -e \".[logs]\") and redeploy.",
+        })
+
+    try:
+        client = gcloud_logging.Client(project=_GCP_PROJECT_ID_FOR_LOGS)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "credentials_error",
+            "hint": f"google-cloud-logging Client init failed: {exc}. "
+                    f"Grant the service account roles/logging.viewer.",
+        })
+
+    # Build a filter: Cloud Run logs carry `resource.type = "cloud_run_revision"`
+    # and the service name on `resource.labels.service_name`. If we know our own
+    # K_SERVICE, scope to it so admins looking at the current container aren't
+    # drowned by batch-sibling noise. Otherwise we fall back to project-wide
+    # and hope severity + time window narrow it enough.
+    since = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    filters = [
+        'resource.type = "cloud_run_revision"',
+        f'timestamp >= "{since.isoformat()}"',
+        f'severity >= {severity}',
+    ]
+    if _CLOUD_RUN_SERVICE_NAME:
+        filters.append(f'resource.labels.service_name = "{_CLOUD_RUN_SERVICE_NAME}"')
+    filter_str = " AND ".join(filters)
+
+    try:
+        entries_iter = client.list_entries(
+            filter_=filter_str,
+            order_by=gcloud_logging.DESCENDING,
+            max_results=limit,
+        )
+        entries: list[dict[str, Any]] = []
+        for entry in entries_iter:
+            # Normalise payload → message string (entries can be text or
+            # struct; struct entries get flattened to JSON for display).
+            payload = entry.payload
+            if isinstance(payload, (dict, list)):
+                message = json.dumps(payload, ensure_ascii=False)[:2000]
+            else:
+                message = str(payload)[:2000] if payload is not None else ""
+            ts = entry.timestamp.isoformat() if entry.timestamp else None
+            entries.append({
+                "timestamp": ts,
+                "severity": str(entry.severity) if entry.severity else "DEFAULT",
+                "message": message,
+                "logger": entry.resource.labels.get("service_name", "") if entry.resource else "",
+            })
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[admin/logs] list_entries failed: %s", exc)
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "credentials_error",
+            "hint": f"list_entries failed: {exc}",
+        })
+
+    return JSONResponse({
+        "ok": True,
+        "enabled": True,
+        "filter": filter_str,
+        "entries": entries,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.6 · admin_action_log — audit trail helper
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _record_admin_action(
+    *,
+    user_id: str,
+    action: str,
+    params: dict[str, Any] | None,
+    result_status: str,
+    error_message: str | None = None,
+    duration_ms: int | None = None,
+) -> None:
+    """Insert one row into admin_action_log. Fire-and-forget.
+
+    A Supabase blip must never block the admin operation itself — the
+    audit row is best-effort. Failures are logged to stdout so they
+    surface in /admin/logs for investigation, but the caller doesn't
+    see them. Sanitise-on-input: the caller is responsible for passing
+    params without secrets; we don't inspect the payload here.
+    """
+    def _do() -> None:
+        try:
+            from getviews_pipeline.supabase_client import get_service_client
+
+            get_service_client().table("admin_action_log").insert({
+                "user_id": user_id,
+                "action": action,
+                "params_json": params or {},
+                "result_status": result_status,
+                "error_message": error_message,
+                "duration_ms": duration_ms,
+            }).execute()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[admin_action_log] insert failed: %s", exc)
+
+    # Use a daemon thread so the audit write doesn't tie up the request
+    # thread — matches the pattern in gemini_cost.log_gemini_call.
+    threading.Thread(target=_do, daemon=True, name=f"admin-audit-{action}").start()
+
+
+@app.get("/admin/action-log")
+async def admin_action_log(
+    _admin: dict[str, Any] = Depends(require_admin),
+    limit: int = Query(50, ge=1, le=200),
+) -> JSONResponse:
+    """Recent admin actions newest-first.
+
+    Admin-only. Reads through service_role (bypasses RLS) since the
+    table has no authenticated grants. Response shape matches
+    `admin_action_log.Row` — the SPA renders a simple table.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .table("admin_action_log")
+            .select("id, user_id, action, params_json, result_status, error_message, duration_ms, created_at")
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+    except Exception as exc:
+        logger.exception("[admin/action-log] fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({
+        "ok": True,
+        "entries": resp.data or [],
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.3 · /admin/trigger/{job} — manual run of periodic batch jobs
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Each known job delegates to the underlying runner function (same callable
+# the /batch/* HTTP routes invoke) so this endpoint doesn't duplicate
+# business logic. The job catalog is a const dict — adding a new trigger
+# means adding a pydantic body model and one dispatcher entry.
+#
+# These operations are heavy (ingest / analytics / morning ritual all hit
+# Gemini + EnsembleData and can take minutes). We return synchronously; the
+# SPA uses a long request timeout and surfaces a spinner. Async job
+# tracking (status polling + audit table) is deferred — the current
+# admin is 1-3 people and blocking for a couple minutes is acceptable.
+
+
+class AdminTriggerIngestBody(BaseModel):
+    niche_ids: list[int] | None = None
+    deep_pool: bool = False
+
+
+class AdminTriggerMorningRitualBody(BaseModel):
+    user_ids: list[str] | None = None
+
+
+class AdminTriggerEmptyBody(BaseModel):
+    """Placeholder body for jobs that take no parameters. FastAPI requires
+    a body model for POST so the request can carry a Content-Type header
+    without being parsed as form data."""
+
+
+async def _admin_run_ingest(body: AdminTriggerIngestBody) -> dict[str, Any]:
+    from getviews_pipeline.corpus_ingest import run_batch_ingest
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+
+    try:
+        summary = await run_batch_ingest(niche_ids=body.niche_ids, deep_pool=body.deep_pool)
+    except EnsembleDailyBudgetExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"ensemble_daily_budget_exceeded: {exc}",
+        ) from exc
+    return {
+        "ok": True,
+        "total_inserted": summary.total_inserted,
+        "total_skipped": summary.total_skipped,
+        "total_failed": summary.total_failed,
+        "niches_processed": summary.niches_processed,
+        "materialized_view_refreshed": summary.materialized_view_refreshed,
+    }
+
+
+async def _admin_run_morning_ritual(body: AdminTriggerMorningRitualBody) -> dict[str, Any]:
+    from getviews_pipeline.morning_ritual import run_morning_ritual_batch
+    from getviews_pipeline.supabase_client import get_service_client
+
+    summary = await run_sync(run_morning_ritual_batch, get_service_client(), body.user_ids)
+    return {
+        "ok": True,
+        "generated": summary.generated,
+        "skipped_thin": summary.skipped_thin,
+        "failed_schema": summary.failed_schema,
+        "failed_gemini": summary.failed_gemini,
+        "failed_duplicate_hooks": summary.failed_duplicate_hooks,
+        "failed_upsert": summary.failed_upsert,
+        "users_no_niche": summary.users_no_niche,
+    }
+
+
+async def _admin_run_analytics() -> dict[str, Any]:
+    from getviews_pipeline.batch_analytics import run_analytics
+    from getviews_pipeline.corpus_context import _anon_client
+    from getviews_pipeline.pattern_fingerprint import recompute_weekly_counts
+    from getviews_pipeline.signal_classifier import run_signal_grading
+
+    analytics = await run_analytics()
+    signal = await run_signal_grading()
+    patterns_touched = 0
+    try:
+        patterns_touched = await recompute_weekly_counts(_anon_client())
+    except Exception as exc:  # pragma: no cover — fail open on pattern-recount
+        logger.warning("[admin/trigger/analytics] pattern weekly recompute failed: %s", exc)
+    return {
+        "ok": True,
+        "analytics": {
+            "creators_updated": analytics.creators_updated,
+            "videos_updated": analytics.videos_updated,
+            "errors": analytics.errors,
+        },
+        "signal": {
+            "grades_written": signal.grades_written,
+            "niches_processed": signal.niches_processed,
+            "errors": signal.errors,
+        },
+        "patterns": {"rows_updated": patterns_touched},
+    }
+
+
+async def _admin_run_scene_intelligence() -> dict[str, Any]:
+    from getviews_pipeline.scene_intelligence_refresh import refresh_scene_intelligence_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    stats = await run_sync(refresh_scene_intelligence_sync, get_service_client())
+    return {"ok": True, **stats}
+
+
+@app.get("/admin/triggers")
+async def admin_list_triggers(
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    """Enumerate the job catalog so the SPA doesn't hard-code it.
+
+    `body_schema` is a short hint (not JSON Schema) — the SPA renders a
+    matching form (checkboxes for deep_pool, CSV field for niche_ids).
+    `heavy: true` signals "warn operator this takes minutes".
+    """
+    return JSONResponse({
+        "ok": True,
+        "jobs": [
+            {
+                "id": "ingest",
+                "label": "Corpus ingest (/batch/ingest)",
+                "body_schema": {"niche_ids": "int[] | null", "deep_pool": "bool"},
+                "heavy": True,
+            },
+            {
+                "id": "morning_ritual",
+                "label": "Morning ritual scripts (/batch/morning-ritual)",
+                "body_schema": {"user_ids": "uuid[] | null"},
+                "heavy": True,
+            },
+            {
+                "id": "analytics",
+                "label": "Weekly analytics + signal grading (/batch/analytics)",
+                "body_schema": {},
+                "heavy": True,
+            },
+            {
+                "id": "scene_intelligence",
+                "label": "Scene intelligence refresh (/batch/scene-intelligence)",
+                "body_schema": {},
+                "heavy": True,
+            },
+        ],
+    })
+
+
+async def _run_trigger_with_audit(
+    *,
+    user_id: str,
+    action: str,
+    params: dict[str, Any],
+    runner: Any,
+) -> JSONResponse:
+    """Run an admin trigger while recording an admin_action_log row.
+
+    Captures duration_ms, flips result_status based on exception, and
+    re-raises so FastAPI's normal error path still produces the right
+    status code. The audit insert is fire-and-forget (daemon thread);
+    a logging-layer blip never blocks the real work.
+    """
+    logger.info("[admin/trigger] %s params=%s invoked_by=%s", action, params, user_id)
+    started = time.monotonic()
+    try:
+        result = await runner()
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _record_admin_action(
+            user_id=user_id,
+            action=action,
+            params=params,
+            result_status="ok",
+            duration_ms=duration_ms,
+        )
+        return JSONResponse(result)
+    except HTTPException as exc:
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _record_admin_action(
+            user_id=user_id,
+            action=action,
+            params=params,
+            result_status="error",
+            error_message=str(exc.detail)[:500],
+            duration_ms=duration_ms,
+        )
+        raise
+    except Exception as exc:  # noqa: BLE001
+        duration_ms = int((time.monotonic() - started) * 1000)
+        _record_admin_action(
+            user_id=user_id,
+            action=action,
+            params=params,
+            result_status="error",
+            error_message=str(exc)[:500],
+            duration_ms=duration_ms,
+        )
+        raise
+
+
+@app.post("/admin/trigger/ingest")
+async def admin_trigger_ingest(
+    body: AdminTriggerIngestBody = AdminTriggerIngestBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.ingest",
+        params={"niche_ids": body.niche_ids, "deep_pool": body.deep_pool},
+        runner=lambda: _admin_run_ingest(body),
+    )
+
+
+@app.post("/admin/trigger/morning_ritual")
+async def admin_trigger_morning_ritual(
+    body: AdminTriggerMorningRitualBody = AdminTriggerMorningRitualBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.morning_ritual",
+        params={"user_ids": body.user_ids},
+        runner=lambda: _admin_run_morning_ritual(body),
+    )
+
+
+@app.post("/admin/trigger/analytics")
+async def admin_trigger_analytics(
+    _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.analytics",
+        params={},
+        runner=_admin_run_analytics,
+    )
+
+
+@app.post("/admin/trigger/scene_intelligence")
+async def admin_trigger_scene_intelligence(
+    _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="trigger.scene_intelligence",
+        params={},
+        runner=_admin_run_scene_intelligence,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════

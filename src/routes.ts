@@ -27,5 +27,6 @@ export default [
     route("app/pricing", "routes/_app/pricing/route.tsx"),
     route("app/checkout", "routes/_app/checkout/route.tsx"),
     route("app/payment-success", "routes/_app/payment-success/route.tsx"),
+    route("app/admin", "routes/_app/admin/route.tsx"),
   ]),
 ] satisfies RouteConfig;
