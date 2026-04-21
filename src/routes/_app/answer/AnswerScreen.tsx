@@ -10,9 +10,11 @@ import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import {
   answerSessionKeys,
+  injectOptimisticTurn,
   lastPayloadFromTurns,
   useAnswerSessionDetail,
   useAnswerSessionsList,
+  type AnswerDetailCache,
 } from "@/hooks/useAnswerSessionQueries";
 import { useSessionStream } from "@/hooks/useSessionStream";
 import { env } from "@/lib/env";
@@ -173,10 +175,30 @@ export default function AnswerScreen() {
         }
 
         logUsage("answer_turn_append", { session_id: row.id, kind: "primary" });
+        if (result.finalPayload) {
+          const synthesized: AnswerTurnRow = {
+            id: `optimistic-${row.id}-0`,
+            session_id: row.id,
+            turn_index: 0,
+            kind: "primary",
+            query: seedQ,
+            payload: result.finalPayload,
+            credits_used: 1,
+            created_at: new Date().toISOString(),
+          };
+          queryClient.setQueryData<AnswerDetailCache>(
+            answerSessionKeys.detail(row.id),
+            (prev) =>
+              injectOptimisticTurn(
+                prev,
+                { ...row, title: row.title ?? null, initial_q: seedQ },
+                synthesized,
+              ),
+          );
+        }
         setSearchParams({ session: row.id, q: seedQ }, { replace: true });
         if (uid) {
           await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
-          await queryClient.invalidateQueries({ queryKey: answerSessionKeys.detail(row.id) });
         }
       } catch (e) {
         bootstrapInFlightRef.current = null;
@@ -218,8 +240,39 @@ export default function AnswerScreen() {
         kind: turnKind,
         intent_type: entry.intent_type,
       });
+      if (result.finalPayload) {
+        const cached = queryClient.getQueryData<AnswerDetailCache>(
+          answerSessionKeys.detail(sessionId),
+        );
+        const nextIndex = cached?.turns.length ?? 0;
+        const synthesized: AnswerTurnRow = {
+          id: `optimistic-${sessionId}-${nextIndex}`,
+          session_id: sessionId,
+          turn_index: nextIndex,
+          kind: turnKind,
+          query: q,
+          payload: result.finalPayload,
+          credits_used: 0,
+          created_at: new Date().toISOString(),
+        };
+        queryClient.setQueryData<AnswerDetailCache>(
+          answerSessionKeys.detail(sessionId),
+          (prev) => {
+            // Fallback session shape only used when cache is unexpectedly empty.
+            const fallbackSession = prev?.session ?? {
+              id: sessionId,
+              user_id: user.id,
+              title: null,
+              initial_q: q,
+              intent_type: entry.intent_type,
+              format: "generic",
+              niche_id: null,
+            };
+            return injectOptimisticTurn(prev, fallbackSession, synthesized);
+          },
+        );
+      }
       if (uid) {
-        await queryClient.invalidateQueries({ queryKey: answerSessionKeys.detail(sessionId) });
         await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
       }
     } catch (e) {
