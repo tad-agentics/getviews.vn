@@ -255,9 +255,10 @@ async function consumeAnswerSse<TPayload>(
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
+      const row = line.replace(/\r$/, "");
+      if (!row.startsWith("data: ")) continue;
       try {
-        const token = JSON.parse(line.slice(6)) as {
+        const token = JSON.parse(row.slice(6)) as {
           stream_id?: string;
           seq?: number;
           delta?: string;
@@ -347,9 +348,10 @@ async function consumeChatSse<TPayload>(
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
+      const row = line.replace(/\r$/, "");
+      if (!row.startsWith("data: ")) continue;
       try {
-        const token = JSON.parse(line.slice(6)) as {
+        const token = JSON.parse(row.slice(6)) as {
           stream_id?: string;
           seq?: number;
           delta?: string;

@@ -108,16 +108,32 @@ export default function AnswerScreen() {
     navigate(`${location.pathname}?q=${encodeURIComponent(incoming)}`, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
-  const startedRef = useRef(false);
+  /**
+   * Blocks duplicate bootstrap for the same `?q=` (React Strict Mode) but must not
+   * stay true forever — otherwise a later Studio submit to `/app/answer?q=…` never runs
+   * while this route stays mounted.
+   */
+  const bootstrapInFlightRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (sessionId || !seedQ.trim() || !CLOUD || !user || startedRef.current) return;
-    startedRef.current = true;
+    if (!sessionId && !seedQ.trim()) {
+      bootstrapInFlightRef.current = null;
+    }
+  }, [sessionId, seedQ]);
+
+  useEffect(() => {
+    if (sessionId || !seedQ.trim() || !CLOUD || !user) return;
+    const q = seedQ.trim();
+    if (bootstrapInFlightRef.current === q) return;
+    bootstrapInFlightRef.current = q;
+
     void (async () => {
       setBootstrapLoading(true);
       setError(null);
       try {
         const entry = planAnswerEntry(seedQ, false);
         if (entry.kind === "redirect") {
+          bootstrapInFlightRef.current = null;
           navigate(entry.to, { replace: true });
           return;
         }
@@ -150,6 +166,7 @@ export default function AnswerScreen() {
         });
 
         if (!result.ok) {
+          bootstrapInFlightRef.current = null;
           if (result.error === "insufficient_credits") setError("insufficient_credits");
           else setError(result.error);
           return;
@@ -162,6 +179,7 @@ export default function AnswerScreen() {
           await queryClient.invalidateQueries({ queryKey: answerSessionKeys.detail(row.id) });
         }
       } catch (e) {
+        bootstrapInFlightRef.current = null;
         setError(e instanceof Error ? e.message : "start_failed");
       } finally {
         setBootstrapLoading(false);
