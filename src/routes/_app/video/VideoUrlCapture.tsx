@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Film, Sparkles } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
+import { looksLikeTikTokUrl } from "@/lib/tiktokUrl";
 
 export type VideoUrlCaptureProps = {
   /** Called with trimmed URL after user submits (parent navigates or sets search params). */
@@ -10,17 +11,6 @@ export type VideoUrlCaptureProps = {
   /** `hero` — empty-state primary; `compact` — strip above results for another analysis. */
   variant?: "hero" | "compact";
 };
-
-function looksLikeTikTokUrl(raw: string): boolean {
-  const s = raw.trim();
-  if (!s || s.startsWith("@")) return false;
-  const candidate = s.includes("://") ? s : `https://${s}`;
-  try {
-    return new URL(candidate).hostname.toLowerCase().endsWith("tiktok.com");
-  } catch {
-    return false;
-  }
-}
 
 /**
  * B.1.5 — TikTok URL field + analyze CTA (matches `video.jsx` flop input row, gv tokens).

@@ -326,10 +326,9 @@ export default function KolScreen() {
               />
               Dữ liệu cập nhật {browseAsOfRelative}
             </span>
-            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Đã Lưu
-            </Btn>
+            {/* Bookmark / "Đã Lưu" stub removed (D.6-era cleanup) — orphan
+                 disabled button with no data model. The per-row pin/unpin
+                 is the real "saved kênh" UX. */}
             <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               Phân tích mới
@@ -358,13 +357,47 @@ export default function KolScreen() {
             <span className="text-sm">Đang tải danh sách…</span>
           </div>
         ) : browse.isError ? (
-          <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
-            <p className="gv-tight text-[color:var(--gv-neg-deep)]">Không tải được dữ liệu</p>
-            <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">{browse.error?.message}</p>
-            <Btn className="mt-4" type="button" variant="ghost" onClick={() => void browse.refetch()}>
-              Thử lại
-            </Btn>
-          </div>
+          (() => {
+            // The Cloud Run /kol/browse endpoint emits a single 404
+            // detail ("Chưa chọn ngách — chạy onboarding trước.") for
+            // both real causes: profile has no primary_niche set, and
+            // profile has a niche id that the server can't resolve
+            // (deleted niche, cross-env drift). Without server-side
+            // change we can differentiate client-side by reading
+            // `profile.primary_niche`: if it's set, the error means
+            // "your saved niche doesn't work anymore" — route them
+            // to onboarding to re-pick rather than implying they
+            // never chose one.
+            const msg = browse.error?.message ?? "";
+            const looksLikeNicheMissing = msg.toLowerCase().includes("ngách");
+            const hasSavedNiche = nicheId != null;
+            return (
+              <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
+                <p className="gv-tight text-[color:var(--gv-neg-deep)]">
+                  {looksLikeNicheMissing && hasSavedNiche
+                    ? "Không tải được danh sách ngách"
+                    : "Không tải được dữ liệu"}
+                </p>
+                <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">
+                  {looksLikeNicheMissing && hasSavedNiche
+                    ? `Ngách hiện tại (#${nicheId}) không phản hồi — có thể đã bị xoá hoặc đổi. Chọn lại trong onboarding.`
+                    : looksLikeNicheMissing
+                      ? msg
+                      : msg || "Lỗi không xác định"}
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <Btn type="button" variant="ghost" onClick={() => void browse.refetch()}>
+                    Thử lại
+                  </Btn>
+                  {looksLikeNicheMissing ? (
+                    <Btn type="button" variant="ink" onClick={() => navigate("/app/onboarding")}>
+                      {hasSavedNiche ? "Chọn lại ngách" : "Chạy onboarding"}
+                    </Btn>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })()
         ) : (
           <>
             <div className="mb-[18px] flex flex-wrap items-end justify-between gap-5 border-b border-[color:var(--gv-rule)] pb-3.5">

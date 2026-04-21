@@ -11,6 +11,7 @@ import { PostingHeatmap } from "@/components/v2/channel/PostingHeatmap";
 import { TopBar } from "@/components/v2/TopBar";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
+import { extractChannelHandleFromMessage } from "@/lib/channelHandle";
 import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
@@ -90,10 +91,35 @@ export default function ChannelScreen() {
   });
 
   const [draftHandle, setDraftHandle] = useState("");
+  const [handleError, setHandleError] = useState<string | null>(null);
 
   const openHandle = (h: string) => {
-    const k = channelAnalyzeHandleKey(h);
-    if (!k) return;
+    const trimmed = h.trim();
+    if (!trimmed) {
+      // The submit button is `disabled` when the input is empty, but
+      // pressing Enter still fires the form. Early-returning silently
+      // left users thinking the page was broken.
+      setHandleError("Nhập handle TikTok trước (ví dụ: @creator).");
+      return;
+    }
+    // Users paste TikTok profile URLs all the time — pull the handle
+    // out of the URL instead of letting the normalizer turn
+    // "https://tiktok.com/@foo" into "httpstiktokcomfoo". Falls back
+    // to the plain normalizer when the input is a bare handle.
+    const fromUrl = extractChannelHandleFromMessage(trimmed);
+    const k = fromUrl ?? channelAnalyzeHandleKey(trimmed);
+    if (!k) {
+      setHandleError("Không nhận diện được handle — dán link profile hoặc nhập @creator.");
+      return;
+    }
+    // Block video/photo permalinks explicitly — extractChannelHandleFromMessage
+    // already returns null for those, but an /@foo/video/... URL that
+    // slipped past would point at the wrong user intent.
+    if (/\/(video|photo)\//i.test(trimmed)) {
+      setHandleError("Đây là link video — /app/channel phân tích kênh, không phân tích video đơn lẻ.");
+      return;
+    }
+    setHandleError(null);
     setSearchParams({ handle: k }, { replace: true });
   };
 
@@ -151,11 +177,20 @@ export default function ChannelScreen() {
                 </span>
                 <input
                   value={draftHandle}
-                  onChange={(e) => setDraftHandle(e.target.value)}
+                  onChange={(e) => {
+                    setDraftHandle(e.target.value);
+                    if (handleError) setHandleError(null);
+                  }}
                   placeholder="@creator hoặc creator"
                   className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
                   autoComplete="off"
+                  aria-invalid={handleError ? true : undefined}
                 />
+                {handleError ? (
+                  <span role="alert" className="text-xs text-[color:var(--gv-neg-deep)]">
+                    {handleError}
+                  </span>
+                ) : null}
               </label>
               <Btn type="submit" variant="ink" size="md" disabled={!draftHandle.trim()}>
                 Mở phân tích

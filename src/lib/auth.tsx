@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
+import { isSessionExpired } from "./authErrors";
 import { supabase } from "./supabase";
 
 interface AuthContextValue {
@@ -20,6 +22,7 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,6 +37,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // D.6 — global session-expired listener. Cloud Run rejects stale
+  // JWTs with 401; the four analysis hooks (video / channel / script /
+  // kol) translate that into a SessionExpired error. Catching it
+  // here and running signOut() triggers onAuthStateChange → the
+  // layout guard at src/routes/_app/layout.tsx redirects to /login.
+  // Dedup via a local flag so five concurrent failing queries don't
+  // fire five signOut calls back-to-back.
+  useEffect(() => {
+    let signingOut = false;
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated") return;
+      if (event.action.type !== "error") return;
+      const err = event.action.error as unknown;
+      if (!isSessionExpired(err) || signingOut) return;
+      signingOut = true;
+      void supabase.auth.signOut();
+    });
+    // Also watch mutations (useScriptGenerate etc. are mutations).
+    const unsubscribeMut = queryClient.getMutationCache().subscribe((event) => {
+      if (event.type !== "updated") return;
+      if (event.action.type !== "error") return;
+      const err = event.action.error as unknown;
+      if (!isSessionExpired(err) || signingOut) return;
+      signingOut = true;
+      void supabase.auth.signOut();
+    });
+    return () => {
+      unsubscribe();
+      unsubscribeMut();
+    };
+  }, [queryClient]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

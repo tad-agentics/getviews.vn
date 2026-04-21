@@ -2,7 +2,6 @@ import { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   ArrowRight,
-  Bookmark,
   Copy,
   Flame,
   Loader2,
@@ -23,6 +22,7 @@ import { IssueCard } from "@/components/v2/IssueCard";
 import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
+import { looksLikeTikTokUrl } from "@/lib/tiktokUrl";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import type {
@@ -135,6 +135,17 @@ export default function VideoScreen() {
     return raw === "win" || raw === "flop" ? raw : null;
   }, [searchParams]);
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
+
+  // Reject obviously-invalid `?url=` payloads before they reach Cloud
+  // Run. A non-TikTok URL burns a backend round-trip and hits 404
+  // (today users see "Không tìm thấy video" with no hint that the URL
+  // itself is wrong). We only gate the query-param path — VideoId
+  // deep-links are opaque and validated server-side.
+  const urlValidationError = useMemo(() => {
+    const u = url?.trim();
+    if (!u) return null;
+    return looksLikeTikTokUrl(u) ? null : "URL không phải link TikTok — dùng link dạng tiktok.com/@… hoặc vm.tiktok.com/…";
+  }, [url]);
   const { data: pulse } = useHomePulse(cloudConfigured);
 
   const asOf = useMemo(() => {
@@ -158,7 +169,9 @@ export default function VideoScreen() {
     url,
     forceRefresh: false,
     mode: urlMode,
-    enabled: Boolean(cacheKey && cloudConfigured),
+    // Skip the hook when the URL is malformed — prevents a 404-generating
+    // POST that would burn a Cloud Run round-trip.
+    enabled: Boolean(cacheKey && cloudConfigured && !urlValidationError),
   });
 
   const effectiveMode = useMemo((): VideoAnalyzeMode => {
@@ -191,10 +204,9 @@ export default function VideoScreen() {
                 Dữ liệu cập nhật {asOfRelative}
               </span>
             ) : null}
-            <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" type="button" disabled title="Sắp có">
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Đã Lưu
-            </Btn>
+            {/* Bookmark / "Đã Lưu" stub removed (D.6-era cleanup) — no
+                 handler, no data model, just visual clutter. Re-add
+                 when the "save video for later" feature lands. */}
             <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               Phân tích mới
@@ -229,6 +241,16 @@ export default function VideoScreen() {
             Phân tích video cần <span className="font-[family-name:var(--gv-font-mono)]">VITE_CLOUD_RUN_API_URL</span>{" "}
             trong môi trường build.
           </p>
+        ) : urlValidationError ? (
+          // Deep-link came with a non-TikTok URL; fail closed + offer
+          // the normal capture input as a recovery path.
+          <div className="flex flex-col gap-4">
+            <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
+              <p className="gv-tight m-0 text-lg text-[color:var(--gv-neg-deep)]">URL không hợp lệ</p>
+              <p className="mt-2 text-sm text-[color:var(--gv-ink-3)]">{urlValidationError}</p>
+            </div>
+            <VideoUrlCapture variant="hero" onSubmitUrl={submitNewUrl} />
+          </div>
         ) : isPending || isFetching ? (
           <div
             className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-[color:var(--gv-ink-3)]"
@@ -460,10 +482,8 @@ function VideoAnalysisBodyInner({
       <div className="flex flex-col gap-7">
         {!isFlop ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Btn variant="ghost" size="sm" type="button" disabled title="Sắp có">
-              <Bookmark className="h-3.5 w-3.5" strokeWidth={1.7} />
-              Lưu
-            </Btn>
+            {/* Second bookmark stub removed alongside the top-bar one —
+                 "Lưu" with no backing model. */}
             <Btn variant="ghost" size="sm" type="button" onClick={() => void copyHook()}>
               <Copy className="h-3.5 w-3.5" strokeWidth={1.7} />
               Copy hook

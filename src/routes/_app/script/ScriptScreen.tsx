@@ -169,6 +169,73 @@ export default function ScriptScreen() {
   const [exportBanner, setExportBanner] = useState<string | null>(null);
   const [pdfAvailable, setPdfAvailable] = useState(true);
 
+  // Draft preservation across reloads + 401 auto-signout bounces.
+  // Snapshot the four most-expensive-to-re-type fields (topic, hook,
+  // duration, tone, hook-delay) to sessionStorage on every change,
+  // restore on mount if URL params aren't already driving initial
+  // state, and clear after a successful save (once savedDraftId is
+  // set, the source of truth lives on the server).
+  //
+  // sessionStorage — not localStorage — because drafts are tab-scoped
+  // and we don't want to leak half-edited content across browser
+  // profiles or tabs opened weeks later. 401 recovery completes on
+  // the same tab so the snapshot survives the /login round-trip.
+  const SCRIPT_DRAFT_STORAGE_KEY = "gv:script-draft-v1";
+
+  useEffect(() => {
+    // URL params win over the snapshot — dedicated prefill links
+    // (e.g. from /video handoff) should reset the editor deliberately.
+    if (searchParams.has("topic") || searchParams.has("hook") || searchParams.has("duration")) {
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(SCRIPT_DRAFT_STORAGE_KEY);
+      if (!raw) return;
+      const snap = JSON.parse(raw) as {
+        topic?: string;
+        hookPattern?: string;
+        duration?: number;
+        toneIdx?: number;
+        hookDelayMs?: number;
+      };
+      if (typeof snap.topic === "string" && snap.topic.length > 0) setTopic(snap.topic);
+      if (typeof snap.hookPattern === "string") setHookPattern(snap.hookPattern);
+      if (typeof snap.duration === "number" && snap.duration >= 15 && snap.duration <= 90) setDuration(snap.duration);
+      if (typeof snap.toneIdx === "number" && snap.toneIdx >= 0 && snap.toneIdx < 10) setToneIdx(snap.toneIdx);
+      if (typeof snap.hookDelayMs === "number" && snap.hookDelayMs >= 0 && snap.hookDelayMs <= 5000) setHookDelayMs(snap.hookDelayMs);
+    } catch {
+      /* stale or malformed — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore runs once per mount
+  }, []);
+
+  useEffect(() => {
+    // Debounced write. Skip once a draft is saved — the server row is
+    // the source of truth and keeping a stale client snapshot around
+    // would confuse a subsequent edit session.
+    if (savedDraftId) return;
+    const id = setTimeout(() => {
+      try {
+        sessionStorage.setItem(
+          SCRIPT_DRAFT_STORAGE_KEY,
+          JSON.stringify({ topic, hookPattern, duration, toneIdx, hookDelayMs }),
+        );
+      } catch {
+        /* quota exceeded or SSR — ignore */
+      }
+    }, 400);
+    return () => clearTimeout(id);
+  }, [topic, hookPattern, duration, toneIdx, hookDelayMs, savedDraftId]);
+
+  useEffect(() => {
+    if (!savedDraftId) return;
+    try {
+      sessionStorage.removeItem(SCRIPT_DRAFT_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [savedDraftId]);
+
   const generate = useScriptGenerate();
   const save = useScriptSave();
   const exporter = useScriptExport();
@@ -337,7 +404,13 @@ export default function ScriptScreen() {
     setExportBanner(null);
     const id = await ensureSavedDraft();
     if (id) {
-      navigate("/app/history?type=script");
+      // Post-save landing was `/app/history?type=script` but the history
+      // filter ribbon only knows "all" | "answer" | "chat" — the
+      // ?type=script query fell through to "all" and the user couldn't
+      // find their draft. Shoot mode is the natural next step anyway:
+      // the saved draft is what you actually want to film against, and
+      // the shoot screen renders the same draft rows in read-only mode.
+      navigate(`/app/script/shoot/${encodeURIComponent(id)}`);
     }
   };
 

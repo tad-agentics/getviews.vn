@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChannelAnalyzeResponse } from "@/lib/api-types";
+import { throwSessionExpired } from "@/lib/authErrors";
 import { normalizeChannelHandleInput } from "@/lib/channelHandle";
 import { env } from "@/lib/env";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
 
 /** Strip @ and whitespace for cache keys and API query. */
@@ -45,11 +47,15 @@ export function useChannelAnalyze({
       const qs = new URLSearchParams({ handle: key });
       if (forceRefresh) qs.set("force_refresh", "true");
 
-      const res = await fetch(`${cloudRunUrl}/channel/analyze?${qs.toString()}`, {
+      const res = await fetchWithTimeout(`${cloudRunUrl}/channel/analyze?${qs.toString()}`, {
         method: "GET",
         headers: { Authorization: `Bearer ${session.access_token}` },
+        timeoutMs: 45_000,
       });
 
+      if (res.status === 401) {
+        throwSessionExpired("401_from_cloud_run");
+      }
       if (res.status === 402) {
         // Name the error so the screen can branch on err.name rather than
         // regex-matching the Vietnamese message string. Parity with
