@@ -1,13 +1,35 @@
-"""Phase C.2.2 — optional Gemini copy for pattern reports (bounded, fallbacks)."""
+"""Phase C.2.2 — optional Gemini copy for pattern reports (bounded, fallbacks).
+
+D.2.5.b upgrade: swap manual ``json.loads`` + hand-validated dict schema
+for pydantic ``response_json_schema`` binding so the parse-side mirrors
+the D.1.2 Script-generate pattern. Hand-tuned per-field truncation +
+padding stays identical; only the parser changes.
+"""
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 from typing import Any
 
+from pydantic import BaseModel, Field, ValidationError
+
 logger = logging.getLogger(__name__)
+
+
+class PatternNarrativeLLM(BaseModel):
+    """Gemini response schema for fill_pattern_narrative.
+
+    List lengths aren't pinned at the schema level — the number of hooks
+    varies per call (n_top / n_st), and the post-processing loop pads /
+    truncates with deterministic fallbacks. We enforce the outer shape
+    (four required keys, each a string or list of strings) so
+    model_validate_json raises cleanly on drift.
+    """
+
+    thesis: str = Field(default="")
+    hook_insights: list[str] = Field(default_factory=list)
+    stalled_insights: list[str] = Field(default_factory=list)
+    related_questions: list[str] = Field(default_factory=list)
 
 
 def build_why_won_list(top_hook_labels: list[str]) -> list[str]:
@@ -17,14 +39,6 @@ def build_why_won_list(top_hook_labels: list[str]) -> list[str]:
         b = top_hook_labels[i + 1] if i + 1 < len(top_hook_labels) else ""
         out.append(_fallback_why_won(a, b)[:200])
     return out
-
-
-def _strip_json(text: str) -> str:
-    t = text.strip()
-    if t.startswith("```"):
-        t = re.sub(r"^```(?:json)?\s*", "", t)
-        t = re.sub(r"\s*```$", "", t)
-    return t.strip()
 
 
 def fill_pattern_narrative(
@@ -47,8 +61,12 @@ def fill_pattern_narrative(
     try:
         from google.genai import types
 
-        from getviews_pipeline.config import GEMINI_KNOWLEDGE_MODEL, GEMINI_KNOWLEDGE_FALLBACKS
-        from getviews_pipeline.gemini import _generate_content_models, _response_text
+        from getviews_pipeline.config import GEMINI_KNOWLEDGE_FALLBACKS, GEMINI_KNOWLEDGE_MODEL
+        from getviews_pipeline.gemini import (
+            _generate_content_models,
+            _normalize_response,
+            _response_text,
+        )
 
         n_top = len(top_hook_labels)
         n_st = len(stalled_hook_labels)
@@ -64,21 +82,11 @@ Câu hỏi người dùng: {query}
 Hook đang thắng (đã xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
 """
-        schema: dict[str, Any] = {
-            "type": "object",
-            "properties": {
-                "thesis": {"type": "string"},
-                "hook_insights": {"type": "array", "items": {"type": "string"}},
-                "stalled_insights": {"type": "array", "items": {"type": "string"}},
-                "related_questions": {"type": "array", "items": {"type": "string"}, "minItems": 4, "maxItems": 4},
-            },
-            "required": ["thesis", "hook_insights", "stalled_insights", "related_questions"],
-        }
         cfg = types.GenerateContentConfig(
             temperature=0.35,
             max_output_tokens=1024,
             response_mime_type="application/json",
-            response_json_schema=schema,
+            response_json_schema=PatternNarrativeLLM.model_json_schema(),
         )
         resp = _generate_content_models(
             [prompt],
@@ -87,11 +95,15 @@ Hook suy (nếu có): {stalled_hook_labels}
             config=cfg,
         )
         raw = _response_text(resp)
-        data = json.loads(_strip_json(raw))
-        thesis = str(data.get("thesis") or "")[:280]
-        hi = [str(x)[:200] for x in (data.get("hook_insights") or [])]
-        si = [str(x)[:200] for x in (data.get("stalled_insights") or [])]
-        rq = [str(x)[:120] for x in (data.get("related_questions") or [])][:4]
+        try:
+            data = PatternNarrativeLLM.model_validate_json(_normalize_response(raw))
+        except ValidationError as exc:
+            logger.warning("[pattern] Gemini narrative schema mismatch: %s — fallback", exc)
+            return _fallback_narrative(query, niche_label, top_hook_labels, stalled_hook_labels)
+        thesis = data.thesis[:280]
+        hi = [s[:200] for s in data.hook_insights]
+        si = [s[:200] for s in data.stalled_insights]
+        rq = [s[:120] for s in data.related_questions][:4]
         while len(hi) < n_top:
             hi.append(_fallback_insight(top_hook_labels[len(hi)]))
         while len(si) < n_st:

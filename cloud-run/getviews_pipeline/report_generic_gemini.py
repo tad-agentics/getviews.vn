@@ -51,12 +51,36 @@ def fill_generic_narrative(
     window_days: int,
 ) -> list[str]:
     """Return 1–2 hedged paragraphs. Empty list on Gemini error or budget
-    exceeded — caller supplies deterministic fallback copy."""
+    exceeded — caller supplies deterministic fallback copy.
+
+    D.2.5.a — shares the classifier Gemini daily budget
+    (``CLASSIFIER_GEMINI_DAILY_MAX``). When the pool is exhausted, skip
+    the Gemini call entirely + log ``[generic-budget]`` so D.5.1 can
+    surface how often Generic turns ran deterministic vs hedged.
+    """
     try:
         from getviews_pipeline.gemini import gemini_text_only  # type: ignore[attr-defined]
     except Exception as exc:
         logger.info("[generic-gemini] SDK not available: %s", exc)
         return []
+
+    # D.2.5.a — gate on the shared classifier-Gemini budget BEFORE the
+    # outbound call. Keeps the $70/mo cost ceiling honest even on
+    # Generic-heavy days without a second budget counter to track.
+    try:
+        from getviews_pipeline.ensemble import (
+            ClassifierDailyBudgetExceeded,
+            consume_classifier_gemini_budget_or_raise,
+        )
+        consume_classifier_gemini_budget_or_raise()
+    except ClassifierDailyBudgetExceeded as exc:
+        logger.warning(
+            "[generic-budget] [fill_generic_narrative] %s — deterministic fallback (no Gemini call)",
+            exc,
+        )
+        return []
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.info("[generic-budget] budget check failed: %s", exc)
 
     scope_line = f"niche {niche_label}" if niche_label else "corpus rộng đa ngách"
     prompt = (
