@@ -30,6 +30,11 @@ export function useScriptGenerate() {
         err.name = "InsufficientCredits";
         throw err;
       }
+      if (res.status === 429) {
+        const err = new Error("daily_free_limit");
+        err.name = "DailyFreeLimit";
+        throw err;
+      }
       if (!res.ok) {
         const t = await res.text();
         throw new Error(t || `HTTP ${res.status}`);

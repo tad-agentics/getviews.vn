@@ -51,11 +51,17 @@ export function useChannelAnalyze({
       });
 
       if (res.status === 402) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        if (body.error === "insufficient_credits") {
-          throw new Error("Không đủ credit phân tích sâu. Kiểm tra gói hoặc mua thêm trong Cài đặt.");
-        }
-        throw new Error("Yêu cầu thanh toán / credit.");
+        // Name the error so the screen can branch on err.name rather than
+        // regex-matching the Vietnamese message string. Parity with
+        // useVideoAnalysis + useScriptGenerate.
+        const err = new Error("insufficient_credits");
+        err.name = "InsufficientCredits";
+        throw err;
+      }
+      if (res.status === 429) {
+        const err = new Error("daily_free_limit");
+        err.name = "DailyFreeLimit";
+        throw err;
       }
       if (res.status === 404) {
         const detail = (await res.json().catch(() => ({}))) as { detail?: string };

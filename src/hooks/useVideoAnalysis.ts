@@ -68,6 +68,19 @@ export function useVideoAnalysis({
         body: JSON.stringify(body),
       });
 
+      if (res.status === 402) {
+        // Semantic error — user is out of credits. Surface as named error
+        // so `VideoScreen` can route it to the "buy credits" CTA instead
+        // of rendering a generic "HTTP 402" banner.
+        const err = new Error("insufficient_credits");
+        err.name = "InsufficientCredits";
+        throw err;
+      }
+      if (res.status === 429) {
+        const err = new Error("daily_free_limit");
+        err.name = "DailyFreeLimit";
+        throw err;
+      }
       if (res.status === 404) {
         const detail = (await res.json().catch(() => ({}))) as { detail?: string };
         throw new Error(detail.detail ?? "Không tìm thấy video");

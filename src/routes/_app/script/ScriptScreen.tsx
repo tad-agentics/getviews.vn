@@ -20,6 +20,7 @@ import { useScriptExport, useScriptSave } from "@/hooks/useScriptSave";
 import { useScriptGenerate } from "@/hooks/useScriptGenerate";
 import { useScriptHookPatterns } from "@/hooks/useScriptHookPatterns";
 import { useScriptSceneIntelligence } from "@/hooks/useScriptSceneIntelligence";
+import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
 import { formatRelativeSinceVi } from "@/lib/formatters";
@@ -607,10 +608,7 @@ export default function ScriptScreen() {
                   </Btn>
                   {generate.isError ? (
                     <p className="gv-mono text-[11px] text-[color:var(--gv-neg-deep)]">
-                      {generate.error.name === "InsufficientCredits" ||
-                      generate.error.message === "insufficient_credits"
-                        ? "Không đủ credit. Nạp thêm hoặc dùng thao tác miễn phí."
-                        : generate.error.message}
+                      {analysisErrorCopy(generate.error)}
                     </p>
                   ) : null}
 
