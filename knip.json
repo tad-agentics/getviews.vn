@@ -1,0 +1,54 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/routes/**/route.tsx",
+    "api/**/*.ts",
+    "scripts/**/*.{ts,mjs,js}",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "react-router.config.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "api/**/*.ts"
+  ],
+  "ignore": [
+    "src/make-import/**",
+    "src/components/ui/**",
+    "src/lib/database.types.ts",
+    "src/lib/api-types.ts",
+    ".react-router/**",
+    "app/**",
+    "shared/**",
+    "artifacts/**",
+    "mobile/**",
+    "supabase/functions/**",
+    "cloud-run/**"
+  ],
+  "ignoreDependencies": [
+    "@radix-ui/.*",
+    "@react-router/dev",
+    "@react-router/node",
+    "tailwindcss",
+    "@tailwindcss/vite",
+    "tw-animate-css",
+    "@vitejs/plugin-react-swc",
+    "vite-plugin-pwa",
+    "vite-tsconfig-paths",
+    "context-mode",
+    "class-variance-authority",
+    "cmdk",
+    "embla-carousel-react",
+    "input-otp",
+    "react-day-picker",
+    "react-hook-form",
+    "react-resizable-panels",
+    "vaul",
+    "recharts",
+    "resend",
+    "@testing-library/jest-dom"
+  ],
+  "ignoreBinaries": [
+    "serve"
+  ]
+}

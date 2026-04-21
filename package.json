@@ -8,6 +8,7 @@
     "@vitejs/plugin-react-swc": "^4.3.0",
     "context-mode": "^1.0.75",
     "jsdom": "^29.0.2",
+    "knip": "^6.6.0",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.7",
     "vite-plugin-pwa": "^1.2.0",
@@ -78,6 +79,7 @@
     "preview": "npx serve build/client",
     "test": "vitest run",
     "typecheck": "react-router typegen && tsc --build --force && node scripts/check-tokens.mjs",
-    "check-tokens": "node scripts/check-tokens.mjs"
+    "check-tokens": "node scripts/check-tokens.mjs",
+    "knip": "knip"
   }
 }
