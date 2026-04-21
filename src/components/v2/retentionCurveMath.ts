@@ -112,14 +112,4 @@ export function retentionDropAnnotations(
   return out;
 }
 
-/** @deprecated Prefer ``retentionDropAnnotations`` (returns up to two labels). */
-export function largestRetentionDropAnnotation(
-  curve: RetentionPoint[],
-  durationSec: number,
-  opts?: { minDropPct?: number },
-): { cx: number; cy: number; label: string } | null {
-  const xs = retentionDropAnnotations(curve, durationSec, opts);
-  return xs[0] ?? null;
-}
-
 export { VB_H, VB_W };

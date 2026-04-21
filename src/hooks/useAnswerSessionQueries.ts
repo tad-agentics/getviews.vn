@@ -55,13 +55,6 @@ export function useAnswerSessionDetail(sessionId: string | null | undefined, use
   });
 }
 
-export function useInvalidateAnswerSessions() {
-  const qc = useQueryClient();
-  return (userId: string | undefined) => {
-    if (userId) void qc.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(userId) });
-  };
-}
-
 /**
  * Archive (soft-delete) an answer session by PATCHing `archived_at` to now.
  *
