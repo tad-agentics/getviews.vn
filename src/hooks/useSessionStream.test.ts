@@ -25,7 +25,9 @@ vi.mock("@/lib/env", () => ({
   env: {
     VITE_SUPABASE_URL: "https://test.supabase.co",
     VITE_SUPABASE_PUBLISHABLE_KEY: "test-key",
-    VITE_CLOUD_RUN_API_URL: undefined,
+    // Any non-empty URL is enough — tests stub `fetch` directly, so the
+    // value is only used to construct the request URL we then assert on.
+    VITE_CLOUD_RUN_API_URL: "https://cloud-run.test",
   },
 }));
 
@@ -201,5 +203,119 @@ describe("useSessionStream — report payload delivery", () => {
     await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
     expect(result.current.finalPayload).toBeNull();
     expect(onFinal).not.toHaveBeenCalled();
+  });
+});
+
+describe("useSessionStream — answer_turn TD-4 retry on stream drop", () => {
+  let qc: QueryClient;
+
+  beforeEach(() => {
+    qc = makeQc();
+    mockGetSession.mockResolvedValue({ data: { session: { access_token: "test-token" } } });
+  });
+
+  const ANSWER_PARAMS = {
+    mode: "answer_turn" as const,
+    answerSessionId: "sess-1",
+    query: "trend tuần này",
+    turnKind: "primary" as const,
+  };
+
+  it("retries with resume params when the done marker never arrives, carrying payload forward", async () => {
+    const payload = { kind: "pattern", report: { tldr: "carried" } };
+    // Attempt 1: seq=1 payload, then EOF (no done marker) → stream_failed
+    const firstChunks = [
+      `data: {"stream_id":"sid-1","seq":1,"payload":${JSON.stringify(payload)},"done":false}\n\n`,
+    ];
+    // Attempt 2: seq=2 done only (what the server's replay buffer would emit
+    // for `resume_from_seq=1`: it skips cached chunks up to that seq and
+    // emits the trailing done token).
+    const secondChunks = [
+      `data: {"stream_id":"sid-1","seq":2,"delta":"","done":true}\n\n`,
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFetchStream(firstChunks))
+      .mockResolvedValueOnce(mockFetchStream(secondChunks));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const onFinal = vi.fn();
+    const { result } = renderHook(
+      () => useSessionStream<typeof payload>({ onFinal }),
+      { wrapper: wrapper(qc) },
+    );
+
+    let streamResult: Awaited<ReturnType<typeof result.current.stream>> | undefined;
+    void (async () => {
+      streamResult = await result.current.stream(ANSWER_PARAMS);
+    })();
+
+    await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
+    expect(result.current.finalPayload).toEqual(payload);
+    expect(streamResult?.ok).toBe(true);
+    if (streamResult?.ok) expect(streamResult.finalPayload).toEqual(payload);
+    expect(onFinal).toHaveBeenCalledWith(payload);
+
+    // Exactly two fetches — original plus single retry — and the retry
+    // carries `resume_stream_id` + `resume_from_seq` from the captured state.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstUrl = fetchMock.mock.calls[0][0] as string;
+    const secondUrl = fetchMock.mock.calls[1][0] as string;
+    expect(firstUrl).not.toContain("resume_stream_id");
+    expect(secondUrl).toContain("resume_stream_id=sid-1");
+    expect(secondUrl).toContain("resume_from_seq=1");
+  });
+
+  it("stops after one retry and surfaces stream_failed if the drop persists", async () => {
+    // Both attempts drop after seq=1 with no done token.
+    const makeChunks = () => [
+      `data: {"stream_id":"sid-x","seq":1,"payload":{"kind":"generic"},"done":false}\n\n`,
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(mockFetchStream(makeChunks()))
+      .mockResolvedValueOnce(mockFetchStream(makeChunks()));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    let streamResult: Awaited<ReturnType<typeof result.current.stream>> | undefined;
+    void (async () => {
+      streamResult = await result.current.stream(ANSWER_PARAMS);
+    })();
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+    expect(streamResult?.ok).toBe(false);
+    if (streamResult && !streamResult.ok) expect(streamResult.error).toBe("stream_failed");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry 402/429 (semantic errors must surface on first attempt)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 402 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    result.current.stream(ANSWER_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+    expect(result.current.error).toBe("insufficient_credits");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry in-band error tokens (e.g. insufficient_credits from the server)", async () => {
+    const chunk = `data: {"stream_id":"sid-y","seq":1,"done":true,"error":"insufficient_credits"}\n\n`;
+    const fetchMock = vi.fn().mockResolvedValue(mockFetchStream([chunk]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    result.current.stream(ANSWER_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+    expect(result.current.error).toBe("insufficient_credits");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

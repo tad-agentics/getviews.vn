@@ -16,6 +16,17 @@ import { type StepEvent } from "@/lib/types/sse-events";
 const CLOUD_RUN_URL = env.VITE_CLOUD_RUN_API_URL;
 const VERCEL_CHAT_URL = "/api/chat";
 
+/**
+ * TD-4 — a single auto-retry covers the common network-blip case where the
+ * client received the `seq=1` payload token but lost the connection before
+ * the `seq=2` done marker arrived. On retry we pass `resume_stream_id` +
+ * `resume_from_seq` so the server replays from its 120s chunk buffer and
+ * does **not** re-run Gemini / re-bill credits (see `cloud-run/main.py`).
+ * Higher retry counts would risk unbounded cost if the cache missed and
+ * the server fell through to a fresh run.
+ */
+const MAX_ANSWER_RETRIES = 1;
+
 const CLOUD_RUN_INTENTS = new Set([
   "video_diagnosis",
   "competitor_profile",
@@ -68,6 +79,14 @@ export type StreamResult<TPayload = unknown> =
   | { ok: true; finalPayload: TPayload | null }
   | { ok: false; error: string };
 
+type AnswerSseOutcome<T> = {
+  ok: boolean;
+  error?: string;
+  streamId: string | null;
+  lastSeq: number;
+  payload: T | null;
+};
+
 export function useSessionStream<TPayload = unknown>(
   options: StreamOptions<TPayload> = {},
 ) {
@@ -110,41 +129,79 @@ export function useSessionStream<TPayload = unknown>(
             setState((s) => ({ ...s, status: "error", error: "no_cloud_run" }));
             return { ok: false, error: "no_cloud_run" };
           }
-          const url = new URL(
-            `${CLOUD_RUN_URL}/answer/sessions/${args.answerSessionId}/turns`,
-          );
-          if (args.resumeStreamId != null && args.lastSeq != null) {
-            url.searchParams.set("resume_stream_id", args.resumeStreamId);
-            url.searchParams.set("resume_from_seq", String(args.lastSeq));
-          }
-          const res = await fetch(url.toString(), {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ query: args.query, kind: args.turnKind }),
-            signal: abort.signal,
-          });
 
-          if (res.status === 402) {
-            setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
-            return { ok: false, error: "insufficient_credits" };
-          }
-          if (res.status === 429) {
-            setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));
-            return { ok: false, error: "daily_free_limit" };
-          }
-          if (!res.ok) {
-            setState((s) => ({ ...s, status: "error", error: `http_${res.status}` }));
-            return { ok: false, error: `http_${res.status}` };
-          }
-          if (!res.body) {
-            setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
-            return { ok: false, error: "stream_failed" };
+          // Retry loop — carries captured `streamId`/`lastSeq`/`payload`
+          // across attempts so if the first attempt got the payload but lost
+          // the done marker, the second attempt just asks the server to
+          // replay seq=N+1 and we surface `finalPayload` from the first run.
+          let resumeStreamId = args.resumeStreamId ?? null;
+          let resumeSeq = args.lastSeq ?? 0;
+          let carriedPayload: TPayload | null = null;
+
+          for (let attempt = 0; attempt <= MAX_ANSWER_RETRIES; attempt++) {
+            const url = new URL(
+              `${CLOUD_RUN_URL}/answer/sessions/${args.answerSessionId}/turns`,
+            );
+            if (resumeStreamId && resumeSeq > 0) {
+              url.searchParams.set("resume_stream_id", resumeStreamId);
+              url.searchParams.set("resume_from_seq", String(resumeSeq));
+            }
+            const res = await fetch(url.toString(), {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ query: args.query, kind: args.turnKind }),
+              signal: abort.signal,
+            });
+
+            if (res.status === 402) {
+              setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
+              return { ok: false, error: "insufficient_credits" };
+            }
+            if (res.status === 429) {
+              setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));
+              return { ok: false, error: "daily_free_limit" };
+            }
+            if (!res.ok) {
+              setState((s) => ({ ...s, status: "error", error: `http_${res.status}` }));
+              return { ok: false, error: `http_${res.status}` };
+            }
+            if (!res.body) {
+              setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
+              return { ok: false, error: "stream_failed" };
+            }
+
+            const outcome: AnswerSseOutcome<TPayload> = await consumeAnswerSse(
+              res,
+              setState,
+              qc,
+              options,
+              args.answerSessionId,
+              carriedPayload,
+            );
+            carriedPayload = outcome.payload;
+            if (outcome.streamId) resumeStreamId = outcome.streamId;
+            if (outcome.lastSeq > resumeSeq) resumeSeq = outcome.lastSeq;
+
+            if (outcome.ok) {
+              return { ok: true, finalPayload: outcome.payload };
+            }
+            // Only `stream_failed` is retryable — semantic errors (e.g.
+            // `insufficient_credits` from the server's in-band error token)
+            // must surface on the first attempt.
+            const retryable =
+              outcome.error === "stream_failed" &&
+              Boolean(resumeStreamId) &&
+              attempt < MAX_ANSWER_RETRIES;
+            if (!retryable) {
+              return { ok: false, error: outcome.error ?? "stream_failed" };
+            }
+            // Loop to next attempt with resume params set.
           }
 
-          return await consumeAnswerSse(res, setState, qc, options, args.answerSessionId);
+          return { ok: false, error: "stream_failed" };
         }
 
         const intentType = args.intentType;
@@ -239,13 +296,16 @@ async function consumeAnswerSse<TPayload>(
   qc: QueryClient,
   options: StreamOptions<TPayload>,
   _answerSessionId: string,
-): Promise<StreamResult<TPayload>> {
+  carriedPayload: TPayload | null = null,
+): Promise<AnswerSseOutcome<TPayload>> {
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let text = "";
   let lastStreamId: string | null = null;
   let lastSeq = 0;
-  let payload: TPayload | null = null;
+  // Seed with any payload captured on a previous attempt so the done-marker
+  // from a replay-only second fetch still resolves to a non-null finalPayload.
+  let payload: TPayload | null = carriedPayload;
   let buffer = "";
 
   while (true) {
@@ -283,7 +343,7 @@ async function consumeAnswerSse<TPayload>(
             });
             void qc.invalidateQueries({ queryKey: ["profile"] });
             void qc.invalidateQueries({ queryKey: ["credits"] });
-            return { ok: false, error: token.error };
+            return { ok: false, error: token.error, streamId: lastStreamId, lastSeq, payload };
           }
           setState({
             status: "done",
@@ -302,7 +362,7 @@ async function consumeAnswerSse<TPayload>(
           if (payload !== null && options.onFinal) {
             options.onFinal(payload);
           }
-          return { ok: true, finalPayload: payload };
+          return { ok: true, streamId: lastStreamId, lastSeq, payload };
         }
         if (token.error) {
           setState((s) => ({
@@ -312,7 +372,13 @@ async function consumeAnswerSse<TPayload>(
             stepEvents: [],
           }));
           void qc.invalidateQueries({ queryKey: ["profile"] });
-          return { ok: false, error: token.error ?? "stream_failed" };
+          return {
+            ok: false,
+            error: token.error ?? "stream_failed",
+            streamId: lastStreamId,
+            lastSeq,
+            payload,
+          };
         }
         setState((s) => ({ ...s, text, streamId: lastStreamId, lastSeq }));
       } catch {
@@ -321,7 +387,7 @@ async function consumeAnswerSse<TPayload>(
     }
   }
   setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
-  return { ok: false, error: "stream_failed" };
+  return { ok: false, error: "stream_failed", streamId: lastStreamId, lastSeq, payload };
 }
 
 async function consumeChatSse<TPayload>(
