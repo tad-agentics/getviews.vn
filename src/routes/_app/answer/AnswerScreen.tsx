@@ -320,7 +320,26 @@ export default function AnswerScreen() {
                 ))}
               </div>
             ) : sessionId ? (
-              <p className="text-sm text-[var(--gv-ink-3)]">Chưa có lượt trong phiên này.</p>
+              // D-era diagnostic: distinguish "session opened but append
+              // never wrote a turn" (stream failed silently) from "session
+              // empty but refetch hasn't fired yet". Manual-refetch button
+              // lets the user recover without a full reload.
+              <div className="mt-4 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
+                <p className="gv-serif text-[16px] leading-snug text-[color:var(--gv-ink)]">
+                  Chưa có lượt trong phiên này.
+                </p>
+                <p className="mt-2 text-[12px] leading-relaxed text-[color:var(--gv-ink-3)]">
+                  Nếu bạn vừa gửi câu hỏi, có thể báo cáo chưa kịp persist. Thử
+                  tải lại phiên sau vài giây.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 gv-mono text-[11px] text-[color:var(--gv-accent)] underline"
+                  onClick={() => void detailQuery.refetch()}
+                >
+                  Tải lại phiên
+                </button>
+              </div>
             ) : (
               <p className="text-sm text-[var(--gv-ink-3)]">
                 Dán câu hỏi từ Studio hoặc mở phiên có sẵn từ Lịch sử.
