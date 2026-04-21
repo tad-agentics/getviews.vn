@@ -17,8 +17,8 @@ interface Props {
 function signalBarColor(signal: string): string {
   const s = signal.toLowerCase();
   if (s === "rising") return "var(--gv-accent)";
-  if (s === "early") return "#F59E0B";
-  if (s === "declining") return "#EF4444";
+  if (s === "early") return "var(--gv-warn)";
+  if (s === "declining") return "var(--gv-danger)";
   return "var(--border)";
 }
 

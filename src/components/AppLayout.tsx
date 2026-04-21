@@ -56,7 +56,7 @@ function LogoMark() {
  * "Ngách Của Bạn" sidebar block — 3 rows with label + weekly hot count.
  *
  * The user's primary niche floats to the top; the other two slots fill by
- * weekly video count (from niche_intelligence.video_count_7d). No schema
+ * weekly video count (from niche_intelligence.sample_size / legacy video_count_7d). No schema
  * for "tracked niches" exists yet, so the 2nd/3rd rows are the hottest
  * niches overall — pragmatic until a Settings-level picker lands.
  */

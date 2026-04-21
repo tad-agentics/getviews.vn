@@ -29,6 +29,10 @@ export type ExploreGridVideo = {
   contentFormat?: string | null;
   /** Up to 3 short labels from corpus classification (commerce, tier, sound, …). */
   metadataChips?: string[];
+  /** e.g. `0:45` from `video_corpus.video_duration` (seconds). */
+  durationLabel?: string | null;
+  isViral?: boolean;
+  breakoutMultiplier?: number | null;
 };
 
 function EngagementSidebar({

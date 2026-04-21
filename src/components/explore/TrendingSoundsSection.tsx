@@ -1,11 +1,14 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ShoppingBag } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { TrendingSoundCard, type TrendingSoundData } from "@/components/chat/TrendingSoundCard";
 import { formatVN } from "@/lib/formatters";
 
 interface Props {
   nicheId: number | null;
+  /** Extra classes on the outer wrapper (e.g. rail spacing). */
+  className?: string;
 }
 
 interface BreakoutSound {
@@ -51,8 +54,9 @@ function BreakoutSoundBanner({ sound }: { sound: BreakoutSound }) {
           </p>
         </div>
         {sound.commerce_signal ? (
-          <span className="flex-shrink-0 rounded px-1.5 py-0.5 text-xs font-medium bg-amber-50 text-amber-700">
-            💰 Commerce
+          <span className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium bg-[var(--gv-warn-soft)] text-[var(--gv-warn)]">
+            <ShoppingBag className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+            Commerce
           </span>
         ) : null}
       </div>
@@ -60,7 +64,7 @@ function BreakoutSoundBanner({ sound }: { sound: BreakoutSound }) {
   );
 }
 
-export function TrendingSoundsSection({ nicheId }: Props) {
+export function TrendingSoundsSection({ nicheId, className = "" }: Props) {
   const weekStr = useMemo(() => mondayWeekOfDateString(), []);
 
   // Fetch all sounds this week across all niches — used for breakout detection + niche filter
@@ -139,7 +143,7 @@ export function TrendingSoundsSection({ nicheId }: Props) {
   // Nothing to show: still loading and no niche
   if (isPending && nicheId === null) {
     return (
-      <div className="mb-4">
+      <div className={`mb-4 ${className}`.trim()}>
         <div className="mb-3 h-[72px] animate-pulse rounded-xl bg-[var(--surface-alt)]" aria-hidden />
       </div>
     );
@@ -149,7 +153,7 @@ export function TrendingSoundsSection({ nicheId }: Props) {
   if (!isPending && !breakoutSound && nicheRows.length === 0) return null;
 
   return (
-    <div className="mb-4">
+    <div className={`mb-4 ${className}`.trim()}>
       {/* Cross-niche breakout banner — always shown when a breakout sound exists */}
       {breakoutSound ? <BreakoutSoundBanner sound={breakoutSound} /> : null}
 

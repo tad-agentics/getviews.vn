@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
@@ -8,7 +8,10 @@ import {
   X,
   ChevronDown,
   Loader2,
+  LayoutGrid,
+  List,
 } from "lucide-react";
+import { getISOWeek } from "date-fns";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/lib/supabase";
 import { corpusKeys, useVideoCorpus } from "@/hooks/useVideoCorpus";
@@ -24,8 +27,6 @@ import { VideoDangHocSidebar } from "@/components/explore/VideoDangHocSidebar";
 import { VideoPlayerModal, type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
-
-const SUGGESTED_FULL_DATA_NICHE_ID = 1;
 
 type CorpusRow = {
   id: string;
@@ -47,6 +48,7 @@ type CorpusRow = {
   sound_name: string | null;
   creator_tier: string | null;
   posting_hour: number | null;
+  video_duration?: number | null;
 };
 
 function corpusMetadataChips(row: CorpusRow): string[] {
@@ -73,8 +75,56 @@ function corpusMetadataChips(row: CorpusRow): string[] {
   return chips.slice(0, 3);
 }
 
+function formatDurationSeconds(sec: number | null | undefined): string | null {
+  if (sec == null || !Number.isFinite(sec) || sec <= 0) return null;
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/** `niche_intelligence` MV shape varies by migration; prefer `sample_size` when `video_count_7d` absent. */
+function nicheCorpusSampleCount(intel: Record<string, unknown> | null | undefined): number {
+  if (!intel || typeof intel !== "object") return 0;
+  const v7 = intel.video_count_7d;
+  if (typeof v7 === "number" && Number.isFinite(v7)) return v7;
+  const ss = intel.sample_size;
+  if (typeof ss === "number" && Number.isFinite(ss)) return ss;
+  return 0;
+}
+
+function topJsonbCounts(
+  dist: unknown,
+  limit: number,
+): { key: string; count: number }[] {
+  if (!dist || typeof dist !== "object" || Array.isArray(dist)) return [];
+  const rec = dist as Record<string, unknown>;
+  return Object.entries(rec)
+    .map(([key, raw]) => {
+      const n = typeof raw === "number" ? raw : Number(raw);
+      return { key, count: Number.isFinite(n) ? n : 0 };
+    })
+    .filter((e) => e.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+function viWeekKicker(): string {
+  const d = new Date();
+  const w = getISOWeek(d);
+  const start = new Date(d);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diff);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const fmt = new Intl.DateTimeFormat("vi-VN", { day: "numeric", month: "long" });
+  return `TUẦN ${w} · ${fmt.format(start)}—${fmt.format(end)}`;
+}
+
 function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
   const v = row.views ?? 0;
+  const br = row.breakout_multiplier;
+  const isViral = v >= 500_000 || (br != null && br >= 2.5);
   return {
     id: row.id,
     views: v === 0 ? "—" : formatViews(v),
@@ -88,155 +138,109 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
     shares: row.shares != null ? formatViews(row.shares) : "—",
     videoUrl: row.video_url ?? "",
     tiktok_url: row.tiktok_url,
-    breakout: row.breakout_multiplier != null
-      ? `${row.breakout_multiplier.toFixed(1)}×`
-      : null,
+    breakout: br != null ? `${br.toFixed(1)}×` : null,
     contentFormat: row.content_format ?? null,
     metadataChips: corpusMetadataChips(row),
+    durationLabel: formatDurationSeconds(row.video_duration),
+    isViral,
+    breakoutMultiplier: br,
   };
 }
 
-/* --- Platform Icon SVGs ------------------------------------------ */
-function TikTokIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        fill="#69C9D0"
-        d="M10.06 13.28a2.89 2.89 0 0 0-2.89 2.89 2.89 2.89 0 0 0 2.89 2.89 2.89 2.89 0 0 0 2.88-2.5V2h3.45c.09.78.4 1.5.88 2.08a4.83 4.83 0 0 0 2.9 2.17v3.44a8.18 8.18 0 0 1-4.78-1.52v6.5a6.34 6.34 0 0 1-6.33 6.33 6.34 6.34 0 0 1-6.34-6.34 6.34 6.34 0 0 1 6.34-6.34c.27 0 .53.02.79.05v3.48a2.89 2.89 0 0 0-.79-.1z"
-      />
-      <path
-        fill="#EE1D52"
-        d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"
-      />
-      <path
-        fill="#ffffff"
-        d="M18.58 6.09a4.83 4.83 0 0 1-3.77-4.25V1.36h-3.45v13.31a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V7.97a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V7.9a8.18 8.18 0 0 0 4.78 1.52V6.05a4.85 4.85 0 0 1-1.01.04z"
-      />
-    </svg>
-  );
-}
 
-function IGIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <defs>
-        <linearGradient id="ig-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#f09433" />
-          <stop offset="25%" stopColor="#e6683c" />
-          <stop offset="50%" stopColor="#dc2743" />
-          <stop offset="75%" stopColor="#cc2366" />
-          <stop offset="100%" stopColor="#bc1888" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="url(#ig-grad)" />
-      <circle cx="12" cy="12" r="4.5" fill="none" stroke="white" strokeWidth="1.8" />
-      <circle cx="17.5" cy="6.5" r="1.2" fill="white" />
-    </svg>
-  );
-}
-
-function YTIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <rect x="1" y="5" width="22" height="14" rx="4" fill="#FF0000" />
-      <polygon points="9.5,8.5 16,12 9.5,15.5" fill="white" />
-    </svg>
-  );
-}
-
-
-
-/* --- Video Thumbnail Card ----------------------------------------- */
+/* --- Video Thumbnail Card (UIUX `trends.jsx` `VideoTile` parity) --- */
 function VideoCard({
   video,
   allVideos,
   onNavigate,
+  nicheLabel,
 }: {
   video: ExploreGridVideo;
   allVideos: ExploreGridVideo[];
   onNavigate?: () => void;
+  nicheLabel?: string;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
-  // Describes the card to assistive tech — the thumbnail itself stays
-  // `alt=""` (decorative) because this label covers the equivalent content.
   const cardLabel = video.text
     ? `Video ${video.handle}: ${video.text}`
     : `Video ${video.handle}`;
 
+  const br = video.breakoutMultiplier;
+  const showBreakout = br != null && br >= 1.5;
+  const showViral = Boolean(video.isViral);
+
   return (
     <>
       {modalOpen && <VideoPlayerModal video={video} allVideos={allVideos} onClose={() => setModalOpen(false)} />}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={cardLabel}
-        onClick={() => setModalOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setModalOpen(true);
-          }
-        }}
-        className="relative rounded-xl overflow-hidden bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--gv-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)] transition-colors duration-[120ms]"
-        style={{ aspectRatio: "9/14" }}
-      >
-        {!imgFailed ? (
-          <img
-            src={video.img}
-            alt=""
-            loading="lazy"
-            className="w-full h-full object-cover"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <div className="w-full h-full bg-[var(--surface-alt)]" />
-        )}
-        {video.text && (
-          <div className="absolute top-2 left-2 right-2">
-            <p className="text-white text-[11px] font-semibold drop-shadow leading-snug line-clamp-2">{video.text}</p>
-          </div>
-        )}
-        <div className="absolute bottom-0 inset-x-0 px-2 py-2 bg-gradient-to-t from-black/80 to-transparent flex flex-col gap-1.5">
-          {video.metadataChips && video.metadataChips.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {video.metadataChips.map((chip, i) => (
-                <span
-                  key={`${chip}-${i}`}
-                  className="max-w-full truncate rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-medium text-white backdrop-blur-sm"
-                >
-                  {chip}
+      <div className="flex flex-col gap-2">
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={cardLabel}
+          onClick={() => setModalOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setModalOpen(true);
+            }
+          }}
+          className="relative overflow-hidden rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] cursor-pointer hover:border-[var(--gv-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--gv-accent)] transition-colors duration-[120ms]"
+          style={{ aspectRatio: "9/16" }}
+        >
+          {!imgFailed ? (
+            <img
+              src={video.img}
+              alt=""
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={() => setImgFailed(true)}
+            />
+          ) : (
+            <div className="w-full h-full bg-[var(--surface-alt)]" />
+          )}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent from-40% to-black/70" />
+          {(showBreakout || showViral) && (
+            <div className="absolute top-2 left-2 flex gap-1">
+              {showBreakout ? (
+                <span className="rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-white bg-[var(--gv-accent)]">
+                  BREAKOUT
                 </span>
-              ))}
-            </div>
-          ) : null}
-          <div className="flex items-end justify-between w-full">
-            <div className="flex items-center gap-1.5">
-              <span className="text-white text-[11px] font-semibold">{video.views} views</span>
-              {video.breakout ? (
-                <span className="text-[10px] font-mono text-emerald-300">{video.breakout}</span>
+              ) : null}
+              {showViral ? (
+                <span className="rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[var(--ink)] bg-[var(--gv-accent-2)]">
+                  VIRAL
+                </span>
               ) : null}
             </div>
-            <span className="text-white/70 text-[10px]">{video.time}</span>
-          </div>
-          {onNavigate ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onNavigate();
-              }}
-              onKeyDown={(e) => {
-                // Prevent the outer card's Enter/Space handler from also firing.
-                if (e.key === "Enter" || e.key === " ") e.stopPropagation();
-              }}
-              className="w-full min-h-[44px] rounded-md bg-white/20 py-1.5 text-center text-[10px] font-semibold text-white backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white"
-            >
-              Phân tích video này
-            </button>
+          )}
+          {video.durationLabel ? (
+            <div className="absolute top-2 right-2 rounded bg-[var(--gv-scrim)] px-1.5 py-0.5 font-mono text-[10px] text-white">
+              {video.durationLabel}
+            </div>
           ) : null}
+          <div className="absolute bottom-2 left-2.5 right-2.5 text-white">
+            <p className="mb-0.5 font-mono text-[11px]">↑ {video.views}</p>
+            <p className="line-clamp-2 text-xs font-medium leading-snug">{video.text || video.caption}</p>
+          </div>
         </div>
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <span className="truncate font-mono text-[10px] text-[var(--gv-ink-3)]">{video.handle}</span>
+          <span className="shrink-0 font-mono text-[10px] text-[var(--faint)]">{video.time}</span>
+        </div>
+        {onNavigate ? (
+          <button
+            type="button"
+            onClick={() => onNavigate()}
+            className="flex min-h-[44px] items-center justify-between rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-left text-[11px] text-[var(--gv-ink-3)] transition-colors duration-[120ms] hover:border-[var(--gv-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--gv-accent)]"
+          >
+            <span>Phân tích →</span>
+            <span className="max-w-[45%] truncate font-mono text-[10px] text-[var(--faint)]">
+              {nicheLabel ?? video.contentFormat ?? "—"}
+            </span>
+          </button>
+        ) : null}
       </div>
     </>
   );
@@ -333,11 +337,6 @@ function FilterChip({
       onClick={onClick}
       className={baseClass}
     >
-      {label === "App" && (
-        <span className="flex items-center mr-0.5">
-          <TikTokIcon size={11} />
-        </span>
-      )}
       <span>{label}</span>
       {onRemove ? (
         <button
@@ -358,15 +357,180 @@ function FilterChip({
 
 function ExploreGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+    <div
+      className="grid gap-3.5 animate-pulse"
+      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}
+    >
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--surface-alt)] animate-pulse"
-          style={{ aspectRatio: "9/14" }}
+          className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-alt)]"
+          style={{ aspectRatio: "9/16" }}
         />
       ))}
     </div>
+  );
+}
+
+function RailBlock({
+  kicker,
+  title,
+  children,
+}: {
+  kicker: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mt-8 border-t border-[var(--border)] pt-6 first:mt-6 first:border-t-0 first:pt-0 min-[1100px]:first:mt-0">
+      <p className="mb-1 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--faint)]">
+        {kicker}
+      </p>
+      <h3 className="mb-3 border-b border-[var(--ink)] pb-2.5 text-[22px] font-extrabold leading-tight text-[var(--ink)]">
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+function HeroStatLine({
+  label,
+  value,
+  delta,
+}: {
+  label: string;
+  value: string;
+  delta?: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
+        {label}
+      </div>
+      <div className="text-[28px] font-semibold leading-none text-[var(--surface)]">{value}</div>
+      {delta ? (
+        <div className="mt-1 font-mono text-[10px] text-[var(--gv-pos-deep)]">{delta}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function TrendsHeroCompact({
+  nicheName,
+  nicheIntel,
+  corpusCount,
+}: {
+  nicheName: string | undefined;
+  nicheIntel: Record<string, unknown> | null | undefined;
+  corpusCount: number | null | undefined;
+}) {
+  if (!nicheIntel || !nicheName) return null;
+  const sample = nicheCorpusSampleCount(nicheIntel);
+  const head = corpusCount != null ? corpusCount.toLocaleString("vi-VN") : sample.toLocaleString("vi-VN");
+  const commercePct = nicheIntel.commerce_pct;
+  const medEr = nicheIntel.median_er;
+  const pctCommerce =
+    typeof commercePct === "number" && Number.isFinite(commercePct)
+      ? `${commercePct.toFixed(0)}%`
+      : "—";
+  const erPct =
+    typeof medEr === "number" && Number.isFinite(medEr)
+      ? `${(medEr * 100).toFixed(1)}%`
+      : "—";
+  const topHooks = topJsonbCounts(nicheIntel.hook_distribution, 1);
+  const topFormats = topJsonbCounts(nicheIntel.format_distribution, 1);
+  const hookLine = topHooks[0]
+    ? `Hook mạnh: ${String(topHooks[0].key).replace(/_/g, " ")}`
+    : "Hook: đang cập nhật";
+  const formatLine = topFormats[0]
+    ? `Format dẫn: ${String(topFormats[0].key).replace(/_/g, " ")}`
+    : "Format: đang cập nhật";
+
+  return (
+    <div
+      className="mb-7 grid grid-cols-1 gap-5 rounded-[12px] bg-[var(--ink)] px-6 py-7 text-[var(--surface)] min-[1100px]:grid-cols-3 min-[1100px]:gap-8"
+      aria-label="Tóm tắt tuần theo ngách"
+    >
+      <div>
+        <p className="mb-2 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
+          {viWeekKicker()}
+        </p>
+        <p className="mb-2 text-[34px] font-semibold leading-none tracking-tight">
+          {head}{" "}
+          <span className="text-[var(--gv-accent)]">được giải mã</span>
+        </p>
+        <p className="max-w-sm text-xs leading-relaxed text-[var(--gv-ink-4)]">
+          Dữ liệu 30 ngày gần nhất trong ngách {nicheName}. Cập nhật theo lô phân tích corpus.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-4 content-center">
+        <HeroStatLine label="Video mẫu (30d)" value={sample.toLocaleString("vi-VN")} />
+        <HeroStatLine label="TTTB (median ER)" value={erPct} />
+        <HeroStatLine label="Video commerce" value={pctCommerce} />
+        <HeroStatLine label="Hook nổi" value={topHooks[0] ? String(topHooks[0].count) : "—"} />
+      </div>
+      <div>
+        <p className="mb-2 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
+          Tóm tắt biên tập
+        </p>
+        <p className="text-base font-medium leading-snug text-[var(--surface)]">
+          {formatLine}. {hookLine}.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ExploreVideoListRow({
+  video,
+  onNavigate,
+  nicheLabel,
+}: {
+  video: ExploreGridVideo;
+  onNavigate: () => void;
+  nicheLabel?: string;
+}) {
+  const br = video.breakoutMultiplier;
+  const showBreakout = br != null && br >= 1.5;
+  const showViral = Boolean(video.isViral);
+  return (
+    <button
+      type="button"
+      onClick={onNavigate}
+      className="flex w-full cursor-pointer items-center gap-3.5 border-b border-[var(--border)] px-4 py-3 text-left last:border-b-0 hover:bg-[var(--surface-alt)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--gv-accent)] min-[900px]:grid min-[900px]:grid-cols-[60px_1fr_100px_minmax(0,1fr)_72px_80px] min-[900px]:items-center"
+    >
+      <div className="h-16 w-[45px] shrink-0 overflow-hidden rounded bg-[var(--surface-alt)] min-[900px]:w-auto" style={{ aspectRatio: "9/16" }}>
+        <img src={video.img} alt="" className="h-full w-full object-cover" loading="lazy" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex flex-wrap gap-1">
+          {showBreakout ? (
+            <span className="rounded bg-[var(--gv-accent)] px-1 py-0.5 text-[8px] font-bold tracking-wide text-white">
+              BREAKOUT
+            </span>
+          ) : null}
+          {showViral ? (
+            <span className="rounded bg-[var(--gv-accent-2)] px-1 py-0.5 text-[8px] font-bold tracking-wide text-[var(--ink)]">
+              VIRAL
+            </span>
+          ) : null}
+        </div>
+        <p className="truncate text-[13px] font-medium text-[var(--ink)]">{video.text || video.caption}</p>
+        <p className="mt-0.5 truncate font-mono text-[10px] text-[var(--faint)]">
+          {video.handle} · {nicheLabel ?? video.contentFormat ?? "—"}
+        </p>
+        <p className="mt-1 font-mono text-xs text-[var(--gv-ink-3)] min-[900px]:hidden">↑ {video.views}</p>
+      </div>
+      <span className="hidden font-mono text-xs text-[var(--gv-ink-3)] min-[900px]:block">↑ {video.views}</span>
+      <p className="hidden min-w-0 truncate text-sm italic text-[var(--gv-ink-3)] min-[900px]:block">
+        &ldquo;{video.text || "—"}&rdquo;
+      </p>
+      <span className="hidden font-mono text-[11px] text-[var(--faint)] min-[900px]:block">
+        {video.durationLabel ?? "—"}
+      </span>
+      <span className="hidden text-[11px] font-medium text-[var(--gv-pos-deep)] min-[900px]:block">Phân tích →</span>
+    </button>
   );
 }
 
@@ -430,6 +594,7 @@ export default function ExploreScreen() {
   const searchQuery = searchParams.get("q") ?? "";
   const nicheParam = parsePositiveInt(searchParams.get("niche"));
   const nicheExplicitClear = searchParams.get("niche") === "0";
+  const viewMode: "grid" | "list" = searchParams.get("view") === "list" ? "list" : "grid";
 
   const setFilter = useCallback(
     (patch: Record<string, string | null>) => {
@@ -535,11 +700,18 @@ export default function ExploreScreen() {
     });
   }, [breakoutVideosRaw]);
 
+  const nicheIntelRecord = nicheIntel as Record<string, unknown> | null | undefined;
+
   const lowVideoCorpus = Boolean(
     selectedNicheId &&
       !nicheIntelLoading &&
       !nicheIntelQueryError &&
-      (nicheIntel == null || (nicheIntel.video_count_7d ?? 0) < 10),
+      (nicheIntel == null || nicheCorpusSampleCount(nicheIntelRecord) < 10),
+  );
+
+  const formatDistTop = useMemo(
+    () => topJsonbCounts(nicheIntelRecord?.format_distribution, 6),
+    [nicheIntelRecord],
   );
 
   const newestComputedAt = hookData?.[0]?.computed_at ?? null;
@@ -594,11 +766,12 @@ export default function ExploreScreen() {
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
   const videos = useMemo(() => corpusRows.map(corpusRowToExploreVideo), [corpusRows]);
 
-  const exploreTitle = isPending
-    ? "Khám phá video"
+  const exploreTitleBase = "Khám phá";
+  const exploreTitleCount = isPending
+    ? null
     : corpusCount != null
-      ? `Khám phá ${corpusCount.toLocaleString("vi-VN")} video`
-      : `Khám phá ${videos.length}${hasNextPage ? "+" : ""} video`;
+      ? corpusCount.toLocaleString("vi-VN")
+      : `${videos.length}${hasNextPage ? "+" : ""}`;
 
   const fetchNextPageStable = useCallback(() => {
     void fetchNextPage();
@@ -642,6 +815,10 @@ export default function ExploreScreen() {
   }, [selectedNicheId]);
 
   useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  }, [viewMode]);
+
+  useEffect(() => {
     if (!showFormatMenu) return;
     const handler = (e: MouseEvent) => {
       if (formatMenuRef.current && !formatMenuRef.current.contains(e.target as Node)) {
@@ -663,27 +840,43 @@ export default function ExploreScreen() {
     return () => document.removeEventListener("mousedown", handler);
   }, [showNicheMenu]);
 
+  const hasPipelineFormats = risingFormats.length > 0 || fallingFormats.length > 0;
+
   return (
     <AppLayout active="trends" enableMobileSidebar>
-      <div className="flex-1 overflow-hidden flex min-h-0">
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-w-0" style={{ scrollbarWidth: "thin" }}>
-          {/* ── Zone 1: Discovery (always visible) ─────────────────────── */}
-          <section className="px-7 pt-14 md:pt-6 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden min-[1100px]:flex-row">
+        <div ref={scrollContainerRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto border-[var(--border)] min-[1100px]:border-r" style={{ scrollbarWidth: "thin" }}>
+          {/* ── Zone 1: Discovery + hero (sounds → rail ≥1100px) ───────── */}
+          <section className="px-7 pb-4 pt-14 md:pt-6">
+            {selectedNicheId !== null && nicheIntel && !nicheIntelLoading && !nicheIntelQueryError ? (
+              <TrendsHeroCompact
+                nicheName={selectedNicheName}
+                nicheIntel={nicheIntelRecord}
+                corpusCount={corpusCount}
+              />
+            ) : null}
             <TrendingSection nicheId={selectedNicheId} />
-            <TrendingSoundsSection nicheId={selectedNicheId} />
+            <TrendingSoundsSection nicheId={selectedNicheId} className="mb-4 min-[1100px]:hidden" />
             {selectedNicheId !== null && lowVideoCorpus ? (
               <p className="mb-4 text-xs text-[var(--muted)]">
-                Niche này mới có {nicheIntel?.video_count_7d ?? 0} video 7 ngày — dữ liệu phân tích chưa đầy đủ.
+                Niche này mới có {nicheCorpusSampleCount(nicheIntelRecord)} video trong mẫu phân tích — dữ liệu chưa đầy đủ.
               </p>
             ) : null}
           </section>
 
           <section className="px-7 pb-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-extrabold text-[var(--ink)]">{exploreTitle}</h2>
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <h2 className="tight text-[26px] font-extrabold leading-none tracking-tight text-[var(--ink)]">
+                {exploreTitleBase}
+                {exploreTitleCount != null ? (
+                  <span className="ml-2 align-middle font-mono text-[13px] font-semibold text-[var(--faint)]">
+                    {exploreTitleCount}
+                  </span>
+                ) : null}
+              </h2>
             </div>
 
-            <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
               <div ref={nicheMenuRef} className="relative">
                 <FilterChip
                   label={selectedNicheName ?? "Niche"}
@@ -707,16 +900,14 @@ export default function ExploreScreen() {
                   </div>
                 ) : null}
               </div>
-              <div className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-2 rounded-full border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--gv-ink)] transition-colors duration-[120ms]">
-                <Search className="w-3.5 h-3.5 text-[var(--faint)] flex-shrink-0" strokeWidth={1.8} />
+              <div className="flex min-h-[44px] min-w-[200px] flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 transition-colors duration-[120ms] hover:border-[var(--gv-ink)] min-[768px]:w-[260px] min-[768px]:flex-none">
+                <Search className="h-3.5 w-3.5 flex-shrink-0 text-[var(--faint)]" strokeWidth={1.8} />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setFilter({ q: e.target.value || null })}
-                  // text-[16px] on mobile prevents iOS zoom-on-focus; md:text-xs
-                  // keeps the compact density on tablet+ where no zoom risk.
-                  className="flex-1 text-[16px] md:text-xs bg-transparent border-none outline-none text-[var(--ink)] placeholder:text-[var(--faint)]"
-                  placeholder="Tìm video..."
+                  className="min-w-0 flex-1 border-none bg-transparent text-[16px] text-[var(--ink)] outline-none placeholder:text-[var(--faint)] md:text-xs"
+                  placeholder="Tìm video, hook, creator…"
                   aria-label="Tìm video"
                 />
               </div>
@@ -782,6 +973,30 @@ export default function ExploreScreen() {
                   />
                 ))}
               </div>
+              <div
+                className="ml-auto flex shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface-alt)] p-0.5"
+                role="group"
+                aria-label="Chế độ xem"
+              >
+                <button
+                  type="button"
+                  aria-pressed={viewMode === "grid"}
+                  onClick={() => setFilter({ view: null })}
+                  className={`flex h-6 w-7 items-center justify-center rounded-full transition-colors ${viewMode === "grid" ? "bg-[var(--ink)] text-[var(--surface)]" : "text-[var(--gv-ink-3)]"}`}
+                  aria-label="Lưới"
+                >
+                  <LayoutGrid className="h-3 w-3" strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={viewMode === "list"}
+                  onClick={() => setFilter({ view: "list" })}
+                  className={`flex h-6 w-7 items-center justify-center rounded-full transition-colors ${viewMode === "list" ? "bg-[var(--ink)] text-[var(--surface)]" : "text-[var(--gv-ink-3)]"}`}
+                  aria-label="Danh sách"
+                >
+                  <List className="h-3 w-3" strokeWidth={2} />
+                </button>
+              </div>
             </div>
 
             {isPending ? <ExploreGridSkeleton /> : null}
@@ -805,8 +1020,11 @@ export default function ExploreScreen() {
               </div>
             ) : null}
 
-            {!isPending && !isError && videos.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+            {!isPending && !isError && videos.length > 0 && viewMode === "grid" ? (
+              <div
+                className="grid gap-3.5"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}
+              >
                 {videos.map((video, idx) => (
                   <motion.div
                     key={video.id}
@@ -817,11 +1035,27 @@ export default function ExploreScreen() {
                     <VideoCard
                       video={video}
                       allVideos={videos}
+                      nicheLabel={selectedNicheName}
                       onNavigate={() =>
                         navigate(`/app/video?video_id=${encodeURIComponent(video.id)}`)
                       }
                     />
                   </motion.div>
+                ))}
+              </div>
+            ) : null}
+
+            {!isPending && !isError && videos.length > 0 && viewMode === "list" ? (
+              <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+                {videos.map((video) => (
+                  <ExploreVideoListRow
+                    key={video.id}
+                    video={video}
+                    nicheLabel={selectedNicheName}
+                    onNavigate={() =>
+                      navigate(`/app/video?video_id=${encodeURIComponent(video.id)}`)
+                    }
+                  />
                 ))}
               </div>
             ) : null}
@@ -874,19 +1108,17 @@ export default function ExploreScreen() {
                         const pct = Math.min(100, Math.round((er / maxEr) * 100));
                         const isTop = i === 0;
                         const mult = maxEr > 0 ? (er / maxEr).toFixed(2) : "—";
-                        const barColor = isTop
-                          ? "var(--gv-accent)"
-                          : `rgba(100, 100, 120, ${Math.max(0.10, 0.65 - i * 0.08)})`;
+                        const fadeOpacity = isTop ? 1 : Math.max(0.28, 0.78 - i * 0.09);
                         return (
                           <div key={h.id ?? i} className="flex flex-col gap-1">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs text-[var(--ink)] font-medium truncate max-w-[70%]">
+                              <span className="max-w-[70%] truncate text-xs font-medium text-[var(--ink)]">
                                 {String(h.hook_type ?? "").replace(/_/g, " ")}
                               </span>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className="text-xs font-mono text-[var(--gv-ink-3)]">{(er * 100).toFixed(1)}%</span>
+                              <div className="flex flex-shrink-0 items-center gap-2">
+                                <span className="font-mono text-xs text-[var(--gv-ink-3)]">{(er * 100).toFixed(1)}%</span>
                                 <motion.span
-                                  className="text-[10px] font-semibold text-[var(--gv-accent)] tabular-nums"
+                                  className="text-[10px] font-semibold tabular-nums text-[var(--gv-accent)]"
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
                                   transition={{ duration: 0.25, delay: i * 0.1 + 0.35, ease: [0.16, 1, 0.3, 1] }}
@@ -895,10 +1127,10 @@ export default function ExploreScreen() {
                                 </motion.span>
                               </div>
                             </div>
-                            <div className="relative h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                            <div className="relative h-2 overflow-hidden rounded-full bg-[var(--border)]">
                               <motion.div
-                                className="absolute left-0 top-0 h-full rounded-full"
-                                style={{ background: barColor }}
+                                className={`absolute left-0 top-0 h-full rounded-full ${isTop ? "bg-[var(--gv-accent)]" : "bg-[var(--gv-ink-3)]"}`}
+                                style={isTop ? undefined : { opacity: fadeOpacity }}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${pct}%` }}
                                 transition={{ duration: 0.4, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
@@ -910,50 +1142,13 @@ export default function ExploreScreen() {
                     </div>
                   </section>
                 ) : null}
-
-                {(risingFormats.length > 0 || fallingFormats.length > 0) && !lowVideoCorpus ? (
-                  <section className="mt-4 pt-4 border-t border-[var(--border)] -mx-7 px-7">
-                    {risingFormats.length > 0 ? (
-                      <>
-                        <h2 className="font-extrabold text-[var(--ink)] mb-3">Format đang lên</h2>
-                        <div className="flex flex-col gap-2">
-                          {risingFormats.map((f, i) => (
-                            <div key={f.id ?? `r-${i}`} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
-                              <span className="text-sm text-[var(--ink)]">{f.format_type}</span>
-                              <span className="text-xs font-semibold" style={{ color: "var(--success, #22c55e)" }}>
-                                +{((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    ) : null}
-                    {fallingFormats.length > 0 ? (
-                      <>
-                        <h2 className={`font-extrabold text-[var(--ink)] mb-3 ${risingFormats.length > 0 ? "mt-4" : ""}`}>
-                          Format đang giảm
-                        </h2>
-                        <div className="flex flex-col gap-2">
-                          {fallingFormats.map((f, i) => (
-                            <div key={f.id ?? `f-${i}`} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
-                              <span className="text-sm text-[var(--gv-ink-3)]">{f.format_type}</span>
-                              <span className="text-xs font-semibold" style={{ color: "var(--danger, #ef4444)" }}>
-                                {((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    ) : null}
-                  </section>
-                ) : null}
               </>
             )}
           </section>
         </div>
 
         <aside
-          className="hidden lg:flex flex-col w-[290px] flex-shrink-0 border-l border-[var(--border)] bg-[var(--surface)] overflow-y-auto"
+          className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--border)] bg-[var(--surface)] min-[1100px]:w-[320px] min-[1100px]:border-l min-[1100px]:border-t-0"
           style={{ scrollbarWidth: "thin" }}
         >
           <div className="px-4 pt-5 pb-3 border-b border-[var(--border)]">
@@ -972,7 +1167,7 @@ export default function ExploreScreen() {
           <div className="flex-1 px-4 pb-6">
             <div className="mt-4 mb-1">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+                <div className="h-2 w-2 shrink-0 rounded-full bg-[var(--gv-accent)]" />
                 <span className="text-xs font-bold text-[var(--ink)]">Breakout tuần này</span>
               </div>
             </div>
@@ -1007,7 +1202,7 @@ export default function ExploreScreen() {
 
             <div className="mt-5 mb-1">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+                <div className="h-2 w-2 shrink-0 rounded-full bg-[var(--gv-accent)]" />
                 <span className="text-xs font-bold text-[var(--ink)]">Đang viral</span>
               </div>
             </div>
@@ -1029,6 +1224,74 @@ export default function ExploreScreen() {
             ) : (
               <p className="text-[11px] text-[var(--faint)]">Chưa có video viral trong niche này.</p>
             )}
+
+            <div className="hidden min-[1100px]:block">
+              <RailBlock kicker="Âm thanh đang lên" title="Sounds">
+                <TrendingSoundsSection nicheId={selectedNicheId} className="mb-0" />
+              </RailBlock>
+            </div>
+
+            {selectedNicheId !== null ? (
+              <RailBlock kicker="Hình thức hot" title="Format">
+                {hasPipelineFormats && !lowVideoCorpus ? (
+                  <>
+                    {risingFormats.length > 0 ? (
+                      <div className="mb-4 flex flex-col gap-0">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                          Đang lên
+                        </p>
+                        {risingFormats.map((f, i) => (
+                          <div
+                            key={f.id ?? `rr-${i}`}
+                            className="flex items-center justify-between border-b border-dashed border-[var(--border)] py-2.5 last:border-b-0"
+                          >
+                            <span className="text-sm text-[var(--ink)]">{f.format_type}</span>
+                            <span className="text-xs font-semibold text-[var(--success)]">
+                              +{((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {fallingFormats.length > 0 ? (
+                      <div className="flex flex-col gap-0">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                          Đang giảm
+                        </p>
+                        {fallingFormats.map((f, i) => (
+                          <div
+                            key={f.id ?? `fr-${i}`}
+                            className="flex items-center justify-between border-b border-dashed border-[var(--border)] py-2.5 last:border-b-0"
+                          >
+                            <span className="text-sm text-[var(--gv-ink-3)]">{f.format_type}</span>
+                            <span className="text-xs font-semibold text-[var(--danger)]">
+                              {((Number(f.engagement_trend) || 0) * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
+                ) : formatDistTop.length > 0 ? (
+                  <div className="flex flex-col gap-0">
+                    <p className="mb-2 text-xs text-[var(--muted)]">Top format trong mẫu 30 ngày</p>
+                    {formatDistTop.map((row, i) => (
+                      <div
+                        key={row.key}
+                        className="flex items-center justify-between border-b border-dashed border-[var(--border)] py-2.5 last:border-b-0"
+                      >
+                        <span className="text-sm capitalize text-[var(--ink)]">
+                          {row.key.replace(/_/g, " ")}
+                        </span>
+                        <span className="font-mono text-xs text-[var(--gv-ink-3)]">{row.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[var(--faint)]">Chưa có dữ liệu format cho ngách này.</p>
+                )}
+              </RailBlock>
+            ) : null}
           </div>
         </aside>
       </div>
