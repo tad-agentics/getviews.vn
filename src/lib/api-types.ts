@@ -189,6 +189,11 @@ export interface ChannelAnalyzeResponse {
   computed_at?: string | null;
   /** True when served from fresh ``channel_formulas`` row (< 7d) without Gemini. */
   cache_hit?: boolean;
+  /**
+   * D.1.4 — 7×8 video-count matrix keyed by (weekday=Mon..Sun, hour-bucket).
+   * Empty array signals "insufficient temporal data" — hide the panel.
+   */
+  posting_heatmap?: number[][];
 }
 
 // ---------------------------------------------------------------------------

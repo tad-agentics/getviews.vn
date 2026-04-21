@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -45,6 +45,9 @@ class LiveSignals:
     reach_lift_delta: str = "—"
     optimal_band: str = "—"
     duration_sample_n: int = 0
+    # D.1.4 — 7×8 video-count matrix keyed by (weekday=Mon..Sun, hour-bucket).
+    # Empty list means "insufficient temporal data" — frontend hides the panel.
+    posting_heatmap: list[list[int]] = field(default_factory=list)
 
 
 class InsufficientCreditsError(Exception):
@@ -320,6 +323,46 @@ def _compute_posting_cadence_time_peak(rows: list[dict[str, Any]]) -> tuple[str,
     return cad, time_lbl, peak_hr
 
 
+# D.1.4 — hour-bucket map matches `HOURS_VN` in TimingHeatmap.tsx:
+# [6–9, 9–12, 12–15, 15–18, 18–20, 20–22, 22–24, 0–3]. Hours 3–5 are
+# intentionally dropped (posting-empty dead zone on TikTok VN).
+_POSTING_HEATMAP_HOUR_BUCKETS: dict[int, int] = {
+    6: 0, 7: 0, 8: 0,
+    9: 1, 10: 1, 11: 1,
+    12: 2, 13: 2, 14: 2,
+    15: 3, 16: 3, 17: 3,
+    18: 4, 19: 4,
+    20: 5, 21: 5,
+    22: 6, 23: 6,
+    0: 7, 1: 7, 2: 7,
+}
+_POSTING_HEATMAP_MIN_ROWS = 3
+
+
+def _compute_posting_heatmap(rows: list[dict[str, Any]]) -> list[list[int]]:
+    """7×8 video-count matrix keyed by (weekday=Mon..Sun, hour-bucket).
+
+    Returns ``[]`` when fewer than 3 rows parse to a valid timestamp — the
+    frontend treats an empty grid as "insufficient temporal data" and hides
+    the panel so we don't over-read a tiny sample.
+    """
+    parsed: list[datetime] = []
+    for r in rows:
+        dt = _parse_row_created_at(r)
+        if dt is not None:
+            parsed.append(dt)
+    if len(parsed) < _POSTING_HEATMAP_MIN_ROWS:
+        return []
+    grid: list[list[int]] = [[0] * 8 for _ in range(7)]
+    for dt in parsed:
+        local = dt.astimezone(timezone.utc)
+        hour_bucket = _POSTING_HEATMAP_HOUR_BUCKETS.get(local.hour)
+        if hour_bucket is None:
+            continue
+        grid[local.weekday()][hour_bucket] += 1
+    return grid
+
+
 def _compute_views_mom_delta(rows: list[dict[str, Any]]) -> str:
     now = datetime.now(timezone.utc)
     t30 = now - timedelta(days=30)
@@ -395,6 +438,7 @@ def compute_live_signals(
         reach_lift_delta=_compute_reach_lift_delta(temporal, peak_h),
         optimal_band=band,
         duration_sample_n=n_dur,
+        posting_heatmap=_compute_posting_heatmap(temporal),
     )
 
 
@@ -563,6 +607,7 @@ def _assemble_response(
             duration_sample_n=dur_n,
         ),
         "top_videos": _build_top_videos(top_rows),
+        "posting_heatmap": list(live.posting_heatmap),
     }
     if computed_at is not None:
         out["computed_at"] = computed_at
