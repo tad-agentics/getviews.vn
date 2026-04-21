@@ -1,6 +1,6 @@
 """P1-7: Breakout multiplier computation — weekly batch analytics.
 
-Two-pass computation:
+Three-pass computation:
   Pass 1 — Creator velocity:
     For each (creator_handle, niche_id) pair in video_corpus:
       avg_views = AVG(views) over all corpus videos for that creator
@@ -12,8 +12,15 @@ Two-pass computation:
       breakout_multiplier = video.views / creator_velocity.avg_views
     Update video_corpus.breakout_multiplier WHERE creator_velocity row exists.
 
+  Pass 3 — View velocity (D.1.5):
+    For each (creator_handle, niche_id), compare recent-30d mean views vs
+    prior-30d mean views (both windowed on video_corpus.created_at — the
+    TikTok post timestamp, not indexed_at). Needs ≥ 2 videos in each
+    window; else leave the column NULL so kol_browse falls back to the
+    avg-views proxy.
+
 Designed to run weekly (Sunday night) after nightly corpus ingest completes.
-Safe to run multiple times — both operations are idempotent (upsert / update).
+Safe to run multiple times — all operations are idempotent (upsert / update).
 """
 
 from __future__ import annotations
@@ -46,7 +53,17 @@ def _service_client() -> Any:
 class AnalyticsResult:
     creators_updated: int = 0
     videos_updated: int = 0
+    view_velocity_updated: int = 0
     errors: list[str] = field(default_factory=list)
+
+
+# D.1.5 — view-velocity window bounds. The UI renders the fraction as a
+# signed percentage; the clip prevents a 1-view prior window from producing
+# a 1000× "growth" spike that would mislead the TĂNG 30D column.
+_VIEW_VELOCITY_WINDOW_DAYS = 30
+_VIEW_VELOCITY_MIN_VIDEOS_PER_WINDOW = 2
+_VIEW_VELOCITY_CLIP_MAX = 2.0
+_VIEW_VELOCITY_CLIP_MIN = -0.99
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +223,130 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Pass 3 — View velocity (30d recent vs prior 30d, D.1.5)
+# ---------------------------------------------------------------------------
+
+
+def _parse_ts(raw: Any) -> datetime | None:
+    """Accept ISO strings / datetimes — returns UTC-aware datetime or None."""
+    if raw is None:
+        return None
+    if isinstance(raw, datetime):
+        return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+    try:
+        s = str(raw).strip()
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def _clip(x: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, x))
+
+
+def _compute_view_velocity_sync(client: Any) -> list[dict[str, Any]]:
+    """Per-creator recent-30d mean views vs prior-30d mean views.
+
+    Uses ``video_corpus.created_at`` (the TikTok post timestamp) — NOT
+    ``indexed_at`` — so late-ingested older videos don't pollute the
+    recent window. Requires ``>= _VIEW_VELOCITY_MIN_VIDEOS_PER_WINDOW``
+    videos in each window; others are skipped (column stays NULL).
+    """
+    now = datetime.now(timezone.utc)
+    t_recent_start = now - timedelta(days=_VIEW_VELOCITY_WINDOW_DAYS)
+    t_prior_start = now - timedelta(days=2 * _VIEW_VELOCITY_WINDOW_DAYS)
+
+    # Pull 60 days of corpus rows in a single select — cheaper than two.
+    rows = (
+        client.table("video_corpus")
+        .select("creator_handle, niche_id, views, created_at")
+        .gt("views", 0)
+        .gte("created_at", t_prior_start.isoformat())
+        .execute()
+    )
+    data = rows.data or []
+
+    # group by (handle, niche) → (recent_views[], prior_views[])
+    buckets: dict[tuple[str, int], tuple[list[int], list[int]]] = {}
+    for row in data:
+        handle = row.get("creator_handle")
+        niche_id = row.get("niche_id")
+        views = row.get("views")
+        dt = _parse_ts(row.get("created_at"))
+        if handle is None or niche_id is None or views is None or dt is None:
+            continue
+        key = (str(handle), int(niche_id))
+        slot = buckets.setdefault(key, ([], []))
+        v = int(views)
+        if dt >= t_recent_start:
+            slot[0].append(v)
+        elif dt >= t_prior_start:
+            slot[1].append(v)
+
+    out: list[dict[str, Any]] = []
+    for (handle, niche_id), (recent, prior) in buckets.items():
+        if len(recent) < _VIEW_VELOCITY_MIN_VIDEOS_PER_WINDOW:
+            continue
+        if len(prior) < _VIEW_VELOCITY_MIN_VIDEOS_PER_WINDOW:
+            continue
+        recent_mean = sum(recent) / len(recent)
+        prior_mean = sum(prior) / len(prior)
+        if prior_mean <= 0:
+            continue
+        pct = (recent_mean - prior_mean) / prior_mean
+        pct = _clip(pct, _VIEW_VELOCITY_CLIP_MIN, _VIEW_VELOCITY_CLIP_MAX)
+        out.append(
+            {
+                "creator_handle": handle,
+                "niche_id": niche_id,
+                "view_velocity_30d_pct": round(pct, 4),
+            }
+        )
+    return out
+
+
+def _update_view_velocity_sync(client: Any, rows: list[dict[str, Any]]) -> int:
+    """UPDATE creator_velocity rows with the freshly computed view velocity.
+
+    Uses UPDATE + per-row eq filters so we only touch existing rows (a
+    creator with < 2 videos in the 180d velocity window won't have a
+    creator_velocity row to match — skipping those silently is correct).
+    """
+    if not rows:
+        return 0
+    now_iso = datetime.now(timezone.utc).isoformat()
+    updated = 0
+    for r in rows:
+        try:
+            (
+                client.table("creator_velocity")
+                .update(
+                    {
+                        "view_velocity_30d_pct": r["view_velocity_30d_pct"],
+                        "view_velocity_computed_at": now_iso,
+                    }
+                )
+                .eq("creator_handle", r["creator_handle"])
+                .eq("niche_id", r["niche_id"])
+                .execute()
+            )
+            updated += 1
+        except Exception as exc:
+            logger.warning(
+                "[analytics] view_velocity update failed handle=%s niche=%s: %s",
+                r["creator_handle"],
+                r["niche_id"],
+                exc,
+            )
+    return updated
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
@@ -253,5 +394,22 @@ async def run_analytics(client: Any | None = None) -> AnalyticsResult:
     except Exception as exc:
         logger.error("[analytics] Pass 2 failed: %s", exc)
         result.errors.append(f"breakout_multiplier: {exc}")
+
+    try:
+        logger.info("[analytics] Pass 3 — computing view velocity (30d)...")
+        velocity_rows = await loop.run_in_executor(
+            None, _compute_view_velocity_sync, client
+        )
+        logger.info("[analytics] %d view-velocity rows computed", len(velocity_rows))
+        result.view_velocity_updated = await loop.run_in_executor(
+            None, _update_view_velocity_sync, client, velocity_rows
+        )
+        logger.info(
+            "[analytics] %d creator_velocity rows updated with view_velocity_30d_pct",
+            result.view_velocity_updated,
+        )
+    except Exception as exc:
+        logger.error("[analytics] Pass 3 failed: %s", exc)
+        result.errors.append(f"view_velocity: {exc}")
 
     return result

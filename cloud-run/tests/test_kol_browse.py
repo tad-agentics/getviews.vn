@@ -1,7 +1,10 @@
 """B.2.1 — match score helpers + /kol/browse assembly (no network).
 
-D.1.3 additions at the bottom: match_score persistence contract
+D.1.3 additions: match_score persistence contract
 (cache hit / miss recompute / trigger-invalidated null).
+
+D.1.5 additions at the bottom: real view-velocity read path +
+`[kol-growth]` source logging.
 """
 
 from __future__ import annotations
@@ -315,3 +318,189 @@ def test_trigger_invalidated_rows_are_filtered_and_recomputed(monkeypatch) -> No
     assert _is_fresh(now - timedelta(days=1)) is True
     assert _is_fresh(now - timedelta(days=8)) is False
     assert _is_fresh(None) is False
+
+
+# ── D.1.5 — real 30d view-velocity wiring ─────────────────────────────────
+
+
+def test_resolve_growth_display_pct_uses_real_when_fresh(caplog) -> None:
+    """Cached view_velocity < 7d old beats the avg-views proxy."""
+    import logging
+
+    from getviews_pipeline.kol_browse import _resolve_growth_display_pct
+
+    now = datetime.now(tz=timezone.utc)
+    fresh_ts = now - timedelta(days=2)
+    with caplog.at_level(logging.INFO, logger="getviews_pipeline.kol_browse"):
+        pct = _resolve_growth_display_pct(
+            handle="sammie",
+            avg_views=50_000.0,
+            niche_avg_views=[10_000.0, 30_000.0, 50_000.0, 100_000.0],
+            cached_view_velocity=(0.37, fresh_ts),
+            now=now,
+        )
+    assert pct == 0.37
+    assert any(
+        "[kol-growth]" in rec.message and "source=real" in rec.message and "sammie" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_resolve_growth_display_pct_falls_back_on_missing_view_velocity(caplog) -> None:
+    """Null cache entry → proxy + `source=proxy reason=missing_view_velocity` log."""
+    import logging
+
+    from getviews_pipeline.kol_browse import _resolve_growth_display_pct
+
+    now = datetime.now(tz=timezone.utc)
+    niche_avgs = [10_000.0, 30_000.0, 50_000.0, 100_000.0]
+    with caplog.at_level(logging.INFO, logger="getviews_pipeline.kol_browse"):
+        pct = _resolve_growth_display_pct(
+            handle="new_creator",
+            avg_views=50_000.0,
+            niche_avg_views=niche_avgs,
+            cached_view_velocity=None,
+            now=now,
+        )
+    # Proxy output lives in ±22% band.
+    assert -0.22 <= pct <= 0.22
+    assert any(
+        "[kol-growth]" in rec.message
+        and "source=proxy" in rec.message
+        and "missing_view_velocity" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_resolve_growth_display_pct_falls_back_when_stale(caplog) -> None:
+    """Cache entry > VIEW_VELOCITY_TTL → proxy + `reason=stale_view_velocity` log."""
+    import logging
+
+    from getviews_pipeline.kol_browse import _resolve_growth_display_pct
+
+    now = datetime.now(tz=timezone.utc)
+    stale_ts = now - timedelta(days=14)
+    with caplog.at_level(logging.INFO, logger="getviews_pipeline.kol_browse"):
+        pct = _resolve_growth_display_pct(
+            handle="stale_creator",
+            avg_views=50_000.0,
+            niche_avg_views=[10_000.0, 50_000.0, 100_000.0],
+            cached_view_velocity=(0.44, stale_ts),
+            now=now,
+        )
+    # Proxy math — not the cached 0.44.
+    assert pct != 0.44
+    assert any(
+        "[kol-growth]" in rec.message
+        and "source=proxy" in rec.message
+        and "stale_view_velocity" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_fetch_view_velocity_map_skips_null_rows() -> None:
+    """A creator_velocity row with NULL view_velocity is skipped entirely."""
+    from getviews_pipeline.kol_browse import _fetch_view_velocity_map
+
+    cv_rows = [
+        {
+            "creator_handle": "fresh",
+            "view_velocity_30d_pct": 0.18,
+            "view_velocity_computed_at": datetime.now(tz=timezone.utc).isoformat(),
+        },
+        {
+            "creator_handle": "nulled",
+            "view_velocity_30d_pct": None,
+            "view_velocity_computed_at": None,
+        },
+    ]
+    sb = MagicMock()
+    cv_select = sb.table.return_value.select.return_value.eq.return_value
+    cv_select.execute.return_value = MagicMock(data=cv_rows)
+
+    out = _fetch_view_velocity_map(sb, niche_id=3)
+    assert "fresh" in out
+    assert out["fresh"][0] == pytest.approx(0.18)
+    assert out["fresh"][1] is not None
+    assert "nulled" not in out
+
+
+# ── D.1.5 — batch_analytics Pass 3 view-velocity compute ──────────────────
+
+
+def test_compute_view_velocity_sync_recent_vs_prior_windows() -> None:
+    """Per-creator recent-30d vs prior-30d mean views → fraction."""
+    from getviews_pipeline.batch_analytics import _compute_view_velocity_sync
+
+    now = datetime.now(tz=timezone.utc)
+
+    def at(days_ago: int) -> str:
+        return (now - timedelta(days=days_ago)).isoformat()
+
+    corpus = [
+        # alice — recent mean 2000, prior mean 1000 → +1.0 (clipped? no, cap = 2.0)
+        {"creator_handle": "alice", "niche_id": 1, "views": 1800, "created_at": at(5)},
+        {"creator_handle": "alice", "niche_id": 1, "views": 2200, "created_at": at(25)},
+        {"creator_handle": "alice", "niche_id": 1, "views": 900, "created_at": at(40)},
+        {"creator_handle": "alice", "niche_id": 1, "views": 1100, "created_at": at(55)},
+        # bob — only 1 video in recent window → skipped
+        {"creator_handle": "bob", "niche_id": 1, "views": 5000, "created_at": at(5)},
+        {"creator_handle": "bob", "niche_id": 1, "views": 1000, "created_at": at(45)},
+        {"creator_handle": "bob", "niche_id": 1, "views": 1000, "created_at": at(50)},
+    ]
+    sb = MagicMock()
+    corpus_chain = sb.table.return_value.select.return_value.gt.return_value.gte.return_value
+    corpus_chain.execute.return_value = MagicMock(data=corpus)
+
+    out = _compute_view_velocity_sync(sb)
+    handles = {row["creator_handle"]: row for row in out}
+    assert "alice" in handles
+    assert "bob" not in handles  # insufficient recent-window videos
+    alice_pct = handles["alice"]["view_velocity_30d_pct"]
+    assert alice_pct == pytest.approx(1.0, abs=0.01)
+
+
+def test_compute_view_velocity_sync_skips_zero_prior_mean() -> None:
+    """Prior window with zero total views → skip (division guard)."""
+    from getviews_pipeline.batch_analytics import _compute_view_velocity_sync
+
+    now = datetime.now(tz=timezone.utc)
+
+    def at(days_ago: int) -> str:
+        return (now - timedelta(days=days_ago)).isoformat()
+
+    # All prior-window rows filtered out by `.gt("views", 0)` in the real
+    # query; simulate that by only including recent-window rows.
+    corpus = [
+        {"creator_handle": "cold", "niche_id": 2, "views": 500, "created_at": at(5)},
+        {"creator_handle": "cold", "niche_id": 2, "views": 600, "created_at": at(10)},
+    ]
+    sb = MagicMock()
+    corpus_chain = sb.table.return_value.select.return_value.gt.return_value.gte.return_value
+    corpus_chain.execute.return_value = MagicMock(data=corpus)
+    out = _compute_view_velocity_sync(sb)
+    # cold has < 2 videos in the prior window → skipped.
+    assert not any(r["creator_handle"] == "cold" for r in out)
+
+
+def test_compute_view_velocity_sync_clips_outlier_ratios() -> None:
+    """A tiny prior mean would produce a huge ratio — we clip to +2.0."""
+    from getviews_pipeline.batch_analytics import _compute_view_velocity_sync
+
+    now = datetime.now(tz=timezone.utc)
+
+    def at(days_ago: int) -> str:
+        return (now - timedelta(days=days_ago)).isoformat()
+
+    corpus = [
+        # recent mean 100_000, prior mean 100 → +999 (unclipped) → 2.0 (clipped)
+        {"creator_handle": "spiky", "niche_id": 1, "views": 80_000, "created_at": at(3)},
+        {"creator_handle": "spiky", "niche_id": 1, "views": 120_000, "created_at": at(15)},
+        {"creator_handle": "spiky", "niche_id": 1, "views": 80, "created_at": at(40)},
+        {"creator_handle": "spiky", "niche_id": 1, "views": 120, "created_at": at(55)},
+    ]
+    sb = MagicMock()
+    corpus_chain = sb.table.return_value.select.return_value.gt.return_value.gte.return_value
+    corpus_chain.execute.return_value = MagicMock(data=corpus)
+    out = _compute_view_velocity_sync(sb)
+    assert out[0]["view_velocity_30d_pct"] == pytest.approx(2.0)
