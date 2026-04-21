@@ -12,7 +12,6 @@ import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { logUsage } from "@/lib/logUsage";
 import { chatKeys } from "./useChatSession";
-import { type StepEvent } from "@/lib/types/sse-events";
 
 /**
  * D.5.2 SSE observability — three usage_events fired from the answer_turn
@@ -64,7 +63,6 @@ export interface StreamState<TPayload = unknown> {
   streamId: string | null;
   lastSeq: number;
   error: string | null;
-  stepEvents: StepEvent[];
   finalPayload: TPayload | null;
 }
 
@@ -117,7 +115,6 @@ export function useSessionStream<TPayload = unknown>(
     streamId: null,
     lastSeq: 0,
     error: null,
-    stepEvents: [],
     finalPayload: null,
   });
 
@@ -133,7 +130,6 @@ export function useSessionStream<TPayload = unknown>(
         streamId: args.resumeStreamId ?? null,
         lastSeq: args.lastSeq ?? 0,
         error: null,
-        stepEvents: [],
         finalPayload: null,
       });
 
@@ -350,7 +346,6 @@ export function useSessionStream<TPayload = unknown>(
       streamId: null,
       lastSeq: 0,
       error: null,
-      stepEvents: [],
       finalPayload: null,
     });
   }, []);
@@ -408,7 +403,6 @@ async function consumeAnswerSse<TPayload>(
               streamId: lastStreamId,
               lastSeq,
               error: token.error,
-              stepEvents: [],
               finalPayload: null,
             });
             void qc.invalidateQueries({ queryKey: ["profile"] });
@@ -421,7 +415,6 @@ async function consumeAnswerSse<TPayload>(
             streamId: lastStreamId,
             lastSeq,
             error: null,
-            stepEvents: [],
             finalPayload: payload,
           });
           void qc.invalidateQueries({ queryKey: ["profile"] });
@@ -439,7 +432,6 @@ async function consumeAnswerSse<TPayload>(
             ...s,
             status: "error",
             error: token.error ?? "stream_failed",
-            stepEvents: [],
           }));
           void qc.invalidateQueries({ queryKey: ["profile"] });
           return {
@@ -493,20 +485,10 @@ async function consumeChatSse<TPayload>(
           delta?: string;
           done?: boolean;
           error?: string;
-          step?: StepEvent;
           payload?: TPayload;
         };
         if (token.stream_id) lastStreamId = token.stream_id;
         if (typeof token.seq === "number") lastSeq = token.seq;
-        if (token.step) {
-          setState((s) => ({
-            ...s,
-            streamId: lastStreamId,
-            lastSeq,
-            stepEvents: [...s.stepEvents, token.step!],
-          }));
-          continue;
-        }
         if (token.payload !== undefined) payload = token.payload;
         if (token.delta) text += token.delta;
         if (token.done) {
@@ -517,7 +499,6 @@ async function consumeChatSse<TPayload>(
               streamId: lastStreamId,
               lastSeq,
               error: token.error,
-              stepEvents: [],
               finalPayload: null,
             });
             void qc.invalidateQueries({ queryKey: ["profile"] });
@@ -530,7 +511,6 @@ async function consumeChatSse<TPayload>(
             streamId: lastStreamId,
             lastSeq,
             error: null,
-            stepEvents: [],
             finalPayload: payload,
           });
           void qc.invalidateQueries({ queryKey: chatKeys.session(sessionId) });
@@ -550,7 +530,6 @@ async function consumeChatSse<TPayload>(
             ...s,
             status: "error",
             error: token.error ?? "stream_failed",
-            stepEvents: [],
           }));
           void qc.invalidateQueries({ queryKey: ["profile"] });
           return { ok: false, error: token.error ?? "stream_failed" };
