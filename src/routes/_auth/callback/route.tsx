@@ -44,7 +44,7 @@ export default function AuthCallback() {
   return (
     <div
       className="flex min-h-screen items-center justify-center"
-      style={{ background: "var(--background)", color: "var(--ink-soft)" }}
+      style={{ background: "var(--background)", color: "var(--gv-ink-3)" }}
     >
       <p>Đang xác thực...</p>
     </div>
