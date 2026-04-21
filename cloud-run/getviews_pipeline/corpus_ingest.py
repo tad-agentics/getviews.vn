@@ -1459,7 +1459,7 @@ async def run_batch_ingest(
         None, lambda: _load_hashtag_yields_all_sync(client)
     )
 
-    with ensemble.ed_batch_metering() as batch_id:
+    with ensemble.ed_batch_metering() as batch_id, ensemble.ed_call_site("corpus_ingest.batch"):
         # Process niches in batches of BATCH_CONCURRENCY to avoid overwhelming APIs
         for i in range(0, len(niches), BATCH_CONCURRENCY):
             batch = niches[i : i + BATCH_CONCURRENCY]

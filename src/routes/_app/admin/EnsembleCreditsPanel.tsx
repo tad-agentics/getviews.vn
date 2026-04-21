@@ -9,6 +9,7 @@
  */
 import { useMemo } from "react";
 import { useEnsembleCredits, type EnsembleDailyUnits } from "@/hooks/useEnsembleCredits";
+import { useEnsembleCallSites, type EnsembleCallSiteBucket } from "@/hooks/useEnsembleCallSites";
 
 function formatInt(n: number): string {
   return n.toLocaleString("vi-VN");
@@ -164,12 +165,107 @@ export function EnsembleCreditsPanel() {
         <UsageBarChart days={days} peak={peak} />
       </div>
 
+      <CallSiteBreakdown />
+
       <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
         As of {new Date(as_of).toLocaleString("vi-VN")} · {days.length} ngày (UTC)
         {monthly_budget == null
           ? " · đặt ED_MONTHLY_UNIT_BUDGET env để thấy runway"
           : ""}
       </p>
+    </div>
+  );
+}
+
+/**
+ * Per-call-site attribution block — mounted inside EnsembleCreditsPanel
+ * as a secondary section so "total spend" and "where did it go" live
+ * side by side. Shows the top call-sites by count over a 7-day window.
+ */
+function CallSiteBar({ bucket, peak, tone }: { bucket: EnsembleCallSiteBucket; peak: number; tone?: "accent" | "ink" }) {
+  const width = peak > 0 ? Math.max(2, Math.round((bucket.count / peak) * 100)) : 2;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-[180px] shrink-0 gv-mono text-[11px] text-[color:var(--gv-ink)] truncate" title={bucket.key}>
+        {bucket.key}
+      </span>
+      <div className="relative h-[6px] flex-1 overflow-hidden rounded-full" style={{ background: "var(--gv-rule-2)" }}>
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{
+            width: `${width}%`,
+            background: tone === "ink" ? "var(--gv-ink)" : "var(--gv-accent)",
+          }}
+        />
+      </div>
+      <span className="w-[96px] shrink-0 gv-mono text-[11px] tabular-nums text-[color:var(--gv-ink-3)]">
+        {bucket.count.toLocaleString("vi-VN")} ({bucket.pct}%)
+      </span>
+    </div>
+  );
+}
+
+function CallSiteBreakdown() {
+  const q = useEnsembleCallSites(7);
+
+  if (q.isLoading) {
+    return (
+      <div
+        role="status"
+        aria-label="Đang tải call-site breakdown"
+        className="h-24 animate-pulse rounded-[var(--gv-radius-md)] bg-[color:var(--gv-canvas-2)]"
+      />
+    );
+  }
+  if (q.isError || !q.data) {
+    // Fail soft — the main credits panel is still useful without the
+    // breakdown. Log to console but don't banner the user.
+    return null;
+  }
+
+  const { total, by_call_site, by_request_class } = q.data;
+
+  if (total === 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="gv-kicker gv-kicker--dot gv-kicker--muted">Attribution · 7 ngày</p>
+        <p className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
+          Chưa có call nào được ghi — `ensemble_calls` rỗng. Nếu migration vừa apply thì cần chạy một batch ingest hoặc một /video/analyze trước.
+        </p>
+      </div>
+    );
+  }
+
+  const peak = by_call_site[0]?.count ?? 0;
+  const topCallSites = by_call_site.slice(0, 5);
+  const tail = by_call_site.length - topCallSites.length;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between">
+        <p className="gv-kicker gv-kicker--dot gv-kicker--muted">Attribution · 7 ngày · top call sites</p>
+        <span className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+          {total.toLocaleString("vi-VN")} calls total
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3">
+        {topCallSites.map((b) => (
+          <CallSiteBar key={b.key} bucket={b} peak={peak} />
+        ))}
+        {tail > 0 ? (
+          <p className="mt-1 gv-mono text-[10px] text-[color:var(--gv-ink-4)]">+ {tail} call site khác</p>
+        ) : null}
+      </div>
+      {by_request_class.length > 0 ? (
+        <div className="flex flex-col gap-1.5 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3">
+          <p className="gv-mono text-[10px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+            Request class
+          </p>
+          {by_request_class.map((b) => (
+            <CallSiteBar key={b.key} bucket={b} peak={peak} tone="ink" />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

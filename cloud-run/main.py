@@ -1327,6 +1327,63 @@ async def admin_ensemble_credits(
     })
 
 
+@app.get("/admin/ensemble-call-sites")
+async def admin_ensemble_call_sites(
+    _admin: dict[str, Any] = Depends(require_admin),
+    days: int = Query(7, ge=1, le=30),
+) -> JSONResponse:
+    """Per-call-site breakdown of EnsembleData HTTP calls over the last N days.
+
+    Aggregation happens in Python because the volume is modest and a
+    Postgres GROUP BY here would still need a full scan of the time
+    window. If per-site rows grow past ~100k/week, move to a
+    materialized view refreshed nightly.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    try:
+        resp = (
+            get_service_client()
+            .table("ensemble_calls")
+            .select("endpoint, call_site, request_class")
+            .gte("created_at", since)
+            .execute()
+        )
+        rows = resp.data or []
+    except Exception as exc:
+        logger.exception("[admin/ensemble-call-sites] fetch failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    total = len(rows)
+
+    def _group(key: str) -> list[dict[str, Any]]:
+        counts: dict[str, int] = {}
+        for row in rows:
+            v = row.get(key) or "unknown"
+            counts[v] = counts.get(v, 0) + 1
+        out = [
+            {
+                "key": k,
+                "count": c,
+                "pct": round(c / total * 100, 1) if total > 0 else 0.0,
+            }
+            for k, c in counts.items()
+        ]
+        out.sort(key=lambda r: (-r["count"], r["key"]))
+        return out
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": datetime.now(timezone.utc).isoformat(),
+        "total": total,
+        "days": days,
+        "by_call_site": _group("call_site"),
+        "by_endpoint": _group("endpoint"),
+        "by_request_class": _group("request_class"),
+    })
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Phase D.6.4 · /admin/logs — Cloud Run log tail (feature-flagged)
 # ══════════════════════════════════════════════════════════════════════════
