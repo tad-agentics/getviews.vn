@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from getviews_pipeline.scene_intelligence_refresh import (
+    _is_transient_transport_error,
     aggregate_scene_intelligence,
     events_from_video_row,
 )
@@ -67,6 +68,29 @@ def test_aggregate_emits_row_when_threshold_met() -> None:
     assert r["corpus_avg_duration"] == 2.0
     assert len(r["reference_video_ids"]) == 3
     assert r["winner_overlay_style"] == "TEXT_TITLE"
+
+
+def test_is_transient_transport_error_classifies_stream_reset() -> None:
+    """h2 ``StreamReset`` and httpx read errors must be retry-eligible."""
+
+    class StreamReset(Exception):
+        pass
+
+    class ReadTimeout(Exception):
+        pass
+
+    class ValueError_(ValueError):
+        pass
+
+    assert _is_transient_transport_error(StreamReset("stream_id:35"))
+    assert _is_transient_transport_error(ReadTimeout("timed out"))
+    # Match-by-message fallback (supabase-py sometimes wraps as RuntimeError).
+    assert _is_transient_transport_error(
+        RuntimeError("<StreamReset stream_id:35, error_code:1, remote_reset:True>")
+    )
+    # Non-transient errors (bad schema, auth) must NOT retry.
+    assert not _is_transient_transport_error(ValueError_("bad query"))
+    assert not _is_transient_transport_error(Exception("column does not exist"))
 
 
 def test_overlay_samples_capped_at_five_across_winner_events() -> None:

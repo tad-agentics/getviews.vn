@@ -8,6 +8,7 @@ Run nightly (or on-demand) with service_role::
 from __future__ import annotations
 
 import logging
+import time
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta, timezone
@@ -18,7 +19,34 @@ logger = logging.getLogger(__name__)
 LOOKBACK_DAYS = 90
 MIN_VIDEOS_PER_SCENE_TYPE = 30
 WINNER_FRAC = 0.25
-PAGE_SIZE = 500
+# ``analysis_json`` is a multi-kB blob per row (scenes + overlays). A full
+# page of 500 used to trip Supabase's HTTP/2 stream reset on large responses.
+# 100 keeps each page comfortably under the transport ceiling.
+PAGE_SIZE = 100
+_FETCH_RETRIES = 4
+_FETCH_BACKOFF_S = (2, 4, 8, 16)
+
+
+def _is_transient_transport_error(exc: BaseException) -> bool:
+    """True when ``exc`` is an httpx/h2/gateway transport blip worth retrying."""
+    name = type(exc).__name__
+    if name in {
+        "StreamReset",
+        "RemoteProtocolError",
+        "ReadError",
+        "ReadTimeout",
+        "WriteError",
+        "ConnectError",
+        "ConnectTimeout",
+        "PoolTimeout",
+    }:
+        return True
+    # supabase-py wraps PostgREST errors in APIError; bad gateways (502/503/504)
+    # are worth another shot too.
+    msg = str(exc)
+    if "StreamReset" in msg or "remote_reset" in msg:
+        return True
+    return False
 
 
 def _norm_scene_type(raw: object) -> str:
@@ -169,26 +197,62 @@ def aggregate_scene_intelligence(
     return rows_out
 
 
+def _fetch_page_with_retry(client: Any, cutoff_iso: str, start: int) -> list[dict[str, Any]]:
+    """One paginated select, retrying on transient transport errors.
+
+    Returns the raw ``data`` list. Raises on non-transient or exhausted retries.
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(_FETCH_RETRIES):
+        try:
+            res = (
+                client.table("video_corpus")
+                .select("video_id, niche_id, views, analysis_json")
+                .gte("indexed_at", cutoff_iso)
+                .range(start, start + PAGE_SIZE - 1)
+                .execute()
+            )
+            return res.data or []
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            if not _is_transient_transport_error(exc):
+                raise
+            if attempt == _FETCH_RETRIES - 1:
+                break
+            delay = _FETCH_BACKOFF_S[min(attempt, len(_FETCH_BACKOFF_S) - 1)]
+            logger.warning(
+                "[scene_intelligence] transient fetch error at offset=%d "
+                "(attempt %d/%d), retrying in %ds: %s",
+                start, attempt + 1, _FETCH_RETRIES, delay, exc,
+            )
+            time.sleep(delay)
+    assert last_exc is not None
+    raise last_exc
+
+
 def _fetch_all_events_sync(client: Any, cutoff_iso: str) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     start = 0
+    pages = 0
     while True:
-        res = (
-            client.table("video_corpus")
-            .select("video_id, niche_id, views, analysis_json, content_type")
-            .gte("indexed_at", cutoff_iso)
-            .range(start, start + PAGE_SIZE - 1)
-            .execute()
-        )
-        chunk = res.data or []
+        chunk = _fetch_page_with_retry(client, cutoff_iso, start)
         for row in chunk:
             if not isinstance(row, dict):
                 continue
             events.extend(events_from_video_row(row))
+        pages += 1
+        if pages % 20 == 0:
+            logger.info(
+                "[scene_intelligence] fetched %d pages (%d rows so far), events=%d",
+                pages, start + len(chunk), len(events),
+            )
         if len(chunk) < PAGE_SIZE:
             break
         start += PAGE_SIZE
-    logger.info("[scene_intelligence] parsed %d scene events from corpus", len(events))
+    logger.info(
+        "[scene_intelligence] parsed %d scene events from corpus across %d pages",
+        len(events), pages,
+    )
     return events
 
 
