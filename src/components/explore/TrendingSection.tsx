@@ -16,7 +16,7 @@ interface Props {
 
 function signalBarColor(signal: string): string {
   const s = signal.toLowerCase();
-  if (s === "rising") return "var(--purple)";
+  if (s === "rising") return "var(--gv-accent)";
   if (s === "early") return "#F59E0B";
   if (s === "declining") return "#EF4444";
   return "var(--border)";
@@ -116,7 +116,7 @@ function TrendingCardItem({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onClick();
       }}
-      className="min-w-[240px] max-w-[260px] flex-shrink-0 snap-start overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)] cursor-pointer hover:border-[var(--purple)] hover:shadow-sm transition-all duration-[150ms]"
+      className="min-w-[240px] max-w-[260px] flex-shrink-0 snap-start overflow-hidden rounded-[12px] border border-[var(--border)] bg-[var(--surface)] cursor-pointer hover:border-[var(--gv-accent)] hover:shadow-sm transition-all duration-[150ms]"
     >
       <div className="h-[3px] w-full" style={{ background: signalBarColor(card.signal) }} />
       <div className="p-3">
@@ -128,7 +128,7 @@ function TrendingCardItem({
             <SignalBadge signal={card.signal} size="sm" />
           </div>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-[var(--ink-soft)] line-clamp-3">{card.description}</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--gv-ink-3)] line-clamp-3">{card.description}</p>
         {card.corpus_cite ? (
           <p className="mt-2 font-mono text-[10px] text-[var(--faint)]">{card.corpus_cite}</p>
         ) : null}

@@ -65,17 +65,17 @@ function VideoDangHocRow({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-xs truncate transition-colors duration-[120ms] ${onClick ? "group-hover:text-[var(--purple)]" : "text-[var(--purple)]"} text-[var(--purple)]`}>
+        <p className={`text-xs truncate transition-colors duration-[120ms] ${onClick ? "group-hover:text-[var(--gv-accent)]" : "text-[var(--gv-accent)]"} text-[var(--gv-accent)]`}>
           {row.creator_handle ? `@${row.creator_handle}` : "@—"}
         </p>
         <p className="text-xs text-[var(--ink)]">{formatViews(row.views)}</p>
         {showVelocity && row.velocity != null ? (
-          <p className="text-[10px] font-mono text-[var(--ink-soft)] mt-0.5">
+          <p className="text-[10px] font-mono text-[var(--gv-ink-3)] mt-0.5">
             {formatVelocityViewsPerHour(row.velocity)}
           </p>
         ) : null}
         {showBreakoutBadge && mult != null ? (
-          <p className="text-[10px] font-mono text-[var(--purple)] mt-0.5">
+          <p className="text-[10px] font-mono text-[var(--gv-accent)] mt-0.5">
             {mult.toFixed(1).replace(".", ",")}×
           </p>
         ) : null}
@@ -103,8 +103,8 @@ export function VideoDangHocSidebar() {
           aria-selected={tab === "bung_no"}
           className={`min-h-[44px] px-3 py-2 rounded-full text-xs font-semibold transition-colors duration-[120ms] ${
             tab === "bung_no"
-              ? "bg-[var(--purple-light)] text-[var(--purple)]"
-              : "bg-[var(--surface-alt)] text-[var(--ink-soft)] border border-[var(--border)]"
+              ? "bg-[var(--gv-accent-soft)] text-[var(--gv-accent)]"
+              : "bg-[var(--surface-alt)] text-[var(--gv-ink-3)] border border-[var(--border)]"
           }`}
           onClick={() => setTab("bung_no")}
         >
@@ -116,8 +116,8 @@ export function VideoDangHocSidebar() {
           aria-selected={tab === "dang_hot"}
           className={`min-h-[44px] px-3 py-2 rounded-full text-xs font-semibold transition-colors duration-[120ms] ${
             tab === "dang_hot"
-              ? "bg-[var(--purple-light)] text-[var(--purple)]"
-              : "bg-[var(--surface-alt)] text-[var(--ink-soft)] border border-[var(--border)]"
+              ? "bg-[var(--gv-accent-soft)] text-[var(--gv-accent)]"
+              : "bg-[var(--surface-alt)] text-[var(--gv-ink-3)] border border-[var(--border)]"
           }`}
           onClick={() => setTab("dang_hot")}
         >
@@ -126,7 +126,7 @@ export function VideoDangHocSidebar() {
       </div>
 
       {error ? (
-        <p className="text-xs text-[var(--ink-soft)]">Không tải được bảng xếp hạng — thử lại sau.</p>
+        <p className="text-xs text-[var(--gv-ink-3)]">Không tải được bảng xếp hạng — thử lại sau.</p>
       ) : null}
 
       {isLoading ? <VideoDangHocSkeleton /> : null}
