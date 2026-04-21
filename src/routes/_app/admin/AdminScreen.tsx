@@ -14,6 +14,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
+import { LogsPanel } from "./LogsPanel";
 import { TriggersPanel } from "./TriggersPanel";
 
 function AdminPanelCard({
@@ -102,10 +103,8 @@ export default function AdminScreen() {
             <EnsembleCreditsPanel />
           </AdminPanelCard>
 
-          <AdminPanelCard title="Cloud Run logs" subtitle="stdout tail theo filter">
-            <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-              Chưa kết nối — panel sẽ tail log gần nhất từ GCP Cloud Logging (cần service account).
-            </p>
+          <AdminPanelCard title="Cloud Run logs" subtitle="stdout tail theo filter" fullWidth>
+            <LogsPanel />
           </AdminPanelCard>
 
           <AdminPanelCard title="Manual triggers" subtitle="chạy pipeline thủ công">

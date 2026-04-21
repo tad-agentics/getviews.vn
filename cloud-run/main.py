@@ -1327,6 +1327,133 @@ async def admin_ensemble_credits(
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# Phase D.6.4 · /admin/logs — Cloud Run log tail (feature-flagged)
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Opt-in: `ADMIN_LOGS_ENABLED=true` + the `[logs]` extra installed +
+# service-account JSON mounted (see pyproject.toml comment). With any
+# piece missing the endpoint returns a specific, actionable config state
+# so the frontend can render a "what to do next" message instead of a
+# generic error.
+
+_ADMIN_LOGS_ENABLED = os.environ.get("ADMIN_LOGS_ENABLED", "").lower() in ("1", "true", "yes")
+_GCP_PROJECT_ID_FOR_LOGS = os.environ.get("GCP_PROJECT_ID", "").strip()
+_CLOUD_RUN_SERVICE_NAME = os.environ.get("K_SERVICE", "").strip()
+
+
+@app.get("/admin/logs")
+async def admin_logs(
+    _admin: dict[str, Any] = Depends(require_admin),
+    limit: int = Query(100, ge=1, le=500),
+    severity: str = Query("INFO", pattern="^(DEFAULT|DEBUG|INFO|NOTICE|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY)$"),
+    minutes: int = Query(60, ge=1, le=1440),
+) -> JSONResponse:
+    """Tail recent Cloud Run logs.
+
+    Feature-flagged: returns { ok: true, enabled: false, reason: ... }
+    rather than raising so the SPA can render the right config hint
+    without retry-storming. Response shapes:
+
+      disabled           — ADMIN_LOGS_ENABLED is unset / false
+      sdk_missing        — google-cloud-logging not installed (the `[logs]` extra)
+      project_missing    — GCP_PROJECT_ID env var unset
+      credentials_error  — SDK loaded but auth failed
+      ok                 — entries array with { timestamp, severity, message, resource }
+    """
+    if not _ADMIN_LOGS_ENABLED:
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "disabled",
+            "hint": "Set ADMIN_LOGS_ENABLED=true on Cloud Run to enable this panel.",
+        })
+
+    if not _GCP_PROJECT_ID_FOR_LOGS:
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "project_missing",
+            "hint": "Set GCP_PROJECT_ID env var on Cloud Run.",
+        })
+
+    try:
+        # Lazy import — the dep is an optional extra. ImportError here ==
+        # installer didn't include the `[logs]` extra.
+        from google.cloud import logging as gcloud_logging
+    except ImportError:
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "sdk_missing",
+            "hint": "Install the `[logs]` extra (pip install -e \".[logs]\") and redeploy.",
+        })
+
+    try:
+        client = gcloud_logging.Client(project=_GCP_PROJECT_ID_FOR_LOGS)
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "credentials_error",
+            "hint": f"google-cloud-logging Client init failed: {exc}. "
+                    f"Grant the service account roles/logging.viewer.",
+        })
+
+    # Build a filter: Cloud Run logs carry `resource.type = "cloud_run_revision"`
+    # and the service name on `resource.labels.service_name`. If we know our own
+    # K_SERVICE, scope to it so admins looking at the current container aren't
+    # drowned by batch-sibling noise. Otherwise we fall back to project-wide
+    # and hope severity + time window narrow it enough.
+    since = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    filters = [
+        'resource.type = "cloud_run_revision"',
+        f'timestamp >= "{since.isoformat()}"',
+        f'severity >= {severity}',
+    ]
+    if _CLOUD_RUN_SERVICE_NAME:
+        filters.append(f'resource.labels.service_name = "{_CLOUD_RUN_SERVICE_NAME}"')
+    filter_str = " AND ".join(filters)
+
+    try:
+        entries_iter = client.list_entries(
+            filter_=filter_str,
+            order_by=gcloud_logging.DESCENDING,
+            max_results=limit,
+        )
+        entries: list[dict[str, Any]] = []
+        for entry in entries_iter:
+            # Normalise payload → message string (entries can be text or
+            # struct; struct entries get flattened to JSON for display).
+            payload = entry.payload
+            if isinstance(payload, (dict, list)):
+                message = json.dumps(payload, ensure_ascii=False)[:2000]
+            else:
+                message = str(payload)[:2000] if payload is not None else ""
+            ts = entry.timestamp.isoformat() if entry.timestamp else None
+            entries.append({
+                "timestamp": ts,
+                "severity": str(entry.severity) if entry.severity else "DEFAULT",
+                "message": message,
+                "logger": entry.resource.labels.get("service_name", "") if entry.resource else "",
+            })
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[admin/logs] list_entries failed: %s", exc)
+        return JSONResponse({
+            "ok": True,
+            "enabled": False,
+            "reason": "credentials_error",
+            "hint": f"list_entries failed: {exc}",
+        })
+
+    return JSONResponse({
+        "ok": True,
+        "enabled": True,
+        "filter": filter_str,
+        "entries": entries,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # Phase D.6.3 · /admin/trigger/{job} — manual run of periodic batch jobs
 # ══════════════════════════════════════════════════════════════════════════
 #

@@ -32,6 +32,15 @@ dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23.0",
 ]
+# Phase D.6.4 — /admin/logs panel. Optional so the base image stays lean
+# for deploys that don't use the log-fetch feature. To enable:
+#   1. Install with `pip install -e ".[logs]"` (or bake into Dockerfile).
+#   2. Set ADMIN_LOGS_ENABLED=true on the Cloud Run service.
+#   3. Grant the Cloud Run service account roles/logging.viewer (or mount
+#      a dedicated SA JSON via GOOGLE_APPLICATION_CREDENTIALS).
+logs = [
+  "google-cloud-logging>=3.9.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["getviews_pipeline"]
