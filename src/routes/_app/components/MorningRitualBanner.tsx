@@ -35,10 +35,10 @@ export const MorningRitualBanner = memo(function MorningRitualBanner({
   onSelectPrompt: (prompt: string) => void;
 }) {
   const navigate = useNavigate();
-  const { data: ritual, isPending } = useDailyRitual(true, nicheId);
+  const { data: ritual, emptyReason, isPending } = useDailyRitual(true, nicheId);
 
   // Render nothing while loading — the banner is additive, not blocking.
-  if (isPending || !ritual || ritual.scripts.length === 0) return null;
+  if (isPending || emptyReason !== null || !ritual || ritual.scripts.length === 0) return null;
 
   const isThin = ritual.adequacy === "none" || ritual.adequacy === "reference_pool";
 

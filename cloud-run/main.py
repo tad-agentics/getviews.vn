@@ -1759,7 +1759,11 @@ async def home_daily_ritual(
     upsert per user per calendar date); in that case we return 404 so the
     Home UI does not show stale hooks until the nightly job regenerates.
 
-    If no row exists yet, returns 404 — the UI should render a "sắp có" state.
+    If no row exists yet, returns **404** with JSON body
+    ``{"code": "ritual_no_row", "message": "..."}``.
+
+    If a row exists for a different niche than ``profiles.primary_niche``,
+    returns **404** with ``{"code": "ritual_niche_stale", "message": "..."}``.
 
     Response (200):
       {
@@ -1785,16 +1789,22 @@ async def home_daily_ritual(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     rows = res.data or []
     if not rows:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Sắp có — kịch bản đang được tạo.",
+            content={
+                "code": "ritual_no_row",
+                "message": "Sắp có — kịch bản đang được tạo.",
+            },
         )
     row = rows[0]
     row_niche = row.get("niche_id")
     if row_niche is None or int(row_niche) != niche_id:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Kịch bản sẽ được làm mới cho ngách hiện tại sau lượt cron tối.",
+            content={
+                "code": "ritual_niche_stale",
+                "message": "Kịch bản sẽ được làm mới cho ngách hiện tại sau lượt cron tối.",
+            },
         )
     return JSONResponse(row)
 

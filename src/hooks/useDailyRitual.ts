@@ -1,29 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { fetchDailyRitual } from "shared/api/ritual";
+import type { DailyRitual, RitualEmptyReason } from "shared/types/ritual";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
-export type RitualScript = {
-  hook_type_en: string;
-  hook_type_vi: string;
-  title_vi: string;
-  why_works: string;
-  retention_est_pct: number;
-  shot_count: number;
-  length_sec: number;
-};
+export type { DailyRitual, RitualEmptyReason, RitualScript } from "shared/types/ritual";
 
-export type DailyRitual = {
-  generated_for_date: string;
-  niche_id: number;
-  adequacy:
-    | "none"
-    | "reference_pool"
-    | "basic_citation"
-    | "niche_norms"
-    | "hook_effectiveness"
-    | "trend_delta";
-  scripts: RitualScript[];
-  generated_at: string;
+type RitualQueryPayload = {
+  data: DailyRitual | null;
+  emptyReason: RitualEmptyReason | null;
 };
 
 export const ritualKeys = {
@@ -34,34 +19,49 @@ export const ritualKeys = {
 /**
  * Today's 3 pre-generated scripts for the creator.
  *
- * Phase A · A2 — rendered as a banner on the current ChatScreen empty state
- * so we can validate the feature before investing in the Home shell (A3).
- *
- * Returns `null` (not an error) when no ritual exists yet — the nightly
- * cron runs at 07:00 ICT and new creators won't have a row on day one.
- * The UI should render a "sắp có" state for both null and error cases.
+ * Returns paired `data` + `emptyReason` so the UI can branch copy (no row vs niche-stale).
+ * When `emptyReason` is null and `data` is null, the fetch was skipped (no Cloud Run URL / no session).
  */
 export function useDailyRitual(enabled: boolean = true, primaryNicheId: number | null = null) {
-  return useQuery<DailyRitual | null>({
+  const query = useQuery<RitualQueryPayload>({
     queryKey: ritualKeys.today(primaryNicheId),
-    queryFn: async () => {
+    queryFn: async ({ queryKey }): Promise<RitualQueryPayload> => {
+      const expectedNicheId = queryKey[2];
+      if (typeof expectedNicheId !== "number") {
+        return { data: null, emptyReason: null };
+      }
+
       const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
-      if (!cloudRunUrl) return null; // local dev without cloud-run = no ritual
+      if (!cloudRunUrl) {
+        return { data: null, emptyReason: null };
+      }
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return null;
+      if (!session) {
+        return { data: null, emptyReason: null };
+      }
 
-      const res = await fetch(`${cloudRunUrl}/home/daily-ritual`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const result = await fetchDailyRitual({
+        baseUrl: cloudRunUrl,
+        accessToken: session.access_token,
+        expectedNicheId,
       });
-      if (res.status === 404) return null; // no ritual yet today
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()) as DailyRitual;
+      return { data: result.data, emptyReason: result.emptyReason };
     },
     enabled: enabled && primaryNicheId != null,
     staleTime: 10 * 60 * 1000, // 10 min; rituals regenerate nightly
     retry: false,
   });
+
+  return {
+    data: query.data?.data ?? null,
+    emptyReason: query.data?.emptyReason ?? null,
+    isPending: query.isPending,
+    isFetching: query.isFetching,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }

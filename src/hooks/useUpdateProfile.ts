@@ -30,8 +30,11 @@ export function useUpdateProfile() {
         queryClient.setQueryData(queryKeys.profile(userId), context.previous);
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, patch) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile(userId) });
+      if (patch.primary_niche !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: ["daily_ritual"] });
+      }
     },
   });
 }

@@ -1,7 +1,9 @@
 import { memo } from "react";
 import { useNavigate } from "react-router";
+import { Btn } from "@/components/v2/Btn";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
+import { formatRelativeSinceVi } from "@/lib/formatters";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 
 /**
@@ -37,7 +39,7 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
   onSelectPrompt: (prompt: string) => void;
 }) {
   const navigate = useNavigate();
-  const { data: ritual, isPending } = useDailyRitual(true, nicheId);
+  const { data: ritual, emptyReason, isPending, refetch } = useDailyRitual(true, nicheId);
 
   if (isPending) {
     return (
@@ -57,18 +59,40 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
   }
 
   if (!ritual || ritual.scripts.length === 0) {
+    const isNicheStale = emptyReason === "ritual_niche_stale";
     return (
       <section>
         <SectionHeader
           kicker="SÁNG NAY · 06:00"
-          title="Đang tạo kịch bản cho ngày đầu"
-          caption="Cron sáng sẽ xếp sẵn 3 kịch bản mới vào 7h. Ghé lại sáng mai nhé."
+          title={
+            isNicheStale
+              ? "Kịch bản mới đang chuẩn bị cho ngách này"
+              : "Đang tạo kịch bản cho ngày đầu"
+          }
+          caption={
+            isNicheStale
+              ? "Lần tạo kế tiếp sẽ có 3 kịch bản theo ngách bạn vừa chọn."
+              : "Cron sáng sẽ xếp sẵn 3 kịch bản mới vào 7h. Ghé lại sáng mai nhé."
+          }
         />
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Btn variant="ghost" size="sm" type="button" onClick={() => void refetch()}>
+            Thử tải lại
+          </Btn>
+          <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/trends")}>
+            Khám phá ngách
+          </Btn>
+          <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/settings")}>
+            Cài kênh tham chiếu
+          </Btn>
+        </div>
       </section>
     );
   }
 
   const isThin = ritual.adequacy === "none" || ritual.adequacy === "reference_pool";
+
+  const updatedRel = formatRelativeSinceVi(new Date(), new Date(ritual.generated_at));
 
   return (
     <section>
@@ -76,9 +100,16 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
         kicker="SÁNG NAY · 06:00"
         title="3 kịch bản sẵn sàng cho bạn"
         caption={
-          isThin
-            ? "Dữ liệu ngách đang thưa — các retention estimate dưới đây là định hướng, không chính xác tuyệt đối."
-            : "Tổng hợp từ pattern thắng trong ngách của bạn qua đêm qua."
+          <span className="block space-y-1">
+            <span className="gv-mono block text-[11px] text-[color:var(--gv-ink-4)]">
+              Cập nhật · {updatedRel}
+            </span>
+            <span className="block">
+              {isThin
+                ? "Dữ liệu ngách đang thưa — các retention estimate dưới đây là định hướng, không chính xác tuyệt đối."
+                : "Tổng hợp từ pattern thắng trong ngách của bạn qua đêm qua."}
+            </span>
+          </span>
         }
       />
 

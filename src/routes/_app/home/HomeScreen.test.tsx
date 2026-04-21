@@ -75,7 +75,12 @@ function setHooksDefaults() {
   });
   mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
   mockUseHomeTicker.mockReturnValue({ data: [] });
-  mockUseDailyRitual.mockReturnValue({ data: null, isPending: false });
+  mockUseDailyRitual.mockReturnValue({
+    data: null,
+    emptyReason: null,
+    isPending: false,
+    refetch: vi.fn(),
+  });
   mockUseTopPatterns.mockReturnValue({ data: [], isPending: false });
   mockUseTopBreakouts.mockReturnValue({ data: [], isPending: false });
   mockUseTopNiches.mockReturnValue({ data: [{ id: 4, name: "Ẩm thực", hot: 24 }] });

@@ -9,7 +9,9 @@
     "rootDirs": [".", "./.react-router/types"],
     "paths": {
       "~/*": ["./app/*"],
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "shared": ["./shared/index.ts"],
+      "shared/*": ["./shared/*"]
     },
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
@@ -25,6 +27,8 @@
   },
   "include": [
     "src",
+    "shared/types/**/*.ts",
+    "shared/api/ritual.ts",
     "api",
     "scripts/**/*.ts",
     ".react-router/types/**/*"
