@@ -536,14 +536,34 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     if re.search(r"grwm|get ready|makeup routine|morning routine|buổi sáng", combined): return "grwm"
     if re.search(r"công thức|recipe|nấu|cách làm|nguyên liệu|ướp|xào|chiên|nướng|hấp", combined): return "recipe"
     if re.search(r"haul|đập hộp|unbox|mở hộp|mua.*về|đặt.*gửi", combined): return "haul"
-    if re.search(r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm", combined): return "review"
-    if re.search(r"cách|hướng dẫn|tutorial|mẹo|bước|step|tips", combined): return "tutorial"
-    if re.search(r"vs |so sánh|versus|cái nào|nào hơn|nào tốt", combined): return "comparison"
-    if re.search(r"kể chuyện|story|hồi đó|hồi nhỏ|ngày xưa|mình từng", combined): return "storytelling"
+    if re.search(
+        r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm|"
+        r"ăn đứt|đỉnh hơn|đẳng cấp|phần trình diễn|màn trình diễn",
+        combined,
+    ):
+        return "review"
+    if re.search(
+        r"cách|hướng dẫn|tutorial|mẹo|bước|step|tips|"
+        r"xác minh|đăng ký|thủ tục|quyết toán|bí quyết",
+        combined,
+    ):
+        return "tutorial"
+    if re.search(
+        r"vs |so sánh|versus|cái nào|nào hơn|nào tốt|khác nhau|phân biệt|khác biệt",
+        combined,
+    ):
+        return "comparison"
+    if re.search(
+        r"kể chuyện|story|hồi đó|hồi nhỏ|ngày xưa|mình từng|"
+        r"câu chuyện|kể về|nàng dâu|chàng rể|đằng sau là|"
+        r"sự thật|lời kể|chia sẻ câu chuyện",
+        combined,
+    ):
+        return "storytelling"
     if re.search(r"trước.*sau|before.*after|biến đổi|thay đổi.*ngày|glow.?up", combined): return "before_after"
     if re.match(r"pov[: ]", combined.lstrip()): return "pov"
     if re.search(r"outfit|ootd|biến hình|transition|mix đồ|phối đồ", combined): return "outfit_transition"
-    if re.search(r"vlog|daily|thường ngày|một ngày", combined): return "vlog"
+    if re.search(r"vlog|daily|thường ngày|một ngày|hôm nay mình|ngày của", combined): return "vlog"
     if scenes and all(s.get("type") == "action" for s in scenes) and not transcript: return "dance"
     product_types = {"product_shot", "demo", "action"}
     if (scenes and all(s.get("type") in product_types for s in scenes)

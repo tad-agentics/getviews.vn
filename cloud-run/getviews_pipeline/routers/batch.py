@@ -167,6 +167,38 @@ async def batch_refresh(
     return JSONResponse({"ok": True, **result})
 
 
+@router.post("/batch/reclassify-format")
+async def batch_reclassify_format(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """One-shot: re-run classify_format on rows stuck in ``other``/NULL.
+
+    Axis 2 catch-up (state-of-corpus.md). Zero Gemini cost — pure regex
+    pass on cached analysis_json. Safe to re-run; idempotent.
+    Protected by require_batch_caller.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.content_format_reclassify import (
+        run_content_format_reclassify,
+    )
+    from getviews_pipeline.runtime import run_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info("POST /batch/reclassify-format triggered")
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/reclassify-format") as obs_summary:
+        try:
+            result = await run_sync(run_content_format_reclassify, client=client)
+        except Exception as exc:
+            logger.exception("Batch reclassify-format failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 @router.post("/batch/backfill-thumbnails")
 async def batch_backfill_thumbnails(
     request: Request,
