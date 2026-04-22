@@ -291,10 +291,26 @@ describe("AnswerScreen state transitions", () => {
       data: undefined,
       isLoading: false,
       isError: true,
+      error: new Error("http_500"),
       refetch: vi.fn(),
     });
     renderScreen("/app/answer?session=sess-abc");
-    expect(screen.getByText(/Không tải được phiên/)).toBeTruthy();
+    // HTTP-tagged error renders the "Server trả lỗi" copy.
+    expect(screen.getByText(/Server trả lỗi \(HTTP 500\)/)).toBeTruthy();
+  });
+
+  it("renders the session-not-found banner when the detail fetch 404s", () => {
+    const notFound = new Error("session_not_found");
+    notFound.name = "SessionNotFound";
+    mockUseAnswerSessionDetail.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: notFound,
+      refetch: vi.fn(),
+    });
+    renderScreen("/app/answer?session=sess-abc");
+    expect(screen.getByText(/Phiên không tồn tại/)).toBeTruthy();
   });
 
   it("disables the follow-up composer until a sessionId is in the URL", () => {
