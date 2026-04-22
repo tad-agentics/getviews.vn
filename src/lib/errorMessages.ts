@@ -63,6 +63,18 @@ export function analysisErrorCopy(error: unknown): string {
   if (code === "no_cloud_run") {
     return "Dịch vụ phân tích chưa cấu hình (VITE_CLOUD_RUN_API_URL).";
   }
+  // Structured codes returned by the Cloud Run ``/answer/sessions`` handler
+  // when the DB rejects the insert. Without these, the client previously
+  // surfaced raw Postgres strings.
+  if (code === "invalid_niche") {
+    return "Ngách không hợp lệ. Cập nhật ngách trong Cài đặt rồi thử lại.";
+  }
+  if (code === "invalid_payload") {
+    return "Dữ liệu gửi lên không hợp lệ. Tải lại trang rồi thử lại.";
+  }
+  if (code === "idempotency_conflict") {
+    return "Phiên đã được tạo trước đó — tải lại Lịch sử để mở.";
+  }
   if (code === "aborted") {
     return "Yêu cầu đã bị huỷ.";
   }

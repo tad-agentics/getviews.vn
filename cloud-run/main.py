@@ -3202,10 +3202,27 @@ async def answer_create_session(
     body: AnswerSessionCreateBody,
     user: dict[str, Any] = Depends(require_user),
 ) -> JSONResponse:
-    """Create an empty answer session (C.1). Optional Idempotency-Key header (120s)."""
+    """Create an empty answer session (C.1). Optional Idempotency-Key header (120s).
+
+    Logs the entry + exit so Cloud Run logs can trace "studio_composer_submit
+    emitted on the client but no row in answer_sessions" — classic symptom
+    of this flow silently failing in production. Error path returns a
+    structured ``{"error": "<code>", "detail": "..."}`` body so the client
+    can map to Vietnamese copy via ``analysisErrorCopy`` instead of
+    rendering a raw ``answer/sessions 500`` string.
+    """
     from getviews_pipeline.answer_session import create_session
 
     idem = request.headers.get("Idempotency-Key")
+    logger.info(
+        "[answer/sessions] POST user=%s fmt=%s intent=%s niche=%s idem=%s q_len=%d",
+        user["user_id"],
+        body.format,
+        body.intent_type,
+        body.niche_id,
+        bool(idem),
+        len(body.initial_q or ""),
+    )
     try:
         row = await run_sync(
             create_session,
@@ -3217,9 +3234,44 @@ async def answer_create_session(
             idempotency_key=idem,
         )
     except Exception as exc:
-        logger.exception("[answer/sessions] create failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        code, status_code = _classify_create_session_error(exc, body.niche_id)
+        # ``exc_info=True`` keeps the full stack in Cloud Run logs; the
+        # structured extras let log-based alerts filter by ``error_code``
+        # + ``user_id`` without regex-matching the free-text message.
+        logger.error(
+            "[answer/sessions] create failed code=%s user=%s niche=%s fmt=%s: %s",
+            code, user["user_id"], body.niche_id, body.format, exc,
+            exc_info=True,
+        )
+        # Only the machine code is returned to the client — the client's
+        # ``readErrorDetail`` prefers ``detail`` over ``error`` so leaking
+        # ``str(exc)`` (Postgres error text in English) would shadow the
+        # code and render raw English in the UI. The full stack stays in
+        # Cloud Run logs above.
+        return JSONResponse({"error": code}, status_code=status_code)
+    logger.info(
+        "[answer/sessions] created id=%s user=%s fmt=%s",
+        row.get("id"), user["user_id"], body.format,
+    )
     return JSONResponse(row)
+
+
+def _classify_create_session_error(exc: Exception, niche_id: int | None) -> tuple[str, int]:
+    """Map backend exceptions to a client-facing error code + HTTP status.
+
+    The client's ``analysisErrorCopy`` understands a small vocabulary of
+    codes — returning them lets the UI render Vietnamese copy instead of
+    a raw ``str(exc)`` like the Supabase ``HTTPError`` default. Unknown
+    exceptions fall through to ``start_failed`` + 500.
+    """
+    msg = str(exc).lower()
+    if "violates foreign key" in msg and "niche_id" in msg and niche_id is not None:
+        return "invalid_niche", 400
+    if "violates check constraint" in msg:
+        return "invalid_payload", 400
+    if "duplicate key" in msg:
+        return "idempotency_conflict", 409
+    return "start_failed", 500
 
 
 @app.post("/answer/sessions/{session_id}/turns")

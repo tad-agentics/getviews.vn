@@ -54,6 +54,10 @@ describe("analysisErrorCopy", () => {
     ["auth", /Chưa đăng nhập/],
     ["http_500", /HTTP 500/],
     ["http_503", /HTTP 503/],
+    // Structured codes from cloud-run/main.py _classify_create_session_error.
+    ["invalid_niche", /Ngách không hợp lệ/],
+    ["invalid_payload", /Dữ liệu gửi lên không hợp lệ/],
+    ["idempotency_conflict", /Phiên đã được tạo trước đó/],
   ])("translates the AnswerScreen error code %s to Vietnamese", (code, re) => {
     expect(analysisErrorCopy(code)).toMatch(re);
   });
