@@ -574,7 +574,7 @@ function CredibilitySection() {
             style={{ fontSize: "clamp(1.5rem, 3.5vw, 2rem)" }}
           >
             Bắt đầu tăng view{" "}
-            <span className="gradient-text">ngay hôm nay</span>
+            <span className="text-[color:var(--gv-accent)]">ngay hôm nay</span>
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed mb-6">
             Chúng tôi là những creator đã tự xây kênh TikTok từ 0 — và nhận ra rằng mọi quyết định nội dung đều đang được đưa ra dựa trên cảm tính. GetViews được xây để thay đổi điều đó: mỗi gợi ý đều có video thật làm bằng chứng, bạn bấm vào kiểm chứng được luôn.
