@@ -67,7 +67,7 @@
   --success:       oklch(0.60 0.18 145);   /* green — ✓ diagnosis rows */
   --danger:        oklch(0.55 0.22 25);    /* red   — ✕ diagnosis rows, errors */
 
-  /* --gradient-* — TikTok brand pair: see 2nd :root (after --gv-accent-2) */
+  /* --gradient-* — GetViews Studio: see 2nd :root (after --gv-ink / --gv-accent) */
 
   /* ── Font stacks */
   /* Primary UI sans = TikTok Sans (self-hosted); Inter + system fallbacks */
@@ -306,29 +306,6 @@
   --gv-accent-2-soft:  #D8FBFA;
   --gv-accent-2-deep:  #06B6B0;
 
-  /* Display gradients (replaces Make-era purple; powers .gradient-text, CTA) */
-  --gradient-primary:        linear-gradient(
-    100deg,
-    var(--gv-accent-2) 0%,
-    var(--gv-accent) 50%,
-    var(--gv-accent-deep) 100%
-  );
-  --gradient-brand:          var(--gradient-primary);
-  --gradient-brand-diagonal: linear-gradient(
-    120deg,
-    var(--gv-accent-2-deep) 0%,
-    var(--gv-accent-2) 32%,
-    var(--gv-accent) 100%
-  );
-  --gradient-cta:            linear-gradient(100deg, var(--gv-accent) 0%, var(--gv-accent-deep) 100%);
-  /* Kept name for PricingScreen; tint wash uses brand pair, not purple */
-  --gradient-purple-wash:    linear-gradient(
-    100deg,
-    rgb(37 244 238 / 12%) 0%,
-    rgb(254 44 85 / 8%) 55%,
-    rgb(209 24 64 / 4%) 100%
-  );
-
   /* ── Semantic positive/negative (every delta in the redesign)
    * Blue for up, pink for down. --gv-neg shares colour with --gv-accent
    * by design — the accent is used equally for emphasis and for "down".
@@ -338,6 +315,30 @@
   --gv-chart-benchmark: rgb(0, 159, 250);
   --gv-pos-soft:       #DBF0FF;
   --gv-pos-deep:       #0070B8;
+
+  /* Display gradients — GetViews Studio (ink + gv-pos + gv-accent; no marketing cyan) */
+  --gradient-primary:        linear-gradient(
+    100deg,
+    var(--gv-ink) 0%,
+    var(--gv-ink-2) 32%,
+    var(--gv-accent) 100%
+  );
+  --gradient-brand:          var(--gradient-primary);
+  /* Diagonal: product “up” blue → primary pink (same as delta / primary chrome) */
+  --gradient-brand-diagonal: linear-gradient(
+    120deg,
+    var(--gv-pos-deep) 0%,
+    var(--gv-pos) 42%,
+    var(--gv-accent) 100%
+  );
+  --gradient-cta:            linear-gradient(100deg, var(--gv-accent) 0%, var(--gv-accent-deep) 100%);
+  /* Kept name for PricingScreen — accent-soft + pos-soft wash */
+  --gradient-purple-wash:    linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--gv-accent-soft) 70%, transparent) 0%,
+    color-mix(in srgb, var(--gv-pos-soft) 55%, transparent) 100%
+  );
+
   --gv-neg:            #FE2C55;
   --gv-neg-soft:       #FFE8ED;
   --gv-neg-deep:       #D11840;
