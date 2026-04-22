@@ -82,9 +82,21 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   follow_up_unclassifiable: "answer:generic",
 };
 
+/** Subjects the Gemini classifier may emit alongside `follow_up_classifiable`.
+ * Mirrors ``FollowUpSubject`` in ``cloud-run/getviews_pipeline/intent_router.py``.
+ * Extended 2026-05-07 with `lifecycle` + `diagnostic` so follow-ups that
+ * belong on those shelves are routed there instead of being downgraded to
+ * `answer:generic` just because the classifier vocabulary was narrower. */
+export type FollowUpSubject =
+  | "pattern"
+  | "ideas"
+  | "timing"
+  | "lifecycle"
+  | "diagnostic";
+
 export type ClassifiedIntent =
   | { id: FixedIntentId }
-  | { id: "follow_up_classifiable"; subject: "pattern" | "ideas" | "timing" };
+  | { id: "follow_up_classifiable"; subject: FollowUpSubject };
 
 export function resolveDestination(intent: ClassifiedIntent): Destination {
   if (intent.id === "follow_up_classifiable") {
