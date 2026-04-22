@@ -13,12 +13,20 @@ with a lifecycle stage pill + reach delta + health score + insight.
 The payload ``mode`` discriminator tells the frontend which header copy
 + supplementary fields to show.
 
-This module currently ships the fixture builders (full-sample payload +
-thin-corpus variant) and ``ANSWER_FIXTURE_LIFECYCLE`` so pytest /
-frontend dev harnesses have a validated shape to work with. The live
-pipeline (Gemini narrative + corpus aggregates per mode) lands in a
-follow-up commit on this same branch; callers using ``build_lifecycle_
-report`` today get the fixture-shaped empty state.
+Live pipeline status (commit 3c, 2026-04-22):
+
+- ``format`` mode does real corpus aggregation via
+  ``report_lifecycle_compute.compute_format_cells`` — per-format
+  week-over-week reach delta + stage classification.
+- ``hook_fatigue`` and ``subniche`` modes still ship fixture cells as
+  placeholders (see ``report_lifecycle_compute`` module docstring for
+  why). Both still get query-aware Vietnamese narrative from
+  ``report_lifecycle_gemini`` so two follow-ups on the same niche don't
+  produce byte-identical copy.
+
+Thin-corpus gate (< ``LIFECYCLE_SAMPLE_FLOOR`` videos in window) falls
+back to the fixture for all three modes with the sample size patched
+onto the confidence strip so the UI can show "mẫu thưa".
 """
 
 from __future__ import annotations
@@ -342,24 +350,236 @@ ANSWER_FIXTURE_LIFECYCLE_SUBNICHE: dict[str, Any] = validate_and_store_report(
 )
 
 
-# ── Live pipeline (stub — returns fixture until commit 3c lands) ────────────
+# ── Live pipeline ───────────────────────────────────────────────────────────
 
 
 def build_lifecycle_report(
-    niche_id: int,  # noqa: ARG001 — wired in commit 3c
-    query: str,  # noqa: ARG001 — wired in commit 3c
+    niche_id: int,
+    query: str,
     mode: LifecycleMode = "format",
-    window_days: int = 30,  # noqa: ARG001 — wired in commit 3c
+    window_days: int = 30,
 ) -> dict[str, Any]:
-    """Live lifecycle report. STUB — returns the fixture until the
-    live-aggregate + Gemini narrative code lands on this branch.
+    """Live lifecycle report.
 
-    Signature is final so commit 3c only has to replace the body; the
-    intent-routing dispatch work in commit 3b can import this helper
-    safely.
+    Falls back to the fixture (with the current query layered into the
+    narrative slots) when:
+
+    - The Supabase service client can't be constructed (e.g. local test
+      environment with no SUPABASE_SERVICE_ROLE_KEY).
+    - ``niche_id <= 0`` — Answer sessions with no primary niche fall
+      through to the fixture rather than failing.
+    - Corpus for the niche has < ``LIFECYCLE_SAMPLE_FLOOR`` videos in
+      the window.
+    - ``mode`` is not ``"format"`` — hook_fatigue + subniche stay on the
+      fixture cells until the upstream signal lands (see compute module
+      docstring).
     """
-    logger.info(
-        "[lifecycle] fixture stub mode=%s niche=%s (live pipeline pending)",
-        mode, niche_id,
+    try:
+        from getviews_pipeline.supabase_client import get_service_client
+
+        sb = get_service_client()
+    except Exception as exc:
+        logger.warning("[lifecycle] service client unavailable: %s — fixture path", exc)
+        return _fixture_with_narrative(
+            mode=mode, query=query, niche_label=None, window_days=window_days,
+        )
+
+    from getviews_pipeline.report_lifecycle_compute import (
+        LIFECYCLE_SAMPLE_FLOOR,
+        compute_format_cells,
+        load_lifecycle_inputs,
+        strip_internal_fields,
     )
-    return build_fixture_lifecycle_report(mode)
+
+    if niche_id <= 0:
+        logger.info("[lifecycle] no niche_id — fixture path")
+        return _fixture_with_narrative(
+            mode=mode, query=query, niche_label=None, window_days=window_days,
+        )
+
+    ctx = load_lifecycle_inputs(sb, niche_id, window_days)
+    if ctx is None:
+        return _fixture_with_narrative(
+            mode=mode, query=query, niche_label=None, window_days=window_days,
+        )
+
+    corpus: list[dict[str, Any]] = ctx["corpus"]
+    niche_label = str(ctx["niche_label"])
+    sample_n = len(corpus)
+
+    if sample_n < LIFECYCLE_SAMPLE_FLOOR:
+        logger.info(
+            "[lifecycle] thin corpus n=%s < floor=%s — fixture path",
+            sample_n, LIFECYCLE_SAMPLE_FLOOR,
+        )
+        return _fixture_with_narrative(
+            mode=mode, query=query, niche_label=niche_label,
+            window_days=window_days, sample_size=sample_n,
+        )
+
+    # hook_fatigue and subniche don't have a live aggregator yet — ship
+    # fixture cells but overlay the query-aware Gemini narrative so the
+    # text still answers the user's question.
+    if mode != "format":
+        return _fixture_with_narrative(
+            mode=mode, query=query, niche_label=niche_label,
+            window_days=window_days, sample_size=sample_n,
+        )
+
+    cells_raw = compute_format_cells(corpus, window_days=window_days)
+    if len(cells_raw) < 1:
+        logger.info("[lifecycle] format aggregation produced 0 cells — fixture path")
+        return _fixture_with_narrative(
+            mode=mode, query=query, niche_label=niche_label,
+            window_days=window_days, sample_size=sample_n,
+        )
+
+    clean_cells = strip_internal_fields(cells_raw)
+    has_weak_cell = any(c.get("stage") in ("declining", "plateau") for c in clean_cells)
+
+    from getviews_pipeline.report_lifecycle_gemini import fill_lifecycle_narrative
+
+    narrative = fill_lifecycle_narrative(
+        query=query,
+        niche_label=niche_label,
+        mode=mode,
+        cells=clean_cells,
+        has_weak_cell=has_weak_cell,
+    )
+
+    # Drop the narrative into each cell's insight field (1:1 by index).
+    cell_insights = narrative["cell_insights"]
+    for i, c in enumerate(clean_cells):
+        c["insight"] = cell_insights[i] if i < len(cell_insights) else ""
+
+    lifecycle_cells = [LifecycleCell(**c) for c in clean_cells]
+
+    refresh_moves: list[RefreshMove] = []
+    if has_weak_cell:
+        for m in narrative.get("refresh_moves") or []:
+            try:
+                refresh_moves.append(RefreshMove(**m))
+            except Exception as exc:
+                logger.warning("[lifecycle] refresh_move coerce failed: %s", exc)
+
+    payload = LifecyclePayload(
+        confidence=ConfidenceStrip(
+            sample_size=sample_n,
+            window_days=window_days,
+            niche_scope=niche_label,
+            freshness_hours=_freshness_from_corpus(corpus),
+            intent_confidence="high" if sample_n >= 150 else "medium",
+        ),
+        mode=mode,
+        subject_line=narrative["subject_line"],
+        cells=lifecycle_cells,
+        refresh_moves=refresh_moves,
+        actions=_fixture_actions(mode),
+        sources=[
+            SourceRow(
+                kind="video",
+                label="Corpus",
+                count=sample_n,
+                sub=f"{niche_label} · {window_days}d",
+            ),
+        ],
+        related_questions=narrative["related_questions"],
+    )
+    return payload.model_dump()
+
+
+def _fixture_with_narrative(
+    *,
+    mode: LifecycleMode,
+    query: str,
+    niche_label: str | None,
+    window_days: int,
+    sample_size: int | None = None,
+) -> dict[str, Any]:
+    """Fixture path that overlays query-aware Gemini narrative.
+
+    Used for thin-corpus gates, hook_fatigue / subniche modes, and
+    service-client unavailable errors. The cell numbers are fixture
+    values (honestly labelled as "reference") but the subject line +
+    insights + refresh moves + related questions come from the narrative
+    layer so the output still answers the specific question asked.
+
+    When Gemini is also unavailable the narrative module's fallback path
+    still produces query-prefixed copy, so follow-ups never collide.
+    """
+    base = build_fixture_lifecycle_report(mode)
+
+    # Confidence patches: niche label + sample size + window days.
+    conf = base.get("confidence")
+    if isinstance(conf, dict):
+        conf["window_days"] = window_days
+        if niche_label:
+            conf["niche_scope"] = niche_label
+        if sample_size is not None:
+            conf["sample_size"] = sample_size
+            # Thin-corpus flips confidence down so the UI doesn't claim
+            # authority it doesn't have.
+            from getviews_pipeline.report_lifecycle_compute import LIFECYCLE_SAMPLE_FLOOR
+
+            if sample_size < LIFECYCLE_SAMPLE_FLOOR:
+                conf["intent_confidence"] = "low"
+
+    # Overlay narrative on the fixture cells.
+    cells = base.get("cells") or []
+    has_weak_cell = any((c or {}).get("stage") in ("declining", "plateau") for c in cells)
+
+    try:
+        from getviews_pipeline.report_lifecycle_gemini import fill_lifecycle_narrative
+
+        narrative = fill_lifecycle_narrative(
+            query=query,
+            niche_label=niche_label or "TikTok Việt Nam",
+            mode=mode,
+            cells=cells,
+            has_weak_cell=has_weak_cell,
+        )
+    except Exception as exc:
+        logger.warning("[lifecycle] narrative overlay failed: %s — raw fixture", exc)
+        return base
+
+    base["subject_line"] = narrative["subject_line"]
+    insights = narrative["cell_insights"]
+    for i, c in enumerate(cells):
+        if isinstance(c, dict) and i < len(insights):
+            c["insight"] = insights[i]
+    base["related_questions"] = narrative["related_questions"]
+
+    # Only replace refresh_moves when Gemini produced a usable set — the
+    # fixture already has a valid default that passes the invariant.
+    new_moves = narrative.get("refresh_moves") or []
+    if has_weak_cell and new_moves:
+        base["refresh_moves"] = new_moves
+
+    # Re-validate through Pydantic so we don't ship a drifted shape.
+    # NOTE: must stay UNWRAPPED (inner payload) — ``append_turn`` wraps
+    # in the §J envelope once, centrally, via ``validate_and_store_report``.
+    LifecyclePayload.model_validate(base)
+    return base
+
+
+def _freshness_from_corpus(corpus: list[dict[str, Any]]) -> int:
+    """Hours since the most recent indexed_at in the slice. Mirrors the
+    same helper in ``report_timing`` — kept local so this module has no
+    circular dependency on timing."""
+    from datetime import datetime, timezone
+
+    best: datetime | None = None
+    for row in corpus:
+        raw = row.get("indexed_at") or row.get("created_at") or row.get("posted_at")
+        if not raw:
+            continue
+        try:
+            d = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except Exception:
+            continue
+        if best is None or d > best:
+            best = d
+    if best is None:
+        return 24
+    delta = datetime.now(timezone.utc) - best.astimezone(timezone.utc)
+    return max(1, int(delta.total_seconds() // 3600))
