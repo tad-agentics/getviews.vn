@@ -59,25 +59,38 @@ async def batch_ingest(
     Protected by require_batch_caller (X-Batch-Secret legacy or admin JWT).
     Intended to be called by Cloud Scheduler — not exposed to end users.
     """
+    from getviews_pipeline.batch_observability import record_job_run
     from getviews_pipeline.corpus_ingest import run_batch_ingest
     from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+    from getviews_pipeline.supabase_client import get_service_client
 
     logger.info(
         "POST /batch/ingest triggered — niche_ids=%s deep_pool=%s",
         body.niche_ids,
         body.deep_pool,
     )
-    try:
-        summary = await run_batch_ingest(niche_ids=body.niche_ids, deep_pool=body.deep_pool)
-    except EnsembleDailyBudgetExceeded as exc:
-        logger.error("Batch ingest aborted (ED daily budget): %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
-    except Exception as exc:
-        logger.exception("Batch ingest failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    async with record_job_run(get_service_client(), "batch/ingest") as obs_summary:
+        obs_summary["niche_ids"] = body.niche_ids
+        obs_summary["deep_pool"] = body.deep_pool
+        try:
+            summary = await run_batch_ingest(niche_ids=body.niche_ids, deep_pool=body.deep_pool)
+        except EnsembleDailyBudgetExceeded as exc:
+            logger.error("Batch ingest aborted (ED daily budget): %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+        except Exception as exc:
+            logger.exception("Batch ingest failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        obs_summary.update({
+            "total_inserted": summary.total_inserted,
+            "total_skipped": summary.total_skipped,
+            "total_failed": summary.total_failed,
+            "niches_processed": summary.niches_processed,
+            "materialized_view_refreshed": summary.materialized_view_refreshed,
+        })
 
     return JSONResponse({
         "ok": True,
@@ -187,42 +200,61 @@ async def batch_analytics(
     Protected by require_batch_caller. Normally called by Cloud Scheduler on Sundays.
     """
     from getviews_pipeline.batch_analytics import run_analytics
+    from getviews_pipeline.batch_observability import record_job_run
     from getviews_pipeline.corpus_context import _anon_client
     from getviews_pipeline.hook_effectiveness_compute import run_hook_effectiveness
     from getviews_pipeline.pattern_fingerprint import recompute_weekly_counts
     from getviews_pipeline.runtime import run_sync
     from getviews_pipeline.signal_classifier import run_signal_grading
+    from getviews_pipeline.supabase_client import get_service_client
 
     logger.info("POST /batch/analytics triggered")
-    try:
-        analytics = await run_analytics()
-        signal = await run_signal_grading()
-        patterns_touched = 0
-        try:
-            patterns_touched = await recompute_weekly_counts(_anon_client())
-        except Exception as exc:
-            logger.warning("pattern weekly recompute failed: %s", exc)
+    client = get_service_client()
 
-        # Pass 4 (2026-05-09): populate ``hook_effectiveness`` aggregate
-        # table. Before this ran, the table was empty in production and
-        # Pattern + Ideas reports rendered with zero hook findings. See
-        # ``artifacts/docs/state-of-corpus.md`` Appendix B Gap 1.
-        hook_eff: dict[str, Any] = {"upserted": 0, "current_buckets": 0, "prior_buckets": 0}
+    async with record_job_run(client, "batch/analytics") as obs_summary:
         try:
-            hook_eff = await run_sync(run_hook_effectiveness)
-        except Exception as exc:
-            logger.warning("hook_effectiveness recompute failed: %s", exc)
-    except Exception as exc:
-        logger.exception("Batch analytics failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+            analytics = await run_analytics()
+            signal = await run_signal_grading()
+            patterns_touched = 0
+            try:
+                patterns_touched = await recompute_weekly_counts(_anon_client())
+            except Exception as exc:
+                logger.warning("pattern weekly recompute failed: %s", exc)
 
-    # Piggyback idempotency janitor — clean stale rows while we have the cron window
-    try:
-        from getviews_pipeline.answer_session import clean_expired_idempotency_rows
-        from getviews_pipeline.supabase_client import get_service_client
-        clean_expired_idempotency_rows(get_service_client())
-    except Exception as exc:
-        logger.warning("[batch/analytics] idempotency janitor failed (non-fatal): %s", exc)
+            # Pass 4 (2026-05-09): populate ``hook_effectiveness`` aggregate
+            # table. Before this ran, the table was empty in production and
+            # Pattern + Ideas reports rendered with zero hook findings. See
+            # ``artifacts/docs/state-of-corpus.md`` Appendix B Gap 1.
+            hook_eff: dict[str, Any] = {"upserted": 0, "current_buckets": 0, "prior_buckets": 0}
+            try:
+                hook_eff = await run_sync(run_hook_effectiveness)
+            except Exception as exc:
+                logger.warning("hook_effectiveness recompute failed: %s", exc)
+        except Exception as exc:
+            logger.exception("Batch analytics failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        # Piggyback idempotency janitor — clean stale rows while we have the cron window
+        try:
+            from getviews_pipeline.answer_session import clean_expired_idempotency_rows
+            clean_expired_idempotency_rows(client)
+        except Exception as exc:
+            logger.warning("[batch/analytics] idempotency janitor failed (non-fatal): %s", exc)
+
+        obs_summary.update({
+            "analytics": {
+                "creators_updated": analytics.creators_updated,
+                "videos_updated": analytics.videos_updated,
+                "errors": analytics.errors,
+            },
+            "signal": {
+                "grades_written": signal.grades_written,
+                "niches_processed": signal.niches_processed,
+                "errors": signal.errors,
+            },
+            "patterns": {"rows_updated": patterns_touched},
+            "hook_effectiveness": hook_eff,
+        })
 
     return JSONResponse({
         "ok": True,
@@ -250,6 +282,7 @@ async def batch_layer0(
 
     Protected by require_batch_caller. Safe to re-run — upserts on conflict.
     """
+    from getviews_pipeline.batch_observability import record_job_run
     from getviews_pipeline.supabase_client import get_service_client
     from getviews_pipeline.layer0_niche import run_niche_insights
     from getviews_pipeline.layer0_sound import run_sound_insights
@@ -260,31 +293,42 @@ async def batch_layer0(
 
     result: dict = {"ok": True}
 
-    try:
-        l0a = await run_niche_insights(client)
-        result["layer0a_niche"] = {
-            "insights_written": l0a.insights_written,
-            "niches_skipped": l0a.niches_skipped,
-            "errors": l0a.errors,
-        }
-        logger.info("[layer0a] insights=%d skipped=%d", l0a.insights_written, l0a.niches_skipped)
-    except Exception as exc:
-        logger.exception("[layer0a] failed: %s", exc)
-        result["layer0a_niche"] = {"error": str(exc)}
+    async with record_job_run(client, "batch/layer0") as obs_summary:
+        try:
+            l0a = await run_niche_insights(client)
+            result["layer0a_niche"] = {
+                "insights_written": l0a.insights_written,
+                "niches_skipped": l0a.niches_skipped,
+                "errors": l0a.errors,
+            }
+            logger.info(
+                "[layer0a] insights=%d skipped=%d",
+                l0a.insights_written, l0a.niches_skipped,
+            )
+        except Exception as exc:
+            logger.exception("[layer0a] failed: %s", exc)
+            result["layer0a_niche"] = {"error": str(exc)}
 
-    try:
-        l0b = await run_sound_insights(client)
-        result["layer0b_sound"] = {"analyzed": l0b.get("analyzed", 0)}
-    except Exception as exc:
-        logger.exception("[layer0b] failed: %s", exc)
-        result["layer0b_sound"] = {"error": str(exc)}
+        try:
+            l0b = await run_sound_insights(client)
+            result["layer0b_sound"] = {"analyzed": l0b.get("analyzed", 0)}
+        except Exception as exc:
+            logger.exception("[layer0b] failed: %s", exc)
+            result["layer0b_sound"] = {"error": str(exc)}
 
-    try:
-        l0c = await run_cross_niche_migration(client)
-        result["layer0c_migration"] = {"migrations_found": l0c.get("migrations_found", 0)}
-    except Exception as exc:
-        logger.exception("[layer0c] failed: %s", exc)
-        result["layer0c_migration"] = {"error": str(exc)}
+        try:
+            l0c = await run_cross_niche_migration(client)
+            result["layer0c_migration"] = {"migrations_found": l0c.get("migrations_found", 0)}
+        except Exception as exc:
+            logger.exception("[layer0c] failed: %s", exc)
+            result["layer0c_migration"] = {"error": str(exc)}
+
+        # ``batch/layer0`` swallows per-layer exceptions so the endpoint
+        # always returns 200. That means ``record_job_run`` would always
+        # mark the run as ``ok`` — which hides partial failures. Surface
+        # them in the summary so ``any(status='ok' and summary has
+        # '.*error')`` queries can flag half-working runs.
+        obs_summary.update({k: v for k, v in result.items() if k != "ok"})
 
     return JSONResponse(result)
 
