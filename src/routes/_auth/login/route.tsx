@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   Link,
   Navigate,
@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/Input";
 import { Btn } from "@/components/v2/Btn";
 import { cn } from "@/components/ui/utils";
+import { r2FrameUrl } from "@/lib/services/corpus-service";
 
 const COPY_BTN_FACEBOOK = "Đăng nhập với Facebook";
 const COPY_BTN_GOOGLE = "Đăng nhập với Google";
@@ -65,29 +66,48 @@ function GoogleIcon() {
   );
 }
 
-const THUMBS = [
-  {
-    url: "https://images.unsplash.com/photo-1715114064378-b97c82f06856?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    rotate: -8,
-    x: -52,
-    y: 8,
-    z: 0,
-  },
-  {
-    url: "https://images.unsplash.com/photo-1665327469792-cf91f5b8d74c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    rotate: 0,
-    x: 0,
-    y: 0,
-    z: 1,
-  },
-  {
-    url: "https://images.unsplash.com/photo-1622800371657-4e625b2bd4ea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
-    rotate: 8,
-    x: 52,
-    y: 8,
-    z: 0,
-  },
+/* R2 frame0 thumbs — same confirmed IDs as landing `CREATOR_AVATAR_IDS` */
+const HERO_THUMBS: { id: string; rotate: number; x: number; y: number; z: number }[] = [
+  { id: "7622669408665652488", rotate: -8, x: -52, y: 8, z: 0 },
+  { id: "7619285253022125333", rotate: 0, x: 0, y: 0, z: 1 },
+  { id: "7616957249201638677", rotate: 8, x: 52, y: 8, z: 0 },
 ];
+
+function LoginHeroThumb({
+  videoId,
+  className,
+  style,
+}: {
+  videoId: string;
+  className: string;
+  style: CSSProperties;
+}) {
+  const [failed, setFailed] = useState(false);
+  const url = r2FrameUrl(videoId);
+  useEffect(() => {
+    setFailed(false);
+  }, [videoId]);
+
+  return (
+    <div className={className} style={style}>
+      {!url || failed ? (
+        <div className="h-full w-full bg-[color:var(--gv-canvas-2)]" />
+      ) : (
+        <img
+          src={url}
+          alt=""
+          className="h-full w-full object-cover"
+          draggable={false}
+          onError={() => setFailed(true)}
+        />
+      )}
+      <div
+        className="absolute inset-0 bg-gradient-to-t from-[color:var(--gv-ink)]/45 to-transparent"
+        aria-hidden
+      />
+    </div>
+  );
+}
 
 type OauthErrorState = {
   target: "facebook" | "google" | "general";
@@ -202,25 +222,23 @@ export default function LoginRoute() {
           <div className="border-b border-[color:var(--gv-rule-2)] bg-[color:var(--gv-canvas-2)] px-4 py-2.5 text-center sm:px-5">
             <span className="gv-kicker gv-kicker--dot">Tài khoản GetViews</span>
           </div>
-          <div className="relative mb-2 flex h-[168px] select-none items-end justify-center bg-[color:var(--gv-canvas-2)]/50">
-            {THUMBS.map((t, i) => (
-              <div
-                key={i}
+          <div className="relative -mt-0.5 mb-1 flex h-[160px] -translate-y-2 select-none items-end justify-center bg-[color:var(--gv-canvas-2)]/50">
+            {HERO_THUMBS.map((t) => (
+              <LoginHeroThumb
+                key={t.id}
+                videoId={t.id}
                 className="absolute h-[124px] w-[88px] overflow-hidden rounded-[var(--gv-radius-md)] border-2 border-white/10 shadow-xl"
                 style={{
                   transform: `rotate(${t.rotate}deg) translateX(${t.x}px) translateY(${t.y}px)`,
                   zIndex: t.z,
                   bottom: "0",
                 }}
-              >
-                <img src={t.url} alt="" className="h-full w-full object-cover" draggable={false} />
-                <div className="absolute inset-0 bg-gradient-to-t from-[rgb(10_12_16/0.45)] to-transparent" />
-              </div>
+              />
             ))}
           </div>
 
           <div className="px-6 pb-5 pt-2 text-center">
-            <h1 className="gradient-text mb-2 text-2xl font-extrabold leading-tight tracking-[-0.02em] sm:text-[1.65rem]">
+            <h1 className="mb-2 max-w-full whitespace-nowrap text-center text-[color:var(--gv-ink)] [font-size:clamp(0.55rem,2.8vw+0.18rem,1.65rem)] font-extrabold leading-tight tracking-[-0.02em]">
               Bắt trend TikTok trước khi nó viral
             </h1>
             <p className="text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
