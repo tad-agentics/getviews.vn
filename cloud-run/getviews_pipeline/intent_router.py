@@ -49,12 +49,19 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     # §A.2 — /answer report formats
     QueryIntent.TREND_SPIKE.value: "answer:pattern",
     QueryIntent.CONTENT_DIRECTIONS.value: "answer:pattern",
-    # Lifecycle template (2026-04-22): three intents that were previously
-    # rendered as Pattern reports but really need the stage pill + reach
-    # delta + health score shape.
-    QueryIntent.SUBNICHE_BREAKDOWN.value: "answer:lifecycle",
+    # 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` redirected off
+    # ``answer:lifecycle`` back to ``answer:pattern``. Rationale:
+    # lifecycle's hook_fatigue + subniche modes shipped fixture-with-
+    # honesty-disclaimer cells because the upstream signal (per-hook
+    # weekly reach timeseries, subniche taxonomy) doesn't exist yet.
+    # Pattern's niche-hook-leaderboard is a more honest fit for both
+    # questions ("what's rising/declining in my niche?") until that
+    # signal lands. The lifecycle module still renders historical
+    # sessions with ``mode="hook_fatigue" | "subniche"`` — only new
+    # sessions reroute.
+    QueryIntent.SUBNICHE_BREAKDOWN.value: "answer:pattern",
     QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE.value: "answer:lifecycle",
-    QueryIntent.FATIGUE.value: "answer:lifecycle",
+    QueryIntent.FATIGUE.value: "answer:pattern",
     QueryIntent.BRIEF_GENERATION.value: "answer:ideas",
     QueryIntent.HOOK_VARIANTS.value: "answer:ideas",
     QueryIntent.TIMING.value: "answer:timing",
@@ -114,10 +121,12 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     "find_creators": "kol",  # legacy alias
     "metadata_only": "video",
     "timing": "answer:timing",
-    "fatigue": "answer:lifecycle",
+    # 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` cut from lifecycle
+    # shelf; see ``INTENT_TO_DESTINATION`` comment above for rationale.
+    "fatigue": "answer:pattern",
     "hook_variants": "answer:ideas",
     "content_calendar": "answer:timing",
-    "subniche_breakdown": "answer:lifecycle",
+    "subniche_breakdown": "answer:pattern",
     "format_lifecycle_optimize": "answer:lifecycle",
     # ``comparison`` kept only so legacy session preview rounds still
     # route somewhere sensible; the classifier no longer emits it.
