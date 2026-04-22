@@ -119,7 +119,7 @@ Add to root `tsconfig.json` paths:
 "shared/*": ["./shared/*"]
 ```
 
-Verify `shared/` and `mobile/` directories exist with their `package.json` files (from template). Run `npm install` to link workspaces.
+Verify `shared/` exists (from template). **GetViews.vn** is web-only — there is no `mobile/` workspace; skip npm `workspaces` linking for native.
 
 For `native` mode, scaffold Expo:
 ```bash

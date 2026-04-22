@@ -1,5 +1,7 @@
 # /store-submit
 
+> **GetViews.vn:** Web-only — no App Store / Play pipeline. Use **`/deploy`** for Vercel. The steps below apply only if you add `mobile/` again.
+
 EAS Build → EAS Submit for App Store and Google Play. Run after `/pre-handoff` passes.
 
 ## Pre-flight checks

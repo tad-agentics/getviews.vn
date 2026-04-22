@@ -72,7 +72,7 @@ Wait for `feat([name]): screens complete` commit before proceeding.
 
 ## Step 2b — Mobile (mode ≠ pwa only)
 
-If deployment mode is `native` or `pwa-then-native` Phase B, launch Mobile Developer subagent:
+**GetViews.vn:** Skip — no native app. For upstream RAD only: if deployment mode is `native` or `pwa-then-native` Phase B, launch Mobile Developer subagent:
 
 ```
 Task: Feature [name] — Mobile Screens

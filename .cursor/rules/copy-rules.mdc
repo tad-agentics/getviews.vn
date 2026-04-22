@@ -2,7 +2,6 @@
 description: Brand voice and copy standards for GetViews — auto-loads on all screen files
 globs:
   - src/**/*.tsx
-  - mobile/**/*.tsx
 alwaysApply: false
 ---
 

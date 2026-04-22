@@ -1,12 +1,9 @@
 /**
  * Brand color tokens — single source of truth.
- * Populated from EDS §5 Visual Direction during /init or /native-init.
+ * Populated from EDS §5 Visual Direction during /init.
  *
- * Web: src/app.css consumes oklch values via @theme inline
- * Mobile: mobile/tailwind.config.js consumes hex values
- *
- * WARNING: Mobile (NativeWind v4 / TW3) does not support oklch.
- * Always use brand.[color].hex for mobile. oklch is web-only.
+ * Web: src/app.css consumes oklch values via @theme inline.
+ * `hex` fields remain for shared validation / future tooling.
  */
 export const brand = {
   primary: { hex: "#2563EB", oklch: "oklch(0.55 0.2 260)" },

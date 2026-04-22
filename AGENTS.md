@@ -31,7 +31,6 @@ In practice: `.mdc` rules define the code standards. Agent files define the work
 | **Product Designer** | Screen planning + Figma Make prompt guidance + visual QA. | `product-designer.md` | `/phase2`, `/visual-audit` |
 | **Backend Developer** | DB schema, migrations, RLS, Edge Functions, webhooks, cron. | `backend-developer.md` | `/foundation`, `/feature` |
 | **Frontend Developer** | Screens (copied from Figma Make TSX), shared components, mobile viewport. | `frontend-developer.md` | `/foundation`, `/feature` |
-| **Mobile Developer** | Native screens (translated from Make TSX via hybrid 3-phase), NativeWind, react-native-reusables, FlashList. | `mobile-developer.md` | `/foundation`, `/feature` (mode ≠ pwa) |
 | **QA Agent** | Feature validation + pre-handoff safety audit. | `qa-agent.md` | `/feature`, pre-handoff |
 | **DevOps Agent** | Production deploy. Runs once after QA sign-off. | `devops-agent.md` | `/deploy` |
 | **Research Agent** | Technical research — integration docs + implementation pattern research. | `research-agent.md` | `/research`, auto from `/phase4` and `/new-feature` |
@@ -48,7 +47,6 @@ All specialists are used proactively. When choosing which subagent to launch:
 |---|---|
 | Any backend work — tables, migrations, RLS, Edge Functions, logic changes | `backend-developer` |
 | Any UI work — screens, components, interactions, navigation, styling | `frontend-developer` |
-| Any native mobile UI work — Expo screens, NativeWind, react-native-reusables (mode ≠ pwa) | `mobile-developer` |
 | Validate a completed feature end-to-end | `qa-agent` |
 | Any design work — screen specs, Make prompts, visual audit | `product-designer` |
 | Any deployment work | `devops-agent` |

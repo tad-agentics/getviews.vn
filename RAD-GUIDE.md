@@ -2,7 +2,9 @@
 
 This is the step-by-step operating manual for the RAD template. Follow it in order. Every step has a clear completion signal before you move on.
 
-**Native-capable template:** This repo includes `mobile/` (Expo) and `shared/` (cross-platform package) so you can ship **PWA-only**, **web + native from day one**, or **PWA first then native** (`pwa-then-native`). The main web application is finalized when you run **`/init`** after Phase 1: that command scaffolds React Router v7 + Vite at the repo root, installs dependencies, links npm workspaces when your northstar §7c mode requires it, and (for `native` mode) prepares the Expo app. Until then, treat the root as **agent-orchestrated** — do not assume a hand-written `package.json` exists before init.
+> **GetViews.vn (this repository):** Ships **web/PWA only**. The `mobile/` Expo app, Mobile Developer agent, `mobile.mdc`, and `expo-native-reference` skill were **removed**. Native-oriented sections below describe the **upstream RAD template**; skip them here unless you deliberately reintroduce a native workspace.
+
+**Native-capable template (upstream RAD):** A full RAD checkout can include `mobile/` (Expo) and `shared/` so you can ship **PWA-only**, **web + native from day one**, or **PWA first then native** (`pwa-then-native`). The main web application is finalized when you run **`/init`** after Phase 1: that command scaffolds React Router v7 + Vite at the repo root, installs dependencies, links npm workspaces when your northstar §7c mode requires it, and (for `native` mode) prepares the Expo app. Until then, treat the root as **agent-orchestrated** — do not assume a hand-written `package.json` exists before init.
 
 ---
 
@@ -48,7 +50,7 @@ Current React Native guidance is that **most new apps should use a React Native 
 - [ ] Follow **Expo’s** environment guide for simulators/devices and CLI: [Set up your environment](https://docs.expo.dev/get-started/set-up-your-environment) (this is the path linked from the RN docs for day-to-day development).
 - [ ] Optional onboarding for reviewing mobile UI work: [Core Components and Native Components](https://reactnative.dev/docs/intro-react-native-components) (how views map to native views; complements NativeWind in this repo).
 
-**Expo documentation** (framework used under `mobile/`) — [docs.expo.dev](https://docs.expo.dev/) is the canonical source for tooling, SDK modules, and shipping. The same link map, RAD wiring, and authority order for agents live in **`.cursor/skills/expo-native-reference/SKILL.md`** (read with the Mobile Developer agent).
+**Expo documentation** (framework used under `mobile/`) — [docs.expo.dev](https://docs.expo.dev/) is the canonical source for tooling, SDK modules, and shipping. On a repo that still ships native, use the upstream **expo-native-reference** skill and Mobile Developer agent (not present in GetViews.vn).
 
 | Topic | Official guide | Why it matters in RAD |
 |---|---|---|
@@ -101,7 +103,7 @@ RAD does **not** define a **`/mobile`** slash command on purpose. The **Mobile D
 | **`native`** from day one | **`/init`** → … → **`/foundation`** → **`/feature [name]`** (repeat per wave) | **`/foundation`** — block *Dispatch — Mobile Foundation* after web foundation (Expo shell, providers, tab layout, auth screens, dev client). **`/feature`** — *Step 2b — Mobile* after web Step 2 for that feature. |
 | **`pwa-then-native`** Phase B | **`/native-init`** (once) → **`/foundation`** → **`/feature [name]`** | **`/native-init`** only scaffolds `shared/`, workspaces, and Expo — **it does not implement screens.** Then **`/foundation`** (mobile shell) and **`/feature`** match **`native`** mode. If Phase A already completed backend/web foundation, coordinate with **`ACTIVE_CONTEXT.md`** and `.cursor/commands/foundation.md` pre-flights so work is not duplicated. |
 
-Agent contract: `.cursor/agents/mobile-developer.md`. Orchestration: `.cursor/commands/foundation.md` (after line ~94), `.cursor/commands/feature.md` (Step 2b).
+Agent contract (native repos): `.cursor/agents/mobile-developer.md`. Orchestration: `.cursor/commands/foundation.md` (after line ~94), `.cursor/commands/feature.md` (Step 2b). **Omitted in GetViews.vn.**
 
 ---
 
@@ -338,7 +340,7 @@ Two agent streams run in sequence (backend first, then frontend; mobile follows 
 
 Each feature runs: **Backend → Frontend → QA**. When deployment mode is **`native`** or you are in Phase B of **`pwa-then-native`**, **`/feature`** adds **Step 2b — Mobile** after web frontend: **Backend → Frontend (web) → Mobile → QA**, waiting for each commit before the next stage. In **`native`** mode, web Step 2 is often **landing-only**; app screens ship on mobile in Step 2b. In **`pwa-then-native`** Phase B, web Step 2 may be skipped — web already exists from Phase A. See `.cursor/commands/feature.md`.
 
-**Make → React Native:** Hybrid translation is **risk-graded** (queue approved per screen), uses an **import audit** before porting, forbids **Make mock data** on device after wiring (only **`shared/`** hooks), and defines **escalation** when mechanical mapping fails — see **`.cursor/agents/mobile-developer.md`** (*Make → RN*).
+**Make → React Native:** Hybrid translation is **risk-graded** (queue approved per screen), uses an **import audit** before porting, forbids **Make mock data** on device after wiring (only **`shared/`** hooks), and defines **escalation** when mechanical mapping fails — in full RAD this lives in the Mobile Developer agent (*Make → RN*). **Not applicable in GetViews.vn.**
 
 The frontend agent is an integrator, not a builder:
 - Finds the Make component for each screen
@@ -476,7 +478,7 @@ If an agent has attempted a task 3 times without success, is uncertain about a s
 | `investigate` | 4-phase root cause analysis | Complex bugs spanning 3+ files |
 | `security-audit` | OWASP + RLS + secrets + deps audit | During `/pre-handoff`, or manually |
 | `testing` | 66 automated rule checks | Runs on agent stop via hooks |
-| `expo-native-reference` | Official RN + Expo doc map, env/EAS/Router pointers, RAD native wiring | Mobile Developer session warm-up; Tech Lead debugging native tooling; SDK or `create-expo-app` alignment |
+| `expo-native-reference` (upstream) | Official RN + Expo doc map, env/EAS/Router pointers, RAD native wiring | **Removed in GetViews.vn**; restore if you add `mobile/` again |
 | `caching-strategies` | Cache-aside mental model for RAD — TanStack tiers, invalidation, Edge/optional Redis, stampede notes | Tuning `staleTime` / invalidation, stale UI bugs, adding Edge or Redis caches in tech spec |
 
 **Native Phase B:** Use the **`/native-init`** command (not a skill file) after Phase A when mode is `pwa-then-native`. It owns the extraction map from `src/lib` → `shared/` and Expo wiring; see `.cursor/commands/native-init.md`.

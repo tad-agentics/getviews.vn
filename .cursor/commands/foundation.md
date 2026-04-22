@@ -93,7 +93,7 @@ Signal completion when feat(foundation): shared components + landing page + auth
 
 ## Dispatch — Mobile Foundation (mode ≠ pwa only)
 
-After Backend and Web Frontend Foundation commit, if deployment mode is `native` or `pwa-then-native`, launch Mobile Developer subagent:
+**GetViews.vn:** Skip — no `mobile/` app. For upstream RAD only: after Backend and Web Frontend Foundation commit, if deployment mode is `native` or `pwa-then-native`, launch Mobile Developer subagent:
 
 ```
 Task: Foundation — Mobile App Setup

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **GetViews.vn** — Vietnamese TikTok creative intelligence platform. Users paste a TikTok URL or ask a question in Vietnamese; the system analyzes the video frame-by-frame with Gemini vision, compares it against a pre-indexed corpus of ~46,000 Vietnamese TikTok videos, and returns diagnosis + hook rankings + actionable fixes in Vietnamese via streamed SSE.
 
-**Deployment mode:** `pwa` (web-only). The repo also contains `mobile/` (Expo) + `shared/` scaffolding from the RAD template, but they are out of scope for this app.
+**Deployment mode:** `pwa` (web-only). The `mobile/` Expo workspace was removed; this app ships web only. `shared/` remains for cross-surface types/API helpers used by the web app.
 
 **Primary language for user-facing copy: Vietnamese.** No English strings in UI.
 
@@ -120,7 +120,7 @@ Copy `.env.example` → `.env.local`. Key distinctions:
 
 ## Bundle splitting
 
-`vite.config.ts` defines `manualChunks` for `react-vendor`, `react-router`, `@tanstack`, `@supabase`, `@radix-ui`, `lucide-react`, `motion`. Don't remove these without replacing with an equivalent strategy — mobile initial-parse time depends on them. Import icons individually (`import { Camera } from "lucide-react"`), never barrel-imports.
+`vite.config.ts` defines `manualChunks` for `react-vendor`, `react-router`, `@tanstack`, `@supabase`, `@radix-ui`, `lucide-react`, `motion`. Don't remove these without replacing with an equivalent strategy — they keep first-load chunks bounded. Import icons individually (`import { Camera } from "lucide-react"`), never barrel-imports.
 
 There is a dev-only Vite plugin `vercelEdgeDev` that proxies POST `/api/chat` to `api/chat.ts` via `ssrLoadModule` so the Edge handler works in `npm run dev`. In production, Vercel routes `/api/*` to the Edge Function before the SPA rewrite in `vercel.json`.
 

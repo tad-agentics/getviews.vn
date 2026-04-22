@@ -19,8 +19,6 @@ This section encodes the **same intent** as project-level “design system rules
 
 **Before changing layout, colors, or adding a “new” UI primitive:** Check `design-system-spec.md` and existing `src/components/ui/` — extend or compose; do not introduce a parallel component set.
 
-When **native** mode is active, brand colors/types that land in **`shared/colors.ts`** and `mobile/global.css` must **stay aligned** with EDS §5 and web tokens (see `mobile-developer.md` Foundation).
-
 ---
 
 ## Design Tokens (Make → Tailwind)

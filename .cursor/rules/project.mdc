@@ -30,6 +30,7 @@ Primary user: Minh (24, Shopee affiliate creator) who needs to know why his vide
 
 ## Not building (out of scope)
 
+- Native iOS/Android (Expo) — web/PWA only; the `mobile/` workspace was removed from this repo
 - English-language support — Vietnamese-only product; global users use GetReels
 - MCP server access — Vietnamese developer market too small for v1
 - Multi-platform (Reels, Shorts) — TikTok only

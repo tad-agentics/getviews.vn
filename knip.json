@@ -21,7 +21,6 @@
     "app/**",
     "shared/**",
     "artifacts/**",
-    "mobile/**",
     "supabase/functions/**",
     "cloud-run/**"
   ],
