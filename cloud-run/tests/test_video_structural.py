@@ -45,7 +45,11 @@ def test_extract_hook_phases_three_cards_empty_body() -> None:
             "hook_type": "curiosity_gap",
             "face_appears_at": 0.2,
             "first_speech_at": 1.1,
-            "hook_timeline": [{"t": 0.4, "event": "zoom-in", "note": "text pop"}],
+            # ``face_enter`` is a canonical HookTimelineEventType; older fixtures
+            # used ``"zoom-in"`` which never resolved. The translator now maps
+            # it to Vietnamese ("Khuôn mặt xuất hiện") rather than leaking the
+            # raw code (BUG-02 regression guard).
+            "hook_timeline": [{"t": 0.4, "event": "face_enter", "note": "text pop"}],
         }
     }
     cards = extract_hook_phases(analysis)
@@ -54,8 +58,37 @@ def test_extract_hook_phases_three_cards_empty_body() -> None:
     assert cards[1]["t_range"] == "0.8–1.8s"
     assert cards[2]["t_range"] == "1.8–3.0s"
     assert all(c["body"] == "" for c in cards)
-    assert "face" in cards[0]["label"].lower() or "Mở" in cards[0]["label"]
-    assert "curiosity" in cards[1]["label"].lower() or "zoom" in cards[1]["label"].lower()
+    # Card 0 shows Vietnamese first-frame label, not the raw enum.
+    assert "Cận mặt" in cards[0]["label"]
+    assert "face_with_text" not in cards[0]["label"]
+    # Card 1 shows the Vietnamese timeline event label (not "face_enter").
+    assert "Khuôn mặt xuất hiện" in cards[1]["label"]
+    assert "face_enter" not in cards[1]["label"]
+
+
+def test_extract_hook_phases_never_leaks_raw_enum_into_label() -> None:
+    """BUG-02 regression: ``first_frame_type`` values like ``face_with_text``
+    used to render as ``"Mở face with text · face @0.0s"`` — now must show
+    the Vietnamese label (``"Cận mặt + chữ"``)."""
+    analysis = {
+        "hook_analysis": {
+            "first_frame_type": "face_with_text",
+            "hook_type": "how_to",
+            "face_appears_at": 0.0,
+            "first_speech_at": 0.8,
+            "hook_timeline": [],
+        }
+    }
+    cards = extract_hook_phases(analysis)
+    label_a = cards[0]["label"]
+    label_b = cards[1]["label"]
+    # No raw snake/kebab case enum leaks into user-visible labels.
+    assert "face_with_text" not in label_a
+    assert "face with text" not in label_a
+    assert "how_to" not in label_b
+    # Vietnamese labels render instead.
+    assert "Cận mặt + chữ" in label_a
+    assert "Hướng dẫn thực hành" in label_b
 
 
 def test_model_retention_curve_twenty_points_monotonic_tail() -> None:

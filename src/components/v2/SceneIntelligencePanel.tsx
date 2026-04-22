@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { Plus } from "lucide-react";
 import type { ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import { MiniBarCompare } from "@/components/v2/MiniBarCompare";
+import { overlayStyleVi } from "@/lib/constants/enum-labels-vi";
 
 export type ScriptReferenceClip = {
   video_id: string;
@@ -88,7 +89,7 @@ export function SceneIntelligencePanel({
             ? `Trong ${overlayCorpusCount} video thắng, scene loại này dùng:`
             : "Trong các video thắng, scene loại này hay dùng:"}
           <span className="gv-mono mt-1 block text-[13px] font-medium text-[color:var(--gv-ink)]">
-            {shot.overlayWinner}
+            {overlayStyleVi(shot.overlayWinner, shot.overlayWinner)}
           </span>
         </p>
         {shot.overlay !== "NONE" && overlaySamples.length > 0 ? (

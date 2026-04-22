@@ -35,6 +35,7 @@ import type {
 } from "@/lib/api-types";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { useVideoAnalysis, videoAnalysisKey } from "@/hooks/useVideoAnalysis";
+import { sanitizePredictionPos } from "@/lib/sanitizePredictionPos";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
@@ -51,7 +52,7 @@ function isFlopHeadline(v: string | FlopHeadline | null | undefined): v is FlopH
 function stringifyAnalysisHeadline(h: string | FlopHeadline | null | undefined): string {
   if (h == null) return "";
   if (typeof h === "string") return h;
-  return `${h.prefix}${h.view_accent}${h.middle}${h.prediction_pos}${h.suffix}`;
+  return `${h.prefix}${h.view_accent}${h.middle}${sanitizePredictionPos(h.prediction_pos)}${h.suffix}`;
 }
 
 function formatSaveRatePct(meta: VideoAnalyzeMeta): string {

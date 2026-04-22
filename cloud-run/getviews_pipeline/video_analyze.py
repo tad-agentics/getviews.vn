@@ -425,7 +425,9 @@ Trả về JSON theo schema:
   - prefix: mở đầu ngắn (vd "Video dừng ở")
   - view_accent: cụm view ngắn (vd "8.4K view") — số khớp views video
   - middle: chẩn đoán flop (hook/scene…)
-  - prediction_pos: dự đoán ngắn (vd "~34K") nếu có ý dự báo; có thể "~0" nếu không nêu số
+  - prediction_pos: dự đoán ngắn có dấu ~ (vd "~34K") NẾU có con số cụ thể;
+    NẾU KHÔNG có dự báo thì TRẢ VỀ CHUỖI RỖNG "" — KHÔNG dùng "~0", "~—"
+    hay placeholder giả. Người dùng sẽ đọc câu nối liền 5 đoạn.
   - suffix: kết (vd "." hoặc " nếu áp fix.")
   Tổng độ dài nối 5 chuỗi ≤ 400 ký tự.
 - flop_issues: 3-6 mục, sắp xếp theo ảnh hưởng. sev high/mid/low. t/end là giây trên timeline. detail + fix cụ thể, tiếng Việt.

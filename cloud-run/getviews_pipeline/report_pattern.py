@@ -190,22 +190,85 @@ ANSWER_FIXTURE_PATTERN: dict[str, Any] = validate_and_store_report(
 )
 
 
-def build_thin_corpus_pattern_report(*, sample_size: int = 12) -> dict[str, Any]:
+def build_empty_pattern_report(
+    *,
+    niche_label: str = "—",
+    window_days: int = 7,
+    sample_size: int = 0,
+    reason: str = "Chưa đủ dữ liệu để dựng báo cáo — quay lại khi corpus cập nhật.",
+) -> dict[str, Any]:
+    """Live empty-state payload — used whenever the real pipeline can't
+    produce a ranked report (service client unavailable, niche corpus
+    below threshold, load inputs returns None).
+
+    Crucial invariant: this MUST NOT embed ``@demo`` / ``Stub video``
+    evidence cards. The fixture payload does that for offline validation
+    + smoke tests, and for months it was mistakenly wired up as a live
+    fallback — the QA audit on 2026-04-22 caught 6 identical
+    ``@demo / Stub video`` cards in a production Answer response. The fix
+    is to render a real empty state the user can actually act on (try a
+    different niche, wait for corpus refresh) instead of shipping a
+    ``confident-looking but fictitious`` hook ranking.
+    """
+    confidence = ConfidenceStrip(
+        sample_size=max(0, int(sample_size)),
+        window_days=int(window_days),
+        niche_scope=niche_label,
+        freshness_hours=0,
+        intent_confidence="low",
+        what_stalled_reason=reason,
+    )
+    payload = PatternPayload(
+        confidence=confidence,
+        wow_diff=WoWDiff(),
+        tldr={
+            "thesis": reason,
+            "callouts": [],
+        },
+        findings=[],
+        what_stalled=[],
+        evidence_videos=[],
+        patterns=[],
+        actions=[
+            ActionCardPayload(
+                icon="calendar",
+                title="Theo dõi trend",
+                sub="Xem khi corpus cập nhật",
+                cta="Xem",
+                route="/app/trends",
+                forecast={"expected_range": "—", "baseline": "—"},
+            ),
+        ],
+        sources=[],
+        related_questions=[],
+    )
+    return payload.model_dump()
+
+
+def build_thin_corpus_pattern_report(
+    *,
+    sample_size: int = 12,
+    niche_label: str = "—",
+    window_days: int = 7,
+) -> dict[str, Any]:
     """Thin-corpus shape: N<30, humility reason, no stalled rows (C.2.1 pytest contract).
 
-    ``sample_size`` defaults to 12 for standalone/fixture use. The live pipeline passes
-    the real ``niche_intelligence.sample_size`` so the UI shows the actual corpus count.
+    Built on top of ``build_empty_pattern_report`` — never inherits the
+    fixture's ``@demo`` evidence cards. The live pipeline passes the real
+    ``niche_intelligence.sample_size`` + niche label so the UI shows the
+    actual corpus count.
     """
-    inner = build_fixture_pattern_report()
-    conf = inner["confidence"]
-    if isinstance(conf, dict):
-        conf["sample_size"] = max(0, int(sample_size))
-        conf["what_stalled_reason"] = "ngách quá thưa — không đủ hook để xếp hạng âm"
-    inner["tldr"] = {
+    data = build_empty_pattern_report(
+        niche_label=niche_label,
+        window_days=window_days,
+        sample_size=sample_size,
+        reason="ngách quá thưa — không đủ hook để xếp hạng âm",
+    )
+    data["tldr"] = {
         "thesis": "Mẫu nhỏ: chỉ dùng để định hướng, không kết luận toàn ngách.",
-        "callouts": inner["tldr"].get("callouts", []),
+        "callouts": [],
     }
-    return inner
+    return data
 
 
 def _freshness_hours_from_corpus(corpus: list[dict[str, Any]]) -> int:
@@ -249,10 +312,11 @@ def build_pattern_report(
 
         sb = get_service_client()
     except Exception as exc:
-        logger.warning("[pattern] service client unavailable: %s — fixture path", exc)
-        data = build_fixture_pattern_report()
-        if isinstance(data.get("confidence"), dict):
-            data["confidence"]["window_days"] = window_days
+        logger.warning("[pattern] service client unavailable: %s — empty state", exc)
+        # Previously returned the @demo/"Stub video" fixture which leaked
+        # placeholder evidence cards to production users (BUG-01, QA audit
+        # 2026-04-22). The empty state is honest: no findings, no stubs.
+        data = build_empty_pattern_report(window_days=window_days)
         data["wow_diff"] = wow
         if subreports:
             data["subreports"] = _build_pattern_subreports(niche_id, query, window_days, subreports)
@@ -272,9 +336,10 @@ def build_pattern_report(
 
     ctx = load_pattern_inputs(sb, niche_id, window_days)
     if ctx is None:
-        data = build_fixture_pattern_report()
-        if isinstance(data.get("confidence"), dict):
-            data["confidence"]["window_days"] = window_days
+        # load_pattern_inputs returns None when the niche has no usable
+        # rows in the corpus — render an honest empty state instead of
+        # the @demo fixture (BUG-01).
+        data = build_empty_pattern_report(window_days=window_days)
         data["wow_diff"] = wow
         return data
 
@@ -286,11 +351,13 @@ def build_pattern_report(
     sample_n = int(ni.get("sample_size") or 0)
     ranked = rank_hooks_for_pattern(he_rows)
     if niche_id <= 0 or sample_n < 30 or len(ranked) < 3:
-        thin = build_thin_corpus_pattern_report(sample_size=sample_n)
+        thin = build_thin_corpus_pattern_report(
+            sample_size=sample_n,
+            niche_label=niche_label,
+            window_days=window_days,
+        )
         thin["wow_diff"] = wow
         if isinstance(thin.get("confidence"), dict):
-            thin["confidence"]["window_days"] = window_days
-            thin["confidence"]["niche_scope"] = niche_label
             thin["confidence"]["freshness_hours"] = _freshness_hours_from_corpus(corpus)
         return thin
 
