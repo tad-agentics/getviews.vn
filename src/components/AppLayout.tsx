@@ -345,20 +345,20 @@ function SessionRow({
             }}
             aria-label="Xóa khỏi danh sách"
             title="Xóa"
-            className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded text-[color:var(--gv-ink-4)] transition-[opacity,background,color] duration-100 hover:bg-[color:var(--gv-accent-soft)] hover:text-[color:var(--gv-accent-deep)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-[color:var(--gv-ink-4)] transition-[opacity,background,color] duration-100 hover:bg-[color:var(--gv-accent-soft)] hover:text-[color:var(--gv-accent-deep)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100"
           >
-            <X className="h-[11px] w-[11px]" strokeWidth={2.2} />
+            <X className="h-4 w-4" strokeWidth={2.2} />
           </button>
 
           <button
             ref={moreRef}
             onClick={openMenu}
             aria-label="Tuỳ chọn phiên chat"
-            className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded transition-colors duration-100 hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors duration-100 hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
               menuOpen ? "lg:opacity-100 text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-4)]"
             }`}
           >
-            <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
+            <MoreHorizontal className="h-4 w-4" strokeWidth={1.8} />
           </button>
         </div>
       )}
@@ -502,16 +502,16 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 navigate("/app/answer");
                 onClose?.();
               }}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
             >
-              <Plus className="h-3.5 w-3.5" strokeWidth={1.8} />
+              <Plus className="h-4 w-4" strokeWidth={1.8} />
             </button>
             {onClose && (
               <button
                 onClick={onClose}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
               >
-                <X className="h-3.5 w-3.5" strokeWidth={1.8} />
+                <X className="h-4 w-4" strokeWidth={1.8} />
               </button>
             )}
           </div>
@@ -670,7 +670,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               type="button"
               title={displayName}
               onClick={() => setShowProfileModal((v) => !v)}
-              className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--gv-accent)] text-[11px] font-semibold text-white ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--gv-accent)] text-[13px] font-semibold text-white ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
