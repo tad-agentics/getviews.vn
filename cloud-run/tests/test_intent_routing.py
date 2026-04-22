@@ -47,6 +47,48 @@ def test_classify_own_flop_no_url() -> None:
     assert i == QueryIntent.OWN_FLOP_NO_URL
 
 
+def test_classify_own_flop_no_url_widened_keywords() -> None:
+    """2026-05-07 — widened the flop-keyword set to cover colloquial
+    Vietnamese expressions that didn't route through the fast path
+    before (the template-audit feedback). Each of these phrases MUST
+    fire OWN_FLOP_NO_URL when paired with a "my channel / video"
+    keyword."""
+    # Note: keep each case free of earlier-branch keywords (e.g. "tuần
+    # này" triggers TREND_SPIKE ahead of the flop check). The widening
+    # is about new flop-keyword coverage, not about shuffling branch
+    # priorities.
+    cases = [
+        "Video kênh của mình không ai xem",
+        "Kênh của mình không có view",
+        "Video mình ra gì đâu",
+        "Kênh của tôi bết quá",
+        "Video của mình kém view",
+    ]
+    for msg in cases:
+        i = classify_intent(msg, [], [], False)
+        assert i == QueryIntent.OWN_FLOP_NO_URL, (
+            f"flop-widening regression for message={msg!r} — got {i}"
+        )
+
+
+def test_own_flop_requires_self_reference_even_with_flop_keyword() -> None:
+    """A flop keyword alone must NOT fire the own_flop intent — the
+    outer "my video / channel" context is required so we don't
+    misclassify niche-level complaints ("ngách này bết quá")."""
+    i = classify_intent("Ngách này bết quá không ai xem", [], [], False)
+    assert i != QueryIntent.OWN_FLOP_NO_URL
+
+
+def test_own_flop_requires_no_url() -> None:
+    """URL present → video_diagnosis pipeline handles it; OWN_FLOP_NO_URL
+    is specifically the fallback for URL-less flop queries."""
+    url = "https://www.tiktok.com/@me/video/1"
+    i = classify_intent(
+        f"Video kênh của mình không ai xem {url}", [url], [], False,
+    )
+    assert i != QueryIntent.OWN_FLOP_NO_URL
+
+
 def test_classify_competitor() -> None:
     i = classify_intent("Analyze @gymshark strategy", [], ["gymshark"], False)
     assert i == QueryIntent.COMPETITOR_PROFILE

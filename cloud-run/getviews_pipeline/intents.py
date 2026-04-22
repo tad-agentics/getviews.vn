@@ -364,15 +364,21 @@ def classify_intent(
     ):
         return QueryIntent.SUBNICHE_BREAKDOWN
 
-    # ``comparison`` (intent) dropped 2026-04-22 — multi-handle compare
-    # queries now fall through to ``COMPETITOR_PROFILE`` on the first handle.
-    # Phase C — own content underperforming (no URL to analyze)
+    # Phase C — own content underperforming (no URL to analyze).
+    # 2026-05-07: widened the flop-keyword set. Previously fired only on
+    # ``flop | ít view | không lên | low view | dead | underperform |
+    # chết``. Vietnamese creators commonly express the same complaint
+    # with phrases like "không ai xem", "ra gì đâu", "bết", "kém view".
+    # Each addition is narrow enough that, combined with the outer
+    # "my channel/video" keyword, the false-positive surface stays low
+    # (all four explicitly imply the user's content underperformed).
     if not has_urls and not handles and (
         re.search(r"\b(video|kênh|channel)\s+(của\s+)?(mình|tôi|tao|tui)\b", msg)
         or re.search(r"\b(kênh|channel)\s+(mình|tôi)\b", msg)
         or re.search(r"\b(my|kênh mình)\s+(video|channel)\b", msg)
     ) and re.search(
-        r"\b(flop|ít view|không lên|low view|dead|underperform|chết)\b",
+        r"\b(flop|ít view|kém view|không lên|không có view|không ai xem|"
+        r"low view|dead|underperform|chết|bết|ra gì đâu)\b",
         msg,
     ):
         return QueryIntent.OWN_FLOP_NO_URL

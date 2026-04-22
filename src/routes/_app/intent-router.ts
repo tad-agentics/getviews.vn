@@ -119,6 +119,9 @@ export function detectIntent(
   // Answer-session intent.
 
   // ── OWN CHANNEL / VIDEO FLOP (no TikTok URL) ─────────────────────────────
+  // 2026-05-07: the flop-keyword branch widened with colloquial
+  // Vietnamese expressions (see ``cloud-run/getviews_pipeline/intents.py``
+  // for the matching backend regex — keep the two in sync).
   if (
     !/https?:\/\/[^\s]*tiktok\.com/i.test(q)
     && (
@@ -126,7 +129,7 @@ export function detectIntent(
       || /\b(kênh|channel)\s+(mình|tôi)\b/i.test(ql)
       || /\b(my|kênh mình)\s+(video|channel)\b/i.test(ql)
     )
-    && /\b(flop|ít view|không lên|low view|dead|underperform|chết)\b/i.test(ql)
+    && /\b(flop|ít view|kém view|không lên|không có view|không ai xem|low view|dead|underperform|chết|bết|ra gì đâu)\b/i.test(ql)
   ) {
     return { intentType: "own_flop_no_url", isFree: false, confidence: "medium" };
   }
