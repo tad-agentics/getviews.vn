@@ -11,6 +11,11 @@ import { useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import { logUsage } from "@/lib/logUsage";
+import {
+  clearPendingAnswerStream,
+  savePendingAnswerStream,
+  type PendingAnswerTurnKind,
+} from "@/lib/sseResume";
 import { chatKeys } from "./useChatSession";
 
 /**
@@ -44,6 +49,15 @@ const VERCEL_CHAT_URL = "/api/chat";
  * the server fell through to a fresh run.
  */
 const MAX_ANSWER_RETRIES = 1;
+
+/**
+ * Idle-timeout for the SSE reader loop. If no bytes arrive for this long
+ * the stream is considered hung and we surface ``stream_timeout``. The
+ * retry loop will then re-attempt with resume params, letting Cloud Run's
+ * 120s replay buffer recover in-flight work without re-billing. Rolling
+ * timer — every chunk resets it, so long but healthy streams don't trip.
+ */
+const SSE_IDLE_TIMEOUT_MS = 45_000;
 
 const CLOUD_RUN_INTENTS = new Set([
   "video_diagnosis",
@@ -90,6 +104,14 @@ export type StreamArgs =
       turnKind: AnswerTurnKind;
       resumeStreamId?: string;
       lastSeq?: number;
+      /**
+       * Unix ms timestamp of the original stream — preserved across
+       * reloads so the sessionStorage entry keeps its age relative to
+       * Cloud Run's 120s replay-buffer TTL (``src/lib/sseResume.ts``).
+       * Omit on the first attempt; caller passes it back when resuming
+       * from a stored pending entry.
+       */
+      startedAt?: number;
     };
 
 export type StreamResult<TPayload = unknown> =
@@ -152,6 +174,20 @@ export function useSessionStream<TPayload = unknown>(
           let resumeStreamId = args.resumeStreamId ?? null;
           let resumeSeq = args.lastSeq ?? 0;
           let carriedPayload: TPayload | null = null;
+          // Preserved across page reloads so the replay TTL window is
+          // measured from the stream's true origin, not each retry.
+          const startedAt = args.startedAt ?? Date.now();
+          const persistProgress = (streamId: string, seq: number) => {
+            if (!streamId || seq <= 0) return;
+            savePendingAnswerStream({
+              sessionId: args.answerSessionId,
+              streamId,
+              seq,
+              query: args.query,
+              turnKind: args.turnKind as PendingAnswerTurnKind,
+              startedAt,
+            });
+          };
 
           for (let attempt = 0; attempt <= MAX_ANSWER_RETRIES; attempt++) {
             const url = new URL(
@@ -189,10 +225,14 @@ export function useSessionStream<TPayload = unknown>(
             });
 
             if (res.status === 402) {
+              // Semantic error — no retry will help; clear pending so
+              // a reload doesn't loop.
+              clearPendingAnswerStream();
               setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
               return { ok: false, error: "insufficient_credits" };
             }
             if (res.status === 429) {
+              clearPendingAnswerStream();
               setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));
               return { ok: false, error: "daily_free_limit" };
             }
@@ -204,6 +244,7 @@ export function useSessionStream<TPayload = unknown>(
                 reason: "server" satisfies SseDropReason,
                 http_status: res.status,
               });
+              clearPendingAnswerStream();
               setState((s) => ({ ...s, status: "error", error: `http_${res.status}` }));
               return { ok: false, error: `http_${res.status}` };
             }
@@ -214,6 +255,7 @@ export function useSessionStream<TPayload = unknown>(
                 last_seq: resumeSeq,
                 reason: "server" satisfies SseDropReason,
               });
+              clearPendingAnswerStream();
               setState((s) => ({ ...s, status: "error", error: "stream_failed" }));
               return { ok: false, error: "stream_failed" };
             }
@@ -225,12 +267,16 @@ export function useSessionStream<TPayload = unknown>(
               options,
               args.answerSessionId,
               carriedPayload,
+              persistProgress,
             );
             carriedPayload = outcome.payload;
             if (outcome.streamId) resumeStreamId = outcome.streamId;
             if (outcome.lastSeq > resumeSeq) resumeSeq = outcome.lastSeq;
 
             if (outcome.ok) {
+              // Server confirmed the turn landed — drop the pending entry
+              // so a subsequent reload doesn't attempt a stale resume.
+              clearPendingAnswerStream();
               if (isResume) {
                 // The retry paid off — the dashboard ratio `resume_success /
                 // resume_attempt` measures whether the server-side replay
@@ -249,24 +295,33 @@ export function useSessionStream<TPayload = unknown>(
               endpoint: ANSWER_SSE_ENDPOINT,
               session_id: args.answerSessionId,
               last_seq: outcome.lastSeq,
-              reason: (outcome.error === "stream_failed"
+              reason: (outcome.error === "stream_failed" ||
+              outcome.error === "stream_timeout"
                 ? "network"
                 : "unknown") satisfies SseDropReason,
               error: outcome.error ?? "stream_failed",
             });
-            // Only `stream_failed` is retryable — semantic errors (e.g.
-            // `insufficient_credits` from the server's in-band error token)
-            // must surface on the first attempt.
+            // Only transport-level errors are retryable — semantic errors
+            // (e.g. `insufficient_credits` from the server's in-band error
+            // token) must surface on the first attempt. `stream_timeout`
+            // is treated like `stream_failed`: the server may still be
+            // generating and a resume will land on the replay buffer.
             const retryable =
-              outcome.error === "stream_failed" &&
+              (outcome.error === "stream_failed" ||
+                outcome.error === "stream_timeout") &&
               Boolean(resumeStreamId) &&
               attempt < MAX_ANSWER_RETRIES;
             if (!retryable) {
+              // Exhausted retries on a non-recoverable outcome — stale
+              // pending entry would cause an auto-resume on reload to
+              // hit the same error. Drop it.
+              clearPendingAnswerStream();
               return { ok: false, error: outcome.error ?? "stream_failed" };
             }
             // Loop to next attempt with resume params set.
           }
 
+          clearPendingAnswerStream();
           return { ok: false, error: "stream_failed" };
         }
 
@@ -355,6 +410,26 @@ export function useSessionStream<TPayload = unknown>(
 
 type SetState<T> = Dispatch<SetStateAction<StreamState<T>>>;
 
+/**
+ * Wrap ``reader.read()`` in a rolling idle timeout. Resolves with
+ * ``{timedOut: true}`` instead of throwing so the caller can run the
+ * existing "log sse_drop + surface stream_timeout" flow.
+ */
+async function readWithIdleTimeout<T>(
+  reader: ReadableStreamDefaultReader<T>,
+  idleMs: number,
+): Promise<ReadableStreamReadResult<T> | { timedOut: true }> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<{ timedOut: true }>((resolve) => {
+    timer = setTimeout(() => resolve({ timedOut: true }), idleMs);
+  });
+  try {
+    return await Promise.race([reader.read(), timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function consumeAnswerSse<TPayload>(
   res: Response,
   setState: SetState<TPayload>,
@@ -362,6 +437,7 @@ async function consumeAnswerSse<TPayload>(
   options: StreamOptions<TPayload>,
   _answerSessionId: string,
   carriedPayload: TPayload | null = null,
+  onProgress?: (streamId: string, seq: number) => void,
 ): Promise<AnswerSseOutcome<TPayload>> {
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
@@ -374,7 +450,16 @@ async function consumeAnswerSse<TPayload>(
   let buffer = "";
 
   while (true) {
-    const { done, value } = await reader.read();
+    const chunk = await readWithIdleTimeout(reader, SSE_IDLE_TIMEOUT_MS);
+    if ("timedOut" in chunk) {
+      // Cancel the underlying body stream so the fetch Promise rejects
+      // and the AbortController's signal sees it. Then surface the
+      // idle-timeout so the outer retry loop tries the replay path.
+      try { await reader.cancel(); } catch { /* ignore */ }
+      setState((s) => ({ ...s, status: "error", error: "stream_timeout" }));
+      return { ok: false, error: "stream_timeout", streamId: lastStreamId, lastSeq, payload };
+    }
+    const { done, value } = chunk;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
@@ -395,6 +480,10 @@ async function consumeAnswerSse<TPayload>(
         if (typeof token.seq === "number") lastSeq = token.seq;
         if (token.payload !== undefined) payload = token.payload;
         if (token.delta) text += token.delta;
+        // Persist resume handles whenever they advance — the outer
+        // ``persistProgress`` writes to sessionStorage so a tab reload
+        // mid-stream can reconnect to Cloud Run's replay buffer.
+        if (onProgress && lastStreamId) onProgress(lastStreamId, lastSeq);
         if (token.done) {
           if (token.error) {
             setState({
@@ -470,7 +559,13 @@ async function consumeChatSse<TPayload>(
   let buffer = "";
 
   while (true) {
-    const { done, value } = await reader.read();
+    const chunk = await readWithIdleTimeout(reader, SSE_IDLE_TIMEOUT_MS);
+    if ("timedOut" in chunk) {
+      try { await reader.cancel(); } catch { /* ignore */ }
+      setState((s) => ({ ...s, status: "error", error: "stream_timeout" }));
+      return { ok: false, error: "stream_timeout" };
+    }
+    const { done, value } = chunk;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");

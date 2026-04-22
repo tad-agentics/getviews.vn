@@ -18,7 +18,12 @@ import {
 } from "@/hooks/useAnswerSessionQueries";
 import { useSessionStream } from "@/hooks/useSessionStream";
 import { env } from "@/lib/env";
+import { analysisErrorCopy } from "@/lib/errorMessages";
 import { createAnswerSession } from "@/lib/answerApi";
+import {
+  clearPendingAnswerStream,
+  loadPendingAnswerStream,
+} from "@/lib/sseResume";
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1, SourceRowData } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
@@ -116,6 +121,95 @@ export default function AnswerScreen() {
    * while this route stays mounted.
    */
   const bootstrapInFlightRef = useRef<string | null>(null);
+
+  /**
+   * Resume-on-reload guard. ``loadPendingAnswerStream`` validates the
+   * entry is for the current session and younger than the replay TTL
+   * (90s). The ref below prevents double-firing under React Strict
+   * Mode, and the detailQuery check prevents a resume when the server
+   * already persisted the turn before we reloaded.
+   */
+  const resumeFiredRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId || !CLOUD || !user) return;
+    // If turns already exist the stream completed before reload — the
+    // persisted entry is stale and would trigger a no-op fresh run if
+    // we followed it. Clear.
+    if (detailQuery.isLoading) return;
+    if ((detailQuery.data?.turns?.length ?? 0) > 0) {
+      clearPendingAnswerStream();
+      return;
+    }
+    if (resumeFiredRef.current === sessionId) return;
+    const pending = loadPendingAnswerStream(sessionId);
+    if (!pending) return;
+    resumeFiredRef.current = sessionId;
+
+    void (async () => {
+      setBootstrapLoading(true);
+      setError(null);
+      try {
+        const result = await stream({
+          mode: "answer_turn",
+          answerSessionId: pending.sessionId,
+          query: pending.query,
+          turnKind: pending.turnKind,
+          resumeStreamId: pending.streamId,
+          lastSeq: pending.seq,
+          startedAt: pending.startedAt,
+        });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        if (result.finalPayload) {
+          const nextIndex = detailQuery.data?.turns.length ?? 0;
+          const synthesized: AnswerTurnRow = {
+            id: `optimistic-${pending.sessionId}-${nextIndex}`,
+            session_id: pending.sessionId,
+            turn_index: nextIndex,
+            kind: pending.turnKind,
+            query: pending.query,
+            payload: result.finalPayload,
+            credits_used: pending.turnKind === "primary" ? 1 : 0,
+            created_at: new Date().toISOString(),
+          };
+          queryClient.setQueryData<AnswerDetailCache>(
+            answerSessionKeys.detail(pending.sessionId),
+            (prev) => {
+              const fallbackSession = prev?.session ?? {
+                id: pending.sessionId,
+                user_id: user.id,
+                title: null,
+                initial_q: pending.query,
+                intent_type: "generic",
+                format: "generic",
+                niche_id: null,
+              };
+              return injectOptimisticTurn(prev, fallbackSession, synthesized);
+            },
+          );
+        }
+        if (uid) {
+          await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "stream_failed");
+      } finally {
+        setBootstrapLoading(false);
+      }
+    })();
+  }, [
+    sessionId,
+    CLOUD,
+    user,
+    detailQuery.isLoading,
+    detailQuery.data?.turns,
+    stream,
+    queryClient,
+    uid,
+  ]);
 
   useEffect(() => {
     if (!sessionId && !seedQ.trim()) {
@@ -357,7 +451,9 @@ export default function AnswerScreen() {
         main={
           <TimelineRail turnCount={turnCount}>
             {error ? (
-              <p className="mt-4 text-sm text-[var(--gv-danger)]">{error}</p>
+              <p className="mt-4 text-sm text-[var(--gv-danger)]">
+                {analysisErrorCopy(error)}
+              </p>
             ) : null}
             {detailQuery.isError && sessionId ? (
               <p className="mt-4 text-sm text-[var(--gv-danger)]">
