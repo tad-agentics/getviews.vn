@@ -214,6 +214,21 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
       expect(p.intent_type).toBe("subniche_breakdown");
     }
   });
+
+  // Diagnostic template — routes own_flop_no_url off of the pattern
+  // template so URL-less flop questions get a verdict-based diagnosis
+  // rather than a niche hook leaderboard.
+  it("own_flop_no_url → diagnostic format", () => {
+    const p = planAnswerEntry(
+      "Video kênh của mình flop quá không lên view",
+      false,
+    );
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("diagnostic");
+      expect(p.intent_type).toBe("own_flop_no_url");
+    }
+  });
 });
 
 describe("appendTurnKindForQuery", () => {

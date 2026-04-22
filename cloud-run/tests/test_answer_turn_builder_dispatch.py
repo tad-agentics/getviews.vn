@@ -34,6 +34,9 @@ def test_primary_turn_uses_session_format() -> None:
     # Lifecycle template (2026-04-22) — primary turns on lifecycle
     # sessions must dispatch to the lifecycle builder.
     assert select_builder_for_turn("lifecycle", "primary") == "lifecycle"
+    # Diagnostic template (2026-04-22) — own_flop_no_url sessions must
+    # dispatch to the diagnostic builder, not pattern.
+    assert select_builder_for_turn("diagnostic", "primary") == "diagnostic"
 
 
 def test_primary_turn_clamps_unknown_session_format_to_pattern() -> None:
@@ -454,3 +457,86 @@ def test_lifecycle_subniche_intent_sets_subniche_mode(
         kind="primary",
     )
     assert mock_lifecycle.call_args.args[2] == "subniche"
+
+
+# -----------------------------------------------------------------------------
+# Diagnostic template — 2026-04-22 (commit 4b)
+# -----------------------------------------------------------------------------
+
+
+@patch("getviews_pipeline.supabase_client.user_supabase")
+@patch("getviews_pipeline.answer_session.get_service_client")
+@patch("getviews_pipeline.answer_session.build_pattern_report")
+@patch("getviews_pipeline.answer_session.build_ideas_report")
+@patch("getviews_pipeline.answer_session.build_timing_report")
+@patch("getviews_pipeline.answer_session.build_generic_report")
+@patch("getviews_pipeline.answer_session.build_lifecycle_report")
+@patch("getviews_pipeline.answer_session.build_diagnostic_report")
+def test_diagnostic_primary_turn_dispatches_to_diagnostic_builder(
+    mock_diagnostic: MagicMock,
+    mock_lifecycle: MagicMock,
+    mock_generic: MagicMock,
+    mock_timing: MagicMock,
+    mock_ideas: MagicMock,
+    mock_pattern: MagicMock,
+    mock_get_svc: MagicMock,
+    _mock_user_sb: MagicMock,
+) -> None:
+    """Diagnostic session + primary turn → build_diagnostic_report runs.
+
+    Before this wiring, ``own_flop_no_url`` routed to ``answer:pattern``
+    and returned a niche hook leaderboard for someone asking about their
+    flopped video. Pin the new dispatch behaviour here.
+    """
+    from getviews_pipeline.report_diagnostic import build_fixture_diagnostic_report
+
+    mock_get_svc.return_value = _mock_supabase_for_turn(
+        "diagnostic", intent_type="own_flop_no_url",
+    )
+    mock_diagnostic.return_value = build_fixture_diagnostic_report()
+
+    out = append_turn(
+        "u1",
+        access_token="fake-jwt",
+        session_id="sess-1",
+        query="video tuần trước flop mà mình không còn link",
+        kind="primary",
+    )
+    mock_diagnostic.assert_called_once()
+    mock_pattern.assert_not_called()
+    mock_timing.assert_not_called()
+    mock_ideas.assert_not_called()
+    mock_generic.assert_not_called()
+    mock_lifecycle.assert_not_called()
+    assert out["payload"]["kind"] == "diagnostic"
+
+
+@patch("getviews_pipeline.supabase_client.user_supabase")
+@patch("getviews_pipeline.answer_session.get_service_client")
+@patch("getviews_pipeline.answer_session.build_diagnostic_report")
+def test_diagnostic_builder_receives_query_and_window_days(
+    mock_diagnostic: MagicMock,
+    mock_get_svc: MagicMock,
+    _mock_user_sb: MagicMock,
+) -> None:
+    """Diagnostic is Gemini-heavy — the builder needs the query threaded
+    through so follow-up turns produce different framings."""
+    from getviews_pipeline.report_diagnostic import build_fixture_diagnostic_report
+
+    mock_get_svc.return_value = _mock_supabase_for_turn(
+        "diagnostic", intent_type="own_flop_no_url",
+    )
+    mock_diagnostic.return_value = build_fixture_diagnostic_report()
+
+    append_turn(
+        "u1",
+        access_token="fake-jwt",
+        session_id="sess-1",
+        query="pacing chậm + CTA yếu",
+        kind="primary",
+    )
+    args, kwargs = mock_diagnostic.call_args
+    # Positional: niche_pk, query
+    assert args[1] == "pacing chậm + CTA yếu"
+    # window_days passed as kwarg.
+    assert "window_days" in kwargs

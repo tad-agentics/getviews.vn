@@ -598,7 +598,7 @@ export interface AnswerSessionRow {
   title: string | null;
   initial_q: string;
   intent_type: string;
-  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle";
+  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic";
   niche_id: number | null;
   created_at?: string;
   updated_at?: string;

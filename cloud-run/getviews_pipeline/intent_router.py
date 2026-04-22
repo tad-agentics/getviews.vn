@@ -15,6 +15,8 @@ from getviews_pipeline.intents import QueryIntent
 # ``answer:lifecycle`` added 2026-04-22 for the Lifecycle template (serves
 # ``format_lifecycle_optimize``, ``fatigue``, ``subniche_breakdown`` —
 # previously force-fit into the Pattern template).
+# ``answer:diagnostic`` added 2026-04-22 for the Diagnostic template (serves
+# ``own_flop_no_url`` — URL-less flop diagnosis).
 Destination = Literal[
     "video",
     "channel",
@@ -24,6 +26,7 @@ Destination = Literal[
     "answer:ideas",
     "answer:timing",
     "answer:lifecycle",
+    "answer:diagnostic",
     "answer:generic",
 ]
 
@@ -40,7 +43,9 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     QueryIntent.FIND_CREATORS.value: "kol",  # legacy alias
     QueryIntent.SHOT_LIST.value: "script",
     QueryIntent.METADATA_ONLY.value: "video",
-    QueryIntent.OWN_FLOP_NO_URL.value: "answer:pattern",
+    # Diagnostic template (2026-04-22) — URL-less flop diagnosis. See
+    # ``artifacts/docs/report-template-prd-diagnostic.md``.
+    QueryIntent.OWN_FLOP_NO_URL.value: "answer:diagnostic",
     # §A.2 — /answer report formats
     QueryIntent.TREND_SPIKE.value: "answer:pattern",
     QueryIntent.CONTENT_DIRECTIONS.value: "answer:pattern",
@@ -105,7 +110,7 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     # ``comparison`` kept only so legacy session preview rounds still
     # route somewhere sensible; the classifier no longer emits it.
     "comparison": "kol",
-    "own_flop_no_url": "answer:pattern",
+    "own_flop_no_url": "answer:diagnostic",
     "follow_up": "answer:generic",
 }
 
