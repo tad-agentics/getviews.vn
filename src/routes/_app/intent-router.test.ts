@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { appendTurnKindForQuery, detectIntent, planAnswerEntry } from "./intent-router";
+import {
+  appendTurnKindForQuery,
+  detectIntent,
+  planAnswerEntry,
+  resolveDestination,
+} from "./intent-router";
 
 /**
  * Regression guard for the "Soi kênh đối thủ @handle" routing bug.
@@ -242,5 +247,51 @@ describe("appendTurnKindForQuery", () => {
 
   it("default → generic kind", () => {
     expect(appendTurnKindForQuery("Giải thích thêm giúp mình", true)).toBe("generic");
+  });
+});
+
+describe("resolveDestination — follow_up_classifiable subject union", () => {
+  // The Gemini classifier can tag a follow-up with a subject family so
+  // it lands on the right answer template. The union was historically
+  // capped at pattern/ideas/timing; 2026-05-07 extended it with the two
+  // new shelves (lifecycle + diagnostic) so follow-ups on those session
+  // shapes can be routed back to the same shelf instead of being
+  // downgraded to answer:generic.
+
+  it("fixed intent → its INTENT_DESTINATIONS entry", () => {
+    expect(resolveDestination({ id: "trend_spike" })).toBe("answer:pattern");
+    expect(resolveDestination({ id: "timing" })).toBe("answer:timing");
+    expect(resolveDestination({ id: "fatigue" })).toBe("answer:lifecycle");
+    expect(resolveDestination({ id: "own_flop_no_url" })).toBe("answer:diagnostic");
+  });
+
+  it("follow_up_classifiable + each original subject resolves correctly", () => {
+    expect(
+      resolveDestination({ id: "follow_up_classifiable", subject: "pattern" }),
+    ).toBe("answer:pattern");
+    expect(
+      resolveDestination({ id: "follow_up_classifiable", subject: "ideas" }),
+    ).toBe("answer:ideas");
+    expect(
+      resolveDestination({ id: "follow_up_classifiable", subject: "timing" }),
+    ).toBe("answer:timing");
+  });
+
+  it("follow_up_classifiable + lifecycle subject routes to answer:lifecycle", () => {
+    expect(
+      resolveDestination({
+        id: "follow_up_classifiable",
+        subject: "lifecycle",
+      }),
+    ).toBe("answer:lifecycle");
+  });
+
+  it("follow_up_classifiable + diagnostic subject routes to answer:diagnostic", () => {
+    expect(
+      resolveDestination({
+        id: "follow_up_classifiable",
+        subject: "diagnostic",
+      }),
+    ).toBe("answer:diagnostic");
   });
 });

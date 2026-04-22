@@ -400,3 +400,58 @@ def test_profile_url_without_video_routes_to_video_diagnosis_not_competitor() ->
     i = classify_intent(url, urls, handles, False)
     # has_urls=True skips competitor guard → VIDEO_DIAGNOSIS fallthrough
     assert i == QueryIntent.VIDEO_DIAGNOSIS
+
+
+# -----------------------------------------------------------------------------
+# follow_up_classifiable subject routing (2026-05-07)
+# -----------------------------------------------------------------------------
+
+
+def test_follow_up_classifiable_routes_original_three_subjects() -> None:
+    """Regression guard for the historical subject set — lifecycle +
+    diagnostic were added later, but pattern/ideas/timing must still
+    route correctly."""
+    from getviews_pipeline.intent_router import resolve_destination
+
+    assert resolve_destination(
+        "follow_up_classifiable", follow_up_subject="pattern",
+    ) == "answer:pattern"
+    assert resolve_destination(
+        "follow_up_classifiable", follow_up_subject="ideas",
+    ) == "answer:ideas"
+    assert resolve_destination(
+        "follow_up_classifiable", follow_up_subject="timing",
+    ) == "answer:timing"
+
+
+def test_follow_up_classifiable_routes_lifecycle_subject() -> None:
+    """Follow-up classified as ``lifecycle`` lands on ``answer:lifecycle``
+    instead of being dropped (returning None and falling through to the
+    generic shelf)."""
+    from getviews_pipeline.intent_router import resolve_destination
+
+    assert resolve_destination(
+        "follow_up_classifiable", follow_up_subject="lifecycle",
+    ) == "answer:lifecycle"
+
+
+def test_follow_up_classifiable_routes_diagnostic_subject() -> None:
+    from getviews_pipeline.intent_router import resolve_destination
+
+    assert resolve_destination(
+        "follow_up_classifiable", follow_up_subject="diagnostic",
+    ) == "answer:diagnostic"
+
+
+def test_follow_up_classifiable_unknown_subject_returns_none() -> None:
+    """Defence in depth: an off-script subject string must yield None
+    (callers then downgrade to the generic answer shelf) rather than
+    constructing ``answer:<garbage>``."""
+    from getviews_pipeline.intent_router import resolve_destination
+
+    assert resolve_destination(
+        "follow_up_classifiable", follow_up_subject="weird_value",
+    ) is None
+    assert resolve_destination(
+        "follow_up_classifiable", follow_up_subject=None,
+    ) is None

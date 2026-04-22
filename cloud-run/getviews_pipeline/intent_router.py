@@ -72,7 +72,19 @@ def destination_for_intent(intent_id: str) -> Destination | None:
     return INTENT_TO_DESTINATION.get(intent_id)
 
 
-def destination_for_follow_up_classifiable(subject: Literal["pattern", "ideas", "timing"]) -> Destination:
+# Subjects the Gemini classifier may emit alongside ``follow_up_classifiable``.
+# Keep in sync with the frontend union in ``src/routes/_app/intent-router.ts``.
+# Extended 2026-05-07 with ``lifecycle`` + ``diagnostic`` so follow-ups on
+# those session shapes can be routed back to their own shelf instead of
+# being downgraded to ``answer:generic`` just because the classifier's
+# subject vocabulary was capped at the three original report kinds.
+FollowUpSubject = Literal["pattern", "ideas", "timing", "lifecycle", "diagnostic"]
+_FOLLOW_UP_SUBJECTS: frozenset[str] = frozenset(
+    {"pattern", "ideas", "timing", "lifecycle", "diagnostic"}
+)
+
+
+def destination_for_follow_up_classifiable(subject: FollowUpSubject) -> Destination:
     """C.7 `follow_up_classifiable` — classifier supplies subject family."""
     return f"answer:{subject}"  # type: ignore[return-value]
 
@@ -80,7 +92,7 @@ def destination_for_follow_up_classifiable(subject: Literal["pattern", "ideas", 
 def resolve_destination(intent_id: str, *, follow_up_subject: str | None = None) -> Destination | None:
     """Resolve final destination including dynamic follow-up."""
     if intent_id == QueryIntent.FOLLOW_UP_CLASSIFIABLE.value:
-        if follow_up_subject in ("pattern", "ideas", "timing"):
+        if follow_up_subject in _FOLLOW_UP_SUBJECTS:
             return destination_for_follow_up_classifiable(follow_up_subject)  # type: ignore[arg-type]
         return None
     return destination_for_intent(intent_id)
