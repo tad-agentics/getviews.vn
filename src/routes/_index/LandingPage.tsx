@@ -279,7 +279,10 @@ function SolutionCardsSection() {
             className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
           >
             <p className="text-lg font-bold text-[var(--ink)]">"Video nào nên làm?"</p>
-            <div className="grid grid-cols-5 gap-1">
+            {/* Responsive grid: at 360px baseline 5 cells = 72px each
+                (cramped); step up via 3 → 4 → 5 cols matching Tailwind's
+                sm (640px) and md (768px) breakpoints. */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1">
               {GRID_VIDEO_IDS.map((id) => (
                 <div
                   key={id}
