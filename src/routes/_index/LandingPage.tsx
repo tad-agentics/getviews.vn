@@ -758,7 +758,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 <h1 className="font-extrabold leading-[1.2] mb-6" style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)" }}>
                   <span className="text-[color:var(--gv-ink)]">Lướt TikTok cả&nbsp;ngày?</span>
                   <br />
-                  <span className="gradient-text">Để GetViews "cày"&nbsp;thay.</span>
+                  <span className="text-[color:var(--gv-accent)]">Để GetViews "cày"&nbsp;thay.</span>
                 </h1>
 
                 <p className="text-lg text-[color:var(--gv-ink-3)] mb-8 max-w-lg leading-relaxed">
