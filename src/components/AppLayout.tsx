@@ -338,19 +338,6 @@ function SessionRow({
           </button>
 
           <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            aria-label="Xóa khỏi danh sách"
-            title="Xóa"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-[color:var(--gv-ink-4)] transition-[opacity,background,color] duration-100 hover:bg-[color:var(--gv-accent-soft)] hover:text-[color:var(--gv-accent-deep)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100"
-          >
-            <X className="h-4 w-4" strokeWidth={2.2} />
-          </button>
-
-          <button
             ref={moreRef}
             onClick={openMenu}
             aria-label="Tuỳ chọn phiên chat"

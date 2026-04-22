@@ -7,9 +7,12 @@ import {
   type MetaFunction,
 } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { Input } from "@/components/ui/Input";
+import { Btn } from "@/components/v2/Btn";
+import { cn } from "@/components/ui/utils";
 
 const COPY_BTN_FACEBOOK = "Đăng nhập với Facebook";
 const COPY_BTN_GOOGLE = "Đăng nhập với Google";
@@ -29,7 +32,7 @@ export const meta: MetaFunction = () => [
 
 function FacebookIcon() {
   return (
-    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
     </svg>
   );
@@ -41,7 +44,7 @@ function GoogleIcon() {
   // ``--gv-*`` token rule; do NOT swap for theme tokens or the icon
   // becomes legally non-compliant with Google's brand asset terms.
   return (
-    <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
       <path
         fill="#4285F4"
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -57,19 +60,6 @@ function GoogleIcon() {
       <path
         fill="#EA4335"
         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-      />
-    </svg>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
       />
     </svg>
   );
@@ -104,16 +94,11 @@ type OauthErrorState = {
   message: string;
 };
 
-// Shared between the four full-width auth buttons (Google, Facebook,
-// email-toggle, email-submit). Extracted to consolidate the duplicated
-// className strings the audit flagged. Variant-specific colour comes
-// from each button's own ``style={{}}`` since these don't fit the
-// design system's ``<Btn>`` variants (rounded-full pill) or
-// ``<Button>`` (rounded-lg) — the auth screen uses ``rounded-xl``
-// throughout.
-const FULL_WIDTH_AUTH_BTN_CLS =
-  "w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold " +
-  "transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed";
+/** Full-width OAuth / email actions — Studio radius + focus ring (matches v2/Btn focus). */
+const fullWidthAction =
+  "flex w-full items-center justify-center gap-2.5 rounded-[var(--gv-radius-md)] px-4 py-3 text-sm font-semibold " +
+  "transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--gv-canvas)]";
 
 export default function LoginRoute() {
   const navigate = useNavigate();
@@ -125,7 +110,6 @@ export default function LoginRoute() {
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [oauthError, setOauthError] = useState<OauthErrorState | null>(null);
 
-  // Email form state
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
@@ -172,8 +156,14 @@ export default function LoginRoute() {
   const handleEmailSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!email || !password) { setEmailError("Vui lòng nhập đầy đủ thông tin."); return; }
-      if (password.length < 6) { setEmailError("Mật khẩu ít nhất 6 ký tự."); return; }
+      if (!email || !password) {
+        setEmailError("Vui lòng nhập đầy đủ thông tin.");
+        return;
+      }
+      if (password.length < 6) {
+        setEmailError("Mật khẩu ít nhất 6 ký tự.");
+        return;
+      }
       setEmailError("");
       setLoadingEmail(true);
       const { error } = isRegister
@@ -195,72 +185,65 @@ export default function LoginRoute() {
     return <Navigate to="/app" replace />;
   }
 
+  const inputFieldClass =
+    "rounded-[var(--gv-radius-md)] border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] py-3 pl-9 pr-4 text-base text-[color:var(--gv-ink)] " +
+    "placeholder:text-[color:var(--gv-ink-4)] focus:border-[color:var(--gv-accent)] focus:ring-1 focus:ring-[color:var(--gv-accent)]";
+
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-10"
-      style={{ background: "var(--background)" }}
-    >
-      <div className="w-full max-w-[360px] flex flex-col items-center gap-5">
+    <div className="gv-studio-type flex min-h-screen items-center justify-center bg-[color:var(--gv-canvas)] px-4 py-10 text-[color:var(--gv-ink)]">
+      <div className="flex w-full max-w-[360px] flex-col items-center gap-5">
         <motion.div
           initial={{ opacity: 0, y: 18, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full rounded-2xl overflow-hidden"
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            boxShadow: "0 8px 40px 0 rgba(0,0,0,0.18)",
-          }}
+          className="w-full overflow-hidden rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] shadow-[0_8px_40px_-12px_rgb(10_12_16/0.1)]"
         >
-          <div className="relative h-[168px] flex items-end justify-center mb-2 select-none">
+          <div className="relative mb-2 flex h-[168px] select-none items-end justify-center">
             {THUMBS.map((t, i) => (
               <div
                 key={i}
-                className="absolute w-[88px] h-[124px] rounded-xl overflow-hidden shadow-xl"
+                className="absolute h-[124px] w-[88px] overflow-hidden rounded-[var(--gv-radius-md)] border-2 border-white/10 shadow-xl"
                 style={{
                   transform: `rotate(${t.rotate}deg) translateX(${t.x}px) translateY(${t.y}px)`,
                   zIndex: t.z,
-                  border: "2px solid rgba(255,255,255,0.08)",
                   bottom: "0",
                 }}
               >
-                <img src={t.url} alt="" className="w-full h-full object-cover" draggable={false} />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 55%)",
-                  }}
-                />
+                <img src={t.url} alt="" className="h-full w-full object-cover" draggable={false} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[rgb(10_12_16/0.45)] to-transparent" />
               </div>
             ))}
           </div>
 
-          <div className="px-6 pt-2 pb-5 text-center">
+          <div className="px-6 pb-5 pt-2 text-center">
             <h1 className="gradient-text mb-2 text-xl font-extrabold leading-tight">
               Bắt trend TikTok trước khi nó viral
             </h1>
-            <p className="text-sm" style={{ color: "var(--gv-ink-3)", lineHeight: "1.6" }}>
-              Data thực từ <strong style={{ color: "var(--ink)" }}>46.000+</strong> video TikTok Việt Nam — phân tích trong{" "}
-              <strong style={{ color: "var(--ink)" }}>1 phút</strong>.
+            <p className="text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
+              Data thực từ <strong className="text-[color:var(--gv-ink)]">46.000+</strong> video TikTok Việt Nam — phân tích trong{" "}
+              <strong className="text-[color:var(--gv-ink)]">1 phút</strong>.
             </p>
           </div>
 
-          <div className="px-5 pb-6 flex flex-col gap-2.5">
-            {/* Google — primary */}
+          <div className="flex flex-col gap-2.5 px-5 pb-6">
             <button
               type="button"
               onClick={() => void signIn("google")}
               disabled={anyLoading || authLoading}
-              className={FULL_WIDTH_AUTH_BTN_CLS}
-              style={{ background: "var(--ink)", color: "var(--background)" }}
+              className={cn(
+                fullWidthAction,
+                "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:opacity-95",
+              )}
             >
-              {loadingGoogle ? <Spinner /> : <GoogleIcon />}
+              {loadingGoogle ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <GoogleIcon />
+              )}
               {loadingGoogle ? COPY_LOADING_GOOGLE : COPY_BTN_GOOGLE}
             </button>
             {oauthError?.target === "google" ? (
-              <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
-                {oauthError.message}
-              </p>
+              <p className="px-1 text-center text-xs text-[color:var(--gv-danger)]">{oauthError.message}</p>
             ) : null}
 
             {/* Facebook — brand colour ``#1877F2`` is Meta's mandated
@@ -271,51 +254,42 @@ export default function LoginRoute() {
               type="button"
               onClick={() => void signIn("facebook")}
               disabled={anyLoading || authLoading}
-              className={FULL_WIDTH_AUTH_BTN_CLS}
-              style={{
-                background: "#1877F2",
-                color: "#fff",
-              }}
+              className={cn(fullWidthAction, "bg-[#1877F2] text-white hover:opacity-95")}
             >
-              {loadingFb ? <Spinner /> : <FacebookIcon />}
+              {loadingFb ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <FacebookIcon />
+              )}
               {loadingFb ? COPY_LOADING_FACEBOOK : COPY_BTN_FACEBOOK}
             </button>
             {oauthError?.target === "facebook" ? (
-              <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
-                {oauthError.message}
-              </p>
+              <p className="px-1 text-center text-xs text-[color:var(--gv-danger)]">{oauthError.message}</p>
             ) : null}
 
             {oauthError?.target === "general" ? (
-              <p className="text-xs text-center px-1" style={{ color: "var(--danger)" }}>
-                {oauthError.message}
-              </p>
+              <p className="px-1 text-center text-xs text-[color:var(--gv-danger)]">{oauthError.message}</p>
             ) : null}
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-0.5">
-              <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
-              <span className="text-[11px] font-semibold" style={{ color: "var(--faint)" }}>HOẶC</span>
-              <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+            <div className="my-0.5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-[color:var(--gv-rule)]" />
+              <span className="text-[11px] font-semibold tracking-wide text-[color:var(--gv-ink-4)]">HOẶC</span>
+              <div className="h-px flex-1 bg-[color:var(--gv-rule)]" />
             </div>
 
-            {/* Email toggle button */}
             <button
               type="button"
               onClick={() => setShowEmailForm((v) => !v)}
               disabled={anyLoading}
-              className={FULL_WIDTH_AUTH_BTN_CLS}
-              style={{
-                background: "var(--surface-alt)",
-                color: "var(--gv-ink-3)",
-                border: "1px solid var(--border)",
-              }}
+              className={cn(
+                fullWidthAction,
+                "border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-rule-2)]",
+              )}
             >
-              <Mail className="w-4 h-4" strokeWidth={1.8} />
+              <Mail className="h-4 w-4" strokeWidth={1.8} aria-hidden />
               {showEmailForm ? "Ẩn form đăng nhập" : "Đăng nhập bằng Email"}
             </button>
 
-            {/* Email/Password form */}
             <AnimatePresence initial={false}>
               {showEmailForm && (
                 <motion.div
@@ -327,110 +301,100 @@ export default function LoginRoute() {
                   className="overflow-hidden"
                 >
                   <form onSubmit={(e) => void handleEmailSubmit(e)} className="flex flex-col gap-2.5 pt-1">
-                    {/* Email input */}
                     <div className="relative">
                       <Mail
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-                        style={{ color: "var(--faint)" }}
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-ink-4)]"
                         strokeWidth={1.8}
+                        aria-hidden
                       />
-                      <input
+                      <Input
                         type="email"
                         placeholder="Email của bạn"
                         value={email}
-                        onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
-                        className="w-full pl-9 pr-4 py-3 rounded-xl text-base outline-none transition-all duration-[120ms]"
-                        style={{
-                          background: "var(--surface-alt)",
-                          border: "1px solid var(--border)",
-                          color: "var(--ink)",
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          setEmailError("");
                         }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gv-accent)")}
-                        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+                        className={inputFieldClass}
+                        autoComplete="email"
                       />
                     </div>
 
-                    {/* Password input */}
                     <div className="relative">
                       <Lock
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-                        style={{ color: "var(--faint)" }}
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--gv-ink-4)]"
                         strokeWidth={1.8}
+                        aria-hidden
                       />
-                      <input
+                      <Input
                         type={showPw ? "text" : "password"}
                         placeholder="Mật khẩu"
                         value={password}
-                        onChange={(e) => { setPassword(e.target.value); setEmailError(""); }}
-                        className="w-full pl-9 pr-10 py-3 rounded-xl text-base outline-none transition-all duration-[120ms]"
-                        style={{
-                          background: "var(--surface-alt)",
-                          border: "1px solid var(--border)",
-                          color: "var(--ink)",
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setEmailError("");
                         }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gv-accent)")}
-                        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+                        className={cn(inputFieldClass, "pr-10")}
+                        autoComplete={isRegister ? "new-password" : "current-password"}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPw((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors duration-[100ms]"
-                        style={{ color: "var(--faint)" }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--gv-ink-4)] transition-colors hover:text-[color:var(--gv-ink-3)]"
                         tabIndex={-1}
+                        aria-label={showPw ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                       >
-                        {showPw
-                          ? <EyeOff className="w-4 h-4" strokeWidth={1.8} />
-                          : <Eye className="w-4 h-4" strokeWidth={1.8} />
-                        }
+                        {showPw ? (
+                          <EyeOff className="h-4 w-4" strokeWidth={1.8} />
+                        ) : (
+                          <Eye className="h-4 w-4" strokeWidth={1.8} />
+                        )}
                       </button>
                     </div>
 
-                    {/* Error */}
                     <AnimatePresence>
                       {emailError && (
                         <motion.p
-                          initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                          className="text-xs px-1"
-                          style={{ color: "var(--danger)" }}
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="px-1 text-xs text-[color:var(--gv-danger)]"
                         >
                           {emailError}
                         </motion.p>
                       )}
                     </AnimatePresence>
 
-                    {/* Register / Login toggle + forgot */}
                     <div className="flex items-center justify-between px-0.5">
                       <button
                         type="button"
                         onClick={() => setIsRegister((v) => !v)}
-                        className="text-xs font-semibold transition-colors duration-[100ms]"
-                        style={{ color: "var(--gv-accent)" }}
+                        className="text-xs font-semibold text-[color:var(--gv-accent)] transition-colors hover:text-[color:var(--gv-accent-deep)]"
                       >
                         {isRegister ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký"}
                       </button>
-                      <span className="text-xs" style={{ color: "var(--faint)" }}>
-                        Quên mật khẩu?
-                      </span>
+                      <span className="text-xs text-[color:var(--gv-ink-4)]">Quên mật khẩu?</span>
                     </div>
 
-                    {/* Submit — gap-2 (vs FULL_WIDTH_AUTH_BTN_CLS's
-                        gap-2.5) is intentional for the tighter
-                        text+arrow-icon spacing of the CTA. */}
-                    <button
+                    <Btn
                       type="submit"
+                      variant="accent"
+                      size="lg"
                       disabled={anyLoading}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                      style={{ background: "var(--gv-accent)", color: "#fff" }}
+                      className="h-auto w-full justify-center gap-2 rounded-[var(--gv-radius-md)] py-3"
                     >
                       {loadingEmail ? (
-                        <><Spinner /> Đang xử lý...</>
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                          Đang xử lý...
+                        </>
                       ) : (
                         <>
                           {isRegister ? "Tạo tài khoản" : "Đăng nhập"}
-                          <ArrowRight className="w-4 h-4" strokeWidth={2} />
+                          <ArrowRight className="h-4 w-4" strokeWidth={2} aria-hidden />
                         </>
                       )}
-                    </button>
+                    </Btn>
                   </form>
                 </motion.div>
               )}
@@ -438,24 +402,22 @@ export default function LoginRoute() {
           </div>
         </motion.div>
 
-        {/* Stats */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.4 }}
-          className="text-xs text-center"
-          style={{ color: "var(--faint)" }}
+          className="text-center text-xs text-[color:var(--gv-ink-4)]"
         >
-          Đang theo dõi <strong style={{ color: "var(--gv-ink-3)" }}>46.000+</strong> video TikTok Việt Nam
+          Đang theo dõi <strong className="text-[color:var(--gv-ink-3)]">46.000+</strong> video TikTok Việt Nam
         </motion.p>
 
-        <p className="text-[11px] text-center px-4" style={{ color: "var(--faint)", lineHeight: "1.7" }}>
+        <p className="px-4 text-center text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
           Bằng cách đăng nhập, bạn đồng ý với{" "}
-          <Link to="#" className="hover:underline" style={{ color: "var(--gv-accent)" }}>
+          <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
             Điều khoản dịch vụ
           </Link>{" "}
           và{" "}
-          <Link to="#" className="hover:underline" style={{ color: "var(--gv-accent)" }}>
+          <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
             Chính sách bảo mật
           </Link>{" "}
           của GetViews.

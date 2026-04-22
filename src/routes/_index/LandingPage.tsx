@@ -163,7 +163,7 @@ function VideoThumb({ id, className = "" }: { id: string; className?: string }) 
   const url = r2FrameUrl(id);
   useEffect(() => { setFailed(false); }, [url]);
   if (!url || failed) {
-    return <div className={`bg-[var(--surface-alt)] ${className}`} />;
+    return <div className={`bg-[color:var(--gv-canvas-2)] ${className}`} />;
   }
   return (
     <img
@@ -178,13 +178,13 @@ function VideoThumb({ id, className = "" }: { id: string; className?: string }) 
 
 function SolutionCardsSection() {
   return (
-    <section className="px-4 py-16 md:py-20 bg-[var(--background)]">
+    <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-canvas)]">
       <div className="max-w-4xl mx-auto">
-        <p className="text-center text-sm text-[var(--muted)] mb-2">Giải pháp</p>
-        <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Giải pháp</p>
+        <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
           Công Cụ Nghiên Cứu TikTok Của Bạn
         </h2>
-        <p className="text-center text-sm text-[var(--gv-ink-3)] mb-12 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-2xl mx-auto leading-relaxed">
           GetViews xem hàng nghìn video TikTok và trả lời mọi câu hỏi bạn cần — từ nghiên cứu đối thủ, tìm hook viral, đến viết brief cho KOL. Dựa trên data thực, không đoán mò.
         </p>
         <div className="grid md:grid-cols-2 gap-4">
@@ -194,14 +194,14 @@ function SolutionCardsSection() {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
           >
-            <p className="text-lg font-bold text-[var(--ink)]">"Đối thủ đang đăng gì?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Đối thủ đang đăng gì?"</p>
             <div className="flex gap-2 overflow-hidden">
               {COMPETITOR_IDS.slice(0, 4).map((id) => (
                 <div
                   key={id}
-                  className="relative flex-shrink-0 overflow-hidden rounded-xl bg-[var(--surface-alt)]"
+                  className="relative flex-shrink-0 overflow-hidden rounded-xl bg-[color:var(--gv-canvas-2)]"
                   style={{ width: "22%", paddingBottom: "39%" }}
                 >
                   <VideoThumb id={id} className="absolute inset-0 w-full h-full" />
@@ -209,11 +209,11 @@ function SolutionCardsSection() {
               ))}
               {/* Faded peek of a 5th card — signals volume / scrollability */}
               <div
-                className="relative flex-shrink-0 overflow-hidden rounded-xl bg-[var(--surface-alt)] opacity-40"
+                className="relative flex-shrink-0 overflow-hidden rounded-xl bg-[color:var(--gv-canvas-2)] opacity-40"
                 style={{ width: "10%", paddingBottom: "39%" }}
               />
             </div>
-            <p className="text-xs text-[var(--muted)]">Xem toàn bộ nội dung, format và hook của đối thủ trong 1 màn hình</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)]">Xem toàn bộ nội dung, format và hook của đối thủ trong 1 màn hình</p>
           </motion.div>
 
           {/* ── Card 2: Creator Avatars (scattered float) ─────────────── */}
@@ -221,17 +221,17 @@ function SolutionCardsSection() {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.1 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
             style={{ minHeight: 220 }}
           >
-            <p className="text-lg font-bold text-[var(--ink)]">"Creator nào nên hire?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Creator nào nên hire?"</p>
             <div className="relative flex-1">
               {CREATOR_AVATAR_IDS.map((c, i) => {
                 const pos = AVATAR_POSITIONS[i];
                 return (
                   <div
                     key={c.id}
-                    className="absolute overflow-hidden rounded-full border-2 border-white shadow-md bg-[var(--surface-alt)]"
+                    className="absolute overflow-hidden rounded-full border-2 border-white shadow-md bg-[color:var(--gv-canvas-2)]"
                     style={{ width: 64, height: 64, ...pos }}
                   >
                     <VideoThumb id={c.id} className="h-full w-full" />
@@ -239,7 +239,7 @@ function SolutionCardsSection() {
                 );
               })}
             </div>
-            <p className="text-xs text-[var(--muted)]">Lọc KOL theo niche, view trung bình và tỉ lệ engagement</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)]">Lọc KOL theo niche, view trung bình và tỉ lệ engagement</p>
           </motion.div>
 
           {/* ── Card 3: Hook Showcase — chat bubble + sparkline ──────── */}
@@ -247,23 +247,23 @@ function SolutionCardsSection() {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.2 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
           >
-            <p className="text-lg font-bold text-[var(--ink)]">"Hook nào viral nhất tuần này?"</p>
-            <div className="flex gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
-              <div className="flex-shrink-0 overflow-hidden rounded-lg bg-[var(--surface-alt)]" style={{ width: 48, height: 64 }}>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Hook nào viral nhất tuần này?"</p>
+            <div className="flex gap-3 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-3">
+              <div className="flex-shrink-0 overflow-hidden rounded-lg bg-[color:var(--gv-canvas-2)]" style={{ width: 48, height: 64 }}>
                 <VideoThumb id={HOOK_EXAMPLE.id} className="h-full w-full" />
               </div>
               <div className="flex flex-col justify-center gap-1 min-w-0">
-                <p className="text-sm font-semibold text-[var(--ink)] line-clamp-2">"{HOOK_EXAMPLE.phrase}"</p>
-                <p className="text-xs text-[var(--gv-accent)] font-mono font-semibold">{HOOK_EXAMPLE.views} views</p>
+                <p className="text-sm font-semibold text-[color:var(--gv-ink)] line-clamp-2">"{HOOK_EXAMPLE.phrase}"</p>
+                <p className="text-xs text-[color:var(--gv-accent)] font-mono font-semibold">{HOOK_EXAMPLE.views} views</p>
               </div>
             </div>
             {/* Sparkline — pure SVG, no chart lib */}
             <svg viewBox="0 0 200 40" className="w-full opacity-40" fill="none">
               <polyline
                 points="0,38 40,30 80,20 120,12 160,6 200,2"
-                stroke="var(--gv-accent)"
+                className="stroke-[color:var(--gv-accent)]"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -276,9 +276,9 @@ function SolutionCardsSection() {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.3 }}
             whileHover={{ y: -4 }}
-            className="bg-white border border-[var(--border)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
           >
-            <p className="text-lg font-bold text-[var(--ink)]">"Video nào nên làm?"</p>
+            <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Video nào nên làm?"</p>
             {/* Responsive grid: at 360px baseline 5 cells = 72px each
                 (cramped); step up via 3 → 4 → 5 cols matching Tailwind's
                 sm (640px) and md (768px) breakpoints. */}
@@ -286,7 +286,7 @@ function SolutionCardsSection() {
               {GRID_VIDEO_IDS.map((id) => (
                 <div
                   key={id}
-                  className="relative overflow-hidden rounded-md bg-[var(--surface-alt)]"
+                  className="relative overflow-hidden rounded-md bg-[color:var(--gv-canvas-2)]"
                   style={{ paddingBottom: "177%" }}
                 >
                   <VideoThumb id={id} className="absolute inset-0 w-full h-full" />
@@ -308,9 +308,9 @@ function formatViewsShort(v: number): string {
 }
 
 const SIGNALS: { key: keyof typeof SIGNAL_VIDEOS; dot: string; label: string; sub: string }[] = [
-  { key: "rising", dot: "bg-[var(--gv-accent)]", label: "Hook số liệu shock", sub: "Top pattern tuần này" },
-  { key: "early",  dot: "bg-orange-400",       label: "Cảnh báo + reveal",  sub: "Mới nổi, vào sớm" },
-  { key: "stable", dot: "bg-gray-400",          label: "Before / After",     sub: "Ổn định, cạnh tranh cao" },
+  { key: "rising", dot: "bg-[color:var(--gv-accent)]", label: "Hook số liệu shock", sub: "Top pattern tuần này" },
+  { key: "early",  dot: "bg-[color:var(--gv-warn)]",   label: "Cảnh báo + reveal",  sub: "Mới nổi, vào sớm" },
+  { key: "stable", dot: "bg-[color:var(--gv-ink-4)]",  label: "Before / After",     sub: "Ổn định, cạnh tranh cao" },
 ];
 
 // Confirmed R2 frames (probed 2026-04-09) — used for the scroll strip
@@ -389,13 +389,13 @@ const HOOK_TYPE_LABELS: Record<string, string> = {
 function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_views: number; sample_size: number }[]; thumb_ids: string[] } }) {
 
   return (
-    <section className="px-4 py-16 md:py-20 bg-white">
+    <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
       <div className="max-w-6xl mx-auto">
-        <p className="text-center text-sm text-[var(--muted)] mb-2">Số liệu thực tế</p>
-        <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Số liệu thực tế</p>
+        <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
           Nắm bắt xu hướng,<br />cập nhật theo từng giờ
         </h2>
-        <p className="text-center text-sm text-[var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
+        <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
           Đừng đoán mò nội dung. Hãy xem chiến lược nào đang đẩy view ổn định cho đối thủ.
         </p>
 
@@ -405,20 +405,20 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex flex-col gap-1"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-1"
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-[var(--ink)]">Tín Hiệu Trend</h3>
-              <Link to="/app/trends" className="text-xs text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-200">Xem tất cả →</Link>
+              <h3 className="font-bold text-[color:var(--gv-ink)]">Tín Hiệu Trend</h3>
+              <Link to="/app/trends" className="text-xs text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors duration-200">Xem tất cả →</Link>
             </div>
 
             {SIGNALS.map((s) => (
-              <div key={s.key} className="flex items-center justify-between py-2.5 border-b border-[var(--border)] last:border-0">
+              <div key={s.key} className="flex items-center justify-between py-2.5 border-b border-[color:var(--gv-rule)] last:border-0">
                 <div className="flex items-center gap-2.5">
                   <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
                   <div>
-                    <p className="text-sm font-medium text-[var(--ink)]">{s.label}</p>
-                    <p className="text-xs text-[var(--muted)]">{s.sub}</p>
+                    <p className="text-sm font-medium text-[color:var(--gv-ink)]">{s.label}</p>
+                    <p className="text-xs text-[color:var(--gv-ink-3)]">{s.sub}</p>
                   </div>
                 </div>
                 {/* Overlapping thumbnail circles */}
@@ -426,7 +426,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
                   {SIGNAL_VIDEOS[s.key].map((id, i) => (
                     <div
                       key={id}
-                      className="h-8 w-8 rounded-full overflow-hidden border-2 border-[var(--surface)] bg-[var(--surface-alt)]"
+                      className="h-8 w-8 rounded-full overflow-hidden border-2 border-[color:var(--gv-paper)] bg-[color:var(--gv-canvas-2)]"
                       style={{ zIndex: 3 - i }}
                     >
                       <VideoThumb id={id} className="h-full w-full" />
@@ -436,7 +436,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
               </div>
             ))}
 
-            <p className="text-xs text-[var(--muted)] mt-2">Cập nhật mỗi tuần từ 46.000+ video thực</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)] mt-2">Cập nhật mỗi tuần từ 46.000+ video thực</p>
           </motion.div>
 
           <motion.div
@@ -444,18 +444,18 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex flex-col gap-1"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-1"
           >
-            <p className="font-bold text-[var(--ink)] mb-3">Mẫu Hook "Ăn" Tiền</p>
+            <p className="font-bold text-[color:var(--gv-ink)] mb-3">Mẫu Hook "Ăn" Tiền</p>
 
             {HOOK_EXAMPLES.map((h, i) => (
-              <div key={h.id} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0">
-                <span className="text-xs text-[var(--muted)] w-4 flex-shrink-0 font-mono">{i + 1}</span>
-                <div className="flex-shrink-0 overflow-hidden rounded-md bg-[var(--surface-alt)]" style={{ width: 32, height: 44 }}>
+              <div key={h.id} className="flex items-center gap-3 py-2 border-b border-[color:var(--gv-rule)] last:border-0">
+                <span className="text-xs text-[color:var(--gv-ink-3)] w-4 flex-shrink-0 font-mono">{i + 1}</span>
+                <div className="flex-shrink-0 overflow-hidden rounded-md bg-[color:var(--gv-canvas-2)]" style={{ width: 32, height: 44 }}>
                   <VideoThumb id={h.id} className="h-full w-full" />
                 </div>
-                <p className="flex-1 text-xs text-[var(--ink)] line-clamp-2 leading-snug">{h.phrase}</p>
-                <p className="flex-shrink-0 font-mono text-xs font-semibold text-[var(--gv-accent)] tabular-nums">{h.views}</p>
+                <p className="flex-1 text-xs text-[color:var(--gv-ink)] line-clamp-2 leading-snug">{h.phrase}</p>
+                <p className="flex-shrink-0 font-mono text-xs font-semibold text-[color:var(--gv-accent)] tabular-nums">{h.views}</p>
               </div>
             ))}
           </motion.div>
@@ -466,22 +466,22 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5"
+          className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[var(--ink)]">Database 46.000+ Video Creator Việt</h3>
-            <Link to="/app/trends" className="text-xs text-[var(--muted)] hover:text-[var(--ink)] transition-colors duration-200">Tìm đối thủ →</Link>
+            <h3 className="font-bold text-[color:var(--gv-ink)]">Database 46.000+ Video Creator Việt</h3>
+            <Link to="/app/trends" className="text-xs text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors duration-200">Tìm đối thủ →</Link>
           </div>
 
           <div className="flex gap-4 overflow-x-auto pb-1">
             {NICHE_STRIP.map((niche) => (
               <div key={niche.label} className="flex-shrink-0 flex flex-col gap-1.5">
-                <p className="text-[10px] font-semibold text-[var(--muted)] uppercase tracking-wide">{niche.label}</p>
+                <p className="text-[10px] font-semibold text-[color:var(--gv-ink-3)] uppercase tracking-wide">{niche.label}</p>
                 <div className="flex gap-1">
                   {niche.ids.map((id) => (
                     <div
                       key={id}
-                      className="overflow-hidden rounded-lg bg-[var(--surface-alt)] flex-shrink-0"
+                      className="overflow-hidden rounded-lg bg-[color:var(--gv-canvas-2)] flex-shrink-0"
                       style={{ width: 52, height: 72 }}
                     >
                       <VideoThumb id={id} className="h-full w-full" />
@@ -492,7 +492,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
             ))}
           </div>
 
-          <p className="text-xs text-[var(--muted)] mt-3 text-center">Đầy đủ 20 niche thịnh hành nhất tại Việt Nam</p>
+          <p className="text-xs text-[color:var(--gv-ink-3)] mt-3 text-center">Đầy đủ 20 niche thịnh hành nhất tại Việt Nam</p>
         </motion.div>
       </div>
     </section>
@@ -512,20 +512,20 @@ const INFRA_FEATURES = [
 
 function InfraGrid() {
   return (
-    <section className="px-4 py-16 bg-[var(--background)]">
+    <section className="px-4 py-16 bg-[color:var(--gv-canvas)]">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-10">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)] mb-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--gv-ink-3)] mb-3">
             Hạ tầng
           </p>
           <h2
-            className="font-extrabold text-[var(--ink)] mb-3"
+            className="font-extrabold text-[color:var(--gv-ink)] mb-3"
             style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}
           >
             Câu trả lời dựa trên{" "}
             <span className="gradient-text">data thực, không đoán mò</span>
           </h2>
-          <p className="text-sm text-[var(--muted)] max-w-xl mx-auto">
+          <p className="text-sm text-[color:var(--gv-ink-3)] max-w-xl mx-auto">
             GetViews không phải ChatGPT biết về TikTok. Đây là hệ thống thu thập và phân tích video TikTok Việt Nam liên tục — mỗi câu trả lời đều có nguồn gốc.
           </p>
         </div>
@@ -537,12 +537,12 @@ function InfraGrid() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.35 }}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 flex flex-col gap-3"
+              className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 flex flex-col gap-3"
             >
-              <Icon className="h-6 w-6 text-[var(--gv-ink-3)]" strokeWidth={1.5} />
+              <Icon className="h-6 w-6 text-[color:var(--gv-ink-3)]" strokeWidth={1.5} />
               <div>
-                <p className="text-sm font-bold text-[var(--ink)] leading-snug mb-1">{label}</p>
-                <p className="text-xs text-[var(--muted)] leading-snug">{sub}</p>
+                <p className="text-sm font-bold text-[color:var(--gv-ink)] leading-snug mb-1">{label}</p>
+                <p className="text-xs text-[color:var(--gv-ink-3)] leading-snug">{sub}</p>
               </div>
             </motion.div>
           ))}
@@ -561,22 +561,22 @@ const SAMPLE_QUERIES = [
 
 function CredibilitySection() {
   return (
-    <section className="px-4 py-16 bg-[var(--surface)]">
+    <section className="px-4 py-16 bg-[color:var(--gv-paper)]">
       <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12 items-center">
 
         {/* Left — credibility copy */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)] mb-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--gv-ink-3)] mb-4">
             Tại sao chúng tôi xây GetViews
           </p>
           <h2
-            className="font-extrabold text-[var(--ink)] mb-5 leading-tight"
+            className="font-extrabold text-[color:var(--gv-ink)] mb-5 leading-tight"
             style={{ fontSize: "clamp(1.5rem, 3.5vw, 2rem)" }}
           >
             Bắt đầu tăng view{" "}
             <span className="gradient-text">ngay hôm nay</span>
           </h2>
-          <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed mb-6">
+          <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed mb-6">
             Chúng tôi là những creator đã tự xây kênh TikTok từ 0 — và nhận ra rằng mọi quyết định nội dung đều đang được đưa ra dựa trên cảm tính. GetViews được xây để thay đổi điều đó: mỗi gợi ý đều có video thật làm bằng chứng, bạn bấm vào kiểm chứng được luôn.
           </p>
           <Link to="/login">
@@ -590,17 +590,17 @@ function CredibilitySection() {
         </div>
 
         {/* Right — product UI mock */}
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] overflow-hidden shadow-sm">
-          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)]">
-            <p className="text-xs font-semibold text-[var(--ink)] text-center">GetViews AI</p>
+        <div className="rounded-2xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+            <p className="text-xs font-semibold text-[color:var(--gv-ink)] text-center">GetViews AI</p>
           </div>
           <div className="p-4">
-            <p className="text-xs text-[var(--muted)] mb-3">Bắt đầu với</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)] mb-3">Bắt đầu với</p>
             <div className="flex flex-col gap-2">
               {SAMPLE_QUERIES.map((q) => (
                 <div
                   key={q}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-xs text-[var(--gv-ink-3)]"
+                  className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-xs text-[color:var(--gv-ink-3)]"
                 >
                   {q}
                 </div>
@@ -608,15 +608,15 @@ function CredibilitySection() {
             </div>
           </div>
           <div className="px-4 pb-4">
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5">
-              <p className="flex-1 text-xs text-[var(--muted)]">Dán link TikTok hoặc đặt câu hỏi...</p>
-              <div className="h-6 w-6 rounded-full bg-[var(--gv-accent)] flex items-center justify-center flex-shrink-0">
+            <div className="flex items-center gap-2 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5">
+              <p className="flex-1 text-xs text-[color:var(--gv-ink-3)]">Dán link TikTok hoặc đặt câu hỏi...</p>
+              <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-accent)]">
                 <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
                   <path d="M3 8h10M9 4l4 4-4 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             </div>
-            <p className="text-[10px] text-[var(--muted)] text-center mt-2">
+            <p className="text-[10px] text-[color:var(--gv-ink-3)] text-center mt-2">
               46.000+ video · 20 niche · Cập nhật hàng tuần
             </p>
           </div>
@@ -647,15 +647,15 @@ function HowItWorksSection() {
   ];
 
   return (
-    <section className="px-4 py-16 md:py-20 bg-[var(--background)]">
+    <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-canvas)]">
       <div className="max-w-5xl mx-auto">
-        <p className="text-center text-sm text-[var(--muted)] mb-3 text-uppercase tracking-wider">Quy trình</p>
-        <h2 className="text-center font-extrabold text-[var(--ink)] mb-10 md:mb-14" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+        <p className="mb-3 text-center text-sm uppercase tracking-wider text-[color:var(--gv-ink-3)]">Quy trình</p>
+        <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-10 md:mb-14" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
           3 bước đơn giản, dưới 2 phút
         </h2>
 
         <div className="relative">
-          <div className="hidden md:block absolute top-8 left-[calc(16.67%+1.5rem)] right-[calc(16.67%+1.5rem)] h-px bg-[var(--border)] z-0" />
+          <div className="hidden md:block absolute top-8 left-[calc(16.67%+1.5rem)] right-[calc(16.67%+1.5rem)] h-px bg-[color:var(--gv-rule)] z-0" />
           <div className="grid md:grid-cols-3 gap-10 md:gap-8">
             {steps.map((step, i) => (
               <motion.div
@@ -667,13 +667,13 @@ function HowItWorksSection() {
                 className="flex items-center gap-4 md:flex-col md:items-center md:text-center md:gap-0"
               >
                 <div className="relative z-10 flex-shrink-0">
-                  <div className="w-16 h-16 bg-white border border-[var(--border)] rounded flex items-center justify-center md:mb-6">
-                    <span className="font-mono font-bold text-lg text-[var(--ink)]">{step.num}</span>
+                  <div className="w-16 h-16 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded flex items-center justify-center md:mb-6">
+                    <span className="font-mono font-bold text-lg text-[color:var(--gv-ink)]">{step.num}</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-[var(--ink)] mb-2 text-base">{step.title}</h3>
-                  <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed">{step.body}</p>
+                  <h3 className="font-bold text-[color:var(--gv-ink)] mb-2 text-base">{step.title}</h3>
+                  <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed">{step.body}</p>
                 </div>
               </motion.div>
             ))}
@@ -702,7 +702,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
   const plans = pricingPlans[billingPeriod];
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
+    <div className="gv-studio-type min-h-screen bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
       {/* ── Sticky Bar ─────────────────────────────────────────── */}
       <AnimatePresence>
         {stickyVisible && (
@@ -711,16 +711,16 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             animate={{ y: 0 }}
             exit={{ y: 64 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--ink)] border-t border-[var(--border)]"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-[color:var(--gv-ink)] border-t border-[color:var(--gv-rule)]"
           >
             <div className="max-w-3xl mx-auto flex items-center justify-between px-4 py-3">
               <span className="font-extrabold text-white text-sm">
-                GetViews<span className="text-[var(--brand-red)]">.vn</span>
+                GetViews<span className="text-[color:var(--brand-red)]">.vn</span>
               </span>
               <div className="flex items-center gap-4">
                 <span className="text-xs text-white/60 hidden sm:block">Không cần thẻ tín dụng</span>
                 <Link to="/login">
-                  <button className="bg-white text-[var(--ink)] hover:bg-[var(--surface-alt)] text-sm font-medium px-5 py-2 rounded-lg transition-colors duration-[120ms] active:scale-95">
+                  <button className="bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] text-sm font-medium px-5 py-2 rounded-lg transition-colors duration-[120ms] active:scale-95">
                     Soi Video Miễn Phí
                   </button>
                 </Link>
@@ -731,12 +731,12 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       </AnimatePresence>
 
       {/* ── Hero ───────────────────────────────────────────────── */}
-      <section className="relative px-4 pt-6 pb-20 md:pb-32 bg-[var(--background)]">
+      <section className="relative px-4 pt-6 pb-20 md:pb-32 bg-[color:var(--gv-canvas)]">
         <div className="max-w-6xl mx-auto">
           {/* Top Nav */}
           <div className="flex items-center justify-center mb-16">
-            <span className="font-extrabold text-xl text-[var(--ink)]">
-              GetViews<span className="text-[var(--brand-red)]">.vn</span>
+            <span className="font-extrabold text-xl text-[color:var(--gv-ink)]">
+              GetViews<span className="text-[color:var(--brand-red)]">.vn</span>
             </span>
           </div>
 
@@ -749,45 +749,44 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <div className="inline-flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] rounded-full px-4 py-2 mb-6">
-                  <span className="text-sm font-medium text-[var(--gv-ink-3)]">Trợ lý AI số 1 cho TikTok Creator Việt</span>
+                <div className="inline-flex items-center gap-2 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-full px-4 py-2 mb-6">
+                  <span className="text-sm font-medium text-[color:var(--gv-ink-3)]">Trợ lý AI số 1 cho TikTok Creator Việt</span>
                 </div>
 
                 <h1 className="font-extrabold leading-[1.2] mb-6" style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)" }}>
-                  <span className="text-[var(--ink)]">Lướt TikTok cả&nbsp;ngày?</span>
+                  <span className="text-[color:var(--gv-ink)]">Lướt TikTok cả&nbsp;ngày?</span>
                   <br />
                   <span className="gradient-text">Để GetViews "cày"&nbsp;thay.</span>
                 </h1>
 
-                <p className="text-lg text-[var(--gv-ink-3)] mb-8 max-w-lg leading-relaxed">
+                <p className="text-lg text-[color:var(--gv-ink-3)] mb-8 max-w-lg leading-relaxed">
                   Quăng link video → Nhận phân tích sau 1 phút. Biết ngay{" "}
-                  <span className="font-semibold text-[var(--ink)]">lỗi ở đâu</span>,{" "}
-                  <span className="font-semibold text-[var(--ink)]">hook nào hot</span>,{" "}
-                  <span className="font-semibold text-[var(--ink)]">format nào cắn đề xuất</span>. Dựa trên số liệu thực, không đoán mò.
+                  <span className="font-semibold text-[color:var(--gv-ink)]">lỗi ở đâu</span>,{" "}
+                  <span className="font-semibold text-[color:var(--gv-ink)]">hook nào hot</span>,{" "}
+                  <span className="font-semibold text-[color:var(--gv-ink)]">format nào cắn đề xuất</span>. Dựa trên số liệu thực, không đoán mò.
                 </p>
 
                 {/* CTA Input */}
                 <div className="mb-4">
-                  <div className="bg-white border border-[var(--border)] rounded-xl p-1.5 shadow-sm mb-3 transition-all duration-200 hover:border-[var(--ink)]/30 hover:shadow-md">
+                  <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-1.5 shadow-sm mb-3 transition-all duration-200 hover:border-[color:var(--gv-ink)]/30 hover:shadow-md">
                     <div className="flex items-center gap-2 px-3 py-2">
                       <Input
                         placeholder="https://tiktok.com/@..."
-                        className="border-0 bg-transparent flex-1 text-base focus:outline-none focus:ring-0 placeholder:text-[var(--muted)]"
-                        style={{ fontSize: "16px" }}
+                        className="flex-1 border-0 bg-transparent text-base focus:outline-none focus:ring-0 placeholder:text-[color:var(--gv-ink-4)]"
                       />
                     </div>
                   </div>
                   <Link to="/login">
-                    <button className="w-full bg-[var(--ink)] hover:bg-[var(--gv-ink-3)] text-white font-semibold px-8 py-4 rounded-xl text-base transition-all duration-[120ms] active:scale-[0.98]">
+                    <button className="w-full rounded-xl bg-[color:var(--gv-ink)] px-8 py-4 text-base font-semibold text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-ink-2)] active:scale-[0.98]">
                       Soi Video Miễn Phí →
                     </button>
                   </Link>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-[var(--muted)]">
+                <div className="flex items-center gap-4 text-xs text-[color:var(--gv-ink-3)]">
                   {["10 lượt dùng thử", "Không cần thẻ", "Dùng được ngay"].map((label) => (
                     <div key={label} className="flex items-center gap-1">
-                      <svg className="w-4 h-4 text-[var(--success)]" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="h-4 w-4 text-[color:var(--success)]" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                       <span>{label}</span>
@@ -805,68 +804,68 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               className="relative hidden lg:block"
             >
               {/* Floating Stats Card */}
-              <div className="absolute top-8 -left-8 bg-white border border-[var(--border)] rounded-xl p-4 shadow-lg z-10">
+              <div className="absolute top-8 -left-8 bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-4 shadow-lg z-10">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded bg-[var(--ink)] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded bg-[color:var(--gv-ink)] flex items-center justify-center">
                     <span className="text-white font-mono font-bold text-sm">↑</span>
                   </div>
                   <div>
-                    <p className="text-xs text-[var(--muted)] mb-0.5">Hiệu quả trung bình</p>
-                    <p className="font-mono font-bold text-lg text-[var(--ink)]">+312%</p>
+                    <p className="text-xs text-[color:var(--gv-ink-3)] mb-0.5">Hiệu quả trung bình</p>
+                    <p className="font-mono font-bold text-lg text-[color:var(--gv-ink)]">+312%</p>
                   </div>
                 </div>
               </div>
 
               {/* Main Mock Chat */}
-              <div className="bg-white border border-[var(--border)] rounded-xl p-6 shadow-lg">
-                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[var(--border)]">
-                  <div className="w-10 h-10 rounded bg-[var(--ink)] flex items-center justify-center text-white font-bold text-xs">GV</div>
+              <div className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6 shadow-lg">
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[color:var(--gv-rule)]">
+                  <div className="w-10 h-10 rounded bg-[color:var(--gv-ink)] flex items-center justify-center text-white font-bold text-xs">GV</div>
                   <div>
-                    <p className="font-semibold text-sm text-[var(--ink)]">GetViews AI</p>
-                    <p className="text-xs text-[var(--muted)] flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-[var(--ink)] rounded-full" />
+                    <p className="font-semibold text-sm text-[color:var(--gv-ink)]">GetViews AI</p>
+                    <p className="text-xs text-[color:var(--gv-ink-3)] flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-[color:var(--gv-ink)] rounded-full" />
                       Đang soi dữ liệu video...
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <div className="bg-[var(--surface)] rounded-xl p-3">
+                  <div className="bg-[color:var(--gv-paper)] rounded-xl p-3">
                     <div className="flex items-start gap-2 mb-2">
-                      <span className="text-[var(--danger)] font-bold">✕</span>
+                      <span className="font-bold text-[color:var(--danger)]">✕</span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-[var(--ink)] mb-1">Hook vào quá chậm (2.3s)</p>
-                        <p className="text-xs text-[var(--gv-ink-3)]">Top video viral thường mở màn ở 0.5s</p>
+                        <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Hook vào quá chậm (2.3s)</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">Top video viral thường mở màn ở 0.5s</p>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-[var(--surface)] rounded-xl p-3">
+                  <div className="bg-[color:var(--gv-paper)] rounded-xl p-3">
                     <div className="flex items-start gap-2 mb-2">
-                      <span className="text-[var(--danger)] font-bold">✕</span>
+                      <span className="font-bold text-[color:var(--danger)]">✕</span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-[var(--ink)] mb-1">Thiếu "mặt người" ở đầu</p>
-                        <p className="text-xs text-[var(--gv-ink-3)]">89% video top view mở bằng mặt chính chủ</p>
+                        <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Thiếu "mặt người" ở đầu</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">89% video top view mở bằng mặt chính chủ</p>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-[var(--surface)] rounded-xl p-3 border border-[var(--border)]">
+                  <div className="bg-[color:var(--gv-paper)] rounded-xl p-3 border border-[color:var(--gv-rule)]">
                     <div className="flex items-start gap-2">
-                      <span className="text-[var(--success)] font-bold">✓</span>
+                      <span className="font-bold text-[color:var(--success)]">✓</span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-[var(--ink)] mb-1">Dùng Hook "Cảnh Báo" là chuẩn</p>
-                        <p className="text-xs text-[var(--gv-ink-3)]">Mẫu này tăng 340% view so với "Kể Chuyện"</p>
+                        <p className="text-sm font-medium text-[color:var(--gv-ink)] mb-1">Dùng Hook "Cảnh Báo" là chuẩn</p>
+                        <p className="text-xs text-[color:var(--gv-ink-3)]">Mẫu này tăng 340% view so với "Kể Chuyện"</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-[var(--border)]">
-                  <p className="text-xs font-mono text-[var(--faint)]">So khớp với 1.247 video skincare · 7 ngày qua</p>
+                <div className="mt-4 pt-4 border-t border-[color:var(--gv-rule)]">
+                  <p className="text-xs font-mono text-[color:var(--gv-ink-4)]">So khớp với 1.247 video skincare · 7 ngày qua</p>
                 </div>
               </div>
 
               {/* Floating Niche Badge */}
-              <div className="absolute -bottom-4 -right-4 bg-[var(--ink)] text-white rounded-xl px-5 py-3 shadow-lg">
+              <div className="absolute -bottom-4 -right-4 bg-[color:var(--gv-ink)] text-white rounded-xl px-5 py-3 shadow-lg">
                 <p className="text-xs opacity-70 mb-0.5">Phủ sóng 20 niche creator</p>
                 <p className="font-bold text-sm">Skincare · Review · Food · Affiliate...</p>
               </div>
@@ -878,12 +877,12 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-16 flex flex-wrap items-center justify-center gap-6 text-sm text-[var(--gv-ink-3)]"
+            className="mt-16 flex flex-wrap items-center justify-center gap-6 text-sm text-[color:var(--gv-ink-3)]"
           >
             <div className="flex items-center gap-2"><span>Data 100% từ TikTok Việt</span></div>
-            <div className="hidden sm:block w-px h-4 bg-[var(--border)]" />
+            <div className="hidden sm:block w-px h-4 bg-[color:var(--gv-rule)]" />
             <div className="flex items-center gap-2"><span>Cập nhật hàng giờ</span></div>
-            <div className="hidden sm:block w-px h-4 bg-[var(--border)]" />
+            <div className="hidden sm:block w-px h-4 bg-[color:var(--gv-rule)]" />
             <div className="flex items-center gap-2"><span>Chuyên biệt cho 20 niche creator</span></div>
           </motion.div>
 
@@ -892,13 +891,13 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            className="mt-10 overflow-hidden border-t border-[var(--border)] pt-5"
+            className="mt-10 overflow-hidden border-t border-[color:var(--gv-rule)] pt-5"
           >
-            <p className="text-xs text-[var(--muted)] mb-3 text-center">Các mẫu Hook đang "lên ngôi" tuần này</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)] mb-3 text-center">Các mẫu Hook đang "lên ngôi" tuần này</p>
             <div className="flex gap-3 animate-scroll-ticker">
               {[...hookTicker, ...hookTicker].map((hook, i) => (
-                <div key={i} className="flex-shrink-0 border border-[var(--border)] rounded bg-white px-4 py-2">
-                  <span className="text-xs text-[var(--gv-ink-3)] whitespace-nowrap">{hook}</span>
+                <div key={i} className="flex-shrink-0 border border-[color:var(--gv-rule)] rounded bg-[color:var(--gv-paper)] px-4 py-2">
+                  <span className="text-xs text-[color:var(--gv-ink-3)] whitespace-nowrap">{hook}</span>
                 </div>
               ))}
             </div>
@@ -907,23 +906,23 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       </section>
 
       {/* ── Statement ───────────────────────────────────────────── */}
-      <section className="px-4 py-20 md:py-28 bg-white">
+      <section className="px-4 py-20 md:py-28 bg-[color:var(--gv-paper)]">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-extrabold text-[var(--ink)] leading-[1.4]" style={{ fontSize: "clamp(1.75rem, 4.5vw, 2.75rem)" }}>
+          <h2 className="font-extrabold text-[color:var(--gv-ink)] leading-[1.4]" style={{ fontSize: "clamp(1.75rem, 4.5vw, 2.75rem)" }}>
             Công cụ duy nhất tự động "soi" hàng nghìn video mỗi&nbsp;ngày để tìm ra công&nbsp;thức viral cho bạn
           </h2>
         </div>
       </section>
 
       {/* ── Niche Chips ─────────────────────────────────────────── */}
-      <div className="px-4 pb-16 bg-white">
+      <div className="px-4 pb-16 bg-[color:var(--gv-paper)]">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs text-center text-[var(--muted)] mb-4">Dành cho 21 nhóm creator thịnh hành tại Việt Nam</p>
+          <p className="text-xs text-center text-[color:var(--gv-ink-3)] mb-4">Dành cho 21 nhóm creator thịnh hành tại Việt Nam</p>
           <div className="flex flex-wrap justify-center gap-2">
             {nicheList.map((niche) => (
               <span
                 key={niche}
-                className="text-xs text-[var(--gv-ink-3)] border border-[var(--border)] rounded-full px-3 py-1.5 bg-[var(--surface)] transition-colors duration-[120ms] hover:border-[var(--gv-ink)] hover:text-[var(--ink)] cursor-default"
+                className="text-xs text-[color:var(--gv-ink-3)] border border-[color:var(--gv-rule)] rounded-full px-3 py-1.5 bg-[color:var(--gv-paper)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)] cursor-default"
               >
                 {niche}
               </span>
@@ -933,10 +932,10 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       </div>
 
       {/* ── Pain Points ─────────────────────────────────────────── */}
-      <section className="px-4 py-16 md:py-20 bg-white">
+      <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
         <div className="max-w-5xl mx-auto">
-          <p className="text-center text-sm text-[var(--muted)] mb-3 uppercase tracking-wide">Thực tế phũ phàng</p>
-          <h2 className="text-center font-extrabold text-[var(--ink)] mb-10 md:mb-16" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+          <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3 uppercase tracking-wide">Thực tế phũ phàng</p>
+          <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-10 md:mb-16" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
             Đa số creator Việt đang làm như thế nào?
           </h2>
           <div className="grid md:grid-cols-3 gap-8 md:gap-16">
@@ -950,12 +949,12 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 className="text-center"
               >
                 <div className="mb-6 flex justify-center">
-                  <div className="w-16 h-16 border-2 border-[var(--border)] rounded flex items-center justify-center transition-transform duration-200 hover:scale-110">
-                    <span className="font-mono font-bold text-2xl text-[var(--muted)]">{idx + 1}</span>
+                  <div className="w-16 h-16 border-2 border-[color:var(--gv-rule)] rounded flex items-center justify-center transition-transform duration-200 hover:scale-110">
+                    <span className="font-mono font-bold text-2xl text-[color:var(--gv-ink-3)]">{idx + 1}</span>
                   </div>
                 </div>
-                <h3 className="font-bold text-[var(--ink)] mb-4 text-base">{p.title}</h3>
-                <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed max-w-xs mx-auto">{p.body}</p>
+                <h3 className="font-bold text-[color:var(--gv-ink)] mb-4 text-base">{p.title}</h3>
+                <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed max-w-xs mx-auto">{p.body}</p>
               </motion.div>
             ))}
           </div>
@@ -976,13 +975,13 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <CredibilitySection />
 
       {/* ── Results ─────────────────────────────────────────────── */}
-      <section className="px-4 py-16 md:py-20 bg-white">
+      <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
         <div className="max-w-5xl mx-auto">
-          <p className="text-center text-sm text-[var(--muted)] mb-3">Kết quả thực</p>
-          <h2 className="text-center font-extrabold text-[var(--ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+          <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3">Kết quả thực</p>
+          <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
             Số liệu nói thay lời
           </h2>
-          <p className="text-center text-sm text-[var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
+          <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
             Creator thật, kết quả đo được — không phải lời hứa.
           </p>
 
@@ -991,48 +990,48 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
-            className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 md:p-8 mb-6"
+            className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-6 md:p-8 mb-6"
           >
             <div className="grid md:grid-cols-[1fr_80px_1fr] gap-6 items-center">
               <div>
-                <p className="text-xs text-[var(--muted)] mb-4 uppercase tracking-wide">Trước</p>
-                <div className="font-mono font-bold text-[var(--gv-ink-3)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>2.000</div>
-                <p className="text-sm text-[var(--gv-ink-3)] mb-5">view · video review nồi chiên</p>
+                <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Trước</p>
+                <div className="font-mono font-bold text-[color:var(--gv-ink-3)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>2.000</div>
+                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">view · video review nồi chiên</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[var(--danger)] font-bold text-sm">✕</span>
-                    <span className="text-sm text-[var(--gv-ink-3)]">Hook chậm 2.3 giây</span>
+                    <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Hook chậm 2.3 giây</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[var(--danger)] font-bold text-sm">✕</span>
-                    <span className="text-sm text-[var(--gv-ink-3)]">Không có mặt người 3 giây đầu</span>
+                    <span className="text-sm font-bold text-[color:var(--danger)]">✕</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Không có mặt người 3 giây đầu</span>
                   </div>
                 </div>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <div className="w-10 h-10 border border-[var(--border)] rounded flex items-center justify-center bg-white">
-                  <span className="font-mono font-bold text-sm text-[var(--ink)] hidden md:inline">→</span>
-                  <span className="font-mono font-bold text-sm text-[var(--ink)] md:hidden">↓</span>
+                <div className="w-10 h-10 border border-[color:var(--gv-rule)] rounded flex items-center justify-center bg-[color:var(--gv-paper)]">
+                  <span className="font-mono font-bold text-sm text-[color:var(--gv-ink)] hidden md:inline">→</span>
+                  <span className="font-mono font-bold text-sm text-[color:var(--gv-ink)] md:hidden">↓</span>
                 </div>
-                <p className="text-xs text-[var(--muted)] font-mono text-center">GetViews</p>
+                <p className="text-xs text-[color:var(--gv-ink-3)] font-mono text-center">GetViews</p>
               </div>
               <div>
-                <p className="text-xs text-[var(--muted)] mb-4 uppercase tracking-wide">Sau khi fix</p>
-                <div className="font-mono font-bold text-[var(--ink)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>45.000</div>
-                <p className="text-sm text-[var(--gv-ink-3)] mb-5">view · quay lại theo gợi ý</p>
+                <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Sau khi fix</p>
+                <div className="font-mono font-bold text-[color:var(--gv-ink)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>45.000</div>
+                <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">view · quay lại theo gợi ý</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[var(--success)] font-bold text-sm">✓</span>
-                    <span className="text-sm text-[var(--gv-ink-3)]">Mặt nhìn camera từ frame 0</span>
+                    <span className="text-sm font-bold text-[color:var(--success)]">✓</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Mặt nhìn camera từ frame 0</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[var(--success)] font-bold text-sm">✓</span>
-                    <span className="text-sm text-[var(--gv-ink-3)]">Hook &ldquo;Cảnh Báo&rdquo; đúng pattern niche</span>
+                    <span className="text-sm font-bold text-[color:var(--success)]">✓</span>
+                    <span className="text-sm text-[color:var(--gv-ink-3)]">Hook &ldquo;Cảnh Báo&rdquo; đúng pattern niche</span>
                   </div>
                 </div>
               </div>
             </div>
-            <p className="text-xs font-mono text-[var(--faint)] mt-6 pt-4 border-t border-[var(--border)]">
+            <p className="text-xs font-mono text-[color:var(--gv-ink-4)] mt-6 pt-4 border-t border-[color:var(--gv-rule)]">
               412 video review đồ gia dụng · 7 ngày · Updated 4h ago
             </p>
           </motion.div>
@@ -1045,19 +1044,19 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.1 }}
-                className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5"
+                className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5"
               >
-                <p className="text-sm text-[var(--gv-ink-3)] leading-relaxed mb-5">&ldquo;{t.quote}&rdquo;</p>
-                <div className="flex items-center gap-3 pt-4 border-t border-[var(--border)]">
-                  <div className="w-8 h-8 rounded bg-[var(--ink)] flex items-center justify-center flex-shrink-0">
+                <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed mb-5">&ldquo;{t.quote}&rdquo;</p>
+                <div className="flex items-center gap-3 pt-4 border-t border-[color:var(--gv-rule)]">
+                  <div className="w-8 h-8 rounded bg-[color:var(--gv-ink)] flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">{t.initials}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-[var(--ink)] truncate">{t.handle}</p>
-                    <p className="text-xs text-[var(--muted)] truncate">{t.niche} · {t.followers}</p>
+                    <p className="text-xs font-medium text-[color:var(--gv-ink)] truncate">{t.handle}</p>
+                    <p className="text-xs text-[color:var(--gv-ink-3)] truncate">{t.niche} · {t.followers}</p>
                   </div>
                   <div className="flex-shrink-0">
-                    <span className="font-mono text-xs font-bold text-[var(--ink)]">{t.stat}</span>
+                    <span className="font-mono text-xs font-bold text-[color:var(--gv-ink)]">{t.stat}</span>
                   </div>
                 </div>
               </motion.div>
@@ -1067,30 +1066,30 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       </section>
 
       {/* ── Pricing ─────────────────────────────────────────────── */}
-      <section className="px-4 py-16 bg-[var(--surface)]" id="pricing">
+      <section className="px-4 py-16 bg-[color:var(--gv-paper)]" id="pricing">
         <div className="max-w-5xl mx-auto">
-          <h2 className="font-extrabold text-[var(--ink)] mb-2 text-center" style={{ fontSize: "1.75rem" }}>
+          <h2 className="font-extrabold text-[color:var(--gv-ink)] mb-2 text-center" style={{ fontSize: "1.75rem" }}>
             Chọn gói phù hợp
           </h2>
-          <p className="text-sm text-[var(--muted)] text-center mb-8">
+          <p className="text-sm text-[color:var(--gv-ink-3)] text-center mb-8">
             Thanh toán qua MoMo, VNPay, chuyển khoản, hoặc thẻ quốc tế.
           </p>
 
           <div className="flex justify-center mb-8">
-            <div className="inline-flex bg-[var(--surface)] border border-[var(--border)] rounded-lg p-1">
+            <div className="inline-flex bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-lg p-1">
               {(["monthly", "biannual", "annual"] as const).map((period) => (
                 <button
                   key={period}
                   onClick={() => setBillingPeriod(period)}
                   className={`px-5 py-2 rounded-md text-sm font-medium transition-all duration-[120ms] relative ${
                     billingPeriod === period
-                      ? "bg-[var(--ink)] text-white"
-                      : "text-[var(--gv-ink-3)] hover:text-[var(--ink)]"
+                      ? "bg-[color:var(--gv-ink)] text-white"
+                      : "text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)]"
                   }`}
                 >
                   {period === "monthly" ? "Tháng" : period === "biannual" ? "6 tháng" : "Năm"}
                   {period === "annual" && billingPeriod !== "annual" && (
-                    <span className="absolute -top-2 -right-2 bg-[var(--ink)] text-white text-[9px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
+                    <span className="absolute -top-2 -right-2 bg-[color:var(--gv-ink)] text-white text-[9px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
                       Save 20%
                     </span>
                   )}
@@ -1108,23 +1107,23 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
                 whileHover={{ y: -4 }}
-                className={`border rounded-xl p-5 relative bg-[var(--surface)] transition-shadow duration-200 hover:shadow-lg ${
-                  plan.popular ? "border-[var(--ink)] border-2" : "border-[var(--border)]"
+                className={`border rounded-xl p-5 relative bg-[color:var(--gv-paper)] transition-shadow duration-200 hover:shadow-lg ${
+                  plan.popular ? "border-[color:var(--gv-ink)] border-2" : "border-[color:var(--gv-rule)]"
                 }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="bg-[var(--ink)] text-white text-xs px-3 py-1 rounded-full font-medium">Phổ biến</span>
+                    <span className="bg-[color:var(--gv-ink)] text-white text-xs px-3 py-1 rounded-full font-medium">Phổ biến</span>
                   </div>
                 )}
-                <h3 className="font-bold text-[var(--ink)] mb-1">{plan.label}</h3>
+                <h3 className="font-bold text-[color:var(--gv-ink)] mb-1">{plan.label}</h3>
                 <div className="mb-3">
-                  <span className="font-mono font-bold text-[var(--ink)]" style={{ fontSize: "1.25rem" }}>{plan.price}</span>
+                  <span className="font-mono font-bold text-[color:var(--gv-ink)]" style={{ fontSize: "1.25rem" }}>{plan.price}</span>
                   {plan.name !== "Free" && billingPeriod !== "monthly" && (
-                    <span className="text-xs text-[var(--muted)]">/tháng</span>
+                    <span className="text-xs text-[color:var(--gv-ink-3)]">/tháng</span>
                   )}
                 </div>
-                <p className="text-xs text-[var(--gv-ink-3)] mb-5" style={{ lineHeight: "1.5" }}>{plan.credits}</p>
+                <p className="text-xs text-[color:var(--gv-ink-3)] mb-5" style={{ lineHeight: "1.5" }}>{plan.credits}</p>
                 <Link to="/login">
                   <Button fullWidth variant={plan.popular ? "primary" : "outlined"} className="text-sm py-2">
                     {plan.name === "Free" ? "Bắt đầu miễn phí" : `Nâng cấp ${plan.name}`}
@@ -1135,15 +1134,15 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           </div>
 
           {pricingSavings[billingPeriod] && (
-            <p className="text-center text-sm text-[var(--gv-ink-3)]">{pricingSavings[billingPeriod]}</p>
+            <p className="text-center text-sm text-[color:var(--gv-ink-3)]">{pricingSavings[billingPeriod]}</p>
           )}
         </div>
       </section>
 
       {/* ── FAQ ─────────────────────────────────────────────────── */}
-      <section className="px-4 py-16">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="font-extrabold text-[var(--ink)] mb-8 text-center" style={{ fontSize: "1.75rem" }}>
+      <section className="bg-[color:var(--gv-canvas)] px-4 py-16">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="mb-8 text-center text-2xl font-extrabold text-[color:var(--gv-ink)]">
             Câu hỏi thường gặp
           </h2>
           <Accordion.Root type="single" collapsible className="space-y-3">
@@ -1157,16 +1156,16 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               >
                 <Accordion.Item
                   value={`item-${idx}`}
-                  className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--surface)]"
+                  className="border border-[color:var(--gv-rule)] rounded-xl overflow-hidden bg-[color:var(--gv-paper)]"
                 >
                   <Accordion.Header>
-                    <Accordion.Trigger className="w-full px-5 py-4 text-left font-medium text-[var(--ink)] hover:bg-[var(--surface-alt)] transition-colors duration-[200ms] flex items-center justify-between group">
+                    <Accordion.Trigger className="w-full px-5 py-4 text-left font-medium text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] transition-colors duration-[200ms] flex items-center justify-between group">
                       <span className="text-sm">{faq.q}</span>
-                      <ChevronDown className="w-4 h-4 text-[var(--muted)] transition-transform duration-[200ms] group-data-[state=open]:rotate-180 flex-shrink-0 ml-3" />
+                      <ChevronDown className="w-4 h-4 text-[color:var(--gv-ink-3)] transition-transform duration-[200ms] group-data-[state=open]:rotate-180 flex-shrink-0 ml-3" />
                     </Accordion.Trigger>
                   </Accordion.Header>
                   <Accordion.Content
-                    className="px-5 pb-4 text-sm text-[var(--gv-ink-3)] data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
+                    className="px-5 pb-4 text-sm text-[color:var(--gv-ink-3)] data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
                     style={{ lineHeight: "1.6" }}
                   >
                     {faq.a}
@@ -1179,13 +1178,13 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       </section>
 
       {/* ── Final CTA ───────────────────────────────────────────── */}
-      <section className="px-4 py-20 md:py-24 bg-[var(--ink)]">
+      <section className="px-4 py-20 md:py-24 bg-[color:var(--gv-ink)]">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="font-extrabold text-white mb-6 leading-tight" style={{ fontSize: "clamp(1.75rem, 4vw, 2.5rem)" }}>
             Dán 1 link. Xem GetViews nói gì.
           </h2>
           <Link to="/login">
-            <button className="bg-white text-[var(--ink)] hover:bg-[var(--surface-alt)] font-semibold px-10 py-4 rounded-xl text-base transition-all duration-[120ms] active:scale-95">
+            <button className="bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] font-semibold px-10 py-4 rounded-xl text-base transition-all duration-[120ms] active:scale-95">
               Soi Video Miễn Phí
             </button>
           </Link>
