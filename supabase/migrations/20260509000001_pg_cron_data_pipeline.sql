@@ -1,0 +1,130 @@
+-- 2026-05-09 — Data-pipeline pg_cron schedules (Cloud Run /batch/*).
+--
+-- Supersedes the "pg_cron not enabled" claim in
+-- ``20260410000015_pg_cron_schedules.sql`` (stale — verified 2026-05-09,
+-- both ``pg_cron@1.6.4`` and ``pg_net@0.20.0`` are installed and 4
+-- operational crons are live on this project).
+--
+-- State-of-corpus audit (see ``artifacts/docs/state-of-corpus.md``
+-- Axis 3) flagged "zero data-pipeline crons" as a concrete gap:
+-- ``video_corpus`` is populated only by ad-hoc ``/batch/ingest`` calls,
+-- ``hook_effectiveness`` by ad-hoc ``/batch/analytics`` calls, and
+-- ``niche_insights`` by ad-hoc ``/batch/layer0`` calls. Without a
+-- schedule, the corpus staleness grows until someone remembers to
+-- trigger the job by hand.
+--
+-- This file is documentation-first — the executable lines are
+-- commented out. Apply in the Supabase Dashboard (Database → Cron) or
+-- via an authenticated SQL session after Vault is seeded with the
+-- Cloud Run URL + batch secret. The 4 existing operational crons were
+-- applied the same way and are not in-repo as executable DDL.
+--
+-- ── Prerequisites ────────────────────────────────────────────────────
+--
+-- Seed Vault with the Cloud Run service URL + batch secret so the
+-- cron SQL doesn't have to hardcode them. One-time:
+--
+--   SELECT vault.create_secret(
+--     '<X-Batch-Secret value from Cloud Run env>',
+--     'cloud_run_batch_secret',
+--     'Shared secret for X-Batch-Secret header on /batch/* endpoints'
+--   );
+--   SELECT vault.create_secret(
+--     'https://getviews-api-XXXXXX.run.app',   -- gcloud run services describe
+--     'cloud_run_api_url',
+--     'Base URL for the Cloud Run pipeline service'
+--   );
+--
+-- Look up the decrypted values via ``vault.decrypted_secrets`` when
+-- building the cron command body.
+--
+-- ── Proposed schedules ───────────────────────────────────────────────
+--
+-- All times are UTC. Asia/Ho_Chi_Minh is UTC+7; ``04:00`` Vietnam is
+-- ``21:00`` UTC the previous calendar day.
+--
+--  ┌─────────────────────────┬──────────────┬──────────────────────────┐
+--  │ job                     │ schedule UTC │ Vietnam local            │
+--  ├─────────────────────────┼──────────────┼──────────────────────────┤
+--  │ cron-batch-ingest       │ 0 20 * * *   │ daily 03:00              │
+--  │ cron-batch-analytics    │ 0 21 * * 0   │ Mondays 04:00            │
+--  │ cron-batch-layer0       │ 30 21 * * 0  │ Mondays 04:30            │
+--  └─────────────────────────┴──────────────┴──────────────────────────┘
+--
+-- Why these times:
+--
+--   - Daily ingest at 03:00 VN runs well before the 07:00 VN
+--     ``morning-ritual`` cron so the corpus is warm when the ritual
+--     reads it.
+--   - Weekly analytics on Monday 04:00 VN lets Sunday's ingest settle
+--     before aggregation. The hook_effectiveness compute
+--     (``hook_effectiveness_compute.py``) runs inside this cron as
+--     Pass 4 of ``/batch/analytics``.
+--   - Weekly layer0 at 04:30 VN runs 30 min after analytics so the
+--     refreshed ``niche_intelligence`` materialised view is available
+--     when ``layer0_niche`` reads it.
+--
+-- ── Commands (commented — apply via Dashboard / MCP SQL) ─────────────
+--
+-- SELECT cron.schedule(
+--   'cron-batch-ingest',
+--   '0 20 * * *',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/ingest',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 300000  -- 5 min; ingest can be slow under EnsembleData rate limits
+--   );
+--   $cmd$
+-- );
+--
+-- SELECT cron.schedule(
+--   'cron-batch-analytics',
+--   '0 21 * * 0',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/analytics',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 300000
+--   );
+--   $cmd$
+-- );
+--
+-- SELECT cron.schedule(
+--   'cron-batch-layer0',
+--   '30 21 * * 0',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/layer0',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 600000  -- 10 min; Gemini-heavy
+--   );
+--   $cmd$
+-- );
+--
+-- ── Rollback ─────────────────────────────────────────────────────────
+--
+--   SELECT cron.unschedule('cron-batch-ingest');
+--   SELECT cron.unschedule('cron-batch-analytics');
+--   SELECT cron.unschedule('cron-batch-layer0');
+--
+-- ── Observability ────────────────────────────────────────────────────
+--
+-- pg_cron writes each run to ``cron.job_run_details`` — grep by
+-- ``jobname`` or ``start_time`` for failure debugging. pg_net writes
+-- HTTP response bodies / status codes to ``net._http_response``, keyed
+-- on the request_id returned by ``net.http_post``.
+
+SELECT 1;
