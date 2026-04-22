@@ -158,6 +158,22 @@ class IdeasPayload(BaseModel):
     variant: Literal["standard", "hook_variants"]
 
 
+class CalendarSlot(BaseModel):
+    """One day's suggested post slot in a Timing content-calendar view.
+
+    Added 2026-04-22 to absorb the ``content_calendar`` intent into
+    ``TimingPayload`` without a new envelope kind. Empty ``calendar_slots``
+    means the session is a pure timing query (heatmap only, no plan).
+    """
+
+    day_idx: int = Field(ge=0, le=6)  # 0 = Thứ 2 … 6 = Chủ nhật
+    day: str                          # pre-formatted Vietnamese label e.g. "Thứ 4"
+    suggested_time: str = Field(max_length=12)  # "20:00"
+    kind: Literal["pattern", "ideas", "timing", "repost"]
+    title: str = Field(max_length=120)          # "Hook cảm xúc mới"
+    rationale: str = Field(max_length=240)      # why this slot got picked
+
+
 class TimingPayload(BaseModel):
     confidence: ConfidenceStrip
     top_window: dict[str, Any]
@@ -166,6 +182,10 @@ class TimingPayload(BaseModel):
     grid: list[list[float]]
     variance_note: dict[str, str]
     fatigue_band: dict[str, Any] | None = None
+    # New 2026-04-22: populated when the intent is content_calendar (or
+    # when the query contains scheduling keywords). Empty for pure timing
+    # queries — the frontend hides the calendar strip in that case.
+    calendar_slots: list[CalendarSlot] = Field(default_factory=list, max_length=7)
     actions: list[ActionCardPayload]
     sources: list[SourceRow]
     related_questions: list[str]

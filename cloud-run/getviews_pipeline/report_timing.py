@@ -157,10 +157,31 @@ def build_fatigued_timing_report() -> dict[str, Any]:
 # ── Live pipeline (C.4.2) ──────────────────────────────────────────────────
 
 
+# Keyword trigger for calendar mode. When any of these appears in the
+# normalised query, build_timing_report additionally populates
+# ``calendar_slots`` — the content-calendar strip the frontend renders
+# below the heatmap. Callers can force the mode via ``mode="calendar"``
+# (e.g. from the ``content_calendar`` intent router).
+_CALENDAR_KEYWORDS: frozenset[str] = frozenset(
+    {"lịch", "kế hoạch", "tuần tới", "7 ngày", "calendar", "plan", "post gì"}
+)
+
+
+def _should_build_calendar(query: str, mode: str | None) -> bool:
+    if mode == "calendar":
+        return True
+    if mode == "windows":
+        return False
+    q = (query or "").lower()
+    return any(kw in q for kw in _CALENDAR_KEYWORDS)
+
+
 def build_timing_report(
     niche_id: int,
     query: str,
     window_days: int = 14,
+    *,
+    mode: str | None = None,
 ) -> dict[str, Any]:
     """Live Timing report. Falls back to fixture when DB / niche is unavailable.
 
@@ -173,6 +194,13 @@ def build_timing_report(
     + ``related_questions`` slots now go through
     ``report_timing_gemini.fill_timing_narrative`` so two follow-ups on the
     same niche with different questions produce different Vietnamese copy.
+
+    2026-04-22 update #2 (content_calendar absorption): ``calendar_slots``
+    populates when ``mode="calendar"`` is explicitly passed (via the
+    ``content_calendar`` intent routing) or when the query contains
+    scheduling keywords (``lịch``, ``kế hoạch``, ``tuần tới``, …). Pure
+    timing queries leave ``calendar_slots`` empty and the frontend hides
+    the calendar strip.
     """
     try:
         from getviews_pipeline.supabase_client import get_service_client
@@ -265,6 +293,12 @@ def build_timing_report(
     insight = narrative["insight"]
     related_questions = narrative["related_questions"]
 
+    calendar_slots_raw: list[dict[str, Any]] = []
+    if _should_build_calendar(query, mode):
+        calendar_slots_raw = _build_calendar_slots(
+            top_windows=top_windows, niche_label=niche_label,
+        )
+
     payload = TimingPayload(
         confidence=ConfidenceStrip(
             sample_size=sample_n,
@@ -298,9 +332,112 @@ def build_timing_report(
         fatigue_band=fatigue,
         actions=static_timing_action_cards(top_windows[0] if top_windows else None),
         sources=[SourceRow(kind="video", label="Corpus", count=sample_n, sub=f"{niche_label} · {window_days}d")],
+        calendar_slots=calendar_slots_raw,
         related_questions=related_questions,
     )
     return payload.model_dump()
+
+
+# ── Calendar-slot assembly ──────────────────────────────────────────────────
+
+_CALENDAR_MIN_LIFT = 1.5
+
+
+def _build_calendar_slots(
+    *, top_windows: list[dict[str, Any]], niche_label: str
+) -> list[dict[str, Any]]:
+    """Return up to 5 content-calendar slots from the ranked windows.
+
+    Gate: require at least one window to have ``lift_multiplier >= 1.5``.
+    A heatmap with every cell within 20% of the niche median isn't a
+    plan — it's noise, and shipping a calendar plan on noise makes the
+    product look like it's inventing recommendations.
+
+    The chosen slots rotate through ``pattern`` / ``ideas`` / ``timing``
+    kinds so the week plan mixes content types (rather than repeating
+    "Hook cảm xúc" five days in a row). The final slot, if we have ≥ 4
+    qualifying windows, is a ``repost`` for a weekend day.
+    """
+    strong = [w for w in top_windows if float(w.get("lift_multiplier") or 0) >= _CALENDAR_MIN_LIFT]
+    if not strong:
+        return []
+
+    rotation: tuple[str, ...] = ("pattern", "ideas", "pattern", "timing")
+    titles_by_kind = {
+        "pattern": "Hook cảm xúc mới theo xu hướng ngách",
+        "ideas": "Kịch bản ý tưởng #1 đang thắng",
+        "timing": "Test biến thể hook — A/B khung giờ",
+        "repost": "Đăng lại video hit nhất tuần trước",
+    }
+
+    slots: list[dict[str, Any]] = []
+    seen_days: set[int] = set()
+    for i, w in enumerate(strong[:4]):
+        kind = rotation[i % len(rotation)]
+        day_idx = int(w.get("day_idx") or 0)
+        if day_idx in seen_days:
+            continue
+        seen_days.add(day_idx)
+        slots.append(
+            {
+                "day_idx": day_idx,
+                "day": str(w.get("day") or _day_vn(day_idx)),
+                "suggested_time": _slot_time_from_hours(str(w.get("hours") or "")),
+                "kind": kind,
+                "title": titles_by_kind[kind],
+                "rationale": (
+                    f"Khung {w.get('day')} {w.get('hours')} đang dẫn đầu ngách {niche_label} "
+                    f"— gấp {float(w.get('lift_multiplier') or 1.0):.1f}× trung bình."
+                )[:240],
+            }
+        )
+
+    # Optional repost slot on the last strong weekend window we haven't used.
+    if len(slots) >= 3:
+        weekend = next(
+            (
+                w for w in strong
+                if int(w.get("day_idx") or 0) in (5, 6)
+                and int(w.get("day_idx") or 0) not in seen_days
+            ),
+            None,
+        )
+        if weekend is not None:
+            day_idx = int(weekend.get("day_idx") or 0)
+            seen_days.add(day_idx)
+            slots.append(
+                {
+                    "day_idx": day_idx,
+                    "day": str(weekend.get("day") or _day_vn(day_idx)),
+                    "suggested_time": _slot_time_from_hours(str(weekend.get("hours") or "")),
+                    "kind": "repost",
+                    "title": titles_by_kind["repost"],
+                    "rationale": (
+                        f"Cuối tuần ({weekend.get('day')} {weekend.get('hours')}) "
+                        "phù hợp để đăng lại — audience cũ còn hoạt động, không đốt idea mới."
+                    )[:240],
+                }
+            )
+
+    # Sort by day_idx so the frontend can render Mon→Sun without reordering.
+    slots.sort(key=lambda s: int(s.get("day_idx") or 0))
+    return slots[:5]
+
+
+def _slot_time_from_hours(hours_bucket: str) -> str:
+    """Pick a concrete post minute from a bucket string like ``"18–22"``.
+
+    Production creators want "20:00", not "18–22" — so we pick the
+    bucket's start as the suggested time. Edge cases (empty / malformed)
+    fall back to ``20:00`` because that's the universal VN prime-time.
+    """
+    if not hours_bucket or "–" not in hours_bucket:
+        return "20:00"
+    start = hours_bucket.split("–", 1)[0].strip()
+    if not start:
+        return "20:00"
+    # Normalise "18" → "18:00", keep "20:30" as-is.
+    return start if ":" in start else f"{start}:00"
 
 
 def _lowest_window_from_grid(grid: list[list[float]]) -> dict[str, str]:

@@ -20,6 +20,7 @@ import type { TimingReportPayload } from "@/lib/api-types";
 
 import { ConfidenceStrip } from "../pattern/ConfidenceStrip";
 import { HumilityBanner } from "../pattern/HumilityBanner";
+import { CalendarStrip } from "./CalendarStrip";
 import { FatigueBand } from "./FatigueBand";
 import { TimingActionCards } from "./TimingActionCards";
 import { TimingHeadline } from "./TimingHeadline";
@@ -58,6 +59,8 @@ export function TimingBody({ report }: { report: TimingReportPayload }) {
       <VarianceNote note={report.variance_note} />
 
       {report.fatigue_band ? <FatigueBand band={report.fatigue_band} /> : null}
+
+      <CalendarStrip slots={report.calendar_slots ?? []} />
 
       {report.actions.length > 0 ? (
         <section>

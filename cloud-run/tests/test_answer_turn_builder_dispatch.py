@@ -62,7 +62,7 @@ def test_unknown_kind_falls_back_to_generic() -> None:
 # -----------------------------------------------------------------------------
 
 
-def _mock_supabase_for_turn(session_fmt: str) -> MagicMock:
+def _mock_supabase_for_turn(session_fmt: str, *, intent_type: str = "trend_spike") -> MagicMock:
     """Stitch a Supabase mock that answers ``append_turn``'s reads / inserts."""
     sb = MagicMock()
 
@@ -71,7 +71,7 @@ def _mock_supabase_for_turn(session_fmt: str) -> MagicMock:
         "user_id": "u1",
         "format": session_fmt,
         "niche_id": 2,
-        "intent_type": "trend_spike",
+        "intent_type": intent_type,
     }
 
     def table(name: str) -> MagicMock:
@@ -242,3 +242,76 @@ def test_primary_turn_still_uses_session_format(
     mock_timing.assert_not_called()
     mock_ideas.assert_not_called()
     assert out["payload"]["kind"] == "pattern"
+
+
+@patch("getviews_pipeline.supabase_client.user_supabase")
+@patch("getviews_pipeline.answer_session.get_service_client")
+@patch("getviews_pipeline.answer_session.build_pattern_report")
+@patch("getviews_pipeline.answer_session.build_ideas_report")
+@patch("getviews_pipeline.answer_session.build_timing_report")
+@patch("getviews_pipeline.answer_session.build_generic_report")
+def test_content_calendar_intent_passes_calendar_mode_to_timing(
+    mock_generic: MagicMock,
+    mock_timing: MagicMock,
+    mock_ideas: MagicMock,
+    mock_pattern: MagicMock,
+    mock_get_svc: MagicMock,
+    _mock_user_sb: MagicMock,
+) -> None:
+    """2026-04-22 content_calendar absorption: a session with
+    ``intent_type = 'content_calendar'`` and ``format = 'timing'`` must
+    call ``build_timing_report`` with ``mode='calendar'`` so the
+    expanded ``TimingPayload.calendar_slots`` gets populated. Before
+    this change, content_calendar was force-fit into pattern and
+    returned a hook leaderboard for a scheduling question."""
+    mock_get_svc.return_value = _mock_supabase_for_turn(
+        "timing", intent_type="content_calendar",
+    )
+    mock_timing.return_value = _fake_timing_payload()
+
+    append_turn(
+        "u1",
+        access_token="fake-jwt",
+        session_id="sess-1",
+        query="lên lịch post tuần tới cho mình",
+        kind="primary",
+    )
+
+    mock_timing.assert_called_once()
+    # Mode is a kwarg in the new signature.
+    _, kwargs = mock_timing.call_args
+    assert kwargs.get("mode") == "calendar", (
+        "content_calendar intent must dispatch with mode='calendar' so "
+        "calendar_slots populates in the payload"
+    )
+    mock_pattern.assert_not_called()
+
+
+@patch("getviews_pipeline.supabase_client.user_supabase")
+@patch("getviews_pipeline.answer_session.get_service_client")
+@patch("getviews_pipeline.answer_session.build_timing_report")
+def test_timing_intent_does_not_force_calendar_mode(
+    mock_timing: MagicMock,
+    mock_get_svc: MagicMock,
+    _mock_user_sb: MagicMock,
+) -> None:
+    """A regular ``timing`` intent must NOT force calendar mode — the
+    builder falls back to its keyword heuristic (empty query keywords =
+    no calendar). Protects against the dispatcher regressing to always
+    populate slots."""
+    mock_get_svc.return_value = _mock_supabase_for_turn(
+        "timing", intent_type="timing",
+    )
+    mock_timing.return_value = _fake_timing_payload()
+
+    append_turn(
+        "u1",
+        access_token="fake-jwt",
+        session_id="sess-1",
+        query="giờ nào post tốt nhất?",
+        kind="primary",
+    )
+
+    mock_timing.assert_called_once()
+    _, kwargs = mock_timing.call_args
+    assert kwargs.get("mode") is None

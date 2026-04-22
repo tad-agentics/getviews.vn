@@ -500,6 +500,15 @@ export interface IdeasReportPayload {
   variant: "standard" | "hook_variants";
 }
 
+export interface CalendarSlotData {
+  day_idx: number;           // 0 = Thứ 2 … 6 = Chủ nhật
+  day: string;               // "Thứ 4" (pre-formatted VN)
+  suggested_time: string;    // "20:00"
+  kind: "pattern" | "ideas" | "timing" | "repost";
+  title: string;
+  rationale: string;
+}
+
 export interface TimingReportPayload {
   confidence: ConfidenceStripData;
   top_window: Record<string, unknown>;
@@ -508,6 +517,10 @@ export interface TimingReportPayload {
   grid: number[][];
   variance_note: Record<string, string>;
   fatigue_band: Record<string, unknown> | null;
+  /** Content calendar slots — absorbs the ``content_calendar`` intent
+   *  into Timing. Empty means "pure timing query" (heatmap only);
+   *  non-empty renders the 7-day strip. */
+  calendar_slots: CalendarSlotData[];
   actions: ActionCardPayloadData[];
   sources: SourceRowData[];
   related_questions: string[];
