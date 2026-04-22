@@ -62,6 +62,10 @@ const ANSWER_ERROR_CODES = new Set([
   "aborted",
   "auth",
   "session_expired",
+  // Structured codes from cloud-run/main.py _classify_create_session_error.
+  "invalid_niche",
+  "invalid_payload",
+  "idempotency_conflict",
 ]);
 
 function pickAnswerErrorCode(e: unknown, fallback: string): string {
