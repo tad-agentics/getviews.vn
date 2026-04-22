@@ -1,6 +1,9 @@
 """Phase C.0.3 — adaptive corpus window from ``video_corpus`` (service role).
 
 Floors match ``phase-c-plan.md`` §C.0.3: Pattern 30, Ideas 60, Timing 80.
+2026-05-07: extended with Lifecycle 80 (same density needs as timing —
+per-format aggregates over week-over-week windows) and Diagnostic 30
+(niche benchmarks are aggregate + forgiving; same floor as pattern).
 Prefer 7d → widen to 14d → 30d until the floor is met.
 """
 
@@ -17,8 +20,11 @@ logger = logging.getLogger(__name__)
 PATTERN_SAMPLE_FLOOR = 30
 IDEAS_SAMPLE_FLOOR = 60
 TIMING_SAMPLE_FLOOR = 80
+# Added 2026-05-07 — see module docstring.
+LIFECYCLE_SAMPLE_FLOOR = 80
+DIAGNOSTIC_SAMPLE_FLOOR = 30
 
-ReportKind = Literal["pattern", "ideas", "timing"]
+ReportKind = Literal["pattern", "ideas", "timing", "lifecycle", "diagnostic"]
 
 
 def count_video_corpus_for_niche(niche_id: int, days: int) -> int:
@@ -50,6 +56,8 @@ def choose_adaptive_window_days(niche_id: int, report_kind: ReportKind) -> int:
         "pattern": PATTERN_SAMPLE_FLOOR,
         "ideas": IDEAS_SAMPLE_FLOOR,
         "timing": TIMING_SAMPLE_FLOOR,
+        "lifecycle": LIFECYCLE_SAMPLE_FLOOR,
+        "diagnostic": DIAGNOSTIC_SAMPLE_FLOOR,
     }
     floor = floors.get(report_kind, PATTERN_SAMPLE_FLOOR)
     if niche_id <= 0:
