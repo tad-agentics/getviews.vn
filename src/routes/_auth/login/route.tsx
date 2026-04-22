@@ -238,8 +238,11 @@ export default function LoginRoute() {
           </div>
 
           <div className="px-6 pb-5 pt-2 text-center">
-            <h1 className="mb-2 max-w-full whitespace-nowrap text-center text-[color:var(--gv-ink)] [font-size:clamp(0.55rem,2.8vw+0.18rem,1.65rem)] font-extrabold leading-tight tracking-[-0.02em]">
-              Bắt trend TikTok trước khi nó viral
+            <h1 className="mb-2 text-center text-2xl font-extrabold leading-tight tracking-[-0.02em] text-[color:var(--gv-ink)] sm:text-[1.65rem]">
+              <span className="block">Bắt trend TikTok trước</span>
+              <span className="mt-0.5 block">
+                khi nó <span className="text-[color:var(--gv-accent)]">viral</span>
+              </span>
             </h1>
             <p className="text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
               Data thực từ <strong className="text-[color:var(--gv-ink)]">46.000+</strong> video TikTok Việt Nam — phân tích trong{" "}
