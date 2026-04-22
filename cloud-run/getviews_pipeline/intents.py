@@ -7,16 +7,28 @@ from enum import StrEnum
 
 
 class QueryIntent(StrEnum):
+    """Intent taxonomy — mirror of ``GEMINI_CLASSIFIER_PRIMARY_LABELS`` with
+    a few historical aliases kept for backward-compat.
+
+    2026-04-22 cleanup (see ``artifacts/docs/report-templates-audit.md``):
+      - ``SERIES_AUDIT`` REMOVED — no template, not classified any more.
+      - ``COMPARISON`` KEPT as deprecated — historical session rows still
+        carry this label; new classifications no longer produce it.
+      - ``FIND_CREATORS`` KEPT as deprecated alias — canonical name is
+        ``CREATOR_SEARCH``. Callers should prefer ``CREATOR_SEARCH``; the
+        legacy value is normalised at the router edge.
+    """
+
     VIDEO_DIAGNOSIS = "video_diagnosis"
     CONTENT_DIRECTIONS = "content_directions"
     COMPETITOR_PROFILE = "competitor_profile"
-    SERIES_AUDIT = "series_audit"
     BRIEF_GENERATION = "brief_generation"
     TREND_SPIKE = "trend_spike"
     METADATA_ONLY = "metadata_only"
     FOLLOWUP = "followup"
     OWN_CHANNEL = "own_channel"  # "Soi Kênh" — same pipeline as video_diagnosis
-    FIND_CREATORS = "find_creators"  # KOL/creator search
+    CREATOR_SEARCH = "creator_search"  # canonical label for KOL/creator discovery
+    FIND_CREATORS = "find_creators"  # DEPRECATED — alias for CREATOR_SEARCH
     SHOT_LIST = "shot_list"  # detailed shot list for production
     # Phase C §A.2 — `/answer` report intents (classify_intent + Gemini)
     SUBNICHE_BREAKDOWN = "subniche_breakdown"
@@ -25,7 +37,7 @@ class QueryIntent(StrEnum):
     HOOK_VARIANTS = "hook_variants"
     TIMING = "timing"
     CONTENT_CALENDAR = "content_calendar"
-    COMPARISON = "comparison"
+    COMPARISON = "comparison"  # DEPRECATED — historical session rows only
     OWN_FLOP_NO_URL = "own_flop_no_url"  # own channel/video underperforming, no TikTok URL
     FOLLOW_UP_CLASSIFIABLE = "follow_up_classifiable"
     FOLLOW_UP_UNCLASSIFIABLE = "follow_up_unclassifiable"
@@ -166,11 +178,9 @@ def classify_intent(
 ) -> QueryIntent:
     msg = message.lower()
     has_urls = bool(urls)
-    multi_urls = len(urls) > 1
 
-    if multi_urls:
-        return QueryIntent.SERIES_AUDIT
-
+    # ``series_audit`` (multi-URL) dropped 2026-04-22 — multi-URL queries
+    # now classify on the first URL as ``video_diagnosis``.
     if handles and not has_urls:
         return QueryIntent.COMPETITOR_PROFILE
 
@@ -354,13 +364,8 @@ def classify_intent(
     ):
         return QueryIntent.SUBNICHE_BREAKDOWN
 
-    # Phase C — A vs B creators (2+ handles, compare framing)
-    if len(handles) >= 2 and any(
-        kw in msg
-        for kw in ["so sánh", "compare", "vs ", "versus", "hay hơn", "ai hơn"]
-    ):
-        return QueryIntent.COMPARISON
-
+    # ``comparison`` (intent) dropped 2026-04-22 — multi-handle compare
+    # queries now fall through to ``COMPETITOR_PROFILE`` on the first handle.
     # Phase C — own content underperforming (no URL to analyze)
     if not has_urls and not handles and (
         re.search(r"\b(video|kênh|channel)\s+(của\s+)?(mình|tôi|tao|tui)\b", msg)
@@ -574,11 +579,13 @@ def collapse_to_intents(
         QueryIntent.BRIEF_GENERATION,
         QueryIntent.VIDEO_DIAGNOSIS,
         QueryIntent.COMPETITOR_PROFILE,
-        QueryIntent.COMPARISON,
+        # ``SERIES_AUDIT`` and ``COMPARISON`` dropped 2026-04-22.
         QueryIntent.OWN_CHANNEL,
         QueryIntent.OWN_FLOP_NO_URL,
-        QueryIntent.SERIES_AUDIT,
         QueryIntent.SHOT_LIST,
+        # ``FIND_CREATORS`` collapsed into ``CREATOR_SEARCH`` — but the
+        # StrEnum keeps the old value for backward-compat with session
+        # history; the classifier no longer produces it.
         QueryIntent.FIND_CREATORS,
         QueryIntent.METADATA_ONLY,
         QueryIntent.FOLLOW_UP_CLASSIFIABLE,
@@ -596,7 +603,7 @@ def check_chain_dependencies(
 ) -> list[QueryIntent]:
     base_dependencies: dict[QueryIntent, list[QueryIntent]] = {
         QueryIntent.VIDEO_DIAGNOSIS: [QueryIntent.CONTENT_DIRECTIONS],
-        QueryIntent.SERIES_AUDIT: [QueryIntent.CONTENT_DIRECTIONS],
+        # ``SERIES_AUDIT`` dependency entry removed 2026-04-22.
         QueryIntent.BRIEF_GENERATION: [
             QueryIntent.CONTENT_DIRECTIONS,
             QueryIntent.VIDEO_DIAGNOSIS,
@@ -619,18 +626,23 @@ def check_chain_dependencies(
 
 
 def query_intent_to_gemini_primary(qi: QueryIntent) -> str:
-    """Map server ``QueryIntent`` to Gemini classifier primary labels (keep in sync with gemini)."""
+    """Map server ``QueryIntent`` to Gemini classifier primary labels (keep in sync with gemini).
+
+    2026-04-22 cleanup: ``SERIES_AUDIT`` removed entirely; ``FIND_CREATORS``
+    now maps to the canonical ``creator_search`` label; ``COMPARISON`` is
+    kept only for reading back historical session rows.
+    """
     m: dict[QueryIntent, str] = {
         QueryIntent.VIDEO_DIAGNOSIS: "video_diagnosis",
         QueryIntent.CONTENT_DIRECTIONS: "content_directions",
         QueryIntent.COMPETITOR_PROFILE: "competitor_profile",
-        QueryIntent.SERIES_AUDIT: "series_audit",
         QueryIntent.BRIEF_GENERATION: "brief_generation",
         QueryIntent.TREND_SPIKE: "trend_spike",
         QueryIntent.METADATA_ONLY: "metadata_only",
         QueryIntent.FOLLOWUP: "follow_up",
         QueryIntent.OWN_CHANNEL: "own_channel",
-        QueryIntent.FIND_CREATORS: "find_creators",
+        QueryIntent.CREATOR_SEARCH: "creator_search",
+        QueryIntent.FIND_CREATORS: "creator_search",  # legacy alias → canonical
         QueryIntent.SHOT_LIST: "shot_list",
         QueryIntent.SUBNICHE_BREAKDOWN: "subniche_breakdown",
         QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE: "format_lifecycle_optimize",
@@ -638,7 +650,7 @@ def query_intent_to_gemini_primary(qi: QueryIntent) -> str:
         QueryIntent.HOOK_VARIANTS: "hook_variants",
         QueryIntent.TIMING: "timing",
         QueryIntent.CONTENT_CALENDAR: "content_calendar",
-        QueryIntent.COMPARISON: "comparison",
+        QueryIntent.COMPARISON: "competitor_profile",  # legacy → use competitor_profile
         QueryIntent.OWN_FLOP_NO_URL: "own_flop_no_url",
         QueryIntent.FOLLOW_UP_CLASSIFIABLE: "follow_up",
         QueryIntent.FOLLOW_UP_UNCLASSIFIABLE: "follow_up",

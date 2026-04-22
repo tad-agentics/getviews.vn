@@ -26,7 +26,14 @@ export type Destination =
   | "answer:timing"
   | "answer:generic";
 
-/** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable). */
+/** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
+ *
+ * Dropped 2026-04-22 per product-lead scope decision (see
+ * ``artifacts/docs/report-templates-audit.md``):
+ *   - ``series_audit`` — multi-URL corpus comparison; not covered by any template.
+ *   - ``comparison``   — head-to-head creator comparison; replaced by using
+ *     ``competitor_profile`` twice or by the planned KOL screen comparison.
+ */
 export type FixedIntentId =
   | "video_diagnosis"
   | "competitor_profile"
@@ -34,7 +41,6 @@ export type FixedIntentId =
   | "creator_search"
   | "shot_list"
   | "metadata_only"
-  | "comparison"
   | "trend_spike"
   | "content_directions"
   | "subniche_breakdown"
@@ -44,7 +50,6 @@ export type FixedIntentId =
   | "hook_variants"
   | "timing"
   | "content_calendar"
-  | "series_audit"
   | "own_flop_no_url"
   | "follow_up_unclassifiable";
 
@@ -55,7 +60,6 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   creator_search: "kol",
   shot_list: "script",
   metadata_only: "video",
-  comparison: "kol",
   trend_spike: "answer:pattern",
   content_directions: "answer:pattern",
   subniche_breakdown: "answer:pattern",
@@ -65,7 +69,6 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   hook_variants: "answer:ideas",
   timing: "answer:timing",
   content_calendar: "answer:pattern",
-  series_audit: "answer:pattern",
   own_flop_no_url: "answer:pattern",
   follow_up_unclassifiable: "answer:generic",
 };
@@ -81,11 +84,6 @@ export function resolveDestination(intent: ClassifiedIntent): Destination {
   return INTENT_DESTINATIONS[intent.id];
 }
 
-function countHandles(q: string): number {
-  const m = q.match(/@[\w.]+/g);
-  return m?.length ?? 0;
-}
-
 export function detectIntent(
   query: string,
   priorAssistant: boolean,
@@ -93,11 +91,11 @@ export function detectIntent(
   const q = query.trim();
   const ql = q.toLowerCase();
 
-  // ── 0. MULTI-URL → series audit (before single-URL branch) ──────────────
-  const tiktokUrls = q.match(/https?:\/\/[^\s]*tiktok\.com\/[^\s]+/gi) ?? [];
-  if (tiktokUrls.length >= 2) {
-    return { intentType: "series_audit", isFree: false, confidence: "high" };
-  }
+  // ``series_audit`` (multi-URL) was dropped 2026-04-22. Multi-URL queries
+  // now fall through to the single-URL branch which treats the first URL
+  // as a ``video_diagnosis``; the rest are ignored. A future v2 might
+  // re-introduce a series view as a dedicated screen, but it's not an
+  // Answer-session intent.
 
   // ── OWN CHANNEL / VIDEO FLOP (no TikTok URL) ─────────────────────────────
   if (
@@ -139,9 +137,10 @@ export function detectIntent(
       || /\b(my|của\s+mình|của\s+tôi)\s+channel\b/i.test(ql)
       || /(review|phân\s+tích|đánh\s+giá)\s+kênh\s+(của\s+)?(mình|tôi|tao|tui)/i.test(ql)
     );
-    if (countHandles(q) >= 2 && /so sánh|compare|versus|hay hơn|ai hơn|\bvs\b/i.test(ql)) {
-      return { intentType: "comparison", isFree: false, confidence: "medium" };
-    }
+    // ``comparison`` (multi-handle head-to-head) was dropped 2026-04-22.
+    // Two @-handles with "so sánh" keywords now classify as a
+    // competitor_profile on the first handle; users can open the second
+    // via the Channel screen separately.
     return ownChannelHandle
       ? { intentType: "own_channel", isFree: false, confidence: "high" }
       : { intentType: "competitor_profile", isFree: false, confidence: "high" };

@@ -752,11 +752,9 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "  - Tín hiệu monetization (TikTok Shop, sponsored posts).\n"
         "  - Brief nhái phong cách của họ."
     ),
-    "series_audit": (
-        "MỤC TIÊU: Kiểm tra series — so sánh pattern xuyên suốt các video của người dùng; ghi nhận tính nhất quán và khoảng trống.\n"
-        "CẤU TRÚC: Mở bằng nhận định chính về series (1-2 câu). Sau đó: **Pattern nhất quán** (hook, format, nhịp lặp — 2-3 gạch), "
-        "**Bài đứng đầu và vì sao** (1-2 gạch, trích số liệu), **Bài yếu nhất và vì sao** (1-2 gạch), **Hành động tiếp** (2-3 gạch cụ thể)."
-    ),
+    # ``series_audit`` dropped 2026-04-22 — no template, no classifier
+    # label. If a legacy session still has this intent, it falls through
+    # to the framing default in build_synthesis_prompt.
     "brief_generation": (
         "MỤC TIÊU: Brief sản xuất — xuất brief quay phim ngắn gọn, seller/agency có thể gửi thẳng Zalo cho KOL.\n"
         "CẤU TRÚC (core — seller đọc trong 30 giây):\n"
