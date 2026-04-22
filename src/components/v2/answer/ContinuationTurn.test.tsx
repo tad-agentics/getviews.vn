@@ -37,6 +37,9 @@ vi.mock("@/components/v2/answer/timing/TimingBody", () => ({
 vi.mock("@/components/v2/answer/lifecycle/LifecycleBody", () => ({
   LifecycleBody: () => <div data-testid="lifecycle-body">lifecycle-body</div>,
 }));
+vi.mock("@/components/v2/answer/diagnostic/DiagnosticBody", () => ({
+  DiagnosticBody: () => <div data-testid="diagnostic-body">diagnostic-body</div>,
+}));
 vi.mock("@/components/v2/answer/generic/GenericBody", () => ({
   GenericBody: () => <div data-testid="generic-body">generic-body</div>,
 }));
@@ -81,6 +84,12 @@ describe("ContinuationTurn payload dispatch", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "lifecycle", report: {} })} />);
     expect(screen.getByTestId("lifecycle-body")).toBeTruthy();
     expect(screen.getByText("Lifecycle")).toBeTruthy();
+  });
+
+  it("renders DiagnosticBody inside a 'Chẩn đoán' block for kind: diagnostic", () => {
+    render(<ContinuationTurn turn={mkTurn({ kind: "diagnostic", report: {} })} />);
+    expect(screen.getByTestId("diagnostic-body")).toBeTruthy();
+    expect(screen.getByText("Chẩn đoán")).toBeTruthy();
   });
 
   it("renders GenericBody with 'Tổng quát' kicker for kind: generic", () => {

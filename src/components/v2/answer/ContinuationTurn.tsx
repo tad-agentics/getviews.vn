@@ -7,6 +7,7 @@ import { PatternBody } from "@/components/v2/answer/pattern/PatternBody";
 import { IdeasBody } from "@/components/v2/answer/ideas/IdeasBody";
 import { TimingBody } from "@/components/v2/answer/timing/TimingBody";
 import { LifecycleBody } from "@/components/v2/answer/lifecycle/LifecycleBody";
+import { DiagnosticBody } from "@/components/v2/answer/diagnostic/DiagnosticBody";
 import { GenericBody } from "@/components/v2/answer/generic/GenericBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 
@@ -47,6 +48,12 @@ function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
       return (
         <AnswerBlock kicker="Lifecycle">
           <LifecycleBody report={payload.report} />
+        </AnswerBlock>
+      );
+    case "diagnostic":
+      return (
+        <AnswerBlock kicker="Chẩn đoán">
+          <DiagnosticBody report={payload.report} />
         </AnswerBlock>
       );
     case "generic":
