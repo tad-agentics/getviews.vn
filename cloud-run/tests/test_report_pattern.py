@@ -94,6 +94,38 @@ def test_thin_corpus_payload_validates() -> None:
     assert p.confidence.what_stalled_reason
 
 
+def test_thin_corpus_never_leaks_fixture_evidence() -> None:
+    """BUG-01 regression: thin-corpus path used to call ``build_fixture_pattern_report``
+    which hardcoded 6 copies of ``@demo / Stub video`` evidence. Live
+    responses must never include that placeholder.
+    """
+    inner = build_thin_corpus_pattern_report(sample_size=5, niche_label="Skincare")
+    for ev in inner.get("evidence_videos") or []:
+        assert ev.get("creator_handle") != "@demo"
+        assert ev.get("title") != "Stub video"
+        assert ev.get("video_id") != "stub-1"
+    for f in inner.get("findings") or []:
+        assert f.get("pattern") != "Mình vừa test ___ và"
+    # Niche label flows through so the user sees their niche, not "Tech".
+    assert inner["confidence"]["niche_scope"] == "Skincare"
+
+
+def test_empty_pattern_report_has_no_stub_evidence() -> None:
+    """BUG-01 regression: the empty-state payload used when the service
+    client is unavailable or the niche has zero usable rows must return
+    an empty evidence list, not the fixture's @demo cards.
+    """
+    from getviews_pipeline.report_pattern import build_empty_pattern_report
+
+    inner = build_empty_pattern_report(niche_label="Làm đẹp / Skincare", window_days=7)
+    p = PatternPayload.model_validate(inner)
+    assert p.evidence_videos == []
+    assert p.findings == []
+    assert p.what_stalled == []
+    assert p.confidence.niche_scope == "Làm đẹp / Skincare"
+    assert p.confidence.what_stalled_reason  # non-empty humility reason
+
+
 def test_full_fixture_is_full_corpus() -> None:
     inner = build_fixture_pattern_report()
     p = PatternPayload.model_validate(inner)

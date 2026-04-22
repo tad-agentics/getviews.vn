@@ -6,6 +6,7 @@ import { Btn } from "@/components/v2/Btn";
 import { TopBar } from "@/components/v2/TopBar";
 import { useScriptDraft } from "@/hooks/useScriptSave";
 import type { ScriptShot } from "@/lib/api-types";
+import { overlayStyleVi } from "@/lib/constants/enum-labels-vi";
 
 /**
  * Phase D.1.1 — "Chế độ quay" read-only view. Optimised for phone-in-tripod
@@ -107,7 +108,7 @@ function ShotBlock({ shot, index }: { shot: ScriptShot; index: number }) {
           <span className="gv-uc mr-2 text-[10px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
             Overlay
           </span>
-          {overlay}
+          {overlayStyleVi(overlay, overlay)}
         </p>
       ) : null}
     </li>

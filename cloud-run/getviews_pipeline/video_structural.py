@@ -135,7 +135,21 @@ def decompose_segments(analysis: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def extract_hook_phases(analysis: dict[str, Any]) -> list[dict[str, str]]:
-    """Three hook window cards: deterministic ``t_range`` + ``label``; ``body`` is LLM-only (empty here)."""
+    """Three hook window cards: deterministic ``t_range`` + ``label``; ``body`` is LLM-only (empty here).
+
+    All enum values (``first_frame_type``, hook-timeline ``event``) are routed
+    through ``enum_labels_vi`` before concatenation so the QA audit's BUG-02
+    regression ("Mở face with text · face @0.0s", "face_enter: Speaker's face
+    is visible.") cannot recur. The original raw values stay in ``hook_type``
+    / metadata for admin/debug surfaces — only the user-visible ``label``
+    gets translated.
+    """
+    from getviews_pipeline.enum_labels_vi import (
+        first_frame_vi,
+        hook_timeline_event_vi,
+        hook_type_vi,
+    )
+
     ha = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else {}
     first_frame = str(ha.get("first_frame_type") or "other")
     hook_type = str(ha.get("hook_type") or "other")
@@ -148,18 +162,19 @@ def extract_hook_phases(analysis: dict[str, Any]) -> list[dict[str, str]]:
     if speech_at is not None and str(speech_at).strip() != "":
         speech_s = _floatish(speech_at)
 
-    label_a = f"Mở {first_frame.replace('_', ' ')}"
+    label_a = f"Mở: {first_frame_vi(first_frame, default='Khác')}"
     if face_s is not None:
-        label_a = f"{label_a} · face @{face_s:.1f}s"
+        label_a = f"{label_a} · mặt lên @{face_s:.1f}s"
 
-    label_b = f"Hook pattern: {hook_type.replace('_', ' ')}"
+    label_b = f"Kiểu hook: {hook_type_vi(hook_type, default='Khác')}"
     timeline = ha.get("hook_timeline") or []
     if isinstance(timeline, list) and timeline:
         first_ev = timeline[0] if isinstance(timeline[0], dict) else {}
-        ev = str(first_ev.get("event") or "")
-        note = str(first_ev.get("note") or "")
-        if ev or note:
-            label_b = f"{ev}{(': ' + note) if note else ''}".strip()
+        ev_raw = str(first_ev.get("event") or "")
+        note = str(first_ev.get("note") or "").strip()
+        ev_vi = hook_timeline_event_vi(ev_raw, default="")
+        if ev_vi or note:
+            label_b = f"{ev_vi}{(': ' + note) if note else ''}".strip(" :")
 
     label_c = "Cam kết / payoff trong 3s đầu"
     if speech_s is not None:

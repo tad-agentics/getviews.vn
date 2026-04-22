@@ -1,4 +1,5 @@
 import type { ScriptEditorShot } from "@/lib/scriptEditorMerge";
+import { overlayStyleVi } from "@/lib/constants/enum-labels-vi";
 
 const CAM_BG = [
   "var(--gv-avatar-2)",
@@ -69,7 +70,7 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
       </div>
       <div className="relative p-3">
         <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
-          HÌNH ẢNH · {shot.overlay}
+          HÌNH ẢNH · {overlayStyleVi(shot.overlay, shot.overlay)}
         </div>
         <p className="mb-2 text-xs leading-[1.4] text-[color:var(--gv-ink-3)]">{shot.viz}</p>
         <div
