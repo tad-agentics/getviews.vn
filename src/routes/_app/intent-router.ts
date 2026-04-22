@@ -68,7 +68,10 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   brief_generation: "answer:ideas",
   hook_variants: "answer:ideas",
   timing: "answer:timing",
-  content_calendar: "answer:pattern",
+  // Updated 2026-04-22: content_calendar routes to timing (not pattern)
+  // so the expanded TimingPayload.calendar_slots renders instead of a
+  // force-fit pattern report.
+  content_calendar: "answer:timing",
   own_flop_no_url: "answer:pattern",
   follow_up_unclassifiable: "answer:generic",
 };

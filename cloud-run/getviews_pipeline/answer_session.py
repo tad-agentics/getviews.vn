@@ -388,7 +388,18 @@ def append_turn(
                 window_days=window_days,
             )
         elif builder_fmt == "timing":
-            inner = build_timing_report(niche_pk, query, window_days=window_days)
+            # ``content_calendar`` intent shares the timing template but
+            # needs ``calendar_slots[]`` populated. The builder also
+            # infers this from query keywords; passing the intent-level
+            # hint makes the behaviour explicit for primary turns.
+            timing_mode = (
+                "calendar"
+                if (session.get("intent_type") or "") == "content_calendar"
+                else None
+            )
+            inner = build_timing_report(
+                niche_pk, query, window_days=window_days, mode=timing_mode,
+            )
         else:
             inner = build_generic_report(session.get("niche_id"), query)
     except Exception:
