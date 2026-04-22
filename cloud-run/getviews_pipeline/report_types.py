@@ -158,18 +158,30 @@ class IdeasPayload(BaseModel):
     variant: Literal["standard", "hook_variants"]
 
 
+# Named alias for ``CalendarSlot.kind`` — intentionally distinct from
+# ``ReportV1.kind`` even though the two share some literal values. Making
+# the alias visible in type signatures prevents the kind-vs-kind trap
+# where a ``ReportV1`` could accidentally be passed where a slot kind is
+# expected, or vice versa. The wire field name stays ``kind`` so stored
+# JSONB payloads + the TypeScript counterpart don't drift.
+CalendarSlotKind = Literal["pattern", "ideas", "timing", "repost"]
+
+
 class CalendarSlot(BaseModel):
     """One day's suggested post slot in a Timing content-calendar view.
 
     Added 2026-04-22 to absorb the ``content_calendar`` intent into
     ``TimingPayload`` without a new envelope kind. Empty ``calendar_slots``
     means the session is a pure timing query (heatmap only, no plan).
+
+    NB: ``kind`` here is a slot-type classifier, NOT the ``ReportV1.kind``
+    discriminator. Share no type, just the field name (wire-level contract).
     """
 
     day_idx: int = Field(ge=0, le=6)  # 0 = Thứ 2 … 6 = Chủ nhật
     day: str                          # pre-formatted Vietnamese label e.g. "Thứ 4"
     suggested_time: str = Field(max_length=12)  # "20:00"
-    kind: Literal["pattern", "ideas", "timing", "repost"]
+    kind: CalendarSlotKind
     title: str = Field(max_length=120)          # "Hook cảm xúc mới"
     rationale: str = Field(max_length=240)      # why this slot got picked
 

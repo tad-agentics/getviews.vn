@@ -156,3 +156,30 @@ def test_min_lift_constant_matches_prd() -> None:
     gates calendar assembly at 1.5× lift. If this constant changes,
     update the doc + vice versa."""
     assert _CALENDAR_MIN_LIFT == 1.5
+
+
+# ── CalendarSlotKind type alias (2026-05-07) ─────────────────────────────
+
+
+def test_calendar_slot_kind_exported_and_narrower_than_report_kind() -> None:
+    """``CalendarSlotKind`` is the named alias for the ``CalendarSlot.kind``
+    literal — intentionally distinct from ``ReportKind`` even where they
+    share values. Pin both the export and the domain difference so a
+    refactor can't accidentally unify them and hide the trap the alias
+    was introduced to document.
+    """
+    from typing import get_args
+
+    from getviews_pipeline.report_types import CalendarSlotKind, ReportKind
+
+    slot_kinds = set(get_args(CalendarSlotKind))
+    report_kinds = set(get_args(ReportKind))
+
+    # Slot-kind narrow domain includes "repost" that ReportKind does not.
+    assert "repost" in slot_kinds
+    assert "repost" not in report_kinds
+
+    # ReportKind includes the new answer shelves that CalendarSlotKind does not.
+    for k in ("generic", "lifecycle", "diagnostic"):
+        assert k in report_kinds
+        assert k not in slot_kinds

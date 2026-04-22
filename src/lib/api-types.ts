@@ -500,11 +500,21 @@ export interface IdeasReportPayload {
   variant: "standard" | "hook_variants";
 }
 
+/** Named alias for ``CalendarSlotData.kind`` — intentionally distinct
+ * from ``ReportV1["kind"]`` even though the two share some literal values.
+ * Mirrors ``CalendarSlotKind`` in ``cloud-run/getviews_pipeline/
+ * report_types.py``. Don't substitute either where the other is
+ * expected — the narrower slot-kind domain includes ``"repost"``, and
+ * the report envelope kind includes ``"generic" | "lifecycle" |
+ * "diagnostic"``.
+ */
+export type CalendarSlotKindData = "pattern" | "ideas" | "timing" | "repost";
+
 export interface CalendarSlotData {
   day_idx: number;           // 0 = Thứ 2 … 6 = Chủ nhật
   day: string;               // "Thứ 4" (pre-formatted VN)
   suggested_time: string;    // "20:00"
-  kind: "pattern" | "ideas" | "timing" | "repost";
+  kind: CalendarSlotKindData;
   title: string;
   rationale: string;
 }
