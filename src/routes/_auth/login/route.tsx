@@ -190,15 +190,19 @@ export default function LoginRoute() {
     "placeholder:text-[color:var(--gv-ink-4)] focus:border-[color:var(--gv-accent)] focus:ring-1 focus:ring-[color:var(--gv-accent)]";
 
   return (
-    <div className="gv-studio-type flex min-h-screen items-center justify-center bg-[color:var(--gv-canvas)] px-4 py-10 text-[color:var(--gv-ink)]">
-      <div className="flex w-full max-w-[360px] flex-col items-center gap-5">
+    <div className="gv-studio-type relative flex min-h-dvh flex-col items-center justify-center bg-[linear-gradient(180deg,var(--gv-paper)_0%,var(--gv-canvas-2)_100%)] px-4 py-10 pb-12 text-[color:var(--gv-ink)] sm:px-6">
+      <div className="flex w-full max-w-[400px] flex-col items-center gap-6">
         <motion.div
           initial={{ opacity: 0, y: 18, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full overflow-hidden rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] shadow-[0_8px_40px_-12px_rgb(10_12_16/0.1)]"
+          className="w-full overflow-hidden rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] shadow-[0_20px_50px_-12px_rgb(10_12_16/0.2)]"
         >
-          <div className="relative mb-2 flex h-[168px] select-none items-end justify-center">
+          <div className="h-1 w-full bg-[color:var(--gv-accent)]" role="presentation" aria-hidden />
+          <div className="border-b border-[color:var(--gv-rule-2)] bg-[color:var(--gv-canvas-2)] px-4 py-2.5 text-center sm:px-5">
+            <span className="gv-kicker gv-kicker--dot">Tài khoản GetViews</span>
+          </div>
+          <div className="relative mb-2 flex h-[168px] select-none items-end justify-center bg-[color:var(--gv-canvas-2)]/50">
             {THUMBS.map((t, i) => (
               <div
                 key={i}
@@ -216,7 +220,7 @@ export default function LoginRoute() {
           </div>
 
           <div className="px-6 pb-5 pt-2 text-center">
-            <h1 className="gradient-text mb-2 text-xl font-extrabold leading-tight">
+            <h1 className="gradient-text mb-2 text-2xl font-extrabold leading-tight tracking-[-0.02em] sm:text-[1.65rem]">
               Bắt trend TikTok trước khi nó viral
             </h1>
             <p className="text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
@@ -232,7 +236,7 @@ export default function LoginRoute() {
               disabled={anyLoading || authLoading}
               className={cn(
                 fullWidthAction,
-                "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] hover:opacity-95",
+                "border-2 border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] shadow-sm hover:bg-[color:var(--gv-canvas-2)]",
               )}
             >
               {loadingGoogle ? (
@@ -411,17 +415,19 @@ export default function LoginRoute() {
           Đang theo dõi <strong className="text-[color:var(--gv-ink-3)]">46.000+</strong> video TikTok Việt Nam
         </motion.p>
 
-        <p className="px-4 text-center text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
-          Bằng cách đăng nhập, bạn đồng ý với{" "}
-          <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
-            Điều khoản dịch vụ
-          </Link>{" "}
-          và{" "}
-          <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
-            Chính sách bảo mật
-          </Link>{" "}
-          của GetViews.
-        </p>
+        <div className="w-full max-w-[400px] rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]/80 px-4 py-3 text-center backdrop-blur-sm">
+          <p className="text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
+            Bằng cách đăng nhập, bạn đồng ý với{" "}
+            <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
+              Điều khoản dịch vụ
+            </Link>{" "}
+            và{" "}
+            <Link to="#" className="text-[color:var(--gv-accent)] hover:underline">
+              Chính sách bảo mật
+            </Link>{" "}
+            của GetViews.
+          </p>
+        </div>
       </div>
     </div>
   );
