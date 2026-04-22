@@ -139,6 +139,43 @@ describe("detectIntent — own_flop_no_url (C.0)", () => {
     const r = detectIntent("Video kênh của mình flop quá không lên view", false);
     expect(r.intentType).toBe("own_flop_no_url");
   });
+
+  // 2026-05-07 — widened the colloquial flop-keyword coverage. Each
+  // added phrase must fire the own_flop branch when paired with a
+  // "my video / channel" keyword. Kept narrow to avoid false positives
+  // against niche-level trend complaints.
+  it("fires on 'không ai xem'", () => {
+    const r = detectIntent("Video kênh của mình không ai xem", false);
+    expect(r.intentType).toBe("own_flop_no_url");
+  });
+
+  it("fires on 'không có view'", () => {
+    const r = detectIntent("Kênh của mình không có view", false);
+    expect(r.intentType).toBe("own_flop_no_url");
+  });
+
+  it("fires on 'ra gì đâu'", () => {
+    const r = detectIntent("Video kênh của mình ra gì đâu", false);
+    expect(r.intentType).toBe("own_flop_no_url");
+  });
+
+  it("fires on 'bết'", () => {
+    const r = detectIntent("Kênh của tôi bết quá", false);
+    expect(r.intentType).toBe("own_flop_no_url");
+  });
+
+  it("fires on 'kém view'", () => {
+    const r = detectIntent("Video của mình kém view", false);
+    expect(r.intentType).toBe("own_flop_no_url");
+  });
+
+  it("does NOT fire on niche-level complaint without self-reference", () => {
+    // The outer "my video / channel" gate is what makes these phrases
+    // safe additions. Without it, the same complaint about a niche
+    // should stay in the follow-up fallback.
+    const r = detectIntent("Ngách này bết quá không ai xem", false);
+    expect(r.intentType).not.toBe("own_flop_no_url");
+  });
 });
 
 describe("planAnswerEntry — /answer session vs redirect", () => {
