@@ -159,7 +159,7 @@ def build_fatigued_timing_report() -> dict[str, Any]:
 
 def build_timing_report(
     niche_id: int,
-    query: str,  # noqa: ARG001 — reserved for future niche refinement
+    query: str,
     window_days: int = 14,
 ) -> dict[str, Any]:
     """Live Timing report. Falls back to fixture when DB / niche is unavailable.
@@ -167,6 +167,12 @@ def build_timing_report(
     Empty state (``sample_size < 80``) → thin-corpus fixture (variance kind
     "sparse"). Fatigue band populated when ``timing_top_window_streak`` RPC
     returns ≥ 4 for the chosen top (day, hour_bucket) pair.
+
+    2026-04-22 update: ``query`` is no longer discarded. The ranked window
+    data is deterministic (niche + window days), but the ``top_window.insight``
+    + ``related_questions`` slots now go through
+    ``report_timing_gemini.fill_timing_narrative`` so two follow-ups on the
+    same niche with different questions produce different Vietnamese copy.
     """
     try:
         from getviews_pipeline.supabase_client import get_service_client
@@ -228,11 +234,36 @@ def build_timing_report(
             }
 
     lift = top_windows[0]["lift_multiplier"] if top_windows else 1.0
-    insight = (
-        f"Post trong cửa sổ {top_windows[0]['day']} {top_windows[0]['hours']} "
-        f"được view gấp {lift:.1f}× trung bình ngách {niche_label}. "
-        f"Thấp nhất: {lowest['hours']} {lowest['day']}."
-    ) if top_windows else "Chưa đủ tín hiệu để xếp hạng cửa sổ."
+    top_window_dict = (
+        {
+            "day": top_windows[0]["day"],
+            "hours": top_windows[0]["hours"],
+            "lift_multiplier": lift,
+        }
+        if top_windows
+        else None
+    )
+    top_3_for_prompt = [
+        {
+            "rank": i + 1,
+            "day": w["day"],
+            "hours": w["hours"],
+            "lift_multiplier": w["lift_multiplier"],
+        }
+        for i, w in enumerate(top_windows[:3])
+    ]
+    from getviews_pipeline.report_timing_gemini import fill_timing_narrative
+
+    narrative = fill_timing_narrative(
+        query=query,
+        niche_label=niche_label,
+        top_window=top_window_dict,
+        top_3_windows=top_3_for_prompt,
+        lowest_window=lowest,
+        variance_note=variance.get("note") if isinstance(variance, dict) else None,
+    )
+    insight = narrative["insight"]
+    related_questions = narrative["related_questions"]
 
     payload = TimingPayload(
         confidence=ConfidenceStrip(
@@ -267,11 +298,7 @@ def build_timing_report(
         fatigue_band=fatigue,
         actions=static_timing_action_cards(top_windows[0] if top_windows else None),
         sources=[SourceRow(kind="video", label="Corpus", count=sample_n, sub=f"{niche_label} · {window_days}d")],
-        related_questions=[
-            f"Cửa sổ này giữ #1 được bao lâu trong {niche_label}?",
-            "Có cửa sổ phụ cho kênh nhỏ?",
-            "Đổi khung giờ theo ngách con?",
-        ],
+        related_questions=related_questions,
     )
     return payload.model_dump()
 

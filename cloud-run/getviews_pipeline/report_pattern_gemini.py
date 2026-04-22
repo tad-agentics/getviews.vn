@@ -70,17 +70,35 @@ def fill_pattern_narrative(
 
         n_top = len(top_hook_labels)
         n_st = len(stalled_hook_labels)
-        prompt = f"""Bạn là trợ lý phân tích TikTok cho creator Việt Nam.
+        query_clean = (query or "").strip()
+        # Prompt is rebuilt around the user's question (previous version
+        # asked for a generic "niche summary" regardless of what the user
+        # asked, which made every follow-up read the same). Now:
+        #   - ``thesis`` must start by addressing the question directly
+        #     using the ranked hook data.
+        #   - ``hook_insights`` explain why each winner answers the user's
+        #     intent, not just its retention number.
+        #   - ``related_questions`` must branch off the SPECIFIC question,
+        #     not generic niche follow-ups.
+        # The ranked hook list + stalled list are context, not the output
+        # shape — the output is an answer to ``query`` grounded in them.
+        prompt = f"""Bạn là trợ lý phân tích TikTok cho creator Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi của người dùng, không phải tóm tắt chung.
+
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
-- thesis: string ≤280 ký tự — tóm tắt xu hướng hook trong ngách.
-- hook_insights: đúng {n_top} string, mỗi string ≤200 ký tự — insight cho từng hook thắng theo thứ tự.
-- stalled_insights: đúng {n_st} string, mỗi string ≤200 ký tự — vì sao hook suy (theo thứ tự).
-- related_questions: đúng 4 string ngắn — câu hỏi follow-up.
+- thesis: string ≤280 ký tự — MỞ ĐẦU bằng câu trả lời trực tiếp cho câu hỏi bên dưới; kết bằng bằng chứng số từ danh sách hook.
+- hook_insights: đúng {n_top} string, mỗi string ≤200 ký tự — mỗi insight giải thích vì sao hook đó TRẢ LỜI câu hỏi (liên hệ lại câu hỏi nếu có thể), không chỉ nêu retention.
+- stalled_insights: đúng {n_st} string, mỗi string ≤200 ký tự — vì sao hook suy liên quan đến câu hỏi người dùng.
+- related_questions: đúng 4 string ngắn — câu hỏi follow-up LIÊN TIẾP câu hỏi hiện tại (mở rộng, đào sâu, so sánh), không phải câu hỏi chung về ngách.
 
 Ngách: {niche_label}
-Câu hỏi người dùng: {query}
-Hook đang thắng (đã xếp hạng): {top_hook_labels}
+Câu hỏi người dùng: "{query_clean or '(không nêu rõ — trả lời dựa trên xu hướng hook hiện tại)'}"
+Hook đang thắng (xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
+
+Quy tắc:
+- Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn".
+- Không dùng từ "chắc chắn", "hiệu quả", "bùng nổ" (xem copy rules).
+- Số liệu chỉ được trích từ danh sách trên; không tự bịa ra %.
 """
         cfg = types.GenerateContentConfig(
             temperature=0.35,
