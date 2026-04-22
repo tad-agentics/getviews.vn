@@ -115,6 +115,18 @@ def fetch_hook_patterns_for_niche(sb: Any, niche_id: int) -> dict[str, Any]:
             }
         )
 
+    # BUG-13 (QA audit 2026-04-22): hook_effectiveness rows are only written
+    # by seed scripts in this build — the live ingest pipeline aggregates
+    # into video_patterns / video_corpus instead. When the table is empty
+    # (new niche, fresh environment) the script page used to render
+    # "Chưa có dữ liệu hook cho ngách." even though 113+ indexed videos
+    # existed. Fallback: derive the same leaderboard shape from
+    # video_corpus.hook_type so the script surface always has data
+    # whenever the Studio HooksTable has data.
+    if not hook_patterns:
+        hook_patterns, fallback_max_uses = _derive_hook_patterns_from_corpus(sb, niche_id, baseline)
+        max_uses = max(max_uses, fallback_max_uses)
+
     citation = {
         "sample_size": max_uses or int(ni.get("sample_size") or 0),
         "niche_label": label,
@@ -126,3 +138,54 @@ def fetch_hook_patterns_for_niche(sb: Any, niche_id: int) -> dict[str, Any]:
         "hook_patterns": hook_patterns,
         "citation": citation,
     }
+
+
+def _derive_hook_patterns_from_corpus(
+    sb: Any, niche_id: int, baseline: float
+) -> tuple[list[dict[str, Any]], int]:
+    """Aggregate ``hook_type`` stats from ``video_corpus`` — fallback for
+    BUG-13 when ``hook_effectiveness`` is empty. Returns the same
+    ``hook_patterns`` shape (pattern / delta / uses / avg_views) ordered
+    by avg_views desc, capped to 12."""
+    try:
+        res = (
+            sb.table("video_corpus")
+            .select("hook_type, views")
+            .eq("niche_id", niche_id)
+            .not_.is_("hook_type", "null")
+            .limit(2000)
+            .execute()
+        )
+        rows = res.data or []
+    except Exception as exc:
+        logger.warning("[hook-patterns] corpus fallback failed niche_id=%s: %s", niche_id, exc)
+        return [], 0
+
+    buckets: dict[str, dict[str, int]] = {}
+    for r in rows:
+        ht = str(r.get("hook_type") or "").strip().lower()
+        if not ht or ht == "none":
+            continue
+        v = int(r.get("views") or 0)
+        b = buckets.setdefault(ht, {"sum_views": 0, "n": 0})
+        b["sum_views"] += v
+        b["n"] += 1
+
+    derived: list[dict[str, Any]] = []
+    max_uses = 0
+    for ht, b in buckets.items():
+        n = b["n"]
+        if n <= 0:
+            continue
+        av = int(round(b["sum_views"] / n))
+        max_uses = max(max_uses, n)
+        derived.append(
+            {
+                "pattern": _pattern_label(ht),
+                "delta": _fmt_delta_pct(av, baseline),
+                "uses": n,
+                "avg_views": av,
+            }
+        )
+    derived.sort(key=lambda r: (int(r.get("avg_views") or 0), int(r.get("uses") or 0)), reverse=True)
+    return derived[:12], max_uses

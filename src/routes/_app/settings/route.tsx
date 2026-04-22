@@ -1,4 +1,8 @@
 import { lazy, Suspense } from "react";
+import type { MetaFunction } from "react-router";
+import { pageMeta } from "@/lib/pageTitle";
+
+export const meta: MetaFunction = () => pageMeta("Cài đặt");
 
 const SettingsScreen = lazy(() => import("./SettingsScreen"));
 

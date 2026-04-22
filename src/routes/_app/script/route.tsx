@@ -1,4 +1,8 @@
 import { lazy, Suspense } from "react";
+import type { MetaFunction } from "react-router";
+import { pageMeta } from "@/lib/pageTitle";
+
+export const meta: MetaFunction = () => pageMeta("Xưởng viết kịch bản");
 
 const ScriptScreen = lazy(() => import("./ScriptScreen"));
 

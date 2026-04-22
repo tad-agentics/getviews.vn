@@ -1,4 +1,8 @@
 import { lazy, Suspense } from "react";
+import type { MetaFunction } from "react-router";
+import { pageMeta } from "@/lib/pageTitle";
+
+export const meta: MetaFunction = () => pageMeta("Phiên trò chuyện");
 
 const ChatSessionReadScreen = lazy(() => import("../ChatSessionReadScreen"));
 

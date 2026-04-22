@@ -1222,8 +1222,15 @@ export default function ExploreScreen() {
                   ? soundsRailItems
                   : [
                       {
-                        tag: "Đang cập nhật",
-                        body: "Chưa có dữ liệu sounds cho tuần này.",
+                        // BUG-12 (QA audit 2026-04-22): the empty state
+                        // read "Đang cập nhật · Chưa có dữ liệu sounds
+                        // cho tuần này." without an ETA. The sounds ETL
+                        // runs every Tuesday morning (cron in
+                        // supabase/functions/cron-sounds-refresh); telling
+                        // the user when to come back converts the dead
+                        // state into a scheduled one.
+                        tag: "Cập nhật thứ Ba hàng tuần",
+                        body: "Dữ liệu sounds cho tuần này chưa sẵn sàng — quay lại sau hoặc tham khảo tuần trước.",
                         accent: true,
                       },
                     ]

@@ -486,12 +486,21 @@ def _recompute_weekly_counts_sync(client: Any, now_iso: str | None = None) -> in
     Wire to a weekly cron (Sunday 06:00 ICT, say). Not called from the live
     stream — too expensive.
     """
+    # BUG-11 (QA audit 2026-04-22): the literal ``"now() - interval '14 days'"``
+    # string was being passed through to PostgREST which can't evaluate SQL
+    # expressions in filter values. Every scheduled recompute fetched zero
+    # rows and left ``weekly_instance_count`` at 0 for all 303 rows —
+    # Studio's "LƯỢT DÙNG" column was thus always 0. Fix: compute the ISO
+    # cutoff in Python before issuing the filter.
+    from datetime import datetime as _dt, timedelta, timezone as _tz
+
+    cutoff_iso = (_dt.now(tz=_tz.utc) - timedelta(days=14)).isoformat()
     try:
         # One round-trip: fetch all pattern_ids with corpus rows in last 14 days.
         cur = (
             client.table("video_corpus")
             .select("pattern_id, indexed_at")
-            .gte("indexed_at", "now() - interval '14 days'")
+            .gte("indexed_at", cutoff_iso)
             .not_.is_("pattern_id", "null")
             .limit(100_000)
             .execute()
@@ -502,7 +511,6 @@ def _recompute_weekly_counts_sync(client: Any, now_iso: str | None = None) -> in
         return 0
 
     from collections import Counter
-    from datetime import datetime as _dt, timedelta, timezone as _tz
 
     now = _dt.now(tz=_tz.utc)
     week_ago = now - timedelta(days=7)

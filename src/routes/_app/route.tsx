@@ -1,6 +1,10 @@
 import { lazy, Suspense } from "react";
+import type { MetaFunction } from "react-router";
 import { Navigate, useLocation, useSearchParams } from "react-router";
 import { useProfile } from "@/hooks/useProfile";
+import { pageMeta } from "@/lib/pageTitle";
+
+export const meta: MetaFunction = () => pageMeta("Sảnh Sáng Tạo");
 
 const HomeScreen = lazy(() => import("./home/HomeScreen"));
 
