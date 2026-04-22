@@ -388,7 +388,15 @@ def append_turn(
     from getviews_pipeline.adaptive_window import ReportKind, choose_adaptive_window_days
 
     niche_pk = int(session.get("niche_id") or 0)
-    adaptive_kind: ReportKind = builder_fmt if builder_fmt in ("pattern", "ideas", "timing") else "pattern"
+    # Lifecycle + diagnostic have their own sample-size floors in
+    # ``adaptive_window.py`` (lifecycle=80, diagnostic=30) — without the
+    # 2026-05-07 extension the dispatcher silently clamped both to the
+    # pattern floor (30), which under-sized the lifecycle window.
+    adaptive_kind: ReportKind = (
+        builder_fmt
+        if builder_fmt in ("pattern", "ideas", "timing", "lifecycle", "diagnostic")
+        else "pattern"
+    )
     window_days = choose_adaptive_window_days(niche_pk, adaptive_kind)
     logger.info(
         "[answer/turns] build session_fmt=%s kind=%s builder_fmt=%s niche=%s window_days=%s",
