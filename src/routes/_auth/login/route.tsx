@@ -36,6 +36,10 @@ function FacebookIcon() {
 }
 
 function GoogleIcon() {
+  // Brand identity colours — Google's Material Brand Guidelines mandate
+  // the four "G" facet hex values. Intentional exception to the
+  // ``--gv-*`` token rule; do NOT swap for theme tokens or the icon
+  // becomes legally non-compliant with Google's brand asset terms.
   return (
     <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
       <path
@@ -99,6 +103,17 @@ type OauthErrorState = {
   target: "facebook" | "google" | "general";
   message: string;
 };
+
+// Shared between the four full-width auth buttons (Google, Facebook,
+// email-toggle, email-submit). Extracted to consolidate the duplicated
+// className strings the audit flagged. Variant-specific colour comes
+// from each button's own ``style={{}}`` since these don't fit the
+// design system's ``<Btn>`` variants (rounded-full pill) or
+// ``<Button>`` (rounded-lg) — the auth screen uses ``rounded-xl``
+// throughout.
+const FULL_WIDTH_AUTH_BTN_CLS =
+  "w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold " +
+  "transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed";
 
 export default function LoginRoute() {
   const navigate = useNavigate();
@@ -236,7 +251,7 @@ export default function LoginRoute() {
               type="button"
               onClick={() => void signIn("google")}
               disabled={anyLoading || authLoading}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              className={FULL_WIDTH_AUTH_BTN_CLS}
               style={{ background: "var(--ink)", color: "var(--background)" }}
             >
               {loadingGoogle ? <Spinner /> : <GoogleIcon />}
@@ -248,12 +263,15 @@ export default function LoginRoute() {
               </p>
             ) : null}
 
-            {/* Facebook */}
+            {/* Facebook — brand colour ``#1877F2`` is Meta's mandated
+                Facebook Blue. Intentional exception to the ``--gv-*``
+                token rule per the same brand-asset reasoning as the
+                Google icon above (Meta brand guidelines). */}
             <button
               type="button"
               onClick={() => void signIn("facebook")}
               disabled={anyLoading || authLoading}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              className={FULL_WIDTH_AUTH_BTN_CLS}
               style={{
                 background: "#1877F2",
                 color: "#fff",
@@ -286,7 +304,7 @@ export default function LoginRoute() {
               type="button"
               onClick={() => setShowEmailForm((v) => !v)}
               disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-[120ms] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              className={FULL_WIDTH_AUTH_BTN_CLS}
               style={{
                 background: "var(--surface-alt)",
                 color: "var(--gv-ink-3)",
@@ -318,7 +336,7 @@ export default function LoginRoute() {
                       />
                       <input
                         type="email"
-                        placeholder="Email"
+                        placeholder="Email của bạn"
                         value={email}
                         onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
                         className="w-full pl-9 pr-4 py-3 rounded-xl text-base outline-none transition-all duration-[120ms]"
@@ -395,7 +413,9 @@ export default function LoginRoute() {
                       </span>
                     </div>
 
-                    {/* Submit */}
+                    {/* Submit — gap-2 (vs FULL_WIDTH_AUTH_BTN_CLS's
+                        gap-2.5) is intentional for the tighter
+                        text+arrow-icon spacing of the CTA. */}
                     <button
                       type="submit"
                       disabled={anyLoading}
