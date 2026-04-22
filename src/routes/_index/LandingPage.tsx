@@ -702,7 +702,9 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
   const plans = pricingPlans[billingPeriod];
 
   return (
-    <div className="gv-studio-type min-h-screen bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
+    <div className="gv-studio-type min-h-dvh bg-[linear-gradient(180deg,var(--gv-paper)_0%,var(--gv-canvas-2)_100%)] text-[color:var(--gv-ink)]">
+      {/* Top accent — same language as /login card chrome (visible Studio signal) */}
+      <div className="h-1 w-full bg-[color:var(--gv-accent)]" aria-hidden />
       {/* ── Sticky Bar ─────────────────────────────────────────── */}
       <AnimatePresence>
         {stickyVisible && (
@@ -730,8 +732,8 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
         )}
       </AnimatePresence>
 
-      {/* ── Hero ───────────────────────────────────────────────── */}
-      <section className="relative px-4 pt-6 pb-20 md:pb-32 bg-[color:var(--gv-canvas)]">
+      {/* ── Hero (transparent so the page shell gradient shows through) ── */}
+      <section className="relative bg-transparent px-4 pt-6 pb-20 md:pb-32">
         <div className="max-w-6xl mx-auto">
           {/* Top Nav */}
           <div className="flex items-center justify-center mb-16">
