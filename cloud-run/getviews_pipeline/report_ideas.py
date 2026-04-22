@@ -248,25 +248,30 @@ def build_ideas_report(
         intent_confidence="high" if sample_n >= 120 else "medium",
     )
 
-    lead = (
-        f"Dựa trên {sample_n} video thắng trong ngách {niche_label} tuần này, "
-        f"đây là 5 kịch bản đang giữ retention cao nhất. Mỗi kịch bản kèm "
-        f"slide-by-slide và góc quay đề xuất."
+    # 2026-04-22 fix — ``lead`` + ``related_questions`` were hardcoded,
+    # so every ideas follow-up in the same niche read the same sentence.
+    # Route through the new Gemini-backed narrative so the copy reflects
+    # the specific question (falls back deterministically on no-key /
+    # budget exhausted envs — the fallback is still query-aware).
+    from getviews_pipeline.report_ideas_gemini import fill_ideas_narrative
+
+    top_idea_hooks = [b.hook for b in ideas_blocks[:5] if getattr(b, "hook", None)]
+    narrative = fill_ideas_narrative(
+        query=query,
+        niche_label=niche_label,
+        sample_n=sample_n,
+        top_idea_hooks=top_idea_hooks,
     )
 
     payload = IdeasPayload(
         confidence=confidence,
-        lead=lead,
+        lead=narrative["lead"],
         ideas=ideas_blocks,
         style_cards=[c.model_dump() if hasattr(c, "model_dump") else c for c in style_cards],
         stop_doing=stop_rows,
         actions=action_cards,
         sources=[SourceRow(kind="video", label="Corpus", count=sample_n, sub=f"{niche_label} · {window_days}d")],
-        related_questions=[
-            "Ý tưởng nào phù hợp nhất cho kênh < 10K?",
-            "5 cách viết hook cho ý tưởng #1?",
-            f"Hook nào đang giảm trong {niche_label}?",
-        ],
+        related_questions=narrative["related_questions"],
         variant="standard",
     )
     return payload.model_dump()
