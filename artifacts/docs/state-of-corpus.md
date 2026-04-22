@@ -498,3 +498,109 @@ flagged for legal/trust hygiene. Two resolutions:
 
 The second is cheap and immediate. The first is a moat-investment
 decision.
+
+---
+
+## Appendix B — Pipeline gap verification (2026-04-22)
+
+Verified against live DB + codebase against a separate proposal of "4 core
+pipeline gaps." Each gap re-checked from scratch. Findings below update
+the Axis severity ranking above — two gaps are **worse than described**,
+one is **partially correct** with schema errors, one is **already fixed**.
+
+### Gap 1 — `hook_effectiveness` empty in prod · **CONFIRMED (worse)**
+
+**Evidence:**
+- Live DB query: `SELECT COUNT(*) FROM hook_effectiveness` → **0 rows**.
+- Readers exist at 3 call sites (Pattern + Ideas + corpus_context claim-tier gate).
+- Only writer is `supabase/seed.sql:270` — dev-only seed, never runs in prod.
+- No batch job, no cron, no code path writes this table.
+
+**Claim correction:** The proposal mentioned a
+`_derive_hook_patterns_from_corpus()` fallback. That function **does not
+exist.** When `hook_effectiveness` returns `[]`, `rank_hooks_for_pattern([])`
+returns `[]`, `compute_positive_findings([])` returns `[]`, and the Pattern
+report renders with **zero hook findings**. Same for Ideas. This isn't a
+performance bug (it's not "silently falling through to a slow path"); it's
+a correctness bug — **reports render with missing data, not slower data**.
+
+**Cross-reference to Axis 2:** this is the single biggest reason Pattern +
+Ideas reports feel thin. Our own 1,220 videos carry every signal we need to
+compute `hook_effectiveness` rows on — we just don't.
+
+### Gap 2 — `niche_insights` disconnected from Answer reports · **PARTIALLY CORRECT**
+
+**Evidence:**
+- Live DB: `niche_insights` has **11 rows**, 1 per niche, latest `week_of = 2026-04-13` (9 days stale).
+- Reader exists at `pipelines.py:_get_niche_insight()` (line 1012), called from `pipelines.py:1238` in the **video_diagnosis** flow.
+- **No Answer-session report module** (pattern/ideas/timing/lifecycle/diagnostic/generic) reads it.
+
+**Schema correction — the proposal references columns that don't exist:**
+
+| Proposal column | Schema actual | |
+|---|---|---|
+| `week_start` | **`week_of`** | wrong name |
+| `common_hook_mechanism` | — | does not exist |
+| `retention_driver` | — | does not exist |
+| `common_timing` | — | does not exist |
+| `common_visual` | — | does not exist |
+
+The actual schema has: `insight_text, mechanisms, cross_niche_signals, execution_tip, staleness_risk, quality_flag, top_formula_hook, top_formula_format`.
+
+**The real work:** wire `insight_text` + `execution_tip` into `fill_pattern_narrative` + `fill_ideas_narrative` (those are the populated fields). The four non-existent columns in the proposal need to be dropped from any fetch query or this fix won't compile.
+
+### Gap 3 — Fixture confidence strip misleads users · **ALREADY FIXED**
+
+**Evidence:**
+- `report_lifecycle.py` line 557-560 (from commit `2ca28d1`, merged 2026-05-07):
+  ```python
+  if cells_are_fixture:
+      conf["sample_size"] = 0
+      conf["intent_confidence"] = "low"
+  ```
+- Additionally, commit `41bbfb8` (merged same day) **rerouted** `fatigue` + `subniche_breakdown` intents off `answer:lifecycle` onto `answer:pattern` entirely — new sessions don't even hit the fixture path.
+
+Gap 3 is closed. No action needed.
+
+### Gap 4 — No weekly cron for data-quality jobs · **CONFIRMED (worse)**
+
+**Evidence:** `SELECT jobname FROM cron.job` on live DB returns exactly 4 jobs, all **operational** (payment + session lifecycle), none touching the data pipeline:
+
+| Job | Schedule | Purpose |
+|---|---|---|
+| `cron-expiry-check` | `0 2 * * *` | paid-pack expiry |
+| `cron-reset-free-queries` | `0 17 * * *` | free-tier credit refill |
+| `cron-reset-processing` | `*/5 * * * *` | `profiles.is_processing` stuck-state reset |
+| `cron-prune-webhooks` | `0 20 * * 0` | `processed_webhook_events` GC |
+
+**Claim correction:** The proposal stated "existing pg_cron schedules call `/batch/analytics` and `/batch/layer0`." **They do not.** Neither endpoint is scheduled. Both exist in `cloud-run/getviews_pipeline/routers/batch.py` but can only be invoked manually.
+
+**The actual data-pipeline cron surface is empty.** This is why:
+- `niche_insights` has 11 rows from `week_of 2026-04-13`, 9+ days stale — a one-off manual `/batch/layer0` run.
+- `hook_effectiveness` has 0 rows — nobody ever called the (hypothetical) compute.
+- Corpus ingest lives outside pg_cron entirely — whoever grew the corpus from 0 to 1,220 over the last 12 days did it via `deploy.sh` or direct Cloud Run batch invocation.
+
+This compounds every finding above. **Axis 5 (observability) and Axis 3 (freshness) findings in the main body understate the problem by assuming crons exist but aren't surfacing failures. In reality, the crons don't exist.**
+
+### Updated severity ranking
+
+| Axis | Before Appendix B | After Appendix B |
+|---|---|---|
+| 1. Coverage | Small corpus, enforcement gap | Same + coverage grew by hand, not by cron |
+| 2. Depth | Coarse classifiers, dead columns | **+hook_effectiveness empty → reports missing hook data** |
+| 3. Freshness | No refresh path | **+ freshness only holds because someone ran ingest by hand** |
+| 4. Quality | No eval harness | unchanged |
+| 5. Observability | Dead `batch_failures` | **+ no data-pipeline crons at all, only operational ones** |
+
+### Revised order of operations
+
+Original (main body) order still stands — Axis 5 first — but **Gap 1 + Gap 4 are the wedge.** Before any observability instrumentation makes sense, we need *something running on a schedule that can be observed*.
+
+Suggested first concrete PR, ~1 day:
+
+1. Write `hook_effectiveness_compute.py` (per the proposal, adapted to real schema).
+2. Wire into existing `/batch/analytics` endpoint as Pass 4 (one request does everything).
+3. **Schedule `/batch/analytics` itself as a weekly pg_cron job** — right now it's documentation-only in migration `20260410000015`.
+4. Observe the first cron run + surface success/failure via the `batch_failures` table (separately: add the write path).
+
+That gives us: populated `hook_effectiveness`, weekly refresh, and the first real data-pipeline cron actually running. Axis 5 observability instrumentation lands on top of a pipeline that *exists*, rather than observing nothing.
