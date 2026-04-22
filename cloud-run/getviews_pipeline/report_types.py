@@ -200,22 +200,96 @@ class GenericPayload(BaseModel):
     related_questions: list[str]
 
 
+# ─── Lifecycle template (2026-04-22 — serves format_lifecycle_optimize /
+# fatigue / subniche_breakdown; see artifacts/docs/report-template-prd-
+# lifecycle.md). Replaces the pattern force-fit for these 3 intents.
+# Discriminated by ``mode`` so a single template renders all three queries
+# through one shared cell/pill/bar primitive.
+
+
+LifecycleMode = Literal["format", "hook_fatigue", "subniche"]
+LifecycleStage = Literal["rising", "peak", "plateau", "declining"]
+
+
+class LifecycleCell(BaseModel):
+    """One ranked entity in the lifecycle rail.
+
+    Shape reuses the ``stage`` + ``reach_delta_pct`` + ``health_score``
+    triad across all three modes so the frontend has one renderer. Mode-
+    specific fields are optional (``retention_pct`` for format mode,
+    ``instance_count`` for subniche mode).
+    """
+
+    name: str = Field(max_length=120)  # "Short-form 15-30s" / "Ingredient deep-dive"
+    stage: LifecycleStage
+    reach_delta_pct: float            # +28.0 / -12.0 (raw percentage points)
+    health_score: int = Field(ge=0, le=100)
+    retention_pct: float | None = None        # None in subniche mode
+    instance_count: int | None = None         # None in pure-format mode
+    insight: str = Field(max_length=240)
+
+
+class RefreshMove(BaseModel):
+    """Short tactic for refreshing a declining/plateau entity."""
+
+    title: str = Field(max_length=120)
+    detail: str = Field(max_length=280)
+    effort: Literal["low", "medium", "high"]
+
+
+class LifecyclePayload(BaseModel):
+    confidence: ConfidenceStrip
+    mode: LifecycleMode
+    subject_line: str = Field(max_length=240)
+    cells: list[LifecycleCell] = Field(min_length=1, max_length=12)
+    refresh_moves: list[RefreshMove] = Field(default_factory=list, max_length=4)
+    actions: list[ActionCardPayload]
+    sources: list[SourceRow]
+    related_questions: list[str]
+
+    @model_validator(mode="after")
+    def _refresh_moves_only_for_declining_or_plateau(self) -> LifecyclePayload:
+        """Honest invariant: rising/peak cells should not carry refresh
+        prescriptions. If every cell is healthy there's nothing to refresh,
+        and emitting ``refresh_moves`` anyway would ship unsolicited advice.
+        """
+        if not self.refresh_moves:
+            return self
+        has_weak = any(
+            c.stage in ("declining", "plateau") for c in self.cells
+        )
+        if not has_weak:
+            raise ValueError(
+                "lifecycle invariant: refresh_moves present but no cell is "
+                "declining or plateau — nothing to refresh"
+            )
+        return self
+
+
+ReportKind = Literal["pattern", "ideas", "timing", "generic", "lifecycle"]
+_REPORT_KINDS: frozenset[str] = frozenset(
+    {"pattern", "ideas", "timing", "generic", "lifecycle"}
+)
+
+
 class ReportV1(BaseModel):
-    kind: Literal["pattern", "ideas", "timing", "generic"]
-    report: PatternPayload | IdeasPayload | TimingPayload | GenericPayload
+    kind: ReportKind
+    report: (
+        PatternPayload | IdeasPayload | TimingPayload | GenericPayload | LifecyclePayload
+    )
 
 
 def validate_and_store_report(kind: str, report: dict[str, Any]) -> dict[str, Any]:
     """Validate inner report dict and return full §J envelope for JSONB storage."""
-    k: Literal["pattern", "ideas", "timing", "generic"] = (
-        kind if kind in ("pattern", "ideas", "timing", "generic") else "generic"
-    )
+    k: ReportKind = kind if kind in _REPORT_KINDS else "generic"  # type: ignore[assignment]
     if k == "pattern":
         PatternPayload.model_validate(report)
     elif k == "ideas":
         IdeasPayload.model_validate(report)
     elif k == "timing":
         TimingPayload.model_validate(report)
+    elif k == "lifecycle":
+        LifecyclePayload.model_validate(report)
     else:
         GenericPayload.model_validate(report)
     return {"kind": k, "report": report}
