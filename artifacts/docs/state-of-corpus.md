@@ -598,9 +598,11 @@ Original (main body) order still stands — Axis 5 first — but **Gap 1 + Gap 4
 
 Suggested first concrete PR, ~1 day:
 
-1. Write `hook_effectiveness_compute.py` (per the proposal, adapted to real schema).
-2. Wire into existing `/batch/analytics` endpoint as Pass 4 (one request does everything).
-3. **Schedule `/batch/analytics` itself as a weekly pg_cron job** — right now it's documentation-only in migration `20260410000015`.
-4. Observe the first cron run + surface success/failure via the `batch_failures` table (separately: add the write path).
+1. Write `hook_effectiveness_compute.py` (per the proposal, adapted to real schema). **✓ Shipped 2026-05-09 — commit `6a07e1f` on `claude/hook-effectiveness-compute`.**
+2. Wire into existing `/batch/analytics` endpoint as Pass 4 (one request does everything). **✓ Shipped in the same commit.**
+3. **Schedule `/batch/analytics` itself as a weekly pg_cron job.** **◐ Partial — docs migration landed 2026-05-09 (`20260509000001_pg_cron_data_pipeline.sql`) with all three proposed `cron.schedule()` entries (`cron-batch-ingest` daily, `cron-batch-analytics` + `cron-batch-layer0` weekly). Apply-to-production step is Dashboard-only and blocked on seeding `vault.create_secret('cloud_run_api_url', …)` + `cloud_run_batch_secret`.**
+4. Observe the first cron run + surface success/failure via the `batch_failures` table (separately: add the write path). **Pending — depends on step 3 applying.**
 
 That gives us: populated `hook_effectiveness`, weekly refresh, and the first real data-pipeline cron actually running. Axis 5 observability instrumentation lands on top of a pipeline that *exists*, rather than observing nothing.
+
+**Verification 2026-05-09:** `pg_cron@1.6.4` + `pg_net@0.20.0` are both installed on the Getviews.vn project; the claim in `20260410000015` that pg_cron "is not enabled" was stale. `cron.job` currently holds 4 operational jobs (see Gap 4 table above) — the 3 proposed data-pipeline jobs would bring the schedule surface to 7.
