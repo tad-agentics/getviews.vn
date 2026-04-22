@@ -66,9 +66,16 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   content_directions: "answer:pattern",
   // Lifecycle template (2026-04-22) — stage pill + reach delta + health
   // score. See `artifacts/docs/report-template-prd-lifecycle.md`.
-  subniche_breakdown: "answer:lifecycle",
+  // 2026-05-08 — `subniche_breakdown` + `fatigue` rerouted to `pattern`
+  // (they rode lifecycle's fixture-with-disclaimer path because the
+  // upstream hook-timeseries + subniche-taxonomy signal doesn't exist
+  // yet). Pattern's niche leaderboard answers both questions more
+  // honestly. Keep backend and frontend rerouting in sync — see
+  // `cloud-run/getviews_pipeline/intent_router.py` for the matching
+  // comment. Historical sessions still render via lifecycle.
+  subniche_breakdown: "answer:pattern",
   format_lifecycle_optimize: "answer:lifecycle",
-  fatigue: "answer:lifecycle",
+  fatigue: "answer:pattern",
   brief_generation: "answer:ideas",
   hook_variants: "answer:ideas",
   timing: "answer:timing",

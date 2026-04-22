@@ -239,20 +239,25 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     }
   });
 
-  it("fatigue → lifecycle format", () => {
+  // 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` moved off the
+  // lifecycle shelf (fixture-with-disclaimer cells were misleading).
+  // They now route to Pattern's niche-hook-leaderboard which is a more
+  // honest fit for "what's rising/declining in my niche?" until we
+  // build a real hook-timeseries + subniche-taxonomy signal.
+  it("fatigue → pattern format (redirected off lifecycle fixture)", () => {
     const p = planAnswerEntry("Pattern này có đang chết dần không", false);
     expect(p.kind).toBe("session");
     if (p.kind === "session") {
-      expect(p.format).toBe("lifecycle");
+      expect(p.format).toBe("pattern");
       expect(p.intent_type).toBe("fatigue");
     }
   });
 
-  it("subniche_breakdown → lifecycle format", () => {
+  it("subniche_breakdown → pattern format (redirected off lifecycle fixture)", () => {
     const p = planAnswerEntry("Ngách con nào đang nổi trong skincare", false);
     expect(p.kind).toBe("session");
     if (p.kind === "session") {
-      expect(p.format).toBe("lifecycle");
+      expect(p.format).toBe("pattern");
       expect(p.intent_type).toBe("subniche_breakdown");
     }
   });
@@ -298,7 +303,14 @@ describe("resolveDestination — follow_up_classifiable subject union", () => {
   it("fixed intent → its INTENT_DESTINATIONS entry", () => {
     expect(resolveDestination({ id: "trend_spike" })).toBe("answer:pattern");
     expect(resolveDestination({ id: "timing" })).toBe("answer:timing");
-    expect(resolveDestination({ id: "fatigue" })).toBe("answer:lifecycle");
+    // ``format_lifecycle_optimize`` is the only intent still on the
+    // lifecycle shelf post-2026-05-08 (fatigue + subniche_breakdown
+    // moved to pattern). This case is the canary: if anyone re-adds a
+    // fixture-cell-backed intent back onto lifecycle, the test would
+    // need an explicit update.
+    expect(resolveDestination({ id: "format_lifecycle_optimize" })).toBe("answer:lifecycle");
+    expect(resolveDestination({ id: "fatigue" })).toBe("answer:pattern");
+    expect(resolveDestination({ id: "subniche_breakdown" })).toBe("answer:pattern");
     expect(resolveDestination({ id: "own_flop_no_url" })).toBe("answer:diagnostic");
   });
 
