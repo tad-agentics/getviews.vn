@@ -578,11 +578,52 @@ export interface LifecycleReportPayload {
   related_questions: string[];
 }
 
+// ── Diagnostic template (2026-04-22) ──────────────────────────────────────
+// Serves ``own_flop_no_url`` — URL-less flop diagnosis with a 4-level
+// verdict enum instead of a numeric score (we don't have the video).
+
+export type DiagnosticVerdictData =
+  | "likely_issue"
+  | "possible_issue"
+  | "unclear"
+  | "probably_fine";
+
+export interface DiagnosticCategoryData {
+  name: string;
+  verdict: DiagnosticVerdictData;
+  finding: string;
+  /** Absent when verdict is ``probably_fine`` (Pydantic invariant). */
+  fix_preview: string | null;
+}
+
+export interface DiagnosticPrescriptionData {
+  priority: "P1" | "P2" | "P3";
+  action: string;
+  impact: string;
+  effort: "low" | "medium" | "high";
+}
+
+export interface DiagnosticReportPayload {
+  confidence: ConfidenceStripData;
+  /** 1-sentence framing — must acknowledge the no-URL constraint. */
+  framing: string;
+  /** Exactly 5 categories, position-pinned to Hook / Pacing / CTA /
+   *  Sound / Caption & Hashtag. */
+  categories: DiagnosticCategoryData[];
+  /** 1-3 ranked fixes. Always non-empty — at minimum the paste-link nudge. */
+  prescriptions: DiagnosticPrescriptionData[];
+  /** CTA pointing back to /app/video for exact scoring. */
+  paste_link_cta: { title: string; route: string };
+  sources: SourceRowData[];
+  related_questions: string[];
+}
+
 export type ReportV1 =
   | { kind: "pattern"; report: PatternReportPayload }
   | { kind: "ideas"; report: IdeasReportPayload }
   | { kind: "timing"; report: TimingReportPayload }
   | { kind: "lifecycle"; report: LifecycleReportPayload }
+  | { kind: "diagnostic"; report: DiagnosticReportPayload }
   | { kind: "generic"; report: GenericReportPayload };
 
 /** §J names — same shapes as `*ReportPayload` (plan uses `PatternPayload`, …). */
@@ -590,6 +631,7 @@ export type PatternPayload = PatternReportPayload;
 export type IdeasPayload = IdeasReportPayload;
 export type TimingPayload = TimingReportPayload;
 export type LifecyclePayload = LifecycleReportPayload;
+export type DiagnosticPayload = DiagnosticReportPayload;
 export type GenericPayload = GenericReportPayload;
 
 export interface AnswerSessionRow {
@@ -598,7 +640,7 @@ export interface AnswerSessionRow {
   title: string | null;
   initial_q: string;
   intent_type: string;
-  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle";
+  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic";
   niche_id: number | null;
   created_at?: string;
   updated_at?: string;

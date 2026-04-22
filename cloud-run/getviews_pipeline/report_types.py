@@ -266,16 +266,98 @@ class LifecyclePayload(BaseModel):
         return self
 
 
-ReportKind = Literal["pattern", "ideas", "timing", "generic", "lifecycle"]
+# ── Diagnostic template (2026-04-22) ──────────────────────────────────────
+#
+# Serves exactly ``own_flop_no_url`` — "my last video flopped and I don't
+# have the link." Reference design is Claude Chat's Report 4 (VIDEO
+# DIAGNOSIS) but scoped down: no per-category numeric score because we
+# don't have the video itself, only the user's self-reported symptoms.
+# See ``artifacts/docs/report-template-prd-diagnostic.md``.
+
+DiagnosticVerdict = Literal[
+    "likely_issue",
+    "possible_issue",
+    "unclear",
+    "probably_fine",
+]
+
+
+class DiagnosticCategory(BaseModel):
+    """One of 5 fixed failure-mode categories with a confidence-weighted verdict.
+
+    ``fix_preview`` is intentionally optional: when ``verdict`` is
+    ``probably_fine`` there's nothing to fix, so the UI can hide the
+    line rather than render a placeholder.
+    """
+
+    name: str = Field(max_length=80)
+    verdict: DiagnosticVerdict
+    finding: str = Field(max_length=280)
+    fix_preview: str | None = Field(default=None, max_length=240)
+
+
+class DiagnosticPrescription(BaseModel):
+    priority: Literal["P1", "P2", "P3"]
+    action: str = Field(max_length=160)
+    impact: str = Field(max_length=160)
+    effort: Literal["low", "medium", "high"]
+
+
+def _default_paste_link_cta() -> dict[str, str]:
+    return {
+        "title": "Có link video? Mở /app/video để chấm điểm chính xác từng phần.",
+        "route": "/app/video",
+    }
+
+
+class DiagnosticPayload(BaseModel):
+    """URL-less flop diagnostic payload.
+
+    Invariant enforced below (``_no_probably_fine_without_fix_exclusion``):
+    a category marked ``probably_fine`` must not carry a ``fix_preview``.
+    The other direction is optional — ``unclear`` / ``possible_issue`` can
+    omit ``fix_preview`` when the model isn't confident enough to suggest
+    a tactic.
+
+    The ``min_length=5 max_length=5`` on ``categories`` is deliberate —
+    the 5 categories (Hook / Pacing / CTA / Sound / Caption+Hashtag) are
+    a hard contract the frontend pins by position, not by name.
+    """
+
+    confidence: ConfidenceStrip
+    framing: str = Field(max_length=240)
+    categories: list[DiagnosticCategory] = Field(min_length=5, max_length=5)
+    prescriptions: list[DiagnosticPrescription] = Field(min_length=1, max_length=3)
+    paste_link_cta: dict[str, str] = Field(default_factory=_default_paste_link_cta)
+    sources: list[SourceRow]
+    related_questions: list[str]
+
+    @model_validator(mode="after")
+    def _no_probably_fine_with_fix(self) -> "DiagnosticPayload":
+        for c in self.categories:
+            if c.verdict == "probably_fine" and c.fix_preview:
+                raise ValueError(
+                    "diagnostic invariant: probably_fine category must not "
+                    f"carry fix_preview (category {c.name!r})"
+                )
+        return self
+
+
+ReportKind = Literal["pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic"]
 _REPORT_KINDS: frozenset[str] = frozenset(
-    {"pattern", "ideas", "timing", "generic", "lifecycle"}
+    {"pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic"}
 )
 
 
 class ReportV1(BaseModel):
     kind: ReportKind
     report: (
-        PatternPayload | IdeasPayload | TimingPayload | GenericPayload | LifecyclePayload
+        PatternPayload
+        | IdeasPayload
+        | TimingPayload
+        | GenericPayload
+        | LifecyclePayload
+        | DiagnosticPayload
     )
 
 
@@ -290,6 +372,8 @@ def validate_and_store_report(kind: str, report: dict[str, Any]) -> dict[str, An
         TimingPayload.model_validate(report)
     elif k == "lifecycle":
         LifecyclePayload.model_validate(report)
+    elif k == "diagnostic":
+        DiagnosticPayload.model_validate(report)
     else:
         GenericPayload.model_validate(report)
     return {"kind": k, "report": report}

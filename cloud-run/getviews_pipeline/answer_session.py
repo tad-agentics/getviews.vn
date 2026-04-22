@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from getviews_pipeline.report_diagnostic import build_diagnostic_report
 from getviews_pipeline.report_generic import build_generic_report
 from getviews_pipeline.report_ideas import build_ideas_report
 from getviews_pipeline.report_lifecycle import build_lifecycle_report
@@ -59,7 +60,8 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
     non-primary turns so the report actually reflects the new question.
 
     Mapping:
-        - ``primary`` → session format (pattern / ideas / timing / generic / lifecycle)
+        - ``primary`` → session format (pattern / ideas / timing / generic /
+          lifecycle / diagnostic)
         - ``timing``  → timing (adaptive window + posting-hour aggregates)
         - ``script``  → ideas (shot-list / draft feedback sits on ideas)
         - ``creators`` / ``generic`` / unknown → generic
@@ -67,7 +69,9 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
     if kind == "primary":
         return (
             session_fmt
-            if session_fmt in ("pattern", "ideas", "timing", "generic", "lifecycle")
+            if session_fmt in (
+                "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic",
+            )
             else "pattern"
         )
     if kind == "timing":
@@ -433,6 +437,10 @@ def append_turn(
                 query,
                 lifecycle_mode_for_intent(session.get("intent_type")),
                 window_days=window_days,
+            )
+        elif builder_fmt == "diagnostic":
+            inner = build_diagnostic_report(
+                niche_pk, query, window_days=window_days,
             )
         else:
             inner = build_generic_report(session.get("niche_id"), query)

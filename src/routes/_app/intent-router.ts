@@ -25,6 +25,7 @@ export type Destination =
   | "answer:ideas"
   | "answer:timing"
   | "answer:lifecycle"
+  | "answer:diagnostic"
   | "answer:generic";
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
@@ -75,7 +76,9 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // so the expanded TimingPayload.calendar_slots renders instead of a
   // force-fit pattern report.
   content_calendar: "answer:timing",
-  own_flop_no_url: "answer:pattern",
+  // Diagnostic template (2026-04-22) — URL-less flop diagnosis with a
+  // 4-level verdict enum. See `artifacts/docs/report-template-prd-diagnostic.md`.
+  own_flop_no_url: "answer:diagnostic",
   follow_up_unclassifiable: "answer:generic",
 };
 
@@ -240,13 +243,15 @@ export function detectIntent(
 /** POST `/answer/sessions` `format` — must match `AnswerSessionCreateBody` + DB check.
  *
  * ``lifecycle`` added 2026-04-22 (migration ``20260505000000_answer_sessions_
- * lifecycle_format.sql``). */
+ * lifecycle_format.sql``). ``diagnostic`` added 2026-04-22 (migration
+ * ``20260506000000_answer_sessions_diagnostic_format.sql``). */
 export type AnswerSessionFormat =
   | "pattern"
   | "ideas"
   | "timing"
   | "generic"
-  | "lifecycle";
+  | "lifecycle"
+  | "diagnostic";
 
 /**
  * Studio → `/app/answer` entry: map `detectIntent` to either a non-answer redirect
@@ -299,7 +304,9 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
           ? "timing"
           : dest === "answer:lifecycle"
             ? "lifecycle"
-            : "generic";
+            : dest === "answer:diagnostic"
+              ? "diagnostic"
+              : "generic";
 
   return { kind: "session", format, intent_type: intentType };
 }
