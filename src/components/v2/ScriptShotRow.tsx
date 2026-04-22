@@ -1,14 +1,6 @@
 import type { ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import { overlayStyleVi } from "@/lib/constants/enum-labels-vi";
-
-const CAM_BG = [
-  "var(--gv-avatar-2)",
-  "var(--gv-avatar-3)",
-  "var(--gv-avatar-4)",
-  "var(--gv-avatar-5)",
-  "var(--gv-avatar-6)",
-  "var(--gv-avatar-2)",
-] as const;
+import { ShotTypeVisual } from "@/components/v2/ShotTypeVisual";
 
 export type ScriptShotRowProps = {
   shot: ScriptEditorShot;
@@ -20,7 +12,6 @@ export type ScriptShotRowProps = {
 export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps) {
   const span = shot.t1 - shot.t0;
   const slow = span > shot.winnerAvg * 1.2;
-  const camBg = CAM_BG[idx % CAM_BG.length]!;
 
   return (
     <div
@@ -54,14 +45,7 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
         </div>
         <div className="gv-mono mt-1 text-[9px] opacity-70">{span}s</div>
       </div>
-      <div
-        className="relative flex items-end p-2"
-        style={{ backgroundColor: camBg }}
-      >
-        <span className="gv-mono text-[11px] text-[color:color-mix(in_srgb,var(--gv-canvas)_85%,transparent)]">
-          {shot.cam}
-        </span>
-      </div>
+      <ShotTypeVisual intelSceneType={shot.intelSceneType} cam={shot.cam} />
       <div className="border-r border-[color:var(--gv-rule)] p-3">
         <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
           LỜI THOẠI

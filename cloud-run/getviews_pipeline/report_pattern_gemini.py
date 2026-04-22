@@ -151,11 +151,15 @@ def _fallback_narrative(
         thesis = (thesis + f" (Gợi ý từ câu hỏi: {query[:80]})")[:280]
     hi = [_fallback_insight(h) for h in top_hook_labels]
     si = [_fallback_stalled(h) for h in stalled_hook_labels]
+    # BUG-16 (QA audit 2026-04-22): English loan words like "oversaturated"
+    # + "breakout" were leaking into the Vietnamese related-questions rail.
+    # Replaced with native Vietnamese equivalents so the fallback (used
+    # whenever Gemini disagrees / times out) matches the rest of the UI.
     rq = [
         f"Hook nào đang giảm tốc trong {niche_label}?",
-        "Format nào đang oversaturated?",
-        "Nên test hook mới hay tối ưu hook cũ?",
-        "Niche con nào đang breakout tuần này?",
+        "Format nào đang bão hoà quá mức?",
+        "Nên thử hook mới hay tối ưu hook cũ?",
+        "Ngách con nào đang bứt phá tuần này?",
     ]
     return {
         "thesis": thesis,
