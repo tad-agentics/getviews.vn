@@ -148,8 +148,14 @@ def test_full_sample_format_mode_uses_live_aggregation(
 def test_hook_fatigue_mode_uses_fixture_with_query_narrative(
     mock_get_svc: MagicMock,
 ) -> None:
-    """hook_fatigue has no live aggregator yet — fixture cells, but the
-    subject line and related questions are still query-aware."""
+    """hook_fatigue has no live aggregator yet — fixture cells carry an
+    honest disclaimer. The subject line is deliberately identical across
+    queries (the honesty contract: can't vary claims we can't ground in
+    real data). Per-query personalisation flows through the narrative
+    layer only when Gemini is active; in the fallback path (no key)
+    the response is intentionally uniform so we don't smuggle in
+    differentiating content that suggests a real diagnosis.
+    """
     mock_get_svc.return_value = _mock_sb_for_corpus(_make_corpus(200))
 
     a = build_lifecycle_report(
@@ -162,9 +168,11 @@ def test_hook_fatigue_mode_uses_fixture_with_query_narrative(
     )
     LifecyclePayload.model_validate(a)
     LifecyclePayload.model_validate(b)
-    # Two different queries → two different subject lines (the 2026-04-22
-    # bug guard).
-    assert a["subject_line"] != b["subject_line"]
+    # Subject lines are the fixed fixture disclaimer — identical across
+    # queries is the correct (honest) behaviour.
+    assert a["subject_line"] == b["subject_line"]
+    # Disclaimer content is present.
+    assert "tham chiếu" in a["subject_line"].lower()
 
 
 @patch("getviews_pipeline.supabase_client.get_service_client")
@@ -202,3 +210,104 @@ def test_aggregation_produces_no_cells_falls_back_to_fixture(
     r = build_lifecycle_report(niche_id=2, query="format nào", mode="format")
     LifecyclePayload.model_validate(r)
     assert len(r["cells"]) >= 1
+
+
+# -----------------------------------------------------------------------------
+# Honesty invariants — fixture cells must not claim real corpus backing
+# -----------------------------------------------------------------------------
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_hook_fatigue_mode_zeroes_sample_size_despite_real_corpus(
+    mock_get_svc: MagicMock,
+) -> None:
+    """Bug guard: with 200 real corpus videos for the niche, hook_fatigue
+    still ships fixture cells (no live aggregator yet). The confidence
+    strip must reflect that — N=0, low confidence — so the UI shows
+    MẪU MỎNG rather than claiming 200 videos back the hardcoded cells.
+    """
+    mock_get_svc.return_value = _mock_sb_for_corpus(_make_corpus(200))
+
+    r = build_lifecycle_report(
+        niche_id=2, query="hook còn dùng được không", mode="hook_fatigue",
+    )
+    LifecyclePayload.model_validate(r)
+    assert r["confidence"]["sample_size"] == 0
+    assert r["confidence"]["intent_confidence"] == "low"
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_subniche_mode_zeroes_sample_size_despite_real_corpus(
+    mock_get_svc: MagicMock,
+) -> None:
+    mock_get_svc.return_value = _mock_sb_for_corpus(_make_corpus(200))
+
+    r = build_lifecycle_report(
+        niche_id=2, query="ngách con nào đang nổi", mode="subniche",
+    )
+    LifecyclePayload.model_validate(r)
+    assert r["confidence"]["sample_size"] == 0
+    assert r["confidence"]["intent_confidence"] == "low"
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_fixture_cell_subject_line_carries_explicit_disclaimer(
+    mock_get_svc: MagicMock,
+) -> None:
+    """The subject line for fixture-cell modes must name the limitation
+    explicitly ("reference sample" / "paste link"). Without this the
+    user can't tell fixture data from real diagnosis."""
+    mock_get_svc.return_value = _mock_sb_for_corpus(_make_corpus(200))
+
+    for mode in ("hook_fatigue", "subniche"):
+        r = build_lifecycle_report(
+            niche_id=2, query="một câu hỏi thật dài về ngách",
+            mode=mode,  # type: ignore[arg-type]
+        )
+        subj = r["subject_line"].lower()
+        assert "tham chiếu" in subj or "paste link" in subj, (
+            f"mode={mode} subject_line must carry 'tham chiếu' / 'paste link' "
+            f"disclaimer — got: {r['subject_line']!r}"
+        )
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_fixture_cell_insights_prefixed_as_reference(
+    mock_get_svc: MagicMock,
+) -> None:
+    """Each cell insight in hook_fatigue / subniche must be prefixed
+    with [Mẫu tham chiếu] so a per-cell narrative can't stand on its
+    own as if it were grounded in the user's corpus."""
+    mock_get_svc.return_value = _mock_sb_for_corpus(_make_corpus(200))
+
+    for mode in ("hook_fatigue", "subniche"):
+        r = build_lifecycle_report(
+            niche_id=2, query="ngách dài dòng câu hỏi cho test",
+            mode=mode,  # type: ignore[arg-type]
+        )
+        for cell in r["cells"]:
+            assert cell["insight"].startswith("[Mẫu tham chiếu]"), (
+                f"mode={mode} cell {cell['name']!r} insight missing fixture "
+                f"prefix — got: {cell['insight']!r}"
+            )
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_format_mode_live_aggregation_keeps_real_sample_size(
+    mock_get_svc: MagicMock,
+) -> None:
+    """Regression guard: the honesty fix must NOT affect format mode
+    when the live aggregator produced real cells — sample_size should
+    reflect the actual corpus count, not 0."""
+    corpus = _make_corpus(120)
+    mock_get_svc.return_value = _mock_sb_for_corpus(corpus)
+
+    r = build_lifecycle_report(
+        niche_id=2, query="format nào còn chạy tốt", mode="format",
+    )
+    LifecyclePayload.model_validate(r)
+    # Real corpus count preserved.
+    assert r["confidence"]["sample_size"] == len(corpus)
+    # Cell insights NOT prefixed with [Mẫu tham chiếu] — they're real.
+    for cell in r["cells"]:
+        assert not cell["insight"].startswith("[Mẫu tham chiếu]")

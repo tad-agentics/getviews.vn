@@ -420,10 +420,18 @@ def build_lifecycle_report(
     # hook_fatigue and subniche don't have a live aggregator yet — ship
     # fixture cells but overlay the query-aware Gemini narrative so the
     # text still answers the user's question.
+    #
+    # HONESTY: the cells themselves are reference data, not derived from
+    # the user's niche corpus. We pass ``cells_are_fixture=True`` so the
+    # confidence strip shows ``sample_size=0`` + ``intent_confidence=low``
+    # and the subject line carries an explicit "reference sample"
+    # disclaimer — otherwise the UI would render "N=200 · high confidence"
+    # against hardcoded cells, which is actively misleading.
     if mode != "format":
         return _fixture_with_narrative(
             mode=mode, query=query, niche_label=niche_label,
             window_days=window_days, sample_size=sample_n,
+            cells_are_fixture=True,
         )
 
     cells_raw = compute_format_cells(corpus, window_days=window_days)
@@ -488,6 +496,22 @@ def build_lifecycle_report(
     return payload.model_dump()
 
 
+_FIXTURE_DISCLAIMER_BY_MODE: dict[LifecycleMode, str] = {
+    "format": (
+        "Chưa đủ dữ liệu format-level cho ngách này — hiển thị mẫu "
+        "format tham chiếu. Paste link video để chẩn đoán chính xác."
+    ),
+    "hook_fatigue": (
+        "Chưa có tín hiệu hook-fatigue trong ngách này — hiển thị mẫu "
+        "hook tham chiếu. Paste link video để chẩn đoán chính xác."
+    ),
+    "subniche": (
+        "Chưa có phân cụm subniche cho ngách này — hiển thị mẫu "
+        "subniche tham chiếu. Paste link video để chẩn đoán chính xác."
+    ),
+}
+
+
 def _fixture_with_narrative(
     *,
     mode: LifecycleMode,
@@ -495,17 +519,32 @@ def _fixture_with_narrative(
     niche_label: str | None,
     window_days: int,
     sample_size: int | None = None,
+    cells_are_fixture: bool = False,
 ) -> dict[str, Any]:
     """Fixture path that overlays query-aware Gemini narrative.
 
     Used for thin-corpus gates, hook_fatigue / subniche modes, and
     service-client unavailable errors. The cell numbers are fixture
-    values (honestly labelled as "reference") but the subject line +
-    insights + refresh moves + related questions come from the narrative
-    layer so the output still answers the specific question asked.
+    values — we layer a query-aware narrative on top so the response
+    text still answers the specific question, but the underlying cell
+    data is reference, not derived from the user's corpus.
 
-    When Gemini is also unavailable the narrative module's fallback path
-    still produces query-prefixed copy, so follow-ups never collide.
+    ``cells_are_fixture=True`` opts into the "honesty" path used when
+    we DO have real corpus data but the aggregator isn't implemented
+    (today: hook_fatigue + subniche modes). In that case we:
+      - force ``sample_size=0`` on the confidence strip — showing
+        ``N=200`` against hardcoded cells is misleading;
+      - force ``intent_confidence="low"`` so the UI surfaces
+        "MẪU MỎNG" and the user reads with appropriate scepticism;
+      - prepend an explicit disclaimer to the subject line so the
+        distinction is visible even if the confidence chip is missed;
+      - prefix each cell insight with ``[Mẫu tham chiếu]`` so the
+        per-cell narrative can't stand on its own as if real.
+
+    When ``cells_are_fixture=False`` (the historical fallbacks: no
+    service client, no niche, thin corpus, empty format aggregation)
+    the existing thin-corpus behaviour still holds — sample_size reflects
+    what we have, and the UI's own < 80 threshold flips the chip.
     """
     base = build_fixture_lifecycle_report(mode)
 
@@ -515,7 +554,11 @@ def _fixture_with_narrative(
         conf["window_days"] = window_days
         if niche_label:
             conf["niche_scope"] = niche_label
-        if sample_size is not None:
+        if cells_are_fixture:
+            # Reference cells — don't claim real corpus backing.
+            conf["sample_size"] = 0
+            conf["intent_confidence"] = "low"
+        elif sample_size is not None:
             conf["sample_size"] = sample_size
             # Thin-corpus flips confidence down so the UI doesn't claim
             # authority it doesn't have.
@@ -542,11 +585,24 @@ def _fixture_with_narrative(
         logger.warning("[lifecycle] narrative overlay failed: %s — raw fixture", exc)
         return base
 
-    base["subject_line"] = narrative["subject_line"]
+    if cells_are_fixture:
+        # Overwrite (don't prepend) so Gemini can't smuggle in a claim
+        # that contradicts the disclaimer. Capped by LifecyclePayload's
+        # 240-char limit on subject_line.
+        base["subject_line"] = _FIXTURE_DISCLAIMER_BY_MODE[mode][:240]
+    else:
+        base["subject_line"] = narrative["subject_line"]
+
     insights = narrative["cell_insights"]
     for i, c in enumerate(cells):
         if isinstance(c, dict) and i < len(insights):
-            c["insight"] = insights[i]
+            raw = insights[i]
+            if cells_are_fixture:
+                # Prefix so per-cell narrative can't be mistaken for a
+                # finding grounded in the user's corpus. Trim to keep
+                # LifecycleCell.insight ≤ 240 chars.
+                raw = f"[Mẫu tham chiếu] {raw}"[:240]
+            c["insight"] = raw
     base["related_questions"] = narrative["related_questions"]
 
     # Only replace refresh_moves when Gemini produced a usable set — the
