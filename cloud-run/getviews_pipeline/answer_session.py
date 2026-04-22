@@ -16,9 +16,10 @@ from typing import Any
 
 from getviews_pipeline.report_generic import build_generic_report
 from getviews_pipeline.report_ideas import build_ideas_report
+from getviews_pipeline.report_lifecycle import build_lifecycle_report
 from getviews_pipeline.report_pattern import build_pattern_report
 from getviews_pipeline.report_timing import build_timing_report
-from getviews_pipeline.report_types import validate_and_store_report
+from getviews_pipeline.report_types import LifecycleMode, validate_and_store_report
 from getviews_pipeline.supabase_client import get_service_client
 
 logger = logging.getLogger(__name__)
@@ -58,13 +59,17 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
     non-primary turns so the report actually reflects the new question.
 
     Mapping:
-        - ``primary`` → session format (pattern / ideas / timing / generic)
+        - ``primary`` → session format (pattern / ideas / timing / generic / lifecycle)
         - ``timing``  → timing (adaptive window + posting-hour aggregates)
         - ``script``  → ideas (shot-list / draft feedback sits on ideas)
         - ``creators`` / ``generic`` / unknown → generic
     """
     if kind == "primary":
-        return session_fmt if session_fmt in ("pattern", "ideas", "timing", "generic") else "pattern"
+        return (
+            session_fmt
+            if session_fmt in ("pattern", "ideas", "timing", "generic", "lifecycle")
+            else "pattern"
+        )
     if kind == "timing":
         return "timing"
     if kind == "script":
@@ -73,6 +78,28 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
     # surfaces corpus evidence + a free-form narrative, which is the
     # correct landing when the turn doesn't fit a structured builder.
     return "generic"
+
+
+# Intent id → lifecycle mode discriminator. Kept centralised so the
+# dispatcher and the intent router agree on which mode each intent
+# produces. See ``artifacts/docs/report-template-prd-lifecycle.md``.
+_INTENT_TO_LIFECYCLE_MODE: dict[str, LifecycleMode] = {
+    "format_lifecycle_optimize": "format",
+    "fatigue": "hook_fatigue",
+    "subniche_breakdown": "subniche",
+}
+
+
+def lifecycle_mode_for_intent(intent_type: str | None) -> LifecycleMode:
+    """Map ``answer_sessions.intent_type`` → ``LifecyclePayload.mode``.
+
+    Defaults to ``"format"`` for unknown / missing intents so a lifecycle
+    session never fails to build — the three mapped intents cover every
+    case the intent router emits today.
+    """
+    if not intent_type:
+        return "format"
+    return _INTENT_TO_LIFECYCLE_MODE.get(intent_type, "format")
 
 # D.2.3 — classifier confidence thresholds. Aligned with Vercel Edge's
 # GEMINI_DISAGREE_WIN_MIN_CONFIDENCE (0.3) and the intent-router's practice
@@ -399,6 +426,13 @@ def append_turn(
             )
             inner = build_timing_report(
                 niche_pk, query, window_days=window_days, mode=timing_mode,
+            )
+        elif builder_fmt == "lifecycle":
+            inner = build_lifecycle_report(
+                niche_pk,
+                query,
+                lifecycle_mode_for_intent(session.get("intent_type")),
+                window_days=window_days,
             )
         else:
             inner = build_generic_report(session.get("niche_id"), query)

@@ -553,7 +553,7 @@ export interface AnswerSessionRow {
   title: string | null;
   initial_q: string;
   intent_type: string;
-  format: "pattern" | "ideas" | "timing" | "generic";
+  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle";
   niche_id: number | null;
   created_at?: string;
   updated_at?: string;

@@ -24,6 +24,7 @@ export type Destination =
   | "answer:pattern"
   | "answer:ideas"
   | "answer:timing"
+  | "answer:lifecycle"
   | "answer:generic";
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
@@ -62,9 +63,11 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   metadata_only: "video",
   trend_spike: "answer:pattern",
   content_directions: "answer:pattern",
-  subniche_breakdown: "answer:pattern",
-  format_lifecycle_optimize: "answer:pattern",
-  fatigue: "answer:pattern",
+  // Lifecycle template (2026-04-22) — stage pill + reach delta + health
+  // score. See `artifacts/docs/report-template-prd-lifecycle.md`.
+  subniche_breakdown: "answer:lifecycle",
+  format_lifecycle_optimize: "answer:lifecycle",
+  fatigue: "answer:lifecycle",
   brief_generation: "answer:ideas",
   hook_variants: "answer:ideas",
   timing: "answer:timing",
@@ -234,8 +237,16 @@ export function detectIntent(
   };
 }
 
-/** POST `/answer/sessions` `format` — must match `AnswerSessionCreateBody` + DB check. */
-export type AnswerSessionFormat = "pattern" | "ideas" | "timing" | "generic";
+/** POST `/answer/sessions` `format` — must match `AnswerSessionCreateBody` + DB check.
+ *
+ * ``lifecycle`` added 2026-04-22 (migration ``20260505000000_answer_sessions_
+ * lifecycle_format.sql``). */
+export type AnswerSessionFormat =
+  | "pattern"
+  | "ideas"
+  | "timing"
+  | "generic"
+  | "lifecycle";
 
 /**
  * Studio → `/app/answer` entry: map `detectIntent` to either a non-answer redirect
@@ -286,7 +297,9 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
         ? "ideas"
         : dest === "answer:timing"
           ? "timing"
-          : "generic";
+          : dest === "answer:lifecycle"
+            ? "lifecycle"
+            : "generic";
 
   return { kind: "session", format, intent_type: intentType };
 }
