@@ -34,6 +34,9 @@ vi.mock("@/components/v2/answer/ideas/IdeasBody", () => ({
 vi.mock("@/components/v2/answer/timing/TimingBody", () => ({
   TimingBody: () => <div data-testid="timing-body">timing-body</div>,
 }));
+vi.mock("@/components/v2/answer/lifecycle/LifecycleBody", () => ({
+  LifecycleBody: () => <div data-testid="lifecycle-body">lifecycle-body</div>,
+}));
 vi.mock("@/components/v2/answer/generic/GenericBody", () => ({
   GenericBody: () => <div data-testid="generic-body">generic-body</div>,
 }));
@@ -72,6 +75,12 @@ describe("ContinuationTurn payload dispatch", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "timing", report: {} })} />);
     expect(screen.getByTestId("timing-body")).toBeTruthy();
     expect(screen.getByText("Timing")).toBeTruthy();
+  });
+
+  it("renders LifecycleBody inside a 'Lifecycle' block for kind: lifecycle", () => {
+    render(<ContinuationTurn turn={mkTurn({ kind: "lifecycle", report: {} })} />);
+    expect(screen.getByTestId("lifecycle-body")).toBeTruthy();
+    expect(screen.getByText("Lifecycle")).toBeTruthy();
   });
 
   it("renders GenericBody with 'Tổng quát' kicker for kind: generic", () => {
