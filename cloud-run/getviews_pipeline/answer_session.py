@@ -37,6 +37,43 @@ logger = logging.getLogger(__name__)
 _IDEMPOTENCY: dict[str, tuple[str, float]] = {}
 _IDEMPOTENCY_TTL_SEC = 120.0
 
+
+# Allowed turn kinds (mirrors the CHECK constraint on answer_turns.kind
+# and the appendTurnKindForQuery mapping in src/routes/_app/intent-router.ts).
+_TURN_KINDS: frozenset[str] = frozenset(
+    {"primary", "timing", "creators", "script", "generic"}
+)
+
+
+def select_builder_for_turn(session_fmt: str, kind: str) -> str:
+    """Map ``(session.format, turn.kind)`` to the report builder.
+
+    The primary turn uses the session's declared format — that's what the
+    session was created for. Follow-up turns were historically using the
+    session format too (2026-04 audit: "The follow up questions generate
+    the same report every time"), which made every follow-up rebuild the
+    original pattern report regardless of whether the user asked a timing
+    question, creator-search question, shot-list question, or generic
+    follow-up. The turn's ``kind`` now drives builder selection for
+    non-primary turns so the report actually reflects the new question.
+
+    Mapping:
+        - ``primary`` → session format (pattern / ideas / timing / generic)
+        - ``timing``  → timing (adaptive window + posting-hour aggregates)
+        - ``script``  → ideas (shot-list / draft feedback sits on ideas)
+        - ``creators`` / ``generic`` / unknown → generic
+    """
+    if kind == "primary":
+        return session_fmt if session_fmt in ("pattern", "ideas", "timing", "generic") else "pattern"
+    if kind == "timing":
+        return "timing"
+    if kind == "script":
+        return "ideas"
+    # "creators", "generic", or an unexpected value — the generic builder
+    # surfaces corpus evidence + a free-form narrative, which is the
+    # correct landing when the turn doesn't fit a structured builder.
+    return "generic"
+
 # D.2.3 — classifier confidence thresholds. Aligned with Vercel Edge's
 # GEMINI_DISAGREE_WIN_MIN_CONFIDENCE (0.3) and the intent-router's practice
 # of treating < 0.6 as "not confident enough to ship a high-quality
@@ -315,20 +352,21 @@ def append_turn(
             logger.warning("[answer/turns] insufficient_credits user=%s session=%s", user_id, session_id)
             raise RuntimeError("insufficient_credits")
 
-    fmt = session.get("format") or "pattern"
+    session_fmt = session.get("format") or "pattern"
+    builder_fmt = select_builder_for_turn(session_fmt, kind)
     from getviews_pipeline.adaptive_window import ReportKind, choose_adaptive_window_days
 
     niche_pk = int(session.get("niche_id") or 0)
-    adaptive_kind: ReportKind = fmt if fmt in ("pattern", "ideas", "timing") else "pattern"
+    adaptive_kind: ReportKind = builder_fmt if builder_fmt in ("pattern", "ideas", "timing") else "pattern"
     window_days = choose_adaptive_window_days(niche_pk, adaptive_kind)
     logger.info(
-        "[answer/turns] build fmt=%s niche=%s window_days=%s",
-        fmt, niche_pk, window_days,
+        "[answer/turns] build session_fmt=%s kind=%s builder_fmt=%s niche=%s window_days=%s",
+        session_fmt, kind, builder_fmt, niche_pk, window_days,
     )
 
     inner: dict[str, Any]
     try:
-        if fmt == "pattern":
+        if builder_fmt == "pattern":
             # C.5.3 — auto-merge timing subreport on "post gì khi nào"
             # style queries (plan §A.4 Report + timing case; also covers
             # intent #18 content_calendar).
@@ -342,30 +380,30 @@ def append_turn(
                 window_days=window_days,
                 subreports=subs or None,
             )
-        elif fmt == "ideas":
+        elif builder_fmt == "ideas":
             inner = build_ideas_report(
                 niche_pk,
                 query,
                 session.get("intent_type") or "brief_generation",
                 window_days=window_days,
             )
-        elif fmt == "timing":
+        elif builder_fmt == "timing":
             inner = build_timing_report(niche_pk, query, window_days=window_days)
         else:
             inner = build_generic_report(session.get("niche_id"), query)
     except Exception:
         logger.exception(
-            "[answer/turns] build FAILED fmt=%s niche=%s session=%s",
-            fmt, niche_pk, session_id,
+            "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",
+            builder_fmt, niche_pk, session_id,
         )
         raise
 
     try:
-        payload_dict = validate_and_store_report(fmt, inner)
+        payload_dict = validate_and_store_report(builder_fmt, inner)
     except Exception:
         logger.exception(
-            "[answer/turns] validate FAILED fmt=%s session=%s inner_keys=%s",
-            fmt, session_id, list(inner.keys()) if isinstance(inner, dict) else type(inner).__name__,
+            "[answer/turns] validate FAILED builder_fmt=%s session=%s inner_keys=%s",
+            builder_fmt, session_id, list(inner.keys()) if isinstance(inner, dict) else type(inner).__name__,
         )
         raise
 
@@ -401,7 +439,7 @@ def append_turn(
     # insert so usage_events RLS policies don't reject; failures are
     # swallowed inside log_usage_event_server.
     for action, metadata in resolve_turn_observability_events(
-        fmt=fmt,
+        fmt=builder_fmt,
         payload=payload_dict,
         classifier_confidence_score=classifier_confidence_score,
         intent_id=intent_id,
