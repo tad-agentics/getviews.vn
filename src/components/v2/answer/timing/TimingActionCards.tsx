@@ -8,6 +8,7 @@
 import { useNavigate } from "react-router";
 
 import type { ActionCardPayloadData } from "@/lib/api-types";
+import { renderForecastLine } from "@/components/v2/answer/forecastLine";
 
 function defaultRoute(a: ActionCardPayloadData): string {
   if (a.route) return a.route;
@@ -52,11 +53,19 @@ export function TimingActionCards({ actions }: { actions: ActionCardPayloadData[
             </div>
             <p className="gv-serif text-[16px] text-[color:var(--gv-ink)]">{a.title}</p>
             <p className="mt-1 text-sm text-[color:var(--gv-ink-3)]">{a.sub}</p>
-            <div
-              className={`mt-[10px] rounded px-[10px] py-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)] ${forecastBg}`}
-            >
-              Dự kiến: {a.forecast.expected_range ?? "—"} (baseline {a.forecast.baseline ?? "—"})
-            </div>
+            {(() => {
+              // Timing cards historically used "baseline" instead of
+              // "kênh TB" — preserve that wording but drop the whole row
+              // when both values are empty (BUG-15).
+              const line = renderForecastLine(a.forecast, { unit: "" });
+              return line ? (
+                <div
+                  className={`mt-[10px] rounded px-[10px] py-2 gv-mono text-[11px] text-[color:var(--gv-ink-3)] ${forecastBg}`}
+                >
+                  {line}
+                </div>
+              ) : null;
+            })()}
             <button
               type="button"
               className={`mt-3 w-full rounded-md py-2 text-center gv-mono text-[12px] font-medium ${

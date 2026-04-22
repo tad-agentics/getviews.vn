@@ -337,7 +337,19 @@ function ChannelBody({
         <section>
           <SectionMini
             kicker="CÔNG THỨC PHÁT HIỆN"
-            title={`"${data.name || data.handle} Formula" — 4 bước lặp đi lặp lại`}
+            title={
+              // BUG-19 (QA audit 2026-04-22): thin-corpus channels were
+              // showing the definitive "X Formula — 4 bước lặp đi lặp lại"
+              // headline above an empty formula block that explicitly said
+              // "Chưa đủ video để dựng công thức." The mismatch made the
+              // page look broken. Now the headline itself reflects the
+              // data gate: thin corpus / empty formula → "Đang phân tích
+              // kênh…", otherwise the real formula title with the actual
+              // step count.
+              data.formula_gate === "thin_corpus" || !data.formula || data.formula.length === 0
+                ? `Đang phân tích kênh "${data.name || data.handle}"…`
+                : `"${data.name || data.handle} Formula" — ${data.formula.length} bước lặp đi lặp lại`
+            }
           />
           <FormulaBar steps={data.formula} formulaGate={data.formula_gate} />
         </section>

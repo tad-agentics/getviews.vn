@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
+
 from getviews_pipeline.pattern_fingerprint import (
     _clean_generated_name,
     _name_prompt,
+    _recompute_weekly_counts_sync,
     bucket_tps,
     build_display_name,
     compute_signature,
@@ -245,3 +249,45 @@ def test_name_prompt_omits_example_block_when_analysis_empty() -> None:
     # Empty analysis dict also → no example block.
     prompt2 = _name_prompt(sig, {})
     assert "Ví dụ video" not in prompt2
+
+
+def test_recompute_weekly_counts_uses_iso_cutoff() -> None:
+    """BUG-11 regression: ``.gte("indexed_at", "now() - interval '14 days'")``
+    passes a literal SQL expression to PostgREST which can't evaluate it,
+    so the recompute always fetched zero rows and Studio's LƯỢT DÙNG
+    column stuck at 0 for every pattern. Fix computes the ISO cutoff in
+    Python — the cutoff value MUST be ISO-8601, not a SQL expression."""
+    # Capture the cutoff the implementation passes into ``.gte``.
+    calls: list[tuple[str, str]] = []
+
+    sb = MagicMock()
+    # Chain used in _recompute_weekly_counts_sync: table(...).select(...).
+    # gte(col, val).not_.is_(col, val).limit(n).execute()
+    table_mock = MagicMock()
+    sb.table.return_value = table_mock
+    select_mock = MagicMock()
+    table_mock.select.return_value = select_mock
+
+    def gte(col: str, val: str) -> MagicMock:
+        calls.append((col, val))
+        return gte_mock
+
+    gte_mock = MagicMock()
+    select_mock.gte.side_effect = gte
+    gte_mock.not_.is_.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+
+    # Also back the UPDATE chain even though we won't hit it (no pids).
+    table_mock.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+
+    touched = _recompute_weekly_counts_sync(sb)
+    assert touched == 0  # no rows in the mock — nothing to update
+
+    # Exactly one gte(indexed_at, <ISO>) call, and the value parses.
+    assert len(calls) == 1
+    col, val = calls[0]
+    assert col == "indexed_at"
+    parsed = datetime.fromisoformat(val)
+    assert parsed.tzinfo is not None
+    # Cutoff should be ~14 days in the past, within a generous window.
+    age = datetime.now(tz=timezone.utc) - parsed
+    assert timedelta(days=13, hours=23) <= age <= timedelta(days=14, hours=1)

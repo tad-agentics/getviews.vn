@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from getviews_pipeline.kol_browse import (
+    MIN_INDEXED_VIDEOS_FOR_DISCOVERY,
     _apply_follower_bounds,
     _apply_growth_fast_proxy,
     _is_fresh,
@@ -116,12 +117,15 @@ def test_run_kol_browse_search_filters_rows() -> None:
     profile_exec = MagicMock(data={"primary_niche": 1, "reference_channel_handles": []})
     starters_exec = MagicMock(
         data=[
+            # video_count >= MIN_INDEXED_VIDEOS_FOR_DISCOVERY (10) so the
+            # discover-gate introduced for BUG-07 leaves these rows visible
+            # and the search behaviour can be asserted in isolation.
             {
                 "handle": "alice",
                 "display_name": "Alice Nguyen",
                 "followers": 10_000,
                 "avg_views": 5000,
-                "video_count": 1,
+                "video_count": 12,
                 "rank": 1,
             },
             {
@@ -129,7 +133,7 @@ def test_run_kol_browse_search_filters_rows() -> None:
                 "display_name": "Bob",
                 "followers": 20_000,
                 "avg_views": 8000,
-                "video_count": 2,
+                "video_count": 14,
                 "rank": 2,
             },
         ]
@@ -216,7 +220,9 @@ def test_match_score_cache_hit_uses_stored_value(monkeypatch) -> None:
             "display_name": "Alice",
             "followers": 10_000,
             "avg_views": 5_000,
-            "video_count": 1,
+            # Must clear ``MIN_INDEXED_VIDEOS_FOR_DISCOVERY`` (BUG-07 gate) so
+            # the cache-hit behaviour can be asserted in isolation.
+            "video_count": 12,
             "rank": 1,
         }
     ]
@@ -260,7 +266,9 @@ def test_match_score_cache_miss_recomputes_and_writes_back(monkeypatch) -> None:
             "display_name": "Bob Tech",
             "followers": 20_000,
             "avg_views": 8_000,
-            "video_count": 2,
+            # Clears MIN_INDEXED_VIDEOS_FOR_DISCOVERY so the cache-miss path
+            # under test is the only reason a row could vanish.
+            "video_count": 15,
             "rank": 1,
         }
     ]
@@ -572,3 +580,54 @@ def test_compute_view_velocity_sync_clips_outlier_ratios() -> None:
     corpus_chain.execute.return_value = MagicMock(data=corpus)
     out = _compute_view_velocity_sync(sb)
     assert out[0]["view_velocity_30d_pct"] == pytest.approx(2.0)
+
+
+def test_run_kol_browse_discover_hides_creators_below_indexed_video_threshold() -> None:
+    """BUG-07 regression — a 1.3M-follower creator with 1 indexed video was
+    appearing as the #1 discovery match, but clicking it landed on an empty
+    "Chưa đủ video để dựng công thức" page. Discovery now hides any row
+    with ``video_count < MIN_INDEXED_VIDEOS_FOR_DISCOVERY`` (10, matching
+    the ChannelScreen formula gate)."""
+    profile_exec = MagicMock(data={"primary_niche": 1, "reference_channel_handles": []})
+    starters_exec = MagicMock(
+        data=[
+            {
+                "handle": "bigfollow",
+                "display_name": "Big Follow",
+                "followers": 1_300_000,
+                "avg_views": 500_000,
+                "video_count": 1,  # below threshold → should be hidden
+                "rank": 1,
+            },
+            {
+                "handle": "steady",
+                "display_name": "Steady Creator",
+                "followers": 40_000,
+                "avg_views": 8_000,
+                "video_count": 12,  # above threshold → visible
+                "rank": 2,
+            },
+        ]
+    )
+    tax_exec = MagicMock(data=[{"name_vn": "Tech", "name_en": "Tech"}])
+
+    sb = MagicMock()
+
+    def table(name: str) -> MagicMock:
+        m = MagicMock()
+        if name == "profiles":
+            m.select.return_value.single.return_value.execute.return_value = profile_exec
+        elif name == "starter_creators":
+            m.select.return_value.eq.return_value.order.return_value.execute.return_value = starters_exec
+        elif name == "niche_taxonomy":
+            m.select.return_value.eq.return_value.limit.return_value.execute.return_value = tax_exec
+        else:
+            raise AssertionError(f"unexpected table {name!r}")
+        return m
+
+    sb.table.side_effect = table
+
+    out = run_kol_browse_sync(sb, niche_id=1, tab="discover", page=1, page_size=10)
+    assert MIN_INDEXED_VIDEOS_FOR_DISCOVERY == 10
+    assert out["total"] == 1
+    assert out["rows"][0]["handle"] == "steady"
