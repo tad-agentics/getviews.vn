@@ -25,28 +25,34 @@ function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind"
 }
 
 function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
+  // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
+  // "primary language for user-facing copy: Vietnamese. No English
+  // strings in UI." rule. 2026-05-07 sweep: Pattern/Ideas/Timing/
+  // Lifecycle were English holdovers from the pre-VN-first era;
+  // unified here for consistency with the already-VN Chẩn đoán +
+  // Tổng quát kickers.
   switch (payload.kind) {
     case "pattern":
       return (
-        <AnswerBlock kicker="Pattern">
+        <AnswerBlock kicker="Xu hướng">
           <PatternBody report={payload.report} />
         </AnswerBlock>
       );
     case "ideas":
       return (
-        <AnswerBlock kicker="Ideas">
+        <AnswerBlock kicker="Ý tưởng">
           <IdeasBody report={payload.report} />
         </AnswerBlock>
       );
     case "timing":
       return (
-        <AnswerBlock kicker="Timing">
+        <AnswerBlock kicker="Thời điểm">
           <TimingBody report={payload.report} />
         </AnswerBlock>
       );
     case "lifecycle":
       return (
-        <AnswerBlock kicker="Lifecycle">
+        <AnswerBlock kicker="Vòng đời">
           <LifecycleBody report={payload.report} />
         </AnswerBlock>
       );

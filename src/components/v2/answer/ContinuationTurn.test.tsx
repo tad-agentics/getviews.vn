@@ -62,28 +62,31 @@ function mkTurn(payload: unknown, overrides: Partial<AnswerTurnRow> = {}): Answe
 afterEach(cleanup);
 
 describe("ContinuationTurn payload dispatch", () => {
-  it("renders PatternBody inside a 'Pattern' block for kind: pattern", () => {
+  // Kickers are Vietnamese per CLAUDE.md ("No English strings in UI").
+  // If these strings are ever retranslated, update the `AnswerBlock`
+  // call sites in ContinuationTurn.tsx in the same commit.
+  it("renders PatternBody inside a 'Xu hướng' block for kind: pattern", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "pattern", report: {} })} />);
     expect(screen.getByTestId("pattern-body")).toBeTruthy();
-    expect(screen.getByText("Pattern")).toBeTruthy();
+    expect(screen.getByText("Xu hướng")).toBeTruthy();
   });
 
-  it("renders IdeasBody for kind: ideas", () => {
+  it("renders IdeasBody inside a 'Ý tưởng' block for kind: ideas", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "ideas", report: {} })} />);
     expect(screen.getByTestId("ideas-body")).toBeTruthy();
-    expect(screen.getByText("Ideas")).toBeTruthy();
+    expect(screen.getByText("Ý tưởng")).toBeTruthy();
   });
 
-  it("renders TimingBody for kind: timing", () => {
+  it("renders TimingBody inside a 'Thời điểm' block for kind: timing", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "timing", report: {} })} />);
     expect(screen.getByTestId("timing-body")).toBeTruthy();
-    expect(screen.getByText("Timing")).toBeTruthy();
+    expect(screen.getByText("Thời điểm")).toBeTruthy();
   });
 
-  it("renders LifecycleBody inside a 'Lifecycle' block for kind: lifecycle", () => {
+  it("renders LifecycleBody inside a 'Vòng đời' block for kind: lifecycle", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "lifecycle", report: {} })} />);
     expect(screen.getByTestId("lifecycle-body")).toBeTruthy();
-    expect(screen.getByText("Lifecycle")).toBeTruthy();
+    expect(screen.getByText("Vòng đời")).toBeTruthy();
   });
 
   it("renders DiagnosticBody inside a 'Chẩn đoán' block for kind: diagnostic", () => {
