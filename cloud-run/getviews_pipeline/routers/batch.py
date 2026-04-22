@@ -188,7 +188,9 @@ async def batch_analytics(
     """
     from getviews_pipeline.batch_analytics import run_analytics
     from getviews_pipeline.corpus_context import _anon_client
+    from getviews_pipeline.hook_effectiveness_compute import run_hook_effectiveness
     from getviews_pipeline.pattern_fingerprint import recompute_weekly_counts
+    from getviews_pipeline.runtime import run_sync
     from getviews_pipeline.signal_classifier import run_signal_grading
 
     logger.info("POST /batch/analytics triggered")
@@ -200,6 +202,16 @@ async def batch_analytics(
             patterns_touched = await recompute_weekly_counts(_anon_client())
         except Exception as exc:
             logger.warning("pattern weekly recompute failed: %s", exc)
+
+        # Pass 4 (2026-05-09): populate ``hook_effectiveness`` aggregate
+        # table. Before this ran, the table was empty in production and
+        # Pattern + Ideas reports rendered with zero hook findings. See
+        # ``artifacts/docs/state-of-corpus.md`` Appendix B Gap 1.
+        hook_eff: dict[str, Any] = {"upserted": 0, "current_buckets": 0, "prior_buckets": 0}
+        try:
+            hook_eff = await run_sync(run_hook_effectiveness)
+        except Exception as exc:
+            logger.warning("hook_effectiveness recompute failed: %s", exc)
     except Exception as exc:
         logger.exception("Batch analytics failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -225,6 +237,7 @@ async def batch_analytics(
             "errors": signal.errors,
         },
         "patterns": {"rows_updated": patterns_touched},
+        "hook_effectiveness": hook_eff,
     })
 
 
