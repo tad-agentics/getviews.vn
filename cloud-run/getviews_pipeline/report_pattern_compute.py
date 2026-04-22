@@ -30,20 +30,26 @@ def _pattern_label(hook_type: str) -> str:
 
 
 def _prereq_chips(hook_type: str) -> list[str]:
-    """Static prerequisite hints per hook family (C.2 — mirrors TS hook-prereq-templates intent)."""
+    """Static prerequisite hints per hook family (C.2 — mirrors TS hook-prereq-templates intent).
+
+    BUG-16 (QA audit 2026-04-22): earlier versions mixed English loans
+    ("Claim", "Cut", "UGC / testimonial", "pain", "stat", "Payoff",
+    "Twist", "Trend audio") into copy that renders as Vietnamese chips.
+    Fully translated so the UI stays monolingual.
+    """
     key = (hook_type or "").strip().lower().replace("-", "_")
     defaults: dict[str, list[str]] = {
-        "question": ["Câu hỏi trong 0.5s đầu", "Nhìn thẳng camera"],
-        "bold_claim": ["Claim trong 1s", "Chữ lớn trên màn hình"],
-        "shock_stat": ["Số liệu nguồn rõ", "Cut nhanh sau stat"],
-        "story_open": ["Hook cảm xúc 2–4s", "Bối cảnh nhận diện được"],
-        "curiosity_gap": ["Khoảng trống ở 3s đầu", "Payoff trước giây 12"],
-        "social_proof": ["Bằng chứng xã hội 1–3s", "UGC / testimonial rõ"],
+        "question": ["Đặt câu hỏi trong 0.5s đầu", "Nhìn thẳng camera"],
+        "bold_claim": ["Tuyên bố mạnh trong 1s", "Chữ lớn trên màn hình"],
+        "shock_stat": ["Dẫn nguồn số liệu rõ", "Cắt nhanh sau số liệu"],
+        "story_open": ["Khơi cảm xúc 2–4s đầu", "Bối cảnh nhận diện được"],
+        "curiosity_gap": ["Tạo khoảng trống ở 3s đầu", "Giải đáp trước giây 12"],
+        "social_proof": ["Chứng cứ xã hội 1–3s", "Clip người thật / lời chứng rõ"],
         "how_to": ["Bước 1 ngay đầu", "Chữ overlay đồng bộ"],
-        "pain_point": ["Gọi đúng pain 1s đầu", "Giải pháp preview nhỏ"],
-        "trend_hijack": ["Trend audio khớp niche", "Twist trong 2s"],
+        "pain_point": ["Chạm nỗi đau trong 1s đầu", "Hé lộ giải pháp ngắn"],
+        "trend_hijack": ["Âm thanh trend khớp ngách", "Có cú rẽ lạ trong 2s"],
     }
-    return defaults.get(key, ["Ổn định khung 9:16", "Audio rõ trong 2s đầu"])
+    return defaults.get(key, ["Khung hình 9:16 ổn định", "Âm thanh rõ 2s đầu"])
 
 
 def _metric(val: str, num: float, definition: str) -> Metric:
@@ -134,8 +140,10 @@ def compute_findings(
             HookFinding(
                 rank=i + 1,
                 pattern=_pattern_label(ht),
-                retention=_metric(_fmt_pct(ret), ret, "avg completion (proxy)"),
-                delta=_metric(delta_s, delta_num, "vs niche avg views"),
+                # BUG-16 (QA audit 2026-04-22): definitions render as
+                # metric-row tooltips on /app/answer — previously in English.
+                retention=_metric(_fmt_pct(ret), ret, "Xem trung bình (ước tính)"),
+                delta=_metric(delta_s, delta_num, "So với view TB của ngách"),
                 uses=uses,
                 lifecycle=lf,
                 contrast_against=ContrastAgainst(pattern=runner_label, why_this_won=wy[:200]),

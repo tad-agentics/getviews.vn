@@ -20,6 +20,7 @@ import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
 import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews, formatVN } from "@/lib/formatters";
+import { looksLikeNonVietnameseCaption } from "@/lib/nonVietnameseFilter";
 import { TrendingSection } from "@/components/explore/TrendingSection";
 import {
   TrendingSoundsSection,
@@ -715,7 +716,13 @@ export default function ExploreScreen() {
     contentFormat: activeFormat ?? undefined,
   });
 
-  // Exact total count for the current filter combination (head-only, no rows fetched)
+  // Estimated total count for the current filter combination (head-only, no rows fetched).
+  // BUG-05 (QA audit 2026-04-22): ``count: "exact"`` forced PostgREST to run
+  // a full ``SELECT count(*)`` with the filter applied, which on a 1K+-row
+  // corpus with a textSearch filter planned a seq-scan and timed out →
+  // 503 twice per page load. The trends chip only needs a rough "N kết
+  // quả" — ``planned`` uses the planner estimate (fast, bounded memory)
+  // and is plenty accurate for UI purposes.
   const { data: corpusCount } = useQuery({
     queryKey: corpusKeys.count({
       nicheId: selectedNicheId,
@@ -726,7 +733,7 @@ export default function ExploreScreen() {
     queryFn: async () => {
       let q = supabase
         .from("video_corpus")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "planned", head: true });
       if (selectedNicheId != null) q = q.eq("niche_id", selectedNicheId);
       if (searchQuery?.trim()) q = q.textSearch("search_vector", searchQuery.trim(), { config: "simple", type: "plain" });
       if (activeViewFilter != null) q = q.gte("views", activeViewFilter);
@@ -739,7 +746,19 @@ export default function ExploreScreen() {
   });
 
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
-  const videos = useMemo(() => corpusRows.map(corpusRowToExploreVideo), [corpusRows]);
+  // BUG-14 (QA audit 2026-04-22): all corpus rows are tagged ``language='vi'``
+  // even when the caption is Han/Hangul ("沉浸式早八 淡颜韩系日常妆" showed up
+  // in the Skincare feed). Until the analyse pipeline sets ``language``
+  // correctly, drop any video whose caption is >25% CJK characters. The
+  // heuristic is conservative — borderline bilingual captions still render.
+  const videos = useMemo(() => {
+    const mapped = corpusRows.map(corpusRowToExploreVideo);
+    return mapped.filter((v) => {
+      if (looksLikeNonVietnameseCaption(v.caption)) return false;
+      if (looksLikeNonVietnameseCaption(v.text)) return false;
+      return true;
+    });
+  }, [corpusRows]);
 
   const exploreTitleBase = "Khám phá";
   const exploreTitleCount = isPending
