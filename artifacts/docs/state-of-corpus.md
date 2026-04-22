@@ -21,15 +21,20 @@ The bad news is scale and discipline:
 
 | Axis | Current state | Gap |
 |---|---|---|
-| **1. Coverage** | 1,220 videos across 21 niches. Max 128, median ~50, min 6. | Every niche is below the 500-video "exceptional" floor. Top-of-funnel is a bottleneck. Landing-page marketing copy claims "46.000+ videos" — **off by 37×.** |
-| **2. Analysis depth** | 100% of rows have hook_type + tone + scene_count. But 37% of rows bucket to `content_format = 'other'` (classifier catch-all) and only 30% have `cta_type`. The `breakout_multiplier` column is populated on **0 of 1,220 rows**. | The classifiers are coarse (regex) and one declared signal is entirely dead. Vietnamese-specific depth is shallower than the schema suggests. |
-| **3. Freshness** | Corpus is 12 days old total (oldest indexed 2026-04-10). No `updated_at` column. Views/likes/engagement stamped once at ingest and never refreshed. | Trend detection runs on stale view counts. A video that went viral post-ingest is invisible to our scoring. |
+| **1. Coverage** | 1,220 videos across 21 niches. Max 128, median ~50, min 6. **Corpus growth is 100% manual today** — no data-pipeline cron exists ([Appendix B · Gap 4](#gap-4--no-weekly-cron-for-data-quality-jobs--confirmed-worse)). | Every niche is below the 500-video "exceptional" floor. Top-of-funnel is a bottleneck. Landing-page marketing copy claims "46.000+ videos" — **off by 37×.** |
+| **2. Analysis depth** | 100% of rows have hook_type + tone + scene_count. But 37% bucket to `content_format = 'other'` (catch-all) and only 30% have `cta_type`. `breakout_multiplier`: **0 of 1,220 rows**. Downstream: **`hook_effectiveness` aggregate table has 0 rows in prod** — Pattern + Ideas reports render with empty hook findings ([Gap 1](#gap-1--hook_effectiveness-empty-in-prod--confirmed-worse)). | Classifiers are coarse, one declared signal is dead, and the aggregate table every report queries has never been populated. |
+| **3. Freshness** | Corpus is 12 days old total. Views/likes/engagement stamped once at ingest and never refreshed. No `updated_at` column. **Freshness holds only because someone runs ingest by hand** — no scheduled trigger. | Trend detection runs on stale view counts. A video that went viral post-ingest is invisible to our scoring. And the freshness we have is manual-effort-bound, not system-guaranteed. |
 | **4. Quality measurability** | **Zero golden set. Zero eval harness.** No accuracy tracking. No confidence scores stored per classification. No commit-over-commit regression testing on classifier output. | We can't answer "did this pipeline change make the data better or worse?" |
-| **5. Observability** | `batch_failures` table exists, has 0 rows, and **no code path writes to it.** No `success` column on `gemini_calls`. No cron for ingest (runs manually). No daily-health digest. | Silent failure surface is huge. We'd only notice an ingestion outage by eyeballing `video_corpus` counts. |
+| **5. Observability** | `batch_failures` table exists, has 0 rows, and **no code path writes to it.** No `success` column on `gemini_calls`. **Zero data-pipeline crons exist** — 4 cron jobs are scheduled but all are operational (expiry, credit reset, etc.), none touch the corpus. No daily-health digest. | There is no pipeline to observe. Silent failure surface isn't "big" — the whole data-pipeline surface is off-schedule. |
 
 **The meta-finding:** we've built a pipeline but we haven't built a
-**quality discipline around the pipeline**. The discipline is what a
-data company has and a SaaS app doesn't. Closing that gap is the moat.
+**quality discipline around the pipeline**. The Appendix B verification
+makes this concrete: the aggregate table every Answer report queries
+(`hook_effectiveness`) has never been written to; the insight table
+video-diagnosis references (`niche_insights`) hasn't been refreshed in
+9+ days; and no cron in the project pulls the pipeline forward. The
+discipline is what a data company has and a SaaS app doesn't. Closing
+that gap is the moat.
 
 ---
 
@@ -144,6 +149,34 @@ Every row in `video_corpus` is supposed to go through extraction
 | `cta_type` | 365/1220 | **30%** | Only 3-in-10 videos have a CTA classification |
 | `breakout_multiplier` | 0/1220 | **0%** | **Column exists, schema-reserved, never written.** Dead signal. |
 
+### The `hook_effectiveness` aggregate table is empty
+
+Separately from per-video fields, Pattern + Ideas reports query a
+niche-level aggregate table `hook_effectiveness` (computed per `niche_id
+× hook_type`). Verified via live DB:
+
+```
+SELECT COUNT(*) FROM public.hook_effectiveness
+→ 0
+```
+
+**No code path writes to it** in production. The only writer is
+`supabase/seed.sql` (dev seed, never runs in prod). Three readers exist:
+
+- `report_pattern_compute.py:411` — `load_pattern_inputs()`
+- `report_ideas_compute.py:312` — `load_ideas_inputs()`
+- `corpus_context.py:663` — claim-tier gate
+
+Empty `hook_effectiveness` → `rank_hooks_for_pattern([])` returns `[]` →
+`compute_positive_findings([])` returns `[]` → **Pattern + Ideas reports
+render with zero hook findings, not a slower fallback**. There is no
+`_derive_hook_patterns_from_corpus()` function in the codebase.
+
+This is the single biggest reason Pattern + Ideas reports feel thin —
+we own every signal needed to compute the aggregate (raw corpus has
+play_count, digg_count, collect_count, hook_type on 1,220 videos), but
+the computation never runs. See [Appendix B · Gap 1](#gap-1--hook_effectiveness-empty-in-prod--confirmed-worse).
+
 ### `content_format` distribution — the bucket quality
 
 The 15-value taxonomy is a regex classifier that falls through to
@@ -203,21 +236,29 @@ statistically usable.
 | **`cta_type` coverage ≥ 80%** | 30% today means 70% of videos have no CTA signal. Either the detector is too strict or many videos genuinely lack a CTA — we don't know because there's no ground truth. |
 | **`face_appears_at` coverage ≥ 95%** | 79% today. The 21% gap suggests silent extraction failures (Gemini rate-limit, first-frame grab failing) that should be surfaced in Axis 5. |
 | **`breakout_multiplier` populated or removed** | A reserved schema column with 0 writes is dead infra. Either compute it (views vs niche median at ingest + refresh) or drop the column. |
+| **`hook_effectiveness` table populated weekly** | Currently 0 rows → Pattern + Ideas reports have empty hook findings. Highest-leverage gap on this axis. |
 | **Per-signal confidence scores** | Every classifier output should carry a confidence. Today: none stored. This is the prerequisite for Axis 4. |
 
 ### What it takes to close
 
-1. **Reclassification pass for `content_format = 'other'`** — run
+1. **Build `hook_effectiveness_compute.py`** — batch job that groups
+   `video_corpus` by (niche_id, hook_type), computes `avg_views`,
+   `avg_engagement_rate`, `avg_save_rate`, `sample_size`, and
+   `trend_direction` (current 30d vs prior 30d), and upserts on
+   `(niche_id, hook_type)`. Wire into `/batch/analytics` as a final pass
+   so one scheduled run populates everything. **This unlocks every
+   existing Pattern + Ideas report** — no schema changes, no new UI.
+2. **Reclassification pass for `content_format = 'other'`** — run
    Gemini Flash-Lite (~$0.002/video × 456 videos = ~$0.90) against the
    "other" tail with an expanded taxonomy prompt. This was evaluated
    and deferred in `corpus_ingest.classify_format` per the module
    docstring. Revisit the decision.
-2. **Add confidence columns** — `hook_type_confidence`,
+3. **Add confidence columns** — `hook_type_confidence`,
    `content_format_confidence` as numeric(3,2). Backfill nulls, start
    writing on new ingests. Unblocks Axis 4.
-3. **Compute `breakout_multiplier` at ingest time** — views vs
+4. **Compute `breakout_multiplier` at ingest time** — views vs
    niche_median_30d. Re-compute on refresh (when Axis 3 lands).
-4. **Investigate `face_appears_at` 21% miss rate** — is it Gemini
+5. **Investigate `face_appears_at` 21% miss rate** — is it Gemini
    failing, or is the extraction code inconsistent? Add a
    `has_face_analysis` boolean to distinguish "no face" from
    "extraction failed".
@@ -263,10 +304,20 @@ FROM public.video_corpus GROUP BY content_format ORDER BY n DESC;
 Corpus is genuinely current. Not a chronological backfill of 2023
 content — this is active TikTok output.
 
-**BUT:** the `video_corpus` schema has one timestamp column:
-`indexed_at`. There is no `updated_at`, no `last_refetched_at`, no
-evidence of re-ingestion. Views, likes, comments, shares, engagement
-rate — **all frozen at ingest time.**
+**Important caveat surfaced by the verification pass:** the freshness
+we see is **manual-effort-bound, not scheduled.** `SELECT jobname FROM
+cron.job` returns 4 jobs in production, all operational (expiry, free-
+query reset, stuck-processing reset, webhook prune). **None schedule
+`corpus_ingest` or `/batch/analytics`.** Someone grew the corpus from
+0 to 1,220 videos over the last 12 days by running ingest by hand
+via `deploy.sh` or a direct Cloud Run batch invocation. If that person
+stops running it tomorrow, the corpus stops growing and ages into
+staleness within weeks. See [Appendix B · Gap 4](#gap-4--no-weekly-cron-for-data-quality-jobs--confirmed-worse).
+
+**BUT:** on top of the missing cron, the `video_corpus` schema also
+has only one timestamp column: `indexed_at`. There is no `updated_at`,
+no `last_refetched_at`, no evidence of re-ingestion. Views, likes,
+comments, shares, engagement rate — **all frozen at ingest time.**
 
 Concretely: if a video ingested on day 1 with 50K views went viral
 to 5M views by day 7, our row still says 50K. Every downstream scoring
@@ -274,7 +325,8 @@ to 5M views by day 7, our row still says 50K. Every downstream scoring
 leaderboards) runs against day-1 numbers.
 
 This is the specific mechanism by which the asset *decays* over time
-even without losing rows: stale metrics.
+even without losing rows: stale metrics, compounded by the absence of
+both a refresh path AND a reliable ingest schedule.
 
 ### Gap to exceptional
 
@@ -386,13 +438,43 @@ because we'll see immediately if accuracy moves.
 
 ### Current state
 
-**Health-signal tables exist but most are dead or non-aggregated.**
+**The data pipeline has no schedule.** Before the health-signal
+tables, this is the finding that reframes the axis. `cron.job` on the
+live DB has exactly 4 rows:
+
+| Job | Schedule | Purpose |
+|---|---|---|
+| `cron-expiry-check` | `0 2 * * *` | paid-pack expiry |
+| `cron-reset-free-queries` | `0 17 * * *` | free-tier credit refill |
+| `cron-reset-processing` | `*/5 * * * *` | stuck-state reset |
+| `cron-prune-webhooks` | `0 20 * * 0` | webhook events GC |
+
+**All operational. Zero touch the corpus.** No ingest cron, no
+`/batch/analytics`, no `/batch/layer0`, no `hook_effectiveness`
+recompute. "Observability" as originally framed assumed a pipeline
+running that we needed to watch. The verification pass changes the
+picture: **the pipeline itself doesn't run on a schedule**, and
+that's the root gap. See [Appendix B · Gap 4](#gap-4--no-weekly-cron-for-data-quality-jobs--confirmed-worse).
+
+Consequence visible elsewhere in this audit:
+
+- **`hook_effectiveness` has 0 rows** (Axis 2) — nobody ever ran the
+  compute.
+- **`niche_insights` has 11 rows, `week_of = 2026-04-13`** (9+ days
+  stale) — a one-off manual `/batch/layer0` invocation, never
+  re-run. The video-diagnosis flow reads this table and now serves
+  stale Layer-0 insights. See [Appendix B · Gap 2](#gap-2--niche_insights-disconnected-from-answer-reports--partially-correct).
+- **Corpus growth** (Axis 1) happens by hand, not by cron.
+
+### Health-signal tables (once a pipeline exists to observe)
 
 | Table | Rows | Last write | Status |
 |---|---|---|---|
-| `video_corpus` | 1,220 | 2026-04-22 11:45 | ✓ active |
+| `video_corpus` | 1,220 | 2026-04-22 11:45 | ✓ active (manual trigger) |
 | `gemini_calls` | 389 | 2026-04-22 15:00 | ✓ active (7d rolling: all 389 rows) |
 | `ensemble_calls` | 453 | 2026-04-22 03:43 | ✓ active |
+| `hook_effectiveness` | **0** | (never) | **Dead.** No writer. See Axis 2. |
+| `niche_insights` | 11 | 2026-04-13 | Stale (9+ days, one manual run) |
 | `batch_failures` | **0** | (never) | **Dead. Schema exists, 0 code paths write to it.** |
 | `processed_webhook_events` | 0 | (never) | Idle (no PayOS traffic yet) |
 
@@ -422,6 +504,7 @@ is almost certainly silent Gemini failures).
 
 | Target | Reason |
 |---|---|
+| **Data pipeline actually scheduled** | Before anything else: `/batch/analytics` (and ingest) need a `cron.schedule` row. Without a scheduled trigger there's nothing to observe. |
 | **`batch_failures` actually written to** from ingest pipeline | Today the table is dead. Every silent failure should land here with a reason code. |
 | **`gemini_calls.success` + `error_code` + `retry_count` columns** | Required to compute failure rate. |
 | **Daily health digest (email or Slack)** | One row per day: videos ingested, rejection rate, niches below SLA, Gemini cost, Gemini failure rate, outlier latencies. |
@@ -430,6 +513,11 @@ is almost certainly silent Gemini failures).
 
 ### What it takes to close
 
+0. **Schedule the data pipeline first.** One `cron.schedule(...)` call
+   pointed at `/batch/analytics` (extend the endpoint to run ingest
+   → analytics → hook_effectiveness → layer0 in sequence). Until this
+   row exists, every other item on this axis is watching an empty
+   stream.
 1. **Schema migration**: add `success`, `error_code`, `retry_count`
    to `gemini_calls` and `ensemble_calls`. Backfill `success = true`
    for existing rows (best guess).
@@ -446,35 +534,56 @@ Est. 2 days of work.
 
 ## Recommended order of operations
 
-If the goal is to build "visual intelligence data company" quality
-discipline, the five axes sequence naturally:
+The verification pass (Appendix B) changes the original sequencing.
+Before observability can be built we need *something on a schedule
+that can be observed*. And before coverage growth matters we need
+the aggregates that turn raw rows into usable signal. Revised order:
 
-1. **Axis 5 first (observability).** ~2 days. You can't fix what you
-   can't see. Dead `batch_failures` table + no Gemini success column
-   means every Axis 1–4 improvement lands in a black box. Fixing
-   observability makes every subsequent improvement measurable.
-2. **Axis 3 (freshness).** ~1-2 days. Add `last_refetched_at` column
-   + refresh cron. Small schema change, immediate user impact on
-   breakout detection accuracy.
-3. **Axis 2 (analysis depth).** Variable. The `breakout_multiplier`
-   computation lands with Axis 3 naturally. The `content_format = 'other'`
-   tail reclassification is ~0.5 day + $1 in Gemini. The `cta_type`
-   70% gap needs investigation first.
-4. **Axis 4 (quality measurability).** ~2-3 days. Most of the cost is
-   the labeling exercise. Once the harness exists, every future
-   classifier change becomes safe to ship.
-5. **Axis 1 (coverage).** Variable — depends on ingestion-speed
-   bottleneck which we haven't measured yet. Axis 5's observability
-   will expose whether it's EnsembleData rate-limit, Gemini
-   throughput, or batch-schedule frequency.
+1. **Unblock the reports with `hook_effectiveness`** (Axis 2).
+   **~1 day.** Build `hook_effectiveness_compute.py`, wire into
+   `/batch/analytics` as a final pass. Populates the aggregate every
+   Pattern + Ideas report queries — which is currently 0 rows and
+   responsible for the most visible quality gap (empty hook findings
+   on those reports). Highest leverage for least effort.
+2. **Schedule the data pipeline** (Axis 5 Step 0). **~0.5 day.**
+   One `cron.schedule` row pointing at `/batch/analytics`, extended
+   to run ingest → analytics → hook_effectiveness → layer0 in sequence.
+   Until this exists, the Gap 1 fix still depends on a human remembering
+   to run the batch. This is where "data pipeline" actually starts to
+   mean something.
+3. **Observability instrumentation** (Axis 5). **~2 days.** Schema
+   migration for `gemini_calls.success`, real writes to
+   `batch_failures`, daily health digest. Now the cron from step 2
+   has something watching it.
+4. **Freshness / refresh cron** (Axis 3). **~1-2 days.**
+   `last_refetched_at` column + weekly top-quartile refetch. Makes
+   breakout detection run on current numbers instead of ingest-time
+   numbers.
+5. **Wire `niche_insights` into Answer reports** (Appendix B · Gap 2).
+   **~0.5 day.** Add a fetcher in `report_pattern_compute` +
+   `report_ideas_compute`, inject `insight_text` + `execution_tip`
+   into the narrative prompts. Uses real schema columns, not the
+   proposal's hallucinated ones.
+6. **Depth improvements** (Axis 2 tail). Variable.
+   `content_format = 'other'` reclassification pass, `cta_type` 70%
+   investigation, `breakout_multiplier` computation, confidence
+   columns.
+7. **Quality measurability / eval harness** (Axis 4). ~2-3 days
+   including golden-set labeling (~10h Vietnamese-fluent). Now safe
+   classifier changes, commit-over-commit.
+8. **Coverage growth** (Axis 1). Variable — ingest throughput
+   bottleneck will now be measurable (cron runs are observable
+   after steps 2-3). Grow from 1,220 → target (≥20K rolling 30d).
 
 **Total estimate to reach "exceptional" on all 5:** ~2 weeks of
 focused work, excluding the golden-set labeling which is a
 separate track.
 
-**What to NOT do:** do not start any of this without first landing
-observability (Axis 5). Without the observability layer, everything
-else is blind work.
+**What to NOT do:** do not start observability instrumentation
+(step 3) before a data-pipeline cron exists (step 2). Instrumenting
+an empty stream produces no signal. The original sequence ("Axis 5
+first") was wrong because it assumed the pipeline was running —
+it isn't.
 
 ---
 
