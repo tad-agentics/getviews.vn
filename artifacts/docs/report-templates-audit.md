@@ -6,6 +6,25 @@
 
 ---
 
+## Decisions (2026-04-22, product lead)
+
+After reviewing the first draft of this doc + the 6 reference designs from Claude Chat:
+
+1. **The 6 reference designs are inspiration, not specs** — use them to shape new templates for intents that currently lack one. Do NOT rebuild the 4 existing templates to match the reference (they have production data shapes with real payload fields that the designs drop).
+2. **Dropped intents:** `series_audit` and `comparison` are removed from the supported intent set.
+3. **Dedicated screens, not Answer templates:** `video_diagnosis`, `metadata_only` → `/app/video`; `competitor_profile`, `own_channel` → `/app/channel`; `creator_search` → `/app/kol`; `shot_list` → `/app/script`. The reference designs for VideoDiagnosis and Channel can inspire UI polish on those dedicated screens but are **not** Answer-session templates.
+4. **Merge into existing template:** `content_calendar` folds into `timing` (expanded TimingPayload gets calendar slots).
+5. **New Answer templates needed:** 2 — `lifecycle` (serves `format_lifecycle_optimize` + `fatigue` + `subniche_breakdown`) and `diagnostic` (serves `own_flop_no_url`).
+
+**Final count after this work:**
+- 4 existing templates unchanged (pattern, ideas, generic) or expanded (timing gets calendar slots)
+- 2 new Answer templates (lifecycle, diagnostic)
+- = **6 Answer templates total**
+
+The 4 dedicated screens (`/app/video`, `/app/channel`, `/app/kol`, `/app/script`) remain separate surfaces — not counted in the template total.
+
+---
+
 ## The 4 templates — verified
 
 Confirmed at every layer of the stack (a genuine contract, not drift).
@@ -157,20 +176,46 @@ If you're spec'ing new templates in Claude Chat, these are the semantics of the 
 
 ---
 
-## Honest recommendation on scope
+## Finalised scope (replaces the earlier recommendation)
 
-**Keep:** the 4-template core. `pattern`, `ideas`, `timing`, `generic` cover the majority of queries and align with the UX mental model.
+Per the decisions at the top of this doc, the implementation plan is:
 
-**Add 3 new templates (high-leverage, distinct shapes):**
-1. **`lifecycle`** — consumed by `format_lifecycle_optimize` + `fatigue` (the decay axis is the same concept at different granularities).
-2. **`calendar`** — consumed by `content_calendar` (and opens the door for a scheduling feature later).
-3. **`series`** — consumed by `series_audit` (and reusable from a future "channel coach" feature).
+### New Answer templates to build
 
-**Route to existing with better narrative:**
-- `subniche_breakdown` → expand `pattern` with an optional `segments[]` section rather than a new template. The hook leaderboard still applies, segments are an enrichment.
-- `own_flop_no_url` → route to `generic` with a tighter, diagnostic-shaped prompt. It doesn't need structured data so much as a well-scoped narrative.
+| # | Template | Serves intents | Reference design | Why new (not fold into existing) |
+|---|---|---|---|---|
+| 1 | **`lifecycle`** | `format_lifecycle_optimize`, `fatigue`, `subniche_breakdown` | Claude Chat's "Report 6: FORMAT" | Decay / cluster visualisation — no time-axis in `pattern`, no grouping in any existing template. |
+| 2 | **`diagnostic`** | `own_flop_no_url` | Claude Chat's "Report 4: VIDEO DIAGNOSIS" (scoped — no URL input) | 5-part score + fix prescription shape doesn't fit any existing template; reusing `generic` would flatten it to paragraphs. |
 
-That leaves you at **4 core + 3 specialised = 7 templates**, not 19, which is manageable.
+### Expand an existing template
+
+| Template | Change | Serves intents |
+|---|---|---|
+| `timing` | Add `calendar_slots[]` (7-day post plan) below the heatmap | `timing`, `content_calendar` |
+
+### Intents dropped entirely
+
+- `series_audit` — removed from supported intent set. Update `intent-router.ts` and `GEMINI_CLASSIFIER_PRIMARY_LABELS` simultaneously.
+- `comparison` — removed. Already routed to `/app/kol`; now explicitly unsupported.
+
+### Intents on dedicated screens (not Answer templates)
+
+Reference designs can inspire UI polish on these screens but are out of scope for the Answer-templates work:
+
+| Intent | Screen |
+|---|---|
+| `video_diagnosis`, `metadata_only`, `own_flop_no_url` (partial — when URL is known) | `/app/video` |
+| `competitor_profile`, `own_channel` | `/app/channel` |
+| `creator_search` | `/app/kol` |
+| `shot_list` | `/app/script` |
+
+### Existing 4 templates — untouched in this phase
+
+`pattern`, `ideas`, `timing` (core), `generic` keep their production payload shapes. The reference designs have some nice UI details (lifecycle pills on pattern findings, per-idea metric badges) that can come in via incremental UI work, but the backend shapes stay stable so migration surface is bounded.
+
+### Final count
+
+**6 Answer templates** (4 existing + 2 new) + 4 dedicated screens = the full intent coverage.
 
 ---
 
@@ -191,8 +236,17 @@ The dispatcher at step 4 is where we got burned last week (`select_builder_for_t
 ## TL;DR for the meeting
 
 1. "4 templates" is correct and verified at 5 layers of the stack.
-2. The 4 templates support 7 of 13 answer-bound intents well.
-3. The other 6 intents (`format_lifecycle_optimize`, `fatigue`, `content_calendar`, `series_audit`, `subniche_breakdown`, `own_flop_no_url`) are currently force-fit into `pattern`, which is why follow-ups on those intents feel templated.
-4. Recommended new templates: **`lifecycle`** (format decay + fatigue), **`calendar`** (posting plan), **`series`** (per-video progression). That brings the count to 7 templates covering 12 of 13 answer-bound intents cleanly.
-5. The remaining misfit (`own_flop_no_url`) is better served by a narrative variant of `generic` than a new template.
-6. Backend / frontend intent list drift: `find_creators` vs `creator_search`, `follow_up` vs `follow_up_unclassifiable` — pick canonical names before adding new templates.
+2. After the 2026-04-22 scope call: **ship 2 new Answer templates + 1 expansion**.
+   - NEW `lifecycle` — serves `format_lifecycle_optimize` + `fatigue` + `subniche_breakdown`. PRD: [`report-template-prd-lifecycle.md`](./report-template-prd-lifecycle.md).
+   - NEW `diagnostic` — serves `own_flop_no_url` (URL-less video diagnosis). PRD: [`report-template-prd-diagnostic.md`](./report-template-prd-diagnostic.md).
+   - EXPAND `timing` — add `calendar_slots[]` to absorb `content_calendar`. PRD: [`report-template-prd-timing-calendar.md`](./report-template-prd-timing-calendar.md).
+3. **Drop** `series_audit` and `comparison` from the supported intent set.
+4. Claude Chat's 6 reference designs are inspiration. The Pattern / Ideas / Timing / Generic payload shapes stay stable so the backend contract is unchanged; new templates follow the designs only where no existing shape fits.
+5. Backend/frontend intent-list drift still needs a cleanup pass: `find_creators` vs `creator_search`, `follow_up` vs `follow_up_unclassifiable`. Handle before adding the new literals so we don't amplify it.
+
+## Recommended build order
+
+1. **Timing + calendar expansion** — smallest scope, no migration, reuses existing narrative module, good warm-up.
+2. **Intent-list drift cleanup** — canonicalise `creator_search`/`find_creators` and `follow_up_unclassifiable`/`follow_up`, drop `series_audit` + `comparison`. Frontend + backend lists align. One small PR, must land before step 3 so new literals don't inherit the drift.
+3. **Lifecycle template** — bigger scope (3 modes, new Gemini module, new frontend components). Needs the CHECK migration.
+4. **Diagnostic template** — smallest of the new templates (single intent, no mode discriminator). Stack on lifecycle migration so the CHECK constraint alters only once.
