@@ -321,7 +321,7 @@ export function appendTurnKindForQuery(
 ): "timing" | "creators" | "script" | "generic" {
   const { intentType } = detectIntent(query.trim(), priorAssistant);
   if (intentType === "timing") return "timing";
-  if (intentType === "creator_search" || intentType === "comparison") return "creators";
+  if (intentType === "creator_search") return "creators";
   if (intentType === "shot_list") return "script";
   return "generic";
 }
