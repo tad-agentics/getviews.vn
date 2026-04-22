@@ -138,6 +138,35 @@ async def batch_reingest_videos(
     })
 
 
+@router.post("/batch/refresh")
+async def batch_refresh(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Refresh ``video_corpus`` engagement stats for the top-priority rows.
+
+    Metadata-only — no Gemini re-analyze, just re-pull views/likes/etc.
+    from EnsembleData. Closes the Axis 3 freshness gap (state-of-corpus.md).
+    Protected by require_batch_caller. Intended cadence: daily.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.corpus_refresh import run_corpus_refresh
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info("POST /batch/refresh triggered")
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/refresh") as obs_summary:
+        try:
+            result = await run_corpus_refresh(client=client)
+        except Exception as exc:
+            logger.exception("Batch refresh failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 @router.post("/batch/backfill-thumbnails")
 async def batch_backfill_thumbnails(
     request: Request,

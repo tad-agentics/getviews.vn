@@ -21,6 +21,7 @@ _SECRET = "test-batch-secret-smoke"
 _BATCH_ENDPOINTS: list[tuple[str, str]] = [
     ("POST", "/batch/ingest"),
     ("POST", "/batch/reingest-videos"),
+    ("POST", "/batch/refresh"),
     ("POST", "/batch/backfill-thumbnails"),
     ("POST", "/batch/analytics"),
     ("POST", "/batch/layer0"),
