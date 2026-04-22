@@ -6,6 +6,7 @@ import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { PatternBody } from "@/components/v2/answer/pattern/PatternBody";
 import { IdeasBody } from "@/components/v2/answer/ideas/IdeasBody";
 import { TimingBody } from "@/components/v2/answer/timing/TimingBody";
+import { LifecycleBody } from "@/components/v2/answer/lifecycle/LifecycleBody";
 import { GenericBody } from "@/components/v2/answer/generic/GenericBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 
@@ -40,6 +41,12 @@ function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
       return (
         <AnswerBlock kicker="Timing">
           <TimingBody report={payload.report} />
+        </AnswerBlock>
+      );
+    case "lifecycle":
+      return (
+        <AnswerBlock kicker="Lifecycle">
+          <LifecycleBody report={payload.report} />
         </AnswerBlock>
       );
     case "generic":

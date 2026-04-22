@@ -185,6 +185,35 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
       expect(p.intent_type).toBe("follow_up_unclassifiable");
     }
   });
+
+  // Lifecycle template — routes the 3 intents previously force-fit into
+  // pattern. Migration 20260505000000 extends the DB CHECK constraint.
+  it("format_lifecycle_optimize → lifecycle format", () => {
+    const p = planAnswerEntry("30s vs 60s video nào hiệu quả hơn", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("lifecycle");
+      expect(p.intent_type).toBe("format_lifecycle_optimize");
+    }
+  });
+
+  it("fatigue → lifecycle format", () => {
+    const p = planAnswerEntry("Pattern này có đang chết dần không", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("lifecycle");
+      expect(p.intent_type).toBe("fatigue");
+    }
+  });
+
+  it("subniche_breakdown → lifecycle format", () => {
+    const p = planAnswerEntry("Ngách con nào đang nổi trong skincare", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("lifecycle");
+      expect(p.intent_type).toBe("subniche_breakdown");
+    }
+  });
 });
 
 describe("appendTurnKindForQuery", () => {

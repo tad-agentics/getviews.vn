@@ -535,16 +535,61 @@ export interface GenericReportPayload {
   related_questions: string[];
 }
 
+// ── Lifecycle template (2026-04-22) ────────────────────────────────────────
+// Serves ``format_lifecycle_optimize`` / ``fatigue`` / ``subniche_breakdown``
+// intents. ``mode`` discriminator drives the header copy + which optional
+// cell field (retention_pct vs instance_count) the body surfaces.
+
+export type LifecycleModeData = "format" | "hook_fatigue" | "subniche";
+export type LifecycleStageData = "rising" | "peak" | "plateau" | "declining";
+
+export interface LifecycleCellData {
+  name: string;
+  stage: LifecycleStageData;
+  /** Week-over-week reach delta, percent. Can be negative. */
+  reach_delta_pct: number;
+  /** 0-100 composite score (delta + lift vs niche median). */
+  health_score: number;
+  /** Format mode only — retention percent. Null in hook_fatigue / subniche. */
+  retention_pct: number | null;
+  /** Subniche mode only — creator count in this sub-niche. Null elsewhere. */
+  instance_count: number | null;
+  /** Query-aware Vietnamese insight, ≤240 chars. */
+  insight: string;
+}
+
+export interface RefreshMoveData {
+  title: string;
+  detail: string;
+  effort: "low" | "medium" | "high";
+}
+
+export interface LifecycleReportPayload {
+  confidence: ConfidenceStripData;
+  mode: LifecycleModeData;
+  /** 1-sentence subject line, ≤240 chars. */
+  subject_line: string;
+  cells: LifecycleCellData[];
+  /** Pydantic invariant: only populated when at least one cell is weak
+   * (``declining`` or ``plateau``). An empty list is always valid. */
+  refresh_moves: RefreshMoveData[];
+  actions: ActionCardPayloadData[];
+  sources: SourceRowData[];
+  related_questions: string[];
+}
+
 export type ReportV1 =
   | { kind: "pattern"; report: PatternReportPayload }
   | { kind: "ideas"; report: IdeasReportPayload }
   | { kind: "timing"; report: TimingReportPayload }
+  | { kind: "lifecycle"; report: LifecycleReportPayload }
   | { kind: "generic"; report: GenericReportPayload };
 
 /** §J names — same shapes as `*ReportPayload` (plan uses `PatternPayload`, …). */
 export type PatternPayload = PatternReportPayload;
 export type IdeasPayload = IdeasReportPayload;
 export type TimingPayload = TimingReportPayload;
+export type LifecyclePayload = LifecycleReportPayload;
 export type GenericPayload = GenericReportPayload;
 
 export interface AnswerSessionRow {
@@ -553,7 +598,7 @@ export interface AnswerSessionRow {
   title: string | null;
   initial_q: string;
   intent_type: string;
-  format: "pattern" | "ideas" | "timing" | "generic";
+  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle";
   niche_id: number | null;
   created_at?: string;
   updated_at?: string;

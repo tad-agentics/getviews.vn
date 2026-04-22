@@ -14,7 +14,11 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from getviews_pipeline.answer_session import append_turn, select_builder_for_turn
+from getviews_pipeline.answer_session import (
+    append_turn,
+    lifecycle_mode_for_intent,
+    select_builder_for_turn,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -27,6 +31,9 @@ def test_primary_turn_uses_session_format() -> None:
     assert select_builder_for_turn("ideas", "primary") == "ideas"
     assert select_builder_for_turn("timing", "primary") == "timing"
     assert select_builder_for_turn("generic", "primary") == "generic"
+    # Lifecycle template (2026-04-22) — primary turns on lifecycle
+    # sessions must dispatch to the lifecycle builder.
+    assert select_builder_for_turn("lifecycle", "primary") == "lifecycle"
 
 
 def test_primary_turn_clamps_unknown_session_format_to_pattern() -> None:
@@ -62,8 +69,17 @@ def test_unknown_kind_falls_back_to_generic() -> None:
 # -----------------------------------------------------------------------------
 
 
-def _mock_supabase_for_turn(session_fmt: str, *, intent_type: str = "trend_spike") -> MagicMock:
-    """Stitch a Supabase mock that answers ``append_turn``'s reads / inserts."""
+def _mock_supabase_for_turn(
+    session_fmt: str,
+    *,
+    intent_type: str = "trend_spike",
+) -> MagicMock:
+    """Stitch a Supabase mock that answers ``append_turn``'s reads / inserts.
+
+    ``intent_type`` matters for the lifecycle builder (it maps to the
+    ``LifecyclePayload.mode`` discriminator); default is ``trend_spike``
+    so existing Pattern/Ideas/Timing tests stay unchanged.
+    """
     sb = MagicMock()
 
     session_row = {
@@ -244,6 +260,11 @@ def test_primary_turn_still_uses_session_format(
     assert out["payload"]["kind"] == "pattern"
 
 
+# -----------------------------------------------------------------------------
+# content_calendar absorption — 2026-04-22 (PR #91 timing calendar)
+# -----------------------------------------------------------------------------
+
+
 @patch("getviews_pipeline.supabase_client.user_supabase")
 @patch("getviews_pipeline.answer_session.get_service_client")
 @patch("getviews_pipeline.answer_session.build_pattern_report")
@@ -315,3 +336,121 @@ def test_timing_intent_does_not_force_calendar_mode(
     mock_timing.assert_called_once()
     _, kwargs = mock_timing.call_args
     assert kwargs.get("mode") is None
+
+
+# -----------------------------------------------------------------------------
+# Lifecycle template — 2026-04-22 (commit 3b)
+# -----------------------------------------------------------------------------
+
+
+def test_lifecycle_mode_for_intent_maps_three_intents() -> None:
+    assert lifecycle_mode_for_intent("format_lifecycle_optimize") == "format"
+    assert lifecycle_mode_for_intent("fatigue") == "hook_fatigue"
+    assert lifecycle_mode_for_intent("subniche_breakdown") == "subniche"
+
+
+def test_lifecycle_mode_for_intent_defaults_to_format() -> None:
+    # Missing / unknown intent types fall back to the safest mode so a
+    # lifecycle session never fails to build.
+    assert lifecycle_mode_for_intent(None) == "format"
+    assert lifecycle_mode_for_intent("") == "format"
+    assert lifecycle_mode_for_intent("trend_spike") == "format"
+
+
+@patch("getviews_pipeline.supabase_client.user_supabase")
+@patch("getviews_pipeline.answer_session.get_service_client")
+@patch("getviews_pipeline.answer_session.build_pattern_report")
+@patch("getviews_pipeline.answer_session.build_ideas_report")
+@patch("getviews_pipeline.answer_session.build_timing_report")
+@patch("getviews_pipeline.answer_session.build_generic_report")
+@patch("getviews_pipeline.answer_session.build_lifecycle_report")
+def test_lifecycle_primary_turn_dispatches_to_lifecycle_builder(
+    mock_lifecycle: MagicMock,
+    mock_generic: MagicMock,
+    mock_timing: MagicMock,
+    mock_ideas: MagicMock,
+    mock_pattern: MagicMock,
+    mock_get_svc: MagicMock,
+    _mock_user_sb: MagicMock,
+) -> None:
+    """Lifecycle session + primary turn → build_lifecycle_report runs.
+
+    Previously ``format_lifecycle_optimize`` / ``fatigue`` / ``subniche_
+    breakdown`` were routed through ``answer:pattern`` and rendered a
+    hook leaderboard — not the stage pill / reach delta / health score
+    shape users actually need. Pin the new dispatch behaviour here.
+    """
+    from getviews_pipeline.report_lifecycle import build_fixture_lifecycle_report
+
+    mock_get_svc.return_value = _mock_supabase_for_turn(
+        "lifecycle", intent_type="format_lifecycle_optimize"
+    )
+    mock_lifecycle.return_value = build_fixture_lifecycle_report("format")
+
+    out = append_turn(
+        "u1",
+        access_token="fake-jwt",
+        session_id="sess-1",
+        query="30s vs 60s format nào tốt hơn",
+        kind="primary",
+    )
+    mock_lifecycle.assert_called_once()
+    # Mode keyword must be the format mapped from intent_type.
+    call_args = mock_lifecycle.call_args
+    # build_lifecycle_report(niche_pk, query, mode, window_days=...)
+    assert call_args.args[2] == "format"
+    mock_pattern.assert_not_called()
+    mock_timing.assert_not_called()
+    mock_ideas.assert_not_called()
+    mock_generic.assert_not_called()
+    assert out["payload"]["kind"] == "lifecycle"
+
+
+@patch("getviews_pipeline.supabase_client.user_supabase")
+@patch("getviews_pipeline.answer_session.get_service_client")
+@patch("getviews_pipeline.answer_session.build_lifecycle_report")
+def test_lifecycle_fatigue_intent_sets_hook_fatigue_mode(
+    mock_lifecycle: MagicMock,
+    mock_get_svc: MagicMock,
+    _mock_user_sb: MagicMock,
+) -> None:
+    from getviews_pipeline.report_lifecycle import build_fixture_lifecycle_report
+
+    mock_get_svc.return_value = _mock_supabase_for_turn(
+        "lifecycle", intent_type="fatigue"
+    )
+    mock_lifecycle.return_value = build_fixture_lifecycle_report("hook_fatigue")
+
+    append_turn(
+        "u1",
+        access_token="fake-jwt",
+        session_id="sess-1",
+        query="hook này còn hiệu quả không",
+        kind="primary",
+    )
+    assert mock_lifecycle.call_args.args[2] == "hook_fatigue"
+
+
+@patch("getviews_pipeline.supabase_client.user_supabase")
+@patch("getviews_pipeline.answer_session.get_service_client")
+@patch("getviews_pipeline.answer_session.build_lifecycle_report")
+def test_lifecycle_subniche_intent_sets_subniche_mode(
+    mock_lifecycle: MagicMock,
+    mock_get_svc: MagicMock,
+    _mock_user_sb: MagicMock,
+) -> None:
+    from getviews_pipeline.report_lifecycle import build_fixture_lifecycle_report
+
+    mock_get_svc.return_value = _mock_supabase_for_turn(
+        "lifecycle", intent_type="subniche_breakdown"
+    )
+    mock_lifecycle.return_value = build_fixture_lifecycle_report("subniche")
+
+    append_turn(
+        "u1",
+        access_token="fake-jwt",
+        session_id="sess-1",
+        query="ngách con nào đang nổi",
+        kind="primary",
+    )
+    assert mock_lifecycle.call_args.args[2] == "subniche"

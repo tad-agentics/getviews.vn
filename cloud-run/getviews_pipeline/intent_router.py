@@ -12,6 +12,9 @@ from typing import Literal
 from getviews_pipeline.intents import QueryIntent
 
 # String form matches TypeScript `Destination` post-C.7 (no "chat").
+# ``answer:lifecycle`` added 2026-04-22 for the Lifecycle template (serves
+# ``format_lifecycle_optimize``, ``fatigue``, ``subniche_breakdown`` —
+# previously force-fit into the Pattern template).
 Destination = Literal[
     "video",
     "channel",
@@ -20,6 +23,7 @@ Destination = Literal[
     "answer:pattern",
     "answer:ideas",
     "answer:timing",
+    "answer:lifecycle",
     "answer:generic",
 ]
 
@@ -40,9 +44,12 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     # §A.2 — /answer report formats
     QueryIntent.TREND_SPIKE.value: "answer:pattern",
     QueryIntent.CONTENT_DIRECTIONS.value: "answer:pattern",
-    QueryIntent.SUBNICHE_BREAKDOWN.value: "answer:pattern",
-    QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE.value: "answer:pattern",
-    QueryIntent.FATIGUE.value: "answer:pattern",
+    # Lifecycle template (2026-04-22): three intents that were previously
+    # rendered as Pattern reports but really need the stage pill + reach
+    # delta + health score shape.
+    QueryIntent.SUBNICHE_BREAKDOWN.value: "answer:lifecycle",
+    QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE.value: "answer:lifecycle",
+    QueryIntent.FATIGUE.value: "answer:lifecycle",
     QueryIntent.BRIEF_GENERATION.value: "answer:ideas",
     QueryIntent.HOOK_VARIANTS.value: "answer:ideas",
     QueryIntent.TIMING.value: "answer:timing",
@@ -90,11 +97,11 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     "find_creators": "kol",  # legacy alias
     "metadata_only": "video",
     "timing": "answer:timing",
-    "fatigue": "answer:pattern",
+    "fatigue": "answer:lifecycle",
     "hook_variants": "answer:ideas",
     "content_calendar": "answer:timing",
-    "subniche_breakdown": "answer:pattern",
-    "format_lifecycle_optimize": "answer:pattern",
+    "subniche_breakdown": "answer:lifecycle",
+    "format_lifecycle_optimize": "answer:lifecycle",
     # ``comparison`` kept only so legacy session preview rounds still
     # route somewhere sensible; the classifier no longer emits it.
     "comparison": "kol",
