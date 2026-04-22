@@ -108,6 +108,14 @@ Do **not** use React Router v7 `clientLoader` for data. TanStack Query is the si
 - `src/components/ui/` **is** the component library (Radix-based, copied from Figma Make). Do not add shadcn/ui, HeroUI, etc. — extend what's there.
 - Tokens live in `src/app.css` using Tailwind v4 `@theme inline` syntax with CSS custom properties. Never hardcode hex, px, or raw font sizes — use semantic classes (`bg-primary`, `text-foreground`, `border-default`). `style={{}}` only for genuinely dynamic values.
 - Mobile-first: baseline 360–393px, touch targets ≥44×44px, input font ≥16px (prevents iOS zoom). JetBrains Mono for all numerical data (credits, multipliers, corpus sizes). ✕/✓ for diagnosis pass/fail — not emoji.
+- **Responsive breakpoint hierarchy** (mix of Tailwind defaults + `min-[NNNpx]` arbitrary breakpoints):
+  - **360–393px** — mobile baseline. Single column, ≥44px touch targets, ≥16px inputs, `safe-area-inset` for notch.
+  - **`sm:` (640px)** — Tailwind default. Used by landing-page grids that step from 3→4 cols.
+  - **`min-[700px]:`, `min-[820px]:`** — Answer-session bodies (Pattern/Lifecycle cell grids, Timing heatmap) use these for "comfortable two-column".
+  - **`md:` (768px)** — Tailwind default. Landing-page step from 4→5 cols.
+  - **`min-[900px]:`, `min-[1100px]:`** — Studio Home → wider sidebars + multi-pane layouts.
+  - **`lg:` (1024px)** — desktop sidebar appears (mobile sidebar drawer hides), bottom-tab-bar hides.
+  Stay inside this hierarchy for new screens; don't introduce one-off breakpoints unless the design genuinely needs them.
 - Copy rules live in `.cursor/rules/copy-rules.mdc` — forbidden openers (`Chào bạn`, `Tuyệt vời`, `Wow`…) and forbidden words (`bí mật`, `công thức vàng`, `triệu view`, `bùng nổ`…) are enforced. Follow the "state the data → name the finding → give the specific fix" formula.
 
 ## Env vars
