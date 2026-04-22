@@ -794,7 +794,7 @@ INTENT_SYNTHESIS_FRAMING: dict[str, str] = {
         "  - Bản variant 15s / 30s / 60s.\n"
         "Lý do: mỗi mục trên đều là 1 câu chat follow-up riêng — người dùng sẽ nhấn khi cần."
     ),
-    "find_creators": (
+    "creator_search": (
         "MỤC TIÊU: Tìm KOC/creator phù hợp để quay UGC — từ các bài đăng tham chiếu trong JSON, gợi ý tài khoản và lý do phù hợp với sản phẩm/thương hiệu của người dùng.\n"
         "QUAN TRỌNG: Niche trong payload là niche đã được suy ra từ câu hỏi của người dùng — dùng niche đó để đánh giá mức độ phù hợp của từng KOC với sản phẩm.\n"
         "CẤU TRÚC: Liệt kê 3-5 tài khoản, mỗi tài khoản: **@handle** — followers ước tính, ER, hook style, và đánh giá fit với sản phẩm trong niche (1-2 câu). "
