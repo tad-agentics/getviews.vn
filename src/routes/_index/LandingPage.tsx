@@ -523,7 +523,7 @@ function InfraGrid() {
             style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}
           >
             Câu trả lời dựa trên{" "}
-            <span className="gradient-text">data thực, không đoán mò</span>
+            <span className="text-[color:var(--gv-accent)]">data thực, không đoán mò</span>
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] max-w-xl mx-auto">
             GetViews không phải ChatGPT biết về TikTok. Đây là hệ thống thu thập và phân tích video TikTok Việt Nam liên tục — mỗi câu trả lời đều có nguồn gốc.
