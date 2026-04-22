@@ -321,7 +321,7 @@ export default function LoginRoute() {
                         placeholder="Email"
                         value={email}
                         onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
-                        className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all duration-[120ms]"
+                        className="w-full pl-9 pr-4 py-3 rounded-xl text-base outline-none transition-all duration-[120ms]"
                         style={{
                           background: "var(--surface-alt)",
                           border: "1px solid var(--border)",
@@ -344,7 +344,7 @@ export default function LoginRoute() {
                         placeholder="Mật khẩu"
                         value={password}
                         onChange={(e) => { setPassword(e.target.value); setEmailError(""); }}
-                        className="w-full pl-9 pr-10 py-3 rounded-xl text-sm outline-none transition-all duration-[120ms]"
+                        className="w-full pl-9 pr-10 py-3 rounded-xl text-base outline-none transition-all duration-[120ms]"
                         style={{
                           background: "var(--surface-alt)",
                           border: "1px solid var(--border)",
