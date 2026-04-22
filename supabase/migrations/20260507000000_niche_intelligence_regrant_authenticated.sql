@@ -1,0 +1,32 @@
+-- 2026-05-07 — restore frontend SELECT access to niche_intelligence.
+--
+-- Background: migration ``20260504000001_phase1_rls_critical.sql`` revoked
+-- SELECT on this MV from ``anon`` and ``authenticated`` with the justification
+-- "queried exclusively by report_pattern_compute.py via service client. No
+-- frontend reads." That justification was incorrect — three frontend paths
+-- hit this view with the user JWT, producing a flood of HTTP 403s in the
+-- console on every app page load:
+--
+--   - src/hooks/useTopNiches.ts          (sidebar "Ngách của bạn" in every /app/*)
+--   - src/hooks/useNicheIntelligence.ts  (Explore screen niche detail)
+--   - src/routes/_app/trends/ExploreScreen.tsx
+--
+-- Earlier migrations (20260409000005, 20260411000020, 20260411000028) all
+-- granted SELECT to ``authenticated`` — the 2026-05-04 hardening reversed
+-- that without auditing frontend callers.
+--
+-- The MV holds only aggregate corpus data (per-niche sample size,
+-- hook/format/tone distributions, avg face-appears-at, avg transitions
+-- per second, avg/median/min/max duration, engagement rate, etc.) — no
+-- PII, no user-scoped rows. Re-granting to ``authenticated`` matches the
+-- original intent. ``anon`` stays revoked because the sidebar is
+-- auth-gated via ``src/routes/_app/layout.tsx`` (the app shell never
+-- renders for signed-out visitors), so there is no legitimate anon read
+-- path.
+--
+-- Future security work (if the aggregate fields are ever considered
+-- sensitive): introduce a SECURITY DEFINER RPC that returns just
+-- ``(niche_id, sample_size)`` for the sidebar and revoke direct SELECT.
+-- Don't re-revoke without first migrating the three frontend callers.
+
+GRANT SELECT ON public.niche_intelligence TO authenticated;
