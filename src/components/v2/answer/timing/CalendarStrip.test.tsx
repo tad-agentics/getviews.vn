@@ -7,7 +7,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { CalendarSlotData } from "@/lib/api-types";
+import type { CalendarSlotData, CalendarSlotKindData } from "@/lib/api-types";
 
 import { CalendarStrip } from "./CalendarStrip";
 
@@ -48,7 +48,7 @@ describe("CalendarStrip", () => {
     expect(empties.length).toBe(6);
   });
 
-  it.each<[CalendarSlotData["kind"], string]>([
+  it.each<[CalendarSlotKindData, string]>([
     ["pattern", "Pattern"],
     ["ideas", "Ý tưởng"],
     ["timing", "Thời điểm"],
