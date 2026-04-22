@@ -45,6 +45,7 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/batch/ingest"),
     ("POST", "/batch/reingest-videos"),
     ("POST", "/batch/refresh"),
+    ("POST", "/batch/reclassify-format"),
     ("POST", "/batch/backfill-thumbnails"),
     ("POST", "/batch/analytics"),
     ("POST", "/batch/layer0"),
