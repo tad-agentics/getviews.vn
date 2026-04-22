@@ -582,6 +582,14 @@ def _response_text(response: Any) -> str:
 
 
 # Phase C.0.1 — keep in sync with ``query_intent_to_gemini_primary`` in intents.py
+# 2026-04-22 intent-list cleanup (see ``artifacts/docs/report-templates-audit.md``):
+#   - Dropped ``series_audit`` and ``comparison`` (intent-level) — no template,
+#     not in the frontend FixedIntentId union any more.
+#   - Dropped ``find_creators`` as a classifier label — the canonical name is
+#     ``creator_search``. Legacy ``find_creators`` output from older Gemini
+#     runs is still normalised to ``creator_search`` in
+#     ``routers/intent.py``; this list drives the prompt the model sees
+#     today.
 GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (
     "video_diagnosis",
     "content_directions",
@@ -590,8 +598,7 @@ GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (
     "shot_list",
     "competitor_profile",
     "own_channel",
-    "series_audit",
-    "find_creators",
+    "creator_search",
     "metadata_only",
     "timing",
     "fatigue",
@@ -599,7 +606,6 @@ GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (
     "content_calendar",
     "subniche_breakdown",
     "format_lifecycle_optimize",
-    "comparison",
     "own_flop_no_url",
     "follow_up",
 )
@@ -617,8 +623,7 @@ Classify the user message into ONE primary intent from this fixed list:
 - shot_list            — user wants a shot-by-shot filming plan
 - competitor_profile   — user wants analysis of another creator's account (@handle or profile URL)
 - own_channel          — user wants analysis of their OWN channel
-- series_audit         — user shares multiple URLs (a series) to compare performance
-- find_creators        — user wants to find/discover TikTok creators in a niche
+- creator_search       — user wants to find/discover TikTok creators in a niche (formerly ``find_creators``)
 - metadata_only        — user only wants stats/metrics on a video or profile, not creative diagnosis
 - timing               — best time/day to post, posting window, schedule
 - fatigue              — declining format, pattern dying, trend exhaustion
@@ -626,7 +631,6 @@ Classify the user message into ONE primary intent from this fixed list:
 - content_calendar     — what to post this week, content calendar
 - subniche_breakdown   — sub-niche breakdown within a niche
 - format_lifecycle_optimize — carousel vs video, short vs long format tradeoffs
-- comparison           — compare two creators or two approaches
 - own_flop_no_url      — user's own videos/channel underperforming but no URL given
 - follow_up            — general question, follow-up to previous response, or unclear
 

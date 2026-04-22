@@ -27,14 +27,19 @@ def test_classify_video_diagnosis() -> None:
     assert i == QueryIntent.VIDEO_DIAGNOSIS
 
 
-def test_classify_series_audit_multi_url() -> None:
+def test_classify_multi_url_no_longer_series_audit() -> None:
+    """``series_audit`` was dropped 2026-04-22 — multi-URL queries now
+    classify on their first URL (video_diagnosis flow in the frontend
+    router; backend classify_intent falls back to follow-up shape)."""
     urls = [
         "https://www.tiktok.com/@a/video/1",
         "https://www.tiktok.com/@a/video/2",
     ]
     msg = " ".join(urls) + " what am I doing wrong"
     i = classify_intent(msg, urls, [], False)
-    assert i == QueryIntent.SERIES_AUDIT
+    assert i != QueryIntent.COMPETITOR_PROFILE  # no @handle, not channel-scoped
+    # Must not crash AttributeError on the retired SERIES_AUDIT member.
+    assert not hasattr(QueryIntent, "SERIES_AUDIT")
 
 
 def test_classify_own_flop_no_url() -> None:
@@ -195,10 +200,14 @@ def test_reset_session_clears_context() -> None:
 # ── New intent enum members (added post-foundation) ───────────────────────────
 
 
-def test_query_intent_enum_has_shot_list_and_find_creators() -> None:
-    """SHOT_LIST, FIND_CREATORS, and OWN_CHANNEL must be in the enum with correct values."""
+def test_query_intent_enum_has_shot_list_and_creator_search() -> None:
+    """SHOT_LIST, CREATOR_SEARCH (canonical), and OWN_CHANNEL must be in
+    the enum with correct values. ``FIND_CREATORS`` is kept as a
+    deprecated alias for backward-compat with historical session rows
+    (2026-04-22 cleanup)."""
     assert QueryIntent.SHOT_LIST == "shot_list"
-    assert QueryIntent.FIND_CREATORS == "find_creators"
+    assert QueryIntent.CREATOR_SEARCH == "creator_search"
+    assert QueryIntent.FIND_CREATORS == "find_creators"  # deprecated alias
     assert QueryIntent.OWN_CHANNEL == "own_channel"
 
 
@@ -234,7 +243,8 @@ def test_collapse_order_shot_list_before_find_creators() -> None:
     """SHOT_LIST must appear before FIND_CREATORS in the collapse ordering.
 
     The order list drives pipeline execution priority; shot_list production
-    work should run before creator search.
+    work should run before creator search. ``SERIES_AUDIT`` is intentionally
+    absent from this fixture (dropped 2026-04-22).
     """
     order = [
         QueryIntent.TREND_SPIKE,
@@ -242,7 +252,6 @@ def test_collapse_order_shot_list_before_find_creators() -> None:
         QueryIntent.VIDEO_DIAGNOSIS,
         QueryIntent.COMPETITOR_PROFILE,
         QueryIntent.OWN_CHANNEL,
-        QueryIntent.SERIES_AUDIT,
         QueryIntent.BRIEF_GENERATION,
         QueryIntent.SHOT_LIST,
         QueryIntent.FIND_CREATORS,

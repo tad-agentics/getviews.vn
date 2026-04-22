@@ -124,13 +124,15 @@ describe("detectIntent — non-handle branches still work", () => {
   });
 });
 
-describe("detectIntent — series_audit + own_flop_no_url (C.0)", () => {
-  it("two TikTok URLs → series_audit", () => {
+describe("detectIntent — own_flop_no_url (C.0)", () => {
+  // ``series_audit`` dropped 2026-04-22 — multi-URL queries now
+  // classify on their first URL (video_diagnosis).
+  it("multiple TikTok URLs now classify via the first URL (video_diagnosis)", () => {
     const r = detectIntent(
       "https://www.tiktok.com/@a/video/1 https://www.tiktok.com/@b/video/2 so sánh",
       false,
     );
-    expect(r.intentType).toBe("series_audit");
+    expect(r.intentType).toBe("video_diagnosis");
   });
 
   it("own channel flop without URL → own_flop_no_url", () => {
@@ -140,18 +142,6 @@ describe("detectIntent — series_audit + own_flop_no_url (C.0)", () => {
 });
 
 describe("planAnswerEntry — /answer session vs redirect", () => {
-  it("two TikTok URLs → series_audit pattern session", () => {
-    const p = planAnswerEntry(
-      "https://www.tiktok.com/@a/video/1 https://www.tiktok.com/@b/video/2 so sánh",
-      false,
-    );
-    expect(p.kind).toBe("session");
-    if (p.kind === "session") {
-      expect(p.format).toBe("pattern");
-      expect(p.intent_type).toBe("series_audit");
-    }
-  });
-
   it("timing query → session format timing + intent timing", () => {
     const p = planAnswerEntry("Nên đăng TikTok giờ nào trong tuần?", false);
     expect(p.kind).toBe("session");
