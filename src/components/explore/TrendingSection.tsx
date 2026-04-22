@@ -24,7 +24,12 @@ function signalBarColor(signal: string): string {
 
 function metaToExploreVideo(meta: VideoMeta): ExploreGridVideo {
   return {
+    // TrendingSection already keyed by aweme_id, so `id` and `video_id` are
+    // the same value here. ExploreScreen's grid sources from ``video_corpus``
+    // where the two diverge (row UUID vs aweme_id) — keeping the fields
+    // distinct lets both code paths share ExploreGridVideo.
     id: meta.video_id,
+    video_id: meta.video_id,
     views: meta.views ? formatViews(meta.views) : "—",
     time: meta.indexed_at ? formatDate(meta.indexed_at) : "—",
     img: meta.thumbnail_url ?? PLACEHOLDER_THUMB,

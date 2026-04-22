@@ -32,6 +32,8 @@ const PLACEHOLDER_THUMB = "/placeholder.svg";
 
 type CorpusRow = {
   id: string;
+  /** TikTok ``aweme_id`` — the value ``/app/video`` expects at ``?video_id=``. */
+  video_id: string;
   tiktok_url: string | null;
   video_url: string | null;
   thumbnail_url: string | null;
@@ -129,6 +131,7 @@ function corpusRowToExploreVideo(row: CorpusRow): ExploreGridVideo {
   const isViral = v >= 500_000 || (br != null && br >= 2.5);
   return {
     id: row.id,
+    video_id: row.video_id,
     views: v === 0 ? "—" : formatViews(v),
     time: row.indexed_at ? formatDate(row.indexed_at) : "—",
     img: row.thumbnail_url || PLACEHOLDER_THUMB,
@@ -1066,7 +1069,7 @@ export default function ExploreScreen() {
                       video={video}
                       nicheLabel={selectedNicheName}
                       onNavigate={() =>
-                        navigate(`/app/video?video_id=${encodeURIComponent(video.id)}`)
+                        navigate(`/app/video?video_id=${encodeURIComponent(video.video_id)}`)
                       }
                     />
                   </motion.div>
@@ -1082,7 +1085,7 @@ export default function ExploreScreen() {
                     video={video}
                     nicheLabel={selectedNicheName}
                     onNavigate={() =>
-                      navigate(`/app/video?video_id=${encodeURIComponent(video.id)}`)
+                      navigate(`/app/video?video_id=${encodeURIComponent(video.video_id)}`)
                     }
                   />
                 ))}

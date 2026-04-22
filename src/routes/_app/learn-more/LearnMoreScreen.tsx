@@ -9,29 +9,20 @@ interface LearnMoreItem {
   url: string;
 }
 
+// Links below point either at real third-party pages (TikTok resources) or
+// at ``mailto:support@getviews.vn``. The earlier iteration shipped with
+// ``https://getviews.vn/{about,docs,changelog,terms,privacy,refund}`` links,
+// but routes.ts only declares ``/``, ``/login``, ``/signup``, ``/auth/callback``
+// and ``/app/*`` — those marketing/legal URLs 404. Until the real pages
+// exist, legal queries route to the support inbox referenced in the spec
+// (``artifacts/docs/screen-specs-getviews-vn-v1.md:859``).
+const SUPPORT_EMAIL = "support@getviews.vn";
+
+function supportMailto(subject: string): string {
+  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
+}
+
 const sections: { heading: string; items: LearnMoreItem[] }[] = [
-  {
-    heading: "GetViews.vn",
-    items: [
-      {
-        title: "Về GetViews.vn",
-        summary:
-          "Tìm hiểu GetViews là gì, ai xây dựng, tại sao được tạo ra, và vision dài hạn cho creator Việt Nam.",
-        url: "https://getviews.vn/about",
-      },
-      {
-        title: "Hướng dẫn sử dụng",
-        summary:
-          "Cách dán link TikTok, đọc báo cáo chẩn đoán, lướt xu hướng và tận dụng tối đa phân tích của bạn.",
-        url: "https://getviews.vn/docs",
-      },
-      {
-        title: "Changelog",
-        summary: "Lịch sử cập nhật tính năng, cải tiến và sửa lỗi theo từng phiên bản.",
-        url: "https://getviews.vn/changelog",
-      },
-    ],
-  },
   {
     heading: "Tài nguyên từ TikTok",
     items: [
@@ -50,22 +41,27 @@ const sections: { heading: string; items: LearnMoreItem[] }[] = [
     ],
   },
   {
-    heading: "Pháp lý",
+    heading: "Pháp lý · Hỗ trợ",
     items: [
       {
         title: "Điều khoản dịch vụ",
-        summary: "Quy định sử dụng nền tảng, quyền và nghĩa vụ của người dùng và GetViews.vn.",
-        url: "https://getviews.vn/terms",
+        summary: `Gửi email cho ${SUPPORT_EMAIL} để nhận bản điều khoản hiện hành.`,
+        url: supportMailto("Hỏi về điều khoản dịch vụ"),
       },
       {
         title: "Chính sách bảo mật",
-        summary: "Cách GetViews thu thập, lưu trữ và bảo vệ dữ liệu cá nhân của bạn.",
-        url: "https://getviews.vn/privacy",
+        summary: `Gửi email cho ${SUPPORT_EMAIL} để biết cách GetViews xử lý dữ liệu cá nhân.`,
+        url: supportMailto("Hỏi về chính sách bảo mật"),
       },
       {
         title: "Chính sách hoàn tiền",
-        summary: "Điều kiện hoàn tiền, thời hạn xử lý và quy trình yêu cầu hoàn tiền.",
-        url: "https://getviews.vn/refund",
+        summary: `Gửi email cho ${SUPPORT_EMAIL} kèm mã giao dịch PayOS để yêu cầu hoàn tiền.`,
+        url: supportMailto("Yêu cầu hoàn tiền"),
+      },
+      {
+        title: "Liên hệ hỗ trợ chung",
+        summary: `Gửi bất kỳ câu hỏi nào về GetViews tới ${SUPPORT_EMAIL}.`,
+        url: supportMailto("Hỗ trợ GetViews.vn"),
       },
     ],
   },
