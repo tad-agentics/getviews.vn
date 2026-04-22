@@ -1,4 +1,4 @@
-"""Environment, constants, and CDN headers for the MCP server."""
+"""Environment variables, constants, and CDN headers for the GetViews pipeline."""
 
 from __future__ import annotations
 

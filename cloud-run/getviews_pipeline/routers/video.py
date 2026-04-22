@@ -1,0 +1,176 @@
+"""Video niche-benchmark, video analyze, KOL browse/pin, and channel analyze routes."""
+
+from __future__ import annotations
+
+import logging
+import time
+from typing import Any, Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from getviews_pipeline.deps import _resolve_caller_niche_id, require_user
+from getviews_pipeline.runtime import run_sync
+from getviews_pipeline.supabase_client import user_supabase
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+_NICHE_BENCH_CACHE: dict[tuple[int, int], tuple[float, dict[str, Any]]] = {}
+_NICHE_BENCH_TTL_SEC = 3600.0
+
+
+def _niche_bench_cache_key(niche_id: int, duration_sec: float) -> tuple[int, int]:
+    return niche_id, int(round(duration_sec))
+
+
+class VideoAnalyzeRequest(BaseModel):
+    video_id: str | None = None
+    tiktok_url: str | None = None
+    force_refresh: bool = False
+    mode: Literal["win", "flop"] | None = None
+
+
+class KolTogglePinRequest(BaseModel):
+    handle: str = Field(..., min_length=1, max_length=200)
+
+
+@router.get("/video/niche-benchmark")
+async def video_niche_benchmark(
+    user: dict = Depends(require_user),
+    niche_id: int = Query(..., ge=1, description="niche_taxonomy.id"),
+    duration_sec: float = Query(58.0, ge=5.0, le=600.0, description="Video duration for benchmark curve shape (seconds)."),
+) -> JSONResponse:
+    """Niche aggregates + modeled benchmark retention curve for /video Flop UI."""
+    now = time.monotonic()
+    ck = _niche_bench_cache_key(niche_id, duration_sec)
+    cached = _NICHE_BENCH_CACHE.get(ck)
+    if cached and now - cached[0] < _NICHE_BENCH_TTL_SEC:
+        return JSONResponse(cached[1])
+
+    from getviews_pipeline.video_niche_benchmark import build_niche_benchmark_payload, fetch_niche_intelligence_sync
+
+    sb = user_supabase(user["access_token"])
+    try:
+        row = await run_sync(fetch_niche_intelligence_sync, sb, niche_id)
+    except Exception as exc:
+        logger.exception("[video/niche-benchmark] niche=%s failed: %s", niche_id, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    payload = build_niche_benchmark_payload(row, niche_id=niche_id, duration_sec=duration_sec, user_sb=sb)
+    _NICHE_BENCH_CACHE[ck] = (now, payload)
+    return JSONResponse(payload)
+
+
+@router.post("/video/analyze")
+async def video_analyze_endpoint(
+    body: VideoAnalyzeRequest,
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """Phase B · B.1.3 — structural slots + Gemini copy, cached in ``video_diagnostics``."""
+    from getviews_pipeline.supabase_client import get_service_client
+    from getviews_pipeline.video_analyze import run_video_analyze_pipeline
+
+    vid = (body.video_id or "").strip() if body.video_id else ""
+    url = (body.tiktok_url or "").strip() if body.tiktok_url else ""
+    if not vid and not url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cần video_id hoặc tiktok_url")
+
+    sb_user = user_supabase(user["access_token"])
+    try:
+        out = await run_sync(run_video_analyze_pipeline, get_service_client(), sb_user, video_id=vid or None, tiktok_url=url or None, force_refresh=body.force_refresh, mode=body.mode)
+    except ValueError as exc:
+        msg = str(exc)
+        if msg == "video not in corpus" or "Không tìm thấy" in msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
+    except Exception as exc:
+        logger.exception("[video/analyze] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
+@router.get("/kol/browse")
+async def kol_browse_endpoint(
+    user: dict = Depends(require_user),
+    tab: Literal["pinned", "discover"] = Query("discover"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    niche_id: int | None = Query(None, ge=1, description="Optional; must equal caller profiles.primary_niche when set."),
+    followers_min: int | None = Query(None, ge=0),
+    followers_max: int | None = Query(None, ge=0),
+    growth_fast: bool = Query(False),
+    sort: str | None = Query(None, description="Sort key: pinned | rank | match | followers | avg_views | growth | name."),
+    order_dir: Literal["asc", "desc"] | None = Query(None),
+    search: str | None = Query(None, max_length=80),
+) -> JSONResponse:
+    """B.2.1 — KOL browse rows + rule-based match_score."""
+    from getviews_pipeline.kol_browse import KOL_SORT_QUERY_KEYS, run_kol_browse_sync
+
+    token = user["access_token"]
+    sb = user_supabase(token)
+    nid = niche_id if niche_id is not None else await _resolve_caller_niche_id(token)
+    if followers_min is not None and followers_max is not None and int(followers_min) > int(followers_max):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="followers_min không được lớn hơn followers_max.")
+    if sort is not None and sort not in KOL_SORT_QUERY_KEYS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"sort không hợp lệ: {sort}")
+    sort_desc = None if order_dir is None else (order_dir == "desc")
+    try:
+        out = await run_sync(run_kol_browse_sync, sb, niche_id=int(nid), tab=tab, page=page, page_size=page_size, followers_min=followers_min, followers_max=followers_max, growth_fast=growth_fast, sort=sort, sort_desc=sort_desc, search=search)
+    except ValueError as exc:
+        msg = str(exc)
+        if "Chưa chọn ngách" in msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
+    except Exception as exc:
+        logger.exception("[kol/browse] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
+@router.post("/kol/toggle-pin")
+async def kol_toggle_pin_endpoint(
+    body: KolTogglePinRequest,
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """B.2.1 — toggle profiles.reference_channel_handles via Supabase RPC (cap 10)."""
+    from getviews_pipeline.kol_browse import normalize_handle
+
+    norm = normalize_handle(body.handle)
+    if not norm:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="handle rỗng")
+    sb = user_supabase(user["access_token"])
+    try:
+        sb.rpc("toggle_reference_channel", {"p_handle": norm}).execute()
+    except Exception as exc:
+        logger.exception("[kol/toggle-pin] failed handle=%s: %s", norm, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse({"ok": True})
+
+
+@router.get("/channel/analyze")
+async def channel_analyze_endpoint(
+    user: dict = Depends(require_user),
+    handle: str = Query(..., min_length=1, max_length=200, description="TikTok handle, có hoặc không @"),
+    force_refresh: bool = Query(False, description="Bỏ qua cache 7 ngày và gọi lại Gemini (trừ thin_corpus)."),
+) -> JSONResponse:
+    """B.3.1 — Phân tích kênh: gate ≥10 video, cache ``channel_formulas``, Gemini + trừ credit khi miss."""
+    from getviews_pipeline.channel_analyze import InsufficientCreditsError, run_channel_analyze_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    sb_user = user_supabase(user["access_token"])
+    try:
+        out = await run_sync(run_channel_analyze_sync, get_service_client(), sb_user, user_id=user["user_id"], raw_handle=handle, force_refresh=force_refresh)
+    except InsufficientCreditsError:
+        return JSONResponse(status_code=status.HTTP_402_PAYMENT_REQUIRED, content={"error": "insufficient_credits"})
+    except ValueError as exc:
+        msg = str(exc)
+        if "Chưa chọn ngách" in msg or "Không thấy kênh" in msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
+    except Exception as exc:
+        logger.exception("[channel/analyze] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)

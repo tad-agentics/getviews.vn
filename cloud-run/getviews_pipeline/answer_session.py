@@ -23,6 +23,17 @@ from getviews_pipeline.supabase_client import get_service_client
 
 logger = logging.getLogger(__name__)
 
+# ── Idempotency — L1 in-process + L2 Postgres ─────────────────────────────────
+#
+# L1: in-process dict, 120s TTL. Fast path for quick retries from the same
+#     Cloud Run instance. Unsafe across instances — L2 is the source of truth.
+#
+# L2: public.answer_session_idempotency table (migration 20260503000000).
+#     INSERT ... ON CONFLICT DO NOTHING + SELECT pattern enforces uniqueness
+#     at the database level so multiple instances never duplicate sessions.
+#     Rows are retained for 24h; a daily janitor call (via /batch/analytics
+#     or any cron) cleans them up.
+
 _IDEMPOTENCY: dict[str, tuple[str, float]] = {}
 _IDEMPOTENCY_TTL_SEC = 120.0
 
@@ -129,6 +140,42 @@ def _prune_idempotency() -> None:
         del _IDEMPOTENCY[k]
 
 
+def _idem_db_get(sb: Any, user_id: str, idempotency_key: str) -> str | None:
+    """Check L2 (Postgres) for an existing idempotency mapping.
+
+    Returns the cached session_id string or None when no match found.
+    """
+    try:
+        res = (
+            sb.table("answer_session_idempotency")
+            .select("session_id")
+            .eq("user_id", user_id)
+            .eq("idempotency_key", idempotency_key)
+            .single()
+            .execute()
+        )
+        data = res.data or {}
+        return data.get("session_id")
+    except Exception:
+        # Table may not exist yet (pre-migration) or DB is momentarily unreachable.
+        # Fail open — the insert path will catch any real duplicate via PK constraint.
+        return None
+
+
+def _idem_db_store(sb: Any, user_id: str, idempotency_key: str, session_id: str) -> None:
+    """Upsert the idempotency mapping into L2 (Postgres). Never raises."""
+    try:
+        sb.table("answer_session_idempotency").insert(
+            {
+                "user_id": user_id,
+                "idempotency_key": idempotency_key,
+                "session_id": session_id,
+            }
+        ).on_conflict("user_id,idempotency_key").ignore().execute()
+    except Exception as exc:
+        logger.warning("[answer_session] idem_db_store failed: %s", exc)
+
+
 def create_session(
     user_id: str,
     *,
@@ -138,22 +185,33 @@ def create_session(
     format: str,
     idempotency_key: str | None,
 ) -> dict[str, Any]:
-    """Insert answer_sessions (service role)."""
+    """Insert answer_sessions (service role) with two-level idempotency.
+
+    Checks L1 (in-process, 120s) then L2 (Postgres) before creating a new session.
+    This prevents duplicate rows when multiple Cloud Run instances receive the same
+    Idempotency-Key within the dedup window.
+    """
     _prune_idempotency()
+    sb = get_service_client()
+
     if idempotency_key:
         cache_key = f"{user_id}:{idempotency_key}"
+
+        # L1: in-process cache (fast path, same instance)
         hit = _IDEMPOTENCY.get(cache_key)
-        if (
-            hit
-            and hit[0]
-            and time.monotonic() - hit[1] <= _IDEMPOTENCY_TTL_SEC
-        ):
+        if hit and hit[0] and time.monotonic() - hit[1] <= _IDEMPOTENCY_TTL_SEC:
             sid = hit[0]
-            sb = get_service_client()
             row = sb.table("answer_sessions").select("*").eq("id", sid).single().execute()
             return row.data
 
-    sb = get_service_client()
+        # L2: Postgres (cross-instance correctness)
+        existing_sid = _idem_db_get(sb, user_id, idempotency_key)
+        if existing_sid:
+            # Warm L1 from L2 so subsequent same-instance calls hit the fast path
+            _IDEMPOTENCY[cache_key] = (existing_sid, time.monotonic())
+            row = sb.table("answer_sessions").select("*").eq("id", existing_sid).single().execute()
+            return row.data
+
     title = (initial_q[:80] + "…") if len(initial_q) > 80 else initial_q
     insert_payload: dict[str, Any] = {
         "user_id": user_id,
@@ -167,9 +225,39 @@ def create_session(
     res = sb.table("answer_sessions").insert(insert_payload).execute()
     row = res.data[0] if isinstance(res.data, list) else res.data
     session_id = row["id"]
+
     if idempotency_key:
-        _IDEMPOTENCY[f"{user_id}:{idempotency_key}"] = (session_id, time.monotonic())
+        cache_key = f"{user_id}:{idempotency_key}"
+        # Store in L2 first (source of truth), then warm L1
+        _idem_db_store(sb, user_id, idempotency_key, session_id)
+        _IDEMPOTENCY[cache_key] = (session_id, time.monotonic())
+
     return row
+
+
+def clean_expired_idempotency_rows(sb: Any | None = None) -> int:
+    """Delete answer_session_idempotency rows older than 24h. Returns deleted count.
+
+    Intended to be called from the daily batch/analytics cron. Fails open
+    so a Supabase blip never breaks the analytics job.
+    """
+    if sb is None:
+        sb = get_service_client()
+    try:
+        from datetime import datetime, timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        res = (
+            sb.table("answer_session_idempotency")
+            .delete()
+            .lt("created_at", cutoff)
+            .execute()
+        )
+        deleted = len(res.data or [])
+        logger.info("[answer_session] cleaned %d expired idempotency rows", deleted)
+        return deleted
+    except Exception as exc:
+        logger.warning("[answer_session] clean_expired_idempotency_rows failed: %s", exc)
+        return 0
 
 
 def append_turn(
