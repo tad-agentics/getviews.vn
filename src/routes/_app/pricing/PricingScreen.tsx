@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, Zap, Sparkles, Building2, Gift } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { env } from "@/lib/env";
 import { pricingSavings } from "@/lib/mock-data";
 import { useProfile } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -221,7 +222,7 @@ const paymentMethodsBase = [
   { label: "Bank", color: "#2d7d46", bg: "#edf7f1" },
 ];
 
-const zaloPayEnabled = import.meta.env.VITE_ZALOPAY_ENABLED === "true";
+const zaloPayEnabled = env.VITE_ZALOPAY_ENABLED;
 
 function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
   const periods: Period[] = ["monthly", "biannual", "annual"];
