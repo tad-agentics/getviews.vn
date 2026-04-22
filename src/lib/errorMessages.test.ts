@@ -42,4 +42,28 @@ describe("analysisErrorCopy", () => {
     const e = new Error("");
     expect(analysisErrorCopy(e)).toBe("Lỗi không xác định");
   });
+
+  it.each([
+    ["start_failed", /Không tạo được phiên/],
+    ["follow_up_failed", /Câu hỏi tiếp theo chưa gửi được/],
+    ["stream_failed", /Kết nối streaming bị ngắt/],
+    ["stream_timeout", /Server im lặng quá lâu/],
+    ["session_not_found", /Phiên không tồn tại/],
+    ["no_cloud_run", /VITE_CLOUD_RUN_API_URL/],
+    ["aborted", /đã bị huỷ/],
+    ["auth", /Chưa đăng nhập/],
+    ["http_500", /HTTP 500/],
+    ["http_503", /HTTP 503/],
+  ])("translates the AnswerScreen error code %s to Vietnamese", (code, re) => {
+    expect(analysisErrorCopy(code)).toMatch(re);
+  });
+
+  it("passes raw code through when wrapped in Error, but not when a bare string", () => {
+    // Unknown Error wraps fall through (matches legacy hook behaviour —
+    // some hooks throw Vietnamese messages directly).
+    expect(analysisErrorCopy(new Error("xin chào"))).toBe("xin chào");
+    // Unknown raw strings are suppressed so English/server junk never
+    // leaks to the user.
+    expect(analysisErrorCopy("random_code")).toBe("Lỗi không xác định");
+  });
 });

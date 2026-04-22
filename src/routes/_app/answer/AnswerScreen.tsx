@@ -18,7 +18,12 @@ import {
 } from "@/hooks/useAnswerSessionQueries";
 import { useSessionStream } from "@/hooks/useSessionStream";
 import { env } from "@/lib/env";
+import { analysisErrorCopy } from "@/lib/errorMessages";
 import { createAnswerSession } from "@/lib/answerApi";
+import {
+  clearPendingAnswerStream,
+  loadPendingAnswerStream,
+} from "@/lib/sseResume";
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1, SourceRowData } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
@@ -40,6 +45,36 @@ import { RelatedQs } from "@/components/v2/answer/RelatedQs";
 import { TimelineRail } from "@/components/v2/answer/TimelineRail";
 
 const CLOUD = env.VITE_CLOUD_RUN_API_URL;
+
+// Answer-surface error codes recognised by ``analysisErrorCopy`` —
+// anything else we get back from ``createAnswerSession`` / the SSE
+// pipeline should fall through to a friendly ``fallback`` code so the
+// UI never shows raw English like ``"answer/sessions 500"``.
+const ANSWER_ERROR_CODES = new Set([
+  "insufficient_credits",
+  "daily_free_limit",
+  "stream_failed",
+  "stream_timeout",
+  "session_not_found",
+  "no_cloud_run",
+  "start_failed",
+  "follow_up_failed",
+  "aborted",
+  "auth",
+  "session_expired",
+]);
+
+function pickAnswerErrorCode(e: unknown, fallback: string): string {
+  if (e instanceof Error) {
+    if (e.name === "SessionExpired") return "session_expired";
+    if (e.name === "SessionNotFound") return "session_not_found";
+    if (e.name === "FetchTimeout") return "stream_timeout";
+    if (ANSWER_ERROR_CODES.has(e.message)) return e.message;
+    if (e.message?.startsWith("http_")) return e.message;
+  }
+  if (typeof e === "string" && ANSWER_ERROR_CODES.has(e)) return e;
+  return fallback;
+}
 
 function sourcesFromReport(p: ReportV1 | null): SourceRowData[] | undefined {
   if (!p) return undefined;
@@ -117,6 +152,98 @@ export default function AnswerScreen() {
    */
   const bootstrapInFlightRef = useRef<string | null>(null);
 
+  /**
+   * Resume-on-reload guard. ``loadPendingAnswerStream`` validates the
+   * entry is for the current session and younger than the replay TTL
+   * (90s). The ref below prevents double-firing under React Strict
+   * Mode, and the detailQuery check prevents a resume when the server
+   * already persisted the turn before we reloaded.
+   */
+  const resumeFiredRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId || !CLOUD || !user) return;
+    // If turns already exist the stream completed before reload — the
+    // persisted entry is stale and would trigger a no-op fresh run if
+    // we followed it. Clear.
+    if (detailQuery.isLoading) return;
+    if ((detailQuery.data?.turns?.length ?? 0) > 0) {
+      clearPendingAnswerStream();
+      return;
+    }
+    if (resumeFiredRef.current === sessionId) return;
+    const pending = loadPendingAnswerStream(sessionId);
+    if (!pending) return;
+    resumeFiredRef.current = sessionId;
+
+    void (async () => {
+      setBootstrapLoading(true);
+      setError(null);
+      try {
+        const result = await stream({
+          mode: "answer_turn",
+          answerSessionId: pending.sessionId,
+          query: pending.query,
+          turnKind: pending.turnKind,
+          resumeStreamId: pending.streamId,
+          lastSeq: pending.seq,
+          startedAt: pending.startedAt,
+        });
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        if (result.finalPayload) {
+          const nextIndex = detailQuery.data?.turns.length ?? 0;
+          const synthesized: AnswerTurnRow = {
+            id: `optimistic-${pending.sessionId}-${nextIndex}`,
+            session_id: pending.sessionId,
+            turn_index: nextIndex,
+            kind: pending.turnKind,
+            query: pending.query,
+            payload: result.finalPayload,
+            credits_used: pending.turnKind === "primary" ? 1 : 0,
+            created_at: new Date().toISOString(),
+          };
+          queryClient.setQueryData<AnswerDetailCache>(
+            answerSessionKeys.detail(pending.sessionId),
+            (prev) => {
+              const fallbackSession = prev?.session ?? {
+                id: pending.sessionId,
+                user_id: user.id,
+                title: null,
+                initial_q: pending.query,
+                intent_type: "generic",
+                format: "generic",
+                niche_id: null,
+              };
+              return injectOptimisticTurn(prev, fallbackSession, synthesized);
+            },
+          );
+        }
+        if (uid) {
+          await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
+        }
+      } catch (e) {
+        if (typeof console !== "undefined") {
+          console.error("[answer/resume] failed", e);
+        }
+        setError(pickAnswerErrorCode(e, "stream_failed"));
+      } finally {
+        setBootstrapLoading(false);
+      }
+    })();
+  }, [
+    sessionId,
+    CLOUD,
+    user,
+    detailQuery.isLoading,
+    detailQuery.data?.turns,
+    stream,
+    queryClient,
+    uid,
+  ]);
+
   useEffect(() => {
     if (!sessionId && !seedQ.trim()) {
       bootstrapInFlightRef.current = null;
@@ -169,8 +296,7 @@ export default function AnswerScreen() {
 
         if (!result.ok) {
           bootstrapInFlightRef.current = null;
-          if (result.error === "insufficient_credits") setError("insufficient_credits");
-          else setError(result.error);
+          setError(pickAnswerErrorCode(result.error, "start_failed"));
           return;
         }
 
@@ -202,7 +328,13 @@ export default function AnswerScreen() {
         }
       } catch (e) {
         bootstrapInFlightRef.current = null;
-        setError(e instanceof Error ? e.message : "start_failed");
+        // Keep the raw error visible in devtools so ops can trace Cloud Run
+        // failures (404 / 500 / CORS / timeout) — the user-facing copy is
+        // the friendly Vietnamese string below.
+        if (typeof console !== "undefined") {
+          console.error("[answer/bootstrap] failed", e);
+        }
+        setError(pickAnswerErrorCode(e, "start_failed"));
       } finally {
         setBootstrapLoading(false);
       }
@@ -230,8 +362,7 @@ export default function AnswerScreen() {
         turnKind,
       });
       if (!result.ok) {
-        if (result.error === "insufficient_credits") setError("insufficient_credits");
-        else setError(result.error);
+        setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
         return;
       }
       setFollowUp("");
@@ -276,7 +407,10 @@ export default function AnswerScreen() {
         await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "follow_up_failed");
+      if (typeof console !== "undefined") {
+        console.error("[answer/follow_up] failed", e);
+      }
+      setError(pickAnswerErrorCode(e, "follow_up_failed"));
     } finally {
       setBootstrapLoading(false);
     }
@@ -357,11 +491,15 @@ export default function AnswerScreen() {
         main={
           <TimelineRail turnCount={turnCount}>
             {error ? (
-              <p className="mt-4 text-sm text-[var(--gv-danger)]">{error}</p>
+              <p className="mt-4 text-sm text-[var(--gv-danger)]">
+                {analysisErrorCopy(error)}
+              </p>
             ) : null}
             {detailQuery.isError && sessionId ? (
               <p className="mt-4 text-sm text-[var(--gv-danger)]">
-                Không tải được phiên — thử mở lại từ Lịch sử hoặc phiên mới.
+                {analysisErrorCopy(
+                  pickAnswerErrorCode(detailQuery.error, "start_failed"),
+                )}
               </p>
             ) : null}
             {loading ? (
