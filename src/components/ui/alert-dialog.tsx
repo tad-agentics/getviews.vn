@@ -6,7 +6,7 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { cn } from "./utils";
 
 const alertDialogActionClass =
-  "inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-all duration-[120ms] ease-out active:scale-95 gradient-cta hover:opacity-90 disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-lg bg-[color:var(--gv-accent)] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-[120ms] ease-out hover:bg-[color:var(--gv-accent-deep)] active:scale-95 disabled:opacity-50";
 
 const alertDialogCancelClass =
   "inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition-all duration-[120ms] hover:bg-[var(--surface-alt)]";

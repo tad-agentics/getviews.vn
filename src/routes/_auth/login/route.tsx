@@ -257,7 +257,7 @@ export default function LoginRoute() {
               disabled={anyLoading || authLoading}
               className={cn(
                 fullWidthAction,
-                "border-2 border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] shadow-sm hover:bg-[color:var(--gv-canvas-2)]",
+                "bg-[color:var(--gv-ink)] text-white shadow-sm hover:bg-[color:var(--gv-ink-2)]",
               )}
             >
               {loadingGoogle ? (
@@ -308,7 +308,7 @@ export default function LoginRoute() {
               disabled={anyLoading}
               className={cn(
                 fullWidthAction,
-                "border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)] hover:bg-[color:var(--gv-rule-2)]",
+                "bg-[color:var(--gv-ink-2)] text-white hover:bg-[color:var(--gv-ink)]",
               )}
             >
               <Mail className="h-4 w-4" strokeWidth={1.8} aria-hidden />

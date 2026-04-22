@@ -582,7 +582,7 @@ function CredibilitySection() {
           <Link to="/login">
             <button
               type="button"
-              className="px-6 py-3 gradient-cta font-medium rounded-lg text-sm transition-all duration-[120ms] active:scale-95"
+              className="rounded-lg bg-[color:var(--gv-accent)] px-6 py-3 text-sm font-medium text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-accent-deep)] active:scale-95"
             >
               Thử miễn phí — không cần thẻ
             </button>
