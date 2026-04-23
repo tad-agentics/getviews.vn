@@ -531,10 +531,24 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     tone = analysis_json.get("tone") or ""
     combined = f"{transcript} {topics}"
 
+    # Verbal-first formats (recipe, tutorial) require actual speech in the
+    # transcript. Without this gate, a silent-music video with "nấu ăn" in
+    # topics trips the recipe rule — caught by the eval harness as the
+    # "cat video → recipe" false positive.
+    has_speech = bool(transcript.strip()) and not re.search(
+        r"không có (lời|tiếng|dialogue)|no speech|no dialogue|"
+        r"^\[music|^\[âm nhạc|^\[tiếng|^\[không ",
+        transcript.strip()[:100],
+    )
+
     if re.search(r"mukbang|ăn.*cùng|mời.*ăn|eating|asmr", combined): return "mukbang"
     if niche_id == 4 and len(scenes) >= 10 and tone == "entertaining": return "mukbang"
     if re.search(r"grwm|get ready|makeup routine|morning routine|buổi sáng", combined): return "grwm"
-    if re.search(r"công thức|recipe|nấu|cách làm|nguyên liệu|ướp|xào|chiên|nướng|hấp", combined): return "recipe"
+    if has_speech and re.search(
+        r"công thức|recipe|nấu|cách làm|nguyên liệu|ướp|xào|chiên|nướng|hấp",
+        combined,
+    ):
+        return "recipe"
     if re.search(r"haul|đập hộp|unbox|mở hộp|mua.*về|đặt.*gửi", combined): return "haul"
     if re.search(
         r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm|"
@@ -542,7 +556,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
         combined,
     ):
         return "review"
-    if re.search(
+    if has_speech and re.search(
         r"cách|hướng dẫn|tutorial|mẹo|bước|step|tips|"
         r"xác minh|đăng ký|thủ tục|quyết toán|bí quyết",
         combined,
@@ -556,14 +570,20 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     if re.search(
         r"kể chuyện|story|hồi đó|hồi nhỏ|ngày xưa|mình từng|"
         r"câu chuyện|kể về|nàng dâu|chàng rể|đằng sau là|"
-        r"sự thật|lời kể|chia sẻ câu chuyện",
+        r"sự thật|lời kể|chia sẻ câu chuyện|"
+        r"hoàn cảnh|kiếp nạn|drama|skit",
         combined,
     ):
         return "storytelling"
     if re.search(r"trước.*sau|before.*after|biến đổi|thay đổi.*ngày|glow.?up", combined): return "before_after"
     if re.match(r"pov[: ]", combined.lstrip()): return "pov"
     if re.search(r"outfit|ootd|biến hình|transition|mix đồ|phối đồ", combined): return "outfit_transition"
-    if re.search(r"vlog|daily|thường ngày|một ngày|hôm nay mình|ngày của", combined): return "vlog"
+    if re.search(
+        r"vlog|daily|thường ngày|một ngày|hôm nay mình|ngày của|"
+        r"sau khi tốt nghiệp|sau khi đi làm|dựng sạp|mở quán|khởi nghiệp",
+        combined,
+    ):
+        return "vlog"
     if scenes and all(s.get("type") == "action" for s in scenes) and not transcript: return "dance"
     product_types = {"product_shot", "demo", "action"}
     if (scenes and all(s.get("type") in product_types for s in scenes)

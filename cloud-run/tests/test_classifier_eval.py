@@ -19,9 +19,13 @@ from __future__ import annotations
 
 from getviews_pipeline.eval_classifier import evaluate, load_golden
 
-# Current baseline: 24/27 = 0.8889. Floor tolerates one additional miss
-# (23/27 = 0.8518) before failing. See test docstring for policy.
-MIN_ACCURACY = 0.85
+# Baseline history:
+#   2026-05-09 initial harness                  — 24/27 = 0.8889
+#   2026-05-09 + has_speech gate, VN additions  — 27/27 = 1.0000
+# Floor at 0.95 tolerates exactly one miss (26/27) before failing. Any
+# genuine regression should be fixed or have a golden-set adjustment
+# landed in the same PR — not papered over by lowering the floor.
+MIN_ACCURACY = 0.95
 
 # Don't regress below this for the 5 highest-traffic buckets. These
 # dominate niche_intelligence.format_distribution — getting them
