@@ -206,3 +206,218 @@ font-family: var(--gv-font-mono)
 |Caption / metadata   |default 13px ink-3 |`7 ngày · 94 video`   |
 |Mono data            |`.gv-mono` 10–13px |`73%` `+11%` `#1`     |
 |KPI display number   |`.gv-bignum`       |`2.8M`                |
+
+-----
+
+## 4. Spacing
+
+8-point scale. Prefer Tailwind's spacing utilities (`p-4 = 16px`, `gap-6 = 24px`). Token fallbacks available for inline styles.
+
+|Token         |Value|Tailwind        |
+|--------------|-----|----------------|
+|`--gv-space-1`|4px  |`p-1`, `gap-1`  |
+|`--gv-space-2`|8px  |`p-2`, `gap-2`  |
+|`--gv-space-3`|12px |`p-3`, `gap-3`  |
+|`--gv-space-4`|16px |`p-4`, `gap-4`  |
+|`--gv-space-5`|24px |`p-6`, `gap-6`  |
+|`--gv-space-6`|32px |`p-8`, `gap-8`  |
+|`--gv-space-7`|48px |`p-12`, `gap-12`|
+|`--gv-space-8`|64px |`p-16`, `gap-16`|
+
+-----
+
+## 5. Radii
+
+|Token           |Value|Use                                        |
+|----------------|-----|-------------------------------------------|
+|`--gv-radius-sm`|6px  |Segmented control, inline chips, small tags|
+|`--gv-radius-md`|12px |Default cards, buttons, inputs             |
+|`--gv-radius-lg`|18px |Hero cards, section surfaces               |
+|`--gv-radius-xl`|20px |Neo-brutalist composer surface             |
+
+In Tailwind: use `rounded-[6px]`, `rounded-[12px]`, `rounded-[18px]` or `rounded-[20px]` directly.
+
+-----
+
+## 6. Surfaces
+
+### Card variants (via `<Card>` component)
+
+|Variant         |Visual                                   |Use                               |
+|----------------|-----------------------------------------|----------------------------------|
+|`paper`         |White bg, `--gv-rule` border, 18px radius|Default content card              |
+|`canvas`        |`--gv-canvas-2` bg, `--gv-rule-2` border |Subdued/secondary card            |
+|`ink`           |`--gv-ink` bg, white text                |Pulse lead card, hero dark surface|
+|`brutal`        |White bg, 2px ink border, 6px hard shadow|Composer, primary CTA             |
+|`brutal-compact`|Same but 4px shadow, 18px radius         |FollowUp composer                 |
+
+### `.gv-surface-brutal`
+
+Hard-edge neo-brutalist surface. Used by the chat composer and primary CTA cards.
+
+```css
+background: var(--gv-paper);
+border: 2px solid var(--gv-ink);
+border-radius: var(--gv-radius-xl);
+box-shadow: 6px 6px 0 var(--gv-ink);
+```
+
+`.gv-surface-brutal--compact` → 4px shadow, `--gv-radius-lg`.
+
+-----
+
+## 7. Layout
+
+### Route column
+
+All authenticated app screens use `.gv-route-main`:
+
+```css
+max-width: var(--gv-route-max-width);  /* 1280px */
+margin: auto;
+padding: 24px 28px 80px;
+```
+
+Variants:
+
+- `.gv-route-main--answer` — `padding: 28px 28px 120px` (answer screen needs bottom space for composer + tab bar)
+
+### Home screen column
+
+`.gv-home-wrap` — `padding: 36px 28px 80px` (desktop), `2rem 1rem 4rem` (mobile).
+
+### Navigation
+
+- **Desktop:** sidebar (handled by `AppLayout.tsx`)
+- **Mobile (≤900px):** `BottomTabBar` — 4 tabs: Trang chủ / Nghiên cứu / Xu hướng / Cài đặt. Fixed bottom, safe area padding for iOS.
+
+### `TopBar` (per-screen sticky header)
+
+`64px` desktop, `56px` mobile. Format: `gv-uc` kicker 9.5px + `.gv-tight` title 19px (24px desktop). Right slot for action buttons.
+
+-----
+
+## 8. Components — v2 Primitives
+
+Import from `src/components/v2/`. These are the canonical primitives — do not recreate them.
+
+### `<Kicker>`
+
+```tsx
+<Kicker dot>NGÁCH · SKINCARE</Kicker>
+<Kicker tone="pos" dot>ĐANG LÊN</Kicker>
+<Kicker tone="muted">BỔ SUNG</Kicker>
+```
+
+Props: `tone?: "default" | "muted" | "pos"`, `dot?: boolean`.
+
+### `<SectionHeader>`
+
+```tsx
+<SectionHeader
+  kicker="PATTERN TUẦN NÀY"
+  title="Hook đang thắng"
+  caption="Dựa trên 94 video · 7 ngày"
+  right={<Btn variant="ghost" size="sm">Xem tất cả</Btn>}
+/>
+```
+
+Renders: ● kicker (accent-deep mono 10px) + h2 28px tight + 13px caption inline.
+
+### `<Card>`
+
+```tsx
+<Card variant="paper">...</Card>
+<Card variant="brutal">...</Card>
+```
+
+Variants: `paper | canvas | ink | brutal | brutal-compact`.
+
+### `<Btn>`
+
+```tsx
+<Btn variant="ink">Tạo kịch bản</Btn>
+<Btn variant="ghost" size="sm">Xem thêm</Btn>
+<Btn variant="accent">Nâng cấp</Btn>
+<Btn variant="pos">Lên đầu bảng</Btn>
+```
+
+Variants: `ink | ghost | accent | pos`. Sizes: `sm (h-8) | md (h-10) | lg (h-12)`. All buttons are pill-shaped (`rounded-full`).
+
+### `<Chip>`
+
+```tsx
+<Chip variant="pos">+31%</Chip>
+<Chip variant="accent">Hook Cảm xúc</Chip>
+<Chip onClick={handleClick}>Skincare</Chip>
+```
+
+Variants: `default | accent | pos | neg | ink | lime`. Renders as `<button>` when `onClick` is passed, else `<span>`.
+
+### `<Segmented>`
+
+```tsx
+<Segmented
+  value={mode}
+  options={[
+    { value: "win", label: "Thắng" },
+    { value: "flop", label: "Flop" },
+  ]}
+  onChange={setMode}
+/>
+```
+
+Hard-edge 2-button toggle. 1px ink border. Used for Win/Flop and Đang theo dõi/Khám phá.
+
+### `<Bignum>`
+
+```tsx
+<Bignum tone="pos" suffix="VIEWS">2.8M</Bignum>
+<Bignum tone="neg">-18%</Bignum>
+```
+
+56px display number. Tones: `ink | pos | neg`.
+
+### `<KpiGrid>`
+
+```tsx
+<KpiGrid
+  variant="channel"
+  kpis={[
+    { label: "AVG VIEWS", value: "3.2M", delta: "+12% vs tháng trước" },
+    { label: "RETENTION", value: "71%", delta: "↑ 4pp" },
+  ]}
+/>
+```
+
+2×2 responsive KPI strip. Variants: `video` (30px values, paper cells) | `channel` (22px values, canvas cells).
+
+### `<FilterChipRow>`
+
+```tsx
+<FilterChipRow label="LỌC THEO" trailing={<SearchInput />}>
+  <Chip onClick={() => setNiche("skincare")}>Skincare</Chip>
+  <Chip onClick={() => setNiche("beauty")}>Làm đẹp</Chip>
+</FilterChipRow>
+```
+
+Filter ribbon with left-aligned chips and right-aligned search/action slot.
+
+### `<TopBar>`
+
+```tsx
+<TopBar
+  kicker="SOI KÊNH"
+  title="Phân tích đối thủ"
+  right={<Btn variant="ghost" size="sm">Lịch sử</Btn>}
+/>
+```
+
+### `<SectionHeader>` vs `<TopBar>` — when to use which
+
+|            |`TopBar`                    |`SectionHeader`                |
+|------------|----------------------------|-------------------------------|
+|Position    |Sticky, top of screen       |Inside content flow            |
+|Title size  |19–24px `.gv-tight`         |28px `.gv-tight`               |
+|Kicker style|`.gv-uc` 9.5px              |`gv-uc` 10px with `●`          |
+|Use for     |Per-screen navigation header|Section heading inside a screen|
