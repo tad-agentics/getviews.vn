@@ -325,6 +325,13 @@ class AdminTriggerThumbnailBackfillBody(BaseModel):
     dry_run: bool = False
 
 
+class AdminTriggerRefreshBody(BaseModel):
+    """Corpus freshness refresh — metadata-only re-pull from EnsembleData."""
+    limit: int | None = None         # defaults to REFRESH_BATCH_LIMIT (200)
+    stale_days: int | None = None    # defaults to REFRESH_STALE_DAYS (3)
+    views_floor: int | None = None   # defaults to REFRESH_VIEWS_FLOOR (1000)
+
+
 async def _admin_run_ingest(body: AdminTriggerIngestBody) -> dict[str, Any]:
     from getviews_pipeline.corpus_ingest import run_batch_ingest
     from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
@@ -399,6 +406,75 @@ async def _admin_run_thumbnail_backfill(body: AdminTriggerThumbnailBackfillBody)
     from backfill_thumbnails import run_thumbnail_backfill  # type: ignore[import-not-found]
 
     return await run_thumbnail_backfill(batch_size=body.batch_size, limit=body.limit, dry_run=body.dry_run)
+
+
+async def _admin_run_refresh(body: AdminTriggerRefreshBody) -> dict[str, Any]:
+    """Manual kick of /batch/refresh — re-pull views/likes/etc for the
+    top-priority video_corpus rows. Closes the Axis 3 freshness gap.
+    """
+    from getviews_pipeline.corpus_refresh import (
+        REFRESH_BATCH_LIMIT,
+        REFRESH_STALE_DAYS,
+        REFRESH_VIEWS_FLOOR,
+        run_corpus_refresh,
+    )
+
+    return await run_corpus_refresh(
+        limit=body.limit if body.limit is not None else REFRESH_BATCH_LIMIT,
+        stale_days=body.stale_days if body.stale_days is not None else REFRESH_STALE_DAYS,
+        views_floor=body.views_floor if body.views_floor is not None else REFRESH_VIEWS_FLOOR,
+    )
+
+
+async def _admin_run_reclassify_format() -> dict[str, Any]:
+    """Manual kick of /batch/reclassify-format — regex-only catch-up on
+    rows stuck in content_format='other'/NULL."""
+    from getviews_pipeline.content_format_reclassify import (
+        run_content_format_reclassify,
+    )
+    from getviews_pipeline.supabase_client import get_service_client
+
+    return await run_sync(run_content_format_reclassify, client=get_service_client())
+
+
+async def _admin_run_layer0() -> dict[str, Any]:
+    """Manual kick of /batch/layer0 — niche insights + sound insights +
+    cross-niche migration. Each layer is independent; per-layer
+    exceptions are captured, not re-raised."""
+    from getviews_pipeline.layer0_migration import run_cross_niche_migration
+    from getviews_pipeline.layer0_niche import run_niche_insights
+    from getviews_pipeline.layer0_sound import run_sound_insights
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    result: dict[str, Any] = {"ok": True}
+
+    try:
+        l0a = await run_niche_insights(client)
+        result["layer0a_niche"] = {
+            "insights_written": l0a.insights_written,
+            "niches_skipped": l0a.niches_skipped,
+            "errors": l0a.errors,
+        }
+    except Exception as exc:
+        logger.exception("[admin/trigger/layer0] niche insights failed: %s", exc)
+        result["layer0a_niche"] = {"error": str(exc)}
+
+    try:
+        l0b = await run_sound_insights(client)
+        result["layer0b_sound"] = {"analyzed": l0b.get("analyzed", 0)}
+    except Exception as exc:
+        logger.exception("[admin/trigger/layer0] sound insights failed: %s", exc)
+        result["layer0b_sound"] = {"error": str(exc)}
+
+    try:
+        l0c = await run_cross_niche_migration(client)
+        result["layer0c_migration"] = {"migrations_found": l0c.get("migrations_found", 0)}
+    except Exception as exc:
+        logger.exception("[admin/trigger/layer0] migration failed: %s", exc)
+        result["layer0c_migration"] = {"error": str(exc)}
+
+    return result
 
 
 async def _execute_trigger_task(*, job_id: str, action: str, runner: Any) -> None:
@@ -755,8 +831,25 @@ async def admin_list_triggers(
         "ok": True,
         "jobs": [
             {"id": "ingest", "label": "Corpus ingest (/batch/ingest)", "body_schema": {"niche_ids": "int[] | null", "deep_pool": "bool"}, "heavy": True},
+            {
+                "id": "refresh",
+                "label": "Corpus freshness refresh (/batch/refresh)",
+                "body_schema": {
+                    "limit": "int | null",
+                    "stale_days": "int | null",
+                    "views_floor": "int | null",
+                },
+                "heavy": True,
+            },
+            {
+                "id": "reclassify_format",
+                "label": "Content-format reclass (/batch/reclassify-format)",
+                "body_schema": {},
+                "heavy": True,
+            },
             {"id": "morning_ritual", "label": "Morning ritual scripts (/batch/morning-ritual)", "body_schema": {"user_ids": "uuid[] | null"}, "heavy": True},
             {"id": "analytics", "label": "Weekly analytics + signal grading (/batch/analytics)", "body_schema": {}, "heavy": True},
+            {"id": "layer0", "label": "Layer 0 insights", "body_schema": {}, "heavy": True},
             {"id": "scene_intelligence", "label": "Scene intelligence refresh (/batch/scene-intelligence)", "body_schema": {}, "heavy": True},
             {"id": "thumbnail_backfill", "label": "Thumbnail backfill — rehost TikTok CDN → R2", "body_schema": {}, "heavy": True},
         ],
@@ -812,6 +905,44 @@ async def admin_trigger_thumbnail_backfill(
         user_id=admin["user_id"], action="trigger.thumbnail_backfill",
         params={"batch_size": body.batch_size, "limit": body.limit, "dry_run": body.dry_run},
         runner=lambda: _admin_run_thumbnail_backfill(body),
+    )
+
+
+@router.post("/admin/trigger/refresh")
+async def admin_trigger_refresh(
+    body: AdminTriggerRefreshBody = AdminTriggerRefreshBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"], action="trigger.refresh",
+        params={
+            "limit": body.limit,
+            "stale_days": body.stale_days,
+            "views_floor": body.views_floor,
+        },
+        runner=lambda: _admin_run_refresh(body),
+    )
+
+
+@router.post("/admin/trigger/reclassify_format")
+async def admin_trigger_reclassify_format(
+    _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"], action="trigger.reclassify_format",
+        params={}, runner=_admin_run_reclassify_format,
+    )
+
+
+@router.post("/admin/trigger/layer0")
+async def admin_trigger_layer0(
+    _body: AdminTriggerEmptyBody = AdminTriggerEmptyBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"], action="trigger.layer0",
+        params={}, runner=_admin_run_layer0,
     )
 
 
