@@ -1,0 +1,351 @@
+{
+  "_metadata": {
+    "name": "content_format_v1",
+    "created": "2026-05-09",
+    "purpose": "Hand-curated golden set for classify_format regression testing.",
+    "labeling_rubric": [
+      "Gold labels were assigned by reading the transcript + topics; do not trust the live DB's content_format value — it has known noise (crime news tagged mukbang, cat videos tagged recipe, etc.).",
+      "A row with no clean match to any of the 15 taxonomy values is labeled 'other' on purpose. Forcing bad labels into 'best-fit' would calibrate the harness to garbage.",
+      "niche_id is included because classify_format treats some niches specially (e.g., mukbang heuristic for niche 4 when scenes >= 10)."
+    ],
+    "taxonomy": [
+      "mukbang", "grwm", "recipe", "haul", "review", "tutorial",
+      "comparison", "storytelling", "before_after", "pov",
+      "outfit_transition", "vlog", "dance", "faceless", "other"
+    ]
+  },
+  "items": [
+    {
+      "video_id": "7621134771292245266",
+      "niche_id": 4,
+      "gold_label": "mukbang",
+      "analysis_json": {
+        "audio_transcript": "[Fast-paced rhythmic music playing with various sound effects including meat sizzling, loud chewing, a man screaming, and the sound of heavy chopping.]",
+        "topics": ["Steak cooking challenge", "Mukbang", "Food experiment", "ASMR sound effects"],
+        "scenes": [],
+        "tone": "entertaining"
+      },
+      "notes": "Explicit 'Mukbang' + 'ASMR' topics. Real mukbang content."
+    },
+    {
+      "video_id": "7619285253022125333",
+      "niche_id": 4,
+      "gold_label": "mukbang",
+      "analysis_json": {
+        "audio_transcript": "hôm nay mời mọi người mukbang combo mì cay và trà sữa với mình nhé",
+        "topics": ["Mukbang", "ShopeeFood Promotions"],
+        "scenes": [],
+        "tone": "entertaining"
+      },
+      "notes": "Transcript says 'mukbang combo' explicitly."
+    },
+    {
+      "video_id": "7629733403520175368",
+      "niche_id": 4,
+      "gold_label": "recipe",
+      "analysis_json": {
+        "audio_transcript": "để làm nên chiếc bánh mì... công thức làm bột cái trước. 100 gram bột mì số 13, 100 gram nước, 7 gram men lạt, thêm 10 đến 20 gram đường. bước 1 là công thức",
+        "topics": ["Bánh mì", "Công thức nấu ăn", "Ẩm thực Việt Nam"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Explicit 'công thức' + gram measurements = recipe. DB currently tags this grwm which is wrong."
+    },
+    {
+      "video_id": "7629592807652625682",
+      "niche_id": 18,
+      "gold_label": "recipe",
+      "analysis_json": {
+        "audio_transcript": "1 má gà. 2 má gà. 3 má gà. chiên cho đến khi vàng giòn 2 mặt. ai muốn ăn ngon thì làm như công thức nhé. đem xào sơ hành tím cắt nhỏ",
+        "topics": ["Cooking", "Chicken Curry", "Recipe"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Step-by-step cooking + 'công thức' marker."
+    },
+    {
+      "video_id": "7629666666183494932",
+      "niche_id": 15,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "bạn có thắc mắc rằng vì sao có người thường đi thu lại dầu cũ để làm gì? chị ơi bữa nay có dầu lại chưa? xuất khẩu đi làm xăng sinh học",
+        "topics": ["used oil collection", "biofuel", "recycling"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Marginal — describes a business process, not a haul. No clean bucket match."
+    },
+    {
+      "video_id": "7630325381853105416",
+      "niche_id": 2,
+      "gold_label": "review",
+      "analysis_json": {
+        "audio_transcript": "chị cho em mua món đồ bạn phía trước vừa mua xong với. 15 triệu 800. lấy luôn? không nghe tư vấn à? lấy luôn!",
+        "topics": ["Nước hoa", "Mua sắm xa xỉ", "Guerlain", "Review sản phẩm", "Thử thách mua sắm"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Explicit 'review sản phẩm' topic + shopping content."
+    },
+    {
+      "video_id": "7623263652178677012",
+      "niche_id": 10,
+      "gold_label": "review",
+      "analysis_json": {
+        "audio_transcript": "anh ơi 10 tỷ ở Hà Nội bây giờ nó là muỗi thôi. nhà của anh đây, 60 mét vuông hơn trăm triệu một mét vuông",
+        "topics": ["Bất động sản", "Nhà ở Hà Nội", "Review nhà"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Real estate tour — DB label is 'review' which aligns."
+    },
+    {
+      "video_id": "7626990094834076948",
+      "niche_id": 7,
+      "gold_label": "grwm",
+      "analysis_json": {
+        "audio_transcript": "hey em Bống dậy rồi. chào buổi sáng. hey, thể dục nào. Để bố cởi nhộng cho. Đ bôi kem nhá",
+        "topics": ["Parenting", "Morning routine", "Baby care", "House cleaning"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Explicit 'morning routine' + buổi sáng."
+    },
+    {
+      "video_id": "7628603622183456007",
+      "niche_id": 2,
+      "gold_label": "grwm",
+      "analysis_json": {
+        "audio_transcript": "good morning everyone. hôm qua đắp mặt nạ của U.M.E màu hồng ổn hơn rất là nhiều. mọi người dùng kem chống nắng nâng tông",
+        "topics": ["skincare routine", "morning routine", "sunscreen application"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "GRWM markers: morning routine + skincare routine."
+    },
+    {
+      "video_id": "7627084971605314834",
+      "niche_id": 2,
+      "gold_label": "grwm",
+      "analysis_json": {
+        "audio_transcript": "không biết là Giang đã từng makeup kiểu này chưa nhỉ. Giang dùng cái che khuyết điểm màu nó sẽ ngả đào",
+        "topics": ["Makeup Tutorial", "Transformation", "GRWM"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Literal 'GRWM' topic + makeup routine."
+    },
+    {
+      "video_id": "7629300690606738708",
+      "niche_id": 3,
+      "gold_label": "outfit_transition",
+      "analysis_json": {
+        "audio_transcript": "gợi ý outfit slay đi biển năm nay cho các chị em sợ nắng",
+        "topics": ["fashion", "summer", "beach", "comedy"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "'outfit' in transcript."
+    },
+    {
+      "video_id": "7627346294402452743",
+      "niche_id": 3,
+      "gold_label": "outfit_transition",
+      "analysis_json": {
+        "audio_transcript": "baila baila chilly cha cha senorita",
+        "topics": ["Fashion styling", "OOTD", "Budget fashion", "Wardrobe versatility"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "OOTD topic = outfit_transition."
+    },
+    {
+      "video_id": "7622274736667544852",
+      "niche_id": 13,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "[Transcript không khả dụng]",
+        "topics": ["makeup", "eyeshadow tutorial", "beauty"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Literal 'tutorial' topic. Transcript unavailable."
+    },
+    {
+      "video_id": "7626246991390969096",
+      "niche_id": 15,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "khẩn: kiểm tra quyết toán thuế ngay, bạn có thể được hoàn trả cả chục triệu đồng. bạn có thể đang mất vài triệu đồng mỗi năm",
+        "topics": ["Quyết toán thuế", "Hoàn thuế", "eTax Mobile"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Tax filing explainer — triggered by VN tutorial additions (quyết toán)."
+    },
+    {
+      "video_id": "7618909735487835413",
+      "niche_id": 12,
+      "gold_label": "vlog",
+      "analysis_json": {
+        "audio_transcript": "sau khi tốt nghiệp, tôi lấy 3,5 tấn cam. ra chợ phiên dựng sạp ép nước cam bán",
+        "topics": ["Entrepreneurship", "Street Food Business", "Fresh Orange Juice", "Post-Graduation Career"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Personal business journey — classic vlog shape."
+    },
+    {
+      "video_id": "7627430840976379154",
+      "niche_id": 2,
+      "gold_label": "vlog",
+      "analysis_json": {
+        "audio_transcript": "doanh, xăm đau á nha! hello em. em tư vấn đã, rồi chị suy nghĩ tiếp",
+        "topics": ["tattoo culture", "vlog", "daily life", "couple humor"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Explicit 'vlog' in topics."
+    },
+    {
+      "video_id": "7625916587916152086",
+      "niche_id": 16,
+      "gold_label": "storytelling",
+      "analysis_json": {
+        "audio_transcript": "nàng dâu người Philippines 42 tuổi, lấy chồng sang Hàn Quốc đã 16 năm nhưng chưa một lần về thăm nhà đẻ. lý do đằng sau là gì",
+        "topics": ["Culture", "Family", "Marriage"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Exemplifies VN narrative pattern — the reason the regex was expanded in step 5."
+    },
+    {
+      "video_id": "7630849428093488404",
+      "niche_id": 13,
+      "gold_label": "storytelling",
+      "analysis_json": {
+        "audio_transcript": "tui đứng thất vọng với bà luôn á, này tui nói thiệt. cái hoàn cảnh nhà thằng Nhật nó vậy á, nó nghỉ học tui hông thấy bà buồn luôn",
+        "topics": ["drama", "skit", "slime", "dream", "school life"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Drama skit — narrative. DB tags this 'tutorial' which is clearly wrong."
+    },
+    {
+      "video_id": "7629549228653677831",
+      "niche_id": 15,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "nóng: Iran đồng ý chuyển giao Uranium làm giàu cho Mỹ. tổng thống Mỹ Donald Trump cho biết",
+        "topics": ["Chính trị quốc tế", "Uranium", "Mỹ", "Iran", "Donald Trump"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Hard news — no taxonomy home. DB tags 'recipe' (obviously wrong). Gold = other is intentional."
+    },
+    {
+      "video_id": "7629949709284576532",
+      "niche_id": 13,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "cứu tôi với! [Tiếng la hét] hôm nay Công an tỉnh Quảng Ngãi cho biết, Công an xã Sơn Tịnh vừa truy bắt nhanh đối tượng nguy hiểm",
+        "topics": ["Crime", "Police Operation", "Public Safety"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Crime report — no taxonomy home. DB tags 'mukbang' (nonsense). Gold = other."
+    },
+    {
+      "video_id": "7622328921916181773",
+      "niche_id": 19,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "[Không có lời thoại, chỉ có nhạc nền bài hát Until I Found You]",
+        "topics": ["mèo", "nấu ăn", "thú cưng", "tình cảm"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Cat video with bg music. DB tags 'recipe' because of 'nấu ăn' topic — taxonomy noise. Gold = other."
+    },
+    {
+      "video_id": "7626572412620000533",
+      "niche_id": 15,
+      "gold_label": "other",
+      "analysis_json": {
+        "audio_transcript": "[không có tiếng nói]",
+        "topics": ["Tiết kiệm tiền", "Tài chính cá nhân", "Kết hôn"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Empty transcript, generic topics — correctly 'other'."
+    },
+    {
+      "video_id": "gold-pov-0001",
+      "niche_id": 3,
+      "gold_label": "pov",
+      "analysis_json": {
+        "audio_transcript": "pov: bạn lần đầu thử đi du lịch một mình",
+        "topics": ["travel", "solo trip"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Synthetic — 'pov:' prefix is the anchor. No live corpus row matches pov cleanly."
+    },
+    {
+      "video_id": "gold-bef-aft-0001",
+      "niche_id": 2,
+      "gold_label": "before_after",
+      "analysis_json": {
+        "audio_transcript": "đây là kết quả trước và sau 30 ngày dùng serum",
+        "topics": ["skincare", "glow up"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Synthetic — canonical 'trước.*sau' marker."
+    },
+    {
+      "video_id": "gold-comp-0001",
+      "niche_id": 2,
+      "gold_label": "comparison",
+      "analysis_json": {
+        "audio_transcript": "so sánh hai loại kem chống nắng, cái nào tốt hơn cho da dầu",
+        "topics": ["skincare comparison"],
+        "scenes": [],
+        "tone": ""
+      },
+      "notes": "Synthetic — canonical 'so sánh' + 'cái nào tốt hơn'."
+    },
+    {
+      "video_id": "gold-faceless-0001",
+      "niche_id": 8,
+      "gold_label": "faceless",
+      "analysis_json": {
+        "audio_transcript": "đây là sản phẩm mới mẻ dành cho những ai yêu thích sự tinh tế và chất lượng cao cấp nhất",
+        "topics": ["brand profile", "product showcase"],
+        "scenes": [
+          {"type": "product_shot"},
+          {"type": "demo"},
+          {"type": "action"}
+        ],
+        "tone": ""
+      },
+      "notes": "Synthetic — product-only scenes, no face_to_camera, long transcript = faceless. Avoids story-like vocabulary so it doesn't trip earlier rules."
+    },
+    {
+      "video_id": "gold-dance-0001",
+      "niche_id": 13,
+      "gold_label": "dance",
+      "analysis_json": {
+        "audio_transcript": "",
+        "topics": ["dance challenge"],
+        "scenes": [
+          {"type": "action"},
+          {"type": "action"},
+          {"type": "action"}
+        ],
+        "tone": ""
+      },
+      "notes": "Synthetic — all-action scenes, empty transcript = dance."
+    }
+  ]
+}
