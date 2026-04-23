@@ -139,3 +139,69 @@ def test_falls_through_to_other_for_no_markers() -> None:
         topics=["An ninh trật tự", "ATM"],
     )
     assert classify_format(analysis, niche_id=13) == "other"
+
+
+# ── has_speech gate — pins the recipe/tutorial silent-transcript fix ──
+
+
+def test_silent_transcript_with_cooking_topic_is_not_recipe() -> None:
+    """Regression for the eval harness miss: cat video with
+    'nấu ăn' topic + [Không có lời thoại] transcript was mis-tagged
+    recipe. Verbal-first formats now require actual speech."""
+    analysis = _analysis(
+        "[Không có lời thoại, chỉ có nhạc nền bài hát Until I Found You]",
+        topics=["mèo", "nấu ăn", "thú cưng", "tình cảm"],
+    )
+    assert classify_format(analysis, niche_id=19) == "other"
+
+
+def test_silent_transcript_with_tutorial_topic_is_not_tutorial() -> None:
+    """Same rule applies to tutorial — a music-only clip with a
+    'hướng dẫn' topic shouldn't become a tutorial."""
+    analysis = _analysis(
+        "[âm nhạc]",
+        topics=["hướng dẫn trang điểm"],
+    )
+    assert classify_format(analysis, niche_id=2) == "other"
+
+
+def test_recipe_still_matches_when_transcript_has_cooking_words() -> None:
+    """Guard against over-correcting: real recipe videos with speech
+    still route to recipe."""
+    analysis = _analysis(
+        "công thức làm bánh mì, 100 gram bột mì, bước 1 là",
+        topics=["bánh mì"],
+    )
+    assert classify_format(analysis, niche_id=4) == "recipe"
+
+
+# ── vlog — pins personal-business-journey pattern ────────────────────
+
+
+def test_post_graduation_business_narrative_routes_to_vlog() -> None:
+    """Regression for eval miss: 'sau khi tốt nghiệp, tôi lấy 3,5 tấn
+    cam ra chợ phiên dựng sạp' — first-person life journey = vlog."""
+    analysis = _analysis(
+        "sau khi tốt nghiệp, tôi lấy 3,5 tấn cam, ra chợ phiên dựng sạp",
+        topics=["Entrepreneurship", "Street Food Business"],
+    )
+    assert classify_format(analysis, niche_id=12) == "vlog"
+
+
+# ── storytelling — pins drama/skit + southern dialect ───────────────
+
+
+def test_drama_skit_topic_routes_to_storytelling() -> None:
+    """Regression for eval miss: Southern-dialect drama skit with
+    'drama, skit' topics was falling through to 'other'."""
+    analysis = _analysis(
+        "tui đứng thất vọng với bà luôn á, cái hoàn cảnh nhà thằng Nhật",
+        topics=["drama", "skit", "school life"],
+    )
+    assert classify_format(analysis, niche_id=13) == "storytelling"
+
+
+def test_hoan_canh_routes_to_storytelling() -> None:
+    """'hoàn cảnh' is a VN life-story marker."""
+    analysis = _analysis("Hoàn cảnh gia đình khó khăn mỗi ngày khắc nghiệt")
+    assert classify_format(analysis, niche_id=16) == "storytelling"
