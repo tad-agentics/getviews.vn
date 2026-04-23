@@ -484,3 +484,115 @@ import { TrendingUp, Film, Eye } from "lucide-react";
 ```
 
 Do not install or use Heroicons, Phosphor, or any other icon set. `strokeWidth={1.7}` is the standard for UI icons at 16–20px.
+
+-----
+
+## 12. Copy Standards
+
+### Voice
+
+Direct, data-backed, peer-to-peer. **Not** guru, not teacher, not marketing.
+
+The test: would this sound natural in a Vietnamese creator Zalo group? If yes, ship it. If it sounds like a product pitch or a textbook, rewrite it.
+
+### Forbidden words (anywhere)
+
+`tuyệt vời · hoàn hảo · bí mật · công thức vàng · đột phá · kỷ lục · triệu view · bùng nổ · siêu hot · thần thánh · hack · chiến lược độc quyền · ai cũng phải biết · không thể bỏ qua · chắc chắn thành công`
+
+### Forbidden opening words
+
+`Chào bạn · Xin chào · Rất vui · Tuyệt vời · Wow · Chúc mừng · Đây là · Dưới đây là`
+
+### Copy formula
+
+`State the data → name the finding → give the specific fix.`
+
+Always: evidence before opinion. 1–2 sentences per point. Never paragraph answers in diagnosis.
+
+### English loanwords
+
+Keep these in Vietnamese copy — they are standard in creator culture:
+`hook · content · viral · trend · brief · format · niche · view · follower · like · creator · KOL · KOC`
+
+Do not translate them.
+
+### Numbers
+
+Vietnamese punctuation: `1.000` not `1,000` for VND. Render all numbers in JetBrains Mono in the UI.
+
+### Diagnosis rows
+
+- `✕` for problems, `✓` for strengths (not emoji, not colored dots)
+- Include benchmark data: `✕ Không mặt trong 3 giây đầu. 92% top video trong niche mở bằng mặt trong 0.5 giây.`
+- End with specific fix, not general advice
+- Max 30 words per row
+
+### Navigation labels
+
+Noun-first, max 2 words, no verbs, no punctuation:
+`Trang chủ · Xu hướng · Lịch sử · Cài đặt · Nghiên cứu`
+
+### Empty states
+
+Warm, not sorry. Always include what to do next. Never "Oops" or "Rất tiếc."
+
+### Error states
+
+What failed + what to do next. One sentence. No apology. No emoji.
+
+-----
+
+## 13. What Not to Do
+
+These patterns are explicitly banned. Do not introduce them.
+
+- **No raw hex values in JSX.** Always `var(--gv-*)` or a Tailwind class.
+- **No `style={{}}` for token values.** Only for genuinely dynamic values (e.g. `style={{ width: pct + '%' }}`).
+- **No purple/violet/indigo gradient backgrounds.** The legacy gradient system (`--gradient-cta`) is for the landing page only.
+- **No 3-column icon-in-circle feature grids.**
+- **No global `text-align: center` on headings or card content.**
+- **No decorative blobs, wavy dividers, or floating shapes.**
+- **No colored left-border accent cards as a default pattern.**
+- **No emoji as visual design elements.**
+- **No second font family.** TikTok Sans + JetBrains Mono is the entire type system.
+- **No uniform border-radius.** Use the 4-step scale intentionally.
+- **No modals, popups, or full-screen interstitials in the chat/answer flow.** Everything inline.
+- **No identical spacing between all elements.** Use the scale with intention.
+- **No lorem ipsum or placeholder strings in any committed UI.** All copy slots must use real data variables.
+- **No dark mode implementation.** Light only.
+
+-----
+
+## 14. Tailwind Conventions
+
+The project uses **Tailwind v4** with `@theme inline` syntax in `src/app.css`. Token access in Tailwind:
+
+```
+bg-[color:var(--gv-paper)]         ← color token
+border-[color:var(--gv-rule)]      ← border color token
+text-[color:var(--gv-ink-3)]       ← text color token
+rounded-[18px]                     ← radius (no token alias in Tailwind)
+```
+
+Utility classes (`.gv-*`) are used directly in `className` strings:
+
+```tsx
+<span className="gv-kicker gv-kicker--dot">NGÁCH</span>
+<h2 className="gv-tight text-[28px]">Xu hướng tuần</h2>
+<span className="gv-mono text-[12px]">73%</span>
+```
+
+-----
+
+## 15. File Locations Quick Reference
+
+|What                       |Where                                                                          |
+|---------------------------|-------------------------------------------------------------------------------|
+|All `--gv-*` tokens        |`src/app.css` (`:root` block, Phase A · A3 section)                            |
+|Utility classes (`.gv-*`)  |`src/app.css` (after token block)                                              |
+|v2 primitives              |`src/components/v2/`                                                           |
+|shadcn/Radix primitives    |`src/components/ui/`                                                           |
+|Report body renderers      |`src/components/v2/answer/{pattern,ideas,timing,lifecycle,diagnostic,generic}/`|
+|Navigation chrome          |`src/components/AppLayout.tsx`, `src/components/BottomTabBar.tsx`              |
+|Copy rules (Cursor rule)   |`.cursor/rules/copy-rules.mdc`                                                 |
+|Design system rule (Cursor)|`.cursor/rules/design-system.mdc`                                              |
