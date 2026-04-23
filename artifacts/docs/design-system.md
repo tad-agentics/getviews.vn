@@ -421,3 +421,66 @@ Filter ribbon with left-aligned chips and right-aligned search/action slot.
 |Title size  |19–24px `.gv-tight`         |28px `.gv-tight`               |
 |Kicker style|`.gv-uc` 9.5px              |`gv-uc` 10px with `●`          |
 |Use for     |Per-screen navigation header|Section heading inside a screen|
+
+-----
+
+## 9. Report Components
+
+Report bodies live in `src/components/v2/answer/`. Each report type has a dedicated `*Body.tsx`.
+
+### `<AnswerBlock>`
+
+The outer shell wrapping any report body. Pink mono kicker + white bordered card.
+
+```tsx
+<AnswerBlock kicker="Pattern">
+  <PatternBody report={report} />
+</AnswerBlock>
+```
+
+### `<ConfidenceStrip>`
+
+Always render at the top of every report body. Shows `N=`, window, niche, freshness.
+
+- `thinSample` (sample_size < 30) → renders orange "MẪU MỎNG" toggle
+- `intent_confidence: "low"` with `sample_size: 0` → fixture data signal
+
+### `<HookFindingCard>`
+
+Ranked hook finding. Grid: rank number left, pattern + insight centre, retention/delta right. Lifecycle pill inline.
+
+### Confidence and data honesty
+
+- Never show a report without `<ConfidenceStrip>` at the top
+- If data is fixture (sample_size = 0), `intent_confidence` must be `"low"` — the strip shows "MẪU MỎNG"
+- The `execution_tip` field from `niche_insights` is the most actionable data point — surface it prominently in Pattern and Ideas reports
+
+-----
+
+## 10. Animation
+
+|Name    |Duration |Use                                         |
+|--------|---------|--------------------------------------------|
+|Instant |0ms      |Toggles, active press state                 |
+|Fast    |120ms    |Hover, focus, border color, icon color      |
+|Normal  |200ms    |Panel slide, tab switch, tooltip            |
+|Emphasis|400ms    |Diagnosis row reveal, bar fill, card stagger|
+|Slow    |600–800ms|Dopamine moments only (D1–D4)               |
+
+**Hard rule: nothing > 800ms.**
+
+`.gv-fade-up` — light entrance animation (0.45s ease-out, 8px Y translate). Use for streaming content reveals. Delay variants: `.gv-fade-up-delay-1` (60ms), `.gv-fade-up-delay-2` (120ms), `.gv-fade-up-delay-3` (140ms).
+
+`@keyframes gv-pulse` — live dot heartbeat. `opacity + scale` oscillation over 1 cycle.
+
+-----
+
+## 11. Icons
+
+**Lucide React** is the only icon library. Import directly:
+
+```tsx
+import { TrendingUp, Film, Eye } from "lucide-react";
+```
+
+Do not install or use Heroicons, Phosphor, or any other icon set. `strokeWidth={1.7}` is the standard for UI icons at 16–20px.
