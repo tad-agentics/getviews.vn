@@ -33,6 +33,7 @@ from getviews_pipeline.gemini_cost import (
     estimate_cost,
     extract_usage,
     log_gemini_call,
+    log_gemini_failure,
     price_for_model,
 )
 
@@ -190,6 +191,80 @@ class TestLogGeminiCall:
             )
             # Let the daemon thread's catch-all fire.
             time.sleep(0.05)
+
+
+class TestSuccessAndErrorCodeColumns:
+    """2026-05-10 — observability columns (success + error_code) flow
+    through the row payload. Success rows remain the default."""
+
+    def test_default_row_marks_success_true_and_error_code_null(self) -> None:
+        captured: dict[str, Any] = {}
+        with patch(
+            "getviews_pipeline.gemini_cost._insert_row",
+            side_effect=lambda row: captured.update(row),
+        ):
+            log_gemini_call(
+                user_id=None, call_site="whatever",
+                model_name="gemini-3-flash-preview",
+                tokens_in=10, tokens_out=20, duration_ms=50,
+            )
+            for _ in range(50):
+                if "call_site" in captured:
+                    break
+                time.sleep(0.01)
+
+        assert captured["success"] is True
+        assert captured["error_code"] is None
+
+    def test_failure_row_has_zero_tokens_and_error_code_set(self) -> None:
+        captured: dict[str, Any] = {}
+        with patch(
+            "getviews_pipeline.gemini_cost._insert_row",
+            side_effect=lambda row: captured.update(row),
+        ):
+            log_gemini_failure(
+                user_id="user-1",
+                call_site="pattern_narrative",
+                model_name="gemini-3-flash-preview",
+                exc=ValueError("daily quota exhausted"),
+                duration_ms=12_345,
+                session_id="sess-1",
+            )
+            for _ in range(50):
+                if "call_site" in captured:
+                    break
+                time.sleep(0.01)
+
+        assert captured["success"] is False
+        assert captured["error_code"] == "ValueError"
+        assert captured["tokens_in"] == 0
+        assert captured["tokens_out"] == 0
+        assert captured["cost_usd"] == 0.0
+        assert captured["duration_ms"] == 12_345
+        assert captured["user_id"] == "user-1"
+        assert captured["session_id"] == "sess-1"
+
+    def test_explicit_success_false_via_log_gemini_call(self) -> None:
+        """Callers can bypass the helper and set success directly —
+        e.g. a synthetic row for a Gemini-side partial response."""
+        captured: dict[str, Any] = {}
+        with patch(
+            "getviews_pipeline.gemini_cost._insert_row",
+            side_effect=lambda row: captured.update(row),
+        ):
+            log_gemini_call(
+                user_id=None, call_site="synthesizer",
+                model_name="gemini-3-flash-preview",
+                tokens_in=0, tokens_out=0, duration_ms=0,
+                success=False, error_code="CustomError",
+            )
+            for _ in range(50):
+                if "call_site" in captured:
+                    break
+                time.sleep(0.01)
+
+        assert captured["success"] is False
+        assert captured["error_code"] == "CustomError"
 
 
 class TestWrapperContract:
