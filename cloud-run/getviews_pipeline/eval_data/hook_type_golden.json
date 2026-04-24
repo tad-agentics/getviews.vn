@@ -1,0 +1,126 @@
+{
+  "_metadata": {
+    "name": "hook_type_v1",
+    "created": "2026-05-10",
+    "purpose": "Hand-curated golden set for hook_type regression testing. Unlike content_format (a regex classifier we can run locally), hook_type is emitted directly by Gemini at extraction time — so the eval measures production accuracy against human judgment by reading video_corpus.hook_type at eval time.",
+    "labeling_rubric": [
+      "Gold labels were assigned by reading each video's hook_phrase + audio_transcript, NOT by trusting video_corpus.hook_type.",
+      "When multiple hook categories apply, pick the DOMINANT signal. Ambiguity is captured in the notes field so future re-labeling can revisit edge cases.",
+      "Items that genuinely lack any hook (pure music, song lyrics, no-dialogue footage) are labeled 'none' — NOT 'other'. 'other' is reserved for content that has an identifiable hook but doesn't fit any of the 12 specific buckets."
+    ],
+    "taxonomy": [
+      "question", "bold_claim", "shock_stat", "story_open", "controversy",
+      "challenge", "how_to", "social_proof", "curiosity_gap", "pain_point",
+      "trend_hijack", "none", "other"
+    ],
+    "commit_history": [
+      "2026-05-10 commit 1 — skeleton + top buckets (13 items): bold_claim, story_open, curiosity_gap, how_to, question"
+    ]
+  },
+  "items": [
+    {
+      "video_id": "7630338259465358612",
+      "niche_id": 13,
+      "gold_label": "bold_claim",
+      "hook_phrase": "MMA LION MÀN TRỞ LẠI QUÁ ẤN TƯỢNG CỦA CONOR MCGREGOR NGỌC LÂM",
+      "transcript_snippet": "Một cú đấm của Quốc Bảo... Ngọc Lâm đang cố gắng... Rất kịch tính... Chiến thắng dành cho Ngọc Lâm",
+      "notes": "Superlative framing 'QUÁ ẤN TƯỢNG' + comparison to Conor McGregor = confident bold declaration."
+    },
+    {
+      "video_id": "7623726538600877332",
+      "niche_id": 15,
+      "gold_label": "bold_claim",
+      "hook_phrase": "Đỉnh cao của sự phô trương kín đáo: Biển số xe đẹp chưa là gì so với 'mật mã' Zalo gắn phía sau.",
+      "transcript_snippet": "Đỉnh cao của sự phô trương kín đáo: Biển số xe đẹp chưa là gì so với mật mã Zalo gắn phía sau",
+      "notes": "'Đỉnh cao của...' = peak-of-X superlative pattern, classic bold_claim construction."
+    },
+    {
+      "video_id": "7628914848046337288",
+      "niche_id": 16,
+      "gold_label": "bold_claim",
+      "hook_phrase": "Huấn luyện viên Simeone: Yamal chơi hay, nhưng để thành ác mộng như Cristiano Ronaldo thì còn xa.",
+      "transcript_snippet": "Huấn luyện viên Simeone: Yamal chơi hay, nhưng để thành ác mộng như Cristiano Ronaldo thì còn xa",
+      "notes": "Simeone's take framed as quote — bold declarative comparison against Ronaldo."
+    },
+    {
+      "video_id": "7629252768347196692",
+      "niche_id": 13,
+      "gold_label": "story_open",
+      "hook_phrase": "KHOẢNH KHẮC CHỊ BẾ EM CHẠY THOÁT THÂN KHỎI TRẬN MƯA ĐÁ LÚC RẠNG SÁNG",
+      "transcript_snippet": "Rạng sáng nay ngày 16 tháng 4 năm 2026, một trận mưa đá rất lớn bất ngờ trút xuống xã Bắc Hà",
+      "notes": "'Khoảnh khắc...' = narrative-moment framing, then grounds in specific time + place."
+    },
+    {
+      "video_id": "7629949709284576532",
+      "niche_id": 13,
+      "gold_label": "story_open",
+      "hook_phrase": "Thả ra! Thả ra!",
+      "transcript_snippet": "Thả ra! Thả ra! Cứu tôi với! [Tiếng la hét] Hôm nay 18 tháng 4 năm 2024, Công an tỉnh Quảng Ngãi cho biết",
+      "notes": "Dramatic dialogue cold-open — crowd/cry-for-help framing that sets up the news story."
+    },
+    {
+      "video_id": "7630420278048279816",
+      "niche_id": 13,
+      "gold_label": "story_open",
+      "hook_phrase": "Cứu vật vật trả ơn",
+      "transcript_snippet": "Bằng mọi cách phải cứu cho được anh ấy bởi vì anh ấy chính là ân nhân cứu mạng của tôi",
+      "notes": "Fable-style proverb title ('save an animal, animal returns the favor') + dialogue-driven narrative opening."
+    },
+    {
+      "video_id": "7627086358544436501",
+      "niche_id": 13,
+      "gold_label": "curiosity_gap",
+      "hook_phrase": "Oh my god! Again! Again! Again!",
+      "transcript_snippet": "Oh my god! Again! Again! Again! [Rhythmic electronic music plays]",
+      "notes": "Exclamation teases a reveal without explaining — viewer has to watch to find out what's happening."
+    },
+    {
+      "video_id": "7627700862789422356",
+      "niche_id": 13,
+      "gold_label": "curiosity_gap",
+      "hook_phrase": "Long ơi!",
+      "transcript_snippet": "Long ơi! [Crowd Cheering] Long ơi, gái gọi! Gọi to lên, gọi to lên, hai, ba: LONG ƠI!",
+      "notes": "Crowd shouting for 'Long' — mystery around who/what Long is and what he'll do keeps viewer watching."
+    },
+    {
+      "video_id": "7622669408665652488",
+      "niche_id": 3,
+      "gold_label": "how_to",
+      "hook_phrase": "My height outfit >>",
+      "transcript_snippet": "[music]",
+      "notes": "Tutorial framing: outfit recommendations keyed to viewer height. '>>' = continuation/steps indicator."
+    },
+    {
+      "video_id": "7631437690210127111",
+      "niche_id": 18,
+      "gold_label": "how_to",
+      "hook_phrase": "Khuấy lên để tạo lốc xoáy nước",
+      "transcript_snippet": "Khuấy lên để tạo lốc xoáy nước. Đổ từ từ trứng vào nước đun sôi",
+      "notes": "Step-by-step cooking instruction ('stir to create water vortex, slowly pour egg') = explicit how_to."
+    },
+    {
+      "video_id": "7629592807652625682",
+      "niche_id": 18,
+      "gold_label": "how_to",
+      "hook_phrase": "1 má gà",
+      "transcript_snippet": "1 má gà. 2 má gà. 3 má gà. Chiên cho đến khi vàng giòn 2 mặt. Ai muốn ăn ngon thì làm như công thức nhé",
+      "notes": "Counted recipe ingredients + explicit 'công thức' (formula) call-out = canonical how_to opener."
+    },
+    {
+      "video_id": "7631770551429795093",
+      "niche_id": 21,
+      "gold_label": "question",
+      "hook_phrase": "Đang viral ở Trung Quốc cô gái động chân động tay trước và cú trả đũa trời giáng từ nam bảo vệ ai đúng ai sai ở trường hợp này",
+      "transcript_snippet": "Đang viral ở Trung Quốc cô gái động chân động tay trước và cú trả đũa trời giáng từ nam bảo vệ",
+      "notes": "Closes with 'ai đúng ai sai?' (who's right, who's wrong?) — explicit literal question to viewer."
+    },
+    {
+      "video_id": "7627711732751944980",
+      "niche_id": 6,
+      "gold_label": "question",
+      "hook_phrase": "Biết lý do vì sao Duy Nina mất bình tĩnh chưa?",
+      "transcript_snippet": "Biết lý do vì sao Duy Nina mất bình tĩnh chưa? Bài hát mà đối thủ trình diễn như con nít trên sân khấu",
+      "notes": "Literal Vietnamese question 'do you know the reason why...?' — canonical question hook."
+    }
+  ]
+}
