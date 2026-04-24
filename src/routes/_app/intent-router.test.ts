@@ -348,14 +348,15 @@ describe("resolveDestination — follow_up_classifiable subject union", () => {
   });
 });
 
-// ── Wave 4 PR #1 — compare_videos routing ────────────────────────────────
+// ── Wave 4 PR #1+#2 — compare_videos routing ─────────────────────────────
 //
-// Two TikTok URLs in one message → `compare_videos` intent →
-// `answer:compare` destination. Mirrors the server-side classification in
-// `classify_intent` (see `test_intent_routing.py`). The two routers must
-// agree on the boundary — a message that classifies server-side as
-// COMPARE_VIDEOS must also plan as such client-side so the frontend
-// dispatches to the Cloud Run endpoint.
+// Two TikTok URLs in one message → `compare_videos` intent → top-level
+// `compare` destination → /app/compare?url_a=…&url_b=… redirect.
+// Mirrors the server-side classification in `classify_intent` (see
+// `test_intent_routing.py`). The two routers must agree on the boundary
+// — a message that classifies server-side as COMPARE_VIDEOS must also
+// plan as such client-side so the frontend dispatches to the Cloud Run
+// /stream endpoint with the right intent.
 
 describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
   const URL_A = "https://www.tiktok.com/@a/video/1";
@@ -401,7 +402,24 @@ describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
     expect(r.intentType).toBe("video_diagnosis");
   });
 
-  it("resolveDestination maps compare_videos → answer:compare", () => {
-    expect(resolveDestination({ id: "compare_videos" })).toBe("answer:compare");
+  it("resolveDestination maps compare_videos → compare (top-level, not answer:*)", () => {
+    expect(resolveDestination({ id: "compare_videos" })).toBe("compare");
+  });
+
+  it("planAnswerEntry redirects to /app/compare with both URLs as params", () => {
+    const result = planAnswerEntry(`${URL_A} ${URL_B}`, false);
+    expect(result.kind).toBe("redirect");
+    if (result.kind !== "redirect") return;
+    expect(result.to).toContain("/app/compare");
+    expect(result.to).toContain(`url_a=${encodeURIComponent(URL_A)}`);
+    expect(result.to).toContain(`url_b=${encodeURIComponent(URL_B)}`);
+  });
+
+  it("planAnswerEntry preserves URL order from the message", () => {
+    // Reverse the URLs in the message — first match (URL_B) becomes url_a.
+    const result = planAnswerEntry(`${URL_B} so sánh với ${URL_A}`, false);
+    if (result.kind !== "redirect") throw new Error("expected redirect");
+    expect(result.to).toContain(`url_a=${encodeURIComponent(URL_B)}`);
+    expect(result.to).toContain(`url_b=${encodeURIComponent(URL_A)}`);
   });
 });

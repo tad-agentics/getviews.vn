@@ -537,14 +537,16 @@ def test_follow_up_classifiable_unknown_subject_returns_none() -> None:
 
 # ── Wave 4 PR #1 — compare_videos destination ───────────────────────────
 
-def test_compare_videos_routes_to_answer_compare() -> None:
-    """Keyword-path mapping: ``compare_videos`` must route to the new
-    ``answer:compare`` shelf on both entry points (``INTENT_TO_
-    DESTINATION`` and the Gemini-classifier primary-label table)."""
+def test_compare_videos_routes_to_compare_destination() -> None:
+    """Keyword-path mapping: ``compare_videos`` routes to the top-level
+    ``compare`` destination (mirrors ``video`` — URL-bearing, dedicated
+    screen + /stream, NOT the niche-scoped ``answer:`` session shelf).
+    Pinned on both entry points: ``INTENT_TO_DESTINATION`` (fast-path)
+    and ``_GEMINI_PRIMARY_TO_DESTINATION`` (slow-path classifier)."""
     from getviews_pipeline.intent_router import (
         destination_for_gemini_primary_label,
         destination_for_intent,
     )
 
-    assert destination_for_intent(QueryIntent.COMPARE_VIDEOS.value) == "answer:compare"
-    assert destination_for_gemini_primary_label("compare_videos") == "answer:compare"
+    assert destination_for_intent(QueryIntent.COMPARE_VIDEOS.value) == "compare"
+    assert destination_for_gemini_primary_label("compare_videos") == "compare"
