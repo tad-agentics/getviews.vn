@@ -156,16 +156,23 @@ def _generate_content_models(
     while migrations land, and shows up as its own column on the
     dashboard so regressions surface immediately.
     """
-    from getviews_pipeline.gemini_cost import extract_usage, log_gemini_call
+    from getviews_pipeline.gemini_cost import (
+        extract_usage,
+        log_gemini_call,
+        log_gemini_failure,
+    )
 
     client = _get_client()
     chain = [primary_model, *fallbacks]
     seen: set[str] = set()
     last_err: Exception | None = None
+    last_model: str = primary_model
+    overall_started = time.monotonic()
     for m in chain:
         if not m or m in seen:
             continue
         seen.add(m)
+        last_model = m
         for attempt, delay in enumerate(_RETRY_DELAYS):
             try:
                 started = time.monotonic()
@@ -194,7 +201,22 @@ def _generate_content_models(
                     break
                 logger.info("Gemini model %s transient error (attempt %d/%d), retrying in %ds: %s", m, attempt + 1, len(_RETRY_DELAYS), delay, e)
                 time.sleep(delay)
-    if last_err:
+    # All models + retries exhausted. Log a failure row to gemini_calls
+    # so the dashboard surfaces the outage — best-effort, never blocks
+    # the raise path.
+    overall_ms = int((time.monotonic() - overall_started) * 1000)
+    if last_err is not None:
+        try:
+            log_gemini_failure(
+                user_id=user_id,
+                call_site=call_site,
+                model_name=last_model,
+                exc=last_err,
+                duration_ms=overall_ms,
+                session_id=session_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[gemini] log_gemini_failure crashed: %s", exc)
         raise last_err
     raise RuntimeError("No Gemini models available")
 

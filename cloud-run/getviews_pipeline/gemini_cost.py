@@ -137,11 +137,18 @@ def log_gemini_call(
     tokens_out: int,
     duration_ms: int,
     session_id: str | None = None,
+    success: bool = True,
+    error_code: str | None = None,
 ) -> float:
     """Insert a ``gemini_calls`` row asynchronously. Returns the computed cost.
 
     Callers that want the cost for metrics can use the return value directly;
     everyone else can ignore it.
+
+    Failure rows (``success=False``) carry ``error_code`` (exception type
+    name) and typically have ``tokens_in=tokens_out=0, duration_ms=<retry
+    time>, cost_usd=0``. See ``log_gemini_failure`` for the convenience
+    wrapper used by ``gemini.py``'s exhausted-retry path.
     """
     cost_usd = round(estimate_cost(
         model_name=model_name,
@@ -158,6 +165,8 @@ def log_gemini_call(
         "cost_usd": cost_usd,
         "duration_ms": duration_ms,
         "session_id": session_id,
+        "success": success,
+        "error_code": error_code,
     }
 
     thread = threading.Thread(
@@ -169,3 +178,36 @@ def log_gemini_call(
     thread.start()
 
     return cost_usd
+
+
+def log_gemini_failure(
+    *,
+    user_id: str | None,
+    call_site: str,
+    model_name: str,
+    exc: BaseException,
+    duration_ms: int,
+    session_id: str | None = None,
+) -> None:
+    """Log a ``gemini_calls`` row for an exhausted-retry failure.
+
+    Called from ``gemini.py`` *only* when all retries + fallback models
+    have been exhausted and the caller is about to re-raise. Transient
+    hiccups that recover on retry are NOT logged here — they'd make
+    the failure-rate panel noisy.
+
+    Writes ``tokens_in=tokens_out=cost_usd=0``, ``duration_ms`` = total
+    elapsed time across retries for this model (caller-provided),
+    ``error_code`` = exception class name.
+    """
+    log_gemini_call(
+        user_id=user_id,
+        call_site=call_site,
+        model_name=model_name,
+        tokens_in=0,
+        tokens_out=0,
+        duration_ms=duration_ms,
+        session_id=session_id,
+        success=False,
+        error_code=type(exc).__name__,
+    )
