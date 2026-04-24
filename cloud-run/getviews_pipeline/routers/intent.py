@@ -35,6 +35,7 @@ from getviews_pipeline.pipelines import (
     run_trend_spike,
     run_video_diagnosis,
 )
+from getviews_pipeline.report_compare import run_compare_pipeline
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.session_store import (
     build_session_context_from_db,
@@ -98,6 +99,25 @@ def _pick_video_url(urls: list[str]) -> str | None:
         if "/video/" in ul or "/photo/" in ul or _is_short_tiktok_url(u):
             return u
     return urls[0] if urls else None
+
+
+def _pick_two_video_urls(urls: list[str]) -> tuple[str | None, str | None]:
+    """Wave 4 PR #2 — pick the first two video-style URLs, in source
+    order, for the compare pipeline. Falls back to the first two of
+    any ordering when fewer than two video-style matches are found —
+    the orchestrator will surface a "missing_video_url"-style error
+    if either side fails to resolve. Mirrors ``_pick_video_url``'s
+    "video > photo > short-link > anything" precedence per slot."""
+    video_like = [
+        u for u in urls
+        if "/video/" in u.lower()
+        or "/photo/" in u.lower()
+        or _is_short_tiktok_url(u)
+    ]
+    pool = video_like if len(video_like) >= 2 else urls
+    a = pool[0] if len(pool) >= 1 else None
+    b = pool[1] if len(pool) >= 2 else None
+    return a, b
 
 
 def _resolve_profile_handle(urls: list[str], handles: list[str]) -> str:
@@ -306,6 +326,32 @@ async def stream(
                 if _is_short_tiktok_url(url):
                     url = await run_sync(_resolve_short_url, url)
                 pipeline_coro = run_video_diagnosis(url, session, questions=questions, user_message=body.query, step_queue=step_q)
+            elif normalized == "compare_videos":
+                # Wave 4 PR #2 — two URLs in one /stream call. Bundle
+                # streaming: one start/done envelope around the pair;
+                # per-side step events are suppressed inside
+                # run_compare_pipeline so the FE doesn't have to
+                # multiplex two parallel progress streams.
+                url_a, url_b = _pick_two_video_urls(urls)
+                if not url_a or not url_b:
+                    seq += 1
+                    yield _sse_line({
+                        "stream_id": stream_id, "seq": seq,
+                        "delta": "", "done": True,
+                        "error": "missing_video_url",
+                    })
+                    sb.table("profiles").update(
+                        {"is_processing": False},
+                    ).eq("id", user_id).execute()
+                    return
+                if _is_short_tiktok_url(url_a):
+                    url_a = await run_sync(_resolve_short_url, url_a)
+                if _is_short_tiktok_url(url_b):
+                    url_b = await run_sync(_resolve_short_url, url_b)
+                pipeline_coro = run_compare_pipeline(
+                    url_a, url_b, session,
+                    user_message=body.query, step_queue=step_q,
+                )
             elif normalized == "competitor_profile":
                 handle = _resolve_profile_handle(urls, handles)
                 pipeline_coro = run_competitor_profile(handle, session, questions, step_queue=step_q)
