@@ -46,6 +46,16 @@ _R2_ENDPOINT = "https://{account_id}.r2.cloudflarestorage.com"
 _FRAME_CONTENT_TYPE = "image/png"
 _FRAME_EXT = ".png"
 
+# 2026-05-10 — Wave 2.5 Phase A PR #3: per-scene frames use JPG (smaller,
+# adequate quality for thumbnails at ~720px). Key pattern
+# ``video_shots/{video_id}/{scene_index}.jpg`` matches the matcher's
+# expected frame_url column shape on video_shots.
+_SCENE_FRAME_CONTENT_TYPE = "image/jpeg"
+_SCENE_FRAME_EXT = ".jpg"
+# Ffmpeg refuses to seek to 0.0 on some containers; clamp to this
+# floor so "first scene starts at 0" still returns a frame.
+_SCENE_FRAME_MIN_TS = 0.1
+
 # Max bytes we'll upload per frame (guard against runaway ffmpeg output)
 _MAX_FRAME_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -549,3 +559,204 @@ async def download_and_upload_thumbnail(thumbnail_url: str, video_id: str) -> st
     except Exception as exc:
         logger.error("[r2] download_and_upload_thumbnail failed for %s: %s", video_id, exc)
         return None
+
+
+# ── Per-scene frame extraction (Wave 2.5 Phase A PR #3) ────────────────
+#
+# Distinct from extract_frames() / upload_frames() above, which target the
+# fixed FRAME_TIMESTAMPS_SEC (hook-window coverage for diagnosis). These
+# scene-frame helpers extract ONE frame per video_corpus.scenes[] entry at
+# its midpoint, for the "reference videos per script shot" matcher.
+#
+# Key pattern: video_shots/{video_id}/{scene_index}.jpg
+# Format: JPG (smaller files, adequate for thumbnails). Stored on the same
+# R2 bucket as the hook frames, in a separate folder namespace.
+
+
+def _scene_midpoint(start: float, end: float) -> float:
+    """Clamp midpoint to the ffmpeg-seek-safe floor."""
+    mid = (float(start) + float(end)) / 2.0
+    return max(_SCENE_FRAME_MIN_TS, mid)
+
+
+def extract_scene_frames(
+    video_path: Path,
+    video_id: str,
+    scene_midpoints: list[tuple[int, float]],
+) -> list[tuple[int, Path]]:
+    """Extract one JPG frame per (scene_index, timestamp) pair.
+
+    Runs synchronously — call via ``run_in_executor`` from async callers.
+    Returns ``[(scene_index, path)]`` for successful extractions only;
+    length may be shorter than input when individual ffmpeg runs fail.
+    Never raises — returns ``[]`` if ffmpeg is unavailable or video_path
+    is missing.
+    """
+    if not _ffmpeg_available():
+        logger.warning(
+            "[r2] ffmpeg not found — scene frame extraction skipped for %s", video_id,
+        )
+        return []
+    if not video_path.exists():
+        logger.warning("[r2] video_path %s does not exist", video_path)
+        return []
+
+    run_id = uuid.uuid4().hex[:8]
+    results: list[tuple[int, Path]] = []
+
+    for scene_index, ts in scene_midpoints:
+        safe_ts = max(_SCENE_FRAME_MIN_TS, float(ts))
+        out_path = Path("/tmp") / (
+            f"scene_{video_id}_{run_id}_{scene_index}{_SCENE_FRAME_EXT}"
+        )
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", f"{safe_ts:.2f}",
+            "-i", str(video_path),
+            "-vframes", "1",
+            "-vf", "scale=720:-2",
+            "-q:v", "4",              # JPEG quality 1–31 (lower=better); 4 ≈ ~high
+            str(out_path),
+        ]
+        try:
+            import subprocess
+
+            result = subprocess.run(cmd, capture_output=True, timeout=30)
+            if result.returncode != 0:
+                logger.warning(
+                    "[r2] scene ffmpeg failed %s scene=%d ts=%.2fs: %s",
+                    video_id, scene_index, safe_ts,
+                    result.stderr.decode(errors="replace")[:200],
+                )
+                continue
+            if not out_path.exists() or out_path.stat().st_size == 0:
+                continue
+            if out_path.stat().st_size > _MAX_FRAME_BYTES:
+                logger.warning(
+                    "[r2] scene frame too large %s scene=%d (%.1fMB) — skipping",
+                    video_id, scene_index, out_path.stat().st_size / 1024 / 1024,
+                )
+                out_path.unlink(missing_ok=True)
+                continue
+            results.append((scene_index, out_path))
+        except Exception as exc:
+            logger.warning(
+                "[r2] scene extraction error %s scene=%d: %s",
+                video_id, scene_index, exc,
+            )
+
+    logger.info(
+        "[r2] extracted %d/%d scene frames for %s",
+        len(results), len(scene_midpoints), video_id,
+    )
+    return results
+
+
+def upload_scene_frames(
+    video_id: str,
+    scene_frames: list[tuple[int, Path]],
+) -> list[tuple[int, str]]:
+    """Upload scene JPG frames to R2.
+
+    Key pattern: ``video_shots/{video_id}/{scene_index}.jpg``
+    Returns ``[(scene_index, public_url)]``. Partial successes included;
+    returns ``[]`` on full failure. Never raises.
+    """
+    if not r2_configured():
+        logger.warning(
+            "[r2] R2 not configured — scene frame upload skipped for %s", video_id,
+        )
+        return []
+    if not scene_frames:
+        return []
+
+    try:
+        client = _get_r2_client()
+    except Exception as exc:
+        logger.error("[r2] failed to create R2 client: %s", exc)
+        return []
+
+    uploaded: list[tuple[int, str]] = []
+    for scene_index, path in scene_frames:
+        if not path.exists():
+            continue
+        key = f"video_shots/{video_id}/{scene_index}{_SCENE_FRAME_EXT}"
+        try:
+            with path.open("rb") as fh:
+                client.put_object(
+                    Bucket=R2_BUCKET_NAME,
+                    Key=key,
+                    Body=fh,
+                    ContentType=_SCENE_FRAME_CONTENT_TYPE,
+                    CacheControl="public, max-age=31536000, immutable",
+                )
+            url = f"{R2_PUBLIC_URL}/{key}"
+            uploaded.append((scene_index, url))
+        except (BotoCoreError, ClientError) as exc:
+            logger.error(
+                "[r2] scene upload failed %s scene=%d: %s",
+                video_id, scene_index, exc,
+            )
+        except Exception as exc:
+            logger.error(
+                "[r2] unexpected error uploading scene %s:%d: %s",
+                video_id, scene_index, exc,
+            )
+
+    logger.info(
+        "[r2] uploaded %d/%d scene frames for %s",
+        len(uploaded), len(scene_frames), video_id,
+    )
+    return uploaded
+
+
+async def extract_and_upload_scene_frames(
+    video_path: Path,
+    video_id: str,
+    scenes: list[dict[str, Any]],
+) -> list[tuple[int, str]]:
+    """Extract + upload one frame per scene, at its midpoint.
+
+    ``scenes`` is a list of dicts (or pydantic dumps) with ``start`` +
+    ``end`` keys. ``scene_index`` is derived from list position. Returns
+    ``[(scene_index, url)]``. Always cleans up /tmp files. Never raises.
+    Designed for ingest call sites: on any failure, returns ``[]`` so
+    the broader ingest continues.
+    """
+    if not r2_configured() or not scenes:
+        return []
+
+    midpoints: list[tuple[int, float]] = []
+    for i, sc in enumerate(scenes):
+        try:
+            start = float(sc.get("start", 0.0) or 0.0)
+            end = float(sc.get("end", 0.0) or 0.0)
+            if end <= start:
+                continue
+            midpoints.append((i, _scene_midpoint(start, end)))
+        except (TypeError, ValueError):
+            continue
+
+    if not midpoints:
+        return []
+
+    loop = asyncio.get_event_loop()
+    frame_pairs: list[tuple[int, Path]] = []
+    try:
+        frame_pairs = await loop.run_in_executor(
+            None, extract_scene_frames, video_path, video_id, midpoints,
+        )
+        if not frame_pairs:
+            return []
+        uploaded = await loop.run_in_executor(
+            None, upload_scene_frames, video_id, frame_pairs,
+        )
+        return uploaded
+    except Exception as exc:
+        logger.error(
+            "[r2] extract_and_upload_scene_frames failed for %s: %s", video_id, exc,
+        )
+        return []
+    finally:
+        _cleanup_frames([p for _, p in frame_pairs])
