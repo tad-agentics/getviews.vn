@@ -330,3 +330,129 @@ low.
 
 Commit (c) weighs these numbers against the ρ ≥ 0.35 gate and makes
 the go/defer call.
+
+---
+
+## 9. Gate verdict
+
+**Gate:** Spearman ρ ≥ 0.35 between score and breakout_multiplier on
+the backtest sample (Wave 3 exit criteria in the implementation plan).
+
+**Observed:** ρ = 0.141 (V1), 0.176 (format-heavy). **Gate failed on
+every variant we tested.**
+
+**Verdict: DEFER Wave 4 viral-score BUILD.** We will not ship a
+numeric alignment pill with the current formula on the current corpus.
+
+Shipping a score with ρ = 0.14 would mean:
+
+- The pill orders 80% of creators' videos essentially at random (the
+  middle three quintiles are non-monotone by breakout).
+- A creator who raises their score by, say, 15 points has no
+  empirical reason to expect improved performance — because the
+  score's rank-correlation with outcomes at that granularity is
+  indistinguishable from noise.
+- Once one creator notices the pill misleads them on a specific
+  video, trust in the surrounding diagnosis surface drops — the
+  reviewer's original warning that "shipping a viral-score with a
+  hand-waved formula erodes trust faster than no score" applies
+  directly to a backtest-failed formula too.
+
+The plan explicitly budgeted this outcome:
+
+> **Risk flag:** Spearman ρ could be < 0.35 even after multiple
+> iterations if the signal genuinely isn't there at current corpus
+> size. In that case, Wave 4's score BUILD is cut (or deferred) and
+> Wave 4 becomes Compare-only.
+
+That branch activates. **Wave 4 ships Compare-two-videos only.**
+
+---
+
+## 10. Why the signal is weak — working hypotheses
+
+Three non-exclusive hypotheses for the low ρ. The re-evaluation
+triggers in §11 map to each:
+
+1. **Dimensions are too coarse.** `hook_type` and `content_format` are
+   14- and ~12-value enums; two videos can share both yet differ
+   wildly in execution (framing, pacing, overlay density, subject
+   matter). The Wave 2.5 scene-level taxonomy
+   (`framing`/`pace`/`overlay_style`/`subject`/`motion` — already
+   shipped and live on `video_shots`) is finer-grained and should
+   re-correlate meaningfully with breakout once the top-500
+   re-extraction backfill (PR #4c) populates enrichment on the rows
+   that matter.
+
+2. **`breakout_multiplier` is a noisy ground truth.** By construction
+   it's `views / creator_velocity.avg_views` — so for a creator whose
+   baseline is already high-variance (one viral video in their 30-day
+   window), every subsequent "normal" video looks below-average.
+   We measured this indirectly: correlating V1 score against *raw
+   views* yields ρ = 0.049, and against *engagement_rate* yields
+   ρ = −0.059. Breakout is the best of the three (0.141) but still
+   low, which suggests the signal we want exists somewhere between
+   a raw popularity metric and a creator-normalized one.
+
+3. **Corpus isn't dense enough yet.** The 8 niches with ≥ 30
+   breakout-scored videos hold ~80% of our scoreable pool. When the
+   corpus passes ~200 breakout-scored per niche across all 21 niches
+   — roughly the 10K-row beta-launch target — the top-30 pool
+   becomes more representative of what's actually winning, not what
+   happened to be in the last ingest batch. Same formula may land
+   ρ substantially higher on a denser corpus without code changes.
+
+---
+
+## 11. Re-evaluation triggers
+
+Re-run the backtest and revisit this verdict when ANY of these land:
+
+| Trigger                                                      | Why it matters                                            |
+|--------------------------------------------------------------|-----------------------------------------------------------|
+| Wave 2.5 top-500 enrichment backfill propagates              | Unlocks framing/pace/overlay_style/subject/motion dims    |
+| `video_corpus` crosses 10K rows total                        | Denser top-30 pools, better creator normalization         |
+| Any niche hits 200+ breakout-scored videos                   | Per-niche calibration loop becomes reliable               |
+| `breakout_multiplier` formula itself revised                 | Changes the ground truth; ρ numbers need to be re-baselined|
+| New candidate dimension ships on ingest (CTA intensity, etc.)| Added to `viral_alignment_backtest.py` + re-run harness   |
+
+The backtest is already the fastest calibration loop available
+(seconds to re-run once the harness module exists). There's no
+infrastructure to rebuild — just invoke
+`POST /admin/trigger/viral_score_backtest` and compare the new
+summary against the numbers pinned in §8 above.
+
+---
+
+## 12. What we keep from Wave 3
+
+Even though the score doesn't ship, Wave 3 still produces durable
+value:
+
+- **PR #1 + #2** (execution_tip injection + surface) — shipped, live
+  on the diagnosis payload. Addresses the "Diagnosis surfaces the
+  niche's execution_tip prominently" half of the wave's end-of-wave
+  moment, independently of the score.
+- **PR #3** (copy-tightening + voice linter) — forbidden-word / peer-
+  expert voice enforcement is now machine-checked and re-usable
+  across all Gemini output paths.
+- **PR #4** (this backtest harness + admin trigger) — the calibration
+  tool we'll need when any §11 trigger fires. Not throwaway.
+
+The plan's end-of-wave moment framed Wave 3 as two parallel tracks
+("diagnosis polish + viral-score formula"). The diagnosis-polish track
+shipped fully; the viral-score track produced a design doc that says
+"don't ship yet" with receipts. That's the correct outcome of a
+backtest-first approach — the alternative would be shipping a pill
+that degrades user trust, then pulling it back after complaints.
+
+---
+
+## 13. Decision log
+
+| Date       | Decision                                                                     |
+|------------|------------------------------------------------------------------------------|
+| 2026-04-24 | Formula v1 backtested (ρ = 0.141). Gate not met. Wave 4 score BUILD deferred.|
+
+Future re-runs append here. Don't squash — decision history matters
+more than doc tidiness when calibration is iterative.
