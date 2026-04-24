@@ -177,3 +177,156 @@ by the diagnosis execution-tip callout (Wave 3 PR #2).
   system territory once the formula is signed off.
 
 These three sections land in commits (b) and (c).
+
+---
+
+## 7. Backtest — methodology
+
+All numbers below come from running
+`viral_alignment_backtest.run_viral_score_backtest(client, seed=2026)`
+against production `video_corpus` on 2026-04-24. The harness is the
+runnable reference for this doc — any time the formula or its
+parameters change, re-running the harness produces the new receipts.
+
+### 7.1 Data filter
+
+```
+WHERE breakout_multiplier IS NOT NULL
+  AND niche_id           IS NOT NULL
+  AND hook_type          IS NOT NULL
+  AND content_format     IS NOT NULL
+```
+
+Only rows with a ground-truth `breakout_multiplier` + the two required
+formula inputs are scoreable. `posting_hour = NULL` rows stay in (time
+dim contributes 0) to reflect the production surface.
+
+### 7.2 Sample
+
+Corpus at backtest time: 1,548 rows total. After the filter above:
+**515 rows** across 20 niches; **352 rows** fall into the 8 niches
+with ≥ 30 breakout-scored videos (the other 12 niches trigger
+`insufficient_niche_sample`).
+
+For this backtest we score **all 352 eligible rows** rather than the
+plan's 200-sample subset — larger n tightens the Spearman confidence
+interval (95% CI on ρ narrows from ±0.14 at n=200 to ±0.11 at n=352)
+and costs nothing extra in this seeded run.
+
+### 7.3 Reproducibility
+
+- **Seed:** 2026 (default in `AdminTriggerViralScoreBacktestBody`).
+  The harness passes it to `random.Random(seed)` so niche ordering
+  and sample selection are byte-stable across runs.
+- **Backtest source:** deterministic SQL equivalent of the Python
+  harness, pinned below. Both paths produce the same ρ to 4 decimals.
+- **Admin trigger:** `POST /admin/trigger/viral_score_backtest` writes
+  `batch_job_runs` with `job_name='viral_score_backtest'` so the
+  committed numbers remain auditable post-deploy.
+
+---
+
+## 8. Backtest — results
+
+### 8.1 Headline: Spearman ρ vs breakout_multiplier
+
+| Formula variant                                   |      ρ |     n |
+|---------------------------------------------------|-------:|------:|
+| **V1 spec (0.5 hook / 0.3 format / 0.2 time)**    | **0.141** | 352 |
+| Format-heavy (0.15 / 0.70 / 0.15)                 |  0.176 | 352 |
+
+Plan's exit-criteria gate: **ρ ≥ 0.35**. Neither variant clears it.
+
+### 8.2 Per-dimension Spearman ρ (each dimension alone)
+
+| Dimension              |      ρ |
+|------------------------|-------:|
+| format_alignment       |  0.169 |
+| time_alignment         |  0.073 |
+| hook_alignment         |  0.050 |
+
+`format` carries nearly all the signal. `hook` is the highest-weighted
+dimension in V1 but contributes essentially noise — re-weighting to
+format-heavy recovers `format_alone`'s ρ almost exactly, which is why
+V1 underperforms its own format dimension.
+
+### 8.3 Additional candidate dimensions
+
+Tested for inclusion in a V2 formula (all as "match against top-30 of
+same field" alignments, except text_overlays and duration which use
+raw-value ranks):
+
+| Dimension          |      ρ |
+|--------------------|-------:|
+| creator_tier       |  0.058 |
+| tone               |  0.046 |
+| video_duration     |  0.043 |
+| first_frame_type   |  0.016 |
+| text_overlay_count |  0.016 |
+
+None of them move the needle. A Wave-4-scale formula built on these
+would not clear the gate either.
+
+### 8.4 Score distribution (V1 formula, all 352 rows)
+
+| Statistic | Value  |
+|-----------|-------:|
+| min       |   4    |
+| p10       |  16    |
+| p25       |  25    |
+| median    |  33.5  |
+| mean      |  33.25 |
+| p75       |  42    |
+| p90       |  49    |
+| max       |  66    |
+| stddev    |  12.95 |
+
+The distribution has meaningful spread (IQR = 17, stddev 13) — no
+"everyone gets 70–80" clustering, which was the reviewer's specific
+worry. But the mean sits at 33: with the weighted formula, a "perfect
+alignment" video on a typical niche scores in the 60s (because no
+single hook_type holds 100% of a niche's top-30). The V1 math is
+internally consistent; it's the predictive power that's missing, not
+the spread.
+
+### 8.5 Quintile lift
+
+Videos bucketed into 5 equal-sized score quintiles, then measured
+against their actual `breakout_multiplier`:
+
+| Quintile | n  | score range | median breakout | mean breakout |
+|---------:|---:|:------------|----------------:|--------------:|
+| Q1       | 71 |  1–20       | 0.550           | 0.646         |
+| Q2       | 71 | 20–29       | 0.870           | 1.047         |
+| Q3       | 70 | 29–37       | 0.705           | 0.892         |
+| Q4       | 70 | 37–45       | 0.795           | 0.891         |
+| Q5       | 70 | 45–66       | 0.970           | 0.978         |
+
+Tail discrimination works: Q1 (lowest-scoring fifth) has median
+breakout 0.55 vs Q5's 0.97 — a 1.76× lift at the extremes. Middle
+quintiles (Q2–Q4) are non-monotone — Q2 median (0.87) is actually
+higher than Q3 (0.71). Which is where the ρ = 0.14 hurts: *most*
+production videos would land in Q2–Q4 where the score can't
+reliably order them.
+
+A score that only discriminates at the tails is not a useful UI pill
+— creators don't self-select into "obviously-bad" or "obviously-good"
+video shots. They want the score to guide the 80% of videos in the
+middle, which is exactly where V1 fails.
+
+### 8.6 Insufficient-data rate
+
+Of the 515 rows meeting the formula's minimum field requirements
+(hook_type + content_format + breakout_multiplier present), **32%
+(163 rows) fall into niches below the 30-row threshold**. In
+production, one in three scored submissions would see the
+insufficient_niche_sample null path.
+
+That's a graceful-degradation test we do pass — the helper returns
+`null + reason`, the FE surface would render a "Chưa đủ video tham
+chiếu" chip, and the rest of the diagnosis carries on. But combined
+with the weak ρ on the remaining 68%, the net useful-score rate is
+low.
+
+Commit (c) weighs these numbers against the ρ ≥ 0.35 gate and makes
+the go/defer call.
