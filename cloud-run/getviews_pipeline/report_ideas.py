@@ -263,6 +263,12 @@ def build_ideas_report(
         top_idea_hooks=top_idea_hooks,
     )
 
+    # 2026-05-10 — Wave 2 PR #1: inject Layer 0 niche_insights data.
+    # See report_pattern.py for the same pattern. Null-safe if the
+    # Layer 0 cron hasn't run for this niche yet.
+    from getviews_pipeline.niche_insight_fetcher import fetch_niche_insight
+    niche_insight = fetch_niche_insight(niche_id, client=sb)
+
     payload = IdeasPayload(
         confidence=confidence,
         lead=narrative["lead"],
@@ -273,6 +279,7 @@ def build_ideas_report(
         sources=[SourceRow(kind="video", label="Corpus", count=sample_n, sub=f"{niche_label} · {window_days}d")],
         related_questions=narrative["related_questions"],
         variant="standard",
+        niche_insight=niche_insight,
     )
     return payload.model_dump()
 

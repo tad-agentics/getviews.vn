@@ -96,6 +96,24 @@ class WoWDiff(BaseModel):
     rank_changes: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class NicheInsight(BaseModel):
+    """Layer 0 weekly-computed niche insight, attached to Pattern + Ideas
+    report payloads so the UI can surface ``execution_tip`` as the
+    "what to do next" slot and ``insight_text`` as preamble context.
+
+    Sourced from ``niche_insights`` table via ``fetch_niche_insight``;
+    nullable on the parent payload because the Layer 0 cron may not
+    have run yet for a given niche / week (new niches, sparse corpus,
+    or post-cron-failure state).
+    """
+    insight_text: str | None = None
+    execution_tip: str | None = None
+    top_formula_hook: str | None = None
+    top_formula_format: str | None = None
+    week_of: str | None = None              # ISO date string
+    staleness_risk: Literal["LOW", "MODERATE", "HIGH"] | None = None
+
+
 class PatternPayload(BaseModel):
     confidence: ConfidenceStrip
     wow_diff: WoWDiff | None = None
@@ -108,6 +126,10 @@ class PatternPayload(BaseModel):
     sources: list[SourceRow]
     related_questions: list[str]
     subreports: dict[str, Any] | None = None
+    # 2026-05-10 — Wave 2 PR #1 (state-of-corpus Appendix B Gap 2):
+    # Layer 0 niche_insights injection. Optional because the cron may
+    # not have populated a row for this niche yet.
+    niche_insight: NicheInsight | None = None
 
     @model_validator(mode="after")
     def _what_stalled_invariant(self) -> PatternPayload:
@@ -156,6 +178,8 @@ class IdeasPayload(BaseModel):
     sources: list[SourceRow]
     related_questions: list[str]
     variant: Literal["standard", "hook_variants"]
+    # 2026-05-10 — Wave 2 PR #1: Layer 0 injection (same as PatternPayload).
+    niche_insight: NicheInsight | None = None
 
 
 # Named alias for ``CalendarSlot.kind`` — intentionally distinct from
