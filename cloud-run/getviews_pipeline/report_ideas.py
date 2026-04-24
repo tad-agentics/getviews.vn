@@ -263,6 +263,26 @@ def build_ideas_report(
         top_idea_hooks=top_idea_hooks,
     )
 
+    # 2026-05-10 — Wave 2 PR #3: merge Gemini per-rank copy into each
+    # IdeaBlockPayload. Overrides the deterministic opening_line from
+    # compute_ideas_blocks (Wave 2 PR #2) and fills content_angle via
+    # the existing `angle` field. If Gemini returned an empty
+    # hook_lines list (fallback path / network error), deterministic
+    # templates stay in place — no loss of output.
+    hook_lines = narrative.get("hook_lines") or []
+    if hook_lines:
+        by_rank = {int(hl["rank"]): hl for hl in hook_lines}
+        updated_blocks: list[IdeaBlockPayload] = []
+        for block in ideas_blocks:
+            hl = by_rank.get(block.rank)
+            if hl:
+                block = block.model_copy(update={
+                    "opening_line": hl.get("opening_line") or block.opening_line,
+                    "angle": hl.get("content_angle") or block.angle,
+                })
+            updated_blocks.append(block)
+        ideas_blocks = updated_blocks
+
     # 2026-05-10 — Wave 2 PR #1: inject Layer 0 niche_insights data.
     # See report_pattern.py for the same pattern. Null-safe if the
     # Layer 0 cron hasn't run for this niche yet.
