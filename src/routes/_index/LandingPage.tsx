@@ -11,7 +11,7 @@ import { pricingPlans, pricingSavings } from "@/lib/mock-data";
 const faqs = [
   {
     q: "Cái này khác gì ChatGPT?",
-    a: "ChatGPT không có data TikTok thực và không xem được video. Hỏi \"hook nào đang hot trong skincare\" — ChatGPT sẽ bịa một câu trả lời nghe hợp lý nhưng không dựa trên video nào thật. GetViews trả lời từ 46.000+ video thật, view thật — bạn có thể bấm vào xem để kiểm chứng ngay.",
+    a: "ChatGPT không có data TikTok thực và không xem được video. Hỏi \"hook nào đang hot trong skincare\" — ChatGPT sẽ bịa một câu trả lời nghe hợp lý nhưng không dựa trên video nào thật. GetViews trả lời từ 1.500+ video thật, view thật — bạn có thể bấm vào xem để kiểm chứng ngay.",
   },
   {
     q: "Tôi không rành AI, dùng có khó không?",
@@ -436,7 +436,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
               </div>
             ))}
 
-            <p className="text-xs text-[color:var(--gv-ink-3)] mt-2">Cập nhật mỗi tuần từ 46.000+ video thực</p>
+            <p className="text-xs text-[color:var(--gv-ink-3)] mt-2">Cập nhật mỗi tuần từ 1.500+ video thực</p>
           </motion.div>
 
           <motion.div
@@ -469,7 +469,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
           className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[color:var(--gv-ink)]">Database 46.000+ Video Creator Việt</h3>
+            <h3 className="font-bold text-[color:var(--gv-ink)]">Database 1.500+ Video Creator Việt</h3>
             <Link to="/app/trends" className="text-xs text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors duration-200">Tìm đối thủ →</Link>
           </div>
 
@@ -492,7 +492,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
             ))}
           </div>
 
-          <p className="text-xs text-[color:var(--gv-ink-3)] mt-3 text-center">Đầy đủ 20 niche thịnh hành nhất tại Việt Nam</p>
+          <p className="text-xs text-[color:var(--gv-ink-3)] mt-3 text-center">Đầy đủ 21 niche thịnh hành nhất tại Việt Nam</p>
         </motion.div>
       </div>
     </section>
@@ -500,7 +500,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
 }
 
 const INFRA_FEATURES = [
-  { icon: Database,      label: "46.000+ Video Thực",      sub: "Corpus TikTok Việt Nam, kiểm chứng được" },
+  { icon: Database,      label: "1.500+ Video Thực",      sub: "Corpus TikTok Việt Nam, kiểm chứng được" },
   { icon: Play,          label: "Phân Tích Video Thật",    sub: "AI xem frame thực, không đoán mò" },
   { icon: Globe,         label: "20 Niche Việt Nam",       sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
   { icon: Zap,           label: "Hook Pattern Thực Tế",    sub: "Từ video đã viral, không phải lý thuyết" },
@@ -617,7 +617,7 @@ function CredibilitySection() {
               </div>
             </div>
             <p className="text-[10px] text-[color:var(--gv-ink-3)] text-center mt-2">
-              46.000+ video · 20 niche · Cập nhật hàng tuần
+              1.500+ video · 21 niche · Cập nhật hàng tuần
             </p>
           </div>
         </div>
@@ -868,7 +868,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
 
               {/* Floating Niche Badge */}
               <div className="absolute -bottom-4 -right-4 bg-[color:var(--gv-ink)] text-white rounded-xl px-5 py-3 shadow-lg">
-                <p className="text-xs opacity-70 mb-0.5">Phủ sóng 20 niche creator</p>
+                <p className="text-xs opacity-70 mb-0.5">Phủ sóng 21 niche creator</p>
                 <p className="font-bold text-sm">Skincare · Review · Food · Affiliate...</p>
               </div>
             </motion.div>
@@ -885,7 +885,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             <div className="hidden sm:block w-px h-4 bg-[color:var(--gv-rule)]" />
             <div className="flex items-center gap-2"><span>Cập nhật hàng giờ</span></div>
             <div className="hidden sm:block w-px h-4 bg-[color:var(--gv-rule)]" />
-            <div className="flex items-center gap-2"><span>Chuyên biệt cho 20 niche creator</span></div>
+            <div className="flex items-center gap-2"><span>Chuyên biệt cho 21 niche creator</span></div>
           </motion.div>
 
           {/* Hook Ticker */}

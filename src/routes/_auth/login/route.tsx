@@ -27,7 +27,7 @@ export const meta: MetaFunction = () => [
   { title: "Đăng nhập — GetViews" },
   {
     name: "description",
-    content: "Data thực từ 46.000+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.",
+    content: "Data thực từ 1.500+ video TikTok Việt Nam — phân tích video của bạn trong 1 phút.",
   },
 ];
 
@@ -245,7 +245,7 @@ export default function LoginRoute() {
               </span>
             </h1>
             <p className="text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
-              Data thực từ <strong className="text-[color:var(--gv-ink)]">46.000+</strong> video TikTok Việt Nam — phân tích trong{" "}
+              Data thực từ <strong className="text-[color:var(--gv-ink)]">1.500+</strong> video TikTok Việt Nam — phân tích trong{" "}
               <strong className="text-[color:var(--gv-ink)]">1 phút</strong>.
             </p>
           </div>
@@ -433,7 +433,7 @@ export default function LoginRoute() {
           transition={{ delay: 0.3, duration: 0.4 }}
           className="text-center text-xs text-[color:var(--gv-ink-4)]"
         >
-          Đang theo dõi <strong className="text-[color:var(--gv-ink-3)]">46.000+</strong> video TikTok Việt Nam
+          Đang theo dõi <strong className="text-[color:var(--gv-ink-3)]">1.500+</strong> video TikTok Việt Nam
         </motion.p>
 
         <div className="w-full max-w-[400px] rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]/80 px-4 py-3 text-center backdrop-blur-sm">
