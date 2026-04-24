@@ -27,7 +27,9 @@ isn't worth the EnsembleData call.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections import Counter
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -50,6 +52,18 @@ REFRESH_VIEWS_FLOOR = 1000
 
 # EnsembleData post-multi accepts up to 20 IDs per call.
 REFRESH_CHUNK = 20
+
+# Cooldown between consecutive ED chunks. Prevents burst-fire rate
+# limiting — the first live run of this job hit 80% error rate on
+# back-to-back chunks, likely ED throttling. 300ms per chunk adds
+# ~3s total for a 10-chunk run; negligible vs. the cron timeout.
+REFRESH_CHUNK_COOLDOWN_S = 0.3
+
+# Transient ED failures (connection reset, 502, 503, rate limit) often
+# recover within a second. One retry with a short backoff is cheap and
+# catches the common case. More than one retry rarely helps; if it
+# wasn't transient, it's a deeper issue that needs investigation.
+REFRESH_RETRY_BACKOFF_S = 1.0
 
 
 def _select_refresh_candidates(
@@ -189,19 +203,35 @@ async def run_corpus_refresh(
         str(r["video_id"]): int(r.get("views") or 0) for r in candidates
     }
 
-    refreshed = skipped = missing = errors = 0
+    refreshed = missing = errors = 0
     delta_views_total = 0
+    # Count distinct exception types so operators can see at a glance
+    # whether failures are all one kind (e.g. rate-limit) vs. mixed.
+    error_types: Counter[str] = Counter()
+    aborted_early = False
+    budget_exceeded_at: int | None = None
+    # Rows we decided not to attempt — either they were in a chunk we
+    # aborted on due to budget, or the post-run residual gap.
+    skipped_from_abort = 0
 
     ids: list[str] = [str(r["video_id"]) for r in candidates]
-    for chunk in _chunked(ids, REFRESH_CHUNK):
-        try:
-            posts = await ensemble.fetch_post_multi_info(chunk)
-        except Exception as exc:
-            logger.warning(
-                "[corpus_refresh] fetch_post_multi_info failed for %d IDs: %s",
-                len(chunk), exc,
-            )
+
+    for chunk_idx, chunk in enumerate(_chunked(ids, REFRESH_CHUNK)):
+        posts = await _fetch_chunk_with_retry(ensemble, chunk)
+
+        if posts is _BUDGET_EXCEEDED:
+            # Daily ED budget tripped — abort rather than burn through
+            # the remaining chunks. Everything from this chunk onwards
+            # counts as skipped, not failed.
+            aborted_early = True
+            budget_exceeded_at = chunk_idx
+            error_types["EnsembleDailyBudgetExceeded"] += 1
+            skipped_from_abort = len(ids) - chunk_idx * REFRESH_CHUNK
+            break
+
+        if isinstance(posts, Exception):
             errors += len(chunk)
+            error_types[type(posts).__name__] += 1
             continue
 
         fresh_by_id: dict[str, dict[str, int]] = {}
@@ -248,12 +278,25 @@ async def run_corpus_refresh(
                     "[corpus_refresh] update failed for %s: %s", vid, exc,
                 )
                 errors += 1
+                error_types[type(exc).__name__] += 1
 
-    skipped = len(candidates) - refreshed - missing - errors
+        # Cooldown between chunks to avoid burst-fire ED rate limits.
+        # Skip on the last chunk — no need to wait before returning.
+        if chunk_idx * REFRESH_CHUNK + len(chunk) < len(ids):
+            await asyncio.sleep(REFRESH_CHUNK_COOLDOWN_S)
+
+    # refreshed + missing + errors + skipped_from_abort should equal
+    # len(candidates). Any residual gap comes from rows where ED
+    # returned an empty post list (no error, no detail) — count those
+    # as skipped. Guards against arithmetic drift.
+    residual = len(candidates) - refreshed - missing - errors - skipped_from_abort
+    skipped = skipped_from_abort + max(0, residual)
+
     logger.info(
         "[corpus_refresh] candidates=%d refreshed=%d missing=%d "
-        "errors=%d skipped=%d delta_views_total=%d",
-        len(candidates), refreshed, missing, errors, skipped, delta_views_total,
+        "errors=%d skipped=%d delta_views_total=%d aborted_early=%s",
+        len(candidates), refreshed, missing, errors, skipped,
+        delta_views_total, aborted_early,
     )
     return {
         "candidates": len(candidates),
@@ -262,7 +305,60 @@ async def run_corpus_refresh(
         "missing": missing,
         "errors": errors,
         "delta_views_total": delta_views_total,
+        # Summary extras (2026-05-09) — surface enough in batch_job_runs
+        # to diagnose 80%-error runs without digging through Cloud Run
+        # logs.
+        "error_types": dict(error_types),
+        "aborted_early": aborted_early,
+        "budget_exceeded_at_chunk": budget_exceeded_at,
     }
+
+
+# Sentinel distinguishing "daily budget exceeded, stop the job" from
+# "transient error, count + continue." Returning a class-level sentinel
+# avoids confusing ``isinstance(result, Exception)`` checks downstream.
+class _BudgetExceeded:  # noqa: D401 — sentinel
+    pass
+
+
+_BUDGET_EXCEEDED = _BudgetExceeded()
+
+
+async def _fetch_chunk_with_retry(
+    ensemble_module: Any,
+    chunk: list[str],
+) -> list[dict[str, Any]] | Exception | _BudgetExceeded:
+    """Fetch one ED post-multi chunk with 1 retry on transient errors.
+
+    Returns:
+      - list[post] on success
+      - ``_BUDGET_EXCEEDED`` if ED daily budget is exhausted (caller
+        aborts the job)
+      - ``Exception`` on persistent failure (caller counts as errors)
+    """
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+
+    last_exc: Exception | None = None
+    for attempt in range(2):
+        try:
+            return await ensemble_module.fetch_post_multi_info(chunk)
+        except EnsembleDailyBudgetExceeded as exc:
+            logger.warning(
+                "[corpus_refresh] ED daily budget exceeded, aborting remaining chunks: %s",
+                exc,
+            )
+            return _BUDGET_EXCEEDED
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "[corpus_refresh] fetch_post_multi_info attempt %d/2 failed "
+                "for %d IDs: %s: %s",
+                attempt + 1, len(chunk), type(exc).__name__, exc,
+            )
+            if attempt == 0:
+                await asyncio.sleep(REFRESH_RETRY_BACKOFF_S)
+    assert last_exc is not None  # unreachable — loop always sets or returns
+    return last_exc
 
 
 def _chunked(items: list[str], size: int) -> Iterable[list[str]]:
