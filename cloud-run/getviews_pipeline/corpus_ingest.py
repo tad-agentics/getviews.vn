@@ -41,9 +41,14 @@ from getviews_pipeline.r2 import (
     download_and_upload_thumbnail,
     download_and_upload_video,
     extract_and_upload,
+    extract_and_upload_scene_frames,
     r2_configured,
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
+from getviews_pipeline.video_shots_writer import (
+    build_video_shot_rows,
+    upsert_video_shots_sync,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -972,20 +977,32 @@ async def _ingest_candidate_awemes(
 
     sem = get_analysis_semaphore()
 
-    async def _analyze_one(aweme: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-        """Return (analysis_dict, frame_urls). frame_urls is [] for carousels or on failure."""
+    async def _analyze_one(
+        aweme: dict[str, Any],
+    ) -> tuple[dict[str, Any], list[str], list[tuple[int, str]]]:
+        """Return ``(analysis_dict, hook_frame_urls, scene_frame_pairs)``.
+
+        ``hook_frame_urls`` is the existing fixed-timestamp list used for
+        diagnosis; ``scene_frame_pairs`` is ``[(scene_index, url), …]``
+        for the per-scene ``video_shots.frame_url`` column (Wave 2.5
+        Phase A PR #3). Both are ``[]`` for carousels, failed downloads,
+        or when R2 is not configured. Scene frames need the Gemini
+        analysis to know the scene boundaries, so we run analysis first
+        and scene-frame extraction second while the download is still
+        on disk.
+        """
         async with sem:
             ct = ensemble.detect_content_type(aweme)
             if ct == "carousel":
                 analysis = await analyze_aweme(aweme, include_diagnosis=False)
-                return analysis, []
+                return analysis, [], []
 
             video_urls = ensemble.extract_video_urls(aweme)
             if not video_urls:
                 return {
                     "error": "No video URLs in aweme",
                     "metadata": ensemble.parse_metadata(aweme).model_dump(),
-                }, []
+                }, [], []
 
             video_path: Path | None = None
             try:
@@ -995,7 +1012,7 @@ async def _ingest_candidate_awemes(
                     return {
                         "error": str(e),
                         "metadata": ensemble.parse_metadata(aweme).model_dump(),
-                    }, []
+                    }, [], []
 
                 vid = str(aweme.get("aweme_id", "") or "")
                 async def _noop_frames() -> list[str]:
@@ -1010,7 +1027,34 @@ async def _ingest_candidate_awemes(
                     analyze_aweme_from_path(aweme, video_path, include_diagnosis=False),
                     frame_coro,
                 )
-                return analysis, frame_urls if isinstance(frame_urls, list) else []
+
+                # Scene-frame extraction (Wave 2.5 Phase A PR #3/#4) —
+                # runs AFTER analysis because it needs scene boundaries.
+                # Video is still on disk inside this try-block.
+                scene_frame_pairs: list[tuple[int, str]] = []
+                if r2_configured():
+                    scenes = (
+                        (analysis.get("analysis") or {}).get("scenes") or []
+                    )
+                    if scenes:
+                        try:
+                            scene_frame_pairs = await extract_and_upload_scene_frames(
+                                video_path, vid, scenes,
+                            )
+                        except Exception as exc:  # defensive — the helper
+                            # already swallows its own errors, but the
+                            # broader ingest must never fail on per-scene
+                            # extraction.
+                            logger.warning(
+                                "[corpus] scene frame extraction raised for %s: %s",
+                                vid, exc,
+                            )
+
+                return (
+                    analysis,
+                    frame_urls if isinstance(frame_urls, list) else [],
+                    scene_frame_pairs,
+                )
             finally:
                 if video_path is not None:
                     video_path.unlink(missing_ok=True)
@@ -1021,6 +1065,7 @@ async def _ingest_candidate_awemes(
 
     rows: list[dict[str, Any]] = []
     frame_urls_by_video_id: dict[str, list[str]] = {}
+    scene_frame_urls_by_video_id: dict[str, dict[int, str]] = {}
 
     for aweme, gather_result in zip(candidates, gather_results):
         if isinstance(gather_result, Exception):
@@ -1028,7 +1073,7 @@ async def _ingest_candidate_awemes(
             result.failed += 1
             result.errors.append(str(gather_result))
             continue
-        analysis, frame_urls = gather_result
+        analysis, frame_urls, scene_frame_pairs = gather_result
         row = _build_corpus_row(aweme, analysis, niche_id)
         vid = str(aweme.get("aweme_id", "") or "")
         if row is None:
@@ -1057,6 +1102,8 @@ async def _ingest_candidate_awemes(
             rows.append(row)
             if frame_urls:
                 frame_urls_by_video_id[row["video_id"]] = frame_urls
+            if scene_frame_pairs:
+                scene_frame_urls_by_video_id[row["video_id"]] = dict(scene_frame_pairs)
 
     if rows and r2_configured():
         video_rows = [r for r in rows if r.get("content_type", "video") == "video" and r.get("video_url")]
@@ -1115,6 +1162,35 @@ async def _ingest_candidate_awemes(
             )
             result.inserted += len(rows)
             logger.info("[corpus] niche=%s — upserted %d rows", niche_name, len(rows))
+
+            # video_shots dual-write (Wave 2.5 Phase A PR #4). The
+            # matcher queries this table directly — see the migration
+            # comment in 20260510000003_video_shots_table.sql. Runs
+            # after video_corpus because the video_id FK points there;
+            # isolated in its own try so a shot-writer failure never
+            # rolls back a successful corpus ingest.
+            try:
+                shot_rows: list[dict[str, Any]] = []
+                for row in rows:
+                    vid = row["video_id"]
+                    shot_rows.extend(
+                        build_video_shot_rows(
+                            row, scene_frame_urls_by_video_id.get(vid),
+                        )
+                    )
+                if shot_rows:
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: upsert_video_shots_sync(client, shot_rows),
+                    )
+                    logger.info(
+                        "[corpus] niche=%s — upserted %d video_shots rows",
+                        niche_name, len(shot_rows),
+                    )
+            except Exception as exc:
+                logger.error(
+                    "[corpus] niche=%s video_shots upsert failed: %s",
+                    niche_name, exc,
+                )
 
             for row in rows:
                 row_hashtags: list[str] = row.get("hashtags") or []
@@ -1346,6 +1422,73 @@ async def _refresh_niche_intelligence(client: Any) -> bool:
         return False
 
 
+def _pick_top_videos_for_enrichment_sync(
+    client: Any,
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Return top ``limit`` ``{video_id, niche_id}`` dicts from
+    video_corpus, filtered to rows that still need enrichment.
+
+    "Needs enrichment" = the corresponding ``video_shots`` rows have
+    NULL ``framing`` for every scene (i.e. the SQL-copy backfill ran
+    but the enriched fields never got populated because Gemini
+    analyzed the video before PR #2 shipped). Once this trigger
+    re-analyzes the video, the dual-write upsert lands the new
+    enriched dimensions.
+
+    Ordered by ``views DESC`` — high-engagement rows land first
+    because the matcher prioritizes them when surfacing references.
+    """
+    # Small-limit query: all "enriched" video_ids (have any row with
+    # non-null framing). Even at 10K+ corpus this is a single index
+    # scan. Used as the exclude-set for the main ranked query.
+    enriched = (
+        client.table("video_shots")
+        .select("video_id")
+        .not_.is_("framing", "null")
+        .execute()
+    )
+    enriched_ids: set[str] = {row["video_id"] for row in (enriched.data or [])}
+
+    # Pull an over-fetch so we can subtract the enriched set and still
+    # hit `limit` candidates. Doubled + 50 handles the likely overlap
+    # ratio after the dual-write has been running for a bit.
+    target = max(1, int(limit))
+    result = (
+        client.table("video_corpus")
+        .select("video_id,niche_id")
+        .not_.is_("niche_id", "null")
+        .eq("content_type", "video")
+        .order("views", desc=True)
+        .limit(target * 2 + 50)
+        .execute()
+    )
+    rows = result.data or []
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        vid = r.get("video_id")
+        nid = r.get("niche_id")
+        if not vid or nid is None:
+            continue
+        if vid in enriched_ids:
+            continue
+        out.append({"video_id": str(vid), "niche_id": int(nid)})
+        if len(out) >= target:
+            break
+    return out
+
+
+async def pick_top_videos_for_enrichment(
+    client: Any,
+    *,
+    limit: int = 500,
+) -> list[dict[str, Any]]:
+    return await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _pick_top_videos_for_enrichment_sync(client, limit=limit),
+    )
+
+
 async def run_reingest_video_items(
     items: list[dict[str, Any]],
     *,
@@ -1378,9 +1521,14 @@ async def run_reingest_video_items(
         seen.add(key)
         ordered.append((vid, nid))
 
-    if len(ordered) > 400:
-        logger.warning("[corpus] reingest capped from %d to 400 items", len(ordered))
-        ordered = ordered[:400]
+    # Wave 2.5 Phase A PR #4c raised this from 400 → 500 so the
+    # "enrich top-500 shots" backfill trigger can run in a single batch.
+    # Each reingest item = 1 Gemini video call (~$0.003) + 1 ED multi_info
+    # unit (~0.02 from the 5000/day plan), so 500 items ≈ $1.50 Gemini +
+    # ~10 ED units — well inside budget.
+    if len(ordered) > 500:
+        logger.warning("[corpus] reingest capped from %d to 500 items", len(ordered))
+        ordered = ordered[:500]
 
     if not ordered:
         logger.warning("[corpus] reingest: no valid items")

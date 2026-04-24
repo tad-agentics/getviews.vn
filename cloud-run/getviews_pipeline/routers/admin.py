@@ -383,6 +383,18 @@ class AdminTriggerRefreshBody(BaseModel):
     views_floor: int | None = None   # defaults to REFRESH_VIEWS_FLOOR (1000)
 
 
+class AdminTriggerEnrichShotsBody(BaseModel):
+    """Wave 2.5 Phase A PR #4c — top-N Gemini re-extract for video_shots.
+
+    Re-runs the full ingest analyze+upload path (new enrichment prompt
+    + per-scene frame extraction) on the highest-view video_corpus rows
+    that still have NULL framing on all their shots. Budget: ~$0.003 per
+    video Gemini + ~1 ED unit, so limit=500 ≈ $1.50 Gemini.
+    """
+    limit: int = 500
+    dry_run: bool = False
+
+
 async def _admin_run_ingest(body: AdminTriggerIngestBody) -> dict[str, Any]:
     from getviews_pipeline.corpus_ingest import run_batch_ingest
     from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
@@ -457,6 +469,44 @@ async def _admin_run_thumbnail_backfill(body: AdminTriggerThumbnailBackfillBody)
     from backfill_thumbnails import run_thumbnail_backfill  # type: ignore[import-not-found]
 
     return await run_thumbnail_backfill(batch_size=body.batch_size, limit=body.limit, dry_run=body.dry_run)
+
+
+async def _admin_run_enrich_shots_top500(
+    body: AdminTriggerEnrichShotsBody,
+) -> dict[str, Any]:
+    """Re-extract top-N video_corpus rows to populate the enrichment
+    fields (framing/pace/overlay_style/subject/motion/description) +
+    per-scene frame_url on video_shots. See Wave 2.5 Phase A PR #4c.
+    """
+    from getviews_pipeline.corpus_ingest import (
+        pick_top_videos_for_enrichment,
+        run_reingest_video_items,
+    )
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    picked = await pick_top_videos_for_enrichment(client, limit=body.limit)
+
+    if body.dry_run:
+        return {
+            "ok": True,
+            "dry_run": True,
+            "picked": len(picked),
+            "preview": [p["video_id"] for p in picked[:20]],
+        }
+
+    if not picked:
+        return {"ok": True, "picked": 0, "inserted": 0, "skipped": 0, "failed": 0}
+
+    summary = await run_reingest_video_items(picked, refresh_mv=False)
+    return {
+        "ok": True,
+        "picked": len(picked),
+        "inserted": summary.total_inserted,
+        "skipped": summary.total_skipped,
+        "failed": summary.total_failed,
+        "niches_processed": summary.niches_processed,
+    }
 
 
 async def _admin_run_refresh(body: AdminTriggerRefreshBody) -> dict[str, Any]:
@@ -994,6 +1044,18 @@ async def admin_trigger_layer0(
     return await _run_trigger_with_audit(
         user_id=admin["user_id"], action="trigger.layer0",
         params={}, runner=_admin_run_layer0,
+    )
+
+
+@router.post("/admin/trigger/enrich_shots_top500")
+async def admin_trigger_enrich_shots_top500(
+    body: AdminTriggerEnrichShotsBody = AdminTriggerEnrichShotsBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"], action="trigger.enrich_shots_top500",
+        params={"limit": body.limit, "dry_run": body.dry_run},
+        runner=lambda: _admin_run_enrich_shots_top500(body),
     )
 
 
