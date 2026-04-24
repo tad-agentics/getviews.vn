@@ -1422,6 +1422,73 @@ async def _refresh_niche_intelligence(client: Any) -> bool:
         return False
 
 
+def _pick_top_videos_for_enrichment_sync(
+    client: Any,
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Return top ``limit`` ``{video_id, niche_id}`` dicts from
+    video_corpus, filtered to rows that still need enrichment.
+
+    "Needs enrichment" = the corresponding ``video_shots`` rows have
+    NULL ``framing`` for every scene (i.e. the SQL-copy backfill ran
+    but the enriched fields never got populated because Gemini
+    analyzed the video before PR #2 shipped). Once this trigger
+    re-analyzes the video, the dual-write upsert lands the new
+    enriched dimensions.
+
+    Ordered by ``views DESC`` — high-engagement rows land first
+    because the matcher prioritizes them when surfacing references.
+    """
+    # Small-limit query: all "enriched" video_ids (have any row with
+    # non-null framing). Even at 10K+ corpus this is a single index
+    # scan. Used as the exclude-set for the main ranked query.
+    enriched = (
+        client.table("video_shots")
+        .select("video_id")
+        .not_.is_("framing", "null")
+        .execute()
+    )
+    enriched_ids: set[str] = {row["video_id"] for row in (enriched.data or [])}
+
+    # Pull an over-fetch so we can subtract the enriched set and still
+    # hit `limit` candidates. Doubled + 50 handles the likely overlap
+    # ratio after the dual-write has been running for a bit.
+    target = max(1, int(limit))
+    result = (
+        client.table("video_corpus")
+        .select("video_id,niche_id")
+        .not_.is_("niche_id", "null")
+        .eq("content_type", "video")
+        .order("views", desc=True)
+        .limit(target * 2 + 50)
+        .execute()
+    )
+    rows = result.data or []
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        vid = r.get("video_id")
+        nid = r.get("niche_id")
+        if not vid or nid is None:
+            continue
+        if vid in enriched_ids:
+            continue
+        out.append({"video_id": str(vid), "niche_id": int(nid)})
+        if len(out) >= target:
+            break
+    return out
+
+
+async def pick_top_videos_for_enrichment(
+    client: Any,
+    *,
+    limit: int = 500,
+) -> list[dict[str, Any]]:
+    return await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _pick_top_videos_for_enrichment_sync(client, limit=limit),
+    )
+
+
 async def run_reingest_video_items(
     items: list[dict[str, Any]],
     *,
@@ -1454,9 +1521,14 @@ async def run_reingest_video_items(
         seen.add(key)
         ordered.append((vid, nid))
 
-    if len(ordered) > 400:
-        logger.warning("[corpus] reingest capped from %d to 400 items", len(ordered))
-        ordered = ordered[:400]
+    # Wave 2.5 Phase A PR #4c raised this from 400 → 500 so the
+    # "enrich top-500 shots" backfill trigger can run in a single batch.
+    # Each reingest item = 1 Gemini video call (~$0.003) + 1 ED multi_info
+    # unit (~0.02 from the 5000/day plan), so 500 items ≈ $1.50 Gemini +
+    # ~10 ED units — well inside budget.
+    if len(ordered) > 500:
+        logger.warning("[corpus] reingest capped from %d to 500 items", len(ordered))
+        ordered = ordered[:500]
 
     if not ordered:
         logger.warning("[corpus] reingest: no valid items")
