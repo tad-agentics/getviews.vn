@@ -46,6 +46,53 @@ SceneType = Literal[
     "other",
 ]
 
+# 2026-05-10 — Wave 2.5 Phase A PR #2: per-scene enrichment dimensions
+# that back the "reference videos per script shot" matcher. All six
+# fields are Optional on Scene so ingestions before this PR still
+# validate; when Gemini can't classify confidently, it returns null
+# rather than guessing — the matcher falls back to the legacy
+# SceneType filter in that case.
+
+FramingType = Literal[
+    "close_up",          # subject fills most of frame
+    "medium",            # subject from waist up
+    "wide",              # full-body / landscape
+    "extreme_close_up",  # eye / lip / texture level
+]
+
+PaceType = Literal[
+    "static",      # no cuts, single locked shot
+    "slow",        # ~1 cut every 3+ seconds
+    "medium",      # ~1 cut every 1-3 seconds
+    "fast",        # ~2-3 cuts per second
+    "cut_heavy",   # rapid-fire montage, 3+ cuts/sec
+]
+
+OverlayStyleType = Literal[
+    "none",         # no text overlay at all
+    "bold_center",  # large centered headline text (TikTok "big text")
+    "sub_caption",  # subtitle-style at bottom
+    "chyron",       # lower-third banner / ticker
+    "sticker",      # emoji/sticker overlay, decorative
+]
+
+SubjectType = Literal[
+    "face",     # human face is the dominant subject
+    "product",  # physical product (cosmetic, food, electronic, apparel)
+    "text",     # text-driven frame (quote, headline)
+    "action",   # motion-driven (dance, sport, gesture)
+    "ambient",  # environment / B-roll / establishing
+    "mixed",    # two or more equally weighted
+]
+
+MotionType = Literal[
+    "static",      # locked camera, no movement
+    "handheld",    # organic camera movement
+    "slow_mo",     # slow-motion footage
+    "time_lapse",  # sped-up footage
+    "match_cut",   # graphic/motion match cut
+]
+
 # Same allowed values as SceneType — distinct name for carousel slide semantics.
 SlideVisualType = Literal[
     "face_to_camera",
@@ -145,6 +192,18 @@ class Scene(BaseModel):
     type: SceneType
     start: float
     end: float
+    # 2026-05-10 — Wave 2.5 Phase A PR #2: enrichment dimensions for the
+    # per-shot reference-video matcher. All Optional so older ingests
+    # + the fallback path (Gemini couldn't classify confidently) still
+    # validate. Defaults to None → matcher falls back to SceneType filter
+    # on that dimension. See video_shots table + artifacts/docs/
+    # implementation-plan.md for the matcher design.
+    framing: FramingType | None = None
+    pace: PaceType | None = None
+    overlay_style: OverlayStyleType | None = None
+    subject: SubjectType | None = None
+    motion: MotionType | None = None
+    description: str | None = None  # 12–24 word VN human-readable gloss
 
 
 class ContentDirection(BaseModel):
