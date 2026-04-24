@@ -395,6 +395,18 @@ class AdminTriggerEnrichShotsBody(BaseModel):
     dry_run: bool = False
 
 
+class AdminTriggerViralScoreBacktestBody(BaseModel):
+    """Wave 3 PR #4 — proposed viral-alignment score backtest over a
+    sample of corpus rows with known breakout_multiplier.
+
+    Returns score distribution + Spearman ρ so the design doc (PR #5)
+    can commit to the formula with receipts. Reproducible via
+    ``seed`` — default matches the doc's committed run.
+    """
+    sample_size: int = 200
+    seed: int | None = 2026
+
+
 async def _admin_run_ingest(body: AdminTriggerIngestBody) -> dict[str, Any]:
     from getviews_pipeline.corpus_ingest import run_batch_ingest
     from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
@@ -507,6 +519,30 @@ async def _admin_run_enrich_shots_top500(
         "failed": summary.total_failed,
         "niches_processed": summary.niches_processed,
     }
+
+
+async def _admin_run_viral_score_backtest(
+    body: AdminTriggerViralScoreBacktestBody,
+) -> dict[str, Any]:
+    """Run the viral-alignment backtest harness and record the
+    distribution / Spearman ρ to ``batch_job_runs``. See Wave 3 PR #4.
+
+    Wrapped in ``record_job_run`` so the run shows up in the batch
+    observability dashboard alongside cron jobs, and a failed run is
+    auditable as ``status='failed'`` rather than vanishing.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.supabase_client import get_service_client
+    from getviews_pipeline.viral_alignment_backtest import run_viral_score_backtest
+
+    client = get_service_client()
+    async with record_job_run(client, "viral_score_backtest") as summary_slot:
+        result = await run_viral_score_backtest(
+            client, sample_size=body.sample_size, seed=body.seed,
+        )
+        # Mutate in place — record_job_run stores the final contents.
+        summary_slot.update(result)
+        return {"ok": True, **result}
 
 
 async def _admin_run_refresh(body: AdminTriggerRefreshBody) -> dict[str, Any]:
@@ -1056,6 +1092,18 @@ async def admin_trigger_enrich_shots_top500(
         user_id=admin["user_id"], action="trigger.enrich_shots_top500",
         params={"limit": body.limit, "dry_run": body.dry_run},
         runner=lambda: _admin_run_enrich_shots_top500(body),
+    )
+
+
+@router.post("/admin/trigger/viral_score_backtest")
+async def admin_trigger_viral_score_backtest(
+    body: AdminTriggerViralScoreBacktestBody = AdminTriggerViralScoreBacktestBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"], action="trigger.viral_score_backtest",
+        params={"sample_size": body.sample_size, "seed": body.seed},
+        runner=lambda: _admin_run_viral_score_backtest(body),
     )
 
 
