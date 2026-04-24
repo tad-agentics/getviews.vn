@@ -116,12 +116,58 @@ def _retention_range(ret: float) -> tuple[str, str]:
     return f"{_fmt_pct(lo)}–{_fmt_pct(hi)}", _fmt_pct(mid)
 
 
+_TREND_TO_LIFECYCLE: dict[str, str] = {
+    "rising": "early",
+    "stable": "peak",
+    "declining": "decline",
+}
+
+
+def _opening_line_template(label: str, hook_type: str) -> str:
+    """Deterministic Vietnamese opening-line template keyed to hook type.
+
+    Serves as the fallback until the Gemini prompt upgrade (Wave 2 PR #3)
+    emits a video-specific example. Kept generic enough to fit any niche;
+    prompts narrower than 12 words so creators can adapt it verbatim.
+    """
+    ht = hook_type.lower()
+    if ht == "question":
+        return f"Bạn đã bao giờ tự hỏi vì sao {label.lower()} lại lên top?"[:120]
+    if ht == "bold_claim":
+        return f"{label} đang ăn đứt mọi format khác trong tuần này."[:120]
+    if ht == "shock_stat":
+        return "Con số khiến mình phải dừng lại — xem đến cuối sẽ hiểu."
+    if ht == "story_open":
+        return "Hôm nay mình kể cho các bạn nghe câu chuyện này."
+    if ht == "pain_point":
+        return "Có một lỗi mà 9/10 người làm sai — mình từng cũng vậy."
+    if ht == "how_to":
+        return f"3 bước để {label.lower()} ngay trong tuần này."[:120]
+    if ht == "curiosity_gap":
+        return "Không ai nói cho bạn biết điều này — chờ mình giải thích."
+    if ht == "challenge":
+        return f"Mình thử {label.lower()} trong 7 ngày — kết quả bất ngờ."[:120]
+    if ht == "trend_hijack":
+        return f"Đang viral: {label}. Đây là góc nhìn của mình."[:120]
+    if ht == "social_proof":
+        return f"Hàng nghìn creator đang dùng {label.lower()} — lý do đây."[:120]
+    if ht == "controversy":
+        return "Không phải ai cũng đồng ý — nhưng đây là sự thật."
+    return f"Hôm nay: {label}."[:120]
+
+
 def compute_ideas_blocks(
     ranked_hooks: list[dict[str, Any]],
     corpus_rows: list[dict[str, Any]],
     baseline_views: float,  # noqa: ARG001 — reserved for future Gemini grounding
 ) -> list[IdeaBlockPayload]:
-    """Build up to 5 IdeaBlocks from the top-ranked hook families (C.3.2)."""
+    """Build up to 5 IdeaBlocks from the top-ranked hook families (C.3.2).
+
+    Fills ``rank``, ``opening_line``, and ``lifecycle_stage`` (from
+    ``trend_direction``) deterministically so the "5 video tiếp theo"
+    UI layout has all fields present even before the Gemini prompt
+    upgrade (Wave 2 PR #3) emits video-specific variants.
+    """
     out: list[IdeaBlockPayload] = []
     for i, r in enumerate(ranked_hooks[:5]):
         ht = str(r.get("hook_type") or "")
@@ -131,6 +177,8 @@ def compute_ideas_blocks(
         mid_pct, _range_mid = _retention_range(ret)
         ev_ids = _evidence_ids_for_hook(corpus_rows, ht, limit=2)
         label = _pattern_label(ht)
+        trend = str(r.get("trend_direction") or "").lower()
+        lifecycle = _TREND_TO_LIFECYCLE.get(trend)
         block = IdeaBlockPayload(
             id=f"{i + 1:02d}",
             title=label,
@@ -157,6 +205,9 @@ def compute_ideas_blocks(
             prerequisites=_prereq_chips(ht),
             confidence={"sample_size": uses, "creators": creators},
             style=_style_for_hook(ht),
+            rank=i + 1,
+            opening_line=_opening_line_template(label, ht),
+            lifecycle_stage=lifecycle,  # type: ignore[arg-type]
         )
         out.append(block)
     return out
