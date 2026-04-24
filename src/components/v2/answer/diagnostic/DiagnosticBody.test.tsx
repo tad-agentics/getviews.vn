@@ -266,6 +266,47 @@ describe("DiagnosticBody paste-link CTA", () => {
 
 // ── Thin-sample banner ────────────────────────────────────────────────────
 
+// ── Wave 3 — niche execution tip callout ──────────────────────────────────
+
+describe("DiagnosticBody niche execution tip", () => {
+  it("renders the tip inside a brutalist callout when present", () => {
+    const tip =
+      "Dùng hook câu hỏi 1.2s + product shot ngay sau để bắt trend tuần này.";
+    renderBody(mkReport({ niche_execution_tip: tip }));
+
+    expect(screen.getByText("Gợi ý ngách · tuần này")).toBeTruthy();
+    expect(screen.getByText(tip)).toBeTruthy();
+
+    // Brutalist surface applied on the callout wrapper — keeps the
+    // visual separation from the surrounding prescription cards.
+    const callout = screen.getByTestId("niche-execution-tip");
+    expect(callout.className).toContain("gv-surface-brutal");
+  });
+
+  it("hides the callout entirely when the tip is null", () => {
+    renderBody(mkReport({ niche_execution_tip: null }));
+    expect(screen.queryByText("Gợi ý ngách · tuần này")).toBeNull();
+    expect(screen.queryByTestId("niche-execution-tip")).toBeNull();
+  });
+
+  it("hides the callout when the field is missing altogether", () => {
+    // Old cached reports from before Wave 3 simply omit the key —
+    // render-time guard treats undefined the same as null.
+    const report = mkReport();
+    delete (report as Partial<DiagnosticReportPayload>).niche_execution_tip;
+    renderBody(report);
+    expect(screen.queryByTestId("niche-execution-tip")).toBeNull();
+  });
+
+  it("hides the callout when the tip is an empty string", () => {
+    // Defensive — server is supposed to normalize "" → null, but the
+    // FE guard uses truthiness so we don't render an empty box even
+    // if someone slips an empty string through.
+    renderBody(mkReport({ niche_execution_tip: "" }));
+    expect(screen.queryByTestId("niche-execution-tip")).toBeNull();
+  });
+});
+
 describe("DiagnosticBody thin-sample chip", () => {
   it("shows MẪU MỎNG when sample_size < 80", () => {
     renderBody(
