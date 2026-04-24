@@ -14,7 +14,8 @@
       "trend_hijack", "none", "other"
     ],
     "commit_history": [
-      "2026-05-10 commit 1 — skeleton + top buckets (13 items): bold_claim, story_open, curiosity_gap, how_to, question"
+      "2026-05-10 commit 1 — skeleton + top buckets (13 items): bold_claim, story_open, curiosity_gap, how_to, question",
+      "2026-05-10 commit 2 — mid buckets (8 items): pain_point, social_proof, challenge, trend_hijack"
     ]
   },
   "items": [
@@ -121,6 +122,78 @@
       "hook_phrase": "Biết lý do vì sao Duy Nina mất bình tĩnh chưa?",
       "transcript_snippet": "Biết lý do vì sao Duy Nina mất bình tĩnh chưa? Bài hát mà đối thủ trình diễn như con nít trên sân khấu",
       "notes": "Literal Vietnamese question 'do you know the reason why...?' — canonical question hook."
+    },
+    {
+      "video_id": "7625973407997267221",
+      "niche_id": 11,
+      "gold_label": "pain_point",
+      "hook_phrase": "Đũa bị mốc cực kỳ nguy hiểm mà bạn không để ý",
+      "transcript_snippet": "[Music playing throughout with no verbal speech]",
+      "notes": "'Your chopsticks are moldy + dangerous + you don't notice' — names a hidden household problem. Textbook pain_point."
+    },
+    {
+      "video_id": "7630363779775106325",
+      "niche_id": 19,
+      "gold_label": "pain_point",
+      "hook_phrase": "Khi mèo phạm lỗi,",
+      "transcript_snippet": "Khi mèo phạm lỗi, bạn đánh thì nó thù dai, mà mắng bằng tiếng người thì nó lại chẳng hiểu gì. Vậy làm thế nào để trừng phạt mèo đúng cách",
+      "notes": "'When cat misbehaves, if you hit = holds grudge, if you scold = doesn't understand' — concrete daily pet-owner pain."
+    },
+    {
+      "video_id": "7625633166551829781",
+      "niche_id": 13,
+      "gold_label": "pain_point",
+      "hook_phrase": "Ủa anh ơi xe tới chưa vậy?",
+      "transcript_snippet": "Ủa anh ơi xe tới chưa vậy? Lên xe em trai. Hừm, cái xe gì mùi dầu khó chịu quá vậy?",
+      "notes": "Ambiguous — dialog framing could suggest story_open, but core pain ('mùi dầu khó chịu' = annoying diesel smell) is the dominant signal in the content. Gold = pain_point; if Gemini returned story_open that's a defensible alternate."
+    },
+    {
+      "video_id": "7627893160542260500",
+      "niche_id": 2,
+      "gold_label": "social_proof",
+      "hook_phrase": "Nhan sắc điểm 10 của cô gái đang được cả MXH tìm kiếm hôm nay",
+      "transcript_snippet": "Ghé đẹp nhất các khu, ghé đẹp các đại chu, ghé đẹp make it move",
+      "notes": "'đang được cả MXH tìm kiếm' = whole social network is searching → authority-via-viral-popularity = canonical social_proof."
+    },
+    {
+      "video_id": "7628867701468876040",
+      "niche_id": 6,
+      "gold_label": "social_proof",
+      "hook_phrase": "Có lẽ là sợ mọi người quên bản gốc nên Vương Hân Vũ: chủ nhân ca khúc giấy ghi chú tâm nguyện đang bản hát với guitar",
+      "transcript_snippet": "Có lẽ là sợ mọi người quên bản gốc nên Vương Hân Vũ: chủ nhân ca khúc giấy ghi chú tâm nguyện",
+      "notes": "Frames Vương Hân Vũ's act via 'original author' authority = credential-based social_proof."
+    },
+    {
+      "video_id": "7621134771292245266",
+      "niche_id": 4,
+      "gold_label": "challenge",
+      "hook_phrase": "1s 1m 3m 10m 1h",
+      "transcript_snippet": "[Fast-paced rhythmic music playing with various sound effects including meat sizzling, loud chewing, a man screaming, and the sound of heavy chopping.]",
+      "notes": "Time-bucket challenge format — 'steak at 1s / 1m / 3m / 10m / 1h' is a standard TikTok cook-time experiment."
+    },
+    {
+      "video_id": "7627473419818257681",
+      "niche_id": 13,
+      "gold_label": "challenge",
+      "hook_phrase": "Nghe người ta đồn là quấn nhiều mền xong lăn vào khe giường là bị kẹt cứng",
+      "transcript_snippet": "Nghe người ta đồn là quấn nhiều mền xong lăn vào khe giường là bị kẹt cứng. Nên nam thanh niên này quyết định làm thử coi sao",
+      "notes": "'Heard a rumor... decided to test' = viral-challenge test-it format, explicit experiment framing."
+    },
+    {
+      "video_id": "7625496488365264148",
+      "niche_id": 13,
+      "gold_label": "trend_hijack",
+      "hook_phrase": "Brilha linda flor",
+      "transcript_snippet": "Brilha linda flor, teu poder venceu, traz de volta já, o que uma vez foi meu",
+      "notes": "Portuguese Tangled/Rapunzel song lyrics riding the Disney-cosplay trend — piggyback on active meme audio."
+    },
+    {
+      "video_id": "7628832003445493010",
+      "niche_id": 6,
+      "gold_label": "trend_hijack",
+      "hook_phrase": "#Reaction 'Nghệ Thuật Gia Vị Đại' - Team Trang Pháp",
+      "transcript_snippet": "Ây da, outfit nhìn được phết đấy. Cô ấy được treo lơ lửng, dưới chân không có gì đỡ hết",
+      "notes": "Explicit #Reaction tag + naming a current competition team — classic trend-hijack framing for live show content."
     }
   ]
 }
