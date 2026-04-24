@@ -90,8 +90,15 @@ async def script_generate_endpoint(
         raise
     if body.niche_id != nid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="niche_id phải trùng ngách chính trong hồ sơ.")
+    # Wave 2.5 Phase B PR #6 — matcher needs the service client to
+    # read video_shots (RLS: writer-only, service_role readers).
+    from getviews_pipeline.supabase_client import get_service_client
+    service_sb = get_service_client()
     try:
-        out = await run_sync(run_script_generate_sync, sb, user_id=user["user_id"], body=body)
+        out = await run_sync(
+            run_script_generate_sync, sb,
+            user_id=user["user_id"], body=body, service_sb=service_sb,
+        )
     except ScriptInsufficientCreditsError:
         return JSONResponse(status_code=status.HTTP_402_PAYMENT_REQUIRED, content={"error": "insufficient_credits"})
     except Exception as exc:
