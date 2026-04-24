@@ -17,21 +17,25 @@ from getviews_pipeline.intents import QueryIntent
 # previously force-fit into the Pattern template).
 # ``answer:diagnostic`` added 2026-04-22 for the Diagnostic template (serves
 # ``own_flop_no_url`` — URL-less flop diagnosis).
-# ``answer:compare`` added Wave 4 PR #1 (2026-05-11) for the Compare
-# template (serves ``compare_videos`` — paste two TikTok URLs for
-# side-by-side diagnosis). See artifacts/docs/implementation-plan.md
-# Wave 4.
+# ``compare`` added Wave 4 PR #2 (2026-05-12) for the Compare flow
+# (serves ``compare_videos`` — paste two TikTok URLs for side-by-side
+# diagnosis). Top-level (no ``answer:`` prefix) because compare is
+# URL-bearing — it dispatches through ``/stream`` with a Cloud-Run
+# orchestration, mirroring how ``video_diagnosis`` is handled, NOT
+# through the niche-scoped ``/answer`` session shelf. PR #1 originally
+# shipped this as ``answer:compare``; the rename here is a one-time
+# correction before any FE shipped against the wrong slot.
 Destination = Literal[
     "video",
     "channel",
     "kol",
     "script",
+    "compare",
     "answer:pattern",
     "answer:ideas",
     "answer:timing",
     "answer:lifecycle",
     "answer:diagnostic",
-    "answer:compare",
     "answer:generic",
 ]
 
@@ -54,7 +58,7 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     # Compare template (Wave 4 PR #1, 2026-05-11) — two URLs → side-by-
     # side diagnosis with delta summary. See Wave 4 in implementation-
     # plan.md + future CompareBody.tsx.
-    QueryIntent.COMPARE_VIDEOS.value: "answer:compare",
+    QueryIntent.COMPARE_VIDEOS.value: "compare",
     # §A.2 — /answer report formats
     QueryIntent.TREND_SPIKE.value: "answer:pattern",
     QueryIntent.CONTENT_DIRECTIONS.value: "answer:pattern",
@@ -144,7 +148,7 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     # Wave 4 PR #1 — Gemini classifier may also emit this when it spots
     # two URLs in a long free-form query that slipped the fast-path
     # regex (e.g. URLs wrapped in punctuation).
-    "compare_videos": "answer:compare",
+    "compare_videos": "compare",
     "follow_up": "answer:generic",
 }
 

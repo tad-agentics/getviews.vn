@@ -17,21 +17,26 @@ export type IntentDecision = {
 
 /** Post–C.7: every query lands on a concrete screen (no "chat").
  *
- * ``answer:compare`` added Wave 4 PR #1 (2026-05-11) for the Compare
- * template — two TikTok URLs → side-by-side diagnosis. Mirror of the
- * server-side ``Destination`` union in
+ * ``compare`` added Wave 4 PR #2 (2026-05-12) for the Compare flow —
+ * two TikTok URLs → side-by-side diagnosis. Top-level (no ``answer:``
+ * prefix) because the destination's URL-bearing nature mirrors
+ * ``video`` (single-URL diagnosis), not the niche-scoped
+ * ``answer:diagnostic`` shelf. PR #1 shipped this temporarily as
+ * ``answer:compare``; the rename happens here before any FE component
+ * shipped against the wrong slot. Mirror of the server-side
+ * ``Destination`` union in
  * ``cloud-run/getviews_pipeline/intent_router.py``. */
 export type Destination =
   | "video"
   | "channel"
   | "kol"
   | "script"
+  | "compare"
   | "answer:pattern"
   | "answer:ideas"
   | "answer:timing"
   | "answer:lifecycle"
   | "answer:diagnostic"
-  | "answer:compare"
   | "answer:generic";
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
@@ -95,10 +100,10 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // Diagnostic template (2026-04-22) — URL-less flop diagnosis with a
   // 4-level verdict enum. See `artifacts/docs/report-template-prd-diagnostic.md`.
   own_flop_no_url: "answer:diagnostic",
-  // Compare template (Wave 4 PR #1, 2026-05-11) — two TikTok URLs → side-
-  // by-side diagnosis. Render target `CompareBody.tsx` lands in a later
-  // Wave 4 PR; for now this row only pins the routing contract.
-  compare_videos: "answer:compare",
+  // Compare flow (Wave 4 PR #2, 2026-05-12) — two TikTok URLs → side-by-
+  // side diagnosis. Top-level destination (mirrors ``video``); render
+  // target /app/compare lands in PR #3 with the CompareBody component.
+  compare_videos: "compare",
   follow_up_unclassifiable: "answer:generic",
 };
 
@@ -333,6 +338,26 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
       ? `/app/video?url=${encodeURIComponent(urlMatch[0])}`
       : "/app/video";
     return { kind: "redirect", to };
+  }
+  if (dest === "compare") {
+    // Wave 4 PR #2 — pull the first two TikTok URLs (mirror of the
+    // server-side ≥2-URL classification) and pass both as query
+    // params. /app/compare lands in PR #3 — until then, the redirect
+    // resolves to a 404 + the existing ``intent`` in
+    // INTENT_DESTINATIONS still pins the contract for the test below.
+    const matches = trimmed.match(TIKTOK_URL_GLOBAL_RE) ?? [];
+    if (matches.length >= 2) {
+      const [a, b] = matches;
+      return {
+        kind: "redirect",
+        to: `/app/compare?url_a=${encodeURIComponent(a)}&url_b=${encodeURIComponent(b)}`,
+      };
+    }
+    // Defensive — should never happen because detectIntent only returns
+    // compare_videos when ≥ 2 URLs are present, but if the routing path
+    // gets called with just one URL we fall back to the single-video
+    // screen rather than a half-baked compare URL.
+    return { kind: "redirect", to: "/app/video" };
   }
   if (dest === "channel") {
     const handleMatch = trimmed.match(/@([\w.]+)/);
