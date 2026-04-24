@@ -50,6 +50,29 @@ class IdeasNarrativeLLM(BaseModel):
     hook_lines: list[IdeaBlockCopy] = Field(default_factory=list)
 
 
+def normalize_hook_lines(raw: list[IdeaBlockCopy]) -> list[dict[str, Any]]:
+    """Validate + dedup Gemini's ``hook_lines`` list for wire output.
+
+    Drops entries with out-of-range rank, duplicate rank (first wins),
+    or empty ``opening_line``. Returns dicts sorted by rank ascending
+    with fields trimmed to display caps.
+    """
+    out: list[dict[str, Any]] = []
+    seen_ranks: set[int] = set()
+    for entry in raw:
+        rank = int(entry.rank)
+        if rank < 1 or rank > 5 or rank in seen_ranks:
+            continue
+        opening = (entry.opening_line or "").strip()[:120]
+        angle = (entry.content_angle or "").strip()[:240]
+        if not opening:
+            continue
+        seen_ranks.add(rank)
+        out.append({"rank": rank, "opening_line": opening, "content_angle": angle})
+    out.sort(key=lambda d: d["rank"])
+    return out
+
+
 def fill_ideas_narrative(
     *,
     query: str,
@@ -137,27 +160,9 @@ Quy tắc:
         while len(rq) < 3:
             rq.append(_fallback_related_at(len(rq), niche_label, top_idea_hooks))
 
-        # 2026-05-10 — normalize + validate hook_lines. Drop entries that
-        # are malformed (missing rank, empty opening_line) so the caller
-        # sees only usable rows; keep the deterministic templates as the
-        # source of truth for any missing ranks.
-        hook_lines: list[dict[str, Any]] = []
-        seen_ranks: set[int] = set()
-        for entry in data.hook_lines:
-            rank = int(entry.rank)
-            if rank < 1 or rank > 5 or rank in seen_ranks:
-                continue
-            opening = (entry.opening_line or "").strip()[:120]
-            angle = (entry.content_angle or "").strip()[:240]
-            if not opening:
-                continue
-            seen_ranks.add(rank)
-            hook_lines.append({
-                "rank": rank,
-                "opening_line": opening,
-                "content_angle": angle,
-            })
-        hook_lines.sort(key=lambda d: d["rank"])
+        # 2026-05-10 — validate + dedup hook_lines via the standalone
+        # normalize_hook_lines helper (testable in isolation).
+        hook_lines = normalize_hook_lines(data.hook_lines)
 
         return {
             "lead": lead or _fallback_lead(
