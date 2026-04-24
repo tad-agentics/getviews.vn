@@ -205,3 +205,63 @@ def test_hoan_canh_routes_to_storytelling() -> None:
     """'hoàn cảnh' is a VN life-story marker."""
     analysis = _analysis("Hoàn cảnh gia đình khó khăn mỗi ngày khắc nghiệt")
     assert classify_format(analysis, niche_id=16) == "storytelling"
+
+
+# ── Wave 5+ word-boundary regression — `history` must not fire `story` ──
+#
+# Pre-fix the storytelling regex used a bare ``story`` substring inside
+# an alternation, so any text containing ``history`` (or other ``story``-
+# substrings like ``hashstory``, ``directory``…) false-fired the
+# storytelling bucket. The fix wraps bare-token English loanwords
+# (``story`` / ``drama`` / ``skit``) with ``\b`` word boundaries; multi-
+# word VN phrases already have implicit boundaries via the space.
+
+def test_history_keyword_does_not_fire_storytelling() -> None:
+    """Regression for the eval-harness ``history → story`` substring
+    miss. ``History class with my teacher`` is education content, NOT
+    a narrative skit."""
+    analysis = _analysis(
+        "history class with my teacher today was wild",
+        topics=["education", "history"],
+    )
+    # Without the \b fix this fell into 'storytelling'; now it must
+    # NOT match that branch (the test asserts the negative — what
+    # bucket it lands in instead is up to downstream branches).
+    assert classify_format(analysis, niche_id=8) != "storytelling"
+
+
+def test_history_in_topic_does_not_fire_storytelling() -> None:
+    """Same regression but with ``history`` in the topics list rather
+    than the transcript — the regex matches against the joined
+    transcript+topics blob so both code paths need the fix."""
+    analysis = _analysis(
+        "Today we cover World War II events",
+        topics=["history", "war", "education"],
+    )
+    assert classify_format(analysis, niche_id=8) != "storytelling"
+
+
+def test_story_word_alone_still_fires_storytelling() -> None:
+    """The fix must not over-correct — a real ``story`` reference
+    still routes to storytelling. Word-boundary preserves the legit
+    case."""
+    analysis = _analysis("Let me tell you a story about my grandmother")
+    assert classify_format(analysis, niche_id=8) == "storytelling"
+
+
+def test_dramatic_does_not_fire_storytelling() -> None:
+    """Defensive — ``dramatic`` / ``dramatically`` shouldn't substring-
+    match the bare ``drama`` token after the \\b fix."""
+    analysis = _analysis(
+        "the dramatic shift in product quality was unexpected",
+        topics=["product review"],
+    )
+    assert classify_format(analysis, niche_id=8) != "storytelling"
+
+
+def test_drama_word_alone_still_fires_storytelling() -> None:
+    """Real ``drama`` topic still routes (matches the existing
+    Southern-dialect drama-skit regression test above; this is the
+    minimal-input form)."""
+    analysis = _analysis("kể về drama nhà chồng", topics=["drama"])
+    assert classify_format(analysis, niche_id=13) == "storytelling"
