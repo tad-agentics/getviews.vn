@@ -38,6 +38,11 @@ class QueryIntent(StrEnum):
     TIMING = "timing"
     CONTENT_CALENDAR = "content_calendar"
     COMPARISON = "comparison"  # DEPRECATED — historical session rows only
+    # Wave 4 PR #1 (2026-05-11) — two-URL side-by-side diagnosis. Distinct
+    # from the retired ``COMPARISON`` (handle-based) + retired
+    # ``SERIES_AUDIT`` (multi-URL corpus) intents; this one ships a real
+    # template. See artifacts/docs/implementation-plan.md Wave 4.
+    COMPARE_VIDEOS = "compare_videos"
     OWN_FLOP_NO_URL = "own_flop_no_url"  # own channel/video underperforming, no TikTok URL
     FOLLOW_UP_CLASSIFIABLE = "follow_up_classifiable"
     FOLLOW_UP_UNCLASSIFIABLE = "follow_up_unclassifiable"
@@ -179,8 +184,17 @@ def classify_intent(
     msg = message.lower()
     has_urls = bool(urls)
 
-    # ``series_audit`` (multi-URL) dropped 2026-04-22 — multi-URL queries
-    # now classify on the first URL as ``video_diagnosis``.
+    # Wave 4 PR #1 — ≥ 2 TikTok URLs → side-by-side Compare template.
+    # Must land BEFORE the single-URL VIDEO_DIAGNOSIS branch (which
+    # treats the first URL and drops the rest) and BEFORE keyword
+    # branches that could short-circuit on "compare" phrasing without
+    # the URLs themselves. ``series_audit`` (retired 2026-04-22) was
+    # an older multi-URL intent with no template; COMPARE_VIDEOS is
+    # its templated replacement — a dedicated dual-diagnosis UI, not
+    # a corpus report.
+    if len(urls) >= 2:
+        return QueryIntent.COMPARE_VIDEOS
+
     if handles and not has_urls:
         return QueryIntent.COMPETITOR_PROFILE
 

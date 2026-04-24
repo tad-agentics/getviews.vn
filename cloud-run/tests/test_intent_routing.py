@@ -27,19 +27,55 @@ def test_classify_video_diagnosis() -> None:
     assert i == QueryIntent.VIDEO_DIAGNOSIS
 
 
-def test_classify_multi_url_no_longer_series_audit() -> None:
-    """``series_audit`` was dropped 2026-04-22 — multi-URL queries now
-    classify on their first URL (video_diagnosis flow in the frontend
-    router; backend classify_intent falls back to follow-up shape)."""
+def test_classify_two_urls_fires_compare_videos() -> None:
+    """Wave 4 PR #1 — two TikTok URLs → dedicated COMPARE_VIDEOS intent.
+    Supersedes the retired ``series_audit``: this one has a template
+    (side-by-side diagnosis) instead of silently dropping the 2nd URL."""
     urls = [
         "https://www.tiktok.com/@a/video/1",
         "https://www.tiktok.com/@a/video/2",
     ]
     msg = " ".join(urls) + " what am I doing wrong"
     i = classify_intent(msg, urls, [], False)
-    assert i != QueryIntent.COMPETITOR_PROFILE  # no @handle, not channel-scoped
-    # Must not crash AttributeError on the retired SERIES_AUDIT member.
+    assert i == QueryIntent.COMPARE_VIDEOS
+    # Still must not crash AttributeError on the retired SERIES_AUDIT member.
     assert not hasattr(QueryIntent, "SERIES_AUDIT")
+
+
+def test_classify_three_urls_still_compare_videos() -> None:
+    """Three+ URLs also route to COMPARE_VIDEOS — the orchestrator
+    caps at the first two, but the classifier doesn't need to know
+    about the cap."""
+    urls = [
+        "https://www.tiktok.com/@a/video/1",
+        "https://www.tiktok.com/@b/video/2",
+        "https://www.tiktok.com/@c/video/3",
+    ]
+    msg = " ".join(urls)
+    i = classify_intent(msg, urls, [], False)
+    assert i == QueryIntent.COMPARE_VIDEOS
+
+
+def test_classify_two_urls_with_keywords_still_compare_videos() -> None:
+    """Two URLs must win over keyword branches — a query like
+    'analyze video A vs video B' carrying both links classifies as
+    COMPARE_VIDEOS, not VIDEO_DIAGNOSIS on just the first."""
+    urls = [
+        "https://www.tiktok.com/@a/video/1",
+        "https://www.tiktok.com/@b/video/2",
+    ]
+    msg = f"phân tích {urls[0]} vs {urls[1]} sai ở đâu"
+    i = classify_intent(msg, urls, [], False)
+    assert i == QueryIntent.COMPARE_VIDEOS
+
+
+def test_classify_single_url_still_video_diagnosis() -> None:
+    """Sanity: one URL still hits the single-video path — the Wave 4
+    branch must only trigger on ≥ 2."""
+    urls = ["https://www.tiktok.com/@a/video/1"]
+    msg = f"phân tích {urls[0]} tại sao flop"
+    i = classify_intent(msg, urls, [], False)
+    assert i == QueryIntent.VIDEO_DIAGNOSIS
 
 
 def test_classify_own_flop_no_url() -> None:
@@ -497,3 +533,18 @@ def test_follow_up_classifiable_unknown_subject_returns_none() -> None:
     assert resolve_destination(
         "follow_up_classifiable", follow_up_subject=None,
     ) is None
+
+
+# ── Wave 4 PR #1 — compare_videos destination ───────────────────────────
+
+def test_compare_videos_routes_to_answer_compare() -> None:
+    """Keyword-path mapping: ``compare_videos`` must route to the new
+    ``answer:compare`` shelf on both entry points (``INTENT_TO_
+    DESTINATION`` and the Gemini-classifier primary-label table)."""
+    from getviews_pipeline.intent_router import (
+        destination_for_gemini_primary_label,
+        destination_for_intent,
+    )
+
+    assert destination_for_intent(QueryIntent.COMPARE_VIDEOS.value) == "answer:compare"
+    assert destination_for_gemini_primary_label("compare_videos") == "answer:compare"

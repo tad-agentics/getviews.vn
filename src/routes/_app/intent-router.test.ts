@@ -130,14 +130,17 @@ describe("detectIntent — non-handle branches still work", () => {
 });
 
 describe("detectIntent — own_flop_no_url (C.0)", () => {
-  // ``series_audit`` dropped 2026-04-22 — multi-URL queries now
-  // classify on their first URL (video_diagnosis).
-  it("multiple TikTok URLs now classify via the first URL (video_diagnosis)", () => {
+  // ``series_audit`` dropped 2026-04-22 — multi-URL queries now fire
+  // ``compare_videos`` instead (Wave 4 PR #1). Full coverage for the
+  // two-URL branch lives in its own describe block further down; the
+  // pin here just guards against a multi-URL query accidentally
+  // falling through to VIDEO_DIAGNOSIS (which would drop the 2nd URL).
+  it("multiple TikTok URLs fire compare_videos (Wave 4 PR #1)", () => {
     const r = detectIntent(
       "https://www.tiktok.com/@a/video/1 https://www.tiktok.com/@b/video/2 so sánh",
       false,
     );
-    expect(r.intentType).toBe("video_diagnosis");
+    expect(r.intentType).toBe("compare_videos");
   });
 
   it("own channel flop without URL → own_flop_no_url", () => {
@@ -342,5 +345,63 @@ describe("resolveDestination — follow_up_classifiable subject union", () => {
         subject: "diagnostic",
       }),
     ).toBe("answer:diagnostic");
+  });
+});
+
+// ── Wave 4 PR #1 — compare_videos routing ────────────────────────────────
+//
+// Two TikTok URLs in one message → `compare_videos` intent →
+// `answer:compare` destination. Mirrors the server-side classification in
+// `classify_intent` (see `test_intent_routing.py`). The two routers must
+// agree on the boundary — a message that classifies server-side as
+// COMPARE_VIDEOS must also plan as such client-side so the frontend
+// dispatches to the Cloud Run endpoint.
+
+describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
+  const URL_A = "https://www.tiktok.com/@a/video/1";
+  const URL_B = "https://www.tiktok.com/@b/video/2";
+  const URL_C = "https://www.tiktok.com/@c/video/3";
+
+  it("fires compare_videos when two TikTok URLs are present", () => {
+    const r = detectIntent(`${URL_A} ${URL_B}`, false);
+    expect(r.intentType).toBe("compare_videos");
+    expect(r.confidence).toBe("high");
+    expect(r.isFree).toBe(false);
+  });
+
+  it("fires compare_videos even with analysis keywords between URLs", () => {
+    const r = detectIntent(
+      `phân tích ${URL_A} vs ${URL_B} sai ở đâu`, false,
+    );
+    expect(r.intentType).toBe("compare_videos");
+  });
+
+  it("fires compare_videos for 3+ URLs (orchestrator caps; classifier doesn't)", () => {
+    const r = detectIntent(`${URL_A} ${URL_B} ${URL_C}`, false);
+    expect(r.intentType).toBe("compare_videos");
+  });
+
+  it("single URL still routes to video_diagnosis", () => {
+    const r = detectIntent(`${URL_A} tại sao flop`, false);
+    expect(r.intentType).toBe("video_diagnosis");
+  });
+
+  it("matches short-link domain (vm.tiktok.com) for both URLs", () => {
+    const r = detectIntent(
+      "https://vm.tiktok.com/abc https://vt.tiktok.com/xyz",
+      false,
+    );
+    expect(r.intentType).toBe("compare_videos");
+  });
+
+  it("does NOT fire on a single URL + a non-tiktok URL", () => {
+    const r = detectIntent(
+      `${URL_A} https://example.com/something`, false,
+    );
+    expect(r.intentType).toBe("video_diagnosis");
+  });
+
+  it("resolveDestination maps compare_videos → answer:compare", () => {
+    expect(resolveDestination({ id: "compare_videos" })).toBe("answer:compare");
   });
 });
