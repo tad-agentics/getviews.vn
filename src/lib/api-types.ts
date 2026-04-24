@@ -236,6 +236,44 @@ export interface ScriptShot {
   /** Join key for ``scene_intelligence`` merge on the client. */
   intel_scene_type?: string;
   overlay_winner?: string;
+  /**
+   * Wave 2.5 Phase B PR #6 — per-shot enrichment dimensions emitted by
+   * Gemini (or filled from the deterministic backbone). Present on newly
+   * generated shots; may be missing on pre-PR #6 cached drafts.
+   */
+  framing?: string | null;
+  pace?: string | null;
+  overlay_style?: string | null;
+  subject?: string | null;
+  motion?: string | null;
+  /**
+   * Wave 2.5 Phase B PR #7 — up to 3 real creator scenes matching this
+   * shot, surfaced in the studio as reference cards. Empty array (or
+   * missing) on old drafts / matcher failure.
+   */
+  references?: ShotReference[];
+}
+
+/**
+ * One matched reference from the ``video_shots`` corpus — feeds the
+ * reference-card strip under each shot. Shape mirrors the server's
+ * ``ShotReference.to_dict()`` in ``shot_reference_matcher.py``.
+ */
+export interface ShotReference {
+  video_id: string;
+  scene_index: number;
+  start_s: number | null;
+  end_s: number | null;
+  frame_url: string | null;
+  thumbnail_url: string | null;
+  tiktok_url: string | null;
+  creator_handle: string | null;
+  description: string | null;
+  score: number;
+  /** Internal keys used for scoring; FE shows ``match_label`` instead. */
+  match_signals: string[];
+  /** Human-readable VN chip, e.g. ``"Cùng ngách, hook, khung hình"``. */
+  match_label: string;
 }
 
 export interface ScriptGenerateResponse {

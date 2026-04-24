@@ -34,6 +34,7 @@ function makeShot(overrides: Partial<ScriptEditorShot> = {}): ScriptEditorShot {
     winnerAvg: 5,
     overlayWinner: "ĐỪNG MUA",
     intelSceneType: "hook",
+    references: [],
     ...overrides,
   };
 }

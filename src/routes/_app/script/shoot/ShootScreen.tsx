@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
+import { ShotReferenceStrip } from "@/components/v2/ShotReferenceStrip";
 import { TopBar } from "@/components/v2/TopBar";
 import { useScriptDraft } from "@/hooks/useScriptSave";
 import type { ScriptShot } from "@/lib/api-types";
@@ -87,30 +88,34 @@ function ShotBlock({ shot, index }: { shot: ScriptShot; index: number }) {
   const t1 = Math.round(shot.t1);
   const timePrefix = `${String(t0).padStart(2, "0")}-${String(t1).padStart(2, "0")}s`;
   const overlay = (shot.overlay ?? "NONE").trim();
+  const refs = shot.references ?? [];
   return (
-    <li className="list-none rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-      <div className="gv-mono mb-2 text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)]">
-        Shot {index + 1} · {timePrefix} · {shot.cam}
+    <li className="list-none overflow-hidden rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+      <div className="p-4">
+        <div className="gv-mono mb-2 text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)]">
+          Shot {index + 1} · {timePrefix} · {shot.cam}
+        </div>
+        <p className="gv-serif m-0 text-[18px] leading-[1.35] text-[color:var(--gv-ink)]">
+          {shot.voice || "(không có voice)"}
+        </p>
+        {shot.viz ? (
+          <p className="gv-mono mt-3 text-[12px] leading-[1.45] text-[color:var(--gv-ink-3)]">
+            <span className="gv-uc mr-2 text-[10px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+              Viz
+            </span>
+            {shot.viz}
+          </p>
+        ) : null}
+        {overlay && overlay !== "NONE" ? (
+          <p className="gv-mono mt-1.5 text-[12px] leading-[1.45] text-[color:var(--gv-ink-3)]">
+            <span className="gv-uc mr-2 text-[10px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+              Overlay
+            </span>
+            {overlayStyleVi(overlay, overlay)}
+          </p>
+        ) : null}
       </div>
-      <p className="gv-serif m-0 text-[18px] leading-[1.35] text-[color:var(--gv-ink)]">
-        {shot.voice || "(không có voice)"}
-      </p>
-      {shot.viz ? (
-        <p className="gv-mono mt-3 text-[12px] leading-[1.45] text-[color:var(--gv-ink-3)]">
-          <span className="gv-uc mr-2 text-[10px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
-            Viz
-          </span>
-          {shot.viz}
-        </p>
-      ) : null}
-      {overlay && overlay !== "NONE" ? (
-        <p className="gv-mono mt-1.5 text-[12px] leading-[1.45] text-[color:var(--gv-ink-3)]">
-          <span className="gv-uc mr-2 text-[10px] tracking-[0.12em] text-[color:var(--gv-ink-4)]">
-            Overlay
-          </span>
-          {overlayStyleVi(overlay, overlay)}
-        </p>
-      ) : null}
+      <ShotReferenceStrip refs={refs} density="block" />
     </li>
   );
 }

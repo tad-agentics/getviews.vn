@@ -15,6 +15,7 @@ const base: ScriptEditorShot[] = [
     winnerAvg: 1,
     overlayWinner: "oldw",
     intelSceneType: "face_to_camera",
+    references: [],
   },
 ];
 
