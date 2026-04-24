@@ -304,4 +304,105 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
 
 ---
 
+## Wave 3 — diagnosis polish + viral-score DESIGN
+
+**End-of-wave moment:** *"Diagnosis reports surface the niche's execution_tip prominently, and we have a pre-committed viral-score formula validated against historical data — no feature shipped yet, but the spec is approved."*
+
+**Why now:** Reviewer correctly flagged that shipping a viral-score with a hand-waved formula erodes trust faster than no score. This wave produces the *spec*, validates it against retrospective corpus data (backtest), and gets sign-off — so Wave 4's build is implementation-only, not design-during-build. In parallel, this wave polishes the `video_diagnosis` flow (the #1 pay-signal feature from the survey) using the Layer 0 injection from Wave 2 + survey-informed copy tweaks.
+
+### Scope
+
+| Track | Item | Axis |
+|---|---|---|
+| BE | Diagnosis polish — inject `execution_tip` into video_diagnosis flow (reuses Wave 2 work) | 2 |
+| BE | Diagnosis copy tightening — align to survey voice ("peer expert, not product pitch") | — |
+| Design doc | Viral-alignment score FORMULA — written, calibrated, backtested on `video_corpus` | — |
+| BE | Backtest harness — new module that runs the proposed formula over historical rows and reports score distribution | 4 |
+| FE | Diagnosis `execution_tip` surface pattern | — |
+
+### Backend PRs
+
+#### `diagnosis-execution-tip-injection` · ~0.5d · Axis 2
+- The Wave 2 `layer0-narrative-injection` generalized `_get_niche_insight()` (from `pipelines.py:1012`). Reuse it in the video_diagnosis flow.
+- `cloud-run/getviews_pipeline/pipelines.py:1238` already calls `_get_niche_insight` in the diagnosis flow — but the fetched data isn't surfaced to the user in `report_diagnostic.py` payload. Wire it through: add `niche_execution_tip: str | None` to `DiagnosticPayload`.
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/pipelines.py` (existing diagnosis orchestrator)
+  - `cloud-run/getviews_pipeline/report_diagnostic.py` (or wherever `DiagnosticPayload` lives — session context confirmed this is its own file)
+
+#### `diagnosis-copy-tightening` · ~0.5d · —
+- Dogfood 5 real diagnosis sessions, mark every line that reads "product-pitch" or "guru" rather than "peer expert in a Zalo group." Rewrite.
+- Test against the `.cursor/rules/copy-rules.mdc` forbidden-word + forbidden-opener list.
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/prompts.py` (`build_diagnosis_narrative_prompt` is the likely target — confirmed via `gemini.py` references in session context)
+  - Vietnamese copy slots in `src/components/v2/answer/diagnostic/DiagnosticBody.tsx` for any UI-literal strings.
+
+#### `viral-score-backtest-harness` · ~1d · Axis 4
+- **Purpose:** before committing to a formula, run the proposed scoring on the last 200 videos in the corpus and report:
+  - Score distribution (histogram) — should NOT be all clustered at 70-80 (the reviewer's warning about unreliable spread)
+  - Correlation with actual `views / creator_velocity.avg_views` (breakout_multiplier) — the score should predictively order videos
+  - Behavior on low-sample niches — graceful "insufficient data" vs a noisy score
+- **New module:** `cloud-run/getviews_pipeline/viral_alignment_backtest.py`
+- **Integration:** called via a new admin trigger `/admin/trigger/viral_score_backtest` (mirror existing admin trigger pattern from `routers/admin.py`). Stores results as a one-off `batch_job_runs` row with `job_name='viral_score_backtest'` for easy query.
+- **Critical files:**
+  - new `cloud-run/getviews_pipeline/viral_alignment_backtest.py`
+  - `cloud-run/getviews_pipeline/routers/admin.py` — add `_admin_run_viral_score_backtest` runner + endpoint following the exact pattern we established in Wave 0
+
+### Design doc
+
+#### `viral-alignment-score-formula.md` · ~2d · —
+- **Location:** `artifacts/docs/viral-alignment-score.md`
+- **Required sections:**
+  1. **Purpose:** what question does the score answer? (Explicit framing: "how well does this video align with what's currently winning in its niche" — NOT "will this go viral.")
+  2. **Formula v1 candidate:** exact math. Proposed starting point:
+     ```
+     score = 100 × w_hook × hook_alignment
+           + 100 × w_format × format_alignment
+           + 100 × w_time × time_alignment
+     where
+       hook_alignment   = (# of top-30 niche videos w/ same hook_type) / 30
+       format_alignment = (# of top-30 w/ same content_format) / 30
+       time_alignment   = 1 - min(1, |posting_hour - niche_peak_hour| / 6)
+       w_hook=0.5, w_format=0.3, w_time=0.2 (initial, to be calibrated)
+     ```
+  3. **Top-30 definition:** top-30 by `breakout_multiplier DESC` in the submitted video's niche, rolling 30d window.
+  4. **Low-sample graceful degradation:** if niche has < 30 rows with `breakout_multiplier`, return `score=null, reason="insufficient_data"` — NO partial score.
+  5. **Calibration tables:** score-to-tier mapping decided AFTER backtest (no arbitrary 80=green):
+     - Tier thresholds picked so "top 20% of backtested videos" map to the top UI tier, middle 60% to middle tier, bottom 20% to low tier.
+  6. **Backtest results:** paste distribution + correlation numbers from the backtest harness. Threshold for approval: score must correlate with `breakout_multiplier` at Spearman ρ ≥ 0.35 across the 200-video sample.
+  7. **Reasoning bullets spec:** 3 Vietnamese bullets, each tied to one of the 3 dimensions. Deterministic templating (not Gemini-generated), so every bullet is auditable.
+- **Exit criteria:** doc committed + Spearman ρ ≥ 0.35 demonstrated + formula approved by you. Wave 4 does NOT start until this lands.
+
+### Frontend PR
+
+#### `diagnosis-execution-tip-surface` · ~0.5d · —
+- Thread the new `niche_execution_tip` field through `DiagnosticBody.tsx` — render inside the "What to do next" slot as a distinguished callout (brutalist card, `.gv-surface-brutal--compact`, kicker `GỢI Ý NGÁCH`).
+- **Critical files:**
+  - `src/components/v2/answer/diagnostic/DiagnosticBody.tsx`
+
+### Dependencies from Wave 2
+
+- `layer0-narrative-injection` helper exists (reused here).
+- Corpus has at least 3 niches with ≥ 200 videos each AND populated `breakout_multiplier` on > 50% of their rows (needed for backtest validity).
+
+### Validation gate → Wave 4
+
+- Design doc `viral-alignment-score.md` committed with backtest results.
+- Spearman ρ ≥ 0.35 between score and `breakout_multiplier` on 200-video sample.
+- Score distribution shows meaningful spread — at least 20% of backtested videos in each tier (no > 60% single-tier dominance).
+- `diagnosis-execution-tip-injection` live for ≥ 3 days with no regression complaints.
+- Diagnosis copy dogfooded 5 sessions, zero forbidden-word / forbidden-opener flags.
+
+### Risk flags
+
+- **Backtest reveals the formula is bad.** Very possible on first iteration. Buffer: 2d spec writing can loop up to 3×. Each loop adjusts weights or adds a dimension (e.g. creator_tier, video_duration bucket) and re-backtests.
+- **Spearman ρ could be < 0.35 even after multiple iterations** if the signal genuinely isn't there at current corpus size. In that case, Wave 4's score BUILD is cut (or deferred) and Wave 4 becomes Compare-only.
+- **Diagnosis copy dogfood could surface deeper prompt problems** (not just phrasing). If so, the copy-tightening PR grows — buffer 1–2 extra days.
+
+### Calendar
+
+5–7 working days. Design doc is the critical path (~2–3d writing + 1d backtest + 1–2d iteration). BE + FE sub-PRs fit alongside.
+
+---
+
+
 
