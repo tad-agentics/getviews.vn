@@ -682,6 +682,14 @@ export interface DiagnosticReportPayload {
   paste_link_cta: { title: string; route: string };
   sources: SourceRowData[];
   related_questions: string[];
+  /**
+   * Wave 3 — the current week's Layer 0 execution_tip for this niche
+   * (from ``niche_insights.execution_tip``). Rendered as a distinct
+   * callout inside the "Ưu tiên sửa" section when present. Null when
+   * Layer 0 hasn't run yet / the niche is sparse — render-time guard
+   * in DiagnosticBody hides the surface. Max 240 chars (server-side).
+   */
+  niche_execution_tip?: string | null;
 }
 
 export type ReportV1 =

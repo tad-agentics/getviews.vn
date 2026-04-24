@@ -125,6 +125,31 @@ function PrescriptionCard({ p }: { p: DiagnosticPrescriptionData }) {
   );
 }
 
+// ── Niche execution tip (Wave 3) ───────────────────────────────────────────
+//
+// Pre-computed Layer 0 tip for the caller's niche — e.g. "Dùng hook câu hỏi
+// 1.2s + product shot ngay sau để bắt trend." Rendered as a brutalist callout
+// above the "Ưu tiên sửa" prescription list: the creator reads the niche's
+// weekly signal first, then sees their video-specific fixes. Hidden entirely
+// when the server returns null (Layer 0 hasn't run yet / sparse niche) —
+// never "(gợi ý trống)".
+
+function NicheExecutionTipCallout({ tip }: { tip: string }) {
+  return (
+    <div
+      className="gv-surface-brutal gv-surface-brutal--compact p-4"
+      data-testid="niche-execution-tip"
+    >
+      <p className="gv-mono gv-uc text-[10px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
+        Gợi ý ngách · tuần này
+      </p>
+      <p className="gv-serif mt-1.5 text-[16px] leading-snug text-[color:var(--gv-ink)]">
+        {tip}
+      </p>
+    </div>
+  );
+}
+
 // ── Paste-link CTA (the "get exact diagnosis" upsell) ──────────────────────
 
 function PasteLinkCTA({
@@ -192,6 +217,10 @@ export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) 
           ))}
         </ul>
       </section>
+
+      {report.niche_execution_tip ? (
+        <NicheExecutionTipCallout tip={report.niche_execution_tip} />
+      ) : null}
 
       {report.prescriptions.length > 0 ? (
         <section>
