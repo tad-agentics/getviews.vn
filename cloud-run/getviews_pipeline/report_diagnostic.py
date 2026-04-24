@@ -231,6 +231,43 @@ def _load_niche_benchmarks(
     return label, bm
 
 
+def _fetch_niche_execution_tip(sb: Any, niche_id: int) -> str | None:
+    """Return the current week's ``execution_tip`` for a niche, or None.
+
+    Sister helper to ``pipelines._get_niche_insight``, but returns JUST
+    the execution_tip field (no wrapping prompt block) so the value can
+    surface on ``DiagnosticPayload.niche_execution_tip`` without
+    Gemini's prompt context leaking into the user-visible payload.
+
+    Fails open: any DB error / empty table → None, frontend hides the
+    surface. Skips rows flagged by the Layer 0 quality guard.
+    """
+    try:
+        resp = (
+            sb.table("niche_insights")
+            .select("execution_tip")
+            .eq("niche_id", niche_id)
+            .is_("quality_flag", None)
+            .order("week_of", desc=True)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        # niche_insights is optional — sparse-niche empty state is fine.
+        logger.info("[diagnostic] niche_execution_tip skipped: %s", exc)
+        return None
+    rows = resp.data or []
+    if not rows:
+        return None
+    tip = (rows[0].get("execution_tip") or "").strip()
+    # DiagnosticPayload caps at 240 chars. Pre-trim here so Pydantic
+    # validation never rejects a long tip — any trailing context is
+    # Layer 0 prose the frontend would truncate anyway.
+    if len(tip) > 240:
+        tip = tip[:237].rstrip() + "…"
+    return tip or None
+
+
 # ── Live pipeline ───────────────────────────────────────────────────────────
 
 
@@ -266,6 +303,7 @@ def build_diagnostic_report(
         return _fallback_payload(query=query, window_days=window_days)
 
     niche_label, benchmarks = _load_niche_benchmarks(sb, niche_id)
+    niche_execution_tip = _fetch_niche_execution_tip(sb, niche_id)
 
     from getviews_pipeline.report_diagnostic_gemini import fill_diagnostic_narrative
 
@@ -303,12 +341,18 @@ def build_diagnostic_report(
                 ),
             ],
             related_questions=_related_questions(query, niche_label),
+            niche_execution_tip=niche_execution_tip,
         )
     except Exception as exc:
         logger.warning(
             "[diagnostic] payload validation failed: %s — fallback", exc,
         )
-        return _fallback_payload(query=query, window_days=window_days, niche_label=niche_label)
+        return _fallback_payload(
+            query=query,
+            window_days=window_days,
+            niche_label=niche_label,
+            niche_execution_tip=niche_execution_tip,
+        )
 
     return payload.model_dump()
 
@@ -334,10 +378,16 @@ def _fallback_payload(
     query: str,
     window_days: int,
     niche_label: str | None = None,
+    niche_execution_tip: str | None = None,
 ) -> dict[str, Any]:
     """Deterministic "5 unclear + paste-link" payload — the honesty
     fallback used when the service client, Gemini, or payload assembly
-    fails. Still validates cleanly through ``DiagnosticPayload``."""
+    fails. Still validates cleanly through ``DiagnosticPayload``.
+
+    ``niche_execution_tip`` is forwarded when the caller already
+    fetched it (live pipeline → validation-error branch). Defaults to
+    None when the fallback runs without ever touching the DB.
+    """
     from getviews_pipeline.report_diagnostic_gemini import fill_diagnostic_narrative
 
     narrative = fill_diagnostic_narrative(
@@ -368,5 +418,6 @@ def _fallback_payload(
             ),
         ],
         related_questions=_related_questions(query, niche_label),
+        niche_execution_tip=niche_execution_tip,
     )
     return payload.model_dump()
