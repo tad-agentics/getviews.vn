@@ -52,6 +52,7 @@ const BASE_SHOTS: ScriptEditorShot[] = [
     winnerAvg: 2.4,
     overlayWinner: "white sans 28pt · bottom-center",
     intelSceneType: "face_to_camera",
+    references: [],
   },
   {
     t0: 3,
@@ -65,6 +66,7 @@ const BASE_SHOTS: ScriptEditorShot[] = [
     winnerAvg: 5.0,
     overlayWinner: "yellow outlined · mid-left",
     intelSceneType: "product_shot",
+    references: [],
   },
   {
     t0: 8,
@@ -78,6 +80,7 @@ const BASE_SHOTS: ScriptEditorShot[] = [
     winnerAvg: 8.0,
     overlayWinner: "number callout 72pt",
     intelSceneType: "demo",
+    references: [],
   },
   {
     t0: 16,
@@ -91,6 +94,7 @@ const BASE_SHOTS: ScriptEditorShot[] = [
     winnerAvg: 7.5,
     overlayWinner: "caption strip · bottom",
     intelSceneType: "face_to_camera",
+    references: [],
   },
   {
     t0: 24,
@@ -104,6 +108,7 @@ const BASE_SHOTS: ScriptEditorShot[] = [
     winnerAvg: 5.0,
     overlayWinner: "—",
     intelSceneType: "action",
+    references: [],
   },
   {
     t0: 30,
@@ -117,6 +122,7 @@ const BASE_SHOTS: ScriptEditorShot[] = [
     winnerAvg: 2.5,
     overlayWinner: "question mark · full bleed",
     intelSceneType: "face_to_camera",
+    references: [],
   },
 ];
 
