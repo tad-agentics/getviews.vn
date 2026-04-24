@@ -594,16 +594,52 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
 
 
 def _classify_cta(cta: str | None) -> str | None:
+    """Map a raw CTA phrase to one of 7 taxonomy buckets or ``None`` / ``"other"``.
+
+    Regex patterns expanded 2026-05-10 based on the cta-face-detect audit
+    (see ``artifacts/docs/cta-face-detect-audit.md``). The audit sampled
+    20 "other"-bucketed rows + found that ~70% could route to existing
+    buckets given better VN-specific patterns. Additions below cover
+    shop-pressure shorthand ("chốt ngay/nhẹ", "săn deal"), try-it
+    variations ("áp dụng", "tham khảo", "làm liền", "ghé"),
+    external-channel follows ("lên kênh|kênh YT"), DM CTAs
+    ("inbox|nhắn mình|nhắn tin"), and part-2 announcements ("video sau").
+    """
     if not cta:
         return None
     c = cta.lower()
     if re.search(r"lưu lại|lưu ngay|save|lưu về", c): return "save"
-    if re.search(r"theo dõi|follow|đăng ký|subscribe", c): return "follow"
-    if re.search(r"comment|bình luận|cho.*biết|chia sẻ.*bên dưới", c): return "comment"
-    if re.search(r"giỏ hàng|mua ngay|chốt đơn|đặt hàng|shop|cart", c): return "shop_cart"
+    if re.search(
+        r"theo dõi|follow|đăng ký|subscribe|"
+        r"lên kênh|kênh yt|channel",
+        c,
+    ):
+        return "follow"
+    if re.search(
+        r"comment|bình luận|cho.*biết|chia sẻ.*bên dưới|"
+        r"inbox|nhắn mình|nhắn tin|dm mình",
+        c,
+    ):
+        return "comment"
+    if re.search(
+        r"giỏ hàng|mua ngay|chốt đơn|đặt hàng|shop|cart|"
+        r"chốt ngay|chốt đi|chốt nhẹ|chốt luôn|săn deal|săn sale|săn hàng",
+        c,
+    ):
+        return "shop_cart"
     if re.search(r"link.*bio|bio.*link|link.*comment|link.*mô tả", c): return "link_bio"
-    if re.search(r"còn tiếp|phần 2|part 2|tiếp tục|tập sau", c): return "part2"
-    if re.search(r"thử đi|thử.*xem|làm.*thử|ăn thử", c): return "try_it"
+    if re.search(
+        r"còn tiếp|phần 2|part 2|tiếp tục|tập sau|"
+        r"video sau|clip sau|kỳ sau|phần tiếp",
+        c,
+    ):
+        return "part2"
+    if re.search(
+        r"thử đi|thử.*xem|làm.*thử|ăn thử|"
+        r"áp dụng|tham khảo|làm liền|ghé|thử áp dụng|nên xem",
+        c,
+    ):
+        return "try_it"
     return "other"
 
 
