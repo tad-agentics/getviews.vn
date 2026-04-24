@@ -200,3 +200,108 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
 
 ---
 
+## Wave 2 — Ideas as a content calendar ("5 video tiếp theo")
+
+**End-of-wave moment:** *"A creator opens the Ideas report and sees 5 specific videos laid out like a calendar — hook template, opening line, content angle, lifecycle pill — all populated from their niche's real data."*
+
+**Why now:** 82% of surveyed creators endorsed this exact framing (highest endorsement rate of any probe). The data layer (hook_effectiveness populated, patterns weekly counts refreshed, niche_insights already 11-day-stale-but-usable) already exists — this wave is predominantly a **framing + data-wiring** change, not a new data pipeline.
+
+### Scope
+
+| Track | Item | Axis |
+|---|---|---|
+| BE | Layer 0 injection — wire `niche_insights.insight_text` + `execution_tip` into Ideas narrative generation | 2 (state-of-corpus Appendix B Gap 2) |
+| BE | Ideas payload enrichment — `opening_line`, `content_angle`, `lifecycle_stage` per finding | — |
+| BE | Ideas prompt engineering — Gemini Flash-Preview emits the new structured fields | — |
+| FE | IdeasBody reframe to "5 VIDEO TIẾP THEO" calendar layout | — |
+| FE | Home screen surfacing of Ideas with niche-prepopulated quick-link | — |
+
+### Backend PRs
+
+#### `layer0-narrative-injection` · ~1.5d · Axis 2 Gap 2
+- **Problem:** `niche_insights` table has 11 rows (one per niche), refreshed weekly by `/batch/layer0`. The most actionable fields (`insight_text`, `execution_tip`) are populated but never surface in any Answer-session report. This is state-of-corpus Appendix B Gap 2 — flagged, not yet fixed.
+- **Fix:** extend the Pattern + Ideas narrative generators to read `niche_insights` and inject `execution_tip` into the final report payload.
+  - Identify the exact narrative builder functions. Session context said `fill_pattern_narrative` + `fill_ideas_narrative` but those names came from a docstring — confirm via `grep -rn "fill_.*narrative\|build_pattern\|build_ideas" cloud-run/getviews_pipeline/` before editing.
+  - Wire a lookup: `fetch_niche_insight(niche_id)` → inject `insight_text` into the preamble, `execution_tip` into the "what to do" slot.
+  - Graceful degradation: if `niche_insights` row is missing or > 14 days old, skip injection rather than fail.
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/pipelines.py` — session context says `_get_niche_insight()` exists at line ~1012, called from the `video_diagnosis` flow at line 1238. Reuse or generalize this function for Pattern + Ideas.
+  - Narrative generation modules (confirm exact names via grep): likely `cloud-run/getviews_pipeline/answer_session.py` or a `reports/` sub-package.
+- **Test:** unit test that a niche with a populated `insight_text` produces a report that contains it verbatim; a niche without one produces a valid report that omits the injection.
+
+#### `ideas-next5-payload-schema` · ~1d · —
+- **Schema change:** extend `IdeasPayload` Pydantic model — each finding now carries:
+  - `rank: int` (1..5)
+  - `hook_phrase: str` (existing, rename if needed for clarity)
+  - `opening_line: str` (new — Vietnamese example of the first spoken line, 6–12 words)
+  - `content_angle: str` (new — one-line angle, e.g. "So sánh 2 loại kem chống nắng cùng ngân sách")
+  - `lifecycle_stage: Literal["early", "peak", "decline"]` (new — pulled from pattern data per hook)
+  - `execution_tip: str | None` (from Layer 0 injection above)
+  - `sample_size: int` (existing)
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/report_*.py` or schema module (session context showed Pydantic V2 ConfidenceStrip, DiagnosticPayload, LifecyclePayload, ReportV1 envelope — IdeasPayload lives in the same location).
+  - Wherever the Ideas-specific orchestrator lives (pipelines.py or answer_session.py).
+- **Back-compat:** the new fields must be `Optional` on the way up so existing fixtures + in-flight sessions don't crash; FE gates rendering on presence.
+
+#### `ideas-gemini-prompt-upgrade` · ~1–2d · —
+- **Problem:** current Ideas prompt emits hook_phrase + sample_size per finding. It doesn't emit `opening_line` or `content_angle`.
+- **Fix:** update the prompt template to require those fields in structured output (Pydantic-validated via `response_mime_type="application/json"` + schema), with concrete Vietnamese examples in the prompt.
+- **Fallback:** if Gemini returns a malformed response, fill `opening_line` and `content_angle` from deterministic templates (e.g. "Mở bằng: [hook_phrase]...", "[hook_phrase] × [content_format]") so the renderer never sees null.
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/prompts.py` (session context mentions this is the prompt home)
+  - `cloud-run/getviews_pipeline/gemini.py` or wherever the Ideas-specific Gemini caller lives
+- **Test:** golden-prompt test — fixture input niche produces a structured output passing the new Pydantic schema. Dogfood on 3 real niches and review hand-rated.
+
+### Frontend PRs
+
+#### `ideas-5next-reframe` · ~1d · —
+- **Current:** `IdeasBody.tsx` renders findings as a generic ranked hook list with kicker `Ý TƯỞNG NỘI DUNG`.
+- **Target:** reframe as a content calendar.
+  - Kicker: `5 VIDEO TIẾP THEO` (mono 10px, accent-deep).
+  - Section title (`.gv-tight` 28px): `Lịch quay tuần này` or similar — Vietnamese natural phrasing.
+  - Each finding renders as a numbered card (1–5) with:
+    - Top row: rank number `(.gv-bignum` small) + lifecycle pill (early/peak/decline)
+    - Body: hook template in mono, opening line as a Vietnamese quote (gv-serif-italic), content angle as default body text
+    - Bottom: sample_size + `execution_tip` if present (from Layer 0 injection)
+  - Respect the design-system.md rules: no emoji, no colored left-border accents, use `<Card variant="paper">`, 18px radius, real data only (no lorem ipsum).
+- **Critical files:**
+  - `src/components/v2/answer/ideas/IdeasBody.tsx` (main renderer — session context confirmed path)
+  - `src/components/v2/answer/ideas/` sibling components if any (SubCard, etc.)
+- **Copy rules:** `.cursor/rules/copy-rules.mdc` — no forbidden openers (Chào bạn/Tuyệt vời/Wow/Đây là/Dưới đây là), no forbidden words (tuyệt vời/hoàn hảo/bí mật/công thức vàng/bùng nổ/siêu hot). Formula: *state the pattern → give the specific video*.
+
+#### `home-ideas-quick-link` · ~0.5d · —
+- **Target:** add a card on the Home screen with:
+  - Kicker: `LỊCH QUAY TUẦN NÀY` (mono 10px)
+  - Title: creator's niche pre-filled (e.g. "Skincare")
+  - Body: "5 video tiếp theo bạn nên làm, dựa trên 7 ngày gần nhất trong ngách."
+  - CTA: "Mở báo cáo" → navigates to a pre-populated Ideas session.
+- **Critical files:**
+  - Home route: `src/routes/_app/` (session context mentions `_app` layout + home route — grep for Home- or Pulse- prefixed screens)
+  - New card component in `src/components/v2/` (follow the `<Card variant="paper">` + `<SectionHeader>` pattern already established)
+
+### Dependencies from Wave 1
+
+- **hook_type eval** passing ≥ 0.85 (so we trust the hook_type labels flowing into Ideas).
+- **Phase 1 corpus growth** live — 3 niches at 200+ videos each. Session target: Skincare (113), Review đồ ăn (128), Gym/Fitness (106) are already near/above 100; Phase 1 should push at least Skincare and Review đồ ăn above 200 in 7 days.
+- **Layer 0 weekly cron** healthy (Wave 0 scheduled it; verify before this wave starts that `niche_insights` has rows < 14 days old).
+
+### Validation gate → Wave 3
+
+- **Focused gate** (per reviewer correction): 3 pre-selected niches — Skincare, Review đồ ăn, Gym/Fitness — each at 200+ videos, produce Ideas reports with 5 cards each, every card has populated `hook_phrase` + `opening_line` + `content_angle` + `execution_tip`.
+- **Internal dogfood:** 3 team members generate Ideas in their primary niche, rate cards 4+/5 on "would actually help me make a video next week."
+- **No fixture data:** `ConfidenceStrip` shows real `sample_size ≥ 30` for all 3 niches (not the low-confidence fixture fallback path).
+
+### Risk flags
+
+- **Layer 0 injection could fail gracefully on stale/missing rows and nobody notices.** Guard with a log warning at INFO level + a `batch_job_runs`-style metric so operators see "N of M reports injected".
+- **Gemini prompt for `opening_line` could produce generic or repeat across findings.** Validation: structured-output test asserting distinct `opening_line` values across the 5 ranks.
+- **Home quick-link adds a new home-card pattern.** Keep it on-brand (no new typography, reuse existing `<Card>` + `<SectionHeader>` + `<Btn>` primitives from `src/components/v2/`).
+- **Calendar could slip.** Ideas enrichment is the single longest PR (2–3d alone). If prompt engineering stalls, the template fallback keeps the wave shippable at slightly lower quality.
+
+### Calendar
+
+9–10 working days. BE blocks ~5d (Layer 0 + schema + prompt), FE blocks ~1.5d (IdeasBody + home card), plus 2–3d dogfood + fix loop. Can parallelize BE + FE once the payload schema PR lands (1 day in).
+
+---
+
+
