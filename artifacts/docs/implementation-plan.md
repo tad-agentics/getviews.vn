@@ -513,6 +513,182 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
 
 ---
 
+## Wave 5+ — ongoing (no fixed calendar)
+
+**Goal:** keep compounding quality + growth after the 4 survey-informed waves ship. Pick items opportunistically; each is 0.5–1d and safe to ship in isolation.
+
+### Growth continuation (Axis 1)
+
+- **Phase 2 — thin-niche prioritization** · ~1d
+  - Pre-ingest query ranks niches by `(target - current_count)` and grants thin niches a 2–3× quota multiplier.
+  - Critical files: `cloud-run/getviews_pipeline/corpus_ingest.py` — `_pick_hashtags_for_pool_fetch` + `run_batch_ingest`.
+  - Exit: per-niche allocation logged in ingest summary; thinnest niches close the gap faster than richest.
+- **Phase 2 — cron cadence 1×/d → 4×/d** · ~0.25d
+  - Update `cron-batch-ingest` schedule in `cron.job`: `0 20 * * *` → `0 */6 * * *`.
+  - Verify ED burn stays within 5000/day cap (each run ~500–700 units at `BATCH_VIDEOS_PER_NICHE=25`).
+- **Phase 3 — add 5–10 new niches** · ~0.5d per niche
+  - Candidates: K-pop / Âm nhạc (separate from Chị đẹp), Học tiếng, Crypto/Web3, Xe máy/Moto culture, Nội thất (split from Nhà cửa).
+  - Each: `niche_taxonomy` row + curated signal_hashtags + spot-check ingest.
+
+### Axis 4 quality discipline
+
+- **Expand content_format golden set 27 → 60** · ~1d
+  - Hand-curate 33 more items focused on the buckets currently at < 2 representatives (pov, dance, faceless, outfit_transition).
+  - Raise CI floor to 0.97 once 60-item accuracy holds.
+- **`cta_type` classifier golden set** · ~0.5d
+  - Mirror `content_format_golden.json`; ~20 items across the 7 cta_type labels.
+- **`history → story` substring bug fix** · ~15min
+  - Known classifier miss surfaced during Wave 0 eval-harness PR. Update the storytelling regex to use word boundaries.
+
+### Axis 5 observability residual
+
+- **Daily health digest** · ~1d
+  - New Supabase Edge cron `cron-daily-health-digest` queries `batch_job_runs` + corpus stats + `gemini_calls` + ED burn from the last 24h, formats a Vietnamese-language digest, fires via Resend.
+  - Follows the existing cron-email pattern (see `cron-prune-webhooks` / `cron-expiry-check`).
+
+### Axis 2 open product decision
+
+- **Taxonomy expansion — news / entertainment / highlight** · spec first, ~1w if greenlit
+  - 37% `content_format='other'` residual is mostly rows outside the 15-bucket taxonomy. Closing this gap requires atomic 7-layer refactor (classify_format docstring lock enumerates the impacted files).
+  - **Decision needed:** expand taxonomy → meaningfully shrink the 'other' tail, big code surface touch, OR accept 'other' as terminal for this content class.
+  - **If greenlit:** design doc first (mirroring the viral-score approach), then PR.
+
+---
+
+## End-to-end verification protocol
+
+For each wave, validate against BOTH the exit criteria in the wave's own section AND the global checks below.
+
+### Global checks (run after each wave)
+
+```sql
+-- 1. Pipeline health — no stuck jobs
+SELECT job_name, status, started_at
+FROM public.batch_job_runs
+WHERE status = 'running'
+  AND started_at < NOW() - INTERVAL '30 minutes';
+-- Expect: 0 rows. Any running-for-too-long is a zombie.
+
+-- 2. Observability continuity — no silent cron days
+SELECT date_trunc('day', started_at) AS d,
+       COUNT(*) FILTER (WHERE job_name = 'batch/ingest')      AS ingest_runs,
+       COUNT(*) FILTER (WHERE job_name = 'batch/refresh')     AS refresh_runs,
+       COUNT(*) FILTER (WHERE status = 'failed')              AS failed_runs,
+       SUM((summary->>'error_types')::jsonb::text != '{}' AND (summary->>'error_types') IS NOT NULL)::int AS error_runs
+FROM public.batch_job_runs
+WHERE started_at > NOW() - INTERVAL '7 days'
+GROUP BY 1
+ORDER BY 1 DESC;
+-- Expect: ingest_runs ≥ 1/day, refresh_runs ≥ 1/day, failed_runs = 0 OR matching alert fire.
+
+-- 3. Eval harness regression — content_format accuracy holds
+-- Run locally: cd cloud-run && python -m pytest tests/test_classifier_eval.py
+-- Expect: 4/4 passed, accuracy ≥ 0.95.
+
+-- 4. Corpus growth — trending up, not stalled
+SELECT date_trunc('day', indexed_at) AS d, COUNT(*) AS new_videos
+FROM public.video_corpus
+WHERE indexed_at > NOW() - INTERVAL '14 days'
+GROUP BY 1
+ORDER BY 1 DESC;
+-- Expect: rolling 7-day sum trending up post-Wave 1 Phase 1.
+
+-- 5. hook_effectiveness freshness
+SELECT MAX(computed_at) AS latest FROM public.hook_effectiveness;
+-- Expect: < 8 days old (weekly analytics cron writes).
+```
+
+### Per-feature dogfood protocol
+
+Every wave ends with a structured dogfood session:
+
+1. **3 reviewers**, each in a different real niche they understand.
+2. **5 sessions** per reviewer against the wave's headline feature.
+3. **Rate each output on 1-5:**
+   - Accuracy: does it say true things about this niche?
+   - Specificity: could I act on this today?
+   - Voice: would this work in a Vietnamese creator Zalo group?
+4. **Wave passes** at median 4+/5 across all 15 sessions.
+5. **Fail → fix + re-dogfood.** No shipping a wave on 3/5 average.
+
+---
+
+## Consolidated risk register
+
+| Risk | Wave | Mitigation | Buffer |
+|---|---|---|---|
+| hook_type accuracy < 0.85 on first eval | 1 | Wave 1.5 prompt-engineering PR before Wave 2 starts | 2–3 extra days |
+| ED daily burn exceeds 5000 | 1 | `batch_job_runs.summary->'error_types'` catches `EnsembleDailyBudgetExceeded`; throttle `BATCH_VIDEOS_PER_NICHE` down | alert fires before data loss |
+| Layer 0 injection silently skipped | 2 | INFO-level log + metric "N of M reports injected" | visible in dogfood |
+| Ideas prompt emits generic `opening_line` | 2 | Structured-output assertion: distinct values across 5 ranks | test gate |
+| Viral-score backtest ρ < 0.35 | 3 | Iterate formula up to 3× (different weights, extra dimensions); if still fails, cut score from Wave 4 | Wave 4 reduces scope |
+| Compare SSE payload exceeds chunk limits | 4 | Progressive per-diagnostic reveal; bounded per-chunk size | verify on first 3 sessions |
+| Production viral-score distribution diverges from backtest | 4 | Monitor distribution weekly; if > 80% single-tier, re-calibrate | observability alerts |
+| Taxonomy decision unresolved | 5+ | 37% 'other' stays as-is until greenlit | not blocking other waves |
+
+---
+
+## Calendar summary
+
+| Wave | Calendar | Cumulative | End-of-wave creator promise |
+|---|---|---|---|
+| 1 | 5–7d | 5–7d | Pipeline can't fail silently; corpus growing 2.5× |
+| 2 | 9–10d | 14–17d | Ideas = 5 videos with hook + opening + angle |
+| 3 | 5–7d | 19–24d | Diagnosis surfaces execution_tip; viral-score spec approved |
+| 4 | 7–10d | 26–34d | Compare A vs B + viral-alignment pill on diagnosis |
+| 5+ | ongoing | — | Growth + discipline continuation |
+
+**~30–35 working days solo @ 4h/d effective. ~3.5 weeks with parallel FE + BE hands.**
+
+Every wave has a single-sentence promise a Vietnamese creator would read and nod. That's the bar.
+
+---
+
+## Critical file reference (for execution)
+
+### Backend (Cloud Run)
+
+| Area | File | Used in |
+|---|---|---|
+| Intent routing | `cloud-run/getviews_pipeline/intent_router.py` | Wave 4 |
+| Frontend intent mirror | `src/routes/_app/intent-router.ts` + `intent-router.test.ts` | Wave 4 |
+| Pipelines orchestrator | `cloud-run/getviews_pipeline/pipelines.py` | Waves 2, 3, 4 |
+| Answer session dispatcher | `cloud-run/getviews_pipeline/answer_session.py` (`select_builder_for_turn`) | Wave 4 |
+| Prompts | `cloud-run/getviews_pipeline/prompts.py` | Waves 2, 3 |
+| Gemini caller | `cloud-run/getviews_pipeline/gemini.py` | Waves 1, 2 |
+| Classifier | `cloud-run/getviews_pipeline/corpus_ingest.py` (`classify_format`, `_classify_cta`) | Wave 1 audit |
+| Eval harness | `cloud-run/getviews_pipeline/eval_classifier.py` | Waves 1, 5+ |
+| Admin triggers | `cloud-run/getviews_pipeline/routers/admin.py` | Wave 3 backtest trigger |
+| Niche insight fetcher | `cloud-run/getviews_pipeline/pipelines.py:_get_niche_insight` (line ~1012) | Waves 2, 3 |
+
+### Frontend (React SPA)
+
+| Area | File | Used in |
+|---|---|---|
+| Ideas report body | `src/components/v2/answer/ideas/IdeasBody.tsx` | Wave 2 |
+| Diagnostic body | `src/components/v2/answer/diagnostic/DiagnosticBody.tsx` | Waves 3, 4 |
+| Compare body (new) | `src/components/v2/answer/compare/CompareBody.tsx` | Wave 4 |
+| Viral pill (new) | `src/components/v2/ViralAlignmentPill.tsx` | Wave 4 |
+| v2 primitives | `src/components/v2/` (Card, Btn, Chip, SectionHeader, Kicker) | every wave |
+| Landing + auth | `src/routes/_index/LandingPage.tsx`, `src/routes/_auth/login/route.tsx` | Wave 1 copy fix |
+| Design system reference | `artifacts/docs/design-system.md` | every FE PR |
+| Copy rules | `.cursor/rules/copy-rules.mdc` | every wave |
+
+### Migrations (chronological queue)
+
+| # | File | Wave |
+|---|---|---|
+| 1 | `supabase/migrations/20260510000000_alert_rule_cron_failures.sql` | 1 |
+| 2 | `supabase/migrations/20260510000001_gemini_calls_success.sql` | 1 |
+| 3 | `supabase/migrations/20260510000002_hashtag_expansion_4_niches.sql` | 1 |
+| 4 | (possible) schema updates for `IdeasPayload` — via Pydantic, no DB migration | 2 |
+| 5 | (possible) new table for eval run history if DB persistence lands | 5+ |
+
+---
+
+*End of plan. Each wave is a commit in this branch's history — `git log` reads as a coherent argument from context → strategy → waves.*
+
+
 
 
 
