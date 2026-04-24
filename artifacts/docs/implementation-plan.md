@@ -404,5 +404,115 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
 
 ---
 
+## Wave 4 — Compare intent + viral-score BUILD
+
+**End-of-wave moment:** *"A creator pastes two TikTok URLs and gets side-by-side diagnosis with a delta summary. Every diagnostic submission also carries a 0–100 viral-alignment pill with 3 reasoning bullets."*
+
+**Why now:** With Wave 3 having locked the viral-score formula, Wave 4 becomes pure implementation — safe, bounded work. Compare is stacked here because (a) it's not in the pay-signal top 3 per the survey, (b) it reuses the now-polished `video_diagnosis` orchestration from Wave 3, and (c) its UX validates best *after* single-video diagnosis has been dogfooded.
+
+### Scope
+
+| Track | Item | Axis |
+|---|---|---|
+| BE | `compare_videos` intent in intent router | — |
+| BE | Compare orchestration — parallel `video_diagnosis` + delta summary | — |
+| BE | `ReportV1` schema extension: `kind: "compare"` variant | — |
+| BE | Viral-alignment score — build to Wave 3 spec | — |
+| FE | Compose UI — detect 2 URLs, show confirmation chip | — |
+| FE | `CompareBody.tsx` — side-by-side diagnostic layout | — |
+| FE | Viral-score pill on `DiagnosticBody` (+ any other submitter flow) | — |
+
+### Backend PRs
+
+#### `compare-videos-intent` · ~1d · —
+- **Intent detection:** extend `cloud-run/getviews_pipeline/intent_router.py` — when message contains ≥ 2 TikTok URLs (existing URL regex can be extracted via grep), return intent `compare_videos`.
+- Also extend the frontend tier-1 router mirror at `src/routes/_app/intent-router.ts` to detect the same pattern (required because frontend decides whether to route to `/api/chat` vs Cloud Run; compare needs Cloud Run).
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/intent_router.py`
+  - `src/routes/_app/intent-router.ts` + its test `intent-router.test.ts` (CLAUDE.md mandates extending the test).
+
+#### `compare-orchestration` · ~1.5–2d · —
+- **New pipeline:** `cloud-run/getviews_pipeline/pipelines.py` gets `run_compare_pipeline(url_a, url_b, ...)`.
+  - Calls `run_video_diagnosis(url_a)` + `run_video_diagnosis(url_b)` via `asyncio.gather` (parallel).
+  - After both return, assembles a `ComparePayload` with:
+    - `left: DiagnosticPayload`
+    - `right: DiagnosticPayload`
+    - `delta: {retention_gap: float, scene_count_diff: int, hook_alignment: Literal["match","conflict"], verdict: str}`
+    - `delta.verdict` is a 1-sentence Vietnamese summary: "Video trái giữ 72% → top 20%. Video phải giữ 41% → dưới sàn. Khác biệt chính: hook face-to-camera vs text-overlay."
+- **Streaming:** the SSE stream must emit `left` and `right` progressively as each diagnosis completes, then `delta` at the end — for a better UX than waiting for both to finish silently. Pattern: re-use whatever progressive streaming primitive `video_diagnosis` uses today.
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/pipelines.py`
+  - `cloud-run/getviews_pipeline/report_compare.py` (new, houses `ComparePayload`)
+  - `cloud-run/getviews_pipeline/answer_session.py` — add `compare` to `select_builder_for_turn` (session context confirmed this is the dispatcher)
+  - Pydantic schema update in whichever module houses `ReportV1` discriminator — add `kind: Literal["compare"]` variant.
+
+#### `viral-alignment-score-impl` · ~1.5d · —
+- **Formula:** as specified in `viral-alignment-score.md` (Wave 3 design doc). Implementation must match the doc exactly — any deviation is a bug.
+- **New module:** `cloud-run/getviews_pipeline/viral_alignment.py`
+  - `compute_viral_alignment(submitted_video, niche_id, client) -> ViralAlignment` where `ViralAlignment` is a Pydantic model with `score: int | None, tier: Literal["low","mid","high"] | None, reasoning: list[str], insufficient_data: bool`.
+  - Queries top-30 videos in niche by `breakout_multiplier DESC` in last 30d.
+  - Computes the 3 alignment dimensions, applies weights, maps to tier via the calibration table.
+  - Returns early with `insufficient_data=True` on thin niches (exact threshold from the spec).
+- **Integration:** `run_video_diagnosis` in `pipelines.py` calls `compute_viral_alignment` after extraction, attaches result to `DiagnosticPayload.viral_alignment`.
+- **Tests:** property tests asserting the formula matches the spec. Plus one end-to-end test with a fixture-niche "top 30" that produces a score of exactly X (predictable input → predictable output).
+- **Critical files:**
+  - `cloud-run/getviews_pipeline/viral_alignment.py` (new)
+  - `cloud-run/getviews_pipeline/pipelines.py` (integration)
+  - `cloud-run/tests/test_viral_alignment.py` (new)
+
+### Frontend PRs
+
+#### `compose-two-url-chip` · ~0.5d · —
+- When the compose input contains ≥ 2 TikTok URLs (detected by the existing URL pattern in `src/lib/` — grep `tiktok.com`), show a pre-submit chip "So sánh 2 video" using `<Chip variant="accent">` so the user confirms the intent before SSE starts.
+- **Critical files:**
+  - Compose component — grep `src/components/` for the composer Surface (session context: `gv-surface-brutal`).
+  - `src/routes/_app/intent-router.ts` for detection mirror.
+
+#### `compare-body-component` · ~1.5d · —
+- **New file:** `src/components/v2/answer/compare/CompareBody.tsx`
+- **Layout:**
+  - Desktop (`min-[900px]:`): 2-column side-by-side. Each column renders a slim `<DiagnosticBody>` variant (re-export a `compact` prop on existing DiagnosticBody rather than duplicating).
+  - Mobile (< 900px): stacked. Sticky column header shows "A" / "B" labels so the user tracks which one they're scrolling.
+  - Delta summary bar pinned to the top: `<Card variant="brutal">` with kicker `KHÁC BIỆT CHÍNH`, 1-sentence verdict.
+- **Progressive reveal:** if streaming emits `left` first, render it + show a skeleton for `right`; fill as it arrives.
+- **Respect design-system.md:** no emoji, 18px radius, `<Card variant="paper">` for inner content, no new typography utilities.
+- **Critical files:**
+  - new `src/components/v2/answer/compare/CompareBody.tsx`
+  - adjust `src/components/v2/answer/diagnostic/DiagnosticBody.tsx` to accept a `compact: boolean` prop.
+
+#### `viral-score-pill` · ~0.5d · —
+- **Component:** `<ViralAlignmentPill>` — renders `score` + `tier` as a colored pill (green/neutral/accent per tier), tap to expand the 3 reasoning bullets.
+- **Placement:** top of `DiagnosticBody` header, right of the title.
+- **Copy:** tier labels in Vietnamese — "Đang hợp sóng" (high), "Ổn" (mid), "Lệch sóng" (low). `insufficient_data` shows a muted kicker-style pill "Chưa đủ dữ liệu ngách" with no score.
+- **Critical files:**
+  - new `src/components/v2/ViralAlignmentPill.tsx`
+  - `src/components/v2/answer/diagnostic/DiagnosticBody.tsx` integration.
+
+### Dependencies from Wave 3
+
+- `viral-alignment-score.md` committed, backtest results green (Spearman ρ ≥ 0.35).
+- Diagnosis polish + execution_tip surface live (since Compare reuses `DiagnosticBody`).
+
+### Validation gate → Wave 5+
+
+- **Compare:** 5 internal compare sessions run end-to-end across different niches. Response payload < 100KB (two diagnostics doubles payload — verify not hitting SSE chunk limits).
+- **Score:** the backtest-predicted distribution matches the production distribution on the first 100 scored live submissions within ±10% per tier.
+- **Dogfood:** 3 team members rate 4+/5 that the compare report teaches them something new about their content vs a competitor's.
+- **No regressions:** `DiagnosticBody` single-video flow + existing reports (Pattern, Ideas, Timing, Lifecycle) unchanged in look and performance.
+
+### Risk flags
+
+- **Compare SSE payload could hit chunk-size limits.** Mitigation: the progressive reveal requires chunked emission anyway; size per chunk stays bounded.
+- **Viral score distribution in production could diverge from backtest** if the live niche composition shifts. Monitor `batch_job_runs`-style stats for the first week — a log-warning if more than 80% of scores fall in a single tier.
+- **Compare UX on mobile could feel cramped.** Stacked layout with sticky A/B labels is the safer choice; avoid a tab-switcher (adds friction for side-by-side comparison).
+- **Score tier copy ("Đang hợp sóng" / "Lệch sóng") might feel gimmicky.** Dogfood test against the forbidden-words list in `.cursor/rules/copy-rules.mdc` — if any wording reads as "bí mật/hack/viral" adjacent, rewrite.
+
+### Calendar
+
+7–10 working days. Compare BE + FE ≈ 4–5d, score BE + FE ≈ 2–3d, 2d dogfood + polish. Parallelizable: viral-score BE + Compare FE can run simultaneously after intent + orchestration lands.
+
+---
+
+
 
 
