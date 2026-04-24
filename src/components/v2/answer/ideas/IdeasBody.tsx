@@ -22,6 +22,7 @@ import { HumilityBanner } from "../pattern/HumilityBanner";
 import { IdeaBlock } from "./IdeaBlock";
 import { IdeasActionCards } from "./IdeasActionCards";
 import { LeadParagraph } from "./LeadParagraph";
+import { NicheInsightCard } from "./NicheInsightCard";
 import { StopDoingList } from "./StopDoingList";
 import { StyleCardGrid } from "./StyleCardGrid";
 
@@ -68,6 +69,8 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
           </div>
         </section>
       ) : null}
+
+      <NicheInsightCard insight={report.niche_insight} />
 
       {report.style_cards.length > 0 ? (
         <section>
