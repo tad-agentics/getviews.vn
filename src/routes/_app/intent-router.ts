@@ -15,7 +15,12 @@ export type IntentDecision = {
   confidence: "high" | "medium" | "low";
 };
 
-/** Post–C.7: every query lands on a concrete screen (no "chat"). */
+/** Post–C.7: every query lands on a concrete screen (no "chat").
+ *
+ * ``answer:compare`` added Wave 4 PR #1 (2026-05-11) for the Compare
+ * template — two TikTok URLs → side-by-side diagnosis. Mirror of the
+ * server-side ``Destination`` union in
+ * ``cloud-run/getviews_pipeline/intent_router.py``. */
 export type Destination =
   | "video"
   | "channel"
@@ -26,6 +31,7 @@ export type Destination =
   | "answer:timing"
   | "answer:lifecycle"
   | "answer:diagnostic"
+  | "answer:compare"
   | "answer:generic";
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
@@ -53,6 +59,9 @@ export type FixedIntentId =
   | "timing"
   | "content_calendar"
   | "own_flop_no_url"
+  // Wave 4 PR #1 — two TikTok URLs in one message fires this intent.
+  // Server-side mirror: ``QueryIntent.COMPARE_VIDEOS``.
+  | "compare_videos"
   | "follow_up_unclassifiable";
 
 export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
@@ -86,6 +95,10 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // Diagnostic template (2026-04-22) — URL-less flop diagnosis with a
   // 4-level verdict enum. See `artifacts/docs/report-template-prd-diagnostic.md`.
   own_flop_no_url: "answer:diagnostic",
+  // Compare template (Wave 4 PR #1, 2026-05-11) — two TikTok URLs → side-
+  // by-side diagnosis. Render target `CompareBody.tsx` lands in a later
+  // Wave 4 PR; for now this row only pins the routing contract.
+  compare_videos: "answer:compare",
   follow_up_unclassifiable: "answer:generic",
 };
 
@@ -112,6 +125,12 @@ export function resolveDestination(intent: ClassifiedIntent): Destination {
   return INTENT_DESTINATIONS[intent.id];
 }
 
+// TikTok URL regex shared across every URL branch below. Matches
+// www.tiktok.com, tiktok.com, and the short-link subdomains
+// (vm/vt/m.tiktok.com). Mirror of ``_TIKTOK_URL_RE`` in
+// ``cloud-run/getviews_pipeline/intents.py`` — keep in sync.
+const TIKTOK_URL_GLOBAL_RE = /https?:\/\/(?:(?:www\.)?tiktok\.com|(?:vm|vt|m)\.tiktok\.com)\/\S+/gi;
+
 export function detectIntent(
   query: string,
   priorAssistant: boolean,
@@ -119,11 +138,23 @@ export function detectIntent(
   const q = query.trim();
   const ql = q.toLowerCase();
 
-  // ``series_audit`` (multi-URL) was dropped 2026-04-22. Multi-URL queries
-  // now fall through to the single-URL branch which treats the first URL
-  // as a ``video_diagnosis``; the rest are ignored. A future v2 might
-  // re-introduce a series view as a dedicated screen, but it's not an
-  // Answer-session intent.
+  // ── COMPARE VIDEOS (two-or-more TikTok URLs) ─────────────────────────────
+  // Wave 4 PR #1 (2026-05-11). Must land BEFORE the single-URL branch
+  // (which treats the first URL as video_diagnosis) and BEFORE the
+  // flop-keyword own_flop branch (the URL gate there already skips
+  // URL-bearing messages, but explicit ordering prevents a future
+  // refactor from routing a two-URL "tại sao video A vs B flop" query
+  // somewhere unexpected). Mirror of the server-side ≥2-URL branch in
+  // ``classify_intent``.
+  const tiktokUrlMatches = q.match(TIKTOK_URL_GLOBAL_RE) ?? [];
+  if (tiktokUrlMatches.length >= 2) {
+    return { intentType: "compare_videos", isFree: false, confidence: "high" };
+  }
+
+  // ``series_audit`` (multi-URL corpus-comparison) was dropped 2026-04-
+  // 22. The Wave 4 PR #1 ``compare_videos`` branch above covers the
+  // two-URL case with a real template; single-URL queries fall through
+  // to the ``video_diagnosis`` branch below unchanged.
 
   // ── OWN CHANNEL / VIDEO FLOP (no TikTok URL) ─────────────────────────────
   // 2026-05-07: the flop-keyword branch widened with colloquial
