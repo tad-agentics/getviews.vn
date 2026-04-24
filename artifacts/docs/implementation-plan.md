@@ -76,15 +76,21 @@ Don't re-do these. These are now load-bearing for everything below.
 
 ## Wave summary — what each wave delivers
 
-| Wave | Moment at end of wave | Effort | Critical deps |
-|---|---|---|---|
-| **1** | "The pipeline can no longer fail silently, and it's harvesting 2.5× more videos than before." | 5–7d | Wave 0 ✓ |
-| **2** | "Ideas report shows your next 5 videos with hook + opening line + content angle." | 9–10d | Wave 1 hook_type eval passing + corpus at 3 niches ≥ 200 |
-| **3** | "Diagnosis reports surface execution_tip + viral-score formula is specified and validated on historical data (no shipping yet)." | 5–7d | Wave 2 on live ≥ 3 days |
-| **4** | "Paste two URLs → side-by-side diagnosis. Every diagnostic carries a 0-100 viral-alignment pill with 3 reasoning bullets." | 7–10d | Wave 3 design doc approved |
-| **5+** | Growth continuation — Phase 2/3, taxonomy expansion decision, Axis 4/5 residuals. | ongoing | Wave 4 on live ≥ 1 week |
+| Wave | Moment at end of wave | Effort | Critical deps | Status |
+|---|---|---|---|---|
+| **1** | "The pipeline can no longer fail silently, and it's harvesting 2.5× more videos than before." | 5–7d | Wave 0 ✓ | ✅ shipped |
+| **2** | "Ideas report shows your next 5 videos with hook + opening line + content angle." | 9–10d | Wave 1 hook_type eval passing + corpus at 3 niches ≥ 200 | ✅ shipped |
+| **2.5** | "Every generated shot shows up to 3 real creator scenes from the same niche with match-signal chip." | ~8d | Wave 2 on live | ✅ shipped |
+| **3** | "Diagnosis reports surface execution_tip. Viral-score formula backtested; DEFERRED per ρ = 0.14 < 0.35 gate." | 5–7d | Wave 2 on live ≥ 3 days | ✅ shipped (score deferred) |
+| **4** | "Paste two URLs → side-by-side diagnosis with delta summary." (viral-score pill CUT — see `artifacts/docs/viral-alignment-score.md` §9) | 5–7d | Wave 3 design doc approved | planned |
+| **5+** | Growth continuation — Phase 2/3, taxonomy expansion decision, Axis 4/5 residuals. Includes re-running the viral-score backtest when any §11 trigger fires. | ongoing | Wave 4 on live ≥ 1 week | planned |
 
 **Total calendar to survey-validated product: ~30–35 working days (~6–7 weeks) solo @ 4h/day effective.**
+
+**Wave 4 scope reduced** from "Compare + viral-score BUILD" to
+"Compare-only" after Wave 3 PR #5's backtest (ρ = 0.14 on 352-video
+sample). See the design doc's §9 verdict and §11 re-evaluation
+triggers for when to re-open the score BUILD.
 
 Each wave's detailed breakdown follows in its own section below.
 
@@ -404,11 +410,26 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
 
 ---
 
-## Wave 4 — Compare intent + viral-score BUILD
+## Wave 4 — Compare intent (score BUILD cut — see §4 note)
 
-**End-of-wave moment:** *"A creator pastes two TikTok URLs and gets side-by-side diagnosis with a delta summary. Every diagnostic submission also carries a 0–100 viral-alignment pill with 3 reasoning bullets."*
+**End-of-wave moment:** *"A creator pastes two TikTok URLs and gets
+side-by-side diagnosis with a delta summary — same-tier analysis for
+both videos, one-sentence Vietnamese verdict on what's different."*
 
-**Why now:** With Wave 3 having locked the viral-score formula, Wave 4 becomes pure implementation — safe, bounded work. Compare is stacked here because (a) it's not in the pay-signal top 3 per the survey, (b) it reuses the now-polished `video_diagnosis` orchestration from Wave 3, and (c) its UX validates best *after* single-video diagnosis has been dogfooded.
+**Scope change vs original plan:** the viral-alignment score BUILD is
+CUT from this wave. Wave 3 PR #5 backtested the proposed formula on
+352 scoreable videos and measured ρ = 0.14 against breakout_multiplier
+(gate: ≥ 0.35). See `artifacts/docs/viral-alignment-score.md` §9
+verdict. Wave 4 ships Compare-only; the score re-opens under a later
+wave when any of the §11 re-evaluation triggers fires (Wave 2.5
+enrichment propagated, corpus 10K+, a niche 200+ breakout-scored,
+breakout formula revised, or new candidate dimension shipped).
+
+**Why now:** Compare reuses the now-polished `video_diagnosis`
+orchestration from Wave 3 + the Wave 2.5 reference-video plumbing.
+It's not in the pay-signal top 3 per the survey, which is fine — the
+value is as the "I can see what I'm missing" follow-up move after the
+single-video diagnosis lands for a creator.
 
 ### Scope
 
@@ -417,10 +438,12 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
 | BE | `compare_videos` intent in intent router | — |
 | BE | Compare orchestration — parallel `video_diagnosis` + delta summary | — |
 | BE | `ReportV1` schema extension: `kind: "compare"` variant | — |
-| BE | Viral-alignment score — build to Wave 3 spec | — |
 | FE | Compose UI — detect 2 URLs, show confirmation chip | — |
 | FE | `CompareBody.tsx` — side-by-side diagnostic layout | — |
-| FE | Viral-score pill on `DiagnosticBody` (+ any other submitter flow) | — |
+
+**CUT from original Wave 4 scope:**
+- ~~Viral-alignment score — build to Wave 3 spec~~
+- ~~Viral-score pill on `DiagnosticBody`~~
 
 ### Backend PRs
 
@@ -446,19 +469,13 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
   - `cloud-run/getviews_pipeline/answer_session.py` — add `compare` to `select_builder_for_turn` (session context confirmed this is the dispatcher)
   - Pydantic schema update in whichever module houses `ReportV1` discriminator — add `kind: Literal["compare"]` variant.
 
-#### `viral-alignment-score-impl` · ~1.5d · —
-- **Formula:** as specified in `viral-alignment-score.md` (Wave 3 design doc). Implementation must match the doc exactly — any deviation is a bug.
-- **New module:** `cloud-run/getviews_pipeline/viral_alignment.py`
-  - `compute_viral_alignment(submitted_video, niche_id, client) -> ViralAlignment` where `ViralAlignment` is a Pydantic model with `score: int | None, tier: Literal["low","mid","high"] | None, reasoning: list[str], insufficient_data: bool`.
-  - Queries top-30 videos in niche by `breakout_multiplier DESC` in last 30d.
-  - Computes the 3 alignment dimensions, applies weights, maps to tier via the calibration table.
-  - Returns early with `insufficient_data=True` on thin niches (exact threshold from the spec).
-- **Integration:** `run_video_diagnosis` in `pipelines.py` calls `compute_viral_alignment` after extraction, attaches result to `DiagnosticPayload.viral_alignment`.
-- **Tests:** property tests asserting the formula matches the spec. Plus one end-to-end test with a fixture-niche "top 30" that produces a score of exactly X (predictable input → predictable output).
-- **Critical files:**
-  - `cloud-run/getviews_pipeline/viral_alignment.py` (new)
-  - `cloud-run/getviews_pipeline/pipelines.py` (integration)
-  - `cloud-run/tests/test_viral_alignment.py` (new)
+<!--
+  `viral-alignment-score-impl` intentionally removed — score BUILD
+  cut per Wave 3 PR #5 verdict. When re-opened, the runnable reference
+  is `viral_alignment_backtest.compute_viral_score()` — already the
+  canonical formula; a production module would be a thin reshape
+  around it.
+-->
 
 ### Frontend PRs
 
@@ -480,36 +497,31 @@ All of Wave 0 already shipped. Wave 1 only depends on tonight's first autonomous
   - new `src/components/v2/answer/compare/CompareBody.tsx`
   - adjust `src/components/v2/answer/diagnostic/DiagnosticBody.tsx` to accept a `compact: boolean` prop.
 
-#### `viral-score-pill` · ~0.5d · —
-- **Component:** `<ViralAlignmentPill>` — renders `score` + `tier` as a colored pill (green/neutral/accent per tier), tap to expand the 3 reasoning bullets.
-- **Placement:** top of `DiagnosticBody` header, right of the title.
-- **Copy:** tier labels in Vietnamese — "Đang hợp sóng" (high), "Ổn" (mid), "Lệch sóng" (low). `insufficient_data` shows a muted kicker-style pill "Chưa đủ dữ liệu ngách" with no score.
-- **Critical files:**
-  - new `src/components/v2/ViralAlignmentPill.tsx`
-  - `src/components/v2/answer/diagnostic/DiagnosticBody.tsx` integration.
+<!--
+  `viral-score-pill` FE PR intentionally removed — see the BE-side
+  note above. Re-opens together with `viral-alignment-score-impl`.
+-->
 
 ### Dependencies from Wave 3
 
-- `viral-alignment-score.md` committed, backtest results green (Spearman ρ ≥ 0.35).
-- Diagnosis polish + execution_tip surface live (since Compare reuses `DiagnosticBody`).
+- `viral-alignment-score.md` committed (✅ shipped — verdict: DEFER).
+- Diagnosis polish + execution_tip surface live (since Compare reuses `DiagnosticBody`). ✅ shipped.
 
 ### Validation gate → Wave 5+
 
 - **Compare:** 5 internal compare sessions run end-to-end across different niches. Response payload < 100KB (two diagnostics doubles payload — verify not hitting SSE chunk limits).
-- **Score:** the backtest-predicted distribution matches the production distribution on the first 100 scored live submissions within ±10% per tier.
 - **Dogfood:** 3 team members rate 4+/5 that the compare report teaches them something new about their content vs a competitor's.
 - **No regressions:** `DiagnosticBody` single-video flow + existing reports (Pattern, Ideas, Timing, Lifecycle) unchanged in look and performance.
 
 ### Risk flags
 
 - **Compare SSE payload could hit chunk-size limits.** Mitigation: the progressive reveal requires chunked emission anyway; size per chunk stays bounded.
-- **Viral score distribution in production could diverge from backtest** if the live niche composition shifts. Monitor `batch_job_runs`-style stats for the first week — a log-warning if more than 80% of scores fall in a single tier.
 - **Compare UX on mobile could feel cramped.** Stacked layout with sticky A/B labels is the safer choice; avoid a tab-switcher (adds friction for side-by-side comparison).
-- **Score tier copy ("Đang hợp sóng" / "Lệch sóng") might feel gimmicky.** Dogfood test against the forbidden-words list in `.cursor/rules/copy-rules.mdc` — if any wording reads as "bí mật/hack/viral" adjacent, rewrite.
+- **Delta verdict could read like hype** ("Video trái vượt trội…"). Route every generated delta sentence through the Wave 3 PR #3 `voice_lint` helper before shipping — forbidden-word / peer-expert gate applies.
 
 ### Calendar
 
-7–10 working days. Compare BE + FE ≈ 4–5d, score BE + FE ≈ 2–3d, 2d dogfood + polish. Parallelizable: viral-score BE + Compare FE can run simultaneously after intent + orchestration lands.
+**Revised: 5–7 working days** (was 7–10). Compare BE + FE ≈ 4–5d, 1–2d dogfood + polish. Score BE+FE (originally 2–3d) is removed.
 
 ---
 
@@ -621,9 +633,8 @@ Every wave ends with a structured dogfood session:
 | ED daily burn exceeds 5000 | 1 | `batch_job_runs.summary->'error_types'` catches `EnsembleDailyBudgetExceeded`; throttle `BATCH_VIDEOS_PER_NICHE` down | alert fires before data loss |
 | Layer 0 injection silently skipped | 2 | INFO-level log + metric "N of M reports injected" | visible in dogfood |
 | Ideas prompt emits generic `opening_line` | 2 | Structured-output assertion: distinct values across 5 ranks | test gate |
-| Viral-score backtest ρ < 0.35 | 3 | Iterate formula up to 3× (different weights, extra dimensions); if still fails, cut score from Wave 4 | Wave 4 reduces scope |
+| Viral-score backtest ρ < 0.35 | 3 | ~~Iterate formula up to 3×~~ ✅ **Activated** — backtest measured ρ = 0.14; Wave 4 score BUILD cut per `artifacts/docs/viral-alignment-score.md` §9 | Wave 4 reduced to Compare-only |
 | Compare SSE payload exceeds chunk limits | 4 | Progressive per-diagnostic reveal; bounded per-chunk size | verify on first 3 sessions |
-| Production viral-score distribution diverges from backtest | 4 | Monitor distribution weekly; if > 80% single-tier, re-calibrate | observability alerts |
 | Taxonomy decision unresolved | 5+ | 37% 'other' stays as-is until greenlit | not blocking other waves |
 
 ---
