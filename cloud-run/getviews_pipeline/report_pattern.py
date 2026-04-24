@@ -427,6 +427,13 @@ def build_pattern_report(
         )
     ]
 
+    # 2026-05-10 — Wave 2 PR #1: inject niche_insights Layer 0 data so
+    # the UI can surface execution_tip as the "what to do next" slot
+    # and insight_text as preamble context. Graceful-null if the Layer
+    # 0 cron hasn't run for this niche.
+    from getviews_pipeline.niche_insight_fetcher import fetch_niche_insight
+    niche_insight = fetch_niche_insight(niche_id, client=sb)
+
     payload = PatternPayload(
         confidence=confidence,
         wow_diff=WoWDiff(**wow) if isinstance(wow, dict) else WoWDiff(),
@@ -446,6 +453,7 @@ def build_pattern_report(
             if subreports
             else None
         ),
+        niche_insight=niche_insight,
     )
     return payload.model_dump()
 
