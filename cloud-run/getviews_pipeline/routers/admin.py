@@ -236,10 +236,61 @@ def _evaluate_trigger_error_spike(rule: dict[str, Any]) -> tuple[bool, str, dict
     return (breached, msg, context)
 
 
+def _evaluate_cron_batch_failures(rule: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
+    """Fire on any ``batch_job_runs.status='failed'`` in the window.
+
+    We write failures on every /batch/* cron via record_job_run; without
+    this rule, nothing reads them. One failure in 7 days should page —
+    silent pipeline breakage is exactly what this table exists to
+    surface.
+    """
+    window_days = int(rule.get("threshold_json", {}).get("window_days", 7))
+    failures_max = int(rule.get("threshold_json", {}).get("failures_max", 0))
+    from getviews_pipeline.supabase_client import get_service_client
+
+    since_iso = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+    try:
+        resp = (
+            get_service_client()
+            .table("batch_job_runs")
+            .select("job_name, error, started_at")
+            .eq("status", "failed")
+            .gte("started_at", since_iso)
+            .order("started_at", desc=True)
+            .limit(25)
+            .execute()
+        )
+        rows = resp.data or []
+    except Exception as exc:
+        return (False, f"query failed: {exc}", {"reason": "query_error"})
+
+    by_job: dict[str, int] = {}
+    for row in rows:
+        jn = row.get("job_name") or "unknown"
+        by_job[jn] = by_job.get(jn, 0) + 1
+
+    n = len(rows)
+    breached = n > failures_max
+    context = {
+        "failures": n,
+        "failures_max": failures_max,
+        "window_days": window_days,
+        "by_job": by_job,
+        "latest_error": (rows[0].get("error") or "")[:200] if rows else None,
+    }
+    if breached:
+        jobs_summary = ", ".join(f"{k}×{v}" for k, v in sorted(by_job.items()))
+        msg = f"Pipeline có {n} cron fail trong {window_days}d · {jobs_summary}"
+    else:
+        msg = f"pipeline healthy · {n} failures trong {window_days}d"
+    return (breached, msg, context)
+
+
 _EVALUATORS: dict[str, Any] = {
     "ensemble_runway_low": _evaluate_ensemble_runway_low,
     "corpus_stale": _evaluate_corpus_stale,
     "admin_trigger_error_spike": _evaluate_trigger_error_spike,
+    "cron_batch_failures": _evaluate_cron_batch_failures,
 }
 
 
