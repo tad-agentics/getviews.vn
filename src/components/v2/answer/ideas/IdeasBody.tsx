@@ -26,7 +26,11 @@ import { StopDoingList } from "./StopDoingList";
 import { StyleCardGrid } from "./StyleCardGrid";
 
 function titleForVariant(variant: IdeasReportPayload["variant"]): string {
-  return variant === "hook_variants" ? "5 biến thể hook" : "5 ý tưởng video tuần này";
+  return variant === "hook_variants" ? "5 biến thể hook" : "Lịch quay tuần này";
+}
+
+function sectionKickerForVariant(variant: IdeasReportPayload["variant"]): string {
+  return variant === "hook_variants" ? "Biến thể hook" : "5 video tiếp theo";
 }
 
 export function IdeasBody({ report }: { report: IdeasReportPayload }) {
@@ -44,13 +48,19 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
 
       {thin && humilityOpen ? <HumilityBanner /> : null}
 
-      <LeadParagraph title={titleForVariant(report.variant)} body={report.lead} />
+      <LeadParagraph
+        title={report.variant === "hook_variants" ? "Hook cho ngách" : "Tóm tắt"}
+        body={report.lead}
+      />
 
       {report.ideas.length > 0 ? (
         <section>
-          <p className="gv-mono mb-2 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
-            Ý tưởng · {String(report.ideas.length).padStart(2, "0")} video
+          <p className="gv-kicker gv-kicker--dot mb-2 text-[color:var(--gv-accent-deep)]">
+            {sectionKickerForVariant(report.variant)}
           </p>
+          <h3 className="gv-tight mb-4 text-[24px] text-[color:var(--gv-ink)] min-[700px]:text-[28px]">
+            {titleForVariant(report.variant)}
+          </h3>
           <div className="flex flex-col gap-4">
             {report.ideas.map((block) => (
               <IdeaBlock key={block.id} block={block} />
