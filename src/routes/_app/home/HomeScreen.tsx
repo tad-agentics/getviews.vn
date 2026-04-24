@@ -16,6 +16,7 @@ import { PulseCard } from "./components/PulseCard";
 import { HooksTable } from "./components/HooksTable";
 import { BreakoutGrid } from "./components/BreakoutGrid";
 import { HomeMorningRitual } from "./components/HomeMorningRitual";
+import { NextVideosCard } from "./components/NextVideosCard";
 import { QuickActions } from "./components/QuickActions";
 import { DateChip } from "./components/DateChip";
 import { NichePicker } from "./components/NichePicker";
@@ -201,6 +202,10 @@ export default function HomeScreen() {
               nicheId={profile?.primary_niche ?? null}
               onSelectPrompt={launchChat}
             />
+          </div>
+
+          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
+            <NextVideosCard nicheLabel={nicheLabel} />
           </div>
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
