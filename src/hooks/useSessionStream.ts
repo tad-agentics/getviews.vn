@@ -67,6 +67,9 @@ const CLOUD_RUN_INTENTS = new Set([
   "trend_spike",
   "creator_search",
   "shot_list",
+  // Wave 4 PR #3 — two URLs → /stream with the compare_videos intent.
+  // Server orchestrates both diagnoses + delta in one envelope.
+  "compare_videos",
 ]);
 
 export type StreamStatus = "idle" | "streaming" | "done" | "error";

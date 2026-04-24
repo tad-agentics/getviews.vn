@@ -129,6 +129,88 @@ export interface VideoAnalyzeResponse {
 
 export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";
 
+// ── Wave 4 PR #3 — Compare flow stream payload ──────────────────────────
+//
+// Mirror of ``ComparePayload`` in
+// ``cloud-run/getviews_pipeline/report_compare.py``. The /stream endpoint
+// emits this as ``finalPayload`` when intent_type === "compare_videos".
+//
+// ``left`` and ``right`` carry the run_video_diagnosis output dicts —
+// typed minimally here because CompareBody only reads a handful of
+// fields (creator handle, hook_type, scene count, breakout, views).
+// We intentionally keep the type structural rather than mirroring every
+// field on the server side; expand only when the FE needs more.
+
+export interface VideoDiagnosisStreamSide {
+  intent?: "video_diagnosis";
+  niche?: string;
+  metadata?: {
+    video_id?: string;
+    duration_sec?: number;
+    engagement_rate?: number | null;
+    /** ``views / creator avg``. Server may set ``breakout`` or
+     * ``breakout_multiplier``; the FE reads either. */
+    breakout?: number | null;
+    breakout_multiplier?: number | null;
+    metrics?: {
+      views?: number | null;
+      likes?: number | null;
+      comments?: number | null;
+      shares?: number | null;
+      bookmarks?: number | null;
+    };
+    author?: {
+      username?: string;
+      display_name?: string;
+      followers?: number | null;
+    };
+    thumbnail_url?: string | null;
+    tiktok_url?: string | null;
+  };
+  analysis?: {
+    transitions_per_second?: number | null;
+    scenes?: Array<Record<string, unknown>>;
+    hook_analysis?: {
+      hook_type?: string | null;
+      hook_phrase?: string | null;
+      face_appears_at?: number | null;
+    };
+  };
+  diagnosis?: string;
+  /** Wave 3 — Layer 0 execution_tip surfaced on the diagnosis payload. */
+  niche_execution_tip?: string | null;
+  thumbnail_analysis?: ThumbnailAnalysisData | null;
+  comment_radar?: CommentRadarData | null;
+}
+
+export type CompareHookAlignment = "match" | "conflict" | "unknown";
+export type CompareHigherSide = "left" | "right" | "tie" | "unknown";
+
+export interface CompareDelta {
+  /** 1-2 sentence VN summary, voice_lint-clean. */
+  verdict: string;
+  hook_alignment: CompareHookAlignment;
+  higher_breakout_side: CompareHigherSide;
+  /** ``left - right`` orientation; null when either side lacks the metric. */
+  breakout_gap?: number | null;
+  scene_count_diff?: number | null;
+  transitions_per_second_diff?: number | null;
+  left_hook_type?: string | null;
+  right_hook_type?: string | null;
+  /** True when the verdict is the deterministic templated fallback
+   *  (Gemini failed or its output tripped voice_lint). FE may render
+   *  a subtle muted indicator; not user-blocking. */
+  verdict_fallback?: boolean;
+}
+
+export interface ComparePayload {
+  intent: "compare_videos";
+  niche?: string | null;
+  left: VideoDiagnosisStreamSide;
+  right: VideoDiagnosisStreamSide;
+  delta: CompareDelta;
+}
+
 /** Row shape for `public.video_diagnostics` (no `mode` — join corpus for mode). */
 export interface VideoDiagnosticsRow {
   video_id: string;

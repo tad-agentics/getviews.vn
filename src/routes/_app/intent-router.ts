@@ -346,8 +346,9 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
     // resolves to a 404 + the existing ``intent`` in
     // INTENT_DESTINATIONS still pins the contract for the test below.
     const matches = trimmed.match(TIKTOK_URL_GLOBAL_RE) ?? [];
-    if (matches.length >= 2) {
-      const [a, b] = matches;
+    const a = matches[0];
+    const b = matches[1];
+    if (a && b) {
       return {
         kind: "redirect",
         to: `/app/compare?url_a=${encodeURIComponent(a)}&url_b=${encodeURIComponent(b)}`,

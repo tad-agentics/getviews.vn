@@ -18,6 +18,7 @@ export default [
     route("app/history", "routes/_app/history/route.tsx"),
     route("app/trends", "routes/_app/trends/route.tsx"),
     route("app/video", "routes/_app/video/route.tsx"),
+    route("app/compare", "routes/_app/compare/route.tsx"),
     route("app/channel", "routes/_app/channel/route.tsx"),
     route("app/script", "routes/_app/script/route.tsx"),
     route("app/script/shoot/:draftId", "routes/_app/script/shoot/route.tsx"),
