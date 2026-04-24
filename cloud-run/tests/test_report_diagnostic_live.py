@@ -21,7 +21,9 @@ from getviews_pipeline.report_diagnostic import (
 from getviews_pipeline.report_types import DiagnosticPayload
 
 
-def _mock_sb_with_benchmarks() -> MagicMock:
+def _mock_sb_with_benchmarks(
+    execution_tip: str | None = None,
+) -> MagicMock:
     sb = MagicMock()
 
     def table(name: str) -> MagicMock:
@@ -38,6 +40,15 @@ def _mock_sb_with_benchmarks() -> MagicMock:
                     "top_sound": "skincare_trending_1",
                     "common_cta_types": "follow|save",
                 },
+            )
+        elif name == "niche_insights":
+            # Wave 3 — _fetch_niche_execution_tip lookup. Return the
+            # parametrized tip (or no rows when None).
+            data = (
+                [{"execution_tip": execution_tip}] if execution_tip else []
+            )
+            m.select.return_value.eq.return_value.is_.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(  # noqa: E501
+                data=data,
             )
         else:
             raise AssertionError(f"unexpected table {name!r}")
@@ -62,6 +73,11 @@ def _mock_sb_no_intelligence() -> MagicMock:
             # Simulate a fetch exception.
             chain = m.select.return_value.eq.return_value.maybe_single.return_value
             chain.execute.side_effect = RuntimeError("no intelligence row")
+        elif name == "niche_insights":
+            # No tip for this niche — execution_tip surface stays null.
+            m.select.return_value.eq.return_value.is_.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(  # noqa: E501
+                data=[],
+            )
         else:
             raise AssertionError(f"unexpected table {name!r}")
         return m
@@ -214,3 +230,79 @@ def test_confidence_is_capped_below_high(mock_get_svc: MagicMock) -> None:
         window_days=14,
     )
     assert r["confidence"]["intent_confidence"] in ("medium", "low")
+
+
+# ── Wave 3 — niche_execution_tip surface ───────────────────────────────────
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_niche_execution_tip_is_surfaced_when_available(
+    mock_get_svc: MagicMock,
+) -> None:
+    tip = "Dùng hook câu hỏi 1.2s + product shot ngay sau để bắt trend."
+    mock_get_svc.return_value = _mock_sb_with_benchmarks(execution_tip=tip)
+    r = build_diagnostic_report(
+        niche_id=2, query="pacing chậm không ai xem hết video", window_days=14,
+    )
+    DiagnosticPayload.model_validate(r)
+    assert r["niche_execution_tip"] == tip
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_niche_execution_tip_is_null_when_row_absent(
+    mock_get_svc: MagicMock,
+) -> None:
+    mock_get_svc.return_value = _mock_sb_with_benchmarks(execution_tip=None)
+    r = build_diagnostic_report(
+        niche_id=2, query="pacing chậm", window_days=14,
+    )
+    DiagnosticPayload.model_validate(r)
+    assert r["niche_execution_tip"] is None
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_niche_execution_tip_truncated_when_too_long(
+    mock_get_svc: MagicMock,
+) -> None:
+    """DiagnosticPayload caps the field at 240 chars; _fetch helper
+    pre-trims so a verbose Layer 0 tip never blocks validation."""
+    long_tip = "A" * 400
+    mock_get_svc.return_value = _mock_sb_with_benchmarks(execution_tip=long_tip)
+    r = build_diagnostic_report(
+        niche_id=2, query="pacing chậm", window_days=14,
+    )
+    DiagnosticPayload.model_validate(r)
+    assert r["niche_execution_tip"] is not None
+    assert len(r["niche_execution_tip"]) <= 240
+    # Ellipsis applied on truncation.
+    assert r["niche_execution_tip"].endswith("…")
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_niche_execution_tip_null_on_fallback_path(
+    mock_get_svc: MagicMock,
+) -> None:
+    """When the service client itself is unavailable we never hit the
+    tip table — ``niche_execution_tip`` must be explicitly null, not
+    missing."""
+    mock_get_svc.side_effect = RuntimeError("no SUPABASE_URL")
+    r = build_diagnostic_report(
+        niche_id=2, query="pacing chậm", window_days=14,
+    )
+    DiagnosticPayload.model_validate(r)
+    assert r["niche_execution_tip"] is None
+
+
+@patch("getviews_pipeline.supabase_client.get_service_client")
+def test_niche_execution_tip_empty_string_coerced_to_null(
+    mock_get_svc: MagicMock,
+) -> None:
+    """Layer 0 rows may carry an empty-string execution_tip; the helper
+    must normalize that to None so the FE doesn't render an empty
+    callout."""
+    mock_get_svc.return_value = _mock_sb_with_benchmarks(execution_tip="   ")
+    r = build_diagnostic_report(
+        niche_id=2, query="pacing chậm", window_days=14,
+    )
+    DiagnosticPayload.model_validate(r)
+    assert r["niche_execution_tip"] is None

@@ -1009,16 +1009,25 @@ def _wants_directions(user_message: str) -> bool:
     return any(kw in lower for kw in _DIRECTION_KEYWORDS)
 
 
-async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
+async def _get_niche_insight(
+    niche_name: str, session: dict[str, Any],
+) -> tuple[str, str | None]:
     """Fetch current week's Layer 0 mechanism insight for this niche.
 
-    Returns a formatted string ready for injection into the synthesis voice_block.
-    Returns "" if no insight is available (Layer 0 hasn't run yet, or sparse niche).
+    Returns ``(prompt_block, execution_tip)``:
+      * ``prompt_block`` — formatted string ready for injection into
+        the synthesis voice_block; empty string when no insight.
+      * ``execution_tip`` — the raw ``niche_insights.execution_tip``
+        value (Wave 3), suitable for rendering as a distinct callout
+        on the diagnosis payload. None when the niche has no tip yet.
+
+    Both are derived from the same DB row, so one read fills both.
+    Fails open: logs warning + returns ``("", None)``.
     """
     try:
         niche_id = await resolve_niche_id_cached(session, niche_name)
         if not niche_id:
-            return ""
+            return "", None
 
         from getviews_pipeline.supabase_client import get_service_client
         client = get_service_client()
@@ -1037,15 +1046,17 @@ async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
 
         rows = await loop.run_in_executor(None, _query)
         if not rows:
-            return ""
+            return "", None
 
         row = rows[0]
         insight_text = row.get("insight_text") or ""
-        execution_tip = row.get("execution_tip") or ""
+        execution_tip = (row.get("execution_tip") or "").strip() or None
         staleness = row.get("staleness_risk") or "LOW"
 
         if not insight_text:
-            return ""
+            # Tip may still exist even when insight_text is empty — the
+            # callout is independent of the prompt block.
+            return "", execution_tip
 
         block = (
             f"PHÂN TÍCH NGÁCH TUẦN NÀY (Layer 0 — pre-computed, staleness={staleness}):\n"
@@ -1058,10 +1069,10 @@ async def _get_niche_insight(niche_name: str, session: dict[str, Any]) -> str:
             "so sánh video user với common_visual/common_timing của top formula. "
             "KHÔNG dump raw JSON. KHÔNG bịa cơ chế ngoài dữ liệu trên."
         )
-        return block
+        return block, execution_tip
     except Exception as exc:
         logger.warning("[layer0_context] fetch failed (non-fatal): %s", exc)
-        return ""
+        return "", None
 
 
 async def run_video_diagnosis(
@@ -1234,8 +1245,10 @@ async def run_video_diagnosis(
     if not niche_norms:
         niche_norms = {"_note": "Không có data niche — KHÔNG tạo số liệu niche, KHÔNG so sánh với chuẩn niche"}
 
-    # Layer 0 context — pre-computed mechanism insight for this niche (fail-open)
-    layer0_context = await _get_niche_insight(niche, session)
+    # Layer 0 context — pre-computed mechanism insight for this niche (fail-open).
+    # Wave 3: also surface the raw execution_tip on the output so the FE can
+    # render it as a distinguished callout (not just buried in prompt context).
+    layer0_context, niche_execution_tip = await _get_niche_insight(niche, session)
 
     emit(step_queue, step_done(f"Đã phân tích {1 + len(references)} video — đang viết báo cáo..."))
 
@@ -1441,6 +1454,8 @@ async def run_video_diagnosis(
             handle=(user_res.get("metadata") or {}).get("author", {}).get("username"),
         ),
     }
+    if niche_execution_tip:
+        out["niche_execution_tip"] = niche_execution_tip
     if comment_radar is not None:
         out["comment_radar"] = comment_radar
     if thumbnail_analysis is not None:

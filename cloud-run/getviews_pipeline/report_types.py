@@ -365,6 +365,12 @@ class DiagnosticPayload(BaseModel):
     The ``min_length=5 max_length=5`` on ``categories`` is deliberate —
     the 5 categories (Hook / Pacing / CTA / Sound / Caption+Hashtag) are
     a hard contract the frontend pins by position, not by name.
+
+    ``niche_execution_tip`` is the Wave 3 "peer expert, not product pitch"
+    callout — the current week's Layer 0 execution tip for this niche
+    (from ``niche_insights.execution_tip``). Optional because the tip
+    table may be empty for sparse niches; the frontend hides the surface
+    when null. Max 240 chars to match the single-sentence Layer 0 voice.
     """
 
     confidence: ConfidenceStrip
@@ -374,6 +380,7 @@ class DiagnosticPayload(BaseModel):
     paste_link_cta: dict[str, str] = Field(default_factory=_default_paste_link_cta)
     sources: list[SourceRow]
     related_questions: list[str]
+    niche_execution_tip: str | None = Field(default=None, max_length=240)
 
     @model_validator(mode="after")
     def _no_probably_fine_with_fix(self) -> "DiagnosticPayload":
