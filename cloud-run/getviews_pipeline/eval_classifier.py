@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 _GOLDEN_PATH = Path(__file__).parent / "eval_data" / "content_format_golden.json"
+_HOOK_TYPE_GOLDEN_PATH = Path(__file__).parent / "eval_data" / "hook_type_golden.json"
 
 
 @dataclass
@@ -110,6 +111,111 @@ def evaluate(
             })
 
     # Precision / recall per class.
+    classes = set(tp) | set(fp) | set(fn)
+    for cls in classes:
+        p_denom = tp[cls] + fp[cls]
+        r_denom = tp[cls] + fn[cls]
+        precision = tp[cls] / p_denom if p_denom else 0.0
+        recall = tp[cls] / r_denom if r_denom else 0.0
+        f1_denom = precision + recall
+        f1 = 2 * precision * recall / f1_denom if f1_denom else 0.0
+        scorecard.per_class_precision[cls] = precision
+        scorecard.per_class_recall[cls] = recall
+        scorecard.per_class_f1[cls] = f1
+
+    scorecard.confusion = {k: dict(v) for k, v in confusion.items()}
+    return scorecard
+
+
+# ── hook_type eval (DB-backed; NOT CI-safe) ───────────────────────────
+
+def load_hook_type_golden() -> list[dict[str, Any]]:
+    """Load the hook_type golden set from disk.
+
+    Unlike ``content_format`` (where the classifier runs locally from
+    ``analysis_json``), ``hook_type`` is emitted directly by Gemini at
+    extraction time. Items therefore don't carry a full ``analysis_json``
+    snapshot — just ``video_id``, ``niche_id``, ``hook_phrase``,
+    ``transcript_snippet`` (for human review), and ``gold_label``.
+    """
+    with _HOOK_TYPE_GOLDEN_PATH.open("r", encoding="utf-8") as fh:
+        payload = json.load(fh)
+    return list(payload.get("items") or [])
+
+
+def evaluate_hook_type(
+    items: list[dict[str, Any]] | None = None,
+    *,
+    client: Any | None = None,
+) -> EvalScorecard:
+    """Measure production hook_type accuracy against the golden set.
+
+    Reads current ``video_corpus.hook_type`` for each golden ``video_id``
+    and compares to the hand-assigned ``gold_label``. **Requires DB
+    access** — do not call from CI. For CI-safe structural checks,
+    see ``tests/test_hook_type_eval.py`` (separate commit).
+
+    Missing rows (golden video_id not in live corpus) are tracked as
+    ``misses`` with ``pred=None`` but NOT counted against accuracy —
+    they represent corpus churn, not classification error.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    if items is None:
+        items = load_hook_type_golden()
+    if client is None:
+        client = get_service_client()
+
+    # Fetch all hook_types in one query (≤50 items, well under PostgREST limit).
+    video_ids = [str(i["video_id"]) for i in items]
+    resp = (
+        client.table("video_corpus")
+        .select("video_id, hook_type")
+        .in_("video_id", video_ids)
+        .execute()
+    )
+    db_labels: dict[str, str | None] = {
+        r["video_id"]: r.get("hook_type") for r in (resp.data or [])
+    }
+
+    scorecard = EvalScorecard()
+    tp: Counter[str] = Counter()
+    fp: Counter[str] = Counter()
+    fn: Counter[str] = Counter()
+    confusion: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+
+    for item in items:
+        gold = item["gold_label"]
+        vid = str(item["video_id"])
+        pred = db_labels.get(vid)
+
+        if pred is None:
+            # Row missing from corpus (deleted / never ingested).
+            # Don't penalize accuracy — track as a separate miss category.
+            scorecard.misses.append({
+                "video_id": vid,
+                "gold": gold,
+                "pred": None,
+                "notes": "row not found in video_corpus (corpus churn, not classifier error)",
+            })
+            continue
+
+        scorecard.total += 1
+        confusion[gold][pred] += 1
+
+        if pred == gold:
+            scorecard.correct += 1
+            tp[gold] += 1
+        else:
+            fp[pred] += 1
+            fn[gold] += 1
+            scorecard.misses.append({
+                "video_id": vid,
+                "gold": gold,
+                "pred": pred,
+                "notes": item.get("notes"),
+            })
+
     classes = set(tp) | set(fp) | set(fn)
     for cls in classes:
         p_denom = tp[cls] + fp[cls]

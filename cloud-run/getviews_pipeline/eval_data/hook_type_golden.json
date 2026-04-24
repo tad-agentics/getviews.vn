@@ -1,0 +1,272 @@
+{
+  "_metadata": {
+    "name": "hook_type_v1",
+    "created": "2026-05-10",
+    "purpose": "Hand-curated golden set for hook_type regression testing. Unlike content_format (a regex classifier we can run locally), hook_type is emitted directly by Gemini at extraction time — so the eval measures production accuracy against human judgment by reading video_corpus.hook_type at eval time.",
+    "labeling_rubric": [
+      "Gold labels were assigned by reading each video's hook_phrase + audio_transcript, NOT by trusting video_corpus.hook_type.",
+      "When multiple hook categories apply, pick the DOMINANT signal. Ambiguity is captured in the notes field so future re-labeling can revisit edge cases.",
+      "Items that genuinely lack any hook (pure music, song lyrics, no-dialogue footage) are labeled 'none' — NOT 'other'. 'other' is reserved for content that has an identifiable hook but doesn't fit any of the 12 specific buckets."
+    ],
+    "taxonomy": [
+      "question", "bold_claim", "shock_stat", "story_open", "controversy",
+      "challenge", "how_to", "social_proof", "curiosity_gap", "pain_point",
+      "trend_hijack", "none", "other"
+    ],
+    "commit_history": [
+      "2026-05-10 commit 1 — skeleton + top buckets (13 items): bold_claim, story_open, curiosity_gap, how_to, question",
+      "2026-05-10 commit 2 — mid buckets (8 items): pain_point, social_proof, challenge, trend_hijack",
+      "2026-05-10 commit 3 — thin + edge buckets (8 items): controversy, shock_stat, none, other + 2 hand-labeled DB-disagreement items"
+    ]
+  },
+  "items": [
+    {
+      "video_id": "7630338259465358612",
+      "niche_id": 13,
+      "gold_label": "bold_claim",
+      "hook_phrase": "MMA LION MÀN TRỞ LẠI QUÁ ẤN TƯỢNG CỦA CONOR MCGREGOR NGỌC LÂM",
+      "transcript_snippet": "Một cú đấm của Quốc Bảo... Ngọc Lâm đang cố gắng... Rất kịch tính... Chiến thắng dành cho Ngọc Lâm",
+      "notes": "Superlative framing 'QUÁ ẤN TƯỢNG' + comparison to Conor McGregor = confident bold declaration."
+    },
+    {
+      "video_id": "7623726538600877332",
+      "niche_id": 15,
+      "gold_label": "bold_claim",
+      "hook_phrase": "Đỉnh cao của sự phô trương kín đáo: Biển số xe đẹp chưa là gì so với 'mật mã' Zalo gắn phía sau.",
+      "transcript_snippet": "Đỉnh cao của sự phô trương kín đáo: Biển số xe đẹp chưa là gì so với mật mã Zalo gắn phía sau",
+      "notes": "'Đỉnh cao của...' = peak-of-X superlative pattern, classic bold_claim construction."
+    },
+    {
+      "video_id": "7628914848046337288",
+      "niche_id": 16,
+      "gold_label": "bold_claim",
+      "hook_phrase": "Huấn luyện viên Simeone: Yamal chơi hay, nhưng để thành ác mộng như Cristiano Ronaldo thì còn xa.",
+      "transcript_snippet": "Huấn luyện viên Simeone: Yamal chơi hay, nhưng để thành ác mộng như Cristiano Ronaldo thì còn xa",
+      "notes": "Simeone's take framed as quote — bold declarative comparison against Ronaldo."
+    },
+    {
+      "video_id": "7629252768347196692",
+      "niche_id": 13,
+      "gold_label": "story_open",
+      "hook_phrase": "KHOẢNH KHẮC CHỊ BẾ EM CHẠY THOÁT THÂN KHỎI TRẬN MƯA ĐÁ LÚC RẠNG SÁNG",
+      "transcript_snippet": "Rạng sáng nay ngày 16 tháng 4 năm 2026, một trận mưa đá rất lớn bất ngờ trút xuống xã Bắc Hà",
+      "notes": "'Khoảnh khắc...' = narrative-moment framing, then grounds in specific time + place."
+    },
+    {
+      "video_id": "7629949709284576532",
+      "niche_id": 13,
+      "gold_label": "story_open",
+      "hook_phrase": "Thả ra! Thả ra!",
+      "transcript_snippet": "Thả ra! Thả ra! Cứu tôi với! [Tiếng la hét] Hôm nay 18 tháng 4 năm 2024, Công an tỉnh Quảng Ngãi cho biết",
+      "notes": "Dramatic dialogue cold-open — crowd/cry-for-help framing that sets up the news story."
+    },
+    {
+      "video_id": "7630420278048279816",
+      "niche_id": 13,
+      "gold_label": "story_open",
+      "hook_phrase": "Cứu vật vật trả ơn",
+      "transcript_snippet": "Bằng mọi cách phải cứu cho được anh ấy bởi vì anh ấy chính là ân nhân cứu mạng của tôi",
+      "notes": "Fable-style proverb title ('save an animal, animal returns the favor') + dialogue-driven narrative opening."
+    },
+    {
+      "video_id": "7627086358544436501",
+      "niche_id": 13,
+      "gold_label": "curiosity_gap",
+      "hook_phrase": "Oh my god! Again! Again! Again!",
+      "transcript_snippet": "Oh my god! Again! Again! Again! [Rhythmic electronic music plays]",
+      "notes": "Exclamation teases a reveal without explaining — viewer has to watch to find out what's happening."
+    },
+    {
+      "video_id": "7627700862789422356",
+      "niche_id": 13,
+      "gold_label": "curiosity_gap",
+      "hook_phrase": "Long ơi!",
+      "transcript_snippet": "Long ơi! [Crowd Cheering] Long ơi, gái gọi! Gọi to lên, gọi to lên, hai, ba: LONG ƠI!",
+      "notes": "Crowd shouting for 'Long' — mystery around who/what Long is and what he'll do keeps viewer watching."
+    },
+    {
+      "video_id": "7622669408665652488",
+      "niche_id": 3,
+      "gold_label": "how_to",
+      "hook_phrase": "My height outfit >>",
+      "transcript_snippet": "[music]",
+      "notes": "Tutorial framing: outfit recommendations keyed to viewer height. '>>' = continuation/steps indicator."
+    },
+    {
+      "video_id": "7631437690210127111",
+      "niche_id": 18,
+      "gold_label": "how_to",
+      "hook_phrase": "Khuấy lên để tạo lốc xoáy nước",
+      "transcript_snippet": "Khuấy lên để tạo lốc xoáy nước. Đổ từ từ trứng vào nước đun sôi",
+      "notes": "Step-by-step cooking instruction ('stir to create water vortex, slowly pour egg') = explicit how_to."
+    },
+    {
+      "video_id": "7629592807652625682",
+      "niche_id": 18,
+      "gold_label": "how_to",
+      "hook_phrase": "1 má gà",
+      "transcript_snippet": "1 má gà. 2 má gà. 3 má gà. Chiên cho đến khi vàng giòn 2 mặt. Ai muốn ăn ngon thì làm như công thức nhé",
+      "notes": "Counted recipe ingredients + explicit 'công thức' (formula) call-out = canonical how_to opener."
+    },
+    {
+      "video_id": "7631770551429795093",
+      "niche_id": 21,
+      "gold_label": "question",
+      "hook_phrase": "Đang viral ở Trung Quốc cô gái động chân động tay trước và cú trả đũa trời giáng từ nam bảo vệ ai đúng ai sai ở trường hợp này",
+      "transcript_snippet": "Đang viral ở Trung Quốc cô gái động chân động tay trước và cú trả đũa trời giáng từ nam bảo vệ",
+      "notes": "Closes with 'ai đúng ai sai?' (who's right, who's wrong?) — explicit literal question to viewer."
+    },
+    {
+      "video_id": "7627711732751944980",
+      "niche_id": 6,
+      "gold_label": "question",
+      "hook_phrase": "Biết lý do vì sao Duy Nina mất bình tĩnh chưa?",
+      "transcript_snippet": "Biết lý do vì sao Duy Nina mất bình tĩnh chưa? Bài hát mà đối thủ trình diễn như con nít trên sân khấu",
+      "notes": "Literal Vietnamese question 'do you know the reason why...?' — canonical question hook."
+    },
+    {
+      "video_id": "7625973407997267221",
+      "niche_id": 11,
+      "gold_label": "pain_point",
+      "hook_phrase": "Đũa bị mốc cực kỳ nguy hiểm mà bạn không để ý",
+      "transcript_snippet": "[Music playing throughout with no verbal speech]",
+      "notes": "'Your chopsticks are moldy + dangerous + you don't notice' — names a hidden household problem. Textbook pain_point."
+    },
+    {
+      "video_id": "7630363779775106325",
+      "niche_id": 19,
+      "gold_label": "pain_point",
+      "hook_phrase": "Khi mèo phạm lỗi,",
+      "transcript_snippet": "Khi mèo phạm lỗi, bạn đánh thì nó thù dai, mà mắng bằng tiếng người thì nó lại chẳng hiểu gì. Vậy làm thế nào để trừng phạt mèo đúng cách",
+      "notes": "'When cat misbehaves, if you hit = holds grudge, if you scold = doesn't understand' — concrete daily pet-owner pain."
+    },
+    {
+      "video_id": "7625633166551829781",
+      "niche_id": 13,
+      "gold_label": "pain_point",
+      "hook_phrase": "Ủa anh ơi xe tới chưa vậy?",
+      "transcript_snippet": "Ủa anh ơi xe tới chưa vậy? Lên xe em trai. Hừm, cái xe gì mùi dầu khó chịu quá vậy?",
+      "notes": "Ambiguous — dialog framing could suggest story_open, but core pain ('mùi dầu khó chịu' = annoying diesel smell) is the dominant signal in the content. Gold = pain_point; if Gemini returned story_open that's a defensible alternate."
+    },
+    {
+      "video_id": "7627893160542260500",
+      "niche_id": 2,
+      "gold_label": "social_proof",
+      "hook_phrase": "Nhan sắc điểm 10 của cô gái đang được cả MXH tìm kiếm hôm nay",
+      "transcript_snippet": "Ghé đẹp nhất các khu, ghé đẹp các đại chu, ghé đẹp make it move",
+      "notes": "'đang được cả MXH tìm kiếm' = whole social network is searching → authority-via-viral-popularity = canonical social_proof."
+    },
+    {
+      "video_id": "7628867701468876040",
+      "niche_id": 6,
+      "gold_label": "social_proof",
+      "hook_phrase": "Có lẽ là sợ mọi người quên bản gốc nên Vương Hân Vũ: chủ nhân ca khúc giấy ghi chú tâm nguyện đang bản hát với guitar",
+      "transcript_snippet": "Có lẽ là sợ mọi người quên bản gốc nên Vương Hân Vũ: chủ nhân ca khúc giấy ghi chú tâm nguyện",
+      "notes": "Frames Vương Hân Vũ's act via 'original author' authority = credential-based social_proof."
+    },
+    {
+      "video_id": "7621134771292245266",
+      "niche_id": 4,
+      "gold_label": "challenge",
+      "hook_phrase": "1s 1m 3m 10m 1h",
+      "transcript_snippet": "[Fast-paced rhythmic music playing with various sound effects including meat sizzling, loud chewing, a man screaming, and the sound of heavy chopping.]",
+      "notes": "Time-bucket challenge format — 'steak at 1s / 1m / 3m / 10m / 1h' is a standard TikTok cook-time experiment."
+    },
+    {
+      "video_id": "7627473419818257681",
+      "niche_id": 13,
+      "gold_label": "challenge",
+      "hook_phrase": "Nghe người ta đồn là quấn nhiều mền xong lăn vào khe giường là bị kẹt cứng",
+      "transcript_snippet": "Nghe người ta đồn là quấn nhiều mền xong lăn vào khe giường là bị kẹt cứng. Nên nam thanh niên này quyết định làm thử coi sao",
+      "notes": "'Heard a rumor... decided to test' = viral-challenge test-it format, explicit experiment framing."
+    },
+    {
+      "video_id": "7625496488365264148",
+      "niche_id": 13,
+      "gold_label": "trend_hijack",
+      "hook_phrase": "Brilha linda flor",
+      "transcript_snippet": "Brilha linda flor, teu poder venceu, traz de volta já, o que uma vez foi meu",
+      "notes": "Portuguese Tangled/Rapunzel song lyrics riding the Disney-cosplay trend — piggyback on active meme audio."
+    },
+    {
+      "video_id": "7628832003445493010",
+      "niche_id": 6,
+      "gold_label": "trend_hijack",
+      "hook_phrase": "#Reaction 'Nghệ Thuật Gia Vị Đại' - Team Trang Pháp",
+      "transcript_snippet": "Ây da, outfit nhìn được phết đấy. Cô ấy được treo lơ lửng, dưới chân không có gì đỡ hết",
+      "notes": "Explicit #Reaction tag + naming a current competition team — classic trend-hijack framing for live show content."
+    },
+    {
+      "video_id": "7631211892719111444",
+      "niche_id": 3,
+      "gold_label": "controversy",
+      "hook_phrase": "Stella Day diện outfit gây khó hiểu: Outfit gây nhức mắt cho khán giả, không ai dám nhìn thẳng",
+      "transcript_snippet": "Em một lòng vì anh, nhưng anh mở lòng vì ai? Khi tim tàn hoa phai, ngậm ngùi ôm lấy không hai",
+      "notes": "'Gây nhức mắt' / 'không ai dám nhìn' = divisive critical stance on a celebrity's outfit."
+    },
+    {
+      "video_id": "7628877158391368980",
+      "niche_id": 12,
+      "gold_label": "controversy",
+      "hook_phrase": "Chị gái bán bánh da lợn nhưng cộng đồng mạng chỉ để ý cốt dừa, góp ý đặc lỏng liền bị đối chất thẳng, không mua chẳng ai ép!",
+      "transcript_snippet": "Chị gái bán bánh da lợn nhưng cộng đồng mạng chỉ để ý cốt dừa, góp ý đặc lỏng liền bị đối chất thẳng",
+      "notes": "'Góp ý liền bị đối chất' + 'không mua chẳng ai ép' = confrontational stance dividing community opinion."
+    },
+    {
+      "video_id": "7629730652195147028",
+      "niche_id": 13,
+      "gold_label": "shock_stat",
+      "hook_phrase": "BÉ GÁI 2 TUỔI T.Ử VONG DO BỊ BỎ QUÊN TRÊN XE Ô TÔ SUỐT 7 TIẾNG",
+      "transcript_snippet": "",
+      "notes": "Specific numeric detail (2 tuổi, 7 tiếng) + shocking outcome = shock_stat. Empty transcript is intentional — headline-driven video."
+    },
+    {
+      "video_id": "7626350736309259540",
+      "niche_id": 14,
+      "gold_label": "shock_stat",
+      "hook_phrase": "488.000 tỷ VNĐ",
+      "transcript_snippet": "488.000 tỷ VNĐ là con số dự kiến sẽ bị bốc hơi khỏi túi tiền của người dân Hà Nội và thành phố Hồ Chí Minh khi lệnh cấm xe xăng",
+      "notes": "Opens with a specific massive figure ('488 trillion VND') — canonical stat-driven shock hook."
+    },
+    {
+      "video_id": "7626809110163508500",
+      "niche_id": 21,
+      "gold_label": "none",
+      "hook_phrase": "Cánh hoa hồng anh cài lên tóc em thẹn thùng",
+      "transcript_snippet": "Cánh hoa hồng anh cài lên tóc em thẹn thùng. Rồi anh ngắm em vào tay ngất ngây. Dù bàn chân anh bước mà hồn sao chẳng rời",
+      "notes": "Pure song lyrics, no addressee, no question, no claim — zero hook signal. Gold = none, NOT other."
+    },
+    {
+      "video_id": "7618983118342606101",
+      "niche_id": 19,
+      "gold_label": "none",
+      "hook_phrase": "[Không có lời thoại hoặc văn bản]",
+      "transcript_snippet": "[Tiếng chó con hú]",
+      "notes": "Puppy howl with no speech, no text overlay — no identifiable hook. Gold = none."
+    },
+    {
+      "video_id": "7628657599616912647",
+      "niche_id": 6,
+      "gold_label": "other",
+      "hook_phrase": "一天一天贴近你的心",
+      "transcript_snippet": "[Transcript không khả dụng — Gemini không nhận diện được tiếng Việt]",
+      "notes": "Chinese lyrical opener — has SOMETHING (emotional tease) but doesn't fit any of the 12 specific VN-creator buckets. Gold = other (reserved for 'has a hook but no bucket')."
+    },
+    {
+      "video_id": "7622274736667544852",
+      "niche_id": 13,
+      "gold_label": "how_to",
+      "hook_phrase": "The first thing I'm going to do is I'm going to take my concealer",
+      "transcript_snippet": "[Transcript không khả dụng — Gemini không nhận diện được tiếng Việt]",
+      "notes": "Explicit makeup tutorial step-1 framing. DB has this tagged 'none' — that's a Gemini miss, and the eval should catch it."
+    },
+    {
+      "video_id": "7629201473049529621",
+      "niche_id": 17,
+      "gold_label": "none",
+      "hook_phrase": "Nằm mơ sáu mươi năm cuộc đời",
+      "transcript_snippet": "Nằm mơ sáu mươi năm cuộc đời... jinka jinka jinka jinka",
+      "notes": "Vietnamese song lyric + scat syllables. No question, no claim, no framing. DB tags this 'question' — Gemini miss the eval should catch."
+    }
+  ]
+}
