@@ -298,8 +298,8 @@ async def test_run_refresh_skips_deleted_posts() -> None:
 
 @pytest.mark.asyncio
 async def test_run_refresh_handles_ensemble_failure_per_chunk() -> None:
-    """If ED fails on a chunk, the whole chunk counts as errors but the
-    cron continues to the next chunk."""
+    """Persistent ED failure on a chunk (both initial + retry) counts
+    the whole chunk as errors, and the cron continues to the next."""
     # 25 candidates → 2 chunks (20 + 5)
     candidates = [
         {"video_id": str(i), "niche_id": 1, "views": 9999}
@@ -307,16 +307,109 @@ async def test_run_refresh_handles_ensemble_failure_per_chunk() -> None:
     ]
     client = _build_run_client(candidates=candidates)
 
-    # First call (chunk 1, 20 IDs) raises; second call (chunk 2, 5 IDs) returns fresh stats
+    # Each chunk tries up to 2 times. Chunk 1 fails both attempts (so
+    # we supply 2 exceptions). Chunk 2 succeeds on first attempt.
     second_chunk_posts = [_build_post(str(i), views=11_111, likes=100) for i in range(20, 25)]
-    side_effects = [Exception("ED rate limit"), second_chunk_posts]
+    side_effects = [
+        Exception("ED 502"),         # chunk 1, attempt 1
+        Exception("ED 502"),         # chunk 1, attempt 2 (retry)
+        second_chunk_posts,          # chunk 2, attempt 1
+    ]
 
     with patch(
         "getviews_pipeline.ensemble.fetch_post_multi_info",
         new=AsyncMock(side_effect=side_effects),
-    ):
+    ), patch("getviews_pipeline.corpus_refresh.asyncio.sleep", new=AsyncMock()):
         result = await run_corpus_refresh(client=client)
 
     assert result["errors"] == 20
     assert result["refreshed"] == 5
     assert result["candidates"] == 25
+    assert result["error_types"] == {"Exception": 1}  # one distinct type seen
+
+
+@pytest.mark.asyncio
+async def test_run_refresh_retries_once_on_transient_failure() -> None:
+    """Retry-with-backoff: first attempt raises, second attempt
+    succeeds — no error counted, chunk processed normally."""
+    candidates = [{"video_id": "100", "niche_id": 1, "views": 5_000}]
+    client = _build_run_client(candidates=candidates)
+
+    fresh_posts = [_build_post("100", views=7_500, likes=400)]
+    side_effects = [
+        Exception("transient 502"),  # attempt 1 fails
+        fresh_posts,                  # attempt 2 succeeds
+    ]
+
+    sleep_mock = AsyncMock()
+    with patch(
+        "getviews_pipeline.ensemble.fetch_post_multi_info",
+        new=AsyncMock(side_effect=side_effects),
+    ), patch("getviews_pipeline.corpus_refresh.asyncio.sleep", new=sleep_mock):
+        result = await run_corpus_refresh(client=client)
+
+    assert result["refreshed"] == 1
+    assert result["errors"] == 0
+    # Retry backoff + zero cooldowns (single chunk, so no inter-chunk sleep)
+    assert sleep_mock.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_run_refresh_aborts_on_ed_daily_budget() -> None:
+    """EnsembleDailyBudgetExceeded stops the whole run — remaining
+    chunks are counted as skipped, not errors. Prevents burning
+    through the quota on a broken day."""
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+
+    # 40 candidates → 2 chunks of 20
+    candidates = [
+        {"video_id": str(i), "niche_id": 1, "views": 9999}
+        for i in range(40)
+    ]
+    client = _build_run_client(candidates=candidates)
+
+    # Chunk 1 trips the daily budget. Chunk 2 should never be called.
+    fetch_mock = AsyncMock(side_effect=EnsembleDailyBudgetExceeded("budget hit"))
+    with patch(
+        "getviews_pipeline.ensemble.fetch_post_multi_info", new=fetch_mock,
+    ), patch("getviews_pipeline.corpus_refresh.asyncio.sleep", new=AsyncMock()):
+        result = await run_corpus_refresh(client=client)
+
+    # Chunk 2 never invoked — abort happened at chunk 0.
+    assert fetch_mock.await_count == 1  # no retry on budget-exceeded — returns sentinel immediately
+    assert result["aborted_early"] is True
+    assert result["budget_exceeded_at_chunk"] == 0
+    # Whole 40 rows count as skipped — nothing errored, nothing refreshed.
+    assert result["skipped"] == 40
+    assert result["errors"] == 0
+    assert result["refreshed"] == 0
+    assert "EnsembleDailyBudgetExceeded" in result["error_types"]
+
+
+@pytest.mark.asyncio
+async def test_run_refresh_per_chunk_cooldown_fires() -> None:
+    """Between-chunk sleep runs once per inter-chunk gap (not after
+    the final chunk)."""
+    candidates = [
+        {"video_id": str(i), "niche_id": 1, "views": 9999}
+        for i in range(45)  # 3 chunks: 20 + 20 + 5
+    ]
+    client = _build_run_client(candidates=candidates)
+
+    # Each chunk succeeds first try.
+    posts_chunks = [
+        [_build_post(str(i), views=1000) for i in range(0, 20)],
+        [_build_post(str(i), views=1000) for i in range(20, 40)],
+        [_build_post(str(i), views=1000) for i in range(40, 45)],
+    ]
+
+    sleep_mock = AsyncMock()
+    with patch(
+        "getviews_pipeline.ensemble.fetch_post_multi_info",
+        new=AsyncMock(side_effect=posts_chunks),
+    ), patch("getviews_pipeline.corpus_refresh.asyncio.sleep", new=sleep_mock):
+        result = await run_corpus_refresh(client=client)
+
+    assert result["refreshed"] == 45
+    # 3 chunks → 2 inter-chunk cooldowns (no cooldown after final chunk).
+    assert sleep_mock.await_count == 2
