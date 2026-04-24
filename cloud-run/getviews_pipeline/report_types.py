@@ -166,6 +166,13 @@ class IdeaBlockPayload(BaseModel):
     prerequisites: list[str]
     confidence: dict[str, int]
     style: str
+    # 2026-05-10 — Wave 2 PR #2: fields for the "5 video tiếp theo"
+    # content-calendar reframe. Defaults keep back-compat with existing
+    # fixtures; the builder fills them structurally until the Gemini
+    # prompt upgrade (PR #3) emits the richer Vietnamese variants.
+    rank: int = 0                                                    # 1..5; 0 = unranked (legacy)
+    opening_line: str = ""                                           # 6–12 word VN example of first spoken line
+    lifecycle_stage: Literal["early", "peak", "decline"] | None = None
 
 
 class IdeasPayload(BaseModel):
