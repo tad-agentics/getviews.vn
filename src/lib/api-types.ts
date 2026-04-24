@@ -486,6 +486,23 @@ export interface IdeaBlockPayloadData {
   prerequisites: string[];
   confidence: Record<string, number>;
   style: string;
+  // 2026-05-10 — Wave 2 PR #2/#3: "5 video tiếp theo" content-calendar fields.
+  // All optional for back-compat; older payloads render unchanged.
+  rank?: number;                                              // 1..5
+  opening_line?: string;                                      // 6-12 word VN first-spoken-line
+  lifecycle_stage?: "early" | "peak" | "decline" | null;
+}
+
+/** 2026-05-10 — Wave 2 PR #1: Layer 0 niche_insights injection.
+ * Shared by PatternPayload + IdeasPayload so the "what to do next"
+ * slot can surface `execution_tip` in either report. */
+export interface NicheInsightData {
+  insight_text: string | null;
+  execution_tip: string | null;
+  top_formula_hook: string | null;
+  top_formula_format: string | null;
+  week_of: string | null;                                      // YYYY-MM-DD
+  staleness_risk: "LOW" | "MODERATE" | "HIGH" | null;
 }
 
 export interface IdeasReportPayload {
@@ -498,6 +515,7 @@ export interface IdeasReportPayload {
   sources: SourceRowData[];
   related_questions: string[];
   variant: "standard" | "hook_variants";
+  niche_insight?: NicheInsightData | null;
 }
 
 /** Named alias for ``CalendarSlotData.kind`` — intentionally distinct
