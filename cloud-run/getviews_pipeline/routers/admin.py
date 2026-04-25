@@ -383,6 +383,11 @@ class AdminTriggerRefreshBody(BaseModel):
     views_floor: int | None = None   # defaults to REFRESH_VIEWS_FLOOR (1000)
 
 
+class AdminTriggerR2JanitorBody(BaseModel):
+    """R2 storage janitor — defaults to dry-run for safety."""
+    dry_run: bool = True
+
+
 class AdminTriggerEnrichShotsBody(BaseModel):
     """Wave 2.5 Phase A PR #4c — top-N Gemini re-extract for video_shots.
 
@@ -572,6 +577,16 @@ async def _admin_run_reclassify_format() -> dict[str, Any]:
     from getviews_pipeline.supabase_client import get_service_client
 
     return await run_sync(run_content_format_reclassify, client=get_service_client())
+
+
+async def _admin_run_r2_janitor(*, dry_run: bool = True) -> dict[str, Any]:
+    """Manual kick of /batch/r2-janitor — reconcile R2 storage against
+    video_corpus and delete orphans. Defaults to dry-run for safety;
+    pass dry_run=False to run the destructive pass."""
+    from getviews_pipeline.r2_janitor import run_r2_janitor
+    from getviews_pipeline.supabase_client import get_service_client
+
+    return await run_sync(run_r2_janitor, dry_run=dry_run, client=get_service_client())
 
 
 async def _admin_run_layer0() -> dict[str, Any]:
@@ -1069,6 +1084,20 @@ async def admin_trigger_reclassify_format(
     return await _run_trigger_with_audit(
         user_id=admin["user_id"], action="trigger.reclassify_format",
         params={}, runner=_admin_run_reclassify_format,
+    )
+
+
+@router.post("/admin/trigger/r2_janitor")
+async def admin_trigger_r2_janitor(
+    body: AdminTriggerR2JanitorBody = AdminTriggerR2JanitorBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    async def runner() -> dict[str, Any]:
+        return await _admin_run_r2_janitor(dry_run=body.dry_run)
+
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"], action="trigger.r2_janitor",
+        params={"dry_run": body.dry_run}, runner=runner,
     )
 
 

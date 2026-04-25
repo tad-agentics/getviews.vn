@@ -199,6 +199,52 @@ async def batch_reclassify_format(
     return JSONResponse({"ok": True, **result})
 
 
+@router.post("/batch/r2-janitor")
+async def batch_r2_janitor(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Reconcile R2 storage against video_corpus and delete orphans.
+
+    Defaults to dry-run. Pass ``?dry_run=false`` (or POST body
+    ``{"dry_run": false}``) to run the destructive pass. Idempotent
+    in either mode — re-running just re-walks the same R2 prefixes.
+
+    Cost: zero Gemini, zero ED. R2 LIST + DELETE class A operations
+    are ~$0.20 per full sweep at current corpus size.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.r2_janitor import run_r2_janitor
+    from getviews_pipeline.runtime import run_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    # Accept dry_run from query string or JSON body; default True.
+    dry_run = True
+    qp = request.query_params.get("dry_run")
+    if qp is not None:
+        dry_run = qp.lower() not in ("0", "false", "no")
+    else:
+        try:
+            body = await request.json()
+            if isinstance(body, dict) and "dry_run" in body:
+                dry_run = bool(body["dry_run"])
+        except Exception:
+            pass
+
+    logger.info("POST /batch/r2-janitor triggered (dry_run=%s)", dry_run)
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/r2-janitor") as obs_summary:
+        try:
+            result = await run_sync(run_r2_janitor, dry_run=dry_run, client=client)
+        except Exception as exc:
+            logger.exception("Batch r2-janitor failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 @router.post("/batch/backfill-thumbnails")
 async def batch_backfill_thumbnails(
     request: Request,
