@@ -143,3 +143,198 @@ prescription, which we honor here.
   decision in commit (b).
 
 These three sections land in commits (b) and (c).
+
+---
+
+## 6. Proposed buckets (v1)
+
+Four new buckets. Each one gets (a) a classifier heuristic grounded
+in existing `classify_format` patterns — regex + optional niche /
+tone / scene gates, (b) an estimated coverage count against the
+current 669 `other` rows, (c) a first-cut
+`FORMAT_ANALYSIS_WEIGHTS` signal prioritization for the diagnosis
+prompt.
+
+The list is deliberately short (4, not 8). Each bucket must earn
+its slot against three tests:
+
+1. **≥ 5% of the current `other` residual** — smaller than that and
+   the taxonomy burden outweighs the format_distribution signal.
+2. **Clean heuristic** — ideally one regex + one gate (niche OR
+   tone OR scene). A bucket that needs 5 signals to detect is a
+   sign the content is still heterogeneous underneath.
+3. **Actionable diagnosis** — the downstream `FORMAT_ANALYSIS_WEIGHTS`
+   entry must surface DIFFERENT signal priorities from `other`. A
+   bucket that's "just a label" with no effect on the prompt is
+   cosmetic and doesn't belong in the 7-layer lock.
+
+### 6.1 `gameplay`
+
+Video of someone playing a video game — commentary, reactions,
+highlights, tournament clips. The single biggest `other` cohort.
+
+- **Niche gate:** `niche_id = 17` (Gaming & Esports).
+- **Topic signal:** any of `Gaming`, `Esports`, `Liên Quân`, `Arena
+  of Valor`, `Honor of Kings`, `Roblox`, `Attack on Titan`, specific
+  game titles (add as observed).
+- **Heuristic:** niche=17 OR (any topic matches the game-keyword
+  set). Put it high in priority order — before `mukbang` /
+  `storytelling` / `dance`, because gaming clips frequently trigger
+  those with their entertaining tone + action scenes.
+- **Coverage:** **~85 / 669 `other` rows (12.7%)**. Live breakdown
+  skews entertaining (47) + educational (16 — "game guide" /
+  "character tutorial" pattern) + authoritative (6).
+- **`FORMAT_ANALYSIS_WEIGHTS` skeleton:**
+  - `hook_strength`: high (the first 2s of a gameplay clip decides
+    whether the viewer cares about the match result)
+  - `audio_cue`: high (commentator voice energy drives retention)
+  - `scene_pacing`: high (cuts between gameplay feed + overlay)
+  - `text_overlay_count`: medium (kill counters, score overlays)
+  - `cta_presence`: skip (gameplay rarely carries a CTA)
+
+### 6.2 `comedy_skit`
+
+Scripted dialogue comedy — setup + punchline, often 2-3 characters
+with a reveal. Distinct from `storytelling` (recall / narration)
+and `pov` (first-person monologue).
+
+- **Niche gate:** `niche_id = 13` (Comedy & Entertainment) is a
+  strong signal but comedy leaks into niches 6/11/19 too.
+- **Tone signal:** `tone = 'humorous'`.
+- **Topic signal:** `comedy`, `skit`, `humor`, `prank`, `funny`,
+  `family chaos`, `relatable memes`.
+- **Heuristic:** (niche=13 AND tone=humorous) OR (any topic matches
+  the comedy-keyword set). Must land AFTER `storytelling` in the
+  priority order so narrative-recall humor stays where it is.
+- **Coverage:** **~91 / 669 rows (13.6%)**. Live: 40 humorous +
+  entertaining / conversational tones.
+- **`FORMAT_ANALYSIS_WEIGHTS` skeleton:**
+  - `hook_strength`: high (first-line setup is the whole contract)
+  - `audio_cue`: high (delivery timing, laugh tracks, SFX)
+  - `scene_pacing`: high (cut timing IS the punchline)
+  - `text_overlay_count`: medium (subtitle-dependent for VN viewers
+    with sound off)
+  - `cta_presence`: low — skits lean on the punchline, not a CTA.
+
+### 6.3 `lesson`
+
+Educational content that's NOT a how-to / procedural tutorial.
+Language vocab drills, parenting advice, "word of the day" type
+content. The tutorial regex intentionally requires a procedural
+verb (`hướng dẫn`, `cách làm`, `bước 1`); `lesson` covers the
+broader educational-but-non-procedural content that currently
+falls through.
+
+- **Niche gate:** `niche_id = 11` (Education) is the primary
+  concentration; extends to niche 7 (parenting advice), niche 15
+  (finance education).
+- **Tone signal:** `tone IN ('educational', 'authoritative')`.
+- **Topic signal:** `vocabulary`, `grammar`, `language learning`,
+  `parenting tip`, `finance education`, `kinh nghiệm`, `bài học`,
+  `từ vựng`.
+- **Heuristic:** tone=educational|authoritative AND (niche=11 OR
+  lesson-topic match). Must land AFTER `tutorial` in priority so
+  procedural content keeps its bucket; `lesson` is the fallback
+  for "educates without a step-by-step".
+- **Coverage:** **~45 / 669 rows (6.7%)**. Concentrated: 37 of
+  niche 11's 62 `other` rows are tone=educational.
+- **`FORMAT_ANALYSIS_WEIGHTS` skeleton:**
+  - `audio_transcript_density`: high (lessons carry info in speech)
+  - `text_overlay_count`: high (vocabulary drills / definitions on
+    screen)
+  - `scene_pacing`: medium (can be slow — trivia + repeat)
+  - `hook_strength`: medium (less first-frame driven than gameplay)
+  - `cta_presence`: medium (classroom-style "follow for more" is
+    common)
+
+### 6.4 `highlight`
+
+Short reaction / moment clips — sports goals (niche 21), travel
+"wow" vignettes (niche 16), celebrity reaction (niche 6), gaming
+montage (niche 17 — but gaming wins first). Typically music-only
+or light narration, 5-10 scenes of rapid cuts, one "payoff" moment.
+
+- **Niche gate:** `niche_id IN (6, 16, 21)` (aspirational / travel
+  / sports) + a residual in `17`.
+- **Tone signal:** `tone IN ('entertaining', 'humorous',
+  'inspirational')`.
+- **Scene signal:** scenes ≥ 4 AND `action` or `broll` dominant.
+- **Transcript signal:** short / music-only (< 80 chars including
+  "[âm nhạc]"-style placeholders) helps disambiguate from
+  `storytelling` or `vlog`.
+- **Heuristic:** niche IN (6,16,21) AND tone IN (entertaining,
+  humorous, inspirational) AND (scene_count ≥ 4) AND (short
+  transcript OR music-only marker). Lands AFTER `dance` (all-
+  action) and `faceless` (no face_to_camera scenes) in the
+  priority order.
+- **Coverage:** **~101 / 669 rows (15.1%)** — the biggest cohort.
+  Mostly niche 16 travel moments + niche 6 lifestyle aspirational
+  + niche 21 sports highlights.
+- **`FORMAT_ANALYSIS_WEIGHTS` skeleton:**
+  - `scene_pacing`: high (montage timing is the format)
+  - `audio_cue`: high (music drop / sync is the emotional payoff)
+  - `hook_strength`: medium (first clip sets expectation, payoff
+    comes later)
+  - `text_overlay_count`: low (highlights rely on visual not
+    explanatory)
+  - `cta_presence`: skip
+
+### 6.5 Combined coverage
+
+| Bucket        | Est. new rows | % of current `other` |
+|:--------------|--------------:|---------------------:|
+| `gameplay`    |            85 |                12.7% |
+| `comedy_skit` |            91 |                13.6% |
+| `lesson`      |            45 |                 6.7% |
+| `highlight`   |           101 |                15.1% |
+| **Total**     |       **322** |            **48.1%** |
+
+`other` drops from 669 / 1,830 rows (**37%**) → 347 / 1,830 rows
+(**~19%**) post-backfill. The remaining ~347 rows are genuinely
+heterogeneous: crime news clips, music-only fitness montages,
+cinematic auto B-roll, K-drama reposts, one-off habit monologues,
+niche-feature tips that slip all four heuristics. Forcing them
+into any single new bucket would degrade reports more than the
+residual does — this is the "Path A scoped" recommendation from
+commit (a).
+
+---
+
+## 7. Priority order (where each new bucket lands)
+
+`classify_format`'s priority order is intentional — highest-
+specificity-first. Proposed insertion points:
+
+```
+ 1. mukbang       (unchanged — niche=4 + scenes≥10 heuristic)
+ 2. grwm          (unchanged)
+ 3. NEW: gameplay (niche=17 OR game-title topic; before mukbang-like
+                   gaming rows get captured by entertainment signals)
+ 4. recipe        (unchanged)
+ 5. tutorial      (unchanged — procedural verbs)
+ 6. NEW: lesson   (broader educational, AFTER tutorial)
+ 7. comparison    (unchanged)
+ 8. NEW: comedy_skit  (niche=13 + humorous; BEFORE storytelling so
+                       pure-dialogue jokes don't capture recall-style
+                       narrative)
+ 9. storytelling  (unchanged — catches narrative recall)
+10. before_after  (unchanged)
+11. pov           (unchanged)
+12. outfit_transition (unchanged)
+13. vlog          (unchanged)
+14. dance         (unchanged)
+15. faceless      (unchanged)
+16. NEW: highlight (LAST positive match — after dance + faceless
+                    because highlight's heuristic is the loosest
+                    and would catch everything if it ran first)
+17. other         (terminal)
+```
+
+Priority-shift risk: inserting `gameplay` at position 3 preempts
+`recipe` / `tutorial` for niche-17 rows with cooking or
+instructional topics (there are a few gaming channels that show
+"how to play X"). Commit (c) specifies a golden-set regression
+test to catch this — if any existing `tutorial` / `recipe` row
+for niche 17 flips to `gameplay`, that's a signal the heuristic
+is too loose.
+
