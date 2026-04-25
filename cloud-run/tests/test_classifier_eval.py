@@ -22,21 +22,28 @@ from getviews_pipeline.eval_classifier import evaluate, load_golden
 # Baseline history:
 #   2026-05-09 initial harness                  — 24/27 = 0.8889
 #   2026-05-09 + has_speech gate, VN additions  — 27/27 = 1.0000
-#   2026-05-13 Wave 5+ expansion 27 → 48 items  — 48/48 = 1.0000
-# Floor at 0.97 tolerates one miss on the 48-item set (47/48 = 0.979).
-# The 2026-05-13 expansion kept accuracy at 1.0 by only adding items
-# the classifier already handles correctly — coverage grew without
-# false positives or false negatives to exploit. A follow-up PR
-# lands a small set of "diagnostic" misses that DO expose real gaps;
-# when that lands the floor drops to match the new measured value
-# with a single-miss buffer.
-MIN_ACCURACY = 0.97
+#   2026-05-13 Wave 5+ correct-only expansion    — 48/48 = 1.0000
+#   2026-05-13 Wave 5+ diagnostic additions      — 49/54 = 0.9074
+# Floor at 0.88 tolerates one additional miss (48/54 = 0.889). The
+# 2026-05-13 diagnostic batch DELIBERATELY seeded 5 rows where the
+# classifier currently fails — each row's ``notes`` documents the
+# specific gap + a fix-path hint. Those rows are NOT false-positive
+# eval noise; they're the fix list for a future classifier tweak.
+# When one gets fixed, raise this floor by 0.018 (1/54) and update
+# the baseline line above. Don't "fix" by removing the diagnostic
+# row — that erases institutional memory of the gap.
+MIN_ACCURACY = 0.88
 
 # Don't regress below this for the 5 highest-traffic buckets. These
 # dominate niche_intelligence.format_distribution — getting them
 # wrong degrades downstream reports the most.
 CORE_CLASSES = {"mukbang", "recipe", "tutorial", "review", "grwm"}
-MIN_CORE_RECALL = 0.8
+# 2026-05-13 Wave 5+ diagnostic batch seeded 2 known tutorial misses
+# (advice-style + educational-skit). Tutorial recall dropped to 0.6
+# (3/5). Floor at 0.5 catches a genuine regression (2/5 = 0.4 would
+# fail) without needing the diagnostic rows to be fixed first. When
+# classifier gets a fix that recovers those 2 rows, bump back to 0.8.
+MIN_CORE_RECALL = 0.5
 
 
 def test_golden_set_loads_and_is_nonempty() -> None:

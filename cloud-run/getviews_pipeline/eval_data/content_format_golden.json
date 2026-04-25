@@ -600,6 +600,79 @@
         "tone": "educational"
       },
       "notes": "Synthetic — 'Đánh giá' at sentence start = review. Typical smartphone review shape."
+    },
+
+    {
+      "video_id": "7618218145769278741",
+      "niche_id": 12,
+      "gold_label": "comparison",
+      "analysis_json": {
+        "audio_transcript": "Mình có đọc được một cái bài trên đây đại ý là cái nghề livestream và nghề tiktok ngày càng giàu hỏi sao các bạn trẻ đang đổ xô nhau đi làm và với kinh nghiệm là một người đang làm tiktok cũng có một cái kênh số lượng và kiếm được tiền cũng kha khá.",
+        "topics": ["TikTok money", "content creator reality", "financial advice", "career change"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "educational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: 'TikTok vs livestream' career comparison doesn't trigger any of the comparison regex alternatives (so sánh, vs, khác nhau, khác biệt, đối thủ, hơn kém). Fix path: widen comparison pattern to include 'nghề X và nghề Y', or add a job-comparison keyword set."
+    },
+    {
+      "video_id": "7619204732111899924",
+      "niche_id": 1,
+      "gold_label": "haul",
+      "analysis_json": {
+        "audio_transcript": "Làm việc mà cổ vai gáy nó biểu tình quá mấy mom ơi. Nhưng mà rất may, tôi luôn có em bảo bối này đồng hành nè. Em này á tôi săn được ở trên sàn S nha, xài phải nói là cực kì thích luôn. Mua mấy món này là tôi kén lắm nha, cứ phải lên Shopee Mall cho chắc.",
+        "topics": ["Health and Wellness", "E-commerce Shopping Tips", "Tiger Balm Plaster", "Shopee Mall"],
+        "scenes": [{"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'tutorial'. Gap: classifier's tutorial regex (mẹo / tips) fires first on 'E-commerce Shopping Tips' topic, before the haul branch gets a chance. Shopee-Mall / 'săn được' phrasing should land haul. Fix path: (a) bump haul priority above tutorial when Shopee / Lazada / Tiki shop markers are explicit in topics, or (b) add 'săn được trên sàn' to haul's regex."
+    },
+    {
+      "video_id": "7626579151301938453",
+      "niche_id": 7,
+      "gold_label": "vlog",
+      "analysis_json": {
+        "audio_transcript": "Em mặt đến từ đâu mà sao lại xinh như thiên thần. Anh là trai miền tây còn gọi là thanh niên chuyên cần. Mỗi khi bên em anh thấy tim anh phấn chấn. Anh không muốn rời xa baby anh muốn thường xuyên gần.",
+        "topics": ["baby care", "bath time", "parenting", "infant care"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "broll"}],
+        "tone": "entertaining"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: baby-bath / parenting daily-life video with rap-style lyrics doesn't trigger any vlog marker (no 'hôm nay mình', no 'một ngày của'). Parenting topics + entertaining tone is a common VN vlog shape the classifier currently misses. Fix path: add 'baby care'/'parenting' + daily-activity topic + face_to_camera scene gate as an additional vlog path."
+    },
+    {
+      "video_id": "7627069156512288020",
+      "niche_id": 11,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "Mẹ ơi cho con đi đá bóng nhé. Bài học thì mẹ dạy chưa? Dạ học rồi. Vậy để mẹ kiểm tra. Thì hiện tại đơn. Là học sinh gương mẫu, sống đều, nhạt nhưng ổn định. Thì hiện tại tiếp diễn. Là bà tám của lớp, drama.",
+        "topics": ["English Grammar", "Tenses", "Education", "Parenting"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "action"}],
+        "tone": "educational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: educational skit format (mom-quizzes-son grammar lesson) uses no tutorial trigger verb ('hướng dẫn'/'cách làm' etc.). 'English Grammar' topic + educational tone should be a tutorial signal. Fix path: topic-level fallback for tutorial when any of [grammar / tenses / education / học] appears in topics AND tone=educational."
+    },
+    {
+      "video_id": "7629959945940651284",
+      "niche_id": 7,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "Mua luôn combo đi sinh cho nó tiện có 7 8 củ thôi à. Này nha cái cần thì không có mà cái có thì không cần đâu đấy. Tốt nhất là mua lẻ săn sale ngày đôi chỉ có 3 4 củ thôi mà thậm chí còn rẻ hơn ý. Quần áo là phải hãng Nous, Bubaby, La pomme.",
+        "topics": ["Sắm đồ sơ sinh", "Tiết kiệm tiền", "Kinh nghiệm làm mẹ"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}],
+        "tone": "educational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: advice-style parenting content ('Kinh nghiệm làm mẹ', '7-8 củ thôi', 'mua lẻ săn sale') lacks a tutorial keyword (no 'hướng dẫn'/'cách'). VN 'kinh nghiệm' is the most common advice-tutorial framing and should be a tutorial trigger. Fix path: add 'kinh nghiệm' to tutorial regex."
+    },
+    {
+      "video_id": "7631163158043856135",
+      "niche_id": 4,
+      "gold_label": "haul",
+      "analysis_json": {
+        "audio_transcript": "Không ai cấm, nhưng ít có đứa nào lại làm. Bọn anh mua xôi với gà ở Hà Nội, mang lên tận Cúc Phương ăn. Quán này ở số 672 Đường Láng, hot lắm. Bọn anh mua gà là 170.000, xôi Hoàng Phố 40.000, tính ra là 210, nhưng mua mang về quán giảm cho 10.",
+        "topics": ["Food review", "Travel", "Grilled chicken", "Cúc Phương National Park"],
+        "scenes": [{"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'review'. Gap: food purchase with explicit prices is a haul shape, but 'Food review' topic + review-style tone sends it to review first. VN 'bọn anh mua X là Y đồng' is a canonical food-haul narration pattern. Fix path: boost haul priority when the transcript carries ≥ 2 explicit price tokens (numeric + 000/k/củ)."
     }
   ]
 }
