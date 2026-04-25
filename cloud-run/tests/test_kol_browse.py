@@ -583,29 +583,39 @@ def test_compute_view_velocity_sync_clips_outlier_ratios() -> None:
 
 
 def test_run_kol_browse_discover_hides_creators_below_indexed_video_threshold() -> None:
-    """BUG-07 regression — a 1.3M-follower creator with 1 indexed video was
-    appearing as the #1 discovery match, but clicking it landed on an empty
-    "Chưa đủ video để dựng công thức" page. Discovery now hides any row
-    with ``video_count < MIN_INDEXED_VIDEOS_FOR_DISCOVERY`` (10, matching
-    the ChannelScreen formula gate)."""
+    """Discovery hides creators with ``video_count == 0`` so we never offer
+    a row that has zero corpus presence at all. The threshold was lowered
+    from 10 → 1 because the production corpus is too sparse for a 10-gate
+    (most starter_creators carry 1-2 indexed videos). The channel screen
+    still gates the formula at CLAIM_TIERS["pattern_spread"]=10 separately,
+    so under-10 handles still degrade gracefully to ``thin_corpus`` when
+    clicked."""
     profile_exec = MagicMock(data={"primary_niche": 1, "reference_channel_handles": []})
     starters_exec = MagicMock(
         data=[
             {
-                "handle": "bigfollow",
-                "display_name": "Big Follow",
+                "handle": "novideos",
+                "display_name": "Zero Indexed",
                 "followers": 1_300_000,
                 "avg_views": 500_000,
-                "video_count": 1,  # below threshold → should be hidden
+                "video_count": 0,  # below threshold → should be hidden
                 "rank": 1,
+            },
+            {
+                "handle": "thinbutpresent",
+                "display_name": "Thin But Present",
+                "followers": 40_000,
+                "avg_views": 8_000,
+                "video_count": 1,  # at threshold → visible (will hit thin_corpus on click)
+                "rank": 2,
             },
             {
                 "handle": "steady",
                 "display_name": "Steady Creator",
-                "followers": 40_000,
-                "avg_views": 8_000,
-                "video_count": 12,  # above threshold → visible
-                "rank": 2,
+                "followers": 80_000,
+                "avg_views": 14_000,
+                "video_count": 12,  # well above threshold → visible
+                "rank": 3,
             },
         ]
     )
@@ -628,6 +638,7 @@ def test_run_kol_browse_discover_hides_creators_below_indexed_video_threshold() 
     sb.table.side_effect = table
 
     out = run_kol_browse_sync(sb, niche_id=1, tab="discover", page=1, page_size=10)
-    assert MIN_INDEXED_VIDEOS_FOR_DISCOVERY == 10
-    assert out["total"] == 1
-    assert out["rows"][0]["handle"] == "steady"
+    assert MIN_INDEXED_VIDEOS_FOR_DISCOVERY == 1
+    assert out["total"] == 2
+    handles = {row["handle"] for row in out["rows"]}
+    assert handles == {"thinbutpresent", "steady"}

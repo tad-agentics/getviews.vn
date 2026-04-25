@@ -1,0 +1,58 @@
+-- 2026-05-13 — Daily re-seed of starter_creators from video_corpus.
+--
+-- Mirrors the pg_cron-doc pattern from
+-- ``20260509000004_pg_cron_corpus_refresh.sql`` —
+-- the executable cron.schedule call is also applied live via the
+-- Supabase MCP at the same time as this migration, but is recorded
+-- here so future ops can pause / resume / re-seed.
+--
+-- ── Why this exists ─────────────────────────────────────────────────
+--
+-- ``starter_creators`` was originally populated by a one-shot
+-- ``SELECT seed_starter_creators(10);`` at the bottom of
+-- ``20260423000049_phase_a_reference_channels.sql``. There was no
+-- recurring refresh: as ``video_corpus`` grew over the following
+-- weeks, the ``video_count`` column on starter_creators stayed
+-- frozen at the migration-time snapshot. By 2026-04-25 the average
+-- video_count was 1-2 across every niche, while the actual corpus
+-- had grown to 46K rows. /kol/browse uses video_count to gate
+-- discovery rows — with stale data, it was hiding everything and
+-- /kol rendered an empty list.
+--
+-- A separate fix
+-- (``cloud-run/getviews_pipeline/kol_browse.py``)
+-- lowered ``MIN_INDEXED_VIDEOS_FOR_DISCOVERY`` from 10 → 1 so that
+-- discovery surfaces any creator with corpus presence. This cron
+-- keeps the underlying counts fresh so the gate compares against
+-- current reality, not migration-time reality.
+--
+-- ── Schedule ────────────────────────────────────────────────────────
+--
+-- ``45 22 * * *`` UTC = 05:45 Asia/Ho_Chi_Minh.
+-- Lands 15min after ``cron-batch-refresh`` (22:30 UTC) which writes
+-- the day's metric refresh. The order matters: refresh updates
+-- ``video_corpus.views/likes/comments/shares``; this re-seed then
+-- recomputes per-(niche,creator) avg_views and per-creator video_count.
+--
+-- ── Live application ────────────────────────────────────────────────
+--
+-- SELECT cron.schedule(
+--   'cron-starter-creators-reseed',
+--   '45 22 * * *',
+--   $cmd$ SELECT seed_starter_creators(10); $cmd$
+-- );
+--
+-- ── Verification ────────────────────────────────────────────────────
+--
+-- SELECT runid, start_time, status, return_message
+-- FROM cron.job_run_details
+-- WHERE jobid = (SELECT jobid FROM cron.job
+--                WHERE jobname = 'cron-starter-creators-reseed')
+-- ORDER BY start_time DESC LIMIT 7;
+--
+-- ── To pause / resume ───────────────────────────────────────────────
+--
+-- SELECT cron.unschedule('cron-starter-creators-reseed');
+-- (re-run the SELECT cron.schedule above to resume)
+
+SELECT 1 AS migration_doc_only;

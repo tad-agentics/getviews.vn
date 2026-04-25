@@ -14,10 +14,15 @@ Tab = Literal["pinned", "discover"]
 SortKey = Literal["pinned", "rank", "match", "followers", "avg_views", "growth", "name"]
 KOL_SORT_QUERY_KEYS = frozenset({"pinned", "rank", "match", "followers", "avg_views", "growth", "name"})
 
-# BUG-07 — discovery gate. ChannelScreen.formula_gate opens formula rendering
-# at ≥10 indexed videos; discovery should match so clicking a card never
-# lands on an empty "Chưa đủ video để dựng công thức" page.
-MIN_INDEXED_VIDEOS_FOR_DISCOVERY = 10
+# Discovery gate. The channel-formula screen separately gates pattern
+# rendering at CLAIM_TIERS["pattern_spread"]=10, but with the current
+# corpus density (~46K rows / 18 niches → most starter_creators carry
+# 1-2 indexed videos) using the same 10 here filters every row out and
+# /kol shows a blank state. Decoupled from the formula gate: surface
+# any starter_creator with at least one indexed video; the channel
+# screen still shows ``thin_corpus`` for under-10 handles, which is
+# better than an empty discovery list.
+MIN_INDEXED_VIDEOS_FOR_DISCOVERY = 1
 
 # D.1.3 — cache TTL for creator_velocity.match_score. Beyond this window
 # we recompute + writeback; the profile-change trigger invalidates earlier.
@@ -490,12 +495,12 @@ def run_kol_browse_sync(
 
     if tab == "discover":
         pool: list[dict[str, Any]] = [dict(r) for r in starter_rows]
-        # BUG-07 (QA audit 2026-04-22): surface only creators with enough
-        # indexed videos to produce a usable channel analysis. 1.3M-follower
-        # creators with a single indexed video were ranking #1 and opening
-        # to "Chưa đủ video để dựng công thức" — the same threshold the
-        # ChannelScreen formula gate uses (≥10). Pinned channels skip this
-        # gate because the user has explicitly added them.
+        # Surface any starter_creator with at least one indexed video.
+        # The channel screen still shows ``thin_corpus`` if the user
+        # clicks into a creator under the formula threshold — a degraded
+        # but informative landing beats a fully empty discovery list.
+        # Pinned channels skip this gate because the user explicitly
+        # added them.
         pool = [r for r in pool if int(r.get("video_count") or 0) >= MIN_INDEXED_VIDEOS_FOR_DISCOVERY]
         pool = _apply_follower_bounds(pool, followers_min, followers_max)
         if growth_fast:
