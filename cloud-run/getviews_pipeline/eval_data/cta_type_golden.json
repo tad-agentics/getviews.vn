@@ -1,0 +1,173 @@
+{
+  "_metadata": {
+    "name": "cta_type_v1",
+    "created": "2026-05-13",
+    "purpose": "Hand-curated golden set for _classify_cta regression testing. Wave 5+ Axis 4 follow-through to the content_format eval harness shipped in Wave 1.",
+    "labeling_rubric": [
+      "Gold labels were assigned by reading the cta_text alone — what is the creator's primary call-to-action verb? When a CTA bundles multiple actions (e.g. 'follow + share'), the dominant action wins.",
+      "video_id + niche_id are informational only — the classifier reads only the cta_text. Pinning real corpus rows lets a future labeler trace each item back to context.",
+      "Each of the 7 buckets gets 2-3 representatives. The 'other' bucket (8th label) covers genuine ambiguity + CTAs that don't map to any bucket; do NOT force-fit ambiguous CTAs into a bucket — that calibrates the harness to garbage."
+    ],
+    "taxonomy": [
+      "save", "follow", "comment", "shop_cart",
+      "link_bio", "part2", "try_it", "other"
+    ],
+    "null_path": "_classify_cta returns None when input is empty/missing — that's a separate path from 'other' (which is the explicit fallback when text is present but matches no bucket). Items in this golden set all have non-empty cta_text by construction."
+  },
+  "items": [
+    {
+      "video_id": "7624473429215055125",
+      "niche_id": 11,
+      "gold_label": "save",
+      "cta_text": "Save this video to watch repeatedly for better memorization.",
+      "notes": "EN explicit 'Save' verb. Direct match for r'save'."
+    },
+    {
+      "video_id": "7627105823453433106",
+      "niche_id": 5,
+      "gold_label": "save",
+      "cta_text": "ai đang bán thời trang mùa hè lưu lại sẽ có lúc mọi người dùng đến đấy",
+      "notes": "VN 'lưu lại' — primary save trigger pattern."
+    },
+    {
+      "video_id": "7627439768225336584",
+      "niche_id": 4,
+      "gold_label": "save",
+      "cta_text": "Lưu lại để cuối tuần này mình làm ăn thử ha",
+      "notes": "VN 'lưu lại' + secondary 'thử' — save dominates because it's the verb attached to the action ('để cuối tuần này…')."
+    },
+    {
+      "video_id": "7632190175065509137",
+      "niche_id": 14,
+      "gold_label": "follow",
+      "cta_text": "Nhớ đón theo dõi đấy",
+      "notes": "VN 'theo dõi' — primary follow trigger pattern."
+    },
+    {
+      "video_id": "7626246991390969096",
+      "niche_id": 15,
+      "gold_label": "follow",
+      "cta_text": "Hãy follow kênh để cập nhật thêm nhiều thông tin kiến thức về tài chính kinh tế bạn nhé.",
+      "notes": "EN 'follow' verb + 'kênh' object. Direct."
+    },
+    {
+      "video_id": "7632268525033262357",
+      "niche_id": 12,
+      "gold_label": "follow",
+      "cta_text": "Bấm follow chia sẻ kênh của móm giùm nha",
+      "notes": "Bundles follow + share; follow is the dominant verb (bấm → click → follow)."
+    },
+    {
+      "video_id": "7631189020286110994",
+      "niche_id": 4,
+      "gold_label": "comment",
+      "cta_text": "Các bác ở trên phố ai đã ăn quán này chưa thì comment nha",
+      "notes": "EN 'comment' verb. Direct."
+    },
+    {
+      "video_id": "7629651874517437714",
+      "niche_id": 4,
+      "gold_label": "comment",
+      "cta_text": "Mọi người thích xúc xích bao nhiêu phần trăm comment phía dưới cho mình biết nha.",
+      "notes": "EN 'comment' + VN 'cho mình biết' — both patterns hit; comment wins on ordering."
+    },
+    {
+      "video_id": "7620359144645643541",
+      "niche_id": 8,
+      "gold_label": "comment",
+      "cta_text": "Nhắn tin riêng để được tư vấn",
+      "notes": "VN 'nhắn tin' — direct match for the comment bucket's DM-CTA additions (the 2026-05-10 cta-face-detect audit expansion)."
+    },
+    {
+      "video_id": "7625660224791235857",
+      "niche_id": 9,
+      "gold_label": "shop_cart",
+      "cta_text": "giỏ hàng góc trái chốt ngay nhé",
+      "notes": "VN 'giỏ hàng' + 'chốt ngay' — both shop_cart patterns hit."
+    },
+    {
+      "video_id": "7627506013289205008",
+      "niche_id": 9,
+      "gold_label": "shop_cart",
+      "cta_text": "anh em nào thích thì bơi vào live chốt đơn thôi",
+      "notes": "VN 'chốt đơn' — primary checkout phrase."
+    },
+    {
+      "video_id": "7631416378804702484",
+      "niche_id": 18,
+      "gold_label": "shop_cart",
+      "cta_text": "Bộ dao nĩa thái thịt thì em có để ở giỏ hàng góc trái màn hình rồi nhé.",
+      "notes": "VN 'giỏ hàng' — TikTok Shop yellow-cart pointer; the canonical creator CTA for in-feed checkout."
+    },
+    {
+      "video_id": "7627107133129067796",
+      "niche_id": 15,
+      "gold_label": "link_bio",
+      "cta_text": "nhấn vào link trên bio để tham gia trao đổi cùng Na nhé",
+      "notes": "VN 'link...bio' — direct."
+    },
+    {
+      "video_id": "7629579515999702293",
+      "niche_id": 15,
+      "gold_label": "link_bio",
+      "cta_text": "Tham gia nhóm cộng đồng đầu tư qua link bio.",
+      "notes": "EN 'link bio' (no 'trên')— still matches the r'bio.*link' alt."
+    },
+    {
+      "video_id": "7631145881382800648",
+      "niche_id": 8,
+      "gold_label": "part2",
+      "cta_text": "Ngày mai tiếp tục khô để đến AGP Pro Show nhé anh em.",
+      "notes": "VN 'tiếp tục' — primary part2 trigger."
+    },
+    {
+      "video_id": "7627876957664840967_part2",
+      "niche_id": 4,
+      "gold_label": "part2",
+      "cta_text": "Phần 2 mình sẽ kể tiếp về drama tuần sau nhé.",
+      "notes": "Synthesized example covering the explicit 'phần 2' pattern. Real corpus part2 rows are dominated by 'tiếp tục' alone, so this pins the secondary-token branch."
+    },
+    {
+      "video_id": "7629676088867802384",
+      "niche_id": 4,
+      "gold_label": "try_it",
+      "cta_text": "làm thử cái món này nha",
+      "notes": "VN 'làm.*thử' — try-it core trigger."
+    },
+    {
+      "video_id": "7627892737613876487",
+      "niche_id": 4,
+      "gold_label": "try_it",
+      "cta_text": "ghé LengKeng thử đi nha",
+      "notes": "VN 'ghé' + 'thử đi' — both try_it patterns. Geo-creator visit-CTA is the canonical food-niche try_it."
+    },
+    {
+      "video_id": "7631515447346679060",
+      "niche_id": 4,
+      "gold_label": "try_it",
+      "cta_text": "có gì mọi người ghé quán ăn thử xem sao nhé",
+      "notes": "VN 'ghé' + 'ăn thử' — try_it; tests the 2026-05-10 cta-face-detect audit additions ('ghé', 'thử áp dụng')."
+    },
+    {
+      "video_id": "7625973407997267221",
+      "niche_id": 11,
+      "gold_label": "other",
+      "cta_text": "Vậy các bạn nên bảo quản và thay đũa định kỳ để đảm bảo sức khỏe nhé",
+      "notes": "Advice statement, no action verb. Falls through to 'other' (correct — not forcing into a bucket)."
+    },
+    {
+      "video_id": "7627087730454924565",
+      "niche_id": 2,
+      "gold_label": "other",
+      "cta_text": "Muốn đẹp phải bỏ thời gian công sức tiền bạc ra chăm sóc bản thân từ trong lẫn ngoài.",
+      "notes": "Aphorism / motivational close — no concrete CTA verb. 'other' is correct."
+    },
+    {
+      "video_id": "7625627280919891218",
+      "niche_id": 5,
+      "gold_label": "other",
+      "cta_text": "Cuốn sách trò chơi của những người hiểu luật",
+      "notes": "Statement, not a CTA. Genuine 'other' — pinning that the classifier doesn't false-fire any bucket on prose-like sentences."
+    }
+  ]
+}
