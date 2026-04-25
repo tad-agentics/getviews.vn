@@ -49,7 +49,9 @@ export default function HomeScreen() {
   const greetingHookCount = pulse?.new_hooks_this_week ?? null;
   const videosInNiche = pulse?.videos_this_week ?? null;
 
-  const displayName = profile?.display_name?.trim() || "bạn";
+  // Capitalised because ``firstName`` now leads the H1 (was preceded by
+  // "Chào "); lowercase looks wrong at the start of a sentence.
+  const displayName = profile?.display_name?.trim() || "Bạn";
   const firstName = displayName.split(/\s+/).pop() ?? displayName;
 
   const asOf = useMemo(() => {
@@ -141,7 +143,7 @@ export default function HomeScreen() {
               className="gv-tight mt-0 w-full max-w-[880px] text-[clamp(36px,4.6vw,60px)] leading-[1.02] text-[color:var(--gv-ink)]"
               style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
             >
-              Chào {firstName}. Hôm nay{" "}
+              {firstName}, hôm nay{" "}
               <span
                 className="inline-block rotate-[-1deg] rounded-[10px] px-2.5 text-white"
                 style={{ background: "var(--gv-accent)" }}

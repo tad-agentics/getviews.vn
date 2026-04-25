@@ -52,8 +52,8 @@ export function CopyableBlock({ text }: Props) {
         type="button"
         onClick={() => void handleCopy()}
         className="flex-shrink-0 rounded p-1 transition-colors duration-[120ms] hover:bg-[color:var(--gv-accent-soft)]"
-        aria-label="Copy hook formula"
-        title={copied ? "Đã copy ✓" : "Copy"}
+        aria-label="Sao chép công thức hook"
+        title={copied ? "Đã sao chép ✓" : "Sao chép"}
       >
         {copied ? (
           <Check className="h-3.5 w-3.5 text-[color:var(--gv-accent)]" strokeWidth={2.5} />

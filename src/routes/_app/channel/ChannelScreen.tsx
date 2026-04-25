@@ -116,7 +116,7 @@ export default function ChannelScreen() {
     // already returns null for those, but an /@foo/video/... URL that
     // slipped past would point at the wrong user intent.
     if (/\/(video|photo)\//i.test(trimmed)) {
-      setHandleError("Đây là link video — /app/channel phân tích kênh, không phân tích video đơn lẻ.");
+      setHandleError("Link này là video, không phải kênh — /app/channel chỉ phân tích kênh.");
       return;
     }
     setHandleError(null);
@@ -284,7 +284,7 @@ function ChannelBody({
         </form>
 
         {/* Hero — ref channel.jsx ch-hero (padding 28×32, radius 12, gap 32, mb 28 to formula) */}
-        <div className="ch-hero grid grid-cols-1 gap-8 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-8 py-7 min-[901px]:grid-cols-2">
+        <div className="ch-hero grid grid-cols-1 gap-6 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-6 sm:gap-8 sm:px-8 sm:py-7 min-[901px]:grid-cols-2">
         <div>
           <div className="gv-uc mb-2.5 text-[9.5px] text-[color:var(--gv-ink-4)]">{nicheKicker}</div>
           <div className="mb-3.5 flex items-center gap-4">
@@ -295,7 +295,7 @@ function ChannelBody({
               {channelInitial(data.name, data.handle)}
             </div>
             <div className="min-w-0">
-              <h2 className="gv-tight m-0 truncate text-[38px] leading-none text-[color:var(--gv-ink)]">
+              <h2 className="gv-tight m-0 truncate text-[26px] leading-tight min-[420px]:text-[30px] sm:text-[38px] sm:leading-none text-[color:var(--gv-ink)]">
                 {data.name || data.handle}
               </h2>
               <p className="gv-mono mt-1 text-xs text-[color:var(--gv-ink-3)]">
