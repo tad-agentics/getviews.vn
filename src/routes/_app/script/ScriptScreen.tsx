@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Copy, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
+import { Copy, Film, Loader2, Plus, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -173,7 +173,6 @@ export default function ScriptScreen() {
   const [shotsOverride, setShotsOverride] = useState<ScriptEditorShot[] | null>(null);
   const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
   const [exportBanner, setExportBanner] = useState<string | null>(null);
-  const [pdfAvailable, setPdfAvailable] = useState(true);
 
   // Draft preservation across reloads + 401 auto-signout bounces.
   // Snapshot the four most-expensive-to-re-type fields (topic, hook,
@@ -425,43 +424,11 @@ export default function ScriptScreen() {
     const id = await ensureSavedDraft();
     if (!id) return;
     try {
-      const res = await exporter.mutateAsync({ draftId: id, format: "copy" });
-      if (res.format === "copy") {
-        await navigator.clipboard.writeText(res.text);
-        setExportBanner("Đã copy kịch bản vào clipboard.");
-      }
+      const res = await exporter.mutateAsync({ draftId: id });
+      await navigator.clipboard.writeText(res.text);
+      setExportBanner("Đã copy kịch bản vào clipboard.");
     } catch (exc) {
       setExportBanner(exc instanceof Error ? exc.message : "Không copy được");
-    }
-  };
-
-  const handlePdf = async () => {
-    setExportBanner(null);
-    const id = await ensureSavedDraft();
-    if (!id) return;
-    try {
-      const res = await exporter.mutateAsync({
-        draftId: id,
-        format: "pdf",
-        filenameHint: topic.trim().slice(0, 48) || "kich-ban",
-      });
-      if (res.format === "pdf") {
-        const url = URL.createObjectURL(res.blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = res.filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }
-    } catch (exc) {
-      if (exc instanceof Error && exc.name === "PdfUnavailable") {
-        setPdfAvailable(false);
-        setExportBanner("PDF tạm thời không khả dụng — dùng Copy để gửi Zalo.");
-        return;
-      }
-      setExportBanner(exc instanceof Error ? exc.message : "Không tạo được PDF");
     }
   };
 
@@ -531,17 +498,6 @@ export default function ScriptScreen() {
                 >
                   <Copy className="h-3 w-3" strokeWidth={2} aria-hidden />
                   Copy
-                </Btn>
-                <Btn
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  onClick={handlePdf}
-                  disabled={save.isPending || exporter.isPending || !pdfAvailable}
-                  title={pdfAvailable ? undefined : "PDF tạm thời không khả dụng"}
-                >
-                  <Download className="h-3 w-3" strokeWidth={2} aria-hidden />
-                  PDF
                 </Btn>
                 <Btn
                   variant="ink"

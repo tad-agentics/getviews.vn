@@ -405,7 +405,7 @@ export interface ScriptDraftResponse {
   draft: ScriptDraftRow;
 }
 
-export type ScriptExportFormat = "copy" | "pdf";
+export type ScriptExportFormat = "copy";
 
 /**
  * B.4 — ``ForecastBar`` view/retention/hook-score math is **client-only** (no API).

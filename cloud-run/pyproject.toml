@@ -19,11 +19,6 @@ dependencies = [
   "aiofiles>=24.0",
   "supabase>=2.0.0",
   "boto3>=1.34.0",
-  # D.1.1 — /script/drafts/:id/export?format=pdf (WeasyPrint chosen per D.0.iv).
-  # Requires libpango-1.0-0 + libcairo2 + libpangoft2-1.0-0 in the base image
-  # (see cloud-run/Dockerfile). The export endpoint returns HTTP 503 if import
-  # fails so the frontend can disable the PDF button with humility copy.
-  "weasyprint>=63.0",
 ]
 
 [project.optional-dependencies]
