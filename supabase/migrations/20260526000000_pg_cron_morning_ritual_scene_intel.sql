@@ -1,0 +1,119 @@
+-- 2026-05-26 — pg_cron schedules for /batch/morning-ritual + /batch/scene-intelligence.
+--
+-- Mirrors the doc-only pattern from
+-- ``20260509000001_pg_cron_data_pipeline.sql`` and
+-- ``20260513000000_pg_cron_starter_creators_reseed.sql``: the executable
+-- ``cron.schedule(...)`` calls are applied live via Supabase MCP at the
+-- same time as this migration lands, but recorded here so future ops
+-- can pause / resume / rotate them.
+--
+-- ── Why this exists ─────────────────────────────────────────────────
+--
+-- The Cloud Run service has shipped ``/batch/morning-ritual`` and
+-- ``/batch/scene-intelligence`` endpoints for some time
+-- (``cloud-run/getviews_pipeline/routers/batch.py:443,475``), and the
+-- ``cloud-run/deploy.sh:69-89`` comments reference Cloud Scheduler
+-- entries that "should" hit them. Cron-health audit on 2026-04-25
+-- found that no scheduler — neither pg_cron in this DB nor Cloud
+-- Scheduler in GCP — was actually firing either endpoint. The
+-- code existed, the cron didn't.
+--
+-- Effect of the gap: ``scene_intelligence`` was being rebuilt only on
+-- ad-hoc operator triggers, so it lagged ``video_corpus`` by however
+-- long since the last manual ``/batch/scene-intelligence`` POST. And
+-- ``morning_ritual`` content (3 pre-generated scripts per creator
+-- with a niche set) was never produced — every morning ritual surface
+-- in the app fell back to its empty-state copy.
+--
+-- This migration brings reality in line with the docs.
+--
+-- ── Schedules ───────────────────────────────────────────────────────
+--
+-- All times UTC. Asia/Ho_Chi_Minh = UTC+7.
+--
+--  ┌────────────────────────────────┬──────────────┬───────────────────┐
+--  │ job                            │ schedule UTC │ Vietnam local     │
+--  ├────────────────────────────────┼──────────────┼───────────────────┤
+--  │ cron-batch-morning-ritual      │ 0 15 * * *   │ daily 22:00       │
+--  │ cron-batch-scene-intelligence  │ 30 21 * * *  │ daily 04:30       │
+--  └────────────────────────────────┴──────────────┴───────────────────┘
+--
+-- Why these times:
+--
+--   - morning-ritual at 22:00 VN runs the night before a user's wake
+--     window (06:00–08:00 VN), giving 8h of buffer for retries and
+--     leaving the produced scripts already-warm in the morning_ritual
+--     table when the user opens the app at breakfast. The endpoint
+--     docstring suggests 07:00 VN as an alternate target, but
+--     pre-warming overnight is safer for users on cellular who open
+--     the app before any 07:00-batch could complete.
+--
+--   - scene-intelligence at 04:30 VN runs 90 min after
+--     ``cron-batch-ingest`` (03:00 VN, daily, observed worst-case
+--     duration ≈37 min). That gap guarantees the ingest's writes to
+--     ``video_corpus.scenes`` have committed before
+--     ``refresh_scene_intelligence_sync`` reads them. Coincides with
+--     the weekly ``cron-batch-layer0`` slot (Sun 21:30 UTC); Cloud
+--     Run runs them in parallel under concurrency=20.
+--
+-- ── Prerequisites ───────────────────────────────────────────────────
+--
+-- Vault must already hold ``cloud_run_api_url`` and
+-- ``cloud_run_batch_secret`` (seeded for the pre-existing
+-- ``cron-batch-{ingest,refresh,analytics,layer0}`` schedules — see
+-- ``20260509000001`` for the seed pattern). No new secrets needed.
+--
+-- ── Live application (also run via Supabase MCP at migration time) ──
+--
+-- SELECT cron.schedule(
+--   'cron-batch-morning-ritual',
+--   '0 15 * * *',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/morning-ritual',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 1500000  -- 25 min; per-creator Gemini script gen, scales with active niche-ed creators
+--   );
+--   $cmd$
+-- );
+--
+-- SELECT cron.schedule(
+--   'cron-batch-scene-intelligence',
+--   '30 21 * * *',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/scene-intelligence',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 2700000  -- 45 min; rebuilds from full video_corpus scenes
+--   );
+--   $cmd$
+-- );
+--
+-- ── Verification ────────────────────────────────────────────────────
+--
+-- SELECT jobname, schedule, active
+-- FROM cron.job
+-- WHERE jobname IN ('cron-batch-morning-ritual','cron-batch-scene-intelligence');
+--
+-- After first fire, cross-check round-trip via batch_job_runs:
+--
+-- SELECT job_name, started_at, finished_at, status, duration_ms,
+--        LEFT(COALESCE(error,''),120) AS err
+-- FROM batch_job_runs
+-- WHERE job_name IN ('batch/morning-ritual','batch/scene-intelligence')
+-- ORDER BY started_at DESC LIMIT 10;
+--
+-- ── Rollback ────────────────────────────────────────────────────────
+--
+-- SELECT cron.unschedule('cron-batch-morning-ritual');
+-- SELECT cron.unschedule('cron-batch-scene-intelligence');
+
+SELECT 1 AS migration_doc_only;
