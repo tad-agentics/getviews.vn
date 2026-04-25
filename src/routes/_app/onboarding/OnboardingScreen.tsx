@@ -312,7 +312,8 @@ function NicheGrid({
         })}
       </div>
       <p className="mt-3 text-[11px] text-[color:var(--gv-ink-4)]">
-        Nhấn lần đầu để chọn. Ngách chọn đầu tiên là ngách trọng tâm — đổi thứ tự bằng cách bỏ chọn rồi chọn lại theo thứ tự mong muốn.
+        Nhấn để bật hoặc tắt ngách. Ngách trọng tâm là mục đầu danh sách; ngách bật sau sẽ nằm cuối. Muốn đúng thứ tự ưu tiên, bỏ
+        chọn hết rồi bật lần lượt từ ngách quan trọng nhất. Sau khi vào app, đổi trọng tâm nhanh ở mục Ngách của bạn trên thanh bên.
       </p>
     </div>
   );

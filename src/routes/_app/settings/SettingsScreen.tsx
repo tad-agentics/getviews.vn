@@ -27,7 +27,6 @@ const SETTINGS_SECTIONS = [
   { id: "profile", label: "Hồ Sơ" },
   { id: "niches", label: "Ngách & Đối Thủ" },
   { id: "alerts", label: "Cảnh Báo" },
-  { id: "export", label: "Xuất Dữ Liệu" },
   { id: "billing", label: "Gói & Thanh Toán" },
   { id: "team", label: "Nhóm" },
 ] as const;
@@ -573,8 +572,9 @@ function NichePanel({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
     >
       <p className="text-sm text-[color:var(--gv-ink-3)]">
-        Chọn ít nhất {MIN_CREATOR_NICHES} ngách (tối đa {MAX_CREATOR_NICHES}). Ngách chọn đầu tiên là trọng tâm — bỏ chọn
-        rồi chọn lại để đổi thứ tự.
+        Chọn ít nhất {MIN_CREATOR_NICHES} ngách (tối đa {MAX_CREATOR_NICHES}). Ngách có nhãn trọng tâm là ngách đang ưu tiên
+        cho gợi ý và ritual. Để đổi trọng tâm, bấm ngách đó trong mục Ngách của bạn trên thanh bên; ở đây bạn chỉ thêm hoặc
+        bỏ ngách (ngách bật sau cùng sẽ nằm cuối danh sách).
       </p>
       <p className="text-[12px] text-[color:var(--gv-ink-4)]">
         Đã chọn <span className="font-medium text-[color:var(--gv-ink)]">{selected.length}</span> /{" "}
@@ -937,10 +937,6 @@ export default function SettingsScreen() {
               ) : null}
 
               {activeSection === "alerts" ? <AlertsPanel /> : null}
-
-              {activeSection === "export" ? (
-                <PlaceholderSection message="Đang phát triển — xuất dữ liệu sẽ có trong bản cập nhật tới." />
-              ) : null}
 
               {activeSection === "billing" ? (
                 <div className="space-y-8">
