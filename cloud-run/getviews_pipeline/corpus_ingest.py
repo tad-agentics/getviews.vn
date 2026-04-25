@@ -56,6 +56,16 @@ logger = logging.getLogger(__name__)
 
 BATCH_VIDEOS_PER_NICHE = int(os.environ.get("BATCH_VIDEOS_PER_NICHE", "10"))
 BATCH_RECENCY_DAYS = int(os.environ.get("BATCH_RECENCY_DAYS", "30"))
+
+# Wave 5+ Phase 2 — thin-niche prioritization. Per-batch quota multiplier
+# computed from each niche's gap to ``CORPUS_TARGET_PER_NICHE``: thin
+# niches get up to ``THIN_NICHE_MAX_MULTIPLIER`` × the base
+# BATCH_VIDEOS_PER_NICHE, rich niches stay at 1×. Helps the matcher +
+# niche_intelligence aggregates close gaps faster on undersized corpora
+# without inflating ED burn on niches that already have plenty of rows.
+# See artifacts/docs/implementation-plan.md Wave 5+ growth-continuation.
+CORPUS_TARGET_PER_NICHE = int(os.environ.get("CORPUS_TARGET_PER_NICHE", "200"))
+THIN_NICHE_MAX_MULTIPLIER = float(os.environ.get("THIN_NICHE_MAX_MULTIPLIER", "3.0"))
 BATCH_MAX_FAILURES = int(os.environ.get("BATCH_MAX_FAILURES", "3"))
 BATCH_CONCURRENCY = int(os.environ.get("BATCH_CONCURRENCY", "4"))
 
@@ -131,6 +141,84 @@ class BatchSummary:
     niches_processed: int = 0
     niche_results: list[dict[str, Any]] = field(default_factory=list)
     materialized_view_refreshed: bool = False
+    # Wave 5+ Phase 2 — per-niche quota allocation snapshot. Empty list
+    # when deep_pool overrode vpn (no per-niche calc) or when the niche-
+    # count fetch failed (the prioritization fail-opens to the uniform
+    # default). One entry per niche: niche_id, niche_name, current_count,
+    # multiplier, allocated_vpn.
+    thin_niche_allocations: list[dict[str, Any]] = field(default_factory=list)
+
+
+# ── Thin-niche prioritization (Wave 5+ Phase 2) ────────────────────────────────
+
+
+def compute_thin_niche_multiplier(
+    current_count: int,
+    *,
+    target: int = CORPUS_TARGET_PER_NICHE,
+    max_multiplier: float = THIN_NICHE_MAX_MULTIPLIER,
+) -> float:
+    """Per-niche quota multiplier in the closed range ``[1.0, max_multiplier]``.
+
+    * ``current_count >= target`` → ``1.0`` (at/above target, no boost)
+    * ``current_count == 0``      → ``max_multiplier``
+    * linear in the gap fraction between them.
+
+    Pure function; unit-tested in isolation. Behaviour tuned so a ``200``
+    target with 3× cap gives a rich 184-row niche ~1.08× (negligible
+    extra) and a near-empty 14-row niche ~2.86× (catches up fast).
+    """
+    if target <= 0 or max_multiplier <= 1.0:
+        return 1.0
+    gap = max(0, target - max(0, int(current_count)))
+    gap_fraction = gap / target  # 0.0 at target, 1.0 when empty
+    return 1.0 + (max_multiplier - 1.0) * gap_fraction
+
+
+def apply_thin_niche_multiplier(
+    base_vpn: int,
+    multiplier: float,
+    *,
+    hard_cap: int | None = None,
+) -> int:
+    """Apply the multiplier to ``base_vpn`` and round up to at least 1.
+
+    ``hard_cap`` caps the result so a future misconfig (5× multiplier
+    with 50 base) doesn't blow the ED budget. Caller typically passes
+    ``base_vpn * max_multiplier`` rounded up.
+    """
+    raw = max(1, int(round(base_vpn * max(1.0, multiplier))))
+    if hard_cap is not None:
+        raw = min(raw, hard_cap)
+    return raw
+
+
+def _fetch_niche_counts_sync(client: Any) -> dict[int, int]:
+    """Return ``{niche_id: row_count}`` for every niche in video_corpus.
+
+    Used by ``run_batch_ingest`` to compute per-niche quota multipliers
+    before dispatching. Fails open to an empty dict on any DB error —
+    the batch then runs with the default (uniform) quota, which is the
+    pre-Phase-2 behaviour.
+    """
+    try:
+        resp = (
+            client.table("video_corpus")
+            .select("niche_id")
+            .not_.is_("niche_id", "null")
+            .limit(50_000)  # well over any realistic corpus size
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning("[corpus] niche-count fetch failed (non-fatal): %s", exc)
+        return {}
+    counts: dict[int, int] = {}
+    for row in resp.data or []:
+        nid = row.get("niche_id")
+        if nid is None:
+            continue
+        counts[int(nid)] = counts.get(int(nid), 0) + 1
+    return counts
 
 
 # ── Supabase service-role client ────────────────────────────────────────────────
@@ -1674,6 +1762,52 @@ async def run_batch_ingest(
             cpn,
         )
 
+    # Wave 5+ Phase 2 — per-niche quota prioritization. When ``vpn`` is
+    # not pinned by ``deep_pool``, compute a per-niche video quota from
+    # each niche's current corpus count: thin niches get up to
+    # ``THIN_NICHE_MAX_MULTIPLIER`` × the base BATCH_VIDEOS_PER_NICHE,
+    # rich niches stay at 1×. The hard cap prevents a future misconfig
+    # from blowing the ED budget.
+    per_niche_vpn: dict[int, int] = {}
+    niche_allocation_log: list[dict[str, Any]] = []
+    if vpn is None:
+        niche_counts = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _fetch_niche_counts_sync(client),
+        )
+        hard_cap = int(BATCH_VIDEOS_PER_NICHE * THIN_NICHE_MAX_MULTIPLIER)
+        for n in niches:
+            nid = int(n["id"])
+            current = niche_counts.get(nid, 0)
+            mult = compute_thin_niche_multiplier(current)
+            allocated = apply_thin_niche_multiplier(
+                BATCH_VIDEOS_PER_NICHE, mult, hard_cap=hard_cap,
+            )
+            per_niche_vpn[nid] = allocated
+            niche_allocation_log.append({
+                "niche_id": nid,
+                "niche_name": n.get("name_en") or n.get("name_vn") or str(nid),
+                "current_count": current,
+                "multiplier": round(mult, 2),
+                "allocated_vpn": allocated,
+            })
+        # Log the allocation so dogfood + batch_observability can see
+        # which niches got prioritized this run.
+        top5 = sorted(
+            niche_allocation_log,
+            key=lambda a: a["allocated_vpn"],
+            reverse=True,
+        )[:5]
+        allocation_summary = ", ".join(
+            f"{a['niche_name']}:{a['current_count']}→{a['allocated_vpn']}"
+            for a in top5
+        )
+        logger.info(
+            "[corpus] thin-niche prioritization — target=%d, max_mult=%.1f. "
+            "Top-5 allocations: %s",
+            CORPUS_TARGET_PER_NICHE, THIN_NICHE_MAX_MULTIPLIER, allocation_summary,
+        )
+        summary.thin_niche_allocations = niche_allocation_log
+
     logger.info("[corpus] Starting batch ingest for %d niches", len(niches))
 
     eff_kw_pages = kw if kw is not None else BATCH_KEYWORD_PAGES
@@ -1699,7 +1833,13 @@ async def run_batch_ingest(
                         n,
                         client,
                         keyword_pages_override=kw,
-                        videos_per_niche_override=vpn,
+                        # Per-niche vpn when thin-niche prioritization is
+                        # active (``vpn is None``); falls back to the
+                        # uniform ``vpn`` from deep_pool mode otherwise.
+                        videos_per_niche_override=(
+                            vpn if vpn is not None
+                            else per_niche_vpn.get(int(n["id"]))
+                        ),
                         carousels_per_niche_override=cpn,
                         hashtag_yields_for_niche=hashtag_yields_all.get(int(n["id"]), {}),
                     )
