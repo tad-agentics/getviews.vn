@@ -11,7 +11,7 @@ export type ScriptForecastBarProps = {
   /** When set, enables the save CTA (same flow as ScriptScreen `handleSave`). */
   onSaveDraft?: () => void | Promise<void>;
   savePending?: boolean;
-  /** Draft already persisted this session (e.g. after Copy/PDF); label shows "Đã lưu". */
+  /** Draft already persisted this session (e.g. after Copy); label shows "Đã lưu". */
   saved?: boolean;
 };
 

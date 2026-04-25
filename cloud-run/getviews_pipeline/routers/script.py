@@ -167,8 +167,8 @@ async def script_draft_export(
     body: DraftExportBody,
     user: dict[str, Any] = Depends(require_user),
 ) -> Response:
-    """Export the draft as clipboard-friendly text or PDF."""
-    from getviews_pipeline.script_save import DraftNotFoundError, PdfRenderError, export_draft, fetch_draft
+    """Export the draft as clipboard-friendly text."""
+    from getviews_pipeline.script_save import DraftNotFoundError, export_draft, fetch_draft
 
     sb = user_supabase(user["access_token"])
     try:
@@ -178,14 +178,8 @@ async def script_draft_export(
 
     try:
         payload, content_type = await run_sync(export_draft, draft, fmt=body.format)
-    except PdfRenderError as exc:
-        return JSONResponse(status_code=503, content={"error": "pdf_unavailable", "detail": str(exc)})
     except Exception as exc:
         logger.exception("[script/drafts/%s/export] failed: %s", draft_id, exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    headers: dict[str, str] = {}
-    if body.format == "pdf":
-        safe_slug = (draft.get("topic") or "kich-ban").strip().replace("\n", " ")[:64]
-        headers["Content-Disposition"] = f'attachment; filename="{safe_slug}.pdf"'
-    return Response(content=payload, media_type=content_type, headers=headers)
+    return Response(content=payload, media_type=content_type)

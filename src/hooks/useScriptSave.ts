@@ -112,25 +112,17 @@ export interface ScriptExportCopyResult {
   text: string;
 }
 
-export interface ScriptExportPdfResult {
-  format: "pdf";
-  blob: Blob;
-  filename: string;
-}
-
 /**
- * Invoke `POST /script/drafts/:id/export`. Copy path returns the plain text
- * for clipboard; PDF path returns a Blob ready for `URL.createObjectURL` +
- * click-to-download. 503 maps to a distinctive error so the UI can surface
- * "PDF tạm thời không khả dụng" without treating it like a transient fail.
+ * Invoke `POST /script/drafts/:id/export`. Returns the plain text for
+ * clipboard paste (Zalo / notes apps).
  */
 export function useScriptExport() {
   return useMutation<
-    ScriptExportCopyResult | ScriptExportPdfResult,
+    ScriptExportCopyResult,
     Error,
-    { draftId: string; format: "copy" | "pdf"; filenameHint?: string }
+    { draftId: string }
   >({
-    mutationFn: async ({ draftId, format, filenameHint }) => {
+    mutationFn: async ({ draftId }) => {
       const base = baseOrThrow();
       const token = await authToken();
       const res = await fetchWithTimeout(
@@ -141,29 +133,17 @@ export function useScriptExport() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ format }),
-          timeoutMs: 45_000,
+          body: JSON.stringify({ format: "copy" }),
+          timeoutMs: 30_000,
         },
       );
       if (res.status === 401) {
         throwSessionExpired("401_from_cloud_run");
       }
-      if (res.status === 503) {
-        const err = new Error("pdf_unavailable");
-        err.name = "PdfUnavailable";
-        throw err;
-      }
       if (!res.ok) {
         throw new Error(await readErrorDetail(res));
       }
-      if (format === "copy") {
-        return { format: "copy", text: await res.text() };
-      }
-      const blob = await res.blob();
-      const disposition = res.headers.get("Content-Disposition") ?? "";
-      const match = /filename="([^"]+)"/.exec(disposition);
-      const filename = match?.[1] ?? `${filenameHint ?? "kich-ban"}.pdf`;
-      return { format: "pdf", blob, filename };
+      return { format: "copy", text: await res.text() };
     },
   });
 }

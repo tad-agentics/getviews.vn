@@ -6,26 +6,22 @@ Covers the four endpoints' unit-level logic in isolation from FastAPI:
   * fetch_draft: DraftNotFoundError when RLS hides or id is unknown
   * format_draft_for_copy: Zalo-friendly plain-text shape
   * export_draft (copy path): content_type wiring
-  * render_draft_pdf: PdfRenderError when WeasyPrint missing (default in CI)
 """
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from getviews_pipeline.script_save import (
     DraftCreateBody,
     DraftNotFoundError,
-    PdfRenderError,
-    _draft_pdf_html,
     export_draft,
     fetch_draft,
     format_draft_for_copy,
     insert_draft,
     list_drafts,
-    render_draft_pdf,
 )
 
 
@@ -183,7 +179,7 @@ def test_format_draft_for_copy_skips_overlay_none_and_empty_fields():
     assert "Viz:   Texture" in out
 
 
-# ── export_draft + render_draft_pdf ───────────────────────────────────────
+# ── export_draft ──────────────────────────────────────────────────────────
 
 
 def test_export_draft_copy_returns_text_and_content_type():
@@ -200,50 +196,8 @@ def test_export_draft_copy_returns_text_and_content_type():
     assert "[KỊCH BẢN] X" in payload
 
 
-def test_export_draft_pdf_raises_pdf_render_error_when_weasyprint_missing():
-    """WeasyPrint is not installed in the dev venv — assert we wrap the
-    ImportError so the HTTP layer can return 503."""
-    draft = {
-        "topic": "X",
-        "hook": "H",
-        "tone": "T",
-        "duration_sec": 15,
-        "shots": [],
-    }
-    with pytest.raises(PdfRenderError):
-        render_draft_pdf(draft)
-
-
-def test_export_draft_pdf_ok_when_weasyprint_available():
-    """When the dep is present, export_draft returns bytes + pdf mime type."""
-    class FakeHTML:
-        def __init__(self, *, string: str):
-            self.string = string
-
-        def write_pdf(self) -> bytes:
-            return b"%PDF-1.4\n%fake-pdf-bytes"
-
-    fake_mod = type("M", (), {"HTML": FakeHTML})
-    with patch.dict("sys.modules", {"weasyprint": fake_mod}):
-        payload, ct = export_draft(
-            {"topic": "X", "hook": "H", "tone": "T", "duration_sec": 15, "shots": []},
-            fmt="pdf",
-        )
-    assert isinstance(payload, bytes)
-    assert payload.startswith(b"%PDF")
-    assert ct == "application/pdf"
-
-
-def test_draft_pdf_html_escapes_user_content():
-    """XSS defence in depth — topics/voices can't inject markup into the PDF."""
-    draft = {
-        "topic": "<script>alert(1)</script>",
-        "hook": "\"quoted\"",
-        "tone": "T",
-        "duration_sec": 15,
-        "shots": [{"t0": 0, "t1": 5, "cam": "<b>bold</b>", "voice": "", "viz": "", "overlay": "NONE"}],
-    }
-    out = _draft_pdf_html(draft)
-    assert "<script>alert(1)</script>" not in out
-    assert "&lt;script&gt;" in out
-    assert "&lt;b&gt;bold&lt;/b&gt;" in out
+def test_export_draft_unknown_format_raises():
+    """Unknown ``fmt`` (e.g. legacy 'pdf' caller) gets a clear error."""
+    draft = {"topic": "X", "hook": "H", "tone": "T", "duration_sec": 15, "shots": []}
+    with pytest.raises(ValueError, match="unknown export format"):
+        export_draft(draft, fmt="pdf")  # type: ignore[arg-type]
