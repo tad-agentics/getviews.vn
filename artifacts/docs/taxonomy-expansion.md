@@ -338,3 +338,134 @@ test to catch this — if any existing `tutorial` / `recipe` row
 for niche 17 flips to `gameplay`, that's a signal the heuristic
 is too loose.
 
+---
+
+## 8. Implementation plan
+
+### 8.1 File-by-file change list
+
+Per the taxonomy-lock docstring in
+`cloud-run/getviews_pipeline/corpus_ingest.py:564`, a single
+migration must touch ALL of the following — partial landings
+degrade silently. Estimated ~1 week total:
+
+| File | Change | Cost |
+|---|---|---|
+| `cloud-run/getviews_pipeline/corpus_ingest.py` | Extend `classify_format` with 4 new branches per §6 heuristics; insert at the §7 priority positions; update the TAXONOMY LOCK docstring to say 19 values not 15. | 0.5d |
+| `cloud-run/getviews_pipeline/output_redesign.py` | Add 4 keys to `FORMAT_ANALYSIS_WEIGHTS` with §6 skeletons; update `get_analysis_focus()` switch to route the new formats to format-specific prompt snippets. | 1d (prompt copy is the long pole) |
+| `cloud-run/getviews_pipeline/gemini.py` | No code change — it just passes `content_format` through. Verify via grep that no call site hardcoded a 15-value check. | 0.1d |
+| `cloud-run/getviews_pipeline/layer0_niche.py` | Formula detection (top hook × format) re-runs on next Layer 0 cron tick — no code change but dogfood the output to confirm new formats surface in top-formula rankings where expected (gameplay × curiosity_gap hook, comedy_skit × bold_claim, etc.). | 0.2d verify |
+| `cloud-run/getviews_pipeline/layer0_migration.py` | Migration grouping key is `content_format` — will automatically pick up new values. No code change; verify via dogfood. | 0.1d verify |
+| `niche_intelligence` MV definition | `format_distribution` JSONB aggregates over `video_corpus.content_format` — MV refresh picks up new values automatically. No schema change; run `refresh_niche_intelligence()` after the backfill. | 0.2d verify |
+| `cloud-run/getviews_pipeline/prompts.py` | `format_distribution` is injected via `corpus_citation` block; new format keys flow through unchanged. Spot-check 3 diagnosis prompts to confirm Gemini handles the new bucket names gracefully. | 0.1d |
+| `content_format_reclassify.py` backfill | Re-run over existing `other` rows; re-classifier pushes the ~322 matching rows into their new buckets. Zero Gemini cost (regex only). | 0.3d + the actual run |
+| `tests/test_classify_format.py` | Add ~6 regression tests per new bucket (24 total): positive match + priority-order interactions (e.g. niche-17 tutorial stays tutorial) + defensive negatives. | 0.5d |
+| `tests/test_classifier_eval.py` + golden set | Add 3 golden items per new bucket (12 items) to the existing 54-item set. Re-measure accuracy + adjust the floor if needed; new set expected to be ~60 items at ≥ 0.88 floor. | 0.5d |
+| `artifacts/docs/implementation-plan.md` | Update Wave 5+ "Taxonomy expansion" row: ongoing → shipped; add a note pointing at this doc. | 0.1d |
+
+**Total: ~3.6 engineering days** (conservative). Previously estimated
+at ~1 week in the implementation plan because of the coordination
+cost of touching 7 files atomically; the per-file work itself is
+small but the deploy sequence matters.
+
+### 8.2 Backfill strategy
+
+Atomic migration window:
+
+1. Land all 7 file changes in a single PR. Do not merge partial —
+   rolling one piece to main without the rest leaves the system in a
+   mixed-state where new rows use the new taxonomy but
+   `FORMAT_ANALYSIS_WEIGHTS` doesn't know about them (diagnosis
+   prompts silently fall through to the `other` signal weights).
+2. Deploy Cloud Run with the new classifier.
+3. Run `content_format_reclassify.py` over existing rows — zero
+   Gemini cost, ~45s for 1,830 rows. It re-runs `classify_format` on
+   `analysis_json` → UPDATE where the result differs. Log per-bucket
+   flip count for the commit (d) decision log.
+4. `SELECT refresh_niche_intelligence()` to re-aggregate
+   `format_distribution` with the new values.
+5. Spot-verify one diagnosis session per new bucket (4 total)
+   hitting prod to confirm the prompt routing works end-to-end
+   through `FORMAT_ANALYSIS_WEIGHTS`.
+
+No data loss risk — the reclassifier only UPDATEs, never DELETEs,
+and if a re-classification flips an `other` to a wrong bucket the
+next `content_format_reclassify` run can fix it after a heuristic
+tweak.
+
+### 8.3 Validation gates (go/defer decision)
+
+The implementation is conditional on clearing all four:
+
+| Gate | Measurement | Threshold |
+|---|---|---|
+| `other` residual shrink | Post-backfill: `SELECT COUNT(*) FROM video_corpus WHERE content_format='other'` vs pre-backfill 669 | ≥ 40% drop (i.e. ≤ 400 rows remain `other`) |
+| Eval accuracy preserved | `python -m pytest tests/test_classifier_eval.py` | MIN_ACCURACY stays ≥ 0.85 (tighter than the Wave 5+ 0.88 floor because the 12 new golden items should all pass) |
+| No legacy miss-flips | Per priority-shift risk in §7: `SELECT content_format FROM video_corpus WHERE content_format != @prev_value AND @prev_value IN ('tutorial','recipe','mukbang','grwm','review')` | Fewer than 5 existing core-bucket rows flip to a new bucket |
+| Diagnosis dogfood | 4 sessions (one per new bucket) reviewed by 2 reviewers each | Both reviewers rate "format-specific framing is materially better than it was on 'other'" for at least 3/4 sessions |
+
+**If any gate fails:** revert the reclassifier UPDATE, keep the
+code merged (it's a no-op on the `other` rows without the
+backfill), file a follow-up PR with the bucket heuristic tuned,
+re-run the backfill + gates.
+
+### 8.4 Calendar
+
+| Phase | Work | Days |
+|---|---|---|
+| 1 — PR assembly | §8.1 file changes + tests + golden set items | 3.5d |
+| 2 — Ship | Merge, deploy, run backfill, refresh MV, verify dogfood | 0.5d |
+| 3 — Dogfood + tune | 4 sessions across the new buckets; heuristic tweaks if any gate fails | 1-2d |
+
+**Total: ~5-6 working days** to ship + soak. Factor in 2-3 days for
+review cycles → **~1-1.5 weeks calendar**.
+
+---
+
+## 9. Out of scope for v1
+
+- **Niche-specific sub-buckets.** `gameplay` could split into
+  `esports_highlight` vs `gameplay_walkthrough` vs `game_news` if
+  downstream reports benefit. Defer until the single `gameplay`
+  bucket is live + the format_distribution reveals whether the
+  splits matter.
+- **News as a bucket.** The remaining 52% `other` includes a
+  recognizable news-clip cohort (crime reports, sports news,
+  entertainment news). News is tempting but heterogeneous underneath
+  — forcing a rule like "authoritative tone + recent-event topics"
+  would capture legitimate analysis content too. Revisit when the
+  classifier has per-niche gating sophistication to distinguish
+  "niche-specific news" from generic news.
+- **Music performance / livestream recap** as dedicated buckets.
+  Edge cohorts that would clear test 1 (≥5%) only on specific
+  niches. Defer.
+- **Gemini-backed classification.** The M.8 proposal the taxonomy-
+  lock docstring mentions. Out of scope here — separate design doc
+  needed if the regex path saturates after this expansion.
+
+---
+
+## 10. Re-evaluation triggers
+
+Re-open this design doc + revisit scope when ANY of these land:
+
+| Trigger | Why it matters |
+|---|---|
+| Post-backfill `other` residual stays ≥ 30% | Expansion under-shot — add another round of buckets. |
+| Any new bucket sees < 2% usage after 30 days of ingest | Heuristic too narrow or the content cohort genuinely doesn't exist in steady-state. Remove the bucket before it pollutes reports. |
+| `format_distribution` in niche 17/13/11/6/16/21 still reads "other: 30%+" | Backfill worked but new ingests land too many rows in `other` — heuristic tuning or additional bucket. |
+| Gemini-classification cost drops to < $0.001/video | The deferred M.8 proposal becomes economical. Revisit vs regex. |
+| Per-niche split demand surfaces in dogfood | Evidence creators want the `gameplay → esports_highlight` split (see §9). |
+
+---
+
+## 11. Decision log
+
+| Date | Decision | Outcome |
+|---|---|---|
+| 2026-05-13 | Design doc committed (a)+(b)+(c). Awaiting greenlight on Path A (4-bucket scoped expansion) vs Path B (accept `other`). | — |
+
+Future re-runs append here. Don't squash — decision history is
+load-bearing for a 7-layer-atomic refactor.
+
+
