@@ -191,14 +191,21 @@ def test_post_graduation_business_narrative_routes_to_vlog() -> None:
 # ── storytelling — pins drama/skit + southern dialect ───────────────
 
 
-def test_drama_skit_topic_routes_to_storytelling() -> None:
-    """Regression for eval miss: Southern-dialect drama skit with
-    'drama, skit' topics was falling through to 'other'."""
+def test_drama_skit_topic_routes_to_comedy_skit_post_taxonomy_expansion() -> None:
+    """Post-Wave-5+ taxonomy expansion: 'skit'-topic rows in niche 13
+    now claim ``comedy_skit`` (scripted dialogue comedy) rather than
+    ``storytelling`` (narrative recall). The 'skit' token is a
+    stronger signal for dialogue comedy than the ``hoàn cảnh`` token
+    is for narrative recall, so the priority order reflects that.
+
+    This test was previously pinned to ``storytelling`` as a
+    pre-taxonomy-expansion compromise; the update is the intended
+    semantic improvement."""
     analysis = _analysis(
         "tui đứng thất vọng với bà luôn á, cái hoàn cảnh nhà thằng Nhật",
         topics=["drama", "skit", "school life"],
     )
-    assert classify_format(analysis, niche_id=13) == "storytelling"
+    assert classify_format(analysis, niche_id=13) == "comedy_skit"
 
 
 def test_hoan_canh_routes_to_storytelling() -> None:

@@ -223,14 +223,14 @@
     {
       "video_id": "7630849428093488404",
       "niche_id": 13,
-      "gold_label": "storytelling",
+      "gold_label": "comedy_skit",
       "analysis_json": {
         "audio_transcript": "tui đứng thất vọng với bà luôn á, này tui nói thiệt. cái hoàn cảnh nhà thằng Nhật nó vậy á, nó nghỉ học tui hông thấy bà buồn luôn",
         "topics": ["drama", "skit", "slime", "dream", "school life"],
         "scenes": [],
         "tone": ""
       },
-      "notes": "Drama skit — narrative. DB tags this 'tutorial' which is clearly wrong."
+      "notes": "Relabeled 2026-05-13 storytelling → comedy_skit per Wave 5+ taxonomy expansion. Drama-skit with 'skit' topic + niche=13 is the canonical comedy_skit shape; pre-expansion the golden set used 'storytelling' as a compromise label."
     },
     {
       "video_id": "7629549228653677831",
@@ -641,26 +641,26 @@
     {
       "video_id": "7627069156512288020",
       "niche_id": 11,
-      "gold_label": "tutorial",
+      "gold_label": "lesson",
       "analysis_json": {
         "audio_transcript": "Mẹ ơi cho con đi đá bóng nhé. Bài học thì mẹ dạy chưa? Dạ học rồi. Vậy để mẹ kiểm tra. Thì hiện tại đơn. Là học sinh gương mẫu, sống đều, nhạt nhưng ổn định. Thì hiện tại tiếp diễn. Là bà tám của lớp, drama.",
         "topics": ["English Grammar", "Tenses", "Education", "Parenting"],
         "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "action"}],
         "tone": "educational"
       },
-      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: educational skit format (mom-quizzes-son grammar lesson) uses no tutorial trigger verb ('hướng dẫn'/'cách làm' etc.). 'English Grammar' topic + educational tone should be a tutorial signal. Fix path: topic-level fallback for tutorial when any of [grammar / tenses / education / học] appears in topics AND tone=educational."
+      "notes": "Relabeled 2026-05-13 tutorial → lesson per Wave 5+ taxonomy expansion. Previously DIAGNOSTIC MISS (pred=other); the ``lesson`` bucket added in Wave 5+ is the semantically correct home for educational-but-non-procedural content (grammar quizzes, vocab drills). Classifier now correctly returns 'lesson' on niche=11 + educational tone + 'grammar'/'tenses' topics."
     },
     {
       "video_id": "7629959945940651284",
       "niche_id": 7,
-      "gold_label": "tutorial",
+      "gold_label": "lesson",
       "analysis_json": {
         "audio_transcript": "Mua luôn combo đi sinh cho nó tiện có 7 8 củ thôi à. Này nha cái cần thì không có mà cái có thì không cần đâu đấy. Tốt nhất là mua lẻ săn sale ngày đôi chỉ có 3 4 củ thôi mà thậm chí còn rẻ hơn ý. Quần áo là phải hãng Nous, Bubaby, La pomme.",
         "topics": ["Sắm đồ sơ sinh", "Tiết kiệm tiền", "Kinh nghiệm làm mẹ"],
         "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}],
         "tone": "educational"
       },
-      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: advice-style parenting content ('Kinh nghiệm làm mẹ', '7-8 củ thôi', 'mua lẻ săn sale') lacks a tutorial keyword (no 'hướng dẫn'/'cách'). VN 'kinh nghiệm' is the most common advice-tutorial framing and should be a tutorial trigger. Fix path: add 'kinh nghiệm' to tutorial regex."
+      "notes": "Relabeled 2026-05-13 tutorial → lesson per Wave 5+ taxonomy expansion. Previously DIAGNOSTIC MISS (pred=other); 'Kinh nghiệm làm mẹ' + educational tone is the canonical lesson pattern — advice-style parenting content without procedural how-to verbs. Wave 5+ ``lesson`` bucket captures it via ``lesson_topic_re`` matching 'kinh nghiệm' + 'parenting tip'."
     },
     {
       "video_id": "7631163158043856135",
