@@ -479,15 +479,17 @@ def test_tutorial_wins_over_lesson_when_procedural_verbs_present() -> None:
 # music transcript gate. Intentionally last so tighter buckets claim
 # their rows first.
 
-def test_niche_6_inspirational_short_clip_fires_highlight() -> None:
-    """Music + inspirational tone + ≥4 scenes + short transcript = highlight."""
+def test_niche_21_inspirational_short_clip_fires_highlight() -> None:
+    """Music + inspirational tone + ≥4 scenes + short transcript = highlight.
+    Uses niche 21 (Sports) — niche 6 was retired 2026-04-25 because its
+    rows were dominated by showbiz aggregators rather than real creators."""
     analysis = _analysis(
         "[âm nhạc]",
-        topics=["entertainment"],
+        topics=["sports"],
         scenes=[{"type": "broll"}] * 5,
         tone="inspirational",
     )
-    assert classify_format(analysis, niche_id=6) == "highlight"
+    assert classify_format(analysis, niche_id=21) == "highlight"
 
 
 def test_niche_16_entertaining_with_music_marker_fires_highlight() -> None:
