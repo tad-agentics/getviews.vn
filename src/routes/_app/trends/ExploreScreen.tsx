@@ -405,14 +405,14 @@ function TrendsHeroCompact({
 
   return (
     <div
-      className="mb-7 grid grid-cols-1 gap-[18px] rounded-[12px] bg-[var(--ink)] px-8 py-7 text-[var(--surface)] min-[1100px]:grid-cols-3 min-[1100px]:gap-8"
+      className="mb-7 grid grid-cols-1 gap-[18px] rounded-[12px] bg-[var(--ink)] px-5 py-6 text-[var(--surface)] sm:px-8 sm:py-7 min-[1100px]:grid-cols-3 min-[1100px]:gap-8"
       aria-label="Tóm tắt tuần theo ngách"
     >
       <div>
         <p className="mb-2 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
           {viWeekKicker()}
         </p>
-        <p className="mb-2 text-[36px] font-semibold leading-none tracking-tight">
+        <p className="mb-2 text-[26px] font-semibold leading-[1.1] tracking-tight text-balance min-[420px]:text-[30px] sm:text-[36px] sm:leading-none">
           {head}{" "}
           <span className="text-[var(--gv-accent)]">được giải mã</span>
         </p>
@@ -430,7 +430,7 @@ function TrendsHeroCompact({
         <p className="mb-2 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
           Tóm tắt biên tập
         </p>
-        <p className="text-base font-medium leading-snug text-[var(--surface)]">
+        <p className="text-sm font-medium leading-snug text-[var(--surface)] sm:text-base">
           {formatLine}. {hookLine}.
         </p>
       </div>
@@ -895,7 +895,7 @@ export default function ExploreScreen() {
       <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden min-[1100px]:grid-cols-[minmax(0,1fr)_320px]">
         <div
           ref={scrollContainerRef}
-          className="min-h-0 min-w-0 overflow-y-auto border-[var(--border)] px-7 pb-[60px] pt-14 min-[1100px]:border-r min-[1100px]:pt-6"
+          className="min-h-0 min-w-0 overflow-y-auto border-[var(--border)] px-4 pb-[60px] pt-14 sm:px-7 min-[1100px]:border-r min-[1100px]:pt-6"
           style={{ scrollbarWidth: "thin" }}
         >
           {/* ── Zone 1: Discovery + hero (sounds carousel &lt;1100px) ───── */}
