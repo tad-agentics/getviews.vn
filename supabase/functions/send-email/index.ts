@@ -48,6 +48,17 @@ const BodySchema = z.discriminatedUnion("template", [
       html: z.string().min(1),
     }),
   }),
+  // Wave 5+ — daily ops health digest. Same {html} pass-through shape
+  // as monday_digest, distinct template literal so observability /
+  // future per-template throttling can query the two surfaces apart.
+  z.object({
+    to: z.string().email(),
+    subject: z.string().min(1),
+    template: z.literal("daily_health_digest"),
+    data: z.object({
+      html: z.string().min(1),
+    }),
+  }),
 ]);
 
 function requireServiceRole(req: Request): Response | null {
@@ -166,6 +177,13 @@ Deno.serve(async (req) => {
         break;
       }
       case "monday_digest": {
+        subject = body.subject;
+        html = body.data.html;
+        break;
+      }
+      case "daily_health_digest": {
+        // Same pass-through as monday_digest. Discriminator-only
+        // distinction for observability — see BodySchema comment.
         subject = body.subject;
         html = body.data.html;
         break;

@@ -1,0 +1,88 @@
+-- 2026-05-12 — Cron schedule for the daily health digest.
+--
+-- Doc-only migration (mirrors ``20260509000001_pg_cron_data_pipeline.sql``).
+-- The executable lines are commented out — apply via Supabase
+-- Dashboard (Database → Cron) or an authenticated SQL session after
+-- the OPS_DIGEST_RECIPIENTS env var is configured on the
+-- ``cron-daily-health-digest`` Edge Function.
+--
+-- ── Schedule ────────────────────────────────────────────────────────
+--
+-- ``0 1 * * *`` UTC = 08:00 Asia/Ho_Chi_Minh (Vietnam UTC+7).
+-- Lands a "morning summary" at the start of the work day so the
+-- on-call sees the prior 24h's pipeline health before standup.
+--
+-- Why 08:00 Vietnam (not midnight UTC):
+--   * The 24h window captures the previous day's nightly batch
+--     ingest (cron-batch-ingest fires at 0 20 * * * UTC = 03:00
+--     Vietnam) plus the early-morning refresh (30 22 * * * UTC =
+--     05:30 Vietnam). Sending at 01:00 UTC catches both.
+--   * Vietnam business-day open. The digest is for humans, not
+--     automation — fire it when humans are actually awake.
+--
+-- ── Env / secret prerequisites ─────────────────────────────────────
+--
+-- Edge Function ``cron-daily-health-digest`` reads:
+--   SUPABASE_URL                    (auto-injected)
+--   SUPABASE_SERVICE_ROLE_KEY       (auto-injected)
+--   SUPABASE_FUNCTIONS_URL          (optional — defaults to SUPABASE_URL)
+--   OPS_DIGEST_RECIPIENTS           — comma-separated emails. When unset
+--                                     the function returns 200 + skipped:true
+--                                     so the cron can land before recipients
+--                                     are configured.
+--   RESEND_API_KEY                  (used by send-email; already set for
+--                                     monday-digest)
+--
+-- ── To activate (one-time, after deploy + recipients set) ──────────
+--
+--   SELECT cron.schedule(
+--     'cron-daily-health-digest',
+--     '0 1 * * *',
+--     $$
+--     SELECT net.http_post(
+--       url := (SELECT decrypted_secret FROM vault.decrypted_secrets
+--               WHERE name = 'supabase_functions_url')
+--              || '/cron-daily-health-digest',
+--       headers := jsonb_build_object(
+--         'Authorization',
+--         'Bearer ' || (SELECT decrypted_secret FROM vault.decrypted_secrets
+--                       WHERE name = 'supabase_service_role_key')
+--       )
+--     );
+--     $$
+--   );
+--
+-- ── To pause / unpause ──────────────────────────────────────────────
+--
+--   SELECT cron.unschedule('cron-daily-health-digest');           -- pause
+--   -- (re-run the SELECT cron.schedule above to resume)
+--
+-- ── Verification (after a few days of runs) ─────────────────────────
+--
+--   -- Recent invocations + outcome
+--   SELECT runid, start_time, status, return_message
+--   FROM cron.job_run_details
+--   WHERE jobid = (SELECT jobid FROM cron.job
+--                  WHERE jobname = 'cron-daily-health-digest')
+--   ORDER BY start_time DESC LIMIT 7;
+--
+--   -- Should be 7 rows in 7 days, all status='succeeded'.
+--
+-- ── Rationale (Wave 5+ Axis 5 residual) ─────────────────────────────
+--
+-- The implementation plan called this out explicitly:
+--   "Daily health digest · ~1d
+--    New Supabase Edge cron cron-daily-health-digest queries
+--    batch_job_runs + corpus stats + gemini_calls + ED burn from
+--    the last 24h, formats a Vietnamese-language digest, fires via
+--    Resend. Follows the existing cron-email pattern."
+--
+-- The existing alert-rule-cron-failures (Wave 1) fires on incidents
+-- (any failed batch run in 7d). This digest fills the orthogonal
+-- "ambient health" gap — surfaces silent degradation (slow growth,
+-- climbing Gemini cost, Phase 2 prioritization drift) BEFORE it
+-- trips an alert. Two surfaces, complementary not redundant.
+
+-- (no executable DDL in this migration — see comments above for the
+-- one-time SELECT cron.schedule(...) snippet)
+SELECT 1 AS migration_doc_only;
