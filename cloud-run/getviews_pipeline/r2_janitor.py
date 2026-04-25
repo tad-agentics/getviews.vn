@@ -42,11 +42,10 @@ import logging
 import re
 from typing import Any
 
+from getviews_pipeline.config import R2_BUCKET_NAME
 from getviews_pipeline.r2 import _get_r2_client, r2_configured
 
 logger = logging.getLogger(__name__)
-
-from getviews_pipeline.config import R2_BUCKET_NAME
 
 # Key patterns — extract video_id from the R2 object key. Must match
 # the upload paths in r2.py. If a new prefix is added in r2.py, mirror
