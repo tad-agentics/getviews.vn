@@ -136,7 +136,7 @@ export default function HomeScreen() {
             </div>
 
             <h1
-              className="gv-tight mt-0 w-full max-w-[880px] text-[clamp(36px,4.6vw,60px)] leading-[1.02] text-[color:var(--gv-ink)]"
+              className="gv-tight mt-0 w-full max-w-[880px] text-[clamp(36px,4.6vw,60px)] leading-[1.08] text-[color:var(--gv-ink)]"
               style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
             >
               {firstName}, hôm nay{" "}
