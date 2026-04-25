@@ -22,10 +22,15 @@ from getviews_pipeline.eval_classifier import evaluate, load_golden
 # Baseline history:
 #   2026-05-09 initial harness                  — 24/27 = 0.8889
 #   2026-05-09 + has_speech gate, VN additions  — 27/27 = 1.0000
-# Floor at 0.95 tolerates exactly one miss (26/27) before failing. Any
-# genuine regression should be fixed or have a golden-set adjustment
-# landed in the same PR — not papered over by lowering the floor.
-MIN_ACCURACY = 0.95
+#   2026-05-13 Wave 5+ expansion 27 → 48 items  — 48/48 = 1.0000
+# Floor at 0.97 tolerates one miss on the 48-item set (47/48 = 0.979).
+# The 2026-05-13 expansion kept accuracy at 1.0 by only adding items
+# the classifier already handles correctly — coverage grew without
+# false positives or false negatives to exploit. A follow-up PR
+# lands a small set of "diagnostic" misses that DO expose real gaps;
+# when that lands the floor drops to match the new measured value
+# with a single-miss buffer.
+MIN_ACCURACY = 0.97
 
 # Don't regress below this for the 5 highest-traffic buckets. These
 # dominate niche_intelligence.format_distribution — getting them
@@ -36,7 +41,9 @@ MIN_CORE_RECALL = 0.8
 
 def test_golden_set_loads_and_is_nonempty() -> None:
     items = load_golden()
-    assert len(items) >= 20, (
+    # Post-2026-05-13 floor is 40 (Wave 5+ expansion grew the set from
+    # 27 → 48). Shrinking below 40 needs explicit review.
+    assert len(items) >= 40, (
         f"Golden set shrank to {len(items)} items — re-growing it is fine but "
         "inspection required before loosening."
     )
