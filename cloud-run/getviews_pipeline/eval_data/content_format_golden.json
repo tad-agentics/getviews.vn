@@ -673,6 +673,151 @@
         "tone": "conversational"
       },
       "notes": "DIAGNOSTIC MISS — classifier returns 'review'. Gap: food purchase with explicit prices is a haul shape, but 'Food review' topic + review-style tone sends it to review first. VN 'bọn anh mua X là Y đồng' is a canonical food-haul narration pattern. Fix path: boost haul priority when the transcript carries ≥ 2 explicit price tokens (numeric + 000/k/củ)."
+    },
+
+    {
+      "video_id": "7631221301759184145",
+      "niche_id": 17,
+      "gold_label": "gameplay",
+      "analysis_json": {
+        "audio_transcript": "Tâm điểm, quá điểm tâm. Ba không dành cho những bóng ma Sài Thành. SGP lụm hai triệu rồi. Hai trăm triệu dành cho những bóng ma Sài Thành. Một trận thi đấu hoàn toàn trên cơ và hủy diệt.",
+        "topics": ["Esports", "Arena of Valor", "Saigon Phantom", "One Star Esports", "Tournament Highlights"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "action"}, {"type": "action"}],
+        "tone": "entertaining"
+      },
+      "notes": "Wave 5+ gameplay — esports match commentary. Niche=17 gate fires even without a game-title topic match."
+    },
+    {
+      "video_id": "7629315670810889490",
+      "niche_id": 17,
+      "gold_label": "gameplay",
+      "analysis_json": {
+        "audio_transcript": "Từ từ cá làm gì vậy? Trời ơi con boss nó bự chà bá luôn kìa, cái đầu nó đâu rồi? Má coi hai thằng kìa. Trời ơi. Ghê thiệt chứ. Mấy thằng này nó bự quá. Chạy chạy chạy chạy chạy.",
+        "topics": ["Gaming", "Arena of Valor", "Liên Quân Mobile", "Game Glitch"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "action"}, {"type": "action"}, {"type": "face_to_camera"}],
+        "tone": "entertaining"
+      },
+      "notes": "Wave 5+ gameplay — real-time reaction commentary to an in-game bug. Topics carry 'Arena of Valor' / 'Liên Quân Mobile' game-title matches."
+    },
+    {
+      "video_id": "gold-gameplay-0003",
+      "niche_id": 9,
+      "gold_label": "gameplay",
+      "analysis_json": {
+        "audio_transcript": "Cùng xem qua hiệu ứng skin mới Attack on Titan. Honor of Kings chuẩn bị ra mắt Eren Jaeger. Game này có event rất lớn.",
+        "topics": ["Honor of Kings", "Attack on Titan", "Gaming", "Mobile Games"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "action"}],
+        "tone": "educational"
+      },
+      "notes": "Wave 5+ gameplay (synthetic) — game-title topic match (Honor of Kings + Attack on Titan) fires gameplay even in niche 9 (Technology). Tests the niche-agnostic topic path."
+    },
+    {
+      "video_id": "7627063619431173394",
+      "niche_id": 13,
+      "gold_label": "comedy_skit",
+      "analysis_json": {
+        "audio_transcript": "Ai dza! Nhìn đi! Trời ơi! Hai đứa con này phá cả chậu hoa rồi! Nó quậy quá luôn mà.",
+        "topics": ["family chaos", "parenting", "funny kids", "home accidents"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "action"}],
+        "tone": "humorous"
+      },
+      "notes": "Wave 5+ comedy_skit — 'family chaos' topic match fires strict_re even without niche=13 gate. Tests the cross-niche topic path."
+    },
+    {
+      "video_id": "gold-comedy-skit-0002",
+      "niche_id": 13,
+      "gold_label": "comedy_skit",
+      "analysis_json": {
+        "audio_transcript": "Em ơi anh thương em! Thương cái đầu mày! [cười] Prank chồng xong rồi nè.",
+        "topics": ["prank", "couple comedy", "Vietnamese humor"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "humorous"
+      },
+      "notes": "Wave 5+ comedy_skit (synthetic) — 'prank' strict match + niche=13 double-hit. Tests the prank pattern."
+    },
+    {
+      "video_id": "gold-comedy-skit-0003",
+      "niche_id": 13,
+      "gold_label": "comedy_skit",
+      "analysis_json": {
+        "audio_transcript": "Hai anh em mình cùng dựng một tiểu phẩm nhỏ cho các bác xem. Cảnh 1: chồng đi làm về sớm. Cảnh 2: vợ đang đi chợ.",
+        "topics": ["tiểu phẩm", "skit", "family humor"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "action"}],
+        "tone": "humorous"
+      },
+      "notes": "Wave 5+ comedy_skit (synthetic) — VN 'tiểu phẩm' direct match. Tests Vietnamese vocabulary branch."
+    },
+    {
+      "video_id": "7625175775603330311",
+      "niche_id": 11,
+      "gold_label": "lesson",
+      "analysis_json": {
+        "audio_transcript": "Bài 2. 학교. 학교. Trường học. 도서관. 도서관. Thư viện. 식당. 식당. Nhà hàng, nhà ăn. 호텔. 호텔. Khách sạn. 극장. 극장. Rạp phim.",
+        "topics": ["Tiếng Hàn", "Từ vựng", "Sơ cấp"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "educational"
+      },
+      "notes": "Wave 5+ lesson — Korean vocab drill. Niche=11 + educational tone + 'từ vựng' + 'bài học' topic matches. Canonical lesson shape."
+    },
+    {
+      "video_id": "gold-lesson-0002",
+      "niche_id": 11,
+      "gold_label": "lesson",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình dạy các bạn bài học về thì hiện tại tiếp diễn trong tiếng Anh. Grammar này cực kỳ quan trọng.",
+        "topics": ["English Grammar", "Tenses", "language learning"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}],
+        "tone": "educational"
+      },
+      "notes": "Wave 5+ lesson (synthetic) — English grammar teaching. 'Grammar' + 'Tenses' topic + niche=11 + educational tone. Tests lesson vs tutorial boundary (no 'hướng dẫn'/'cách làm'/'bước' verbs → lesson)."
+    },
+    {
+      "video_id": "gold-lesson-0003",
+      "niche_id": 15,
+      "gold_label": "lesson",
+      "analysis_json": {
+        "audio_transcript": "Kinh nghiệm đầu tư cổ phiếu Việt Nam năm 2026 — 5 bài học từ chu kỳ kinh tế vừa rồi. Bài học số 1.",
+        "topics": ["finance education", "kinh nghiệm", "investment lessons"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "authoritative"
+      },
+      "notes": "Wave 5+ lesson (synthetic) — finance advice without procedural verbs. 'kinh nghiệm' + 'finance education' topic matches. Tests niche=15 (non-niche-11) lesson path. NOTE: 'investment tips' topic would have flipped to tutorial — 'investment lessons' chosen instead to keep lesson bucket."
+    },
+    {
+      "video_id": "7631154140781022471",
+      "niche_id": 21,
+      "gold_label": "highlight",
+      "analysis_json": {
+        "audio_transcript": "[âm nhạc]",
+        "topics": ["Bóng đá", "Bàn thắng đẹp", "Trivela"],
+        "scenes": [{"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}],
+        "tone": "entertaining"
+      },
+      "notes": "Wave 5+ highlight — football goal trivela montage. Niche=21 + entertaining tone + music-only + scenes≥4. Canonical highlight shape."
+    },
+    {
+      "video_id": "gold-highlight-0002",
+      "niche_id": 16,
+      "gold_label": "highlight",
+      "analysis_json": {
+        "audio_transcript": "[âm nhạc sôi động]",
+        "topics": ["travel", "Đà Lạt", "mountain view"],
+        "scenes": [{"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}],
+        "tone": "inspirational"
+      },
+      "notes": "Wave 5+ highlight (synthetic) — Travel highlights with music-only transcript. Niche=16 + inspirational tone. Tests the non-sports highlight path."
+    },
+    {
+      "video_id": "gold-highlight-0003",
+      "niche_id": 6,
+      "gold_label": "highlight",
+      "analysis_json": {
+        "audio_transcript": "[music]",
+        "topics": ["lifestyle", "aesthetic", "celebrity"],
+        "scenes": [{"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}],
+        "tone": "entertaining"
+      },
+      "notes": "Wave 5+ highlight (synthetic) — Aspirational lifestyle/celebrity reaction. Niche=6 + entertaining tone + English music-only marker. Tests English-transcript music-only path."
     }
   ]
 }
