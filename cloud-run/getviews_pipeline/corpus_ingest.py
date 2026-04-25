@@ -623,10 +623,10 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     15. vlog      — lifestyle/daily signals; broad, checked late to avoid false positives.
     16. dance     — scene-only classification (no transcript, all action scenes).
     17. faceless  — product/demo scenes without face_to_camera and with spoken transcript.
-    18. highlight — Wave 5+ taxonomy expansion. LAST positive match: niche IN (6,16,17,21) +
-                   entertaining/humorous/inspirational tone + scenes≥4 + short transcript.
-                   Heuristic is intentionally loose; must run last so tighter buckets
-                   claim their rows first. See §6.4.
+    18. highlight — Wave 5+ taxonomy expansion. LAST positive match: niche IN
+                   (6,16,17,21,22) + entertaining/humorous/inspirational tone +
+                   scenes≥4 + short transcript. Heuristic is intentionally loose;
+                   must run last so tighter buckets claim their rows first. See §6.4.
     19. other     — fallback.
 
     These priorities affect format_distribution in niche_intelligence. If the observed
@@ -770,12 +770,12 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     # positive match). Short music-driven reaction/moment clips.
     # Intentionally loose heuristic: runs AFTER dance + faceless so
     # tighter buckets claim their rows first. Niche set: aspirational
-    # lifestyle / travel / sports / gaming. Scene count ≥ 4 filters
-    # out single-shot videos. Short-transcript gate (≤ 80 chars OR
-    # music-only marker) distinguishes from vlog / storytelling
-    # (transcript-heavy).
+    # lifestyle (6) / travel (16) / gaming (17) / sports (21) / K-pop
+    # music (22). Scene count ≥ 4 filters out single-shot videos.
+    # Short-transcript gate (≤ 80 chars OR music-only marker)
+    # distinguishes from vlog / storytelling (transcript-heavy).
     if (
-        niche_id in (6, 16, 17, 21)
+        niche_id in (6, 16, 17, 21, 22)
         and tone in ("entertaining", "humorous", "inspirational")
         and len(scenes) >= 4
         and (
