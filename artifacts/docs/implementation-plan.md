@@ -560,10 +560,11 @@ single-video diagnosis lands for a creator.
 
 ### Axis 2 open product decision
 
-- **Taxonomy expansion — news / entertainment / highlight** · spec first, ~1w if greenlit
-  - 37% `content_format='other'` residual is mostly rows outside the 15-bucket taxonomy. Closing this gap requires atomic 7-layer refactor (classify_format docstring lock enumerates the impacted files).
-  - **Decision needed:** expand taxonomy → meaningfully shrink the 'other' tail, big code surface touch, OR accept 'other' as terminal for this content class.
-  - **If greenlit:** design doc first (mirroring the viral-score approach), then PR.
+- **Taxonomy expansion — gameplay / comedy_skit / lesson / highlight** · shipped 2026-04-25
+  - Decision: greenlit. Design doc at `artifacts/docs/taxonomy-expansion.md` (Wave 5+ scaffold + 4 buckets + build plan + gates).
+  - Build PR: `claude/wave5-taxonomy-expansion-build` — 4 new buckets in `classify_format`, FORMAT_ANALYSIS_WEIGHTS + Vietnamese prompt snippets, golden set 54 → 66 (+12 items, 3 relabels), 24 regression tests.
+  - Eval lift: 49/54 = 0.9074 → 63/66 = 0.9545. All 4 new buckets at 100% recall. MIN_ACCURACY floor raised 0.88 → 0.92, MIN_CORE_RECALL 0.5 → 0.8.
+  - **Post-merge ops:** kick `POST /admin/run/reclassify-format` (regex-only catch-up over `other`/NULL rows, ~45s), then `SELECT refresh_niche_intelligence()`. Measure §8.3 gates from the design doc — record outcome in `artifacts/docs/taxonomy-expansion.md` decision log.
 
 ---
 
