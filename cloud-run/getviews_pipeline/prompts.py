@@ -41,6 +41,7 @@ CRITICAL RULES:
 - scenes[].description: ONE Vietnamese sentence, 12–24 words, describing what the shot literally shows. E.g. "Cận mặt creator nói to câu mở, text nổi vàng ở trên." or "B-roll sản phẩm kem xoay trên bàn, ánh sáng dịu." Not a judgement — just the visible content.
 - transitions_per_second: Count total scene boundaries ÷ video duration in seconds.
 - face_appears_at: The FIRST timestamp (in seconds) where a human face is prominently visible. Set to null if no face appears in the entire video.
+- cta: The EXACT verbatim call-to-action text in Vietnamese — spoken in the last ~5 seconds OR shown as a text overlay at the end. Examples: "Lưu lại để áp dụng nha", "Theo dõi mình để xem phần 2", "Comment 'có' nếu bạn muốn", "Link mua ở bio", "Mua ngay tại Shopee Mall". Include the trigger verb. Do NOT paraphrase, do NOT summarize, do NOT translate to English. If no CTA is present (the video ends without any explicit ask), set to null. A product mention without an action verb is NOT a CTA. A bare URL or @ handle without a verb is NOT a CTA.
 - content_direction.what_works: Name the specific STRUCTURAL element making this video effective — e.g. "face in first frame + question hook + 3s scene cuts". NOT generic praise like "good visuals" or "engaging content"."""
 
 CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts before this text). Return ONLY JSON matching the schema — no markdown.
