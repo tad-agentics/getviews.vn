@@ -86,10 +86,19 @@ function manualChunks(id: string) {
   if (n.includes("lucide-react")) return "icons";
   if (n.includes("motion") || n.includes("framer-motion")) return "motion";
   if (n.includes("react-router") || n.includes("@remix-run")) return "react-router";
+  // KNOWN: ``react-vendor`` does not currently emit as a separate chunk
+  // under Rolldown — the matcher fires (verified via debug logging) and
+  // returns "react-vendor", but Rolldown's chunk-merging pass folds it
+  // into the generic ``vendor`` bundle anyway. Bundle audit 2026-04-25
+  // confirmed the React/react-dom/scheduler bytes (~117 KB raw) ride
+  // ``vendor-*.js``. Long-tail caching wins from a separate React chunk
+  // are deferred until we either bisect a Rolldown option that respects
+  // the return value here or migrate the chunking strategy to
+  // ``output.advancedChunks``.
   if (
-    n.includes("node_modules/react-dom") ||
-    n.includes("node_modules/scheduler/") ||
-    n.includes("node_modules/react/")
+    n.includes("/react-dom/") ||
+    n.includes("/scheduler/") ||
+    /\/react\/[^/]/.test(n)
   )
     return "react-vendor";
   return "vendor";
