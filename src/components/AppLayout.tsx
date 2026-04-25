@@ -106,6 +106,7 @@ function NavItem({
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       aria-disabled={disabled || undefined}
+      aria-current={active ? "page" : undefined}
       className={[
         "flex w-full items-center gap-2.5 rounded-md px-3 py-[9px] text-left text-[13px] transition-colors duration-150",
         disabled
@@ -485,6 +486,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             <button
               type="button"
               title="Cuộc trò chuyện mới"
+              aria-label="Cuộc trò chuyện mới"
               onClick={() => {
                 navigate("/app/answer");
                 onClose?.();
@@ -496,6 +498,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             {onClose && (
               <button
                 onClick={onClose}
+                aria-label="Đóng menu"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
               >
                 <X className="h-4 w-4" strokeWidth={1.8} />
@@ -656,6 +659,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             <button
               type="button"
               title={displayName}
+              aria-label={`Tài khoản: ${displayName}`}
+              aria-haspopup="dialog"
+              aria-expanded={showProfileModal}
               onClick={() => setShowProfileModal((v) => !v)}
               className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--gv-accent)] text-[13px] font-semibold text-white ring-2 ring-transparent transition-all duration-[120ms] hover:ring-[color:var(--gv-rule)]"
             >

@@ -480,12 +480,12 @@ export default function KolScreen() {
                     />
                   </div>
                   {tab === "pinned" ? (
-                    <Btn type="button" variant="ink" size="sm" disabled title="Sắp có">
+                    <Btn type="button" variant="ink" size="sm" disabled title="Sắp có" aria-label="Ghim kênh — sắp có">
                       <Plus className="h-3 w-3" strokeWidth={2} aria-hidden />
                       Ghim kênh
                     </Btn>
                   ) : (
-                    <Btn type="button" variant="ink" size="sm" disabled title="Sắp có">
+                    <Btn type="button" variant="ink" size="sm" disabled title="Sắp có" aria-label="Gợi ý cho ngách của tôi — sắp có">
                       <Sparkles className="h-3 w-3" strokeWidth={1.75} aria-hidden />
                       Gợi ý cho ngách của tôi
                     </Btn>

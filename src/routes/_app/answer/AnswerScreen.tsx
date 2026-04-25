@@ -509,7 +509,12 @@ export default function AnswerScreen() {
             {loading ? (
               <p className="text-sm text-[var(--gv-ink-3)]">Đang tải báo cáo…</p>
             ) : turnCount > 0 ? (
-              <div className="space-y-10">
+              <div
+                className="space-y-10"
+                aria-live="polite"
+                aria-busy={loading}
+                aria-relevant="additions text"
+              >
                 {turns.map((t) => (
                   <ContinuationTurn key={t.id} turn={t} />
                 ))}

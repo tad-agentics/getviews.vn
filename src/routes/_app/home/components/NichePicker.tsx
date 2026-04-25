@@ -36,6 +36,8 @@ export const NichePicker = memo(function NichePicker() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className="inline-flex items-center gap-2 rounded-full border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] px-4 py-2.5 text-[13px] font-medium text-[color:var(--gv-ink)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
       >
         <span className="gv-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
@@ -52,7 +54,12 @@ export const NichePicker = memo(function NichePicker() {
       {open ? (
         <>
           <div className="fixed inset-0 z-[20]" aria-hidden onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+6px)] z-[30] min-w-[240px] rounded-[8px] border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] p-1.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.2)]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chọn ngách của bạn"
+            className="absolute right-0 top-[calc(100%+6px)] z-[30] min-w-[240px] rounded-[8px] border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] p-1.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.2)]"
+          >
             <ul className="max-h-[320px] overflow-y-auto">
               {niches.map((n) => {
                 const active = n.id === profile?.primary_niche;
