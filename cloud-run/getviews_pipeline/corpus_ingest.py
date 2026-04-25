@@ -573,10 +573,16 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     ):
         return "comparison"
     if re.search(
-        r"kể chuyện|story|hồi đó|hồi nhỏ|ngày xưa|mình từng|"
+        # Wave 5+ fix (2026-05-13): bare-substring tokens (`story`,
+        # `drama`, `skit`) wrapped with ``\b`` word boundaries so
+        # ``history`` no longer false-fires storytelling. Multi-word
+        # VN phrases (``kể chuyện``, ``đằng sau là``, …) already have
+        # implicit boundaries via the space; only the single-token
+        # English loanwords needed pinning.
+        r"kể chuyện|\bstory\b|hồi đó|hồi nhỏ|ngày xưa|mình từng|"
         r"câu chuyện|kể về|nàng dâu|chàng rể|đằng sau là|"
         r"sự thật|lời kể|chia sẻ câu chuyện|"
-        r"hoàn cảnh|kiếp nạn|drama|skit",
+        r"hoàn cảnh|kiếp nạn|\bdrama\b|\bskit\b",
         combined,
     ):
         return "storytelling"
