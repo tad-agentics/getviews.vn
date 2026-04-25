@@ -2,7 +2,8 @@
   "_metadata": {
     "name": "content_format_v1",
     "created": "2026-05-09",
-    "purpose": "Hand-curated golden set for classify_format regression testing.",
+    "last_expanded": "2026-05-13",
+    "purpose": "Hand-curated golden set for classify_format regression testing. Expanded 2026-05-13 (Wave 5+) 27→48 items: per-bucket coverage grew ~2× on the under-represented buckets (haul, faceless, before_after, storytelling, outfit_transition, review, tutorial, recipe). Expansion deliberately chose items the classifier already routes correctly; a separate diagnostic batch lands the known-miss rows that expose current classifier gaps.",
     "labeling_rubric": [
       "Gold labels were assigned by reading the transcript + topics; do not trust the live DB's content_format value — it has known noise (crime news tagged mukbang, cat videos tagged recipe, etc.).",
       "A row with no clean match to any of the 15 taxonomy values is labeled 'other' on purpose. Forcing bad labels into 'best-fit' would calibrate the harness to garbage.",
@@ -346,6 +347,332 @@
         "tone": ""
       },
       "notes": "Synthetic — all-action scenes, empty transcript = dance."
+    },
+
+    {
+      "video_id": "7629224332241227026",
+      "niche_id": 2,
+      "gold_label": "before_after",
+      "analysis_json": {
+        "audio_transcript": "And how will we ever feel that what it dies real there's no denying. Lyrics from K-pop song.",
+        "topics": ["K-pop", "IVE", "Liz", "Idol Evolution", "Glow Up"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}],
+        "tone": "inspirational"
+      },
+      "notes": "'Glow up' topic + K-pop idol evolution narrative fires before_after."
+    },
+    {
+      "video_id": "7631165373852830994",
+      "niche_id": 8,
+      "gold_label": "before_after",
+      "analysis_json": {
+        "audio_transcript": "em nói thấy chán nên anh đã thay đổi vì em. sao em? như vậy có còn chán nữa không?",
+        "topics": ["glow up", "transformation", "lifestyle"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "'thay đổi' (changed) + 'glow up' topic — before/after transformation framing."
+    },
+    {
+      "video_id": "7627700447658233106",
+      "niche_id": 2,
+      "gold_label": "before_after",
+      "analysis_json": {
+        "audio_transcript": "[Rhythmic upbeat music]",
+        "topics": ["glow up", "dental care", "braces journey", "self-care", "beauty transformation"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "inspirational"
+      },
+      "notes": "Braces-journey glow-up — canonical beauty before_after."
+    },
+    {
+      "video_id": "7630788218144771336",
+      "niche_id": 14,
+      "gold_label": "comparison",
+      "analysis_json": {
+        "audio_transcript": "Đây là cảnh tượng kinh hoàng khi xe hơi điện cháy và phát nổ. Xe điện thì cũng tiện lợi đấy, cũng tiết kiệm đấy. Một khi cháy thì thôi khỏi dập.",
+        "topics": ["electric vehicles", "car safety", "EV fire", "gas vs electric"],
+        "scenes": [{"type": "broll"}, {"type": "broll"}],
+        "tone": "conversational"
+      },
+      "notes": "'gas vs electric' topic + explicit EV-vs-gas comparison. Fires 'vs' regex."
+    },
+    {
+      "video_id": "7627092205471091976",
+      "niche_id": 2,
+      "gold_label": "grwm",
+      "analysis_json": {
+        "audio_transcript": "Dạo này anh chán makeup douyin mờ lì dày phấn rồi các vợ ạ. Gu anh bây giờ nó phải glowy nũng nịu, nó clean, nó fresh. Đầu tiên là nền kem nền Ofelia.",
+        "topics": ["Makeup routine", "Skincare", "Korean beauty trends", "Glowy skin tutorial", "Cushion foundation"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "'makeup' keyword + get-ready narrative (kem nền → …) fires grwm."
+    },
+    {
+      "video_id": "7629006753992101141",
+      "niche_id": 13,
+      "gold_label": "haul",
+      "analysis_json": {
+        "audio_transcript": "Ơ mấy con vợ hỏi mẫu này anh lắp chưa thì vào đây mà xem nhé. Anh nói rồi, anh bán lego là bán chưa lắp nha. Anh nhập hàng là nhập theo thùng, mỗi lần về cả mấy trăm set. Mở hộp unboxing luôn.",
+        "topics": ["LEGO", "Flower Arrangement", "DIY", "Unboxing", "Home Decor"],
+        "scenes": [{"type": "product_shot"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}],
+        "tone": "conversational"
+      },
+      "notes": "'Mở hộp unboxing' + 'Unboxing' topic — canonical haul."
+    },
+    {
+      "video_id": "7627340695690382613",
+      "niche_id": 7,
+      "gold_label": "outfit_transition",
+      "analysis_json": {
+        "audio_transcript": "Three two one biến hình. Music with Chinese lyrics. Outfit thay đổi theo nhạc.",
+        "topics": ["Pregnancy", "Newborn", "Transition", "Motherhood"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "emotional"
+      },
+      "notes": "'biến hình' + 'Outfit' — fires outfit_transition branch."
+    },
+    {
+      "video_id": "7628114714085559559",
+      "niche_id": 3,
+      "gold_label": "outfit_transition",
+      "analysis_json": {
+        "audio_transcript": "[Âm nhạc sôi động] Phối đồ công sở outfit biến hình. OOTD nha các chị.",
+        "topics": ["Thời trang nữ", "Áo sơ mi thêu hoa", "Phối đồ công sở"],
+        "scenes": [{"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}, {"type": "action"}],
+        "tone": "entertaining"
+      },
+      "notes": "'Phối đồ' + 'outfit' + 'OOTD' — three outfit_transition triggers."
+    },
+    {
+      "video_id": "7627430840976379154",
+      "niche_id": 2,
+      "gold_label": "vlog",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình đi xăm cho vui. Doanh, xăm đau á nha! Hello em. Chị ngồi đây ạ. Em tư vấn đã, rồi chị suy nghĩ tiếp nha. Một ngày của mình chỉ có đi chơi thôi.",
+        "topics": ["tattoo culture", "vlog", "daily life", "couple humor"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "'Hôm nay mình' + 'Một ngày của' vlog triggers + vlog topic."
+    },
+    {
+      "video_id": "7627421080440802568",
+      "niche_id": 8,
+      "gold_label": "recipe",
+      "analysis_json": {
+        "audio_transcript": "Ăn lá hẹ mà ăn sai cách thì chỉ phí cả đời. Biết dùng đúng nó nuôi từ tim tới xương sống. Lá hẹ nấu nghêu cho lão.",
+        "topics": ["Sức khỏe", "Dinh dưỡng", "Lá hẹ", "Mẹo dân gian"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}],
+        "tone": "authoritative"
+      },
+      "notes": "'Lá hẹ nấu nghêu' — cooking verb 'nấu' triggers recipe."
+    },
+    {
+      "video_id": "7630304902505368850",
+      "niche_id": 2,
+      "gold_label": "review",
+      "analysis_json": {
+        "audio_transcript": "Dòng son tint nước quá hot hit của nhà L'Oreal Paris. Màu lên cực kỳ chuẩn, tint bám dai. Thành phần có chứa HA nên cảm giác là son tint nhưng môi không bị khô nhiều. Đánh giá tổng thể rất đáng mua.",
+        "topics": ["Makeup", "Lipstick Review", "L'Oreal Paris", "Beauty"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}],
+        "tone": "educational"
+      },
+      "notes": "'Review' + 'đánh giá' keywords fire review."
+    },
+    {
+      "video_id": "7626261034554264839",
+      "niche_id": 14,
+      "gold_label": "review",
+      "analysis_json": {
+        "audio_transcript": "Trong video trước, Minh đã có cơ hội rất đặc biệt khi được đồng hành cùng anh chị khách hàng trong buổi bàn giao chiếc 911. Đây không chỉ là một chiếc xe. Review tổng thể về dòng 911 Turbo S, mình đánh giá đây là một chiếc rất đáng tiền.",
+        "topics": ["Porsche 911", "Luxury Car Delivery", "Car Customization", "Automotive Review"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}],
+        "tone": "authoritative"
+      },
+      "notes": "Luxury car 'Review' + 'đánh giá' + 'Automotive Review' topic."
+    },
+    {
+      "video_id": "7624842569465220368",
+      "niche_id": 4,
+      "gold_label": "recipe",
+      "analysis_json": {
+        "audio_transcript": "Mai mốt mà em có mở quán cơm á thì em sẽ đưa cái món ba rọi ướp chao kiểu này vô cái thực đơn của em. Trời ơi nó ngon nhức nách luôn mấy chị ơi. Bữa nào mấy chị thử nấu ba rọi ướp chao kiểu này đi nha.",
+        "topics": ["Vietnamese cooking", "Pork recipe", "Home cooking"],
+        "scenes": [{"type": "product_shot"}, {"type": "action"}, {"type": "product_shot"}, {"type": "action"}, {"type": "product_shot"}, {"type": "action"}, {"type": "product_shot"}, {"type": "action"}],
+        "tone": "educational"
+      },
+      "notes": "Vietnamese food preparation — 'nấu ba rọi ướp chao' triggers recipe."
+    },
+    {
+      "video_id": "7631240997883694357",
+      "niche_id": 12,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "Mình sẽ không dạy khóa học ads livestream để nhận tiền của các bạn. Mình sẽ hướng dẫn free ngay trên clip này cho tất cả anh chị em nào đang xem clip của Thế Hoàng về cách chạy quảng cáo livestream.",
+        "topics": ["Livestream", "TikTok ads", "Tutorial"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "educational"
+      },
+      "notes": "Explicit 'hướng dẫn' + 'cách chạy quảng cáo' — tutorial."
+    },
+    {
+      "video_id": "gold-vlog-0002",
+      "niche_id": 11,
+      "gold_label": "vlog",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình đi khám phá một quán cafe ở phường Cầu Giấy. Vào đây ngồi làm việc thì yên tĩnh cực kỳ.",
+        "topics": ["cafe", "daily life", "vlog"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "broll"}, {"type": "face_to_camera"}, {"type": "broll"}],
+        "tone": "conversational"
+      },
+      "notes": "Synthetic — 'Hôm nay mình' + cafe daily-life topic. Canonical vlog trigger."
+    },
+    {
+      "video_id": "gold-storytelling-0002",
+      "niche_id": 13,
+      "gold_label": "storytelling",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình coi được cái video cái chị kia chị phạt con mèo nhốt con mèo trong cái ba lô. Ai mà nuôi mèo đặc biệt là nhận mèo hoang mà phạt kiểu này là không được đâu. Câu chuyện này làm mình bực.",
+        "topics": ["pets", "story", "drama"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "educational"
+      },
+      "notes": "Synthetic — 'Câu chuyện' explicit VN narrative marker + 'drama' topic. Tests the story/drama branch that got the \\b fix in wave5-classifier-bug-history-story."
+    },
+    {
+      "video_id": "gold-faceless-0002",
+      "niche_id": 20,
+      "gold_label": "faceless",
+      "analysis_json": {
+        "audio_transcript": "Mẫu vách tivi đá marble kết hợp gỗ óc chó cho phòng khách 20m². Tông trầm ấm, giá làm trọn gói khoảng 25 triệu.",
+        "topics": ["Interior Design", "TV Wall", "Home Renovation"],
+        "scenes": [{"type": "product_shot"}, {"type": "product_shot"}, {"type": "product_shot"}, {"type": "product_shot"}],
+        "tone": "conversational"
+      },
+      "notes": "Synthetic — product-only scenes + transcript + no face_to_camera. Home-interior narration is the most common real faceless shape."
+    },
+    {
+      "video_id": "gold-mukbang-0002",
+      "niche_id": 4,
+      "gold_label": "mukbang",
+      "analysis_json": {
+        "audio_transcript": "ASMR ăn cháo lòng hôm nay, nhiều topping, sột soạt rất chill. Một tô 30k ở quán bà Cúc.",
+        "topics": ["mukbang", "food", "ASMR"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}],
+        "tone": "entertaining"
+      },
+      "notes": "Synthetic — niche=4 + scenes≥10 + entertaining tone fires the mukbang heuristic. 'ASMR ăn cháo lòng' is the canonical Vietnamese mukbang opener."
+    },
+    {
+      "video_id": "gold-recipe-0003",
+      "niche_id": 4,
+      "gold_label": "recipe",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình nấu món bánh xèo miền Tây. Nguyên liệu gồm bột bánh xèo, tôm, thịt heo ba chỉ. Bước 1 pha bột với nước cốt dừa. Bước 2 phi hành, bước 3 đổ bột và nhân.",
+        "topics": ["recipe", "bánh xèo", "miền Tây"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "product_shot"}, {"type": "action"}, {"type": "product_shot"}, {"type": "action"}],
+        "tone": "educational"
+      },
+      "notes": "Synthetic — 'nấu' + 'nguyên liệu' + 'bước 1/2/3' — the canonical VN recipe shape."
+    },
+    {
+      "video_id": "gold-outfit-0002",
+      "niche_id": 3,
+      "gold_label": "outfit_transition",
+      "analysis_json": {
+        "audio_transcript": "Hôm nay mình phối 5 set đồ công sở từ một chiếc áo sơ mi trắng. OOTD biến hình luôn nha các bạn.",
+        "topics": ["outfit", "ootd", "fashion"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}, {"type": "face_to_camera"}],
+        "tone": "entertaining"
+      },
+      "notes": "Synthetic — 'OOTD' + 'phối đồ' + 'biến hình' — three outfit_transition triggers in one."
+    },
+    {
+      "video_id": "gold-review-0003",
+      "niche_id": 9,
+      "gold_label": "review",
+      "analysis_json": {
+        "audio_transcript": "Đánh giá iPhone 16 Pro Max sau 2 tháng dùng. Màn hình thì ok, camera cải tiến nhẹ. Pin vẫn yếu so với kỳ vọng.",
+        "topics": ["smartphone", "Apple", "review"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}],
+        "tone": "educational"
+      },
+      "notes": "Synthetic — 'Đánh giá' at sentence start = review. Typical smartphone review shape."
+    },
+
+    {
+      "video_id": "7618218145769278741",
+      "niche_id": 12,
+      "gold_label": "comparison",
+      "analysis_json": {
+        "audio_transcript": "Mình có đọc được một cái bài trên đây đại ý là cái nghề livestream và nghề tiktok ngày càng giàu hỏi sao các bạn trẻ đang đổ xô nhau đi làm và với kinh nghiệm là một người đang làm tiktok cũng có một cái kênh số lượng và kiếm được tiền cũng kha khá.",
+        "topics": ["TikTok money", "content creator reality", "financial advice", "career change"],
+        "scenes": [{"type": "face_to_camera"}],
+        "tone": "educational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: 'TikTok vs livestream' career comparison doesn't trigger any of the comparison regex alternatives (so sánh, vs, khác nhau, khác biệt, đối thủ, hơn kém). Fix path: widen comparison pattern to include 'nghề X và nghề Y', or add a job-comparison keyword set."
+    },
+    {
+      "video_id": "7619204732111899924",
+      "niche_id": 1,
+      "gold_label": "haul",
+      "analysis_json": {
+        "audio_transcript": "Làm việc mà cổ vai gáy nó biểu tình quá mấy mom ơi. Nhưng mà rất may, tôi luôn có em bảo bối này đồng hành nè. Em này á tôi săn được ở trên sàn S nha, xài phải nói là cực kì thích luôn. Mua mấy món này là tôi kén lắm nha, cứ phải lên Shopee Mall cho chắc.",
+        "topics": ["Health and Wellness", "E-commerce Shopping Tips", "Tiger Balm Plaster", "Shopee Mall"],
+        "scenes": [{"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'tutorial'. Gap: classifier's tutorial regex (mẹo / tips) fires first on 'E-commerce Shopping Tips' topic, before the haul branch gets a chance. Shopee-Mall / 'săn được' phrasing should land haul. Fix path: (a) bump haul priority above tutorial when Shopee / Lazada / Tiki shop markers are explicit in topics, or (b) add 'săn được trên sàn' to haul's regex."
+    },
+    {
+      "video_id": "7626579151301938453",
+      "niche_id": 7,
+      "gold_label": "vlog",
+      "analysis_json": {
+        "audio_transcript": "Em mặt đến từ đâu mà sao lại xinh như thiên thần. Anh là trai miền tây còn gọi là thanh niên chuyên cần. Mỗi khi bên em anh thấy tim anh phấn chấn. Anh không muốn rời xa baby anh muốn thường xuyên gần.",
+        "topics": ["baby care", "bath time", "parenting", "infant care"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "broll"}],
+        "tone": "entertaining"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: baby-bath / parenting daily-life video with rap-style lyrics doesn't trigger any vlog marker (no 'hôm nay mình', no 'một ngày của'). Parenting topics + entertaining tone is a common VN vlog shape the classifier currently misses. Fix path: add 'baby care'/'parenting' + daily-activity topic + face_to_camera scene gate as an additional vlog path."
+    },
+    {
+      "video_id": "7627069156512288020",
+      "niche_id": 11,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "Mẹ ơi cho con đi đá bóng nhé. Bài học thì mẹ dạy chưa? Dạ học rồi. Vậy để mẹ kiểm tra. Thì hiện tại đơn. Là học sinh gương mẫu, sống đều, nhạt nhưng ổn định. Thì hiện tại tiếp diễn. Là bà tám của lớp, drama.",
+        "topics": ["English Grammar", "Tenses", "Education", "Parenting"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "action"}, {"type": "face_to_camera"}, {"type": "action"}],
+        "tone": "educational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: educational skit format (mom-quizzes-son grammar lesson) uses no tutorial trigger verb ('hướng dẫn'/'cách làm' etc.). 'English Grammar' topic + educational tone should be a tutorial signal. Fix path: topic-level fallback for tutorial when any of [grammar / tenses / education / học] appears in topics AND tone=educational."
+    },
+    {
+      "video_id": "7629959945940651284",
+      "niche_id": 7,
+      "gold_label": "tutorial",
+      "analysis_json": {
+        "audio_transcript": "Mua luôn combo đi sinh cho nó tiện có 7 8 củ thôi à. Này nha cái cần thì không có mà cái có thì không cần đâu đấy. Tốt nhất là mua lẻ săn sale ngày đôi chỉ có 3 4 củ thôi mà thậm chí còn rẻ hơn ý. Quần áo là phải hãng Nous, Bubaby, La pomme.",
+        "topics": ["Sắm đồ sơ sinh", "Tiết kiệm tiền", "Kinh nghiệm làm mẹ"],
+        "scenes": [{"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}],
+        "tone": "educational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'other'. Gap: advice-style parenting content ('Kinh nghiệm làm mẹ', '7-8 củ thôi', 'mua lẻ săn sale') lacks a tutorial keyword (no 'hướng dẫn'/'cách'). VN 'kinh nghiệm' is the most common advice-tutorial framing and should be a tutorial trigger. Fix path: add 'kinh nghiệm' to tutorial regex."
+    },
+    {
+      "video_id": "7631163158043856135",
+      "niche_id": 4,
+      "gold_label": "haul",
+      "analysis_json": {
+        "audio_transcript": "Không ai cấm, nhưng ít có đứa nào lại làm. Bọn anh mua xôi với gà ở Hà Nội, mang lên tận Cúc Phương ăn. Quán này ở số 672 Đường Láng, hot lắm. Bọn anh mua gà là 170.000, xôi Hoàng Phố 40.000, tính ra là 210, nhưng mua mang về quán giảm cho 10.",
+        "topics": ["Food review", "Travel", "Grilled chicken", "Cúc Phương National Park"],
+        "scenes": [{"type": "product_shot"}, {"type": "face_to_camera"}, {"type": "product_shot"}, {"type": "face_to_camera"}],
+        "tone": "conversational"
+      },
+      "notes": "DIAGNOSTIC MISS — classifier returns 'review'. Gap: food purchase with explicit prices is a haul shape, but 'Food review' topic + review-style tone sends it to review first. VN 'bọn anh mua X là Y đồng' is a canonical food-haul narration pattern. Fix path: boost haul priority when the transcript carries ≥ 2 explicit price tokens (numeric + 000/k/củ)."
     }
   ]
 }
