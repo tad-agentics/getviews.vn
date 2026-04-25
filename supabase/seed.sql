@@ -4,29 +4,71 @@
 -- after running migrations.
 
 -- ─── Niche Taxonomy ──────────────────────────────────────────────────────────
+-- Baseline rows 1–17 are created in migration 20260409000001_niche_taxonomy.sql.
 
-INSERT INTO niche_taxonomy (id, name_vn, name_en, signal_hashtags) VALUES
-  (1,  'Review đồ Shopee / Gia dụng', 'Shopee affiliate reviews',       ARRAY['#reviewdogiadung','#dogiadung','#reviewshopee','#nhacua']),
-  (2,  'Làm đẹp / Skincare',          'Beauty & skincare',               ARRAY['#lamdep','#skincare','#chamsocda','#reviewmypham']),
-  (3,  'Thời trang / Outfit',          'Fashion & outfit',                ARRAY['#thoitrang','#ootd','#outfit','#mixdo']),
-  (4,  'Review đồ ăn / F&B',          'Food reviews & restaurants',      ARRAY['#reviewdoan','#angi','#foodtiktok','#ancungtiktok']),
-  (5,  'Kiếm tiền online / MMO',       'Make money online',               ARRAY['#kiemtienonline','#mmo','#affiliate','#thunhapthudong']),
-  (6,  'Chị đẹp',                      'Aspirational feminine lifestyle', ARRAY['#chidep','#songdep','#dailylife','#morningroutine']),
-  (7,  'Mẹ bỉm sữa / Parenting',      'Parenting & baby',                ARRAY['#mebimsua','#baby','#nuoiday','#mevaebe']),
-  (8,  'Gym / Fitness VN',             'Fitness & gym',                   ARRAY['#gymvietnam','#tapgym','#fitness','#giamcan']),
-  (9,  'Công nghệ / Tech',             'Technology & gadgets',            ARRAY['#congnghe','#reviewdienthoai','#tech','#laptop']),
-  (10, 'Bất động sản',                 'Real estate',                     ARRAY['#batdongsan','#nhadat','#muanha']),
-  (11, 'EduTok VN',                    'Education',                       ARRAY['#edutokvn','#hoctienganh','#giaoduc','#kienthuc']),
-  (12, 'Shopee Live / Livestream',     'Live commerce',                   ARRAY['#shopeelive','#livestream','#banhang','#liveshopee']),
-  (13, 'Hài / Giải trí',              'Comedy & entertainment',           ARRAY['#hai','#haihuoc','#comedy','#cuoivoibui']),
-  (14, 'Ô tô / Xe máy',               'Automobiles & motorcycles',       ARRAY['#oto','#xemay','#reviewxe','#otovietnam']),
-  (15, 'Tài chính / Đầu tư',          'Finance & investment',            ARRAY['#taichinh','#chungkhoan','#crypto','#dautu']),
-  (16, 'Du lịch / Travel',             'Travel & tourism',                ARRAY['#dulich','#travel','#khampha','#reviewkhachsan']),
-  (17, 'Gaming',                       'Gaming & esports',                ARRAY['#game','#lienquan','#freefire','#gamevietnam'])
+-- ─── Auth stubs (local seed only) ────────────────────────────────────────────
+-- profiles.id references auth.users — insert minimal rows so seed data can load.
+INSERT INTO auth.users (
+  id,
+  instance_id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  created_at,
+  updated_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  is_super_admin,
+  is_sso_user
+) VALUES
+  (
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'minh.nguyen@example.com',
+    crypt('password', gen_salt('bf')),
+    now(),
+    now(),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{}',
+    false,
+    false
+  ),
+  (
+    '00000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'linh.tran@agency.vn',
+    crypt('password', gen_salt('bf')),
+    now(),
+    now(),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{}',
+    false,
+    false
+  ),
+  (
+    '00000000-0000-0000-0000-000000000003',
+    '00000000-0000-0000-0000-000000000000',
+    'authenticated',
+    'authenticated',
+    'hung.pham@gmail.com',
+    crypt('password', gen_salt('bf')),
+    now(),
+    now(),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    '{}',
+    false,
+    false
+  )
 ON CONFLICT (id) DO NOTHING;
-
--- Reset sequence if inserting with explicit IDs
-SELECT setval('niche_taxonomy_id_seq', 17);
 
 -- ─── Dev User Profiles (seed only — real users created by auth trigger) ──────
 -- Note: These UUIDs must match real auth.users rows when testing locally.
@@ -35,14 +77,14 @@ SELECT setval('niche_taxonomy_id_seq', 17);
 -- Minh — Starter plan creator
 INSERT INTO profiles (
   id, display_name, email, avatar_url,
-  primary_niche, niche_id, tiktok_handle,
+  primary_niche, tiktok_handle,
   subscription_tier, deep_credits_remaining, lifetime_credits_used,
   credits_reset_at, daily_free_query_count, is_processing
 ) VALUES (
   '00000000-0000-0000-0000-000000000001',
   'Nguyễn Minh', 'minh.nguyen@example.com',
   'https://i.pravatar.cc/150?img=12',
-  'Review đồ Shopee / Gia dụng', 1, '@minhreview',
+  1, '@minhreview',
   'starter', 27, 3,
   now() + interval '23 days', 0, false
 ) ON CONFLICT (id) DO UPDATE SET
@@ -53,14 +95,14 @@ INSERT INTO profiles (
 -- Linh — Pro plan agency user
 INSERT INTO profiles (
   id, display_name, email, avatar_url,
-  primary_niche, niche_id, tiktok_handle,
+  primary_niche, tiktok_handle,
   subscription_tier, deep_credits_remaining, lifetime_credits_used,
   credits_reset_at, daily_free_query_count, is_processing
 ) VALUES (
   '00000000-0000-0000-0000-000000000002',
   'Trần Thị Linh', 'linh.tran@agency.vn',
   'https://i.pravatar.cc/150?img=23',
-  'Làm đẹp / Skincare', 2, '@linhagency',
+  2, '@linhagency',
   'pro', 65, 15,
   now() + interval '18 days', 0, false
 ) ON CONFLICT (id) DO UPDATE SET
@@ -71,14 +113,14 @@ INSERT INTO profiles (
 -- Free tier user
 INSERT INTO profiles (
   id, display_name, email, avatar_url,
-  primary_niche, niche_id, tiktok_handle,
+  primary_niche, tiktok_handle,
   subscription_tier, deep_credits_remaining, lifetime_credits_used,
   daily_free_query_count, is_processing
 ) VALUES (
   '00000000-0000-0000-0000-000000000003',
   'Phạm Văn Hùng', 'hung.pham@gmail.com',
   'https://i.pravatar.cc/150?img=33',
-  'Gaming', 17, '@hungfreefire',
+  17, '@hungfreefire',
   'free', 7, 3,
   0, false
 ) ON CONFLICT (id) DO UPDATE SET

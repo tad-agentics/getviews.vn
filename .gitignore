@@ -89,6 +89,7 @@ rad-rr7-template/.sync-target
 
 # Supabase CLI cache
 supabase/.temp/
+supabase/.branches/
 
 # Playwright
 /.auth/

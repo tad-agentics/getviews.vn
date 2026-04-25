@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from "react";
 import { useNavigate } from 'react-router';
 import {
   Plus,
@@ -22,7 +22,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { useTopNiches } from "@/hooks/useTopNiches";
+import { useNicheRowsForIds } from "@/hooks/useTopNiches";
+import { useUpdateProfile } from "@/hooks/useUpdateProfile";
+import { MIN_CREATOR_NICHES, normalizeNicheIds } from "@/lib/profileNiches";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { chatKeys } from "@/hooks/useChatSession";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,32 +55,81 @@ function LogoMark() {
 }
 
 /* ── NicheOfYoursBlock ──────────────────────────────────────────────────────
- * "Ngách Của Bạn" sidebar block — 3 rows with label + weekly hot count.
- *
- * The user's primary niche floats to the top; the other two slots fill by
- * weekly video count (from niche_intelligence.sample_size / legacy video_count_7d). No schema
- * for "tracked niches" exists yet, so the 2nd/3rd rows are the hottest
- * niches overall — pragmatic until a Settings-level picker lands.
+ * "Ngách Của Bạn" — up to 3 rows from onboarding/settings (`niche_ids`),
+ * else legacy single `primary_niche`. Click a row to set focus niche
+ * (reorders `niche_ids` when multi-niche is enabled).
  */
 function NicheOfYoursBlock() {
   const { data: profile } = useProfile();
-  const { data: niches = [] } = useTopNiches(profile?.primary_niche ?? null, 3);
-  if (niches.length === 0) return null;
+  const save = useUpdateProfile();
+
+  const sidebarIds = useMemo(() => {
+    const raw = profile?.niche_ids;
+    if (Array.isArray(raw) && raw.length > 0) {
+      return normalizeNicheIds(raw).slice(0, 3);
+    }
+    if (profile?.primary_niche != null) return [profile.primary_niche];
+    return [];
+  }, [profile?.niche_ids, profile?.primary_niche]);
+
+  const { data: niches = [], isPending } = useNicheRowsForIds(sidebarIds.length ? sidebarIds : null);
+
+  const onPick = useCallback(
+    async (id: number) => {
+      const multi = profile?.niche_ids;
+      if (Array.isArray(multi) && multi.length >= MIN_CREATOR_NICHES) {
+        const rest = multi.filter((x) => x !== id);
+        await save.mutateAsync({ niche_ids: [id, ...rest], primary_niche: id });
+      } else if (id !== profile?.primary_niche) {
+        await save.mutateAsync({ primary_niche: id });
+      }
+    },
+    [profile?.niche_ids, profile?.primary_niche, save],
+  );
+
+  if (sidebarIds.length === 0) return null;
 
   return (
     <div className="px-4 pb-2.5 pt-[14px]">
       <p className="gv-uc mb-2.5 text-[9px] text-[color:var(--gv-ink-4)]">Ngách Của Bạn</p>
       <ul className="flex flex-col gap-1">
-        {niches.map((n) => (
-          <li key={n.id}>
-            <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-[7px] text-[12px] hover:bg-[rgba(20,17,12,0.04)]">
-              <span className="truncate text-[color:var(--gv-ink-2)]">{n.name}</span>
-              <span className="gv-mono shrink-0 text-[10px] text-[color:var(--gv-pos-deep)]">
-                ↑{n.hot}
-              </span>
-            </div>
-          </li>
-        ))}
+        {isPending && niches.length === 0
+          ? sidebarIds.map((id) => (
+              <li key={id}>
+                <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-[7px] text-[12px]">
+                  <span className="truncate text-[color:var(--gv-ink-4)]">Đang tải…</span>
+                </div>
+              </li>
+            ))
+          : niches.map((n) => {
+              const isFocus = profile?.primary_niche === n.id;
+              return (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    disabled={save.isPending}
+                    onClick={() => void onPick(n.id)}
+                    aria-current={isFocus ? "true" : undefined}
+                    className={
+                      "flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-[7px] text-left text-[12px] transition-colors " +
+                      (isFocus
+                        ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
+                        : "text-[color:var(--gv-ink-2)] hover:bg-[rgba(20,17,12,0.04)]")
+                    }
+                  >
+                    <span className="truncate">{n.name}</span>
+                    <span
+                      className={
+                        "gv-mono shrink-0 text-[10px] " +
+                        (isFocus ? "text-[color:var(--gv-canvas)] opacity-80" : "text-[color:var(--gv-pos-deep)]")
+                      }
+                    >
+                      ↑{n.hot}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
       </ul>
     </div>
   );

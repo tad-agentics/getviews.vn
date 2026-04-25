@@ -2,6 +2,8 @@ import { supabase } from "@/lib/supabase";
 
 export interface ProfilePatch {
   primary_niche?: number | null;
+  /** Ordered niche picks; first entry is the focus niche (kept in sync with primary_niche). */
+  niche_ids?: number[] | null;
   // profiles.niche_id was dropped in migration 0017 — do NOT add it back.
   // The supported niche column is primary_niche.
   tiktok_handle?: string | null;

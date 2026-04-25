@@ -14,6 +14,7 @@ import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import { useLogout } from "@/hooks/useLogout";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { updateProfile, type ProfilePatch } from "@/lib/data/profile";
+import { MAX_CREATOR_NICHES, MIN_CREATOR_NICHES, normalizeNicheIds } from "@/lib/profileNiches";
 
 type ProfileUpdateMutation = UseMutationResult<
   Awaited<ReturnType<typeof updateProfile>>,
@@ -444,21 +445,22 @@ function PlanPanel({
   );
 }
 
-const NicheChip = memo(function NicheChip({
+const NicheToggleChip = memo(function NicheToggleChip({
   name,
   id,
-  selectedId,
-  onSelect,
+  selected,
+  isFocus,
   disabled,
+  onToggle,
 }: {
   name: string;
   id: number;
-  selectedId: number | null;
-  onSelect: (id: number) => void;
+  selected: boolean;
+  isFocus: boolean;
   disabled?: boolean;
+  onToggle: (id: number) => void;
 }) {
-  const isActive = selectedId === id;
-  const handleClick = useCallback(() => onSelect(id), [id, onSelect]);
+  const handleClick = useCallback(() => onToggle(id), [id, onToggle]);
   return (
     <motion.button
       type="button"
@@ -467,14 +469,21 @@ const NicheChip = memo(function NicheChip({
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={`flex items-center justify-between gap-2 rounded-lg border px-4 py-3.5 text-left text-sm transition-colors duration-[120ms] ${
-        isActive
+        selected
           ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
           : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink-3)]"
       } disabled:opacity-50`}
     >
-      <span className="font-medium">{name}</span>
+      <span className="font-medium">
+        {name}
+        {isFocus && selected ? (
+          <span className="ml-1.5 font-mono text-[9px] font-semibold uppercase tracking-wider opacity-70">
+            · trọng tâm
+          </span>
+        ) : null}
+      </span>
       <AnimatePresence initial={false}>
-        {isActive ? (
+        {selected ? (
           <motion.span
             key="check"
             initial={{ scale: 0, opacity: 0 }}
@@ -501,14 +510,42 @@ function NichePanel({
   nicheLoading: boolean;
   updateProfile: ProfileUpdateMutation;
 }) {
-  const primary = profile?.primary_niche;
-  const selectedId = typeof primary === "number" ? primary : primary != null ? Number(primary) : null;
+  const serverSelected = useMemo(() => {
+    const ids = profile?.niche_ids;
+    if (Array.isArray(ids) && ids.length > 0) return normalizeNicheIds(ids);
+    if (profile?.primary_niche != null) return [profile.primary_niche];
+    return [];
+  }, [profile?.niche_ids, profile?.primary_niche]);
 
-  const handleSelect = useCallback(
+  const serverKey = useMemo(() => serverSelected.join(","), [serverSelected]);
+
+  const [draft, setDraft] = useState<number[] | null>(null);
+
+  useEffect(() => {
+    setDraft(null);
+  }, [serverKey]);
+
+  const selected = draft ?? serverSelected;
+
+  const handleToggle = useCallback(
     (id: number) => {
-      updateMutation.mutate({ primary_niche: id });
+      const base = draft ?? serverSelected;
+      const set = new Set(base);
+      if (set.has(id)) {
+        set.delete(id);
+      } else {
+        if (base.length >= MAX_CREATOR_NICHES) return;
+        set.add(id);
+      }
+      const next = normalizeNicheIds(Array.from(set));
+      if (next.length >= MIN_CREATOR_NICHES) {
+        updateMutation.mutate({ niche_ids: next, primary_niche: next[0] });
+        setDraft(null);
+      } else {
+        setDraft(next);
+      }
     },
-    [updateMutation],
+    [draft, serverSelected, updateMutation],
   );
 
   return (
@@ -521,22 +558,34 @@ function NichePanel({
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
     >
       <p className="text-sm text-[color:var(--gv-ink-3)]">
-        Chọn ngách chính để Getviews cá nhân hóa xu hướng và hook cho bạn.
+        Chọn ít nhất {MIN_CREATOR_NICHES} ngách (tối đa {MAX_CREATOR_NICHES}). Ngách chọn đầu tiên là trọng tâm — bỏ chọn
+        rồi chọn lại để đổi thứ tự.
+      </p>
+      <p className="text-[12px] text-[color:var(--gv-ink-4)]">
+        Đã chọn <span className="font-medium text-[color:var(--gv-ink)]">{selected.length}</span> /{" "}
+        {MIN_CREATOR_NICHES} tối thiểu
+        {draft != null && selected.length < MIN_CREATOR_NICHES ? (
+          <span className="ml-1 text-[color:var(--gv-accent-deep)]"> — chưa lưu cho đến khi đủ 3 ngách</span>
+        ) : null}
       </p>
       {nicheLoading ? (
         <div className="h-24 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]" />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(niches ?? []).map((n) => (
-            <NicheChip
-              key={n.id}
-              id={n.id}
-              name={n.name}
-              selectedId={Number.isFinite(selectedId as number) ? (selectedId as number) : null}
-              onSelect={handleSelect}
-              disabled={updateMutation.isPending}
-            />
-          ))}
+          {(niches ?? []).map((n) => {
+            const isSel = selected.includes(n.id);
+            return (
+              <NicheToggleChip
+                key={n.id}
+                id={n.id}
+                name={n.name}
+                selected={isSel}
+                isFocus={selected[0] === n.id}
+                onToggle={handleToggle}
+                disabled={updateMutation.isPending}
+              />
+            );
+          })}
         </div>
       )}
     </motion.div>

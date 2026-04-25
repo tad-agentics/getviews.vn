@@ -19,7 +19,6 @@ import { HomeMorningRitual } from "./components/HomeMorningRitual";
 import { NextVideosCard } from "./components/NextVideosCard";
 import { QuickActions } from "./components/QuickActions";
 import { DateChip } from "./components/DateChip";
-import { NichePicker } from "./components/NichePicker";
 
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
@@ -117,7 +116,7 @@ export default function HomeScreen() {
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
           <div className="gv-fade-up">
-            <div className="mb-3.5 flex flex-wrap items-end justify-between gap-4">
+            <div className="mb-3.5 flex flex-wrap items-end gap-4">
               <div className="flex flex-wrap items-center gap-2.5">
                 <span
                   className="inline-flex items-center gap-2 rounded-full border-transparent px-3 py-1 gv-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink)]"
@@ -133,9 +132,6 @@ export default function HomeScreen() {
                   </span>
                 </span>
                 <DateChip />
-              </div>
-              <div className="min-w-0 shrink-0">
-                <NichePicker />
               </div>
             </div>
 

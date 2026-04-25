@@ -79,7 +79,13 @@ WHERE id = 5;
 
 -- ── 2. Rebadge data tables (no uniqueness conflicts) ───────────────
 UPDATE video_corpus           SET niche_id = 5 WHERE niche_id = 12;
-UPDATE video_shots            SET niche_id = 5 WHERE niche_id = 12;
+-- video_shots is created in 20260510000003 — skip if this merge runs first (fresh db reset).
+DO $$
+BEGIN
+  IF to_regclass('public.video_shots') IS NOT NULL THEN
+    UPDATE video_shots SET niche_id = 5 WHERE niche_id = 12;
+  END IF;
+END $$;
 UPDATE profiles               SET primary_niche = 5 WHERE primary_niche = 12;
 UPDATE cross_creator_patterns SET niche_id = 5 WHERE niche_id = 12;
 UPDATE daily_ritual           SET niche_id = 5 WHERE niche_id = 12;

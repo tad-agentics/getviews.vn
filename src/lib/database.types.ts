@@ -451,6 +451,7 @@ export type Database = {
           is_processing: boolean
           lifetime_credits_used: number
           primary_niche: number | null
+          niche_ids: number[] | null
           reference_channel_handles: string[]
           subscription_tier: string
           tiktok_handle: string | null
@@ -470,6 +471,7 @@ export type Database = {
           is_processing?: boolean
           lifetime_credits_used?: number
           primary_niche?: number | null
+          niche_ids?: number[] | null
           reference_channel_handles?: string[]
           subscription_tier?: string
           tiktok_handle?: string | null
@@ -489,6 +491,7 @@ export type Database = {
           is_processing?: boolean
           lifetime_credits_used?: number
           primary_niche?: number | null
+          niche_ids?: number[] | null
           reference_channel_handles?: string[]
           subscription_tier?: string
           tiktok_handle?: string | null

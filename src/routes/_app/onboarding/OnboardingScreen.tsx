@@ -7,15 +7,21 @@ import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useTopNiches } from "@/hooks/useTopNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import { ReferenceChannelsStep } from "@/routes/_app/components/ReferenceChannelsStep";
+import {
+  MAX_CREATOR_NICHES,
+  MIN_CREATOR_NICHES,
+  normalizeNicheIds,
+  profileHasMinimumNiches,
+} from "@/lib/profileNiches";
 
 /**
  * Full-bleed onboarding (Phase A · A3.5) — matches the design bundle:
  * split-screen with editorial left column + form right column. Two steps:
- *   0 — pick ngách (primary_niche)
+ *   0 — pick ít nhất 3 ngách (niche_ids + primary_niche = first)
  *   1 — pick 1–3 kênh tham chiếu (reference_channel_handles)
  *
  * Rendered at /app/onboarding, OUTSIDE the AppLayout shell. The index
- * route sends new creators here when primary_niche is unset.
+ * route sends new creators here until profileHasMinimumNiches is satisfied.
  */
 export default function OnboardingScreen() {
   const navigate = useNavigate();
@@ -29,12 +35,13 @@ export default function OnboardingScreen() {
   } = useNicheTaxonomy();
 
   const [step, setStep] = useState<0 | 1>(0);
-  const [pendingNiche, setPendingNiche] = useState<number | null>(null);
+  const [pendingNiches, setPendingNiches] = useState<number[]>([]);
   const didInitFromProfile = useRef(false);
 
   const primaryForOrdering =
-    typeof profile?.primary_niche === "number" ? profile.primary_niche : null;
-  const { data: topNiches } = useTopNiches(pendingNiche ?? primaryForOrdering, "all");
+    pendingNiches[0] ??
+    (typeof profile?.primary_niche === "number" ? profile.primary_niche : null);
+  const { data: topNiches } = useTopNiches(primaryForOrdering, "all");
 
   const niches = useMemo(() => {
     const hotBy = new Map<number, number>();
@@ -46,16 +53,41 @@ export default function OnboardingScreen() {
     if (profilePending) return;
     if (didInitFromProfile.current) return;
     didInitFromProfile.current = true;
-    const pid = profile?.primary_niche;
-    if (pid != null && typeof pid === "number") {
-      setPendingNiche(pid);
+    if (profileHasMinimumNiches(profile)) {
+      const ids = profile?.niche_ids;
+      if (Array.isArray(ids) && ids.length >= MIN_CREATOR_NICHES) {
+        setPendingNiches(normalizeNicheIds(ids));
+      } else if (profile?.primary_niche != null) {
+        setPendingNiches([profile.primary_niche]);
+      }
       setStep(1);
+      return;
+    }
+    const ids = profile?.niche_ids;
+    if (Array.isArray(ids) && ids.length > 0) {
+      setPendingNiches(normalizeNicheIds(ids));
+    } else if (profile?.primary_niche != null) {
+      setPendingNiches([profile.primary_niche]);
     }
   }, [profilePending, profile]);
 
-  const onNichePicked = async (id: number) => {
-    setPendingNiche(id);
-    await save.mutateAsync({ primary_niche: id });
+  const togglePendingNiche = (id: number) => {
+    setPendingNiches((prev) => {
+      const set = new Set(prev);
+      if (set.has(id)) {
+        set.delete(id);
+        return Array.from(set);
+      }
+      if (prev.length >= MAX_CREATOR_NICHES) return prev;
+      set.add(id);
+      return Array.from(set);
+    });
+  };
+
+  const onNicheStepContinue = async () => {
+    const ids = normalizeNicheIds(pendingNiches);
+    if (ids.length < MIN_CREATOR_NICHES) return;
+    await save.mutateAsync({ niche_ids: ids, primary_niche: ids[0] });
     setStep(1);
   };
 
@@ -84,7 +116,7 @@ export default function OnboardingScreen() {
           </>
         ),
         caption:
-          "Chúng tôi sẽ tải về dữ liệu 14 ngày gần nhất của ngách đó — xu hướng, hook, sound, và creator đang nổi.",
+          "Chọn ít nhất 3 ngách bạn quan tâm — studio sẽ cá nhân hóa xu hướng, hook và sound theo từng ngách.",
       };
     }
     return {
@@ -149,12 +181,33 @@ export default function OnboardingScreen() {
             <p className="text-sm text-[color:var(--gv-ink-3)]">Chưa có ngách trong hệ thống. Liên hệ hỗ trợ.</p>
           ) : null}
           {step === 0 && !taxonomyError && !taxonomyPending && niches.length > 0 ? (
-            <NicheGrid
-              niches={niches}
-              selectedId={pendingNiche}
-              disabled={save.isPending}
-              onPick={onNichePicked}
-            />
+            <>
+              <NicheGrid
+                niches={niches}
+                selectedIds={pendingNiches}
+                disabled={save.isPending}
+                onToggle={togglePendingNiche}
+              />
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[12px] text-[color:var(--gv-ink-4)]">
+                  Đã chọn{" "}
+                  <span className="font-medium text-[color:var(--gv-ink)]">{pendingNiches.length}</span> /{" "}
+                  {MIN_CREATOR_NICHES} tối thiểu
+                  {pendingNiches.length >= MAX_CREATOR_NICHES ? (
+                    <span className="ml-1">(tối đa {MAX_CREATOR_NICHES})</span>
+                  ) : null}
+                </p>
+                <Btn
+                  type="button"
+                  variant="ink"
+                  size="sm"
+                  disabled={pendingNiches.length < MIN_CREATOR_NICHES || save.isPending}
+                  onClick={() => void onNicheStepContinue()}
+                >
+                  Tiếp tục
+                </Btn>
+              </div>
+            </>
           ) : null}
           {step === 1 ? (
             <ReferenceChannelsStep
@@ -206,29 +259,31 @@ function ProgressPills({ step }: { step: 0 | 1 }) {
 
 function NicheGrid({
   niches,
-  selectedId,
+  selectedIds,
   disabled,
-  onPick,
+  onToggle,
 }: {
   niches: ReadonlyArray<{ id: number; name: string; hot: number }>;
-  selectedId: number | null;
+  selectedIds: readonly number[];
   disabled: boolean;
-  onPick: (id: number) => void;
+  onToggle: (id: number) => void;
 }) {
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   return (
     <div>
       <p className="gv-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)] mb-3.5">
-        NGÁCH CHÍNH
+        NGÁCH CỦA BẠN (CHỌN {MIN_CREATOR_NICHES}–{MAX_CREATOR_NICHES})
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {niches.map((n) => {
-          const selected = n.id === selectedId;
+          const selected = selectedSet.has(n.id);
+          const isFocus = selectedIds[0] === n.id;
           return (
             <button
               key={n.id}
               type="button"
               disabled={disabled}
-              onClick={() => onPick(n.id)}
+              onClick={() => onToggle(n.id)}
               className={
                 "flex items-center justify-between gap-3 rounded-[8px] px-4 py-3.5 text-left text-sm transition-colors " +
                 (selected
@@ -236,7 +291,14 @@ function NicheGrid({
                   : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-4)]")
               }
             >
-              <span className="truncate">{n.name}</span>
+              <span className="truncate">
+                {n.name}
+                {isFocus && selectedIds.length >= MIN_CREATOR_NICHES ? (
+                  <span className="ml-1.5 gv-mono text-[9px] uppercase tracking-wider opacity-70">
+                    · trọng tâm
+                  </span>
+                ) : null}
+              </span>
               <span
                 className={
                   "gv-mono text-[10px] " +
@@ -249,6 +311,9 @@ function NicheGrid({
           );
         })}
       </div>
+      <p className="mt-3 text-[11px] text-[color:var(--gv-ink-4)]">
+        Nhấn lần đầu để chọn. Ngách chọn đầu tiên là ngách trọng tâm — đổi thứ tự bằng cách bỏ chọn rồi chọn lại theo thứ tự mong muốn.
+      </p>
     </div>
   );
 }
