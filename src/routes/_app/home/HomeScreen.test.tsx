@@ -119,9 +119,9 @@ describe("HomeScreen", () => {
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
+      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
     const text = headline.textContent ?? "";
-    expect(text).toContain("Chào Do");  // last token of "An Do"
+    expect(text).toContain("Do, hôm nay");  // last token of "An Do"
     expect(text).toContain("Ẩm thực");
   });
 
@@ -129,7 +129,7 @@ describe("HomeScreen", () => {
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
+      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
     expect(headline.textContent).not.toContain("hook mới đang nổ");
     expect(headline.textContent).toContain("đang có gì mới");
   });
@@ -154,19 +154,19 @@ describe("HomeScreen", () => {
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
+      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
     expect(headline.textContent).toContain("3 hook mới");
   });
 
-  it("falls back to 'bạn' when display_name is empty", () => {
+  it("falls back to 'Bạn' when display_name is empty", () => {
     mockUseProfile.mockReturnValue({
       data: { id: "u", display_name: "", primary_niche: null },
     });
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").startsWith("Chào"))!;
-    expect(headline.textContent).toContain("Chào bạn");
+      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
+    expect(headline.textContent).toContain("Bạn, hôm nay");
     expect(headline.textContent).toContain("ngách của bạn");
   });
 });

@@ -129,13 +129,16 @@ function SettingsField({
   label: string;
   children: React.ReactNode;
 }) {
+  // Render as <label> wrapping its child so native HTML association covers
+  // <input>/<textarea>/<select> children automatically — no need for id +
+  // htmlFor wiring at every call site. Clicking the label focuses the input.
   return (
-    <div>
-      <p className="mb-1.5 font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+    <label className="block">
+      <span className="mb-1.5 block font-mono text-[9px] font-semibold uppercase tracking-wide text-[color:var(--gv-ink-4)]">
         {label}
-      </p>
+      </span>
       {children}
-    </div>
+    </label>
   );
 }
 
@@ -542,7 +545,7 @@ function NichePanel({
 
 const ALERT_DEFAULTS: { title: string; description: string; initial: boolean }[] = [
   {
-    title: "Hook mới đột phá trong ngách",
+    title: "Hook mới bứt phá trong ngách",
     description: "Khi 1 mẫu hook tăng >100% sử dụng tuần",
     initial: true,
   },

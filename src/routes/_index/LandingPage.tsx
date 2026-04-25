@@ -526,7 +526,7 @@ function InfraGrid() {
             <span className="text-[color:var(--gv-accent)]">data thực, không đoán mò</span>
           </h2>
           <p className="text-sm text-[color:var(--gv-ink-3)] max-w-xl mx-auto">
-            GetViews không phải ChatGPT biết về TikTok. Đây là hệ thống thu thập và phân tích video TikTok Việt Nam liên tục — mỗi câu trả lời đều có nguồn gốc.
+            GetViews không phải ChatGPT biết về TikTok — hệ thống thu thập và phân tích video TikTok Việt Nam liên tục, mỗi câu trả lời đều có nguồn gốc.
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -50,7 +50,7 @@ export const BreakoutGrid = memo(function BreakoutGrid({
       <section>
         <SectionHeader
           kicker="BIÊN TẬP CHỌN"
-          title="3 video đột phá"
+          title="3 video bứt phá"
           caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
           right={headerRight}
         />
@@ -71,7 +71,7 @@ export const BreakoutGrid = memo(function BreakoutGrid({
       <section>
         <SectionHeader
           kicker="BIÊN TẬP CHỌN"
-          title="3 video đột phá"
+          title="3 video bứt phá"
           caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
           right={headerRight}
         />
@@ -91,7 +91,7 @@ export const BreakoutGrid = memo(function BreakoutGrid({
     <section>
       <SectionHeader
         kicker="BIÊN TẬP CHỌN"
-        title="3 video đột phá"
+        title="3 video bứt phá"
         caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
         right={headerRight}
       />
