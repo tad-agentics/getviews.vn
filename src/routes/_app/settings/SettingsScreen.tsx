@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, Zap, Check, Globe, User, Mail, Activity } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -445,6 +446,17 @@ function PlanPanel({
   );
 }
 
+function toastProfilePatchError(err: unknown) {
+  const raw = err instanceof Error ? err.message : "Không lưu được hồ sơ.";
+  if (/niche_ids|PGRST204|schema cache|Could not find.*column.*profiles/i.test(raw)) {
+    toast.error(
+      "Chưa lưu được ngách: database chưa có cột niche_ids. Chạy migration Supabase mới nhất (profiles.niche_ids) hoặc báo team.",
+    );
+    return;
+  }
+  toast.error(raw);
+}
+
 const NicheToggleChip = memo(function NicheToggleChip({
   name,
   id,
@@ -539,8 +551,11 @@ function NichePanel({
       }
       const next = normalizeNicheIds(Array.from(set));
       if (next.length >= MIN_CREATOR_NICHES) {
-        updateMutation.mutate({ niche_ids: next, primary_niche: next[0] });
-        setDraft(null);
+        setDraft(next);
+        updateMutation.mutate(
+          { niche_ids: next, primary_niche: next[0] },
+          { onError: (err) => toastProfilePatchError(err) },
+        );
       } else {
         setDraft(next);
       }
