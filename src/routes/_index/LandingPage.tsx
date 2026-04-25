@@ -191,7 +191,7 @@ function SolutionCardsSection() {
 
           {/* ── Card 1: Competitor Intel ──────────────────────────────── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0 }}
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
@@ -218,7 +218,7 @@ function SolutionCardsSection() {
 
           {/* ── Card 2: Creator Avatars (scattered float) ─────────────── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.1 }}
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
@@ -244,7 +244,7 @@ function SolutionCardsSection() {
 
           {/* ── Card 3: Hook Showcase — chat bubble + sparkline ──────── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.2 }}
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-4 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
@@ -273,7 +273,7 @@ function SolutionCardsSection() {
 
           {/* ── Card 4: Dense Video Grid (5-col) ─────────────────────── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            initial={false} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.3 }}
             whileHover={{ y: -4 }}
             className="bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] rounded-xl p-5 flex flex-col gap-3 transition-shadow duration-200 hover:shadow-lg cursor-pointer"
@@ -401,7 +401,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
 
         <div className="grid lg:grid-cols-[2fr_1fr] gap-6 mb-6">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
@@ -440,7 +440,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.1 }}
@@ -462,7 +462,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4, delay: 0.2 }}
@@ -533,7 +533,7 @@ function InfraGrid() {
           {INFRA_FEATURES.map(({ icon: Icon, label, sub }) => (
             <motion.div
               key={label}
-              initial={{ opacity: 0, y: 16 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.35 }}
@@ -660,7 +660,7 @@ function HowItWorksSection() {
             {steps.map((step, i) => (
               <motion.div
                 key={step.num}
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: i * 0.12 }}
@@ -747,7 +747,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             {/* Left: Copy + CTA */}
             <div>
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
@@ -800,7 +800,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
 
             {/* Right: Visual Proof */}
             <motion.div
-              initial={{ opacity: 0, x: 40 }}
+              initial={false}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
               className="relative hidden lg:block"
@@ -876,7 +876,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
 
           {/* Trust Badges */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
             className="mt-16 flex flex-wrap items-center justify-center gap-6 text-sm text-[color:var(--gv-ink-3)]"
@@ -890,7 +890,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
 
           {/* Hook Ticker */}
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={false}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.6 }}
             className="mt-10 overflow-hidden border-t border-[color:var(--gv-rule)] pt-5"
@@ -944,7 +944,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             {painPoints.map((p, idx) => (
               <motion.div
                 key={p.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: idx * 0.1 }}
@@ -988,7 +988,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           </p>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.4 }}
@@ -1042,7 +1042,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             {testimonials.map((t, i) => (
               <motion.div
                 key={t.handle}
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -1104,7 +1104,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             {plans.map((plan, idx) => (
               <motion.div
                 key={plan.name}
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
@@ -1151,7 +1151,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             {faqs.map((faq, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 10 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: idx * 0.05 }}
