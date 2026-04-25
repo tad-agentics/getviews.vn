@@ -1,18 +1,6 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { corsHeaders } from "../_shared/cors.ts";
-
-function requireService(req: Request): Response | null {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const auth = req.headers.get("Authorization") ?? "";
-  const token = auth.replace(/^Bearer\s+/i, "").trim();
-  if (token !== serviceKey) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-  return null;
-}
+import { requireServiceRole } from "../_shared/auth.ts";
 
 type ReminderTemplate = "expiry_reminder_7d" | "expiry_reminder_3d" | "expiry_reminder_1d";
 type ReminderField = "reminder_7d_sent_at" | "reminder_3d_sent_at" | "reminder_1d_sent_at";
@@ -103,7 +91,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
-  const denied = requireService(req);
+  const denied = requireServiceRole(req);
   if (denied) return denied;
 
   const functionsUrl = Deno.env.get("SUPABASE_URL")!;
