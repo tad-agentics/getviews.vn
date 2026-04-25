@@ -786,31 +786,37 @@ export default function ExploreScreen() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPageStable, isPending, isError]);
 
-  // Scroll the content column back to top whenever sort changes so the user
-  // immediately sees page 0 of the new sort order instead of staying mid-list.
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
-  }, [sortBy]);
+  // Scroll back to top whenever sort/search/filter/niche/view changes so the
+  // user immediately sees page 0 of the new result set. On desktop (≥1100px)
+  // ``scrollContainerRef`` is the actual scroll container; on mobile we walk
+  // up the DOM to find the nearest ancestor that overflows (AppLayout's inner
+  // ``overflow-y-auto`` wrapper), since this component's outer div is no
+  // longer a scroll container below 1100px.
+  const scrollResultsToTop = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (typeof getComputedStyle === "function" && getComputedStyle(el).overflowY === "auto") {
+      el.scrollTo({ top: 0, behavior: "instant" });
+      return;
+    }
+    let node: HTMLElement | null = el.parentElement;
+    while (node) {
+      const style = getComputedStyle(node);
+      if ((style.overflowY === "auto" || style.overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
+        node.scrollTo({ top: 0, behavior: "instant" });
+        return;
+      }
+      node = node.parentElement;
+    }
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
 
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
-  }, [searchQuery]);
-
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
-  }, [activeViewFilter]);
-
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
-  }, [activeFormat]);
-
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
-  }, [selectedNicheId]);
-
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
-  }, [viewMode]);
+  useEffect(() => { scrollResultsToTop(); }, [sortBy, scrollResultsToTop]);
+  useEffect(() => { scrollResultsToTop(); }, [searchQuery, scrollResultsToTop]);
+  useEffect(() => { scrollResultsToTop(); }, [activeViewFilter, scrollResultsToTop]);
+  useEffect(() => { scrollResultsToTop(); }, [activeFormat, scrollResultsToTop]);
+  useEffect(() => { scrollResultsToTop(); }, [selectedNicheId, scrollResultsToTop]);
+  useEffect(() => { scrollResultsToTop(); }, [viewMode, scrollResultsToTop]);
 
   useEffect(() => {
     if (!showFormatMenu) return;
@@ -892,10 +898,10 @@ export default function ExploreScreen() {
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden min-[1100px]:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="flex flex-col min-[1100px]:grid min-[1100px]:min-h-0 min-[1100px]:flex-1 min-[1100px]:grid-cols-[minmax(0,1fr)_320px] min-[1100px]:overflow-hidden">
         <div
           ref={scrollContainerRef}
-          className="min-h-0 min-w-0 overflow-y-auto border-[var(--border)] px-4 pb-[60px] pt-14 sm:px-7 min-[1100px]:border-r min-[1100px]:pt-6"
+          className="border-[var(--border)] px-4 pb-[60px] pt-14 sm:px-7 min-[1100px]:min-h-0 min-[1100px]:min-w-0 min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:pt-6"
           style={{ scrollbarWidth: "thin" }}
         >
           {/* ── Zone 1: Discovery + hero (sounds carousel &lt;1100px) ───── */}
@@ -1199,7 +1205,7 @@ export default function ExploreScreen() {
         </div>
 
         <aside
-          className="flex w-full shrink-0 flex-col gap-6 overflow-y-auto border-t border-[var(--border)] bg-[var(--surface)] px-[22px] py-6 min-[1100px]:w-[320px] min-[1100px]:border-l min-[1100px]:border-t-0"
+          className="flex w-full shrink-0 flex-col gap-6 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[60px] pt-6 sm:px-7 min-[1100px]:w-[320px] min-[1100px]:overflow-y-auto min-[1100px]:border-l min-[1100px]:border-t-0 min-[1100px]:px-[22px] min-[1100px]:py-6 min-[1100px]:pb-6"
           style={{ scrollbarWidth: "thin" }}
         >
           <ReferenceRailSection
