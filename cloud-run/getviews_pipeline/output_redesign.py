@@ -160,6 +160,42 @@ FORMAT_ANALYSIS_WEIGHTS: dict[str, dict[str, str]] = {
         "cta": "critical",
         "transcript": "critical",
     },
+    # ── Wave 5+ taxonomy expansion (2026-05-13) ──────────────────────
+    # Weights translate the doc's §6 per-bucket skeletons into the
+    # existing 6-signal vocabulary. See artifacts/docs/taxonomy-
+    # expansion.md §6.1-§6.4 for the per-bucket rationale.
+    "gameplay": {
+        "hook": "critical",       # first 2s decides whether the viewer cares about the match
+        "face_at": "moderate",    # streamer facecam helps but isn't the draw
+        "text_overlays": "important",  # kill counters, score overlays, ability names
+        "transitions": "critical",     # cuts between gameplay feed + overlay drive retention
+        "cta": "skip",            # gameplay clips rarely carry a CTA
+        "transcript": "critical", # commentator voice energy is the format's heartbeat
+    },
+    "comedy_skit": {
+        "hook": "critical",       # first-line setup is the whole contract
+        "face_at": "important",   # character reactions land the joke
+        "text_overlays": "important",  # subtitle-dependent for VN viewers with sound off
+        "transitions": "critical",     # cut timing IS the punchline
+        "cta": "skip",            # skits lean on the punchline, not a CTA
+        "transcript": "critical", # delivery + dialogue is the format
+    },
+    "lesson": {
+        "hook": "moderate",       # less first-frame driven than gameplay; viewer is already seeking
+        "face_at": "moderate",    # teacher face helps but vocab-drill formats work faceless too
+        "text_overlays": "critical",  # vocabulary drills / definitions on screen
+        "transitions": "moderate",
+        "cta": "important",       # classroom-style "follow for more" is common
+        "transcript": "critical", # lessons carry info in speech; sparse transcript = poor lesson
+    },
+    "highlight": {
+        "hook": "important",      # first clip sets expectation; payoff comes later
+        "face_at": "skip",        # highlights are moment-driven, not face-driven
+        "text_overlays": "moderate",   # highlights rely on visual over explanatory
+        "transitions": "critical",     # montage timing IS the format
+        "cta": "skip",            # highlight clips rarely carry a CTA
+        "transcript": "skip",     # short / music-only by construction — don't score on speech
+    },
     "other": {
         "hook": "critical",
         "face_at": "important",
@@ -418,6 +454,32 @@ _FORMAT_FOCUS_MAP: dict[str, str] = {
     "faceless": (
         "Format FACELESS — ưu tiên: text overlay (thay thế face), hook visual sản phẩm, "
         "CTA lưu/mua. Face_at không áp dụng cho format này."
+    ),
+    # ── Wave 5+ taxonomy expansion (2026-05-13) ──────────────────────
+    # Prompt snippets translate the doc's §6 per-bucket weights into
+    # the same Vietnamese-voice imperative format as the existing
+    # entries. Each one names the dominant signals for the format and
+    # explicitly calls out signals to IGNORE (the "skip" columns in
+    # FORMAT_ANALYSIS_WEIGHTS).
+    "gameplay": (
+        "Format GAMEPLAY — ưu tiên: hook 2s đầu (kết quả trận), nhịp cắt giữa "
+        "gameplay feed + overlay, transcript (giọng bình luận). Text overlay (bảng "
+        "kill/điểm) hỗ trợ. KHÔNG đề cập CTA — gameplay clip hiếm khi có CTA rõ."
+    ),
+    "comedy_skit": (
+        "Format COMEDY SKIT — ưu tiên: hook setup (câu đầu mở chuyện), nhịp cắt "
+        "(timing = punchline), transcript (đối thoại + delivery). Face_at + text "
+        "overlay phụ trợ. KHÔNG đề cập CTA — skit kết bằng punchline, không CTA."
+    ),
+    "lesson": (
+        "Format LESSON (học/giáo dục không thủ tục) — ưu tiên: text overlay (định "
+        "nghĩa/từ vựng), transcript (nội dung nói), CTA follow. Hook bình thường "
+        "vì viewer đã chủ động tìm kiếm. Face_at không bắt buộc."
+    ),
+    "highlight": (
+        "Format HIGHLIGHT (montage ngắn) — ưu tiên: nhịp cắt (timing = format), "
+        "hook visual (clip đầu đặt kỳ vọng). KHÔNG đề cập CTA, transcript — "
+        "highlight thường ngắn hoặc music-only. Face_at không áp dụng."
     ),
     "other": (
         "Format chưa phân loại — phân tích theo thứ tự chuẩn: hook → face_at → text_overlay → "

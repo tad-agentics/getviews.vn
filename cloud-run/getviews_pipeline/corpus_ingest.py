@@ -562,7 +562,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     """Classify a video's content format from its Gemini analysis.
 
     ━━━ TAXONOMY LOCK — READ BEFORE CHANGING ━━━
-    The 15 values this function can return are a hard contract shared across 7 layers:
+    The 19 values this function can return are a hard contract shared across 7 layers:
 
         corpus_ingest.py     → writes content_format into video_corpus (DB column)
         output_redesign.py   → FORMAT_ANALYSIS_WEIGHTS keyed to these 15 values;
@@ -595,24 +595,39 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
 
     1. mukbang   — eating/ASMR signals are highly specific; checked before recipe/review.
     2. grwm      — "get ready with me" is a named ritual format; checked before tutorial.
-    3. recipe    — cooking actions (nấu, chiên, ướp) are more specific than generic "cách làm".
+    3. gameplay  — Wave 5+ taxonomy expansion. niche=17 OR game-title topics.
+                   Checked early so gaming entertainment doesn't get captured by
+                   mukbang/storytelling/dance via its entertaining tone + action scenes.
+                   See ``artifacts/docs/taxonomy-expansion.md`` §6.1.
+    4. recipe    — cooking actions (nấu, chiên, ướp) are more specific than generic "cách làm".
                    NOTE: "hướng dẫn nấu ăn" matches recipe here, NOT tutorial (line below).
                    This is intentional — recipe is more semantically precise for food content.
-    4. haul      — unboxing/haul signals are unambiguous; checked before review.
-    5. review    — broad category. Intentionally catches "review + tutorial" combos because
+    5. haul      — unboxing/haul signals are unambiguous; checked before review.
+    6. review    — broad category. Intentionally catches "review + tutorial" combos because
                    the dominant intent of such videos is evaluation, not instruction.
                    NOTE: "so sánh + review" → review wins here. Comparison is checked below
                    only for videos without explicit review vocabulary.
-    6. tutorial  — how-to instruction; falls here only if not caught by recipe/grwm above.
-    7. comparison — "vs / so sánh" without review vocabulary.
-    8. storytelling — narrative past-tense signals.
-    9. before_after — transformation arc signals.
-    10. pov       — anchored to the literal string "pov:" at transcript start.
-    11. outfit_transition — fashion/transition signals.
-    12. vlog      — lifestyle/daily signals; broad, checked late to avoid false positives.
-    13. dance     — scene-only classification (no transcript, all action scenes).
-    14. faceless  — product/demo scenes without face_to_camera and with spoken transcript.
-    15. other     — fallback.
+    7. tutorial  — how-to instruction; falls here only if not caught by recipe/grwm above.
+    8. comparison — "vs / so sánh" without review vocabulary.
+    9. lesson    — Wave 5+ taxonomy expansion. Educational content WITHOUT procedural how-to
+                   verbs (vocab drills, parenting advice, "word of the day"). Lands AFTER
+                   comparison so career-vs-career content with 'kinh nghiệm' stays
+                   comparison. See §6.3 (doc §7 puts this at 8; dogfood moved it to 9).
+    10. comedy_skit — Wave 5+ taxonomy expansion. (niche=13 AND humorous) OR comedy-topic
+                   match. Placed BEFORE storytelling so scripted dialogue comedy doesn't
+                   leak into narrative-recall storytelling. See §6.2.
+    11. storytelling — narrative past-tense signals.
+    12. before_after — transformation arc signals.
+    13. pov       — anchored to the literal string "pov:" at transcript start.
+    14. outfit_transition — fashion/transition signals.
+    15. vlog      — lifestyle/daily signals; broad, checked late to avoid false positives.
+    16. dance     — scene-only classification (no transcript, all action scenes).
+    17. faceless  — product/demo scenes without face_to_camera and with spoken transcript.
+    18. highlight — Wave 5+ taxonomy expansion. LAST positive match: niche IN (6,16,17,21) +
+                   entertaining/humorous/inspirational tone + scenes≥4 + short transcript.
+                   Heuristic is intentionally loose; must run last so tighter buckets
+                   claim their rows first. See §6.4.
+    19. other     — fallback.
 
     These priorities affect format_distribution in niche_intelligence. If the observed
     distribution for a niche looks wrong, check whether the ranking above needs adjustment
@@ -623,6 +638,34 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     scenes = analysis_json.get("scenes") or []
     tone = analysis_json.get("tone") or ""
     combined = f"{transcript} {topics}"
+
+    # Wave 5+ taxonomy expansion — topic-keyword sets for the 3 new
+    # non-trivial buckets (highlight uses niche + tone + scene only, no
+    # topic keywords). See artifacts/docs/taxonomy-expansion.md §6.
+    gameplay_topic_re = re.compile(
+        r"gaming|esports|liên quân|arena of valor|honor of kings|"
+        r"roblox|attack on titan|minecraft|pubg|valorant|league of legends|"
+        r"mobile legends|free fire|fortnite|genshin",
+    )
+    # Strict-comedy markers — fire comedy_skit regardless of niche. Kept
+    # tight so generic topic tokens like "couple humor" / "funny kids"
+    # (which appear on vlog / outfit rows) don't leak into comedy_skit.
+    # ``comedy`` as a bare token is INTENTIONALLY not here — Gemini tags
+    # many niches' content with "comedy" as a mood descriptor (fashion
+    # videos, vlogs), and the leak rate wasn't worth the coverage.
+    comedy_strict_re = re.compile(
+        r"\bskit\b|\bprank\b|"
+        r"family chaos|relatable memes|hài kịch|tiểu phẩm",
+    )
+    # Niche-13 gated humor markers — secondary signal, only meaningful
+    # when paired with niche=13 (Comedy & Entertainment). Matches the
+    # loose "humor"/"funny"/"hài hước" tokens that leak otherwise.
+    comedy_n13_markers_re = re.compile(r"\bhumor\b|\bfunny\b|hài hước")
+    lesson_topic_re = re.compile(
+        r"vocabulary|grammar|language learning|tenses|linguistics|"
+        r"từ vựng|ngữ pháp|học tiếng|bài học|kinh nghiệm|"
+        r"parenting tip|child development|finance education|tài chính cá nhân",
+    )
 
     # Verbal-first formats (recipe, tutorial) require actual speech in the
     # transcript. Without this gate, a silent-music video with "nấu ăn" in
@@ -637,6 +680,14 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     if re.search(r"mukbang|ăn.*cùng|mời.*ăn|eating|asmr", combined): return "mukbang"
     if niche_id == 4 and len(scenes) >= 10 and tone == "entertaining": return "mukbang"
     if re.search(r"grwm|get ready|makeup routine|morning routine|buổi sáng", combined): return "grwm"
+    # Wave 5+ taxonomy expansion — gameplay (position 3). Niche 17 is a
+    # strong prior; the topic regex catches gaming content in other
+    # niches (e.g. phone-review niche 9 covering a game launch). Lands
+    # BEFORE recipe/review to prevent niche-17 entertainment content
+    # from being mis-captured by those regexes via action scenes or
+    # "review" vocabulary inside gaming commentary.
+    if niche_id == 17 or gameplay_topic_re.search(combined):
+        return "gameplay"
     if has_speech and re.search(
         r"công thức|recipe|nấu|cách làm|nguyên liệu|ướp|xào|chiên|nướng|hấp",
         combined,
@@ -660,6 +711,32 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
         combined,
     ):
         return "comparison"
+    # Wave 5+ taxonomy expansion — lesson (position 9, after comparison).
+    # Educational content WITHOUT procedural how-to verbs. The Wave 5+
+    # design doc placed this at position 8 (before comparison), but
+    # dogfood surfaced a priority conflict: career-vs-career comparisons
+    # that mention "kinh nghiệm" (lesson trigger) should stay
+    # comparison, not flip to lesson. Moving lesson after comparison
+    # lets the more-specific "vs"/"so sánh" signal win on that edge.
+    if (
+        tone in ("educational", "authoritative")
+        and (niche_id == 11 or lesson_topic_re.search(combined))
+    ):
+        return "lesson"
+    # Wave 5+ taxonomy expansion — comedy_skit (position 10). BEFORE
+    # storytelling so scripted dialogue comedy doesn't leak into
+    # narrative-recall. Two paths:
+    #   (a) strict-comedy topic match (comedy / skit / prank / etc.) —
+    #       fires regardless of niche, because these tokens are
+    #       specific enough to be unambiguous across niches.
+    #   (b) niche=13 gate — tone=humorous OR generic humor marker.
+    #       Generic markers ("humor", "funny", "hài hước") appear on
+    #       vlog / outfit rows too; gating by niche=13 prevents leaks.
+    if comedy_strict_re.search(combined) or (
+        niche_id == 13
+        and (tone == "humorous" or comedy_n13_markers_re.search(combined))
+    ):
+        return "comedy_skit"
     if re.search(
         # Wave 5+ fix (2026-05-13): bare-substring tokens (`story`,
         # `drama`, `skit`) wrapped with ``\b`` word boundaries so
@@ -689,6 +766,24 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
             and len(transcript) > 50
             and not any(s.get("type") == "face_to_camera" for s in scenes)):
         return "faceless"
+    # Wave 5+ taxonomy expansion — highlight (position 18, last
+    # positive match). Short music-driven reaction/moment clips.
+    # Intentionally loose heuristic: runs AFTER dance + faceless so
+    # tighter buckets claim their rows first. Niche set: aspirational
+    # lifestyle / travel / sports / gaming. Scene count ≥ 4 filters
+    # out single-shot videos. Short-transcript gate (≤ 80 chars OR
+    # music-only marker) distinguishes from vlog / storytelling
+    # (transcript-heavy).
+    if (
+        niche_id in (6, 16, 17, 21)
+        and tone in ("entertaining", "humorous", "inspirational")
+        and len(scenes) >= 4
+        and (
+            len(transcript.strip()) <= 80
+            or re.search(r"\[âm nhạc|\[music", transcript[:40])
+        )
+    ):
+        return "highlight"
     return "other"
 
 

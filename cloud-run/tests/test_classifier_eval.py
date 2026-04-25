@@ -24,15 +24,17 @@ from getviews_pipeline.eval_classifier import evaluate, load_golden
 #   2026-05-09 + has_speech gate, VN additions  — 27/27 = 1.0000
 #   2026-05-13 Wave 5+ correct-only expansion    — 48/48 = 1.0000
 #   2026-05-13 Wave 5+ diagnostic additions      — 49/54 = 0.9074
-# Floor at 0.88 tolerates one additional miss (48/54 = 0.889). The
-# 2026-05-13 diagnostic batch DELIBERATELY seeded 5 rows where the
-# classifier currently fails — each row's ``notes`` documents the
-# specific gap + a fix-path hint. Those rows are NOT false-positive
-# eval noise; they're the fix list for a future classifier tweak.
-# When one gets fixed, raise this floor by 0.018 (1/54) and update
-# the baseline line above. Don't "fix" by removing the diagnostic
-# row — that erases institutional memory of the gap.
-MIN_ACCURACY = 0.88
+#   2026-04-25 taxonomy expansion (4 new buckets) — 63/66 = 0.9545
+# Floor at 0.92 tolerates one additional miss (60/66 = 0.909) but
+# catches a 2-row regression. The 2026-05-13 diagnostic batch seeded
+# 5 rows where the classifier failed; the taxonomy expansion (4 new
+# buckets — gameplay, comedy_skit, lesson, highlight) recovered 2 of
+# those 5 misses, plus the +12 new items + 3 relabels all classify
+# correctly. Three remaining misses are still diagnostic gaps with
+# fix-path hints in ``notes``. When one gets fixed, raise this floor
+# by 0.015 (1/66) and update the baseline line above. Don't "fix"
+# by removing a diagnostic row — that erases institutional memory.
+MIN_ACCURACY = 0.92
 
 # Don't regress below this for the 5 highest-traffic buckets. These
 # dominate niche_intelligence.format_distribution — getting them
@@ -40,10 +42,11 @@ MIN_ACCURACY = 0.88
 CORE_CLASSES = {"mukbang", "recipe", "tutorial", "review", "grwm"}
 # 2026-05-13 Wave 5+ diagnostic batch seeded 2 known tutorial misses
 # (advice-style + educational-skit). Tutorial recall dropped to 0.6
-# (3/5). Floor at 0.5 catches a genuine regression (2/5 = 0.4 would
-# fail) without needing the diagnostic rows to be fixed first. When
-# classifier gets a fix that recovers those 2 rows, bump back to 0.8.
-MIN_CORE_RECALL = 0.5
+# (3/5). 2026-04-25 taxonomy expansion recovered both via the new
+# ``lesson`` bucket (educational-tone gate). Tutorial recall now
+# at 1.0 (5/5). Floor stays at 0.8 to tolerate one regression while
+# catching a genuine 2-row miss.
+MIN_CORE_RECALL = 0.8
 
 
 def test_golden_set_loads_and_is_nonempty() -> None:
