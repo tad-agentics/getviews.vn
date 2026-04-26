@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowRight, Pencil } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
@@ -13,10 +13,12 @@ import type {
 } from "@/lib/api-types";
 import { env } from "@/lib/env";
 import { formatFollowers, formatViews } from "@/lib/formatters";
+import { ChannelBridgeRibbon } from "./ChannelBridgeRibbon";
 import { ChannelCadenceBlock } from "./ChannelCadenceBlock";
 import { ChannelDiagnosticList } from "./ChannelDiagnosticList";
 import { ChannelPulseBlock } from "./ChannelPulseBlock";
 import { ChannelRecent7dList } from "./ChannelRecent7dList";
+import { scrollToSuggestionsTier, type SuggestionsTier } from "./scrollToTier";
 
 function profileTikTok(p: ProfileRow | null | undefined): string | null {
   const h = (p as { tiktok_handle?: string | null } | null | undefined)?.tiktok_handle;
@@ -182,6 +184,18 @@ function ConnectedCard({
 }) {
   const navigate = useNavigate();
   const at = handleDisplay.startsWith("@") ? handleDisplay : `@${handleDisplay}`;
+  // PR-4 — diagnostic bridge pills + bottom ribbon scroll into the
+  // GỢI Ý HÔM NAY tier section that lives further down on HomeScreen.
+  const handleBridgeClick = useCallback(
+    (tier: SuggestionsTier) => {
+      scrollToSuggestionsTier(tier);
+    },
+    [],
+  );
+  const handleScrollToSuggestions = useCallback(
+    () => scrollToSuggestionsTier("01"),
+    [],
+  );
   // Render the benchmark layer only when the niche has enough creators
   // (>= MIN_BENCHMARK_SAMPLE). Below that, fall back to mid-bars and
   // hide the "Ngách: …" / "Top 25%: …" sub-labels rather than claiming
@@ -277,7 +291,11 @@ function ConnectedCard({
           <p className="mt-1 mb-3.5 text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
             Đo trực tiếp từ kênh bạn — không so với ngách. Mỗi điểm: tại sao tốt + cách tận dụng.
           </p>
-          <ChannelDiagnosticList kind="strength" items={data.strengths} />
+          <ChannelDiagnosticList
+            kind="strength"
+            items={data.strengths}
+            onBridgeClick={handleBridgeClick}
+          />
         </section>
       ) : null}
 
@@ -298,7 +316,11 @@ function ConnectedCard({
           <p className="mt-1 mb-3.5 text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
             Mỗi điểm: vấn đề là gì + tại sao xảy ra + cách sửa cụ thể.
           </p>
-          <ChannelDiagnosticList kind="weakness" items={data.weaknesses} />
+          <ChannelDiagnosticList
+            kind="weakness"
+            items={data.weaknesses}
+            onBridgeClick={handleBridgeClick}
+          />
         </section>
       ) : null}
 
@@ -426,6 +448,16 @@ function ConnectedCard({
       ) : null}
 
       <InsightsFooter lessons={data.lessons} />
+
+      {/* PR-4 — bottom bridge ribbon. Only renders when the diagnostic
+       * blocks have content to bridge from; on legacy cached responses
+       * (empty strengths/weaknesses) we suppress the ribbon since the
+       * "đã ưu tiên các ý tưởng bám theo điểm mạnh & sửa điểm yếu" copy
+       * would be misleading. */}
+      {(data.strengths && data.strengths.length > 0)
+        || (data.weaknesses && data.weaknesses.length > 0) ? (
+        <ChannelBridgeRibbon onScrollToSuggestions={handleScrollToSuggestions} />
+      ) : null}
     </div>
   );
 }

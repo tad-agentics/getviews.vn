@@ -40,7 +40,10 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
         className="!mb-10"
       />
 
-      <div className="mb-10">
+      {/* PR-4 — data-tier anchors back the channel diagnostic's bridge
+       * pills + the "Xem gợi ý ↓" ribbon at the bottom of the
+       * HomeMyChannelSection card (see scrollToTier.ts). */}
+      <div className="mb-10 scroll-mt-20" data-tier="01">
         <TierHeader
           num="01"
           tag="QUAY NGAY"
@@ -59,7 +62,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
         </div>
       </div>
 
-      <div className="mb-10">
+      <div className="mb-10 scroll-mt-20" data-tier="02">
         <TierHeader
           num="02"
           tag="PATTERN DỄ REMIX"
@@ -70,7 +73,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
         <HooksTable embedded nicheId={nicheId} />
       </div>
 
-      <div>
+      <div className="scroll-mt-20" data-tier="03">
         <TierHeader
           num="03"
           tag="CẢM HỨNG"
