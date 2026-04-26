@@ -25,15 +25,14 @@ import { TrendsDouyinCard } from "./TrendsDouyinCard";
 import { TrendsNicheTabs } from "./TrendsNicheTabs";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
+import { TrendsRail } from "./TrendsRail";
 import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
-import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
-import { formatDate, formatViews, formatVN, formatRelativeSinceVi } from "@/lib/formatters";
+import { formatDate, formatViews, formatRelativeSinceVi } from "@/lib/formatters";
 import { looksLikeNonVietnameseCaption } from "@/lib/nonVietnameseFilter";
 import { TrendingSection } from "@/components/explore/TrendingSection";
 import {
   TrendingSoundsSection,
-  mondayWeekOfDateString,
 } from "@/components/explore/TrendingSoundsSection";
 import { VideoDangHocSidebar } from "@/components/explore/VideoDangHocSidebar";
 import { type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
@@ -104,22 +103,6 @@ function nicheCorpusSampleCount(intel: Record<string, unknown> | null | undefine
   const ss = intel.sample_size;
   if (typeof ss === "number" && Number.isFinite(ss)) return ss;
   return 0;
-}
-
-function topJsonbCounts(
-  dist: unknown,
-  limit: number,
-): { key: string; count: number }[] {
-  if (!dist || typeof dist !== "object" || Array.isArray(dist)) return [];
-  const rec = dist as Record<string, unknown>;
-  return Object.entries(rec)
-    .map(([key, raw]) => {
-      const n = typeof raw === "number" ? raw : Number(raw);
-      return { key, count: Number.isFinite(n) ? n : 0 };
-    })
-    .filter((e) => e.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, limit);
 }
 
 function viWeekKicker(): string {
@@ -307,58 +290,6 @@ function ExploreGridSkeleton() {
   );
 }
 
-type RailCuratedItem = { tag: string; body: string; accent?: boolean };
-
-/** Curated right rail (`trends.jsx` `RailSection`). */
-function ReferenceRailSection({
-  kicker,
-  title,
-  items,
-}: {
-  kicker: string;
-  title: string;
-  items: RailCuratedItem[];
-}) {
-  if (items.length === 0) return null;
-  return (
-    <div>
-      <p className="mb-1 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--faint)]">
-        {kicker}
-      </p>
-      <h3 className="mb-3 border-b border-[var(--ink)] pb-2.5 text-[22px] font-extrabold leading-tight text-[var(--ink)]">
-        {title}
-      </h3>
-      <div className="flex flex-col gap-3.5">
-        {items.map((it, i) => (
-          <div
-            key={`${it.tag}-${i}`}
-            className={
-              i < items.length - 1
-                ? "border-b border-dashed border-[var(--border)] pb-3.5"
-                : ""
-            }
-          >
-            <div
-              className={`mb-1 flex items-center gap-1.5 font-mono text-[9px] font-medium uppercase tracking-wider ${
-                it.accent ? "text-[color:var(--gv-accent-deep)]" : "text-[var(--faint)]"
-              }`}
-            >
-              {it.accent ? (
-                <span
-                  className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--gv-accent)] align-middle"
-                  aria-hidden
-                />
-              ) : null}
-              <span>{it.tag}</span>
-            </div>
-            <p className="text-sm leading-[1.35] text-[var(--gv-ink-2)]">{it.body}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ExploreVideoListRow({
   video,
   onNavigate,
@@ -518,7 +449,6 @@ export default function ExploreScreen() {
   const { data: followedNiches = [] } = useNicheRowsForIds(followedNicheIds);
 
   const { data: hookDataRaw } = useHookEffectiveness(selectedNicheId);
-  const { data: formatData } = useFormatLifecycle(selectedNicheId);
   const {
     data: nicheIntel,
     isPending: nicheIntelLoading,
@@ -542,53 +472,6 @@ export default function ExploreScreen() {
     [niches, selectedNicheId],
   );
 
-  const risingFormats = useMemo(
-    () => (formatData ?? []).filter((f) => (f.engagement_trend ?? 0) > 0).slice(0, 5),
-    [formatData],
-  );
-  const fallingFormats = useMemo(
-    () => (formatData ?? []).filter((f) => (f.engagement_trend ?? 0) <= 0).slice(0, 3),
-    [formatData],
-  );
-
-  const { data: breakoutVideosRaw } = useQuery({
-    queryKey: corpusKeys.breakout(selectedNicheId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("video_corpus")
-        .select("id, creator_handle, views, thumbnail_url, content_type, indexed_at, tiktok_url, hook_phrase")
-        .eq("niche_id", selectedNicheId!)
-        .not("thumbnail_url", "is", null)
-        .order("views", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !!selectedNicheId,
-    staleTime: 10 * 60_000,
-  });
-
-  const breakoutSidebarItems = useMemo(() => {
-    const rows = breakoutVideosRaw ?? [];
-    return rows.map((r) => {
-      const rawType = String(r.content_type ?? "").replace(/_/g, " ").trim();
-      const title = rawType
-        ? rawType.charAt(0).toUpperCase() + rawType.slice(1)
-        : `@${r.creator_handle}`;
-      const hookSnippet = String((r as { hook_phrase?: string | null }).hook_phrase ?? "").trim();
-      return {
-        video_id: r.id as string,
-        title,
-        hook_snippet: hookSnippet,
-        views: r.views != null ? formatViews(r.views) : "—",
-        handle: `@${r.creator_handle ?? ""}`,
-        time: r.indexed_at ? formatDate(r.indexed_at) : "",
-        img: r.thumbnail_url ?? PLACEHOLDER_THUMB,
-        tiktok_url: r.tiktok_url ?? null,
-      };
-    });
-  }, [breakoutVideosRaw]);
-
   const nicheIntelRecord = nicheIntel as Record<string, unknown> | null | undefined;
 
   const lowVideoCorpus = Boolean(
@@ -596,11 +479,6 @@ export default function ExploreScreen() {
       !nicheIntelLoading &&
       !nicheIntelQueryError &&
       (nicheIntel == null || nicheCorpusSampleCount(nicheIntelRecord) < 10),
-  );
-
-  const formatDistTop = useMemo(
-    () => topJsonbCounts(nicheIntelRecord?.format_distribution, 6),
-    [nicheIntelRecord],
   );
 
   const newestComputedAt = hookData?.[0]?.computed_at ?? null;
@@ -618,31 +496,6 @@ export default function ExploreScreen() {
     () => (hookData ?? []).reduce((s, h) => s + (h.sample_size ?? 0), 0),
     [hookData],
   );
-
-  const weekStrSounds = useMemo(() => mondayWeekOfDateString(), []);
-
-  const { data: soundsAllRows = [] } = useQuery({
-    queryKey: ["trending_sounds_all", weekStrSounds],
-    queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
-        .from("trending_sounds")
-        .select("sound_name, sound_id, usage_count, total_views, commerce_signal, niche_id")
-        .eq("week_of", weekStrSounds)
-        .order("usage_count", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data ?? []) as Array<{
-        sound_name: string;
-        sound_id: string | null;
-        usage_count: number | null;
-        total_views: number | null;
-        commerce_signal: boolean | null;
-        niche_id: number;
-      }>;
-    },
-    staleTime: 30 * 60 * 1000,
-  });
 
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({
     nicheId: selectedNicheId,
@@ -776,62 +629,6 @@ export default function ExploreScreen() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showNicheMenu]);
-
-  const hasPipelineFormats = risingFormats.length > 0 || fallingFormats.length > 0;
-
-  const videoRailItems = useMemo((): RailCuratedItem[] => {
-    const tags = ["Breakout tuần này", "Đang viral", "Đáng học"] as const;
-    return breakoutSidebarItems.slice(0, 3).map((item, i) => {
-      const hook = item.hook_snippet.trim();
-      const snippet = hook.length > 72 ? `${hook.slice(0, 70)}…` : hook;
-      const quote = snippet.length > 0 ? ` — "${snippet}"` : ` — ${item.title}`;
-      const body = `${item.handle}${quote} · ${item.views} view`;
-      return {
-        tag: tags[i] ?? `Top ${i + 1}`,
-        body,
-        accent: i === 0,
-      };
-    });
-  }, [breakoutSidebarItems]);
-
-  const soundsRailItems = useMemo((): RailCuratedItem[] => {
-    if (selectedNicheId == null) return [];
-    return soundsAllRows
-      .filter((r) => r.niche_id === selectedNicheId)
-      .slice(0, 3)
-      .map((r, i) => {
-        const tag =
-          r.sound_name.length > 28 ? `${r.sound_name.slice(0, 26)}…` : r.sound_name;
-        const commerce = r.commerce_signal ? " · Commerce" : "";
-        return {
-          tag,
-          body: `${formatVN(r.usage_count ?? 0)} video · ${formatVN(r.total_views ?? 0)} lượt xem${commerce}`,
-          accent: i === 0,
-        };
-      });
-  }, [soundsAllRows, selectedNicheId]);
-
-  const formatRailItems = useMemo((): RailCuratedItem[] => {
-    if (selectedNicheId == null) return [];
-    if (hasPipelineFormats && !lowVideoCorpus && risingFormats.length > 0) {
-      return risingFormats.slice(0, 3).map((f, i) => ({
-        tag: String(f.format_type),
-        body: `Xu hướng TTTB +${((Number(f.engagement_trend) || 0) * 100).toFixed(1)}% (pipeline format)`,
-        accent: i === 0,
-      }));
-    }
-    return formatDistTop.slice(0, 3).map((row, i) => ({
-      tag: row.key.replace(/_/g, " "),
-      body: `${row.count} video trong mẫu 30 ngày`,
-      accent: i === 0,
-    }));
-  }, [
-    selectedNicheId,
-    hasPipelineFormats,
-    lowVideoCorpus,
-    risingFormats,
-    formatDistTop,
-  ]);
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
@@ -1212,80 +1009,16 @@ export default function ExploreScreen() {
           </section>
           </div>
 
+          {/* PR-T6 — right rail: 2 sections (Đang đột phá / Viral mọi
+           * thời) per design pack ``screens/trends.jsx`` lines 432-446.
+           * Sounds + Format rails were removed — sounds carousel still
+           * surfaces below the hero on < 1100px via the existing
+           * TrendingSoundsSection. */}
           <aside
-            className="flex w-full shrink-0 flex-col gap-6 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[60px] pt-6 sm:px-7 min-[1100px]:w-[320px] min-[1100px]:overflow-y-auto min-[1100px]:border-l min-[1100px]:border-t-0 min-[1100px]:px-[22px] min-[1100px]:py-6 min-[1100px]:pb-6"
+            className="w-full shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 pb-[60px] pt-6 sm:px-7 min-[1100px]:w-[320px] min-[1100px]:overflow-y-auto min-[1100px]:border-l min-[1100px]:border-t-0 min-[1100px]:px-[22px] min-[1100px]:py-6 min-[1100px]:pb-6"
             style={{ scrollbarWidth: "thin" }}
           >
-          <ReferenceRailSection
-            kicker="VIDEO NÊN XEM"
-            title="Hôm nay"
-            items={
-              selectedNicheId == null
-                ? [
-                    {
-                      tag: "Chọn ngách",
-                      body: "Chọn niche để xem các video nổi bật dạng gợi ý biên tập.",
-                      accent: true,
-                    },
-                  ]
-                : videoRailItems.length > 0
-                  ? videoRailItems
-                  : [
-                      {
-                        tag: "Đang cập nhật",
-                        body: "Chưa có video nổi bật cho ngách này.",
-                        accent: true,
-                      },
-                    ]
-            }
-          />
-          <ReferenceRailSection
-            kicker="ÂM THANH ĐANG LÊN"
-            title="Sounds"
-            items={
-              selectedNicheId == null
-                ? [
-                    {
-                      tag: "Chọn ngách",
-                      body: "Chọn niche để xem âm thanh đang dùng nhiều trong tuần.",
-                      accent: true,
-                    },
-                  ]
-                : soundsRailItems.length > 0
-                  ? soundsRailItems
-                  : [
-                      {
-                        // BUG-12 (QA audit 2026-04-22): the empty state
-                        // read "Đang cập nhật · Chưa có dữ liệu sounds
-                        // cho tuần này." without an ETA. The sounds ETL
-                        // runs every Tuesday morning (cron in
-                        // supabase/functions/cron-sounds-refresh); telling
-                        // the user when to come back converts the dead
-                        // state into a scheduled one.
-                        tag: "Cập nhật thứ Ba hàng tuần",
-                        body: "Dữ liệu sounds cho tuần này chưa sẵn sàng — quay lại sau hoặc tham khảo tuần trước.",
-                        accent: true,
-                      },
-                    ]
-            }
-          />
-          {selectedNicheId !== null ? (
-            <ReferenceRailSection
-              kicker="HÌNH THỨC HOT"
-              title="Format"
-              items={
-                formatRailItems.length > 0
-                  ? formatRailItems
-                  : [
-                      {
-                        tag: "Đang cập nhật",
-                        body: "Chưa có dữ liệu format cho ngách này.",
-                        accent: true,
-                      },
-                    ]
-              }
-            />
-          ) : null}
+            <TrendsRail nicheId={selectedNicheId} />
           </aside>
         </div>
       </div>
