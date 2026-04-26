@@ -13,6 +13,7 @@ import { ChannelCadenceBlock } from "./ChannelCadenceBlock";
 import { ChannelDiagnosticList } from "./ChannelDiagnosticList";
 import { ChannelPulseBlock } from "./ChannelPulseBlock";
 import { ChannelRecent7dList } from "./ChannelRecent7dList";
+import { ConnectChannelCard } from "./ConnectChannelCard";
 import { scrollToSuggestionsTier, type SuggestionsTier } from "./scrollToTier";
 
 function profileTikTok(p: ProfileRow | null | undefined): string | null {
@@ -256,7 +257,6 @@ export const HomeMyChannelSection = memo(function HomeMyChannelSection({
   profile: ProfileRow | null | undefined;
   nicheLabel: string;
 }) {
-  const navigate = useNavigate();
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
   const rawHandle = profileTikTok(profile);
   const handleKey = useMemo(() => channelAnalyzeHandleKey(rawHandle), [rawHandle]);
@@ -322,26 +322,16 @@ export const HomeMyChannelSection = memo(function HomeMyChannelSection({
           <p className="min-w-0 max-w-prose flex-1 text-[13px] leading-snug text-[color:var(--gv-ink-3)]">
             {hasHandle
               ? `Bạn ở đâu trong ngách ${nicheLabel} — và 3 việc nên làm tuần này.`
-              : "Dán handle trong Cài đặt để Getviews hiển thị tóm tắt kênh ngay tại Studio — vị trí trong ngách, video nổi/tụt, gợi ý hành động."}
+              : "Dán link để Getviews soi gương kênh của bạn — bạn ở đâu trong ngách, video nào đang lên / tụt, nên làm gì tuần này."}
           </p>
         </div>
       </header>
 
       {!hasHandle ? (
-        <div className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-8 sm:px-8">
-          <p className="m-0 text-[15px] font-medium text-[color:var(--gv-ink)]">Chưa có TikTok handle trên hồ sơ</p>
-          <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
-            Thêm <span className="font-medium text-[color:var(--gv-ink)]">@handle</span> trong phần thiết lập để tự động tải tóm tắt kênh tại đây.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/settings")}>
-              Mở cài đặt
-            </Btn>
-            <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/channel")}>
-              Soi thử một kênh
-            </Btn>
-          </div>
-        </div>
+        // PR-cleanup-D — inline paste-flow card. Replaces the previous
+        // "go to /app/settings" detour so new creators can connect
+        // their kênh without leaving Studio.
+        <ConnectChannelCard />
       ) : !cloudConfigured ? (
         <div className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[13px] text-[color:var(--gv-ink-3)]">
           Cần cấu hình API để tải dữ liệu kênh.{" "}
