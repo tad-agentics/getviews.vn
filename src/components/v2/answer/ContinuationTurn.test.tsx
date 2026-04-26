@@ -65,10 +65,16 @@ describe("ContinuationTurn payload dispatch", () => {
   // Kickers are Vietnamese per CLAUDE.md ("No English strings in UI").
   // If these strings are ever retranslated, update the `AnswerBlock`
   // call sites in ContinuationTurn.tsx in the same commit.
-  it("renders PatternBody inside a 'Xu hướng' block for kind: pattern", () => {
+  //
+  // Pattern is the one exception: ``ContinuationTurn.tsx:37`` wraps it
+  // in ``<AnswerBlock kicker="Xu hướng" bare>``, and ``bare`` mode
+  // intentionally drops the kicker chrome (``AnswerBlock.tsx:14-16``)
+  // because PatternBody renders its own larger heading. So the Pattern
+  // case asserts only the body — the other kicker assertions below
+  // still apply to their non-bare AnswerBlocks.
+  it("renders PatternBody for kind: pattern", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "pattern", report: {} })} />);
     expect(screen.getByTestId("pattern-body")).toBeTruthy();
-    expect(screen.getByText("Xu hướng")).toBeTruthy();
   });
 
   it("renders IdeasBody inside a 'Ý tưởng' block for kind: ideas", () => {
