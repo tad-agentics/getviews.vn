@@ -43,10 +43,23 @@ function formatViews(n: number | null): string {
   return n.toString();
 }
 
-export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: number | null }) {
+export const HooksTable = memo(function HooksTable({
+  nicheId,
+  embedded = false,
+}: {
+  nicheId: number | null;
+  embedded?: boolean;
+}) {
   const { data: patterns, isPending } = useTopPatterns(nicheId, 6);
 
   if (isPending) {
+    if (embedded) {
+      return (
+        <div className="animate-pulse rounded-[12px] bg-[color:var(--gv-canvas-2)] p-6">
+          <div className="h-48 w-full rounded bg-[color:var(--gv-rule)]" />
+        </div>
+      );
+    }
     return (
       <section className="animate-pulse rounded-[18px] bg-[color:var(--gv-canvas-2)] p-6">
         <div className="h-4 w-32 rounded bg-[color:var(--gv-rule)]" />
@@ -56,31 +69,26 @@ export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: numbe
   }
 
   if (!patterns || patterns.length === 0) {
+    const emptyBody = (
+      <p className={`text-sm text-[color:var(--gv-ink-4)] ${embedded ? "" : "mt-6"}`}>
+        Chưa đủ pattern để xếp hạng tuần này. Chạy ingest nữa là có.
+      </p>
+    );
+    if (embedded) return emptyBody;
     return (
       <section className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6">
-        <SectionHeader
-          kicker="BẢNG XẾP HẠNG"
-          title="Hook đang chạy trong ngách"
-        />
-        <p className="mt-6 text-sm text-[color:var(--gv-ink-4)]">
-          Chưa đủ pattern để xếp hạng tuần này. Chạy ingest nữa là có.
-        </p>
+        <SectionHeader kicker="BẢNG XẾP HẠNG" title="Hook đang chạy trong ngách" />
+        {emptyBody}
       </section>
     );
   }
 
-  return (
-    <section className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 sm:p-6">
-      <SectionHeader
-        kicker="BẢNG XẾP HẠNG"
-        title="Hook đang chạy"
-        caption="Top 6 mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua."
-      />
-
+  const listAndTable = (
+    <>
       {/* Mobile: stacked cards. The 6-col table can't fit in 360-393px;
           forcing it would either overflow horizontally (looks broken) or
           collapse the MẪU HOOK column to one-character-per-line. */}
-      <ul className="mt-5 space-y-3 sm:hidden">
+      <ul className={`space-y-3 sm:hidden ${embedded ? "mt-0" : "mt-5"}`}>
         {patterns.map((p: TopPattern, idx: number) => (
           <li
             key={p.id}
@@ -135,7 +143,9 @@ export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: numbe
 
       {/* Desktop / tablet: table. Horizontally scrollable so wider screens
           that still aren't quite wide enough don't collapse the cells. */}
-      <div className="mt-5 hidden overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] sm:mt-6 sm:block">
+      <div
+        className={`hidden overflow-hidden rounded-[12px] border border-[color:var(--gv-rule)] sm:block ${embedded ? "mt-0 sm:mt-0" : "mt-5 sm:mt-6"}`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-[color:var(--gv-canvas-2)]">
@@ -178,6 +188,21 @@ export const HooksTable = memo(function HooksTable({ nicheId }: { nicheId: numbe
           </table>
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return listAndTable;
+  }
+
+  return (
+    <section className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4 sm:p-6">
+      <SectionHeader
+        kicker="BẢNG XẾP HẠNG"
+        title="Hook đang chạy"
+        caption="Top 6 mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua."
+      />
+      {listAndTable}
     </section>
   );
 });

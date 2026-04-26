@@ -32,11 +32,14 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
   nicheLabel,
   nicheId,
   onSelectPrompt,
+  embedded = false,
 }: {
   nicheLabel: string;
   /** When set, ritual cards open Xưởng Viết with prefill instead of chat. */
   nicheId: number | null;
   onSelectPrompt: (prompt: string) => void;
+  /** Ẩn SectionHeader — dùng trong khối “GỢI Ý HÔM NAY” (TierHeader bên ngoài). */
+  embedded?: boolean;
 }) {
   const navigate = useNavigate();
   const { data: ritual, emptyReason, isPending, refetch } = useDailyRitual(true, nicheId);
@@ -44,11 +47,13 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
   if (isPending) {
     return (
       <section>
-        <SectionHeader
-          kicker="SÁNG NAY · 06:00"
-          title="3 kịch bản sẵn sàng cho bạn"
-          caption="Được tạo qua đêm từ dữ liệu ngách tuần này."
-        />
+        {!embedded ? (
+          <SectionHeader
+            kicker="SÁNG NAY · 06:00"
+            title="3 kịch bản sẵn sàng cho bạn"
+            caption="Được tạo qua đêm từ dữ liệu ngách tuần này."
+          />
+        ) : null}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-52 animate-pulse rounded-[12px] bg-[color:var(--gv-canvas-2)]" />
@@ -62,20 +67,28 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
     const isNicheStale = emptyReason === "ritual_niche_stale";
     return (
       <section>
-        <SectionHeader
-          kicker="SÁNG NAY · 06:00"
-          title={
-            isNicheStale
-              ? "Kịch bản mới đang chuẩn bị cho ngách này"
-              : "Đang tạo kịch bản cho ngày đầu"
-          }
-          caption={
-            isNicheStale
-              ? "Lần tạo kế tiếp sẽ có 3 kịch bản theo ngách bạn vừa chọn."
-              : "Cron sáng sẽ xếp sẵn 3 kịch bản mới vào 7h. Ghé lại sáng mai nhé."
-          }
-        />
-        <div className="mt-4 flex flex-wrap gap-2">
+        {!embedded ? (
+          <SectionHeader
+            kicker="SÁNG NAY · 06:00"
+            title={
+              isNicheStale
+                ? "Kịch bản mới đang chuẩn bị cho ngách này"
+                : "Đang tạo kịch bản cho ngày đầu"
+            }
+            caption={
+              isNicheStale
+                ? "Lần tạo kế tiếp sẽ có 3 kịch bản theo ngách bạn vừa chọn."
+                : "Cron sáng sẽ xếp sẵn 3 kịch bản mới vào 7h. Ghé lại sáng mai nhé."
+            }
+          />
+        ) : (
+          <p className="mb-4 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+            {isNicheStale
+              ? "Kịch bản mới đang chuẩn bị cho ngách này. Lần tạo kế tiếp sẽ có 3 kịch bản theo ngách bạn vừa chọn."
+              : "Đang tạo kịch bản cho ngày đầu. Cron sáng sẽ xếp sẵn 3 kịch bản mới vào 7h."}
+          </p>
+        )}
+        <div className={`flex flex-wrap gap-2 ${embedded ? "" : "mt-4"}`}>
           <Btn variant="ghost" size="sm" type="button" onClick={() => void refetch()}>
             Thử tải lại
           </Btn>
@@ -96,22 +109,26 @@ export const HomeMorningRitual = memo(function HomeMorningRitual({
 
   return (
     <section>
-      <SectionHeader
-        kicker="SÁNG NAY · 06:00"
-        title="3 kịch bản sẵn sàng cho bạn"
-        caption={
-          <span className="block space-y-1">
-            <span className="gv-mono block text-[11px] text-[color:var(--gv-ink-4)]">
-              Cập nhật · {updatedRel}
+      {!embedded ? (
+        <SectionHeader
+          kicker="SÁNG NAY · 06:00"
+          title="3 kịch bản sẵn sàng cho bạn"
+          caption={
+            <span className="block space-y-1">
+              <span className="gv-mono block text-[11px] text-[color:var(--gv-ink-4)]">
+                Cập nhật · {updatedRel}
+              </span>
+              <span className="block">
+                {isThin
+                  ? "Dữ liệu ngách đang thưa — các retention estimate dưới đây là định hướng, không chính xác tuyệt đối."
+                  : "Tổng hợp từ pattern thắng trong ngách của bạn qua đêm qua."}
+              </span>
             </span>
-            <span className="block">
-              {isThin
-                ? "Dữ liệu ngách đang thưa — các retention estimate dưới đây là định hướng, không chính xác tuyệt đối."
-                : "Tổng hợp từ pattern thắng trong ngách của bạn qua đêm qua."}
-            </span>
-          </span>
-        }
-      />
+          }
+        />
+      ) : (
+        <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-4)]">Cập nhật · {updatedRel}</p>
+      )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {ritual.scripts.map((s, idx) => {

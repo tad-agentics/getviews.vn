@@ -30,8 +30,10 @@ const FALLBACK_PANEL = ["bg-[#2d2640]", "bg-[#5c1f2a]", "bg-[#1f3d2d]"] as const
 
 export const BreakoutGrid = memo(function BreakoutGrid({
   nicheId,
+  embedded = false,
 }: {
   nicheId: number | null;
+  embedded?: boolean;
 }) {
   const { data: videos, isPending } = useTopBreakouts(nicheId, 3);
 
@@ -48,12 +50,14 @@ export const BreakoutGrid = memo(function BreakoutGrid({
   if (isPending) {
     return (
       <section>
-        <SectionHeader
-          kicker="BIÊN TẬP CHỌN"
-          title="3 video bứt phá"
-          caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
-          right={headerRight}
-        />
+        {!embedded ? (
+          <SectionHeader
+            kicker="BIÊN TẬP CHỌN"
+            title="3 video bứt phá"
+            caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
+            right={headerRight}
+          />
+        ) : null}
         <div className="grid [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-[18px]">
           {[0, 1, 2].map((i) => (
             <div key={i} className="flex flex-col gap-3">
@@ -69,12 +73,14 @@ export const BreakoutGrid = memo(function BreakoutGrid({
   if (!videos || videos.length === 0) {
     return (
       <section>
-        <SectionHeader
-          kicker="BIÊN TẬP CHỌN"
-          title="3 video bứt phá"
-          caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
-          right={headerRight}
-        />
+        {!embedded ? (
+          <SectionHeader
+            kicker="BIÊN TẬP CHỌN"
+            title="3 video bứt phá"
+            caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
+            right={headerRight}
+          />
+        ) : null}
         <p className="mt-0 max-w-prose text-[14px] leading-relaxed text-[color:var(--gv-ink-3)]">
           Chưa có video trong kho dữ liệu để hiển thị. Khi pipeline cập nhật breakout và lượt xem, ba
           video nổi bật sẽ xuất hiện tại đây. Bạn có thể xem xu hướng rộng hơn ở mục{" "}
@@ -89,12 +95,14 @@ export const BreakoutGrid = memo(function BreakoutGrid({
 
   return (
     <section>
-      <SectionHeader
-        kicker="BIÊN TẬP CHỌN"
-        title="3 video bứt phá"
-        caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
-        right={headerRight}
-      />
+      {!embedded ? (
+        <SectionHeader
+          kicker="BIÊN TẬP CHỌN"
+          title="3 video bứt phá"
+          caption="View vượt 10× so với trung bình kênh trong 48 giờ qua."
+          right={headerRight}
+        />
+      ) : null}
       <div className="grid [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-[18px]">
         {videos.map((v: BreakoutVideo, idx: number) => {
           const dur = formatDuration(v.video_duration ?? undefined);

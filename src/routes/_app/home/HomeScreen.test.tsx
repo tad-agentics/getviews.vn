@@ -5,7 +5,7 @@
  * Supabase, AppLayout, and motion reliably in jsdom is not worth the
  * effort. Scope: the composer hands a navigation payload to /app with
  * initialPrompt in state, and the greeting degrades gracefully when the
- * pulse/niche data hasn't arrived yet.
+ * niche data hasn't arrived yet.
  */
 
 import React from "react";
@@ -27,7 +27,6 @@ vi.mock("@/lib/env", () => ({
 
 const mockUseProfile = vi.fn();
 const mockUseNicheTaxonomy = vi.fn();
-const mockUseHomePulse = vi.fn();
 const mockUseHomeTicker = vi.fn();
 const mockUseDailyRitual = vi.fn();
 const mockUseTopPatterns = vi.fn();
@@ -39,7 +38,6 @@ vi.mock("@/hooks/useProfile", () => ({ useProfile: () => mockUseProfile() }));
 vi.mock("@/hooks/useNicheTaxonomy", () => ({
   useNicheTaxonomy: () => mockUseNicheTaxonomy(),
 }));
-vi.mock("@/hooks/useHomePulse", () => ({ useHomePulse: () => mockUseHomePulse() }));
 vi.mock("@/hooks/useHomeTicker", () => ({ useHomeTicker: () => mockUseHomeTicker() }));
 vi.mock("@/hooks/useDailyRitual", () => ({ useDailyRitual: () => mockUseDailyRitual() }));
 vi.mock("@/hooks/useTopPatterns", () => ({ useTopPatterns: () => mockUseTopPatterns() }));
@@ -73,7 +71,6 @@ function setHooksDefaults() {
   mockUseNicheTaxonomy.mockReturnValue({
     data: [{ id: 4, name: "Ẩm thực" }],
   });
-  mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
   mockUseHomeTicker.mockReturnValue({ data: [] });
   mockUseDailyRitual.mockReturnValue({
     data: null,
@@ -104,7 +101,6 @@ describe("HomeScreen", () => {
   beforeEach(() => {
     mockUseProfile.mockReset();
     mockUseNicheTaxonomy.mockReset();
-    mockUseHomePulse.mockReset();
     mockUseHomeTicker.mockReset();
     mockUseDailyRitual.mockReset();
     mockUseTopPatterns.mockReset();
@@ -125,37 +121,13 @@ describe("HomeScreen", () => {
     expect(text).toContain("Ẩm thực");
   });
 
-  it("omits the hook-count clause when pulse has no new_hooks", () => {
+  it("uses the static greeting line without hook counts from pulse", () => {
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
       .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
-    expect(headline.textContent).not.toContain("hook mới đang nổ");
+    expect(headline.textContent).not.toContain("hook mới");
     expect(headline.textContent).toContain("đang có gì mới");
-  });
-
-  it("renders the hook-count clause when new_hooks > 0", () => {
-    mockUseHomePulse.mockReturnValue({
-      data: {
-        niche_id: 4,
-        views_this_week: 10_000_000,
-        views_last_week: 8_000_000,
-        views_delta_pct: 25,
-        videos_this_week: 40,
-        new_creators_this_week: 5,
-        viral_count_this_week: 6,
-        new_hooks_this_week: 3,
-        top_hook_name: "POV: mở chiếc hộp này",
-        adequacy: "niche_norms",
-        as_of: new Date().toISOString(),
-      },
-      isPending: false,
-    });
-    renderHome();
-    const headline = screen
-      .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
-    expect(headline.textContent).toContain("3 hook mới");
   });
 
   it("falls back to 'Bạn' when display_name is empty", () => {

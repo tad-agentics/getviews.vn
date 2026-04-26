@@ -4,19 +4,13 @@ import { Plus, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { QueryComposer } from "@/components/v2/QueryComposer";
-import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
-import { useHomePulse } from "@/hooks/useHomePulse";
-import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import { TickerMarquee } from "./components/TickerMarquee";
-import { PulseCard } from "./components/PulseCard";
-import { HooksTable } from "./components/HooksTable";
-import { BreakoutGrid } from "./components/BreakoutGrid";
-import { HomeMorningRitual } from "./components/HomeMorningRitual";
-import { NextVideosCard } from "./components/NextVideosCard";
+import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
+import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
 import { QuickActions } from "./components/QuickActions";
 import { DateChip } from "./components/DateChip";
 
@@ -24,7 +18,7 @@ import { DateChip } from "./components/DateChip";
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
  * Order: ticker → greeting → composer → suggested chips + shortcut pills → <hr>
- * → morning ritual → next videos → <hr> → pulse → hooks → breakouts.
+ * → KÊNH CỦA BẠN → GỢI Ý HÔM NAY (tier 01 gồm kịch bản + 5 video; tier 02–03).
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
@@ -37,7 +31,6 @@ export default function HomeScreen() {
   const [composerText, setComposerText] = useState("");
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
-  const { data: pulse } = useHomePulse();
 
   const nicheLabel = useMemo(() => {
     const id = profile?.primary_niche ?? null;
@@ -45,20 +38,10 @@ export default function HomeScreen() {
     return niches.find((n) => n.id === id)?.name ?? "ngách của bạn";
   }, [profile?.primary_niche, niches]);
 
-  const greetingHookCount = pulse?.new_hooks_this_week ?? null;
-  const videosInNiche = pulse?.videos_this_week ?? null;
-
   // Capitalised because ``firstName`` now leads the H1 (was preceded by
   // "Chào "); lowercase looks wrong at the start of a sentence.
   const displayName = profile?.display_name?.trim() || "Bạn";
   const firstName = displayName.split(/\s+/).pop() ?? displayName;
-
-  const asOf = useMemo(() => {
-    if (!pulse?.as_of) return null;
-    const d = new Date(pulse.as_of);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [pulse?.as_of]);
-  const asOfRelative = useMemo(() => formatRelativeSinceVi(new Date(), asOf), [asOf]);
 
   const suggestedPrompts = useMemo(
     () => [
@@ -95,16 +78,6 @@ export default function HomeScreen() {
           title="Sảnh Sáng Tạo"
           right={
             <>
-              <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)] md:inline-flex">
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
-                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
-                />
-                Dữ liệu cập nhật {asOfRelative}
-              </span>
-              {/* Bookmark / "Đã Lưu" stub removed — had no handler and
-                   no backing data model. Rein-introduce when the
-                   "save for later" feature actually exists. */}
               <Btn variant="ink" size="sm" onClick={() => navigate("/app/answer")}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới
@@ -126,10 +99,7 @@ export default function HomeScreen() {
                     className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-ink)]"
                     style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
                   />
-                  <span>
-                    LIVE · CẬP NHẬT{" "}
-                    <span className="normal-case font-medium tracking-[0.08em]">{asOfRelative}</span>
-                  </span>
+                  <span>LIVE · STUDIO</span>
                 </span>
                 <DateChip />
               </div>
@@ -146,22 +116,11 @@ export default function HomeScreen() {
               >
                 {nicheLabel}
               </span>{" "}
-              {greetingHookCount != null && greetingHookCount > 0 ? (
-                <>
-                  có{" "}
-                  <span className="font-semibold text-[color:var(--gv-pos)]">
-                    {greetingHookCount} hook mới
-                  </span>{" "}
-                  đang nổ
-                </>
-              ) : (
-                <>đang có gì mới</>
-              )}
-              .
+              đang có gì mới.
             </h1>
           </div>
 
-          <div className="gv-fade-up gv-fade-up-delay-1 mt-7 w-full max-w-[880px]">
+          <div className="gv-fade-up gv-fade-up-delay-1 mt-7 w-full">
             <QueryComposer
               ref={composerRef}
               value={composerText}
@@ -169,7 +128,6 @@ export default function HomeScreen() {
               onSubmit={submitStudioComposer}
               placeholder={`Hỏi về hook, trend, hay kênh trong ngách ${nicheLabel}…`}
               nicheLabel={nicheLabel}
-              corpusCount={videosInNiche ?? undefined}
               showUrlChip={URL_IN_TEXT.test(composerText)}
               onPasteVideoClick={() => navigate("/app/video")}
               onPasteHandleClick={() =>
@@ -212,35 +170,18 @@ export default function HomeScreen() {
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
-            <HomeMorningRitual
-              nicheLabel={nicheLabel}
-              nicheId={profile?.primary_niche ?? null}
-              onSelectPrompt={launchChat}
-            />
-          </div>
-
-          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
-            <NextVideosCard nicheLabel={nicheLabel} />
+          <div className="gv-fade-up gv-fade-up-delay-2 mb-12">
+            <HomeMyChannelSection profile={profile} nicheLabel={nicheLabel} />
           </div>
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <div className="gv-fade-up gv-fade-up-delay-3 mb-14">
-            <SectionHeader
-              kicker="NHỊP TUẦN"
-              title="Pulse"
-              caption="Tín hiệu sống trong ngách của bạn."
+          <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
+            <HomeSuggestionsToday
+              nicheLabel={nicheLabel}
+              nicheId={profile?.primary_niche ?? null}
+              onSelectPrompt={launchChat}
             />
-            <PulseCard omitKicker />
-          </div>
-
-          <div className="mt-12 mb-12">
-            <HooksTable nicheId={profile?.primary_niche ?? null} />
-          </div>
-
-          <div className="mt-0">
-            <BreakoutGrid nicheId={profile?.primary_niche ?? null} />
           </div>
         </main>
       </div>

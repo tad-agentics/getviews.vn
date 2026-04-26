@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * The 56px bold tight number used in PulseCard and KPI cells.
+ * The 56px bold tight number used in KPI-style cells.
  * `tone="pos"`/`"neg"` colour the number for delta rendering.
  */
 export function Bignum({
