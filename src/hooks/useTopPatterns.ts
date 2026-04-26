@@ -1,6 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
+/** Top-K example videos in a pattern — drives the PatternCard 2×2 collage (PR-T3). */
+export type PatternVideo = {
+  video_id: string;
+  thumbnail_url: string | null;
+  creator_handle: string | null;
+  views: number;
+};
+
 export type TopPattern = {
   id: string;
   display_name: string;
@@ -12,6 +20,9 @@ export type TopPattern = {
   avg_views: number | null;
   /** Hook phrase from the most-viewed video in this pattern (display example). */
   sample_hook: string | null;
+  /** Top 4 videos in this pattern by view count (PR-T3). Empty array when no
+   *  corpus rows tagged with the pattern are available. */
+  videos: PatternVideo[];
 };
 
 /**
@@ -48,21 +59,28 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
       const ids = patterns.map((p) => p.id);
       const { data: corpusRows, error: cErr } = await supabase
         .from("video_corpus")
-        .select("pattern_id, views, hook_phrase")
+        .select("video_id, pattern_id, views, hook_phrase, thumbnail_url, creator_handle")
         .in("pattern_id", ids);
       if (cErr) throw cErr;
 
-      const byPattern = new Map<
-        string,
-        { totalViews: number; n: number; topViews: number; topHook: string | null }
-      >();
+      type RowAcc = {
+        totalViews: number;
+        n: number;
+        topViews: number;
+        topHook: string | null;
+        rows: PatternVideo[];
+      };
+      const byPattern = new Map<string, RowAcc>();
       for (const row of corpusRows ?? []) {
         const pid = (row as { pattern_id?: string | null }).pattern_id;
         if (!pid) continue;
         const views = Number((row as { views?: number | null }).views ?? 0);
         const hook = (row as { hook_phrase?: string | null }).hook_phrase ?? null;
+        const videoId = String((row as { video_id?: string | null }).video_id ?? "");
+        const thumbnail = (row as { thumbnail_url?: string | null }).thumbnail_url ?? null;
+        const handle = (row as { creator_handle?: string | null }).creator_handle ?? null;
         const acc = byPattern.get(pid) ?? {
-          totalViews: 0, n: 0, topViews: 0, topHook: null,
+          totalViews: 0, n: 0, topViews: 0, topHook: null, rows: [],
         };
         acc.totalViews += views;
         acc.n += 1;
@@ -70,15 +88,28 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
           acc.topViews = views;
           acc.topHook = hook;
         }
+        if (videoId) {
+          acc.rows.push({
+            video_id: videoId,
+            thumbnail_url: thumbnail,
+            creator_handle: handle,
+            views,
+          });
+        }
         byPattern.set(pid, acc);
       }
 
       return patterns.map((p) => {
         const stat = byPattern.get(p.id);
+        // Top 4 videos by views — drives the PR-T3 PatternCard 2×2 collage.
+        const videos = stat
+          ? [...stat.rows].sort((a, b) => b.views - a.views).slice(0, 4)
+          : [];
         return {
           ...p,
           avg_views: stat && stat.n > 0 ? Math.round(stat.totalViews / stat.n) : null,
           sample_hook: stat?.topHook ?? null,
+          videos,
         };
       });
     },
