@@ -174,3 +174,74 @@ async def channel_analyze_endpoint(
         logger.exception("[channel/analyze] failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return JSONResponse(out)
+
+
+@router.post("/channel/refresh-mine")
+async def channel_refresh_mine_endpoint(
+    user: dict = Depends(require_user),
+    force: bool = Query(
+        False,
+        description=(
+            "Bỏ qua cửa sổ stale 18h. Chỉ dùng cho debug — "
+            "vẫn bị giới hạn bởi MAX_PER_REFRESH."
+        ),
+    ),
+) -> JSONResponse:
+    """Per-handle on-demand corpus refresh for the connected creator's own
+    channel. Closes the ~24h staleness gap between TikTok-live and the
+    nightly ``cron-batch-ingest``.
+
+    Reads ``profiles.tiktok_handle`` + ``profiles.primary_niche`` for the
+    caller — a creator can only refresh their OWN channel via this route.
+    Server-side 18h staleness gate prevents tab-spam from burning ED units.
+
+    Returns one of:
+      ``cached``     — within freshness window, no scrape (200 OK)
+      ``refreshed``  — ED scrape ran; ``count`` new rows landed
+      ``error``      — handle missing on profile, niche missing, or ED failure
+    """
+    from getviews_pipeline.channel_refresh import refresh_channel_corpus
+    from getviews_pipeline.supabase_client import get_service_client
+
+    sb_user = user_supabase(user["access_token"])
+
+    try:
+        pres = sb_user.table("profiles").select("tiktok_handle, primary_niche").single().execute()
+    except Exception as exc:
+        logger.warning("[channel/refresh-mine] profile read failed: %s", exc)
+        raise HTTPException(status_code=500, detail="profile_read_failed") from exc
+
+    profile = pres.data or {}
+    handle = (profile.get("tiktok_handle") or "").strip().lstrip("@")
+    niche_id_raw = profile.get("primary_niche")
+
+    if not handle:
+        return JSONResponse({"status": "error", "reason": "no_handle_on_profile"}, status_code=400)
+    if niche_id_raw is None:
+        return JSONResponse({"status": "error", "reason": "no_niche_on_profile"}, status_code=400)
+
+    niche_id = int(niche_id_raw)
+
+    # Fetch niche_name for IngestResult tagging + log lines.
+    niche_name = ""
+    try:
+        nres = (
+            sb_user.table("niche_taxonomy")
+            .select("name_vn, name_en")
+            .eq("id", niche_id)
+            .single()
+            .execute()
+        )
+        nrow = nres.data or {}
+        niche_name = str(nrow.get("name_vn") or nrow.get("name_en") or f"niche_{niche_id}")
+    except Exception:
+        niche_name = f"niche_{niche_id}"
+
+    out = await refresh_channel_corpus(
+        get_service_client(),
+        handle=handle,
+        niche_id=niche_id,
+        niche_name=niche_name,
+        force=force,
+    )
+    return JSONResponse(out)

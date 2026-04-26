@@ -1,9 +1,10 @@
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowRight, Pencil } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
 import type { ProfileRow } from "@/hooks/useProfile";
+import { useRefreshMyChannel } from "@/hooks/useRefreshMyChannel";
 import type {
   ChannelAnalyzeResponse,
   ChannelLesson,
@@ -338,6 +339,23 @@ export const HomeMyChannelSection = memo(function HomeMyChannelSection({
     handle: handleKey,
     enabled: Boolean(hasHandle && cloudConfigured),
   });
+
+  // Auto-refresh-on-stale: close the ~24h gap between the nightly batch
+  // ingest and the live TikTok feed. The mutation is fire-and-forget —
+  // server enforces the 18h staleness gate (returns ``cached`` if fresh,
+  // ``refreshed`` if it actually scraped). When new rows land, the
+  // mutation invalidates the channel-analyze query so we re-fetch the
+  // updated response in the background. UI never blocks: cached data
+  // renders immediately, fresh data swaps in on next render.
+  const refreshMine = useRefreshMyChannel();
+  const fireOnceRef = useRef(false);
+  useEffect(() => {
+    if (!hasHandle || !cloudConfigured) return;
+    if (fireOnceRef.current) return;
+    if (refreshMine.isPending || refreshMine.isSuccess || refreshMine.isError) return;
+    fireOnceRef.current = true;
+    refreshMine.mutate();
+  }, [hasHandle, cloudConfigured, refreshMine]);
 
   const handleForUrl = handleKey ?? "";
 
