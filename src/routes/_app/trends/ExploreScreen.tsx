@@ -21,6 +21,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { normalizeNicheIds } from "@/lib/profileNiches";
+import { TrendsDouyinCard } from "./TrendsDouyinCard";
 import { TrendsNicheTabs } from "./TrendsNicheTabs";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
@@ -892,10 +893,14 @@ export default function ExploreScreen() {
             ) : null}
           </section>
 
-          {/* PR-T3 — § I PATTERN grid. Renders the 6 hot patterns for
-           * the niche as 2×2-collage cards. Click hands the pattern up
-           * to PR-T4's PatternModal — null handler today, so cards are
-           * inert until that PR lands. */}
+          {/* PR-T5 — compact Kho Douyin link card. Visible on every
+           * Trends view (regardless of selectedNicheId) so the
+           * pre-VN-signal jump-off stays present even before the
+           * creator has picked a niche. */}
+          <TrendsDouyinCard />
+
+          {/* PR-T3/T4 — § I PATTERN grid + click-to-open modal. Renders
+           * the 6 hot patterns for the niche as 2×2-collage cards. */}
           {selectedNicheId !== null ? (
             <TrendsPatternGrid nicheId={selectedNicheId} />
           ) : null}
