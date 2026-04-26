@@ -10,7 +10,6 @@ import {
   LayoutGrid,
   List,
   Plus,
-  Bookmark,
 } from "lucide-react";
 import { getISOWeek } from "date-fns";
 import { AppLayout } from "@/components/AppLayout";
@@ -921,10 +920,6 @@ export default function ExploreScreen() {
                 />
                 Dữ liệu cập nhật {trendsDataFreshLabel ?? "—"}
               </span>
-              <Btn variant="ghost" size="sm" type="button" disabled title="Sắp ra mắt">
-                <Bookmark className="h-3.5 w-3.5" strokeWidth={2} />
-                Đã lưu
-              </Btn>
               <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới

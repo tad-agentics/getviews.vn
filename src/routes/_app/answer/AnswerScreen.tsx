@@ -27,7 +27,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1, SourceRowData } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
-import { Plus, Check, ArrowLeft, List, Bookmark } from "lucide-react";
+import { Plus, Check, ArrowLeft, List } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
@@ -472,10 +472,6 @@ export default function AnswerScreen() {
                 />
                 Dữ liệu cập nhật {dataFreshLabel ?? "—"}
               </span>
-              <Btn variant="ghost" size="sm" type="button" disabled title="Sắp ra mắt">
-                <Bookmark className="h-3.5 w-3.5" strokeWidth={2} />
-                Đã lưu
-              </Btn>
               <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới
