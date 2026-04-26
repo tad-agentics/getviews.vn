@@ -30,6 +30,10 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   ],
   dominant_hook_type: null,
   avg_retention_pct: null,
+  structure: null,
+  why: null,
+  careful: null,
+  angles: null,
   ...overrides,
 });
 

@@ -180,9 +180,13 @@ function PatternModalBody({
 
         {/* Right — takeaway / structure / angles */}
         <section className="flex flex-col gap-5 px-7 py-6">
-          <Takeaway hookSample={pattern.sample_hook} />
-          <StructureBlock />
-          <GapAnglesBlock />
+          <Takeaway
+            hookSample={pattern.sample_hook}
+            why={pattern.why}
+            careful={pattern.careful}
+          />
+          <StructureBlock structure={pattern.structure} />
+          <GapAnglesBlock angles={pattern.angles} />
         </section>
       </div>
     </>
@@ -245,7 +249,19 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
   );
 }
 
-function Takeaway({ hookSample }: { hookSample: string | null }) {
+function Takeaway({
+  hookSample,
+  why,
+  careful,
+}: {
+  hookSample: string | null;
+  why: string | null;
+  careful: string | null;
+}) {
+  // Real ``why`` + ``careful`` from the deck synthesizer take
+  // precedence; fall back to the hook-sample blurb + "Đang chuẩn bị"
+  // tail when the deck cron hasn't run for this pattern yet.
+  const hasDeck = Boolean(why || careful);
   return (
     <div
       className="rounded-md border-l-[3px] border-[color:var(--gv-accent)] bg-[color:var(--gv-paper)] px-4 py-3.5"
@@ -253,40 +269,96 @@ function Takeaway({ hookSample }: { hookSample: string | null }) {
       <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
         Ý CHÍNH
       </p>
-      <p className="m-0 text-[13px] leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
-        {hookSample
-          ? `Pattern này đang chạy mạnh trong ngách. Hook tiêu biểu: "${hookSample}".`
-          : "Pattern này đang chạy mạnh trong ngách của bạn."}{" "}
-        <span className="text-[color:var(--gv-ink-3)]">
-          Cấu trúc chi tiết và góc còn trống đang được biên tập — sẽ có trong vài ngày tới.
-        </span>
-      </p>
+      {hasDeck ? (
+        <p className="m-0 text-[13px] leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
+          {why ? <>{why}{" "}</> : null}
+          {careful ? (
+            <span className="text-[color:var(--gv-ink-3)]">{careful}</span>
+          ) : null}
+        </p>
+      ) : (
+        <p className="m-0 text-[13px] leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
+          {hookSample
+            ? `Pattern này đang chạy mạnh trong ngách. Hook tiêu biểu: "${hookSample}".`
+            : "Pattern này đang chạy mạnh trong ngách của bạn."}{" "}
+          <span className="text-[color:var(--gv-ink-3)]">
+            Cấu trúc chi tiết và góc còn trống đang được biên tập — sẽ có trong vài ngày tới.
+          </span>
+        </p>
+      )}
     </div>
   );
 }
 
-function StructureBlock() {
+function StructureBlock({ structure }: { structure: string[] | null }) {
   return (
     <div>
       <p className="gv-mono mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
         CẤU TRÚC ĐIỂN HÌNH
       </p>
-      <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
-        Đang chuẩn bị — biên tập đang tổng hợp 4 bước Hook / Setup / Body / Payoff cho pattern này.
-      </p>
+      {structure && structure.length > 0 ? (
+        <ol
+          className="m-0 list-decimal pl-5 text-[13px] leading-[1.6] text-[color:var(--gv-ink-2)]"
+          style={{ textWrap: "pretty" }}
+        >
+          {structure.map((step, i) => (
+            <li key={`${i}-${step.slice(0, 24)}`} className="mb-1">
+              {step}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+          Đang chuẩn bị — biên tập đang tổng hợp 4 bước Hook / Setup / Body / Payoff cho pattern này.
+        </p>
+      )}
     </div>
   );
 }
 
-function GapAnglesBlock() {
+function GapAnglesBlock({
+  angles,
+}: {
+  angles: ReadonlyArray<{ angle: string; filled: number; gap: boolean }> | null;
+}) {
+  const gapAngles = (angles ?? []).filter((a) => a.gap);
   return (
     <div>
       <p className="gv-mono mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
         GÓC CÒN TRỐNG
+        {angles && gapAngles.length > 0 ? (
+          <span className="ml-2 text-[color:var(--gv-accent-deep)]">
+            · {gapAngles.length} cơ hội
+          </span>
+        ) : null}
       </p>
-      <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
-        Đang chuẩn bị — danh sách các góc nội dung chưa creator nào khai thác sẽ xuất hiện ở đây.
-      </p>
+      {!angles ? (
+        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+          Đang chuẩn bị — danh sách các góc nội dung chưa creator nào khai thác sẽ xuất hiện ở đây.
+        </p>
+      ) : gapAngles.length === 0 ? (
+        <p className="m-0 rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+          Tất cả các góc trong pattern này đã có creator khai thác — chưa có cơ hội trống.
+        </p>
+      ) : (
+        <ul className="m-0 flex flex-col gap-1.5 p-0">
+          {gapAngles.map((a, i) => (
+            <li
+              key={`${i}-${a.angle}`}
+              className="flex items-center gap-2.5 rounded-md border px-3 py-2 text-[12.5px]"
+              style={{
+                background: "color-mix(in srgb, var(--gv-accent) 6%, var(--gv-paper))",
+                borderColor: "color-mix(in srgb, var(--gv-accent) 30%, var(--gv-rule))",
+              }}
+            >
+              <span className="gv-mono shrink-0 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-accent-deep)]">
+                TRỐNG
+              </span>
+              <span className="flex-1 text-[color:var(--gv-ink)]">{a.angle}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -9,6 +9,14 @@ export type PatternVideo = {
   views: number;
 };
 
+/** Single content angle inside a pattern (PatternModal "GÓC CÒN TRỐNG"). */
+export type PatternDeckAngle = {
+  angle: string;
+  filled: number;
+  /** ``true`` when no creator has covered this angle yet. */
+  gap: boolean;
+};
+
 export type TopPattern = {
   id: string;
   display_name: string;
@@ -32,6 +40,16 @@ export type TopPattern = {
    *  ``null`` when the lookup fails (no hook_effectiveness row, or
    *  pattern videos lacked a hook_type). */
   avg_retention_pct: number | null;
+  /**
+   * Deck content synthesized by ``pattern_deck_synth.py`` (nightly).
+   * All four fields are ``null`` until the cron has run for this
+   * pattern; ``PatternModal`` renders "Đang chuẩn bị" stubs in that
+   * state, real content otherwise.
+   */
+  structure: string[] | null;
+  why: string | null;
+  careful: string | null;
+  angles: PatternDeckAngle[] | null;
 };
 
 /**
@@ -50,17 +68,23 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
     queryFn: async () => {
       if (nicheId == null) return [];
 
-      const { data: patternRows, error: pErr } = await supabase
+      // ``structure`` / ``why`` / ``careful`` / ``angles`` come from
+      // the deck synthesizer (cron-batch-pattern-decks). Default to
+      // null on un-decked rows; the FE PatternModal renders "Đang
+      // chuẩn bị" stubs in that case.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck columns landed in migration 20260530000000; generated DB types may lag
+      const { data: patternRows, error: pErr } = await (supabase as any)
         .from("video_patterns")
         .select(
-          "id, display_name, weekly_instance_count, weekly_instance_count_prev, instance_count, niche_spread",
+          "id, display_name, weekly_instance_count, weekly_instance_count_prev, instance_count, niche_spread, structure, why, careful, angles",
         )
         .eq("is_active", true)
         .order("weekly_instance_count", { ascending: false })
         .limit(50);
       if (pErr) throw pErr;
 
-      const patterns = ((patternRows ?? []) as TopPattern[])
+      type PatternRow = TopPattern & { niche_spread?: number[] };
+      const patterns = ((patternRows ?? []) as PatternRow[])
         .filter((r) => (r.niche_spread ?? []).includes(nicheId))
         .slice(0, limit);
       if (patterns.length === 0) return [];
@@ -172,6 +196,13 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
           videos,
           dominant_hook_type: dominantHookType,
           avg_retention_pct: retentionPct,
+          // Explicit ``null`` normalisation — supabase returns
+          // ``undefined`` when the row's column is JSON null on
+          // un-decked patterns; downstream code branches on null.
+          structure: (p as { structure?: string[] | null }).structure ?? null,
+          why: (p as { why?: string | null }).why ?? null,
+          careful: (p as { careful?: string | null }).careful ?? null,
+          angles: (p as { angles?: PatternDeckAngle[] | null }).angles ?? null,
         };
       });
     },

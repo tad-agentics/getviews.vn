@@ -1,0 +1,103 @@
+-- 2026-05-30 — pg_cron schedule for /batch/pattern-decks.
+--
+-- Mirrors the doc-only pattern from
+-- ``20260526000000_pg_cron_morning_ritual_scene_intel.sql``: the
+-- executable ``cron.schedule(...)`` call is applied live via Supabase
+-- MCP at the same time as this migration lands, but recorded here
+-- so future ops can pause / resume / rotate it.
+--
+-- ── Why this exists ─────────────────────────────────────────────────
+--
+-- Migration ``20260530000000`` adds the deck columns (``structure``,
+-- ``why``, ``careful``, ``angles``, ``deck_computed_at``) and the
+-- accompanying batch endpoint ``POST /batch/pattern-decks`` ships in
+-- ``cloud-run/getviews_pipeline/routers/batch.py``. Without a cron
+-- firing the endpoint, the columns stay NULL forever and the
+-- ``PatternModal`` on /app/trends keeps rendering its
+-- "Đang chuẩn bị" stubs.
+--
+-- ── Schedule ────────────────────────────────────────────────────────
+--
+-- All times UTC. Asia/Ho_Chi_Minh = UTC+7.
+--
+--  ┌────────────────────────────┬──────────────┬───────────────────┐
+--  │ job                        │ schedule UTC │ Vietnam local     │
+--  ├────────────────────────────┼──────────────┼───────────────────┤
+--  │ cron-batch-pattern-decks   │ 0 16 * * *   │ daily 23:00       │
+--  └────────────────────────────┴──────────────┴───────────────────┘
+--
+-- Why this time:
+--
+--   - Runs 1 hour after ``cron-batch-morning-ritual`` (15:00 UTC /
+--     22:00 VN). The ritual produces 3 user-scoped scripts; the
+--     pattern-deck synth here produces niche-scoped deck content.
+--     They write to disjoint tables (``daily_ritual`` vs
+--     ``video_patterns``) so concurrent execution would be safe,
+--     but staggering them keeps the Gemini concurrency window
+--     under control on Cloud Run's flash-lite quota.
+--
+--   - 23:00 VN is well after ``cron-pattern-fingerprint`` runs
+--     (08:00 UTC / 15:00 VN, see ``20260509000001``), so by the
+--     time we synth, the active-pattern set + ``weekly_instance_*``
+--     counters have already been refreshed for the day.
+--
+-- ── Per-batch cost envelope ─────────────────────────────────────────
+--
+-- ``DEFAULT_BATCH_CAP = 60`` patterns per run. Each Gemini call
+-- emits ~600 output tokens against a ~1,500-token grounding payload.
+-- On flash-lite-preview (~$0.10 per 1M output tokens), 60 patterns ×
+-- 600 tokens ≈ $0.0036 per batch — meaningless against the monthly
+-- ceiling. Bump cap if active-pattern count grows past ~400 (week-
+-- old patterns would lag).
+--
+-- ── Prerequisites ───────────────────────────────────────────────────
+--
+-- Vault must already hold ``cloud_run_api_url`` and
+-- ``cloud_run_batch_secret`` (seeded for the existing
+-- ``cron-batch-{ingest,refresh,analytics,layer0,morning-ritual,
+-- scene-intelligence}`` schedules).
+--
+-- ── Live application (also run via Supabase MCP at migration time) ──
+--
+-- SELECT cron.schedule(
+--   'cron-batch-pattern-decks',
+--   '0 16 * * *',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/pattern-decks',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 1200000  -- 20 min; flash-lite Gemini × DEFAULT_BATCH_CAP=60
+--   );
+--   $cmd$
+-- );
+--
+-- ── Verification ────────────────────────────────────────────────────
+--
+-- SELECT jobname, schedule, active
+-- FROM cron.job
+-- WHERE jobname = 'cron-batch-pattern-decks';
+--
+-- After first fire:
+--
+-- SELECT job_name, started_at, finished_at, status, duration_ms,
+--        LEFT(COALESCE(error,''),120) AS err
+-- FROM batch_job_runs
+-- WHERE job_name = 'batch/pattern-decks'
+-- ORDER BY started_at DESC LIMIT 10;
+--
+-- Spot-check that decks landed:
+--
+-- SELECT COUNT(*) FILTER (WHERE deck_computed_at IS NOT NULL) AS decked,
+--        COUNT(*)                                              AS total
+-- FROM video_patterns
+-- WHERE is_active = TRUE;
+--
+-- ── Rollback ────────────────────────────────────────────────────────
+--
+-- SELECT cron.unschedule('cron-batch-pattern-decks');
+
+SELECT 1 AS migration_doc_only;
