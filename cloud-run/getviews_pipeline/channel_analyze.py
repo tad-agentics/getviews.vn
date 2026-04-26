@@ -65,14 +65,56 @@ class ChannelFormulaStepLLM(BaseModel):
 
 
 class ChannelLessonLLM(BaseModel):
+    """Legacy lesson shape — kept for the cache-bridge path that synthesizes
+    a ``lessons[]`` array from strengths so pre-PR-2 FE surfaces (channel
+    screen InsightsFooter) keep rendering. Not emitted by Gemini anymore."""
+
     title: str = Field(max_length=120)
     body: str = Field(max_length=800)
+
+
+# ── PR-2 Studio Home — diagnostic restructure ──────────────────────────────
+#
+# Replaces the freeform ``lessons`` array with typed strengths +
+# weaknesses per the design pack's MyChannelCard §C/§D. Each item carries
+# enough structure to render the design's diagnostic block:
+#   • title    — the headline (e.g. "Hook bám trend đang lên")
+#   • metric   — quantified evidence (e.g. "Retention 0.8s · ngách TB 1.2s")
+#   • why      — why this is a strength / weakness (1-2 sentences)
+#   • action   — TẬN DỤNG (strength) / CÁCH SỬA (weakness)
+#   • bridge_to — optional anchor: "01" (Quay ngay) or "02" (Pattern)
+
+
+_BRIDGE_VALUES = ("01", "02")
+
+
+class ChannelStrengthLLM(BaseModel):
+    title: str = Field(max_length=120)
+    metric: str = Field(max_length=120)
+    why: str = Field(max_length=320)
+    action: str = Field(max_length=320, description="TẬN DỤNG — cách phát huy điểm mạnh.")
+    bridge_to: str | None = Field(
+        default=None,
+        description="Optional 2-char tier id ('01' or '02') — design's bridge button.",
+    )
+
+
+class ChannelWeaknessLLM(BaseModel):
+    title: str = Field(max_length=120)
+    metric: str = Field(max_length=120)
+    why: str = Field(max_length=320)
+    action: str = Field(max_length=320, description="CÁCH SỬA — cách khắc phục điểm yếu.")
+    bridge_to: str | None = Field(
+        default=None,
+        description="Optional 2-char tier id ('01' or '02') — design's bridge button.",
+    )
 
 
 class ChannelAnalyzeLLM(BaseModel):
     bio: str = Field(max_length=320, description="Một câu tiếng Việt mô tả tone kênh.")
     formula: list[ChannelFormulaStepLLM] = Field(min_length=4, max_length=4)
-    lessons: list[ChannelLessonLLM] = Field(min_length=4, max_length=4)
+    strengths: list[ChannelStrengthLLM] = Field(min_length=2, max_length=4)
+    weaknesses: list[ChannelWeaknessLLM] = Field(min_length=1, max_length=3)
 
 
 def _parse_ts(ts: Any) -> datetime | None:
@@ -544,7 +586,7 @@ def _call_channel_gemini(
         lines.append(f"{i}. views≈{v} | hook_type={ht} | hook_phrase={hp}")
     pack = "\n".join(lines)
 
-    prompt = f"""Bạn là biên tập TikTok tiếng Việt. Phân tích CÔNG THỨC nội dung của một kênh trong một ngách.
+    prompt = f"""Bạn là biên tập TikTok tiếng Việt. Phân tích CÔNG THỨC nội dung và CHẨN ĐOÁN sức khoẻ của một kênh trong một ngách.
 
 Ngách: {niche_label}
 Kênh: @{handle} ({name})
@@ -554,9 +596,22 @@ Dữ liệu 20 video view cao nhất (gợi ý cấu trúc lặp lại):
 
 Trả về JSON theo schema:
 - bio: đúng MỘT câu tiếng Việt mô tả tone / positioning kênh (không kể tên riêng dài dòng).
-- formula: đúng 4 bước Hook / Setup / Body / Payoff (step ngắn tiếng Việt hoặc tiếng Anh như design: Hook, Setup, Body, Payoff).
+- formula: đúng 4 bước Hook / Setup / Body / Payoff (step ngắn tiếng Việt hoặc tiếng Anh: Hook, Setup, Body, Payoff).
   Mỗi detail mô tả khung giây + ý chính (tiếng Việt). pct là số nguyên 4–92, tổng các pct nên gần 100.
-- lessons: đúng 4 bài học title+body (tiếng Việt, body 1–3 câu, thực tế, không sáo rỗng).
+- strengths: 2–4 điểm mạnh cụ thể của kênh (đo trực tiếp từ data trên, KHÔNG so với ngách khác).
+  Mỗi điểm:
+    • title  : tiêu đề ≤ 80 ký tự, danh từ + động từ rõ ràng (vd: "Hook 0.8s bám trend đang lên").
+    • metric : 1 con số + đơn vị + benchmark (vd: "Hook xuất hiện < 1s · 80% video", "Retention 3s 65%, ngách 48%").
+    • why    : 1–2 câu giải thích VÌ SAO đây là điểm mạnh — gắn với hành vi audience hoặc thuật toán.
+    • action : TẬN DỤNG cụ thể — 1–2 câu, có hành động (vd: "Tiếp tục mở video bằng face cam, đẩy CTA xuống cuối").
+    • bridge_to (optional): "01" nếu tận dụng được qua kịch bản/quay ngay, "02" nếu qua remix pattern.
+- weaknesses: 1–3 điểm yếu cần sửa (cũng đo từ chính kênh).
+  Mỗi điểm có cùng schema (title / metric / why / action / bridge_to). action là CÁCH SỬA cụ thể.
+
+NGUYÊN TẮC:
+- Số liệu cụ thể, không nói chung chung. Nếu không có metric đáng tin → không viết về nó.
+- Tiếng Việt tự nhiên, ngắn gọn. KHÔNG mở đầu bằng "Chào", "Tuyệt vời", "Wow". KHÔNG dùng "bí mật", "công thức vàng", "triệu view".
+- Action phải có động từ và đối tượng rõ ràng — không "nên cải thiện hook" mà "rút hook xuống còn 0.8s, mở bằng câu hỏi".
 """
     config = types.GenerateContentConfig(
         temperature=0.5,
@@ -842,6 +897,75 @@ def _build_recent_7d(
     return out
 
 
+def _synthesize_lessons_from_diagnostic(
+    strengths: list[dict[str, Any]] | None,
+    weaknesses: list[dict[str, Any]] | None,
+) -> list[dict[str, str]]:
+    """Legacy bridge — produce a ``lessons[]`` array from diagnostic items.
+
+    Keeps the channel screen's InsightsFooter + ChannelScreen rendering on
+    cache-hit responses where the new diagnostic columns are populated but
+    the existing ``lessons`` consumers haven't been migrated yet. Strengths
+    come first (max 2) then weaknesses (max 2) so the footer stays at
+    ~4 items.
+    """
+    out: list[dict[str, str]] = []
+    for item in (strengths or [])[:2]:
+        title = str(item.get("title") or "").strip()[:120]
+        metric = str(item.get("metric") or "").strip()
+        why = str(item.get("why") or "").strip()
+        action = str(item.get("action") or "").strip()
+        body = " ".join(s for s in [metric, why, action] if s).strip()
+        if title and body:
+            out.append({"title": title, "body": body[:800]})
+    for item in (weaknesses or [])[:2]:
+        title = str(item.get("title") or "").strip()[:120]
+        metric = str(item.get("metric") or "").strip()
+        why = str(item.get("why") or "").strip()
+        action = str(item.get("action") or "").strip()
+        body = " ".join(s for s in [metric, why, action] if s).strip()
+        if title and body:
+            out.append({"title": title, "body": body[:800]})
+    return out
+
+
+def _normalize_diagnostic_items(
+    raw: list[dict[str, Any]] | None,
+    *,
+    default_action_label: str,
+) -> list[dict[str, Any]]:
+    """Defensive coerce — clamp lengths, drop empties, normalize bridge_to.
+
+    Used when reading cached rows back out of channel_formulas (no Pydantic
+    validation on the cache path) and when the LLM occasionally includes
+    a stray null / wrong-type field.
+    """
+    out: list[dict[str, Any]] = []
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()[:120]
+        metric = str(item.get("metric") or "").strip()[:120]
+        why = str(item.get("why") or "").strip()[:320]
+        action = str(item.get("action") or "").strip()[:320]
+        if not (title and (metric or why or action)):
+            continue
+        bridge = item.get("bridge_to")
+        bridge_str: str | None = None
+        if isinstance(bridge, str) and bridge in _BRIDGE_VALUES:
+            bridge_str = bridge
+        out.append(
+            {
+                "title": title,
+                "metric": metric,
+                "why": why,
+                "action": action or default_action_label,
+                "bridge_to": bridge_str,
+            }
+        )
+    return out
+
+
 def _assemble_response(
     *,
     handle: str,
@@ -852,7 +976,8 @@ def _assemble_response(
     top_rows: list[dict[str, Any]],
     hook_types: list[str],
     formula: list[dict[str, Any]] | None,
-    lessons: list[dict[str, Any]] | None,
+    strengths: list[dict[str, Any]] | None,
+    weaknesses: list[dict[str, Any]] | None,
     bio: str,
     top_hook: str | None,
     cached_optimal: str | None,
@@ -861,6 +986,7 @@ def _assemble_response(
     user_sb: Any,
     computed_at: str | None = None,
     cache_hit: bool | None = None,
+    legacy_lessons: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     total = int(stats.get("total") or 0)
     avg_views = int(stats.get("avg_views") or 0)
@@ -885,6 +1011,18 @@ def _assemble_response(
     if followers <= 0 and top_rows:
         followers = max(int(r.get("creator_followers") or 0) for r in top_rows)
 
+    norm_strengths = _normalize_diagnostic_items(strengths, default_action_label="—")
+    norm_weaknesses = _normalize_diagnostic_items(weaknesses, default_action_label="—")
+    # Legacy ``lessons`` is a synthesized derivative of strengths/weaknesses
+    # when the diagnostic shape is populated. Falls back to the
+    # caller-provided ``legacy_lessons`` (cache-hit path with empty
+    # diagnostic columns) so the channel screen stays rendered.
+    out_lessons: list[dict[str, Any]]
+    if norm_strengths or norm_weaknesses:
+        out_lessons = _synthesize_lessons_from_diagnostic(norm_strengths, norm_weaknesses)
+    else:
+        out_lessons = list(legacy_lessons or [])
+
     out: dict[str, Any] = {
         "handle": handle,
         "niche_id": niche_id,
@@ -899,7 +1037,9 @@ def _assemble_response(
         "posting_time": live.posting_time,
         "top_hook": resolved_top_hook,
         "formula": formula,
-        "lessons": lessons or [],
+        "lessons": out_lessons,
+        "strengths": norm_strengths,
+        "weaknesses": norm_weaknesses,
         "formula_gate": formula_gate,
         "kpis": _build_kpis(
             avg_views=avg_views,
@@ -981,7 +1121,8 @@ def run_channel_analyze_sync(
             top_rows=top_rows,
             hook_types=hook_types,
             formula=None,
-            lessons=[],
+            strengths=[],
+            weaknesses=[],
             bio="",
             top_hook=None,
             cached_optimal=None,
@@ -1008,6 +1149,12 @@ def run_channel_analyze_sync(
         raw_ct = cached.get("computed_at")
         ct = _parse_ts(raw_ct)
         computed_at_iso = ct.isoformat() if ct else (str(raw_ct) if raw_ct else None)
+        # PR-2 — diagnostic columns may be empty on rows cached pre-PR-2;
+        # ``_assemble_response`` falls back to the legacy ``lessons`` array
+        # in that case so the channel screen InsightsFooter keeps rendering.
+        cached_strengths = list(cached.get("strengths") or [])
+        cached_weaknesses = list(cached.get("weaknesses") or [])
+        cached_lessons = list(cached.get("lessons") or [])
         return _assemble_response(
             handle=handle,
             niche_id=niche_id,
@@ -1017,7 +1164,8 @@ def run_channel_analyze_sync(
             top_rows=top_rows,
             hook_types=hook_types,
             formula=list(cached.get("formula") or []),
-            lessons=list(cached.get("lessons") or []),
+            strengths=cached_strengths,
+            weaknesses=cached_weaknesses,
             bio=str(cached.get("bio") or ""),
             top_hook=str(cached.get("top_hook") or "") or None,
             cached_optimal=(str(cached.get("optimal_length") or "").strip() or None),
@@ -1026,6 +1174,7 @@ def run_channel_analyze_sync(
             user_sb=user_sb,
             computed_at=computed_at_iso,
             cache_hit=True,
+            legacy_lessons=cached_lessons,
         )
 
     _decrement_credit_or_raise(user_sb, user_id=user_id)
@@ -1034,7 +1183,12 @@ def run_channel_analyze_sync(
     name = str((starter or {}).get("display_name") or "").strip() or handle
     llm = _call_channel_gemini(niche_label=niche_label or f"niche_{niche_id}", handle=handle, name=name, sample_rows=sample)
     formula_dicts = _normalize_formula_pcts([x.model_dump() for x in llm.formula])
-    lessons_dicts = [x.model_dump() for x in llm.lessons]
+    strengths_dicts = [x.model_dump() for x in llm.strengths]
+    weaknesses_dicts = [x.model_dump() for x in llm.weaknesses]
+    # Persist a synthesized ``lessons`` alongside so legacy /channel/analyze
+    # consumers (the channel screen + InsightsFooter on Home) remain
+    # rendered without a coordinated FE migration.
+    legacy_lessons_dicts = _synthesize_lessons_from_diagnostic(strengths_dicts, weaknesses_dicts)
     th2, _ = _top_hook_from_types(hook_types)
     opt, _opt_n = _optimal_length_band_with_count(top_rows)
 
@@ -1042,7 +1196,9 @@ def run_channel_analyze_sync(
         "handle": handle,
         "niche_id": niche_id,
         "formula": formula_dicts,
-        "lessons": lessons_dicts,
+        "lessons": legacy_lessons_dicts,
+        "strengths": strengths_dicts,
+        "weaknesses": weaknesses_dicts,
         "top_hook": th2,
         "optimal_length": opt,
         "posting_time": live.posting_time,
@@ -1069,7 +1225,8 @@ def run_channel_analyze_sync(
         top_rows=top_rows,
         hook_types=hook_types,
         formula=formula_dicts,
-        lessons=lessons_dicts,
+        strengths=strengths_dicts,
+        weaknesses=weaknesses_dicts,
         bio=upsert["bio"],
         top_hook=th2,
         cached_optimal=None,
