@@ -4,7 +4,12 @@ import { ArrowRight, Pencil } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
 import type { ProfileRow } from "@/hooks/useProfile";
-import type { ChannelAnalyzeResponse, ChannelLesson, ChannelTopVideo } from "@/lib/api-types";
+import type {
+  ChannelAnalyzeResponse,
+  ChannelLesson,
+  ChannelTopVideo,
+  NicheChannelBenchmarks,
+} from "@/lib/api-types";
 import { env } from "@/lib/env";
 import { formatFollowers, formatViews } from "@/lib/formatters";
 
@@ -47,23 +52,44 @@ function nicheShortLabel(full: string): string {
 
 type PercentileSpec = { label: string; fillPct: number; topPct: number; barTone: "pos" | "accent" | "ink" | "neg" };
 
-function buildPercentiles(data: ChannelAnalyzeResponse): PercentileSpec[] {
-  const avg = Math.max(0, data.avg_views);
+/**
+ * Map a user value + niche {p50, p75} into a percentile-band label and bar
+ * fill. The RPC only exposes p50 and p75, not the full distribution, so we
+ * approximate the user's rank in three bands: top 25% (≥ p75), top 50%
+ * (≥ p50, < p75), top 75%+ (< p50). Bar fill scales linearly to p75 capped
+ * at 92% so the bar never visually saturates without a literal "you beat
+ * the top quartile" signal.
+ */
+function bandFromBenchmarks(value: number, p50: number, p75: number): { fillPct: number; topPct: number } {
+  const clean = Number.isFinite(value) ? Math.max(0, value) : 0;
+  if (p75 <= 0) {
+    // Niche has no benchmark sample (channel_count = 0). Fall back to a
+    // mid-bar so the row renders without claiming a real ranking.
+    return { fillPct: 50, topPct: 50 };
+  }
+  const ratio = clean / p75;
+  const fillPct = Math.max(8, Math.min(92, Math.round(ratio * 92)));
+  const topPct = clean >= p75 ? 25 : clean >= p50 ? 50 : 75;
+  return { fillPct, topPct };
+}
+
+function buildPercentiles(data: ChannelAnalyzeResponse, bench: NicheChannelBenchmarks): PercentileSpec[] {
   const er = data.engagement_pct <= 1 ? data.engagement_pct * 100 : data.engagement_pct;
   const posts = postsPerWeekGuess(data.posting_cadence) ?? 0;
 
-  const viewFill = Math.min(92, Math.max(10, Math.round(28 + Math.log10(avg + 10) * 14)));
-  const erFill = Math.min(92, Math.max(10, Math.round(Math.min(er * 2.5, 88))));
-  const postFill = Math.min(92, Math.max(10, Math.round(18 + posts * 9)));
-
-  const top = (fill: number) => Math.max(5, Math.min(95, 100 - fill + Math.round((fill % 7) - 3)));
+  const view = bandFromBenchmarks(data.avg_views, bench.avg_views_p50, bench.avg_views_p75);
+  const eng = bandFromBenchmarks(er, bench.engagement_p50, bench.engagement_p75);
+  const post = bandFromBenchmarks(posts, bench.posts_per_week_p50, bench.posts_per_week_p75);
 
   return [
-    { label: "View trung bình", fillPct: viewFill, topPct: top(viewFill), barTone: "ink" },
-    { label: "Tương tác", fillPct: erFill, topPct: top(erFill), barTone: "accent" },
-    { label: "Tần suất post", fillPct: postFill, topPct: top(postFill), barTone: "neg" },
+    { label: "View trung bình", fillPct: view.fillPct, topPct: view.topPct, barTone: "ink" },
+    { label: "Tương tác", fillPct: eng.fillPct, topPct: eng.topPct, barTone: "accent" },
+    { label: "Tần suất post", fillPct: post.fillPct, topPct: post.topPct, barTone: "neg" },
   ];
 }
+
+/** Sample-size guard — render benchmark layer only when the niche has enough creators. */
+const MIN_BENCHMARK_SAMPLE = 5;
 
 function bestWorstVideos(videos: ChannelTopVideo[], avgViews: number): { best: ChannelTopVideo; worst: ChannelTopVideo } | null {
   if (videos.length < 2 || avgViews <= 0) return null;
@@ -151,7 +177,16 @@ function ConnectedCard({
 }) {
   const navigate = useNavigate();
   const at = handleDisplay.startsWith("@") ? handleDisplay : `@${handleDisplay}`;
-  const percentiles = useMemo(() => buildPercentiles(data), [data]);
+  // Render the benchmark layer only when the niche has enough creators
+  // (>= MIN_BENCHMARK_SAMPLE). Below that, fall back to mid-bars and
+  // hide the "Ngách: …" / "Top 25%: …" sub-labels rather than claiming
+  // a ranking against a 1-2-channel sample.
+  const bench = data.niche_benchmarks;
+  const hasBench = !!bench && bench.channel_count >= MIN_BENCHMARK_SAMPLE;
+  const percentiles = useMemo(
+    () => (bench ? buildPercentiles(data, bench) : null),
+    [data, bench],
+  );
   const bw = useMemo(() => bestWorstVideos(data.top_videos, data.avg_views), [data.top_videos, data.avg_views]);
   const viewDelta = data.kpis[0]?.delta ?? "—";
   const postsPw = postsPerWeekGuess(data.posting_cadence);
@@ -206,7 +241,9 @@ function ConnectedCard({
             {formatViews(data.avg_views)}
           </p>
           <p className={kpiDeltaClass(viewDelta)}>{viewDelta}</p>
-          <p className="gv-mono mt-0.5 text-[10px] text-[color:var(--gv-ink-4)]">Ngách: —</p>
+          <p className="gv-mono mt-0.5 text-[10px] text-[color:var(--gv-ink-4)]">
+            {hasBench && bench ? `Ngách: ${formatViews(bench.avg_views_p50)}` : "Ngách: —"}
+          </p>
         </div>
         <div className="bg-[color:var(--gv-paper)] px-4 py-4 sm:px-5">
           <p className="gv-uc mb-1 text-[9px] font-semibold tracking-[0.06em] text-[color:var(--gv-ink-4)]">
@@ -215,8 +252,18 @@ function ConnectedCard({
           <p className="gv-tight text-2xl font-semibold tracking-[-0.03em] text-[color:var(--gv-ink)]">
             {postsPw != null ? String(postsPw) : "—"}
           </p>
-          <p className={kpiDeltaClass("—")}>{data.posting_cadence?.trim() ? `vs ngách —` : "—"}</p>
-          <p className="gv-mono mt-0.5 text-[10px] text-[color:var(--gv-ink-4)]">Top 25%: 6+</p>
+          <p className={kpiDeltaClass("—")}>
+            {hasBench && bench
+              ? `vs ngách ${bench.posts_per_week_p50.toFixed(1).replace(/\.0$/, "")}`
+              : data.posting_cadence?.trim()
+                ? "vs ngách —"
+                : "—"}
+          </p>
+          <p className="gv-mono mt-0.5 text-[10px] text-[color:var(--gv-ink-4)]">
+            {hasBench && bench
+              ? `Top 25%: ${bench.posts_per_week_p75.toFixed(1).replace(/\.0$/, "")}+`
+              : "Top 25%: —"}
+          </p>
         </div>
       </div>
 
@@ -224,11 +271,20 @@ function ConnectedCard({
         <p className="gv-uc mb-3 text-[9px] font-semibold tracking-[0.06em] text-[color:var(--gv-ink-4)]">
           VỊ TRÍ TRONG NGÁCH {(data.niche_label || nicheLabel).toUpperCase()}
         </p>
-        <div className="flex flex-col gap-3">
-          {percentiles.map((s) => (
-            <PercentileBarRow key={s.label} spec={s} />
-          ))}
-        </div>
+        {hasBench && percentiles ? (
+          <div className="flex flex-col gap-3">
+            {percentiles.map((s) => (
+              <PercentileBarRow key={s.label} spec={s} />
+            ))}
+          </div>
+        ) : (
+          // Niche has < MIN_BENCHMARK_SAMPLE creators meeting the
+          // ``HAVING COUNT(*) >= 3`` cut. Surface why the bars are
+          // missing instead of rendering a fake ranking.
+          <p className="text-[12px] leading-snug text-[color:var(--gv-ink-3)]">
+            Chưa đủ kênh trong ngách để dựng thước đo so sánh — quay lại sau khi corpus ngách dày hơn.
+          </p>
+        )}
       </div>
 
       {bw ? (

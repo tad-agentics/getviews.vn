@@ -256,6 +256,34 @@ export interface ChannelKpiCell {
   delta: string;
 }
 
+/**
+ * Per-niche channel-level percentiles powering the HomeMyChannelSection
+ * benchmark layer. Source: SQL RPC ``niche_channel_benchmarks(p_niche_id)``
+ * (migration ``20260528000000``) called from
+ * ``cloud-run/getviews_pipeline/channel_analyze.py`` and folded into the
+ * ``/channel/analyze`` response.
+ *
+ * ``channel_count`` is the sample size — per-creator aggregates over the
+ * 30d corpus window with HAVING COUNT(*) >= 3 (excludes one-shot
+ * creators whose single virality wave would skew the medians). When
+ * ``channel_count = 0`` the FE should suppress the benchmark layer
+ * entirely; the percentile fields are zeroed via SQL COALESCE in that
+ * case so they remain numeric.
+ *
+ * ``engagement_*`` is on the same scale as ``ChannelAnalyzeResponse.
+ * engagement_pct`` from the same niche slice — i.e. percent-form
+ * (0..100) per how ``video_corpus.engagement_rate`` is stored.
+ */
+export interface NicheChannelBenchmarks {
+  channel_count: number;
+  avg_views_p50: number;
+  avg_views_p75: number;
+  engagement_p50: number;
+  engagement_p75: number;
+  posts_per_week_p50: number;
+  posts_per_week_p75: number;
+}
+
 export interface ChannelAnalyzeResponse {
   handle: string;
   niche_id: number;
@@ -284,6 +312,12 @@ export interface ChannelAnalyzeResponse {
    * Empty array signals "insufficient temporal data" — hide the panel.
    */
   posting_heatmap?: number[][];
+  /**
+   * Per-niche channel-level percentiles for HomeMyChannelSection bars +
+   * "Ngách: …" / "Top 25%: …" labels. Optional so older /channel/analyze
+   * responses pre-RPC remain decodable.
+   */
+  niche_benchmarks?: NicheChannelBenchmarks;
 }
 
 // ---------------------------------------------------------------------------

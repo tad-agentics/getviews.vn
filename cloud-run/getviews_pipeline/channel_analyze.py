@@ -174,6 +174,44 @@ def _fetch_corpus_stats_rpc(user_sb: Any, *, handle: str, niche_id: int) -> dict
     return {"total": 0, "avg_views": 0, "avg_er": 0.0}
 
 
+def _fetch_niche_benchmarks(user_sb: Any, *, niche_id: int) -> dict[str, Any]:
+    """Per-niche channel-level percentiles for the HomeMyChannelSection bars.
+
+    Returns a flat dict matching the SQL row from
+    ``niche_channel_benchmarks(p_niche_id)`` (see migration
+    ``20260528000000_niche_channel_benchmarks_rpc.sql``). Falls back to
+    a zeroed shape on failure so the FE can render the panel without
+    the benchmark layer rather than crashing.
+    """
+    fallback = {
+        "channel_count": 0,
+        "avg_views_p50": 0,
+        "avg_views_p75": 0,
+        "engagement_p50": 0.0,
+        "engagement_p75": 0.0,
+        "posts_per_week_p50": 0.0,
+        "posts_per_week_p75": 0.0,
+    }
+    try:
+        res = user_sb.rpc("niche_channel_benchmarks", {"p_niche_id": niche_id}).execute()
+        data = res.data
+        if isinstance(data, list) and data and isinstance(data[0], dict):
+            data = data[0]
+        if isinstance(data, dict):
+            return {
+                "channel_count":       int(data.get("channel_count") or 0),
+                "avg_views_p50":       int(data.get("avg_views_p50") or 0),
+                "avg_views_p75":       int(data.get("avg_views_p75") or 0),
+                "engagement_p50":      float(data.get("engagement_p50") or 0),
+                "engagement_p75":      float(data.get("engagement_p75") or 0),
+                "posts_per_week_p50":  float(data.get("posts_per_week_p50") or 0),
+                "posts_per_week_p75":  float(data.get("posts_per_week_p75") or 0),
+            }
+    except Exception as exc:
+        logger.warning("[channel_analyze] niche_channel_benchmarks RPC failed: %s", exc)
+    return fallback
+
+
 def _fetch_hook_types(user_sb: Any, *, handle: str, niche_id: int) -> list[str]:
     try:
         res = (
@@ -553,6 +591,7 @@ def _assemble_response(
     cached_optimal: str | None,
     live: LiveSignals,
     formula_gate: str | None,
+    user_sb: Any,
     computed_at: str | None = None,
     cache_hit: bool | None = None,
 ) -> dict[str, Any]:
@@ -608,6 +647,11 @@ def _assemble_response(
         ),
         "top_videos": _build_top_videos(top_rows),
         "posting_heatmap": list(live.posting_heatmap),
+        # Per-niche channel-level percentiles (HomeMyChannelSection bars +
+        # "Ngách: …" / "Top 25%: …" labels). Falls back to a zeroed shape
+        # if the RPC is unavailable; FE checks ``channel_count`` to decide
+        # whether to render the benchmark layer at all.
+        "niche_benchmarks": _fetch_niche_benchmarks(user_sb, niche_id=niche_id),
     }
     if computed_at is not None:
         out["computed_at"] = computed_at
@@ -666,6 +710,7 @@ def run_channel_analyze_sync(
             cached_optimal=None,
             live=live,
             formula_gate="thin_corpus",
+            user_sb=user_sb,
         )
 
     try:
@@ -701,6 +746,7 @@ def run_channel_analyze_sync(
             cached_optimal=(str(cached.get("optimal_length") or "").strip() or None),
             live=live,
             formula_gate=None,
+            user_sb=user_sb,
             computed_at=computed_at_iso,
             cache_hit=True,
         )
@@ -752,6 +798,7 @@ def run_channel_analyze_sync(
         cached_optimal=None,
         live=live,
         formula_gate=None,
+        user_sb=user_sb,
         computed_at=now_iso,
         cache_hit=False,
     )
