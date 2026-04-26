@@ -19,6 +19,9 @@ import { supabase } from "@/lib/supabase";
 import { corpusKeys, useVideoCorpus } from "@/hooks/useVideoCorpus";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useNicheRowsForIds } from "@/hooks/useTopNiches";
+import { normalizeNicheIds } from "@/lib/profileNiches";
+import { TrendsNicheTabs } from "./TrendsNicheTabs";
 import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
 import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
@@ -589,6 +592,16 @@ export default function ExploreScreen() {
 
   const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
+
+  // PR-T1 — niche tab switcher. Source = profiles.niche_ids (cap 3
+  // followed niches). Renders only when ≥2 followed; single-niche
+  // profiles get no switcher.
+  const followedNicheIds = useMemo(
+    () => normalizeNicheIds(profile?.niche_ids ?? []),
+    [profile?.niche_ids],
+  );
+  const { data: followedNiches = [] } = useNicheRowsForIds(followedNicheIds);
+
   const { data: hookDataRaw } = useHookEffectiveness(selectedNicheId);
   const { data: formatData } = useFormatLifecycle(selectedNicheId);
   const {
@@ -933,6 +946,15 @@ export default function ExploreScreen() {
             className="border-[var(--border)] px-4 pb-[60px] pt-4 sm:px-7 min-[1100px]:min-h-0 min-[1100px]:min-w-0 min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:pt-5"
             style={{ scrollbarWidth: "thin" }}
           >
+          {/* PR-T1 — NGÁCH BẠN THEO DÕI tab strip. Hidden when the
+           * creator follows < 2 niches; the URL ``?niche=N`` already
+           * pins the view in that case. */}
+          <TrendsNicheTabs
+            niches={followedNiches}
+            selectedNicheId={selectedNicheId}
+            onSelectNiche={(id) => setFilter({ niche: String(id) })}
+            onEditNiches={() => navigate("/app/settings")}
+          />
           {/* ── Zone 1: Discovery + hero (sounds carousel &lt;1100px) ───── */}
           <section className="pb-4">
             {selectedNicheId !== null && nicheIntel && !nicheIntelLoading && !nicheIntelQueryError ? (
