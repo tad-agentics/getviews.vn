@@ -30,6 +30,10 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   ],
   dominant_hook_type: null,
   avg_retention_pct: null,
+  structure: null,
+  why: null,
+  careful: null,
+  angles: null,
   ...overrides,
 });
 
@@ -128,5 +132,76 @@ describe("PatternModal — open state", () => {
     );
     // First video has bare "an.tech" — renders with @ prefix.
     expect(getByText("@an.tech")).toBeTruthy();
+  });
+});
+
+describe("PatternModal — deck content (post-synth)", () => {
+  it("renders the real why + careful in Ý CHÍNH when both are set", () => {
+    const decked = samplePattern({
+      why: "Format thử-thách-thời-gian tạo curiosity sâu — audience muốn biết kết quả cuối.",
+      careful: "Nếu chưa thực sự dùng X tháng, đừng giả — comment sẽ phát hiện.",
+    });
+    const { getByText, queryByText } = wrap(
+      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+    );
+    expect(getByText(/Format thử-thách-thời-gian/)).toBeTruthy();
+    expect(getByText(/đừng giả/)).toBeTruthy();
+    // Stub fallback line is hidden when deck is populated.
+    expect(queryByText(/Cấu trúc chi tiết và góc còn trống đang được biên tập/)).toBeNull();
+  });
+
+  it("renders the structure as an ordered list when populated", () => {
+    const decked = samplePattern({
+      structure: [
+        "Mở: câu hỏi 'tôi đã dùng X' (0-2s)",
+        "Setup: nghi vấn (2-8s)",
+        "Body: 3 điểm (8-35s)",
+        "Payoff: verdict + CTA (35-50s)",
+      ],
+    });
+    const { getByText } = wrap(
+      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+    );
+    // Each step renders.
+    expect(getByText(/Mở: câu hỏi/)).toBeTruthy();
+    expect(getByText(/Payoff: verdict/)).toBeTruthy();
+    // Radix Dialog renders into a portal so query at the document
+    // level. Structural ol with 4 items.
+    const ol = document.querySelector("ol");
+    expect(ol).toBeTruthy();
+    expect(ol?.children.length).toBe(4);
+  });
+
+  it("renders only the gap angles in GÓC CÒN TRỐNG with a count badge", () => {
+    const decked = samplePattern({
+      angles: [
+        { angle: "Sản phẩm Apple", filled: 18, gap: false },
+        { angle: "Phụ kiện cao cấp", filled: 0, gap: true },
+        { angle: "Hệ điều hành", filled: 0, gap: true },
+        { angle: "AI tools", filled: 14, gap: false },
+      ],
+    });
+    const { getByText, queryByText } = wrap(
+      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+    );
+    expect(getByText(/2 cơ hội/)).toBeTruthy();
+    expect(getByText("Phụ kiện cao cấp")).toBeTruthy();
+    expect(getByText("Hệ điều hành")).toBeTruthy();
+    // Filled angles do NOT render in the gap list.
+    expect(queryByText("Sản phẩm Apple")).toBeNull();
+    expect(queryByText("AI tools")).toBeNull();
+  });
+
+  it("renders the 'no gaps' message when angles is populated but gap-free", () => {
+    const decked = samplePattern({
+      angles: [
+        { angle: "Sản phẩm Apple", filled: 18, gap: false },
+        { angle: "AI tools", filled: 14, gap: false },
+      ],
+    });
+    const { getByText } = wrap(
+      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+    );
+    expect(getByText(/đã có creator khai thác/)).toBeTruthy();
   });
 });

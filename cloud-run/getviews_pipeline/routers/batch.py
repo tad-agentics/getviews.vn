@@ -48,6 +48,26 @@ class RitualBatchRequest(BaseModel):
     )
 
 
+class PatternDecksBatchRequest(BaseModel):
+    cap: int | None = Field(
+        default=None,
+        ge=1, le=500,
+        description=(
+            "Max patterns to synthesize this run. Omit to use the module "
+            "default (DEFAULT_BATCH_CAP). Lower this when running mid-day "
+            "smoke tests to keep Gemini cost bounded."
+        ),
+    )
+    pattern_ids: list[str] | None = Field(
+        default=None,
+        description=(
+            "Restrict the run to specific pattern IDs (UUID strings). "
+            "Bypasses the staleness query — use for admin manual reruns "
+            "after a pattern's grounding videos materially change."
+        ),
+    )
+
+
 @router.post("/batch/ingest")
 async def batch_ingest(
     request: Request,
@@ -469,6 +489,55 @@ async def batch_morning_ritual(
         "failed_duplicate_hooks": summary.failed_duplicate_hooks,
         "failed_upsert":          summary.failed_upsert,
         "users_no_niche":         summary.users_no_niche,
+    })
+
+
+@router.post("/batch/pattern-decks")
+async def batch_pattern_decks(
+    request: Request,
+    body: PatternDecksBatchRequest = PatternDecksBatchRequest(),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Nightly cron: synthesize PatternModal deck content for stale
+    ``video_patterns`` rows.
+
+    The deck = ``structure`` (4 timing-bucketed lines), ``why``
+    (audience psychology), ``careful`` (pitfall warning), ``angles``
+    (filled vs gap content angles). Drives the FE PatternModal on
+    /app/trends. Walks active patterns whose ``deck_computed_at`` is
+    null OR older than 7 days, ordered staleest-first; per-batch cap
+    keeps the Gemini bill predictable.
+
+    Protected by ``require_batch_caller``. Pair with the pg_cron
+    schedule in ``20260530000001_pg_cron_pattern_decks.sql``.
+    """
+    from getviews_pipeline.pattern_deck_synth import (
+        DEFAULT_BATCH_CAP, run_pattern_decks_batch,
+    )
+    from getviews_pipeline.supabase_client import get_service_client
+
+    cap = body.cap or DEFAULT_BATCH_CAP
+
+    try:
+        summary = await run_sync(
+            run_pattern_decks_batch,
+            get_service_client(),
+            cap=cap,
+            pattern_ids=body.pattern_ids,
+        )
+    except Exception as exc:
+        logger.exception("[batch/pattern-decks] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return JSONResponse({
+        "ok":            True,
+        "considered":    summary.considered,
+        "generated":     summary.generated,
+        "skipped_thin":  summary.skipped_thin,
+        "skipped_fresh": summary.skipped_fresh,
+        "failed_schema": summary.failed_schema,
+        "failed_gemini": summary.failed_gemini,
+        "failed_upsert": summary.failed_upsert,
     })
 
 
