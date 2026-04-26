@@ -22,7 +22,6 @@ export default [
     route("app/channel", "routes/_app/channel/route.tsx"),
     route("app/script", "routes/_app/script/route.tsx"),
     route("app/script/shoot/:draftId", "routes/_app/script/shoot/route.tsx"),
-    route("app/kol", "routes/_app/kol/route.tsx"),
     route("app/settings", "routes/_app/settings/route.tsx"),
     route("app/learn-more", "routes/_app/learn-more/route.tsx"),
     route("app/pricing", "routes/_app/pricing/route.tsx"),

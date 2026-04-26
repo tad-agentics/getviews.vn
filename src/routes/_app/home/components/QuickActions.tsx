@@ -1,6 +1,6 @@
 import { memo, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Clapperboard, Eye, TrendingUp, FileText, Users, Sparkles } from "lucide-react";
+import { Clapperboard, Eye, TrendingUp, FileText, Sparkles } from "lucide-react";
 
 /**
  * Sáu lối tắt chính — ref: viền ink, chữ đậm, icon đen (khác hàng gợi ý Sparkles đỏ).
@@ -45,10 +45,6 @@ export const QuickActions = memo(function QuickActions({
       <button type="button" onClick={() => navigate("/app/script")} className={PRIMARY}>
         <FileText className={ICO} strokeWidth={2} aria-hidden />
         <span className="min-w-0">Lên kịch bản quay</span>
-      </button>
-      <button type="button" onClick={() => navigate("/app/kol")} className={PRIMARY}>
-        <Users className={ICO} strokeWidth={2} aria-hidden />
-        <span className="min-w-0">Tìm KOL / creator</span>
       </button>
       <button
         type="button"

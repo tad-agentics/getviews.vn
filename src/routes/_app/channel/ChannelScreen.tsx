@@ -141,9 +141,6 @@ export default function ChannelScreen() {
                 Dữ liệu cập nhật {asOfRelative}
               </span>
             ) : null}
-            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/kol")}>
-              KOL
-            </Btn>
           </>
         }
       />

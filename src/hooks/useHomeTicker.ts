@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
 export type TickerBucket =
-  | "breakout" | "hook_mới" | "cảnh_báo" | "kol_nổi" | "âm_thanh";
+  | "breakout" | "hook_mới" | "cảnh_báo" | "âm_thanh";
 
 export type TickerItem = {
   bucket: TickerBucket;
@@ -13,7 +13,12 @@ export type TickerItem = {
   target_id: string | null;
 };
 
-/** GET /home/ticker — up to 10 interleaved items across 5 buckets. */
+/** GET /home/ticker — up to 10 interleaved items across 4 buckets.
+ *
+ * Creator-only pivot (claude/remove-kol-creator-only): `kol_nổi` was
+ * dropped from the bucket set. The server may still emit it during
+ * transitional rollout — we filter at the hook layer so legacy items
+ * never reach the renderer (TickerMarquee). */
 export function useHomeTicker(enabled = true) {
   return useQuery<TickerItem[]>({
     queryKey: ["home", "ticker"],
@@ -27,8 +32,14 @@ export function useHomeTicker(enabled = true) {
       });
       if (res.status === 404) return [];
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as { items: TickerItem[] };
-      return body.items ?? [];
+      // Bucket arrives as a free string from the server so the filter
+      // can drop legacy `kol_nổi` items without TS thinking the
+      // comparison is unreachable.
+      type RawTickerItem = Omit<TickerItem, "bucket"> & { bucket: string };
+      const body = (await res.json()) as { items: RawTickerItem[] };
+      return (body.items ?? []).filter(
+        (it) => it.bucket !== "kol_nổi",
+      ) as TickerItem[];
     },
     enabled,
     staleTime: 10 * 60 * 1000, // 10 min
