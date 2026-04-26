@@ -22,6 +22,7 @@ import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { normalizeNicheIds } from "@/lib/profileNiches";
 import { TrendsNicheTabs } from "./TrendsNicheTabs";
+import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
 import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
@@ -351,94 +352,6 @@ function ReferenceRailSection({
             <p className="text-sm leading-[1.35] text-[var(--gv-ink-2)]">{it.body}</p>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function HeroStatLine({
-  label,
-  value,
-  delta,
-}: {
-  label: string;
-  value: string;
-  delta?: string;
-}) {
-  return (
-    <div>
-      <div className="mb-1 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
-        {label}
-      </div>
-      <div className="text-[28px] font-semibold leading-none text-[var(--surface)]">{value}</div>
-      {delta ? (
-        <div className="mt-1 font-mono text-[10px] text-[var(--gv-pos-deep)]">{delta}</div>
-      ) : null}
-    </div>
-  );
-}
-
-function TrendsHeroCompact({
-  nicheName,
-  nicheIntel,
-  corpusCount,
-}: {
-  nicheName: string | undefined;
-  nicheIntel: Record<string, unknown> | null | undefined;
-  corpusCount: number | null | undefined;
-}) {
-  if (!nicheIntel || !nicheName) return null;
-  const sample = nicheCorpusSampleCount(nicheIntel);
-  const head = corpusCount != null ? corpusCount.toLocaleString("vi-VN") : sample.toLocaleString("vi-VN");
-  const commercePct = nicheIntel.commerce_pct;
-  const medEr = nicheIntel.median_er;
-  const pctCommerce =
-    typeof commercePct === "number" && Number.isFinite(commercePct)
-      ? `${commercePct.toFixed(0)}%`
-      : "—";
-  const erPct =
-    typeof medEr === "number" && Number.isFinite(medEr)
-      ? `${(medEr * 100).toFixed(1)}%`
-      : "—";
-  const topHooks = topJsonbCounts(nicheIntel.hook_distribution, 1);
-  const topFormats = topJsonbCounts(nicheIntel.format_distribution, 1);
-  const hookLine = topHooks[0]
-    ? `Hook mạnh: ${String(topHooks[0].key).replace(/_/g, " ")}`
-    : "Hook: đang cập nhật";
-  const formatLine = topFormats[0]
-    ? `Format dẫn: ${String(topFormats[0].key).replace(/_/g, " ")}`
-    : "Format: đang cập nhật";
-
-  return (
-    <div
-      className="mb-7 grid grid-cols-1 gap-[18px] rounded-[12px] bg-[var(--ink)] px-5 py-6 text-[var(--surface)] sm:px-8 sm:py-7 min-[1100px]:grid-cols-3 min-[1100px]:gap-8"
-      aria-label="Tóm tắt tuần theo ngách"
-    >
-      <div>
-        <p className="mb-2 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
-          {viWeekKicker()}
-        </p>
-        <p className="mb-2 text-[26px] font-semibold leading-[1.1] tracking-tight text-balance min-[420px]:text-[30px] sm:text-[36px] sm:leading-none">
-          {head}{" "}
-          <span className="text-[var(--gv-accent)]">được giải mã</span>
-        </p>
-        <p className="max-w-[320px] text-xs leading-relaxed text-[var(--gv-ink-4)]">
-          Dữ liệu 30 ngày gần nhất trong ngách {nicheName}. Cập nhật theo lô phân tích corpus.
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-4 content-center">
-        <HeroStatLine label="Video mẫu (30d)" value={sample.toLocaleString("vi-VN")} />
-        <HeroStatLine label="TTTB (median ER)" value={erPct} />
-        <HeroStatLine label="Video commerce" value={pctCommerce} />
-        <HeroStatLine label="Hook nổi" value={topHooks[0] ? String(topHooks[0].count) : "—"} />
-      </div>
-      <div>
-        <p className="mb-2 font-mono text-[9px] font-medium uppercase tracking-wider text-[var(--gv-ink-4)]">
-          Tóm tắt biên tập
-        </p>
-        <p className="text-sm font-medium leading-snug text-[var(--surface)] sm:text-base">
-          {formatLine}. {hookLine}.
-        </p>
       </div>
     </div>
   );
@@ -957,10 +870,15 @@ export default function ExploreScreen() {
           />
           {/* ── Zone 1: Discovery + hero (sounds carousel &lt;1100px) ───── */}
           <section className="pb-4">
-            {selectedNicheId !== null && nicheIntel && !nicheIntelLoading && !nicheIntelQueryError ? (
-              <TrendsHeroCompact
-                nicheName={selectedNicheName}
-                nicheIntel={nicheIntelRecord}
+            {/* PR-T2 — pattern-thesis hero replaces the old niche-intel
+             * snapshot. Renders when a niche is selected, regardless of
+             * niche-intel query state — pattern stats + corpus count
+             * are independent fetches. */}
+            {selectedNicheId !== null && selectedNicheName ? (
+              <TrendsPatternThesisHero
+                nicheId={selectedNicheId}
+                nicheLabel={selectedNicheName}
+                weekKicker={viWeekKicker()}
                 corpusCount={corpusCount}
               />
             ) : null}
