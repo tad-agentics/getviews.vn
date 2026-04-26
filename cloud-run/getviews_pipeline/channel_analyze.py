@@ -52,6 +52,13 @@ class LiveSignals:
     # backed by the same 14-day rolling window as the design's pulse hero.
     streak_days: int = 0
     streak_window_days: int = 14
+    # Studio Home cadence (PR-3) — typed shape backing the design's
+    # CadenceCalendar block:
+    #   { posts_14d: bool[14], weekly_actual, weekly_target,
+    #     best_hour: "20:00–22:00", best_days: "T7, CN" }
+    # ``None`` when there's insufficient temporal data to render the
+    # block; FE hides the cadence section in that case.
+    cadence: dict[str, Any] | None = None
 
 
 class InsufficientCreditsError(Exception):
@@ -410,6 +417,109 @@ def _compute_posting_cadence_time_peak(rows: list[dict[str, Any]]) -> tuple[str,
     return cad, time_lbl, peak_hr
 
 
+# Studio Home cadence (PR-3) — design's NHỊP ĐĂNG block ────────────────────
+#
+# Renders a 14-day calendar of boolean post-or-skip cells + a Giờ vàng /
+# Ngày vàng pair. Computed deterministically from temporal corpus rows;
+# returns None when there isn't enough data to seed the calendar.
+
+# Min temporal rows for the cadence struct to be useful.
+_CADENCE_MIN_ROWS = 3
+_CADENCE_WEEKDAY_VI = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]  # Mon..Sun
+
+
+def _format_best_hour_range(peak_hour: int | None) -> str:
+    """Peak hour → "20:00–22:00" (2-hour window centred on the peak)."""
+    if peak_hour is None:
+        return ""
+    start = peak_hour
+    end = (peak_hour + 2) % 24
+    return f"{start:02d}:00–{end:02d}:00"
+
+
+def _format_best_days(weekday_counts: Counter[int], *, top_n: int = 2) -> str:
+    """Top-N weekdays as Vietnamese short labels, comma-separated."""
+    if not weekday_counts:
+        return ""
+    # Sort by count desc, breaking ties by weekday order so output is stable.
+    ordered = sorted(
+        weekday_counts.items(),
+        key=lambda kv: (-kv[1], kv[0]),
+    )
+    picks = [_CADENCE_WEEKDAY_VI[wd] for wd, _ in ordered[:top_n] if 0 <= wd < 7]
+    return ", ".join(picks)
+
+
+def _compute_cadence_struct(
+    rows: list[dict[str, Any]],
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
+    """Build the typed cadence shape backing the design's CadenceCalendar.
+
+    Output:
+      ``{
+          "posts_14d": list[bool],       # exactly 14 entries; index 0 = 13 days ago, index 13 = today
+          "weekly_actual": int,           # posts in the last 7 days
+          "weekly_target": int,           # rolling 30-60d posts/week (≥ weekly_actual)
+          "best_hour": "20:00–22:00",
+          "best_days": "T7, CN",
+      }``
+
+    Returns None when fewer than ``_CADENCE_MIN_ROWS`` parseable timestamps —
+    same guard as ``_compute_posting_heatmap``.
+    """
+    parsed: list[datetime] = []
+    for r in rows:
+        dt = _parse_ts(r.get("posted_at")) or _parse_row_created_at(r)
+        if dt is None:
+            continue
+        parsed.append(dt.astimezone(timezone.utc))
+    if len(parsed) < _CADENCE_MIN_ROWS:
+        return None
+
+    today = (now or datetime.now(timezone.utc)).date()
+
+    # 14-day boolean grid (today − 13 ... today).
+    days_with_post: set[date] = {dt.date() for dt in parsed}
+    posts_14d = [(today - timedelta(days=13 - i)) in days_with_post for i in range(14)]
+    weekly_actual = sum(1 for b in posts_14d[-7:] if b)
+
+    # weekly_target: derive from the wider window's posts/week (capped at
+    # design's daily cap of 7). Always ≥ weekly_actual so the FE pill
+    # never reads "8/5 tuần này".
+    cutoff_30 = today - timedelta(days=30)
+    in_window = [dt for dt in parsed if dt.date() >= cutoff_30]
+    if in_window:
+        unique_days = len({dt.date() for dt in in_window})
+        # Posts/week heuristic from unique-days-with-post over the 30-day
+        # window — matches the design's "weekly target" framing better
+        # than raw post count (a creator who posts twice on Saturdays
+        # shouldn't get inflated targets).
+        per_week = unique_days / max(min(30, (today - cutoff_30).days), 1) * 7
+        weekly_target = max(weekly_actual, int(round(per_week)))
+    else:
+        weekly_target = weekly_actual
+    weekly_target = max(1, min(weekly_target, 7))
+
+    # Peak hour and best days come from the same row pool.
+    weekday_counter: Counter[int] = Counter()
+    hour_counter: Counter[int] = Counter()
+    for dt in parsed:
+        weekday_counter[dt.weekday()] += 1
+        hour_counter[dt.hour] += 1
+
+    peak_hour = hour_counter.most_common(1)[0][0] if hour_counter else None
+
+    return {
+        "posts_14d": posts_14d,
+        "weekly_actual": weekly_actual,
+        "weekly_target": weekly_target,
+        "best_hour": _format_best_hour_range(peak_hour),
+        "best_days": _format_best_days(weekday_counter),
+    }
+
+
 # D.1.4 — hour-bucket map matches `HOURS_VN` in TimingHeatmap.tsx:
 # [6–9, 9–12, 12–15, 15–18, 18–20, 20–22, 22–24, 0–3]. Hours 3–5 are
 # intentionally dropped (posting-empty dead zone on TikTok VN).
@@ -563,6 +673,7 @@ def compute_live_signals(
         posting_heatmap=_compute_posting_heatmap(temporal),
         streak_days=_compute_streak_days(temporal, window_days=14),
         streak_window_days=14,
+        cadence=_compute_cadence_struct(temporal),
     )
 
 
@@ -1069,6 +1180,10 @@ def _assemble_response(
             _fetch_recent_7d_rows(user_sb, handle=handle, niche_id=niche_id),
             avg_views=avg_views,
         ),
+        # Studio Home NHỊP ĐĂNG block (PR-3) — typed cadence shape
+        # (calendar grid + best-hour / best-days). ``None`` when there
+        # isn't enough temporal data; FE hides the section in that case.
+        "cadence": live.cadence,
     }
     if computed_at is not None:
         out["computed_at"] = computed_at
