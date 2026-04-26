@@ -117,23 +117,70 @@ describe("HomeScreen", () => {
   });
   afterEach(cleanup);
 
-  it("greets the user with their first name and niche label", () => {
+  it("greets the user with 'Chào {firstName}. Hôm nay' + niche label", () => {
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
+      .find((el) => (el.textContent ?? "").includes("Hôm nay"))!;
     const text = headline.textContent ?? "";
-    expect(text).toContain("Do, hôm nay");  // last token of "An Do"
+    expect(text).toContain("Chào Do. Hôm nay");  // last token of "An Do"
     expect(text).toContain("Ẩm thực");
   });
 
-  it("uses the static greeting line without hook counts from pulse", () => {
+  it("falls back to 'đang có gì mới' when no hot-new hooks are present", () => {
+    // Default mock: useTopPatterns returns []; no patterns where prev=0.
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
+      .find((el) => (el.textContent ?? "").includes("Hôm nay"))!;
     expect(headline.textContent).not.toContain("hook mới");
     expect(headline.textContent).toContain("đang có gì mới");
+  });
+
+  it("renders 'có N hook mới đang nổ' when patterns include some with prev=0", () => {
+    mockUseTopPatterns.mockReturnValue({
+      data: [
+        // Two truly-new (prev=0), one growing-from-existing.
+        {
+          id: "p1",
+          display_name: "Hook mới 1",
+          weekly_instance_count: 12,
+          weekly_instance_count_prev: 0,
+          instance_count: 12,
+          niche_spread: [4],
+          avg_views: 0,
+          sample_hook: null,
+        },
+        {
+          id: "p2",
+          display_name: "Hook mới 2",
+          weekly_instance_count: 8,
+          weekly_instance_count_prev: 0,
+          instance_count: 8,
+          niche_spread: [4],
+          avg_views: 0,
+          sample_hook: null,
+        },
+        {
+          id: "p3",
+          display_name: "Hook đang lên",
+          weekly_instance_count: 16,
+          weekly_instance_count_prev: 4,
+          instance_count: 28,
+          niche_spread: [4],
+          avg_views: 0,
+          sample_hook: null,
+        },
+      ],
+      isPending: false,
+    });
+    renderHome();
+    const headline = screen
+      .getAllByRole("heading", { level: 1 })
+      .find((el) => (el.textContent ?? "").includes("Hôm nay"))!;
+    expect(headline.textContent).toContain("2 hook");
+    expect(headline.textContent).toContain("mới đang nổ");
+    expect(headline.textContent).not.toContain("đang có gì mới");
   });
 
   it("falls back to 'Bạn' when display_name is empty", () => {
@@ -143,8 +190,32 @@ describe("HomeScreen", () => {
     renderHome();
     const headline = screen
       .getAllByRole("heading", { level: 1 })
-      .find((el) => (el.textContent ?? "").includes("hôm nay"))!;
-    expect(headline.textContent).toContain("Bạn, hôm nay");
+      .find((el) => (el.textContent ?? "").includes("Hôm nay"))!;
+    expect(headline.textContent).toContain("Chào Bạn. Hôm nay");
     expect(headline.textContent).toContain("ngách của bạn");
+  });
+
+  it("renders the corpus count chip when the selected niche has hot > 0", () => {
+    // Default mock: useNicheRowsForIds returns []. Override to surface a
+    // niche with a hot count matching the user's selected niche.
+    mockUseProfile.mockReturnValue({
+      data: { id: "u", display_name: "An", primary_niche: 4, niche_ids: [4] },
+    });
+    mockUseNicheRowsForIds.mockReturnValue({
+      data: [{ id: 4, name: "Ẩm thực", hot: 1240 }],
+    });
+    renderHome();
+    expect(screen.getByText(/1,240\+ video/)).toBeTruthy();
+  });
+
+  it("hides the corpus count chip when the selected niche has hot = 0", () => {
+    mockUseProfile.mockReturnValue({
+      data: { id: "u", display_name: "An", primary_niche: 4, niche_ids: [4] },
+    });
+    mockUseNicheRowsForIds.mockReturnValue({
+      data: [{ id: 4, name: "Ẩm thực", hot: 0 }],
+    });
+    renderHome();
+    expect(screen.queryByText(/\+ video/)).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
+import { useTopPatterns } from "@/hooks/useTopPatterns";
 import { logUsage } from "@/lib/logUsage";
 import { normalizeNicheIds } from "@/lib/profileNiches";
 import { TickerMarquee } from "./components/TickerMarquee";
@@ -69,6 +70,26 @@ export default function HomeScreen() {
     if (!id) return "ngách của bạn";
     return niches.find((n) => n.id === id)?.name ?? "ngách của bạn";
   }, [selectedNicheId, niches]);
+
+  // PR-cleanup-E — greeting + composer signals.
+  // ``newHookCount``: count of hot patterns whose previous-week instance
+  // count was 0 (true "mới" rather than "đang lên"). Same query
+  // HooksTable already fires (limit=6, dedupes via React Query cache).
+  const { data: topPatterns = [] } = useTopPatterns(selectedNicheId, 6);
+  const newHookCount = useMemo(
+    () => topPatterns.filter((p) => p.weekly_instance_count_prev === 0).length,
+    [topPatterns],
+  );
+
+  // Corpus count for the composer chip — pulled from
+  // ``niche_intelligence.sample_size`` via ``useNicheRowsForIds``.
+  // Hidden when 0 (empty niche / first-day account) so we don't claim
+  // a corpus that doesn't exist.
+  const currentNicheCount = useMemo(() => {
+    if (!selectedNicheId) return undefined;
+    const found = followedNiches.find((n) => n.id === selectedNicheId);
+    return found && found.hot > 0 ? found.hot : undefined;
+  }, [followedNiches, selectedNicheId]);
 
   // Capitalised because ``firstName`` now leads the H1 (was preceded by
   // "Chào "); lowercase looks wrong at the start of a sentence.
@@ -173,14 +194,24 @@ export default function HomeScreen() {
               className="gv-tight mt-0 w-full max-w-[880px] text-[clamp(36px,4.6vw,60px)] leading-[1.08] text-[color:var(--gv-ink)]"
               style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
             >
-              {firstName}, hôm nay{" "}
+              Chào {firstName}. Hôm nay{" "}
               <span
                 className="inline-block rotate-[-1deg] rounded-[10px] px-2.5 text-white"
                 style={{ background: "var(--gv-accent)" }}
               >
                 {nicheLabel}
               </span>{" "}
-              đang có gì mới.
+              {newHookCount > 0 ? (
+                <>
+                  có{" "}
+                  <span style={{ color: "var(--gv-accent-2-deep, var(--gv-accent-2))" }}>
+                    {newHookCount} hook
+                  </span>{" "}
+                  mới đang nổ.
+                </>
+              ) : (
+                "đang có gì mới."
+              )}
             </h1>
           </div>
 
@@ -192,6 +223,7 @@ export default function HomeScreen() {
               onSubmit={submitStudioComposer}
               placeholder={`Hỏi về hook, trend, hay kênh trong ngách ${nicheLabel}…`}
               nicheLabel={nicheLabel}
+              corpusCount={currentNicheCount}
               showUrlChip={URL_IN_TEXT.test(composerText)}
               onPasteVideoClick={() => navigate("/app/video")}
               onPasteHandleClick={() =>
