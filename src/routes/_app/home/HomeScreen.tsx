@@ -15,7 +15,6 @@ import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
 import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
 import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
 import { NichePicker } from "./components/NichePicker";
-import { QuickActions } from "./components/QuickActions";
 import { DateChip } from "./components/DateChip";
 import { useIsFirstRun } from "./components/useIsFirstRun";
 
@@ -76,12 +75,21 @@ export default function HomeScreen() {
   const displayName = profile?.display_name?.trim() || "Bạn";
   const firstName = displayName.split(/\s+/).pop() ?? displayName;
 
+  // Mirrors the design pack's SUGGESTED_PROMPTS in data.js — 7 chips
+  // that fold the old QuickActions intents (video flop / channel /
+  // trends / script / consult) into composer-fill prompts. Click loads
+  // the chip text into the textarea so the creator can edit before
+  // sending. The bracket placeholders ([dán link], [chủ đề của bạn])
+  // signal "drop your specific input here" without forcing it.
   const suggestedPrompts = useMemo(
     () => [
-      `Xu hướng đang hot trong ${nicheLabel} tuần này?`,
+      "Tại sao video TikTok này của tôi flop: [dán link]",
+      `Soi kênh @[handle] — họ đang dùng công thức nội dung gì?`,
+      `Xu hướng nào đang hot trong ${nicheLabel} tuần này?`,
       `Hook nào đang hiệu quả nhất trong ${nicheLabel}?`,
-      "Phân tích kênh @creator — họ đang làm gì hay?",
+      "Lên kịch bản quay cho chủ đề: [chủ đề của bạn]",
       `Format nào đang tăng view nhanh nhất ngách ${nicheLabel}?`,
+      "Tư vấn hướng nội dung phù hợp ngách của tôi",
     ],
     [nicheLabel],
   );
@@ -192,6 +200,12 @@ export default function HomeScreen() {
             />
           </div>
 
+          {/* PR-cleanup-A — "BẮT ĐẦU NHANH" prompt-shortcut chips only.
+           * Design pack QuickStartChips (home.jsx:404-426) renders the 5
+           * SUGGESTED_PROMPTS as composer-fill chips with no navigation
+           * grid; the earlier QuickActions component (Soi video / Soi
+           * kênh / Trends / Script / Tư vấn buttons) was deleted because
+           * the design pivoted to a single chip row. */}
           <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 w-full max-w-[880px]">
             <div className="mb-3 flex items-center gap-2">
               <span
@@ -203,13 +217,6 @@ export default function HomeScreen() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <QuickActions
-                nicheLabel={nicheLabel}
-                onAnswerPrompt={launchChat}
-                onPrefillComposer={fillComposer}
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
               {suggestedPrompts.map((p) => (
                 <button
                   key={p}
