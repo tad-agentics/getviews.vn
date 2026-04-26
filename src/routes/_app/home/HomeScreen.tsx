@@ -11,11 +11,13 @@ import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { logUsage } from "@/lib/logUsage";
 import { normalizeNicheIds } from "@/lib/profileNiches";
 import { TickerMarquee } from "./components/TickerMarquee";
+import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
 import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
 import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
 import { NichePicker } from "./components/NichePicker";
 import { QuickActions } from "./components/QuickActions";
 import { DateChip } from "./components/DateChip";
+import { useIsFirstRun } from "./components/useIsFirstRun";
 
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
@@ -101,6 +103,10 @@ export default function HomeScreen() {
     launchChat(text);
   };
 
+  // PR-6 — Day-1 welcome strip. ``useIsFirstRun`` reads
+  // ``profile.created_at`` (within 24h) + a per-user localStorage flag.
+  const { isFirstRun, dismiss: dismissFirstRun } = useIsFirstRun(profile);
+
   return (
     <AppLayout active="home" enableMobileSidebar>
       <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
@@ -116,6 +122,14 @@ export default function HomeScreen() {
             </>
           }
         />
+        {isFirstRun ? (
+          <FirstRunWelcomeStrip
+            firstName={firstName}
+            nicheLabel={nicheLabel}
+            onEditNiches={() => navigate("/app/settings")}
+            onDismiss={dismissFirstRun}
+          />
+        ) : null}
         <TickerMarquee />
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
