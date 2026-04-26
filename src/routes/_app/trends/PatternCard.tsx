@@ -16,9 +16,12 @@ import { lifecycleHint } from "./patternLifecycle";
  * the PatternModal in PR-T4. T3 ships with the click handler in place
  * and an empty body so the card stays interactive.
  *
- * GIỮ% renders ``"—"`` for now — per-video retention isn't reliably
- * persisted on ``video_corpus``. PR-T4 / a future BE PR can plumb
- * ``avg_completion_rate`` from ``hook_effectiveness`` when available.
+ * GIỮ% — when present on ``pattern.avg_retention_pct`` it's the
+ * niche-level proxy borrowed from
+ * ``hook_effectiveness.avg_completion_rate`` for the pattern's
+ * dominant hook_type (see ``useTopPatterns``). The cell ``title``
+ * tooltip clarifies the scope so a creator hovering doesn't read it
+ * as per-pattern. Falls back to ``"—"`` when the lookup misses.
  */
 
 const COLLAGE_FALLBACK_BG: ReadonlyArray<string> = [
@@ -84,7 +87,19 @@ export const PatternCard = memo(function PatternCard({
               label="VIEW TB"
               value={pattern.avg_views != null ? formatViews(pattern.avg_views) : "—"}
             />
-            <Stat label="GIỮ" value="—" />
+            <Stat
+              label="GIỮ"
+              value={
+                pattern.avg_retention_pct != null
+                  ? `${pattern.avg_retention_pct}%`
+                  : "—"
+              }
+              title={
+                pattern.avg_retention_pct != null
+                  ? `Tỉ lệ giữ chân TB của hook "${pattern.dominant_hook_type ?? ""}" trong ngách (proxy theo niche, không phải per-pattern).`
+                  : undefined
+              }
+            />
           </div>
           {/* Lifecycle hint */}
           <div className="gv-mono flex items-center gap-1.5 text-[10px] text-[color:var(--gv-ink-3)]">
@@ -155,9 +170,9 @@ function CollageTile({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, title }: { label: string; value: string; title?: string }) {
   return (
-    <div>
+    <div title={title}>
       <p className="gv-mono mb-0.5 text-[8px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
         {label}
       </p>

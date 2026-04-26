@@ -28,6 +28,8 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
     { video_id: "v3", thumbnail_url: "https://t/3.jpg", creator_handle: "@chinasecrets", views: 90_000 },
     { video_id: "v4", thumbnail_url: null, creator_handle: null, views: 50_000 },
   ],
+  dominant_hook_type: null,
+  avg_retention_pct: null,
   ...overrides,
 });
 
@@ -87,13 +89,37 @@ describe("PatternCard", () => {
     expect(collage?.children.length).toBe(4);
   });
 
-  it("renders 'GIỮ' as em-dash placeholder until BE plumbs retention", () => {
+  it("renders GIỮ as em-dash placeholder when avg_retention_pct is null", () => {
     const { container } = render(<PatternCard pattern={samplePattern()} />);
     // The third Stat cell holds "GIỮ" + value. Find dash there.
     const dashes = Array.from(container.querySelectorAll("p")).filter(
       (p) => p.textContent === "—",
     );
     expect(dashes.length).toBeGreaterThan(0);
+  });
+
+  it("renders GIỮ as percentage when avg_retention_pct is provided", () => {
+    const pattern = samplePattern({
+      avg_retention_pct: 64,
+      dominant_hook_type: "comparison",
+    });
+    const { getByText } = render(<PatternCard pattern={pattern} />);
+    expect(getByText("64%")).toBeTruthy();
+  });
+
+  it("attaches a tooltip clarifying the niche-proxy scope on the GIỮ cell", () => {
+    const pattern = samplePattern({
+      avg_retention_pct: 72,
+      dominant_hook_type: "story",
+    });
+    const { container } = render(<PatternCard pattern={pattern} />);
+    const giuValue = Array.from(container.querySelectorAll("p")).find(
+      (p) => p.textContent === "72%",
+    );
+    expect(giuValue).toBeTruthy();
+    const cell = giuValue?.parentElement as HTMLElement;
+    expect(cell.getAttribute("title")).toMatch(/proxy theo niche/);
+    expect(cell.getAttribute("title")).toContain("story");
   });
 
   it("normalises @-prefixed creator handles in the collage", () => {
