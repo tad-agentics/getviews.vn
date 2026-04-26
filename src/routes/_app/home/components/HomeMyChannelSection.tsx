@@ -13,6 +13,8 @@ import type {
 } from "@/lib/api-types";
 import { env } from "@/lib/env";
 import { formatFollowers, formatViews } from "@/lib/formatters";
+import { ChannelPulseBlock } from "./ChannelPulseBlock";
+import { ChannelRecent7dList } from "./ChannelRecent7dList";
 
 function profileTikTok(p: ProfileRow | null | undefined): string | null {
   const h = (p as { tiktok_handle?: string | null } | null | undefined)?.tiktok_handle;
@@ -223,6 +225,34 @@ function ConnectedCard({
           <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
         </Btn>
       </div>
+
+      {/* PR-1 — pulse hero (streak + serif headline) */}
+      {data.pulse ? <ChannelPulseBlock pulse={data.pulse} /> : null}
+
+      {/* PR-1 — 7 ngày qua ranked verdict list. Hidden when both pulse
+       * AND recent_7d are absent (legacy cached responses): the FE then
+       * falls through directly to the existing KPI grid. */}
+      {data.recent_7d ? (
+        <section
+          className="border-b border-[color:var(--gv-rule)] px-5 py-5 sm:px-6"
+          aria-labelledby="my-channel-recent7d-title"
+        >
+          <p className="gv-uc gv-mono mb-1.5 text-[10px] font-bold tracking-[0.1em] text-[color:var(--gv-ink-4)]">
+            ● 7 NGÀY QUA
+          </p>
+          <h3
+            id="my-channel-recent7d-title"
+            className="gv-tight m-0 text-[18px] font-semibold leading-snug tracking-[-0.02em] text-[color:var(--gv-ink)]"
+          >
+            Video gần nhất
+          </h3>
+          <p className="mt-1 mb-3.5 text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
+            Sắp theo độ lệch so với view trung bình kênh ({formatViews(data.avg_views)}).
+            Click để mở chi tiết.
+          </p>
+          <ChannelRecent7dList rows={data.recent_7d} />
+        </section>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-px bg-[color:var(--gv-rule)] sm:grid-cols-3">
         <div className="bg-[color:var(--gv-paper)] px-4 py-4 sm:px-5">

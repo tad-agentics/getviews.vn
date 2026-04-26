@@ -14,7 +14,7 @@ import json
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -48,6 +48,10 @@ class LiveSignals:
     # D.1.4 — 7×8 video-count matrix keyed by (weekday=Mon..Sun, hour-bucket).
     # Empty list means "insufficient temporal data" — frontend hides the panel.
     posting_heatmap: list[list[int]] = field(default_factory=list)
+    # Studio Home pulse (PR-1) — consecutive recent days with ≥1 post,
+    # backed by the same 14-day rolling window as the design's pulse hero.
+    streak_days: int = 0
+    streak_window_days: int = 14
 
 
 class InsufficientCreditsError(Exception):
@@ -306,7 +310,10 @@ def _fetch_temporal_corpus_rows(user_sb: Any, *, handle: str, niche_id: int, lim
     try:
         res = (
             user_sb.table("video_corpus")
-            .select("created_at,views,engagement_rate")
+            # ``posted_at`` is the creator's actual publish date (PR-1 streak
+            # uses it preferentially; existing cadence/MoM/heatmap helpers
+            # keep reading ``created_at`` = our ingest time).
+            .select("created_at,posted_at,views,engagement_rate")
             .ilike("creator_handle", handle)
             .eq("niche_id", niche_id)
             .order("created_at", desc=True)
@@ -401,6 +408,41 @@ def _compute_posting_heatmap(rows: list[dict[str, Any]]) -> list[list[int]]:
     return grid
 
 
+def _compute_streak_days(rows: list[dict[str, Any]], *, window_days: int = 14) -> int:
+    """Studio Home pulse (PR-1) — consecutive recent days with ≥1 post.
+
+    Counts back from today (UTC) until we hit a day with no parsed
+    timestamps. Capped at ``window_days`` so a perfectly-cadent kênh
+    doesn't overflow the design's 14-day pulse strip.
+
+    Pure function over the temporal-corpus row list already fetched by
+    ``compute_live_signals`` — adds zero DB cost.
+    """
+    if not rows:
+        return 0
+    days_with_post: set[date] = set()
+    for r in rows:
+        dt = _parse_ts(r.get("posted_at")) or _parse_row_created_at(r)
+        if dt is None:
+            continue
+        days_with_post.add(dt.astimezone(timezone.utc).date())
+    if not days_with_post:
+        return 0
+    today = datetime.now(timezone.utc).date()
+    streak = 0
+    for offset in range(window_days):
+        check = today - timedelta(days=offset)
+        if check in days_with_post:
+            streak += 1
+        else:
+            # Allow today to be empty (creator may not have posted yet)
+            # without zeroing the streak; everything else breaks it.
+            if offset == 0:
+                continue
+            break
+    return min(streak, window_days)
+
+
 def _compute_views_mom_delta(rows: list[dict[str, Any]]) -> str:
     now = datetime.now(timezone.utc)
     t30 = now - timedelta(days=30)
@@ -477,6 +519,8 @@ def compute_live_signals(
         optimal_band=band,
         duration_sample_n=n_dur,
         posting_heatmap=_compute_posting_heatmap(temporal),
+        streak_days=_compute_streak_days(temporal, window_days=14),
+        streak_window_days=14,
     )
 
 
@@ -575,6 +619,229 @@ def _build_top_videos(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+# ── Studio Home pulse (PR-1) ────────────────────────────────────────────
+#
+# The design's PulseBlock reads as a streak chip + a one-sentence headline
+# in a serif voice. We compose the headline deterministically from signals
+# already on hand (views_mom_delta + posting_cadence + best/worst) so this
+# new field doesn't add a Gemini call to /channel/analyze. Subsequent PRs
+# may swap the templates for an LLM-generated paragraph.
+
+PulseHeadlineKind = str  # "win" | "concern" | "neutral"
+
+
+def _compute_pulse(
+    *,
+    live: LiveSignals,
+    avg_views: int,
+    total_videos: int,
+) -> dict[str, Any]:
+    """Compose pulse hero {streak, headline, headline_kind}.
+
+    Uses ``live.views_mom_delta`` as the lead signal — it's already a
+    Vietnamese-formatted "↑ 18% MoM" / "↓ 9% MoM" string. We classify
+    direction from that and assemble a sentence that names the streak
+    when it's noteworthy (≥ 3 days) and otherwise falls back to a
+    cadence-only framing.
+    """
+    streak = int(getattr(live, "streak_days", 0) or 0)
+    window = int(getattr(live, "streak_window_days", 14) or 14)
+    delta = (live.views_mom_delta or "").strip()
+    cadence = (live.posting_cadence or "").strip()
+
+    kind: PulseHeadlineKind = "neutral"
+    if delta.startswith("↑"):
+        kind = "win"
+    elif delta.startswith("↓"):
+        kind = "concern"
+
+    # Compose headline. Pieces:
+    #   • "Streak X/14 ngày" — only when streak ≥ 3 (otherwise hide the
+    #     streak chip entirely on the FE, but keep a fallback).
+    #   • Direction sentence keyed off MoM delta + sample sufficiency.
+    if total_videos < 3:
+        headline = "Đang chờ thêm dữ liệu để dựng nhịp kênh — quay lại sau khi có thêm 2-3 video mới."
+        kind = "neutral"
+    elif kind == "win":
+        headline = (
+            f"Tuần qua kênh đang lên — view trung bình {delta} so với tháng trước."
+            if delta != "ổn định MoM"
+            else "Kênh đang giữ phong độ — view ổn định so với tháng trước."
+        )
+    elif kind == "concern":
+        headline = (
+            f"Tuần qua kênh đang chùng — view trung bình {delta} so với tháng trước."
+            " Soi sâu để tìm chỗ cần sửa."
+        )
+    else:
+        # Neutral: lean on cadence narrative if available.
+        if cadence:
+            headline = f"Nhịp đăng hiện tại: {cadence}. View vẫn ổn định so với tháng trước."
+        else:
+            headline = "Kênh đang ổn định — tiếp tục pattern bạn đang có."
+
+    return {
+        "streak_days": streak,
+        "streak_window": window,
+        "headline": headline,
+        "headline_kind": kind,
+        # Pass-through so the FE can render the chip's secondary line
+        # without re-parsing the kpis array on its own.
+        "mom_delta": delta or "—",
+        "avg_views": int(avg_views),
+    }
+
+
+# ── Recent 7d ranked verdict list (PR-1) ────────────────────────────────
+
+# vsMedian thresholds (mirror the design's tier-1 classification):
+#   ≥ 1.5×  → WIN
+#   < 0.7×  → UNDER
+#   else    → AVG
+_VS_MEDIAN_WIN = 1.5
+_VS_MEDIAN_UNDER = 0.7
+
+# Cap the list at the design's "≤ 5 rows fits without scroll" rule.
+_RECENT_7D_LIMIT = 8
+
+
+def _fetch_recent_7d_rows(user_sb: Any, *, handle: str, niche_id: int) -> list[dict[str, Any]]:
+    """Fetch up to 8 of the kênh's videos posted in the last 7 days."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    try:
+        res = (
+            user_sb.table("video_corpus")
+            .select(
+                # ``hook_phrase`` doubles as the title (matches
+                # ``_build_top_videos``); ``thumbnail_url`` is rendered
+                # only when present.
+                "video_id,hook_phrase,hook_type,views,engagement_rate,"
+                "posted_at,created_at,thumbnail_url"
+            )
+            .ilike("creator_handle", handle)
+            .eq("niche_id", niche_id)
+            .gte("posted_at", cutoff)
+            .order("posted_at", desc=True)
+            .limit(_RECENT_7D_LIMIT)
+            .execute()
+        )
+        return list(res.data or [])
+    except Exception as exc:
+        # ``posted_at`` may be NULL on legacy rows; fall back to
+        # ``created_at`` so we still surface something rather than a
+        # dead block on the design's hero strip.
+        logger.warning("[channel_analyze] recent_7d posted_at query failed: %s", exc)
+        try:
+            res = (
+                user_sb.table("video_corpus")
+                .select(
+                    "video_id,hook_phrase,hook_type,views,engagement_rate,"
+                    "posted_at,created_at,thumbnail_url"
+                )
+                .ilike("creator_handle", handle)
+                .eq("niche_id", niche_id)
+                .gte("created_at", cutoff)
+                .order("created_at", desc=True)
+                .limit(_RECENT_7D_LIMIT)
+                .execute()
+            )
+            return list(res.data or [])
+        except Exception as inner:
+            logger.warning("[channel_analyze] recent_7d created_at fallback failed: %s", inner)
+            return []
+
+
+def _classify_verdict(vs_median: float) -> str:
+    if vs_median >= _VS_MEDIAN_WIN:
+        return "WIN"
+    if vs_median < _VS_MEDIAN_UNDER:
+        return "UNDER"
+    return "AVG"
+
+
+def _verdict_note_vi(*, verdict: str, hook_type: str | None) -> str:
+    """Heuristic Vietnamese note matching the design's verdict copy.
+
+    Templated rather than LLM-generated — keeps PR-1 zero-Gemini-cost
+    and gives the FE concrete strings out of the box. Future PRs may
+    swap in a Gemini call when /channel/analyze is already paying for
+    one.
+    """
+    ht = (hook_type or "").strip()
+    if verdict == "WIN":
+        if ht:
+            return f"Vượt mức trung bình kênh — hook \"{ht}\" đang chạm đúng audience."
+        return "Vượt mức trung bình kênh — hook đang chạm đúng audience."
+    if verdict == "UNDER":
+        return "Dưới mức trung bình — hook chưa đủ mạnh để giữ scroll."
+    return "Sát trung bình kênh — pattern quen thuộc, chưa có yếu tố đặc biệt."
+
+
+def _age_label_vi(posted_at_iso: str | None, *, now: datetime | None = None) -> str:
+    """"3 giờ trước" / "2 ngày trước" / "5 tuần trước" — short Vi style."""
+    if not posted_at_iso:
+        return "—"
+    dt = _parse_ts(posted_at_iso)
+    if dt is None:
+        return "—"
+    ref = now or datetime.now(timezone.utc)
+    delta = ref - dt
+    seconds = max(int(delta.total_seconds()), 0)
+    if seconds < 60:
+        return "vừa xong"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} phút trước"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours} giờ trước"
+    days = hours // 24
+    if days < 7:
+        return f"{days} ngày trước"
+    weeks = days // 7
+    return f"{weeks} tuần trước"
+
+
+def _build_recent_7d(
+    rows: list[dict[str, Any]],
+    *,
+    avg_views: int,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Map raw recent rows → ranked verdict cards (sorted by vs_median)."""
+    if not rows:
+        return []
+    safe_avg = max(int(avg_views or 0), 1)
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        views = int(r.get("views") or 0)
+        vs_median = round(views / safe_avg, 2)
+        verdict = _classify_verdict(vs_median)
+        title = str(r.get("hook_phrase") or "").strip() or "Video"
+        posted_at_iso = r.get("posted_at") or r.get("created_at")
+        out.append(
+            {
+                "video_id": str(r.get("video_id") or ""),
+                "title": title[:200],
+                "thumbnail_url": r.get("thumbnail_url"),
+                "hook_category": (str(r.get("hook_type") or "") or None),
+                "posted_at": posted_at_iso,
+                "age_label": _age_label_vi(posted_at_iso, now=now),
+                "views": views,
+                "vs_median": vs_median,
+                "verdict": verdict,
+                "verdict_note": _verdict_note_vi(
+                    verdict=verdict,
+                    hook_type=str(r.get("hook_type") or "") or None,
+                ),
+            }
+        )
+    # Design ranks WIN at top → AVG → UNDER, breaking ties by vs_median desc.
+    rank = {"WIN": 0, "AVG": 1, "UNDER": 2}
+    out.sort(key=lambda v: (rank.get(v["verdict"], 9), -float(v["vs_median"])))
+    return out
+
+
 def _assemble_response(
     *,
     handle: str,
@@ -652,6 +919,16 @@ def _assemble_response(
         # if the RPC is unavailable; FE checks ``channel_count`` to decide
         # whether to render the benchmark layer at all.
         "niche_benchmarks": _fetch_niche_benchmarks(user_sb, niche_id=niche_id),
+        # Studio Home pulse hero (PR-1) — streak chip + serif headline.
+        # Always recomputed even on cache-hit responses since it reflects
+        # today's signals, not what Gemini saw 7 days ago.
+        "pulse": _compute_pulse(live=live, avg_views=avg_views, total_videos=total),
+        # Studio Home recent-7d ranked verdict list (PR-1) — fresh DB
+        # query each request; small (≤8 rows) so the cost is negligible.
+        "recent_7d": _build_recent_7d(
+            _fetch_recent_7d_rows(user_sb, handle=handle, niche_id=niche_id),
+            avg_views=avg_views,
+        ),
     }
     if computed_at is not None:
         out["computed_at"] = computed_at

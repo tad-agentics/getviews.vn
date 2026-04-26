@@ -284,6 +284,45 @@ export interface NicheChannelBenchmarks {
   posts_per_week_p75: number;
 }
 
+/**
+ * Studio Home pulse hero (PR-1) — streak chip + serif headline.
+ *
+ * Mirrors ``_compute_pulse`` in
+ * ``cloud-run/getviews_pipeline/channel_analyze.py``. Headline is a
+ * deterministically-templated Vietnamese sentence (no Gemini), so it's
+ * present on cache-hit responses too.
+ */
+export interface ChannelPulse {
+  streak_days: number;
+  /** Window cap (always 14 today; reserved for future tuning). */
+  streak_window: number;
+  headline: string;
+  headline_kind: "win" | "concern" | "neutral";
+  /** Pre-formatted MoM delta string (e.g. "↑ 18% MoM" or "—"). */
+  mom_delta: string;
+  /** Channel average views — referenced when the FE shows a sub-line under the streak. */
+  avg_views: number;
+}
+
+/** Studio Home recent-7d ranked verdict list (PR-1). */
+export interface ChannelRecent7dEntry {
+  video_id: string;
+  title: string;
+  thumbnail_url: string | null;
+  /** Empty / null when ``video_corpus.hook_type`` was missing. */
+  hook_category: string | null;
+  /** ISO timestamp from ``video_corpus.posted_at`` (or ``created_at`` fallback). */
+  posted_at: string | null;
+  /** Vietnamese short form: "3 giờ trước" / "2 ngày trước" / "5 tuần trước". */
+  age_label: string;
+  views: number;
+  /** Rounded ratio: ``views / max(channel_avg_views, 1)``. Float, 1.0 = on average. */
+  vs_median: number;
+  verdict: "WIN" | "AVG" | "UNDER";
+  /** Heuristic Vietnamese template; no Gemini. */
+  verdict_note: string;
+}
+
 export interface ChannelAnalyzeResponse {
   handle: string;
   niche_id: number;
@@ -318,6 +357,18 @@ export interface ChannelAnalyzeResponse {
    * responses pre-RPC remain decodable.
    */
   niche_benchmarks?: NicheChannelBenchmarks;
+  /**
+   * Studio Home pulse hero (PR-1) — streak chip + headline. Optional
+   * because pre-PR-1 cached responses won't carry it; FE hides the
+   * block in that case.
+   */
+  pulse?: ChannelPulse;
+  /**
+   * Studio Home recent-7d ranked verdict list (PR-1). Empty array when
+   * the kênh has no posts in the last 7 days; FE shows a thin "no
+   * recent posts" stub instead of the rows.
+   */
+  recent_7d?: ChannelRecent7dEntry[];
 }
 
 // ---------------------------------------------------------------------------
