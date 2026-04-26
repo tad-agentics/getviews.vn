@@ -240,11 +240,7 @@ export default function HomeScreen() {
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
           <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
-            <HomeSuggestionsToday
-              nicheLabel={nicheLabel}
-              nicheId={selectedNicheId}
-              onSelectPrompt={launchChat}
-            />
+            <HomeSuggestionsToday nicheId={selectedNicheId} />
           </div>
         </main>
       </div>

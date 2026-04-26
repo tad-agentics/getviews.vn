@@ -4,9 +4,8 @@ import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TierHeader } from "@/components/v2/TierHeader";
 import { BreakoutGrid } from "./BreakoutGrid";
-import { HomeMorningRitual } from "./HomeMorningRitual";
 import { HooksTable } from "./HooksTable";
-import { NextVideosCard } from "./NextVideosCard";
+import { StudioHero } from "./StudioHero";
 
 const SEE_ALL_TRENDS = (
   <Link
@@ -18,17 +17,28 @@ const SEE_ALL_TRENDS = (
   </Link>
 );
 
+const OPEN_ALL_SCRIPTS = (
+  <Link
+    to="/app/script"
+    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-xs font-medium text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)]"
+  >
+    <span>Mở tất cả</span>
+    <ArrowRight className="h-3 w-3" aria-hidden />
+  </Link>
+);
+
 /**
- * Khối “GỢI Ý HÔM NAY” — 3 tầng 01 QUAY NGAY · 02 PATTERN · 03 CẢM HỨNG (ref UIUX).
+ * Khối "GỢI Ý HÔM NAY" — 3 tầng 01 QUAY NGAY · 02 PATTERN · 03 CẢM HỨNG.
+ *
+ * Tier copy ports verbatim from the design pack's HomeScreen
+ * (home.jsx:136-180) — the actionability ladder reads as a single
+ * teaching surface (filled-in ideas → templates that produced them →
+ * outside case studies).
  */
 export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
-  nicheLabel,
   nicheId,
-  onSelectPrompt,
 }: {
-  nicheLabel: string;
   nicheId: number | null;
-  onSelectPrompt: (prompt: string) => void;
 }) {
   return (
     <section className="mb-12">
@@ -36,7 +46,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
         kicker="GỢI Ý HÔM NAY"
         kickerSparkles
         title="Từ sẵn-quay đến cảm-hứng"
-        caption="Ba tầng gợi ý: kịch bản & lịch 5 video quay ngay, pattern để remix, và case study từ kênh khác."
+        caption="Ba tầng theo mức độ hành động: video bạn nên quay hôm nay, công thức hook nền để remix, và case study từ kênh khác."
         className="!mb-10"
       />
 
@@ -46,29 +56,22 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
       <div className="mb-10 scroll-mt-20" data-tier="01">
         <TierHeader
           num="01"
-          tag="QUAY NGAY"
+          tag="HÔM NAY QUAY NGAY"
           tagTone="accent"
-          title="3 kịch bản sẵn sàng & 5 video tiếp theo"
-          caption="Kịch bản từ pattern thắng qua đêm (hook, structure, CTA). Tiếp theo là báo cáo 5 video với hook, câu mở và góc nội dung — dựa trên 7 ngày gần nhất trong ngách bạn."
+          title="Video tiếp theo bạn nên làm"
+          caption="Tổng hợp từ pattern thắng 7 ngày qua. Mỗi ý tưởng đã có script viết sẵn — click để mở thẳng."
+          right={OPEN_ALL_SCRIPTS}
         />
-        <HomeMorningRitual
-          embedded
-          nicheLabel={nicheLabel}
-          nicheId={nicheId}
-          onSelectPrompt={onSelectPrompt}
-        />
-        <div className="mt-10">
-          <NextVideosCard embedded nicheLabel={nicheLabel} />
-        </div>
+        <StudioHero nicheId={nicheId} />
       </div>
 
       <div className="mb-10 scroll-mt-20" data-tier="02">
         <TierHeader
           num="02"
-          tag="PATTERN DỄ REMIX"
+          tag="CÔNG THỨC NỀN"
           tagTone="pos"
-          title="Hook đang chạy trong ngách"
-          caption="Top 6 mẫu hook 3 giây tăng trưởng nhanh nhất tuần qua. Lấy công thức, đổi nội dung của bạn vào."
+          title="6 công thức hook đứng sau gợi ý"
+          caption="Đây là các pattern đang ăn nhất tuần qua — các ý tưởng phía trên được sinh ra từ chúng. Lấy công thức trống, điền nội dung khác của bạn vào để mở rộng."
         />
         <HooksTable embedded nicheId={nicheId} />
       </div>
