@@ -34,13 +34,6 @@ const FALLBACK_ITEMS: TickerItem[] = [
     target_id: null,
   },
   {
-    bucket: "kol_nổi",
-    label_vi: "KOL NỔI",
-    headline_vi: "@minhtuan.dev tăng 34% follower trong 7 ngày",
-    target_kind: "none",
-    target_id: null,
-  },
-  {
     bucket: "âm_thanh",
     label_vi: "ÂM THANH",
     headline_vi: 'Sound "Lo-fi typewriter" đang được gắn vào 1.2K video Edu',
@@ -53,7 +46,6 @@ const BUCKET_TONE: Record<TickerItem["bucket"], string> = {
   breakout:   "text-[color:var(--gv-accent)]",
   hook_mới:   "text-[color:var(--gv-accent-2)]",
   cảnh_báo:   "text-[color:var(--gv-neg)]",
-  kol_nổi:    "text-[color:var(--gv-pos)]",
   âm_thanh:   "text-[color:var(--gv-lime)]",
 };
 

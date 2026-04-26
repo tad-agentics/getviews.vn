@@ -14,7 +14,9 @@ function defaultRoute(a: ActionCardPayloadData): string {
   if (a.route) return a.route;
   const t = a.title.toLowerCase();
   if (t.includes("lịch") || t.includes("schedule") || t.includes("script")) return "/app/script";
-  if (t.includes("kol") || t.includes("đối thủ") || t.includes("kênh")) return "/app/kol";
+  // Creator-only pivot: /app/kol retired. "kol"/"đối thủ" titles route to
+  // the channel screen (the closest remaining creator-research surface).
+  if (t.includes("kol") || t.includes("đối thủ") || t.includes("kênh")) return "/app/channel";
   return "/app";
 }
 

@@ -29,7 +29,6 @@ export type IntentDecision = {
 export type Destination =
   | "video"
   | "channel"
-  | "kol"
   | "script"
   | "compare"
   | "answer:pattern"
@@ -73,7 +72,12 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   video_diagnosis: "video",
   competitor_profile: "channel",
   own_channel: "channel",
-  creator_search: "kol",
+  // Creator-only pivot (PR #176, branch claude/remove-kol-creator-only):
+  // /app/kol was deleted because finding KOLs is a seller use case. The
+  // intent type stays in the system (server still classifies, answer
+  // session still renders a "creators" turn block) but it now lands on
+  // the generic answer surface instead of a dedicated screen.
+  creator_search: "answer:generic",
   shot_list: "script",
   metadata_only: "video",
   trend_spike: "answer:pattern",
@@ -313,7 +317,7 @@ export type AnswerSessionFormat =
 
 /**
  * Studio → `/app/answer` entry: map `detectIntent` to either a non-answer redirect
- * (video / channel / kol / script) or `{ format, intent_type }` for answer sessions.
+ * (video / channel / script / compare) or `{ format, intent_type }` for answer sessions.
  */
 export type AnswerEntryPlan =
   | { kind: "redirect"; to: string }
@@ -366,9 +370,6 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
       ? `/app/channel?handle=${encodeURIComponent(handleMatch[1])}`
       : "/app/channel";
     return { kind: "redirect", to };
-  }
-  if (dest === "kol") {
-    return { kind: "redirect", to: "/app/kol" };
   }
   if (dest === "script") {
     return { kind: "redirect", to: "/app/script" };

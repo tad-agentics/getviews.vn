@@ -4,7 +4,6 @@ import {
   Plus,
   Home,
   TrendingUp,
-  Users,
   FileText,
   Settings,
   LogOut,
@@ -575,15 +574,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             active={active === "trends"}
             onClick={() => {
               navigate("/app/trends");
-              onClose?.();
-            }}
-          />
-          <NavItem
-            icon={Users}
-            label="Kênh Tham Chiếu"
-            active={active === "kol"}
-            onClick={() => {
-              navigate("/app/kol");
               onClose?.();
             }}
           />

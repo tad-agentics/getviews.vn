@@ -1,15 +1,19 @@
 /**
- * Phase C.5.2 — OffTaxonomyBanner (plan §2.4 section 2 — NEW).
+ * Phase C.5.2 — OffTaxonomyBanner (plan §2.4 section 2).
  *
- * The humility move. Copy:
- *   "Câu hỏi này ngoài taxonomy — gợi ý: dùng Soi Kênh / Xưởng Viết /
- *    Tìm KOL thay vì đào sâu ở đây."
+ * Soft suggestion chip strip. Copy:
+ *   "Câu hỏi này ngoài taxonomy — gợi ý: dùng Soi Kênh / Xưởng Viết
+ *    thay vì đào sâu ở đây."
  *
- * 3 chip buttons route to `/app/channel`, `/app/script`, `/app/kol`.
+ * Chip buttons route to `/app/channel`, `/app/script`, etc. — driven by
+ * the server's `off_taxonomy.suggestions` payload.
+ *
+ * Creator-only pivot (claude/remove-kol-creator-only): /app/kol no
+ * longer exists; suggestions pointing there are filtered out at render.
  * Dashed ink-4 border signals "soft suggestion" rather than "error".
  */
 
-import { Eye, Film, Users } from "lucide-react";
+import { Eye, Film } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import type { GenericReportPayload } from "@/lib/api-types";
@@ -22,8 +26,6 @@ function iconFor(symbol: string | undefined): React.ElementType {
       return Eye;
     case "film":
       return Film;
-    case "users":
-      return Users;
     default:
       return Eye;
   }
@@ -35,7 +37,12 @@ export function OffTaxonomyBanner({
   data: GenericReportPayload["off_taxonomy"];
 }) {
   const navigate = useNavigate();
-  const suggestions = (data?.suggestions as Suggestion[] | undefined) ?? [];
+  const rawSuggestions = (data?.suggestions as Suggestion[] | undefined) ?? [];
+  // Drop server suggestions pointing to retired routes (currently /app/kol).
+  const suggestions = rawSuggestions.filter((s) => {
+    const route = (s.route as string | undefined) ?? "";
+    return !route.startsWith("/app/kol");
+  });
   if (suggestions.length === 0) return null;
   return (
     <section
@@ -44,7 +51,7 @@ export function OffTaxonomyBanner({
     >
       <p className="text-[14px] leading-[1.55] text-[color:var(--gv-ink-2)]">
         Câu hỏi này ngoài taxonomy — gợi ý: dùng{" "}
-        <strong className="text-[color:var(--gv-ink)]">Soi Kênh / Xưởng Viết / Tìm KOL</strong>{" "}
+        <strong className="text-[color:var(--gv-ink)]">Soi Kênh / Xưởng Viết</strong>{" "}
         thay vì đào sâu ở đây.
       </p>
       <ul className="flex flex-wrap gap-2">
