@@ -1,8 +1,13 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, type Plugin } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { VitePWA } from "vite-plugin-pwa";
+
+/** App directory (e.g. getviews.vn-1); dependencies may be hoisted to the parent folder. */
+const viteConfigDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Dev-only Vite plugin that proxies POST /api/chat to the Vercel Edge Function
@@ -105,6 +110,13 @@ function manualChunks(id: string) {
 }
 
 export default defineConfig({
+  server: {
+    fs: {
+      // Hoisted installs: @react-router/dev resolves from ../node_modules, which Vite
+      // serves as /@fs/<parent>/... — outside the app root by default → 403 and a blank page.
+      allow: [path.resolve(viteConfigDir, "..")],
+    },
+  },
   build: {
     rollupOptions: {
       output: {
@@ -126,7 +138,8 @@ export default defineConfig({
         globDirectory: "build/client",
         globPatterns: ["**/*.{js,mjs,css,html,ico,png,svg,webp,woff2,json}"],
         navigateFallback: "/index.html",
-        navigateFallbackAllowlist: [/^\/app/],
+        // Do not restrict fallback to /^\/app/ — that breaks /login, /signup, /auth/callback,
+        // and / on hard refresh when the service worker handles navigation.
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         // Ensures Workbox always has a runtime strategy even if globs miss (Rolldown edge cases).

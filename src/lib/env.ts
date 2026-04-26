@@ -37,16 +37,26 @@ function loadClientEnv(): ClientEnv {
   let url = emptyToUndefined(import.meta.env.VITE_SUPABASE_URL);
   let publishable = emptyToUndefined(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
-  if (import.meta.env.DEV && (url == null || publishable == null)) {
+  const hadNoUrl = url == null;
+  const hadNoKey = publishable == null;
+  // Client production: Vite sets import.meta.env.SSR → false (bundle never uses placeholders).
+  // `react-router build` prerender runs the SSR bundle with SSR → true; env is often unset locally.
+  const allowSupabasePlaceholder =
+    (hadNoUrl || hadNoKey) && (import.meta.env.DEV || import.meta.env.SSR);
+
+  if (allowSupabasePlaceholder) {
     if (url == null) url = DEV_DEFAULT_SUPABASE_URL;
     if (publishable == null) publishable = DEV_DEFAULT_SUPABASE_PUBLISHABLE_KEY;
-    if (
-      emptyToUndefined(import.meta.env.VITE_SUPABASE_URL) == null &&
-      emptyToUndefined(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) == null
-    ) {
+    if (import.meta.env.DEV && hadNoUrl && hadNoKey) {
       console.warn(
         "[RAD client env] Dev fallback: using local Supabase defaults (127.0.0.1:54321). " +
           "Copy .env.example → .env.local and set VITE_SUPABASE_* for a hosted project or after `supabase start`.",
+      );
+    }
+    if (import.meta.env.SSR && (hadNoUrl || hadNoKey)) {
+      console.warn(
+        "[RAD client env] SSR/prerender: VITE_SUPABASE_* missing or empty — using placeholder so prerender can finish. " +
+          "CI/production builds should set real VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.",
       );
     }
   }

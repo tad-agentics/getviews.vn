@@ -6,3 +6,28 @@ enabled = true
 
 [db]
 major_version = 15
+
+# ── Auth (local `supabase start`) ───────────────────────────────────────────
+# OAuth to Google/Facebook on http://127.0.0.1:54321 only works after you enable
+# the provider below and add http://127.0.0.1:54321/auth/v1/callback to the
+# provider’s console. If you use hosted Supabase in .env.local, configure OAuth
+# in the Supabase Dashboard instead — do not rely on this block.
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = [
+  "http://localhost:5173/auth/callback",
+  "http://127.0.0.1:5173/auth/callback",
+]
+
+[auth.external.google]
+enabled = false
+# After creating OAuth Client in Google Cloud, set in .env (loaded by CLI) and enable:
+# client_id = "env(GOOGLE_CLIENT_ID)"
+# secret = "env(GOOGLE_CLIENT_SECRET)"
+# Then set enabled = true and run: supabase stop && supabase start
+
+[auth.external.facebook]
+enabled = false
+# client_id = "env(FACEBOOK_CLIENT_ID)"
+# secret = "env(FACEBOOK_SECRET)"
