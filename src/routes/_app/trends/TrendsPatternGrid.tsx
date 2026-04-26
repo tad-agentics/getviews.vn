@@ -1,10 +1,11 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import { useTopPatterns, type TopPattern } from "@/hooks/useTopPatterns";
 import { PatternCard } from "./PatternCard";
+import { PatternModal } from "./PatternModal";
 
 /**
- * Trends — § I PATTERN section (PR-T3).
+ * Trends — § I PATTERN section (PR-T3 + T4).
  *
  * Mirrors the design pack's pattern toolbar + grid (``screens/trends.jsx``
  * lines 387-417). Renders a section header (``§ I — PATTERN`` mono
@@ -12,21 +13,19 @@ import { PatternCard } from "./PatternCard";
  * DECK`` mono caption on the right) followed by a 3-column auto-grid
  * of PatternCards (2 cols < 1100px, 1 col < 760px).
  *
- * Click on a card calls ``onOpenPattern`` — caller wires this to the
- * PatternModal in PR-T4. T3 ships with the plumbing in place; passing
- * ``undefined`` makes the cards render but be no-op on click.
+ * Click on a card opens the PR-T4 ``PatternModal`` with the pattern
+ * pre-selected.
  */
 
 const PATTERN_LIMIT = 6;
 
 export const TrendsPatternGrid = memo(function TrendsPatternGrid({
   nicheId,
-  onOpenPattern,
 }: {
   nicheId: number | null;
-  onOpenPattern?: (pattern: TopPattern) => void;
 }) {
   const { data: patterns = [], isPending } = useTopPatterns(nicheId, PATTERN_LIMIT);
+  const [openPattern, setOpenPattern] = useState<TopPattern | null>(null);
 
   return (
     <section aria-label="Pattern đang sống" className="mb-14">
@@ -72,10 +71,22 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
           style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}
         >
           {patterns.map((pattern) => (
-            <PatternCard key={pattern.id} pattern={pattern} onOpen={onOpenPattern} />
+            <PatternCard
+              key={pattern.id}
+              pattern={pattern}
+              onOpen={(p) => setOpenPattern(p)}
+            />
           ))}
         </div>
       )}
+
+      <PatternModal
+        pattern={openPattern}
+        open={openPattern !== null}
+        onOpenChange={(next) => {
+          if (!next) setOpenPattern(null);
+        }}
+      />
     </section>
   );
 });
