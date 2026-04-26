@@ -28,6 +28,8 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
     { video_id: "v2", thumbnail_url: null, creator_handle: "huy.codes", views: 180_000 },
     { video_id: "v3", thumbnail_url: "https://t/3.jpg", creator_handle: "@chinasecrets", views: 90_000 },
   ],
+  dominant_hook_type: null,
+  avg_retention_pct: null,
   ...overrides,
 });
 
