@@ -12,10 +12,13 @@ from getviews_pipeline.channel_analyze import (
     _age_label_vi,
     _build_recent_7d,
     _classify_verdict,
+    _compute_cadence_struct,
     _compute_posting_heatmap,
     _compute_pulse,
     _compute_streak_days,
     _compute_views_mom_delta,
+    _format_best_days,
+    _format_best_hour_range,
     _median,
     _normalize_diagnostic_items,
     _normalize_formula_pcts,
@@ -185,6 +188,8 @@ def test_run_channel_analyze_thin_corpus_no_credit() -> None:
     # Legacy ``lessons`` falls back to whatever the caller passed
     # (here: empty []), not synthesized from empty diagnostic arrays.
     assert out["lessons"] == []
+    # PR-3 — cadence is None on thin-corpus (LiveSignals() default).
+    assert out["cadence"] is None
 
 
 # ── PR-2 — diagnostic restructure (strengths + weaknesses) ─────────────────
@@ -403,3 +408,97 @@ def test_build_recent_7d_zero_avg_does_not_div_zero() -> None:
     out = _build_recent_7d(rows, avg_views=0, now=now)
     assert len(out) == 1
     assert out[0]["vs_median"] == 100.0  # views / max(1)
+
+
+# ── PR-3 — cadence struct (calendar + best hour/day) ───────────────────────
+
+
+def test_format_best_hour_range_window() -> None:
+    assert _format_best_hour_range(20) == "20:00–22:00"
+    assert _format_best_hour_range(0) == "00:00–02:00"
+    # Wraps across midnight.
+    assert _format_best_hour_range(23) == "23:00–01:00"
+    assert _format_best_hour_range(None) == ""
+
+
+def test_format_best_days_top_n_stable_ties() -> None:
+    from collections import Counter
+
+    # Mon=4, Tue=4, Wed=2 → ties between Mon/Tue; weekday order breaks tie.
+    counts = Counter({0: 4, 1: 4, 2: 2})
+    assert _format_best_days(counts, top_n=2) == "T2, T3"
+    # Empty in → empty out.
+    assert _format_best_days(Counter()) == ""
+
+
+def test_compute_cadence_struct_returns_none_when_too_few_rows() -> None:
+    from datetime import datetime, timezone
+
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    assert _compute_cadence_struct([], now=now) is None
+    rows = [{"posted_at": now.isoformat()}, {"posted_at": now.isoformat()}]
+    assert _compute_cadence_struct(rows, now=now) is None
+
+
+def test_compute_cadence_struct_posts_14d_grid_aligns_with_today() -> None:
+    """Last cell = today; first cell = today − 13 days."""
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    today = now.date()
+    rows = [
+        # Today + 3 days ago + 13 days ago → cells at indices 13, 10, 0.
+        {"posted_at": now.isoformat()},
+        {"posted_at": (now - timedelta(days=3)).isoformat()},
+        {"posted_at": (now - timedelta(days=13)).isoformat()},
+    ]
+    out = _compute_cadence_struct(rows, now=now)
+    assert out is not None
+    assert len(out["posts_14d"]) == 14
+    assert out["posts_14d"][13] is True   # today
+    assert out["posts_14d"][10] is True   # today − 3
+    assert out["posts_14d"][0] is True    # today − 13
+    assert out["posts_14d"][12] is False  # yesterday — gap
+    # weekly_actual covers last 7 days (indices 7..13). Today and t-3 land
+    # there; t-13 is outside the 7-day window.
+    assert out["weekly_actual"] == 2
+    # Spot-check today reference is what we expect.
+    assert today is not None
+
+
+def test_compute_cadence_struct_caps_target_at_actual() -> None:
+    """A creator who's been on a tear shouldn't get an artificially low target."""
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    # 10 distinct days in the last 7-day window — but only 7 days exist
+    # in 7 days, so weekly_actual will be 7. weekly_target must also
+    # reach ≥ weekly_actual (then cap at 7 since the design's daily
+    # ceiling is 7).
+    rows = [
+        {"posted_at": (now - timedelta(days=i)).isoformat()} for i in range(7)
+    ]
+    out = _compute_cadence_struct(rows, now=now)
+    assert out is not None
+    assert out["weekly_actual"] == 7
+    assert out["weekly_target"] >= out["weekly_actual"]
+    assert out["weekly_target"] <= 7
+
+
+def test_compute_cadence_struct_emits_best_hour_and_days() -> None:
+    """Peak weekday + peak hour propagate to formatted strings."""
+    from datetime import datetime, timezone
+
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+    # Three Saturday 20:00 posts + one Sunday 9:00 → best_days = "T7, CN".
+    rows = [
+        {"posted_at": datetime(2026, 4, 25, 20, tzinfo=timezone.utc).isoformat()},
+        {"posted_at": datetime(2026, 4, 18, 20, tzinfo=timezone.utc).isoformat()},
+        {"posted_at": datetime(2026, 4, 11, 20, tzinfo=timezone.utc).isoformat()},
+        {"posted_at": datetime(2026, 4, 19, 9, tzinfo=timezone.utc).isoformat()},
+    ]
+    out = _compute_cadence_struct(rows, now=now)
+    assert out is not None
+    assert out["best_hour"] == "20:00–22:00"
+    assert out["best_days"].startswith("T7")
+    assert "CN" in out["best_days"]

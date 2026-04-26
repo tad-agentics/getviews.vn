@@ -13,6 +13,7 @@ import type {
 } from "@/lib/api-types";
 import { env } from "@/lib/env";
 import { formatFollowers, formatViews } from "@/lib/formatters";
+import { ChannelCadenceBlock } from "./ChannelCadenceBlock";
 import { ChannelDiagnosticList } from "./ChannelDiagnosticList";
 import { ChannelPulseBlock } from "./ChannelPulseBlock";
 import { ChannelRecent7dList } from "./ChannelRecent7dList";
@@ -298,6 +299,36 @@ function ConnectedCard({
             Mỗi điểm: vấn đề là gì + tại sao xảy ra + cách sửa cụ thể.
           </p>
           <ChannelDiagnosticList kind="weakness" items={data.weaknesses} />
+        </section>
+      ) : null}
+
+      {/* PR-3 — NHỊP ĐĂNG block: 14-day calendar + best hour/day pair.
+       * Hidden when the BE returned ``cadence: null`` (insufficient
+       * temporal data); the legacy KPI cell "Post/tuần" still ships
+       * the same number below as a single-cell summary. */}
+      {data.cadence ? (
+        <section
+          className="border-b border-[color:var(--gv-rule)] px-5 py-5 sm:px-6"
+          aria-labelledby="my-channel-cadence-title"
+        >
+          <p className="gv-uc gv-mono mb-1.5 text-[10px] font-bold tracking-[0.1em] text-[color:var(--gv-ink-4)]">
+            ◷ NHỊP ĐĂNG
+          </p>
+          <h3
+            id="my-channel-cadence-title"
+            className="gv-tight m-0 text-[18px] font-semibold leading-snug tracking-[-0.02em] text-[color:var(--gv-ink)]"
+          >
+            {data.cadence.weekly_actual}/{data.cadence.weekly_target} tuần này
+            {data.pulse && data.pulse.streak_days > 0 ? (
+              <span className="font-normal text-[color:var(--gv-ink-3)]">
+                {" "}· streak {data.pulse.streak_days} ngày
+              </span>
+            ) : null}
+          </h3>
+          <p className="mt-1 mb-3.5 text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
+            Mỗi ô = 1 ngày. Đậm = đã đăng. Đo từ chính kênh bạn.
+          </p>
+          <ChannelCadenceBlock cadence={data.cadence} />
         </section>
       ) : null}
 

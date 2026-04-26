@@ -243,6 +243,28 @@ export interface ChannelLesson {
 }
 
 /**
+ * PR-3 Studio Home — typed cadence shape backing the design's NHỊP ĐĂNG block.
+ *
+ * Source of truth:
+ * ``cloud-run/getviews_pipeline/channel_analyze.py::_compute_cadence_struct``.
+ */
+export interface ChannelCadence {
+  /**
+   * Exactly 14 entries; ``[0]`` = today − 13, ``[13]`` = today.
+   * Each cell is whether the kênh posted at least once on that day.
+   */
+  posts_14d: boolean[];
+  /** Posts in the trailing 7 days. */
+  weekly_actual: number;
+  /** Cap-7 target derived from rolling 30-day unique-days-with-post; always ≥ ``weekly_actual``. */
+  weekly_target: number;
+  /** "20:00–22:00" 2-hour window centred on the peak hour; "" if unknown. */
+  best_hour: string;
+  /** Vietnamese short labels comma-separated, e.g. "T7, CN". "" if unknown. */
+  best_days: string;
+}
+
+/**
  * PR-2 Studio Home — diagnostic items.
  *
  * The design pack's MyChannelCard §C/§D restructures the kênh's lessons
@@ -403,6 +425,12 @@ export interface ChannelAnalyzeResponse {
    * Same legacy-empty fallback as ``strengths``.
    */
   weaknesses?: ChannelDiagnosticItem[];
+  /**
+   * PR-3 — typed cadence (NHỊP ĐĂNG block).
+   * ``null`` when the BE didn't have enough temporal data; FE hides
+   * the cadence section in that case.
+   */
+  cadence?: ChannelCadence | null;
 }
 
 // ---------------------------------------------------------------------------
