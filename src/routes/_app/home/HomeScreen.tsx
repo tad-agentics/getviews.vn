@@ -23,8 +23,8 @@ import { DateChip } from "./components/DateChip";
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
- * Matches UIUX reference order: ticker → greeting → composer → suggested
- * chips → <hr> → morning ritual → <hr> → quick actions + pulse → hooks → breakouts.
+ * Order: ticker → greeting → composer → suggested chips + shortcut pills → <hr>
+ * → morning ritual → next videos → <hr> → pulse → hooks → breakouts.
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
@@ -64,8 +64,8 @@ export default function HomeScreen() {
     () => [
       `Xu hướng đang hot trong ${nicheLabel} tuần này?`,
       `Hook nào đang hiệu quả nhất trong ${nicheLabel}?`,
+      "Phân tích kênh @creator — họ đang làm gì hay?",
       `Format nào đang tăng view nhanh nhất ngách ${nicheLabel}?`,
-      "Gợi ý chủ đề video cho tuần tới dựa trên trend hiện tại.",
     ],
     [nicheLabel],
   );
@@ -178,18 +178,36 @@ export default function HomeScreen() {
             />
           </div>
 
-          <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 flex w-full max-w-[880px] flex-wrap gap-2">
-            {suggestedPrompts.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => fillComposer(p)}
-                className="inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-xs font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]"
-              >
-                <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
-                <span className="min-w-0">{p}</span>
-              </button>
-            ))}
+          <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 w-full max-w-[880px]">
+            <div className="mb-3 flex items-center gap-2">
+              <span
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-ink-4)]"
+                aria-hidden
+              />
+              <p className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                Bắt đầu nhanh
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <QuickActions
+                nicheLabel={nicheLabel}
+                onAnswerPrompt={launchChat}
+                onPrefillComposer={fillComposer}
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {suggestedPrompts.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => fillComposer(p)}
+                  className="inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-xs font-normal leading-snug text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]"
+                >
+                  <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
+                  <span className="min-w-0">{p}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
@@ -208,18 +226,13 @@ export default function HomeScreen() {
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
-          <div className="gv-fade-up gv-fade-up-delay-3 mb-14 grid grid-cols-1 gap-9 min-[901px]:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-            <QuickActions />
-            <div>
-              <SectionHeader
-                kicker="NHỊP TUẦN"
-                title="Pulse"
-                caption="Tín hiệu sống trong ngách của bạn."
-              />
-              <div>
-                <PulseCard omitKicker />
-              </div>
-            </div>
+          <div className="gv-fade-up gv-fade-up-delay-3 mb-14">
+            <SectionHeader
+              kicker="NHỊP TUẦN"
+              title="Pulse"
+              caption="Tín hiệu sống trong ngách của bạn."
+            />
+            <PulseCard omitKicker />
           </div>
 
           <div className="mt-12 mb-12">

@@ -46,7 +46,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
       {showWow && wow ? <WoWDiffBand data={wow} /> : null}
 
       <section>
-        <p className="gv-mono mb-2 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Tóm tắt</p>
+        <p className="gv-mono mb-2 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Tóm tắt</p>
         <h3 className="gv-serif mb-1 text-[22px] leading-snug text-[color:var(--gv-ink)]">Điều bạn nên biết</h3>
         <p className="gv-serif text-[22px] leading-snug text-[color:var(--gv-ink)]">{report.tldr.thesis}</p>
         {report.tldr.callouts && report.tldr.callouts.length > 0 ? (
@@ -64,7 +64,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
 
       {findings.length > 0 ? (
         <section>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Bằng chứng · 3 hook</p>
+          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Bằng chứng · 3 hook</p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
             Pattern đang thắng, xếp theo retention
           </h3>

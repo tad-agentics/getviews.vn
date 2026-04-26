@@ -36,6 +36,11 @@ export function AnswerSourcesCard({
       ) : (
         <p className="mt-2 text-sm text-[var(--gv-ink-3)]">{placeholder}</p>
       )}
+      {rows ? (
+        <p className="mt-3 border-t border-[var(--gv-rule)] pt-3">
+          <span className="gv-mono text-[11px] text-[color:var(--gv-accent)]">Xem chi tiết nguồn →</span>
+        </p>
+      ) : null}
     </div>
   );
 }

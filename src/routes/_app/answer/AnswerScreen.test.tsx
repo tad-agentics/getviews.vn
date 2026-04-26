@@ -77,12 +77,14 @@ vi.mock("@/components/v2/answer/AnswerShell", () => ({
     </div>
   ),
 }));
-vi.mock("@/components/v2/answer/QueryHeader", () => ({
-  QueryHeader: ({ title, children }: { title?: string; children?: React.ReactNode }) => (
-    <div data-testid="query-header">
-      <h1>{title}</h1>
+vi.mock("@/components/v2/TopBar", () => ({
+  TopBar: () => <div data-testid="top-bar" />,
+}));
+vi.mock("@/components/v2/Btn", () => ({
+  Btn: ({ children, ...rest }: { children?: React.ReactNode }) => (
+    <button type="button" {...rest}>
       {children}
-    </div>
+    </button>
   ),
 }));
 vi.mock("@/components/v2/answer/SessionDrawer", () => ({
@@ -108,12 +110,12 @@ vi.mock("@/components/v2/answer/TemplatizeCard", () => ({
 }));
 vi.mock("@/components/v2/answer/ResearchStrip", () => ({
   MiniResearchStrip: () => null,
-  ProgressPill: () => null,
-  ResearchStepStrip: () => null,
+  ResearchProcessBar: () => null,
   useResearchStage: () => 0,
 }));
 vi.mock("@/components/v2/answer/RelatedQs", () => ({
   RelatedQs: () => <div data-testid="related-qs" />,
+  RelatedQsCard: () => <div data-testid="related-qs-card" />,
 }));
 vi.mock("@/components/v2/answer/TimelineRail", () => ({
   TimelineRail: ({ children }: { children: React.ReactNode }) => (

@@ -517,23 +517,23 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   function SidebarContent({ onClose }: { onClose?: () => void }) {
     return (
       <>
-        {/* Brand — shell.jsx: padding 20px 20px 18px; logo gap 10; + 28×28 rule border */}
-        <div className="flex items-center justify-between px-5 pb-[18px] pt-5">
+        {/* Brand — cùng band với TopBar: min-h + py-3.5 (56 / 64px), viền đáy khớp header trang */}
+        <div className="box-border flex h-14 items-center justify-between gap-3 border-b border-[color:var(--gv-rule)] px-4 md:h-16 md:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <LogoMark />
             <div className="min-w-0 leading-none">
               <span
-                className="gv-tight block text-[20px] font-bold leading-none text-[color:var(--gv-ink)]"
+                className="gv-tight block text-[19px] font-bold leading-none text-[color:var(--gv-ink)] md:text-[20px]"
                 style={{ letterSpacing: "-0.04em" }}
               >
                 Getviews<span className="text-[color:var(--gv-accent-2-deep)]">.</span>
               </span>
-              <p className="gv-uc mt-0.5 text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
+              <p className="gv-uc mt-[3px] text-[9px] font-semibold text-[color:var(--gv-ink-4)] md:text-[9.5px]">
                 Studio · Creator
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               title="Cuộc trò chuyện mới"
@@ -542,23 +542,21 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 navigate("/app/answer");
                 onClose?.();
               }}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)] md:h-9 md:w-9"
             >
-              <Plus className="h-4 w-4" strokeWidth={1.8} />
+              <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.8} />
             </button>
             {onClose && (
               <button
                 onClick={onClose}
                 aria-label="Đóng menu"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)] md:h-9 md:w-9"
               >
-                <X className="h-4 w-4" strokeWidth={1.8} />
+                <X className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.8} />
               </button>
             )}
           </div>
         </div>
-
-        <hr className="m-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
         {/* Primary nav — shell.jsx: Studio → Xu Hướng → Kênh Tham Chiếu → Kịch Bản; Chat via + only */}
         <nav className="flex flex-col gap-0.5 p-3">

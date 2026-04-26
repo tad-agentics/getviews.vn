@@ -22,9 +22,9 @@ export function TopBar({
   return (
     <header
       className={[
-        "sticky top-0 z-10 w-full min-h-[56px] md:min-h-[64px]",
-        /* shell.jsx TopBar: padding 14px 28px */
-        "flex items-center justify-between gap-4 px-4 py-3.5 md:px-7",
+        "sticky top-0 z-10 w-full",
+        /* Cùng band với sidebar brand: 56px / 64px (h-14 / h-16) */
+        "box-border flex h-14 items-center justify-between gap-4 px-4 md:h-16 md:px-7",
         "border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)]",
         className ?? "",
       ].filter(Boolean).join(" ")}

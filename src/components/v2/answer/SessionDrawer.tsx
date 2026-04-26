@@ -1,5 +1,6 @@
 import { X, Sparkles } from "lucide-react";
 import type { AnswerSessionRow } from "@/lib/api-types";
+import { Btn } from "@/components/v2/Btn";
 
 function relTime(iso: string | undefined): string {
   if (!iso) return "";
@@ -64,17 +65,19 @@ export function SessionDrawer({
               <X className="size-4" />
             </button>
           </div>
-          <button
+          <Btn
+            variant="accent"
+            size="lg"
             type="button"
+            className="mt-4 w-full"
             onClick={() => {
               onNewSession();
               onClose();
             }}
-            className="btn btn-accent mt-4 flex w-full items-center justify-center gap-2 py-3 text-[15px]"
           >
-            <Sparkles className="size-4" />
+            <Sparkles className="size-4" strokeWidth={2} />
             Phiên mới
-          </button>
+          </Btn>
         </div>
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {isLoading ? (

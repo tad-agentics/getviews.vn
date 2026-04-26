@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 
 const STEPS = ["Quét", "Phân tích", "Tìm pattern", "Tóm tắt"] as const;
 
@@ -33,6 +34,82 @@ export function ResearchStepStrip({
         );
       })}
     </ol>
+  );
+}
+
+/**
+ * Thanh tiến trình ngang theo reference báo cáo — copy chi tiết + pill hoàn tất.
+ */
+export function ResearchProcessBar({
+  loading,
+  stage,
+  done,
+  videoCount,
+  channelCount,
+}: {
+  loading: boolean;
+  stage: number;
+  done: boolean;
+  videoCount?: number | null;
+  channelCount?: number | null;
+}) {
+  const step = Math.min(Math.max(stage, 0), 3);
+  const fmt = (n: number | null | undefined) =>
+    n != null && n > 0 ? n.toLocaleString("vi-VN") : null;
+  const v = fmt(videoCount);
+  const c = fmt(channelCount);
+
+  const labels = [
+    v ? `Quét ${v} video` : "Quét video",
+    c ? `Phân tích ${c} kênh top` : "Phân tích kênh top",
+    "Tìm pattern chung",
+    "Viết tóm tắt",
+  ] as const;
+
+  return (
+    <div
+      className="mt-5 flex flex-col gap-3 border-y border-[color:var(--gv-rule)] py-4 min-[720px]:flex-row min-[720px]:items-center min-[720px]:justify-between"
+      aria-label="Tiến trình nghiên cứu"
+    >
+      <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-2 text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+        {labels.map((label, i) => {
+          const isDone = done;
+          const isActive = !done && loading && i === step;
+          return (
+            <li key={label} className="flex items-center gap-1">
+              {i > 0 ? (
+                <span className="mx-1 text-[color:var(--gv-ink-4)]" aria-hidden>
+                  ·
+                </span>
+              ) : null}
+              <span
+                className={`inline-flex items-center gap-1 ${
+                  isDone
+                    ? "font-medium text-[color:var(--gv-ink)]"
+                    : isActive
+                      ? "font-medium text-[color:var(--gv-accent)]"
+                      : "text-[color:var(--gv-ink-3)]"
+                }`}
+              >
+                {isDone ? (
+                  <Check className="h-3.5 w-3.5 shrink-0 text-[color:var(--gv-pos)]" strokeWidth={2.5} aria-hidden />
+                ) : null}
+                {label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {done && !loading ? (
+        <p className="shrink-0 rounded-full bg-[color:var(--gv-pos)] px-3 py-1 gv-mono text-[10px] font-semibold uppercase tracking-wide text-white">
+          Hoàn tất
+        </p>
+      ) : loading ? (
+        <p className="shrink-0 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+          Đang chạy…
+        </p>
+      ) : null}
+    </div>
   );
 }
 
