@@ -18,7 +18,6 @@ export interface CorpusHealthNicheRow {
   videos_30d: number;
   videos_90d: number;
   last_ingest_at: string | null;
-  last_pattern_at: string | null;
   claim_tiers: Record<ClaimTier, boolean>;
   highest_passing_tier: ClaimTier;
 }

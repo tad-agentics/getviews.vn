@@ -23,6 +23,7 @@ import { ActionLogPanel } from "./ActionLogPanel";
 import { AlertsPanel } from "./AlertsPanel";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
+import { Layer0Panel } from "./Layer0Panel";
 import { LogsPanel } from "./LogsPanel";
 import { TriggersPanel } from "./TriggersPanel";
 
@@ -63,7 +64,7 @@ export default function AdminScreen() {
           <section className="gv-fade-up">
             <SectionHeader
               kicker="ALERTS · THRESHOLD RULES"
-              title="System alerts"
+              title="Cảnh báo hệ thống"
               caption="Rule fires trong 24h gần nhất. Slack webhook gửi khi breach — không lặp khi đã firing."
               kickerTone="pos"
             />
@@ -75,7 +76,7 @@ export default function AdminScreen() {
           <section className="gv-fade-up">
             <SectionHeader
               kicker="CORPUS · INGEST + CLAIM TIERS"
-              title="Corpus health"
+              title="Sức khỏe corpus"
               caption="Lượng video 7d / 30d / 90d theo niche và tier claim hiện tại."
             />
             <CorpusHealthPanel />
@@ -85,8 +86,19 @@ export default function AdminScreen() {
 
           <section className="gv-fade-up gv-fade-up-delay-1">
             <SectionHeader
+              kicker="LAYER0 · HASHTAG DISCOVERY"
+              title="Khám phá hashtag"
+              caption="Lần chạy gần nhất, niche đang stale, và hashtag đang chờ duyệt."
+            />
+            <Layer0Panel />
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up gv-fade-up-delay-1">
+            <SectionHeader
               kicker="ENSEMBLEDATA · USED UNITS"
-              title="Credit runway"
+              title="Quỹ tín dụng"
               caption="Units đã dùng mỗi UTC-day và projection 30 ngày."
             />
             <EnsembleCreditsPanel />
@@ -97,7 +109,7 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-2">
             <SectionHeader
               kicker="CLOUD RUN · STDOUT TAIL"
-              title="Logs"
+              title="Nhật ký"
               caption="Lọc theo severity và cửa sổ thời gian; click để mở rộng payload."
               kickerTone="muted"
             />
@@ -109,7 +121,7 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-3">
             <SectionHeader
               kicker="MANUAL RUN · CRON JOBS"
-              title="Triggers"
+              title="Chạy thủ công"
               caption="Chạy tay các pipeline định kỳ. Mỗi job có confirm trước khi fire."
             />
             <TriggersPanel />
@@ -120,7 +132,7 @@ export default function AdminScreen() {
           <section className="gv-fade-up gv-fade-up-delay-3">
             <SectionHeader
               kicker="AUDIT · WHO RAN WHAT"
-              title="Action log"
+              title="Lịch sử thao tác"
               caption="Lịch sử các trigger gần đây kèm status + duration."
               kickerTone="muted"
             />

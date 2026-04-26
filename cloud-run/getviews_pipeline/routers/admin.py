@@ -1004,6 +1004,24 @@ async def admin_list_triggers(
             {"id": "layer0", "label": "Layer 0 insights", "body_schema": {}, "heavy": True},
             {"id": "scene_intelligence", "label": "Scene intelligence refresh (/batch/scene-intelligence)", "body_schema": {}, "heavy": True},
             {"id": "thumbnail_backfill", "label": "Thumbnail backfill — rehost TikTok CDN → R2", "body_schema": {}, "heavy": True},
+            {
+                "id": "r2_janitor",
+                "label": "R2 storage janitor (/batch/r2-janitor) — reconcile orphans",
+                "body_schema": {"dry_run": "bool"},
+                "heavy": True,
+            },
+            {
+                "id": "enrich_shots_top500",
+                "label": "Top-N video_shots Gemini re-extract",
+                "body_schema": {"limit": "int", "dry_run": "bool"},
+                "heavy": True,
+            },
+            {
+                "id": "viral_score_backtest",
+                "label": "Viral-score backtest — Spearman ρ",
+                "body_schema": {"sample_size": "int", "seed": "int | null"},
+                "heavy": False,
+            },
         ],
     })
 
@@ -1178,4 +1196,128 @@ async def admin_diagnostics(
             "primary": GEMINI_MODEL_PRIMARY if hasattr(__import__("getviews_pipeline.config", fromlist=["GEMINI_MODEL_PRIMARY"]), "GEMINI_MODEL_PRIMARY") else "see config.py",
             "fallback": GEMINI_MODEL_FALLBACK if hasattr(__import__("getviews_pipeline.config", fromlist=["GEMINI_MODEL_FALLBACK"]), "GEMINI_MODEL_FALLBACK") else "see config.py",
         },
+    })
+
+
+# ── /admin/layer0-health ──────────────────────────────────────────────────────
+
+@router.get("/admin/layer0-health")
+async def admin_layer0_health(
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    """Layer0 hashtag-discovery snapshot for the admin Layer0Panel.
+
+    Aggregates four signals so the operator can tell at a glance whether
+    the discovery loop is healthy AND whether new hashtags are awaiting
+    human review:
+
+      summary:
+        last_run_at / last_run_status — most recent batch/layer0 row
+        pending_review_count — niche_candidates where reviewed=false
+        hashtag_map_size — total hashtag_niche_map rows
+        niches_with_stale_signals — count where stale_signal_count > 0
+      recent_runs: last 5 batch/layer0 entries from batch_job_runs
+      pending_candidates: top 20 unreviewed by occurrences (the queue)
+      niches: per-niche signal_hashtags freshness, sorted stale-first
+
+    No mutations, no Cloud Run timeouts to worry about — this is pure
+    read against three Supabase tables.
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    now = datetime.now(timezone.utc)
+
+    runs: list[dict[str, Any]] = []
+    try:
+        runs_res = (
+            client.table("batch_job_runs")
+            .select("id, started_at, finished_at, status, duration_ms, summary, error")
+            .eq("job_name", "batch/layer0")
+            .order("started_at", desc=True)
+            .limit(5)
+            .execute()
+        )
+        runs = runs_res.data or []
+    except Exception as exc:
+        logger.warning("[layer0-health] batch_job_runs fetch failed: %s", exc)
+
+    pending: list[dict[str, Any]] = []
+    pending_count: int = 0
+    try:
+        cand_res = (
+            client.table("niche_candidates")
+            .select(
+                "id, hashtag, occurrences, avg_views, discovery_date, "
+                "sample_video_ids, notes, assigned_niche_id"
+            )
+            .eq("reviewed", False)
+            .order("occurrences", desc=True)
+            .limit(20)
+            .execute()
+        )
+        pending = cand_res.data or []
+
+        count_res = (
+            client.table("niche_candidates")
+            .select("id", count="exact", head=True)
+            .eq("reviewed", False)
+            .execute()
+        )
+        pending_count = count_res.count or 0
+    except Exception as exc:
+        logger.warning("[layer0-health] niche_candidates fetch failed: %s", exc)
+
+    niches: list[dict[str, Any]] = []
+    try:
+        niche_res = (
+            client.table("niche_taxonomy")
+            .select(
+                "id, name_vn, name_en, signal_hashtags, "
+                "last_hashtag_refresh, stale_signal_count"
+            )
+            .execute()
+        )
+        for n in niche_res.data or []:
+            signals = n.get("signal_hashtags") or []
+            niches.append({
+                "niche_id": n.get("id"),
+                "name_vn": n.get("name_vn"),
+                "name_en": n.get("name_en"),
+                "signal_count": len(signals),
+                "stale_count": int(n.get("stale_signal_count") or 0),
+                "last_hashtag_refresh": n.get("last_hashtag_refresh"),
+            })
+        niches.sort(key=lambda r: (-(r["stale_count"]), r["niche_id"]))
+    except Exception as exc:
+        logger.warning("[layer0-health] niche_taxonomy fetch failed: %s", exc)
+
+    map_size: int = 0
+    try:
+        map_res = (
+            client.table("hashtag_niche_map")
+            .select("hashtag", count="exact", head=True)
+            .execute()
+        )
+        map_size = map_res.count or 0
+    except Exception as exc:
+        logger.warning("[layer0-health] hashtag_niche_map count failed: %s", exc)
+
+    summary = {
+        "last_run_at": runs[0]["started_at"] if runs else None,
+        "last_run_status": runs[0]["status"] if runs else None,
+        "last_run_duration_ms": runs[0]["duration_ms"] if runs else None,
+        "pending_review_count": pending_count,
+        "hashtag_map_size": map_size,
+        "niches_with_stale_signals": sum(1 for n in niches if n["stale_count"] > 0),
+        "niches_total": len(niches),
+    }
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": now.isoformat(),
+        "summary": summary,
+        "recent_runs": runs,
+        "pending_candidates": pending,
+        "niches": niches,
     })
