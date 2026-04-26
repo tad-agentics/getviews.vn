@@ -17,8 +17,10 @@ from getviews_pipeline.channel_analyze import (
     _compute_streak_days,
     _compute_views_mom_delta,
     _median,
+    _normalize_diagnostic_items,
     _normalize_formula_pcts,
     _optimal_length_band,
+    _synthesize_lessons_from_diagnostic,
     _top_hook_from_types,
     run_channel_analyze_sync,
 )
@@ -177,6 +179,82 @@ def test_run_channel_analyze_thin_corpus_no_credit() -> None:
     assert out["pulse"]["headline_kind"] in {"win", "concern", "neutral"}
     assert "recent_7d" in out
     assert isinstance(out["recent_7d"], list)
+    # PR-2 — strengths + weaknesses always present (empty on thin-corpus).
+    assert out["strengths"] == []
+    assert out["weaknesses"] == []
+    # Legacy ``lessons`` falls back to whatever the caller passed
+    # (here: empty []), not synthesized from empty diagnostic arrays.
+    assert out["lessons"] == []
+
+
+# ── PR-2 — diagnostic restructure (strengths + weaknesses) ─────────────────
+
+
+def test_normalize_diagnostic_items_drops_empties_and_clamps_lengths() -> None:
+    raw = [
+        {
+            "title": "Hook bám trend đang lên",
+            "metric": "Hook < 1s · 80% video",
+            "why": "Audience của ngách này quyết định scroll trong 0.8s.",
+            "action": "Tiếp tục mở bằng face cam, đẩy CTA xuống cuối.",
+            "bridge_to": "01",
+        },
+        {"title": "", "metric": "Có metric nhưng thiếu title"},
+        {
+            "title": "Bridge unknown drops to None",
+            "metric": "x",
+            "why": "y",
+            "action": "z",
+            "bridge_to": "99",
+        },
+        # Pure-string item is dropped (defensive — LLM occasionally returns these).
+        "not a dict",
+    ]
+    out = _normalize_diagnostic_items(raw, default_action_label="—")
+    assert len(out) == 2
+    assert out[0]["bridge_to"] == "01"
+    assert out[1]["bridge_to"] is None
+    assert out[1]["title"] == "Bridge unknown drops to None"
+
+
+def test_normalize_diagnostic_items_keeps_action_default_when_blank() -> None:
+    raw = [{"title": "Tit", "metric": "—", "why": "—", "action": ""}]
+    out = _normalize_diagnostic_items(raw, default_action_label="TẬN DỤNG")
+    assert out[0]["action"] == "TẬN DỤNG"
+
+
+def test_synthesize_lessons_from_diagnostic_caps_to_legacy_shape() -> None:
+    """Legacy bridge: 2 strengths + 2 weaknesses → 4 title/body lessons."""
+    strengths = [
+        {"title": "S1", "metric": "m1", "why": "w1", "action": "a1"},
+        {"title": "S2", "metric": "m2", "why": "w2", "action": "a2"},
+        {"title": "S3", "metric": "m3", "why": "w3", "action": "a3"},
+    ]
+    weaknesses = [
+        {"title": "W1", "metric": "m1", "why": "w1", "action": "a1"},
+        {"title": "W2", "metric": "m2", "why": "w2", "action": "a2"},
+        {"title": "W3", "metric": "m3", "why": "w3", "action": "a3"},
+    ]
+    out = _synthesize_lessons_from_diagnostic(strengths, weaknesses)
+    assert len(out) == 4  # 2 strengths + 2 weaknesses
+    titles = [x["title"] for x in out]
+    assert titles == ["S1", "S2", "W1", "W2"]
+    assert all("body" in x and x["body"] for x in out)
+
+
+def test_synthesize_lessons_drops_items_missing_body() -> None:
+    """Item with title but no metric/why/action → dropped."""
+    strengths = [
+        {"title": "S1", "metric": "m", "why": "", "action": ""},
+        {"title": "S2", "metric": "", "why": "", "action": ""},  # body=""
+    ]
+    out = _synthesize_lessons_from_diagnostic(strengths, [])
+    assert len(out) == 1
+    assert out[0]["title"] == "S1"
+
+
+def test_synthesize_lessons_handles_none_inputs() -> None:
+    assert _synthesize_lessons_from_diagnostic(None, None) == []
 
 
 # ── PR-1 — pulse hero + recent_7d ranked verdict list ──────────────────────

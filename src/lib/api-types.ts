@@ -242,6 +242,28 @@ export interface ChannelLesson {
   body: string;
 }
 
+/**
+ * PR-2 Studio Home — diagnostic items.
+ *
+ * The design pack's MyChannelCard §C/§D restructures the kênh's lessons
+ * into typed strengths (TẬN DỤNG) + weaknesses (CÁCH SỬA). Each item
+ * carries a metric line for quantified evidence and an optional bridge
+ * pointing to a tier in the design's "GỢI Ý HÔM NAY" stack:
+ *   • "01" — Quay ngay (script + kịch bản)
+ *   • "02" — Pattern dễ remix
+ *
+ * Source of truth:
+ * ``cloud-run/getviews_pipeline/channel_analyze.py::ChannelStrengthLLM``.
+ */
+export interface ChannelDiagnosticItem {
+  title: string;
+  metric: string;
+  why: string;
+  action: string;
+  /** ``null`` when no clean tier to bridge to (e.g. legacy cached row). */
+  bridge_to: "01" | "02" | null;
+}
+
 export interface ChannelTopVideo {
   video_id: string;
   title: string;
@@ -369,6 +391,18 @@ export interface ChannelAnalyzeResponse {
    * recent posts" stub instead of the rows.
    */
   recent_7d?: ChannelRecent7dEntry[];
+  /**
+   * PR-2 — diagnostic strengths block (TẬN DỤNG, ▲ ĐANG TỐT).
+   * Empty array when the cached row predates PR-2 schema; FE hides the
+   * strengths section in that case until the row's TTL expires and a
+   * fresh Gemini run repopulates it.
+   */
+  strengths?: ChannelDiagnosticItem[];
+  /**
+   * PR-2 — diagnostic weaknesses block (CÁCH SỬA, ✕ CẦN CẢI THIỆN).
+   * Same legacy-empty fallback as ``strengths``.
+   */
+  weaknesses?: ChannelDiagnosticItem[];
 }
 
 // ---------------------------------------------------------------------------

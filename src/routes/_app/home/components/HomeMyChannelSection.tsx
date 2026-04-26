@@ -13,6 +13,7 @@ import type {
 } from "@/lib/api-types";
 import { env } from "@/lib/env";
 import { formatFollowers, formatViews } from "@/lib/formatters";
+import { ChannelDiagnosticList } from "./ChannelDiagnosticList";
 import { ChannelPulseBlock } from "./ChannelPulseBlock";
 import { ChannelRecent7dList } from "./ChannelRecent7dList";
 
@@ -251,6 +252,52 @@ function ConnectedCard({
             Click để mở chi tiết.
           </p>
           <ChannelRecent7dList rows={data.recent_7d} />
+        </section>
+      ) : null}
+
+      {/* PR-2 — strengths / weaknesses diagnostic blocks. Hidden when
+       * both arrays are empty (legacy cached responses pre-schema
+       * migration); the FE falls through to the KPI grid in that case
+       * and the row's 7-day TTL forces a regenerate next pass. */}
+      {data.strengths && data.strengths.length > 0 ? (
+        <section
+          className="border-b border-[color:var(--gv-rule)] px-5 py-5 sm:px-6"
+          aria-labelledby="my-channel-strengths-title"
+        >
+          <p className="gv-uc gv-mono mb-1.5 text-[10px] font-bold tracking-[0.1em] text-[color:var(--gv-pos-deep)]">
+            ▲ ĐANG TỐT
+          </p>
+          <h3
+            id="my-channel-strengths-title"
+            className="gv-tight m-0 text-[18px] font-semibold leading-snug tracking-[-0.02em] text-[color:var(--gv-ink)]"
+          >
+            {data.strengths.length} thứ kênh đang làm tốt
+          </h3>
+          <p className="mt-1 mb-3.5 text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
+            Đo trực tiếp từ kênh bạn — không so với ngách. Mỗi điểm: tại sao tốt + cách tận dụng.
+          </p>
+          <ChannelDiagnosticList kind="strength" items={data.strengths} />
+        </section>
+      ) : null}
+
+      {data.weaknesses && data.weaknesses.length > 0 ? (
+        <section
+          className="border-b border-[color:var(--gv-rule)] px-5 py-5 sm:px-6"
+          aria-labelledby="my-channel-weaknesses-title"
+        >
+          <p className="gv-uc gv-mono mb-1.5 text-[10px] font-bold tracking-[0.1em] text-[color:var(--gv-neg-deep)]">
+            ✕ CẦN CẢI THIỆN
+          </p>
+          <h3
+            id="my-channel-weaknesses-title"
+            className="gv-tight m-0 text-[18px] font-semibold leading-snug tracking-[-0.02em] text-[color:var(--gv-ink)]"
+          >
+            {data.weaknesses.length} thứ nên sửa tuần này
+          </h3>
+          <p className="mt-1 mb-3.5 text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
+            Mỗi điểm: vấn đề là gì + tại sao xảy ra + cách sửa cụ thể.
+          </p>
+          <ChannelDiagnosticList kind="weakness" items={data.weaknesses} />
         </section>
       ) : null}
 
