@@ -403,6 +403,13 @@ export default function ExploreScreen() {
   const nicheParam = parsePositiveInt(searchParams.get("niche"));
   const nicheExplicitClear = searchParams.get("niche") === "0";
   const viewMode: "grid" | "list" = searchParams.get("view") === "list" ? "list" : "grid";
+  // PR-T7 — date filter pills (Hôm nay / 7 ngày). Maps to ``dateFrom``
+  // on ``useVideoCorpus`` (filtered against ``indexed_at``). Not in
+  // ``SORT_VALUES`` style — only two valid values.
+  const dateRange: "today" | "7d" | null = (() => {
+    const v = searchParams.get("date");
+    return v === "today" || v === "7d" ? v : null;
+  })();
 
   const setFilter = useCallback(
     (patch: Record<string, string | null>) => {
@@ -497,6 +504,20 @@ export default function ExploreScreen() {
     [hookData],
   );
 
+  // PR-T7 — translate ``dateRange`` URL param into a concrete
+  // ``dateFrom`` ISO string. ``useVideoCorpus`` filters on
+  // ``indexed_at`` (corpus ingest time) which is the closest proxy
+  // we have for "recently posted" without a coordinated BE change.
+  const dateFromIso = useMemo(() => {
+    if (!dateRange) return undefined;
+    const now = Date.now();
+    const cutoffMs =
+      dateRange === "today"
+        ? new Date().setHours(0, 0, 0, 0)
+        : now - 7 * 24 * 60 * 60 * 1000;
+    return new Date(cutoffMs).toISOString();
+  }, [dateRange]);
+
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({
     nicheId: selectedNicheId,
     sortBy,
@@ -504,6 +525,7 @@ export default function ExploreScreen() {
     search: searchQuery || undefined,
     minViews: activeViewFilter ?? undefined,
     contentFormat: activeFormat ?? undefined,
+    dateFrom: dateFromIso,
   });
 
   // Estimated total count for the current filter combination (head-only, no rows fetched).
@@ -607,6 +629,7 @@ export default function ExploreScreen() {
   useEffect(() => { scrollResultsToTop(); }, [activeFormat, scrollResultsToTop]);
   useEffect(() => { scrollResultsToTop(); }, [selectedNicheId, scrollResultsToTop]);
   useEffect(() => { scrollResultsToTop(); }, [viewMode, scrollResultsToTop]);
+  useEffect(() => { scrollResultsToTop(); }, [dateRange, scrollResultsToTop]);
 
   useEffect(() => {
     if (!showFormatMenu) return;
@@ -703,14 +726,35 @@ export default function ExploreScreen() {
           ) : null}
 
           <section className="pb-4">
+            {/* PR-T7 — § II — KHO VIDEO header per design pack
+             * ``screens/trends.jsx`` lines 419-427. The bold thesis
+             * ("Tìm trong N video {niche}") shows when both a niche is
+             * selected AND we have a corpus count; otherwise we fall
+             * back to the original "Khám phá N" line so users without a
+             * selected niche still see the count. */}
+            <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+              § II — KHO VIDEO
+            </p>
             <div className="mb-5 flex flex-col gap-4 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-4">
-              <h2 className="text-[22px] font-extrabold leading-none tracking-tight text-[var(--ink)] sm:text-[26px] min-[1100px]:shrink-0">
-                {exploreTitleBase}
-                {exploreTitleCount != null ? (
-                  <span className="ml-2 align-middle font-mono text-[13px] font-semibold text-[var(--faint)]">
-                    {exploreTitleCount}
-                  </span>
-                ) : null}
+              <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)] min-[1100px]:shrink-0">
+                {selectedNicheName && exploreTitleCount != null ? (
+                  <>
+                    Tìm trong{" "}
+                    <span className="gv-mono text-[14px] font-medium text-[color:var(--gv-ink-4)]">
+                      {exploreTitleCount}
+                    </span>{" "}
+                    video {selectedNicheName.toLowerCase()}
+                  </>
+                ) : (
+                  <>
+                    {exploreTitleBase}
+                    {exploreTitleCount != null ? (
+                      <span className="ml-2 align-middle font-mono text-[13px] font-semibold text-[var(--faint)]">
+                        {exploreTitleCount}
+                      </span>
+                    ) : null}
+                  </>
+                )}
               </h2>
 
               <div className="flex min-w-0 w-full flex-col gap-3 min-[1100px]:max-w-[calc(100%-220px)] min-[1100px]:flex-1 min-[1100px]:flex-row min-[1100px]:flex-wrap min-[1100px]:items-center min-[1100px]:justify-end min-[1100px]:gap-2">
@@ -833,6 +877,23 @@ export default function ExploreScreen() {
                         onClick={activeViewFilter !== opt.value ? () => setFilter({ min_views: String(opt.value) }) : undefined}
                       />
                     ))}
+                  </div>
+                  {/* PR-T7 — date filter pills (Hôm nay / 7 ngày). Map
+                   * to ``dateFrom`` on ``useVideoCorpus`` (filtered
+                   * against ``indexed_at``). */}
+                  <div className="flex shrink-0 gap-1.5 min-[1100px]:order-5">
+                    <FilterChip
+                      label="Hôm nay"
+                      active={dateRange === "today"}
+                      onRemove={dateRange === "today" ? () => setFilter({ date: null }) : undefined}
+                      onClick={dateRange !== "today" ? () => setFilter({ date: "today" }) : undefined}
+                    />
+                    <FilterChip
+                      label="7 ngày"
+                      active={dateRange === "7d"}
+                      onRemove={dateRange === "7d" ? () => setFilter({ date: null }) : undefined}
+                      onClick={dateRange !== "7d" ? () => setFilter({ date: "7d" }) : undefined}
+                    />
                   </div>
                   <div
                     className="flex shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface-alt)] p-0.5 min-[1100px]:order-6"
