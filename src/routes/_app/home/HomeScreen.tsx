@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Plus, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
@@ -7,10 +7,13 @@ import { QueryComposer } from "@/components/v2/QueryComposer";
 import { TopBar } from "@/components/v2/TopBar";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { logUsage } from "@/lib/logUsage";
+import { normalizeNicheIds } from "@/lib/profileNiches";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
 import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
+import { NichePicker } from "./components/NichePicker";
 import { QuickActions } from "./components/QuickActions";
 import { DateChip } from "./components/DateChip";
 
@@ -32,11 +35,39 @@ export default function HomeScreen() {
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
 
+  // PR-5 — niche picker: viewing-niche state on Home defaults to the
+  // user's primary_niche but can be switched among the niches they
+  // follow (``profile.niche_ids``). Only the suggestions stack reads
+  // ``selectedNicheId``; HomeMyChannelSection stays pinned to
+  // primary_niche because /channel/analyze runs server-side off it.
+  const followedNicheIds = useMemo(
+    () => normalizeNicheIds(profile?.niche_ids ?? []),
+    [profile?.niche_ids],
+  );
+  const { data: followedNiches = [] } = useNicheRowsForIds(followedNicheIds);
+  const defaultNicheId = profile?.primary_niche ?? followedNicheIds[0] ?? null;
+  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(defaultNicheId);
+
+  // Resync when the profile's primary niche or follow list changes
+  // (e.g. user just edited their niches in /app/settings).
+  useEffect(() => {
+    if (selectedNicheId == null) {
+      setSelectedNicheId(defaultNicheId);
+      return;
+    }
+    if (
+      followedNicheIds.length > 0 &&
+      !followedNicheIds.includes(selectedNicheId)
+    ) {
+      setSelectedNicheId(defaultNicheId);
+    }
+  }, [defaultNicheId, followedNicheIds, selectedNicheId]);
+
   const nicheLabel = useMemo(() => {
-    const id = profile?.primary_niche ?? null;
+    const id = selectedNicheId;
     if (!id) return "ngách của bạn";
     return niches.find((n) => n.id === id)?.name ?? "ngách của bạn";
-  }, [profile?.primary_niche, niches]);
+  }, [selectedNicheId, niches]);
 
   // Capitalised because ``firstName`` now leads the H1 (was preceded by
   // "Chào "); lowercase looks wrong at the start of a sentence.
@@ -89,7 +120,7 @@ export default function HomeScreen() {
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
           <div className="gv-fade-up">
-            <div className="mb-3.5 flex flex-wrap items-end gap-4">
+            <div className="mb-3.5 flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2.5">
                 <span
                   className="inline-flex items-center gap-2 rounded-full border-transparent px-3 py-1 gv-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink)]"
@@ -103,6 +134,17 @@ export default function HomeScreen() {
                 </span>
                 <DateChip />
               </div>
+              {followedNiches.length > 0 ? (
+                <NichePicker
+                  niches={followedNiches}
+                  selectedNicheId={selectedNicheId}
+                  onSelectNiche={(id) => {
+                    setSelectedNicheId(id);
+                    logUsage("home_niche_pick", { niche_id: id });
+                  }}
+                  onEditNiches={() => navigate("/app/settings")}
+                />
+              ) : null}
             </div>
 
             <h1
@@ -179,7 +221,7 @@ export default function HomeScreen() {
           <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
             <HomeSuggestionsToday
               nicheLabel={nicheLabel}
-              nicheId={profile?.primary_niche ?? null}
+              nicheId={selectedNicheId}
               onSelectPrompt={launchChat}
             />
           </div>
