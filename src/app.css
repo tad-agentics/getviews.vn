@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -63,7 +63,7 @@
   --border:        oklch(0.90 0.00 0);     /* #E4E4E7 — default borders (1px only) */
 
   /* ── Semantic tokens */
-  --brand-red:     oklch(0.60 0.28 15);    /* #FE2C55 — logo mark */
+  --brand-red:     oklch(0.62 0.30 0);     /* #F72585 — logo mark (Getviews magenta, post-pivot) */
   --success:       oklch(0.60 0.18 145);   /* green — ✓ diagnosis rows */
   --danger:        oklch(0.55 0.22 25);    /* red   — ✕ diagnosis rows, errors */
 
@@ -296,15 +296,17 @@
   --gv-rule:           #E6EAEF;
   --gv-rule-2:         #F0F3F6;
 
-  /* ── Accent 1: TikTok pink ─────────────────────────────────────── */
-  --gv-accent:         #FE2C55;
-  --gv-accent-soft:    #FFE8ED;
-  --gv-accent-deep:    #D11840;
+  /* ── Accent 1: Getviews magenta (independent palette, post-pivot
+   * away from TikTok #FE2C55 — see design pack chat & Branding Guideline) */
+  --gv-accent:         #F72585;
+  --gv-accent-soft:    #FDD9EA;
+  --gv-accent-deep:    #B8175F;
 
-  /* ── Accent 2: TikTok cyan ─────────────────────────────────────── */
-  --gv-accent-2:       #25F4EE;
-  --gv-accent-2-soft:  #D8FBFA;
-  --gv-accent-2-deep:  #06B6B0;
+  /* ── Accent 2: Getviews sky (independent palette, post-pivot
+   * away from TikTok #25F4EE) */
+  --gv-accent-2:       #4CC9F0;
+  --gv-accent-2-soft:  #DAF1FB;
+  --gv-accent-2-deep:  #1A8FB8;
 
   /* ── Semantic positive/negative (every delta in the redesign)
    * Blue for up, pink for down. --gv-neg shares colour with --gv-accent
@@ -339,9 +341,9 @@
     color-mix(in srgb, var(--gv-pos-soft) 55%, transparent) 100%
   );
 
-  --gv-neg:            #FE2C55;
-  --gv-neg-soft:       #FFE8ED;
-  --gv-neg-deep:       #D11840;
+  --gv-neg:            #F72585;
+  --gv-neg-soft:       #FDD9EA;
+  --gv-neg-deep:       #B8175F;
   /* Phase C — WhatStalled negative accent (distinct from trend "down" pink) */
   --gv-danger:         #B91C1C;
   /* Phase D.6.5 — warn severity for ops dashboards (between info and danger).
@@ -375,9 +377,11 @@
   --gv-radius-lg:      18px;
   --gv-radius-xl:      20px;  /* neo-brutalist composer */
 
-  /* ── Font stacks — TikTok Sans everywhere UI needs a sans (consistency over UIUX ref Space Grotesk). ── */
+  /* ── Font stacks — TikTok Sans everywhere UI needs a sans (consistency over UIUX ref Space Grotesk).
+   * Instrument Serif italic carries the editorial emphasis words (.gv-serif-italic) per the design pack. ── */
   --gv-font-display:   "TikTok Sans", "Inter", system-ui, sans-serif;
   --gv-font-serif:     var(--gv-font-display);
+  --gv-font-italic:    "Instrument Serif", "Fraunces", Georgia, serif;
   --gv-font-sans:      "TikTok Sans", "Inter", system-ui, sans-serif;
   --gv-font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
 
@@ -452,11 +456,14 @@
   .gv-bignum { font-size: 34px; }
 }
 
-/* Italic accent: emphasis words inside headlines + quoted script titles. */
+/* Italic accent: emphasis words inside headlines + quoted script titles.
+ * Renders in Instrument Serif italic per the design pack (Branding Guideline §05) —
+ * one emotional word per surface, paired with surrounding TikTok Sans. */
 .gv-serif-italic {
-  font-family: var(--gv-font-display);
+  font-family: var(--gv-font-italic);
   font-style: italic;
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 /* Display-weight sans for “editorial” headings (same face as body — TikTok Sans). */
