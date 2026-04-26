@@ -22,6 +22,7 @@ import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { normalizeNicheIds } from "@/lib/profileNiches";
 import { TrendsNicheTabs } from "./TrendsNicheTabs";
+import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
 import { useFormatLifecycle } from "@/hooks/useFormatLifecycle";
@@ -890,6 +891,14 @@ export default function ExploreScreen() {
               </p>
             ) : null}
           </section>
+
+          {/* PR-T3 — § I PATTERN grid. Renders the 6 hot patterns for
+           * the niche as 2×2-collage cards. Click hands the pattern up
+           * to PR-T4's PatternModal — null handler today, so cards are
+           * inert until that PR lands. */}
+          {selectedNicheId !== null ? (
+            <TrendsPatternGrid nicheId={selectedNicheId} />
+          ) : null}
 
           <section className="pb-4">
             <div className="mb-5 flex flex-col gap-4 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-4">
