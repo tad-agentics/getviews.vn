@@ -5,7 +5,7 @@
 
 create table if not exists public.competitor_tracking (
   id                uuid        primary key default gen_random_uuid(),
-  user_id           uuid        not null references auth.users(id) on delete cascade,
+  user_id           uuid        not null references public.profiles(id) on delete cascade,
   competitor_handle text        not null,
   niche_id          integer     references public.niche_taxonomy(id),
   added_at          timestamptz not null default now(),
@@ -16,7 +16,7 @@ create table if not exists public.competitor_tracking (
 
 create table if not exists public.creator_pattern (
   id                      uuid        primary key default gen_random_uuid(),
-  user_id                 uuid        not null references auth.users(id) on delete cascade,
+  user_id                 uuid        not null references public.profiles(id) on delete cascade,
   tiktok_handle           text        not null,
   niche_id                integer     references public.niche_taxonomy(id),
   computed_at             timestamptz not null default now(),
@@ -75,11 +75,11 @@ create table if not exists public.niche_weekly_digest (
 
 create table if not exists public.push_events (
   id          uuid        primary key default gen_random_uuid(),
-  user_id     uuid        not null references auth.users(id) on delete cascade,
+  user_id     uuid        not null references public.profiles(id) on delete cascade,
   event_type  text        not null,
   event_data  jsonb,
   created_at  timestamptz not null default now(),
   read_at     timestamptz,
-  sent_email  boolean     not null default false,
-  sent_inapp  boolean     not null default false
+  sent_email  boolean     default false,
+  sent_inapp  boolean     default false
 );
