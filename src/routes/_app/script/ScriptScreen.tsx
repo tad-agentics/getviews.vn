@@ -401,6 +401,60 @@ function ScriptDetailScreen() {
     );
   };
 
+  // S6 — per-shot regenerate. The BE returns ``{ shots: [oneShot] }``
+  // when ``shot_index`` is set; we splice it back into the existing
+  // shot array (using the user's current override base when present).
+  // ``regeneratingShot`` tracks the in-flight index so the row can
+  // dim its meta + show a spinner without blocking the rest of the
+  // editor.
+  const [regeneratingShot, setRegeneratingShot] = useState<number | null>(null);
+
+  const handleRegenerateShot = (idx: number) => {
+    if (effectiveNicheId == null) return;
+    const hookLine = selectedHook.trim() || topic.trim().slice(0, 120) || "Hook mở đầu";
+    setRegeneratingShot(idx);
+    generate.mutate(
+      {
+        topic: topic.trim(),
+        hook: hookLine,
+        hook_delay_ms: hookDelayMs,
+        duration,
+        tone: TONES[toneIdx]!,
+        niche_id: effectiveNicheId,
+        shot_index: idx,
+      },
+      {
+        onSuccess: (data) => {
+          if (!data.shots || data.shots.length === 0) {
+            setRegeneratingShot(null);
+            return;
+          }
+          // BE ALWAYS returns the regenerated shot as ``data.shots[0]``.
+          // Splice it into the merged-editor shape; fall back to BASE_SHOTS
+          // if the user hadn't yet generated the full script.
+          const baseShots = shotsOverride ?? mergedShots;
+          const next = [...baseShots];
+          if (idx >= 0 && idx < next.length) {
+            const merged = apiShotsToEditorShots(
+              [data.shots[0]],
+              [BASE_SHOTS[idx] ?? BASE_SHOTS[0]!],
+            );
+            next[idx] = merged[0]!;
+          }
+          setShotsOverride(next);
+          setRegeneratingShot(null);
+          logUsage("script_generate_shot", {
+            niche_id: effectiveNicheId,
+            shot_index: idx,
+          });
+        },
+        onError: () => {
+          setRegeneratingShot(null);
+        },
+      },
+    );
+  };
+
   const apiShotsForSave = useMemo(
      () =>
       mergedShots.map((s) => ({
@@ -605,9 +659,36 @@ function ScriptDetailScreen() {
                 <div className="gv-mono gv-uc mb-1.5 text-[10px] font-semibold leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
                   XƯỞNG VIẾT · KỊCH BẢN SỐ {scriptNo}
                 </div>
-                <h1 className="gv-serif m-0 text-[clamp(26px,3vw,36px)] leading-[1.1] text-[color:var(--gv-ink)]">
-                  {topic}
-                </h1>
+                {/* S6 — topic header is a single-line auto-resize textarea
+                    (per design pack ``screens/script.jsx`` lines 663-686).
+                    Font-size scales DOWN as length grows so the H1 keeps
+                    its prominence without overflowing. The sidebar CHỦ ĐỀ
+                    field remains for the multi-line edit affordance and
+                    stays in sync via shared ``topic`` state. */}
+                <textarea
+                  aria-label="Chủ đề kịch bản"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  rows={1}
+                  ref={(el) => {
+                    if (!el) return;
+                    el.style.height = "auto";
+                    el.style.height = `${el.scrollHeight}px`;
+                  }}
+                  className="gv-serif m-0 w-full resize-none border-0 bg-transparent p-0 leading-[1.15] text-[color:var(--gv-ink)] outline-none"
+                  style={{
+                    fontSize:
+                      topic.length > 80
+                        ? "clamp(18px, 2.0vw, 22px)"
+                        : topic.length > 60
+                          ? "clamp(20px, 2.4vw, 26px)"
+                          : topic.length > 40
+                            ? "clamp(24px, 2.8vw, 32px)"
+                            : "clamp(28px, 3.4vw, 40px)",
+                    letterSpacing: "-0.025em",
+                    fontWeight: 500,
+                  }}
+                />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Btn
@@ -836,6 +917,8 @@ function ScriptDetailScreen() {
                         idx={i}
                         active={activeShot === i}
                         onClick={() => setActiveShot(i)}
+                        onRegenerate={() => handleRegenerateShot(i)}
+                        regenerating={regeneratingShot === i}
                       />
                     ))}
                   </div>

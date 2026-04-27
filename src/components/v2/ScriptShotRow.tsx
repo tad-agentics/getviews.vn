@@ -1,3 +1,4 @@
+import { Loader2, Sparkles } from "lucide-react";
 import type { ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import { overlayStyleVi } from "@/lib/constants/enum-labels-vi";
 import { ShotTypeVisual } from "@/components/v2/ShotTypeVisual";
@@ -8,9 +9,25 @@ export type ScriptShotRowProps = {
   idx: number;
   active: boolean;
   onClick: () => void;
+  /**
+   * S6 — per-shot regenerate. When provided, renders a small "Viết lại"
+   * icon button in the top-right of the shot meta column. ``stopPropagation``
+   * is applied so it doesn't bubble into the row's selection ``onClick``.
+   * ``regenerating`` dims the body + swaps the icon to a spinner while
+   * the request is in flight.
+   */
+  onRegenerate?: () => void;
+  regenerating?: boolean;
 };
 
-export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps) {
+export function ScriptShotRow({
+  shot,
+  idx,
+  active,
+  onClick,
+  onRegenerate,
+  regenerating = false,
+}: ScriptShotRowProps) {
   const span = shot.t1 - shot.t0;
   const slow = span > shot.winnerAvg * 1.2;
 
@@ -56,7 +73,7 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
           </div>
           <p className="gv-serif font-semibold tracking-[-0.035em] text-[13.5px] leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
         </div>
-        <div className="relative p-3">
+        <div className={`relative p-3 transition-opacity ${regenerating ? "opacity-40" : ""}`}>
           <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
             HÌNH ẢNH · {overlayStyleVi(shot.overlay, shot.overlay)}
           </div>
@@ -70,6 +87,27 @@ export function ScriptShotRow({ shot, idx, active, onClick }: ScriptShotRowProps
           >
             {slow ? "⚠" : "✓"} {span.toFixed(1)}s · ngách {shot.winnerAvg}s
           </div>
+          {onRegenerate ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                // Don't bubble — the row's selection handler would steal focus.
+                e.stopPropagation();
+                if (regenerating) return;
+                onRegenerate();
+              }}
+              disabled={regenerating}
+              aria-label="Viết lại shot này"
+              className="gv-mono gv-uc absolute right-2 top-2 inline-flex items-center gap-1 rounded-[4px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-1.5 py-0.5 text-[9px] tracking-[0.06em] text-[color:var(--gv-ink-3)] hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)] transition-colors disabled:opacity-60"
+            >
+              {regenerating ? (
+                <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="h-2.5 w-2.5" aria-hidden />
+              )}
+              {regenerating ? "đang viết…" : "viết lại"}
+            </button>
+          ) : null}
         </div>
       </div>
       <ShotReferenceStrip refs={shot.references} />

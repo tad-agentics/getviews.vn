@@ -183,18 +183,20 @@ describe("ScriptScreen", () => {
     expect(screen.queryByText(/ngách Tech/i)).toBeNull();
   });
 
-  it("renders the topic heading + KỊCH BẢN SỐ kicker on the happy path", () => {
+  it("renders the topic textarea + KỊCH BẢN SỐ kicker on the happy path", () => {
     renderScreen();
-    // Default topic seeded inside ScriptScreen — "Review tai nghe 200k vs 2 triệu".
-    // Text appears in both the <h1> and the <textarea> value, so scope to the heading.
-    const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading.textContent).toMatch(/Review tai nghe 200k vs 2 triệu/);
+    // S6 — header H1 became an editable textarea (per design pack
+    // ``screens/script.jsx`` lines 663-686). Two textareas now share the
+    // ``topic`` state — the header (aria-label "Chủ đề kịch bản") and
+    // the sidebar CHỦ ĐỀ field. We assert against the header one.
+    const headerTopic = screen.getByLabelText(/Chủ đề kịch bản/) as HTMLTextAreaElement;
+    expect(headerTopic.value).toMatch(/Review tai nghe 200k vs 2 triệu/);
     expect(screen.getByText(/XƯỞNG VIẾT · KỊCH BẢN SỐ/)).toBeTruthy();
   });
 
-  it("honours ?topic= to pre-fill the heading", () => {
+  it("honours ?topic= to pre-fill the topic textarea", () => {
     renderScreen("?topic=" + encodeURIComponent("Test topic từ query"));
-    const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading.textContent).toMatch(/Test topic từ query/);
+    const headerTopic = screen.getByLabelText(/Chủ đề kịch bản/) as HTMLTextAreaElement;
+    expect(headerTopic.value).toMatch(/Test topic từ query/);
   });
 });

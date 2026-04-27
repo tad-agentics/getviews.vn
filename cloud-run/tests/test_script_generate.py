@@ -391,3 +391,64 @@ def test_run_script_generate_sync_includes_references_on_each_shot() -> None:
     for s in out["shots"]:
         assert len(s["references"]) == 1
         assert s["references"][0]["match_label"].startswith("Cùng ngách")
+
+
+# ── S6: per-shot regenerate (shot_index) ─────────────────────────────
+
+
+def test_run_script_generate_sync_shot_index_returns_only_that_shot() -> None:
+    """When ``shot_index`` is set, the response carries only the matching
+    shot — FE splices it back into local state without disturbing the
+    other 5 shots."""
+    user_sb = MagicMock()
+    user_sb.rpc.return_value.execute.return_value = SimpleNamespace(data=True)
+    body = ScriptGenerateBody(
+        topic="x", hook="y", hook_delay_ms=1200,
+        duration=30, tone="Hài", niche_id=7, shot_index=2,
+    )
+    with patch(
+        "getviews_pipeline.script_generate._call_script_gemini",
+        side_effect=RuntimeError("skip gemini"),
+    ):
+        out = run_script_generate_sync(user_sb, user_id="u1", body=body)
+    # Only one shot in the response.
+    assert len(out["shots"]) == 1
+    # And it's specifically shot index 2 from the deterministic 6-shot
+    # backbone — t0/t1 of shot[2] for a 30s script.
+    shot = out["shots"][0]
+    assert "t0" in shot and "t1" in shot
+    assert shot["t1"] > shot["t0"]
+
+
+def test_run_script_generate_sync_shot_index_none_returns_full_set() -> None:
+    """Default (no ``shot_index``) keeps the legacy full-script regen
+    behaviour — all 6 shots returned."""
+    user_sb = MagicMock()
+    user_sb.rpc.return_value.execute.return_value = SimpleNamespace(data=True)
+    body = ScriptGenerateBody(
+        topic="x", hook="y", hook_delay_ms=1200,
+        duration=30, tone="Hài", niche_id=7,
+    )
+    with patch(
+        "getviews_pipeline.script_generate._call_script_gemini",
+        side_effect=RuntimeError("skip gemini"),
+    ):
+        out = run_script_generate_sync(user_sb, user_id="u1", body=body)
+    assert len(out["shots"]) == 6
+
+
+def test_script_generate_body_rejects_shot_index_out_of_range() -> None:
+    """Pydantic validates 0 <= shot_index <= 5 (six-shot ceiling)."""
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        ScriptGenerateBody(
+            topic="x", hook="y", hook_delay_ms=1200,
+            duration=30, tone="Hài", niche_id=7, shot_index=6,
+        )
+    with pytest.raises(ValidationError):
+        ScriptGenerateBody(
+            topic="x", hook="y", hook_delay_ms=1200,
+            duration=30, tone="Hài", niche_id=7, shot_index=-1,
+        )
