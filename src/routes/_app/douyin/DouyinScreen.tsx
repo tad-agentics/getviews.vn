@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
@@ -6,61 +6,96 @@ import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { TopBar } from "@/components/v2/TopBar";
 import { useDouyinFeed } from "@/hooks/useDouyinFeed";
+import { useProfile } from "@/hooks/useProfile";
 
+import { DouyinAutoNicheBanner } from "./DouyinAutoNicheBanner";
 import { DouyinHero } from "./DouyinHero";
 import { DouyinNicheChips } from "./DouyinNicheChips";
+import { DouyinToolbar } from "./DouyinToolbar";
 import { DouyinVideoCard } from "./DouyinVideoCard";
+import {
+  INITIAL_FILTERS,
+  applyFiltersAndSort,
+  hasAnyFilter,
+  type DouyinFilters,
+} from "./douyinFilters";
 import { useDouyinSavedSet } from "./useDouyinSavedSet";
+import { vnNicheToDouyinSlug } from "./vnNicheToDouyinSlug";
 
 /**
  * D4b (2026-06-04) — Kho Douyin · main screen.
+ * D4c (2026-06-04) — toolbar (search / adapt / sort / saved-only),
+ *                    auto-niche banner from ``profiles.primary_niche``,
+ *                    "Xoá bộ lọc" reset.
  *
- * Replaces the 70-line "Đang chuẩn bị" stub with the §II surface from
- * the design pack ``screens/douyin.jsx``: hero + niche chip strip +
- * 4-col responsive ``DouyinVideoCard`` grid + localStorage saved-set.
- *
- * Out of scope for D4b (next PRs):
- *   • D4c — toolbar (search + adapt-level filter + sort + saved-only),
- *           auto-niche banner, "Xoá bộ lọc" reset.
+ * Out of scope for D4c:
  *   • D4d — DouyinVideoModal (phone player + stats + adapt strip +
  *           translator notes + "Adapt sang VN → Kịch bản" CTA).
  *   • D5  — § I Pattern signals (3 cards / niche / week).
- *
- * Loading + empty states are first-class citizens here so D4c can
- * extend filter logic without rewiring the render tree.
  */
 
 export default function DouyinScreen() {
   const navigate = useNavigate();
   const { data, isPending, isError, refetch } = useDouyinFeed();
-  const { has: isSaved, toggle: toggleSaved, size: savedCount } = useDouyinSavedSet();
+  const { data: profile } = useProfile();
+  const { has: isSaved, toggle: toggleSaved, set: savedIds, size: savedCount } =
+    useDouyinSavedSet();
 
-  // Active niche filter (slug or null="all"). D4c will widen this to a
-  // full filter object — keep the state local for now.
-  const [activeSlug, setActiveSlug] = useState<string | null>(null);
+  // D4c — single source of truth for all filter UI controls.
+  const [filters, setFilters] = useState<DouyinFilters>(INITIAL_FILTERS);
+  // Auto-niche affordance dismissal — purely session-local. Once
+  // dismissed, the banner stays hidden until the next mount; the niche
+  // chip itself remains user-controlled.
+  const [autoNicheDismissed, setAutoNicheDismissed] = useState(false);
 
   const niches = data?.niches ?? [];
   const allVideos = data?.videos ?? [];
 
-  // Active-slug → niche_id map for filtering. The chip strip emits
-  // slugs (FE-stable), but the corpus rows carry numeric niche_id.
-  const activeNicheId = useMemo(() => {
-    if (!activeSlug) return null;
-    const match = niches.find((n) => n.slug === activeSlug);
-    return match?.id ?? null;
-  }, [activeSlug, niches]);
+  // Slug → niche_id resolver, memoised so identity is stable across
+  // renders and applyFiltersAndSort doesn't busy-loop the useMemo.
+  const slugToNicheId = useMemo(() => {
+    const map = new Map(niches.map((n) => [n.slug, n.id]));
+    return (slug: string): number | null => map.get(slug) ?? null;
+  }, [niches]);
 
-  const visibleVideos = useMemo(() => {
-    if (activeNicheId == null) return allVideos;
-    return allVideos.filter((v) => v.niche_id === activeNicheId);
-  }, [allVideos, activeNicheId]);
+  // Auto-niche heuristic: profile.primary_niche → Douyin slug, only if
+  // that slug actually has videos in the corpus AND the user hasn't
+  // touched the chip strip yet. We seed once on first feed-load.
+  const autoSlug = useMemo(() => {
+    const candidate = vnNicheToDouyinSlug(profile?.primary_niche ?? null);
+    if (!candidate) return null;
+    if (!niches.some((n) => n.slug === candidate)) return null;
+    const niche = niches.find((n) => n.slug === candidate);
+    if (!niche) return null;
+    const hasVideos = allVideos.some((v) => v.niche_id === niche.id);
+    return hasVideos ? candidate : null;
+  }, [profile?.primary_niche, niches, allVideos]);
+
+  // Seed the niche filter from the auto-slug exactly once after the
+  // feed loads, while the user hasn't interacted yet (filters are
+  // still pristine + banner not dismissed).
+  useEffect(() => {
+    if (
+      autoSlug &&
+      !autoNicheDismissed &&
+      filters.nicheSlug === null &&
+      !hasAnyFilter(filters)
+    ) {
+      setFilters((prev) => ({ ...prev, nicheSlug: autoSlug }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSlug]);
 
   // Hero stats — totals are scoped to the active niche so the
   // "VIDEO TRONG KHO" number tracks the chip filter.
+  const activeNicheId = filters.nicheSlug
+    ? slugToNicheId(filters.nicheSlug)
+    : null;
   const heroStats = useMemo(() => {
-    const pool = activeNicheId == null
-      ? allVideos
-      : allVideos.filter((v) => v.niche_id === activeNicheId);
+    const pool =
+      activeNicheId == null
+        ? allVideos
+        : allVideos.filter((v) => v.niche_id === activeNicheId);
     return {
       totalInPool: pool.length,
       greenCount: pool.filter((v) => v.adapt_level === "green").length,
@@ -68,10 +103,36 @@ export default function DouyinScreen() {
   }, [allVideos, activeNicheId]);
 
   const scopeLabel = useMemo(() => {
-    if (!activeSlug) return null;
-    const match = niches.find((n) => n.slug === activeSlug);
+    if (!filters.nicheSlug) return null;
+    const match = niches.find((n) => n.slug === filters.nicheSlug);
     return match?.name_vn?.toLowerCase() ?? null;
-  }, [activeSlug, niches]);
+  }, [filters.nicheSlug, niches]);
+
+  const visibleVideos = useMemo(
+    () => applyFiltersAndSort(allVideos, filters, { slugToNicheId, savedIds }),
+    [allVideos, filters, slugToNicheId, savedIds],
+  );
+
+  const showAutoBanner =
+    autoSlug !== null &&
+    !autoNicheDismissed &&
+    filters.nicheSlug === autoSlug;
+  const autoBannerLabel = useMemo(() => {
+    if (!showAutoBanner) return null;
+    return niches.find((n) => n.slug === autoSlug)?.name_vn ?? null;
+  }, [showAutoBanner, autoSlug, niches]);
+
+  const dismissAutoNiche = () => {
+    setAutoNicheDismissed(true);
+    setFilters((prev) => ({ ...prev, nicheSlug: null }));
+  };
+
+  const resetAllFilters = () => {
+    setFilters(INITIAL_FILTERS);
+    setAutoNicheDismissed(true);
+  };
+
+  const filtersActive = hasAnyFilter(filters);
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
@@ -95,18 +156,46 @@ export default function DouyinScreen() {
             scopeLabel={scopeLabel}
           />
 
-          {/* §II header — kicker + count */}
+          {/* §II header — kicker + count + Xoá bộ lọc */}
           <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
             § II — Kho video lẻ · Browse theo ngách
           </p>
-          <h2 className="gv-tight m-0 mb-3.5 text-[22px] font-medium leading-tight text-[color:var(--gv-ink)]">
-            {visibleVideos.length} video — đã sub VN
-          </h2>
+          <div className="mb-3.5 flex items-baseline justify-between gap-3">
+            <h2 className="gv-tight m-0 text-[22px] font-medium leading-tight text-[color:var(--gv-ink)]">
+              {visibleVideos.length} video — đã sub VN
+            </h2>
+            {filtersActive ? (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="gv-mono shrink-0 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)] underline-offset-4 hover:underline"
+              >
+                Xoá bộ lọc
+              </button>
+            ) : null}
+          </div>
+
+          {showAutoBanner && autoBannerLabel ? (
+            <DouyinAutoNicheBanner
+              nicheLabel={autoBannerLabel}
+              matchCount={heroStats.totalInPool}
+              onDismiss={dismissAutoNiche}
+            />
+          ) : null}
 
           <DouyinNicheChips
             niches={niches}
-            activeSlug={activeSlug}
-            onSelect={setActiveSlug}
+            activeSlug={filters.nicheSlug}
+            onSelect={(nicheSlug) => {
+              setAutoNicheDismissed(true);
+              setFilters((prev) => ({ ...prev, nicheSlug }));
+            }}
+          />
+
+          <DouyinToolbar
+            filters={filters}
+            onFiltersChange={setFilters}
+            savedCount={savedCount}
           />
 
           {/* States — loading / error / empty / grid */}
@@ -115,7 +204,7 @@ export default function DouyinScreen() {
           ) : isError ? (
             <ErrorState onRetry={() => void refetch()} />
           ) : visibleVideos.length === 0 ? (
-            <EmptyState onResetFilter={() => setActiveSlug(null)} hasFilter={activeSlug !== null} />
+            <EmptyState onResetFilter={resetAllFilters} hasFilter={filtersActive} />
           ) : (
             <ul
               className="grid gap-4"
@@ -188,12 +277,12 @@ function EmptyState({
       </p>
       <p className="mb-5 text-[14px] text-[color:var(--gv-ink-3)]">
         {hasFilter
-          ? "Không có video nào khớp ngách đang chọn."
+          ? "Không có video nào khớp bộ lọc đang chọn."
           : "Chưa có video nào — quay lại sau khi cron đầu tiên chạy."}
       </p>
       {hasFilter ? (
         <Btn variant="ghost" size="sm" type="button" onClick={onResetFilter}>
-          Xem tất cả ngách
+          Xoá bộ lọc
         </Btn>
       ) : null}
     </div>

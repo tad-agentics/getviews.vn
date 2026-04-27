@@ -1,9 +1,10 @@
 /**
  * D4b (2026-06-04) — Kho Douyin screen integration tests.
+ * D4c (2026-06-04) — extended for toolbar (search / adapt / sort /
+ *                    saved-only), auto-niche banner, "Xoá bộ lọc".
  *
- * Targets the §II surface (hero + niche chips + grid). Mocks
- * ``useDouyinFeed`` so tests are deterministic and don't need to
- * patch the network.
+ * Mocks ``useDouyinFeed`` and ``useProfile`` so tests stay deterministic
+ * and don't need the network or Supabase realtime channel.
  */
 
 import React from "react";
@@ -27,6 +28,11 @@ vi.mock("@/lib/auth", () => ({
 const useDouyinFeed = vi.fn();
 vi.mock("@/hooks/useDouyinFeed", () => ({
   useDouyinFeed: () => useDouyinFeed(),
+}));
+
+const useProfile = vi.fn();
+vi.mock("@/hooks/useProfile", () => ({
+  useProfile: () => useProfile(),
 }));
 
 const { default: DouyinScreen } = await import("./DouyinScreen");
@@ -67,9 +73,21 @@ function _feed(overrides: Partial<DouyinFeedResponse> = {}): DouyinFeedResponse 
 }
 
 
+function _renderScreen() {
+  return render(
+    <MemoryRouter>
+      <DouyinScreen />
+    </MemoryRouter>,
+  );
+}
+
+
 beforeEach(() => {
   window.localStorage.clear();
   useDouyinFeed.mockReset();
+  useProfile.mockReset();
+  // Default: no profile (auto-niche banner inactive).
+  useProfile.mockReturnValue({ data: null });
 });
 
 afterEach(() => {
@@ -86,11 +104,7 @@ describe("DouyinScreen — D4b §II surface", () => {
       isError: false,
       refetch: vi.fn(),
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
+    _renderScreen();
     expect(screen.getByText(/Kho Douyin · Đà Việt hoá/)).toBeTruthy();
     expect(screen.getByText(/Trend Douyin/)).toBeTruthy();
     expect(screen.getByText("Wellness video 1")).toBeTruthy();
@@ -103,11 +117,7 @@ describe("DouyinScreen — D4b §II surface", () => {
       data: _feed(),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
+    _renderScreen();
     // 3 total videos, 2 green (w1 + t1).
     expect(screen.getByText("Video trong kho")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
@@ -122,19 +132,12 @@ describe("DouyinScreen — D4b §II surface", () => {
       data: _feed(),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
+    _renderScreen();
     fireEvent.click(screen.getByRole("button", { name: "Tech" }));
-    // Only the Tech video remains.
     expect(screen.queryByText("Wellness video 1")).toBeNull();
     expect(screen.queryByText("Wellness video 2")).toBeNull();
     expect(screen.getByText("Tech video 1")).toBeTruthy();
-    // Header counter updates.
     expect(screen.getByText(/1 video — đã sub VN/)).toBeTruthy();
-    // Hero scope sub label flips to "ngách <name>".
     expect(screen.getByText(/ngách tech/)).toBeTruthy();
   });
 
@@ -143,11 +146,7 @@ describe("DouyinScreen — D4b §II surface", () => {
       data: undefined,
       isPending: true, isError: false, refetch: vi.fn(),
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
+    _renderScreen();
     expect(screen.getByLabelText(/Đang tải Kho Douyin/)).toBeTruthy();
   });
 
@@ -157,33 +156,26 @@ describe("DouyinScreen — D4b §II surface", () => {
       data: undefined,
       isPending: false, isError: true, refetch,
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
+    _renderScreen();
     expect(screen.getByText(/Không tải được/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Thử lại/ }));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it("renders the empty state with reset CTA when filter has no matches", () => {
-    // Feed has only wellness videos, but user clicks Tech chip → no matches.
     useDouyinFeed.mockReturnValue({
       data: _feed({
         videos: [_video({ video_id: "w1", niche_id: 1, title_vi: "Wellness only" })],
       }),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
+    _renderScreen();
     fireEvent.click(screen.getByRole("button", { name: "Tech" }));
-    expect(screen.getByText(/Không có video nào khớp ngách/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Xem tất cả ngách/ }));
-    // Back to all.
+    expect(screen.getByText(/Không có video nào khớp bộ lọc/)).toBeTruthy();
+    // The empty-state CTA is "Xoá bộ lọc"; the §II header link is the
+    // same copy — getAllByRole and click the first one.
+    const resets = screen.getAllByRole("button", { name: /Xoá bộ lọc/ });
+    fireEvent.click(resets[0]!);
     expect(screen.getByText("Wellness only")).toBeTruthy();
   });
 
@@ -192,13 +184,10 @@ describe("DouyinScreen — D4b §II surface", () => {
       data: _feed({ videos: [] }),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
+    _renderScreen();
     expect(screen.getByText(/Chưa có video nào/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Xem tất cả ngách/ })).toBeNull();
+    // No filter is active → "Xoá bộ lọc" link / button absent.
+    expect(screen.queryByRole("button", { name: /Xoá bộ lọc/ })).toBeNull();
   });
 
   it("hero saved count updates when a card save toggle is clicked", () => {
@@ -206,18 +195,141 @@ describe("DouyinScreen — D4b §II surface", () => {
       data: _feed(),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    render(
-      <MemoryRouter>
-        <DouyinScreen />
-      </MemoryRouter>,
-    );
-    // Hero stat initially 0.
+    _renderScreen();
     expect(screen.getByText("Đã lưu")).toBeTruthy();
-    // Save the first card.
     const saveButtons = screen.getAllByLabelText(/Lưu vào kho/);
     fireEvent.click(saveButtons[0]!);
-    // Read localStorage as the source of truth.
     const stored = JSON.parse(window.localStorage.getItem("gv-douyin-saved") || "[]");
     expect(stored.length).toBe(1);
+  });
+});
+
+
+describe("DouyinScreen — D4c toolbar + auto-niche", () => {
+  it("filters the grid via the search input (case-insensitive substring)", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    _renderScreen();
+    fireEvent.change(screen.getByLabelText(/Tìm trong Kho Douyin/), {
+      target: { value: "TECH" },
+    });
+    expect(screen.queryByText("Wellness video 1")).toBeNull();
+    expect(screen.queryByText("Wellness video 2")).toBeNull();
+    expect(screen.getByText("Tech video 1")).toBeTruthy();
+    expect(screen.getByText(/1 video — đã sub VN/)).toBeTruthy();
+  });
+
+  it("filters the grid via an adapt-level chip and excludes pending rows", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed({
+        videos: [
+          _video({ video_id: "g1", niche_id: 1, adapt_level: "green", title_vi: "Green only" }),
+          _video({ video_id: "y1", niche_id: 1, adapt_level: "yellow", title_vi: "Yellow only" }),
+          _video({ video_id: "p1", niche_id: 1, adapt_level: null, title_vi: "Pending only" }),
+        ],
+      }),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    _renderScreen();
+    // The card adapt-chip text is also "XANH" inside an article[role=
+    // button], so exact-name match is required to hit the toolbar chip.
+    fireEvent.click(screen.getByRole("button", { name: "XANH" }));
+    expect(screen.getByText("Green only")).toBeTruthy();
+    expect(screen.queryByText("Yellow only")).toBeNull();
+    // Pending rows ARE excluded from level chips by design.
+    expect(screen.queryByText("Pending only")).toBeNull();
+  });
+
+  it("sorts the grid by views DESC when the sort dropdown is changed", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed({
+        videos: [
+          _video({ video_id: "low", niche_id: 1, views: 100, title_vi: "Low views" }),
+          _video({ video_id: "hi", niche_id: 1, views: 5_000_000, title_vi: "High views" }),
+          _video({ video_id: "mid", niche_id: 1, views: 50_000, title_vi: "Mid views" }),
+        ],
+      }),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    _renderScreen();
+    fireEvent.change(screen.getByLabelText(/Sắp xếp video/), {
+      target: { value: "views" },
+    });
+    // Read the rendered order: each card has a unique title — query by title text.
+    const order = screen
+      .getAllByText(/views/)
+      .map((el) => el.textContent ?? "")
+      .filter((t) => /^(High|Mid|Low) views$/.test(t));
+    expect(order).toEqual(["High views", "Mid views", "Low views"]);
+  });
+
+  it("narrows to the saved set when Kho cá nhân is toggled on", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    _renderScreen();
+    // Save w1.
+    const saveButtons = screen.getAllByLabelText(/Lưu vào kho/);
+    fireEvent.click(saveButtons[0]!);
+    // Toggle saved-only.
+    fireEvent.click(screen.getByRole("button", { name: /Kho cá nhân/ }));
+    expect(screen.getByText("Wellness video 1")).toBeTruthy();
+    expect(screen.queryByText("Wellness video 2")).toBeNull();
+    expect(screen.queryByText("Tech video 1")).toBeNull();
+  });
+
+  it("shows the Xoá bộ lọc link only when at least one filter is active", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    _renderScreen();
+    expect(screen.queryByRole("button", { name: /Xoá bộ lọc/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "XANH" }));
+    const resetLink = screen.getByRole("button", { name: /Xoá bộ lọc/ });
+    expect(resetLink).toBeTruthy();
+    // Click resets back to ALL.
+    fireEvent.click(resetLink);
+    expect(screen.queryByRole("button", { name: /Xoá bộ lọc/ })).toBeNull();
+    expect(screen.getByText(/3 video — đã sub VN/)).toBeTruthy();
+  });
+
+  it("auto-applies the user's primary niche when the slug has matches", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    // VN niche 8 = Gym / Fitness VN → maps to "wellness" slug.
+    useProfile.mockReturnValue({ data: { primary_niche: 8 } });
+    _renderScreen();
+    // Banner present — "Wellness" appears both in the niche chip and
+    // the banner, so we assert via the banner status role.
+    const banner = screen.getByRole("status");
+    expect(banner.textContent).toMatch(/Đang ưu tiên ngách/);
+    expect(banner.textContent).toMatch(/Wellness/);
+    // Grid is scoped to wellness only.
+    expect(screen.getByText("Wellness video 1")).toBeTruthy();
+    expect(screen.getByText("Wellness video 2")).toBeTruthy();
+    expect(screen.queryByText("Tech video 1")).toBeNull();
+    // Dismissing the banner clears back to ALL.
+    fireEvent.click(screen.getByRole("button", { name: /Bỏ ưu tiên ngách/ }));
+    expect(screen.queryByRole("status", { name: /Kho Douyin/ })).toBeNull();
+    expect(screen.getByText("Tech video 1")).toBeTruthy();
+  });
+
+  it("does not show the auto-niche banner when the primary niche has no Douyin equivalent", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    // VN niche 17 = Gaming → no Douyin slug.
+    useProfile.mockReturnValue({ data: { primary_niche: 17 } });
+    _renderScreen();
+    expect(screen.queryByText(/Đang ưu tiên ngách/)).toBeNull();
+    // Grid stays at full corpus.
+    expect(screen.getByText(/3 video — đã sub VN/)).toBeTruthy();
   });
 });
