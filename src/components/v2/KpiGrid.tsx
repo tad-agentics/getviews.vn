@@ -18,7 +18,7 @@ export function KpiGrid({ kpis, className = "", variant = "video" }: KpiGridProp
   const isChannel = variant === "channel";
   const gridCols = isChannel
     ? "grid-cols-2"
-    : "grid-cols-2 min-[520px]:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]";
+    : "grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(140px,1fr))]";
   const cellBg = isChannel ? "bg-[color:var(--gv-canvas)]" : "bg-[color:var(--gv-paper)]";
   const labelMb = isChannel ? "mb-1" : "mb-1.5";
   const valueClass = isChannel

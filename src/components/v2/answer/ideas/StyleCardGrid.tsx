@@ -34,7 +34,7 @@ function StyleCard({ row }: { row: StyleCardRow }) {
 export function StyleCardGrid({ cards }: { cards: StyleCardRow[] }) {
   if (cards.length === 0) return null;
   return (
-    <ul className="grid grid-cols-1 gap-2 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-5">
+    <ul className="grid grid-cols-1 gap-2 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-5">
       {cards.map((c, i) => (
         <StyleCard key={c.id ?? String(i)} row={c} />
       ))}

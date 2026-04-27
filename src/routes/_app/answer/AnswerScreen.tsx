@@ -502,7 +502,7 @@ export default function AnswerScreen() {
         />
         <AnswerShell
           crumb={
-            <div className="mb-6 flex flex-col gap-3 border-b border-[color:var(--gv-rule)] pb-5 min-[720px]:flex-row min-[720px]:items-center min-[720px]:justify-between">
+            <div className="mb-6 flex flex-col gap-3 border-b border-[color:var(--gv-rule)] pb-5 min-[700px]:flex-row min-[700px]:items-center min-[700px]:justify-between">
               <nav
                 className="flex flex-wrap items-center gap-1.5 text-[color:var(--gv-ink-4)]"
                 aria-label="Breadcrumb"

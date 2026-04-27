@@ -746,9 +746,9 @@ function ScriptDetailScreen() {
               <div
                 className={
                   "grid gap-6 " +
-                  "max-[880px]:grid-cols-1 " +
-                  "min-[881px]:max-[1240px]:grid-cols-[minmax(0,280px)_minmax(0,1fr)] " +
-                  "min-[1241px]:grid-cols-[300px_minmax(0,1fr)_300px]"
+                  "max-[899px]:grid-cols-1 " +
+                  "min-[900px]:max-[1099px]:grid-cols-[minmax(0,280px)_minmax(0,1fr)] " +
+                  "min-[1100px]:grid-cols-[300px_minmax(0,1fr)_300px]"
                 }
               >
                 <aside className="flex min-w-0 flex-col gap-3.5">
@@ -885,7 +885,7 @@ function ScriptDetailScreen() {
                   ) : null}
                 </aside>
 
-                <div className="min-w-0 min-[881px]:max-[1240px]:col-span-2 min-[1241px]:col-span-1">
+                <div className="min-w-0 min-[900px]:max-[1099px]:col-span-2 min-[1100px]:col-span-1">
                   {/* IdeaRefStrip — 5 viral videos in this niche matching
                       the chosen hook. Sits above the storyboard so creators
                       can scan reference cadence/overlay before reading
@@ -927,11 +927,11 @@ function ScriptDetailScreen() {
                 <aside
                   className={
                     "flex min-w-0 flex-col gap-3.5 " +
-                    "min-[881px]:max-[1240px]:col-span-2 min-[881px]:max-[1240px]:flex-row min-[881px]:max-[1240px]:overflow-x-auto " +
-                    "min-[1241px]:col-span-1 min-[1241px]:flex-col"
+                    "min-[900px]:max-[1099px]:col-span-2 min-[900px]:max-[1099px]:flex-row min-[900px]:max-[1099px]:overflow-x-auto " +
+                    "min-[1100px]:col-span-1 min-[1100px]:flex-col"
                   }
                 >
-                  <div className="min-[881px]:max-[1240px]:min-w-[280px] min-[881px]:max-[1240px]:flex-1">
+                  <div className="min-[900px]:max-[1099px]:min-w-[280px] min-[900px]:max-[1099px]:flex-1">
                     <SceneIntelligencePanel
                       shot={activeRow}
                       shotIndex={activeShot}

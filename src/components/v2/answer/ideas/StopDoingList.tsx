@@ -11,7 +11,7 @@ export function StopDoingList({ rows }: { rows: StopRow[] }) {
       {rows.map((r, i) => (
         <li
           key={`${r.bad}-${i}`}
-          className="grid grid-cols-[60px_1fr] gap-3 border-t border-[color:var(--gv-rule)] px-4 py-3 first:border-t-0 min-[720px]:grid-cols-[80px_1fr_1fr]"
+          className="grid grid-cols-[60px_1fr] gap-3 border-t border-[color:var(--gv-rule)] px-4 py-3 first:border-t-0 min-[700px]:grid-cols-[80px_1fr_1fr]"
         >
           <span className="gv-serif text-[22px] leading-none text-[color:var(--gv-ink-4)]">
             {String(i + 1).padStart(2, "0")}
@@ -23,7 +23,7 @@ export function StopDoingList({ rows }: { rows: StopRow[] }) {
             ) : null}
           </div>
           {r.fix ? (
-            <p className="col-span-full min-[720px]:col-auto rounded bg-[color:var(--gv-accent-soft)] px-3 py-2 text-[13px] leading-[1.5] text-[color:var(--gv-accent-deep)]">
+            <p className="col-span-full min-[700px]:col-auto rounded bg-[color:var(--gv-accent-soft)] px-3 py-2 text-[13px] leading-[1.5] text-[color:var(--gv-accent-deep)]">
               <span className="gv-mono mr-2 text-[10px] uppercase tracking-wide">Fix</span>
               {r.fix}
             </p>
