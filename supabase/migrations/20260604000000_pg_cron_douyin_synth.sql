@@ -1,0 +1,107 @@
+-- 2026-06-04 — D3b — pg_cron schedule for /batch/douyin-synth.
+--
+-- Doc-only migration (mirrors ``20260603000003_pg_cron_douyin_ingest``,
+-- ``20260530000001_pg_cron_pattern_decks``). The executable
+-- ``cron.schedule(...)`` snippet is recorded here for ops; live
+-- application via Supabase MCP at deploy.
+--
+-- ── Why this exists ─────────────────────────────────────────────────
+--
+-- D2 fills ``douyin_video_corpus`` daily with raw videos (creator,
+-- metrics, Gemini analysis, Chinese→VN title). D3a (``douyin_synth``)
+-- ships the per-video Gemini grader. D3b (this PR) wires the
+-- orchestrator + endpoint that walks stale rows and calls the synth.
+--
+-- Without this cron firing daily, the ``adapt_level`` /
+-- ``translator_notes`` columns stay NULL forever and the FE
+-- ``DouyinVideoCard`` / ``DouyinVideoModal`` render the "human review
+-- pending" caveat instead of the design's adapt chip + culture notes.
+--
+-- ── Schedule ────────────────────────────────────────────────────────
+--
+-- All times UTC. Asia/Ho_Chi_Minh = UTC+7.
+--
+--  ┌──────────────────────────────┬──────────────┬───────────────────┐
+--  │ job                          │ schedule UTC │ Vietnam local     │
+--  ├──────────────────────────────┼──────────────┼───────────────────┤
+--  │ cron-batch-douyin-synth      │ 0 23 * * *   │ daily 06:00       │
+--  └──────────────────────────────┴──────────────┴───────────────────┘
+--
+-- Why 23:00 UTC (06:00 VN):
+--
+--   - Runs 1 hour AFTER ``cron-batch-douyin-ingest`` (22:00 UTC). The
+--     ingest's 30-min timeout means the batch finishes by ~22:30 UTC;
+--     a 30-min buffer means the synth always sees a complete-or-stale
+--     ingest, never an in-flight one.
+--
+--   - 06:00 VN is well before VN creators wake up; any Cloud Run cold
+--     start lands during low-traffic hours.
+--
+--   - Shares the Gemini concurrency window with the morning-ritual
+--     batch (15:00 UTC) and pattern-decks (16:00 UTC) — staggered by
+--     7+ hours so flash-preview quota never overlaps.
+--
+-- ── Per-batch cost envelope ─────────────────────────────────────────
+--
+-- ``DEFAULT_BATCH_CAP = 100`` rows. Each Gemini call emits ~400 output
+-- tokens against a ~600-token prompt. On flash-preview (~$0.10 per 1M
+-- output tokens), 100 rows × 400 tokens ≈ $0.004/batch. The 100-row
+-- cap is 2× the daily ingest output (D2 creates ~50 rows/day) so the
+-- synth catches up cleanly if a previous day failed.
+--
+-- ── Prerequisites ───────────────────────────────────────────────────
+--
+-- Vault must already hold ``cloud_run_api_url`` and
+-- ``cloud_run_batch_secret`` (seeded for the existing batch crons).
+--
+-- D1 + D2 must be applied first — the synth queries
+-- ``douyin_video_corpus`` (D1) and only does useful work after D2
+-- ingest has populated rows.
+--
+-- ── Live application (also run via Supabase MCP at migration time) ──
+--
+-- SELECT cron.schedule(
+--   'cron-batch-douyin-synth',
+--   '0 23 * * *',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/douyin-synth',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 1200000  -- 20 min; flash-preview × 100 rows
+--   );
+--   $cmd$
+-- );
+--
+-- ── Verification ────────────────────────────────────────────────────
+--
+-- SELECT jobname, schedule, active
+-- FROM cron.job
+-- WHERE jobname = 'cron-batch-douyin-synth';
+--
+-- After first fire:
+--
+-- SELECT job_name, started_at, finished_at, status, duration_ms,
+--        LEFT(COALESCE(error,''),120) AS err
+-- FROM batch_job_runs
+-- WHERE job_name = 'batch/douyin-synth'
+-- ORDER BY started_at DESC LIMIT 7;
+--
+-- Spot-check that grades landed:
+--
+-- SELECT COUNT(*) FILTER (WHERE adapt_level IS NOT NULL) AS graded,
+--        COUNT(*) FILTER (WHERE adapt_level = 'green')   AS green,
+--        COUNT(*) FILTER (WHERE adapt_level = 'yellow')  AS yellow,
+--        COUNT(*) FILTER (WHERE adapt_level = 'red')     AS red,
+--        COUNT(*)                                        AS total
+-- FROM douyin_video_corpus;
+--
+-- ── Pause / Rollback ────────────────────────────────────────────────
+--
+-- SELECT cron.unschedule('cron-batch-douyin-synth');
+-- (re-run the SELECT cron.schedule above to resume)
+
+SELECT 1 AS migration_doc_only;

@@ -625,6 +625,94 @@ async def batch_pattern_decks(
     })
 
 
+class DouyinSynthBatchRequest(BaseModel):
+    """D3b (2026-06-04) — body for ``POST /batch/douyin-synth``.
+
+    Mirrors ``PatternDecksBatchRequest``: optional cap + optional
+    explicit ``video_ids`` list to bypass the staleness query (admin
+    manual reruns after a synth-prompt bump).
+    """
+
+    cap: int | None = Field(
+        default=None,
+        ge=1, le=500,
+        description=(
+            "Max ``douyin_video_corpus`` rows to grade this run. Omit to use "
+            "``DEFAULT_BATCH_CAP`` (100). Lower this for mid-day smoke tests."
+        ),
+    )
+    video_ids: list[str] | None = Field(
+        default=None,
+        description=(
+            "Restrict the run to specific Douyin aweme_ids. Bypasses the "
+            "synth_computed_at staleness query — admin manual reruns only."
+        ),
+    )
+
+
+@router.post("/batch/douyin-synth")
+async def batch_douyin_synth(
+    request: Request,
+    body: DouyinSynthBatchRequest = DouyinSynthBatchRequest(),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """D3b daily cron: grade ``douyin_video_corpus`` rows for adapt-level
+    + ETA + translator notes.
+
+    Walks rows whose ``synth_computed_at`` is null OR older than 7 days,
+    ordered staleest-first; per-batch cap keeps the Gemini bill bounded
+    (~$0.005/row × 100 = ~$0.50/day worst case).
+
+    Protected by ``require_batch_caller``. Pair with the pg_cron
+    schedule in ``20260604000000_pg_cron_douyin_synth.sql``.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.douyin_adapt_batch import (
+        DEFAULT_BATCH_CAP,
+        run_douyin_adapt_batch,
+    )
+    from getviews_pipeline.supabase_client import get_service_client
+
+    cap = body.cap or DEFAULT_BATCH_CAP
+    sb = get_service_client()
+    logger.info(
+        "POST /batch/douyin-synth triggered — cap=%d explicit_ids=%s",
+        cap, len(body.video_ids) if body.video_ids else None,
+    )
+    async with record_job_run(sb, "batch/douyin-synth") as obs_summary:
+        obs_summary["cap"] = cap
+        obs_summary["explicit_ids"] = (
+            len(body.video_ids) if body.video_ids else 0
+        )
+        try:
+            summary = await run_sync(
+                run_douyin_adapt_batch,
+                sb,
+                cap=cap,
+                video_ids=body.video_ids,
+            )
+        except Exception as exc:
+            logger.exception("[batch/douyin-synth] failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        obs_summary.update({
+            "considered": summary.considered,
+            "generated": summary.generated,
+            "failed_synth": summary.failed_synth,
+            "failed_upsert": summary.failed_upsert,
+            "skipped_no_title": summary.skipped_no_title,
+        })
+
+    return JSONResponse({
+        "ok": True,
+        "considered": summary.considered,
+        "generated": summary.generated,
+        "failed_synth": summary.failed_synth,
+        "failed_upsert": summary.failed_upsert,
+        "skipped_no_title": summary.skipped_no_title,
+    })
+
+
 @router.post("/batch/scene-intelligence")
 async def batch_scene_intelligence(
     request: Request,
