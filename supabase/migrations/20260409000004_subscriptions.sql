@@ -1,6 +1,6 @@
 -- subscriptions, credit ledger, webhook idempotency + grant RPC
 
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   user_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
@@ -19,9 +19,9 @@ CREATE TABLE subscriptions (
   reminder_1d_sent_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_subscriptions_user_id ON subscriptions (user_id);
-CREATE INDEX idx_subscriptions_user_status ON subscriptions (user_id, status);
-CREATE UNIQUE INDEX idx_subscriptions_payos_order ON subscriptions (payos_order_code);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions (user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON subscriptions (user_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_payos_order ON subscriptions (payos_order_code);
 
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
@@ -45,7 +45,7 @@ CREATE POLICY "No client deletes on subscriptions"
   TO authenticated
   USING (false);
 
-CREATE TABLE credit_transactions (
+CREATE TABLE IF NOT EXISTS credit_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   user_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
@@ -56,8 +56,8 @@ CREATE TABLE credit_transactions (
   subscription_id UUID REFERENCES subscriptions (id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_credit_transactions_user_id ON credit_transactions (user_id);
-CREATE INDEX idx_credit_transactions_user_created ON credit_transactions (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_id ON credit_transactions (user_id);
+CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_created ON credit_transactions (user_id, created_at DESC);
 
 ALTER TABLE credit_transactions ENABLE ROW LEVEL SECURITY;
 
@@ -81,14 +81,14 @@ CREATE POLICY "No client deletes credit transactions"
   TO authenticated
   USING (false);
 
-CREATE TABLE processed_webhook_events (
+CREATE TABLE IF NOT EXISTS processed_webhook_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   payos_order_code TEXT NOT NULL,
   event_type TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX idx_processed_events_order_event
+CREATE UNIQUE INDEX IF NOT EXISTS idx_processed_events_order_event
   ON processed_webhook_events (payos_order_code, event_type);
 
 ALTER TABLE processed_webhook_events ENABLE ROW LEVEL SECURITY;

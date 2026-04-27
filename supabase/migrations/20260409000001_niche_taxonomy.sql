@@ -1,6 +1,6 @@
 -- niche_taxonomy — reference niches (read for all, no client writes)
 
-CREATE TABLE niche_taxonomy (
+CREATE TABLE IF NOT EXISTS niche_taxonomy (
   id SERIAL PRIMARY KEY,
   name_vn TEXT NOT NULL UNIQUE,
   name_en TEXT NOT NULL,

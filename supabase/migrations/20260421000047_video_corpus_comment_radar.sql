@@ -12,7 +12,7 @@ ALTER TABLE video_corpus
   ADD COLUMN comment_radar            JSONB,
   ADD COLUMN comment_radar_fetched_at TIMESTAMPTZ;
 
-CREATE INDEX video_corpus_comment_radar_fetched_idx
+CREATE INDEX IF NOT EXISTS video_corpus_comment_radar_fetched_idx
   ON video_corpus (comment_radar_fetched_at DESC NULLS LAST)
   WHERE comment_radar IS NOT NULL;
 

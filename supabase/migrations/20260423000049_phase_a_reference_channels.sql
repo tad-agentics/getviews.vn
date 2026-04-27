@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS starter_creators (
   PRIMARY KEY (niche_id, handle)
 );
 
-CREATE INDEX idx_starter_creators_niche_rank
+CREATE INDEX IF NOT EXISTS idx_starter_creators_niche_rank
   ON starter_creators (niche_id, rank);
 
 ALTER TABLE starter_creators ENABLE ROW LEVEL SECURITY;

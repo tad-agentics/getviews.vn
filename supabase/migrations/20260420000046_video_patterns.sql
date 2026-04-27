@@ -11,7 +11,7 @@
 -- up PR); until that job runs, pattern_id stays NULL and queries gracefully
 -- degrade to the single-video narrative.
 
-CREATE TABLE video_patterns (
+CREATE TABLE IF NOT EXISTS video_patterns (
   id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   signature_hash              TEXT NOT NULL UNIQUE,
   signature                   JSONB NOT NULL,
@@ -26,9 +26,9 @@ CREATE TABLE video_patterns (
   computed_at                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX video_patterns_signature_hash_idx ON video_patterns (signature_hash);
-CREATE INDEX video_patterns_last_seen_idx     ON video_patterns (last_seen_at DESC);
-CREATE INDEX video_patterns_weekly_delta_idx  ON video_patterns
+CREATE INDEX IF NOT EXISTS video_patterns_signature_hash_idx ON video_patterns (signature_hash);
+CREATE INDEX IF NOT EXISTS video_patterns_last_seen_idx     ON video_patterns (last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS video_patterns_weekly_delta_idx  ON video_patterns
   ((weekly_instance_count - weekly_instance_count_prev) DESC);
 
 ALTER TABLE video_patterns ENABLE ROW LEVEL SECURITY;
@@ -40,5 +40,5 @@ CREATE POLICY "Authenticated users read video_patterns"
 
 -- Link column on video_corpus. NULL until the clustering job runs.
 ALTER TABLE video_corpus ADD COLUMN pattern_id UUID REFERENCES video_patterns(id);
-CREATE INDEX video_corpus_pattern_id_idx ON video_corpus (pattern_id)
+CREATE INDEX IF NOT EXISTS video_corpus_pattern_id_idx ON video_corpus (pattern_id)
   WHERE pattern_id IS NOT NULL;

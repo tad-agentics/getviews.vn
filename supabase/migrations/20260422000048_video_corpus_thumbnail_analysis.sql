@@ -13,7 +13,7 @@ ALTER TABLE video_corpus
   ADD COLUMN thumbnail_analysis            JSONB,
   ADD COLUMN thumbnail_analysis_fetched_at TIMESTAMPTZ;
 
-CREATE INDEX video_corpus_thumbnail_fetched_idx
+CREATE INDEX IF NOT EXISTS video_corpus_thumbnail_fetched_idx
   ON video_corpus (thumbnail_analysis_fetched_at DESC NULLS LAST)
   WHERE thumbnail_analysis IS NOT NULL;
 

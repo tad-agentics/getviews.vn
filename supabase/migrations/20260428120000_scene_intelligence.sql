@@ -1,7 +1,7 @@
 -- B.4.1 — scene_intelligence: per-(niche, scene_type) aggregates for /app/script
 -- Refreshed by Cloud Run batch (``getviews_pipeline.scene_intelligence_refresh``).
 
-CREATE TABLE scene_intelligence (
+CREATE TABLE IF NOT EXISTS scene_intelligence (
   niche_id INTEGER NOT NULL REFERENCES niche_taxonomy (id) ON DELETE CASCADE,
   scene_type TEXT NOT NULL,
   corpus_avg_duration NUMERIC(6, 2),
@@ -15,7 +15,7 @@ CREATE TABLE scene_intelligence (
   PRIMARY KEY (niche_id, scene_type)
 );
 
-CREATE INDEX idx_scene_intelligence_niche ON scene_intelligence (niche_id);
+CREATE INDEX IF NOT EXISTS idx_scene_intelligence_niche ON scene_intelligence (niche_id);
 
 ALTER TABLE scene_intelligence ENABLE ROW LEVEL SECURITY;
 

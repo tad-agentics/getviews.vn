@@ -1,6 +1,6 @@
 -- Corpus + intelligence aggregates + llm_cache
 
-CREATE TABLE video_corpus (
+CREATE TABLE IF NOT EXISTS video_corpus (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   video_id TEXT NOT NULL UNIQUE,
@@ -20,10 +20,10 @@ CREATE TABLE video_corpus (
   indexed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_corpus_niche_date ON video_corpus (niche_id, indexed_at DESC);
-CREATE INDEX idx_corpus_niche_er ON video_corpus (niche_id, engagement_rate DESC);
-CREATE INDEX idx_corpus_content_type ON video_corpus (content_type);
-CREATE UNIQUE INDEX idx_corpus_video_id ON video_corpus (video_id);
+CREATE INDEX IF NOT EXISTS idx_corpus_niche_date ON video_corpus (niche_id, indexed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_corpus_niche_er ON video_corpus (niche_id, engagement_rate DESC);
+CREATE INDEX IF NOT EXISTS idx_corpus_content_type ON video_corpus (content_type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_corpus_video_id ON video_corpus (video_id);
 
 ALTER TABLE video_corpus ENABLE ROW LEVEL SECURITY;
 
@@ -48,11 +48,11 @@ FROM niche_taxonomy nt
 LEFT JOIN video_corpus v ON v.niche_id = nt.id
 GROUP BY nt.id;
 
-CREATE UNIQUE INDEX idx_niche_intelligence_niche_id ON niche_intelligence (niche_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_niche_intelligence_niche_id ON niche_intelligence (niche_id);
 
 GRANT SELECT ON niche_intelligence TO authenticated;
 
-CREATE TABLE trend_velocity (
+CREATE TABLE IF NOT EXISTS trend_velocity (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   niche_id INTEGER NOT NULL REFERENCES niche_taxonomy (id),
@@ -64,7 +64,7 @@ CREATE TABLE trend_velocity (
   sound_trends JSONB
 );
 
-CREATE INDEX idx_trend_velocity_niche_week ON trend_velocity (niche_id, week_start DESC);
+CREATE INDEX IF NOT EXISTS idx_trend_velocity_niche_week ON trend_velocity (niche_id, week_start DESC);
 
 ALTER TABLE trend_velocity ENABLE ROW LEVEL SECURITY;
 
@@ -73,7 +73,7 @@ CREATE POLICY "Authenticated users read trend_velocity"
   TO authenticated
   USING (auth.uid() IS NOT NULL);
 
-CREATE TABLE hook_effectiveness (
+CREATE TABLE IF NOT EXISTS hook_effectiveness (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   niche_id INTEGER NOT NULL REFERENCES niche_taxonomy (id),
   hook_type TEXT NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE hook_effectiveness (
   computed_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_hook_effectiveness_niche ON hook_effectiveness (niche_id, computed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_hook_effectiveness_niche ON hook_effectiveness (niche_id, computed_at DESC);
 
 ALTER TABLE hook_effectiveness ENABLE ROW LEVEL SECURITY;
 
@@ -94,7 +94,7 @@ CREATE POLICY "Authenticated users read hook_effectiveness"
   TO authenticated
   USING (auth.uid() IS NOT NULL);
 
-CREATE TABLE format_lifecycle (
+CREATE TABLE IF NOT EXISTS format_lifecycle (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   niche_id INTEGER NOT NULL REFERENCES niche_taxonomy (id),
   format_type TEXT NOT NULL,
@@ -112,7 +112,7 @@ CREATE POLICY "Authenticated users read format_lifecycle"
   TO authenticated
   USING (auth.uid() IS NOT NULL);
 
-CREATE TABLE creator_velocity (
+CREATE TABLE IF NOT EXISTS creator_velocity (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   creator_handle TEXT NOT NULL,
   niche_id INTEGER NOT NULL REFERENCES niche_taxonomy (id),
@@ -132,7 +132,7 @@ CREATE POLICY "Authenticated users read creator_velocity"
   TO authenticated
   USING (auth.uid() IS NOT NULL);
 
-CREATE TABLE batch_failures (
+CREATE TABLE IF NOT EXISTS batch_failures (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   video_id TEXT NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE batch_failures (
 
 ALTER TABLE batch_failures ENABLE ROW LEVEL SECURITY;
 
-CREATE TABLE llm_cache (
+CREATE TABLE IF NOT EXISTS llm_cache (
   input_hash TEXT PRIMARY KEY,
   response JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
