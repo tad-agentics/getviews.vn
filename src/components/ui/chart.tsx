@@ -1,7 +1,11 @@
 "use client";
 
 import * as React from "react";
-import * as RechartsPrimitive from "recharts";
+// Named imports only — the previous ``import * as RechartsPrimitive``
+// pattern blocked tree-shaking and pulled the entire recharts surface
+// into any chunk that referenced even one symbol. We use exactly
+// three primitives (``ResponsiveContainer``, ``Tooltip``, ``Legend``).
+import { Legend, ResponsiveContainer, Tooltip } from "recharts";
 
 import { cn } from "./utils";
 
@@ -42,9 +46,7 @@ function ChartContainer({
   ...props
 }: React.ComponentProps<"div"> & {
   config: ChartConfig;
-  children: React.ComponentProps<
-    typeof RechartsPrimitive.ResponsiveContainer
-  >["children"];
+  children: React.ComponentProps<typeof ResponsiveContainer>["children"];
 }) {
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
@@ -61,9 +63,9 @@ function ChartContainer({
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
+        <ResponsiveContainer>
           {children}
-        </RechartsPrimitive.ResponsiveContainer>
+        </ResponsiveContainer>
       </div>
     </ChartContext.Provider>
   );
@@ -102,7 +104,7 @@ ${colorConfig
   );
 };
 
-const ChartTooltip = RechartsPrimitive.Tooltip;
+const ChartTooltip = Tooltip;
 
 type ChartTooltipPayloadItem = {
   name?: string;
@@ -281,7 +283,7 @@ function ChartTooltipContent({
   );
 }
 
-const ChartLegend = RechartsPrimitive.Legend;
+const ChartLegend = Legend;
 
 type ChartLegendPayloadItem = {
   value?: string | number;
