@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { r2FrameUrl } from "@/lib/services/corpus-service";
+import { r2FrameUrl } from "@/lib/r2";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, Database, Play, Globe, Zap, Search, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";

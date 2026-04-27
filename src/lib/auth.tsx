@@ -2,7 +2,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { isSessionExpired } from "./authErrors";
-import { supabase } from "./supabase";
+
+/**
+ * The supabase client (~185 KB raw / ~50 KB gzip) is dynamically
+ * imported inside each effect / callback below so it does NOT ride
+ * the critical-path entry chunk that every route preloads. Result:
+ * the prerendered landing page no longer transfers + parses the
+ * supabase bundle before first paint; auth-aware screens fetch it
+ * during the first idle tick after mount instead.
+ *
+ * Type-only imports (``Session`` / ``User``) are erased at compile
+ * time — no runtime cost.
+ */
 
 interface AuthContextValue {
   session: Session | null;
@@ -25,17 +36,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
+    void (async () => {
+      const { supabase } = await import("./supabase");
+      if (cancelled) return;
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      setSession(data.session);
       setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+        setSession(s);
+        setLoading(false);
+      });
+      unsubscribe = () => sub.subscription.unsubscribe();
+    })();
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
 
   // D.6 — global session-expired listener. Cloud Run rejects stale
@@ -47,22 +66,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // fire five signOut calls back-to-back.
   useEffect(() => {
     let signingOut = false;
+    const handleError = async (err: unknown) => {
+      if (!isSessionExpired(err) || signingOut) return;
+      signingOut = true;
+      const { supabase } = await import("./supabase");
+      void supabase.auth.signOut();
+    };
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (event.type !== "updated") return;
       if (event.action.type !== "error") return;
-      const err = event.action.error as unknown;
-      if (!isSessionExpired(err) || signingOut) return;
-      signingOut = true;
-      void supabase.auth.signOut();
+      void handleError(event.action.error as unknown);
     });
-    // Also watch mutations (useScriptGenerate etc. are mutations).
     const unsubscribeMut = queryClient.getMutationCache().subscribe((event) => {
       if (event.type !== "updated") return;
       if (event.action.type !== "error") return;
-      const err = event.action.error as unknown;
-      if (!isSessionExpired(err) || signingOut) return;
-      signingOut = true;
-      void supabase.auth.signOut();
+      void handleError(event.action.error as unknown);
     });
     return () => {
       unsubscribe();
@@ -71,6 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const signOut = useCallback(async () => {
+    const { supabase } = await import("./supabase");
     await supabase.auth.signOut();
   }, []);
 
