@@ -74,6 +74,22 @@ class ScriptGenerateBody(BaseModel):
     shot_index: int | None = Field(default=None, ge=0, le=5)
 
 
+class VoLine(BaseModel):
+    """One line of structured voice-over (per design pack
+    ``screens/script.jsx`` lines 448-452, 1103-1230).
+
+    ``t`` is a freeform timestamp string (``"0:00"`` / ``"0:14"``) — the
+    FE renders it as a tabular-nums label. ``text`` may carry inline
+    ``*stress*`` markers that ``FormattedVO`` highlights. ``cue`` is an
+    optional inline tag (``"[dừng 0.3s]"`` / ``"[CUT close-up]"`` /
+    ``"[SFX click]"``) the FE renders as a ``CueChip`` next to the line.
+    """
+
+    t: str = Field(..., min_length=1, max_length=12)
+    text: str = Field(..., min_length=1, max_length=240)
+    cue: str | None = Field(default=None, max_length=80)
+
+
 class ScriptShotLLM(BaseModel):
     """Gemini's per-shot output. t0/t1/corpus_avg/winner_avg are NOT here —
     those stay deterministic so Gemini can't drift the timing or invent
@@ -83,10 +99,16 @@ class ScriptShotLLM(BaseModel):
     ``pick_shot_references`` with the descriptor the matcher scores on.
     Optional because (a) old Gemini output doesn't have them, (b) the
     deterministic fallback fills them from the positional backbone.
+
+    S5 (2026-06-02) — ``vo`` adds structured voice-over (timed lines +
+    inline cues + ``*stress*`` markers). ``voice`` stays as the
+    flattened legacy field for back-compat with old drafts + clipboard
+    exports; both fields ship together so the FE can render either.
     """
 
     cam: str = Field(..., min_length=1, max_length=80)
     voice: str = Field(..., min_length=1, max_length=220)
+    vo: list[VoLine] | None = None
     viz: str = Field(..., min_length=1, max_length=200)
     overlay: OverlayT
     intel_scene_type: IntelSceneT
@@ -216,11 +238,16 @@ def _segment_lengths(total: int) -> list[int]:
 # Tuple shape emitted by both the Gemini path and the deterministic
 # fallback, consumed by _assemble_shots:
 #   (cam, overlay, intel_scene, voice, viz, overlay_winner,
-#    framing, pace, overlay_style, subject, motion)
+#    framing, pace, overlay_style, subject, motion, vo)
+# ``vo`` is the structured voice-over (S5) — list of {t, text, cue}
+# dicts. ``None`` on legacy paths; ``_assemble_shots`` derives a
+# single-line fallback from ``voice`` so the FE always has a rendering
+# path for the structured layout.
 _CreativeRow = tuple[
     str, OverlayT, IntelSceneT, str, str, str,
     FramingType | None, PaceType | None, OverlayStyleType | None,
     SubjectType | None, MotionType | None,
+    list[dict[str, Any]] | None,
 ]
 
 
@@ -240,9 +267,12 @@ def _deterministic_creative_rows(
          framing, pace, overlay_style, subject, motion) = row
         voice = voice_tpl.format(hook=hook, topic=topic, topic_short=topic_short, tone=tone)
         viz = viz_tpl.format(hook=hook, topic=topic, topic_short=topic_short, tone=tone)
+        # Deterministic fallback emits a single-line ``vo`` derived from
+        # the flattened voice. Caller (_assemble_shots) overrides ``t``
+        # with the real shot start once the segment lengths are known.
         out.append((
             cam, overlay, intel_scene, voice, viz, owin,
-            framing, pace, overlay_style, subject, motion,
+            framing, pace, overlay_style, subject, motion, None,
         ))
     return out
 
@@ -263,7 +293,7 @@ def _assemble_shots(
     out: list[dict[str, Any]] = []
     for i, creative_row in enumerate(creative):
         (cam, overlay, intel_scene, voice, viz, owin,
-         framing, pace, overlay_style, subject, motion) = creative_row
+         framing, pace, overlay_style, subject, motion, vo_in) = creative_row
         span = lens[i] if i < len(lens) else 1
         t1 = t0 + span
         canon_overlay = _BACKBONE[i][1]
@@ -273,12 +303,23 @@ def _assemble_shots(
         # relies on the positional overlay/intel mapping.
         final_overlay: OverlayT = overlay if overlay == canon_overlay else canon_overlay
         final_intel: IntelSceneT = intel_scene if intel_scene == canon_intel else canon_intel
+        # S5 — structured ``vo``. Prefer the upstream value (Gemini path)
+        # when it actually carries lines; otherwise derive a single-line
+        # fallback from the flat ``voice`` string so the FE always has
+        # the new shape to render. Empty / null upstream → fallback.
+        vo_lines: list[dict[str, Any]]
+        if vo_in:
+            vo_lines = list(vo_in)
+        else:
+            voice_clean = _sanitize_snippet(voice, 220)
+            vo_lines = [{"t": _format_timestamp(t0), "text": voice_clean, "cue": None}]
         out.append(
             {
                 "t0": t0,
                 "t1": t1,
                 "cam": _sanitize_snippet(cam, 80),
                 "voice": _sanitize_snippet(voice, 220),
+                "vo": vo_lines,
                 "viz": _sanitize_snippet(viz, 200),
                 "overlay": final_overlay,
                 "corpus_avg": _BACKBONE[i][5],
@@ -294,6 +335,17 @@ def _assemble_shots(
         )
         t0 = t1
     return out
+
+
+def _format_timestamp(seconds: int) -> str:
+    """Render a seconds count as ``"M:SS"`` for VO line display.
+
+    Matches the design pack's ``vo[i].t`` format (e.g. ``"0:00"``, ``"0:14"``).
+    Used by the deterministic fallback path; Gemini emits its own
+    timestamps from the prompt (see ``_call_script_gemini``).
+    """
+    s = max(0, int(seconds))
+    return f"{s // 60}:{s % 60:02d}"
 
 
 def _call_script_gemini(body: ScriptGenerateBody) -> ScriptGenerateLLM:
@@ -329,7 +381,12 @@ Cấu trúc 6 shot CỐ ĐỊNH (phải giữ đúng overlay + intel_scene_type 
 
 Với mỗi shot, viết:
 - cam: giữ đúng như template ở trên.
-- voice: voiceover 1–2 câu tiếng Việt tự nhiên, tone={body.tone}, nhắc chủ đề hoặc hook.
+- voice: voiceover dạng phẳng 1–2 câu tiếng Việt tự nhiên, tone={body.tone}, nhắc chủ đề hoặc hook (≤ 220 ký tự, dùng để export clipboard / Zalo).
+- vo: voiceover *có cấu trúc*, danh sách 1–3 dòng `{{t, text, cue?}}`:
+    • t: timestamp dạng "M:SS" trong khoảng shot (ví dụ "0:00", "0:14").
+    • text: lời thoại — CÓ THỂ chèn `*từ_nhấn*` để FE in đậm cụm cần nhấn (vd: "Mình *vừa test* xong").
+    • cue (optional): chỉ dẫn dàn dựng `[dừng 0.3s]` / `[CUT close-up]` / `[B-roll: zoom giá]` / `[SFX click]` — bỏ qua nếu không cần.
+  Nội dung `vo` ghép lại nên trùng ý với `voice`; KHÔNG dài quá `voice`.
 - viz: chỉ dẫn visual ngắn (< 20 từ) tiếng Việt.
 - overlay: theo template — KHÔNG đổi.
 - intel_scene_type: theo template — KHÔNG đổi.
@@ -385,6 +442,10 @@ def build_script_shots(body: ScriptGenerateBody) -> list[dict[str, Any]]:
                 s.cam, s.overlay, s.intel_scene_type,
                 s.voice, s.viz, s.overlay_winner or "—",
                 s.framing, s.pace, s.overlay_style, s.subject, s.motion,
+                # S5 — pass Gemini's structured ``vo`` through to the
+                # assembler. ``None`` falls back to the single-line
+                # derivation from ``voice`` inside ``_assemble_shots``.
+                [line.model_dump() for line in s.vo] if s.vo else None,
             )
             for s in llm.shots
         ]

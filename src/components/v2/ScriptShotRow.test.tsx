@@ -12,8 +12,9 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import { ScriptShotRow } from "./ScriptShotRow";
 
-// ShotReferenceStrip + ShotTypeVisual aren't relevant to the regen
-// button — short-circuit them so tests stay deterministic.
+// ShotReferenceStrip + ShotTypeVisual aren't relevant here — short-
+// circuit them so tests stay deterministic. FormattedVO + CueChip stay
+// real so the structured-vo test below can assert against rendered text.
 vi.mock("@/components/v2/ShotReferenceStrip", () => ({
   ShotReferenceStrip: () => null,
 }));
@@ -95,5 +96,41 @@ describe("ScriptShotRow — per-shot regenerate", () => {
     // Click is a no-op while regenerating.
     fireEvent.click(btn);
     expect(onRegenerate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScriptShotRow — structured VO (S5)", () => {
+  it("renders structured vo with timestamps + bold stress + cue chips", () => {
+    const shot = makeShot({
+      voice: "Mình vừa test xong, khác thật sự hẳn",
+      vo: [
+        { t: "0:00", text: "Mình *vừa test* xong.", cue: null },
+        { t: "0:01", text: "Khác *thật sự* hẳn.", cue: "[dừng 0.3s]" },
+      ],
+    });
+    const { container } = render(
+      <ScriptShotRow shot={shot} idx={0} active={false} onClick={vi.fn()} />,
+    );
+    // Both timestamps render
+    expect(screen.getByText("0:00")).toBeTruthy();
+    expect(screen.getByText("0:01")).toBeTruthy();
+    // Stress markers wrap into <strong>
+    const strongs = container.querySelectorAll("strong");
+    expect(strongs.length).toBe(2);
+    expect(strongs[0]?.textContent).toBe("vừa test");
+    expect(strongs[1]?.textContent).toBe("thật sự");
+    // Cue chip on the second line
+    expect(screen.getByText("dừng 0.3s")).toBeTruthy();
+    // Legacy flat ``"voice"`` rendering is NOT present when vo is set.
+    expect(screen.queryByText('"Mình vừa test xong, khác thật sự hẳn"')).toBeNull();
+  });
+
+  it("falls back to flat voice string when vo is empty/missing", () => {
+    const shot = makeShot({ voice: "Voice cũ", vo: undefined });
+    render(
+      <ScriptShotRow shot={shot} idx={0} active={false} onClick={vi.fn()} />,
+    );
+    // Legacy quoted display.
+    expect(screen.getByText('"Voice cũ"')).toBeTruthy();
   });
 });
