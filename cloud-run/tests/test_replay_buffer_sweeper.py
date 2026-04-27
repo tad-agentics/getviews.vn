@@ -28,6 +28,42 @@ def test_ttl_matches_claudemd_60s() -> None:
     assert session_store._STREAM_REPLAY_TTL_SEC == 60.0
 
 
+def test_put_with_seq_dicts_round_trips_seq_verbatim() -> None:
+    """M5 — buffer stores explicit seq per item so replay re-emits the
+    same seq the client saw live (not list-index drift)."""
+    items = [
+        {"seq": 7, "delta": "alpha"},
+        {"seq": 8, "delta": "beta"},
+        {"seq": 9, "delta": "", "done": True},
+    ]
+    session_store.put_stream_chunks("stream-seq", items)
+    out = session_store.get_stream_chunks("stream-seq")
+    assert out == items
+
+
+def test_put_with_legacy_strings_auto_stamps_seq() -> None:
+    """Legacy callers that still pass list[str] keep working — auto-stamped
+    seq=1..N. Removes the migration burden for low-traffic helpers."""
+    session_store.put_stream_chunks("stream-legacy", ["a", "b", "c"])
+    out = session_store.get_stream_chunks("stream-legacy")
+    assert out is not None
+    assert [item["seq"] for item in out] == [1, 2, 3]
+    assert [item["delta"] for item in out] == ["a", "b", "c"]
+
+
+def test_get_returns_copies_not_aliases() -> None:
+    """Mutating the returned list / dicts must not corrupt the cache."""
+    session_store.put_stream_chunks(
+        "stream-copy", [{"seq": 1, "delta": "x"}]
+    )
+    first = session_store.get_stream_chunks("stream-copy")
+    assert first is not None
+    first[0]["delta"] = "MUTATED"
+    second = session_store.get_stream_chunks("stream-copy")
+    assert second is not None
+    assert second[0]["delta"] == "x"
+
+
 def test_sweep_drops_expired_entries() -> None:
     """``sweep_expired_stream_chunks`` returns # removed and prunes them."""
     session_store.put_stream_chunks("fresh", ["a", "b"])
