@@ -1,4 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap");
+/* JetBrains Mono + Instrument Serif are loaded via <link rel="preconnect"> +
+ * <link rel="stylesheet"> in src/root.tsx Layout <head>. A CSS @import here
+ * would force the browser to download the parent stylesheet, parse it,
+ * discover the @import, then serially fetch fonts.googleapis.com — a chain
+ * that turns the page blank on slow networks (or when Google Fonts is slow
+ * for VN users) until the import finishes. Loading from <head> parallelises
+ * the font CSS fetch with the rest of the critical path. */
 @import "tailwindcss";
 @import "tw-animate-css";
 

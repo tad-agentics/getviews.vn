@@ -25,6 +25,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
         <link rel="manifest" href="/manifest.json" />
+        {/* Google Fonts: loaded via <link> tags (not CSS @import) so the
+         * browser pre-parser discovers them in parallel with the main
+         * stylesheet. With CSS @import the fetch was serialised behind
+         * root-*.css parsing, leaving the prerendered landing blank on
+         * slow networks until Google Fonts CSS finished. ``font-display:
+         * swap`` (in the URL) lets the page paint with system fallbacks
+         * the moment our own CSS is ready. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap"
+        />
         <Meta />
         <Links />
       </head>
