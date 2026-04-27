@@ -521,8 +521,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   function SidebarContent({ onClose }: { onClose?: () => void }) {
     return (
       <>
-        {/* Brand — cùng band với TopBar: min-h + py-3.5 (56 / 64px), viền đáy khớp header trang */}
-        <div className="box-border flex h-14 items-center justify-between gap-3 border-b border-[color:var(--gv-rule)] px-4 md:h-16 md:px-5">
+        {/* Brand — cùng band với TopBar: min-h + py-3.5 (56 / 64px), viền đáy khớp header trang.
+            Adds top safe-area inset so the row clears the iOS notch when the
+            mobile drawer is open. h-* swapped for min-h-* so the inset
+            doesn't squash the LogoMark on notched iPhones. On desktop the
+            inset resolves to 0 — no visual change. */}
+        <div className="box-border flex min-h-14 items-center justify-between gap-3 border-b border-[color:var(--gv-rule)] px-4 pt-[env(safe-area-inset-top)] md:min-h-16 md:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <LogoMark />
             <div className="min-w-0 leading-none">
