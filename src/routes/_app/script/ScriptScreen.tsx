@@ -4,6 +4,7 @@ import { Copy, Film, Loader2, Plus, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { IdeaWorkspace } from "./IdeaWorkspace";
+import { IdeaRefStrip } from "./IdeaRefStrip";
 import { Btn } from "@/components/v2/Btn";
 import { CardInput } from "@/components/v2/CardInput";
 import { Chip } from "@/components/v2/Chip";
@@ -716,6 +717,17 @@ function ScriptDetailScreen() {
                 </aside>
 
                 <div className="min-w-0 min-[881px]:max-[1240px]:col-span-2 min-[1241px]:col-span-1">
+                  {/* IdeaRefStrip — 5 viral videos in this niche matching
+                      the chosen hook. Sits above the storyboard so creators
+                      can scan reference cadence/overlay before reading
+                      their own shot list. Hook is the in-app selection
+                      (``selectedHook``), which already accepts both the VN
+                      pattern label and the raw enum. */}
+                  <IdeaRefStrip
+                    nicheId={effectiveNicheId}
+                    hookType={selectedHook || null}
+                    ideaAngle={selectedHook || topic}
+                  />
                   <ScriptPacingRibbon
                     shots={mergedShots}
                     activeShot={activeShot}
