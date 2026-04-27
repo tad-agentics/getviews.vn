@@ -136,6 +136,35 @@ def _is_transient_gemini_error(exc: Exception) -> bool:
     return any(kw in msg for kw in ("503", "429", "rate limit", "quota", "overloaded", "resource exhausted"))
 
 
+# Vietnamese creator content includes everyday-life topics (drinking, dating
+# advice, weight loss, finance hooks) that the SDK default
+# BLOCK_MEDIUM_AND_ABOVE will silently refuse — those refusals show up as
+# generic "synthesis failed" toasts in the UI. We pin BLOCK_ONLY_HIGH so
+# only clearly harmful output is filtered, and we know we're explicit
+# about it instead of inheriting the SDK default.
+def _default_safety_settings() -> list[types.SafetySetting]:
+    threshold = types.HarmBlockThreshold.BLOCK_ONLY_HIGH
+    categories = (
+        types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+        types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    )
+    return [types.SafetySetting(category=c, threshold=threshold) for c in categories]
+
+
+def _ensure_safety_settings(
+    config: types.GenerateContentConfig | None,
+) -> types.GenerateContentConfig:
+    """Return a config with default safety_settings applied unless the
+    caller already specified some. Never overwrites caller intent."""
+    if config is None:
+        return types.GenerateContentConfig(safety_settings=_default_safety_settings())
+    if getattr(config, "safety_settings", None):
+        return config
+    return config.model_copy(update={"safety_settings": _default_safety_settings()})
+
+
 def _generate_content_models(
     contents: Any,
     *,
@@ -168,6 +197,11 @@ def _generate_content_models(
     # is on. No-op when the cap is 0 (legacy / dev).
     check_gemini_daily_budget(call_site)
 
+    # M2: pin explicit safety_settings so we don't inherit the SDK default
+    # (BLOCK_MEDIUM_AND_ABOVE), which silently refuses benign Vietnamese
+    # creator content. The helper preserves caller-supplied settings.
+    effective_config = _ensure_safety_settings(config)
+
     client = _get_client()
     chain = [primary_model, *fallbacks]
     seen: set[str] = set()
@@ -182,9 +216,11 @@ def _generate_content_models(
         for attempt, delay in enumerate(_RETRY_DELAYS):
             try:
                 started = time.monotonic()
-                kwargs: dict[str, Any] = {"model": m, "contents": contents}
-                if config is not None:
-                    kwargs["config"] = config
+                kwargs: dict[str, Any] = {
+                    "model": m,
+                    "contents": contents,
+                    "config": effective_config,
+                }
                 response = client.models.generate_content(**kwargs)
                 duration_ms = int((time.monotonic() - started) * 1000)
                 tokens_in, tokens_out = extract_usage(response)
