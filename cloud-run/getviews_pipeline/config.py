@@ -147,6 +147,54 @@ GEMINI_DAILY_USD_CACHE_SEC = int(
     os.environ.get("GEMINI_DAILY_USD_CACHE_SEC", "60") or "60"
 )
 
+
+def _warn_unbounded_budgets() -> None:
+    """Surface unbounded production budgets at boot.
+
+    Defaults stay backward-compatible (``0`` = disabled) so existing
+    deploys keep working, but a runaway corpus ingest or classifier
+    storm shouldn't be silently uncapped. We log at WARN once on import
+    so operators see it in Cloud Run logs.
+    """
+    if ED_BATCH_DAILY_REQUEST_MAX <= 0:
+        logger.warning(
+            "[budget] ED_BATCH_DAILY_REQUEST_MAX=0 (unlimited). "
+            "Set a per-day cap to protect the EnsembleData budget."
+        )
+    elif not ED_BATCH_BUDGET_ENFORCE:
+        logger.warning(
+            "[budget] ED_BATCH_DAILY_REQUEST_MAX=%d but ED_BATCH_BUDGET_ENFORCE=false "
+            "(log-only). Set ED_BATCH_BUDGET_ENFORCE=true to enforce the cap.",
+            ED_BATCH_DAILY_REQUEST_MAX,
+        )
+    if CLASSIFIER_GEMINI_DAILY_MAX <= 0:
+        logger.warning(
+            "[budget] CLASSIFIER_GEMINI_DAILY_MAX=0 (unlimited). "
+            "Tier-3 intent classification is uncapped — a stuck client could "
+            "blow through Gemini quota."
+        )
+    if GEMINI_DAILY_USD_MAX <= 0:
+        logger.warning(
+            "[budget] GEMINI_DAILY_USD_MAX=0 (unlimited). "
+            "Global Gemini spend has no daily ceiling — set a USD cap to "
+            "protect the ~$70/mo target documented in CLAUDE.md."
+        )
+    elif not GEMINI_DAILY_USD_ENFORCE:
+        logger.warning(
+            "[budget] GEMINI_DAILY_USD_MAX=$%.2f but GEMINI_DAILY_USD_ENFORCE=false "
+            "(log-only). Set GEMINI_DAILY_USD_ENFORCE=true to block calls "
+            "once the cap is hit.",
+            GEMINI_DAILY_USD_MAX,
+        )
+    if not os.environ.get("RESIDENTIAL_PROXY_URL"):
+        logger.warning(
+            "[net] RESIDENTIAL_PROXY_URL is unset. TikTok CDN downloads will "
+            "go directly from Cloud Run datacenter IPs and may be blocked."
+        )
+
+
+_warn_unbounded_budgets()
+
 # TTL cache for hot user-path ED calls (seconds). 0 = disabled.
 ENSEMBLE_USER_PATH_CACHE_TTL_SEC = int(
     os.environ.get("ENSEMBLE_USER_PATH_CACHE_TTL_SEC", "300") or "300"
