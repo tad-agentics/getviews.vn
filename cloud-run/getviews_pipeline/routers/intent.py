@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import AliasChoices, BaseModel, Field
 
+from getviews_pipeline.config import TIKTOK_ALLOWED_HOSTS
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.gemini import classify_intent_gemini, gemini_text_only
 from getviews_pipeline.intent_router import destination_for_gemini_primary_label
@@ -54,6 +55,11 @@ _FREE_GATED_INTENTS = frozenset({"trend_spike", "creator_search"})
 
 _PROFILE_HANDLE_RE = re.compile(r"tiktok\.com/@([a-zA-Z0-9_.]+)", re.IGNORECASE)
 _SHORT_TIKTOK_HOSTS = {"vm.tiktok.com", "vt.tiktok.com", "m.tiktok.com"}
+# Hosts the resolved (post-redirect) URL must land on. Superset of
+# ``TIKTOK_ALLOWED_HOSTS`` plus the short-link hosts, since some
+# resolves stay on the short host (rare). Anything else = SSRF guard
+# trips.
+_RESOLVED_TIKTOK_HOSTS = TIKTOK_ALLOWED_HOSTS | _SHORT_TIKTOK_HOSTS
 
 
 def _normalize_intent_name(raw: str | None) -> str | None:
@@ -81,13 +87,39 @@ def _is_short_tiktok_url(url: str) -> bool:
 
 
 def _resolve_short_url(url: str, timeout: float = 8.0) -> str:
-    """Follow redirects on a short TikTok URL and return the final URL."""
+    """Follow redirects on a short TikTok URL and return the final URL.
+
+    SSRF guard: ``follow_redirects=True`` would otherwise let an
+    attacker craft a short link whose final ``Location`` points at
+    ``169.254.169.254`` (cloud metadata) or any internal hostname.
+    Every hop in the chain — including the terminal one — must
+    resolve to a host in ``_RESOLVED_TIKTOK_HOSTS``; otherwise we
+    abort and return the original short URL (downstream pipelines
+    will surface a "không phải TikTok URL" error).
+    """
     try:
-        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
-            resp = client.head(url, headers={"User-Agent": "Mozilla/5.0"})
-            final = str(resp.url)
-            logger.info("[short_url] resolved %s → %s", url, final)
-            return final
+        with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+            current = url
+            for _ in range(5):
+                resp = client.head(current, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code in (301, 302, 303, 307, 308):
+                    location = resp.headers.get("location")
+                    if not location:
+                        break
+                    nxt = str(httpx.URL(current).join(location))
+                    nxt_host = urlparse(nxt).netloc.lower()
+                    if nxt_host not in _RESOLVED_TIKTOK_HOSTS:
+                        logger.warning(
+                            "[short_url] redirect target %s rejected (host=%s) — using original",
+                            nxt,
+                            nxt_host,
+                        )
+                        return url
+                    current = nxt
+                    continue
+                break
+            logger.info("[short_url] resolved %s → %s", url, current)
+            return current
     except Exception as exc:
         logger.warning("[short_url] could not resolve %s: %s — using original", url, exc)
         return url
