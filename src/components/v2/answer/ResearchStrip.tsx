@@ -68,7 +68,7 @@ export function ResearchProcessBar({
 
   return (
     <div
-      className="mt-5 flex flex-col gap-3 border-y border-[color:var(--gv-rule)] py-4 min-[720px]:flex-row min-[720px]:items-center min-[720px]:justify-between"
+      className="mt-5 flex flex-col gap-3 border-y border-[color:var(--gv-rule)] py-4 min-[700px]:flex-row min-[700px]:items-center min-[700px]:justify-between"
       aria-label="Tiến trình nghiên cứu"
     >
       <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1 gap-y-2 text-[13px] leading-snug text-[color:var(--gv-ink-2)]">

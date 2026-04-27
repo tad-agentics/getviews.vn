@@ -31,7 +31,7 @@ export function GenericEvidenceGrid({
   if (items.length === 0) return null;
   return (
     <ul
-      className="grid grid-cols-1 gap-[14px] min-[720px]:grid-cols-3"
+      className="grid grid-cols-1 gap-[14px] min-[700px]:grid-cols-3"
       aria-label="Video mẫu"
     >
       {items.slice(0, 3).map((v, i) => (

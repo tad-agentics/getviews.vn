@@ -530,7 +530,7 @@ function VideoAnalysisBodyInner({
 
         {showCommentRadarTile || showThumbnailTile ? (
           <section aria-label="Thumbnail và bình luận">
-            <div className="grid grid-cols-1 gap-4 min-[640px]:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {showCommentRadarTile && data.comment_radar ? (
                 <CommentRadarTile data={data.comment_radar} />
               ) : null}
@@ -558,7 +558,7 @@ function VideoAnalysisBodyInner({
               {data.lessons.map((lesson, i) => (
                 <li
                   key={`${lesson.title}-${i}`}
-                  className="grid grid-cols-1 items-center gap-3 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5 min-[520px]:grid-cols-[40px_1fr_auto] min-[520px]:gap-4"
+                  className="grid grid-cols-1 items-center gap-3 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5 sm:grid-cols-[40px_1fr_auto] sm:gap-4"
                 >
                   <span className="gv-tight text-2xl text-[color:var(--gv-accent)]">0{i + 1}</span>
                   <div className="min-w-0">
@@ -569,7 +569,7 @@ function VideoAnalysisBodyInner({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-center min-[520px]:w-auto"
+                    className="w-full justify-center sm:w-auto"
                     onClick={() => applyLesson(lesson)}
                   >
                     Áp dụng
@@ -589,7 +589,7 @@ function VideoAnalysisBodyInner({
               ))}
             </div>
             {data.projected_views != null ? (
-              <div className="mt-6 flex flex-col gap-4 bg-[color:var(--gv-ink)] px-5 py-4 text-[color:var(--gv-paper)] min-[640px]:flex-row min-[640px]:flex-wrap min-[640px]:items-center min-[640px]:justify-between">
+              <div className="mt-6 flex flex-col gap-4 bg-[color:var(--gv-ink)] px-5 py-4 text-[color:var(--gv-paper)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div>
                   <div className="gv-mono text-[9.5px] uppercase tracking-[0.16em] opacity-60">
                     Dự đoán nếu áp fix chính
@@ -598,7 +598,7 @@ function VideoAnalysisBodyInner({
                     ~<span className="text-[color:var(--gv-pos)]">{formatViewsVi(data.projected_views)}</span> view
                   </p>
                 </div>
-                <Btn type="button" variant="accent" className="w-full min-[640px]:w-auto" onClick={goScript}>
+                <Btn type="button" variant="accent" className="w-full sm:w-auto" onClick={goScript}>
                   Viết lại kịch bản
                   <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
                 </Btn>

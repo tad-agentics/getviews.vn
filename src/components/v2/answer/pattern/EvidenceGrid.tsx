@@ -25,7 +25,7 @@ function EvidenceThumb({ item }: { item: EvidenceCardPayloadData }) {
 export function EvidenceGrid({ items }: { items: EvidenceCardPayloadData[] }) {
   if (items.length === 0) return null;
   return (
-    <ul className="grid grid-cols-1 gap-3 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2 min-[1100px]:grid-cols-3">
       {items.map((v, i) => (
         <li
           key={`${v.video_id}-${i}`}

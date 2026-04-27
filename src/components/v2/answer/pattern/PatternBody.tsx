@@ -55,7 +55,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
         <h3 className="gv-serif mb-1 text-[22px] leading-snug text-[color:var(--gv-ink)]">Điều bạn nên biết</h3>
         <p className="gv-serif text-[22px] leading-snug text-[color:var(--gv-ink)]">{report.tldr.thesis}</p>
         {report.tldr.callouts && report.tldr.callouts.length > 0 ? (
-          <div className="mt-6 grid grid-cols-1 gap-4 border-y border-[color:var(--gv-ink)] py-6 min-[560px]:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-4 border-y border-[color:var(--gv-ink)] py-6 sm:grid-cols-3">
             {report.tldr.callouts.map((c) => (
               <div key={c.label} className="text-center">
                 <p className="gv-mono text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">{c.label}</p>

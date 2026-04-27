@@ -48,7 +48,7 @@ export function VideoUrlCapture({
 
   return (
     <div className={wrap}>
-      <div className="flex flex-col gap-3 min-[640px]:flex-row min-[640px]:items-center min-[640px]:gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex shrink-0 items-center gap-2 text-[color:var(--gv-ink-2)]">
           <Film className="h-4 w-4" strokeWidth={1.75} aria-hidden />
           {variant === "hero" ? (
