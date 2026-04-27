@@ -3,6 +3,8 @@ import { TrendingUp } from "lucide-react";
 
 import type { DouyinPattern } from "@/lib/api-types";
 
+import { formatRisePct } from "./douyinFormatters";
+
 /**
  * D5e (2026-06-05) — Kho Douyin · single pattern card.
  *
@@ -82,9 +84,3 @@ export const DouyinPatternCard = memo(function DouyinPatternCard({
     </article>
   );
 });
-
-
-function formatRisePct(pct: number | null): string | null {
-  if (pct == null || !Number.isFinite(pct) || pct <= 0) return null;
-  return `+${Math.round(pct)}%`;
-}

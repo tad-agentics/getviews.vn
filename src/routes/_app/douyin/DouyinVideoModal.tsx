@@ -21,7 +21,14 @@ import type {
 } from "@/lib/api-types";
 import { formatViews } from "@/lib/formatters";
 
-import { ADAPT_META } from "./DouyinVideoCard";
+import {
+  ADAPT_META,
+  DOUYIN_SUB_VN_GREEN,
+  PENDING_ADAPT_META,
+  formatEngagementPct,
+  formatEtaWeeks,
+  formatRisePct,
+} from "./douyinFormatters";
 
 /**
  * D4d (2026-06-04) — Kho Douyin · video modal.
@@ -44,9 +51,6 @@ import { ADAPT_META } from "./DouyinVideoCard";
  * suppress the reason / ETA / cn_rise lines + translator notes section
  * — they have no graded content yet.
  */
-
-const PENDING_TONE_CLASS =
-  "border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]";
 
 export type DouyinVideoModalProps = {
   video: DouyinVideo | null;
@@ -160,7 +164,7 @@ function DouyinVideoModalBody({
             >
               <p
                 className="gv-mono mb-0.5 text-[7px] uppercase tracking-[0.05em]"
-                style={{ color: "#7CD9A3" }}
+                style={{ color: DOUYIN_SUB_VN_GREEN }}
               >
                 Sub VN
               </p>
@@ -268,7 +272,7 @@ function DouyinVideoModalBody({
 
 
 function StatsGrid({ video }: { video: DouyinVideo }) {
-  const er = formatErPct(video.engagement_rate);
+  const er = formatEngagementPct(video.engagement_rate);
   return (
     <section
       className="mb-5 grid grid-cols-4 gap-3 border-b border-[color:var(--gv-rule)] pb-5"
@@ -309,7 +313,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
       ? ADAPT_META[video.adapt_level as DouyinAdaptLevel]
       : null;
   const eta = formatEtaWeeks(video.eta_weeks_min, video.eta_weeks_max);
-  const rise = formatRiseFromCnPct(video.cn_rise_pct);
+  const rise = formatRisePct(video.cn_rise_pct);
 
   return (
     <section
@@ -323,7 +327,7 @@ function AdaptStrip({ video }: { video: DouyinVideo }) {
         <span
           className={
             "gv-mono inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em] " +
-            (meta ? meta.toneClass : PENDING_TONE_CLASS)
+            (meta ? meta.toneClass : PENDING_ADAPT_META.toneClass)
           }
           data-adapt-level={video.adapt_level ?? "pending"}
         >
@@ -406,27 +410,4 @@ function TranslatorNotesSection({ notes }: { notes: DouyinTranslatorNote[] }) {
 }
 
 
-// ── Local formatters ────────────────────────────────────────────────
-
-
-function formatErPct(er: number | null): string {
-  if (er == null || !Number.isFinite(er)) return "—";
-  // BE stores ER as percent (0..100). Round to 1 decimal.
-  return `${er.toFixed(1)}%`;
-}
-
-
-function formatEtaWeeks(min: number | null, max: number | null): string | null {
-  if (min == null && max == null) return null;
-  if (min != null && max != null) {
-    if (min === max) return `${min} tuần`;
-    return `${min}–${max} tuần`;
-  }
-  return `${min ?? max} tuần`;
-}
-
-
-function formatRiseFromCnPct(pct: number | null): string | null {
-  if (pct == null || !Number.isFinite(pct) || pct <= 0) return null;
-  return `+${Math.round(pct)}%`;
-}
+// Formatters live in ``./douyinFormatters`` (D6b consolidation).

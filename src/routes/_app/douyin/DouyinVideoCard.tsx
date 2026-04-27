@@ -1,8 +1,17 @@
 import { memo } from "react";
 import { Bookmark, Play } from "lucide-react";
 
-import type { DouyinAdaptLevel, DouyinVideo } from "@/lib/api-types";
+import type { DouyinVideo } from "@/lib/api-types";
 import { formatViews } from "@/lib/formatters";
+
+import {
+  ADAPT_META,
+  DOUYIN_SUB_VN_GREEN,
+  PENDING_ADAPT_META,
+  formatDuration,
+  formatRelativeIso,
+  formatRisePct,
+} from "./douyinFormatters";
 
 /**
  * D4b (2026-06-04) — Kho Douyin · single video card.
@@ -22,73 +31,8 @@ import { formatViews } from "@/lib/formatters";
  * ``useDouyinSavedSet``.
  */
 
-// ── ADAPT_META: colour-coded chip per design pack lines 443-447. ──
-// Token-driven where possible; falls back to design pack hex when no
-// existing GV token covers the exact tone.
-
-type AdaptMeta = {
-  label: string;
-  short: string;
-  /** className tail for ``border-[color:...]`` / ``bg-[color:...]``. */
-  toneClass: string;
-};
-
-const ADAPT_META: Record<DouyinAdaptLevel, AdaptMeta> = {
-  green: {
-    label: "Dịch thẳng",
-    short: "XANH",
-    // Design's #3DA66E — close enough to gv-pos-deep that we reuse the token.
-    toneClass:
-      "border-[color:var(--gv-pos-deep)] bg-[color:var(--gv-pos-soft)] text-[color:var(--gv-pos-deep)]",
-  },
-  yellow: {
-    label: "Cần đổi bối cảnh",
-    short: "VÀNG",
-    toneClass:
-      "border-[color:var(--gv-warn)] bg-[color:var(--gv-warn-soft)] text-[color:var(--gv-warn)]",
-  },
-  red: {
-    label: "Khó dịch",
-    short: "ĐỎ",
-    toneClass:
-      "border-[color:var(--gv-accent-deep)] bg-[color:var(--gv-accent-soft)] text-[color:var(--gv-accent-deep)]",
-  },
-};
-
-const PENDING_META: AdaptMeta = {
-  label: "Đang chờ duyệt",
-  short: "CHỜ",
-  toneClass:
-    "border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]",
-};
-
-
-function _formatDuration(durationSec: number | null): string | null {
-  if (durationSec == null || !Number.isFinite(durationSec) || durationSec <= 0) {
-    return null;
-  }
-  const total = Math.round(durationSec);
-  const mm = Math.floor(total / 60);
-  const ss = total % 60;
-  return `${mm}:${ss.toString().padStart(2, "0")}`;
-}
-
-function _formatRelativeIso(iso: string | null): string | null {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return null;
-  const days = Math.floor((Date.now() - t) / 86_400_000);
-  if (days <= 0) return "Hôm nay";
-  if (days === 1) return "Hôm qua";
-  if (days < 7) return `${days} ngày trước`;
-  if (days < 30) return `${Math.floor(days / 7)} tuần trước`;
-  return `${Math.floor(days / 30)} tháng trước`;
-}
-
-function _formatRiseFromCnPct(pct: number | null): string | null {
-  if (pct == null || !Number.isFinite(pct) || pct <= 0) return null;
-  return `+${Math.round(pct)}%`;
-}
+// ADAPT_META + PENDING_ADAPT_META + formatters live in
+// ``./douyinFormatters`` (D6b consolidation — audit finding H4).
 
 
 // ── Card ────────────────────────────────────────────────────────────
@@ -109,10 +53,10 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
   onToggleSave,
   onOpen,
 }: DouyinVideoCardProps) {
-  const meta = video.adapt_level ? ADAPT_META[video.adapt_level] : PENDING_META;
-  const duration = _formatDuration(video.video_duration);
-  const relTime = _formatRelativeIso(video.indexed_at);
-  const rise = _formatRiseFromCnPct(video.cn_rise_pct);
+  const meta = video.adapt_level ? ADAPT_META[video.adapt_level] : PENDING_ADAPT_META;
+  const duration = formatDuration(video.video_duration);
+  const relTime = formatRelativeIso(video.indexed_at);
+  const rise = formatRisePct(video.cn_rise_pct);
   const subText = (video.sub_vi || video.title_vi || video.title_zh || "").trim();
 
   const handleCardClick = (): void => {
@@ -214,7 +158,7 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
           >
             <p
               className="gv-mono mb-0.5 text-[7px] uppercase tracking-[0.05em]"
-              style={{ color: "#7CD9A3" }}
+              style={{ color: DOUYIN_SUB_VN_GREEN }}
             >
               Sub VN
             </p>
@@ -236,7 +180,7 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
             {rise ? (
               <span
                 className="gv-mono"
-                style={{ color: "#7CD9A3" }}
+                style={{ color: DOUYIN_SUB_VN_GREEN }}
                 aria-label={`Tăng ${rise} so với 14 ngày trước`}
               >
                 {rise}
@@ -294,6 +238,6 @@ export const DouyinVideoCard = memo(function DouyinVideoCard({
   );
 });
 
-// Exported for D4c (toolbar) so the adapt-level filter chips can label
-// each tone consistently with the card chips.
-export { ADAPT_META };
+// ADAPT_META + PENDING_ADAPT_META are exported from
+// ``./douyinFormatters`` (D6b). Toolbar / Modal / PatternCard import
+// directly from there; no re-export needed here.
