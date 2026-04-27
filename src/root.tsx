@@ -9,6 +9,7 @@ import {
 import { AuthProvider } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import "./app.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -78,6 +79,7 @@ export default function App() {
       <AuthProvider>
         <TooltipProvider delayDuration={200}>
           <Outlet />
+          <PwaUpdatePrompt />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
