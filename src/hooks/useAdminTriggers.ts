@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export interface AdminTriggerJob {
   id: string;
@@ -54,6 +55,7 @@ async function adminFetch(path: string, init?: RequestInit): Promise<Response> {
 /** Server-side job catalog. The SPA renders forms off `body_schema` so
  *  adding a job on the backend doesn't require a frontend redeploy. */
 export function useAdminTriggerCatalog() {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "triggers", "catalog"] as const,
     queryFn: async (): Promise<AdminTriggerJob[]> => {
@@ -63,6 +65,11 @@ export function useAdminTriggerCatalog() {
       const data = (await res.json()) as { jobs: AdminTriggerJob[] };
       return data.jobs;
     },
+    // Gate by admin status so non-admins don't fire a 403 on every
+    // mount. Server-side ``require_admin`` remains the source of
+    // truth — this is purely a client-side bandwidth + console-noise
+    // tidy.
+    enabled: isAdmin,
     staleTime: 10 * 60_000,
   });
 }
@@ -99,9 +106,10 @@ export function useAdminTrigger() {
  *  the dashboard's summary strip reflects a fresh ingest. */
 export function useAdminJobPoll(jobId: string | null) {
   const qc = useQueryClient();
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "job", jobId] as const,
-    enabled: Boolean(jobId),
+    enabled: Boolean(jobId) && isAdmin,
     refetchInterval: (q) => {
       const status = (q.state.data as { job?: AdminJobRow } | undefined)?.job?.result_status;
       if (status === "ok" || status === "error") return false;

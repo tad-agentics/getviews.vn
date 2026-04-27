@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export type AlertSeverity = "info" | "warn" | "crit";
 export type AlertPhase = "firing" | "cleared";
@@ -22,8 +23,10 @@ export interface AdminAlertFiresResponse {
 }
 
 export function useAdminAlertFires(limit = 20) {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "alert-fires", limit] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<AdminAlertFiresResponse> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");

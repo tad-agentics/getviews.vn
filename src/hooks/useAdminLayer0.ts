@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export interface Layer0Run {
   id: string;
@@ -59,8 +60,10 @@ export interface AdminLayer0Response {
  * awaiting human review.
  */
 export function useAdminLayer0() {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "layer0-health"] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<AdminLayer0Response> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export type ClaimTier =
   | "none"
@@ -43,8 +44,10 @@ export interface CorpusHealthResponse {
  * running it on every focus-refetch is wasteful.
  */
 export function useCorpusHealth() {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "corpus-health"] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<CorpusHealthResponse> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export interface EnsembleCallSiteBucket {
   key: string;
@@ -28,8 +29,10 @@ export interface EnsembleCallSitesResponse {
  * corpus_ingest.batch" without stitching queries together.
  */
 export function useEnsembleCallSites(days = 7) {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "ensemble-call-sites", days] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<EnsembleCallSitesResponse> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");

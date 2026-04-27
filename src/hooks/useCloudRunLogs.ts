@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export type LogSeverity =
   | "DEFAULT"
@@ -45,8 +46,10 @@ export interface LogsQueryParams {
  */
 export function useCloudRunLogs(params: LogsQueryParams = {}) {
   const { limit = 100, severity = "INFO", minutes = 60 } = params;
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "logs", { limit, severity, minutes }] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<CloudRunLogsResponse> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");

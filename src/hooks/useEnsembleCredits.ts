@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export interface EnsembleDailyUnits {
   date: string;
@@ -26,8 +27,10 @@ export interface EnsembleCreditsResponse {
  * null means "not set", and the panel hides remainder math in that case.
  */
 export function useEnsembleCredits(days = 14) {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "ensemble-credits", days] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<EnsembleCreditsResponse> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");
