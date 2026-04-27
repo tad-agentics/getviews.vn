@@ -1,5 +1,6 @@
 export const config = { runtime: "edge" };
 import { createClient } from "@supabase/supabase-js";
+import { buildCorsHeaders } from "./_cors";
 
 // Use service role key to bypass RLS — this route runs server-side only,
 // the key is never exposed to the browser.
@@ -8,7 +9,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
 );
 
-export default async function handler(_req: Request): Promise<Response> {
+export default async function handler(req: Request): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(req);
   const [hooksRes, thumbsRes] = await Promise.all([
     // Top 6 hook types by avg_views across all niches, no niche filter
     supabase
@@ -49,7 +51,7 @@ export default async function handler(_req: Request): Promise<Response> {
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
-      "Access-Control-Allow-Origin": "*",
+      ...corsHeaders,
     },
   });
 }
