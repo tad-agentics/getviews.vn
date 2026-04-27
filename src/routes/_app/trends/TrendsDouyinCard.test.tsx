@@ -2,12 +2,34 @@
  * PR-T5 Trends — TrendsDouyinCard render-test.
  *
  * Reference: design pack ``screens/trends.jsx`` lines 351-384.
+ *
+ * D7 (2026-06-06) — the card now pulls live counts from
+ * ``useDouyinFeed`` + ``useDouyinPatterns``. We mock both hooks so
+ * tests stay deterministic and avoid the network.
  */
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { MemoryRouter, Routes, Route, useLocation } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TrendsDouyinCard } from "./TrendsDouyinCard";
+const useDouyinFeed = vi.fn();
+vi.mock("@/hooks/useDouyinFeed", () => ({
+  useDouyinFeed: () => useDouyinFeed(),
+}));
+
+const useDouyinPatterns = vi.fn();
+vi.mock("@/hooks/useDouyinPatterns", () => ({
+  useDouyinPatterns: () => useDouyinPatterns(),
+}));
+
+const { TrendsDouyinCard } = await import("./TrendsDouyinCard");
+
+beforeEach(() => {
+  useDouyinFeed.mockReset();
+  useDouyinPatterns.mockReset();
+  // Default: empty data — card renders count-less fallback copy.
+  useDouyinFeed.mockReturnValue({ data: undefined });
+  useDouyinPatterns.mockReturnValue({ data: undefined });
+});
 
 afterEach(() => {
   cleanup();
@@ -30,11 +52,24 @@ function wrap() {
 }
 
 describe("TrendsDouyinCard", () => {
-  it("renders the kicker, mid-line, and caption per design", () => {
+  it("renders the kicker, count-less mid-line, and caption when feed/patterns are empty", () => {
     const { getByText } = wrap();
     expect(getByText(/TÍN HIỆU SỚM · DOUYIN → VN/)).toBeTruthy();
     expect(getByText(/Pattern đang nổ ở TQ · video đã sub VN/)).toBeTruthy();
     expect(getByText(/Đi trước VN 4–10 tuần · không cần VPN/)).toBeTruthy();
+  });
+
+  it("renders the live count line when both hooks have data", () => {
+    useDouyinFeed.mockReturnValue({
+      data: { niches: [], videos: new Array(16).fill(null) },
+    });
+    useDouyinPatterns.mockReturnValue({
+      data: { patterns: new Array(3).fill(null) },
+    });
+    const { getByText } = wrap();
+    expect(
+      getByText(/3 pattern đang nổ ở TQ · 16 video đã sub VN/),
+    ).toBeTruthy();
   });
 
   it("navigates to /app/douyin on click", () => {

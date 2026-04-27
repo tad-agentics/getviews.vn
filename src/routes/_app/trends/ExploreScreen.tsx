@@ -474,6 +474,26 @@ export default function ExploreScreen() {
     if (id != null) setFilter({ niche: String(id) });
   }, [profile?.primary_niche, selectedNicheId, nicheExplicitClear, setFilter]);
 
+  // T5 (D7) — seed the 100K+ view filter on first mount when the URL
+  // doesn't already carry a ``?min_views=`` param. Design pack
+  // ``screens/trends.jsx`` line 1003 marks this chip as ``active`` by
+  // default; the prior implementation only activated it when the URL
+  // had the param, so a fresh visit showed all view counts.
+  //
+  // Once seeded, subsequent setFilter writes (including user-driven
+  // chip clicks that clear it) carry an explicit ``min_views=`` token,
+  // so this effect won't re-fire and re-seed.
+  const [didSeedViewFilter, setDidSeedViewFilter] = useState(false);
+  useEffect(() => {
+    if (didSeedViewFilter) return;
+    if (searchParams.has("min_views")) {
+      setDidSeedViewFilter(true);
+      return;
+    }
+    setFilter({ min_views: "100000" });
+    setDidSeedViewFilter(true);
+  }, [didSeedViewFilter, searchParams, setFilter]);
+
   const selectedNicheName = useMemo(
     () => niches?.find((n) => n.id === selectedNicheId)?.name,
     [niches, selectedNicheId],
