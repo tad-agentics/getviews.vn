@@ -123,6 +123,90 @@ async def batch_ingest(
     })
 
 
+class BatchDouyinIngestRequest(BaseModel):
+    """D2d (2026-06-03) — body for ``POST /batch/douyin-ingest``.
+
+    Mirrors ``BatchIngestRequest`` shape but:
+      • ``deep`` (not ``deep_pool``) — the Douyin pool fetcher's deep
+        flag widens keyword pagination only; there's no separate
+        carousel pool to override.
+      • Fewer fields — no Gemini-cascade / hashtag-yield knobs because
+        the v1 Douyin pipeline doesn't have those layers yet.
+    """
+
+    niche_ids: list[int] | None = Field(
+        default=None,
+        description="Restrict to specific douyin_niche_taxonomy IDs. Omit to ingest all active niches.",
+    )
+    deep: bool = Field(
+        default=False,
+        description="Widen keyword pagination per niche (manual ops only — daily cron leaves this false).",
+    )
+
+
+@router.post("/batch/douyin-ingest")
+async def batch_douyin_ingest(
+    request: Request,
+    body: BatchDouyinIngestRequest = BatchDouyinIngestRequest(),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """D2d (2026-06-03) — daily Kho Douyin ingest entrypoint.
+
+    Protected by ``require_batch_caller`` (X-Batch-Secret legacy or
+    admin JWT). Driven by the doc-only pg_cron schedule
+    ``cron-batch-douyin-ingest`` (see migration
+    ``20260603000003_pg_cron_douyin_ingest.sql``) at 22:00 UTC daily
+    (05:00 Asia/Ho_Chi_Minh — 2hr after VN ``cron-batch-ingest`` so
+    the two pipelines never compete for the EnsembleData budget gate).
+
+    Returns a summary mirroring the VN ``/batch/ingest`` response shape
+    so existing batch_observability dashboards can render Douyin runs
+    side-by-side with VN ones.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.douyin_ingest import run_douyin_batch_ingest
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info(
+        "POST /batch/douyin-ingest triggered — niche_ids=%s deep=%s",
+        body.niche_ids, body.deep,
+    )
+    async with record_job_run(get_service_client(), "batch/douyin-ingest") as obs_summary:
+        obs_summary["niche_ids"] = body.niche_ids
+        obs_summary["deep"] = body.deep
+        try:
+            summary = await run_douyin_batch_ingest(
+                niche_ids=body.niche_ids,
+                deep=body.deep,
+            )
+        except EnsembleDailyBudgetExceeded as exc:
+            logger.error("Douyin batch ingest aborted (ED daily budget): %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
+        except Exception as exc:
+            logger.exception("Douyin batch ingest failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        obs_summary.update({
+            "total_inserted": summary.total_inserted,
+            "total_skipped": summary.total_skipped,
+            "total_failed": summary.total_failed,
+            "niches_processed": summary.niches_processed,
+        })
+
+    return JSONResponse({
+        "ok": True,
+        "total_inserted": summary.total_inserted,
+        "total_skipped": summary.total_skipped,
+        "total_failed": summary.total_failed,
+        "niches_processed": summary.niches_processed,
+        "niche_results": summary.niche_results,
+    })
+
+
 @router.post("/batch/reingest-videos")
 async def batch_reingest_videos(
     request: Request,

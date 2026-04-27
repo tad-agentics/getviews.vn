@@ -1,0 +1,122 @@
+-- 2026-06-03 — D2d — pg_cron schedule for /batch/douyin-ingest.
+--
+-- Doc-only migration (mirrors ``20260530000001_pg_cron_pattern_decks``,
+-- ``20260512000001_pg_cron_daily_health_digest``). The executable
+-- ``cron.schedule(...)`` call is applied live via Supabase MCP at
+-- deploy time, not by ``supabase db reset`` — the SQL is
+-- recorded here so future ops can pause / resume / rotate it.
+--
+-- ── Why this exists ─────────────────────────────────────────────────
+--
+-- D1-D2 land the Kho Douyin pipeline:
+--   - D1 (2026-06-03): schema + niche taxonomy + EnsembleData wrapper
+--   - D2a: Chinese→Vietnamese translator
+--   - D2b: metadata parser + corpus row builder
+--   - D2c: ingest orchestrator (``douyin_ingest.run_douyin_batch_ingest``)
+--   - D2d (this PR): /batch/douyin-ingest endpoint + this cron
+--
+-- Without a cron firing the endpoint daily, the ``douyin_video_corpus``
+-- table stays empty and the FE Kho Douyin surface has no data to show.
+--
+-- ── Schedule ────────────────────────────────────────────────────────
+--
+-- All times UTC. Asia/Ho_Chi_Minh = UTC+7.
+--
+--  ┌──────────────────────────────┬──────────────┬───────────────────┐
+--  │ job                          │ schedule UTC │ Vietnam local     │
+--  ├──────────────────────────────┼──────────────┼───────────────────┤
+--  │ cron-batch-douyin-ingest     │ 0 22 * * *   │ daily 05:00       │
+--  └──────────────────────────────┴──────────────┴───────────────────┘
+--
+-- Why 22:00 UTC (05:00 VN):
+--
+--   - Runs 2 hours AFTER ``cron-batch-ingest`` (the VN TikTok daily
+--     ingest, fires at 0 20 * * * UTC = 03:00 VN). The 2-hour buffer
+--     ensures the VN run has fully drained ``ED_BATCH_DAILY_REQUEST_MAX``
+--     before Douyin starts hitting ``ED_DOUYIN_DAILY_REQUEST_MAX``
+--     (separate counter from D1; default 50/day). The two budgets are
+--     independent at the EnsembleData level (one token, two routes)
+--     but Cloud Run instance memory + Gemini concurrency benefit from
+--     staggered runs.
+--
+--   - 05:00 VN is after the 03:00 VN ingest finishes (~30-45 min run)
+--     and before the 06:00 VN morning-ritual + scene-intelligence
+--     batches. Lands Douyin data while the main pipeline is idle.
+--
+--   - Pre-business-hours so any Cloud Run min-instances=0 cold-start
+--     latency lands before VN creators wake up.
+--
+-- ── Per-batch cost envelope ─────────────────────────────────────────
+--
+-- ``BATCH_DOUYIN_VIDEOS_PER_NICHE = 5`` × 10 niches = 50 videos/day
+-- (matches ``ED_DOUYIN_DAILY_REQUEST_MAX = 50`` so the cap acts as a
+-- hard ceiling — won't blow ED budget even if the pool fetcher widens).
+-- Each video runs through:
+--   - 1× EnsembleData ``/douyin/keyword/search`` (1/niche = 10/day)
+--   - up to 3× ``/douyin/hashtag/posts`` (30/day across niches)
+--   - 1× ``/douyin/post/info`` for re-fetch (rare; usually skipped)
+--   - 1× Gemini multimodal video analysis (~$0.05/video on flash-preview)
+--   - 1× Gemini text-only translation (~$0.001/video on flash-preview)
+--
+-- Daily cost ceiling: ~50 ED units (within free-tier daily budget),
+-- ~$2.50/day Gemini at the cap. Bumping the cap to 100 or growing the
+-- niche set requires re-checking the monthly Gemini ceiling.
+--
+-- ── Prerequisites ───────────────────────────────────────────────────
+--
+-- Vault must already hold ``cloud_run_api_url`` and
+-- ``cloud_run_batch_secret`` (seeded for the existing
+-- ``cron-batch-{ingest,refresh,analytics,layer0,morning-ritual,
+-- scene-intelligence,pattern-decks}`` schedules — same secrets, this
+-- one is just another http_post target).
+--
+-- The three D1 migrations (``20260603000000_douyin_niche_taxonomy``,
+-- ``..._video_corpus``, ``..._video_shots``) MUST be applied before
+-- enabling this schedule — the orchestrator queries the taxonomy +
+-- writes to corpus/shots, so empty tables would just mean empty runs.
+--
+-- ── Live application (also run via Supabase MCP at migration time) ──
+--
+-- SELECT cron.schedule(
+--   'cron-batch-douyin-ingest',
+--   '0 22 * * *',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/douyin-ingest',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 1800000  -- 30 min; Gemini multimodal × 50 videos
+--   );
+--   $cmd$
+-- );
+--
+-- ── Verification ────────────────────────────────────────────────────
+--
+-- SELECT jobname, schedule, active
+-- FROM cron.job
+-- WHERE jobname = 'cron-batch-douyin-ingest';
+--
+-- After first fire:
+--
+-- SELECT job_name, started_at, finished_at, status, duration_ms,
+--        LEFT(COALESCE(error,''),120) AS err
+-- FROM batch_job_runs
+-- WHERE job_name = 'batch/douyin-ingest'
+-- ORDER BY started_at DESC LIMIT 7;
+--
+-- Spot-check that rows landed:
+--
+-- SELECT COUNT(*) AS rows,
+--        COUNT(*) FILTER (WHERE title_vi IS NOT NULL) AS translated,
+--        MIN(indexed_at) AS oldest, MAX(indexed_at) AS newest
+-- FROM douyin_video_corpus;
+--
+-- ── Pause / Rollback ────────────────────────────────────────────────
+--
+-- SELECT cron.unschedule('cron-batch-douyin-ingest');
+-- (re-run the SELECT cron.schedule above to resume)
+
+SELECT 1 AS migration_doc_only;
