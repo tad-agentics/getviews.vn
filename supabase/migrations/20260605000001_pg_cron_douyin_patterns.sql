@@ -1,0 +1,121 @@
+-- 2026-06-05 — D5c — pg_cron schedule for /batch/douyin-patterns.
+--
+-- Doc-only migration (mirrors ``20260604000000_pg_cron_douyin_synth``,
+-- ``20260603000003_pg_cron_douyin_ingest``). The executable
+-- ``cron.schedule(...)`` snippet is recorded here for ops; live
+-- application via Supabase MCP at deploy.
+--
+-- ── Why this exists ─────────────────────────────────────────────────
+--
+-- D2 fills ``douyin_video_corpus`` daily. D3 grades each row with the
+-- per-video adapt synth. D5b (``douyin_patterns_synth``) ships the
+-- weekly Gemini clustering that turns 7 days of corpus into 3 ranked
+-- pattern cards per niche. D5c (this PR) wires the orchestrator +
+-- endpoint that walks the active niches and persists ``douyin_patterns``.
+--
+-- Without this cron firing weekly, the ``douyin_patterns`` table stays
+-- empty and the FE §I "Pattern signals" surface (D5e) renders an empty
+-- state instead of the design pack's 3-up card grid.
+--
+-- ── Schedule ────────────────────────────────────────────────────────
+--
+-- All times UTC. Asia/Ho_Chi_Minh = UTC+7.
+--
+--  ┌──────────────────────────────┬───────────────┬──────────────────────┐
+--  │ job                          │ schedule UTC  │ Vietnam local        │
+--  ├──────────────────────────────┼───────────────┼──────────────────────┤
+--  │ cron-batch-douyin-patterns   │ 0 21 * * 1    │ Mondays 04:00        │
+--  └──────────────────────────────┴───────────────┴──────────────────────┘
+--
+-- Why Mondays 21:00 UTC (Mondays 04:00 VN):
+--
+--   - Runs AFTER the Sunday-night ingest (22:00 UTC Sun) and synth
+--     (23:00 UTC Sun) crons have completed two full nights of writes,
+--     so the 7-day corpus snapshot the synthesiser sees is fresh.
+--
+--   - Also runs after the Monday morning ingest (22:00 UTC Mon) →
+--     wait, that's later. The first weekly run is on Monday
+--     21:00 UTC, which is BEFORE the Monday-night ingest. That's
+--     correct: the weekly batch reads the Sunday corpus snapshot
+--     (newest Mon-morning ingest hasn't fired yet at 21:00 UTC Mon).
+--
+--   - Weekly cadence (not daily) — pattern signals shift slowly; daily
+--     re-runs would burn Gemini budget without adding signal.
+--
+--   - Uses ``week_of`` = ISO Monday start. The orchestrator's
+--     idempotence guard (``SYNTH_FRESH_FOR=6 days``) means a manual
+--     retry within the same week is a no-op for already-computed
+--     niches.
+--
+-- ── Per-batch cost envelope ─────────────────────────────────────────
+--
+-- 10 active niches × 1 Gemini call each. Each call: ~600 output tokens
+-- against a ~1500-token prompt (full corpus pool + schema). On
+-- flash-preview (~$0.10 per 1M output tokens), 10 × 600 ≈ 6K tokens
+-- ≈ $0.0015/week. Negligible vs. the daily D2 ingest cost.
+--
+-- Wall-clock: ~9 sequential synths × 8-10s/call ≈ 90 seconds. Well
+-- under the 20-minute net.http_post timeout.
+--
+-- ── Prerequisites ───────────────────────────────────────────────────
+--
+-- Vault must already hold ``cloud_run_api_url`` and
+-- ``cloud_run_batch_secret`` (seeded for the existing batch crons).
+--
+-- D5a migration must be applied first — the orchestrator UPSERTs into
+-- ``douyin_patterns`` (D5a). D5b ``douyin_patterns_synth`` is
+-- imported by the D5c orchestrator at runtime; the Cloud Run image
+-- must include both before the cron fires for the first time.
+--
+-- ── Live application (also run via Supabase MCP at migration time) ──
+--
+-- SELECT cron.schedule(
+--   'cron-batch-douyin-patterns',
+--   '0 21 * * 1',
+--   $cmd$
+--   SELECT net.http_post(
+--     url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_api_url') || '/batch/douyin-patterns',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 1200000  -- 20 min; flash-preview × 10 niches
+--   );
+--   $cmd$
+-- );
+--
+-- ── Verification ────────────────────────────────────────────────────
+--
+-- SELECT jobname, schedule, active
+-- FROM cron.job
+-- WHERE jobname = 'cron-batch-douyin-patterns';
+--
+-- After first fire:
+--
+-- SELECT job_name, started_at, finished_at, status, duration_ms,
+--        LEFT(COALESCE(error,''),120) AS err
+-- FROM batch_job_runs
+-- WHERE job_name = 'batch/douyin-patterns'
+-- ORDER BY started_at DESC LIMIT 7;
+--
+-- Spot-check that the weekly batch landed 3 rows per niche:
+--
+-- SELECT week_of, niche_id, COUNT(*) AS rows
+-- FROM douyin_patterns
+-- GROUP BY week_of, niche_id
+-- ORDER BY week_of DESC, niche_id ASC;
+--
+-- Most-recent week's pattern names by niche:
+--
+-- SELECT week_of, niche_id, rank, name_vn
+-- FROM douyin_patterns
+-- WHERE week_of = (SELECT MAX(week_of) FROM douyin_patterns)
+-- ORDER BY niche_id, rank;
+--
+-- ── Pause / Rollback ────────────────────────────────────────────────
+--
+-- SELECT cron.unschedule('cron-batch-douyin-patterns');
+-- (re-run the SELECT cron.schedule above to resume)
+
+SELECT 1 AS migration_doc_only;

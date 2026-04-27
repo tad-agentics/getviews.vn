@@ -732,3 +732,109 @@ async def batch_scene_intelligence(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     return JSONResponse({"ok": True, **stats})
+
+
+class DouyinPatternsBatchRequest(BaseModel):
+    """D5c (2026-06-05) — body for ``POST /batch/douyin-patterns``.
+
+    Mirrors ``DouyinSynthBatchRequest``: optional ``niche_ids``
+    restriction + optional ``force`` flag to bypass the
+    ``SYNTH_FRESH_FOR`` short-circuit on admin reruns.
+    """
+
+    niche_ids: list[int] | None = Field(
+        default=None,
+        description=(
+            "Restrict the run to specific Douyin niche IDs. Omit to "
+            "synthesise patterns for all active niches."
+        ),
+    )
+    pool_size: int | None = Field(
+        default=None,
+        ge=6, le=100,
+        description=(
+            "Per-niche corpus pool size sent to the synthesiser. Omit "
+            "to use ``DEFAULT_POOL_PER_NICHE`` (30). Lower for smoke "
+            "tests, higher for one-off deeper-cluster experiments."
+        ),
+    )
+    force: bool = Field(
+        default=False,
+        description=(
+            "Re-compute every niche even if a row exists for this "
+            "(niche_id, week_of) and is within the freshness window. "
+            "Cron uses force=False; admin manual reruns use True."
+        ),
+    )
+
+
+@router.post("/batch/douyin-patterns")
+async def batch_douyin_patterns(
+    request: Request,
+    body: DouyinPatternsBatchRequest = DouyinPatternsBatchRequest(),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """D5c weekly cron: synthesize 3 pattern signals per active niche.
+
+    Walks all active ``douyin_niche_taxonomy`` rows, queries each
+    niche's last-7d corpus from ``douyin_video_corpus``, calls D5b
+    ``synth_douyin_patterns``, and UPSERTs the 3 ranked rows into
+    ``douyin_patterns`` keyed on (niche_id, week_of, rank).
+
+    Idempotent: a re-run on the same Monday with ``force=False`` is a
+    no-op for niches whose existing row is < 6 days old.
+
+    Protected by ``require_batch_caller``. Pair with the pg_cron
+    schedule in ``20260605000001_pg_cron_douyin_patterns.sql``.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.douyin_patterns_batch import (
+        DEFAULT_POOL_PER_NICHE,
+        run_douyin_patterns_batch,
+    )
+    from getviews_pipeline.supabase_client import get_service_client
+
+    pool_size = body.pool_size or DEFAULT_POOL_PER_NICHE
+    sb = get_service_client()
+    logger.info(
+        "POST /batch/douyin-patterns triggered — niche_ids=%s pool_size=%d force=%s",
+        body.niche_ids, pool_size, body.force,
+    )
+    async with record_job_run(sb, "batch/douyin-patterns") as obs_summary:
+        obs_summary["pool_size"] = pool_size
+        obs_summary["force"] = body.force
+        obs_summary["niche_ids"] = (
+            len(body.niche_ids) if body.niche_ids else 0
+        )
+        try:
+            summary = await run_sync(
+                run_douyin_patterns_batch,
+                sb,
+                niche_ids=body.niche_ids,
+                pool_size=pool_size,
+                force=body.force,
+            )
+        except Exception as exc:
+            logger.exception("[batch/douyin-patterns] failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        obs_summary.update({
+            "considered_niches": summary.considered_niches,
+            "written_rows": summary.written_rows,
+            "skipped_fresh": summary.skipped_fresh,
+            "skipped_thin_pool": summary.skipped_thin_pool,
+            "failed_synth": summary.failed_synth,
+            "failed_upsert": summary.failed_upsert,
+            "week_of": summary.week_of,
+        })
+
+    return JSONResponse({
+        "ok": True,
+        "week_of": summary.week_of,
+        "considered_niches": summary.considered_niches,
+        "written_rows": summary.written_rows,
+        "skipped_fresh": summary.skipped_fresh,
+        "skipped_thin_pool": summary.skipped_thin_pool,
+        "failed_synth": summary.failed_synth,
+        "failed_upsert": summary.failed_upsert,
+    })
