@@ -153,9 +153,9 @@ def _call_gemini_trending_card(
     examples_block = "\n".join(examples_lines) if examples_lines else "(không có dữ liệu)"
 
     n_str = _format_vn_int(len(video_data)) if video_data else "0"
-    prompt = f"""Bạn là chuyên gia phân tích content TikTok Việt Nam. Dựa vào {n_str} video đang bùng nổ trong corpus, hãy đặt tên MỘT execution pattern đang thống trị niche này tuần này.
+    prompt = f"""Bạn là chuyên gia phân tích content TikTok Việt Nam. Dựa vào {n_str} video đang chạy tốt trong corpus, hãy đặt tên MỘT execution pattern đang dẫn đầu niche này tuần này.
 
-Video bùng nổ nhất (sắp xếp theo breakout multiplier):
+Video vượt trội nhất (sắp xếp theo breakout multiplier):
 {examples_block}
 
 Ngữ cảnh:
@@ -166,7 +166,7 @@ Ngữ cảnh:
 Quy tắc:
 - title: đặt tên CẤU TRÚC THỰC THI cụ thể, không phải tên niche chung chung, tối đa 50 ký tự.
   Ví dụ tốt: "Hook số liệu shock → reveal sai lầm phổ biến"
-  Ví dụ tốt: "POV bí mật insider + CTA so sánh giá"
+  Ví dụ tốt: "POV insider chia sẻ + CTA so sánh giá"
   Ví dụ xấu: "Video câu hỏi đang hot trong niche skincare tuần này"
 - description: 1–2 câu, giọng creator-to-creator, giải thích cách làm theo pattern này.
 - description phải có cụm "Chạy vì:" giải thích ngắn gọn tại sao pattern này đang work.
@@ -176,6 +176,7 @@ Quy tắc:
   Ví dụ xấu: "Dùng hook câu hỏi để thu hút người xem" (mô tả, không phải template)
 - Dùng "tuần này" (không dùng "7 ngày gần nhất").
 - Số đếm dùng dấu chấm ngàn kiểu Việt Nam (ví dụ 1.200).
+- KHÔNG dùng từ cấm: "bí mật", "công thức vàng", "triệu view", "bùng nổ", "đột phá".
 
 Chỉ trả về JSON, không markdown."""
 
