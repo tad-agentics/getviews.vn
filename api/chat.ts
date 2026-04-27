@@ -2,6 +2,7 @@
 export const config = { runtime: "edge" };
 
 import { createClient } from "@supabase/supabase-js";
+import { buildCorsHeaders } from "./_cors";
 
 // Vercel Edge Runtime receives all env vars (including VITE_-prefixed ones).
 // VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are the canonical names
@@ -46,10 +47,11 @@ function userSupabase(accessToken: string) {
 }
 
 export default async function handler(req: Request): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        ...corsHeaders,
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Authorization, Content-Type",
       },
@@ -290,7 +292,7 @@ export default async function handler(req: Request): Promise<Response> {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
+      ...corsHeaders,
     },
   });
 }
