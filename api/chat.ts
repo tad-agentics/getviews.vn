@@ -146,7 +146,7 @@ export default async function handler(req: Request): Promise<Response> {
     });
 
     if (rpcError || balanceAfter == null) {
-      await supabase.from("profiles").update({ is_processing: false }).eq("id", user.id);
+      await supabase.rpc("end_processing", { p_user_id: user.id });
       return new Response(JSON.stringify({ error: "insufficient_credits" }), {
         status: 402,
         headers: { "Content-Type": "application/json" },
@@ -207,7 +207,7 @@ export default async function handler(req: Request): Promise<Response> {
   });
 
   if (!geminiRes.ok) {
-    if (!isFree) await supabase.from("profiles").update({ is_processing: false }).eq("id", user.id);
+    if (!isFree) await supabase.rpc("end_processing", { p_user_id: user.id });
     return new Response("Upstream error", { status: 502 });
   }
 
@@ -272,10 +272,10 @@ export default async function handler(req: Request): Promise<Response> {
         });
 
         if (!isFree) {
-          await supabase.from("profiles").update({ is_processing: false }).eq("id", user.id);
+          await supabase.rpc("end_processing", { p_user_id: user.id });
         }
       } catch {
-        if (!isFree) await supabase.from("profiles").update({ is_processing: false }).eq("id", user.id);
+        if (!isFree) await supabase.rpc("end_processing", { p_user_id: user.id });
         controller.enqueue(
           new TextEncoder().encode(
             `data: ${JSON.stringify({ stream_id: newStreamId, seq, delta: "", done: true, error: "stream_failed" })}\n\n`
