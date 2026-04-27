@@ -136,7 +136,14 @@ export default defineConfig({
     tsconfigPaths({ projects: ["./tsconfig.app.json"] }),
 
     VitePWA({
-      registerType: "autoUpdate",
+      // ``prompt`` (not autoUpdate) — autoUpdate forced every cold
+      // load including the unauthenticated landing to perform a
+      // ``navigator.serviceWorker.register`` round-trip *before*
+      // the app could skip the SW update loop, costing ~500 ms TTI
+      // on slow networks. With ``prompt`` we surface a Vietnamese
+      // "có bản cập nhật mới" banner via ``<PwaUpdatePrompt>`` in
+      // root.tsx and let the user opt in.
+      registerType: "prompt",
       manifest: false, // Use static public/manifest.json
       workbox: {
         // React Router v7 client build writes here (not Vite default ``dist/``).
