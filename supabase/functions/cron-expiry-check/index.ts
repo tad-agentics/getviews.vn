@@ -74,12 +74,33 @@ async function sendReminderBatch(args: {
     });
     if (!ok) continue;
 
+    // Email-first ordering: send, then mark. A failed send leaves the
+    // marker NULL so the next cron retries cleanly. The narrow tail
+    // risk is the *successful send → failed marker UPDATE* path —
+    // the user already got the email but the row stays NULL, so the
+    // next cron run will send a duplicate reminder. We log a
+    // structured ``send_marker_orphaned`` line with enough fields
+    // (subscription_id, user_id, template, expires_at) for an ops
+    // alert to page the on-call without grepping logs.
     const { error: upErr } = await supabase
       .from("subscriptions")
       .update({ [reminderNullField]: new Date().toISOString() })
       .eq("id", row.id);
     if (upErr) {
-      console.error("reminder timestamp update failed", row.id, upErr);
+      console.error(
+        JSON.stringify({
+          tag: "send_marker_orphaned",
+          subscription_id: row.id,
+          user_id: row.user_id,
+          template,
+          expires_at: row.expires_at,
+          error: upErr.message ?? String(upErr),
+          note:
+            "Email already sent. Set " +
+            reminderNullField +
+            " manually to prevent a duplicate next run.",
+        }),
+      );
       continue;
     }
     sent += 1;
