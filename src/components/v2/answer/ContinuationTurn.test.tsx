@@ -146,8 +146,39 @@ describe("ContinuationTurn payload dispatch", () => {
         )}
       />,
     );
-    // Lượt N is 1-indexed visually: turn_index 2 → "Lượt 3".
-    expect(screen.getByText(/Lượt 3/)).toBeTruthy();
+    // A1 — accent kicker is now "<KIND-LABEL> · LƯỢT NN" (zero-padded).
+    // turn_index 2 → "LƯỢT 03"; kind=timing → "THỜI ĐIỂM".
+    expect(screen.getByText(/THỜI ĐIỂM · LƯỢT 03/)).toBeTruthy();
+    // Question is rendered as the polished serif H2.
+    expect(screen.getByRole("heading", { level: 2, name: /giờ nào tốt nhất/ })).toBeTruthy();
     expect(screen.getByText(/giờ nào tốt nhất\?/)).toBeTruthy();
+  });
+
+  it("renders the per-turn MiniResearch ladder on first mount", () => {
+    render(
+      <ContinuationTurn
+        turn={mkTurn(
+          { kind: "ideas", report: {} },
+          { turn_index: 1, kind: "ideas", query: "5 ý tưởng tuần này" },
+        )}
+      />,
+    );
+    // Both ladder steps rendered (animation runs on mount; we assert
+    // structure, not the timed transitions).
+    expect(screen.getByText(/Dùng lại nguồn/)).toBeTruthy();
+    expect(screen.getByText(/Trả lời/)).toBeTruthy();
+  });
+
+  it("falls back to ĐÀO SÂU for unknown kinds", () => {
+    render(
+      <ContinuationTurn
+        turn={mkTurn(
+          { kind: "pattern", report: {} },
+          { turn_index: 0, kind: "pattern", query: "đào sâu pattern" },
+        )}
+      />,
+    );
+    // ``pattern`` continuation turn maps to ĐÀO SÂU per the design.
+    expect(screen.getByText(/ĐÀO SÂU · LƯỢT 01/)).toBeTruthy();
   });
 });
