@@ -553,7 +553,7 @@ function PricingContent() {
 
         <div className="mb-6">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--faint)] mb-3">Mở thêm phân tích</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {topupCopy.map((pack) => (
               <button
                 key={pack.pack}
