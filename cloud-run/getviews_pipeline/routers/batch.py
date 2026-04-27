@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import require_batch_caller
 from getviews_pipeline.runtime import run_sync
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-class BatchIngestRequest(BaseModel):
+class BatchIngestRequest(StrictBody):
     niche_ids: list[int] | None = Field(
         default=None,
         description="Restrict to specific niche IDs. Omit to ingest all niches.",
@@ -32,7 +33,7 @@ class BatchIngestRequest(BaseModel):
     )
 
 
-class BatchReingestVideosRequest(BaseModel):
+class BatchReingestVideosRequest(StrictBody):
     items: list[dict[str, Any]] = Field(
         ...,
         min_length=1,
@@ -41,14 +42,14 @@ class BatchReingestVideosRequest(BaseModel):
     refresh_mv: bool = Field(default=True, description="Refresh niche_intelligence after upserts.")
 
 
-class RitualBatchRequest(BaseModel):
+class RitualBatchRequest(StrictBody):
     user_ids: list[str] | None = Field(
         default=None,
         description="Restrict to specific user ids. Omit for all users.",
     )
 
 
-class PatternDecksBatchRequest(BaseModel):
+class PatternDecksBatchRequest(StrictBody):
     cap: int | None = Field(
         default=None,
         ge=1, le=500,
@@ -123,7 +124,7 @@ async def batch_ingest(
     })
 
 
-class BatchDouyinIngestRequest(BaseModel):
+class BatchDouyinIngestRequest(StrictBody):
     """D2d (2026-06-03) — body for ``POST /batch/douyin-ingest``.
 
     Mirrors ``BatchIngestRequest`` shape but:
@@ -625,7 +626,7 @@ async def batch_pattern_decks(
     })
 
 
-class DouyinSynthBatchRequest(BaseModel):
+class DouyinSynthBatchRequest(StrictBody):
     """D3b (2026-06-04) — body for ``POST /batch/douyin-synth``.
 
     Mirrors ``PatternDecksBatchRequest``: optional cap + optional
@@ -734,7 +735,7 @@ async def batch_scene_intelligence(
     return JSONResponse({"ok": True, **stats})
 
 
-class DouyinPatternsBatchRequest(BaseModel):
+class DouyinPatternsBatchRequest(StrictBody):
     """D5c (2026-06-05) — body for ``POST /batch/douyin-patterns``.
 
     Mirrors ``DouyinSynthBatchRequest``: optional ``niche_ids``
