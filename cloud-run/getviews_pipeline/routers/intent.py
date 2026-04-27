@@ -301,14 +301,14 @@ async def stream(
     try:
         rpc_resp = sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
         if rpc_resp.data is False:
-            sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+            sb.rpc("end_processing", {"p_user_id": user_id}).execute()
             return JSONResponse(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 content={"error": "insufficient_credits"},
             )
     except Exception as exc:
         logger.warning("Credit deduction failed: %s", exc)
-        sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+        sb.rpc("end_processing", {"p_user_id": user_id}).execute()
         return JSONResponse(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             content={"error": "insufficient_credits"},
@@ -344,7 +344,7 @@ async def stream(
                         await asyncio.sleep(0.005)
                     seq += 1
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
-                    sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                    sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                     return
 
             if normalized in _FREE_GATED_INTENTS:
@@ -354,7 +354,7 @@ async def stream(
                     if new_count > FREE_DAILY_LIMIT:
                         seq += 1
                         yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "daily_free_limit"})
-                        sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                        sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                         return
                 except Exception as gate_exc:
                     logger.warning("[stream] free query count gate failed (fail-open): %s", gate_exc)
@@ -370,7 +370,7 @@ async def stream(
                 if not url:
                     seq += 1
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": "missing_video_url"})
-                    sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                    sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                     return
                 if _is_short_tiktok_url(url):
                     url = await run_sync(_resolve_short_url, url)
@@ -389,9 +389,7 @@ async def stream(
                         "delta": "", "done": True,
                         "error": "missing_video_url",
                     })
-                    sb.table("profiles").update(
-                        {"is_processing": False},
-                    ).eq("id", user_id).execute()
+                    sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                     return
                 if _is_short_tiktok_url(url_a):
                     url_a = await run_sync(_resolve_short_url, url_a)
@@ -438,7 +436,7 @@ async def stream(
                     supabase=sb, session_id=body.session_id, user_id=user_id,
                     content=full_text, structured_output=None, intent_type=normalized, stream_id=stream_id,
                 )
-                sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                 return
 
             pipeline_task = asyncio.create_task(
@@ -476,7 +474,7 @@ async def stream(
                             yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk})
                     seq += 1
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": error_code})
-                    sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+                    sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                     return
                 full_text = (out.get("diagnosis") or "").strip()
                 structured: dict[str, Any] | None = {
@@ -528,14 +526,14 @@ async def stream(
                 intent_type=normalized,
                 stream_id=stream_id,
             )
-            sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+            sb.rpc("end_processing", {"p_user_id": user_id}).execute()
 
         except Exception as exc:
             logger.exception("Stream pipeline error: %s", exc)
             error_code = _classify_stream_error(exc)
             seq += 1
             yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True, "error": error_code})
-            sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
+            sb.rpc("end_processing", {"p_user_id": user_id}).execute()
 
     return StreamingResponse(
         event_generator(),
