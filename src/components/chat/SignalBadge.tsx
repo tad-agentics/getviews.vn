@@ -2,10 +2,15 @@
  * SignalBadge — colored pill showing trend signal strength.
  *
  * signal values (from trend_card JSON schema):
- *   "rising"    → 🟢 Đang bùng    — green bg
- *   "early"     → 🟡 Tín hiệu sớm — amber bg
- *   "stable"    → ⚫ Ổn định       — neutral bg
- *   "declining" → 🔴 Đang giảm    — red bg
+ *   "rising"    → ▲ Đang bùng    — green bg, up-arrow glyph
+ *   "early"     → ● Tín hiệu sớm — amber bg
+ *   "stable"    → ● Ổn định      — neutral bg
+ *   "declining" → ▼ Đang giảm    — red bg, down-arrow glyph
+ *
+ * CLAUDE.md copy-rule: prefer typographic glyphs (✕/✓/●/▲/▼) to emoji,
+ * which render unevenly across Vietnamese fonts on Android and Windows
+ * Chrome. Colour comes from semantic tokens, so colour-blind users can
+ * still read the direction from the glyph + the Vietnamese label.
  */
 
 export type SignalValue = "rising" | "early" | "stable" | "declining";
@@ -19,25 +24,25 @@ const SIGNAL_CONFIG: Record<
 > = {
   rising: {
     label: "Đang bùng",
-    dot: "🟢",
+    dot: "▲",
     bg: "var(--gv-signal-rising-bg)",
     text: "var(--gv-signal-rising-fg)",
   },
   early: {
     label: "Tín hiệu sớm",
-    dot: "🟡",
+    dot: "●",
     bg: "var(--gv-signal-early-bg)",
     text: "var(--gv-signal-early-fg)",
   },
   stable: {
     label: "Ổn định",
-    dot: "⚫",
+    dot: "●",
     bg: "var(--gv-signal-stable-bg)",
     text: "var(--gv-signal-stable-fg)",
   },
   declining: {
     label: "Đang giảm",
-    dot: "🔴",
+    dot: "▼",
     bg: "var(--gv-signal-declining-bg)",
     text: "var(--gv-signal-declining-fg)",
   },
@@ -70,7 +75,7 @@ export function SignalBadge({ signal, size = "sm" }: Props) {
         padding: `${py} ${px}`,
       }}
     >
-      <span style={{ fontSize: "0.65em" }}>{cfg.dot}</span>
+      <span aria-hidden>{cfg.dot}</span>
       {cfg.label}
     </span>
   );

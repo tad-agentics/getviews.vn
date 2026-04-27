@@ -108,7 +108,7 @@ export function VideoDangHocSidebar() {
           }`}
           onClick={() => setTab("bung_no")}
         >
-          🔴 Tăng Nhanh
+          <span aria-hidden>▲</span> Tăng Nhanh
         </button>
         <button
           type="button"
@@ -121,7 +121,7 @@ export function VideoDangHocSidebar() {
           }`}
           onClick={() => setTab("dang_hot")}
         >
-          🟡 Đang Hot
+          <span aria-hidden>●</span> Đang Hot
         </button>
       </div>
 
