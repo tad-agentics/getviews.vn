@@ -5,7 +5,8 @@ boundary between the Vercel frontend/Edge Functions and the Python analysis pipe
 
 JWT validation: Supabase uses ES256 (asymmetric). We validate via JWKS endpoint
 — stateless, no shared secret, keys rotatable without redeployment.
-JWKS URL: https://lzhiqnxfveqttsujebiv.supabase.co/auth/v1/.well-known/jwks.json
+JWKS URL: derived from ``SUPABASE_URL`` (or override via
+``SUPABASE_JWKS_URL``) — resolved in ``getviews_pipeline.config``.
 """
 
 from __future__ import annotations
