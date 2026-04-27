@@ -498,6 +498,13 @@ export interface ShotReference {
   tiktok_url: string | null;
   creator_handle: string | null;
   description: string | null;
+  /**
+   * Denormalized from ``video_corpus.views`` at write time — drives the
+   * "256K view" credibility pill on each RefClipCard. NULL on rows that
+   * predate the ``20260601000000_video_shots_views`` migration's backfill
+   * window; FE branches on null and just hides the pill.
+   */
+  views: number | null;
   score: number;
   /** Internal keys used for scoring; FE shows ``match_label`` instead. */
   match_signals: string[];

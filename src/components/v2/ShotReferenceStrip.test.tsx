@@ -19,6 +19,7 @@ function makeRef(overrides: Partial<ShotReference> = {}): ShotReference {
     tiktok_url: "https://tiktok.com/@creator/video/v1",
     creator_handle: "@creator",
     description: "Cận mặt creator nói hook.",
+    views: 156_000,
     score: 55,
     match_signals: ["niche", "hook", "framing"],
     match_label: "Cùng ngách, hook, khung hình",
@@ -37,16 +38,37 @@ describe("ShotReferenceStrip", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("shows the count in the kicker", () => {
+  it("shows the count + 'cùng mục đích' kicker", () => {
     render(<ShotReferenceStrip refs={[makeRef(), makeRef({ video_id: "v2" })]} />);
-    expect(screen.getByText(/CLIP THAM KHẢO · 2/)).toBeTruthy();
+    expect(screen.getByText(/SHOT THAM KHẢO TỪ VIDEO VIRAL · CÙNG MỤC ĐÍCH/)).toBeTruthy();
+    expect(screen.getByText(/2 SHOT THAM KHẢO/)).toBeTruthy();
   });
 
-  it("renders match_label as VN chip", () => {
+  it("renders description as the on-card label by default", () => {
     render(<ShotReferenceStrip refs={[makeRef()]} />);
-    expect(
-      screen.getByText(/Cùng ngách, hook, khung hình/),
-    ).toBeTruthy();
+    expect(screen.getByText("Cận mặt creator nói hook.")).toBeTruthy();
+    // match_label should NOT be rendered when description is present.
+    expect(screen.queryByText(/Cùng ngách, hook, khung hình/)).toBeNull();
+  });
+
+  it("falls back to match_label when description is missing", () => {
+    render(<ShotReferenceStrip refs={[makeRef({ description: null })]} />);
+    expect(screen.getByText(/Cùng ngách, hook, khung hình/)).toBeTruthy();
+  });
+
+  it("renders views chip when views > 0", () => {
+    render(<ShotReferenceStrip refs={[makeRef({ views: 156_000 })]} />);
+    expect(screen.getByText(/156\.0K view/)).toBeTruthy();
+  });
+
+  it("formats views over 1M with M suffix", () => {
+    render(<ShotReferenceStrip refs={[makeRef({ views: 1_400_000 })]} />);
+    expect(screen.getByText(/1\.4M view/)).toBeTruthy();
+  });
+
+  it("hides views chip when views is null (legacy / pre-backfill)", () => {
+    render(<ShotReferenceStrip refs={[makeRef({ views: null })]} />);
+    expect(screen.queryByText(/view/)).toBeNull();
   });
 
   it("shows the creator handle without a double @", () => {
@@ -72,10 +94,8 @@ describe("ShotReferenceStrip", () => {
       />,
     );
     expect(screen.queryByRole("link")).toBeNull();
-    // Still shows the match chip so the card isn't empty.
-    expect(
-      screen.getByText(/Cùng ngách, hook, khung hình/),
-    ).toBeTruthy();
+    // Description still renders so the card isn't empty.
+    expect(screen.getByText("Cận mặt creator nói hook.")).toBeTruthy();
   });
 
   it("renders timecode when start_s + end_s present", () => {
@@ -90,8 +110,8 @@ describe("ShotReferenceStrip", () => {
 
   it("omits timecode when start_s missing", () => {
     render(<ShotReferenceStrip refs={[makeRef({ start_s: null, end_s: null })]} />);
-    // No timecode badge — just the match chip is present.
-    expect(screen.queryByText(/s$/)).toBeFalsy();
+    // No timecode badge — just the description + views below.
+    expect(screen.queryByText(/^\d.*s$/)).toBeFalsy();
   });
 
   it("prefers frame_url background when both frame_url and thumbnail_url set", () => {

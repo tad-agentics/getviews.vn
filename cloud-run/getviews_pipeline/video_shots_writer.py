@@ -77,6 +77,14 @@ def build_video_shot_rows(
     creator_handle = corpus_row.get("creator_handle")
     thumbnail_url = corpus_row.get("thumbnail_url")
     tiktok_url = corpus_row.get("tiktok_url")
+    # Denormalized for the RefClipCard "X view" credibility chip.
+    # ``views`` may be missing on older corpus rows — keep it None
+    # rather than coercing to 0 so the FE branches on "unknown" cleanly.
+    views_raw = corpus_row.get("views")
+    try:
+        views = int(views_raw) if views_raw is not None else None
+    except (TypeError, ValueError):
+        views = None
 
     frame_urls = scene_frame_urls or {}
 
@@ -114,6 +122,7 @@ def build_video_shot_rows(
             "thumbnail_url": _coerce_optional_str(thumbnail_url),
             "tiktok_url": _coerce_optional_str(tiktok_url),
             "frame_url": frame_urls.get(i),
+            "views": views,
         })
 
     return rows
