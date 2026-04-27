@@ -76,6 +76,26 @@ ENSEMBLEDATA_USER_SEARCH_URL = f"{ENSEMBLEDATA_BASE}/tt/user/search"
 # video_corpus.comment_radar. See comment_radar.fetch_comments_for_video.
 ENSEMBLEDATA_POST_COMMENTS_URL = f"{ENSEMBLEDATA_BASE}/tt/post/comments"
 
+# ── D1 (2026-06-03) — Douyin endpoints (Kho Douyin pipeline) ────────
+# EnsembleData mirrors its TikTok routes under /douyin/* with the same
+# response envelope — see ensemble_douyin.py for the wrapper functions.
+# Base URL stays the same (single ED account / token).
+ENSEMBLEDATA_DOUYIN_POST_INFO_URL = f"{ENSEMBLEDATA_BASE}/douyin/post/info"
+ENSEMBLEDATA_DOUYIN_POST_MULTI_INFO_URL = f"{ENSEMBLEDATA_BASE}/douyin/post/multi-info"
+ENSEMBLEDATA_DOUYIN_KEYWORD_SEARCH_URL = f"{ENSEMBLEDATA_BASE}/douyin/keyword/search"
+ENSEMBLEDATA_DOUYIN_HASHTAG_POSTS_URL = f"{ENSEMBLEDATA_BASE}/douyin/hashtag/posts"
+ENSEMBLEDATA_DOUYIN_USER_POSTS_URL = f"{ENSEMBLEDATA_BASE}/douyin/user/posts"
+
+# ── Douyin daily ingest budget ──────────────────────────────────────
+# D1 ships with a conservative cap so the Douyin daily cron can't blow
+# through ED's monthly budget while D2/D3 are still settling. Mirrors
+# ``ED_BATCH_DAILY_REQUEST_MAX`` (the VN TikTok cap) — separate counter
+# so VN ingest is unaffected if Douyin overruns. Bump after the first
+# week of clean cron runs.
+ED_DOUYIN_DAILY_REQUEST_MAX = int(
+    os.environ.get("ED_DOUYIN_DAILY_REQUEST_MAX", "50")
+)
+
 
 def _float_env(name: str, default: str) -> float:
     try:
