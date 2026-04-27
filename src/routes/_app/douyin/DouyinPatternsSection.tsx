@@ -4,6 +4,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import type { DouyinNiche, DouyinPattern } from "@/lib/api-types";
 
 import { DouyinPatternCard } from "./DouyinPatternCard";
+import { formatFreshnessVN } from "./douyinFormatters";
 
 /**
  * Patterns are written by the weekly D5c cron at Mondays 21:00 UTC.
@@ -77,6 +78,7 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
         : patterns.filter((p) => p.niche_id === activeNicheId);
     if (filtered.length === 0) return null;
     let latestWeek: string | null = null;
+    let latestComputedAtIso: string | null = null;
     let latestComputedAtMs: number | null = null;
     for (const p of filtered) {
       if (p.week_of && (!latestWeek || p.week_of > latestWeek)) {
@@ -86,13 +88,14 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
         const t = Date.parse(p.computed_at);
         if (!Number.isNaN(t) && (latestComputedAtMs == null || t > latestComputedAtMs)) {
           latestComputedAtMs = t;
+          latestComputedAtIso = p.computed_at;
         }
       }
     }
     const stale =
       latestComputedAtMs != null &&
       (Date.now() - latestComputedAtMs) / 86_400_000 > STALE_DAYS_BEFORE_CAVEAT;
-    return { weekOf: latestWeek, stale };
+    return { weekOf: latestWeek, computedAt: latestComputedAtIso, stale };
   }, [patterns, activeNicheId]);
 
   // Group patterns by niche_id, scoped to the active filter.
@@ -194,28 +197,73 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
 });
 
 
-type HeaderMeta = { weekOf: string | null; stale: boolean } | null;
+type HeaderMeta = {
+  weekOf: string | null;
+  computedAt: string | null;
+  stale: boolean;
+} | null;
 
 
+/**
+ * D7 (2026-06-06) — copy + freshness chip aligned with design pack
+ * ``screens/douyin.jsx`` lines 574-596:
+ *   - Kicker: "§ I — TÍN HIỆU SỚM · 🇨🇳 PATTERN ĐANG NỔ Ở TQ"
+ *   - Headline: "3 pattern đi trước VN 4–10 tuần"
+ *   - Sublead explaining the value prop
+ *   - Right-side accent-dot pill with "CẬP NHẬT N NGÀY TRƯỚC" (D7c)
+ *     OR "có thể chưa cập nhật" caveat when stale (D6c).
+ */
 function SectionHeader({ meta }: { meta: HeaderMeta }) {
   const weekLabel = meta?.weekOf ? formatWeekVN(meta.weekOf) : null;
+  const freshLabel = meta?.computedAt ? formatFreshnessVN(meta.computedAt) : null;
   return (
-    <>
-      <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
-        § I — Pattern signals · cập nhật mỗi tuần
-      </p>
-      <h2 className="gv-tight m-0 mb-1 text-[20px] font-medium leading-tight text-[color:var(--gv-ink)]">
-        Tuần này creator Douyin đang lặp gì
-      </h2>
-      <p className="gv-mono mb-3.5 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
-        {weekLabel ? <>Tuần {weekLabel}</> : "Đang chờ batch đầu tiên"}
-        {meta?.stale ? (
-          <span className="ml-2 normal-case tracking-normal text-[color:var(--gv-accent-deep)]">
-            · có thể chưa cập nhật
+    <header className="mb-3.5 flex flex-wrap items-baseline justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
+          § I — Tín hiệu sớm · 🇨🇳 Pattern đang nổ ở TQ
+        </p>
+        <h2 className="gv-tight m-0 text-[22px] font-medium leading-tight text-[color:var(--gv-ink)]">
+          3 pattern đi trước VN 4–10 tuần
+        </h2>
+        <p className="m-0 mt-1.5 max-w-[620px] text-[12.5px] leading-snug text-[color:var(--gv-ink-3)]">
+          Cấu trúc lặp lại trên Douyin, đã sub VN, kèm note văn hoá và đánh giá khả
+          năng adapt. Click để mở deck đầy đủ.
+        </p>
+      </div>
+      {freshLabel ? (
+        <div
+          className={
+            "inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-1.5 " +
+            (meta?.stale
+              ? "text-[color:var(--gv-accent-deep)]"
+              : "text-[color:var(--gv-ink-3)]")
+          }
+          aria-live="polite"
+        >
+          <span
+            aria-hidden
+            className={
+              "h-2 w-2 shrink-0 rounded-full " +
+              (meta?.stale
+                ? "bg-[color:var(--gv-accent-deep)]"
+                : "bg-[color:var(--gv-accent)]")
+            }
+          />
+          <span className="gv-mono text-[9px] font-semibold uppercase tracking-[0.06em]">
+            {meta?.stale ? "Có thể chưa cập nhật" : freshLabel}
           </span>
-        ) : null}
-      </p>
-    </>
+          {weekLabel ? (
+            <span className="gv-mono text-[9px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+              · Tuần {weekLabel}
+            </span>
+          ) : null}
+        </div>
+      ) : (
+        <span className="gv-mono shrink-0 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+          Đang chờ batch đầu tiên
+        </span>
+      )}
+    </header>
   );
 }
 

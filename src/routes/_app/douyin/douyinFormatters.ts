@@ -115,3 +115,19 @@ export function formatEtaWeeks(
   }
   return `${min ?? max} tuần`;
 }
+
+/**
+ * "CẬP NHẬT N NGÀY TRƯỚC" / "CẬP NHẬT HÔM QUA" / "VỪA CẬP NHẬT" from
+ * an ISO timestamp. Used for the §I freshness chip per design pack
+ * ``screens/douyin.jsx`` line 588. ``null`` when the input is missing
+ * or unparseable so the caller can hide the chip.
+ */
+export function formatFreshnessVN(iso: string | null): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const days = Math.floor((Date.now() - t) / 86_400_000);
+  if (days <= 0) return "VỪA CẬP NHẬT";
+  if (days === 1) return "CẬP NHẬT HÔM QUA";
+  return `CẬP NHẬT ${days} NGÀY TRƯỚC`;
+}

@@ -320,14 +320,16 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     // Banner present — "Wellness" appears both in the niche chip and
     // the banner, so we assert via the banner status role.
     const banner = screen.getByRole("status");
-    expect(banner.textContent).toMatch(/Đang ưu tiên ngách/);
+    expect(banner.textContent).toMatch(/Đang lọc theo ngách bạn theo dõi/);
     expect(banner.textContent).toMatch(/Wellness/);
     // Grid is scoped to wellness only.
     expect(screen.getByText("Wellness video 1")).toBeTruthy();
     expect(screen.getByText("Wellness video 2")).toBeTruthy();
     expect(screen.queryByText("Tech video 1")).toBeNull();
     // Dismissing the banner clears back to ALL.
-    fireEvent.click(screen.getByRole("button", { name: /Bỏ ưu tiên ngách/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Mở rộng để xem tất cả ngách/ }),
+    );
     expect(screen.queryByRole("status", { name: /Kho Douyin/ })).toBeNull();
     expect(screen.getByText("Tech video 1")).toBeTruthy();
   });
@@ -360,7 +362,7 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     // VN niche 17 = Gaming → no Douyin slug.
     useProfile.mockReturnValue({ data: { primary_niche: 17 } });
     _renderScreen();
-    expect(screen.queryByText(/Đang ưu tiên ngách/)).toBeNull();
+    expect(screen.queryByText(/Đang lọc theo ngách bạn theo dõi/)).toBeNull();
     // Grid stays at full corpus.
     expect(screen.getByText(/3 video — đã sub VN/)).toBeTruthy();
   });
@@ -411,7 +413,7 @@ describe("DouyinScreen — D5e §I patterns surface", () => {
       isPending: false,
     });
     _renderScreen();
-    expect(screen.getByText(/§ I — Pattern signals/)).toBeTruthy();
+    expect(screen.getByText(/§ I — Tín hiệu sớm/)).toBeTruthy();
     expect(screen.getByText("Routine 3 bước trước khi ngủ")).toBeTruthy();
     expect(screen.getByText("Tôi đã thử 30 ngày")).toBeTruthy();
     expect(screen.getByText("Hỏi đáp wellness")).toBeTruthy();
@@ -438,7 +440,7 @@ describe("DouyinScreen — D5e §I patterns surface", () => {
       data: { patterns: [] }, isPending: false,
     });
     _renderScreen();
-    expect(screen.queryByText(/§ I — Pattern signals/)).toBeNull();
+    expect(screen.queryByText(/§ I — Tín hiệu sớm/)).toBeNull();
   });
 
   it("scopes patterns to the active niche chip", () => {

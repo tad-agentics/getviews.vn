@@ -120,7 +120,8 @@ describe("DouyinPatternsSection", () => {
         isLoading={false}
       />,
     );
-    expect(screen.getByText(/§ I — Pattern signals/)).toBeTruthy();
+    expect(screen.getByText(/§ I — Tín hiệu sớm/)).toBeTruthy();
+    expect(screen.getByText(/3 pattern đi trước VN 4–10 tuần/)).toBeTruthy();
     // Per-niche heading rows.
     expect(screen.getByText("Wellness")).toBeTruthy();
     expect(screen.getByText("Tech")).toBeTruthy();
@@ -197,7 +198,7 @@ describe("DouyinPatternsSection", () => {
     expect(screen.getByText(/Tuần 01\/06\/2026/)).toBeTruthy();
     // No staleness caveat — computed_at is 2026-06-01 (≤ 13 days old vs.
     // pinned "today" = 2026-06-08).
-    expect(screen.queryByText(/có thể chưa cập nhật/)).toBeNull();
+    expect(screen.queryByText(/Có thể chưa cập nhật/i)).toBeNull();
   });
 
   it("picks the most recent week_of when patterns span multiple weeks", () => {
@@ -239,7 +240,7 @@ describe("DouyinPatternsSection", () => {
         isLoading={false}
       />,
     );
-    expect(screen.getByText(/có thể chưa cập nhật/)).toBeTruthy();
+    expect(screen.getByText(/Có thể chưa cập nhật/i)).toBeTruthy();
   });
 
   it("orders niche groups by niche_id ASC", () => {
