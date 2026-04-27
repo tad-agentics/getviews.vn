@@ -45,3 +45,25 @@ async def douyin_feed_endpoint(
         logger.exception("[douyin/feed] failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return JSONResponse(payload)
+
+
+@router.get("/douyin/patterns")
+async def douyin_patterns_endpoint(
+    user: dict = Depends(require_user),
+) -> JSONResponse:
+    """Return ``{patterns: [...]}`` — most-recent week's 3 pattern
+    cards per active niche, flat array ordered by (niche_id, rank).
+
+    The FE §I "Pattern signals" surface (D5e) groups these by
+    niche_id client-side and renders 3-up cards. Empty array when the
+    weekly D5c cron hasn't run yet — FE shows an empty state.
+    """
+    from getviews_pipeline.douyin_patterns_data import fetch_douyin_patterns
+
+    sb = user_supabase(user["access_token"])
+    try:
+        payload = await run_sync(fetch_douyin_patterns, sb)
+    except Exception as exc:
+        logger.exception("[douyin/patterns] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(payload)

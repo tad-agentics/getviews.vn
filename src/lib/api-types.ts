@@ -1120,3 +1120,44 @@ export interface DouyinFeedResponse {
   niches: DouyinNiche[];
   videos: DouyinVideo[];
 }
+
+
+// ───────────────────────────────────────────────────────────────────
+// D5d (2026-06-05) — Kho Douyin · weekly pattern signals types.
+//
+// Mirrors the BE serializer in
+// ``cloud-run/getviews_pipeline/douyin_patterns_data.py``. The
+// ``GET /douyin/patterns`` endpoint returns the most-recent week's 3
+// pattern cards per active niche as a flat array ordered by
+// (niche_id ASC, rank ASC). FE groups by ``niche_id`` to render the
+// 3-up cards above the §II video grid.
+// ───────────────────────────────────────────────────────────────────
+
+export interface DouyinPattern {
+  /** UUID — stable identity for React keys + future modal drilldown. */
+  id: string;
+  niche_id: number;
+  /** ISO Monday 00:00 UTC of the synth week (DATE on the BE, e.g.
+   *  "2026-06-01"). FE renders "Tuần " + week_of. */
+  week_of: string;
+  /** 1-based ordinal — synthesiser-determined signal strength. */
+  rank: 1 | 2 | 3;
+  name_vn: string;
+  /** Optional Chinese phrasing — null when the pattern is format-only. */
+  name_zh: string | null;
+  /** Fill-in-the-blank VN hook template; always contains "___". */
+  hook_template_vi: string;
+  format_signal_vi: string;
+  /** 2-5 corpus video_ids that anchor the pattern. FE may join back
+   *  to ``DouyinVideo.video_id`` to render thumbnails. */
+  sample_video_ids: string[];
+  /** Mean ``cn_rise_pct`` across the sample. NULL when none of the
+   *  sampled rows have a delta yet (Douyin's 2nd snapshot pending). */
+  cn_rise_pct_avg: number | null;
+  /** ISO timestamp of the synth run that wrote the row. */
+  computed_at: string | null;
+}
+
+export interface DouyinPatternsResponse {
+  patterns: DouyinPattern[];
+}
