@@ -6,12 +6,14 @@ import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { TopBar } from "@/components/v2/TopBar";
 import { useDouyinFeed } from "@/hooks/useDouyinFeed";
+import { useDouyinPatterns } from "@/hooks/useDouyinPatterns";
 import { useProfile } from "@/hooks/useProfile";
 import type { DouyinVideo } from "@/lib/api-types";
 
 import { DouyinAutoNicheBanner } from "./DouyinAutoNicheBanner";
 import { DouyinHero } from "./DouyinHero";
 import { DouyinNicheChips } from "./DouyinNicheChips";
+import { DouyinPatternsSection } from "./DouyinPatternsSection";
 import { DouyinToolbar } from "./DouyinToolbar";
 import { DouyinVideoCard } from "./DouyinVideoCard";
 import { DouyinVideoModal } from "./DouyinVideoModal";
@@ -39,6 +41,7 @@ import { vnNicheToDouyinSlug } from "./vnNicheToDouyinSlug";
 export default function DouyinScreen() {
   const navigate = useNavigate();
   const { data, isPending, isError, refetch } = useDouyinFeed();
+  const { data: patternsData, isPending: patternsPending } = useDouyinPatterns();
   const { data: profile } = useProfile();
   const { has: isSaved, toggle: toggleSaved, set: savedIds, size: savedCount } =
     useDouyinSavedSet();
@@ -159,6 +162,13 @@ export default function DouyinScreen() {
             greenCount={heroStats.greenCount}
             savedCount={savedCount}
             scopeLabel={scopeLabel}
+          />
+
+          <DouyinPatternsSection
+            patterns={patternsData?.patterns ?? []}
+            niches={niches}
+            activeNicheSlug={filters.nicheSlug}
+            isLoading={patternsPending}
           />
 
           {/* §II header — kicker + count + Xoá bộ lọc */}
