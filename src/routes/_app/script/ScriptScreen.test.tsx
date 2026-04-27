@@ -199,4 +199,53 @@ describe("ScriptScreen", () => {
     const headerTopic = screen.getByLabelText(/Chủ đề kịch bản/) as HTMLTextAreaElement;
     expect(headerTopic.value).toMatch(/Test topic từ query/);
   });
+
+  // D6d — regression for audit finding H3. The Douyin video-modal CTA
+  // builds a fresh ``/app/script?topic=…&hook=…&duration=…`` URL on
+  // every click. If a stale sessionStorage snapshot from a prior visit
+  // shadowed the new URL params, users would see the OLD topic on the
+  // newly-opened editor. The current contract: URL params win on every
+  // mount; the snapshot is only restored when no URL params are
+  // present.
+  it("URL ?topic= wins over a sessionStorage snapshot on mount", () => {
+    sessionStorage.setItem(
+      "gv:script-draft-v1",
+      JSON.stringify({
+        topic: "Snapshot topic — should be overridden",
+        hookPattern: "",
+        duration: 32,
+        toneIdx: 0,
+        hookDelayMs: 1200,
+      }),
+    );
+    renderScreen("?topic=" + encodeURIComponent("URL topic wins"));
+    const headerTopic = screen.getByLabelText(/Chủ đề kịch bản/) as HTMLTextAreaElement;
+    expect(headerTopic.value).toMatch(/URL topic wins/);
+    expect(headerTopic.value).not.toMatch(/Snapshot topic/);
+    sessionStorage.clear();
+  });
+
+  it("snapshot is NOT restored when the URL has any prefill param (audit H3)", () => {
+    // ``?duration=`` alone routes to the detail surface AND triggers
+    // the early-return at ScriptScreen.tsx ~line 232. The snapshot
+    // restore is intentionally skipped — even though only duration is
+    // in the URL, the topic/hook/duration cluster is treated as a
+    // single deliberate prefill (e.g. from /video, /channel, or the
+    // Douyin modal's Adapt CTA). Default topic should remain on
+    // screen, NOT the stale snapshot's topic.
+    sessionStorage.setItem(
+      "gv:script-draft-v1",
+      JSON.stringify({
+        topic: "Stale snapshot topic — must not surface",
+        hookPattern: "",
+        duration: 32,
+        toneIdx: 0,
+        hookDelayMs: 1200,
+      }),
+    );
+    renderScreen("?duration=32");
+    const headerTopic = screen.getByLabelText(/Chủ đề kịch bản/) as HTMLTextAreaElement;
+    expect(headerTopic.value).not.toMatch(/Stale snapshot topic/);
+    sessionStorage.clear();
+  });
 });
