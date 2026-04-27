@@ -18,7 +18,7 @@ import {
   Shield,
   Archive,
 } from 'lucide-react';
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { BrandMark } from "@/components/BrandMark";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
@@ -742,6 +742,14 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     // unauthenticated landing page doesn't init Radix tooltip
     // context — only authenticated /app/* screens need it (sidebar
     // ``<UsageArc>`` is the sole consumer).
+    //
+    // ``<MotionConfig reducedMotion="user">`` propagates the OS
+    // ``prefers-reduced-motion`` preference into every nested
+    // ``<motion.*>`` and ``<AnimatePresence>`` automatically — no
+    // per-component ``useReducedMotion()`` plumbing required.
+    // The landing page already strips motion via a local stub
+    // (PR #243), so this only affects /app/* surfaces.
+    <MotionConfig reducedMotion="user">
     <TooltipProvider delayDuration={200}>
     <div className="flex flex-col h-screen bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
@@ -854,5 +862,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
       </AnimatePresence>
     </div>
     </TooltipProvider>
+    </MotionConfig>
   );
 }
