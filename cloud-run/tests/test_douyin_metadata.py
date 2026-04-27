@@ -27,9 +27,10 @@ from getviews_pipeline.douyin_translator import CaptionTranslation
 
 
 def _aweme(**overrides: Any) -> dict[str, Any]:
-    """Hand-built Douyin aweme_detail dict. Mirrors the EnsembleData
-    response shape (which is identical for /tt/* and /douyin/* per ED
-    docs — see ensemble_douyin.py for confirmation)."""
+    """Hand-built Douyin aweme_detail dict. The canonical Douyin web
+    API shape — both EnsembleData and TikHub re-emit this envelope
+    unchanged, so downstream metadata parsing is provider-agnostic.
+    See ``tikhub_douyin.py`` for the live provider."""
     base: dict[str, Any] = {
         "aweme_id": "7350123456789",
         "desc": "睡前3件事 #养生 改变人生",

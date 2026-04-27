@@ -92,23 +92,37 @@ ENSEMBLEDATA_USER_SEARCH_URL = f"{ENSEMBLEDATA_BASE}/tt/user/search"
 ENSEMBLEDATA_POST_COMMENTS_URL = f"{ENSEMBLEDATA_BASE}/tt/post/comments"
 
 # ── D1 (2026-06-03) — Douyin endpoints (Kho Douyin pipeline) ────────
-# EnsembleData mirrors its TikTok routes under /douyin/* with the same
-# response envelope — see ensemble_douyin.py for the wrapper functions.
-# Base URL stays the same (single ED account / token).
-ENSEMBLEDATA_DOUYIN_POST_INFO_URL = f"{ENSEMBLEDATA_BASE}/douyin/post/info"
-ENSEMBLEDATA_DOUYIN_POST_MULTI_INFO_URL = f"{ENSEMBLEDATA_BASE}/douyin/post/multi-info"
-ENSEMBLEDATA_DOUYIN_KEYWORD_SEARCH_URL = f"{ENSEMBLEDATA_BASE}/douyin/keyword/search"
-ENSEMBLEDATA_DOUYIN_HASHTAG_POSTS_URL = f"{ENSEMBLEDATA_BASE}/douyin/hashtag/posts"
-ENSEMBLEDATA_DOUYIN_USER_POSTS_URL = f"{ENSEMBLEDATA_BASE}/douyin/user/posts"
+# Provider: TikHub (api.tikhub.io). Migrated from EnsembleData on
+# 2026-04-27 after confirming ED's ``/douyin/*`` mirror routes return
+# empty payloads — see ``tikhub_douyin.py``. The five entrypoints
+# downstream callers use (``fetch_douyin_post_info`` /
+# ``fetch_douyin_post_multi_info`` / ``fetch_douyin_keyword_search`` /
+# ``fetch_douyin_hashtag_posts`` / ``fetch_douyin_user_posts``) keep
+# the same Python signatures so douyin_ingest / douyin_metadata /
+# douyin_data don't change.
+TIKHUB_BASE_URL = os.environ.get(
+    "TIKHUB_BASE_URL", "https://api.tikhub.io"
+).rstrip("/")
+TIKHUB_API_KEY = os.environ.get("TIKHUB_API_KEY", "").strip() or None
+
+# Per-call timeouts. TikHub fans Douyin internal-API requests through
+# their own backend so an upstream stall can chain — keep the floor
+# above the 10s ED timeout to avoid spurious timeouts on legit calls.
+try:
+    TIKHUB_REQUEST_TIMEOUT_SEC = float(
+        os.environ.get("TIKHUB_REQUEST_TIMEOUT_SEC", "20.0")
+    )
+except (TypeError, ValueError):
+    TIKHUB_REQUEST_TIMEOUT_SEC = 20.0
 
 # ── Douyin daily ingest budget ──────────────────────────────────────
-# D1 ships with a conservative cap so the Douyin daily cron can't blow
-# through ED's monthly budget while D2/D3 are still settling. Mirrors
-# ``ED_BATCH_DAILY_REQUEST_MAX`` (the VN TikTok cap) — separate counter
-# so VN ingest is unaffected if Douyin overruns. Bump after the first
+# Conservative cap so the Douyin daily cron can't blow through TikHub's
+# monthly budget while the corpus is bedding in. Mirrors
+# ``ED_BATCH_DAILY_REQUEST_MAX`` (VN TikTok cap) — separate counter so
+# VN ingest is unaffected if Douyin overruns. Bump after the first
 # week of clean cron runs.
-ED_DOUYIN_DAILY_REQUEST_MAX = int(
-    os.environ.get("ED_DOUYIN_DAILY_REQUEST_MAX", "50")
+TIKHUB_DOUYIN_DAILY_REQUEST_MAX = int(
+    os.environ.get("TIKHUB_DOUYIN_DAILY_REQUEST_MAX", "50")
 )
 
 

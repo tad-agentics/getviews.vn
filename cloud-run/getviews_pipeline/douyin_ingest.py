@@ -18,7 +18,7 @@ Vietnamese TikTok ``corpus_ingest.run_batch_ingest`` shape but:
 Per-niche flow:
 
   1. ``_fetch_douyin_pool(niche, deep)`` — fan-in of
-     ``ensemble_douyin.fetch_douyin_keyword_search`` (1 page) +
+     ``tikhub_douyin.fetch_douyin_keyword_search`` (1 page) +
      ``fetch_douyin_hashtag_posts`` (top-N tags from
      ``signal_hashtags_zh``).
   2. ``_existing_douyin_video_ids(client, niche_id)`` — dedupe set
@@ -46,7 +46,7 @@ from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
 from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
 from getviews_pipeline.douyin_translator import translate_douyin_caption
-from getviews_pipeline.ensemble_douyin import (
+from getviews_pipeline.tikhub_douyin import (
     fetch_douyin_hashtag_posts,
     fetch_douyin_keyword_search,
 )

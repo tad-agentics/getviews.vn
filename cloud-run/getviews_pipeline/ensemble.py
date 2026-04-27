@@ -56,6 +56,17 @@ class ClassifierDailyBudgetExceeded(ValueError):
     """
 
 
+class TikHubDailyBudgetExceeded(ValueError):
+    """Raised when ``TIKHUB_DOUYIN_DAILY_REQUEST_MAX`` is hit for the
+    UTC day.
+
+    Caught by the Douyin batch ingest orchestrator the same way
+    ``EnsembleDailyBudgetExceeded`` is — surface a 503 to the cron
+    caller so Cloud Scheduler retries on the next UTC day instead
+    of hammering us through the budget.
+    """
+
+
 # ── EnsembleData metering (ContextVar — safe under asyncio.gather) ───────────
 _ed_meter: contextvars.ContextVar[dict[str, int] | None] = contextvars.ContextVar(
     "ed_meter", default=None
@@ -83,6 +94,39 @@ _batch_request_counts_by_utc_day: dict[str, int] = {}
 
 _classifier_budget_lock = threading.Lock()
 _classifier_gemini_counts_by_utc_day: dict[str, int] = {}
+
+_tikhub_douyin_budget_lock = threading.Lock()
+_tikhub_douyin_counts_by_utc_day: dict[str, int] = {}
+
+
+def consume_tikhub_douyin_budget_or_raise() -> None:
+    """Increment Douyin TikHub daily counter; raise if cap exceeded.
+
+    Mirrors ``consume_classifier_gemini_budget_or_raise``. Each TikHub
+    HTTP call from ``tikhub_douyin._tikhub_request`` consumes one
+    bucket. ``TIKHUB_DOUYIN_DAILY_REQUEST_MAX <= 0`` disables the cap
+    entirely (boot-time warning lives in ``config._warn_unbounded_budgets``).
+    """
+    from getviews_pipeline import config as _cfg
+
+    maxr = _cfg.TIKHUB_DOUYIN_DAILY_REQUEST_MAX
+    if maxr <= 0:
+        return
+    with _tikhub_douyin_budget_lock:
+        day = _utc_day()
+        cur = _tikhub_douyin_counts_by_utc_day.get(day, 0)
+        if cur >= maxr:
+            raise TikHubDailyBudgetExceeded(
+                f"TikHub Douyin daily budget hit: {cur}>={maxr} (UTC {day}). "
+                "Raise TIKHUB_DOUYIN_DAILY_REQUEST_MAX or wait for UTC rollover."
+            )
+        _tikhub_douyin_counts_by_utc_day[day] = cur + 1
+
+
+def reset_tikhub_douyin_budget_for_tests() -> None:
+    """Clear TikHub Douyin budget counters (tests only)."""
+    with _tikhub_douyin_budget_lock:
+        _tikhub_douyin_counts_by_utc_day.clear()
 
 
 def consume_classifier_gemini_budget_or_raise() -> None:
