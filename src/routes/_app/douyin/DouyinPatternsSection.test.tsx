@@ -2,7 +2,7 @@
  * D5e (2026-06-05) — DouyinPatternsSection render tests.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import type { DouyinNiche, DouyinPattern } from "@/lib/api-types";
@@ -10,7 +10,16 @@ import type { DouyinNiche, DouyinPattern } from "@/lib/api-types";
 import { DouyinPatternsSection } from "./DouyinPatternsSection";
 
 
-afterEach(() => cleanup());
+beforeEach(() => {
+  // Pin "today" so the freshness caveat tests don't drift.
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-08T12:00:00Z"));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
+});
 
 
 const _NICHES: DouyinNiche[] = [
@@ -170,6 +179,67 @@ describe("DouyinPatternsSection", () => {
       container.querySelectorAll("article[data-rank]"),
     ).map((el) => el.getAttribute("data-rank"));
     expect(ranks).toEqual(["1", "2", "3"]);
+  });
+
+  it("renders the week_of label as DD/MM/YYYY in the header", () => {
+    render(
+      <DouyinPatternsSection
+        patterns={[
+          _pattern(1, 1, { week_of: "2026-06-01" }),
+          _pattern(1, 2, { week_of: "2026-06-01" }),
+          _pattern(1, 3, { week_of: "2026-06-01" }),
+        ]}
+        niches={_NICHES}
+        activeNicheSlug={null}
+        isLoading={false}
+      />,
+    );
+    expect(screen.getByText(/Tuần 01\/06\/2026/)).toBeTruthy();
+    // No staleness caveat — computed_at is 2026-06-01 (≤ 13 days old vs.
+    // pinned "today" = 2026-06-08).
+    expect(screen.queryByText(/có thể chưa cập nhật/)).toBeNull();
+  });
+
+  it("picks the most recent week_of when patterns span multiple weeks", () => {
+    render(
+      <DouyinPatternsSection
+        patterns={[
+          _pattern(1, 1, { week_of: "2026-05-25" }),
+          _pattern(1, 2, { week_of: "2026-06-01" }),
+          _pattern(1, 3, { week_of: "2026-06-01" }),
+        ]}
+        niches={_NICHES}
+        activeNicheSlug={null}
+        isLoading={false}
+      />,
+    );
+    expect(screen.getByText(/Tuần 01\/06\/2026/)).toBeTruthy();
+    expect(screen.queryByText(/Tuần 25\/05\/2026/)).toBeNull();
+  });
+
+  it("surfaces the staleness caveat when computed_at is older than 13 days", () => {
+    render(
+      <DouyinPatternsSection
+        patterns={[
+          _pattern(1, 1, {
+            week_of: "2026-05-18",
+            computed_at: "2026-05-18T21:00:00+00:00",  // 21 days before pinned "today"
+          }),
+          _pattern(1, 2, {
+            week_of: "2026-05-18",
+            computed_at: "2026-05-18T21:00:00+00:00",
+          }),
+          _pattern(1, 3, {
+            week_of: "2026-05-18",
+            computed_at: "2026-05-18T21:00:00+00:00",
+          }),
+        ]}
+        niches={_NICHES}
+        activeNicheSlug={null}
+        isLoading={false}
+      />,
+    );
+    expect(screen.getByText(/có thể chưa cập nhật/)).toBeTruthy();
   });
 
   it("orders niche groups by niche_id ASC", () => {
