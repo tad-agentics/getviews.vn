@@ -124,6 +124,16 @@ export default function AnswerScreen() {
     return n?.name;
   }, [profile?.primary_niche, niches]);
 
+  // A2 — closure over the loaded taxonomy so SessionDrawer can render
+  // a niche chip per row without coupling to the hook itself.
+  const nicheLabelOf = useMemo(() => {
+    return (id: number | null): string | null => {
+      if (id == null || !niches?.length) return null;
+      const n = niches.find((row: { id: number; name: string }) => row.id === id);
+      return n?.name ?? null;
+    };
+  }, [niches]);
+
   const displayTitle = useMemo(() => {
     const t = detailQuery.data?.session?.title?.trim();
     if (t) return t;
@@ -488,6 +498,7 @@ export default function AnswerScreen() {
           onNewSession={() => navigate("/app/answer")}
           onViewAll={() => navigate("/app/history?filter=answer")}
           isLoading={listQuery.isLoading}
+          nicheLabelOf={nicheLabelOf}
         />
         <AnswerShell
           crumb={

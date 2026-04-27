@@ -528,6 +528,11 @@ def list_sessions(
 
     Keyset pagination: pass ``cursor`` = ``updated_at`` ISO from the previous page's last row
     (strictly older rows). Ordered by ``updated_at DESC``.
+
+    A2 — Each row carries a denormalized ``turn_count`` so the FE
+    SessionDrawer can render "N lượt" per row without N+1 lookups. The
+    count comes from one extra batched ``answer_turns`` query keyed by
+    the page's session ids; sessions with no turns get ``turn_count=0``.
     """
     sb = get_service_client()
     q = sb.table("answer_sessions").select("*").eq("user_id", user_id)
@@ -539,7 +544,32 @@ def list_sessions(
     if cursor:
         q = q.lt("updated_at", cursor)
     res = q.order("updated_at", desc=True).limit(limit).execute()
-    return res.data or []
+    sessions: list[dict[str, Any]] = list(res.data or [])
+    if not sessions:
+        return sessions
+
+    session_ids = [s["id"] for s in sessions if s.get("id")]
+    counts: dict[str, int] = {}
+    if session_ids:
+        try:
+            turns_res = (
+                sb.table("answer_turns")
+                .select("session_id")
+                .in_("session_id", session_ids)
+                .execute()
+            )
+            for row in turns_res.data or []:
+                sid = row.get("session_id")
+                if sid:
+                    counts[sid] = counts.get(sid, 0) + 1
+        except Exception:
+            # Drawer renders without ``turn_count`` rather than failing the
+            # whole list query — non-fatal enrichment.
+            counts = {}
+
+    for s in sessions:
+        s["turn_count"] = int(counts.get(s.get("id"), 0))
+    return sessions
 
 
 def get_session_turns(user_id: str, session_id: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:

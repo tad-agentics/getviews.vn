@@ -1011,6 +1011,14 @@ export interface AnswerSessionRow {
   created_at?: string;
   updated_at?: string;
   archived_at?: string | null;
+  /**
+   * A2 — number of turns in this session (primary + follow-ups).
+   * Surfaced by ``list_sessions`` for the drawer's "N lượt" chip.
+   * ``undefined`` on rows from ``GET /answer/sessions/:id`` (single-row
+   * fetcher doesn't run the count query); FE branches on null/0 and
+   * hides the chip.
+   */
+  turn_count?: number;
 }
 
 export interface AnswerTurnRow {
