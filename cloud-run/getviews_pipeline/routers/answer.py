@@ -105,23 +105,33 @@ async def answer_append_turn(
 
         if resume_stream_id and resume_from_seq is not None:
             cached = get_stream_chunks(resume_stream_id)
-            if cached and len(cached) >= 2:
-                if resume_from_seq < 1:
-                    try:
-                        parsed_payload = json.loads(cached[0])
-                    except (TypeError, ValueError):
-                        logger.exception("[answer/turns] replay payload re-parse failed stream_id=%s", resume_stream_id)
-                        parsed_payload = None
-                    if parsed_payload is not None:
-                        yield _sse_line({"stream_id": stream_id, "seq": 1, "payload": parsed_payload, "done": False})
-                        await asyncio.sleep(0.005)
-                    else:
-                        cached = None
-                if cached is not None and resume_from_seq < 2:
-                    yield _sse_line({"stream_id": stream_id, "seq": 2, "delta": "", "done": True})
-                if cached is not None:
+            if cached:
+                # Each item carries the seq the client saw on the live
+                # wire. Re-emit any seq above last_seq verbatim, then
+                # close with the exact same done-seq used live.
+                replayed_any = False
+                last_replay_seq = int(resume_from_seq)
+                for item in cached:
+                    item_seq = int(item.get("seq") or 0)
+                    if item_seq <= resume_from_seq:
+                        continue
+                    # ``done`` is part of the cached item for the
+                    # terminal frame; everything else flushes as
+                    # done=False.
+                    is_terminal = bool(item.get("done"))
+                    yield _sse_line({"stream_id": stream_id, **item} if is_terminal
+                                    else {"stream_id": stream_id, **item, "done": False})
+                    last_replay_seq = item_seq
+                    replayed_any = True
+                    await asyncio.sleep(0.005)
+                if replayed_any:
                     return
-            logger.info("[answer/turns] resume cache miss stream_id=%s — running fresh", resume_stream_id)
+                logger.info(
+                    "[answer/turns] cached but everything ≤ resume_from_seq — running fresh stream_id=%s last_seq=%d",
+                    resume_stream_id, last_replay_seq,
+                )
+            else:
+                logger.info("[answer/turns] resume cache miss stream_id=%s — running fresh", resume_stream_id)
 
         try:
             out = await run_sync(
@@ -153,13 +163,18 @@ async def answer_append_turn(
         seq += 1
         report_payload = out.get("payload", out)
         turn_meta = out.get("turn")
-        payload_chunk = json.dumps(report_payload, ensure_ascii=False)
-        yield _sse_line({"stream_id": stream_id, "seq": seq, "payload": report_payload, "turn": turn_meta, "done": False})
+        payload_seq = seq
+        payload_item = {"seq": payload_seq, "payload": report_payload, "turn": turn_meta}
+        yield _sse_line({"stream_id": stream_id, **payload_item, "done": False})
 
         seq += 1
-        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
+        done_seq = seq
+        done_item = {"seq": done_seq, "delta": "", "done": True}
+        yield _sse_line({"stream_id": stream_id, **done_item})
 
-        put_stream_chunks(stream_id, [payload_chunk, ""])
+        # Cache the exact items (with their original seq) so a reconnect
+        # replays the same wire-level frames.
+        put_stream_chunks(stream_id, [payload_item, done_item])
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

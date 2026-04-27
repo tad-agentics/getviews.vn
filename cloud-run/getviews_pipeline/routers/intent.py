@@ -336,13 +336,17 @@ async def stream(
             if body.resume_stream_id and body.last_seq is not None:
                 cached = get_stream_chunks(body.resume_stream_id)
                 if cached:
-                    for i, chunk in enumerate(cached, start=1):
-                        if i <= body.last_seq:
+                    # Items now carry the original seq so we re-emit the
+                    # exact numbers the client saw on the live wire.
+                    last_emitted_seq = int(body.last_seq)
+                    for item in cached:
+                        item_seq = int(item.get("seq") or 0)
+                        if item_seq <= body.last_seq:
                             continue
-                        seq = i
-                        yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
+                        last_emitted_seq = item_seq
+                        yield _sse_line({"stream_id": stream_id, **item, "done": False})
                         await asyncio.sleep(0.005)
-                    seq += 1
+                    seq = last_emitted_seq + 1
                     yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
                     sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()
                     return
@@ -426,11 +430,14 @@ async def stream(
                 logger.warning("Unexpected intent in /stream: %s — falling back to gemini_text_only", normalized)
                 full_text = await run_sync(gemini_text_only, body.query, session)
                 chunks = _chunk_text(full_text, 50)
-                put_stream_chunks(stream_id, chunks)
+                replay_items: list[dict[str, Any]] = []
                 for chunk in chunks:
                     seq += 1
-                    yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
+                    item = {"seq": seq, "delta": chunk}
+                    replay_items.append(item)
+                    yield _sse_line({"stream_id": stream_id, **item, "done": False})
                     await asyncio.sleep(0.005)
+                put_stream_chunks(stream_id, replay_items)
                 seq += 1
                 yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
                 await run_sync(
@@ -511,11 +518,14 @@ async def stream(
                 structured = None
 
             chunks = _chunk_text(full_text, 50)
-            put_stream_chunks(stream_id, chunks)
+            replay_items: list[dict[str, Any]] = []
             for chunk in chunks:
                 seq += 1
-                yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": chunk, "done": False})
+                item = {"seq": seq, "delta": chunk}
+                replay_items.append(item)
+                yield _sse_line({"stream_id": stream_id, **item, "done": False})
                 await asyncio.sleep(0.005)
+            put_stream_chunks(stream_id, replay_items)
             seq += 1
             yield _sse_line({"stream_id": stream_id, "seq": seq, "delta": "", "done": True})
             await run_sync(

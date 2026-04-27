@@ -45,22 +45,53 @@ _REPLAY_SWEEP_INTERVAL_SEC = 30.0
 _stream_chunks: dict[str, dict[str, Any]] = {}
 
 
-def put_stream_chunks(stream_id: str, chunks: list[str]) -> None:
-    """Cache token chunks for reconnect replay (same seq indices as first send)."""
+def _normalise_chunk_items(
+    chunks: list[str] | list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Accept either bare strings (legacy callers) or seq-stamped dicts.
+
+    Bare strings are auto-stamped with sequential seq=1..N so older test
+    callers keep working. New callers should pass dicts shaped like
+    ``{"seq": N, "delta": "..."}`` (or ``"payload": {...}``) so the seq
+    on replay matches the seq the client saw on the live wire.
+    """
+    out: list[dict[str, Any]] = []
+    for i, item in enumerate(chunks, start=1):
+        if isinstance(item, dict):
+            if "seq" not in item:
+                item = {**item, "seq": i}
+            out.append(item)
+        else:
+            out.append({"seq": i, "delta": str(item)})
+    return out
+
+
+def put_stream_chunks(
+    stream_id: str,
+    chunks: list[str] | list[dict[str, Any]],
+) -> None:
+    """Cache token items for reconnect replay.
+
+    Each item carries the explicit ``seq`` it was emitted with so the
+    replay path re-yields the same seq the client already saw — no
+    list-index drift when step events bumped seq before the deltas
+    started flowing.
+    """
     _stream_chunks[stream_id] = {
-        "chunks": chunks,
+        "chunks": _normalise_chunk_items(chunks),
         "expires_at": time.monotonic() + _STREAM_REPLAY_TTL_SEC,
     }
 
 
-def get_stream_chunks(stream_id: str) -> list[str] | None:
+def get_stream_chunks(stream_id: str) -> list[dict[str, Any]] | None:
+    """Return cached seq-stamped chunk items, or ``None`` on miss/expiry."""
     entry = _stream_chunks.get(stream_id)
     if not entry:
         return None
     if time.monotonic() > float(entry["expires_at"]):
         _stream_chunks.pop(stream_id, None)
         return None
-    return list(entry["chunks"])
+    return [dict(item) for item in entry["chunks"]]
 
 
 def sweep_expired_stream_chunks(now: float | None = None) -> int:
