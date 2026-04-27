@@ -1,9 +1,25 @@
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 
-// TODO(forecast): scriptForecastViews / scriptForecastRetentionPct / scriptHookScore are
-// deterministic placeholders from phase-b-plan — replace with corpus-backed numbers when
-// the API exposes per-niche forecast (see phase-d-plan follow-ups).
+/**
+ * Acknowledged tech-debt — the three forecast helpers below
+ * (``scriptForecastViews`` / ``scriptForecastRetentionPct`` /
+ * ``scriptHookScore``) ship deterministic placeholders from
+ * ``artifacts/plans/phase-b-plan.md``. They turn duration + hook
+ * delay into a "rough enough" preview number so the bar has
+ * something to render before the corpus-backed forecast API
+ * lands; the cut-points (22-40s sweet spot, 1.4s/2.0s hook
+ * thresholds) come from the phase-B exploratory analysis on the
+ * VN corpus and have held up directionally for the screens we've
+ * shipped against them.
+ *
+ * The corpus-backed forecast (per-niche regression on
+ * ``video_corpus``) lives in ``artifacts/plans/phase-d-plan.md``
+ * as a follow-up; until that lands the placeholders are the
+ * intended path. No ``TODO(owner@date)`` because there's no
+ * commitment to swap them at a specific date — the swap happens
+ * when the API exists. Tracked-not-targeted.
+ */
 
 export type ScriptForecastBarProps = {
   durationSec: number;
