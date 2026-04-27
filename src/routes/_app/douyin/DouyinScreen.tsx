@@ -41,7 +41,12 @@ import { vnNicheToDouyinSlug } from "./vnNicheToDouyinSlug";
 export default function DouyinScreen() {
   const navigate = useNavigate();
   const { data, isPending, isError, refetch } = useDouyinFeed();
-  const { data: patternsData, isPending: patternsPending } = useDouyinPatterns();
+  const {
+    data: patternsData,
+    isPending: patternsPending,
+    isError: patternsError,
+    refetch: refetchPatterns,
+  } = useDouyinPatterns();
   const { data: profile } = useProfile();
   const { has: isSaved, toggle: toggleSaved, set: savedIds, size: savedCount } =
     useDouyinSavedSet();
@@ -169,6 +174,8 @@ export default function DouyinScreen() {
             niches={niches}
             activeNicheSlug={filters.nicheSlug}
             isLoading={patternsPending}
+            isError={patternsError}
+            onRetry={() => void refetchPatterns()}
           />
 
           {/* §II header — kicker + count + Xoá bộ lọc */}

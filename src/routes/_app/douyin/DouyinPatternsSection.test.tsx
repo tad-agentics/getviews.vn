@@ -2,8 +2,8 @@
  * D5e (2026-06-05) — DouyinPatternsSection render tests.
  */
 
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import type { DouyinNiche, DouyinPattern } from "@/lib/api-types";
 
@@ -52,6 +52,38 @@ describe("DouyinPatternsSection", () => {
       />,
     );
     expect(screen.getByLabelText(/Đang tải Pattern signals/)).toBeTruthy();
+  });
+
+  it("renders the error banner with retry button when isError is true", () => {
+    const onRetry = vi.fn();
+    render(
+      <DouyinPatternsSection
+        patterns={[]}
+        niches={_NICHES}
+        activeNicheSlug={null}
+        isLoading={false}
+        isError={true}
+        onRetry={onRetry}
+      />,
+    );
+    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.getByText(/Không tải được Pattern signals/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Thử lại/ }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the retry button when onRetry isn't provided", () => {
+    render(
+      <DouyinPatternsSection
+        patterns={[]}
+        niches={_NICHES}
+        activeNicheSlug={null}
+        isLoading={false}
+        isError={true}
+      />,
+    );
+    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Thử lại/ })).toBeNull();
   });
 
   it("renders nothing when patterns is empty (no cron / no data)", () => {

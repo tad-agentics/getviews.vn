@@ -3,7 +3,7 @@ import { Bookmark, Search } from "lucide-react";
 
 import type { DouyinAdaptLevel } from "@/lib/api-types";
 
-import { ADAPT_META } from "./DouyinVideoCard";
+import { ADAPT_META } from "./douyinFormatters";
 import type {
   DouyinAdaptFilter,
   DouyinFilters,
@@ -78,7 +78,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
           type="search"
           value={filters.search}
           onChange={(e) => setSearch(e.target.value)}
-          className="min-w-0 flex-1 border-none bg-transparent py-0 text-[12px] leading-none text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)]"
+          className="min-w-0 flex-1 border-none bg-transparent py-0 text-[16px] leading-none text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] sm:text-[12px]"
           placeholder="Tìm tiêu đề, handle, lý do…"
           aria-label="Tìm trong Kho Douyin"
         />

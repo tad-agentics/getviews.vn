@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 import type { DouyinNiche, DouyinPattern } from "@/lib/api-types";
 
@@ -36,6 +36,10 @@ export type DouyinPatternsSectionProps = {
    *  set, only that niche's patterns render (no per-niche heading). */
   activeNicheSlug: string | null;
   isLoading: boolean;
+  /** D6b — when ``useDouyinPatterns`` errors (network blip, 5xx),
+   *  render a thin retry banner instead of silently rendering null. */
+  isError?: boolean;
+  onRetry?: () => void;
 };
 
 export const DouyinPatternsSection = memo(function DouyinPatternsSection({
@@ -43,6 +47,8 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
   niches,
   activeNicheSlug,
   isLoading,
+  isError = false,
+  onRetry,
 }: DouyinPatternsSectionProps) {
   // Resolve active niche slug → niche_id once.
   const activeNicheId = useMemo(() => {
@@ -82,6 +88,35 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
       >
         <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} aria-hidden />
         <span className="text-[13px]">Đang tải Pattern signals…</span>
+      </section>
+    );
+  }
+
+  if (isError) {
+    return (
+      <section
+        role="alert"
+        className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3"
+      >
+        <div className="flex items-center gap-2 text-[color:var(--gv-ink-2)]">
+          <AlertCircle
+            className="h-4 w-4 text-[color:var(--gv-accent-deep)]"
+            strokeWidth={2}
+            aria-hidden
+          />
+          <span className="text-[13px]">
+            Không tải được Pattern signals — đang chỉ hiển thị video bên dưới.
+          </span>
+        </div>
+        {onRetry ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="gv-mono text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)] underline-offset-4 hover:underline"
+          >
+            Thử lại
+          </button>
+        ) : null}
       </section>
     );
   }

@@ -97,6 +97,8 @@ beforeEach(() => {
   useDouyinPatterns.mockReturnValue({
     data: { patterns: [] },
     isPending: false,
+    isError: false,
+    refetch: vi.fn(),
   });
 });
 

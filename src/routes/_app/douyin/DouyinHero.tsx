@@ -62,8 +62,9 @@ export const DouyinHero = memo(function DouyinHero({
         văn hoá · gắn cờ Xanh / Vàng / Đỏ theo khả năng đem về VN.
       </p>
 
-      {/* Stats grid — 3 columns separated by a top border. */}
-      <div className="grid grid-cols-3 gap-9 border-t border-[color:color-mix(in_srgb,var(--gv-canvas)_18%,transparent)] pt-4">
+      {/* Stats grid — 2 cols on mobile (avoid cramping at 360px),
+          3 cols ≥sm. Top border separates from the caption. */}
+      <div className="grid grid-cols-2 gap-5 border-t border-[color:color-mix(in_srgb,var(--gv-canvas)_18%,transparent)] pt-4 sm:grid-cols-3 sm:gap-9">
         <HeroNum
           label="Video trong kho"
           value={totalInPool}
