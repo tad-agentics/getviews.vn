@@ -72,8 +72,7 @@ export function TrendingSoundsSection({ nicheId, className = "" }: Props) {
   const { data: allRows = [], isPending } = useQuery({
     queryKey: ["trending_sounds_all", weekStr],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("trending_sounds")
         .select("sound_name, sound_id, usage_count, total_views, commerce_signal, niche_id")
         .eq("week_of", weekStr)

@@ -713,24 +713,54 @@ export type Database = {
         Row: {
           analysis_json: Json
           breakout_multiplier: number | null
+          caption: string | null
           comments: number
           content_type: string
           content_format: string | null
           created_at: string
           creator_handle: string
           creator_followers: number | null
+          creator_tier: string | null
+          cta_type: string | null
+          dialect: string | null
           engagement_rate: number
+          face_appears_at: number | null
+          first_frame_type: string | null
           frame_urls: string[]
+          has_caption_text: boolean | null
+          has_vietnamese_hashtags: boolean | null
+          hashtag_count: number | null
+          hashtags: string[] | null
           hook_phrase: string | null
           hook_type: string | null
           id: string
           indexed_at: string
+          is_commerce: boolean | null
+          is_duet: boolean | null
+          is_original_sound: boolean | null
+          is_stitch: boolean | null
+          language: string | null
           likes: number
           niche_id: number
           pattern_id: string | null
+          posted_at: string | null
+          posting_hour: number | null
+          save_rate: number | null
+          saves: number | null
+          scene_count: number | null
+          search_vector: unknown | null
           shares: number
+          sound_id: string | null
+          sound_name: string | null
+          text_overlay_count: number | null
+          thumbnail_analysis: Json | null
+          thumbnail_analysis_fetched_at: string | null
           thumbnail_url: string | null
           tiktok_url: string
+          tone: string | null
+          topics: string[] | null
+          transcript_snippet: string | null
+          transitions_per_second: number | null
           video_id: string
           video_url: string | null
           views: number
@@ -739,24 +769,54 @@ export type Database = {
         Insert: {
           analysis_json: Json
           breakout_multiplier?: number | null
+          caption?: string | null
           comments?: number
           content_type: string
           content_format?: string | null
           created_at?: string
           creator_handle: string
           creator_followers?: number | null
+          creator_tier?: string | null
+          cta_type?: string | null
+          dialect?: string | null
           engagement_rate?: number
+          face_appears_at?: number | null
+          first_frame_type?: string | null
           frame_urls?: string[]
+          has_caption_text?: boolean | null
+          has_vietnamese_hashtags?: boolean | null
+          hashtag_count?: number | null
+          hashtags?: string[] | null
           hook_phrase?: string | null
           hook_type?: string | null
           id?: string
           indexed_at?: string
+          is_commerce?: boolean | null
+          is_duet?: boolean | null
+          is_original_sound?: boolean | null
+          is_stitch?: boolean | null
+          language?: string | null
           likes?: number
           niche_id: number
           pattern_id?: string | null
+          posted_at?: string | null
+          posting_hour?: number | null
+          save_rate?: number | null
+          saves?: number | null
+          scene_count?: number | null
+          search_vector?: unknown | null
           shares?: number
+          sound_id?: string | null
+          sound_name?: string | null
+          text_overlay_count?: number | null
+          thumbnail_analysis?: Json | null
+          thumbnail_analysis_fetched_at?: string | null
           thumbnail_url?: string | null
           tiktok_url: string
+          tone?: string | null
+          topics?: string[] | null
+          transcript_snippet?: string | null
+          transitions_per_second?: number | null
           video_id: string
           video_url?: string | null
           views?: number
@@ -765,24 +825,54 @@ export type Database = {
         Update: {
           analysis_json?: Json
           breakout_multiplier?: number | null
+          caption?: string | null
           comments?: number
           content_type?: string
           content_format?: string | null
           created_at?: string
           creator_handle?: string
           creator_followers?: number | null
+          creator_tier?: string | null
+          cta_type?: string | null
+          dialect?: string | null
           engagement_rate?: number
+          face_appears_at?: number | null
+          first_frame_type?: string | null
           frame_urls?: string[]
+          has_caption_text?: boolean | null
+          has_vietnamese_hashtags?: boolean | null
+          hashtag_count?: number | null
+          hashtags?: string[] | null
           hook_phrase?: string | null
           hook_type?: string | null
           id?: string
           indexed_at?: string
+          is_commerce?: boolean | null
+          is_duet?: boolean | null
+          is_original_sound?: boolean | null
+          is_stitch?: boolean | null
+          language?: string | null
           likes?: number
           niche_id?: number
           pattern_id?: string | null
+          posted_at?: string | null
+          posting_hour?: number | null
+          save_rate?: number | null
+          saves?: number | null
+          scene_count?: number | null
+          search_vector?: unknown | null
           shares?: number
+          sound_id?: string | null
+          sound_name?: string | null
+          text_overlay_count?: number | null
+          thumbnail_analysis?: Json | null
+          thumbnail_analysis_fetched_at?: string | null
           thumbnail_url?: string | null
           tiktok_url?: string
+          tone?: string | null
+          topics?: string[] | null
+          transcript_snippet?: string | null
+          transitions_per_second?: number | null
           video_id?: string
           video_url?: string | null
           views?: number
@@ -819,6 +909,11 @@ export type Database = {
           weekly_instance_count_prev: number
           is_active: boolean
           computed_at: string
+          structure: Json | null
+          why: string | null
+          careful: string | null
+          angles: Json | null
+          deck_computed_at: string | null
         }
         Insert: {
           id?: string
@@ -833,6 +928,11 @@ export type Database = {
           weekly_instance_count_prev?: number
           is_active?: boolean
           computed_at?: string
+          structure?: Json | null
+          why?: string | null
+          careful?: string | null
+          angles?: Json | null
+          deck_computed_at?: string | null
         }
         Update: {
           id?: string
@@ -847,8 +947,60 @@ export type Database = {
           weekly_instance_count_prev?: number
           is_active?: boolean
           computed_at?: string
+          structure?: Json | null
+          why?: string | null
+          careful?: string | null
+          angles?: Json | null
+          deck_computed_at?: string | null
         }
         Relationships: []
+      }
+      trending_sounds: {
+        Row: {
+          id: string
+          niche_id: number | null
+          sound_id: string
+          sound_name: string
+          usage_count: number
+          is_original_sound: boolean
+          total_views: number
+          commerce_signal: boolean
+          week_of: string
+          computed_at: string
+        }
+        Insert: {
+          id?: string
+          niche_id?: number | null
+          sound_id: string
+          sound_name: string
+          usage_count?: number
+          is_original_sound?: boolean
+          total_views?: number
+          commerce_signal?: boolean
+          week_of: string
+          computed_at?: string
+        }
+        Update: {
+          id?: string
+          niche_id?: number | null
+          sound_id?: string
+          sound_name?: string
+          usage_count?: number
+          is_original_sound?: boolean
+          total_views?: number
+          commerce_signal?: boolean
+          week_of?: string
+          computed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trending_sounds_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
