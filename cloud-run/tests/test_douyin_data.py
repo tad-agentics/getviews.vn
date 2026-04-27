@@ -17,7 +17,6 @@ from unittest.mock import MagicMock
 
 from getviews_pipeline.douyin_data import _serialize_video, fetch_douyin_feed
 
-
 # ── Mock helpers ────────────────────────────────────────────────────
 
 
@@ -150,6 +149,43 @@ def test_serialize_video_drops_malformed_translator_notes() -> None:
     out = _serialize_video(row)
     assert len(out["translator_notes"]) == 2
     assert {n["tag"] for n in out["translator_notes"]} == {"TỪ NGỮ", "BỐI CẢNH"}
+
+
+def test_serialize_video_drops_whitespace_only_translator_notes() -> None:
+    """D6e (audit L4) — a whitespace-only ``note`` field passes basic
+    truthiness but renders an empty card on the FE modal. Strip
+    before checking truthiness so we never emit blank notes."""
+    row = {
+        "video_id": "v1",
+        "niche_id": 1,
+        "views": 100, "likes": 0, "saves": 0,
+        "translator_notes": [
+            {"tag": "TỪ NGỮ", "note": "valid note"},
+            {"tag": "BỐI CẢNH", "note": "   "},       # whitespace only — drop
+            {"tag": "NHẠC NỀN", "note": "\t\n"},      # tab/newline — drop
+            {"tag": "  ", "note": "blank tag"},        # whitespace tag — drop
+            {"tag": "ĐẠO CỤ", "note": "another valid"},
+        ],
+    }
+    out = _serialize_video(row)
+    assert len(out["translator_notes"]) == 2
+    assert {n["tag"] for n in out["translator_notes"]} == {"TỪ NGỮ", "ĐẠO CỤ"}
+
+
+def test_serialize_video_strips_whitespace_around_translator_notes() -> None:
+    """Surrounding whitespace on tag / note should be trimmed in the
+    serializer output even when the trimmed value is non-empty."""
+    row = {
+        "video_id": "v1",
+        "niche_id": 1,
+        "views": 100, "likes": 0, "saves": 0,
+        "translator_notes": [
+            {"tag": "  TỪ NGỮ  ", "note": "  surrounded by spaces  "},
+        ],
+    }
+    out = _serialize_video(row)
+    assert out["translator_notes"][0]["tag"] == "TỪ NGỮ"
+    assert out["translator_notes"][0]["note"] == "surrounded by spaces"
 
 
 def test_serialize_video_drops_blank_hashtags() -> None:
