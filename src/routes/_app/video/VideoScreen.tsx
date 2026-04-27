@@ -3,16 +3,13 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import {
   ArrowRight,
   Copy,
-  Flame,
   Loader2,
   Play,
   Plus,
-  Sparkles,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
-import { Segmented } from "@/components/v2/Segmented";
 import { TopBar } from "@/components/v2/TopBar";
 import { RetentionCurve } from "@/components/v2/RetentionCurve";
 import { Timeline } from "@/components/v2/Timeline";
@@ -124,17 +121,13 @@ function FlopDiagnosisStrip({
 }
 
 export default function VideoScreen() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
   const videoId = searchParams.get("video_id");
   const url = searchParams.get("url");
 
   const cacheKey = useMemo(() => videoAnalysisKey(videoId, url), [videoId, url]);
-  const urlMode = useMemo((): VideoAnalyzeMode | null => {
-    const raw = searchParams.get("mode");
-    return raw === "win" || raw === "flop" ? raw : null;
-  }, [searchParams]);
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
 
   // Reject obviously-invalid `?url=` payloads before they reach Cloud
@@ -169,16 +162,20 @@ export default function VideoScreen() {
     videoId,
     url,
     forceRefresh: false,
-    mode: urlMode,
     // Skip the hook when the URL is malformed — prevents a 404-generating
     // POST that would burn a Cloud Run round-trip.
     enabled: Boolean(cacheKey && cloudConfigured && !urlValidationError),
   });
 
-  const effectiveMode = useMemo((): VideoAnalyzeMode => {
-    if (urlMode) return urlMode;
-    return data?.mode ?? "win";
-  }, [urlMode, data?.mode]);
+  // One video = one mode = one analysis. The BE picks the analyzer
+  // (``is_flop_mode`` in ``video_analyze.py`` auto-detects from the
+  // video's performance vs niche), and ``data.mode`` is the single
+  // source of truth for which UI to render. The previous code parsed
+  // a ``?mode=`` URL param and let it override the response mode —
+  // that allowed a contradictory state (flop UI on a win response).
+  // No FE call site sets ``?mode=`` today, so the override was dead;
+  // dropped here so the contradiction can never reappear.
+  const effectiveMode = useMemo((): VideoAnalyzeMode => data?.mode ?? "win", [data?.mode]);
 
   const emptyParams = !cacheKey;
   const showCompactUrlBar = Boolean(
@@ -289,39 +286,11 @@ export default function VideoScreen() {
                 <VideoUrlCapture key={cacheKey} variant="compact" onSubmitUrl={submitNewUrl} />
               </div>
             ) : null}
-            <Segmented<VideoAnalyzeMode>
-              value={effectiveMode}
-              onChange={(m) => {
-                setSearchParams(
-                  (prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set("mode", m);
-                    return next;
-                  },
-                  { replace: true },
-                );
-              }}
-              options={[
-                {
-                  value: "win",
-                  label: (
-                    <span className="inline-flex items-center justify-center gap-1">
-                      <Sparkles className="h-3 w-3 shrink-0" aria-hidden />
-                      Vì sao video NỔ
-                    </span>
-                  ),
-                },
-                {
-                  value: "flop",
-                  label: (
-                    <span className="inline-flex items-center justify-center gap-1">
-                      <Flame className="h-3 w-3 shrink-0" aria-hidden />
-                      Vì sao video FLOP
-                    </span>
-                  ),
-                },
-              ]}
-            />
+            {/* Win/flop Segmented toggle removed — one video has one
+                analysis (BE picks via ``is_flop_mode``). The toggle
+                let creators flip the same video between modes, which
+                contradicted the design model that win + flop are
+                separate intents with separate diagnostic paths. */}
             <VideoAnalysisBodyInner data={data} analyzeUrl={url} viewMode={effectiveMode} />
           </div>
         ) : null}
