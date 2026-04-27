@@ -150,6 +150,20 @@ describe("useSessionStream — SSE line buffer", () => {
     expect(result.current.error).toBe("insufficient_credits");
   });
 
+  it("returns already_processing on 409 (TD-3 atomic lock held)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 409 })),
+    );
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    result.current.stream(BASE_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
+    expect(result.current.error).toBe("already_processing");
+  });
+
   it("handles stream error token", async () => {
     const chunk = `data: {"error":"analysis_timeout","done":true}\n\n`;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockFetchStream([chunk])));
