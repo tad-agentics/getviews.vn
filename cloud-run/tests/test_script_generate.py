@@ -452,3 +452,77 @@ def test_script_generate_body_rejects_shot_index_out_of_range() -> None:
             topic="x", hook="y", hook_delay_ms=1200,
             duration=30, tone="Hài", niche_id=7, shot_index=-1,
         )
+
+
+# ── S5: structured ``vo`` voice-over ─────────────────────────────────
+
+
+def test_assembled_shots_carry_single_line_vo_fallback() -> None:
+    """Deterministic fallback (no Gemini) emits a single-line ``vo``
+    derived from the flattened ``voice`` string. Each shot's vo[0].t is
+    the shot's start in M:SS format."""
+    body = ScriptGenerateBody(
+        topic="x", hook="y", hook_delay_ms=1200,
+        duration=30, tone="Hài", niche_id=7,
+    )
+    shots = build_script_shots(body)
+    assert len(shots) == 6
+    for s in shots:
+        vo = s.get("vo")
+        assert isinstance(vo, list) and len(vo) == 1
+        line = vo[0]
+        assert "t" in line and "text" in line
+        # Cue is None on the deterministic path.
+        assert line.get("cue") is None
+        # Timestamp is M:SS for the shot's start.
+        assert line["t"] == f"{s['t0'] // 60}:{s['t0'] % 60:02d}"
+        # Text mirrors the flat voice (back-compat).
+        assert line["text"] == s["voice"]
+
+
+def test_assembled_shots_preserve_gemini_vo_when_emitted() -> None:
+    """When Gemini emits a structured ``vo`` array, ``_assemble_shots``
+    must thread it through unchanged (with cue + multi-line) instead of
+    replacing it with the single-line voice fallback."""
+    from getviews_pipeline.script_generate import _assemble_shots
+
+    gemini_vo = [
+        {"t": "0:00", "text": "Mình *vừa test* xong.", "cue": None},
+        {"t": "0:01", "text": "Khác *thật sự* hẳn.", "cue": "[dừng 0.3s]"},
+    ]
+    creative = [(
+        "Cận mặt", "BOLD CENTER", "face_to_camera",
+        "Mình vừa test xong. Khác thật sự hẳn.",
+        "Tay cầm 2 sản phẩm",
+        "white sans 28pt",
+        "close_up", "static", "bold_center", "face", "static",
+        gemini_vo,
+    )] + [
+        # Five filler rows so the assembler returns the canonical 6 shots.
+        (
+            "Cắt nhanh b-roll", "SUB-CAPTION", "product_shot",
+            "voice", "viz", "—",
+            None, None, None, None, None, None,
+        ),
+    ] * 5
+    out = _assemble_shots(duration=30, creative=creative)
+    assert out[0]["vo"] == gemini_vo
+    # Filler rows fall back to single-line vo.
+    assert len(out[1]["vo"]) == 1
+    assert out[1]["vo"][0]["cue"] is None
+
+
+def test_voline_pydantic_validates_required_fields() -> None:
+    """``VoLine.t`` and ``VoLine.text`` are required; ``cue`` defaults None."""
+    import pytest
+    from pydantic import ValidationError
+    from getviews_pipeline.script_generate import VoLine
+
+    line = VoLine(t="0:14", text="Hello *bold* world")
+    assert line.cue is None
+    assert line.text == "Hello *bold* world"
+
+    with pytest.raises(ValidationError):
+        VoLine(t="", text="hi")  # empty t fails min_length=1
+    with pytest.raises(ValidationError):
+        VoLine(t="0:00", text="")  # empty text fails min_length=1

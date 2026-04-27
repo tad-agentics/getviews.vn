@@ -459,11 +459,29 @@ export interface ScriptGenerateRequest {
   shot_index?: number;
 }
 
+/**
+ * S5 — One structured voice-over line. Mirrors ``VoLine`` in
+ * ``cloud-run/getviews_pipeline/script_generate.py``. ``text`` may carry
+ * inline ``*stress*`` markers that ``FormattedVO`` highlights; ``cue``
+ * is rendered as a ``CueChip`` next to the line when present.
+ */
+export interface VoLine {
+  t: string;
+  text: string;
+  cue?: string | null;
+}
+
 export interface ScriptShot {
   t0: number;
   t1: number;
   cam: string;
   voice: string;
+  /**
+   * S5 — structured voice-over (timed lines + inline cues + ``*stress*``
+   * markers). Optional for back-compat with old drafts; the FE falls
+   * back to the flat ``voice`` string when missing.
+   */
+  vo?: VoLine[];
   viz: string;
   overlay: string;
   corpus_avg?: number;

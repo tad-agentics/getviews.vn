@@ -1,6 +1,8 @@
 import { Loader2, Sparkles } from "lucide-react";
 import type { ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import { overlayStyleVi } from "@/lib/constants/enum-labels-vi";
+import { CueChip } from "@/components/v2/CueChip";
+import { FormattedVO } from "@/components/v2/FormattedVO";
 import { ShotTypeVisual } from "@/components/v2/ShotTypeVisual";
 import { ShotReferenceStrip } from "@/components/v2/ShotReferenceStrip";
 
@@ -67,11 +69,36 @@ export function ScriptShotRow({
           <div className="gv-mono mt-1 text-[9px] opacity-70">{span}s</div>
         </div>
         <ShotTypeVisual intelSceneType={shot.intelSceneType} cam={shot.cam} />
-        <div className="border-r border-[color:var(--gv-rule)] p-3">
+        <div className={`border-r border-[color:var(--gv-rule)] p-3 transition-opacity ${regenerating ? "opacity-40" : ""}`}>
           <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">
             LỜI THOẠI
           </div>
-          <p className="gv-serif font-semibold tracking-[-0.035em] text-[13.5px] leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
+          {shot.vo && shot.vo.length > 0 ? (
+            // S5 — structured voice-over (timed lines, inline cues,
+            // ``*stress*`` highlights). One row per VO line; t / text /
+            // cue mirror ``screens/script.jsx`` lines 1166-1226.
+            <div className="flex flex-col gap-1">
+              {shot.vo.map((line, li) => (
+                <div
+                  key={li}
+                  className="grid items-baseline gap-2"
+                  style={{ gridTemplateColumns: "32px 1fr" }}
+                >
+                  <span className="gv-mono text-[10px] font-semibold tabular-nums text-[color:var(--gv-ink-4)]">
+                    {line.t}
+                  </span>
+                  <p className="gv-serif font-medium tracking-[-0.025em] text-[13.5px] leading-[1.4] text-[color:var(--gv-ink)] m-0">
+                    <FormattedVO text={line.text} />
+                    {line.cue ? <CueChip text={line.cue} /> : null}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Back-compat: legacy shots without ``vo`` (old drafts before
+            // the S5 schema bump landed) keep the flat-string rendering.
+            <p className="gv-serif font-semibold tracking-[-0.035em] text-[13.5px] leading-[1.35] text-[color:var(--gv-ink)]">{`"${shot.voice}"`}</p>
+          )}
         </div>
         <div className={`relative p-3 transition-opacity ${regenerating ? "opacity-40" : ""}`}>
           <div className="gv-mono gv-uc mb-1 text-[9px] text-[color:var(--gv-ink-4)]">

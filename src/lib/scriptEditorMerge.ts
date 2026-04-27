@@ -1,4 +1,4 @@
-import type { SceneIntelligenceRow, ScriptShot, ShotReference } from "@/lib/api-types";
+import type { SceneIntelligenceRow, ScriptShot, ShotReference, VoLine } from "@/lib/api-types";
 
 /** In-memory shot row for the script studio (B.4.3) before ``POST /script/generate``. */
 export type ScriptEditorShot = {
@@ -6,6 +6,12 @@ export type ScriptEditorShot = {
   t1: number;
   cam: string;
   voice: string;
+  /**
+   * S5 — structured voice-over (timed lines + inline cues + ``*stress*``
+   * markers). Optional; ScriptShotRow falls back to the flat ``voice``
+   * string when this is empty.
+   */
+  vo?: VoLine[];
   viz: string;
   overlay: string;
   tip: string;
@@ -31,6 +37,7 @@ export function apiShotsToEditorShots(rows: ScriptShot[], fallbacks: ScriptEdito
       t1: s.t1,
       cam: s.cam,
       voice: s.voice,
+      vo: Array.isArray(s.vo) && s.vo.length > 0 ? s.vo : undefined,
       viz: s.viz,
       overlay: s.overlay,
       tip: fb.tip,
