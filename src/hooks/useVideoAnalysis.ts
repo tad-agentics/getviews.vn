@@ -94,7 +94,15 @@ export function useVideoAnalysis({
         throw err;
       }
       if (res.status === 404) {
-        const detail = (await res.json().catch(() => ({}))) as { detail?: string };
+        // Cloud Run's 404 body is usually ``{"detail": "..."}`` but
+        // can be empty / non-JSON when an upstream proxy generated
+        // the response. Log the parse failure so a malformed body
+        // surfaces in dashboards instead of being silently masked
+        // by the generic "Không tìm thấy video" copy.
+        const detail = (await res.json().catch((err: unknown) => {
+          console.warn("[useVideoAnalysis] failed to parse 404 body:", err);
+          return {};
+        })) as { detail?: string };
         throw new Error(detail.detail ?? "Không tìm thấy video");
       }
       if (!res.ok) {

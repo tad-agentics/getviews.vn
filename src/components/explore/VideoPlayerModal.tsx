@@ -99,10 +99,20 @@ export function VideoPlayerModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Tracks an autoplay rejection (iOS "user-gesture required", missing
+  // ``autoplay`` permission). When set, we render a "Nhấn để phát"
+  // overlay so the user has a way to recover instead of staring at
+  // a frozen poster frame.
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+
   useEffect(() => {
     if (videoRef.current) {
+      setAutoplayBlocked(false);
       videoRef.current.load();
-      videoRef.current.play().catch(() => {});
+      videoRef.current.play().catch((err: unknown) => {
+        console.warn("[VideoPlayerModal] autoplay rejected:", err);
+        setAutoplayBlocked(true);
+      });
     }
   }, [selected]);
 
@@ -188,6 +198,24 @@ export function VideoPlayerModal({
               autoPlay loop playsInline muted={muted}
               className="absolute inset-0 w-full h-full object-cover"
             />
+            {autoplayBlocked && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoplayBlocked(false);
+                  videoRef.current?.play().catch((err: unknown) => {
+                    console.warn("[VideoPlayerModal] manual play also rejected:", err);
+                    setAutoplayBlocked(true);
+                  });
+                }}
+                aria-label="Phát video"
+                className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 text-white"
+              >
+                <span className="rounded-full bg-white/15 px-5 py-3 text-sm font-medium backdrop-blur-sm">
+                  Nhấn để phát
+                </span>
+              </button>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
             <button
               ref={closeButtonRef}
