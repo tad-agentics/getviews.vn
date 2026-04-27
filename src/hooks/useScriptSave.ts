@@ -107,22 +107,38 @@ export function useScriptDraft(draftId: string | null | undefined) {
   });
 }
 
-export interface ScriptExportCopyResult {
-  format: "copy";
+import type { ScriptExportFormat } from "@/lib/api-types";
+
+export interface ScriptExportResult {
+  format: ScriptExportFormat;
   text: string;
+  /** Suggested file extension for download (``.txt`` / ``.md``). */
+  fileExt: string;
+  /** Suggested MIME type, lifted from the response Content-Type header. */
+  mimeType: string;
 }
 
+const FILE_EXT_BY_FORMAT: Record<ScriptExportFormat, string> = {
+  shoot: ".txt",
+  markdown: ".md",
+  plain: ".txt",
+  copy: ".txt",
+};
+
 /**
- * Invoke `POST /script/drafts/:id/export`. Returns the plain text for
- * clipboard paste (Zalo / notes apps).
+ * Invoke ``POST /script/drafts/:id/export``. Returns the formatted text
+ * for either clipboard paste or file download (per design pack
+ * ``screens/script.jsx`` lines 838-927). Default format ``copy`` is the
+ * back-compat clipboard path; pass ``shoot`` / ``markdown`` / ``plain``
+ * for the export-modal download flows.
  */
 export function useScriptExport() {
   return useMutation<
-    ScriptExportCopyResult,
+    ScriptExportResult,
     Error,
-    { draftId: string }
+    { draftId: string; format?: ScriptExportFormat }
   >({
-    mutationFn: async ({ draftId }) => {
+    mutationFn: async ({ draftId, format = "copy" }) => {
       const base = baseOrThrow();
       const token = await authToken();
       const res = await fetchWithTimeout(
@@ -133,7 +149,7 @@ export function useScriptExport() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ format: "copy" }),
+          body: JSON.stringify({ format }),
           timeoutMs: 30_000,
         },
       );
@@ -143,7 +159,14 @@ export function useScriptExport() {
       if (!res.ok) {
         throw new Error(await readErrorDetail(res));
       }
-      return { format: "copy", text: await res.text() };
+      const text = await res.text();
+      const mimeType = res.headers.get("content-type") ?? "text/plain";
+      return {
+        format,
+        text,
+        fileExt: FILE_EXT_BY_FORMAT[format] ?? ".txt",
+        mimeType,
+      };
     },
   });
 }

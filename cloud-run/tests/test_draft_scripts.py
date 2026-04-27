@@ -20,6 +20,8 @@ from getviews_pipeline.script_save import (
     export_draft,
     fetch_draft,
     format_draft_for_copy,
+    format_draft_for_markdown,
+    format_draft_for_shoot,
     insert_draft,
     list_drafts,
 )
@@ -201,3 +203,104 @@ def test_export_draft_unknown_format_raises():
     draft = {"topic": "X", "hook": "H", "tone": "T", "duration_sec": 15, "shots": []}
     with pytest.raises(ValueError, match="unknown export format"):
         export_draft(draft, fmt="pdf")  # type: ignore[arg-type]
+
+
+# ── format_draft_for_shoot — filming-friendly box-drawn export ────────
+
+
+def test_format_draft_for_shoot_box_draws_each_shot():
+    """Shoot format wraps each shot in box-drawing characters and labels
+    shot 1 ``HOOK`` (the design's filming script convention)."""
+    draft = {
+        "topic": "Review tai nghe 200k vs 2 triệu",
+        "hook": "Mình test xong rồi đây",
+        "tone": "Chuyên gia",
+        "duration_sec": 32,
+        "shots": _sample_shots(),
+    }
+    out = format_draft_for_shoot(draft)
+    # Title bar + uppercase topic
+    assert "═" * 39 in out
+    assert "REVIEW TAI NGHE 200K VS 2 TRIỆU" in out
+    assert "ĐỘ DÀI 32s" in out
+    assert "GIỌNG Chuyên gia" in out
+    # Box-frame markers per shot
+    assert "┌─ HOOK" in out
+    assert "│ CAM   Cận mặt" in out
+    assert '│ "Mình vừa test xong rồi đây."' in out
+    assert "└" in out
+    # Shot 2+ labelled SHOT N (not HOOK).
+    assert "┌─ SHOT 2" in out
+    # Trailing single newline for clipboard safety.
+    assert out.endswith("\n")
+    assert not out.endswith("\n\n")
+
+
+def test_format_draft_for_shoot_skips_overlay_none_and_empty_fields():
+    draft = {
+        "topic": "Short",
+        "hook": "",
+        "tone": "",
+        "duration_sec": 0,
+        "shots": [
+            {"t0": 0, "t1": 5, "cam": "Cận tay", "voice": "", "viz": "Texture", "overlay": "NONE"}
+        ],
+    }
+    out = format_draft_for_shoot(draft)
+    assert "│ OV" not in out  # NONE overlay not rendered
+    assert '│ "' not in out  # empty voice skipped
+    assert "│ VIZ   Texture" in out
+
+
+# ── format_draft_for_markdown — Notion / Obsidian friendly ────────────
+
+
+def test_format_draft_for_markdown_uses_h1_and_blockquote_vo():
+    draft = {
+        "topic": "Review tai nghe 200k vs 2 triệu",
+        "hook": "Mình test xong",
+        "tone": "Chuyên gia",
+        "duration_sec": 32,
+        "shots": _sample_shots(),
+    }
+    out = format_draft_for_markdown(draft)
+    assert out.startswith("# Review tai nghe 200k vs 2 triệu")
+    assert "**Độ dài:** 32s" in out
+    assert "**Giọng:** Chuyên gia" in out
+    assert "**Hook:** Mình test xong" in out
+    # Each shot is an H2 with timecode
+    assert "## Hook · 00:00–00:03" in out
+    assert "## Shot 2 ·" in out
+    # VO rendered as blockquote
+    assert "> Mình vừa test xong rồi đây." in out
+    # Cinematography meta is bolded
+    assert "**Cam:** Cận mặt" in out
+    assert "**Overlay:** BOLD CENTER" in out
+
+
+# ── export_draft — wires format → (payload, content_type) ─────────────
+
+
+def test_export_draft_shoot_returns_box_drawn_payload():
+    draft = {"topic": "X", "hook": "H", "tone": "T", "duration_sec": 15, "shots": []}
+    payload, ct = export_draft(draft, fmt="shoot")
+    assert isinstance(payload, str)
+    assert ct.startswith("text/plain")
+    assert "═" in payload  # title bar present even with no shots
+
+
+def test_export_draft_markdown_uses_text_markdown_content_type():
+    draft = {"topic": "X", "hook": "H", "tone": "T", "duration_sec": 15, "shots": []}
+    payload, ct = export_draft(draft, fmt="markdown")
+    assert ct.startswith("text/markdown")
+    assert payload.startswith("# X")
+
+
+def test_export_draft_plain_alias_routes_to_copy_formatter():
+    """``plain`` is the design's user-facing label for the same payload as
+    the legacy ``copy`` format — we keep the back-compat alias rather
+    than break existing FE callers."""
+    draft = {"topic": "X", "hook": "H", "tone": "T", "duration_sec": 15, "shots": _sample_shots()}
+    plain_payload, _ = export_draft(draft, fmt="plain")
+    copy_payload, _ = export_draft(draft, fmt="copy")
+    assert plain_payload == copy_payload

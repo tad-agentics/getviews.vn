@@ -21,7 +21,11 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-ExportFormat = Literal["copy"]
+# Per design pack ``screens/script.jsx`` lines 838-857, the export modal
+# offers 3 user-facing formats. ``copy`` stays as a legacy alias for the
+# clipboard-paste callers (current ``useScriptExport`` default) — internal
+# logic treats it as ``plain``.
+ExportFormat = Literal["shoot", "markdown", "plain", "copy"]
 
 
 class DraftCreateBody(BaseModel):
@@ -155,11 +159,124 @@ def format_draft_for_copy(draft: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def format_draft_for_shoot(draft: dict[str, Any]) -> str:
+    """Filming-friendly export — box-drawing chars frame each shot so the
+    creator can read it on a phone propped next to camera (per design pack
+    ``screens/script.jsx`` lines 856-856 sample). All ASCII so phone
+    note apps render cleanly.
+    """
+    topic = (draft.get("topic") or "").strip()
+    hook = (draft.get("hook") or "").strip()
+    tone = (draft.get("tone") or "").strip()
+    duration = int(draft.get("duration_sec") or 0)
+    shots = [s for s in (draft.get("shots") or []) if isinstance(s, dict)]
+
+    lines: list[str] = []
+    bar = "═" * 39
+    lines.append(bar)
+    lines.append(topic.upper() if topic else "KỊCH BẢN")
+    lines.append(bar)
+    meta_bits: list[str] = []
+    if duration:
+        meta_bits.append(f"ĐỘ DÀI {duration}s")
+    if tone:
+        meta_bits.append(f"GIỌNG {tone}")
+    if meta_bits:
+        lines.append("   ".join(meta_bits))
+    if hook:
+        lines.append(f"HOOK: {hook}")
+    lines.append("")
+
+    for i, s in enumerate(shots, start=1):
+        t0 = int(s.get("t0") or 0)
+        t1 = int(s.get("t1") or 0)
+        cam = (s.get("cam") or "").strip()
+        voice = (s.get("voice") or "").strip()
+        viz = (s.get("viz") or "").strip()
+        overlay = (s.get("overlay") or "NONE").strip()
+        label = "HOOK" if i == 1 else f"SHOT {i}"
+        head = f"┌─ {label} ─ {t0 // 60:02d}:{t0 % 60:02d} → {t1 // 60:02d}:{t1 % 60:02d} "
+        # Pad header to a consistent ~46-char visual width.
+        lines.append(head + ("─" * max(0, 46 - len(head))))
+        if cam:
+            lines.append(f"│ CAM   {cam}")
+        if viz:
+            lines.append(f"│ VIZ   {viz}")
+        if overlay and overlay != "NONE":
+            lines.append(f"│ OV    {overlay}")
+        if voice:
+            lines.append("│")
+            lines.append(f'│ "{voice}"')
+        lines.append("└" + "─" * 45)
+        lines.append("")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def format_draft_for_markdown(draft: dict[str, Any]) -> str:
+    """Markdown export for Notion / Obsidian / any markdown editor (per
+    design pack ``screens/script.jsx`` lines 850-851 sample). Voice-over
+    is rendered as a blockquote so it visually separates from the
+    cinematography metadata."""
+    topic = (draft.get("topic") or "").strip()
+    hook = (draft.get("hook") or "").strip()
+    tone = (draft.get("tone") or "").strip()
+    duration = int(draft.get("duration_sec") or 0)
+    shots = [s for s in (draft.get("shots") or []) if isinstance(s, dict)]
+
+    lines: list[str] = []
+    lines.append(f"# {topic}" if topic else "# Kịch bản")
+    meta_bits: list[str] = []
+    if duration:
+        meta_bits.append(f"**Độ dài:** {duration}s")
+    if tone:
+        meta_bits.append(f"**Giọng:** {tone}")
+    if meta_bits:
+        lines.append("")
+        lines.append(" · ".join(meta_bits))
+    if hook:
+        lines.append("")
+        lines.append(f"**Hook:** {hook}")
+
+    for i, s in enumerate(shots, start=1):
+        t0 = int(s.get("t0") or 0)
+        t1 = int(s.get("t1") or 0)
+        cam = (s.get("cam") or "").strip()
+        voice = (s.get("voice") or "").strip()
+        viz = (s.get("viz") or "").strip()
+        overlay = (s.get("overlay") or "NONE").strip()
+        title = "Hook" if i == 1 else f"Shot {i}"
+        lines.append("")
+        lines.append(f"## {title} · {t0 // 60:02d}:{t0 % 60:02d}–{t1 // 60:02d}:{t1 % 60:02d}")
+        meta = []
+        if cam:
+            meta.append(f"**Cam:** {cam}")
+        if viz:
+            meta.append(f"**Viz:** {viz}")
+        if overlay and overlay != "NONE":
+            meta.append(f"**Overlay:** {overlay}")
+        if meta:
+            lines.append("")
+            lines.append("  \n".join(meta))
+        if voice:
+            lines.append("")
+            lines.append(f"> {voice}")
+
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def export_draft(draft: dict[str, Any], *, fmt: ExportFormat) -> tuple[str, str]:
     """Render a draft for the export channel. Returns (payload, content_type).
 
-    ``copy`` → ``(str, "text/plain; charset=utf-8")``.
+    ``shoot`` → box-drawn filming script (text/plain).
+    ``markdown`` → markdown blockquote VO (text/markdown).
+    ``plain`` / ``copy`` → flat clipboard-paste text (text/plain). ``copy``
+    is a legacy alias kept for the existing ``useScriptExport`` callers.
     """
-    if fmt == "copy":
+    if fmt == "shoot":
+        return format_draft_for_shoot(draft), "text/plain; charset=utf-8"
+    if fmt == "markdown":
+        return format_draft_for_markdown(draft), "text/markdown; charset=utf-8"
+    if fmt in ("plain", "copy"):
         return format_draft_for_copy(draft), "text/plain; charset=utf-8"
     raise ValueError(f"unknown export format: {fmt!r}")
