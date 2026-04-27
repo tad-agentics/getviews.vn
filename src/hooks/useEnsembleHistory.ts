@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export interface EnsembleHistoryEntry {
   date: string | null;
@@ -30,8 +31,10 @@ export interface EnsembleHistoryResponse {
  * (days) bucket. Ops don't need sub-minute freshness here.
  */
 export function useEnsembleHistory(days = 10) {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "ensemble-history", days] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<EnsembleHistoryResponse> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");

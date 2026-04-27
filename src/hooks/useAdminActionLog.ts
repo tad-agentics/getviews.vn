@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 export type AdminActionStatus = "queued" | "running" | "ok" | "error";
 
@@ -22,8 +23,10 @@ export interface AdminActionLogResponse {
 }
 
 export function useAdminActionLog(limit = 50) {
+  const { isAdmin } = useIsAdmin();
   return useQuery({
     queryKey: ["admin", "action-log", limit] as const,
+    enabled: isAdmin,
     queryFn: async (): Promise<AdminActionLogResponse> => {
       const base = env.VITE_CLOUD_RUN_API_URL;
       if (!base) throw new Error("cloud_run_url_unset");
