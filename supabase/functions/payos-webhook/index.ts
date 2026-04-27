@@ -75,29 +75,44 @@ Deno.serve(async (req) => {
 
     const success = payload.code === "00" || payload.data?.desc === "success";
     const eventType = success ? "PAID" : "CANCELLED";
+    const paymentId = payload.data?.paymentLinkId ?? "";
+
+    // Two-layer idempotency. The RPC is itself self-idempotent
+    // (``SELECT … FOR UPDATE`` + early return on ``status='active'``)
+    // so calling it twice is safe. The ``processed_webhook_events``
+    // UNIQUE row records that we *already handled* this delivery so
+    // duplicate webhooks short-circuit before re-running the grant
+    // logic.
+    //
+    // ORDER MATTERS: RPC first, then insert the marker. The earlier
+    // ordering (insert → RPC) created a permanently-un-granted state
+    // when the insert committed but the RPC died mid-call: PayOS
+    // would retry, the marker insert would 23505, and the handler
+    // would short-circuit *without ever granting*. Swapping the
+    // order means a partial failure leaves us in a state where the
+    // RPC has either already granted (status=active → idempotent
+    // re-run is a no-op) or not (next retry runs it again).
+    const { data: grantResult, error: rpcErr } = await supabase.rpc("decrement_and_grant_credits", {
+      p_payos_order_code: orderCode,
+      p_payos_payment_id: paymentId,
+      p_event_type: eventType,
+    });
+    if (rpcErr) throw rpcErr;
 
     const { error: insErr } = await supabase.from("processed_webhook_events").insert({
       payos_order_code: orderCode,
       event_type: eventType,
     });
-
     if (insErr?.code === "23505") {
+      // The marker already existed — a previous retry beat us, but
+      // the RPC just no-op'd anyway thanks to its idempotency. Treat
+      // as a successful duplicate so PayOS stops retrying.
       return new Response(JSON.stringify({ success: true, duplicate: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     if (insErr) throw insErr;
-
-    const paymentId = payload.data?.paymentLinkId ?? "";
-
-    const { data: grantResult, error: rpcErr } = await supabase.rpc("decrement_and_grant_credits", {
-      p_payos_order_code: orderCode,
-      p_payos_payment_id: paymentId,
-      p_event_type: eventType,
-    });
-
-    if (rpcErr) throw rpcErr;
 
     const grant = grantResult as Record<string, unknown> | null;
 

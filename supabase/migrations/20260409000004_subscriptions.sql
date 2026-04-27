@@ -95,6 +95,28 @@ ALTER TABLE processed_webhook_events ENABLE ROW LEVEL SECURITY;
 
 -- No policies: only service_role (bypass) can access
 
+-- Idempotency contract for the PayOS webhook (see TD-2).
+--
+-- This RPC is **self-idempotent** — it can be called any number of
+-- times for the same ``p_payos_order_code`` without granting credits
+-- twice. Two mechanisms:
+--
+--   1. ``SELECT * FROM subscriptions WHERE payos_order_code = ?
+--      FOR UPDATE`` row-locks the subscription so concurrent calls
+--      serialise.
+--   2. After acquiring the lock, ``IF sub.status = 'active'`` bails
+--      out with ``already_active: true`` — the row is only updated
+--      while it is still ``pending``.
+--
+-- The webhook handler (``supabase/functions/payos-webhook/
+-- index.ts``) calls this RPC FIRST and then inserts the
+-- ``processed_webhook_events`` marker. That ordering means a
+-- partial-failure mid-call leaves the system in a state the next
+-- retry can recover from: the RPC will either no-op (already
+-- granted) or grant cleanly (still pending). The ``insert →
+-- RPC`` ordering used previously could create a permanently
+-- un-granted state when the marker insert committed but the RPC
+-- died before completing.
 CREATE OR REPLACE FUNCTION decrement_and_grant_credits(
   p_payos_order_code TEXT,
   p_payos_payment_id TEXT,
