@@ -1038,3 +1038,85 @@ export interface AnswerTurnRow {
 /** §J — plan naming (`AnswerSession` / `AnswerTurn`); same shapes as `*Row` from Supabase. */
 export type AnswerSession = AnswerSessionRow;
 export type AnswerTurn = AnswerTurnRow;
+
+
+// ───────────────────────────────────────────────────────────────────
+// D4a (2026-06-04) — Kho Douyin · feed types.
+//
+// Mirrors the BE serializer in
+// ``cloud-run/getviews_pipeline/douyin_data.py``. The /douyin/feed
+// endpoint returns ``{niches, videos}`` in one round-trip; FE filters
+// + sorts client-side.
+// ───────────────────────────────────────────────────────────────────
+
+/** Adapt-difficulty tier from the D3 Gemini synth. NULL on rows the
+ *  synth cron hasn't reached yet — FE renders a "human review pending"
+ *  caveat below the chip. */
+export type DouyinAdaptLevel = "green" | "yellow" | "red";
+
+/** Tag enum mirrors the design pack pills exactly. Drives the
+ *  modal's NOTE VĂN HOÁ section colour-coding. */
+export type DouyinTranslatorNoteTag =
+  | "TỪ NGỮ"
+  | "BỐI CẢNH"
+  | "NHẠC NỀN"
+  | "ĐẠO CỤ"
+  | "KHÔNG LỜI"
+  | "TITLE";
+
+export interface DouyinTranslatorNote {
+  tag: DouyinTranslatorNoteTag;
+  note: string;
+}
+
+export interface DouyinNiche {
+  id: number;
+  slug: string;
+  name_vn: string;
+  name_zh: string;
+  name_en: string;
+}
+
+export interface DouyinVideo {
+  video_id: string;
+  douyin_url: string | null;
+  niche_id: number | null;
+  /** Creator handle from Douyin (no leading @). */
+  creator_handle: string | null;
+  /** Display name (can differ from handle). */
+  creator_name: string | null;
+  thumbnail_url: string | null;
+  video_url: string | null;
+  /** Seconds, fractional allowed. */
+  video_duration: number | null;
+  views: number;
+  likes: number;
+  /** Douyin emphasises saves heavily — separate from likes for the
+   *  modal's mini-stat grid. */
+  saves: number;
+  engagement_rate: number | null;
+  posted_at: string | null;
+  /** Raw Chinese caption from the aweme ``desc`` field. */
+  title_zh: string | null;
+  /** Vietnamese title (D2a translator or D3 synth, whichever ran later). */
+  title_vi: string | null;
+  /** ≤ 120-char gloss for the FE card subtitle band. */
+  sub_vi: string | null;
+  hashtags_zh: string[];
+  /** D3 synth fields — null until the synth cron grades the row. */
+  adapt_level: DouyinAdaptLevel | null;
+  adapt_reason: string | null;
+  eta_weeks_min: number | null;
+  eta_weeks_max: number | null;
+  cn_rise_pct: number | null;
+  /** Empty array on rows the synth hasn't graded yet. */
+  translator_notes: DouyinTranslatorNote[];
+  synth_computed_at: string | null;
+  /** ISO timestamp — drives the FE "X ngày trước" relative chip. */
+  indexed_at: string | null;
+}
+
+export interface DouyinFeedResponse {
+  niches: DouyinNiche[];
+  videos: DouyinVideo[];
+}
