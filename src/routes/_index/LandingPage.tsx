@@ -198,7 +198,20 @@ const GRID_VIDEO_IDS = [
   "7616572388544695573", // niche 6  · 612K  · ✓
 ];
 
-function VideoThumb({ id, className = "" }: { id: string; className?: string }) {
+function VideoThumb({
+  id,
+  className = "",
+  priority = false,
+}: {
+  id: string;
+  className?: string;
+  /** Above-fold thumbnails set ``priority`` so the browser starts the
+   *  fetch eagerly instead of waiting for the IntersectionObserver
+   *  ``loading="lazy"`` heuristic. The hero card thumbs in the very
+   *  first SolutionCardsSection are the only sites that need this —
+   *  every thumbnail below the fold keeps the lazy default. */
+  priority?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   const url = r2FrameUrl(id);
   useEffect(() => { setFailed(false); }, [url]);
@@ -210,7 +223,11 @@ function VideoThumb({ id, className = "" }: { id: string; className?: string }) 
       src={url}
       alt=""
       className={`object-cover ${className}`}
-      loading="lazy"
+      loading={priority ? "eager" : "lazy"}
+      // ``fetchPriority="high"`` is React 19's camelCase form of the
+      // standard ``fetchpriority`` attribute — accepted by all
+      // browsers since Chrome 101 / Safari 17.2 / Firefox 132.
+      fetchPriority={priority ? "high" : "auto"}
       onError={() => setFailed(true)}
     />
   );
@@ -238,13 +255,17 @@ function SolutionCardsSection() {
           >
             <p className="text-lg font-bold text-[color:var(--gv-ink)]">"Đối thủ đang đăng gì?"</p>
             <div className="flex gap-2 overflow-hidden">
-              {COMPETITOR_IDS.slice(0, 4).map((id) => (
+              {COMPETITOR_IDS.slice(0, 4).map((id, i) => (
                 <div
                   key={id}
                   className="relative flex-shrink-0 overflow-hidden rounded-xl bg-[color:var(--gv-canvas-2)]"
                   style={{ width: "22%", paddingBottom: "39%" }}
                 >
-                  <VideoThumb id={id} className="absolute inset-0 w-full h-full" />
+                  <VideoThumb
+                    id={id}
+                    priority={i < 2}
+                    className="absolute inset-0 w-full h-full"
+                  />
                 </div>
               ))}
               {/* Faded peek of a 5th card — signals volume / scrollability */}
