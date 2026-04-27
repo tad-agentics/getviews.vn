@@ -77,7 +77,10 @@ const ScriptScreen = (await import("./ScriptScreen")).default;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function renderScreen(searchParams = "") {
+// Default to a ``?topic=`` param so the test mounts ScriptDetailScreen,
+// not the new IdeaWorkspace step-1 surface. Workspace behavior is covered
+// by IdeaWorkspace.test.tsx.
+function renderScreen(searchParams = "?topic=Review+tai+nghe+200k+vs+2+tri%E1%BB%87u") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
