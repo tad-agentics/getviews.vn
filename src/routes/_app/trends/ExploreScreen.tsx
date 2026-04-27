@@ -1090,7 +1090,7 @@ export default function ExploreScreen() {
           </section>
           </div>
 
-          {/* PR-T6 — right rail: 2 sections (Đang đột phá / Viral mọi
+          {/* PR-T6 — right rail: 2 sections (Đang nổi lên / Viral mọi
            * thời) per design pack ``screens/trends.jsx`` lines 432-446.
            * Sounds + Format rails were removed — sounds carousel still
            * surfaces below the hero on < 1100px via the existing

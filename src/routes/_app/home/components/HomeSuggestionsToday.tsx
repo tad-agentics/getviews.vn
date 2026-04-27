@@ -81,7 +81,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           num="03"
           tag="CẢM HỨNG"
           tagTone="ink"
-          title="3 video đột phá ngoài kênh bạn"
+          title="3 video đang nổi lên ngoài kênh bạn"
           caption="View vượt 10× trung bình kênh đó trong 48h. Để xem cách kênh khác bứt phá."
           right={SEE_ALL_TRENDS}
         />

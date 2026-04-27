@@ -67,7 +67,7 @@ describe("TrendsRail", () => {
     mockUseTrendsRailVideos.mockReturnValue({ data: samplePayload(), isPending: false });
     const { getByText } = wrap(<TrendsRail nicheId={4} />);
     expect(getByText("VIDEO NÊN BẮT CHƯỚC")).toBeTruthy();
-    expect(getByText("Đang đột phá")).toBeTruthy();
+    expect(getByText("Đang nổi lên")).toBeTruthy();
     expect(getByText("Top 5 view 7 ngày qua")).toBeTruthy();
     expect(getByText("VIDEO ĐỈNH")).toBeTruthy();
     expect(getByText("Viral mọi thời")).toBeTruthy();

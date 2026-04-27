@@ -108,7 +108,7 @@ export function VideoDangHocSidebar() {
           }`}
           onClick={() => setTab("bung_no")}
         >
-          🔴 Bùng Nổ
+          🔴 Tăng Nhanh
         </button>
         <button
           type="button"

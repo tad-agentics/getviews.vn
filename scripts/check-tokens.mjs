@@ -40,6 +40,26 @@ const PATTERNS = [
   { id: 'variant="purple"',     re: /variant="purple"/ },
 ];
 
+// Forbidden Vietnamese copy words (.cursor/rules/copy-rules.mdc).
+// Scanned only in .tsx user-facing source — skips comment lines so
+// JSDoc / inline notes can still mention the word in context.
+const FORBIDDEN_COPY_WORDS = [
+  "đột phá",
+  "tuyệt vời",
+  "hoàn hảo",
+  "bí mật",
+  "công thức vàng",
+  "kỷ lục",
+  "triệu view",
+  "bùng nổ",
+  "siêu hot",
+  "thần thánh",
+  "chiến lược độc quyền",
+  "ai cũng phải biết",
+  "không thể bỏ qua",
+  "chắc chắn thành công",
+];
+
 const EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".css"]);
 
 /** @returns {string[]} */
@@ -57,15 +77,46 @@ function walk(dir) {
 
 const violations = [];
 
+/**
+ * Crude comment detector — skips lines that look like single-line
+ * comments or are clearly inside a block-comment body. Good enough
+ * for a forbidden-copy lint; doesn't try to track multi-line state
+ * because false positives would only flag genuine UI strings, not
+ * comment text.
+ */
+function looksLikeComment(line) {
+  const trimmed = line.trim();
+  return (
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("/*") ||
+    trimmed.startsWith("*") ||
+    trimmed.startsWith("*/")
+  );
+}
+
 for (const path of walk(SRC)) {
   const rel = relative(ROOT, path).split("\\").join("/");
   if (ALLOWLIST.has(rel)) continue;
   const text = readFileSync(path, "utf8");
   const lines = text.split("\n");
+  const isTsx = rel.endsWith(".tsx") && !rel.endsWith(".test.tsx");
   for (let i = 0; i < lines.length; i++) {
     for (const { id, re } of PATTERNS) {
       if (re.test(lines[i])) {
         violations.push({ rel, line: i + 1, id, content: lines[i].trim() });
+      }
+    }
+    if (isTsx && !looksLikeComment(lines[i])) {
+      const lower = lines[i].toLowerCase();
+      for (const word of FORBIDDEN_COPY_WORDS) {
+        if (lower.includes(word)) {
+          violations.push({
+            rel,
+            line: i + 1,
+            id: `forbidden-copy:"${word}"`,
+            content: lines[i].trim(),
+          });
+        }
       }
     }
   }
