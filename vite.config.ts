@@ -89,7 +89,12 @@ function manualChunks(id: string) {
   if (n.includes("@tanstack")) return "tanstack";
   if (n.includes("@supabase")) return "supabase";
   if (n.includes("lucide-react")) return "icons";
-  if (n.includes("motion") || n.includes("framer-motion")) return "motion";
+  // Match the actual motion package directories. The broader
+  // ``includes("motion")`` predicate also matched any node_modules
+  // path with "motion" anywhere (e.g. nested transitive deps with
+  // ``motion`` in their filename) and risked accidentally hoisting
+  // unrelated modules into the motion chunk.
+  if (n.includes("/motion/") || n.includes("/framer-motion/")) return "motion";
   if (n.includes("react-router") || n.includes("@remix-run")) return "react-router";
   // KNOWN: ``react-vendor`` does not currently emit as a separate chunk
   // under Rolldown — the matcher fires (verified via debug logging) and

@@ -1,12 +1,52 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router";
 import { r2FrameUrl } from "@/lib/r2";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, Database, Play, Globe, Zap, Search, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { motion, AnimatePresence } from "motion/react";
 import { pricingPlans, pricingSavings } from "@/lib/mock-data";
+
+/**
+ * Landing page is prerendered at build time and is the entry point for
+ * unauthenticated visitors. Every kilobyte preloaded here is a
+ * kilobyte the user pays for before first paint, so we keep this
+ * route deliberately library-light.
+ *
+ * ``motion/react`` (~125 KB raw / ~45 KB gzip) was on the critical
+ * path purely for decorative ``whileInView`` fade-ups (mostly no-ops
+ * because ``initial={false}`` left elements at their final state)
+ * and a hover-lift that the cards' ``hover:shadow-lg`` already
+ * implies. The local ``motion`` and ``AnimatePresence`` shims below
+ * silently strip animation props and render plain DOM, so the
+ * bundle no longer includes the library while the JSX shape stays
+ * identical to the rest of the app.
+ */
+type MotionDivProps = React.HTMLAttributes<HTMLDivElement> & {
+  initial?: unknown;
+  animate?: unknown;
+  exit?: unknown;
+  transition?: unknown;
+  whileHover?: unknown;
+  whileInView?: unknown;
+  viewport?: unknown;
+  layout?: unknown;
+};
+function MotionDivStub({
+  initial: _i,
+  animate: _a,
+  exit: _e,
+  transition: _t,
+  whileHover: _h,
+  whileInView: _v,
+  viewport: _vp,
+  layout: _l,
+  ...rest
+}: MotionDivProps) {
+  return <div {...rest} />;
+}
+const motion = { div: MotionDivStub };
+const AnimatePresence = ({ children }: { children: ReactNode }) => <>{children}</>;
 
 const faqs = [
   {
