@@ -72,8 +72,7 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
       // the deck synthesizer (cron-batch-pattern-decks). Default to
       // null on un-decked rows; the FE PatternModal renders "Đang
       // chuẩn bị" stubs in that case.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck columns landed in migration 20260530000000; generated DB types may lag
-      const { data: patternRows, error: pErr } = await (supabase as any)
+      const { data: patternRows, error: pErr } = await supabase
         .from("video_patterns")
         .select(
           "id, display_name, weekly_instance_count, weekly_instance_count_prev, instance_count, niche_spread, structure, why, careful, angles",

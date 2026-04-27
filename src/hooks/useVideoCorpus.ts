@@ -33,8 +33,7 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
   return useInfiniteQuery({
     queryKey: corpusKeys.list(filters),
     queryFn: async ({ pageParam = 0 }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- DB has tone/cta/… (20260411000020); generated Database types may lag
-      let query = (supabase as any)
+      let query = supabase
         .from("video_corpus")
         .select(
           "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier, tone, cta_type, is_commerce, sound_name, creator_tier, posting_hour, video_duration",

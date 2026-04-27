@@ -52,14 +52,8 @@ export function useTrendsRailVideos(nicheId: number | null) {
 
       // Run both queries in parallel; the rail block is render-blocking
       // on the right column so latency parity matters.
-      // ``posted_at`` was added to ``video_corpus`` via migration
-      // ``20260411000020_add_corpus_classification_columns.sql`` but
-      // the generated database.types.ts lags. Cast through unknown to
-      // bypass the stale typing — runtime returns RailVideo-shaped rows.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = supabase as any;
       const [breakRes, viralRes] = await Promise.all([
-        sb
+        supabase
           .from("video_corpus")
           .select(RAIL_COLS)
           .eq("niche_id", nicheId)
@@ -67,7 +61,7 @@ export function useTrendsRailVideos(nicheId: number | null) {
           .gte("posted_at", cutoff)
           .order("views", { ascending: false })
           .limit(RAIL_LIMIT),
-        sb
+        supabase
           .from("video_corpus")
           .select(RAIL_COLS)
           .eq("niche_id", nicheId)

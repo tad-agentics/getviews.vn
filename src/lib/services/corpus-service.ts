@@ -47,8 +47,7 @@ export async function getVideoMeta(videoId: string): Promise<VideoMeta | null> {
   const { data, error } = await supabase
     .from("video_corpus")
     .select(
-      "video_id, thumbnail_url, video_url, tiktok_url, views, " +
-      "creator_handle, indexed_at, hook_phrase, likes, comments, shares"
+      "video_id, thumbnail_url, video_url, tiktok_url, views, creator_handle, indexed_at, hook_phrase, likes, comments, shares",
     )
     .eq("video_id", videoId)
     .maybeSingle();
@@ -58,7 +57,27 @@ export async function getVideoMeta(videoId: string): Promise<VideoMeta | null> {
     return null;
   }
 
-  const result = (data as unknown as VideoMeta) ?? null;
+  // Map the typed Supabase row to VideoMeta. Without this we'd have
+  // to ``as unknown as`` cast — which would also paper over a real
+  // schema drift if a column were ever renamed. Picking fields by
+  // name forces a typecheck error at compile time when the shape
+  // changes upstream, and the runtime branch below guards against
+  // a malformed row that somehow lacks ``video_id``.
+  const result: VideoMeta | null = data && data.video_id
+    ? {
+        video_id: data.video_id,
+        thumbnail_url: data.thumbnail_url ?? null,
+        video_url: data.video_url ?? null,
+        tiktok_url: data.tiktok_url ?? null,
+        views: data.views ?? 0,
+        creator_handle: data.creator_handle ?? null,
+        indexed_at: data.indexed_at ?? null,
+        hook_phrase: data.hook_phrase ?? null,
+        likes: data.likes ?? null,
+        comments: data.comments ?? null,
+        shares: data.shares ?? null,
+      }
+    : null;
   _cache.set(videoId, { data: result, ts: Date.now() });
   return result;
 }
