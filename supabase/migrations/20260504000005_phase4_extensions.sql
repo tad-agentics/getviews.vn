@@ -25,13 +25,13 @@ drop index if exists public.idx_answer_sessions_initial_q_trgm;
 alter extension pg_trgm set schema extensions;
 
 -- Step 3: Recreate the 3 GIN indexes with the fully-qualified operator class.
-create index idx_chat_messages_content_trgm
+create index if not exists idx_chat_messages_content_trgm
   on public.chat_messages using gin (content extensions.gin_trgm_ops);
 
-create index idx_answer_sessions_title_trgm
+create index if not exists idx_answer_sessions_title_trgm
   on public.answer_sessions using gin (title extensions.gin_trgm_ops);
 
-create index idx_answer_sessions_initial_q_trgm
+create index if not exists idx_answer_sessions_initial_q_trgm
   on public.answer_sessions using gin (initial_q extensions.gin_trgm_ops);
 
 -- ── pg_net ────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 -- chat_sessions + chat_messages
 
-CREATE TABLE chat_sessions (
+CREATE TABLE IF NOT EXISTS chat_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -25,9 +25,9 @@ CREATE TABLE chat_sessions (
   deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_chat_sessions_user_id ON chat_sessions (user_id);
-CREATE INDEX idx_chat_sessions_user_created ON chat_sessions (user_id, created_at DESC);
-CREATE INDEX idx_chat_sessions_deleted ON chat_sessions (deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions (user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_created ON chat_sessions (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_deleted ON chat_sessions (deleted_at) WHERE deleted_at IS NULL;
 
 CREATE OR REPLACE FUNCTION set_chat_sessions_updated_at()
 RETURNS TRIGGER
@@ -67,7 +67,7 @@ CREATE POLICY "Users cannot delete sessions"
   TO authenticated
   USING (false);
 
-CREATE TABLE chat_messages (
+CREATE TABLE IF NOT EXISTS chat_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   session_id UUID NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
@@ -81,9 +81,9 @@ CREATE TABLE chat_messages (
   stream_id TEXT
 );
 
-CREATE INDEX idx_chat_messages_session_id ON chat_messages (session_id);
-CREATE INDEX idx_chat_messages_user_id ON chat_messages (user_id);
-CREATE INDEX idx_chat_messages_session_created ON chat_messages (session_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages (user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_created ON chat_messages (session_id, created_at ASC);
 
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 

@@ -1,6 +1,6 @@
 -- Phase C.8.1 — script_save persistence
 
-CREATE TABLE public.draft_scripts (
+CREATE TABLE IF NOT EXISTS public.draft_scripts (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   niche_id    INTEGER REFERENCES public.niche_taxonomy(id),
@@ -15,7 +15,7 @@ CREATE TABLE public.draft_scripts (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX draft_scripts_user_recent_idx
+CREATE INDEX IF NOT EXISTS draft_scripts_user_recent_idx
   ON public.draft_scripts (user_id, updated_at DESC);
 
 ALTER TABLE public.draft_scripts ENABLE ROW LEVEL SECURITY;

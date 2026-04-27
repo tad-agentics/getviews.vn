@@ -1,7 +1,7 @@
 -- Phase C.0.5 — answer_sessions + answer_turns (§J payload storage)
 -- RLS: users read own rows; payload writes via service role on Cloud Run.
 
-CREATE TABLE public.answer_sessions (
+CREATE TABLE IF NOT EXISTS public.answer_sessions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   niche_id     INTEGER REFERENCES public.niche_taxonomy(id),
@@ -14,7 +14,7 @@ CREATE TABLE public.answer_sessions (
   archived_at  TIMESTAMPTZ
 );
 
-CREATE INDEX answer_sessions_user_recent_idx
+CREATE INDEX IF NOT EXISTS answer_sessions_user_recent_idx
   ON public.answer_sessions (user_id, updated_at DESC)
   WHERE archived_at IS NULL;
 
@@ -32,7 +32,7 @@ CREATE POLICY "answer_sessions_update_own" ON public.answer_sessions
   FOR UPDATE TO authenticated
   USING (auth.uid() = user_id);
 
-CREATE TABLE public.answer_turns (
+CREATE TABLE IF NOT EXISTS public.answer_turns (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id   UUID NOT NULL REFERENCES public.answer_sessions(id) ON DELETE CASCADE,
   turn_index   INTEGER NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE public.answer_turns (
   UNIQUE (session_id, turn_index)
 );
 
-CREATE INDEX answer_turns_session_order_idx
+CREATE INDEX IF NOT EXISTS answer_turns_session_order_idx
   ON public.answer_turns (session_id, turn_index);
 
 ALTER TABLE public.answer_turns ENABLE ROW LEVEL SECURITY;

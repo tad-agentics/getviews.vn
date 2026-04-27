@@ -1,6 +1,6 @@
 -- profiles + handle_new_user + credit RPCs
 
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -21,7 +21,7 @@ CREATE TABLE profiles (
   is_processing BOOLEAN NOT NULL DEFAULT false
 );
 
-CREATE INDEX idx_profiles_niche_id ON profiles (niche_id);
+CREATE INDEX IF NOT EXISTS idx_profiles_niche_id ON profiles (niche_id);
 
 CREATE OR REPLACE FUNCTION set_profiles_updated_at()
 RETURNS TRIGGER

@@ -2,7 +2,7 @@
 -- Replaces overloaded `anonymous_usage` for in-app analytics: video screen loads,
 -- flop → script CTA clicks, etc. Fire-and-forget inserts from SPA via RLS.
 
-CREATE TABLE usage_events (
+CREATE TABLE IF NOT EXISTS usage_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   user_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
@@ -10,9 +10,9 @@ CREATE TABLE usage_events (
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX idx_usage_events_action_created ON usage_events (action, created_at DESC);
-CREATE INDEX idx_usage_events_user_created ON usage_events (user_id, created_at DESC);
-CREATE INDEX idx_usage_events_flop_gate ON usage_events (action, created_at DESC)
+CREATE INDEX IF NOT EXISTS idx_usage_events_action_created ON usage_events (action, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_usage_events_user_created ON usage_events (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_usage_events_flop_gate ON usage_events (action, created_at DESC)
   WHERE action IN ('video_screen_load', 'flop_cta_click');
 
 ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;

@@ -120,6 +120,6 @@ LEFT JOIN format_dist f ON f.niche_id = b.niche_id
 LEFT JOIN tone_dist t ON t.niche_id = b.niche_id
 GROUP BY b.niche_id, h.hook_distribution, f.format_distribution, t.tone_distribution;
 
-CREATE UNIQUE INDEX idx_niche_intelligence_pk ON niche_intelligence(niche_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_niche_intelligence_pk ON niche_intelligence(niche_id);
 
 GRANT SELECT ON niche_intelligence TO authenticated;
