@@ -87,6 +87,18 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # ── Routers ───────────────────────────────────────────────────────────────────
+# SERVICE_ROLE selects which routers this pod exposes. Same image, two
+# Cloud Run services so live SSE traffic and 30-minute cron batches don't
+# share quota or scaling pressure (CLAUDE.md: "Two deployment shapes").
+#   - "all"   → everything (default; suits dev/preview)
+#   - "user"  → user-facing surface only (no /batch/* heavy crons)
+#   - "batch" → batch + admin only (cron-triggered, min-instances=0)
+SERVICE_ROLE = os.environ.get("SERVICE_ROLE", "all").strip().lower()
+if SERVICE_ROLE not in {"all", "user", "batch"}:
+    logger.warning("SERVICE_ROLE=%r unrecognised — defaulting to 'all'", SERVICE_ROLE)
+    SERVICE_ROLE = "all"
+logger.info("SERVICE_ROLE=%s", SERVICE_ROLE)
+
 from getviews_pipeline.routers.health import router as health_router
 from getviews_pipeline.routers.intent import router as intent_router
 from getviews_pipeline.routers.video import router as video_router
@@ -97,12 +109,17 @@ from getviews_pipeline.routers.douyin import router as douyin_router
 from getviews_pipeline.routers.batch import router as batch_router
 from getviews_pipeline.routers.admin import router as admin_router
 
+# /health is mounted on every shape — Cloud Run liveness probe needs it.
 app.include_router(health_router)
-app.include_router(intent_router)
-app.include_router(video_router)
-app.include_router(script_router)
-app.include_router(home_router)
-app.include_router(answer_router)
-app.include_router(douyin_router)
-app.include_router(batch_router)
-app.include_router(admin_router)
+
+if SERVICE_ROLE in {"all", "user"}:
+    app.include_router(intent_router)
+    app.include_router(video_router)
+    app.include_router(script_router)
+    app.include_router(home_router)
+    app.include_router(answer_router)
+    app.include_router(douyin_router)
+
+if SERVICE_ROLE in {"all", "batch"}:
+    app.include_router(batch_router)
+    app.include_router(admin_router)
