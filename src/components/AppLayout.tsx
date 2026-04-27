@@ -751,7 +751,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     // (PR #243), so this only affects /app/* surfaces.
     <MotionConfig reducedMotion="user">
     <TooltipProvider delayDuration={200}>
-    <div className="flex flex-col h-screen bg-[color:var(--gv-canvas)]">
+    <div className="flex flex-col h-dvh bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         <div className="flex min-h-0 w-full flex-1">

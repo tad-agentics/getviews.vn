@@ -21,7 +21,7 @@ export default function AppLayout() {
   if (loading) {
     return (
       <div
-        className="gv-studio-type flex min-h-screen items-center justify-center bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink-2)]"
+        className="gv-studio-type flex min-h-dvh items-center justify-center bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink-2)]"
         role="status"
         aria-label="Đang tải"
       >
@@ -36,7 +36,7 @@ export default function AppLayout() {
 
   return (
     <>
-      <div className="gv-studio-type min-h-screen bg-[color:var(--gv-canvas)]">
+      <div className="gv-studio-type min-h-dvh bg-[color:var(--gv-canvas)]">
         <Outlet />
       </div>
       <Toaster />
