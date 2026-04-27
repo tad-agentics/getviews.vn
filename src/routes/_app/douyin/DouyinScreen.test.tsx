@@ -30,6 +30,11 @@ vi.mock("@/hooks/useDouyinFeed", () => ({
   useDouyinFeed: () => useDouyinFeed(),
 }));
 
+const useDouyinPatterns = vi.fn();
+vi.mock("@/hooks/useDouyinPatterns", () => ({
+  useDouyinPatterns: () => useDouyinPatterns(),
+}));
+
 const useProfile = vi.fn();
 vi.mock("@/hooks/useProfile", () => ({
   useProfile: () => useProfile(),
@@ -85,9 +90,14 @@ function _renderScreen() {
 beforeEach(() => {
   window.localStorage.clear();
   useDouyinFeed.mockReset();
+  useDouyinPatterns.mockReset();
   useProfile.mockReset();
-  // Default: no profile (auto-niche banner inactive).
+  // Default: no profile (auto-niche banner inactive) + empty patterns.
   useProfile.mockReturnValue({ data: null });
+  useDouyinPatterns.mockReturnValue({
+    data: { patterns: [] },
+    isPending: false,
+  });
 });
 
 afterEach(() => {
@@ -351,5 +361,117 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     expect(screen.queryByText(/Đang ưu tiên ngách/)).toBeNull();
     // Grid stays at full corpus.
     expect(screen.getByText(/3 video — đã sub VN/)).toBeTruthy();
+  });
+});
+
+
+describe("DouyinScreen — D5e §I patterns surface", () => {
+  it("renders the §I header + 3 pattern cards when patterns are returned", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    useDouyinPatterns.mockReturnValue({
+      data: {
+        patterns: [
+          {
+            id: "pat-1-1", niche_id: 1, week_of: "2026-06-01", rank: 1,
+            name_vn: "Routine 3 bước trước khi ngủ",
+            name_zh: null,
+            hook_template_vi: "3 việc trước khi ___",
+            format_signal_vi: "POV cận cảnh, voiceover thì thầm.",
+            sample_video_ids: ["w1", "w2", "w3"],
+            cn_rise_pct_avg: 30,
+            computed_at: "2026-06-01T21:00:00+00:00",
+          },
+          {
+            id: "pat-1-2", niche_id: 1, week_of: "2026-06-01", rank: 2,
+            name_vn: "Tôi đã thử 30 ngày",
+            name_zh: null,
+            hook_template_vi: "Tôi đã thử ___ trong 30 ngày",
+            format_signal_vi: "Before/after split-screen, nhạc upbeat.",
+            sample_video_ids: ["w1"],
+            cn_rise_pct_avg: null,
+            computed_at: "2026-06-01T21:00:00+00:00",
+          },
+          {
+            id: "pat-1-3", niche_id: 1, week_of: "2026-06-01", rank: 3,
+            name_vn: "Hỏi đáp wellness",
+            name_zh: null,
+            hook_template_vi: "Có nên ___ trước khi ngủ không?",
+            format_signal_vi: "Talking-head, caption lớn, no music.",
+            sample_video_ids: ["w2"],
+            cn_rise_pct_avg: 12,
+            computed_at: "2026-06-01T21:00:00+00:00",
+          },
+        ],
+      },
+      isPending: false,
+    });
+    _renderScreen();
+    expect(screen.getByText(/§ I — Pattern signals/)).toBeTruthy();
+    expect(screen.getByText("Routine 3 bước trước khi ngủ")).toBeTruthy();
+    expect(screen.getByText("Tôi đã thử 30 ngày")).toBeTruthy();
+    expect(screen.getByText("Hỏi đáp wellness")).toBeTruthy();
+  });
+
+  it("renders the §I loading state while patterns are pending", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    useDouyinPatterns.mockReturnValue({
+      data: undefined, isPending: true,
+    });
+    _renderScreen();
+    expect(screen.getByLabelText(/Đang tải Pattern signals/)).toBeTruthy();
+  });
+
+  it("hides the §I section entirely when patterns is empty", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    useDouyinPatterns.mockReturnValue({
+      data: { patterns: [] }, isPending: false,
+    });
+    _renderScreen();
+    expect(screen.queryByText(/§ I — Pattern signals/)).toBeNull();
+  });
+
+  it("scopes patterns to the active niche chip", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    useDouyinPatterns.mockReturnValue({
+      data: {
+        patterns: [
+          {
+            id: "pat-1-1", niche_id: 1, week_of: "2026-06-01", rank: 1,
+            name_vn: "Wellness pattern",
+            name_zh: null, hook_template_vi: "___ wellness",
+            format_signal_vi: "POV", sample_video_ids: ["w1"],
+            cn_rise_pct_avg: null, computed_at: null,
+          },
+          {
+            id: "pat-2-1", niche_id: 2, week_of: "2026-06-01", rank: 1,
+            name_vn: "Tech pattern",
+            name_zh: null, hook_template_vi: "___ tech",
+            format_signal_vi: "Talking-head", sample_video_ids: ["t1"],
+            cn_rise_pct_avg: null, computed_at: null,
+          },
+        ],
+      },
+      isPending: false,
+    });
+    _renderScreen();
+    // Both visible by default.
+    expect(screen.getByText("Wellness pattern")).toBeTruthy();
+    expect(screen.getByText("Tech pattern")).toBeTruthy();
+    // Click Tech chip.
+    fireEvent.click(screen.getByRole("button", { name: "Tech" }));
+    expect(screen.queryByText("Wellness pattern")).toBeNull();
+    expect(screen.getByText("Tech pattern")).toBeTruthy();
   });
 });
