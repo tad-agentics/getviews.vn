@@ -12,7 +12,13 @@
  *   3. null → VideoRefCard shows TikTok icon placeholder + clickable link
  */
 import { supabase } from "@/lib/supabase";
-import { env } from "@/lib/env";
+
+// Re-export ``r2FrameUrl`` from its supabase-free home so existing
+// callers (``VideoRefCard``, ``CreatorGridCard``, ``VideoGridBlock``)
+// keep working without the import path change. The prerendered
+// landing page imports directly from ``@/lib/r2`` to skip the
+// supabase chunk entirely.
+export { r2FrameUrl } from "@/lib/r2";
 
 export interface VideoMeta {
   video_id: string;
@@ -26,13 +32,6 @@ export interface VideoMeta {
   likes: number | null;
   comments: number | null;
   shares: number | null;
-}
-
-/** Derive a stable R2 frame URL for a video_id (frame 0 = ~0s thumbnail). */
-export function r2FrameUrl(videoId: string): string | null {
-  const base = env.VITE_R2_PUBLIC_URL;
-  if (!base || !videoId) return null;
-  return `${base.replace(/\/$/, "")}/frames/${videoId}/0.png`;
 }
 
 const _cache = new Map<string, { data: VideoMeta | null; ts: number }>();
