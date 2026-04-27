@@ -656,8 +656,24 @@ function ScriptDetailScreen() {
             </button>
             <header className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b-2 border-[color:var(--gv-ink)] pb-4">
               <div className="min-w-0 flex-1">
+                {/* D7 — kicker suffix per design pack
+                    ``screens/script.jsx`` line 661: when we have a
+                    citation sample size + niche label, append "DỰA
+                    TRÊN N VIDEO THẮNG NGÁCH X" so the user sees
+                    immediately what the script is grounded in.
+                    Falls back to the bare "KỊCH BẢN SỐ N" when
+                    citation data is absent (e.g. hook-patterns query
+                    still pending or thin-corpus niches). */}
                 <div className="gv-mono gv-uc mb-1.5 text-[10px] font-semibold leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
                   XƯỞNG VIẾT · KỊCH BẢN SỐ {scriptNo}
+                  {hookData?.citation?.sample_size != null &&
+                  hookData.citation.sample_size > 0 &&
+                  nicheDisplayName ? (
+                    <>
+                      {" · "}DỰA TRÊN {hookData.citation.sample_size} VIDEO THẮNG NGÁCH{" "}
+                      {nicheDisplayName}
+                    </>
+                  ) : null}
                 </div>
                 {/* S6 — topic header is a single-line auto-resize textarea
                     (per design pack ``screens/script.jsx`` lines 663-686).

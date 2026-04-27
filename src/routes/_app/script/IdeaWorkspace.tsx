@@ -238,7 +238,7 @@ function IdeaList({
                 ~{Math.round(idea.retention_est_pct)}%
               </span>
               <span className="gv-mono text-[9px] uppercase tracking-wider text-[color:var(--gv-ink-4)]">
-                GIỮ CHÂN ƯỚC TÍNH
+                GIỮ CHÂN
               </span>
             </div>
             <ArrowRight
