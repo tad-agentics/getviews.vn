@@ -60,7 +60,18 @@ export function useRefreshMyChannel() {
         timeoutMs: 60_000,
       });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
+        const text = await res.text().catch((err: unknown) => {
+          // ``Response.text()`` failures are rare (broken stream,
+          // aborted body) but silent fallback to "" used to mask the
+          // root cause. Log so a flaky CDN shows up in dashboards;
+          // the throw below still surfaces the HTTP status to the
+          // user.
+          console.warn(
+            `[useRefreshMyChannel] failed to read response body for http_${res.status}:`,
+            err,
+          );
+          return "";
+        });
         throw new Error(text || `http_${res.status}`);
       }
       return (await res.json()) as RefreshMyChannelResponse;
