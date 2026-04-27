@@ -71,6 +71,7 @@ from getviews_pipeline.routers.video import router as video_router
 from getviews_pipeline.routers.script import router as script_router
 from getviews_pipeline.routers.home import router as home_router
 from getviews_pipeline.routers.answer import router as answer_router
+from getviews_pipeline.routers.douyin import router as douyin_router
 from getviews_pipeline.routers.batch import router as batch_router
 from getviews_pipeline.routers.admin import router as admin_router
 
@@ -80,5 +81,6 @@ app.include_router(video_router)
 app.include_router(script_router)
 app.include_router(home_router)
 app.include_router(answer_router)
+app.include_router(douyin_router)
 app.include_router(batch_router)
 app.include_router(admin_router)
