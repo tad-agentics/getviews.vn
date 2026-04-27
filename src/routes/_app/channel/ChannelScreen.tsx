@@ -323,13 +323,23 @@ function ChannelBody({
         </div>
         <div className="self-center">
           <KpiGrid variant="channel" kpis={kpis} />
-          {data.posting_heatmap && data.posting_heatmap.length > 0 ? (
-            <div className="mt-6">
-              <PostingHeatmap grid={data.posting_heatmap} />
-            </div>
-          ) : null}
         </div>
       </div>
+
+        {/* PR — PostingHeatmap was previously tucked inside the hero
+         * right column, which conflicted with the design pack's clean
+         * 2-col hero (left: identity + chips, right: KPI grid only —
+         * see ``screens/channel.jsx`` lines 14-61). Lifted out here so
+         * the heatmap stays accessible but the hero matches design. */}
+        {data.posting_heatmap && data.posting_heatmap.length > 0 ? (
+          <section>
+            <SectionMini
+              kicker="LỊCH ĐĂNG · 7×8 HEATMAP"
+              title="Khung giờ kênh hay đăng"
+            />
+            <PostingHeatmap grid={data.posting_heatmap} />
+          </section>
+        ) : null}
 
         <section>
           <SectionMini
