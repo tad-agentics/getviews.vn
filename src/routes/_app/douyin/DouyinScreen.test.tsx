@@ -320,6 +320,26 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
     expect(screen.getByText("Tech video 1")).toBeTruthy();
   });
 
+  it("opens the video modal when a card is clicked + shows the Adapt CTA", () => {
+    useDouyinFeed.mockReturnValue({
+      data: _feed(),
+      isPending: false, isError: false, refetch: vi.fn(),
+    });
+    _renderScreen();
+    // No modal mounted yet — the Adapt CTA isn't on the page.
+    expect(
+      screen.queryByRole("button", { name: /Adapt sang VN → Kịch bản/ }),
+    ).toBeNull();
+    // Click the first card (article role=button).
+    const cards = screen.getAllByRole("button", { name: /Wellness video 1/ });
+    fireEvent.click(cards[0]!);
+    // Modal opens — Adapt CTA + close X are now in the DOM.
+    expect(
+      screen.getByRole("button", { name: /Adapt sang VN → Kịch bản/ }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Đóng" })).toBeTruthy();
+  });
+
   it("does not show the auto-niche banner when the primary niche has no Douyin equivalent", () => {
     useDouyinFeed.mockReturnValue({
       data: _feed(),

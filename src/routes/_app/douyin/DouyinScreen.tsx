@@ -7,12 +7,14 @@ import { Btn } from "@/components/v2/Btn";
 import { TopBar } from "@/components/v2/TopBar";
 import { useDouyinFeed } from "@/hooks/useDouyinFeed";
 import { useProfile } from "@/hooks/useProfile";
+import type { DouyinVideo } from "@/lib/api-types";
 
 import { DouyinAutoNicheBanner } from "./DouyinAutoNicheBanner";
 import { DouyinHero } from "./DouyinHero";
 import { DouyinNicheChips } from "./DouyinNicheChips";
 import { DouyinToolbar } from "./DouyinToolbar";
 import { DouyinVideoCard } from "./DouyinVideoCard";
+import { DouyinVideoModal } from "./DouyinVideoModal";
 import {
   INITIAL_FILTERS,
   applyFiltersAndSort,
@@ -47,6 +49,9 @@ export default function DouyinScreen() {
   // dismissed, the banner stays hidden until the next mount; the niche
   // chip itself remains user-controlled.
   const [autoNicheDismissed, setAutoNicheDismissed] = useState(false);
+
+  // D4d — currently-open video modal. ``null`` keeps the modal closed.
+  const [modalVideo, setModalVideo] = useState<DouyinVideo | null>(null);
 
   const niches = data?.niches ?? [];
   const allVideos = data?.videos ?? [];
@@ -219,12 +224,23 @@ export default function DouyinScreen() {
                     video={video}
                     saved={isSaved(video.video_id)}
                     onToggleSave={toggleSaved}
+                    onOpen={setModalVideo}
                   />
                 </li>
               ))}
             </ul>
           )}
         </main>
+
+        <DouyinVideoModal
+          video={modalVideo}
+          open={modalVideo !== null}
+          onOpenChange={(next) => {
+            if (!next) setModalVideo(null);
+          }}
+          saved={modalVideo ? isSaved(modalVideo.video_id) : false}
+          onToggleSave={toggleSaved}
+        />
       </div>
     </AppLayout>
   );
