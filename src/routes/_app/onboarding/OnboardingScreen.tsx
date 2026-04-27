@@ -94,7 +94,7 @@ export default function OnboardingScreen() {
   if (profilePending) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-[color:var(--gv-canvas)]"
+        className="flex min-h-dvh items-center justify-center bg-[color:var(--gv-canvas)]"
         role="status"
         aria-label="Đang tải"
       >
@@ -104,7 +104,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[color:var(--gv-canvas)]">
+    <div className="flex min-h-dvh bg-[color:var(--gv-canvas)]">
       {/* Left column — editorial — hidden on mobile */}
       <aside className="hidden md:flex flex-1 flex-col justify-between border-r border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-[60px] py-[60px]">
         <p className="gv-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">

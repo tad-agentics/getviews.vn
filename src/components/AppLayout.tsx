@@ -743,7 +743,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     // context — only authenticated /app/* screens need it (sidebar
     // ``<UsageArc>`` is the sole consumer).
     <TooltipProvider delayDuration={200}>
-    <div className="flex flex-col h-screen bg-[color:var(--gv-canvas)]">
+    <div className="flex flex-col h-dvh bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
         <div className="flex min-h-0 w-full flex-1">
