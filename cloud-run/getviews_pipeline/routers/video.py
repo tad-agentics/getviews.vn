@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import _resolve_caller_niche_id, require_user
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.supabase_client import user_supabase
@@ -26,14 +27,14 @@ def _niche_bench_cache_key(niche_id: int, duration_sec: float) -> tuple[int, int
     return niche_id, int(round(duration_sec))
 
 
-class VideoAnalyzeRequest(BaseModel):
+class VideoAnalyzeRequest(StrictBody):
     video_id: str | None = None
     tiktok_url: str | None = None
     force_refresh: bool = False
     mode: Literal["win", "flop"] | None = None
 
 
-class KolTogglePinRequest(BaseModel):
+class KolTogglePinRequest(StrictBody):
     handle: str = Field(..., min_length=1, max_length=200)
 
 

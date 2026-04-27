@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from getviews_pipeline.api_models import StrictBody
+
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.session_store import get_stream_chunks, put_stream_chunks
@@ -26,21 +28,21 @@ def _sse_line(payload: dict[str, Any]) -> bytes:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
 
 
-class AnswerSessionCreateBody(BaseModel):
+class AnswerSessionCreateBody(StrictBody):
     initial_q: str
     intent_type: str
     niche_id: int | None = None
     format: Literal["pattern", "ideas", "timing", "generic"] = "pattern"
 
 
-class AnswerTurnAppendBody(BaseModel):
+class AnswerTurnAppendBody(StrictBody):
     query: str
     kind: Literal["primary", "timing", "creators", "script", "generic"] = "primary"
     classifier_confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
     intent_id: str | None = Field(default=None, max_length=80)
 
 
-class AnswerSessionPatchBody(BaseModel):
+class AnswerSessionPatchBody(StrictBody):
     title: str | None = None
     archived_at: str | None = None
 

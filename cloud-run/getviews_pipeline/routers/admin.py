@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.config import ENSEMBLEDATA_API_TOKEN
 from getviews_pipeline.deps import require_admin, require_batch_caller
 from getviews_pipeline.runtime import run_sync
@@ -357,38 +358,38 @@ def _record_admin_action(
 
 # ── Trigger runner helpers ────────────────────────────────────────────────────
 
-class AdminTriggerIngestBody(BaseModel):
+class AdminTriggerIngestBody(StrictBody):
     niche_ids: list[int] | None = None
     deep_pool: bool = False
 
 
-class AdminTriggerMorningRitualBody(BaseModel):
+class AdminTriggerMorningRitualBody(StrictBody):
     user_ids: list[str] | None = None
 
 
-class AdminTriggerEmptyBody(BaseModel):
+class AdminTriggerEmptyBody(StrictBody):
     """Placeholder body for jobs that take no parameters."""
 
 
-class AdminTriggerThumbnailBackfillBody(BaseModel):
+class AdminTriggerThumbnailBackfillBody(StrictBody):
     batch_size: int = 20
     limit: int | None = None
     dry_run: bool = False
 
 
-class AdminTriggerRefreshBody(BaseModel):
+class AdminTriggerRefreshBody(StrictBody):
     """Corpus freshness refresh — metadata-only re-pull from EnsembleData."""
     limit: int | None = None         # defaults to REFRESH_BATCH_LIMIT (200)
     stale_days: int | None = None    # defaults to REFRESH_STALE_DAYS (3)
     views_floor: int | None = None   # defaults to REFRESH_VIEWS_FLOOR (1000)
 
 
-class AdminTriggerR2JanitorBody(BaseModel):
+class AdminTriggerR2JanitorBody(StrictBody):
     """R2 storage janitor — defaults to dry-run for safety."""
     dry_run: bool = True
 
 
-class AdminTriggerEnrichShotsBody(BaseModel):
+class AdminTriggerEnrichShotsBody(StrictBody):
     """Wave 2.5 Phase A PR #4c — top-N Gemini re-extract for video_shots.
 
     Re-runs the full ingest analyze+upload path (new enrichment prompt
@@ -400,7 +401,7 @@ class AdminTriggerEnrichShotsBody(BaseModel):
     dry_run: bool = False
 
 
-class AdminTriggerViralScoreBacktestBody(BaseModel):
+class AdminTriggerViralScoreBacktestBody(StrictBody):
     """Wave 3 PR #4 — proposed viral-alignment score backtest over a
     sample of corpus rows with known breakout_multiplier.
 

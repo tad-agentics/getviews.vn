@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import AliasChoices, BaseModel, Field
 
+from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.config import TIKTOK_ALLOWED_HOSTS
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.gemini import classify_intent_gemini, gemini_text_only
@@ -228,12 +229,12 @@ def _insert_chat_message_best_effort(
         logger.warning("Supabase chat_messages insert failed (non-fatal): %s", exc)
 
 
-class ClassifyIntentRequest(BaseModel):
+class ClassifyIntentRequest(StrictBody):
     query: str
     has_session: bool = False
 
 
-class StreamRequest(BaseModel):
+class StreamRequest(StrictBody):
     session_id: str
     query: str
     intent_type: str | None = None
