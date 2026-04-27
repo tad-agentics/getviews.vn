@@ -17,13 +17,15 @@ describe("DouyinAutoNicheBanner", () => {
         onDismiss={onDismiss}
       />,
     );
-    expect(screen.getByText(/Đang ưu tiên ngách/)).toBeTruthy();
+    expect(screen.getByText(/Đang lọc theo ngách bạn theo dõi/)).toBeTruthy();
     expect(screen.getByText("Wellness")).toBeTruthy();
-    expect(screen.getByText(/42 video khớp/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Bỏ ưu tiên ngách/ })).toBeTruthy();
+    expect(screen.getByText(/42 video/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Mở rộng để xem tất cả ngách/ }),
+    ).toBeTruthy();
   });
 
-  it("calls onDismiss when the X button is clicked", () => {
+  it("calls onDismiss when the dismiss button is clicked", () => {
     const onDismiss = vi.fn();
     render(
       <DouyinAutoNicheBanner
@@ -32,7 +34,9 @@ describe("DouyinAutoNicheBanner", () => {
         onDismiss={onDismiss}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Bỏ ưu tiên ngách/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Mở rộng để xem tất cả ngách/ }),
+    );
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

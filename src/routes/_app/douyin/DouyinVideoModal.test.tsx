@@ -90,22 +90,25 @@ afterEach(() => {
 
 
 describe("DouyinVideoModal — populated row", () => {
-  it("renders title VN, title ZH, the 4-cell stats grid, the adapt strip and 2 translator notes", () => {
+  it("renders title VN, title ZH, the 2x2 stats grid, the adapt strip and 2 translator notes", () => {
     _renderModal({ video: _video() });
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText("3 việc trước khi ngủ")).toBeTruthy();
     expect(screen.getByText("睡前3件事")).toBeTruthy();
-    // Stats — formatViews keeps one decimal: "1.2M" / "80.0K" / "14.0K".
-    expect(screen.getByText("1.2M")).toBeTruthy();
-    expect(screen.getByText("80.0K")).toBeTruthy();
-    expect(screen.getByText("14.0K")).toBeTruthy();
-    expect(screen.getByText("12.5%")).toBeTruthy();
+    // D7 — stats grid is now VIEW / SAVE / TĂNG 14N / THỜI LƯỢNG
+    // (design pack ``screens/douyin.jsx`` lines 1078-1086).
+    // formatViews keeps one decimal: "1.2M" / "14.0K".
+    expect(screen.getByText("1.2M")).toBeTruthy(); // views
+    expect(screen.getByText("14.0K")).toBeTruthy(); // saves
+    expect(screen.getByText("0:30")).toBeTruthy(); // duration (30s → 0:30)
     // Adapt strip
     expect(screen.getByText(/Khả năng adapt sang VN/)).toBeTruthy();
     expect(screen.getByText("Dịch thẳng")).toBeTruthy();
     expect(screen.getByText(/Routine ngủ phù hợp/)).toBeTruthy();
     expect(screen.getByText("2–4 tuần")).toBeTruthy();
-    expect(screen.getByText("+35%")).toBeTruthy();
+    // The +35% rise appears in the stats grid (TĂNG 14N) AND in the
+    // adapt strip "Đà ở CN" cell — both source the same cn_rise_pct.
+    expect(screen.getAllByText("+35%").length).toBeGreaterThanOrEqual(1);
     // Translator notes — 2 rows + tags
     expect(screen.getByText(/Note văn hoá \(2\)/)).toBeTruthy();
     expect(screen.getByText("TỪ NGỮ")).toBeTruthy();
@@ -181,9 +184,13 @@ describe("DouyinVideoModal — pending / sparse rows", () => {
     expect(screen.queryByRole("button", { name: /Mở trên Douyin/ })).toBeNull();
   });
 
-  it("shows '—' for engagement_rate when null", () => {
-    _renderModal({ video: _video({ engagement_rate: null }) });
-    expect(screen.getByText("—")).toBeTruthy();
+  it("shows '—' for missing duration / cn_rise_pct in the stats grid", () => {
+    // D7 — the stats grid uses TĂNG 14N + THỜI LƯỢNG instead of ER%;
+    // both fall back to "—" when their column is null.
+    _renderModal({
+      video: _video({ video_duration: null, cn_rise_pct: null }),
+    });
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 
   it("falls back to title_zh when title_vi is empty", () => {

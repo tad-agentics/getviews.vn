@@ -41,10 +41,13 @@ const ADAPT_OPTIONS: { value: DouyinAdaptFilter; label: string }[] = [
   { value: "red", label: ADAPT_META.red.short },
 ];
 
+// D7 — sort option labels match the design pack
+// (``screens/douyin.jsx`` lines 687-689) verbatim, including the
+// "Sắp xếp: " prefix and "… nhất" suffix.
 const SORT_OPTIONS: { value: DouyinSortKey; label: string }[] = [
-  { value: "rise", label: "Tăng nhanh" },
-  { value: "views", label: "Nhiều view" },
-  { value: "recent", label: "Mới index" },
+  { value: "rise", label: "Sắp xếp: Tăng nhanh nhất" },
+  { value: "views", label: "Sắp xếp: Nhiều view nhất" },
+  { value: "recent", label: "Sắp xếp: Mới nhất" },
 ];
 
 export const DouyinToolbar = memo(function DouyinToolbar({
@@ -79,7 +82,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
           value={filters.search}
           onChange={(e) => setSearch(e.target.value)}
           className="min-w-0 flex-1 border-none bg-transparent py-0 text-[16px] leading-none text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] sm:text-[12px]"
-          placeholder="Tìm tiêu đề, handle, lý do…"
+          placeholder="Tìm trong kho · tên TQ, dịch VN, ngách…"
           aria-label="Tìm trong Kho Douyin"
         />
       </label>
@@ -102,24 +105,21 @@ export const DouyinToolbar = memo(function DouyinToolbar({
           ))}
         </div>
 
-        {/* Sort */}
-        <label className="flex items-center gap-1.5">
-          <span className="gv-mono text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
-            Sắp xếp
-          </span>
-          <select
-            value={filters.sort}
-            onChange={(e) => setSort(e.target.value as DouyinSortKey)}
-            className="h-8 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[12px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)]"
-            aria-label="Sắp xếp video"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* Sort — D7 design alignment: option labels carry the
+            "Sắp xếp: " prefix per design pack lines 687-689, so no
+            separate kicker is needed. */}
+        <select
+          value={filters.sort}
+          onChange={(e) => setSort(e.target.value as DouyinSortKey)}
+          className="h-8 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[12px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)]"
+          aria-label="Sắp xếp video"
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
 
         {/* Saved-only toggle */}
         <button

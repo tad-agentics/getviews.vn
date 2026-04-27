@@ -25,7 +25,7 @@ import {
   ADAPT_META,
   DOUYIN_SUB_VN_GREEN,
   PENDING_ADAPT_META,
-  formatEngagementPct,
+  formatDuration,
   formatEtaWeeks,
   formatRisePct,
 } from "./douyinFormatters";
@@ -271,30 +271,55 @@ function DouyinVideoModalBody({
 // ── Stats grid ──────────────────────────────────────────────────────
 
 
+/**
+ * D7 (2026-06-06) — stat grid aligned with design pack
+ * ``screens/douyin.jsx`` lines 1078-1086. Design specifies a 2×2
+ * grid with VIEW / SAVE / TĂNG 14N / THỜI LƯỢNG. The earlier 4-up
+ * grid (VIEW / LIKE / LƯU / ER%) duplicated the rise figure (also
+ * shown on the adapt strip) and dropped the duration entirely.
+ */
 function StatsGrid({ video }: { video: DouyinVideo }) {
-  const er = formatEngagementPct(video.engagement_rate);
+  const rise = formatRisePct(video.cn_rise_pct);
+  const duration = formatDuration(video.video_duration);
   return (
     <section
-      className="mb-5 grid grid-cols-4 gap-3 border-b border-[color:var(--gv-rule)] pb-5"
+      className="mb-5 grid grid-cols-2 gap-x-4 gap-y-3 border-b border-[color:var(--gv-rule)] pb-5"
       aria-label="Chỉ số gốc"
     >
       <Stat label="View" value={formatViews(video.views)} />
-      <Stat label="Like" value={formatViews(video.likes)} />
-      <Stat label="Lưu" value={formatViews(video.saves)} />
-      <Stat label="ER %" value={er} />
+      <Stat label="Save" value={formatViews(video.saves)} />
+      <Stat
+        label="Tăng 14N"
+        value={rise ?? "—"}
+        valueClassName={
+          rise ? "text-[color:var(--gv-pos-deep)]" : undefined
+        }
+      />
+      <Stat label="Thời lượng" value={duration ?? "—"} />
     </section>
   );
 }
 
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
     <div>
       <p className="gv-mono mb-1 text-[9px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
         {label}
       </p>
       <p
-        className="gv-tight m-0 text-[20px] leading-none text-[color:var(--gv-ink)]"
+        className={
+          "gv-tight m-0 text-[20px] leading-none " +
+          (valueClassName ?? "text-[color:var(--gv-ink)]")
+        }
         style={{ fontFamily: "var(--gv-font-display)" }}
       >
         {value}
