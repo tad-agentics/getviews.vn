@@ -451,6 +451,12 @@ export interface ScriptGenerateRequest {
   duration: number;
   tone: ScriptTone;
   niche_id: number;
+  /**
+   * S6 — when set, the response carries only the shot at this index so
+   * the FE can splice it back into local state without disturbing the
+   * other 5 shots. Validated server-side as ``0 <= shot_index <= 5``.
+   */
+  shot_index?: number;
 }
 
 export interface ScriptShot {

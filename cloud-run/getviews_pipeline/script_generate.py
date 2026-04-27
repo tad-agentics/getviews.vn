@@ -65,6 +65,13 @@ class ScriptGenerateBody(BaseModel):
     duration: int = Field(ge=15, le=90)
     tone: ScriptTone
     niche_id: int = Field(ge=1)
+    # S6 — per-shot regenerate (per design pack ``screens/script.jsx``
+    # lines 1149-1157). When set, the response carries only the shot at
+    # this index so the FE can splice it back into local state without
+    # disturbing the user's other 5 shots. ``None`` keeps the legacy
+    # full-script regen behaviour. Validated against the deterministic
+    # 6-shot output in ``run_script_generate_sync``.
+    shot_index: int | None = Field(default=None, ge=0, le=5)
 
 
 class ScriptShotLLM(BaseModel):
@@ -483,4 +490,11 @@ def run_script_generate_sync(
         "[script/generate] user=%s niche=%d shots=%d refs=%d",
         user_id, body.niche_id, len(shots), ref_count,
     )
+    # S6 — per-shot regen narrows the response to a single shot. We still
+    # ran the full Gemini call (cheaper than a new prompt + grounding
+    # round-trip) but the FE only needs shot[shot_index] to splice back
+    # into its local state. Out-of-range indices return the full set so
+    # an old client never breaks.
+    if body.shot_index is not None and 0 <= body.shot_index < len(shots):
+        shots = [shots[body.shot_index]]
     return {"shots": shots}
