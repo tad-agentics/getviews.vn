@@ -1,4 +1,4 @@
-// Vercel Edge — text intents ⑤⑥⑦ + follow-ups (Gemini 2.5 Flash Preview)
+// Vercel Edge — text intents ⑤⑥⑦ + follow-ups (Gemini 3 Flash Preview)
 export const config = { runtime: "edge" };
 
 import { createClient } from "@supabase/supabase-js";
@@ -16,10 +16,17 @@ const SUPABASE_ANON_KEY =
   "";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-// gemini-2.5-flash-preview-04-17 = Gemini 2.5 Flash Preview (latest stable preview).
-// Override via GEMINI_SYNTHESIS_MODEL env var if needed.
+// Gemini 3.x only (CLAUDE.md): 2.5 EOL Jun 2026, 2.0 EOL Mar 2026.
+// gemini-3-flash-preview matches Cloud Run's GEMINI_MODEL default.
+// Override via GEMINI_SYNTHESIS_MODEL env var; failure to set in
+// production logs a warning so we notice unintentional defaults.
 const GEMINI_MODEL =
-  process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-2.5-flash-preview-04-17";
+  process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-3-flash-preview";
+if (!process.env.GEMINI_SYNTHESIS_MODEL) {
+  console.warn(
+    "[api/chat] GEMINI_SYNTHESIS_MODEL unset — falling back to gemini-3-flash-preview",
+  );
+}
 
 const FREE_INTENTS = new Set([
   "format_lifecycle",
