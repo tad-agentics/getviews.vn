@@ -14,7 +14,7 @@ describe("ShotTypeVisual", () => {
       <ShotTypeVisual intelSceneType="face_to_camera" cam="Cận mặt" />,
     );
     const root = container.firstChild as HTMLElement;
-    expect(root.className).toMatch(/#3D2F4A/);
+    expect(root.className).toMatch(/--gv-shot-face-to-camera/);
   });
 
   it("infers product_shot from a Vietnamese cam hint when intelSceneType is absent", () => {
@@ -22,14 +22,13 @@ describe("ShotTypeVisual", () => {
       <ShotTypeVisual intelSceneType={null} cam="Cận sản phẩm giữa khung" />,
     );
     const root = container.firstChild as HTMLElement;
-    expect(root.className).toMatch(/#8A5E2F/);
+    expect(root.className).toMatch(/--gv-shot-product/);
   });
 
   it("falls back to the other gradient when no match", () => {
     const { container } = render(<ShotTypeVisual intelSceneType={null} cam="??? mystery ???" />);
     const root = container.firstChild as HTMLElement;
-    // The ``other`` gradient includes ``#555``.
-    expect(root.className).toMatch(/#555/);
+    expect(root.className).toMatch(/--gv-shot-other/);
   });
 
   it("shows the cam hint as the caption when provided", () => {

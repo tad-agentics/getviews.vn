@@ -377,6 +377,33 @@
   --gv-avatar-5:       #4A2A5C;          /* dark violet */
   --gv-avatar-6:       #5C2A3A;          /* dark magenta */
 
+  /* ── Shot-type gradients (ShotTypeVisual / shot timeline) ──────
+   * Per scene_type enum: each shot reads as a deterministic
+   * coloured tile so a creator scanning the timeline can tell
+   * cận mặt / b-roll / POV / cận tay apart at a glance. */
+  --gv-shot-face-to-camera:   linear-gradient(135deg, #3D2F4A 0%, #5A3F68 100%);
+  --gv-shot-product:          linear-gradient(135deg, #5A3E1F 0%, #8A5E2F 100%);
+  --gv-shot-screen-recording: linear-gradient(135deg, #1F3A5C 0%, #2F5A8E 100%);
+  --gv-shot-broll:            linear-gradient(135deg, #2A3A5C 0%, #3E5A8A 100%);
+  --gv-shot-text-card:        linear-gradient(135deg, #3A2F2F 0%, #5A4848 100%);
+  --gv-shot-demo:             linear-gradient(135deg, #1F4A3C 0%, #2F6E56 100%);
+  --gv-shot-action:           linear-gradient(135deg, #4A2F2F 0%, #6E3F3F 100%);
+  --gv-shot-other:            linear-gradient(135deg, #333333 0%, #555555 100%);
+
+  /* ── Trend signal colours (SignalBadge) ────────────────────────
+   * The four signal states render as coloured pills. Each pair is
+   * a 12% alpha background + matching deep ink text so the badge
+   * stays legible on both white and grey surfaces.
+   */
+  --gv-signal-rising-fg:    #16a34a;
+  --gv-signal-rising-bg:    rgb(34 197 94 / 12%);
+  --gv-signal-early-fg:     #ca8a04;
+  --gv-signal-early-bg:     rgb(234 179 8 / 12%);
+  --gv-signal-stable-fg:    var(--gv-ink-3);
+  --gv-signal-stable-bg:    rgb(113 113 122 / 10%);
+  --gv-signal-declining-fg: #dc2626;
+  --gv-signal-declining-bg: rgb(239 68 68 / 10%);
+
   /* ── Radii ─────────────────────────────────────────────────────── */
   --gv-radius-sm:      6px;
   --gv-radius-md:      12px;
