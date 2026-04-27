@@ -136,6 +136,17 @@ ED_BATCH_BUDGET_ENFORCE = _bool_env("ED_BATCH_BUDGET_ENFORCE", False)
 # Tier-3 `classify_intent_gemini` calls per UTC day. 0 = unlimited.
 CLASSIFIER_GEMINI_DAILY_MAX = int(os.environ.get("CLASSIFIER_GEMINI_DAILY_MAX", "0") or "0")
 
+# Global Gemini USD-cost ceiling per UTC day. Sum is read from the
+# `gemini_calls.cost_usd` column for the current day and cached for
+# ``GEMINI_DAILY_USD_CACHE_SEC`` seconds so we don't query DB on every
+# call. CLAUDE.md targets ~$70/mo (~$2.5/day) across all Gemini usage.
+# 0 = unlimited (legacy behaviour).
+GEMINI_DAILY_USD_MAX = _float_env("GEMINI_DAILY_USD_MAX", "0")
+GEMINI_DAILY_USD_ENFORCE = _bool_env("GEMINI_DAILY_USD_ENFORCE", False)
+GEMINI_DAILY_USD_CACHE_SEC = int(
+    os.environ.get("GEMINI_DAILY_USD_CACHE_SEC", "60") or "60"
+)
+
 # TTL cache for hot user-path ED calls (seconds). 0 = disabled.
 ENSEMBLE_USER_PATH_CACHE_TTL_SEC = int(
     os.environ.get("ENSEMBLE_USER_PATH_CACHE_TTL_SEC", "300") or "300"

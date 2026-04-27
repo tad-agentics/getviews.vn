@@ -28,12 +28,109 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from getviews_pipeline.supabase_client import get_service_client
 
 logger = logging.getLogger(__name__)
+
+
+# ── Daily USD ceiling (B3) ────────────────────────────────────────────
+# Global per-day spend guard backed by ``gemini_calls.cost_usd``. Pre-call
+# check so a runaway batch can't exceed the documented ~$70/mo target.
+# Configured by GEMINI_DAILY_USD_MAX (0 = unlimited) and
+# GEMINI_DAILY_USD_ENFORCE (false = log-only).
+
+
+class GeminiDailyBudgetExceeded(RuntimeError):
+    """Raised when today's gemini_calls.cost_usd sum is at/over the ceiling."""
+
+
+_DAILY_USD_LOCK = threading.Lock()
+_DAILY_USD_CACHE: dict[str, float] = {}     # utc_date_iso → cost_usd
+_DAILY_USD_FETCHED_AT: dict[str, float] = {}  # utc_date_iso → monotonic seconds
+
+
+def _today_utc_iso() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def _fetch_today_cost_usd(today_iso: str) -> float:
+    """Sum gemini_calls.cost_usd for today (UTC). Best-effort — returns 0
+    on any failure so a transient DB blip doesn't block production."""
+    try:
+        # `gte` on created_at uses the UTC date boundary. cost_usd is a
+        # `numeric`; Supabase REST returns strings, so coerce defensively.
+        res = (
+            get_service_client()
+            .table("gemini_calls")
+            .select("cost_usd")
+            .gte("created_at", f"{today_iso}T00:00:00Z")
+            .execute()
+        )
+        rows = res.data or []
+        return float(sum(float(r.get("cost_usd") or 0) for r in rows))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[gemini_cost] daily-budget read failed: %s", exc)
+        return 0.0
+
+
+def get_today_cost_usd(*, force_refresh: bool = False) -> float:
+    """Cached daily Gemini spend (USD). Refreshed every
+    ``GEMINI_DAILY_USD_CACHE_SEC`` seconds per UTC day."""
+    from getviews_pipeline.config import GEMINI_DAILY_USD_CACHE_SEC
+
+    today_iso = _today_utc_iso()
+    now = time.monotonic()
+    with _DAILY_USD_LOCK:
+        cached = _DAILY_USD_CACHE.get(today_iso)
+        fetched_at = _DAILY_USD_FETCHED_AT.get(today_iso, 0.0)
+        fresh = (
+            cached is not None
+            and not force_refresh
+            and (now - fetched_at) < GEMINI_DAILY_USD_CACHE_SEC
+        )
+        if fresh:
+            return cached  # type: ignore[return-value]
+    # Fetch outside the lock so a slow DB call doesn't block other threads.
+    fetched = _fetch_today_cost_usd(today_iso)
+    with _DAILY_USD_LOCK:
+        _DAILY_USD_CACHE[today_iso] = fetched
+        _DAILY_USD_FETCHED_AT[today_iso] = now
+        # Drop yesterday's cache entries — small hygiene so the dict
+        # doesn't grow unbounded across day rollovers.
+        for stale in list(_DAILY_USD_CACHE):
+            if stale != today_iso:
+                _DAILY_USD_CACHE.pop(stale, None)
+                _DAILY_USD_FETCHED_AT.pop(stale, None)
+    return fetched
+
+
+def check_gemini_daily_budget(call_site: str) -> None:
+    """Pre-call guard. Raises ``GeminiDailyBudgetExceeded`` when today's
+    spend has hit ``GEMINI_DAILY_USD_MAX`` and enforcement is on; logs a
+    warning otherwise. No-op when the cap is 0 (disabled)."""
+    from getviews_pipeline.config import (
+        GEMINI_DAILY_USD_ENFORCE,
+        GEMINI_DAILY_USD_MAX,
+    )
+
+    if GEMINI_DAILY_USD_MAX <= 0:
+        return
+    today_usd = get_today_cost_usd()
+    if today_usd < GEMINI_DAILY_USD_MAX:
+        return
+    msg = (
+        f"[gemini_cost] daily Gemini spend ${today_usd:.4f} >= "
+        f"cap ${GEMINI_DAILY_USD_MAX:.4f} (call_site={call_site!r})"
+    )
+    if GEMINI_DAILY_USD_ENFORCE:
+        logger.error("%s — refusing call", msg)
+        raise GeminiDailyBudgetExceeded(msg)
+    logger.warning("%s — log-only (set GEMINI_DAILY_USD_ENFORCE=true to block)", msg)
 
 
 @dataclass(frozen=True)

@@ -157,10 +157,16 @@ def _generate_content_models(
     dashboard so regressions surface immediately.
     """
     from getviews_pipeline.gemini_cost import (
+        check_gemini_daily_budget,
         extract_usage,
         log_gemini_call,
         log_gemini_failure,
     )
+
+    # B3: daily USD ceiling. Raises GeminiDailyBudgetExceeded when today's
+    # gemini_calls.cost_usd sum has hit GEMINI_DAILY_USD_MAX and enforce
+    # is on. No-op when the cap is 0 (legacy / dev).
+    check_gemini_daily_budget(call_site)
 
     client = _get_client()
     chain = [primary_model, *fallbacks]

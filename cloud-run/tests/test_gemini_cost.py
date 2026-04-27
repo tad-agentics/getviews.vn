@@ -287,3 +287,119 @@ class TestWrapperContract:
         assert params["call_site"].default == "unknown"
         assert "user_id" in params
         assert "session_id" in params
+
+
+class TestDailyUsdCeiling:
+    """B3 — daily Gemini USD spend guard.
+
+    The cap is read from GEMINI_DAILY_USD_MAX (0 = unlimited) and gated by
+    GEMINI_DAILY_USD_ENFORCE (true → raise; false → log-only). Today's
+    spend is summed from gemini_calls.cost_usd and cached for
+    GEMINI_DAILY_USD_CACHE_SEC seconds.
+    """
+
+    def _reset_cache(self) -> None:
+        from getviews_pipeline import gemini_cost
+
+        with gemini_cost._DAILY_USD_LOCK:
+            gemini_cost._DAILY_USD_CACHE.clear()
+            gemini_cost._DAILY_USD_FETCHED_AT.clear()
+
+    def test_no_op_when_cap_disabled(self) -> None:
+        """GEMINI_DAILY_USD_MAX=0 → guard is a no-op, no DB read."""
+        from getviews_pipeline import gemini_cost
+
+        self._reset_cache()
+        with patch("getviews_pipeline.config.GEMINI_DAILY_USD_MAX", 0.0), patch(
+            "getviews_pipeline.gemini_cost._fetch_today_cost_usd"
+        ) as fetch:
+            gemini_cost.check_gemini_daily_budget(call_site="test")
+        fetch.assert_not_called()
+
+    def test_logs_warning_when_under_cap(self, caplog: Any) -> None:
+        from getviews_pipeline import gemini_cost
+
+        self._reset_cache()
+        with patch("getviews_pipeline.config.GEMINI_DAILY_USD_MAX", 5.0), patch(
+            "getviews_pipeline.config.GEMINI_DAILY_USD_ENFORCE", False
+        ), patch(
+            "getviews_pipeline.gemini_cost._fetch_today_cost_usd",
+            return_value=2.5,
+        ):
+            with caplog.at_level("WARNING"):
+                gemini_cost.check_gemini_daily_budget(call_site="test")
+        # Under cap → no warning emitted (warning only fires at/over cap).
+        assert not any("daily Gemini spend" in rec.message for rec in caplog.records)
+
+    def test_warns_log_only_when_over_cap_and_enforce_off(self, caplog: Any) -> None:
+        from getviews_pipeline import gemini_cost
+
+        self._reset_cache()
+        with patch("getviews_pipeline.config.GEMINI_DAILY_USD_MAX", 5.0), patch(
+            "getviews_pipeline.config.GEMINI_DAILY_USD_ENFORCE", False
+        ), patch(
+            "getviews_pipeline.gemini_cost._fetch_today_cost_usd",
+            return_value=10.0,
+        ):
+            with caplog.at_level("WARNING"):
+                # log-only — must NOT raise
+                gemini_cost.check_gemini_daily_budget(call_site="batch_synth")
+        msgs = " ".join(rec.message for rec in caplog.records)
+        assert "daily Gemini spend" in msgs
+        assert "log-only" in msgs
+
+    def test_raises_when_over_cap_and_enforce_on(self) -> None:
+        from getviews_pipeline import gemini_cost
+
+        self._reset_cache()
+        with patch("getviews_pipeline.config.GEMINI_DAILY_USD_MAX", 5.0), patch(
+            "getviews_pipeline.config.GEMINI_DAILY_USD_ENFORCE", True
+        ), patch(
+            "getviews_pipeline.gemini_cost._fetch_today_cost_usd",
+            return_value=10.0,
+        ):
+            with pytest.raises(gemini_cost.GeminiDailyBudgetExceeded):
+                gemini_cost.check_gemini_daily_budget(call_site="batch_synth")
+
+    def test_cache_short_circuits_repeat_calls(self) -> None:
+        """Second call within GEMINI_DAILY_USD_CACHE_SEC must NOT re-query DB."""
+        from getviews_pipeline import gemini_cost
+
+        self._reset_cache()
+        with patch("getviews_pipeline.config.GEMINI_DAILY_USD_CACHE_SEC", 60), patch(
+            "getviews_pipeline.gemini_cost._fetch_today_cost_usd",
+            return_value=1.5,
+        ) as fetch:
+            a = gemini_cost.get_today_cost_usd()
+            b = gemini_cost.get_today_cost_usd()
+        assert a == b == 1.5
+        assert fetch.call_count == 1
+
+    def test_force_refresh_bypasses_cache(self) -> None:
+        from getviews_pipeline import gemini_cost
+
+        self._reset_cache()
+        with patch(
+            "getviews_pipeline.gemini_cost._fetch_today_cost_usd",
+            side_effect=[1.0, 7.0],
+        ) as fetch:
+            first = gemini_cost.get_today_cost_usd()
+            second = gemini_cost.get_today_cost_usd(force_refresh=True)
+        assert first == 1.0
+        assert second == 7.0
+        assert fetch.call_count == 2
+
+    def test_db_blip_returns_zero_does_not_raise(self) -> None:
+        """A transient Supabase failure must not block production calls."""
+        from getviews_pipeline import gemini_cost
+
+        self._reset_cache()
+        client = MagicMock()
+        client.table.return_value.select.return_value.gte.return_value.execute.side_effect = (
+            RuntimeError("supabase down")
+        )
+        with patch(
+            "getviews_pipeline.gemini_cost.get_service_client",
+            return_value=client,
+        ):
+            assert gemini_cost._fetch_today_cost_usd("2026-04-27") == 0.0
