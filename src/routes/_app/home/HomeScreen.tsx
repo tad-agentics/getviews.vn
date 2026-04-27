@@ -5,10 +5,12 @@ import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { QueryComposer } from "@/components/v2/QueryComposer";
 import { TopBar } from "@/components/v2/TopBar";
+import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { useTopPatterns } from "@/hooks/useTopPatterns";
+import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import { normalizeNicheIds } from "@/lib/profileNiches";
 import { TickerMarquee } from "./components/TickerMarquee";
@@ -36,6 +38,18 @@ export default function HomeScreen() {
   const [composerText, setComposerText] = useState("");
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
+  const { data: pulse } = useHomePulse();
+
+  // D7 — LIVE badge surfaces a relative timestamp ("LIVE · CẬP NHẬT
+  // 2 PHÚT TRƯỚC") per design pack ``screens/home.jsx`` line 98.
+  // Falls back to "LIVE · STUDIO" when ``pulse.as_of`` isn't loaded
+  // yet so the chip renders something during the first paint.
+  const liveBadgeLabel = useMemo(() => {
+    if (!pulse?.as_of) return "LIVE · STUDIO";
+    const rel = formatRelativeSinceVi(new Date(), new Date(pulse.as_of));
+    if (rel === "—") return "LIVE · STUDIO";
+    return `LIVE · CẬP NHẬT ${rel.toUpperCase()}`;
+  }, [pulse?.as_of]);
 
   // PR-5 — niche picker: viewing-niche state on Home defaults to the
   // user's primary_niche but can be switched among the niches they
@@ -173,7 +187,7 @@ export default function HomeScreen() {
                     className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-ink)]"
                     style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
                   />
-                  <span>LIVE · STUDIO</span>
+                  <span>{liveBadgeLabel}</span>
                 </span>
                 <DateChip />
               </div>

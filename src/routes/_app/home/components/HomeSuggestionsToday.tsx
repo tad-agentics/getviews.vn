@@ -59,7 +59,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           tag="HÔM NAY QUAY NGAY"
           tagTone="accent"
           title="Video tiếp theo bạn nên làm"
-          caption="Tổng hợp từ pattern thắng 7 ngày qua. Mỗi ý tưởng đã có script viết sẵn — click để mở thẳng."
+          caption="Tổng hợp từ pattern thắng 7 ngày qua. 3/5 ý tưởng đã có script viết sẵn — click để mở thẳng."
           right={OPEN_ALL_SCRIPTS}
         />
         <StudioHero nicheId={nicheId} />
