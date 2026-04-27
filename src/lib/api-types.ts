@@ -584,6 +584,33 @@ export interface HookPatternsResponse {
   };
 }
 
+/**
+ * S3 — One row in the IdeaRefStrip above the script storyboard. Mirrors
+ * the BE shape from ``fetch_idea_references_for_niche`` in
+ * ``cloud-run/getviews_pipeline/script_data.py``. Used to render the
+ * 5-card "5 video viral cùng angle" surface in /app/script per design
+ * pack ``screens/script.jsx`` lines 1284-1360.
+ */
+export interface ScriptIdeaReference {
+  video_id: string;
+  creator_handle: string | null;
+  tiktok_url: string | null;
+  thumbnail_url: string | null;
+  views: number;
+  duration_sec: number | null;
+  hook_type: string | null;
+  /** Hook phrase or trimmed caption — what the ref shot is "about". */
+  shot_label: string | null;
+  /** 50–100. Niche match = 50 base + 30 hook bonus + up to 20 from views. */
+  match_pct: number;
+}
+
+export interface ScriptIdeaReferencesResponse {
+  niche_id: number;
+  hook_type: string | null;
+  references: ScriptIdeaReference[];
+}
+
 export interface SceneIntelligenceRow {
   niche_id: number;
   scene_type: string;

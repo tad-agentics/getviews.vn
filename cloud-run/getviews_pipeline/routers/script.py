@@ -53,6 +53,32 @@ async def script_scene_intelligence_endpoint(
     return JSONResponse(out)
 
 
+@router.get("/script/idea-references")
+async def script_idea_references_endpoint(
+    user: dict = Depends(require_user),
+    niche_id: int | None = Query(default=None, ge=1, description="Ngách; mặc định lấy ``profiles.primary_niche`` của user."),
+    hook_type: str | None = Query(default=None, description="Raw enum (``question``) or VN label (``Câu hỏi mở đầu``); resolver accepts both."),
+    limit: int = Query(default=5, ge=1, le=10, description="Number of references to return."),
+) -> JSONResponse:
+    """S3 — Top N viral videos in the niche matching the chosen idea's
+    hook_type. Drives the IdeaRefStrip above the storyboard in /app/script.
+    Falls back to overall top-views in the niche when the hook_type pool
+    is thin (< limit)."""
+    from getviews_pipeline.script_data import fetch_idea_references_for_niche
+
+    token = user["access_token"]
+    nid = niche_id if niche_id is not None else await _resolve_caller_niche_id(token)
+    sb = user_supabase(token)
+    try:
+        out = await run_sync(fetch_idea_references_for_niche, sb, nid, hook_type, limit)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("[script/idea-references] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return JSONResponse(out)
+
+
 @router.get("/script/hook-patterns")
 async def script_hook_patterns_endpoint(
     user: dict = Depends(require_user),
