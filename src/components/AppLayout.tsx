@@ -16,6 +16,7 @@ import {
   Check,
   BookOpen,
   Shield,
+  Archive,
 } from 'lucide-react';
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "@/lib/auth";
@@ -574,6 +575,22 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             active={active === "trends"}
             onClick={() => {
               navigate("/app/trends");
+              onClose?.();
+            }}
+          />
+          {/* D7 — Kho Douyin nav item (design pack ``shell.jsx`` line 9).
+              Renders between Trends and Script per the design's 4-item
+              primary nav. Badge is the CN flag glyph signalling this
+              section's distinct content (the design's "16 MỚI" count
+              is mock data; a real "new since last visit" tracker is a
+              follow-up). */}
+          <NavItem
+            icon={Archive}
+            label="Kho Douyin"
+            active={active === "douyin"}
+            badge="🇨🇳"
+            onClick={() => {
+              navigate("/app/douyin");
               onClose?.();
             }}
           />
