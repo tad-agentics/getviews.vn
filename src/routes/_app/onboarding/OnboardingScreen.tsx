@@ -1,28 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useTopNiches } from "@/hooks/useTopNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
-import { ReferenceChannelsStep } from "@/routes/_app/components/ReferenceChannelsStep";
 import {
-  MAX_CREATOR_NICHES,
   MIN_CREATOR_NICHES,
   normalizeNicheIds,
   profileHasMinimumNiches,
 } from "@/lib/profileNiches";
 
 /**
- * Full-bleed onboarding (Phase A · A3.5) — matches the design bundle:
- * split-screen with editorial left column + form right column. Two steps:
- *   0 — pick ít nhất 3 ngách (niche_ids + primary_niche = first)
- *   1 — pick 1–3 kênh tham chiếu (reference_channel_handles)
- *
- * Rendered at /app/onboarding, OUTSIDE the AppLayout shell. The index
- * route sends new creators here until profileHasMinimumNiches is satisfied.
+ * Onboarding — single-step niche pick (BƯỚC 01 / 01) per the creator-only
+ * design pack (screens/onboarding-settings.jsx). Reference-channels step was
+ * removed: the design treats onboarding as a 30-second niche pick and pushes
+ * reference-channel curation downstream (Settings → Ngách + the in-app
+ * "track this channel" CTA on /app/video). Min selection is still 3 — the
+ * studio's first-render personalisation depends on it — but the picker is
+ * capped at 3 for visual parity with the design's "TỐI ĐA 3" header.
  */
+
+// Onboarding-local cap. ``MAX_CREATOR_NICHES`` (12) stays the system-wide
+// upper bound because Settings + downstream code may relax this later.
+const ONBOARDING_NICHE_PICK_CAP = 3;
+
 export default function OnboardingScreen() {
   const navigate = useNavigate();
   const { data: profile, isPending: profilePending } = useProfile();
@@ -34,7 +37,6 @@ export default function OnboardingScreen() {
     refetch: refetchTaxonomy,
   } = useNicheTaxonomy();
 
-  const [step, setStep] = useState<0 | 1>(0);
   const [pendingNiches, setPendingNiches] = useState<number[]>([]);
   const didInitFromProfile = useRef(false);
 
@@ -54,44 +56,40 @@ export default function OnboardingScreen() {
     if (didInitFromProfile.current) return;
     didInitFromProfile.current = true;
     if (profileHasMinimumNiches(profile)) {
-      const ids = profile?.niche_ids;
-      if (Array.isArray(ids) && ids.length >= MIN_CREATOR_NICHES) {
-        setPendingNiches(normalizeNicheIds(ids));
-      } else if (profile?.primary_niche != null) {
-        setPendingNiches([profile.primary_niche]);
-      }
-      setStep(1);
+      // User already onboarded — bounce them back into the studio.
+      navigate("/app", { replace: true });
       return;
     }
     const ids = profile?.niche_ids;
     if (Array.isArray(ids) && ids.length > 0) {
-      setPendingNiches(normalizeNicheIds(ids));
+      setPendingNiches(normalizeNicheIds(ids).slice(0, ONBOARDING_NICHE_PICK_CAP));
     } else if (profile?.primary_niche != null) {
       setPendingNiches([profile.primary_niche]);
     }
-  }, [profilePending, profile]);
+  }, [profilePending, profile, navigate]);
 
   const togglePendingNiche = (id: number) => {
     setPendingNiches((prev) => {
-      const set = new Set(prev);
-      if (set.has(id)) {
-        set.delete(id);
-        return Array.from(set);
-      }
-      if (prev.length >= MAX_CREATOR_NICHES) return prev;
-      set.add(id);
-      return Array.from(set);
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= ONBOARDING_NICHE_PICK_CAP) return prev;
+      return [...prev, id];
     });
   };
 
-  const onNicheStepContinue = async () => {
+  const canAdvance = pendingNiches.length >= MIN_CREATOR_NICHES;
+
+  const finish = async () => {
+    if (!canAdvance) return;
     const ids = normalizeNicheIds(pendingNiches);
-    if (ids.length < MIN_CREATOR_NICHES) return;
     await save.mutateAsync({ niche_ids: ids, primary_niche: ids[0] });
-    setStep(1);
+    navigate("/app", { replace: true });
   };
 
-  const goHome = () => navigate("/app");
+  // ``Bỏ qua`` lets users back out to the marketing landing without
+  // committing. The index route still redirects unniche'd users back here
+  // on next /app visit — this is just a visible escape hatch that matches
+  // the design's footer pattern.
+  const skip = () => navigate("/", { replace: true });
 
   if (profilePending) {
     return (
@@ -105,35 +103,6 @@ export default function OnboardingScreen() {
     );
   }
 
-  const leftCopy = useMemo(() => {
-    if (step === 0) {
-      return {
-        h1: (
-          <>
-            Bạn đang làm việc với{" "}
-            <em className="gv-serif-italic text-[color:var(--gv-accent)]">ngách</em>{" "}
-            nào?
-          </>
-        ),
-        caption:
-          "Chọn ít nhất 3 ngách bạn quan tâm — studio sẽ cá nhân hóa xu hướng, hook và sound theo từng ngách.",
-      };
-    }
-    return {
-      h1: (
-        <>
-          Ai là{" "}
-          <em className="gv-serif-italic text-[color:var(--gv-accent)]">
-            đối thủ tham chiếu
-          </em>{" "}
-          của bạn?
-        </>
-      ),
-      caption:
-        "Chọn 1–3 kênh. Studio sẽ tự cập nhật khi họ post bài mới và so sánh hiệu suất với kênh của bạn.",
-    };
-  }, [step]);
-
   return (
     <div className="flex min-h-screen bg-[color:var(--gv-canvas)]">
       {/* Left column — editorial — hidden on mobile */}
@@ -144,43 +113,46 @@ export default function OnboardingScreen() {
 
         <div>
           <p className="gv-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)] mb-4">
-            BƯỚC 0{step + 1} / 02
+            BƯỚC 01 / 01
           </p>
           <h1
             className="gv-tight text-[64px] leading-[0.95] text-[color:var(--gv-ink)]"
             style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.04em" }}
           >
-            {leftCopy.h1}
+            Bạn đang làm việc với{" "}
+            <em className="gv-serif-italic text-[color:var(--gv-accent)]">ngách</em> nào?
           </h1>
           <p className="mt-[18px] max-w-[420px] text-base leading-snug text-[color:var(--gv-ink-3)]">
-            {leftCopy.caption}
+            Chọn tối đa {ONBOARDING_NICHE_PICK_CAP} ngách. Studio tải dữ liệu 14 ngày
+            gần nhất — xu hướng, hook, sound đang nổi trong các ngách bạn quan tâm.
           </p>
         </div>
 
         <p className="gv-mono inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]" />
-          CREATOR STUDIO · MẤT ~45 GIÂY
+          CREATOR STUDIO · MẤT ~30 GIÂY
         </p>
       </aside>
 
       {/* Right column — form */}
       <section className="flex flex-1 flex-col justify-center px-6 py-12 md:px-[60px] md:py-[60px]">
         <div className="w-full max-w-[640px] mx-auto">
-          {step === 0 && taxonomyError ? (
+          {taxonomyError ? (
             <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 text-center">
-              <p className="mb-4 text-sm text-[color:var(--gv-ink-3)]">Không tải được danh sách ngách.</p>
+              <p className="mb-4 text-sm text-[color:var(--gv-ink-3)]">
+                Không tải được danh sách ngách.
+              </p>
               <Btn type="button" variant="ink" size="sm" onClick={() => void refetchTaxonomy()}>
                 Thử lại
               </Btn>
             </div>
-          ) : null}
-          {step === 0 && !taxonomyError && taxonomyPending ? (
+          ) : taxonomyPending ? (
             <p className="text-sm text-[color:var(--gv-ink-4)]">Đang tải danh sách ngách…</p>
-          ) : null}
-          {step === 0 && !taxonomyError && !taxonomyPending && niches.length === 0 ? (
-            <p className="text-sm text-[color:var(--gv-ink-3)]">Chưa có ngách trong hệ thống. Liên hệ hỗ trợ.</p>
-          ) : null}
-          {step === 0 && !taxonomyError && !taxonomyPending && niches.length > 0 ? (
+          ) : niches.length === 0 ? (
+            <p className="text-sm text-[color:var(--gv-ink-3)]">
+              Chưa có ngách trong hệ thống. Liên hệ hỗ trợ.
+            </p>
+          ) : (
             <>
               <NicheGrid
                 niches={niches}
@@ -188,71 +160,31 @@ export default function OnboardingScreen() {
                 disabled={save.isPending}
                 onToggle={togglePendingNiche}
               />
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-[12px] text-[color:var(--gv-ink-4)]">
-                  Đã chọn{" "}
-                  <span className="font-medium text-[color:var(--gv-ink)]">{pendingNiches.length}</span> /{" "}
-                  {MIN_CREATOR_NICHES} tối thiểu
-                  {pendingNiches.length >= MAX_CREATOR_NICHES ? (
-                    <span className="ml-1">(tối đa {MAX_CREATOR_NICHES})</span>
-                  ) : null}
-                </p>
+
+              <div className="mt-9 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={skip}
+                  className="inline-flex items-center gap-1.5 text-[13px] text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors"
+                >
+                  <ArrowLeft className="h-3 w-3" strokeWidth={1.7} />
+                  Bỏ qua
+                </button>
                 <Btn
                   type="button"
                   variant="ink"
                   size="sm"
-                  disabled={pendingNiches.length < MIN_CREATOR_NICHES || save.isPending}
-                  onClick={() => void onNicheStepContinue()}
+                  disabled={!canAdvance || save.isPending}
+                  onClick={() => void finish()}
                 >
-                  Tiếp tục
+                  Vào Creator Studio
+                  <ArrowRight className="h-3 w-3" strokeWidth={1.7} />
                 </Btn>
               </div>
             </>
-          ) : null}
-          {step === 1 ? (
-            <ReferenceChannelsStep
-              onDone={goHome}
-              onBack={() => setStep(0)}
-            />
-          ) : null}
-
-          {/* Footer: back / progress pills / CTA (step 0 only; step 1 owns its own footer) */}
-          {step === 0 && !taxonomyError && !taxonomyPending && niches.length > 0 ? (
-            <div className="mt-9 flex items-center justify-between">
-              <Btn
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={goHome}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.7} />
-                Quay lại
-              </Btn>
-              <ProgressPills step={step} />
-              <div className="gv-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--gv-ink-4)]">
-                01 / 02
-              </div>
-            </div>
-          ) : null}
+          )}
         </div>
       </section>
-    </div>
-  );
-}
-
-function ProgressPills({ step }: { step: 0 | 1 }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {[0, 1].map((i) => (
-        <span
-          key={i}
-          aria-hidden="true"
-          className={
-            "block h-1 w-9 rounded-full " +
-            (i <= step ? "bg-[color:var(--gv-accent)]" : "bg-[color:var(--gv-rule)]")
-          }
-        />
-      ))}
     </div>
   );
 }
@@ -269,39 +201,59 @@ function NicheGrid({
   onToggle: (id: number) => void;
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const atCap = selectedIds.length >= ONBOARDING_NICHE_PICK_CAP;
   return (
     <div>
-      <p className="gv-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)] mb-3.5">
-        NGÁCH CỦA BẠN (CHỌN {MIN_CREATOR_NICHES}–{MAX_CREATOR_NICHES})
-      </p>
+      <div className="mb-3.5 flex items-center justify-between">
+        <p className="gv-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+          NGÁCH CHÍNH · TỐI ĐA {ONBOARDING_NICHE_PICK_CAP}
+        </p>
+        <p
+          className={
+            "gv-mono text-[10px] " +
+            (atCap
+              ? "text-[color:var(--gv-accent-deep)]"
+              : "text-[color:var(--gv-ink-4)]")
+          }
+        >
+          {selectedIds.length}/{ONBOARDING_NICHE_PICK_CAP} đã chọn
+        </p>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {niches.map((n) => {
           const selected = selectedSet.has(n.id);
-          const isFocus = selectedIds[0] === n.id;
+          const lockAdd = !selected && atCap;
           return (
             <button
               key={n.id}
               type="button"
-              disabled={disabled}
+              disabled={disabled || lockAdd}
               onClick={() => onToggle(n.id)}
               className={
                 "flex items-center justify-between gap-3 rounded-[8px] px-4 py-3.5 text-left text-sm transition-colors " +
                 (selected
                   ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] border border-[color:var(--gv-ink)]"
-                  : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-4)]")
+                  : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-4)]") +
+                (lockAdd ? " opacity-40 cursor-not-allowed" : "")
               }
             >
-              <span className="truncate">
-                {n.name}
-                {isFocus && selectedIds.length >= MIN_CREATOR_NICHES ? (
-                  <span className="ml-1.5 gv-mono text-[9px] uppercase tracking-wider opacity-70">
-                    · trọng tâm
-                  </span>
-                ) : null}
+              <span className="flex items-center gap-2.5 min-w-0">
+                <span
+                  aria-hidden="true"
+                  className={
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border " +
+                    (selected
+                      ? "border-[color:var(--gv-canvas)] bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]"
+                      : "border-[color:var(--gv-ink-3)] bg-transparent text-transparent")
+                  }
+                >
+                  {selected ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                </span>
+                <span className="truncate">{n.name}</span>
               </span>
               <span
                 className={
-                  "gv-mono text-[10px] " +
+                  "gv-mono text-[10px] shrink-0 " +
                   (selected ? "opacity-60" : "text-[color:var(--gv-ink-4)]")
                 }
               >
@@ -311,10 +263,6 @@ function NicheGrid({
           );
         })}
       </div>
-      <p className="mt-3 text-[11px] text-[color:var(--gv-ink-4)]">
-        Nhấn để bật hoặc tắt ngách. Ngách trọng tâm là mục đầu danh sách; ngách bật sau sẽ nằm cuối. Muốn đúng thứ tự ưu tiên, bỏ
-        chọn hết rồi bật lần lượt từ ngách quan trọng nhất. Sau khi vào app, đổi trọng tâm nhanh ở mục Ngách của bạn trên thanh bên.
-      </p>
     </div>
   );
 }
