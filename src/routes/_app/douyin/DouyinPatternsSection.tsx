@@ -6,6 +6,17 @@ import type { DouyinNiche, DouyinPattern } from "@/lib/api-types";
 import { DouyinPatternCard } from "./DouyinPatternCard";
 
 /**
+ * Patterns are written by the weekly D5c cron at Mondays 21:00 UTC.
+ * If the most-recent ``computed_at`` we see is older than this many
+ * days, the §I header surfaces a "có thể chưa cập nhật" caveat so
+ * users know the cards may be stale (e.g. the cron failed last week).
+ *
+ * 8 days lets a single missed run fly without alarm; two missed runs
+ * (≥ 14 days) trigger the caveat.
+ */
+const STALE_DAYS_BEFORE_CAVEAT = 13;
+
+/**
  * D5e (2026-06-05) — Kho Douyin · §I "Pattern signals" surface.
  *
  * Sits ABOVE the §II video grid per design pack ``screens/douyin.jsx``
@@ -55,6 +66,34 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
     if (!activeNicheSlug) return null;
     return niches.find((n) => n.slug === activeNicheSlug)?.id ?? null;
   }, [activeNicheSlug, niches]);
+
+  // D6c — surface the week label + freshness caveat. We pick the most
+  // recent ``week_of`` across the active group so a single late-running
+  // niche doesn't downgrade the header.
+  const headerMeta = useMemo(() => {
+    const filtered =
+      activeNicheId == null
+        ? patterns
+        : patterns.filter((p) => p.niche_id === activeNicheId);
+    if (filtered.length === 0) return null;
+    let latestWeek: string | null = null;
+    let latestComputedAtMs: number | null = null;
+    for (const p of filtered) {
+      if (p.week_of && (!latestWeek || p.week_of > latestWeek)) {
+        latestWeek = p.week_of;
+      }
+      if (p.computed_at) {
+        const t = Date.parse(p.computed_at);
+        if (!Number.isNaN(t) && (latestComputedAtMs == null || t > latestComputedAtMs)) {
+          latestComputedAtMs = t;
+        }
+      }
+    }
+    const stale =
+      latestComputedAtMs != null &&
+      (Date.now() - latestComputedAtMs) / 86_400_000 > STALE_DAYS_BEFORE_CAVEAT;
+    return { weekOf: latestWeek, stale };
+  }, [patterns, activeNicheId]);
 
   // Group patterns by niche_id, scoped to the active filter.
   const groups = useMemo(() => {
@@ -128,7 +167,7 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
     const only = groups[0]!;
     return (
       <section className="mb-6" aria-label="Pattern signals tuần này">
-        <SectionHeader />
+        <SectionHeader meta={headerMeta} />
         <PatternRow rows={only.rows} />
       </section>
     );
@@ -137,7 +176,7 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
   // All niches → render one row per niche with a compact heading.
   return (
     <section className="mb-6" aria-label="Pattern signals tuần này">
-      <SectionHeader />
+      <SectionHeader meta={headerMeta} />
       <div className="flex flex-col gap-5">
         {groups.map(({ niche, rows }) => (
           <div key={niche?.id ?? "unknown"}>
@@ -155,17 +194,42 @@ export const DouyinPatternsSection = memo(function DouyinPatternsSection({
 });
 
 
-function SectionHeader() {
+type HeaderMeta = { weekOf: string | null; stale: boolean } | null;
+
+
+function SectionHeader({ meta }: { meta: HeaderMeta }) {
+  const weekLabel = meta?.weekOf ? formatWeekVN(meta.weekOf) : null;
   return (
     <>
       <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-[color:var(--gv-accent-deep)]">
         § I — Pattern signals · cập nhật mỗi tuần
       </p>
-      <h2 className="gv-tight m-0 mb-3.5 text-[20px] font-medium leading-tight text-[color:var(--gv-ink)]">
+      <h2 className="gv-tight m-0 mb-1 text-[20px] font-medium leading-tight text-[color:var(--gv-ink)]">
         Tuần này creator Douyin đang lặp gì
       </h2>
+      <p className="gv-mono mb-3.5 text-[10px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+        {weekLabel ? <>Tuần {weekLabel}</> : "Đang chờ batch đầu tiên"}
+        {meta?.stale ? (
+          <span className="ml-2 normal-case tracking-normal text-[color:var(--gv-accent-deep)]">
+            · có thể chưa cập nhật
+          </span>
+        ) : null}
+      </p>
     </>
   );
+}
+
+
+/**
+ * Format an ISO Monday date (e.g. "2026-06-01") as "01/06/2026". The
+ * BE stores ``week_of`` as DATE so it always parses cleanly here.
+ */
+function formatWeekVN(isoDate: string): string {
+  // Parse as a UTC date — week_of is always a Monday at 00:00 UTC.
+  const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return isoDate;
+  const [, yyyy, mm, dd] = m;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 
