@@ -238,7 +238,7 @@ function SolutionCardsSection() {
     <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-canvas)]">
       <div className="max-w-4xl mx-auto">
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Giải pháp</p>
-        <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+        <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-3">
           Công Cụ Nghiên Cứu TikTok Của Bạn
         </h2>
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-2xl mx-auto leading-relaxed">
@@ -453,7 +453,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
     <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
       <div className="max-w-6xl mx-auto">
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-2">Số liệu thực tế</p>
-        <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+        <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-3">
           Nắm bắt xu hướng,<br />cập nhật theo từng giờ
         </h2>
         <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
@@ -580,8 +580,7 @@ function InfraGrid() {
             Hạ tầng
           </p>
           <h2
-            className="font-extrabold text-[color:var(--gv-ink)] mb-3"
-            style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)" }}
+            className="gv-landing-h3 font-extrabold text-[color:var(--gv-ink)] mb-3"
           >
             Câu trả lời dựa trên{" "}
             <span className="text-[color:var(--gv-accent)]">data thực, không đoán mò</span>
@@ -631,8 +630,7 @@ function CredibilitySection() {
             Tại sao chúng tôi xây GetViews
           </p>
           <h2
-            className="font-extrabold text-[color:var(--gv-ink)] mb-5 leading-tight"
-            style={{ fontSize: "clamp(1.5rem, 3.5vw, 2rem)" }}
+            className="gv-landing-h3-tight font-extrabold text-[color:var(--gv-ink)] mb-5 leading-tight"
           >
             Bắt đầu tăng view{" "}
             <span className="text-[color:var(--gv-accent)]">ngay hôm nay</span>
@@ -711,7 +709,7 @@ function HowItWorksSection() {
     <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-canvas)]">
       <div className="max-w-5xl mx-auto">
         <p className="mb-3 text-center text-sm uppercase tracking-wider text-[color:var(--gv-ink-3)]">Quy trình</p>
-        <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-10 md:mb-14" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+        <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-10 md:mb-14">
           3 bước đơn giản, dưới 2 phút
         </h2>
 
@@ -816,7 +814,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   <span className="text-sm font-medium text-[color:var(--gv-ink-3)]">Trợ lý AI số 1 cho TikTok Creator Việt</span>
                 </div>
 
-                <h1 className="font-extrabold leading-[1.2] mb-6" style={{ fontSize: "clamp(1.75rem, 4.5vw, 3rem)" }}>
+                <h1 className="gv-landing-h1 font-extrabold leading-[1.2] mb-6">
                   <span className="text-[color:var(--gv-ink)]">Lướt TikTok cả&nbsp;ngày?</span>
                   <br />
                   <span className="text-[color:var(--gv-accent)]">Để GetViews "cày"&nbsp;thay.</span>
@@ -971,7 +969,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       {/* ── Statement ───────────────────────────────────────────── */}
       <section className="px-4 py-20 md:py-28 bg-[color:var(--gv-paper)]">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-extrabold text-[color:var(--gv-ink)] leading-[1.4]" style={{ fontSize: "clamp(1.75rem, 4.5vw, 2.75rem)" }}>
+          <h2 className="gv-landing-h2-lg font-extrabold text-[color:var(--gv-ink)] leading-[1.4]">
             Công cụ duy nhất tự động "soi" hàng nghìn video mỗi&nbsp;ngày để tìm ra công&nbsp;thức viral cho bạn
           </h2>
         </div>
@@ -998,7 +996,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
         <div className="max-w-5xl mx-auto">
           <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3 uppercase tracking-wide">Thực tế phũ phàng</p>
-          <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-10 md:mb-16" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+          <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-10 md:mb-16">
             Đa số creator Việt đang làm như thế nào?
           </h2>
           <div className="grid md:grid-cols-3 gap-8 md:gap-16">
@@ -1041,7 +1039,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       <section className="px-4 py-16 md:py-20 bg-[color:var(--gv-paper)]">
         <div className="max-w-5xl mx-auto">
           <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-3">Kết quả thực</p>
-          <h2 className="text-center font-extrabold text-[color:var(--gv-ink)] mb-3" style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)" }}>
+          <h2 className="gv-landing-h2-sm text-center font-extrabold text-[color:var(--gv-ink)] mb-3">
             Số liệu nói thay lời
           </h2>
           <p className="text-center text-sm text-[color:var(--gv-ink-3)] mb-12 max-w-xl mx-auto leading-relaxed">
@@ -1058,7 +1056,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             <div className="grid md:grid-cols-[1fr_80px_1fr] gap-6 items-center">
               <div>
                 <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Trước</p>
-                <div className="font-mono font-bold text-[color:var(--gv-ink-3)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>2.000</div>
+                <div className="gv-landing-stat font-mono font-bold text-[color:var(--gv-ink-3)] mb-1">2.000</div>
                 <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">view · video review nồi chiên</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -1080,7 +1078,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               </div>
               <div>
                 <p className="text-xs text-[color:var(--gv-ink-3)] mb-4 uppercase tracking-wide">Sau khi fix</p>
-                <div className="font-mono font-bold text-[color:var(--gv-ink)] mb-1" style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)" }}>45.000</div>
+                <div className="gv-landing-stat font-mono font-bold text-[color:var(--gv-ink)] mb-1">45.000</div>
                 <p className="text-sm text-[color:var(--gv-ink-3)] mb-5">view · quay lại theo gợi ý</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -1243,7 +1241,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
       {/* ── Final CTA ───────────────────────────────────────────── */}
       <section className="px-4 py-20 md:py-24 bg-[color:var(--gv-ink)]">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="font-extrabold text-white mb-6 leading-tight" style={{ fontSize: "clamp(1.75rem, 4vw, 2.5rem)" }}>
+          <h2 className="gv-landing-h2 font-extrabold text-white mb-6 leading-tight">
             Dán 1 link. Xem GetViews nói gì.
           </h2>
           <Link to="/login">

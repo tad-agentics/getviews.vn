@@ -489,6 +489,20 @@
   .gv-bignum { font-size: 34px; }
 }
 
+/* Landing-page fluid typography. Each class fixes a clamp() pair the
+ * marketing surface used inline twelve times. Centralising them lets
+ * future tuning happen in one place and keeps inline ``style`` off
+ * the JSX (CLAUDE.md: "never hardcode hex, px, or raw font sizes —
+ * use semantic classes"). Mobile-first: the clamp's lower bound is
+ * the 360px target; the upper bound covers desktop. */
+.gv-landing-h1     { font-size: clamp(1.75rem, 4.5vw, 3rem);    }
+.gv-landing-h2-lg  { font-size: clamp(1.75rem, 4.5vw, 2.75rem); }
+.gv-landing-h2     { font-size: clamp(1.75rem, 4vw,   2.5rem);  }
+.gv-landing-h2-sm  { font-size: clamp(1.75rem, 4vw,   2.25rem); }
+.gv-landing-h3     { font-size: clamp(1.5rem,  4vw,   2rem);    }
+.gv-landing-h3-tight { font-size: clamp(1.5rem,  3.5vw, 2rem);  }
+.gv-landing-stat   { font-size: clamp(2rem,    5vw,   2.75rem); }
+
 /* Italic accent: emphasis words inside headlines + quoted script titles.
  * Renders in Instrument Serif italic per the design pack (Branding Guideline §05) —
  * one emotional word per surface, paired with surrounding TikTok Sans. */
