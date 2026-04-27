@@ -466,11 +466,11 @@ function VideoAnalysisBodyInner({
         <header>
           {isFlop ? (
             <div className="gv-mono mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
-              CHẨN ĐOÁN · {flopIssueCount} ĐIỂM LỖI CẤU TRÚC
+              CHẨN ĐOÁN VIDEO CỦA BẠN · {flopIssueCount} ĐIỂM LỖI CẤU TRÚC
             </div>
           ) : (
             <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-              BÁO CÁO PHÂN TÍCH ·{" "}
+              MỔ VIDEO VIRAL ·{" "}
               <span className="normal-case text-[color:var(--gv-ink-3)]">{meta.niche_label ?? "—"}</span>
             </div>
           )}
