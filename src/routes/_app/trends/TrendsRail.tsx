@@ -12,7 +12,7 @@ import { formatRelativeSinceVi, formatViews } from "@/lib/formatters";
  *
  * Replaces the previous 3-section rail (videos / sounds / format) with
  * the design pack's 2-section rail (``screens/trends.jsx`` lines
- * 432-446): VIDEO NÊN BẮT CHƯỚC · Đang đột phá (top 5 7d) and VIDEO
+ * 432-446): VIDEO NÊN BẮT CHƯỚC · Đang nổi lên (top 5 7d) and VIDEO
  * ĐỈNH · Viral mọi thời (top 5 all-time).
  *
  * Each row is a clickable card: 9:16 vertical thumbnail (height 56) +
@@ -35,7 +35,7 @@ export const TrendsRail = memo(function TrendsRail({
     <div className="flex flex-col gap-7">
       <RailSection
         kicker="VIDEO NÊN BẮT CHƯỚC"
-        title="Đang đột phá"
+        title="Đang nổi lên"
         sub="Top 5 view 7 ngày qua"
         videos={data?.breakouts7d ?? []}
         isPending={isPending}
