@@ -355,14 +355,56 @@ def test_to_dict_round_trip() -> None:
         video_id="v1", scene_index=0, start_s=0.5, end_s=3.0,
         frame_url="https://cdn/0.jpg", thumbnail_url="https://cdn/t.jpg",
         tiktok_url="https://tiktok.com/…", creator_handle="@cr",
-        description="Cận mặt.", score=70,
+        description="Cận mặt.", score=70, views=156_000,
         match_signals=["niche", "hook"], match_label="Cùng ngách, hook",
     )
     d = ref.to_dict()
     assert d["video_id"] == "v1"
     assert d["score"] == 70
+    assert d["views"] == 156_000
     assert d["match_label"] == "Cùng ngách, hook"
     assert d["match_signals"] == ["niche", "hook"]
+
+
+def test_pick_surfaces_views_from_shot_row() -> None:
+    """Per design pack ``screens/script.jsx:1086-1094`` — the FE
+    RefClipCard renders a ``"X view"`` chip below each thumbnail. The
+    matcher must surface ``views`` from ``video_shots`` (denormalized
+    from ``video_corpus.views`` at write time)."""
+    client = _mock_client([_shot(video_id="hot", views=156_000)])
+    refs = pick_shot_references(
+        shot_descriptor={
+            "framing": "close_up", "pace": "slow",
+            "overlay_style": "bold_center", "subject": "face",
+            "motion": "static",
+        },
+        niche_id=7,
+        hook_type="question",
+        client=client,
+    )
+    assert len(refs) == 1
+    assert refs[0].views == 156_000
+
+
+def test_pick_views_none_when_shot_row_missing_column() -> None:
+    """Pre-backfill rows have no ``views`` key. Matcher must surface
+    None rather than crash or coerce — the FE branches on null and
+    hides the chip."""
+    shot = _shot()
+    shot.pop("views", None)  # simulate pre-backfill row
+    client = _mock_client([shot])
+    refs = pick_shot_references(
+        shot_descriptor={
+            "framing": "close_up", "pace": "slow",
+            "overlay_style": "bold_center", "subject": "face",
+            "motion": "static",
+        },
+        niche_id=7,
+        hook_type="question",
+        client=client,
+    )
+    assert len(refs) == 1
+    assert refs[0].views is None
 
 
 # ── Parametrized scoring sanity ─────────────────────────────────────

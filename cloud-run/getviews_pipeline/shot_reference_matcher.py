@@ -96,6 +96,11 @@ class ShotReference:
     creator_handle: str | None
     description: str | None
     score: int
+    # Denormalized from video_corpus.views — drives the "256K view" chip on
+    # the FE RefClipCard. NULL when the source row predates the
+    # ``20260601000000_video_shots_views`` migration's backfill window.
+    # Default None keeps existing kwarg-based test fixtures backward-compat.
+    views: int | None = None
     match_signals: list[str] = field(default_factory=list)
     match_label: str = ""
 
@@ -201,7 +206,7 @@ def _fetch_niche_shots_sync(
             "video_id,scene_index,start_s,end_s,"
             "scene_type,framing,pace,overlay_style,subject,motion,"
             "hook_type,creator_handle,thumbnail_url,tiktok_url,"
-            "frame_url,description"
+            "frame_url,description,views"
         )
         .eq("niche_id", niche_id)
         .order("created_at", desc=True)
@@ -259,6 +264,11 @@ def pick_shot_references(
         if score < min_score:
             continue
         signals = ["niche", *matched]
+        views_raw = shot.get("views")
+        try:
+            views_val = int(views_raw) if views_raw is not None else None
+        except (TypeError, ValueError):
+            views_val = None
         scored.append(ShotReference(
             video_id=str(vid),
             scene_index=int(shot.get("scene_index", 0) or 0),
@@ -269,6 +279,7 @@ def pick_shot_references(
             tiktok_url=shot.get("tiktok_url"),
             creator_handle=shot.get("creator_handle"),
             description=shot.get("description"),
+            views=views_val,
             score=score,
             match_signals=signals,
             match_label=_match_label_vn(signals),

@@ -1,7 +1,11 @@
 import type { ShotReference } from "@/lib/api-types";
+import { formatViews } from "@/lib/formatters";
 
 /**
  * Wave 2.5 Phase B PR #7 — per-shot reference-card strip.
+ * Polished 2026-06-01 (S2 of design-pack rollout) to match
+ * ``screens/script.jsx:1053-1098``: views chip + description as the
+ * on-card label.
  *
  * Rendered under each shot in ``ScriptShotRow`` (studio editor) and
  * ``ShotBlock`` (shoot mode). Shows up to 3 real creator scenes that
@@ -13,12 +17,16 @@ import type { ShotReference } from "@/lib/api-types";
  *                    then to a gradient tile so the layout stays
  *                    stable even with no media.
  *   • creator chip — ``@handle`` overlaid bottom-left.
- *   • timecode     — ``start_s``/end_s shown top-right if present;
+ *   • timecode     — ``start_s``/end_s shown top-right when present;
  *                    helps the creator jump to the exact scene inside
  *                    TikTok.
- *   • match chip   — VN ``match_label`` ("Cùng ngách, hook, khung
- *                    hình") pinned below the card as the "why it
- *                    matched" receipt. Factual, not hype copy.
+ *   • shot label   — ``description`` (12-24 word Gemini gloss) is the
+ *                    primary on-card label — what the ref shot LOOKS
+ *                    like, not why it matched. Falls back to the
+ *                    factual ``match_label`` ("Cùng ngách, hook, khung
+ *                    hình") on legacy rows missing ``description``.
+ *   • views chip   — accent-blue ``"256K view"`` pill below the label.
+ *                    Hidden when ``views`` is null (legacy / pre-backfill).
  *
  * Click opens the TikTok URL in a new tab (``target="_blank"``,
  * ``rel="noopener noreferrer"``). When no ``tiktok_url``, the card
@@ -67,9 +75,15 @@ function ReferenceCard({
   const fallback = CARD_FALLBACK_BG[idx % CARD_FALLBACK_BG.length];
   const handle = (ref.creator_handle ?? "").replace(/^@/, "");
   const timecode = formatTimecode(ref.start_s, ref.end_s);
-  // Block mode uses a slightly larger card so the match chip is readable
-  // inside the full-width shoot-mode layout.
+  // Block mode uses a slightly larger card so the meta below the thumb
+  // has room to breathe inside the full-width shoot-mode layout.
   const widthClass = density === "block" ? "w-24 min-[700px]:w-28" : "w-20";
+
+  // Description (Gemini's 12-24 word visual gloss) is the design's primary
+  // on-card label — describes what the shot LOOKS like. ``match_label``
+  // ("Cùng ngách, hook, khung hình") is a factual fallback for legacy
+  // rows ingested before the description-extraction prompt landed.
+  const label = ref.description?.trim() || ref.match_label || null;
 
   const media = (
     <div
@@ -110,14 +124,27 @@ function ReferenceCard({
     </div>
   );
 
-  const chip = ref.match_label ? (
-    <span
-      className="gv-mono mt-1 block truncate text-[9px] leading-[1.3] text-[color:var(--gv-ink-4)]"
-      title={ref.match_label}
-    >
-      {ref.match_label}
-    </span>
-  ) : null;
+  // Two-line description / fallback chip + accent views pill.
+  const meta = (
+    <div className="mt-1 flex flex-col gap-0.5">
+      {label ? (
+        <span
+          className="block text-[10px] leading-[1.3] text-[color:var(--gv-ink-2)] line-clamp-2"
+          title={label}
+        >
+          {label}
+        </span>
+      ) : null}
+      {ref.views != null ? (
+        <span
+          className="gv-mono text-[10px] font-semibold text-[color:var(--gv-pos-deep)]"
+          aria-label={`${ref.views} view`}
+        >
+          {formatViews(ref.views)} view
+        </span>
+      ) : null}
+    </div>
+  );
 
   if (ref.tiktok_url) {
     return (
@@ -125,22 +152,22 @@ function ReferenceCard({
         href={ref.tiktok_url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`${density === "block" ? "w-24 min-[700px]:w-28" : "w-20"} shrink-0`}
+        className={`${widthClass} shrink-0`}
         onClick={(e) => {
           // Don't bubble the shot-card's onClick selection handler.
           e.stopPropagation();
         }}
       >
         {media}
-        {chip}
+        {meta}
       </a>
     );
   }
 
   return (
-    <div className={`${density === "block" ? "w-24 min-[700px]:w-28" : "w-20"} shrink-0`}>
+    <div className={`${widthClass} shrink-0`}>
       {media}
-      {chip}
+      {meta}
     </div>
   );
 }
@@ -150,7 +177,7 @@ export function ShotReferenceStrip({ refs, density = "row" }: ShotReferenceStrip
   return (
     <div className="border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2.5">
       <div className="gv-mono gv-uc mb-2 text-[9px] tracking-[0.16em] text-[color:var(--gv-ink-4)]">
-        CLIP THAM KHẢO · {refs.length}
+        ✻ {refs.length} SHOT THAM KHẢO TỪ VIDEO VIRAL · CÙNG MỤC ĐÍCH
       </div>
       <div className="flex gap-2 overflow-x-auto pb-0.5">
         {refs.map((r, i) => (

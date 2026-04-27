@@ -261,6 +261,39 @@ def test_build_accepts_scene_with_partial_enrichment() -> None:
     assert s["description"] is None
 
 
+# ── views passthrough (denormalized from video_corpus) ───────────────
+
+def test_build_passes_views_through_when_present() -> None:
+    """Views from corpus row are denormalized so the FE RefClipCard can
+    render the "256K view" credibility chip without a join."""
+    row = _corpus_row(views=156_000)
+    shots = build_video_shot_rows(row)
+    assert all(s["views"] == 156_000 for s in shots)
+
+
+def test_build_views_none_when_missing_from_corpus_row() -> None:
+    """Pre-backfill corpus rows have no views key — writer should emit
+    None rather than crash or coerce to 0."""
+    row = _corpus_row()  # no views in fixture
+    shots = build_video_shot_rows(row)
+    assert all(s["views"] is None for s in shots)
+
+
+def test_build_views_none_when_unparseable() -> None:
+    """Garbage views value (non-numeric string from a bad ingest) must
+    fall through to None instead of raising."""
+    row = _corpus_row(views="not-a-number")
+    shots = build_video_shot_rows(row)
+    assert all(s["views"] is None for s in shots)
+
+
+def test_build_views_zero_preserved() -> None:
+    """Zero views is meaningful (just-published) — not coerced to None."""
+    row = _corpus_row(views=0)
+    shots = build_video_shot_rows(row)
+    assert all(s["views"] == 0 for s in shots)
+
+
 # ── upsert_video_shots_sync — thin DB wrapper ────────────────────────
 
 def test_upsert_calls_table_with_correct_on_conflict() -> None:
