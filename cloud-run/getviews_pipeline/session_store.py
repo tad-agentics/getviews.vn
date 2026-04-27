@@ -11,6 +11,7 @@ instance gets a fresh stream rather than a replay. This is acceptable for MVP.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import time
@@ -34,7 +35,13 @@ _EMPTY_CONTEXT: dict[str, Any] = {
 # Inherently per-instance. A reconnect to a different instance misses the cache
 # and gets a fresh stream — acceptable at MVP scale.
 
-_STREAM_REPLAY_TTL_SEC = 120.0
+# CLAUDE.md TD-4: 60s replay window. Past this the client's reconnect
+# attempt falls through to a fresh stream rather than a replay.
+_STREAM_REPLAY_TTL_SEC = 60.0
+# How often the background sweeper runs. Half the TTL keeps mean
+# residency for an expired entry under one TTL window without
+# burning CPU.
+_REPLAY_SWEEP_INTERVAL_SEC = 30.0
 _stream_chunks: dict[str, dict[str, Any]] = {}
 
 
@@ -54,6 +61,41 @@ def get_stream_chunks(stream_id: str) -> list[str] | None:
         _stream_chunks.pop(stream_id, None)
         return None
     return list(entry["chunks"])
+
+
+def sweep_expired_stream_chunks(now: float | None = None) -> int:
+    """Drop every replay entry whose TTL has passed.
+
+    Without a sweep, lazy eviction (in ``get_stream_chunks``) only
+    fires when the same stream_id is looked up again. Orphaned
+    entries — client never reconnects — sat in memory forever on
+    ``min-instances=1`` pods. Returns the number of entries removed
+    so the lifespan task can log churn.
+    """
+    cutoff = now if now is not None else time.monotonic()
+    expired = [sid for sid, entry in _stream_chunks.items() if cutoff > float(entry["expires_at"])]
+    for sid in expired:
+        _stream_chunks.pop(sid, None)
+    return len(expired)
+
+
+async def replay_buffer_sweeper(interval: float = _REPLAY_SWEEP_INTERVAL_SEC) -> None:
+    """Long-running coroutine that periodically prunes the replay buffer.
+
+    Started from the FastAPI lifespan; cancelled at shutdown. Logs at
+    DEBUG when no entries expired and at INFO when at least one did,
+    so production logs surface buffer churn without spamming.
+    """
+    while True:
+        try:
+            removed = sweep_expired_stream_chunks()
+            if removed:
+                logger.info("[replay-buffer] swept %d expired entries", removed)
+            else:
+                logger.debug("[replay-buffer] sweep ran, no entries expired")
+        except Exception as exc:  # never let a sweep failure kill the loop
+            logger.warning("[replay-buffer] sweep failed: %s", exc)
+        await asyncio.sleep(interval)
 
 
 # ── Session context from Supabase ──────────────────────────────────────────────

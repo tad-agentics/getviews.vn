@@ -10,18 +10,40 @@ JWKS URL: https://lzhiqnxfveqttsujebiv.supabase.co/auth/v1/.well-known/jwks.json
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from getviews_pipeline.session_store import replay_buffer_sweeper
+
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="GetViews Pipeline", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # TD-4: prune the SSE replay buffer on a 30s cadence so orphaned
+    # stream_ids (client never reconnects) don't sit forever on
+    # ``min-instances=1`` pods. Lazy eviction inside ``get_stream_chunks``
+    # remains as a defensive net.
+    sweeper_task = asyncio.create_task(replay_buffer_sweeper())
+    try:
+        yield
+    finally:
+        sweeper_task.cancel()
+        try:
+            await sweeper_task
+        except asyncio.CancelledError:
+            pass
+
+
+app = FastAPI(title="GetViews Pipeline", version="0.1.0", lifespan=lifespan)
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 # Use allow_origin_regex only — FastAPI CORSMiddleware does not support wildcard
