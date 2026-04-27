@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Copy, Film, Loader2, Plus, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
+import { IdeaWorkspace } from "./IdeaWorkspace";
 import { Btn } from "@/components/v2/Btn";
 import { CardInput } from "@/components/v2/CardInput";
 import { Chip } from "@/components/v2/Chip";
@@ -132,7 +133,31 @@ function parseNicheId(raw: string | null): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * Mode gate (per design pack ``screens/script.jsx`` lines 24-46): when
+ * /app/script is opened with no prefill deeplink, render the IdeaWorkspace
+ * step-1 surface instead of dropping the user into the editor with stale
+ * defaults. Any of ``?topic=``, ``?hook=``, ``?duration=`` (the existing
+ * prefill scheme used by Trends/Channel/Video handoffs) routes to the
+ * detail editor below.
+ */
 export default function ScriptScreen() {
+  const [searchParams] = useSearchParams();
+  const isWorkspaceMode =
+    !searchParams.has("topic") &&
+    !searchParams.has("hook") &&
+    !searchParams.has("duration");
+  if (isWorkspaceMode) {
+    return (
+      <AppLayout>
+        <IdeaWorkspace />
+      </AppLayout>
+    );
+  }
+  return <ScriptDetailScreen />;
+}
+
+function ScriptDetailScreen() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { data: profile } = useProfile();
