@@ -22,44 +22,48 @@ type VisualStyle = {
   label: string;
 };
 
+// Each ``bg`` resolves a CSS custom property defined in app.css
+// (``--gv-shot-*``). Keeping the gradient values out of the
+// component lets the design token sweep update them without
+// touching this file and keeps the JSX free of ad-hoc hex colours.
 const SHOT_VISUALS: Record<string, VisualStyle> = {
   face_to_camera: {
-    bg: "bg-[linear-gradient(135deg,#3D2F4A_0%,#5A3F68_100%)]",
+    bg: "bg-[var(--gv-shot-face-to-camera)]",
     icon: Camera,
     label: "Cận mặt",
   },
   product_shot: {
-    bg: "bg-[linear-gradient(135deg,#5A3E1F_0%,#8A5E2F_100%)]",
+    bg: "bg-[var(--gv-shot-product)]",
     icon: Package,
     label: "Cận sản phẩm",
   },
   screen_recording: {
-    bg: "bg-[linear-gradient(135deg,#1F3A5C_0%,#2F5A8E_100%)]",
+    bg: "bg-[var(--gv-shot-screen-recording)]",
     icon: MonitorSmartphone,
     label: "Quay màn hình",
   },
   broll: {
-    bg: "bg-[linear-gradient(135deg,#2A3A5C_0%,#3E5A8A_100%)]",
+    bg: "bg-[var(--gv-shot-broll)]",
     icon: Film,
     label: "B-roll",
   },
   text_card: {
-    bg: "bg-[linear-gradient(135deg,#3A2F2F_0%,#5A4848_100%)]",
+    bg: "bg-[var(--gv-shot-text-card)]",
     icon: Type,
     label: "Thẻ chữ",
   },
   demo: {
-    bg: "bg-[linear-gradient(135deg,#1F4A3C_0%,#2F6E56_100%)]",
+    bg: "bg-[var(--gv-shot-demo)]",
     icon: Play,
     label: "Demo",
   },
   action: {
-    bg: "bg-[linear-gradient(135deg,#4A2F2F_0%,#6E3F3F_100%)]",
+    bg: "bg-[var(--gv-shot-action)]",
     icon: Zap,
     label: "Hành động",
   },
   other: {
-    bg: "bg-[linear-gradient(135deg,#333_0%,#555_100%)]",
+    bg: "bg-[var(--gv-shot-other)]",
     icon: Film,
     label: "Khác",
   },

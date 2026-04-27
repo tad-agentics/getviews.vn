@@ -10,6 +10,9 @@
 
 export type SignalValue = "rising" | "early" | "stable" | "declining";
 
+// Background + foreground colours come from semantic tokens in
+// ``src/app.css`` (``--gv-signal-*-bg`` / ``--gv-signal-*-fg``).
+// The component just looks them up; no inline hex colours.
 const SIGNAL_CONFIG: Record<
   SignalValue,
   { label: string; dot: string; bg: string; text: string }
@@ -17,26 +20,26 @@ const SIGNAL_CONFIG: Record<
   rising: {
     label: "Đang bùng",
     dot: "🟢",
-    bg: "rgba(34,197,94,0.12)",
-    text: "#16a34a",
+    bg: "var(--gv-signal-rising-bg)",
+    text: "var(--gv-signal-rising-fg)",
   },
   early: {
     label: "Tín hiệu sớm",
     dot: "🟡",
-    bg: "rgba(234,179,8,0.12)",
-    text: "#ca8a04",
+    bg: "var(--gv-signal-early-bg)",
+    text: "var(--gv-signal-early-fg)",
   },
   stable: {
     label: "Ổn định",
     dot: "⚫",
-    bg: "rgba(113,113,122,0.10)",
-    text: "var(--muted)",
+    bg: "var(--gv-signal-stable-bg)",
+    text: "var(--gv-signal-stable-fg)",
   },
   declining: {
     label: "Đang giảm",
     dot: "🔴",
-    bg: "rgba(239,68,68,0.10)",
-    text: "#dc2626",
+    bg: "var(--gv-signal-declining-bg)",
+    text: "var(--gv-signal-declining-fg)",
   },
 };
 
@@ -49,8 +52,8 @@ export function SignalBadge({ signal, size = "sm" }: Props) {
   const cfg = SIGNAL_CONFIG[signal as SignalValue] ?? {
     label: signal,
     dot: "●",
-    bg: "rgba(113,113,122,0.10)",
-    text: "var(--muted)",
+    bg: "var(--gv-signal-stable-bg)",
+    text: "var(--gv-signal-stable-fg)",
   };
 
   const fontSize = size === "md" ? "0.75rem" : "0.625rem";
