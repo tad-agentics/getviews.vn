@@ -55,7 +55,7 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
       />
 
       {report.ideas.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
           <p className="gv-kicker gv-kicker--dot mb-2 text-[color:var(--gv-accent-deep)]">
             {sectionKickerForVariant(report.variant)}
           </p>
@@ -73,7 +73,7 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
       <NicheInsightCard insight={report.niche_insight} />
 
       {report.style_cards.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
           <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
             Phong cách
           </p>
@@ -85,7 +85,7 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
       ) : null}
 
       {report.stop_doing.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "180ms" }}>
           <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
             Bỏ ngay
           </p>
@@ -97,7 +97,7 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
       ) : null}
 
       {report.actions.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
           <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
             Bước tiếp theo
           </p>

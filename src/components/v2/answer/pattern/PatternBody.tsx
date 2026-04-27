@@ -45,7 +45,12 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
 
       {showWow && wow ? <WoWDiffBand data={wow} /> : null}
 
-      <section>
+      {/* S5/A1 — answer block stagger (per design pack ``screens/answer.jsx``
+          lines 287-289). Each section fades up on mount with a cascading
+          animation-delay so the report unfolds rather than dropping in
+          all at once. ``gv-fade-up`` is defined in ``src/app.css`` and
+          respects ``prefers-reduced-motion``. */}
+      <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
         <p className="gv-mono mb-2 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Tóm tắt</p>
         <h3 className="gv-serif mb-1 text-[22px] leading-snug text-[color:var(--gv-ink)]">Điều bạn nên biết</h3>
         <p className="gv-serif text-[22px] leading-snug text-[color:var(--gv-ink)]">{report.tldr.thesis}</p>
@@ -63,7 +68,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
       </section>
 
       {findings.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
           <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Bằng chứng · 3 hook</p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
             Pattern đang thắng, xếp theo retention
@@ -77,7 +82,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
       ) : null}
 
       {!thin ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "180ms" }}>
           <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Đã thử nhưng rơi</p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">Pattern không còn hiệu quả</h3>
           {report.what_stalled.length === 0 ? (
@@ -93,7 +98,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
       ) : null}
 
       {evidence.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
           <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Video mẫu</p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
             {evidence.length} video dùng pattern này đang lên
@@ -103,7 +108,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
       ) : null}
 
       {report.patterns.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "300ms" }}>
           <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Patterns</p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
             Điểm chung của {n} video thắng
@@ -115,7 +120,7 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
       <PatternSubreports report={report} />
 
       {report.actions.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "360ms" }}>
           <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Bước tiếp theo</p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">Biến insight thành video</h3>
           <PatternActionCards actions={report.actions} />

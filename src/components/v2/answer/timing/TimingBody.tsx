@@ -63,7 +63,7 @@ export function TimingBody({ report }: { report: TimingReportPayload }) {
       <CalendarStrip slots={report.calendar_slots ?? []} />
 
       {report.actions.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
           <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
             Bước tiếp theo
           </p>

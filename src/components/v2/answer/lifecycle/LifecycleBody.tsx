@@ -195,7 +195,8 @@ export function LifecycleBody({ report }: { report: LifecycleReportPayload }) {
 
       {thin && humilityOpen ? <HumilityBanner /> : null}
 
-      <section>
+      {/* A1 — staggered fade-up (per design pack ``screens/answer.jsx`` §reveal). */}
+      <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
         <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
           {header.kicker}
         </p>
@@ -207,7 +208,7 @@ export function LifecycleBody({ report }: { report: LifecycleReportPayload }) {
         </p>
       </section>
 
-      <section>
+      <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
         <p className="gv-mono mb-3 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
           Xếp hạng ({report.cells.length})
         </p>
@@ -226,7 +227,7 @@ export function LifecycleBody({ report }: { report: LifecycleReportPayload }) {
       <RefreshMovesList moves={report.refresh_moves} />
 
       {report.actions.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
           <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
             Bước tiếp theo
           </p>

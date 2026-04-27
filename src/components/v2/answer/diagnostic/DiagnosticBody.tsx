@@ -191,7 +191,8 @@ export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) 
 
       {thin && humilityOpen ? <HumilityBanner /> : null}
 
-      <section>
+      {/* A1 — staggered fade-up (per design pack ``screens/answer.jsx`` §reveal). */}
+      <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
         <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
           Chẩn đoán URL-less
         </p>
@@ -203,7 +204,7 @@ export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) 
         </p>
       </section>
 
-      <section>
+      <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
         <p className="gv-mono mb-3 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
           Hạng mục ({report.categories.length})
         </p>
@@ -223,7 +224,7 @@ export function DiagnosticBody({ report }: { report: DiagnosticReportPayload }) 
       ) : null}
 
       {report.prescriptions.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
           <p className="gv-mono mb-1 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
             Ưu tiên sửa
           </p>

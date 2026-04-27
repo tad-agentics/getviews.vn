@@ -1,7 +1,11 @@
 /**
  * Phase C.1.3 — dispatch answer turn body by `turn.kind` + §J `payload.kind`.
- * Stubs: non-primary turn kinds until C.3 / C.4 / C.8 wire dedicated renderers.
+ * A1 (2026-06-03) — TurnDivider polished per design pack
+ * ``screens/thread-turns.jsx`` lines 9-66: accent kicker + serif H2
+ * question + per-turn MiniResearch ladder + accent rail node.
  */
+import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { PatternBody } from "@/components/v2/answer/pattern/PatternBody";
 import { IdeasBody } from "@/components/v2/answer/ideas/IdeasBody";
@@ -11,15 +15,104 @@ import { DiagnosticBody } from "@/components/v2/answer/diagnostic/DiagnosticBody
 import { GenericBody } from "@/components/v2/answer/generic/GenericBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 
-function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind" | "query"> }) {
-  const extra = turn.kind !== "primary" ? ` · ${turn.kind}` : "";
+// Map ``AnswerTurnRow.kind`` → accent kicker copy. Continuation turns
+// only — primary turn renders a different header (QueryHeader at the
+// page level).
+const TURN_KIND_LABEL: Record<string, string> = {
+  pattern: "ĐÀO SÂU",
+  ideas: "Ý TƯỞNG",
+  timing: "THỜI ĐIỂM",
+  lifecycle: "VÒNG ĐỜI",
+  diagnostic: "CHẨN ĐOÁN",
+  generic: "ĐÀO SÂU",
+};
+
+function TurnMiniResearch() {
+  // Two-step "Dùng lại nguồn → Trả lời" ladder runs on first turn mount.
+  // Pure visual flair — by the time we render, the payload is already
+  // available; the ladder communicates "we re-used the same sources +
+  // produced this answer" rather than masking real latency. Settles to
+  // a green completion pill within ~1.1s.
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    if (stage >= 2) return;
+    const t = window.setTimeout(() => setStage((s) => s + 1), [500, 600][stage]);
+    return () => window.clearTimeout(t);
+  }, [stage]);
+  const done = stage >= 2;
   return (
-    <header className="mb-3 space-y-1">
-      <p className="font-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
-        Lượt {turn.turn_index + 1}
-        {extra}
-      </p>
-      <p className="text-xs leading-snug text-[color:var(--gv-ink-3)]">{turn.query}</p>
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <ResearchDot label="Dùng lại nguồn" done={stage >= 1} active={stage === 0} />
+      <ResearchDot label="Trả lời" done={stage >= 2} active={stage === 1} />
+      {done ? (
+        <span className="gv-mono inline-flex items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-2 py-0.5 text-[10px] text-[color:var(--gv-ink-3)]">
+          <Check className="h-3 w-3 text-[color:var(--gv-pos)]" strokeWidth={2.5} aria-hidden />
+          cùng phiên
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ResearchDot({ label, done, active }: { label: string; done: boolean; active: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className={
+          "inline-flex h-3 w-3 items-center justify-center rounded-full border " +
+          (done
+            ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
+            : active
+              ? "border-[color:var(--gv-rule)] bg-[color:var(--gv-accent-soft)]"
+              : "border-[color:var(--gv-rule)] bg-transparent")
+        }
+        aria-hidden
+      >
+        {done ? <Check className="h-2 w-2" strokeWidth={3} /> : null}
+      </span>
+      <span
+        className={
+          "gv-mono text-[11px] " +
+          (done
+            ? "text-[color:var(--gv-ink)]"
+            : active
+              ? "text-[color:var(--gv-ink-2)]"
+              : "text-[color:var(--gv-ink-4)]")
+        }
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
+function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind" | "query"> }) {
+  const label = TURN_KIND_LABEL[turn.kind] ?? "ĐÀO SÂU";
+  return (
+    <header className="relative mb-4 mt-10 pt-6">
+      {/* A1 — accent rail node (per design pack ``thread-turns.jsx`` lines
+          17-23). The TimelineRail outer wraps children in ``pl-6`` (24px)
+          and draws its line at ``left-[7px]`` — so a dot at
+          ``-left-[17px]`` from the TurnDivider sits exactly on the line.
+          Hidden on narrow viewports (rail itself collapses there too via
+          TimelineRail's no-rail layout). */}
+      <span
+        aria-hidden
+        className="absolute -left-[17px] top-7 hidden h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 border-[color:var(--gv-canvas)] bg-[color:var(--gv-accent)] shadow-[0_0_0_1px_var(--gv-ink)] lg:block"
+      />
+      <div className="mb-2.5 flex items-center gap-3">
+        <p className="gv-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+          {label} · LƯỢT {String(turn.turn_index + 1).padStart(2, "0")}
+        </p>
+        <span className="h-px flex-1 bg-[color:var(--gv-rule)]" aria-hidden />
+      </div>
+      <h2
+        className="gv-tight m-0 text-[clamp(20px,2.4vw,28px)] font-medium leading-tight tracking-[-0.02em] text-[color:var(--gv-ink)]"
+        style={{ fontFamily: "var(--gv-font-display)", textWrap: "balance" }}
+      >
+        {turn.query}
+      </h2>
+      <TurnMiniResearch />
     </header>
   );
 }

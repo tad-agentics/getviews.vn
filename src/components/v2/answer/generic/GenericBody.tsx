@@ -47,7 +47,7 @@ export function GenericBody({ report }: { report: GenericReportPayload }) {
       <NarrativeAnswer data={report.narrative} />
 
       {report.evidence_videos.length > 0 ? (
-        <section>
+        <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
           <p className="gv-mono mb-2 text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
             Video mẫu
           </p>
