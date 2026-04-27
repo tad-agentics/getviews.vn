@@ -13,7 +13,12 @@ function relTime(iso: string | undefined): string {
   return new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
 }
 
-/** Phase C.1.3 — recent answer sessions (thread-turns.jsx drawer pattern). */
+/** Phase C.1.3 — recent answer sessions (thread-turns.jsx drawer pattern).
+ * A2 — ``nicheLabelOf`` resolves ``niche_id`` to its VN label so each
+ * row carries the design's niche chip. Caller passes a closure over the
+ * existing ``useNicheTaxonomy`` data (already cached) — drawer stays
+ * decoupled from the taxonomy hook itself.
+ */
 export function SessionDrawer({
   open,
   onClose,
@@ -23,6 +28,7 @@ export function SessionDrawer({
   onNewSession,
   onViewAll,
   isLoading,
+  nicheLabelOf,
 }: {
   open: boolean;
   onClose: () => void;
@@ -32,6 +38,7 @@ export function SessionDrawer({
   onNewSession: () => void;
   onViewAll: () => void;
   isLoading: boolean;
+  nicheLabelOf?: (nicheId: number | null) => string | null;
 }) {
   if (!open) return null;
   return (
@@ -88,6 +95,8 @@ export function SessionDrawer({
             <ul className="space-y-1">
               {sessions.map((s) => {
                 const active = s.id === activeSessionId;
+                const niche = nicheLabelOf?.(s.niche_id ?? null) ?? null;
+                const turns = typeof s.turn_count === "number" && s.turn_count > 0 ? s.turn_count : null;
                 return (
                   <li key={s.id}>
                     <button
@@ -102,10 +111,29 @@ export function SessionDrawer({
                           : "border-l-[3px] border-transparent hover:bg-[var(--gv-canvas-2)]"
                       }`}
                     >
-                      <p className="font-mono text-[9px] uppercase tracking-wide text-[var(--gv-ink-4)]">
-                        {relTime(s.updated_at)}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-[14px] leading-snug text-[var(--gv-ink)]">
+                      {/* A2 — meta line: niche chip · turn count · relative time */}
+                      <div className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wide text-[var(--gv-ink-4)]">
+                        {niche ? (
+                          <span
+                            className={
+                              "tracking-[0.14em] " +
+                              (active
+                                ? "text-[color:var(--gv-accent-deep)]"
+                                : "text-[color:var(--gv-ink-4)]")
+                            }
+                          >
+                            {niche}
+                          </span>
+                        ) : null}
+                        {niche && turns ? <span aria-hidden>·</span> : null}
+                        {turns ? <span>{turns} lượt</span> : null}
+                        <span className="ml-auto">{relTime(s.updated_at)}</span>
+                      </div>
+                      <p
+                        className={`mt-1 line-clamp-2 text-[14px] leading-snug text-[var(--gv-ink)] ${
+                          active ? "font-medium" : ""
+                        }`}
+                      >
                         {s.title?.trim() || s.initial_q?.slice(0, 120) || "Phiên nghiên cứu"}
                       </p>
                     </button>
