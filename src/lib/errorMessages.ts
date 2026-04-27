@@ -35,6 +35,10 @@ export function analysisErrorCopy(error: unknown): string {
     return "Đã hết lượt miễn phí hôm nay. Quota sẽ reset lúc 00:00 UTC, hoặc dùng credit trả phí.";
   }
 
+  if (name === "AlreadyProcessing" || code === "already_processing") {
+    return "Đang xử lý một yêu cầu khác. Đợi kết quả hiện tại trước khi gửi câu mới.";
+  }
+
   if (name === "FetchTimeout" || code === "fetch_timeout") {
     return "Yêu cầu quá lâu — hệ thống đang chậm. Thử lại sau ít giây.";
   }

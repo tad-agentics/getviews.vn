@@ -234,6 +234,14 @@ export function useSessionStream<TPayload = unknown>(
               setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
               return { ok: false, error: "insufficient_credits" };
             }
+            if (res.status === 409) {
+              // TD-3 atomic lock held by another in-flight request from
+              // this same user. Don't retry — the user must wait for
+              // the previous request to finish or fail.
+              clearPendingAnswerStream();
+              setState((s) => ({ ...s, status: "error", error: "already_processing" }));
+              return { ok: false, error: "already_processing" };
+            }
             if (res.status === 429) {
               clearPendingAnswerStream();
               setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));
@@ -358,6 +366,13 @@ export function useSessionStream<TPayload = unknown>(
         if (res.status === 402) {
           setState((s) => ({ ...s, status: "error", error: "insufficient_credits" }));
           return { ok: false, error: "insufficient_credits" };
+        }
+        if (res.status === 409) {
+          // TD-3 atomic lock held by another in-flight request from
+          // this user. Surface a clear "wait for the previous one"
+          // message; no retry will help.
+          setState((s) => ({ ...s, status: "error", error: "already_processing" }));
+          return { ok: false, error: "already_processing" };
         }
         if (res.status === 429) {
           setState((s) => ({ ...s, status: "error", error: "daily_free_limit" }));

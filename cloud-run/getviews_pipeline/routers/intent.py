@@ -280,8 +280,25 @@ async def stream(
 
     sb = user_supabase(access_token)
 
+    # TD-3: atomic lock acquire. ``begin_processing`` flips is_processing
+    # only when previously false and returns the prior value. If a
+    # duplicate request arrives mid-flight (double-click, retry,
+    # concurrent tab) we abort with 409 instead of double-deducting.
     try:
-        sb.table("profiles").update({"is_processing": True}).eq("id", user_id).execute()
+        lock_resp = sb.rpc("begin_processing", {"p_user_id": user_id}).execute()
+    except Exception as exc:
+        logger.warning("begin_processing RPC failed: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": "lock_failed"},
+        )
+    if lock_resp.data is True:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"error": "already_processing"},
+        )
+
+    try:
         rpc_resp = sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
         if rpc_resp.data is False:
             sb.table("profiles").update({"is_processing": False}).eq("id", user_id).execute()

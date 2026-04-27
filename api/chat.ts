@@ -118,7 +118,26 @@ export default async function handler(req: Request): Promise<Response> {
       }
     }
   } else {
-    await supabase.from("profiles").update({ is_processing: true }).eq("id", user.id);
+    // TD-3: atomic lock acquire. ``begin_processing`` flips
+    // is_processing only when previously false and returns the prior
+    // value, so two concurrent requests can never both proceed past
+    // this line.
+    const { data: alreadyProcessing, error: lockError } = await supabase.rpc(
+      "begin_processing",
+      { p_user_id: user.id },
+    );
+    if (lockError) {
+      return new Response(JSON.stringify({ error: "lock_failed" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (alreadyProcessing === true) {
+      return new Response(JSON.stringify({ error: "already_processing" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     const { data: balanceAfter, error: rpcError } = await supabase.rpc("decrement_credit", {
       p_user_id: user.id,
