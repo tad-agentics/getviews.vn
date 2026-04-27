@@ -30,6 +30,7 @@ import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/use
 import { chatKeys } from "@/hooks/useChatSession";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { BottomTabBar, type AppShellActive } from "@/components/BottomTabBar";
 
 type Session = {
@@ -737,6 +738,11 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   }
 
   return (
+    // TooltipProvider lives here (not in src/root.tsx) so the
+    // unauthenticated landing page doesn't init Radix tooltip
+    // context — only authenticated /app/* screens need it (sidebar
+    // ``<UsageArc>`` is the sole consumer).
+    <TooltipProvider delayDuration={200}>
     <div className="flex flex-col h-screen bg-[color:var(--gv-canvas)]">
       {/* ── Desktop ─────────────────────────── */}
       <div className="hidden lg:flex flex-1 min-h-0 overflow-hidden">
@@ -847,5 +853,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         )}
       </AnimatePresence>
     </div>
+    </TooltipProvider>
   );
 }

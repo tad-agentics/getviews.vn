@@ -8,7 +8,6 @@ import {
 } from "react-router";
 import { AuthProvider } from "@/lib/auth";
 import { queryClient } from "@/lib/query-client";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import "./app.css";
 
@@ -75,12 +74,14 @@ export default function App() {
   // throws during Vercel build, and client-side hydration breaks the
   // same way.
   return (
+    // ``TooltipProvider`` lives in ``AppLayout`` (not here) so the
+    // unauthenticated landing page doesn't init Radix tooltip
+    // context — only authenticated /app/* screens use tooltips
+    // (sidebar ``<UsageArc>``).
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider delayDuration={200}>
-          <Outlet />
-          <PwaUpdatePrompt />
-        </TooltipProvider>
+        <Outlet />
+        <PwaUpdatePrompt />
       </AuthProvider>
     </QueryClientProvider>
   );
