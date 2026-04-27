@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, Film, Loader2, Sparkles } from "lucide-react";
 import type { ScriptExportFormat } from "@/lib/api-types";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
@@ -18,8 +18,6 @@ import { SceneIntelligencePanel, type ScriptReferenceClip } from "@/components/v
 import { ScriptForecastBar } from "@/components/v2/ScriptForecastBar";
 import { ScriptPacingRibbon } from "@/components/v2/ScriptPacingRibbon";
 import { ScriptShotRow } from "@/components/v2/ScriptShotRow";
-import { TopBar } from "@/components/v2/TopBar";
-import { useHomePulse } from "@/hooks/useHomePulse";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useProfile } from "@/hooks/useProfile";
 import { useScriptExport, useScriptSave } from "@/hooks/useScriptSave";
@@ -29,7 +27,6 @@ import { useScriptSceneIntelligence } from "@/hooks/useScriptSceneIntelligence";
 import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
-import { formatRelativeSinceVi } from "@/lib/formatters";
 import { apiShotsToEditorShots, mergeSceneIntelIntoShots, type ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import type { ScriptTone } from "@/lib/api-types";
 import { supabase } from "@/lib/supabase";
@@ -166,14 +163,6 @@ function ScriptDetailScreen() {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
-  const { data: pulse } = useHomePulse(cloudConfigured);
-
-  const asOf = useMemo(() => {
-    if (!pulse?.as_of) return null;
-    const d = new Date(pulse.as_of);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [pulse?.as_of]);
-  const asOfRelative = useMemo(() => formatRelativeSinceVi(new Date(), asOf), [asOf]);
 
   const paramNiche = parseNicheId(searchParams.get("niche_id"));
   const effectiveNicheId = paramNiche ?? profile?.primary_niche ?? null;
@@ -606,27 +595,15 @@ function ScriptDetailScreen() {
 
   return (
     <AppLayout active="script" enableMobileSidebar>
-      <TopBar
-        kicker="XƯỞNG VIẾT"
-        title="Kịch Bản"
-        right={
-          <>
-            {pulse?.as_of ? (
-              <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)] md:inline-flex">
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
-                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
-                />
-                Dữ liệu cập nhật {asOfRelative}
-              </span>
-            ) : null}
-            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
-              <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-              Phân tích mới
-            </Btn>
-          </>
-        }
-      />
+      {/* D7 — design pack ``screens/script.jsx`` doesn't render a
+          shell-level TopBar; the detail header (``XƯỞNG VIẾT · KỊCH
+          BẢN SỐ N · DỰA TRÊN …``) below IS the screen header.
+          Pre-D7 we mounted a ``<TopBar>`` here too, which created a
+          double "XƯỞNG VIẾT" stack. The freshness pill + "Phân tích
+          mới" button it carried were shell-level affordances:
+          AppLayout's sidebar already has a "+" button for new
+          analysis, and the freshness signal isn't critical on Script
+          (content is user-driven, not data-pulled). */}
       <main className="gv-route-main gv-route-main--1280">
         {!cloudConfigured ? (
           <div className="mx-auto w-full max-w-[1380px]">

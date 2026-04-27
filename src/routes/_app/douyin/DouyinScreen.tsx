@@ -148,7 +148,7 @@ export default function DouyinScreen() {
   const filtersActive = hasAnyFilter(filters);
 
   return (
-    <AppLayout active="trends" enableMobileSidebar>
+    <AppLayout active="douyin" enableMobileSidebar>
       <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
         <TopBar
           kicker="THAM CHIẾU"

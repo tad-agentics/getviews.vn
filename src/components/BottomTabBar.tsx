@@ -10,7 +10,7 @@ import {
 type Tab = "home" | "answer" | "trends" | "settings";
 
 /** Shell-wide active section; values not in the bottom bar show no tab as selected. */
-export type AppShellActive = Tab | "script" | "admin";
+export type AppShellActive = Tab | "script" | "admin" | "douyin";
 
 /**
  * Mobile bottom tab bar (Phase A · A3.3).
