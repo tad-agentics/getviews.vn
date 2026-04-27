@@ -19,6 +19,7 @@ import {
   Archive,
 } from 'lucide-react';
 import { motion, AnimatePresence } from "motion/react";
+import { BrandMark } from "@/components/BrandMark";
 import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -38,18 +39,20 @@ type Session = {
   label?: string;
 };
 
-/* ── Logo mark — 30x30 ink square, accent-pink compass spoke icon. ── */
+/**
+ * Sidebar lockup — canonical Getviews brand mark on a magenta-ink
+ * tile per Branding Guideline §05 (lockups: dark / magenta / sky).
+ * The 30×30 rounded square matches the design pack's sidebar header
+ * band (``shell.jsx`` brand region). The mark itself fills with
+ * canvas-white so the lockup reads ink-on-magenta-on-canvas.
+ */
 function LogoMark() {
   return (
-    <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[6px] bg-[color:var(--gv-ink)]">
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M8 1v14M1 8h14M3.05 3.05l9.9 9.9M12.95 3.05l-9.9 9.9"
-          stroke="var(--gv-accent)"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-      </svg>
+    <div
+      className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[6px] bg-[color:var(--gv-accent)] text-[color:var(--gv-canvas)]"
+      aria-hidden
+    >
+      <BrandMark size={20} />
     </div>
   );
 }
