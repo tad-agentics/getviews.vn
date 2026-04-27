@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from getviews_pipeline.douyin_ingest import (
+    _SHOT_UPSERT_MAX_ATTEMPTS,
     BATCH_DOUYIN_MIN_ER,
     BATCH_DOUYIN_MIN_VIEWS,
     BATCH_DOUYIN_VIDEOS_PER_NICHE,
@@ -22,11 +23,11 @@ from getviews_pipeline.douyin_ingest import (
     _fetch_active_douyin_niches,
     _fetch_douyin_pool,
     _passes_quality_gates,
+    _upsert_douyin_shots_with_retry_sync,
     build_douyin_shot_rows,
     ingest_douyin_niche,
     run_douyin_batch_ingest,
 )
-
 
 # ── Quality gates ───────────────────────────────────────────────────
 
@@ -465,3 +466,71 @@ async def test_batch_run_returns_empty_summary_when_no_active_niches() -> None:
         summary = await run_douyin_batch_ingest()
     assert summary.niches_processed == 0
     ingest_mock.assert_not_called()
+
+
+# ── D6e — shot upsert retry (audit M6) ─────────────────────────────
+
+
+def test_shot_upsert_retry_succeeds_first_attempt() -> None:
+    """Happy path: shot upsert returns immediately. No backoff fires."""
+    chain = MagicMock()
+    chain.upsert.return_value = chain
+    chain.execute.return_value = MagicMock()
+    client = MagicMock()
+    client.table.return_value = chain
+
+    with patch("time.sleep") as sleep_mock:
+        ok, exc = _upsert_douyin_shots_with_retry_sync(
+            client, [{"video_id": "v1", "scene_index": 0}],
+        )
+    assert ok is True
+    assert exc is None
+    sleep_mock.assert_not_called()
+    assert chain.execute.call_count == 1
+
+
+def test_shot_upsert_retry_recovers_on_second_attempt() -> None:
+    """Transient PostgREST 500 → succeed on retry."""
+    chain = MagicMock()
+    chain.upsert.return_value = chain
+    chain.execute.side_effect = [RuntimeError("transient 500"), MagicMock()]
+    client = MagicMock()
+    client.table.return_value = chain
+
+    with patch("time.sleep"):
+        ok, exc = _upsert_douyin_shots_with_retry_sync(
+            client, [{"video_id": "v1", "scene_index": 0}],
+        )
+    assert ok is True
+    assert exc is None
+    assert chain.execute.call_count == 2
+
+
+def test_shot_upsert_retry_gives_up_after_max_attempts() -> None:
+    """All attempts fail → return (False, last_exception). Caller logs
+    structured warning so ops can manually backfill."""
+    chain = MagicMock()
+    chain.upsert.return_value = chain
+    chain.execute.side_effect = RuntimeError("persistent 500")
+    client = MagicMock()
+    client.table.return_value = chain
+
+    with patch("time.sleep") as sleep_mock:
+        ok, exc = _upsert_douyin_shots_with_retry_sync(
+            client, [{"video_id": "v1", "scene_index": 0}],
+        )
+    assert ok is False
+    assert isinstance(exc, RuntimeError)
+    assert chain.execute.call_count == _SHOT_UPSERT_MAX_ATTEMPTS
+    # Slept between attempts: N-1 sleeps total (no sleep after the last
+    # failed attempt).
+    assert sleep_mock.call_count == _SHOT_UPSERT_MAX_ATTEMPTS - 1
+
+
+def test_shot_upsert_retry_no_op_on_empty_rows() -> None:
+    """Empty input is a no-op — no DB call, no retry."""
+    client = MagicMock()
+    ok, exc = _upsert_douyin_shots_with_retry_sync(client, [])
+    assert ok is True
+    assert exc is None
+    client.table.assert_not_called()

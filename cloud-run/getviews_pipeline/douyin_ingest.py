@@ -347,6 +347,39 @@ def _upsert_douyin_shots_sync(
     ).execute()
 
 
+# D6e — bounded shot upsert retry. Audit M6: when the corpus row lands
+# but the shot upsert fails, the dedupe set blocks next-day re-ingest
+# from re-attempting (corpus row exists). Retry the shot upsert a few
+# times with exponential backoff before giving up; the in-flight ingest
+# is the only place we can self-heal without a schema migration.
+_SHOT_UPSERT_MAX_ATTEMPTS = 3
+_SHOT_UPSERT_BACKOFF_BASE_SEC = 0.5
+
+
+def _upsert_douyin_shots_with_retry_sync(
+    client: Any,
+    shot_rows: list[dict[str, Any]],
+) -> tuple[bool, Exception | None]:
+    """Retry shot upsert up to ``_SHOT_UPSERT_MAX_ATTEMPTS`` times with
+    a 0.5s / 1.0s / 2.0s backoff. Returns ``(success, last_exception)``.
+
+    The retry is synchronous; callers wrap it in ``run_in_executor``.
+    """
+    import time
+
+    last_exc: Exception | None = None
+    for attempt in range(_SHOT_UPSERT_MAX_ATTEMPTS):
+        try:
+            _upsert_douyin_shots_sync(client, shot_rows)
+            return True, None
+        except Exception as exc:
+            last_exc = exc
+            if attempt < _SHOT_UPSERT_MAX_ATTEMPTS - 1:
+                time.sleep(_SHOT_UPSERT_BACKOFF_BASE_SEC * (2 ** attempt))
+                continue
+    return False, last_exc
+
+
 # ── Per-video analyze + translate + build ───────────────────────────
 
 
@@ -511,14 +544,18 @@ async def _ingest_candidate_awemes_douyin(
             )
         )
     if shot_rows:
-        try:
-            await asyncio.get_event_loop().run_in_executor(
-                None, lambda: _upsert_douyin_shots_sync(client, shot_rows),
-            )
-        except Exception as exc:
+        # D6e (audit M6) — wrap in a 3-attempt retry to self-heal
+        # transient PostgREST blips. The dedupe set means next-day
+        # ingest won't re-attempt for any rows whose shots fail
+        # permanently; manual backfill is the escape hatch.
+        ok, last_exc = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _upsert_douyin_shots_with_retry_sync(client, shot_rows),
+        )
+        if not ok:
             logger.warning(
-                "[douyin-ingest] shot upsert failed (corpus rows still landed): %s",
-                exc,
+                "[douyin-ingest] shot upsert failed after %d attempts "
+                "(corpus rows still landed): %s",
+                _SHOT_UPSERT_MAX_ATTEMPTS, last_exc,
             )
 
     result.inserted = len(rows)

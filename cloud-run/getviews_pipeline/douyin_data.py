@@ -133,15 +133,20 @@ def _serialize_video(row: dict[str, Any]) -> dict[str, Any]:
 
     # translator_notes is JSONB on the DB; supabase-py returns the
     # parsed list/None directly. Defend against unexpected shapes.
+    # D6e (audit L4) — strip the note text before truthiness so a
+    # whitespace-only note (reachable only via direct DB tampering;
+    # Pydantic synth enforces min_length=12) doesn't render an empty
+    # card on the FE modal.
     raw_notes = row.get("translator_notes")
     notes: list[dict[str, str]] = []
     if isinstance(raw_notes, list):
         for n in raw_notes:
-            if isinstance(n, dict) and n.get("tag") and n.get("note"):
-                notes.append({
-                    "tag": str(n["tag"]),
-                    "note": str(n["note"]),
-                })
+            if not isinstance(n, dict):
+                continue
+            tag = (n.get("tag") or "").strip() if isinstance(n.get("tag"), str) else ""
+            note = (n.get("note") or "").strip() if isinstance(n.get("note"), str) else ""
+            if tag and note:
+                notes.append({"tag": tag, "note": note})
 
     # hashtags_zh: TEXT[] on DB; supabase-py returns a list.
     raw_hashtags = row.get("hashtags_zh")
