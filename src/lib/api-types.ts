@@ -559,7 +559,12 @@ export interface ScriptDraftResponse {
   draft: ScriptDraftRow;
 }
 
-export type ScriptExportFormat = "copy";
+/**
+ * Per design pack ``screens/script.jsx`` lines 838-857 the export modal
+ * offers three user-facing formats. ``copy`` is a back-compat alias kept
+ * for any caller still on the legacy clipboard-paste path.
+ */
+export type ScriptExportFormat = "shoot" | "markdown" | "plain" | "copy";
 
 /**
  * B.4 — ``ForecastBar`` view/retention/hook-score math is **client-only** (no API).

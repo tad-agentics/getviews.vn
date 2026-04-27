@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Copy, Film, Loader2, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
+import type { ScriptExportFormat } from "@/lib/api-types";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { IdeaWorkspace } from "./IdeaWorkspace";
 import { IdeaRefStrip } from "./IdeaRefStrip";
+import { ScriptExportModal } from "./ScriptExportModal";
+import { ScriptExitModal } from "./ScriptExitModal";
 import { Btn } from "@/components/v2/Btn";
 import { CardInput } from "@/components/v2/CardInput";
 import { Chip } from "@/components/v2/Chip";
@@ -199,6 +202,16 @@ function ScriptDetailScreen() {
   const [shotsOverride, setShotsOverride] = useState<ScriptEditorShot[] | null>(null);
   const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
   const [exportBanner, setExportBanner] = useState<string | null>(null);
+
+  // S4 — modal + dirty-tracking state. ``dirty`` flips ``true`` on the
+  // first edit after the editor settles (firstEditPassed ref skips the
+  // initial render's state-restore from URL params + sessionStorage).
+  // Cleared after a successful save.
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+  const [exitOpen, setExitOpen] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const firstEditPassed = useRef(false);
 
   // Draft preservation across reloads + 401 auto-signout bounces.
   // Snapshot the four most-expensive-to-re-type fields (topic, hook,
@@ -445,16 +458,43 @@ function ScriptDetailScreen() {
     }
   };
 
-  const handleCopy = async () => {
+  // S4 — flip into the export modal. Save is deferred until the user
+  // picks a format inside the modal so we don't leave a stale draft on
+  // the server if they cancel out.
+  const handleOpenExport = () => {
+    setExportBanner(null);
+    setExportDone(false);
+    setExportOpen(true);
+  };
+
+  // Handle the modal's "Tải file" — save (if needed), call the export
+  // endpoint with the chosen format, and trigger a Blob download. Brief
+  // ``Đã tải`` confirmation in the modal CTA before it auto-closes.
+  const handleExport = async (format: ScriptExportFormat) => {
     setExportBanner(null);
     const id = await ensureSavedDraft();
     if (!id) return;
     try {
-      const res = await exporter.mutateAsync({ draftId: id });
-      await navigator.clipboard.writeText(res.text);
-      setExportBanner("Đã copy kịch bản vào clipboard.");
+      const res = await exporter.mutateAsync({ draftId: id, format });
+      const safeBase =
+        topic.trim().slice(0, 40).replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-") ||
+        "kich-ban";
+      const blob = new Blob([res.text], { type: res.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeBase}${res.fileExt}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setExportDone(true);
+      window.setTimeout(() => {
+        setExportOpen(false);
+        setExportDone(false);
+      }, 900);
     } catch (exc) {
-      setExportBanner(exc instanceof Error ? exc.message : "Không copy được");
+      setExportBanner(exc instanceof Error ? exc.message : "Không xuất được");
     }
   };
 
@@ -462,6 +502,50 @@ function ScriptDetailScreen() {
     setExportBanner(null);
     const id = await ensureSavedDraft();
     if (id) navigate(`/app/script/shoot/${id}`);
+  };
+
+  // S4 — dirty tracking. First effect skips the initial state restore
+  // from URL params + sessionStorage; subsequent edits flip dirty=true.
+  // Saving the draft (or successfully exiting via "Lưu & thoát") clears it.
+  useEffect(() => {
+    if (!firstEditPassed.current) {
+      firstEditPassed.current = true;
+      return;
+    }
+    setDirty(true);
+  }, [topic, hookPattern, duration, toneIdx, hookDelayMs]);
+
+  useEffect(() => {
+    if (savedDraftId) setDirty(false);
+  }, [savedDraftId]);
+
+  // Header "Quay lại Xưởng Viết" — opens the exit modal when dirty,
+  // otherwise navigates straight to the workspace (no params → mode
+  // gate at the top of ScriptScreen renders IdeaWorkspace).
+  const handleBack = () => {
+    if (dirty) {
+      setExitOpen(true);
+      return;
+    }
+    navigate("/app/script");
+  };
+
+  const handleSaveAndExit = async () => {
+    const id = await ensureSavedDraft();
+    if (id) {
+      setExitOpen(false);
+      navigate(`/app/script/shoot/${encodeURIComponent(id)}`);
+    }
+  };
+
+  const handleDiscardAndExit = () => {
+    try {
+      sessionStorage.removeItem(SCRIPT_DRAFT_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+    setExitOpen(false);
+    navigate("/app/script");
   };
 
   const loadingPanel = cloudConfigured && effectiveNicheId != null && (scenePending || hookPending);
@@ -505,6 +589,17 @@ function ScriptDetailScreen() {
           </div>
         ) : (
           <div className="mx-auto w-full max-w-[1380px]">
+            {/* S4 — back link to IdeaWorkspace. Triggers exit modal when
+                ``dirty`` (unsaved edits); otherwise navigates straight to
+                /app/script which renders the workspace via the mode gate. */}
+            <button
+              type="button"
+              onClick={handleBack}
+              className="mb-3 inline-flex items-center gap-1.5 text-[12px] text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)] transition-colors"
+            >
+              <ArrowLeft className="h-3 w-3" strokeWidth={1.7} />
+              Quay lại Xưởng Viết
+            </button>
             <header className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b-2 border-[color:var(--gv-ink)] pb-4">
               <div className="min-w-0 flex-1">
                 <div className="gv-mono gv-uc mb-1.5 text-[10px] font-semibold leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
@@ -519,11 +614,11 @@ function ScriptDetailScreen() {
                   variant="ghost"
                   size="sm"
                   type="button"
-                  onClick={handleCopy}
+                  onClick={handleOpenExport}
                   disabled={save.isPending || exporter.isPending}
                 >
-                  <Copy className="h-3 w-3" strokeWidth={2} aria-hidden />
-                  Copy
+                  <Download className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  Xuất kịch bản
                 </Btn>
                 <Btn
                   variant="ink"
@@ -776,6 +871,20 @@ function ScriptDetailScreen() {
           </div>
         )}
       </main>
+      <ScriptExportModal
+        open={exportOpen}
+        busy={save.isPending || exporter.isPending}
+        exported={exportDone}
+        onClose={() => setExportOpen(false)}
+        onExport={(fmt) => void handleExport(fmt)}
+      />
+      <ScriptExitModal
+        open={exitOpen}
+        busy={save.isPending}
+        onCancel={() => setExitOpen(false)}
+        onDiscard={handleDiscardAndExit}
+        onSaveAndExit={() => void handleSaveAndExit()}
+      />
     </AppLayout>
   );
 }
