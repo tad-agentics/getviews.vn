@@ -7,11 +7,26 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Supabase auth — ES256 JWKS (stateless JWT validation, no shared secret)
-SUPABASE_JWKS_URL = os.environ.get(
-    "SUPABASE_JWKS_URL",
-    "https://lzhiqnxfveqttsujebiv.supabase.co/auth/v1/.well-known/jwks.json",
-)
+# Supabase auth — ES256 JWKS (stateless JWT validation, no shared secret).
+#
+# Resolution order:
+#   1. ``SUPABASE_JWKS_URL`` env (explicit override — used in tests / staging).
+#   2. Derived from ``SUPABASE_URL`` so the JWKS endpoint tracks the same
+#      project ref as every other Supabase call. Avoids hardcoding a
+#      project-specific subdomain in the source tree.
+#   3. ``None`` if neither is set — handlers using JWKS fall back to
+#      HS256 ``SUPABASE_JWT_SECRET`` if available, else fail at validation.
+def _resolve_jwks_url() -> str | None:
+    explicit = os.environ.get("SUPABASE_JWKS_URL", "").strip()
+    if explicit:
+        return explicit
+    base = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    if base:
+        return f"{base}/auth/v1/.well-known/jwks.json"
+    return None
+
+
+SUPABASE_JWKS_URL = _resolve_jwks_url()
 # Legacy fallback: if SUPABASE_JWT_SECRET is set (HS256), use it instead of JWKS ES256
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
 

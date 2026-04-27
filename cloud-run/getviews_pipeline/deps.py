@@ -29,6 +29,15 @@ _JWKS_TTL = 600  # seconds
 
 async def _get_jwks() -> dict[str, Any]:
     global _jwks_cache, _jwks_fetched_at
+    if not SUPABASE_JWKS_URL:
+        # Surfaces as 401 "Invalid token" rather than a confusing
+        # ``TypeError: ... expected str``. Resolution is documented
+        # in cloud-run/.env.example: set SUPABASE_URL or
+        # SUPABASE_JWKS_URL.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="jwks_url_unset",
+        )
     now = time.monotonic()
     if not _jwks_cache or now - _jwks_fetched_at > _JWKS_TTL:
         async with httpx.AsyncClient(timeout=5) as client:
