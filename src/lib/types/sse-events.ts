@@ -56,13 +56,29 @@ export interface StepDoneEvent {
   summary: string;
 }
 
+/**
+ * Mid-stream pipeline failure — render a "phân tích bị gián đoạn" state
+ * instead of leaving the spinner running. Followed by SseDoneToken so the
+ * client cleans up the stream.
+ */
+export interface StepErrorEvent {
+  type: "step_error";
+  /** Machine-readable code, e.g. "synthesis_failed" / "gemini_timeout". */
+  code: string;
+  /** Vietnamese message safe to show directly to the user. */
+  message_vi: string;
+  /** Optional debug context (exception class name); UI may hide. */
+  detail?: string;
+}
+
 export type StepEvent =
   | StepStartEvent
   | StepSearchEvent
   | StepCreatorEvent
   | StepCountEvent
   | StepProcessEvent
-  | StepDoneEvent;
+  | StepDoneEvent
+  | StepErrorEvent;
 
 // ---------------------------------------------------------------------------
 // Full SSE token shape

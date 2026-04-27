@@ -60,10 +60,12 @@ from getviews_pipeline.persona import build_persona_block, extract_persona_slots
 from getviews_pipeline.runtime import get_analysis_semaphore, run_sync
 from getviews_pipeline.step_events import (
     emit,
+    emit_pipeline_error,
     emit_sentinel,
     step_count,
     step_creator,
     step_done,
+    step_error,
     step_process,
     step_search,
     step_start,
@@ -586,6 +588,9 @@ async def run_content_directions(
             "coverage": coverage,
             "follow_ups": follow_ups,
         }
+    except Exception as exc:
+        emit_pipeline_error(step_queue, exc, code="content_directions_failed")
+        raise
     finally:
         await emit_sentinel(step_queue)
 
@@ -799,6 +804,9 @@ async def run_trend_spike(
             "follow_ups": _build_follow_ups("trend_spike", niche_name, analyzed),
             "patterns": patterns_payload,
         }
+    except Exception as exc:
+        emit_pipeline_error(step_queue, exc, code="trend_spike_failed")
+        raise
     finally:
         await emit_sentinel(step_queue)
 
@@ -925,6 +933,9 @@ async def run_brief_generation(
             "coverage": _coverage_dict(niche_id, niche_name, count, 0, source, 30),
             "follow_ups": _build_follow_ups("brief_generation", niche_name, topic=topic),
         }
+    except Exception as exc:
+        emit_pipeline_error(step_queue, exc, code="brief_generation_failed")
+        raise
     finally:
         await emit_sentinel(step_queue)
 
@@ -993,6 +1004,9 @@ async def run_shot_list(
             "coverage": _coverage_dict(niche_id, niche_name, count, 0, source, 30),
             "follow_ups": _build_follow_ups("shot_list", niche_name, topic=topic),
         }
+    except Exception as exc:
+        emit_pipeline_error(step_queue, exc, code="shot_list_failed")
+        raise
     finally:
         await emit_sentinel(step_queue)
 
