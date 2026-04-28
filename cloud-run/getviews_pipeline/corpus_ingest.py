@@ -624,7 +624,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     16. dance     — scene-only classification (no transcript, all action scenes).
     17. faceless  — product/demo scenes without face_to_camera and with spoken transcript.
     18. highlight — Wave 5+ taxonomy expansion. LAST positive match: niche IN
-                   (16,17,21,22,25) + entertaining/humorous/inspirational tone +
+                   (14,16,17,21,22) + entertaining/humorous/inspirational tone +
                    scenes≥4 + short transcript. Heuristic is intentionally loose;
                    must run last so tighter buckets claim their rows first. See §6.4.
     19. other     — fallback.
@@ -718,11 +718,11 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     # that mention "kinh nghiệm" (lesson trigger) should stay
     # comparison, not flip to lesson. Moving lesson after comparison
     # lets the more-specific "vs"/"so sánh" signal win on that edge.
-    # Niche set: EduTok (11) + Học tiếng (23, Phase 3) — both are
-    # lesson-format-natural; the topic-regex path covers everything else.
+    # Niche set: EduTok VN (11) — education + language learning merged
+    # from former niche 23; lesson-format-natural alongside topic-regex.
     if (
         tone in ("educational", "authoritative")
-        and (niche_id in (11, 23) or lesson_topic_re.search(combined))
+        and (niche_id == 11 or lesson_topic_re.search(combined))
     ):
         return "lesson"
     # Wave 5+ taxonomy expansion — comedy_skit (position 10). BEFORE
@@ -771,16 +771,16 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     # Wave 5+ taxonomy expansion — highlight (position 18, last
     # positive match). Short music-driven reaction/moment clips.
     # Intentionally loose heuristic: runs AFTER dance + faceless so
-    # tighter buckets claim their rows first. Niche set: travel (16) /
-    # gaming (17) / sports (21) / K-pop music (22) / moto culture
-    # (25). Niche 6 (Chị đẹp) was removed when that niche was
+    # tighter buckets claim their rows first. Niche set: Ô tô / Xe máy (14,
+    # includes former moto culture 25) / travel (16) / gaming (17) / sports
+    # (21) / K-pop music (22). Niche 6 (Chị đẹp) was removed when that niche was
     # retired 2026-04-25 — its rows were dominated by showbiz
     # aggregators, not real creator highlight content.
     # Scene count ≥ 4 filters out single-shot videos. Short-transcript
     # gate (≤ 80 chars OR music-only marker) distinguishes from vlog
     # / storytelling (transcript-heavy).
     if (
-        niche_id in (16, 17, 21, 22, 25)
+        niche_id in (14, 16, 17, 21, 22)
         and tone in ("entertaining", "humorous", "inspirational")
         and len(scenes) >= 4
         and (

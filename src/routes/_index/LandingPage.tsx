@@ -132,7 +132,7 @@ const painPoints = [
 
 const nicheList = [
   "Thời trang / Outfit", "Làm đẹp / Skincare", "Review đồ Shopee",
-  "Review đồ ăn / F&B", "Nấu ăn / Công thức", "Mẹ bỉm sữa",
+  "Ẩm thực & Ăn uống", "Mẹ bỉm sữa",
   "Gym / Fitness & Sức khoẻ", "Thể thao & Ngoài trời", "Gaming",
   "Công nghệ / Tech", "EduTok VN", "Tài chính / Đầu tư",
   "Du lịch / Travel", "Ô tô / Xe máy", "Bất động sản",

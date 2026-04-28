@@ -4,7 +4,7 @@
  * Surface contracts:
  *   1. Renders the niche grid with hot count labels.
  *   2. Section header counter advances and turns accent-deep at the cap.
- *   3. Picker hard-caps at ONBOARDING_NICHE_PICK_CAP (3); 4th unselected
+ *   3. Picker hard-caps at MAX_CREATOR_NICHES (3); 4th unselected
  *      tile becomes disabled.
  *   4. Primary CTA is gated on MIN_CREATOR_NICHES (3) and triggers
  *      useUpdateProfile + navigates to /app on success.

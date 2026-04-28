@@ -7,6 +7,7 @@ import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useTopNiches } from "@/hooks/useTopNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import {
+  MAX_CREATOR_NICHES,
   MIN_CREATOR_NICHES,
   normalizeNicheIds,
   profileHasMinimumNiches,
@@ -17,14 +18,9 @@ import {
  * design pack (screens/onboarding-settings.jsx). Reference-channels step was
  * removed: the design treats onboarding as a 30-second niche pick and pushes
  * reference-channel curation downstream (Settings → Ngách + the in-app
- * "track this channel" CTA on /app/video). Min selection is still 3 — the
- * studio's first-render personalisation depends on it — but the picker is
- * capped at 3 for visual parity with the design's "TỐI ĐA 3" header.
+ * "track this channel" CTA on /app/video). Selection is fixed to
+ * MIN_CREATOR_NICHES–MAX_CREATOR_NICHES (3) for studio personalisation.
  */
-
-// Onboarding-local cap. ``MAX_CREATOR_NICHES`` (12) stays the system-wide
-// upper bound because Settings + downstream code may relax this later.
-const ONBOARDING_NICHE_PICK_CAP = 3;
 
 export default function OnboardingScreen() {
   const navigate = useNavigate();
@@ -62,7 +58,7 @@ export default function OnboardingScreen() {
     }
     const ids = profile?.niche_ids;
     if (Array.isArray(ids) && ids.length > 0) {
-      setPendingNiches(normalizeNicheIds(ids).slice(0, ONBOARDING_NICHE_PICK_CAP));
+      setPendingNiches(normalizeNicheIds(ids).slice(0, MAX_CREATOR_NICHES));
     } else if (profile?.primary_niche != null) {
       setPendingNiches([profile.primary_niche]);
     }
@@ -71,7 +67,7 @@ export default function OnboardingScreen() {
   const togglePendingNiche = (id: number) => {
     setPendingNiches((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= ONBOARDING_NICHE_PICK_CAP) return prev;
+      if (prev.length >= MAX_CREATOR_NICHES) return prev;
       return [...prev, id];
     });
   };
@@ -123,7 +119,7 @@ export default function OnboardingScreen() {
             <em className="gv-serif-italic text-[color:var(--gv-accent)]">ngách</em> nào?
           </h1>
           <p className="mt-[18px] max-w-[420px] text-base leading-snug text-[color:var(--gv-ink-3)]">
-            Chọn tối đa {ONBOARDING_NICHE_PICK_CAP} ngách. Studio tải dữ liệu 14 ngày
+            Chọn đúng {MAX_CREATOR_NICHES} ngách. Studio tải dữ liệu 14 ngày
             gần nhất — xu hướng, hook, sound đang nổi trong các ngách bạn quan tâm.
           </p>
         </div>
@@ -201,12 +197,12 @@ function NicheGrid({
   onToggle: (id: number) => void;
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const atCap = selectedIds.length >= ONBOARDING_NICHE_PICK_CAP;
+  const atCap = selectedIds.length >= MAX_CREATOR_NICHES;
   return (
     <div>
       <div className="mb-3.5 flex items-center justify-between">
         <p className="gv-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-          NGÁCH CHÍNH · TỐI ĐA {ONBOARDING_NICHE_PICK_CAP}
+          NGÁCH CHÍNH · {MAX_CREATOR_NICHES} NGÁCH
         </p>
         <p
           className={
@@ -216,7 +212,7 @@ function NicheGrid({
               : "text-[color:var(--gv-ink-4)]")
           }
         >
-          {selectedIds.length}/{ONBOARDING_NICHE_PICK_CAP} đã chọn
+          {selectedIds.length}/{MAX_CREATOR_NICHES} đã chọn
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

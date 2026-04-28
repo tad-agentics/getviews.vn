@@ -29,7 +29,7 @@ const VN_TO_DOUYIN: Record<number, string> = {
   2: "beauty",
   // 3  Thời trang / Outfit
   3: "fashion",
-  // 4  Review đồ ăn / F&B
+  // 4  Ẩm thực & Ăn uống (dining + home cooking)
   4: "food",
   // 6  Chị đẹp — aspirational feminine lifestyle.
   6: "lifestyle",

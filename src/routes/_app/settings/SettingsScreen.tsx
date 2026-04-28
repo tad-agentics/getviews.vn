@@ -2,7 +2,7 @@ import { memo, useState, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronRight, Zap, Check, Globe, User, Mail, Activity } from "lucide-react";
+import { ChevronRight, Zap, Check, User, Mail, Activity } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -15,7 +15,12 @@ import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import { useLogout } from "@/hooks/useLogout";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { updateProfile, type ProfilePatch } from "@/lib/data/profile";
-import { MAX_CREATOR_NICHES, MIN_CREATOR_NICHES, normalizeNicheIds } from "@/lib/profileNiches";
+import {
+  MAX_CREATOR_NICHES,
+  MIN_CREATOR_NICHES,
+  normalizeNicheIds,
+  normalizeNicheIdsForProfile,
+} from "@/lib/profileNiches";
 
 type ProfileUpdateMutation = UseMutationResult<
   Awaited<ReturnType<typeof updateProfile>>,
@@ -25,10 +30,9 @@ type ProfileUpdateMutation = UseMutationResult<
 
 const SETTINGS_SECTIONS = [
   { id: "profile", label: "Hồ Sơ" },
-  { id: "niches", label: "Ngách & Đối Thủ" },
-  { id: "alerts", label: "Cảnh Báo" },
+  { id: "niches", label: "Ngách" },
+  { id: "alerts", label: "Thông báo" },
   { id: "billing", label: "Gói & Thanh Toán" },
-  { id: "team", label: "Nhóm" },
 ] as const;
 
 type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"];
@@ -523,8 +527,8 @@ function NichePanel({
 }) {
   const serverSelected = useMemo(() => {
     const ids = profile?.niche_ids;
-    if (Array.isArray(ids) && ids.length > 0) return normalizeNicheIds(ids);
-    if (profile?.primary_niche != null) return [profile.primary_niche];
+    if (Array.isArray(ids) && ids.length > 0) return normalizeNicheIdsForProfile(ids);
+    if (profile?.primary_niche != null) return normalizeNicheIdsForProfile([profile.primary_niche]);
     return [];
   }, [profile?.niche_ids, profile?.primary_niche]);
 
@@ -571,16 +575,11 @@ function NichePanel({
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
     >
-      <p className="text-sm text-[color:var(--gv-ink-3)]">
-        Chọn ít nhất {MIN_CREATOR_NICHES} ngách (tối đa {MAX_CREATOR_NICHES}). Ngách có nhãn trọng tâm là ngách đang ưu tiên
-        cho gợi ý và ritual. Để đổi trọng tâm, bấm ngách đó trong mục Ngách của bạn trên thanh bên; ở đây bạn chỉ thêm hoặc
-        bỏ ngách (ngách bật sau cùng sẽ nằm cuối danh sách).
-      </p>
+      <p className="text-sm text-[color:var(--gv-ink-3)]">Chọn 3 ngách bạn đang làm nội dung nhé.</p>
       <p className="text-[12px] text-[color:var(--gv-ink-4)]">
-        Đã chọn <span className="font-medium text-[color:var(--gv-ink)]">{selected.length}</span> /{" "}
-        {MIN_CREATOR_NICHES} tối thiểu
+        Đã chọn <span className="font-medium text-[color:var(--gv-ink)]">{selected.length}</span> / {MAX_CREATOR_NICHES}
         {draft != null && selected.length < MIN_CREATOR_NICHES ? (
-          <span className="ml-1 text-[color:var(--gv-accent-deep)]"> — chưa lưu cho đến khi đủ 3 ngách</span>
+          <span className="ml-1 text-[color:var(--gv-accent-deep)]"> — chưa lưu cho đến khi đủ {MIN_CREATOR_NICHES} ngách</span>
         ) : null}
       </p>
       {nicheLoading ? (
@@ -597,7 +596,9 @@ function NichePanel({
                 selected={isSel}
                 isFocus={selected[0] === n.id}
                 onToggle={handleToggle}
-                disabled={updateMutation.isPending}
+                disabled={
+                  updateMutation.isPending || (!isSel && selected.length >= MAX_CREATOR_NICHES)
+                }
               />
             );
           })}
@@ -651,28 +652,7 @@ function AlertsPanel() {
           <SettingsToggle on={flags[i] ?? false} onToggle={() => toggle(i)} />
         </Card>
       ))}
-
-      <div className="mt-6">
-        <SectionLabel>Ngôn ngữ & khu vực</SectionLabel>
-        <Card>
-          <Row label="Ngôn ngữ" onClick={() => {}}>
-            <div className="flex items-center gap-2">
-              <Globe className="h-3.5 w-3.5 text-[color:var(--gv-ink-4)]" />
-              <span className="text-sm font-medium text-[color:var(--gv-ink)]">Tiếng Việt</span>
-              <ChevronRight className="h-3.5 w-3.5 text-[color:var(--gv-ink-4)]" strokeWidth={2} />
-            </div>
-          </Row>
-        </Card>
-      </div>
     </div>
-  );
-}
-
-function PlaceholderSection({ message }: { message: string }) {
-  return (
-    <Card className="p-10 text-center">
-      <p className="text-sm text-[color:var(--gv-ink-4)]">{message}</p>
-    </Card>
   );
 }
 
@@ -948,10 +928,6 @@ export default function SettingsScreen() {
                   />
                   <HistoryPanel transactions={transactions} loading={txLoading} />
                 </div>
-              ) : null}
-
-              {activeSection === "team" ? (
-                <PlaceholderSection message="Đang phát triển — quản lý nhóm sẽ có trong bản cập nhật tới." />
               ) : null}
             </div>
           </div>

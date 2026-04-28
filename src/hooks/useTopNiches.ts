@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { normalizeNicheIds } from "@/lib/profileNiches";
+import {
+  canonicalNicheTaxonomyId,
+  normalizeNicheIds,
+  resolveNicheNameVn,
+  RETIRED_NICHE_TAXONOMY_IDS,
+} from "@/lib/profileNiches";
 
 export type NicheWithHot = {
   id: number;
@@ -30,11 +35,13 @@ export function useTopNiches(primaryNicheId: number | null, limit: number | "all
       for (const row of intel ?? []) {
         if (row.niche_id != null) hotByNiche.set(row.niche_id, row.sample_size ?? 0);
       }
-      const rows: NicheWithHot[] = (taxonomy ?? []).map((n) => ({
-        id: n.id,
-        name: n.name_vn,
-        hot: hotByNiche.get(n.id) ?? 0,
-      }));
+      const rows: NicheWithHot[] = (taxonomy ?? [])
+        .filter((n) => !RETIRED_NICHE_TAXONOMY_IDS.has(n.id))
+        .map((n) => ({
+          id: n.id,
+          name: resolveNicheNameVn(n.id, n.name_vn),
+          hot: hotByNiche.get(n.id) ?? 0,
+        }));
       rows.sort((a, b) => {
         if (a.id === primaryNicheId) return -1;
         if (b.id === primaryNicheId) return 1;
@@ -49,7 +56,7 @@ export function useTopNiches(primaryNicheId: number | null, limit: number | "all
 
 /** Sidebar: resolve taxonomy names + hot counts for an ordered list of niche ids (max 3 typical). */
 export function useNicheRowsForIds(ids: readonly number[] | null | undefined) {
-  const ordered = normalizeNicheIds(ids ?? []).slice(0, 3);
+  const ordered = normalizeNicheIds((ids ?? []).map(canonicalNicheTaxonomyId)).slice(0, 3);
   const key = ordered.join(",");
 
   return useQuery<NicheWithHot[]>({
@@ -62,7 +69,9 @@ export function useNicheRowsForIds(ids: readonly number[] | null | undefined) {
       ]);
       if (tErr) throw tErr;
       if (iErr) throw iErr;
-      const nameBy = new Map((taxonomy ?? []).map((n) => [n.id, n.name_vn as string]));
+      const nameBy = new Map(
+        (taxonomy ?? []).map((n) => [n.id, resolveNicheNameVn(n.id, n.name_vn as string)]),
+      );
       const hotBy = new Map<number, number>();
       for (const row of intel ?? []) {
         if (row.niche_id != null) hotBy.set(row.niche_id, row.sample_size ?? 0);

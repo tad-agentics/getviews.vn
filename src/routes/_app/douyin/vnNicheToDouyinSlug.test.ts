@@ -19,9 +19,15 @@ describe("vnNicheToDouyinSlug", () => {
   });
 
   it("returns null for VN niches without a clean Douyin equivalent", () => {
-    // 5 MMO, 11 EduTok, 12 Livestream, 13 Hài, 14 Ô tô, 17 Gaming
+    // 5 MMO, 11 EduTok (includes former language-learning id 23), 12 Livestream,
+    // 13 Hài, 14 Ô tô / Xe máy (includes former moto id 25), 17 Gaming;
+    // 24 Crypto merged into 15 Tài chính (maps to Douyin finance)
     expect(vnNicheToDouyinSlug(5)).toBeNull();
     expect(vnNicheToDouyinSlug(11)).toBeNull();
+    expect(vnNicheToDouyinSlug(23)).toBeNull();
+    expect(vnNicheToDouyinSlug(25)).toBeNull();
+    expect(vnNicheToDouyinSlug(24)).toBeNull();
+    expect(vnNicheToDouyinSlug(18)).toBeNull();
     expect(vnNicheToDouyinSlug(12)).toBeNull();
     expect(vnNicheToDouyinSlug(13)).toBeNull();
     expect(vnNicheToDouyinSlug(14)).toBeNull();
