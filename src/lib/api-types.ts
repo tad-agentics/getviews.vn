@@ -955,13 +955,34 @@ export interface DiagnosticReportPayload {
   niche_execution_tip?: string | null;
 }
 
+/** Video diagnosis report — same shape as `VideoAnalyzeResponse`,
+ *  used as a session format on the answer surface.
+ *
+ *  ``source`` flags whether the report came from a corpus row or a
+ *  fresh on-demand analysis (set by `run_video_analyze_on_demand`).
+ *
+ *  ``sources`` + ``related_questions`` are part of every other
+ *  ``ReportV1`` body so the answer-shell readers (AnswerScreen,
+ *  AnswerSourcesCard, RelatedQs) can pull them generically. Video
+ *  reports populate them best-effort: ``sources`` typically empty
+ *  (one-video diagnosis has no comparison cohort to cite), and
+ *  ``related_questions`` carries follow-up prompts the FE composer
+ *  might surface — both optional so older payloads still validate.
+ */
+export type VideoReportPayload = VideoAnalyzeResponse & {
+  source?: "corpus" | "on_demand";
+  sources?: SourceRowData[];
+  related_questions?: string[];
+};
+
 export type ReportV1 =
   | { kind: "pattern"; report: PatternReportPayload }
   | { kind: "ideas"; report: IdeasReportPayload }
   | { kind: "timing"; report: TimingReportPayload }
   | { kind: "lifecycle"; report: LifecycleReportPayload }
   | { kind: "diagnostic"; report: DiagnosticReportPayload }
-  | { kind: "generic"; report: GenericReportPayload };
+  | { kind: "generic"; report: GenericReportPayload }
+  | { kind: "video"; report: VideoReportPayload };
 
 /** §J names — same shapes as `*ReportPayload` (plan uses `PatternPayload`, …). */
 export type PatternPayload = PatternReportPayload;
@@ -970,6 +991,7 @@ export type TimingPayload = TimingReportPayload;
 export type LifecyclePayload = LifecycleReportPayload;
 export type DiagnosticPayload = DiagnosticReportPayload;
 export type GenericPayload = GenericReportPayload;
+export type VideoPayload = VideoReportPayload;
 
 export interface AnswerSessionRow {
   id: string;
@@ -977,7 +999,7 @@ export interface AnswerSessionRow {
   title: string | null;
   initial_q: string;
   intent_type: string;
-  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic";
+  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic" | "video";
   niche_id: number | null;
   created_at?: string;
   updated_at?: string;

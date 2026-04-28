@@ -393,9 +393,94 @@ class DiagnosticPayload(BaseModel):
         return self
 
 
-ReportKind = Literal["pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic"]
+# ── Video payload (mirrors src/lib/api-types.ts VideoAnalyzeResponse) ─────
+#
+# The on-screen video diagnosis report — KPI strip + retention curve +
+# hook phases + lessons / flop_issues. Wraps the existing /video/analyze
+# response shape so the answer surface can render it as just another
+# session format alongside Pattern, Ideas, Timing, Lifecycle, Diagnostic.
+#
+# Validation is intentionally permissive (``extra="allow"``) — the
+# /video/analyze endpoint already produces a battle-tested shape; this
+# model just pins the envelope so the answer-session writer doesn't
+# silently drop fields it doesn't recognise. PR-2 will tighten if a
+# concrete shape mismatch surfaces.
+
+
+class VideoMeta(BaseModel):
+    creator: str
+    views: int
+    likes: int
+    comments: int
+    shares: int
+    save_rate: float
+    duration_sec: float
+    thumbnail_url: str | None = None
+    date_posted: str | None = None
+    title: str | None = None
+    niche_label: str | None = None
+    is_breakout: bool | None = None
+    saves: int | None = None
+    retention_source: Literal["real", "modeled"] | None = None
+
+    model_config = {"extra": "allow"}
+
+
+class VideoNicheMetaPayload(BaseModel):
+    avg_views: float = 0.0
+    avg_retention: float = 0.5
+    avg_ctr: float = 0.04
+    sample_size: int = 0
+    winners_sample_size: int | None = None
+
+    model_config = {"extra": "allow"}
+
+
+class VideoPayload(BaseModel):
+    """Video diagnosis report — mirror of the /video/analyze response.
+
+    Used by the answer surface as a session format. The /stream emit
+    layer (PR-2) re-uses the existing run_video_analyze_pipeline +
+    run_video_analyze_on_demand helpers; no recomputation here.
+    """
+
+    video_id: str
+    mode: Literal["win", "flop"]
+    meta: VideoMeta
+    kpis: list[dict[str, Any]] = Field(default_factory=list)
+    segments: list[dict[str, Any]] = Field(default_factory=list)
+    hook_phases: list[dict[str, Any]] = Field(default_factory=list)
+    lessons: list[dict[str, Any]] = Field(default_factory=list)
+    # Win path: plain string. Flop path: structured FlopHeadline dict
+    # (or its JSON-serialised string from the legacy diagnostics column).
+    analysis_headline: str | dict[str, Any] | None = None
+    analysis_subtext: str | None = None
+    flop_issues: list[dict[str, Any]] | None = None
+    retention_curve: list[dict[str, float]] | None = None
+    niche_benchmark_curve: list[dict[str, float]] | None = None
+    niche_meta: VideoNicheMetaPayload | None = None
+    projected_views: int | None = None
+    thumbnail_analysis: dict[str, Any] | None = None
+    comment_radar: dict[str, Any] | None = None
+    # Flag set by run_video_analyze_on_demand so the FE can hint
+    # "phân tích trực tiếp, không lưu corpus" when the report came
+    # from a fresh URL (not a corpus row).
+    source: Literal["corpus", "on_demand"] | None = None
+    # Common ReportV1 fields the answer-shell reads generically
+    # (AnswerSourcesCard + RelatedQs). Video reports populate them
+    # best-effort: sources often empty (single-video diagnosis has no
+    # cohort to cite), related_questions optional follow-up prompts.
+    sources: list[SourceRow] = Field(default_factory=list)
+    related_questions: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "allow"}
+
+
+ReportKind = Literal[
+    "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video",
+]
 _REPORT_KINDS: frozenset[str] = frozenset(
-    {"pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic"}
+    {"pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video"}
 )
 
 
@@ -408,6 +493,7 @@ class ReportV1(BaseModel):
         | GenericPayload
         | LifecyclePayload
         | DiagnosticPayload
+        | VideoPayload
     )
 
 
@@ -424,6 +510,8 @@ def validate_and_store_report(kind: str, report: dict[str, Any]) -> dict[str, An
         LifecyclePayload.model_validate(report)
     elif k == "diagnostic":
         DiagnosticPayload.model_validate(report)
+    elif k == "video":
+        VideoPayload.model_validate(report)
     else:
         GenericPayload.model_validate(report)
     return {"kind": k, "report": report}

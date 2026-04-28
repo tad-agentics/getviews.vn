@@ -32,7 +32,9 @@ class AnswerSessionCreateBody(StrictBody):
     initial_q: str
     intent_type: str
     niche_id: int | None = None
-    format: Literal["pattern", "ideas", "timing", "generic"] = "pattern"
+    format: Literal[
+        "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video",
+    ] = "pattern"
 
 
 class AnswerTurnAppendBody(StrictBody):
