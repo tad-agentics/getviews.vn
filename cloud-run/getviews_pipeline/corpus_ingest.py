@@ -73,6 +73,26 @@ def _parse_csv_niche_ids(raw: str) -> frozenset[int]:
     return frozenset(out)
 
 
+def _parse_hashtag_fetch_by_niche(raw: str) -> dict[int, int]:
+    """``BATCH_HASHTAG_FETCH_BY_NICHE`` — ``3:31,5:20`` = niche 3 fetches up to 31 tags."""
+    out: dict[int, int] = {}
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        left, _, right = part.partition(":")
+        try:
+            nid, lim = int(left.strip(), 10), int(right.strip(), 10)
+        except ValueError:
+            logger.warning(
+                "[corpus] invalid BATCH_HASHTAG_FETCH_BY_NICHE segment, skipping: %r", part
+            )
+            continue
+        if nid > 0 and lim > 0:
+            out[nid] = lim
+    return out
+
+
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 # Default 30 videos/niche/batch; override via env on small ED budgets.
@@ -121,6 +141,16 @@ BATCH_CAROUSEL_MIN_LIKES = int(os.environ.get("BATCH_CAROUSEL_MIN_LIKES", "500")
 # but we cap EnsembleData calls to avoid unit limit exhaustion.
 # All hashtags are still used for in-DB matching (no API cost); only fetch is capped.
 BATCH_HASHTAG_FETCH_LIMIT = int(os.environ.get("BATCH_HASHTAG_FETCH_LIMIT", "6"))
+# Optional per-niche override for that cap — e.g. ``3:31`` runs all Thời trang signal
+# tags without raising the global default for other niches.
+BATCH_HASHTAG_FETCH_BY_NICHE = _parse_hashtag_fetch_by_niche(
+    os.environ.get("BATCH_HASHTAG_FETCH_BY_NICHE", "")
+)
+
+
+def _hashtag_fetch_limit_for_niche(niche_id: int) -> int:
+    return BATCH_HASHTAG_FETCH_BY_NICHE.get(niche_id, BATCH_HASHTAG_FETCH_LIMIT)
+
 
 # Reingest multi-info chunk size (URL limits + ED billing — tune via REINGEST_MULTI_CHUNK).
 REINGEST_MULTI_CHUNK = max(1, int(os.environ.get("REINGEST_MULTI_CHUNK", "12") or "12"))
@@ -415,8 +445,9 @@ async def _fetch_niche_pool(
     keyword_task = _fetch_keyword_pages(term, max_pages=keyword_pages)
     # Cap hashtag fetch calls; order by recent ingest yield when RPC data exists.
     yields = hashtag_yields or {}
+    ht_limit = _hashtag_fetch_limit_for_niche(int(niche["id"]))
     fetch_hashtags = _pick_hashtags_for_pool_fetch(
-        hashtags, yields, BATCH_HASHTAG_FETCH_LIMIT
+        hashtags, yields, ht_limit
     )
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
@@ -442,7 +473,11 @@ async def _fetch_niche_pool(
     return filter_recency(merged, BATCH_RECENCY_DAYS)
 
 
-async def _fetch_carousel_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
+async def _fetch_carousel_pool(
+    niche: dict[str, Any],
+    *,
+    hashtag_yields: dict[str, int] | None = None,
+) -> list[dict[str, Any]]:
     """Fetch carousel posts (aweme_type=2) for a niche from signal hashtag feeds.
 
     ED's keyword search surfaces mostly videos. Carousels live in hashtag feeds
@@ -457,8 +492,9 @@ async def _fetch_carousel_pool(niche: dict[str, Any]) -> list[dict[str, Any]]:
     if not hashtags:
         return []
 
-    # Cap carousel hashtag fetch to same limit as video pool fetch.
-    fetch_hashtags = hashtags[:BATCH_HASHTAG_FETCH_LIMIT]
+    yields = hashtag_yields or {}
+    ht_limit = _hashtag_fetch_limit_for_niche(int(niche["id"]))
+    fetch_hashtags = _pick_hashtags_for_pool_fetch(hashtags, yields, ht_limit)
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
         for ht in fetch_hashtags
@@ -1487,7 +1523,9 @@ async def ingest_niche(
     )
 
     if CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH:
-        carousel_pool = await _fetch_carousel_pool(niche)
+        carousel_pool = await _fetch_carousel_pool(
+            niche, hashtag_yields=hashtag_yields_for_niche
+        )
     else:
         carousel_pool = _carousel_pool_from_merged_video_pool(
             pool, niche_name=niche_name
@@ -1986,10 +2024,15 @@ async def run_batch_ingest(
     logger.info("[corpus] Starting batch ingest for %d niches", len(niches))
 
     eff_kw_pages = kw if kw is not None else BATCH_KEYWORD_PAGES
+    ht_for_theory = BATCH_HASHTAG_FETCH_LIMIT
+    if BATCH_HASHTAG_FETCH_BY_NICHE:
+        ht_for_theory = max(
+            ht_for_theory, max(BATCH_HASHTAG_FETCH_BY_NICHE.values())
+        )
     theory_pool = theoretical_ed_pool_requests(
         len(niches),
         keyword_pages=eff_kw_pages,
-        hashtag_limit=BATCH_HASHTAG_FETCH_LIMIT,
+        hashtag_limit=ht_for_theory,
         legacy_carousel_second_hashtag_pass=CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
     )
     logger.info("[corpus] theoretical_ed_pool %s", theory_pool["formula"])

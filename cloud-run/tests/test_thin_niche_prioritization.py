@@ -22,13 +22,17 @@ from unittest.mock import MagicMock
 import pytest
 
 from getviews_pipeline.corpus_ingest import (
+    BATCH_HASHTAG_FETCH_BY_NICHE,
+    BATCH_HASHTAG_FETCH_LIMIT,
     BATCH_PRIORITY_NICHE_IDS,
     BATCH_PRIORITY_NICHE_VPN_FLOOR,
     BATCH_VIDEOS_PER_NICHE,
     CORPUS_TARGET_PER_NICHE,
     THIN_NICHE_MAX_MULTIPLIER,
     _fetch_niche_counts_sync,
+    _hashtag_fetch_limit_for_niche,
     _parse_csv_niche_ids,
+    _parse_hashtag_fetch_by_niche,
     apply_thin_niche_multiplier,
     compute_thin_niche_multiplier,
 )
@@ -200,3 +204,14 @@ def test_default_priority_includes_fashion_niche() -> None:
     """Product default: Thời trang / Outfit (taxonomy id 3) gets a floor."""
     assert 3 in BATCH_PRIORITY_NICHE_IDS
     assert BATCH_PRIORITY_NICHE_VPN_FLOOR >= BATCH_VIDEOS_PER_NICHE
+
+
+def test_parse_hashtag_fetch_by_niche() -> None:
+    assert _parse_hashtag_fetch_by_niche("") == {}
+    assert _parse_hashtag_fetch_by_niche("3:31, 5:10") == {3: 31, 5: 10}
+
+
+def test_hashtag_fetch_limit_respects_per_niche_map() -> None:
+    """With empty BATCH_HASHTAG_FETCH_BY_NICHE (test env), every niche uses global default."""
+    assert not BATCH_HASHTAG_FETCH_BY_NICHE
+    assert _hashtag_fetch_limit_for_niche(3) == BATCH_HASHTAG_FETCH_LIMIT
