@@ -13,6 +13,7 @@ import { TimingBody } from "@/components/v2/answer/timing/TimingBody";
 import { LifecycleBody } from "@/components/v2/answer/lifecycle/LifecycleBody";
 import { DiagnosticBody } from "@/components/v2/answer/diagnostic/DiagnosticBody";
 import { GenericBody } from "@/components/v2/answer/generic/GenericBody";
+import { VideoBody } from "@/components/v2/answer/video/VideoBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 import {
   ideasAnswerBlockKicker,
@@ -30,6 +31,7 @@ const TURN_KIND_LABEL: Record<string, string> = {
   lifecycle: "VÒNG ĐỜI",
   diagnostic: "CHẨN ĐOÁN",
   generic: "ĐÀO SÂU",
+  video: "MỔ VIDEO",
 };
 
 function TurnMiniResearch() {
@@ -171,6 +173,14 @@ function ReportPayloadBody({
       return (
         <AnswerBlock kicker="Tổng quát">
           <GenericBody report={payload.report} />
+        </AnswerBlock>
+      );
+    case "video":
+      // ``bare`` so VideoBody owns its own framing — KPI strip + retention
+      // chart + hook phases need full bleed, not the AnswerBlock card.
+      return (
+        <AnswerBlock kicker="Mổ video" bare>
+          <VideoBody report={payload.report} />
         </AnswerBlock>
       );
     default:
