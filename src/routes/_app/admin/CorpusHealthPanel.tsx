@@ -4,10 +4,10 @@
  * Renders the `/admin/corpus-health` response with the editorial rhythm
  * from `artifacts/uiux-reference/screens/*.jsx`: gv-bignum counters in
  * a four-column strip, a kicker-labelled claim-tier histogram, and a
- * table of the ten busiest niches by 30d volume. Tier chips use the
+ * table of niches by 30d volume (10 rows by default, expandable to all). Tier chips use the
  * accent-soft / ink-4 palette the reference sound/trend chips use.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCorpusHealth, type ClaimTier, type CorpusHealthNicheRow } from "@/hooks/useCorpusHealth";
 
 const TIER_LABEL: Record<ClaimTier, string> = {
@@ -18,6 +18,9 @@ const TIER_LABEL: Record<ClaimTier, string> = {
   hook_effectiveness: "Hook effectiveness",
   trend_delta: "Trend delta",
 };
+
+/** Default rows before "Xem thêm"; full list available via toggle. */
+const COLLAPSED_NICHE_ROWS = 10;
 
 const TIER_ORDER: ClaimTier[] = [
   "none",
@@ -137,9 +140,14 @@ function TH({ children }: { children: React.ReactNode }) {
 
 export function CorpusHealthPanel() {
   const q = useCorpusHealth();
+  const [showAllNiches, setShowAllNiches] = useState(false);
 
-  const topTen = useMemo(() => q.data?.niches.slice(0, 10) ?? [], [q.data]);
-  const remainder = useMemo(() => (q.data?.niches.length ?? 0) - (q.data?.niches.slice(0, 10).length ?? 0), [q.data]);
+  const niches = q.data?.niches ?? [];
+  const canExpandNiches = niches.length > COLLAPSED_NICHE_ROWS;
+  const visibleNiches = useMemo(() => {
+    if (!canExpandNiches || showAllNiches) return niches;
+    return niches.slice(0, COLLAPSED_NICHE_ROWS);
+  }, [canExpandNiches, niches, showAllNiches]);
 
   if (q.isLoading) {
     return (
@@ -160,7 +168,7 @@ export function CorpusHealthPanel() {
   }
   if (!q.data) return null;
 
-  const { summary, as_of, niches } = q.data;
+  const { summary, as_of } = q.data;
 
   return (
     <div className="flex flex-col gap-7">
@@ -180,7 +188,7 @@ export function CorpusHealthPanel() {
         <TierHistogram histogram={summary.tier_histogram} total={summary.niches_total} />
       </div>
 
-      {/* Top-10 niches */}
+      {/* Niche volume table — collapsed to first rows; expand to full list */}
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted mb-3">
           Top niches by 30d volume
@@ -198,15 +206,24 @@ export function CorpusHealthPanel() {
               </tr>
             </thead>
             <tbody>
-              {topTen.map((n) => (
+              {visibleNiches.map((n) => (
                 <NicheRow key={n.niche_id} row={n} />
               ))}
             </tbody>
           </table>
-          {remainder > 0 ? (
-            <p className="mt-3 gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
-              + {remainder} niche khác (ẩn để giữ panel gọn).
-            </p>
+          {canExpandNiches ? (
+            <div className="mt-2 flex justify-end border-t border-[color:var(--gv-rule)] pt-2">
+              <button
+                type="button"
+                className="min-h-11 min-w-11 rounded-md px-3 text-[13px] font-medium text-[color:var(--gv-accent-deep)] underline decoration-[color:var(--gv-rule)] underline-offset-2 transition-colors hover:text-[color:var(--gv-ink)]"
+                onClick={() => setShowAllNiches((v) => !v)}
+                aria-expanded={showAllNiches}
+              >
+                {showAllNiches
+                  ? "Thu gọn"
+                  : `Xem thêm (${niches.length - COLLAPSED_NICHE_ROWS})`}
+              </button>
+            </div>
           ) : null}
         </div>
       </div>
