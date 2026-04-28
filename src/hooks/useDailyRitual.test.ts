@@ -119,8 +119,13 @@ describe("fetchDailyRitual", () => {
     globalThis.fetch = fetchMock;
 
     await fetchDailyRitual({ ...baseParams, baseUrl: "https://cr.example/" });
+    // ``fetchDailyRitual`` now appends ``?niche_id=N`` (per-niche ritual
+    // landed in migration ``20260629000000_ritual_per_niche_and_sync_primary``).
+    // ``baseParams.expectedNicheId`` = 4, so the request URL must carry
+    // it — the assertion guards both the trailing-slash strip + the
+    // niche query param wiring.
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://cr.example/home/daily-ritual",
+      "https://cr.example/home/daily-ritual?niche_id=4",
       expect.objectContaining({ headers: { Authorization: "Bearer jwt" } }),
     );
   });

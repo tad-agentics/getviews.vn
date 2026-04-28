@@ -11,7 +11,7 @@ from typing import Any, Literal
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from getviews_pipeline.api_models import StrictBody
 

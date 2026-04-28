@@ -65,7 +65,6 @@ from getviews_pipeline.step_events import (
     step_count,
     step_creator,
     step_done,
-    step_error,
     step_process,
     step_search,
     step_start,

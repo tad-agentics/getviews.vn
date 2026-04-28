@@ -104,7 +104,6 @@ def fill_ideas_narrative(
             _response_text,
         )
 
-        hooks_summary = " · ".join(top_idea_hooks[:5]) if top_idea_hooks else "—"
         # Numbered list so Gemini can key its per-rank copy back to the
         # right entry — critical for the hook_lines structured output.
         numbered_hooks = "\n".join(
