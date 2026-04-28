@@ -19,14 +19,10 @@ import { supabase } from "@/lib/supabase";
 import { corpusKeys, useVideoCorpus } from "@/hooks/useVideoCorpus";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
-import { useNicheRowsForIds } from "@/hooks/useTopNiches";
-import { normalizeNicheIds } from "@/lib/profileNiches";
 import { TrendsDouyinCard } from "./TrendsDouyinCard";
-import { TrendsNicheTabs } from "./TrendsNicheTabs";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { TrendsRail } from "./TrendsRail";
-import { useHookEffectiveness } from "@/hooks/useHookEffectiveness";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews, formatRelativeSinceVi } from "@/lib/formatters";
 import { looksLikeNonVietnameseCaption } from "@/lib/nonVietnameseFilter";
@@ -34,7 +30,6 @@ import { TrendingSection } from "@/components/explore/TrendingSection";
 import {
   TrendingSoundsSection,
 } from "@/components/explore/TrendingSoundsSection";
-import { VideoDangHocSidebar } from "@/components/explore/VideoDangHocSidebar";
 import { type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
@@ -343,15 +338,6 @@ function ExploreVideoListRow({
 }
 
 /* --- ExploreScreen (Make TrendScreen + corpus) -------------------- */
-type HookEffectivenessRow = {
-  id?: string;
-  hook_type: string;
-  avg_engagement_rate: number | string | null;
-  sample_size: number | null;
-  computed_at: string | null;
-};
-
-
 type SortOption = "indexed_at" | "views" | "engagement_rate";
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -446,23 +432,11 @@ export default function ExploreScreen() {
   const { data: profile } = useProfile();
   const { data: niches } = useNicheTaxonomy();
 
-  // PR-T1 — niche tab switcher. Source = profiles.niche_ids (cap 3
-  // followed niches). Renders only when ≥2 followed; single-niche
-  // profiles get no switcher.
-  const followedNicheIds = useMemo(
-    () => normalizeNicheIds(profile?.niche_ids ?? []),
-    [profile?.niche_ids],
-  );
-  const { data: followedNiches = [] } = useNicheRowsForIds(followedNicheIds);
-
-  const { data: hookDataRaw } = useHookEffectiveness(selectedNicheId);
   const {
     data: nicheIntel,
     isPending: nicheIntelLoading,
     isError: nicheIntelQueryError,
   } = useNicheIntelligence(selectedNicheId);
-
-  const hookData = hookDataRaw as HookEffectivenessRow[] | undefined;
 
   // Auto-seed niche from profile on first load. Skip when the URL explicitly
   // carries `?niche=0` (user cleared this session) or already carries a
@@ -508,21 +482,13 @@ export default function ExploreScreen() {
       (nicheIntel == null || nicheCorpusSampleCount(nicheIntelRecord) < 10),
   );
 
-  const newestComputedAt = hookData?.[0]?.computed_at ?? null;
-  const staleTimestamp = nicheIntel?.computed_at ?? newestComputedAt;
+  const staleTimestamp = nicheIntel?.computed_at ?? null;
   const trendsDataFreshLabel = useMemo(() => {
     if (!staleTimestamp) return null;
     const d = new Date(staleTimestamp);
     if (Number.isNaN(d.getTime())) return null;
     return formatRelativeSinceVi(new Date(), d);
   }, [staleTimestamp]);
-  const hookDataStale =
-    staleTimestamp != null && Date.now() - new Date(staleTimestamp).getTime() > 36 * 3600 * 1000;
-
-  const totalHookSamples = useMemo(
-    () => (hookData ?? []).reduce((s, h) => s + (h.sample_size ?? 0), 0),
-    [hookData],
-  );
 
   // PR-T7 — translate ``dateRange`` URL param into a concrete
   // ``dateFrom`` ISO string. ``useVideoCorpus`` filters on
@@ -701,15 +667,6 @@ export default function ExploreScreen() {
             className="border-[var(--border)] px-4 pb-[60px] pt-4 sm:px-7 min-[1100px]:min-h-0 min-[1100px]:min-w-0 min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:pt-5"
             style={{ scrollbarWidth: "thin" }}
           >
-          {/* PR-T1 — NGÁCH BẠN THEO DÕI tab strip. Hidden when the
-           * creator follows < 2 niches; the URL ``?niche=N`` already
-           * pins the view in that case. */}
-          <TrendsNicheTabs
-            niches={followedNiches}
-            selectedNicheId={selectedNicheId}
-            onSelectNiche={(id) => setFilter({ niche: String(id) })}
-            onEditNiches={() => navigate("/app/settings")}
-          />
           {/* ── Zone 1: Discovery + hero (sounds carousel &lt;1100px) ───── */}
           <section className="pb-4">
             {/* PR-T2 — pattern-thesis hero replaces the old niche-intel
@@ -792,7 +749,12 @@ export default function ExploreScreen() {
                   </div>
                 </div>
 
-                <div className="order-2 flex max-w-full items-center gap-2 overflow-x-auto overflow-y-hidden pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[1100px]:contents min-[1100px]:overflow-visible">
+                <div
+                  className="order-2 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [-ms-overflow-style:auto] -mx-4 px-4 sm:-mx-7 sm:px-7 min-[1100px]:mx-0 min-[1100px]:contents min-[1100px]:overflow-visible min-[1100px]:px-0 min-[1100px]:pb-0"
+                  role="toolbar"
+                  aria-label="Bộ lọc kho video"
+                >
+                  <div className="flex w-max max-w-none flex-nowrap items-center gap-2 min-[1100px]:contents">
                   <div ref={nicheMenuRef} className="relative shrink-0 min-[1100px]:order-1">
                     <FilterChip
                       label={selectedNicheName ?? "Niche"}
@@ -939,6 +901,7 @@ export default function ExploreScreen() {
                       <List className="h-3 w-3" strokeWidth={2} />
                     </button>
                   </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1010,84 +973,17 @@ export default function ExploreScreen() {
             ) : null}
           </section>
 
-          {/* ── Zone 2: Analytics (requires niche) ─────────────────────── */}
-          <section className="pb-15">
-            {selectedNicheId === null ? (
+          {/* ── Zone 2: CTA khi chưa chọn niche (đã gỡ bảng hook hiệu quả) ─ */}
+          {selectedNicheId === null ? (
+            <section className="pb-15">
               <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-5 py-6 text-center">
                 <p className="text-sm font-semibold text-[var(--ink)] mb-1">Phân tích chuyên sâu</p>
                 <p className="text-xs text-[var(--muted)]">
-                  Chọn niche từ bộ lọc để xem hook hiệu quả, format đang lên và phân tích corpus
+                  Chọn niche từ bộ lọc để xem pattern, kho video và bảng xếp hạng bên phải
                 </p>
               </div>
-            ) : (
-              <>
-                <VideoDangHocSidebar />
-
-                {hookData && hookData.length > 0 && !lowVideoCorpus ? (
-                  <section
-                    key={`hook-ranking-${selectedNicheId}`}
-                    className="mt-4 pt-4 border-t border-[var(--border)] -mx-7 px-7"
-                  >
-                    {hookDataStale ? (
-                      <p className="text-xs font-medium text-[var(--gv-ink-3)] mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] px-3 py-2">
-                        Data cũ hơn 36 tiếng — đang cập nhật.
-                      </p>
-                    ) : null}
-                    <h2 className="font-extrabold text-[var(--ink)] mb-3">
-                      Hook đang chạy trong {selectedNicheName ?? "…"}
-                    </h2>
-                    <p className="text-xs text-[var(--faint)] mb-4">
-                      {totalHookSamples} video · 7 ngày · Cập nhật{" "}
-                      <span>
-                        {newestComputedAt
-                          ? `${Math.max(0, Math.round((Date.now() - new Date(newestComputedAt).getTime()) / 3600000))}h trước`
-                          : "—"}
-                      </span>
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      {hookData.slice(0, 8).map((h, i) => {
-                        const maxEr = Number(hookData[0]?.avg_engagement_rate) || 1;
-                        const er = Number(h.avg_engagement_rate) || 0;
-                        const pct = Math.min(100, Math.round((er / maxEr) * 100));
-                        const isTop = i === 0;
-                        const mult = maxEr > 0 ? (er / maxEr).toFixed(2) : "—";
-                        const fadeOpacity = isTop ? 1 : Math.max(0.28, 0.78 - i * 0.09);
-                        return (
-                          <div key={h.id ?? i} className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="max-w-[70%] truncate text-xs font-medium text-[var(--ink)]">
-                                {String(h.hook_type ?? "").replace(/_/g, " ")}
-                              </span>
-                              <div className="flex flex-shrink-0 items-center gap-2">
-                                <span className="font-mono text-xs text-[var(--gv-ink-3)]">{(er * 100).toFixed(1)}%</span>
-                                <motion.span
-                                  className="text-[10px] font-semibold tabular-nums text-[var(--gv-accent)]"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  transition={{ duration: 0.25, delay: i * 0.1 + 0.35, ease: [0.16, 1, 0.3, 1] }}
-                                >
-                                  ×{mult}
-                                </motion.span>
-                              </div>
-                            </div>
-                            <div className="relative h-2 overflow-hidden rounded-full bg-[var(--border)]">
-                              <motion.div
-                                className={`absolute left-0 top-0 h-full rounded-full ${isTop ? "bg-[var(--gv-accent)]" : "bg-[var(--gv-ink-3)]"}`}
-                                style={isTop ? undefined : { opacity: fadeOpacity }}
-                                initial={{ width: 0 }}
-                                animate={{ width: `${pct}%` }}
-                                transition={{ duration: 0.4, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ) : null}
-              </>
-            )}
-          </section>
+            </section>
+          ) : null}
           </div>
 
           {/* PR-T6 — right rail: 2 sections (Đang nổi lên / Viral mọi
