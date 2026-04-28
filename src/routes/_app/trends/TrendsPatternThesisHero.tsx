@@ -11,7 +11,7 @@ import { useNichePatternStats } from "@/hooks/useNichePatternStats";
  * 3-stat strip below.
  *
  * Stats:
- *   • VIDEO ĐÃ CLUSTER — total corpus videos in the niche (30d window)
+ *   • VIDEO ĐÃ PHÂN TÍCH — total corpus videos in the niche (30d window)
  *   • PATTERN PHÁT HIỆN — active patterns covering the niche
  *   • ĐỘ MỚI — fresh % (patterns with weekly_instance_count_prev = 0)
  *
@@ -33,7 +33,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
   weekKicker: string;
   /** Total corpus videos in the niche; falls back to "—" when null. */
   corpusCount: number | null | undefined;
-  /** Optional sub-label for VIDEO ĐÃ CLUSTER (e.g. "89 creator hàng đầu"). */
+  /** Optional sub-label for VIDEO ĐÃ PHÂN TÍCH (e.g. "89 creator hàng đầu"). */
   topCreatorsLabel?: string;
 }) {
   const { data: stats } = useNichePatternStats(nicheId);
@@ -61,7 +61,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
       </h1>
       <div className="grid grid-cols-1 gap-5 border-t border-[color:var(--gv-ink-2)] pt-4 sm:grid-cols-3 sm:gap-6">
         <HeroStat
-          label="VIDEO ĐÃ CLUSTER"
+          label="VIDEO ĐÃ PHÂN TÍCH"
           value={videosLabel}
           sub={topCreatorsLabel ?? "Trong 30 ngày"}
         />

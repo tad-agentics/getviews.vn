@@ -12,6 +12,7 @@ import { Btn } from "@/components/v2/Btn";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
+import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
 import { lifecycleHint } from "./patternLifecycle";
 
 /**
@@ -45,6 +46,7 @@ export const PatternModal = memo(function PatternModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className="!max-w-[920px] gap-0 overflow-hidden border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-0"
         onInteractOutside={() => onOpenChange(false)}
       >
@@ -188,56 +190,84 @@ function PatternModalBody({
   );
 }
 
+function phoneCaptionHandle(video: PatternVideo): string {
+  if (!video.creator_handle) return "";
+  return video.creator_handle.startsWith("@")
+    ? video.creator_handle
+    : `@${video.creator_handle}`;
+}
+
+function PhoneTileMeta({ video }: { video: PatternVideo }) {
+  const handle = phoneCaptionHandle(video);
+  const parts = [handle, video.views > 0 ? `↑${formatViews(video.views)}` : null].filter(Boolean);
+  if (parts.length === 0) return null;
+  return (
+    <p className="gv-mono mt-2 text-center text-[10px] leading-snug text-[color:var(--gv-ink-4)]">
+      {parts.join(" · ")}
+    </p>
+  );
+}
+
 function PhoneTile({ video }: { video: PatternVideo | null }) {
+  const shellCls = "relative overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]";
   if (!video) {
     return (
-      <div
-        className="relative overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]"
-        style={{ aspectRatio: "9 / 16", boxShadow: "0 6px 22px rgba(0,0,0,0.18)" }}
-      >
+      <div className={shellCls} style={{ aspectRatio: "9 / 16" }}>
         <div className="flex h-full w-full items-center justify-center text-[12px] text-[color:var(--gv-ink-4)]">
           Chưa có video mẫu
         </div>
       </div>
     );
   }
+
+  const embedId = tiktokAwemeIdForEmbed(video.video_id, video.tiktok_url);
+  if (embedId) {
+    return (
+      <div className="w-full">
+        <div className={shellCls} style={{ aspectRatio: "9 / 16" }}>
+          <iframe
+            key={embedId}
+            title={`TikTok video ${embedId}`}
+            src={`https://www.tiktok.com/embed/v2/${embedId}`}
+            className="absolute inset-0 h-full w-full border-0"
+            allow="encrypted-media; fullscreen; autoplay; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+        <PhoneTileMeta video={video} />
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="relative overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]"
-      style={{ aspectRatio: "9 / 16", boxShadow: "0 6px 22px rgba(0,0,0,0.18)" }}
-    >
-      <VideoThumbnail
-        thumbnailUrl={video.thumbnail_url}
-        className="absolute inset-0 h-full w-full"
-        placeholderClassName=""
-      />
-      <span
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(0,0,0,0.25), transparent 30%, transparent 70%, rgba(0,0,0,0.75))",
-        }}
-        aria-hidden
-      />
-      {/* Top — handle */}
-      <span className="gv-mono absolute left-3 right-3 top-3 text-[10px] text-white opacity-90">
-        {video.creator_handle
-          ? video.creator_handle.startsWith("@")
-            ? video.creator_handle
-            : `@${video.creator_handle}`
-          : ""}
-      </span>
-      {/* Center — play glyph */}
-      <span
-        className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90"
-        aria-hidden
-      >
-        <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
-      </span>
-      {/* Bottom — view count */}
-      <span className="gv-mono absolute bottom-3 left-3 right-3 text-[10px] text-white opacity-90">
-        ↑ {formatViews(video.views)}
-      </span>
+    <div className="w-full">
+      <div className={shellCls} style={{ aspectRatio: "9 / 16" }}>
+        <VideoThumbnail
+          thumbnailUrl={video.thumbnail_url}
+          className="absolute inset-0 h-full w-full"
+          placeholderClassName=""
+        />
+        <span
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.25), transparent 30%, transparent 70%, rgba(0,0,0,0.75))",
+          }}
+          aria-hidden
+        />
+        <span className="gv-mono pointer-events-none absolute left-3 right-3 top-3 text-[10px] text-white opacity-90">
+          {phoneCaptionHandle(video)}
+        </span>
+        <span
+          className="pointer-events-none absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90"
+          aria-hidden
+        >
+          <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
+        </span>
+        <span className="gv-mono pointer-events-none absolute bottom-3 left-3 right-3 text-[10px] text-white opacity-90">
+          ↑ {formatViews(video.views)}
+        </span>
+      </div>
     </div>
   );
 }

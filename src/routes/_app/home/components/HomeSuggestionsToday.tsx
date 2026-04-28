@@ -3,9 +3,17 @@ import { Link } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TierHeader } from "@/components/v2/TierHeader";
+import { useTopPatterns } from "@/hooks/useTopPatterns";
 import { BreakoutGrid } from "./BreakoutGrid";
 import { HooksTable } from "./HooksTable";
 import { StudioHero } from "./StudioHero";
+
+function hookTierTitle(nicheId: number | null, isPending: boolean, count: number): string {
+  if (nicheId == null) return "Công thức hook đứng sau gợi ý";
+  if (isPending) return "Công thức hook đứng sau gợi ý";
+  if (count === 0) return "Chưa có công thức hook sau gợi ý";
+  return `${count} công thức hook đứng sau gợi ý`;
+}
 
 const SEE_ALL_TRENDS = (
   <Link
@@ -40,6 +48,10 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
 }: {
   nicheId: number | null;
 }) {
+  const { data: hookPatterns, isPending: hooksPending } = useTopPatterns(nicheId);
+  const hookCount = hookPatterns?.length ?? 0;
+  const tier02Title = hookTierTitle(nicheId, hooksPending, hookCount);
+
   return (
     <section className="mb-12">
       <SectionHeader
@@ -80,7 +92,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           num="02"
           tag="CÔNG THỨC NỀN"
           tagTone="pos"
-          title="6 công thức hook đứng sau gợi ý"
+          title={tier02Title}
           caption="Đây là các pattern đang ăn nhất tuần qua — các ý tưởng phía trên được sinh ra từ chúng. Lấy công thức trống, điền nội dung khác của bạn vào để mở rộng."
         />
         <HooksTable embedded nicheId={nicheId} />

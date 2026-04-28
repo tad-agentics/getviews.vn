@@ -5,7 +5,30 @@ import {
   useTrendsRailVideos,
   type RailVideo,
 } from "@/hooks/useTrendsRailVideos";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { formatRelativeSinceVi, formatViews } from "@/lib/formatters";
+
+/** Stable per-video pick so placeholders don’t flicker on re-render. */
+function railThumbPlaceholderStyle(videoId: string): {
+  wrapClass: string;
+  placeholderClassName: string;
+} {
+  let h = 0;
+  for (let i = 0; i < videoId.length; i++) h = (h * 33 + videoId.charCodeAt(i)) >>> 0;
+  const cyan = (h & 1) === 1;
+  if (cyan) {
+    return {
+      wrapClass: "bg-[color:var(--gv-accent-2-soft)]",
+      placeholderClassName:
+        "bg-[color:var(--gv-accent-2-soft)] ring-1 ring-inset ring-[color:color-mix(in_srgb,var(--gv-accent-2)_22%,transparent)]",
+    };
+  }
+  return {
+    wrapClass: "bg-[color:var(--gv-accent-soft)]",
+    placeholderClassName:
+      "bg-[color:var(--gv-accent-soft)] ring-1 ring-inset ring-[color:color-mix(in_srgb,var(--gv-accent)_22%,transparent)]",
+  };
+}
 
 /**
  * Trends right rail (PR-T6).
@@ -120,6 +143,7 @@ function RailRow({ video }: { video: RailVideo }) {
   const ageLabel = video.posted_at
     ? formatRelativeSinceVi(new Date(), new Date(video.posted_at))
     : null;
+  const thumbPh = railThumbPlaceholderStyle(video.video_id);
   return (
     <li>
       <button
@@ -130,18 +154,16 @@ function RailRow({ video }: { video: RailVideo }) {
         className="grid w-full grid-cols-[44px_1fr] items-center gap-2.5 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-2 text-left transition-colors hover:border-[color:var(--gv-ink)]"
       >
         <span
-          className="relative overflow-hidden rounded bg-[color:var(--gv-canvas-2)]"
+          className={`relative overflow-hidden rounded ${thumbPh.wrapClass}`}
           style={{ aspectRatio: "9 / 16", height: 56 }}
           aria-hidden
         >
-          {video.thumbnail_url ? (
-            <img
-              src={video.thumbnail_url}
-              alt=""
-              loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : null}
+          <VideoThumbnail
+            thumbnailUrl={video.thumbnail_url}
+            className="absolute inset-0 h-full w-full"
+            loading="lazy"
+            placeholderClassName={thumbPh.placeholderClassName}
+          />
         </span>
         <span className="min-w-0">
           <span className="m-0 line-clamp-2 text-[12px] leading-[1.3] text-[color:var(--gv-ink)]">

@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
-import { useTopPatterns, type TopPattern } from "@/hooks/useTopPatterns";
+import { useTopPatterns, STUDIO_HOME_TOP_PATTERNS_LIMIT, type TopPattern } from "@/hooks/useTopPatterns";
 
 /**
  * HooksTable — 6-col table matching the design's Home block:
@@ -50,7 +50,7 @@ export const HooksTable = memo(function HooksTable({
   nicheId: number | null;
   embedded?: boolean;
 }) {
-  const { data: patterns, isPending } = useTopPatterns(nicheId, 6);
+  const { data: patterns, isPending } = useTopPatterns(nicheId, STUDIO_HOME_TOP_PATTERNS_LIMIT);
 
   if (isPending) {
     if (embedded) {
@@ -200,7 +200,7 @@ export const HooksTable = memo(function HooksTable({
       <SectionHeader
         kicker="BẢNG XẾP HẠNG"
         title="Hook đang chạy"
-        caption="Top 6 mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua."
+        caption={`Top ${patterns.length} mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua.`}
       />
       {listAndTable}
     </section>

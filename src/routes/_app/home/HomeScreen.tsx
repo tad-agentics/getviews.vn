@@ -90,7 +90,7 @@ export default function HomeScreen() {
   // ``newHookCount``: count of hot patterns whose previous-week instance
   // count was 0 (true "mới" rather than "đang lên"). Same query
   // HooksTable already fires (limit=6, dedupes via React Query cache).
-  const { data: topPatterns = [] } = useTopPatterns(selectedNicheId, 6);
+  const { data: topPatterns = [] } = useTopPatterns(selectedNicheId);
   const newHookCount = useMemo(
     () => topPatterns.filter((p) => p.weekly_instance_count_prev === 0).length,
     [topPatterns],

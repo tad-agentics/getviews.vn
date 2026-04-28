@@ -24,9 +24,27 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   avg_views: 142_000,
   sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
   videos: [
-    { video_id: "v1", thumbnail_url: "https://t/1.jpg", creator_handle: "an.tech", views: 250_000 },
-    { video_id: "v2", thumbnail_url: null, creator_handle: "huy.codes", views: 180_000 },
-    { video_id: "v3", thumbnail_url: "https://t/3.jpg", creator_handle: "@chinasecrets", views: 90_000 },
+    {
+      video_id: "v1",
+      thumbnail_url: "https://t/1.jpg",
+      creator_handle: "an.tech",
+      views: 250_000,
+      tiktok_url: null,
+    },
+    {
+      video_id: "v2",
+      thumbnail_url: null,
+      creator_handle: "huy.codes",
+      views: 180_000,
+      tiktok_url: null,
+    },
+    {
+      video_id: "v3",
+      thumbnail_url: "https://t/3.jpg",
+      creator_handle: "@chinasecrets",
+      views: 90_000,
+      tiktok_url: null,
+    },
   ],
   dominant_hook_type: null,
   avg_retention_pct: null,
@@ -116,6 +134,26 @@ describe("PatternModal — open state", () => {
     );
     fireEvent.click(getByLabelText("Đóng"));
     expect(onChange).toHaveBeenCalledWith(false);
+  });
+
+  it("embeds TikTok player in-modal when video_id is a numeric aweme id", () => {
+    const p = samplePattern({
+      videos: [
+        {
+          video_id: "7349098765432101123",
+          thumbnail_url: "https://t/1.jpg",
+          creator_handle: "an.tech",
+          views: 250_000,
+          tiktok_url: null,
+        },
+        ...samplePattern().videos.slice(1),
+      ],
+    });
+    wrap(<PatternModal pattern={p} open onOpenChange={() => {}} />);
+    const iframe = document.body.querySelector(
+      'iframe[src*="tiktok.com/embed/v2/7349098765432101123"]',
+    );
+    expect(iframe).toBeTruthy();
   });
 
   it("renders a 'no video' fallback when pattern has zero videos", () => {

@@ -9,7 +9,7 @@ import { PatternModal } from "./PatternModal";
  *
  * Mirrors the design pack's pattern toolbar + grid (``screens/trends.jsx``
  * lines 387-417). Renders a section header (``§ I — PATTERN`` mono
- * kicker + H2 + cập nhật mỗi tuần subline + ``CLICK PATTERN → MỞ FULL
+ * kicker + H2 + ``CLICK PATTERN → MỞ FULL
  * DECK`` mono caption on the right) followed by a 3-column auto-grid
  * of PatternCards (2 cols < 1100px, 1 col < 760px).
  *
@@ -28,7 +28,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
   const [openPattern, setOpenPattern] = useState<TopPattern | null>(null);
 
   return (
-    <section aria-label="Pattern đang sống" className="mb-14">
+    <section aria-label="Công thức đang chạy tốt" className="mb-14">
       {/* Header */}
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
@@ -36,10 +36,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
             § I — PATTERN
           </p>
           <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)]">
-            6 công thức đang sống
-            <span className="gv-mono ml-3 text-[12px] font-normal text-[color:var(--gv-ink-4)]">
-              · cập nhật mỗi tuần
-            </span>
+            6 công thức đang chạy tốt
           </h2>
         </div>
         <p className="gv-mono whitespace-nowrap text-[10px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">

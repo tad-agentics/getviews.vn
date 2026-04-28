@@ -7,6 +7,8 @@ export type PatternVideo = {
   thumbnail_url: string | null;
   creator_handle: string | null;
   views: number;
+  /** Canonical TikTok URL when present — helps derive embed id if ``video_id`` is not numeric. */
+  tiktok_url: string | null;
 };
 
 /** Single content angle inside a pattern (PatternModal "GÓC CÒN TRỐNG"). */
@@ -52,6 +54,9 @@ export type TopPattern = {
   angles: PatternDeckAngle[] | null;
 };
 
+/** Studio Home hook tier + ``HooksTable`` — shared cap (query key includes this). */
+export const STUDIO_HOME_TOP_PATTERNS_LIMIT = 6;
+
 /**
  * Top video_patterns whose niche_spread contains the user's niche, plus
  * derived avg-views + a sample hook phrase per pattern. Runs two reads:
@@ -62,7 +67,7 @@ export type TopPattern = {
  *
  * Small table, single-digit round-trip, good enough for the Home table.
  */
-export function useTopPatterns(nicheId: number | null, limit = 6) {
+export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_PATTERNS_LIMIT) {
   return useQuery<TopPattern[]>({
     queryKey: ["home", "top_patterns", nicheId, limit],
     queryFn: async () => {
@@ -91,7 +96,7 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
       const ids = patterns.map((p) => p.id);
       const { data: corpusRows, error: cErr } = await supabase
         .from("video_corpus")
-        .select("video_id, pattern_id, views, hook_phrase, hook_type, thumbnail_url, creator_handle")
+        .select("video_id, pattern_id, views, hook_phrase, hook_type, thumbnail_url, creator_handle, tiktok_url")
         .in("pattern_id", ids);
       if (cErr) throw cErr;
 
@@ -115,6 +120,7 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
         const videoId = String((row as { video_id?: string | null }).video_id ?? "");
         const thumbnail = (row as { thumbnail_url?: string | null }).thumbnail_url ?? null;
         const handle = (row as { creator_handle?: string | null }).creator_handle ?? null;
+        const tiktokUrl = (row as { tiktok_url?: string | null }).tiktok_url ?? null;
         const acc = byPattern.get(pid) ?? {
           totalViews: 0, n: 0, topViews: 0, topHook: null, rows: [],
           hookTypeFreq: new Map<string, number>(),
@@ -134,6 +140,7 @@ export function useTopPatterns(nicheId: number | null, limit = 6) {
             thumbnail_url: thumbnail,
             creator_handle: handle,
             views,
+            tiktok_url: tiktokUrl,
           });
         }
         byPattern.set(pid, acc);

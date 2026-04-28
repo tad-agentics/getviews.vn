@@ -53,7 +53,7 @@ describe("TrendsPatternThesisHero", () => {
         corpusCount={47288}
       />,
     );
-    expect(getAllByText("VIDEO ĐÃ CLUSTER").length).toBeGreaterThan(0);
+    expect(getAllByText("VIDEO ĐÃ PHÂN TÍCH").length).toBeGreaterThan(0);
     expect(getAllByText("PATTERN PHÁT HIỆN").length).toBeGreaterThan(0);
     expect(getAllByText("ĐỘ MỚI").length).toBeGreaterThan(0);
     expect(getAllByText("64%").length).toBeGreaterThan(0);
@@ -76,7 +76,7 @@ describe("TrendsPatternThesisHero", () => {
     expect(getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("uses topCreatorsLabel as the VIDEO ĐÃ CLUSTER sub when provided", () => {
+  it("uses topCreatorsLabel as the VIDEO ĐÃ PHÂN TÍCH sub when provided", () => {
     mockUseNichePatternStats.mockReturnValue({ data: sampleStats });
     const { getByText } = render(
       <TrendsPatternThesisHero

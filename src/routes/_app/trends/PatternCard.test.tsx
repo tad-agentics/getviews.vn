@@ -23,10 +23,28 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   avg_views: 142_000,
   sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
   videos: [
-    { video_id: "v1", thumbnail_url: "https://t/1.jpg", creator_handle: "an.tech", views: 250_000 },
-    { video_id: "v2", thumbnail_url: null, creator_handle: "huy.codes", views: 180_000 },
-    { video_id: "v3", thumbnail_url: "https://t/3.jpg", creator_handle: "@chinasecrets", views: 90_000 },
-    { video_id: "v4", thumbnail_url: null, creator_handle: null, views: 50_000 },
+    {
+      video_id: "v1",
+      thumbnail_url: "https://t/1.jpg",
+      creator_handle: "an.tech",
+      views: 250_000,
+      tiktok_url: null,
+    },
+    {
+      video_id: "v2",
+      thumbnail_url: null,
+      creator_handle: "huy.codes",
+      views: 180_000,
+      tiktok_url: null,
+    },
+    {
+      video_id: "v3",
+      thumbnail_url: "https://t/3.jpg",
+      creator_handle: "@chinasecrets",
+      views: 90_000,
+      tiktok_url: null,
+    },
+    { video_id: "v4", thumbnail_url: null, creator_handle: null, views: 50_000, tiktok_url: null },
   ],
   dominant_hook_type: null,
   avg_retention_pct: null,
@@ -129,7 +147,7 @@ describe("PatternCard", () => {
   it("normalises @-prefixed creator handles in the collage", () => {
     const pattern = samplePattern({
       videos: [
-        { video_id: "v1", thumbnail_url: null, creator_handle: "@chinasecrets", views: 100 },
+        { video_id: "v1", thumbnail_url: null, creator_handle: "@chinasecrets", views: 100, tiktok_url: null },
       ],
     });
     const { container } = render(<PatternCard pattern={pattern} />);
@@ -139,7 +157,7 @@ describe("PatternCard", () => {
   it("auto-prefixes @ on bare creator handles", () => {
     const pattern = samplePattern({
       videos: [
-        { video_id: "v1", thumbnail_url: null, creator_handle: "an.tech", views: 100 },
+        { video_id: "v1", thumbnail_url: null, creator_handle: "an.tech", views: 100, tiktok_url: null },
       ],
     });
     const { container } = render(<PatternCard pattern={pattern} />);

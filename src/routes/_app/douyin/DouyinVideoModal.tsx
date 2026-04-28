@@ -70,6 +70,7 @@ export const DouyinVideoModal = memo(function DouyinVideoModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className="!max-w-[960px] gap-0 overflow-hidden border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] p-0"
         onInteractOutside={() => onOpenChange(false)}
       >

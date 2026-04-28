@@ -7,7 +7,7 @@ import { useTopBreakouts, type BreakoutVideo } from "@/hooks/useTopBreakouts";
 
 /**
  * BreakoutGrid — UIUX `home.jsx`: 4/5 tiles, gap 18px, BREAKOUT + duration,
- * 22px quoted title on panel, mono row + ↑ views in accent-deep below.
+ * 22px quoted title on panel, mono row + ↑ views in pos-deep below.
  */
 
 function formatViews(n: number): string {
@@ -164,7 +164,7 @@ export const BreakoutGrid = memo(function BreakoutGrid({
                   <span className="gv-mono text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
                     @{v.creator_handle}
                   </span>
-                  <span className="gv-mono text-[11px] font-bold text-[color:var(--gv-accent-deep)]">
+                  <span className="gv-mono text-[11px] font-bold text-[color:var(--gv-pos-deep)]">
                     ↑ {formatViews(v.views)}
                   </span>
                 </div>
