@@ -47,12 +47,15 @@ const samplePattern = (id: string, overrides: Partial<TopPattern> = {}): TopPatt
 });
 
 describe("TrendsPatternGrid", () => {
-  it("renders the §I header + caption + click hint", () => {
+  it("renders the §I header + heading + click hint", () => {
+    // Header copy was updated from "đang sống · cập nhật mỗi tuần" to
+    // "đang chạy tốt" + a click-hint. The "cập nhật mỗi tuần" caption
+    // was dropped entirely. Test now mirrors the actual TrendsPatternGrid
+    // header chrome (lines 35-44 in TrendsPatternGrid.tsx).
     mockUseTopPatterns.mockReturnValue({ data: [samplePattern("p1")], isPending: false });
     const { getByText } = render(<TrendsPatternGrid nicheId={4} />);
     expect(getByText("§ I — PATTERN")).toBeTruthy();
-    expect(getByText(/6 công thức đang sống/)).toBeTruthy();
-    expect(getByText(/cập nhật mỗi tuần/)).toBeTruthy();
+    expect(getByText(/6 công thức đang chạy tốt/)).toBeTruthy();
     expect(getByText(/CLICK PATTERN → MỞ FULL DECK/)).toBeTruthy();
   });
 
