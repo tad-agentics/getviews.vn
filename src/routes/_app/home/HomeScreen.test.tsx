@@ -41,7 +41,15 @@ vi.mock("@/hooks/useNicheTaxonomy", () => ({
 }));
 vi.mock("@/hooks/useHomeTicker", () => ({ useHomeTicker: () => mockUseHomeTicker() }));
 vi.mock("@/hooks/useDailyRitual", () => ({ useDailyRitual: () => mockUseDailyRitual() }));
-vi.mock("@/hooks/useTopPatterns", () => ({ useTopPatterns: () => mockUseTopPatterns() }));
+vi.mock("@/hooks/useTopPatterns", () => ({
+  useTopPatterns: () => mockUseTopPatterns(),
+  // ``HooksTable`` (rendered via HomeScreen) imports this constant
+  // alongside ``useTopPatterns`` to set its row limit. The mock factory
+  // must export it too — vi.mock replaces the whole module, so an
+  // omitted export becomes undefined and the component crashes
+  // ("No 'STUDIO_HOME_TOP_PATTERNS_LIMIT' export is defined…").
+  STUDIO_HOME_TOP_PATTERNS_LIMIT: 6,
+}));
 vi.mock("@/hooks/useTopBreakouts", () => ({ useTopBreakouts: () => mockUseTopBreakouts() }));
 vi.mock("@/hooks/useTopNiches", () => ({
   useTopNiches: () => mockUseTopNiches(),
