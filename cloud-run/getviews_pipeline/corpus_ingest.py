@@ -75,8 +75,8 @@ def _parse_csv_niche_ids(raw: str) -> frozenset[int]:
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-# Raised default 10→15 with higher daily ED unit budgets; override via env on small plans.
-BATCH_VIDEOS_PER_NICHE = int(os.environ.get("BATCH_VIDEOS_PER_NICHE", "15"))
+# Default 30 videos/niche/batch; override via env on small ED budgets.
+BATCH_VIDEOS_PER_NICHE = int(os.environ.get("BATCH_VIDEOS_PER_NICHE", "30"))
 BATCH_RECENCY_DAYS = int(os.environ.get("BATCH_RECENCY_DAYS", "30"))
 
 # Wave 5+ Phase 2 — thin-niche prioritization. Per-batch quota multiplier
@@ -96,10 +96,10 @@ BATCH_PRIORITY_NICHE_IDS = _parse_csv_niche_ids(
     os.environ.get("BATCH_PRIORITY_NICHE_IDS", "3")
 )
 BATCH_PRIORITY_NICHE_VPN_FLOOR = int(
-    os.environ.get("BATCH_PRIORITY_NICHE_VPN_FLOOR", "22") or "0"
+    os.environ.get("BATCH_PRIORITY_NICHE_VPN_FLOOR", "35") or "0"
 )
 BATCH_PRIORITY_NICHE_MAX_VPN = max(
-    1, int(os.environ.get("BATCH_PRIORITY_NICHE_MAX_VPN", "45") or "45")
+    1, int(os.environ.get("BATCH_PRIORITY_NICHE_MAX_VPN", "90") or "90")
 )
 BATCH_MAX_FAILURES = int(os.environ.get("BATCH_MAX_FAILURES", "3"))
 BATCH_CONCURRENCY = int(os.environ.get("BATCH_CONCURRENCY", "4"))
@@ -1903,7 +1903,7 @@ async def run_batch_ingest(
     cpn: int | None = None
     if deep_pool:
         kw = min(BATCH_KEYWORD_PAGES * 3, 8)
-        vpn = min(BATCH_VIDEOS_PER_NICHE * 2, 50)
+        vpn = min(BATCH_VIDEOS_PER_NICHE * 2, 100)
         cpn = min(BATCH_CAROUSELS_PER_NICHE * 2, 12)
         logger.info(
             "[corpus] deep_pool ingest: keyword_pages=%d videos_per_niche=%d carousels=%d",

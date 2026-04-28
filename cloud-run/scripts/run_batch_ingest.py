@@ -19,7 +19,7 @@ Environment variables:
     SUPABASE_SERVICE_ROLE_KEY     — Service role key (bypasses RLS for writes)
     ENSEMBLE_DATA_API_KEY         — EnsembleData token
     GEMINI_API_KEY                — Google Gemini API key
-    BATCH_VIDEOS_PER_NICHE        — Max videos to analyze per niche (default: 10)
+    BATCH_VIDEOS_PER_NICHE        — Max videos to analyze per niche (default: 30)
     BATCH_RECENCY_DAYS            — Only include posts from last N days (default: 30)
     BATCH_CONCURRENCY             — Parallel niches processed at once (default: 4)
     GEMINI_CONCURRENCY            — Max parallel Gemini calls (default: 4)
