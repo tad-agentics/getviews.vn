@@ -48,6 +48,11 @@ _CLOUD_RUN_SERVICE_NAME = os.environ.get("K_SERVICE", "").strip()
 
 
 # ── EnsembleData helper functions ─────────────────────────────────────────────
+# Customer APIs (official): GET with query params only — no path prefix beyond /apis
+#   get-used-units:  ?date=YYYY-MM-DD&token=...
+#   get-history:     ?days=N&token=...
+#   https://ensembledata.com/apis/customer/get-used-units
+#   https://ensembledata.com/apis/customer/get-history
 
 def _ensemble_fetch_used_units(date_iso: str) -> dict[str, Any]:
     if not ENSEMBLEDATA_API_TOKEN:
@@ -66,6 +71,36 @@ def _ensemble_fetch_used_units(date_iso: str) -> dict[str, Any]:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"ensemble_fetch_failed: {exc}") from exc
     _ENSEMBLE_USAGE_CACHE[date_iso] = (now, payload)
     return payload
+
+
+def _ed_used_units_from_payload(payload: dict[str, Any]) -> int:
+    """EnsembleData ``/customer/get-used-units`` returns either a top-level
+    ``units`` int, ``data.units``, or a per-platform map under ``data`` (e.g.
+    ``data.tiktok``) per current docs. Summing only ``data.units`` produced
+    all-zero admin panels when the map form was used.
+    """
+    u = payload.get("units")
+    if u is not None:
+        try:
+            return int(u)
+        except (TypeError, ValueError):
+            pass
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return 0
+    u2 = data.get("units")
+    if u2 is not None:
+        try:
+            return int(u2)
+        except (TypeError, ValueError):
+            pass
+    total = 0
+    for v in data.values():
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, (int, float)):
+            total += int(v)
+    return total
 
 
 def _ensemble_fetch_history(days: int) -> dict[str, Any]:
@@ -149,10 +184,7 @@ def _evaluate_ensemble_runway_low(rule: dict[str, Any]) -> tuple[bool, str, dict
         day = (now - timedelta(days=i)).date().isoformat()
         try:
             payload = _ensemble_fetch_used_units(day)
-            units_raw = payload.get("units")
-            if units_raw is None and isinstance(payload.get("data"), dict):
-                units_raw = payload["data"].get("units")
-            units = int(units_raw or 0)
+            units = _ed_used_units_from_payload(payload)
         except Exception:
             continue
         total_used += units
@@ -776,10 +808,7 @@ async def admin_ensemble_credits(
         day = (now - timedelta(days=i)).date().isoformat()
         try:
             payload = _ensemble_fetch_used_units(day)
-            units_raw = payload.get("units")
-            if units_raw is None and isinstance(payload.get("data"), dict):
-                units_raw = payload["data"].get("units")
-            units = int(units_raw or 0)
+            units = _ed_used_units_from_payload(payload)
             results.append({"date": day, "units": units, "ok": True})
         except HTTPException as exc:
             results.append({"date": day, "units": 0, "ok": False, "error": str(exc.detail)})
