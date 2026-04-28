@@ -9,13 +9,12 @@ import threading
 import time
 import urllib.parse as _urlparse
 import urllib.request as _urlrequest
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.config import ENSEMBLEDATA_API_TOKEN

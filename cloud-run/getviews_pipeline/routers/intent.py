@@ -11,9 +11,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, Field
 
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.config import TIKTOK_ALLOWED_HOSTS
