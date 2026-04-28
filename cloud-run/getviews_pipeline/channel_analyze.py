@@ -20,10 +20,22 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from getviews_pipeline.claim_tiers import CLAIM_TIERS
-from getviews_pipeline.kol_browse import normalize_handle
 from getviews_pipeline.video_structural import video_duration_sec
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_handle(raw: str | None) -> str:
+    """Strip ``@`` and lowercase a TikTok handle.
+
+    Lifted from the retired ``kol_browse`` module — the
+    Creator-only pivot deleted the KOL browse surface, but
+    ``channel_analyze`` still needs handle normalisation for
+    cache lookups and reference-channel matching.
+    """
+    if not raw:
+        return ""
+    return str(raw).strip().removeprefix("@").lower()
 
 CHANNEL_FORMULA_STALE_AFTER = timedelta(days=7)
 CORPUS_GATE_MIN = CLAIM_TIERS["pattern_spread"]

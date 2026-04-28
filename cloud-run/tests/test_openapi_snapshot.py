@@ -71,8 +71,6 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/admin/trigger/thumbnail_backfill"),
     ("GET", "/video/niche-benchmark"),
     ("POST", "/video/analyze"),
-    ("GET", "/kol/browse"),
-    ("POST", "/kol/toggle-pin"),
     ("GET", "/channel/analyze"),
     ("GET", "/script/scene-intelligence"),
     ("GET", "/script/hook-patterns"),

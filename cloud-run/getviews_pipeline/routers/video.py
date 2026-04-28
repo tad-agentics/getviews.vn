@@ -8,8 +8,6 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import _resolve_caller_niche_id, require_user
 from getviews_pipeline.runtime import run_sync
@@ -32,10 +30,6 @@ class VideoAnalyzeRequest(StrictBody):
     tiktok_url: str | None = None
     force_refresh: bool = False
     mode: Literal["win", "flop"] | None = None
-
-
-class KolTogglePinRequest(StrictBody):
-    handle: str = Field(..., min_length=1, max_length=200)
 
 
 @router.get("/video/niche-benchmark")
@@ -91,64 +85,6 @@ async def video_analyze_endpoint(
         logger.exception("[video/analyze] failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return JSONResponse(out)
-
-
-@router.get("/kol/browse")
-async def kol_browse_endpoint(
-    user: dict = Depends(require_user),
-    tab: Literal["pinned", "discover"] = Query("discover"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=50),
-    niche_id: int | None = Query(None, ge=1, description="Optional; must equal caller profiles.primary_niche when set."),
-    followers_min: int | None = Query(None, ge=0),
-    followers_max: int | None = Query(None, ge=0),
-    growth_fast: bool = Query(False),
-    sort: str | None = Query(None, description="Sort key: pinned | rank | match | followers | avg_views | growth | name."),
-    order_dir: Literal["asc", "desc"] | None = Query(None),
-    search: str | None = Query(None, max_length=80),
-) -> JSONResponse:
-    """B.2.1 — KOL browse rows + rule-based match_score."""
-    from getviews_pipeline.kol_browse import KOL_SORT_QUERY_KEYS, run_kol_browse_sync
-
-    token = user["access_token"]
-    sb = user_supabase(token)
-    nid = niche_id if niche_id is not None else await _resolve_caller_niche_id(token)
-    if followers_min is not None and followers_max is not None and int(followers_min) > int(followers_max):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="followers_min không được lớn hơn followers_max.")
-    if sort is not None and sort not in KOL_SORT_QUERY_KEYS:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"sort không hợp lệ: {sort}")
-    sort_desc = None if order_dir is None else (order_dir == "desc")
-    try:
-        out = await run_sync(run_kol_browse_sync, sb, niche_id=int(nid), tab=tab, page=page, page_size=page_size, followers_min=followers_min, followers_max=followers_max, growth_fast=growth_fast, sort=sort, sort_desc=sort_desc, search=search)
-    except ValueError as exc:
-        msg = str(exc)
-        if "Chưa chọn ngách" in msg:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
-    except Exception as exc:
-        logger.exception("[kol/browse] failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse(out)
-
-
-@router.post("/kol/toggle-pin")
-async def kol_toggle_pin_endpoint(
-    body: KolTogglePinRequest,
-    user: dict = Depends(require_user),
-) -> JSONResponse:
-    """B.2.1 — toggle profiles.reference_channel_handles via Supabase RPC (cap 10)."""
-    from getviews_pipeline.kol_browse import normalize_handle
-
-    norm = normalize_handle(body.handle)
-    if not norm:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="handle rỗng")
-    sb = user_supabase(user["access_token"])
-    try:
-        sb.rpc("toggle_reference_channel", {"p_handle": norm}).execute()
-    except Exception as exc:
-        logger.exception("[kol/toggle-pin] failed handle=%s: %s", norm, exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse({"ok": True})
 
 
 @router.get("/channel/analyze")

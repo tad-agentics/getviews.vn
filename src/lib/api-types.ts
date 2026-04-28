@@ -667,35 +667,6 @@ export interface ScriptReferenceClip {
 }
 
 // ---------------------------------------------------------------------------
-// B.2 — GET /kol/browse, POST /kol/toggle-pin (Cloud Run)
-// ---------------------------------------------------------------------------
-
-export type KolBrowseTab = "pinned" | "discover";
-
-export interface KolBrowseRow {
-  handle: string;
-  name: string;
-  niche_label: string | null;
-  followers: number;
-  avg_views: number;
-  growth_30d_pct: number;
-  match_score: number;
-  is_pinned: boolean;
-  /** One-sentence rationale from Cloud Run (B.2.2 gap). */
-  match_description?: string | null;
-}
-
-export interface KolBrowseResponse {
-  tab: KolBrowseTab;
-  niche_id: number;
-  page: number;
-  page_size: number;
-  total: number;
-  reference_handles: string[];
-  rows: KolBrowseRow[];
-}
-
-// ---------------------------------------------------------------------------
 // Phase C — §J ReportV1 + answer session (mirror `report_types.py`)
 // ---------------------------------------------------------------------------
 
