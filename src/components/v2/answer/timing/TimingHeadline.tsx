@@ -5,10 +5,18 @@
  */
 
 import type { TimingReportPayload } from "@/lib/api-types";
+import { timingHeadlineKickers } from "../sessionIntentLabels";
 
 type Insight = { insight?: string };
 
-export function TimingHeadline({ report }: { report: TimingReportPayload }) {
+export function TimingHeadline({
+  report,
+  sessionIntentType,
+}: {
+  report: TimingReportPayload;
+  sessionIntentType?: string;
+}) {
+  const { left: leftKicker, right: rightKicker } = timingHeadlineKickers(sessionIntentType);
   const tw = report.top_window as Record<string, unknown> & Insight;
   const day = (tw.day as string | undefined) ?? "—";
   const hours = (tw.hours as string | undefined) ?? "—";
@@ -24,7 +32,7 @@ export function TimingHeadline({ report }: { report: TimingReportPayload }) {
     <section className="grid grid-cols-1 gap-6 border border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)] px-6 py-5 min-[900px]:grid-cols-[1fr_280px]">
       <div>
         <p className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
-          Sướng nhất
+          {leftKicker}
         </p>
         <h3 className="gv-serif mt-1 text-[32px] font-medium leading-[1.1] tracking-tight text-[color:var(--gv-ink)]">
           {day}, {hours}
@@ -38,7 +46,7 @@ export function TimingHeadline({ report }: { report: TimingReportPayload }) {
 
       <div>
         <p className="gv-mono text-[9px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">
-          3 cửa sổ cao nhất
+          {rightKicker}
         </p>
         <ol className="mt-2 flex flex-col gap-2 text-[12px]">
           {top3.map((w) => (

@@ -198,6 +198,18 @@ def classify_intent(
     if handles and not has_urls:
         return QueryIntent.COMPETITOR_PROFILE
 
+    # Shooting-format / structural directions — before TREND_SPIKE so
+    # "kiểu quay … đang lên view" routes to corpus ER / 30d pipeline.
+    if not has_urls and any(
+        kw in msg
+        for kw in [
+            "kiểu quay",
+            "dòng format",
+            "format quay",
+        ]
+    ):
+        return QueryIntent.CONTENT_DIRECTIONS
+
     if any(
         kw in msg
         for kw in [

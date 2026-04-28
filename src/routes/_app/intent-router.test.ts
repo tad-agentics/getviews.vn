@@ -116,6 +116,19 @@ describe("detectIntent — non-handle branches still work", () => {
     expect(r.intentType).toBe("trend_spike");
   });
 
+  it("content_directions on Studio Home 'kiểu quay … đang lên view' (before trend)", () => {
+    const r = detectIntent(
+      "Kiểu quay (POV, lồng tiếng, list, storytime…) nào đang lên view nhanh trong Gym?",
+      false,
+    );
+    expect(r.intentType).toBe("content_directions");
+  });
+
+  it("trend_spike on 'chủ đề và góc kể … tuần này' chip", () => {
+    const r = detectIntent("Chủ đề và góc kể nào đang hot trong Gym tuần này?", false);
+    expect(r.intentType).toBe("trend_spike");
+  });
+
   it("follow_up_unclassifiable on open-ended chat with prior context", () => {
     const r = detectIntent("Tại sao vậy nhỉ?", true);
     expect(r.intentType).toBe("follow_up_unclassifiable");
@@ -126,6 +139,69 @@ describe("detectIntent — non-handle branches still work", () => {
     const r = detectIntent("Chào bạn", false);
     expect(r.intentType).toBe("follow_up_unclassifiable");
     expect(r.confidence).toBe("low");
+  });
+});
+
+describe("Studio Home — Bắt đầu nhanh chip intents", () => {
+  const niche = "Gym / Fitness";
+
+  it("trend_spike", () => {
+    expect(
+      detectIntent(
+        `Xu hướng và chủ đề nào đang nổi trong ngách ${niche} tuần này?`,
+        false,
+      ).intentType,
+    ).toBe("trend_spike");
+  });
+
+  it("content_directions", () => {
+    expect(
+      detectIntent(
+        `Hướng nội dung và format nào đang chạy tốt nhất trong ngách ${niche}?`,
+        false,
+      ).intentType,
+    ).toBe("content_directions");
+  });
+
+  it("subniche_breakdown", () => {
+    expect(
+      detectIntent(
+        `Trong ngách ${niche}, ngách con nào đáng khai thác hoặc mở rộng thêm?`,
+        false,
+      ).intentType,
+    ).toBe("subniche_breakdown");
+  });
+
+  it("timing", () => {
+    expect(
+      detectIntent(
+        "Nên đăng TikTok khung giờ nào trong tuần để tối ưu reach?",
+        false,
+      ).intentType,
+    ).toBe("timing");
+  });
+
+  it("brief_generation", () => {
+    expect(
+      detectIntent(`Viết brief sản xuất nội dung tuần này cho ngách ${niche}.`, false)
+        .intentType,
+    ).toBe("brief_generation");
+  });
+
+  it("own_flop_no_url", () => {
+    expect(
+      detectIntent("Video của mình flop — phân tích nguyên nhân và nên chỉnh gì?", false)
+        .intentType,
+    ).toBe("own_flop_no_url");
+  });
+
+  it("own_channel", () => {
+    expect(
+      detectIntent(
+        "Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.",
+        false,
+      ).intentType,
+    ).toBe("own_channel");
   });
 });
 
@@ -214,6 +290,18 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     }
   });
 
+  it("content_directions → pattern format (kiểu quay chip)", () => {
+    const p = planAnswerEntry(
+      "Kiểu quay nào đang lên view nhanh trong Gym / Fitness?",
+      false,
+    );
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("pattern");
+      expect(p.intent_type).toBe("content_directions");
+    }
+  });
+
   it("TikTok URL → redirect to /app/video", () => {
     const p = planAnswerEntry("https://www.tiktok.com/@x/video/123", false);
     expect(p.kind).toBe("redirect");
@@ -262,6 +350,17 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     if (p.kind === "session") {
       expect(p.format).toBe("pattern");
       expect(p.intent_type).toBe("subniche_breakdown");
+    }
+  });
+
+  it("own_channel → /app/channel (Studio Home chip)", () => {
+    const p = planAnswerEntry(
+      "Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.",
+      false,
+    );
+    expect(p.kind).toBe("redirect");
+    if (p.kind === "redirect") {
+      expect(p.to).toBe("/app/channel");
     }
   });
 

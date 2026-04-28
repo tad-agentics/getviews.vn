@@ -144,6 +144,7 @@ export default function AnswerScreen() {
   }, [detailQuery.data?.session, detailQuery.isLoading, sessionId]);
 
   const turns: AnswerTurnRow[] = detailQuery.data?.turns ?? [];
+  const sessionIntentType = detailQuery.data?.session?.intent_type;
 
   const lastPayload = useMemo(() => lastPayloadFromTurns(turns), [turns]);
 
@@ -623,7 +624,7 @@ export default function AnswerScreen() {
                   aria-relevant="additions text"
                 >
                   {turns.map((t) => (
-                    <ContinuationTurn key={t.id} turn={t} />
+                    <ContinuationTurn key={t.id} turn={t} sessionIntentType={sessionIntentType} />
                   ))}
                 </div>
               ) : sessionId ? (

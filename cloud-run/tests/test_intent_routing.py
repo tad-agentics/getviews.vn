@@ -419,6 +419,20 @@ def test_classify_vietnamese_trend_spike() -> None:
         assert i == QueryIntent.TREND_SPIKE, f"Expected TREND_SPIKE for: {phrase!r}, got {i}"
 
 
+def test_classify_kieu_quay_routes_content_directions_before_trend() -> None:
+    """'Kiểu quay … đang lên' must not fall through to TREND_SPIKE."""
+    phrase = (
+        "Kiểu quay (POV, lồng tiếng, list, storytime) nào đang lên view nhanh trong gym?"
+    )
+    assert classify_intent(phrase, [], [], False) == QueryIntent.CONTENT_DIRECTIONS
+
+
+def test_classify_chu_de_goc_ke_tuan_nay_trend_spike() -> None:
+    """Studio Home topic chip → TREND_SPIKE."""
+    phrase = "Chủ đề và góc kể nào đang hot trong gym tuần này?"
+    assert classify_intent(phrase, [], [], False) == QueryIntent.TREND_SPIKE
+
+
 def test_classify_vietnamese_brief_generation() -> None:
     """Vietnamese brief signals → BRIEF_GENERATION."""
     for phrase in [

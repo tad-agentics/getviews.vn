@@ -14,6 +14,11 @@ import { LifecycleBody } from "@/components/v2/answer/lifecycle/LifecycleBody";
 import { DiagnosticBody } from "@/components/v2/answer/diagnostic/DiagnosticBody";
 import { GenericBody } from "@/components/v2/answer/generic/GenericBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
+import {
+  ideasAnswerBlockKicker,
+  patternAnswerBlockKicker,
+  timingAnswerBlockKicker,
+} from "@/components/v2/answer/sessionIntentLabels";
 
 // Map ``AnswerTurnRow.kind`` → accent kicker copy. Continuation turns
 // only — primary turn renders a different header (QueryHeader at the
@@ -117,7 +122,14 @@ function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind"
   );
 }
 
-function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
+function ReportPayloadBody({
+  payload,
+  sessionIntentType,
+}: {
+  payload: ReportV1;
+  /** Intent phiên (câu đầu) — tinh chỉnh kickers/copy khi trùng `format`. */
+  sessionIntentType?: string;
+}) {
   // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
   // "primary language for user-facing copy: Vietnamese. No English
   // strings in UI." rule. 2026-05-07 sweep: Pattern/Ideas/Timing/
@@ -127,20 +139,20 @@ function ReportPayloadBody({ payload }: { payload: ReportV1 }) {
   switch (payload.kind) {
     case "pattern":
       return (
-        <AnswerBlock kicker="Xu hướng" bare>
-          <PatternBody report={payload.report} />
+        <AnswerBlock kicker={patternAnswerBlockKicker(sessionIntentType)} bare>
+          <PatternBody report={payload.report} sessionIntentType={sessionIntentType} />
         </AnswerBlock>
       );
     case "ideas":
       return (
-        <AnswerBlock kicker="Ý tưởng">
-          <IdeasBody report={payload.report} />
+        <AnswerBlock kicker={ideasAnswerBlockKicker(sessionIntentType)}>
+          <IdeasBody report={payload.report} sessionIntentType={sessionIntentType} />
         </AnswerBlock>
       );
     case "timing":
       return (
-        <AnswerBlock kicker="Thời điểm">
-          <TimingBody report={payload.report} />
+        <AnswerBlock kicker={timingAnswerBlockKicker(sessionIntentType)}>
+          <TimingBody report={payload.report} sessionIntentType={sessionIntentType} />
         </AnswerBlock>
       );
     case "lifecycle":
@@ -198,11 +210,17 @@ function UnknownPayloadSurface({ payload }: { payload: unknown }) {
   );
 }
 
-export function ContinuationTurn({ turn }: { turn: AnswerTurnRow }) {
+export function ContinuationTurn({
+  turn,
+  sessionIntentType,
+}: {
+  turn: AnswerTurnRow;
+  sessionIntentType?: string;
+}) {
   return (
     <article className="min-w-0">
       <TurnDivider turn={turn} />
-      <ReportPayloadBody payload={turn.payload} />
+      <ReportPayloadBody payload={turn.payload} sessionIntentType={sessionIntentType} />
     </article>
   );
 }

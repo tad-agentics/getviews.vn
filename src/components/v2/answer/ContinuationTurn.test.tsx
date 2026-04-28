@@ -83,6 +83,28 @@ describe("ContinuationTurn payload dispatch", () => {
     expect(screen.getByText("Ý tưởng")).toBeTruthy();
   });
 
+  it("uses 'Brief sản xuất' kicker for ideas when sessionIntentType is brief_generation", () => {
+    render(
+      <ContinuationTurn
+        turn={mkTurn({ kind: "ideas", report: {} })}
+        sessionIntentType="brief_generation"
+      />,
+    );
+    expect(screen.getByTestId("ideas-body")).toBeTruthy();
+    expect(screen.getByText("Brief sản xuất")).toBeTruthy();
+  });
+
+  it("uses 'Lịch đăng' kicker for timing when sessionIntentType is content_calendar", () => {
+    render(
+      <ContinuationTurn
+        turn={mkTurn({ kind: "timing", report: {} })}
+        sessionIntentType="content_calendar"
+      />,
+    );
+    expect(screen.getByTestId("timing-body")).toBeTruthy();
+    expect(screen.getByText("Lịch đăng")).toBeTruthy();
+  });
+
   it("renders TimingBody inside a 'Thời điểm' block for kind: timing", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "timing", report: {} })} />);
     expect(screen.getByTestId("timing-body")).toBeTruthy();

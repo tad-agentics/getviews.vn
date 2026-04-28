@@ -108,7 +108,7 @@ describe("NichePicker", () => {
         onEditNiches={() => {}}
       />,
     );
-    // Multi-niche → button rendered, but no "↓ X hot" fragment.
+    // Multi-niche → button rendered, but no "↑X hot" fragment.
     expect(getByRole("button", { name: /Ẩm thực/ })).toBeTruthy();
     expect(queryByText(/hot/)).toBeNull();
   });

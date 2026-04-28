@@ -26,8 +26,15 @@ import { TimingActionCards } from "./TimingActionCards";
 import { TimingHeadline } from "./TimingHeadline";
 import { TimingHeatmap } from "./TimingHeatmap";
 import { VarianceNote } from "./VarianceNote";
+import { timingActionsSectionTitle } from "../sessionIntentLabels";
 
-export function TimingBody({ report }: { report: TimingReportPayload }) {
+export function TimingBody({
+  report,
+  sessionIntentType,
+}: {
+  report: TimingReportPayload;
+  sessionIntentType?: string;
+}) {
   const thin = report.confidence.sample_size < 80;
   const varianceKind = (report.variance_note?.kind as string | undefined) ?? "strong";
   const maskBelowFive = thin || varianceKind === "sparse";
@@ -48,7 +55,7 @@ export function TimingBody({ report }: { report: TimingReportPayload }) {
 
       {thin && humilityOpen ? <HumilityBanner /> : null}
 
-      <TimingHeadline report={report} />
+      <TimingHeadline report={report} sessionIntentType={sessionIntentType} />
 
       <TimingHeatmap
         grid={report.grid}
@@ -68,7 +75,7 @@ export function TimingBody({ report }: { report: TimingReportPayload }) {
             Bước tiếp theo
           </p>
           <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
-            Biến khung giờ thành lịch quay
+            {timingActionsSectionTitle(sessionIntentType)}
           </h3>
           <TimingActionCards actions={report.actions} />
         </section>

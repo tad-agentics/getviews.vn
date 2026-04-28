@@ -15,6 +15,7 @@ import { WhatStalledRow } from "./WhatStalledRow";
 import { WoWDiffBand } from "./WoWDiffBand";
 import { wowDiffHasContent } from "./patternFormat";
 import { PatternSubreports } from "../multi/PatternSubreport";
+import { patternLabelsForSessionIntent } from "../sessionIntentLabels";
 
 function sumToneClass(tone: SumStatData["tone"]): string {
   if (tone === "up") return "text-[color:var(--gv-pos)]";
@@ -22,9 +23,18 @@ function sumToneClass(tone: SumStatData["tone"]): string {
   return "text-[color:var(--gv-ink-3)]";
 }
 
-export function PatternBody({ report }: { report: PatternReportPayload }) {
+export function PatternBody({
+  report,
+  sessionIntentType,
+}: {
+  report: PatternReportPayload;
+  /** Phiên trả lời — định hướng copy khi cùng `format: pattern`. */
+  sessionIntentType?: string;
+}) {
   const thin = report.confidence.sample_size < 30;
   const [humilityOpen, setHumilityOpen] = useState(true);
+
+  const labels = patternLabelsForSessionIntent(sessionIntentType);
 
   const findings = thin ? report.findings.slice(0, 1) : report.findings;
   const evidence = thin ? report.evidence_videos.slice(0, 3) : report.evidence_videos;
@@ -51,8 +61,12 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
           all at once. ``gv-fade-up`` is defined in ``src/app.css`` and
           respects ``prefers-reduced-motion``. */}
       <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
-        <p className="gv-mono mb-2 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Tóm tắt</p>
-        <h3 className="gv-serif mb-1 text-[22px] leading-snug text-[color:var(--gv-ink)]">Điều bạn nên biết</h3>
+        <p className="gv-mono mb-2 text-[10px] tracking-wide text-[color:var(--gv-danger)]">
+          {labels.tldrKicker}
+        </p>
+        <h3 className="gv-serif mb-1 text-[22px] leading-snug text-[color:var(--gv-ink)]">
+          {labels.tldrTitle}
+        </h3>
         <p className="gv-serif text-[22px] leading-snug text-[color:var(--gv-ink)]">{report.tldr.thesis}</p>
         {report.tldr.callouts && report.tldr.callouts.length > 0 ? (
           <div className="mt-6 grid grid-cols-1 gap-4 border-y border-[color:var(--gv-ink)] py-6 sm:grid-cols-3">
@@ -69,10 +83,10 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
 
       {findings.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "120ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Bằng chứng · 3 hook</p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
-            Pattern đang thắng, xếp theo retention
-          </h3>
+          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">
+            {labels.findingsKicker}
+          </p>
+          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">{labels.findingsTitle}</h3>
           <div className="flex flex-col gap-4">
             {findings.map((row) => (
               <HookFindingCard key={`${row.rank}-${row.pattern}`} row={row} />
@@ -83,8 +97,10 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
 
       {!thin ? (
         <section className="gv-fade-up" style={{ animationDelay: "180ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">Đã thử nhưng rơi</p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">Pattern không còn hiệu quả</h3>
+          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-danger)]">
+            {labels.stalledKicker}
+          </p>
+          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">{labels.stalledTitle}</h3>
           {report.what_stalled.length === 0 ? (
             <WhatStalledRow empty reason={report.confidence.what_stalled_reason} />
           ) : (
@@ -99,9 +115,11 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
 
       {evidence.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "240ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Video mẫu</p>
+          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+            {labels.evidenceKicker}
+          </p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
-            {evidence.length} video dùng pattern này đang lên
+            {labels.evidenceTitleForCount(evidence.length)}
           </h3>
           <EvidenceGrid items={evidence} />
         </section>
@@ -109,9 +127,11 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
 
       {report.patterns.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "300ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Patterns</p>
+          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+            {labels.patternsKicker}
+          </p>
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">
-            Điểm chung của {n} video thắng
+            {labels.patternsTitleForSample(n)}
           </h3>
           <PatternCellGrid cells={report.patterns} />
         </section>
@@ -121,8 +141,10 @@ export function PatternBody({ report }: { report: PatternReportPayload }) {
 
       {report.actions.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "360ms" }}>
-          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">Bước tiếp theo</p>
-          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">Biến insight thành video</h3>
+          <p className="gv-mono mb-1 text-[10px] tracking-wide text-[color:var(--gv-ink-4)]">
+            {labels.actionsKicker}
+          </p>
+          <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">{labels.actionsTitle}</h3>
           <PatternActionCards actions={report.actions} />
         </section>
       ) : null}

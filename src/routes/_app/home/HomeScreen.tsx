@@ -111,21 +111,19 @@ export default function HomeScreen() {
   const displayName = profile?.display_name?.trim() || "Bạn";
   const firstName = displayName.split(/\s+/).pop() ?? displayName;
 
-  // Mirrors the design pack's SUGGESTED_PROMPTS in data.js — 7 chips
-  // that fold the old QuickActions intents (video flop / channel /
-  // trends / script / consult) into composer-fill prompts. Click loads
-  // the chip text into the textarea so the creator can edit before
-  // sending. The bracket placeholders ([dán link], [chủ đề của bạn])
-  // signal "drop your specific input here" without forcing it.
+  // Bắt đầu nhanh — mỗi thẻ gắn với một intent trong ``detectIntent`` /
+  // ``planAnswerEntry`` (Studio → /app/answer hoặc redirect kênh), tránh
+  // placeholder URL/@ vì không classify được. Giữ ngách trong câu hỏi bằng
+  // ``nicheLabel``.
   const suggestedPrompts = useMemo(
     () => [
-      "Tại sao video TikTok này của tôi flop: [dán link]",
-      `Soi kênh @[handle] — họ đang dùng công thức nội dung gì?`,
-      `Xu hướng nào đang hot trong ${nicheLabel} tuần này?`,
-      `Hook nào đang hiệu quả nhất trong ${nicheLabel}?`,
-      "Lên kịch bản quay cho chủ đề: [chủ đề của bạn]",
-      `Format nào đang tăng view nhanh nhất ngách ${nicheLabel}?`,
-      "Tư vấn hướng nội dung phù hợp ngách của tôi",
+      `Xu hướng và chủ đề nào đang nổi trong ngách ${nicheLabel} tuần này?`,
+      `Hướng nội dung và format nào đang chạy tốt nhất trong ngách ${nicheLabel}?`,
+      `Trong ngách ${nicheLabel}, ngách con nào đáng khai thác hoặc mở rộng thêm?`,
+      `Nên đăng TikTok khung giờ nào trong tuần để tối ưu reach?`,
+      `Viết brief sản xuất nội dung tuần này cho ngách ${nicheLabel}.`,
+      `Video của mình flop — phân tích nguyên nhân và nên chỉnh gì?`,
+      `Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.`,
     ],
     [nicheLabel],
   );
@@ -249,12 +247,10 @@ export default function HomeScreen() {
           </div>
 
           {/* PR-cleanup-A — "BẮT ĐẦU NHANH" prompt-shortcut chips only.
-           * Design pack QuickStartChips (home.jsx:404-426) renders the 5
-           * SUGGESTED_PROMPTS as composer-fill chips with no navigation
-           * grid; the earlier QuickActions component (Soi video / Soi
-           * kênh / Trends / Script / Tư vấn buttons) was deleted because
-           * the design pivoted to a single chip row. */}
-          <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 w-full max-w-[880px]">
+           * Design pack QuickStartChips (home.jsx:404-426) — composer-fill
+           * chips with no navigation grid; the earlier QuickActions component
+           * was deleted because the design pivoted to a single chip row. */}
+          <div className="gv-fade-up gv-fade-up-delay-2 mt-7 mb-14 w-full">
             <div className="mb-3 flex items-center gap-2">
               <span
                 className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-ink-4)]"

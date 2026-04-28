@@ -25,18 +25,29 @@ import { LeadParagraph } from "./LeadParagraph";
 import { NicheInsightCard } from "./NicheInsightCard";
 import { StopDoingList } from "./StopDoingList";
 import { StyleCardGrid } from "./StyleCardGrid";
+import { ideasLeadAndSectionTitles } from "../sessionIntentLabels";
 
-function titleForVariant(variant: IdeasReportPayload["variant"]): string {
-  return variant === "hook_variants" ? "5 biến thể hook" : "Lịch quay tuần này";
-}
-
-function sectionKickerForVariant(variant: IdeasReportPayload["variant"]): string {
-  return variant === "hook_variants" ? "Biến thể hook" : "5 video tiếp theo";
-}
-
-export function IdeasBody({ report }: { report: IdeasReportPayload }) {
+export function IdeasBody({
+  report,
+  sessionIntentType,
+}: {
+  report: IdeasReportPayload;
+  sessionIntentType?: string;
+}) {
   const thin = report.confidence.sample_size < 60;
   const [humilityOpen, setHumilityOpen] = useState(true);
+
+  const { leadTitle, sectionKicker, ideasHeading } = ideasLeadAndSectionTitles({
+    variant: report.variant,
+    sessionIntentType,
+  });
+
+  const ideasActionsTitle =
+    report.variant === "hook_variants"
+      ? "Biến ý tưởng thành video"
+      : sessionIntentType === "brief_generation"
+        ? "Từ brief ra video"
+        : "Biến ý tưởng thành video";
 
   return (
     <div className="space-y-8 text-sm text-[color:var(--gv-ink-2)]">
@@ -49,18 +60,15 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
 
       {thin && humilityOpen ? <HumilityBanner /> : null}
 
-      <LeadParagraph
-        title={report.variant === "hook_variants" ? "Hook cho ngách" : "Tóm tắt"}
-        body={report.lead}
-      />
+      <LeadParagraph title={leadTitle} body={report.lead} />
 
       {report.ideas.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "0ms" }}>
           <p className="gv-kicker gv-kicker--dot mb-2 text-[color:var(--gv-accent-deep)]">
-            {sectionKickerForVariant(report.variant)}
+            {sectionKicker}
           </p>
           <h3 className="gv-tight mb-4 text-[24px] text-[color:var(--gv-ink)] min-[700px]:text-[28px]">
-            {titleForVariant(report.variant)}
+            {ideasHeading}
           </h3>
           <div className="flex flex-col gap-4">
             {report.ideas.map((block) => (
@@ -102,7 +110,7 @@ export function IdeasBody({ report }: { report: IdeasReportPayload }) {
             Bước tiếp theo
           </p>
           <h3 className="gv-serif mb-3 text-[18px] text-[color:var(--gv-ink)]">
-            Biến ý tưởng thành video
+            {ideasActionsTitle}
           </h3>
           <IdeasActionCards actions={report.actions} />
         </section>

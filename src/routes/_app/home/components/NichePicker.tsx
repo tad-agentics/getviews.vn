@@ -109,8 +109,8 @@ export const NichePicker = memo(function NichePicker({
         </span>
         <span>{current.name}</span>
         {current.hot > 0 ? (
-          <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-accent-deep)]">
-            ↓ {current.hot} hot
+          <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-pos-deep)]">
+            ↑{current.hot} hot
           </span>
         ) : null}
       </button>

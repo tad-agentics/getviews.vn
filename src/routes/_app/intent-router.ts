@@ -285,7 +285,14 @@ export function detectIntent(
     return { intentType: "brief_generation", isFree: false, confidence: "medium" };
   }
 
-  // ── 6. CONTENT_DIRECTIONS + TREND disambiguation ──────────────────────────
+  // ── 6. KIỂU QUAY / FORMAT (before broad isTrend — "đang lên" alone trends) ─
+  // Studio Home chip: "Kiểu quay (POV…) nào đang lên view…" must hit
+  // content_directions (30d ER + direction synthesis), not trend_spike.
+  if (/kiểu quay|dòng format|format quay/i.test(ql)) {
+    return { intentType: "content_directions", isFree: false, confidence: "medium" };
+  }
+
+  // ── 7. CONTENT_DIRECTIONS + TREND disambiguation ──────────────────────────
   const isTrend = /đang viral|video viral|viral rồi|xu hướng|đang lên|bùng nổ|đang nổ|gì đang chạy|trend|tuần này|7 ngày|gần đây|đang trending|mới nổi/i.test(ql)
     || /\b(trending|viral)\b/i.test(ql);
 
@@ -294,7 +301,7 @@ export function detectIntent(
   if (isTrend) return { intentType: "trend_spike", isFree: true, confidence: "medium" };
   if (isContent) return { intentType: "content_directions", isFree: false, confidence: "medium" };
 
-  // ── 7. DEFAULT (must match `INTENT_DESTINATIONS.follow_up_unclassifiable`) ─
+  // ── 8. DEFAULT (must match `INTENT_DESTINATIONS.follow_up_unclassifiable`) ─
   return {
     intentType: "follow_up_unclassifiable",
     isFree: true,
