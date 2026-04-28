@@ -16,7 +16,7 @@ Three-pass computation:
     For each (creator_handle, niche_id), compare recent-30d mean views vs
     prior-30d mean views (both windowed on video_corpus.created_at — the
     TikTok post timestamp, not indexed_at). Needs ≥ 2 videos in each
-    window; else leave the column NULL so kol_browse falls back to the
+    window; else leave the column NULL so callers fall back to the
     avg-views proxy.
 
 Designed to run weekly (Sunday night) after nightly corpus ingest completes.
