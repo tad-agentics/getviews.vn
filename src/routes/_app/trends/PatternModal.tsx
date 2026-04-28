@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Btn } from "@/components/v2/Btn";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
 import { lifecycleHint } from "./patternLifecycle";
@@ -150,16 +151,10 @@ function PatternModalBody({
                       }
                       style={{ aspectRatio: "9 / 16" }}
                     >
-                      {v.thumbnail_url ? (
-                        <img
-                          src={v.thumbnail_url}
-                          alt=""
-                          loading="lazy"
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-[color:var(--gv-canvas-2)]" />
-                      )}
+                      <VideoThumbnail
+                        thumbnailUrl={v.thumbnail_url}
+                        className="absolute inset-0 h-full w-full"
+                      />
                       <span
                         className="absolute inset-0"
                         style={{
@@ -211,13 +206,11 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
       className="relative overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]"
       style={{ aspectRatio: "9 / 16", boxShadow: "0 6px 22px rgba(0,0,0,0.18)" }}
     >
-      {video.thumbnail_url ? (
-        <img
-          src={video.thumbnail_url}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : null}
+      <VideoThumbnail
+        thumbnailUrl={video.thumbnail_url}
+        className="absolute inset-0 h-full w-full"
+        placeholderClassName=""
+      />
       <span
         className="absolute inset-0"
         style={{

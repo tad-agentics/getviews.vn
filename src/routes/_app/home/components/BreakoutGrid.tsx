@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Link } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { useTopBreakouts, type BreakoutVideo } from "@/hooks/useTopBreakouts";
 
 /**
@@ -124,14 +125,11 @@ export const BreakoutGrid = memo(function BreakoutGrid({
               <div
                 className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
               >
-                {v.thumbnail_url ? (
-                  <img
-                    src={v.thumbnail_url}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
-                ) : null}
+                <VideoThumbnail
+                  thumbnailUrl={v.thumbnail_url}
+                  className="h-full w-full transition-transform duration-300 group-hover:scale-[1.02]"
+                  placeholderClassName=""
+                />
                 {v.thumbnail_url ? (
                   <div
                     className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/20 to-transparent"

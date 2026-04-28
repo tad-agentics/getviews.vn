@@ -1,5 +1,6 @@
 import { memo } from "react";
 
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
 import { lifecycleHint } from "./patternLifecycle";
@@ -133,14 +134,11 @@ function CollageTile({
       : null;
   return (
     <div className={`${fallback} relative overflow-hidden`}>
-      {cell.thumbnail_url ? (
-        <img
-          src={cell.thumbnail_url}
-          alt=""
-          loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : null}
+      <VideoThumbnail
+        thumbnailUrl={cell.thumbnail_url}
+        className="absolute inset-0 h-full w-full"
+        placeholderClassName=""
+      />
       {/* Bottom shadow gradient for handle legibility */}
       <div
         className="absolute inset-0"

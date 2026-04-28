@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
 import { CheckCircle2, AlertTriangle, Mail, Phone, ExternalLink } from "lucide-react";
 
+import { VideoThumbnail } from "@/components/VideoThumbnail";
+
 export type CreatorTier = "nano" | "micro" | "macro" | "mega";
 
 export type CreatorCardData = {
@@ -228,15 +230,12 @@ export function CreatorCard({
       {/* Best video */}
       {data.best_video && data.best_video.video_id ? (
         <div className="mt-3 flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-alt)] p-2.5">
-          {data.best_video.thumbnail_url ? (
-            <img
-              src={data.best_video.thumbnail_url}
-              alt="best video"
-              className="h-16 w-12 flex-shrink-0 rounded object-cover"
-            />
-          ) : (
-            <div className="h-16 w-12 flex-shrink-0 rounded bg-[var(--border)]" />
-          )}
+          <VideoThumbnail
+            thumbnailUrl={data.best_video.thumbnail_url}
+            className="h-16 w-12 flex-shrink-0 rounded"
+            placeholderClassName="bg-[var(--border)] rounded"
+            alt="best video"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-[var(--ink)]">
               Video hay nhất · {formatVND(data.best_video.views)} views
