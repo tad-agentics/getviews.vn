@@ -10,6 +10,7 @@ import {
   MAX_CREATOR_NICHES,
   MIN_CREATOR_NICHES,
   normalizeNicheIds,
+  profileFirstNicheId,
   profileHasMinimumNiches,
 } from "@/lib/profileNiches";
 
@@ -36,9 +37,7 @@ export default function OnboardingScreen() {
   const [pendingNiches, setPendingNiches] = useState<number[]>([]);
   const didInitFromProfile = useRef(false);
 
-  const primaryForOrdering =
-    pendingNiches[0] ??
-    (typeof profile?.primary_niche === "number" ? profile.primary_niche : null);
+  const primaryForOrdering = pendingNiches[0] ?? profileFirstNicheId(profile);
   const { data: topNiches } = useTopNiches(primaryForOrdering, "all");
 
   const niches = useMemo(() => {
@@ -77,7 +76,7 @@ export default function OnboardingScreen() {
   const finish = async () => {
     if (!canAdvance) return;
     const ids = normalizeNicheIds(pendingNiches);
-    await save.mutateAsync({ niche_ids: ids, primary_niche: ids[0] });
+    await save.mutateAsync({ niche_ids: ids });
     navigate("/app", { replace: true });
   };
 

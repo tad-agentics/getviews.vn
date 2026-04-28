@@ -2,7 +2,7 @@
  * D4c (2026-06-04) — VN niche_id → Douyin niche slug mapping.
  *
  * Drives the auto-niche banner above the toolbar: when the user has a
- * ``profiles.primary_niche`` set AND the matching Douyin slug has at
+ * a mapped VN niche (first ``niche_ids`` or legacy id) set AND the Douyin slug has at
  * least one video in the corpus, the banner says
  *
  *   "Đang ưu tiên ngách <slug-name> dựa trên hồ sơ của bạn — Xoá ưu
@@ -10,7 +10,7 @@
  *
  * and applies the slug as the initial chip filter. The user can clear
  * it at any time; the dismissal is session-local (the banner reappears
- * on the next mount because primary_niche is the source of truth).
+ * on the next mount because the profile niche list is the source of truth).
  *
  * Both sides are 1:1 stable:
  *   • VN niche_taxonomy IDs are pinned in

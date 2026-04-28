@@ -556,7 +556,7 @@ function NichePanel({
       if (next.length >= MIN_CREATOR_NICHES) {
         setDraft(next);
         updateMutation.mutate(
-          { niche_ids: next, primary_niche: next[0] },
+          { niche_ids: next },
           { onError: (err) => toastProfilePatchError(err) },
         );
       } else {

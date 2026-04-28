@@ -13,7 +13,7 @@ Pipeline:
   3. Ask Gemini for 3 distinct RitualScript objects, each using a different
      hook type from the canonical 15-name taxonomy. Schema-enforced via
      pydantic + response_json_schema.
-  4. Upsert into daily_ritual keyed by (user_id, today_utc).
+  4. Upsert into daily_ritual keyed by (user_id, today_utc, niche_id).
 
 Intentionally sync + single-user per call — the batch job iterates in the
 orchestrator. Makes it trivial to retry/debug one user without touching the
@@ -373,7 +373,8 @@ def upsert_ritual(client: Any, result: RitualResult) -> bool:
     }
     try:
         client.table("daily_ritual").upsert(
-            row, on_conflict="user_id,generated_for_date",
+            row,
+            on_conflict="user_id,generated_for_date,niche_id",
         ).execute()
         return True
     except Exception as exc:
@@ -405,11 +406,10 @@ def run_morning_ritual_batch(
     """
     summary = RitualBatchSummary()
 
-    # profiles stores the user's niche as `primary_niche` (INTEGER FK → niche_taxonomy)
-    query = (
-        client.table("profiles")
-        .select("id, primary_niche, reference_channel_handles")
-        .not_.is_("primary_niche", None)
+    # Up to 3 niches per profile in ``niche_ids``; legacy rows may only have
+    # ``primary_niche`` until the user re-saves settings.
+    query = client.table("profiles").select(
+        "id, primary_niche, niche_ids, reference_channel_handles",
     )
     if user_ids:
         query = query.in_("id", user_ids)
@@ -425,30 +425,42 @@ def run_morning_ritual_batch(
     }
 
     for prof in profiles:
-        nid = prof.get("primary_niche")
-        if nid is None:
+        raw = prof.get("niche_ids")
+        nids: list[int] = []
+        if isinstance(raw, list) and len(raw) > 0:
+            for x in raw[:3]:
+                try:
+                    nids.append(int(x))
+                except (TypeError, ValueError):
+                    continue
+        if not nids:
+            pn = prof.get("primary_niche")
+            if pn is not None:
+                nids = [int(pn)]
+        if not nids:
             summary.users_no_niche += 1
             continue
-        result = generate_ritual_for_user(
-            client,
-            user_id=prof["id"],
-            niche_id=int(nid),
-            niche_name=niche_name_map.get(int(nid), str(nid)),
-            reference_handles=list(prof.get("reference_channel_handles") or []),
-        )
-        if result.error is None and result.scripts:
-            if upsert_ritual(client, result):
-                summary.generated += 1
-            else:
-                summary.failed_upsert += 1
-        elif result.error and result.error.startswith("thin_corpus"):
-            summary.skipped_thin += 1
-        elif result.error and result.error.startswith("schema_error"):
-            summary.failed_schema += 1
-        elif result.error and result.error.startswith("gemini_error"):
-            summary.failed_gemini += 1
-        elif result.error and result.error.startswith("duplicate_hook_types"):
-            summary.failed_duplicate_hooks += 1
+        for nid in nids:
+            result = generate_ritual_for_user(
+                client,
+                user_id=prof["id"],
+                niche_id=int(nid),
+                niche_name=niche_name_map.get(int(nid), str(nid)),
+                reference_handles=list(prof.get("reference_channel_handles") or []),
+            )
+            if result.error is None and result.scripts:
+                if upsert_ritual(client, result):
+                    summary.generated += 1
+                else:
+                    summary.failed_upsert += 1
+            elif result.error and result.error.startswith("thin_corpus"):
+                summary.skipped_thin += 1
+            elif result.error and result.error.startswith("schema_error"):
+                summary.failed_schema += 1
+            elif result.error and result.error.startswith("gemini_error"):
+                summary.failed_gemini += 1
+            elif result.error and result.error.startswith("duplicate_hook_types"):
+                summary.failed_duplicate_hooks += 1
     return summary
 
 

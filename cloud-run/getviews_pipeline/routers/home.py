@@ -24,7 +24,7 @@ async def home_pulse(
     user: dict = Depends(require_user),
     niche_id: int | None = Query(default=None, alias="niche_id"),
 ) -> JSONResponse:
-    """PulseCard payload for the caller's niche (primary by default, or a followed niche)."""
+    """PulseCard payload for the caller's niche (first in ``niche_ids`` by default, or ``?niche_id=``)."""
     from getviews_pipeline.pulse import compute_pulse
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -42,7 +42,7 @@ async def home_ticker(
     user: dict = Depends(require_user),
     niche_id: int | None = Query(default=None, alias="niche_id"),
 ) -> JSONResponse:
-    """Marquee ticker items for the caller's niche (primary by default, or a followed niche)."""
+    """Marquee ticker items for the caller's niche (default = first ``niche_ids`` slot, or ``?niche_id=``)."""
     from getviews_pipeline.supabase_client import get_service_client
     from getviews_pipeline.ticker import compute_ticker
 
@@ -76,17 +76,22 @@ async def home_starter_creators(user: dict = Depends(require_user)) -> JSONRespo
 
 
 @router.get("/home/daily-ritual")
-async def home_daily_ritual(user: dict = Depends(require_user)) -> JSONResponse:
-    """Today's 3 ready-to-shoot scripts for the calling creator.
+async def home_daily_ritual(
+    user: dict = Depends(require_user),
+    niche_id: int | None = Query(default=None, alias="niche_id"),
+) -> JSONResponse:
+    """Today's 3 ready-to-shoot scripts for one of the caller's followed niches.
 
-    Returns 404 when no row exists or when the stored row is for a different niche.
+    Pass ``niche_id`` to select which slot; omitted = first niche in ``niche_ids``.
+    Returns 404 when no row exists for that (user, date, niche) yet.
     """
-    niche_id = await _resolve_caller_niche_id(user["access_token"])
+    resolved = await resolve_home_niche_id(user["access_token"], niche_id)
     sb = user_supabase(user["access_token"])
     try:
         res = (
             sb.table("daily_ritual")
             .select("generated_for_date, niche_id, scripts, adequacy, generated_at")
+            .eq("niche_id", resolved)
             .order("generated_for_date", desc=True)
             .limit(1)
             .execute()
@@ -96,9 +101,8 @@ async def home_daily_ritual(user: dict = Depends(require_user)) -> JSONResponse:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     rows = res.data or []
     if not rows:
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"code": "ritual_no_row", "message": "Sắp có — kịch bản đang được tạo."})
-    row = rows[0]
-    row_niche = row.get("niche_id")
-    if row_niche is None or int(row_niche) != niche_id:
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"code": "ritual_niche_stale", "message": "Kịch bản sẽ được làm mới cho ngách hiện tại sau lượt cron tối."})
-    return JSONResponse(row)
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"code": "ritual_no_row", "message": "Sắp có — kịch bản đang được tạo."},
+        )
+    return JSONResponse(rows[0])

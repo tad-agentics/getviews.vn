@@ -13,7 +13,7 @@ import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { useTopPatterns } from "@/hooks/useTopPatterns";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
-import { normalizeNicheIds } from "@/lib/profileNiches";
+import { profileFirstNicheId, profileFollowedNicheIds } from "@/lib/profileNiches";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
 import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
@@ -40,20 +40,18 @@ export default function HomeScreen() {
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
 
-  // PR-5 — niche picker: viewing-niche state on Home defaults to the
-  // user's primary_niche but can be switched among the niches they
-  // follow (``profile.niche_ids``). ``selectedNicheId`` drives gợi ý,
-  // pulse, ticker, and top-patterns; HomeMyChannelSection stays pinned to
-  // primary_niche because /channel/analyze runs server-side off it.
+  // PR-5 — tối đa 3 ngách trong ``niche_ids``; default chọn = slot [0]. ``selectedNicheId``
+  // drives gợi ý, pulse, ticker, kịch bản sáng, patterns. Kênh của bạn dùng cùng
+  // default server (id đầu trong hồ sơ) cho /channel/analyze.
   const followedNicheIds = useMemo(
-    () => normalizeNicheIds(profile?.niche_ids ?? []),
-    [profile?.niche_ids],
+    () => profileFollowedNicheIds(profile),
+    [profile],
   );
   const { data: followedNiches = [] } = useNicheRowsForIds(followedNicheIds);
-  const defaultNicheId = profile?.primary_niche ?? followedNicheIds[0] ?? null;
+  const defaultNicheId = profileFirstNicheId(profile) ?? followedNicheIds[0] ?? null;
   const [selectedNicheId, setSelectedNicheId] = useState<number | null>(defaultNicheId);
 
-  // Resync when the profile's primary niche or follow list changes
+  // Resync when the profile follow list or default slot changes
   // (e.g. user just edited their niches in /app/settings).
   useEffect(() => {
     if (selectedNicheId == null) {

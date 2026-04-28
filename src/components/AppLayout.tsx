@@ -59,8 +59,7 @@ function LogoMark() {
 
 /* ── NicheOfYoursBlock ──────────────────────────────────────────────────────
  * "Ngách Của Bạn" — up to 3 rows from onboarding/settings (`niche_ids`),
- * else legacy single `primary_niche`. Read-only in the shell; change
- * niches in Cài đặt / onboarding.
+ * else legacy single id. Read-only; change order/picks in Cài đặt.
  */
 function NicheOfYoursBlock() {
   const { data: profile } = useProfile();
@@ -91,7 +90,7 @@ function NicheOfYoursBlock() {
               </li>
             ))
           : niches.map((n) => {
-              const isFocus = profile?.primary_niche === n.id;
+              const isFocus = sidebarIds[0] === n.id;
               return (
                 <li key={n.id} aria-current={isFocus ? "true" : undefined}>
                   <div className="flex w-full items-center justify-between gap-2 px-2.5 py-[6px] text-left text-[12px] text-[color:var(--gv-ink-2)]">

@@ -33,6 +33,7 @@ import { logUsage } from "@/lib/logUsage";
 import { apiShotsToEditorShots, mergeSceneIntelIntoShots, type ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import type { ScriptTone } from "@/lib/api-types";
 import { supabase } from "@/lib/supabase";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 
 const TONES: ScriptTone[] = ["Hài", "Chuyên gia", "Tâm sự", "Năng lượng", "Mỉa mai"];
 
@@ -169,7 +170,7 @@ function ScriptDetailScreen() {
   const { data: pulse } = useHomePulse(cloudConfigured);
 
   const paramNiche = parseNicheId(searchParams.get("niche_id"));
-  const effectiveNicheId = paramNiche ?? profile?.primary_niche ?? null;
+  const effectiveNicheId = paramNiche ?? profileFirstNicheId(profile) ?? null;
 
   const { data: niches } = useNicheTaxonomy();
   const {

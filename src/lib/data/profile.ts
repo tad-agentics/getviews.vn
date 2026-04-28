@@ -1,11 +1,11 @@
 import { supabase } from "@/lib/supabase";
 
 export interface ProfilePatch {
+  /** Derived in DB from ``niche_ids[1]`` — avoid setting from the client. */
   primary_niche?: number | null;
-  /** Ordered niche picks; first entry is the focus niche (kept in sync with primary_niche). */
+  /** Up to 3 ordered niche picks — sole product-facing list. */
   niche_ids?: number[] | null;
   // profiles.niche_id was dropped in migration 0017 — do NOT add it back.
-  // The supported niche column is primary_niche.
   tiktok_handle?: string | null;
   display_name?: string;
   /** 0–3 TikTok handles the creator tracks as "kênh tham chiếu". */

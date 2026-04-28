@@ -166,7 +166,7 @@ async def channel_refresh_mine_endpoint(
     channel. Closes the ~24h staleness gap between TikTok-live and the
     nightly ``cron-batch-ingest``.
 
-    Reads ``profiles.tiktok_handle`` + ``profiles.primary_niche`` for the
+    Reads ``profiles.tiktok_handle`` + first entry in ``profiles.niche_ids`` (or legacy ``primary_niche``) for the
     caller — a creator can only refresh their OWN channel via this route.
     Server-side 18h staleness gate prevents tab-spam from burning ED units.
 
@@ -181,14 +181,21 @@ async def channel_refresh_mine_endpoint(
     sb_user = user_supabase(user["access_token"])
 
     try:
-        pres = sb_user.table("profiles").select("tiktok_handle, primary_niche").single().execute()
+        pres = sb_user.table("profiles").select("tiktok_handle, primary_niche, niche_ids").single().execute()
     except Exception as exc:
         logger.warning("[channel/refresh-mine] profile read failed: %s", exc)
         raise HTTPException(status_code=500, detail="profile_read_failed") from exc
 
     profile = pres.data or {}
     handle = (profile.get("tiktok_handle") or "").strip().lstrip("@")
-    niche_id_raw = profile.get("primary_niche")
+    raw_ids = profile.get("niche_ids")
+    if isinstance(raw_ids, list) and len(raw_ids) > 0:
+        try:
+            niche_id_raw = int(raw_ids[0])
+        except (TypeError, ValueError):
+            niche_id_raw = profile.get("primary_niche")
+    else:
+        niche_id_raw = profile.get("primary_niche")
 
     if not handle:
         return JSONResponse({"status": "error", "reason": "no_handle_on_profile"}, status_code=400)

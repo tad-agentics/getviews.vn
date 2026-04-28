@@ -189,20 +189,37 @@ async def require_batch_caller(request: Request) -> dict[str, Any] | None:
 
 # ── Shared route helper ────────────────────────────────────────────────────────
 
-async def _resolve_caller_niche_id(access_token: str) -> int:
-    """Fetch profiles.primary_niche for the calling user. 404 if unset.
+def _default_niche_id_from_profile_row(row: dict) -> int | None:
+    """First id in ``niche_ids`` (up to 3), else legacy ``primary_niche``."""
+    raw_ids = row.get("niche_ids")
+    if isinstance(raw_ids, list) and len(raw_ids) > 0:
+        try:
+            return int(raw_ids[0])
+        except (TypeError, ValueError):
+            pass
+    p = row.get("primary_niche")
+    if p is not None:
+        try:
+            return int(p)
+        except (TypeError, ValueError):
+            return None
+    return None
 
-    Used by home/, script/, and video/kol/ routes that need the caller's
-    configured niche without the caller passing niche_id explicitly.
+
+async def _resolve_caller_niche_id(access_token: str) -> int:
+    """Default niche for the caller: ``niche_ids[0]`` or legacy ``primary_niche``.
+
+    Used by routes that need one niche when the client omits ``niche_id``.
     """
     from getviews_pipeline.supabase_client import user_supabase
 
     sb = user_supabase(access_token)
     try:
-        res = sb.table("profiles").select("primary_niche").single().execute()
+        res = sb.table("profiles").select("primary_niche, niche_ids").single().execute()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"profile lookup: {exc}") from exc
-    nid = (res.data or {}).get("primary_niche")
+    row = res.data or {}
+    nid = _default_niche_id_from_profile_row(row)
     if nid is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -212,13 +229,12 @@ async def _resolve_caller_niche_id(access_token: str) -> int:
 
 
 async def resolve_home_niche_id(access_token: str, requested: int | None) -> int:
-    """Niche for /home/ticker and /home/pulse when the client passes an optional ``niche_id``.
+    """Niche for /home/* when the client passes an optional ``niche_id``.
 
-    - If ``requested`` is ``None``: use ``profiles.primary_niche`` (same as
-      :func:`_resolve_caller_niche_id`).
-    - If ``requested`` is set: it must be in the caller's allowed set —
-      every id in ``profiles.niche_ids`` plus ``primary_niche`` (legacy rows
-      with only primary still allow that id).
+    - If ``requested`` is ``None``: use ``niche_ids[0]`` (or legacy
+      ``primary_niche``) — same default as :func:`_resolve_caller_niche_id`.
+    - If set: must be one of the caller's up-to-three ``niche_ids`` (or legacy
+      primary-only row).
 
     Raises ``HTTPException`` 400 when ``requested`` is not allowed, 404 when
     the profile has no niche configured.
@@ -249,7 +265,10 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
             except (TypeError, ValueError):
                 continue
     if primary is not None:
-        allowed.add(int(primary))
+        try:
+            allowed.add(int(primary))
+        except (TypeError, ValueError):
+            pass
 
     if not allowed:
         raise HTTPException(
@@ -257,13 +276,13 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
             detail="Chưa chọn ngách — chạy onboarding trước.",
         )
     if requested is None:
-        if primary is None:
-            # Should not happen if allowed non-empty, but keep explicit.
+        dft = _default_niche_id_from_profile_row(row)
+        if dft is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Chưa chọn ngách — chạy onboarding trước.",
             )
-        return int(primary)
+        return int(dft)
 
     try:
         rid = int(requested)

@@ -35,7 +35,7 @@ async def _run_script_save(user: dict[str, Any], body: DraftCreateBody) -> JSONR
 @router.get("/script/scene-intelligence")
 async def script_scene_intelligence_endpoint(
     user: dict = Depends(require_user),
-    niche_id: int | None = Query(default=None, ge=1, description="Ngách; mặc định lấy ``profiles.primary_niche`` của user."),
+    niche_id: int | None = Query(default=None, ge=1, description="Ngách; mặc định = phần tử đầu ``profiles.niche_ids``."),
 ) -> JSONResponse:
     """B.4.2 — Rows from ``scene_intelligence`` (nightly aggregate) for script studio."""
     from getviews_pipeline.script_data import fetch_scene_intelligence_for_niche
@@ -56,7 +56,7 @@ async def script_scene_intelligence_endpoint(
 @router.get("/script/idea-references")
 async def script_idea_references_endpoint(
     user: dict = Depends(require_user),
-    niche_id: int | None = Query(default=None, ge=1, description="Ngách; mặc định lấy ``profiles.primary_niche`` của user."),
+    niche_id: int | None = Query(default=None, ge=1, description="Ngách; mặc định = phần tử đầu ``profiles.niche_ids``."),
     hook_type: str | None = Query(default=None, description="Raw enum (``question``) or VN label (``Câu hỏi mở đầu``); resolver accepts both."),
     limit: int = Query(default=5, ge=1, le=10, description="Number of references to return."),
 ) -> JSONResponse:
@@ -82,7 +82,7 @@ async def script_idea_references_endpoint(
 @router.get("/script/hook-patterns")
 async def script_hook_patterns_endpoint(
     user: dict = Depends(require_user),
-    niche_id: int | None = Query(default=None, ge=1, description="Ngách; mặc định lấy ``profiles.primary_niche`` của user."),
+    niche_id: int | None = Query(default=None, ge=1, description="Ngách; mặc định = phần tử đầu ``profiles.niche_ids``."),
 ) -> JSONResponse:
     """B.4.2 — Hook leaderboard + citation for script studio (wraps ``hook_effectiveness``)."""
     from getviews_pipeline.script_data import fetch_hook_patterns_for_niche

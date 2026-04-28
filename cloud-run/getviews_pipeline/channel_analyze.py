@@ -1218,10 +1218,18 @@ def run_channel_analyze_sync(
         raise ValueError("Thiếu handle")
 
     try:
-        pres = user_sb.table("profiles").select("primary_niche").single().execute()
+        pres = user_sb.table("profiles").select("primary_niche, niche_ids").single().execute()
     except Exception as exc:
         raise ValueError(f"Hồ sơ: {exc}") from exc
-    niche_id = (pres.data or {}).get("primary_niche")
+    row = pres.data or {}
+    raw_ids = row.get("niche_ids")
+    if isinstance(raw_ids, list) and len(raw_ids) > 0:
+        try:
+            niche_id = int(raw_ids[0])
+        except (TypeError, ValueError):
+            niche_id = None
+    else:
+        niche_id = row.get("primary_niche")
     if niche_id is None:
         raise ValueError("Chưa chọn ngách")
 

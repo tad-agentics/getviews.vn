@@ -16,12 +16,12 @@ export type NicheWithHot = {
 
 /**
  * Top niches ranked by corpus sample size (`niche_intelligence.sample_size`).
- * Feeds "Ngách của bạn" in the sidebar. Callers pass the user's primary niche id
- * so it floats to the top even if another niche has a larger sample.
+ * Feeds "Ngách của bạn" in the sidebar. Callers pass a preferred id (e.g. first
+ * pick) so it floats to the top even if another niche has a larger sample.
  */
-export function useTopNiches(primaryNicheId: number | null, limit: number | "all" = 3) {
+export function useTopNiches(preferNicheId: number | null, limit: number | "all" = 3) {
   return useQuery<NicheWithHot[]>({
-    queryKey: ["home", "top_niches", primaryNicheId, limit],
+    queryKey: ["home", "top_niches", preferNicheId, limit],
     queryFn: async () => {
       // niche_intelligence MV: `sample_size` is the stable count column (rebuilt MVs
       // dropped legacy `video_count_7d` — selecting a missing column yields HTTP 400).
@@ -43,8 +43,8 @@ export function useTopNiches(primaryNicheId: number | null, limit: number | "all
           hot: hotByNiche.get(n.id) ?? 0,
         }));
       rows.sort((a, b) => {
-        if (a.id === primaryNicheId) return -1;
-        if (b.id === primaryNicheId) return 1;
+        if (a.id === preferNicheId) return -1;
+        if (b.id === preferNicheId) return 1;
         return b.hot - a.hot;
       });
       return limit === "all" ? rows : rows.slice(0, limit);

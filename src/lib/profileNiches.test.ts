@@ -4,6 +4,8 @@ import {
   MIN_CREATOR_NICHES,
   normalizeNicheIds,
   normalizeNicheIdsForProfile,
+  profileFirstNicheId,
+  profileFollowedNicheIds,
   profileHasMinimumNiches,
   resolveNicheNameVn,
 } from "./profileNiches";
@@ -46,6 +48,17 @@ describe("profileNiches", () => {
     expect(normalizeNicheIdsForProfile([11, 23])).toEqual([11]);
     expect(normalizeNicheIdsForProfile([15, 24, 2])).toEqual([15, 2]);
     expect(normalizeNicheIdsForProfile([4, 18, 2])).toEqual([4, 2]);
+  });
+
+  it("profileFirstNicheId prefers niche_ids[0] over legacy primary", () => {
+    expect(profileFirstNicheId({ niche_ids: [7, 4, 2], primary_niche: 1 })).toBe(7);
+    expect(profileFirstNicheId({ niche_ids: null, primary_niche: 4 })).toBe(4);
+    expect(profileFirstNicheId({ niche_ids: [], primary_niche: 4 })).toBe(4);
+  });
+
+  it("profileFollowedNicheIds returns up to 3 ordered ids or legacy single", () => {
+    expect(profileFollowedNicheIds({ niche_ids: [1, 2, 3, 9] })).toEqual([1, 2, 3]);
+    expect(profileFollowedNicheIds({ niche_ids: null, primary_niche: 5 })).toEqual([5]);
   });
 
   it("constants are sane", () => {

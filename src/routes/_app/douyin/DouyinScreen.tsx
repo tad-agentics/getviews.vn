@@ -27,11 +27,12 @@ import {
 } from "./douyinFilters";
 import { useDouyinSavedSet } from "./useDouyinSavedSet";
 import { vnNicheToDouyinSlug } from "./vnNicheToDouyinSlug";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 
 /**
  * D4b (2026-06-04) — Kho Douyin · main screen.
  * D4c (2026-06-04) — toolbar (search / adapt / sort / saved-only),
- *                    auto-niche banner from ``profiles.primary_niche``,
+ *                    auto-niche banner from first ``niche_ids`` slot,
  *                    "Xoá bộ lọc" reset.
  *
  * Out of scope for D4c:
@@ -50,6 +51,7 @@ export default function DouyinScreen() {
     refetch: refetchPatterns,
   } = useDouyinPatterns();
   const { data: profile } = useProfile();
+  const defaultVnNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
   const { data: pulse } = useHomePulse();
   const { has: isSaved, toggle: toggleSaved, set: savedIds, size: savedCount } =
     useDouyinSavedSet();
@@ -74,18 +76,18 @@ export default function DouyinScreen() {
     return (slug: string): number | null => map.get(slug) ?? null;
   }, [niches]);
 
-  // Auto-niche heuristic: profile.primary_niche → Douyin slug, only if
+  // Auto-niche heuristic: first followed VN niche → Douyin slug, only if
   // that slug actually has videos in the corpus AND the user hasn't
   // touched the chip strip yet. We seed once on first feed-load.
   const autoSlug = useMemo(() => {
-    const candidate = vnNicheToDouyinSlug(profile?.primary_niche ?? null);
+    const candidate = vnNicheToDouyinSlug(defaultVnNicheId);
     if (!candidate) return null;
     if (!niches.some((n) => n.slug === candidate)) return null;
     const niche = niches.find((n) => n.slug === candidate);
     if (!niche) return null;
     const hasVideos = allVideos.some((v) => v.niche_id === niche.id);
     return hasVideos ? candidate : null;
-  }, [profile?.primary_niche, niches, allVideos]);
+  }, [defaultVnNicheId, niches, allVideos]);
 
   // Seed the niche filter from the auto-slug exactly once after the
   // feed loads, while the user hasn't interacted yet (filters are

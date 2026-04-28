@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -543,6 +544,7 @@ export default function ExploreScreen() {
   const selectedNicheId: number | null = nicheParam;
 
   const { data: profile } = useProfile();
+  const defaultTrendsNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
   const { data: niches } = useNicheTaxonomy();
 
   const {
@@ -557,9 +559,9 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (nicheExplicitClear) return;
     if (selectedNicheId !== null) return;
-    const id = profile?.primary_niche;
+    const id = defaultTrendsNicheId;
     if (id != null) setFilter({ niche: String(id) });
-  }, [profile?.primary_niche, selectedNicheId, nicheExplicitClear, setFilter]);
+  }, [defaultTrendsNicheId, selectedNicheId, nicheExplicitClear, setFilter]);
 
   // T5 (D7) — seed the 100K+ view filter on first mount when the URL
   // doesn't already carry a ``?min_views=`` param. Design pack

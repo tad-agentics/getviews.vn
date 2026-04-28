@@ -3,18 +3,19 @@ import type { DailyRitual, RitualEmptyReason, RitualErrorBody, RitualResult } fr
 export type FetchDailyRitualParams = {
   baseUrl: string;
   accessToken: string;
-  /** Must match the niche the UI is showing (profiles.primary_niche). */
+  /** Niche row to load (must be one of the user’s ``niche_ids``). */
   expectedNicheId: number;
 };
 
 /**
- * GET /home/daily-ritual — parses 200/404 and enforces niche_id match on success.
+ * GET /home/daily-ritual?niche_id= — parses 200/404 and enforces niche_id match on success.
  * Uses global `fetch` (browser or React Native).
  */
 export async function fetchDailyRitual(params: FetchDailyRitualParams): Promise<RitualResult> {
   const { baseUrl, accessToken, expectedNicheId } = params;
   const root = baseUrl.replace(/\/$/, "");
-  const res = await fetch(`${root}/home/daily-ritual`, {
+  const q = `?niche_id=${encodeURIComponent(String(expectedNicheId))}`;
+  const res = await fetch(`${root}/home/daily-ritual${q}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 

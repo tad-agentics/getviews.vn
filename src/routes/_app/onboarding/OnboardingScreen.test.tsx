@@ -131,7 +131,6 @@ describe("OnboardingScreen — single-step", () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     expect(mutateAsync).toHaveBeenCalledWith({
       niche_ids: [1, 2, 3],
-      primary_niche: 1,
     });
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true }),

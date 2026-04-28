@@ -11,6 +11,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 import { env } from "@/lib/env";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 import type { ScriptDraftRow } from "@/lib/api-types";
 
 /**
@@ -40,11 +41,11 @@ const DURATION_OPTIONS_SEC = [18, 24, 32, 45, 60, 90] as const;
 export function IdeaWorkspace() {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
-  const primaryNicheId = profile?.primary_niche ?? null;
+  const defaultNicheId = profileFirstNicheId(profile);
 
-  const ritual = useDailyRitual(true, primaryNicheId);
+  const ritual = useDailyRitual(true, defaultNicheId);
   const ideas: RitualScript[] = ritual.data?.scripts ?? [];
-  const ritualNicheId = ritual.data?.niche_id ?? primaryNicheId ?? null;
+  const ritualNicheId = ritual.data?.niche_id ?? defaultNicheId ?? null;
 
   const drafts = useScriptDrafts(true);
   const draftsList: ScriptDraftRow[] = drafts.data?.drafts ?? [];
@@ -128,7 +129,7 @@ export function IdeaWorkspace() {
               const qs = new URLSearchParams();
               qs.set("topic", topic.slice(0, 500));
               qs.set("duration", String(duration));
-              if (primaryNicheId != null) qs.set("niche_id", String(primaryNicheId));
+              if (defaultNicheId != null) qs.set("niche_id", String(defaultNicheId));
               navigate(`/app/script?${qs.toString()}`);
             }}
           />

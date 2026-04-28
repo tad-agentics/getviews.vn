@@ -25,9 +25,9 @@ import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
  * Click routes to ``/app/script`` with the idea preselected via
  * ``scriptPrefillFromRitual``.
  *
- * Today the BE generates 3 ritual scripts per niche per night; the
- * design pack mocks 5. The component renders whatever the BE returns,
- * so once the cron is extended the row count flexes up automatically.
+ * The BE stores one ritual row per (user, day, ``niche_id``) — up to three
+ * per day for the three followed niches. Tier 01 loads the row for the
+ * niche selected in the Home header.
  */
 
 export const StudioHero = memo(function StudioHero({
@@ -99,8 +99,9 @@ export const StudioHero = memo(function StudioHero({
             rank={i + 1}
             isFirst={i === 0}
             onClick={() => {
-              if (nicheId == null) return;
-              navigate(scriptPrefillFromRitual(s, nicheId));
+              const nid = ritual?.niche_id ?? nicheId;
+              if (nid == null) return;
+              navigate(scriptPrefillFromRitual(s, nid));
             }}
           />
         ))}

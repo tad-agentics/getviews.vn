@@ -12,19 +12,19 @@ type RitualQueryPayload = {
 };
 
 export const ritualKeys = {
-  /** Include ``primaryNicheId`` so changing ngách in Cài đặt invalidates cache. */
-  today: (primaryNicheId: number | null) => ["daily_ritual", "today", primaryNicheId] as const,
+  /** Niche id for the ``daily_ritual`` row (one of the user’s followed niches). */
+  today: (nicheId: number | null) => ["daily_ritual", "today", nicheId] as const,
 };
 
 /**
- * Today's 3 pre-generated scripts for the creator.
+ * Today's 3 pre-generated scripts for the creator (per niche, up to 3 followed).
  *
  * Returns paired `data` + `emptyReason` so the UI can branch copy (no row vs niche-stale).
  * When `emptyReason` is null and `data` is null, the fetch was skipped (no Cloud Run URL / no session).
  */
-export function useDailyRitual(enabled: boolean = true, primaryNicheId: number | null = null) {
+export function useDailyRitual(enabled: boolean = true, nicheId: number | null = null) {
   const query = useQuery<RitualQueryPayload>({
-    queryKey: ritualKeys.today(primaryNicheId),
+    queryKey: ritualKeys.today(nicheId),
     queryFn: async ({ queryKey }): Promise<RitualQueryPayload> => {
       const expectedNicheId = queryKey[2];
       if (typeof expectedNicheId !== "number") {
@@ -50,7 +50,7 @@ export function useDailyRitual(enabled: boolean = true, primaryNicheId: number |
       });
       return { data: result.data, emptyReason: result.emptyReason };
     },
-    enabled: enabled && primaryNicheId != null,
+    enabled: enabled && nicheId != null,
     staleTime: 10 * 60 * 1000, // 10 min; rituals regenerate nightly
     retry: false,
   });

@@ -15,9 +15,10 @@ import type { NicheWithHot } from "@/hooks/useTopNiches";
  *     fires ``onSelectNiche``; the bottom row routes to /app/settings
  *     via ``onEditNiches``.
  *
- * The picker doesn't change which kênh /channel/analyze runs against
- * (that stays pinned to the user's primary_niche server-side). It
- * re-pins the suggestions stack, ticker marquee, and pulse on Home.
+ * The picker doesn't change which TikTok handle /channel/analyze targets
+ * (one handle on profile; server uses the first id in ``niche_ids`` for
+ * ngách mặc định khi phân tích kênh). It re-pins the whole Home surface
+ * (gợi ý, ticker, pulse, kịch bản sáng) theo ngách đang xem.
  */
 
 export const NichePicker = memo(function NichePicker({

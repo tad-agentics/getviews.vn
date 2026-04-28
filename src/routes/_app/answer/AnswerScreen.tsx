@@ -46,6 +46,7 @@ import { TopBar } from "@/components/v2/TopBar";
 import { Btn } from "@/components/v2/Btn";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { surfaceStatsFromPayload } from "@/lib/reportSurfaceStats";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 
 const CLOUD = env.VITE_CLOUD_RUN_API_URL;
 
@@ -117,12 +118,14 @@ export default function AnswerScreen() {
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
 
+  const defaultProfileNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
+
   const nicheLabel = useMemo(() => {
-    const id = profile?.primary_niche;
+    const id = defaultProfileNicheId;
     if (id == null || !niches?.length) return undefined;
     const n = niches.find((row: { id: number; name: string }) => row.id === id);
     return n?.name;
-  }, [profile?.primary_niche, niches]);
+  }, [defaultProfileNicheId, niches]);
 
   // A2 — closure over the loaded taxonomy so SessionDrawer can render
   // a niche chip per row without coupling to the hook itself.
@@ -319,7 +322,7 @@ export default function AnswerScreen() {
           {
             initial_q: seedQ,
             intent_type: sessionIntent,
-            niche_id: profile?.primary_niche ?? null,
+            niche_id: defaultProfileNicheId,
             format: sessionFormat,
           },
           crypto.randomUUID(),
@@ -383,7 +386,7 @@ export default function AnswerScreen() {
         setBootstrapLoading(false);
       }
     })();
-  }, [sessionId, seedQ, CLOUD, user, profile?.primary_niche, setSearchParams, navigate, queryClient, uid, stream]);
+  }, [sessionId, seedQ, CLOUD, user, defaultProfileNicheId, setSearchParams, navigate, queryClient, uid, stream]);
 
   const submitFollowUp = useCallback(async () => {
     const q = followUp.trim();

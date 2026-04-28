@@ -41,6 +41,35 @@ export function normalizeNicheIdsForProfile(ids: readonly number[]): number[] {
   return normalizeNicheIds(ids.map(canonicalNicheTaxonomyId));
 }
 
+/** First slot in ``niche_ids`` (thứ tự người dùng chọn), hoặc legacy ``primary_niche``. */
+export function profileFirstNicheId(
+  profile: { primary_niche?: number | null; niche_ids?: number[] | null } | null | undefined,
+): number | null {
+  if (!profile) return null;
+  const ids = profile.niche_ids;
+  if (Array.isArray(ids) && ids.length > 0) {
+    const n = normalizeNicheIdsForProfile(ids);
+    return n[0] ?? null;
+  }
+  if (profile.primary_niche != null) return canonicalNicheTaxonomyId(profile.primary_niche);
+  return null;
+}
+
+/** Tối đa 3 ngách quan tâm cho picker — từ ``niche_ids`` hoặc một id legacy. */
+export function profileFollowedNicheIds(
+  profile: { primary_niche?: number | null; niche_ids?: number[] | null } | null | undefined,
+): number[] {
+  if (!profile) return [];
+  const ids = profile.niche_ids;
+  if (Array.isArray(ids) && ids.length > 0) {
+    return normalizeNicheIdsForProfile(ids).slice(0, MAX_CREATOR_NICHES);
+  }
+  if (profile.primary_niche != null) {
+    return [canonicalNicheTaxonomyId(profile.primary_niche)];
+  }
+  return [];
+}
+
 export function profileHasMinimumNiches(
   profile: { primary_niche?: number | null; niche_ids?: number[] | null } | null | undefined,
 ): boolean {
