@@ -29,10 +29,10 @@ def test_estimate_units_from_counts_defaults() -> None:
 
 
 def test_theoretical_pool_default_21_niches() -> None:
-    """Default corpus caps: 21 niches × (2 keyword pages + 6 hashtag, single carousel pass)."""
+    """Default corpus caps: 21 niches × (2 keyword pages + 15 hashtag, single carousel pass)."""
     niches = 21
     kw_pages = 2
-    ht_limit = 6
+    ht_limit = 15
     t = theoretical_ed_pool_requests(
         niches,
         keyword_pages=kw_pages,
@@ -43,15 +43,15 @@ def test_theoretical_pool_default_21_niches() -> None:
     assert t["hashtag_posts_requests"] == niches * ht_limit
     assert t["pool_http_total"] == niches * (kw_pages + ht_limit)
     # PR review aid — if BATCH_* defaults change, update this test.
-    assert t["pool_http_total"] == 168
+    assert t["pool_http_total"] == 357
 
 
 def test_theoretical_pool_legacy_carousel_doubles_hashtag() -> None:
     t = theoretical_ed_pool_requests(
         21,
         keyword_pages=2,
-        hashtag_limit=6,
+        hashtag_limit=15,
         legacy_carousel_second_hashtag_pass=True,
     )
-    assert t["hashtag_posts_requests"] == 21 * 6 * 2
-    assert t["pool_http_total"] == 21 * (2 + 12)
+    assert t["hashtag_posts_requests"] == 21 * 15 * 2
+    assert t["pool_http_total"] == 21 * (2 + 30)

@@ -140,7 +140,7 @@ BATCH_CAROUSEL_MIN_LIKES = int(os.environ.get("BATCH_CAROUSEL_MIN_LIKES", "500")
 # signal_hashtags array may grow to 25+ for better _resolve_niche_id() coverage,
 # but we cap EnsembleData calls to avoid unit limit exhaustion.
 # All hashtags are still used for in-DB matching (no API cost); only fetch is capped.
-BATCH_HASHTAG_FETCH_LIMIT = int(os.environ.get("BATCH_HASHTAG_FETCH_LIMIT", "6"))
+BATCH_HASHTAG_FETCH_LIMIT = int(os.environ.get("BATCH_HASHTAG_FETCH_LIMIT", "15"))
 # Optional per-niche override for that cap — e.g. ``3:31`` runs all Thời trang signal
 # tags without raising the global default for other niches.
 BATCH_HASHTAG_FETCH_BY_NICHE = _parse_hashtag_fetch_by_niche(
