@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import require_batch_caller
@@ -355,51 +355,140 @@ async def batch_backfill_thumbnails(
     request: Request,
     _caller: dict | None = Depends(require_batch_caller),
 ) -> JSONResponse:
-    """One-time backfill: copy TikTok CDN thumbnail URLs → permanent R2 URLs.
+    """Backfill ``video_corpus.thumbnail_url`` to a permanent R2 URL.
 
-    Protected by require_batch_caller. Safe to re-run — skips rows already on R2.
+    Per-row strategy (in order):
+      1. **R2 frame[0] copy** — server-side ``copy_object`` from
+         ``frames/{vid}/0.png`` to ``thumbnails/{vid}.png``. Zero CDN
+         egress, zero scraping credit. Self-heals every legacy row that
+         already has analysis frames in R2.
+      2. **CDN mirror fallback** — only when frame[0] is missing AND the
+         row has a non-empty ``thumbnail_url``. Costs proxy bandwidth;
+         the URL may already be expired (TikTok CDN tokens rotate every
+         few weeks), in which case the download fails and we fall through.
+      3. **NULL the column** — when both miss, set ``thumbnail_url=NULL``
+         so we stop chasing dead URLs. The FE handles NULL via
+         ``<VideoThumbnail>`` (clean placeholder, no broken-image icon).
+         Re-running the job will retry (NULL rows stay in the candidate
+         set) — useful after a re-analysis pass uploads frame[0].
+
+    Rows already pointing at the R2 public URL are skipped. Reads are
+    paginated to bypass the 1000-row Supabase default.
+
+    Protected by ``require_batch_caller``. Idempotent — safe to re-run.
     """
-    from getviews_pipeline.r2 import download_and_upload_thumbnail, r2_configured
     from getviews_pipeline.config import R2_PUBLIC_URL
+    from getviews_pipeline.r2 import (
+        copy_first_frame_to_thumbnail,
+        download_and_upload_thumbnail,
+        r2_configured,
+    )
     from getviews_pipeline.supabase_client import get_service_client
 
     if not r2_configured():
         raise HTTPException(status_code=500, detail="R2 not configured")
 
+    r2_prefix = R2_PUBLIC_URL.rstrip("/") if R2_PUBLIC_URL else None
+    if not r2_prefix:
+        raise HTTPException(status_code=500, detail="R2_PUBLIC_URL missing")
+
     sb = get_service_client()
     logger.info("POST /batch/backfill-thumbnails — starting")
 
-    r2_prefix = R2_PUBLIC_URL.rstrip("/") if R2_PUBLIC_URL else "NONE"
-    result = sb.table("video_corpus").select("video_id, thumbnail_url").execute()
-    rows = result.data or []
+    # Paginate around supabase-py's 1000-row default — corpus is ~46K rows.
+    rows: list[dict[str, Any]] = []
+    PAGE = 1000
+    page = 0
+    while True:
+        result = (
+            sb.table("video_corpus")
+            .select("video_id, thumbnail_url")
+            .range(page * PAGE, (page + 1) * PAGE - 1)
+            .execute()
+        )
+        batch = result.data or []
+        rows.extend(batch)
+        if len(batch) < PAGE:
+            break
+        page += 1
+
     to_backfill = [
         r for r in rows
-        if r.get("thumbnail_url") and not r["thumbnail_url"].startswith(r2_prefix)
+        if not (r.get("thumbnail_url") or "").startswith(r2_prefix)
     ]
-    logger.info("[backfill-thumbnails] %d/%d rows need backfill", len(to_backfill), len(rows))
+    logger.info(
+        "[backfill-thumbnails] %d/%d rows need backfill", len(to_backfill), len(rows),
+    )
 
-    updated = failed = skipped = 0
+    loop = asyncio.get_event_loop()
+
+    async def _backfill_one(row: dict[str, Any]) -> tuple[str, str | None]:
+        """Returns (source, url): source ∈ {frame, cdn, none}."""
+        vid = row["video_id"]
+        # 1) R2 server-side copy from frame[0] — zero CDN cost.
+        frame_url = await loop.run_in_executor(None, copy_first_frame_to_thumbnail, vid)
+        if frame_url:
+            return ("frame", frame_url)
+        # 2) CDN mirror fallback (costs proxy bandwidth).
+        cdn_url = row.get("thumbnail_url")
+        if cdn_url:
+            try:
+                mirrored = await download_and_upload_thumbnail(cdn_url, vid)
+            except Exception as exc:  # noqa: BLE001 — non-fatal, we fall through to NULL
+                logger.warning("[backfill-thumbnails] CDN mirror error for %s: %s", vid, exc)
+                mirrored = None
+            if mirrored:
+                return ("cdn", mirrored)
+        # 3) Both miss → caller will NULL the row.
+        return ("none", None)
+
+    from_frame = from_cdn = nulled = failed = 0
     CHUNK = 10
     for i in range(0, len(to_backfill), CHUNK):
         chunk = to_backfill[i:i + CHUNK]
-        tasks = [download_and_upload_thumbnail(r["thumbnail_url"], r["video_id"]) for r in chunk]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(
+            *(_backfill_one(r) for r in chunk), return_exceptions=True,
+        )
         for row, res in zip(chunk, results):
+            vid = row["video_id"]
             if isinstance(res, Exception):
-                logger.warning("[backfill-thumbnails] error for %s: %s", row["video_id"], res)
+                logger.warning("[backfill-thumbnails] task error for %s: %s", vid, res)
                 failed += 1
-            elif isinstance(res, str) and res:
-                try:
-                    sb.table("video_corpus").update({"thumbnail_url": res}).eq("video_id", row["video_id"]).execute()
-                    updated += 1
-                except Exception as exc:
-                    logger.warning("[backfill-thumbnails] DB patch failed for %s: %s", row["video_id"], exc)
-                    failed += 1
-            else:
-                skipped += 1
+                continue
+            source, url = res
+            try:
+                if url:
+                    sb.table("video_corpus").update(
+                        {"thumbnail_url": url}
+                    ).eq("video_id", vid).execute()
+                    if source == "frame":
+                        from_frame += 1
+                    else:
+                        from_cdn += 1
+                else:
+                    # Both R2 frame copy and CDN mirror missed — NULL it so
+                    # the FE renders the placeholder cleanly and we stop
+                    # chasing the dead URL on every rerun.
+                    sb.table("video_corpus").update(
+                        {"thumbnail_url": None}
+                    ).eq("video_id", vid).execute()
+                    nulled += 1
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[backfill-thumbnails] DB patch failed for %s: %s", vid, exc)
+                failed += 1
 
-    logger.info("[backfill-thumbnails] done — updated=%d failed=%d skipped=%d", updated, failed, skipped)
-    return JSONResponse({"ok": True, "updated": updated, "failed": failed, "skipped": skipped, "total": len(to_backfill)})
+    logger.info(
+        "[backfill-thumbnails] done — from_frame=%d from_cdn=%d nulled=%d failed=%d total=%d",
+        from_frame, from_cdn, nulled, failed, len(to_backfill),
+    )
+    return JSONResponse({
+        "ok": True,
+        "from_frame": from_frame,
+        "from_cdn": from_cdn,
+        "nulled": nulled,
+        "failed": failed,
+        "total": len(to_backfill),
+    })
 
 
 @router.post("/batch/analytics")
@@ -495,10 +584,10 @@ async def batch_layer0(
     Protected by require_batch_caller. Safe to re-run — upserts on conflict.
     """
     from getviews_pipeline.batch_observability import record_job_run
-    from getviews_pipeline.supabase_client import get_service_client
+    from getviews_pipeline.layer0_migration import run_cross_niche_migration
     from getviews_pipeline.layer0_niche import run_niche_insights
     from getviews_pipeline.layer0_sound import run_sound_insights
-    from getviews_pipeline.layer0_migration import run_cross_niche_migration
+    from getviews_pipeline.supabase_client import get_service_client
 
     client = get_service_client()
     logger.info("POST /batch/layer0 triggered")
@@ -597,7 +686,8 @@ async def batch_pattern_decks(
     schedule in ``20260530000001_pg_cron_pattern_decks.sql``.
     """
     from getviews_pipeline.pattern_deck_synth import (
-        DEFAULT_BATCH_CAP, run_pattern_decks_batch,
+        DEFAULT_BATCH_CAP,
+        run_pattern_decks_batch,
     )
     from getviews_pipeline.supabase_client import get_service_client
 
