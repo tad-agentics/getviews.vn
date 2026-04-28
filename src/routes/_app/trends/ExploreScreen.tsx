@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import {
@@ -39,7 +39,8 @@ import {
 } from "@/components/ui/dialog";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
-import { profileFirstNicheId } from "@/lib/profileNiches";
+import { profileFirstNicheId, profileFollowedNicheIds } from "@/lib/profileNiches";
+import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -333,46 +334,105 @@ function VideoCard({
   );
 }
 
-/* --- Filter Chip -------------------------------------------------- */
-function FilterChip({
+/* --- Kho video filter chips (design: outline dropdowns, solid black toggles) - */
+const PATTERN_CHIP_PLACEHOLDER = "Pattern";
+
+function KhoSelectChip({
+  label,
+  onClick,
+  hasArrow = true,
+  isDirty = false,
+  onRemove,
+}: {
+  label: string;
+  onClick?: () => void;
+  hasArrow?: boolean;
+  isDirty?: boolean;
+  onRemove?: () => void;
+}) {
+  return (
+    <div className="inline-flex min-h-9 max-w-full shrink-0 items-center overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[11px] font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]">
+      {onRemove && isDirty ? (
+        <button
+          type="button"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--faint)] hover:text-[var(--ink)]"
+          onClick={onRemove}
+          aria-label="Xóa bộ lọc"
+        >
+          <X className="h-3 w-3" strokeWidth={2} aria-hidden />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={onClick}
+        className={
+          isDirty && onRemove
+            ? "flex h-full min-h-0 flex-1 items-center gap-1.5 pl-0.5 pr-2.5"
+            : "flex h-full min-h-0 flex-1 items-center gap-1.5 px-3.5"
+        }
+      >
+        <span className={isDirty ? "font-semibold" : "font-medium"}>{label}</span>
+        {hasArrow ? <ChevronDown className="h-3 w-3 shrink-0 text-[var(--faint)]" strokeWidth={2} aria-hidden /> : null}
+      </button>
+    </div>
+  );
+}
+
+function KhoTogglePill({
   label,
   active = false,
   onRemove,
   onClick,
-  hasArrow = false,
 }: {
   label: string;
   active?: boolean;
   onRemove?: () => void;
   onClick?: () => void;
-  hasArrow?: boolean;
 }) {
-  const baseClass = `flex items-center gap-1 rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all duration-[120ms] whitespace-nowrap ${
-    active
-      ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--surface)]"
-      : "border-[var(--border)] bg-[var(--surface-alt)] text-[var(--gv-ink-2)] hover:border-[var(--gv-ink)] hover:text-[var(--ink)]"
-  }`;
-
+  if (onRemove) {
+    return (
+      <div
+        className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[11px] font-medium leading-none ${
+          active
+            ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)]"
+            : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={onClick}
+          className={`shrink-0 border-none px-3.5 py-1.5 text-left transition-[background] ${
+            active
+              ? "text-[color:var(--gv-paper)]"
+              : "text-[color:var(--gv-ink)] hover:bg-[var(--surface-alt)]"
+          }`}
+        >
+          {label}
+        </button>
+        {active ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="shrink-0 border-l border-[color:var(--gv-paper)]/25 px-2.5 text-[color:var(--gv-paper)]"
+            aria-label="Xóa bộ lọc"
+          >
+            <X className="h-3 w-3" strokeWidth={2} />
+          </button>
+        ) : null}
+      </div>
+    );
+  }
   return (
     <button
       type="button"
       onClick={onClick}
-      className={baseClass}
+      className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[11px] font-medium transition-all duration-[120ms] ${
+        active
+          ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]"
+          : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)]"
+      }`}
     >
-      <span>{label}</span>
-      {onRemove ? (
-        <button
-          type="button"
-          aria-label="Xóa bộ lọc"
-          className={`flex items-center rounded-full opacity-60 hover:opacity-100 ${active ? "text-[var(--surface)]" : ""}`}
-          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        >
-          <X className="w-3 h-3" strokeWidth={2} />
-        </button>
-      ) : hasArrow ? (
-        <ChevronDown className={`w-3 h-3 opacity-60 ${active ? "text-[var(--surface)]" : ""}`} strokeWidth={2} />
-      ) : null}
+      {label}
     </button>
   );
 }
@@ -483,6 +543,7 @@ const TYPE_FORMAT_OPTIONS: { label: string; value: string }[] = [
 
 export default function ExploreScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Filter state lives in the URL so bookmarks/back-nav/reload restore the
@@ -545,6 +606,10 @@ export default function ExploreScreen() {
 
   const { data: profile } = useProfile();
   const defaultTrendsNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
+  const followedNicheIds = useMemo(
+    () => profileFollowedNicheIds(profile),
+    [profile],
+  );
   const { data: niches } = useNicheTaxonomy();
 
   const {
@@ -553,15 +618,42 @@ export default function ExploreScreen() {
     isError: nicheIntelQueryError,
   } = useNicheIntelligence(selectedNicheId);
 
-  // Auto-seed niche from profile on first load. Skip when the URL explicitly
-  // carries `?niche=0` (user cleared this session) or already carries a
-  // positive `?niche=N` (shared link / bookmark wins).
+  // Auto-seed when URL has no `?niche=`: prefer last Studio (Home) pick, else profile first slot.
+  // Skip when the URL explicitly carries `?niche=0` (user cleared) or a positive `?niche=` is present.
   useEffect(() => {
     if (nicheExplicitClear) return;
     if (selectedNicheId !== null) return;
-    const id = defaultTrendsNicheId;
-    if (id != null) setFilter({ niche: String(id) });
-  }, [defaultTrendsNicheId, selectedNicheId, nicheExplicitClear, setFilter]);
+    const fromSession = readStudioNicheId();
+    const pick =
+      fromSession != null && followedNicheIds.includes(fromSession)
+        ? fromSession
+        : defaultTrendsNicheId;
+    if (pick != null) setFilter({ niche: String(pick) });
+  }, [
+    defaultTrendsNicheId,
+    followedNicheIds,
+    selectedNicheId,
+    nicheExplicitClear,
+    setFilter,
+  ]);
+
+  // On each navigation to Xu hướng, apply last Studio pick so it tracks Home (session may be newer
+  // than a stale `?niche` left on the tab). Respects `?niche=0` (cleared niche for this session).
+  useEffect(() => {
+    if (location.pathname !== "/app/trends") return;
+    if (nicheExplicitClear) return;
+    const s = readStudioNicheId();
+    if (s == null || !followedNicheIds.includes(s)) return;
+    if (s === selectedNicheId) return;
+    setFilter({ niche: String(s) });
+  }, [
+    location.key,
+    location.pathname,
+    nicheExplicitClear,
+    followedNicheIds,
+    setFilter,
+    selectedNicheId,
+  ]);
 
   // T5 (D7) — seed the 100K+ view filter on first mount when the URL
   // doesn't already carry a ``?min_views=`` param. Design pack
@@ -818,209 +910,245 @@ export default function ExploreScreen() {
           ) : null}
 
           <section className="pb-4">
-            {/* PR-T7 — § II — KHO VIDEO header per design pack
-             * ``screens/trends.jsx`` lines 419-427. The bold thesis
-             * ("Tìm trong N video {niche}") shows when both a niche is
-             * selected AND we have a corpus count; otherwise we fall
-             * back to the original "Khám phá N" line so users without a
-             * selected niche still see the count. */}
-            <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-              § II — KHO VIDEO
-            </p>
-            <div className="mb-5 flex flex-col gap-4 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-4">
-              <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)] min-[1100px]:shrink-0">
-                {selectedNicheName && exploreTitleCount != null ? (
+            {/* Ref: kicker + thesis on the left; search pill on the right (vertical center vs. left block); filters on a second full-width row. */}
+            <div className="mb-3 flex min-w-0 flex-col gap-3 min-[1100px]:mb-4 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-8">
+              <div className="min-w-0 flex-1">
+                <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink-3)]">
+                  II — KHO VIDEO
+                </p>
+                <h2 className="gv-tight m-0 max-w-full text-[clamp(20px,2.3vw,28px)] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--gv-ink)]">
+                {selectedNicheName ? (
                   <>
-                    Tìm trong{" "}
-                    <span className="gv-mono text-[14px] font-medium text-[color:var(--gv-ink-4)]">
-                      {exploreTitleCount}
+                    <span className="font-bold">Tìm trong</span>{" "}
+                    <span className="gv-mono align-middle text-[clamp(13px,1.3vw,17px)] font-medium text-[color:var(--gv-ink-3)]">
+                      {exploreTitleCount ?? "—"}
                     </span>{" "}
-                    video {selectedNicheName.toLowerCase()}
+                    <span className="font-bold">video</span>{" "}
+                    <span
+                      className="relative inline-flex items-center align-baseline"
+                      ref={nicheMenuRef}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setShowNicheMenu((v) => !v)}
+                        className="group inline-flex items-baseline gap-0.5 font-bold text-[color:var(--gv-ink)] underline decoration-transparent decoration-1 underline-offset-2 transition-colors hover:decoration-[color:var(--gv-ink-3)]"
+                        aria-label="Chọn ngách kho video"
+                        aria-haspopup="listbox"
+                        aria-expanded={showNicheMenu}
+                      >
+                        {selectedNicheName}
+                        <ChevronDown
+                          className="inline h-3.5 w-3.5 shrink-0 -translate-y-px text-[color:var(--gv-ink-3)]"
+                          strokeWidth={2.5}
+                        />
+                      </button>
+                      {showNicheMenu ? (
+                        <div className="absolute left-0 top-full z-20 mt-1.5 max-h-[320px] w-[min(200px,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
+                          {niches?.map((n) => (
+                            <button
+                              key={n.id}
+                              type="button"
+                              onClick={() => {
+                                writeStudioNicheId(n.id);
+                                setFilter({ niche: String(n.id) });
+                                setShowNicheMenu(false);
+                              }}
+                              className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
+                            >
+                              {n.name}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </span>
                   </>
                 ) : (
                   <>
-                    {exploreTitleBase}
-                    {exploreTitleCount != null ? (
-                      <span className="ml-2 align-middle font-mono text-[13px] font-semibold text-[var(--faint)]">
-                        {exploreTitleCount}
+                    <span className="block min-[1100px]:inline">
+                      <span className="font-bold">{exploreTitleBase}</span>
+                      {exploreTitleCount != null ? (
+                        <span className="ml-1.5 align-baseline font-mono text-[clamp(13px,1.2vw,16px)] font-medium text-[color:var(--gv-ink-3)]">
+                          {exploreTitleCount}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span
+                      className="mt-2 block min-[1100px]:mt-0 min-[1100px]:inline min-[1100px]:pl-2"
+                      ref={nicheMenuRef}
+                    >
+                      <span className="relative inline-flex">
+                        <button
+                          type="button"
+                          onClick={() => setShowNicheMenu((v) => !v)}
+                          className="inline-flex h-8 items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3.5 text-[11px] font-semibold text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)]"
+                          aria-label="Chọn ngách kho video"
+                          aria-haspopup="listbox"
+                          aria-expanded={showNicheMenu}
+                        >
+                          Chọn ngách
+                          <ChevronDown className="h-3 w-3 text-[var(--faint)]" strokeWidth={2.5} aria-hidden />
+                        </button>
+                        {showNicheMenu ? (
+                          <div className="absolute left-0 top-full z-20 mt-1.5 max-h-[320px] w-[min(200px,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
+                            {niches?.map((n) => (
+                              <button
+                                key={n.id}
+                                type="button"
+                                onClick={() => {
+                                  writeStudioNicheId(n.id);
+                                  setFilter({ niche: String(n.id) });
+                                  setShowNicheMenu(false);
+                                }}
+                                className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
+                              >
+                                {n.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </span>
-                    ) : null}
+                    </span>
                   </>
                 )}
-              </h2>
+                </h2>
+              </div>
 
-              <div className="flex min-w-0 w-full flex-col gap-3 min-[1100px]:max-w-[calc(100%-220px)] min-[1100px]:flex-1 min-[1100px]:flex-row min-[1100px]:flex-wrap min-[1100px]:items-center min-[1100px]:justify-end min-[1100px]:gap-2">
-                <div className="order-1 w-full min-w-0 min-[1100px]:order-2 min-[1100px]:w-[260px] min-[1100px]:shrink-0">
-                  <div className="flex h-8 w-full items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 transition-colors duration-[120ms] hover:border-[var(--gv-ink)]">
-                    <Search className="h-3 w-3 shrink-0 text-[var(--faint)]" strokeWidth={1.8} />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setFilter({ q: e.target.value || null })}
-                      className="min-h-0 min-w-0 flex-1 border-none bg-transparent py-0 text-[11px] font-medium leading-none text-[var(--ink)] outline-none placeholder:text-[var(--faint)] placeholder:font-medium"
-                      placeholder="Tìm video, hook, creator…"
-                      aria-label="Tìm video"
-                    />
-                  </div>
-                </div>
-
-                <div
-                  className="order-2 w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [-ms-overflow-style:auto] -mx-4 px-4 sm:-mx-7 sm:px-7 min-[1100px]:mx-0 min-[1100px]:contents min-[1100px]:overflow-visible min-[1100px]:px-0 min-[1100px]:pb-0"
-                  role="toolbar"
-                  aria-label="Bộ lọc kho video"
-                >
-                  <div className="flex w-max max-w-none flex-nowrap items-center gap-2 min-[1100px]:contents">
-                  <div ref={nicheMenuRef} className="relative shrink-0 min-[1100px]:order-1">
-                    <FilterChip
-                      label={selectedNicheName ?? "Niche"}
-                      hasArrow={selectedNicheId === null}
-                      active={selectedNicheId !== null}
-                      onRemove={
-                        selectedNicheId !== null
-                          ? () => {
-                              setFilter({ niche: "0" });
-                              setShowNicheMenu(false);
-                            }
-                          : undefined
-                      }
-                      onClick={() => setShowNicheMenu((v) => !v)}
-                    />
-                    {showNicheMenu ? (
-                      <div className="absolute left-0 top-full z-20 mt-1 max-h-[320px] w-[200px] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
-                        {niches?.map((n) => (
-                          <button
-                            key={n.id}
-                            type="button"
-                            onClick={() => {
-                              setFilter({ niche: String(n.id) });
-                              setShowNicheMenu(false);
-                            }}
-                            className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
-                          >
-                            {n.name}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="relative shrink-0 min-[1100px]:order-3">
-                    <FilterChip
-                      label={SORT_LABELS[sortBy]}
-                      hasArrow
-                      active={sortBy !== "indexed_at"}
-                      onRemove={sortBy !== "indexed_at" ? () => setFilter({ sort: null }) : undefined}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowSortMenu((v) => !v)}
-                      className="absolute inset-0"
-                      aria-label="Sắp xếp"
-                    />
-                    {showSortMenu ? (
-                      <div className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
-                        {(["indexed_at", "views", "engagement_rate"] as SortOption[]).map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => {
-                              setFilter({ sort: opt === "indexed_at" ? null : opt });
-                              setShowSortMenu(false);
-                            }}
-                            className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${sortBy === opt ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
-                          >
-                            {SORT_LABELS[opt]}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div ref={formatMenuRef} className="relative shrink-0 min-[1100px]:order-4">
-                    <FilterChip
-                      label={
-                        activeFormat
-                          ? (TYPE_FORMAT_OPTIONS.find((o) => o.value === activeFormat)?.label ?? "Loại")
-                          : "Loại"
-                      }
-                      hasArrow={!activeFormat}
-                      active={activeFormat !== null}
-                      onRemove={activeFormat !== null ? () => setFilter({ format: null }) : undefined}
-                      onClick={() => setShowFormatMenu((v) => !v)}
-                    />
-                    {showFormatMenu ? (
-                      <div className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-lg">
-                        {TYPE_FORMAT_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setFilter({ format: opt.value });
-                              setShowFormatMenu(false);
-                            }}
-                            className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${activeFormat === opt.value ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex shrink-0 gap-1.5 min-[1100px]:order-5">
-                    {VIEW_FILTER_OPTIONS.map((opt) => (
-                      <FilterChip
-                        key={opt.label}
-                        label={opt.label}
-                        active={activeViewFilter === opt.value}
-                        onRemove={activeViewFilter === opt.value ? () => setFilter({ min_views: null }) : undefined}
-                        onClick={activeViewFilter !== opt.value ? () => setFilter({ min_views: String(opt.value) }) : undefined}
-                      />
-                    ))}
-                  </div>
-                  {/* PR-T7 — date filter pills (Hôm nay / 7 ngày). Map
-                   * to ``dateFrom`` on ``useVideoCorpus`` (filtered
-                   * against ``indexed_at``). */}
-                  <div className="flex shrink-0 gap-1.5 min-[1100px]:order-5">
-                    <FilterChip
-                      label="Hôm nay"
-                      active={dateRange === "today"}
-                      onRemove={dateRange === "today" ? () => setFilter({ date: null }) : undefined}
-                      onClick={dateRange !== "today" ? () => setFilter({ date: "today" }) : undefined}
-                    />
-                    <FilterChip
-                      label="7 ngày"
-                      active={dateRange === "7d"}
-                      onRemove={dateRange === "7d" ? () => setFilter({ date: null }) : undefined}
-                      onClick={dateRange !== "7d" ? () => setFilter({ date: "7d" }) : undefined}
-                    />
-                  </div>
-                  <div
-                    className="flex shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface-alt)] p-0.5 min-[1100px]:order-6"
-                    role="group"
-                    aria-label="Chế độ xem"
-                  >
-                    <button
-                      type="button"
-                      aria-pressed={viewMode === "grid"}
-                      onClick={() => setFilter({ view: null })}
-                      className={`flex h-6 w-7 items-center justify-center rounded-full transition-colors ${viewMode === "grid" ? "bg-[var(--ink)] text-[var(--surface)]" : "text-[var(--gv-ink-3)]"}`}
-                      aria-label="Lưới"
-                    >
-                      <LayoutGrid className="h-3 w-3" strokeWidth={2} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={viewMode === "list"}
-                      onClick={() => setFilter({ view: "list" })}
-                      className={`flex h-6 w-7 items-center justify-center rounded-full transition-colors ${viewMode === "list" ? "bg-[var(--ink)] text-[var(--surface)]" : "text-[var(--gv-ink-3)]"}`}
-                      aria-label="Danh sách"
-                    >
-                      <List className="h-3 w-3" strokeWidth={2} />
-                    </button>
-                  </div>
-                  </div>
+              <div className="w-full shrink-0 min-[1100px]:w-[min(100%,22rem)] min-[1100px]:max-w-[40%]">
+                <div className="flex h-11 w-full min-w-0 items-center gap-2.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 shadow-sm transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]">
+                  <Search
+                    className="h-3.5 w-3.5 shrink-0 text-[var(--faint)]"
+                    strokeWidth={1.8}
+                    aria-hidden
+                  />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setFilter({ q: e.target.value || null })}
+                    className="min-h-0 min-w-0 flex-1 border-none bg-transparent py-0.5 text-[13px] font-medium leading-tight text-[var(--ink)] outline-none placeholder:text-[var(--faint)]"
+                    placeholder="Tìm hook, creator, từ khoá…"
+                    aria-label="Tìm video trong kho"
+                  />
                 </div>
               </div>
             </div>
 
+            <div className="mb-5 flex w-full min-w-0 flex-col gap-2 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-3">
+              <div
+                className="flex min-w-0 min-[1100px]:min-w-0 min-[1100px]:flex-1 flex-wrap items-center gap-2"
+                role="toolbar"
+                aria-label="Bộ lọc kho video"
+              >
+                <div ref={formatMenuRef} className="relative shrink-0">
+                  <KhoSelectChip
+                    label={
+                      activeFormat
+                        ? (TYPE_FORMAT_OPTIONS.find((o) => o.value === activeFormat)?.label ??
+                          PATTERN_CHIP_PLACEHOLDER)
+                        : PATTERN_CHIP_PLACEHOLDER
+                    }
+                    isDirty={activeFormat !== null}
+                    onRemove={activeFormat !== null ? () => setFilter({ format: null }) : undefined}
+                    onClick={() => setShowFormatMenu((v) => !v)}
+                  />
+                  {showFormatMenu ? (
+                    <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[140px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
+                      {TYPE_FORMAT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setFilter({ format: opt.value });
+                            setShowFormatMenu(false);
+                          }}
+                          className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${activeFormat === opt.value ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="relative shrink-0">
+                  <KhoSelectChip
+                    label={SORT_LABELS[sortBy]}
+                    isDirty={sortBy !== "indexed_at"}
+                    onRemove={sortBy !== "indexed_at" ? () => setFilter({ sort: null }) : undefined}
+                    onClick={() => setShowSortMenu((v) => !v)}
+                  />
+                  {showSortMenu ? (
+                    <div className="absolute left-0 top-full z-20 mt-1.5 min-w-[150px] rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
+                      {(["indexed_at", "views", "engagement_rate"] as SortOption[]).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setFilter({ sort: opt === "indexed_at" ? null : opt });
+                            setShowSortMenu(false);
+                          }}
+                          className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${sortBy === opt ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
+                        >
+                          {SORT_LABELS[opt]}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {VIEW_FILTER_OPTIONS.map((opt) => (
+                  <KhoTogglePill
+                    key={opt.label}
+                    label={opt.label}
+                    active={activeViewFilter === opt.value}
+                    onRemove={activeViewFilter === opt.value ? () => setFilter({ min_views: null }) : undefined}
+                    onClick={activeViewFilter !== opt.value ? () => setFilter({ min_views: String(opt.value) }) : undefined}
+                  />
+                ))}
+
+                <KhoTogglePill
+                  label="Hôm nay"
+                  active={dateRange === "today"}
+                  onRemove={dateRange === "today" ? () => setFilter({ date: null }) : undefined}
+                  onClick={dateRange !== "today" ? () => setFilter({ date: "today" }) : undefined}
+                />
+                <KhoTogglePill
+                  label="7 ngày"
+                  active={dateRange === "7d"}
+                  onRemove={dateRange === "7d" ? () => setFilter({ date: null }) : undefined}
+                  onClick={dateRange !== "7d" ? () => setFilter({ date: "7d" }) : undefined}
+                />
+              </div>
+
+              <div
+                className="flex w-full shrink-0 justify-end min-[1100px]:w-auto"
+                role="group"
+                aria-label="Chế độ xem"
+              >
+                <div className="inline-flex items-center rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-0.5">
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === "grid"}
+                    onClick={() => setFilter({ view: null })}
+                    className={`flex h-7 w-8 items-center justify-center rounded-full transition-colors ${
+                      viewMode === "grid" ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]" : "text-[var(--gv-ink-3)]"
+                    }`}
+                    aria-label="Lưới"
+                  >
+                    <LayoutGrid className="h-3 w-3" strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={viewMode === "list"}
+                    onClick={() => setFilter({ view: "list" })}
+                    className={`flex h-7 w-8 items-center justify-center rounded-full transition-colors ${
+                      viewMode === "list" ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]" : "text-[var(--gv-ink-3)]"
+                    }`}
+                    aria-label="Danh sách"
+                  >
+                    <List className="h-3 w-3" strokeWidth={2} />
+                  </button>
+                </div>
+              </div>
+            </div>
             {isPending ? <ExploreGridSkeleton /> : null}
 
             {isError ? (
@@ -1083,18 +1211,6 @@ export default function ExploreScreen() {
               </div>
             ) : null}
           </section>
-
-          {/* ── Zone 2: CTA khi chưa chọn niche (đã gỡ bảng hook hiệu quả) ─ */}
-          {selectedNicheId === null ? (
-            <section className="pb-15">
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-5 py-6 text-center">
-                <p className="text-sm font-semibold text-[var(--ink)] mb-1">Phân tích chuyên sâu</p>
-                <p className="text-xs text-[var(--muted)]">
-                  Chọn niche từ bộ lọc để xem pattern, kho video và bảng xếp hạng bên phải
-                </p>
-              </div>
-            </section>
-          ) : null}
           </div>
 
           {/* PR-T6 — right rail: 2 sections (Đang nổi lên / Viral mọi

@@ -33,13 +33,9 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
   return useInfiniteQuery({
     queryKey: corpusKeys.list(filters),
     queryFn: async ({ pageParam = 0 }) => {
-      let query = supabase
-        .from("video_corpus")
-        .select(
-          "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier, tone, cta_type, is_commerce, sound_name, creator_tier, posting_hour, video_duration",
-        )
-        .order(sortBy, { ascending: sortOrder === "asc" })
-        .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1);
+      let query = supabase.from("video_corpus").select(
+        "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier, tone, cta_type, is_commerce, sound_name, creator_tier, posting_hour, video_duration",
+      );
 
       if (nicheId != null && nicheId !== 0) {
         query = query.eq("niche_id", nicheId);
@@ -62,6 +58,13 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
       if (contentFormat) {
         query = query.eq("content_format", contentFormat);
       }
+
+      const ascending = sortOrder === "asc";
+      // NULLS LAST for numeric columns so missing metrics do not dominate the top of the list.
+      const nullsFirst =
+        sortBy === "views" || sortBy === "engagement_rate" ? false : undefined;
+      query = query.order(sortBy, { ascending, nullsFirst });
+      query = query.range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1);
 
       const { data, error } = await query;
       if (error) throw error;

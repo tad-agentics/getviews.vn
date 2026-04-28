@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Plus, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -14,6 +14,7 @@ import { useTopPatterns } from "@/hooks/useTopPatterns";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import { profileFirstNicheId, profileFollowedNicheIds } from "@/lib/profileNiches";
+import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
 import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
@@ -35,6 +36,7 @@ const URL_IN_TEXT =
 
 export default function HomeScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [composerText, setComposerText] = useState("");
   const { data: profile } = useProfile();
@@ -65,6 +67,21 @@ export default function HomeScreen() {
       setSelectedNicheId(defaultNicheId);
     }
   }, [defaultNicheId, followedNicheIds, selectedNicheId]);
+
+  // Prefer last ``gv:studio_niche_id`` before other effects (so the write below doesn't overwrite
+  // it on first paint) — keeps Home ↔ Xu hướng aligned when re-entering /app/home.
+  useLayoutEffect(() => {
+    if (location.pathname !== "/app/home") return;
+    if (followedNicheIds.length === 0) return;
+    const s = readStudioNicheId();
+    if (s == null || !followedNicheIds.includes(s)) return;
+    setSelectedNicheId(s);
+  }, [location.key, location.pathname, followedNicheIds]);
+
+  // Keep Xu hướng (`/app/trends`) in sync: same session key as ExploreScreen + URL `?niche=`.
+  useEffect(() => {
+    if (selectedNicheId != null) writeStudioNicheId(selectedNicheId);
+  }, [selectedNicheId]);
 
   const { data: pulse } = useHomePulse(true, selectedNicheId);
 
