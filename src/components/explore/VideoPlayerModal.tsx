@@ -188,8 +188,7 @@ export function VideoPlayerModal({
           aria-label={selected.caption || `Video ${selected.handle}`}
           initial={{ opacity: 0, y: 48 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 48 }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="relative flex flex-col md:flex-row bg-[var(--surface)] w-full md:rounded-2xl overflow-hidden"
-          style={{ maxWidth: 960, height: "95dvh", maxHeight: "95dvh", borderRadius: "20px 20px 0 0", boxShadow: "0 32px 80px rgba(0,0,0,0.4)" }}
+          className="relative flex h-[95dvh] max-h-[95dvh] w-full max-w-[960px] flex-col overflow-hidden rounded-t-[20px] bg-[var(--surface)] shadow-[0_32px_80px_rgba(0,0,0,0.4)] md:flex-row md:rounded-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="relative bg-black overflow-hidden order-1 md:order-2 md:flex-1" style={{ minHeight: "55%" }}>
