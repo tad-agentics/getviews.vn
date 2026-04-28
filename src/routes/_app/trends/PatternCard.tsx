@@ -3,7 +3,6 @@ import { memo } from "react";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
-import { lifecycleHint } from "./patternLifecycle";
 
 /**
  * Trends — PatternCard (PR-T3 §I).
@@ -11,18 +10,11 @@ import { lifecycleHint } from "./patternLifecycle";
  * Mirrors the design pack's PatternCard (``screens/trends.jsx`` lines
  * 570-639): a 2×2 video collage at top + body with title/sub +
  * star save toggle (placeholder, no-op until a saved-patterns feature
- * lands) + 3-stat strip (VIDEO / VIEW TB / GIỮ%) + lifecycle dot.
+ * lands) + 2-stat strip (VIDEO / VIEW TB).
  *
  * Card click fires ``onOpen`` — the consuming screen wires this to
  * the PatternModal in PR-T4. T3 ships with the click handler in place
  * and an empty body so the card stays interactive.
- *
- * GIỮ% — when present on ``pattern.avg_retention_pct`` it's the
- * niche-level proxy borrowed from
- * ``hook_effectiveness.avg_completion_rate`` for the pattern's
- * dominant hook_type (see ``useTopPatterns``). The cell ``title``
- * tooltip clarifies the scope so a creator hovering doesn't read it
- * as per-pattern. Falls back to ``"—"`` when the lookup misses.
  */
 
 const COLLAGE_FALLBACK_BG: ReadonlyArray<string> = [
@@ -39,14 +31,7 @@ export const PatternCard = memo(function PatternCard({
   pattern: TopPattern;
   onOpen?: (pattern: TopPattern) => void;
 }) {
-  const lifecycle = lifecycleHint(
-    pattern.weekly_instance_count,
-    pattern.weekly_instance_count_prev,
-  );
   const collageCells = padCollage(pattern.videos);
-  const dotColor = lifecycle.isFresh
-    ? "bg-[color:var(--gv-pos)]"
-    : "bg-[color:var(--gv-ink-3)]";
   const sub = pattern.sample_hook?.trim()
     ? `"${pattern.sample_hook.trim()}"`
     : "—";
@@ -81,34 +66,13 @@ export const PatternCard = memo(function PatternCard({
               {sub}
             </p>
           </div>
-          {/* Stat strip */}
-          <div className="grid grid-cols-3 gap-1.5 border-t border-b border-[color:var(--gv-rule)] py-2">
+          {/* Stat strip — VIDEO + VIEW TB only (save-rate “GIỮ%” removed — hard to read / often ~0%). */}
+          <div className="grid grid-cols-2 gap-1.5 border-t border-b border-[color:var(--gv-rule)] py-2">
             <Stat label="VIDEO" value={String(pattern.instance_count)} />
             <Stat
               label="VIEW TB"
               value={pattern.avg_views != null ? formatViews(pattern.avg_views) : "—"}
             />
-            <Stat
-              label="GIỮ"
-              value={
-                pattern.avg_retention_pct != null
-                  ? `${pattern.avg_retention_pct}%`
-                  : "—"
-              }
-              title={
-                pattern.avg_retention_pct != null
-                  ? `Tỉ lệ giữ chân TB của hook "${pattern.dominant_hook_type ?? ""}" trong ngách (proxy theo niche, không phải per-pattern).`
-                  : undefined
-              }
-            />
-          </div>
-          {/* Lifecycle hint */}
-          <div className="gv-mono flex items-center gap-1.5 text-[10px] text-[color:var(--gv-ink-3)]">
-            <span
-              className={`inline-block h-[5px] w-[5px] rounded-full ${dotColor}`}
-              aria-hidden
-            />
-            {lifecycle.text}
           </div>
         </div>
       </button>

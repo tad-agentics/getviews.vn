@@ -46,8 +46,6 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
     },
     { video_id: "v4", thumbnail_url: null, creator_handle: null, views: 50_000, tiktok_url: null },
   ],
-  dominant_hook_type: null,
-  avg_retention_pct: null,
   structure: null,
   why: null,
   careful: null,
@@ -56,7 +54,7 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
 });
 
 describe("PatternCard", () => {
-  it("renders the title, sub, and 3-stat strip", () => {
+  it("renders the title, sub, and 2-stat strip", () => {
     const { getByText } = render(<PatternCard pattern={samplePattern()} />);
     expect(getByText("Sau ___ tháng dùng")).toBeTruthy();
     expect(getByText(/Mình dùng iPad Pro 6 tháng/)).toBeTruthy();
@@ -65,7 +63,6 @@ describe("PatternCard", () => {
     expect(getByText("VIEW TB")).toBeTruthy();
     // formatViews(142_000) → "142.0K" (always 1 decimal on K/M).
     expect(getByText("142.0K")).toBeTruthy();
-    expect(getByText("GIỮ")).toBeTruthy();
   });
 
   it("renders a quoted sub when sample_hook is present, else em-dash", () => {
@@ -74,26 +71,8 @@ describe("PatternCard", () => {
     );
     expect(getByText(/^"Mình dùng iPad Pro/).textContent?.startsWith('"')).toBe(true);
     rerender(<PatternCard pattern={samplePattern({ sample_hook: null })} />);
-    // Sub becomes "—" alongside the GIỮ stat cell's "—" — expect ≥ 2.
-    expect(queryAllByText("—").length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("renders 'Mới · tuần đầu' lifecycle hint when prev=0", () => {
-    const { getByText } = render(
-      <PatternCard
-        pattern={samplePattern({ weekly_instance_count_prev: 0, weekly_instance_count: 8 })}
-      />,
-    );
-    expect(getByText(/Mới · tuần đầu/)).toBeTruthy();
-  });
-
-  it("renders 'Đang lên · +X%' lifecycle hint when growth ≥ 1.5×", () => {
-    const { getByText } = render(
-      <PatternCard
-        pattern={samplePattern({ weekly_instance_count_prev: 4, weekly_instance_count: 10 })}
-      />,
-    );
-    expect(getByText(/Đang lên · \+150%/)).toBeTruthy();
+    // Sub + VIEW TB can show "—"
+    expect(queryAllByText("—").length).toBeGreaterThanOrEqual(1);
   });
 
   it("invokes onOpen with the pattern when the card is clicked", () => {
@@ -109,39 +88,6 @@ describe("PatternCard", () => {
     const { container } = render(<PatternCard pattern={pattern} />);
     const collage = container.querySelector(".grid-cols-2");
     expect(collage?.children.length).toBe(4);
-  });
-
-  it("renders GIỮ as em-dash placeholder when avg_retention_pct is null", () => {
-    const { container } = render(<PatternCard pattern={samplePattern()} />);
-    // The third Stat cell holds "GIỮ" + value. Find dash there.
-    const dashes = Array.from(container.querySelectorAll("p")).filter(
-      (p) => p.textContent === "—",
-    );
-    expect(dashes.length).toBeGreaterThan(0);
-  });
-
-  it("renders GIỮ as percentage when avg_retention_pct is provided", () => {
-    const pattern = samplePattern({
-      avg_retention_pct: 64,
-      dominant_hook_type: "comparison",
-    });
-    const { getByText } = render(<PatternCard pattern={pattern} />);
-    expect(getByText("64%")).toBeTruthy();
-  });
-
-  it("attaches a tooltip clarifying the niche-proxy scope on the GIỮ cell", () => {
-    const pattern = samplePattern({
-      avg_retention_pct: 72,
-      dominant_hook_type: "story",
-    });
-    const { container } = render(<PatternCard pattern={pattern} />);
-    const giuValue = Array.from(container.querySelectorAll("p")).find(
-      (p) => p.textContent === "72%",
-    );
-    expect(giuValue).toBeTruthy();
-    const cell = giuValue?.parentElement as HTMLElement;
-    expect(cell.getAttribute("title")).toMatch(/proxy theo niche/);
-    expect(cell.getAttribute("title")).toContain("story");
   });
 
   it("normalises @-prefixed creator handles in the collage", () => {

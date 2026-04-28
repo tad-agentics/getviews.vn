@@ -35,8 +35,8 @@ function railThumbPlaceholderStyle(videoId: string): {
  *
  * Replaces the previous 3-section rail (videos / sounds / format) with
  * the design pack's 2-section rail (``screens/trends.jsx`` lines
- * 432-446): VIDEO NÊN BẮT CHƯỚC · Đang nổi lên (top 5 7d) and VIDEO
- * ĐỈNH · Viral mọi thời (top 5 all-time).
+ * 432-446): VIDEO NÊN THAM KHẢO · Đang nổi lên (top 5 7d) and VIDEO
+ * LEO ĐỈNH · Đang Viral (top 5 all-time).
  *
  * Each row is a clickable card: 9:16 vertical thumbnail (height 56) +
  * 2-line title (hook phrase or "Video N") + mono caption with
@@ -57,7 +57,7 @@ export const TrendsRail = memo(function TrendsRail({
   return (
     <div className="flex flex-col gap-7">
       <RailSection
-        kicker="VIDEO NÊN BẮT CHƯỚC"
+        kicker="VIDEO NÊN THAM KHẢO"
         title="Đang nổi lên"
         sub="Top 5 view 7 ngày qua"
         videos={data?.breakouts7d ?? []}
@@ -65,9 +65,9 @@ export const TrendsRail = memo(function TrendsRail({
         emptyText="Chưa đủ dữ liệu — quay lại sau."
       />
       <RailSection
-        kicker="VIDEO ĐỈNH"
-        title="Viral mọi thời"
-        sub="Top 5 mọi thời gian, ngách của bạn"
+        kicker="VIDEO LEO ĐỈNH"
+        title="Đang Viral"
+        sub="Top 5 Viral Video trong ngách của bạn"
         videos={data?.virals ?? []}
         isPending={isPending}
         emptyText="Chưa có video trong corpus."

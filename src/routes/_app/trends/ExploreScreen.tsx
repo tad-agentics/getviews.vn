@@ -7,8 +7,6 @@ import {
   X,
   ChevronDown,
   Loader2,
-  LayoutGrid,
-  List,
   Plus,
 } from "lucide-react";
 import { getISOWeek } from "date-fns";
@@ -40,7 +38,7 @@ import {
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
 import { profileFirstNicheId, profileFollowedNicheIds } from "@/lib/profileNiches";
-import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
+import { readStudioNicheId } from "@/lib/studioNicheSession";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -337,6 +335,9 @@ function VideoCard({
 /* --- Kho video filter chips (design: outline dropdowns, solid black toggles) - */
 const PATTERN_CHIP_PLACEHOLDER = "Pattern";
 
+/** Cao cố định khớp KhoTogglePill — toàn bộ chip trong toolbar "Bộ lọc kho video". */
+const KHO_FILTER_CHIP_H = "h-9";
+
 function KhoSelectChip({
   label,
   onClick,
@@ -351,11 +352,13 @@ function KhoSelectChip({
   onRemove?: () => void;
 }) {
   return (
-    <div className="inline-flex min-h-9 max-w-full shrink-0 items-center overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[11px] font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]">
+    <div
+      className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[11px] font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
+    >
       {onRemove && isDirty ? (
         <button
           type="button"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--faint)] hover:text-[var(--ink)]"
+          className="flex w-9 shrink-0 items-center justify-center self-stretch text-[var(--faint)] hover:text-[var(--ink)]"
           onClick={onRemove}
           aria-label="Xóa bộ lọc"
         >
@@ -367,8 +370,8 @@ function KhoSelectChip({
         onClick={onClick}
         className={
           isDirty && onRemove
-            ? "flex h-full min-h-0 flex-1 items-center gap-1.5 pl-0.5 pr-2.5"
-            : "flex h-full min-h-0 flex-1 items-center gap-1.5 px-3.5"
+            ? "flex min-h-0 flex-1 items-center gap-1.5 pl-0.5 pr-2.5"
+            : "flex min-h-0 flex-1 items-center gap-1.5 px-3.5"
         }
       >
         <span className={isDirty ? "font-semibold" : "font-medium"}>{label}</span>
@@ -392,7 +395,7 @@ function KhoTogglePill({
   if (onRemove) {
     return (
       <div
-        className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[11px] font-medium leading-none ${
+        className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[11px] font-medium leading-none ${KHO_FILTER_CHIP_H} ${
           active
             ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)]"
             : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]"
@@ -401,7 +404,7 @@ function KhoTogglePill({
         <button
           type="button"
           onClick={onClick}
-          className={`shrink-0 border-none px-3.5 py-1.5 text-left transition-[background] ${
+          className={`flex shrink-0 items-center border-none px-3.5 text-left transition-[background] ${
             active
               ? "text-[color:var(--gv-paper)]"
               : "text-[color:var(--gv-ink)] hover:bg-[var(--surface-alt)]"
@@ -413,7 +416,7 @@ function KhoTogglePill({
           <button
             type="button"
             onClick={onRemove}
-            className="shrink-0 border-l border-[color:var(--gv-paper)]/25 px-2.5 text-[color:var(--gv-paper)]"
+            className="flex w-9 shrink-0 items-center justify-center border-l border-[color:var(--gv-paper)]/25 text-[color:var(--gv-paper)]"
             aria-label="Xóa bộ lọc"
           >
             <X className="h-3 w-3" strokeWidth={2} />
@@ -426,7 +429,7 @@ function KhoTogglePill({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[11px] font-medium transition-all duration-[120ms] ${
+      className={`inline-flex ${KHO_FILTER_CHIP_H} shrink-0 items-center justify-center rounded-full border px-3.5 text-[11px] font-medium leading-none transition-all duration-[120ms] ${
         active
           ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]"
           : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)]"
@@ -451,58 +454,6 @@ function ExploreGridSkeleton() {
         />
       ))}
     </div>
-  );
-}
-
-function ExploreVideoListRow({
-  video,
-  onNavigate,
-  nicheLabel,
-}: {
-  video: ExploreGridVideo;
-  onNavigate: () => void;
-  nicheLabel?: string;
-}) {
-  const br = video.breakoutMultiplier;
-  const showBreakout = br != null && br >= 1.5;
-  const showViral = Boolean(video.isViral);
-  return (
-    <button
-      type="button"
-      onClick={onNavigate}
-      className="flex w-full cursor-pointer items-center gap-3.5 border-b border-[var(--border)] px-4 py-3 text-left last:border-b-0 hover:bg-[var(--surface-alt)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--gv-accent)] min-[900px]:grid min-[900px]:grid-cols-[60px_1fr_100px_minmax(0,1fr)_72px_80px] min-[900px]:items-center"
-    >
-      <div className="h-16 w-[45px] shrink-0 overflow-hidden rounded bg-[var(--surface-alt)] min-[900px]:w-auto" style={{ aspectRatio: "9/16" }}>
-        <img src={video.img} alt="" className="h-full w-full object-cover" loading="lazy" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="mb-0.5 flex flex-wrap gap-1">
-          {showBreakout ? (
-            <span className="rounded bg-[var(--gv-accent)] px-1 py-0.5 text-[8px] font-bold tracking-wide text-white">
-              BREAKOUT
-            </span>
-          ) : null}
-          {showViral ? (
-            <span className="rounded bg-[var(--gv-accent-2)] px-1 py-0.5 text-[8px] font-bold tracking-wide text-[var(--ink)]">
-              VIRAL
-            </span>
-          ) : null}
-        </div>
-        <p className="truncate text-[13px] font-medium text-[var(--ink)]">{video.text || video.caption}</p>
-        <p className="mt-0.5 truncate font-mono text-[10px] text-[var(--faint)]">
-          {video.handle} · {nicheLabel ?? video.contentFormat ?? "—"}
-        </p>
-        <p className="mt-1 font-mono text-xs text-[var(--gv-ink-3)] min-[900px]:hidden">↑ {video.views}</p>
-      </div>
-      <span className="hidden font-mono text-xs text-[var(--gv-ink-3)] min-[900px]:block">↑ {video.views}</span>
-      <p className="hidden min-w-0 truncate text-sm italic text-[var(--gv-ink-3)] min-[900px]:block">
-        &ldquo;{video.text || "—"}&rdquo;
-      </p>
-      <span className="hidden font-mono text-[11px] text-[var(--faint)] min-[900px]:block">
-        {video.durationLabel ?? "—"}
-      </span>
-      <span className="hidden text-[11px] font-medium text-[var(--gv-pos-deep)] min-[900px]:block">Xem clip →</span>
-    </button>
   );
 }
 
@@ -558,7 +509,6 @@ export default function ExploreScreen() {
   const searchQuery = searchParams.get("q") ?? "";
   const nicheParam = parsePositiveInt(searchParams.get("niche"));
   const nicheExplicitClear = searchParams.get("niche") === "0";
-  const viewMode: "grid" | "list" = searchParams.get("view") === "list" ? "list" : "grid";
   // PR-T7 — date filter pills (Hôm nay / 7 ngày). Maps to ``dateFrom``
   // on ``useVideoCorpus`` (filtered against ``indexed_at``). Not in
   // ``SORT_VALUES`` style — only two valid values.
@@ -589,8 +539,6 @@ export default function ExploreScreen() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const formatMenuRef = useRef<HTMLDivElement>(null);
-  const [showNicheMenu, setShowNicheMenu] = useState(false);
-  const nicheMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [corpusPreview, setCorpusPreview] = useState<ExploreGridVideo | null>(null);
@@ -821,7 +769,6 @@ export default function ExploreScreen() {
   useEffect(() => { scrollResultsToTop(); }, [activeViewFilter, scrollResultsToTop]);
   useEffect(() => { scrollResultsToTop(); }, [activeFormat, scrollResultsToTop]);
   useEffect(() => { scrollResultsToTop(); }, [selectedNicheId, scrollResultsToTop]);
-  useEffect(() => { scrollResultsToTop(); }, [viewMode, scrollResultsToTop]);
   useEffect(() => { scrollResultsToTop(); }, [dateRange, scrollResultsToTop]);
 
   useEffect(() => {
@@ -834,17 +781,6 @@ export default function ExploreScreen() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showFormatMenu]);
-
-  useEffect(() => {
-    if (!showNicheMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (nicheMenuRef.current && !nicheMenuRef.current.contains(e.target as Node)) {
-        setShowNicheMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showNicheMenu]);
 
   return (
     <AppLayout active="trends" enableMobileSidebar>
@@ -925,90 +861,21 @@ export default function ExploreScreen() {
                     </span>{" "}
                     <span className="font-bold">video</span>{" "}
                     <span
-                      className="relative inline-flex items-center align-baseline"
-                      ref={nicheMenuRef}
+                      className="inline font-bold text-[color:var(--gv-ink)]"
+                      title="Ngách trùng với Studio — đổi tại trang Hôm nay / Cài đặt."
                     >
-                      <button
-                        type="button"
-                        onClick={() => setShowNicheMenu((v) => !v)}
-                        className="group inline-flex items-baseline gap-0.5 font-bold text-[color:var(--gv-ink)] underline decoration-transparent decoration-1 underline-offset-2 transition-colors hover:decoration-[color:var(--gv-ink-3)]"
-                        aria-label="Chọn ngách kho video"
-                        aria-haspopup="listbox"
-                        aria-expanded={showNicheMenu}
-                      >
-                        {selectedNicheName}
-                        <ChevronDown
-                          className="inline h-3.5 w-3.5 shrink-0 -translate-y-px text-[color:var(--gv-ink-3)]"
-                          strokeWidth={2.5}
-                        />
-                      </button>
-                      {showNicheMenu ? (
-                        <div className="absolute left-0 top-full z-20 mt-1.5 max-h-[320px] w-[min(200px,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
-                          {niches?.map((n) => (
-                            <button
-                              key={n.id}
-                              type="button"
-                              onClick={() => {
-                                writeStudioNicheId(n.id);
-                                setFilter({ niche: String(n.id) });
-                                setShowNicheMenu(false);
-                              }}
-                              className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
-                            >
-                              {n.name}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
+                      {selectedNicheName}
                     </span>
                   </>
                 ) : (
-                  <>
-                    <span className="block min-[1100px]:inline">
-                      <span className="font-bold">{exploreTitleBase}</span>
-                      {exploreTitleCount != null ? (
-                        <span className="ml-1.5 align-baseline font-mono text-[clamp(13px,1.2vw,16px)] font-medium text-[color:var(--gv-ink-3)]">
-                          {exploreTitleCount}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      className="mt-2 block min-[1100px]:mt-0 min-[1100px]:inline min-[1100px]:pl-2"
-                      ref={nicheMenuRef}
-                    >
-                      <span className="relative inline-flex">
-                        <button
-                          type="button"
-                          onClick={() => setShowNicheMenu((v) => !v)}
-                          className="inline-flex h-8 items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3.5 text-[11px] font-semibold text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)]"
-                          aria-label="Chọn ngách kho video"
-                          aria-haspopup="listbox"
-                          aria-expanded={showNicheMenu}
-                        >
-                          Chọn ngách
-                          <ChevronDown className="h-3 w-3 text-[var(--faint)]" strokeWidth={2.5} aria-hidden />
-                        </button>
-                        {showNicheMenu ? (
-                          <div className="absolute left-0 top-full z-20 mt-1.5 max-h-[320px] w-[min(200px,calc(100vw-2rem))] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 text-left text-[var(--ink)] shadow-lg">
-                            {niches?.map((n) => (
-                              <button
-                                key={n.id}
-                                type="button"
-                                onClick={() => {
-                                  writeStudioNicheId(n.id);
-                                  setFilter({ niche: String(n.id) });
-                                  setShowNicheMenu(false);
-                                }}
-                                className={`w-full px-4 py-2 text-left text-xs transition-colors hover:bg-[var(--surface-alt)] ${selectedNicheId === n.id ? "font-semibold text-[var(--gv-accent)]" : "text-[var(--ink)]"}`}
-                              >
-                                {n.name}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
+                  <span className="block min-[1100px]:inline">
+                    <span className="font-bold">{exploreTitleBase}</span>
+                    {exploreTitleCount != null ? (
+                      <span className="ml-1.5 align-baseline font-mono text-[clamp(13px,1.2vw,16px)] font-medium text-[color:var(--gv-ink-3)]">
+                        {exploreTitleCount}
                       </span>
-                    </span>
-                  </>
+                    ) : null}
+                  </span>
                 )}
                 </h2>
               </div>
@@ -1032,12 +899,11 @@ export default function ExploreScreen() {
               </div>
             </div>
 
-            <div className="mb-5 flex w-full min-w-0 flex-col gap-2 min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-between min-[1100px]:gap-3">
-              <div
-                className="flex min-w-0 min-[1100px]:min-w-0 min-[1100px]:flex-1 flex-wrap items-center gap-2"
-                role="toolbar"
-                aria-label="Bộ lọc kho video"
-              >
+            <div
+              className="mb-5 flex w-full min-w-0 flex-wrap items-center gap-2"
+              role="toolbar"
+              aria-label="Bộ lọc kho video"
+            >
                 <div ref={formatMenuRef} className="relative shrink-0">
                   <KhoSelectChip
                     label={
@@ -1116,38 +982,6 @@ export default function ExploreScreen() {
                   onRemove={dateRange === "7d" ? () => setFilter({ date: null }) : undefined}
                   onClick={dateRange !== "7d" ? () => setFilter({ date: "7d" }) : undefined}
                 />
-              </div>
-
-              <div
-                className="flex w-full shrink-0 justify-end min-[1100px]:w-auto"
-                role="group"
-                aria-label="Chế độ xem"
-              >
-                <div className="inline-flex items-center rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-0.5">
-                  <button
-                    type="button"
-                    aria-pressed={viewMode === "grid"}
-                    onClick={() => setFilter({ view: null })}
-                    className={`flex h-7 w-8 items-center justify-center rounded-full transition-colors ${
-                      viewMode === "grid" ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]" : "text-[var(--gv-ink-3)]"
-                    }`}
-                    aria-label="Lưới"
-                  >
-                    <LayoutGrid className="h-3 w-3" strokeWidth={2} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={viewMode === "list"}
-                    onClick={() => setFilter({ view: "list" })}
-                    className={`flex h-7 w-8 items-center justify-center rounded-full transition-colors ${
-                      viewMode === "list" ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]" : "text-[var(--gv-ink-3)]"
-                    }`}
-                    aria-label="Danh sách"
-                  >
-                    <List className="h-3 w-3" strokeWidth={2} />
-                  </button>
-                </div>
-              </div>
             </div>
             {isPending ? <ExploreGridSkeleton /> : null}
 
@@ -1170,7 +1004,7 @@ export default function ExploreScreen() {
               </div>
             ) : null}
 
-            {!isPending && !isError && videos.length > 0 && viewMode === "grid" ? (
+            {!isPending && !isError && videos.length > 0 ? (
               <div
                 className="grid gap-3.5"
                 style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))" }}
@@ -1188,19 +1022,6 @@ export default function ExploreScreen() {
                       onNavigate={() => openCorpusPreview(video)}
                     />
                   </motion.div>
-                ))}
-              </div>
-            ) : null}
-
-            {!isPending && !isError && videos.length > 0 && viewMode === "list" ? (
-              <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-                {videos.map((video) => (
-                  <ExploreVideoListRow
-                    key={video.id}
-                    video={video}
-                    nicheLabel={selectedNicheName}
-                    onNavigate={() => openCorpusPreview(video)}
-                  />
                 ))}
               </div>
             ) : null}

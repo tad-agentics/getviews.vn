@@ -37,8 +37,6 @@ const samplePattern = (id: string, overrides: Partial<TopPattern> = {}): TopPatt
   avg_views: 100_000,
   sample_hook: "Sample",
   videos: [],
-  dominant_hook_type: null,
-  avg_retention_pct: null,
   structure: null,
   why: null,
   careful: null,

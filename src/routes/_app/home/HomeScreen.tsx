@@ -27,7 +27,7 @@ import { useIsFirstRun } from "./components/useIsFirstRun";
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
  * Order: ticker → greeting → composer → suggested chips + shortcut pills → <hr>
- * → KÊNH CỦA BẠN → GỢI Ý HÔM NAY (tier 01 gồm kịch bản + 5 video; tier 02–03).
+ * → KÊNH CỦA BẠN → GỢI Ý HÔM NAY (tier 01: 3 kịch bản; tier 02–03).
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */

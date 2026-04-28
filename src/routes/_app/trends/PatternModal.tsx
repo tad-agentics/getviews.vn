@@ -13,7 +13,6 @@ import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
-import { lifecycleHint } from "./patternLifecycle";
 
 /**
  * Trends — PatternModal (PR-T4).
@@ -23,7 +22,7 @@ import { lifecycleHint } from "./patternLifecycle";
  * the left and takeaway / structure / gap-angles on the right.
  *
  * **Scope this PR**: the modal shell + the data we already have
- * (videos, sample_hook, instance_count, avg_views, lifecycle).
+ * (videos, sample_hook, instance_count, avg_views).
  * Fields the design renders that aren't yet on the BE schema —
  * ``structure[]``, ``why``, ``careful``, ``angles[]`` — render an
  * "Đang chuẩn bị" stub. A follow-up BE PR can add a
@@ -69,10 +68,6 @@ function PatternModalBody({
   const videos = pattern.videos.length > 0 ? pattern.videos : ([] as PatternVideo[]);
   const [activeIdx, setActiveIdx] = useState(0);
   const active = videos[activeIdx] ?? null;
-  const lifecycle = lifecycleHint(
-    pattern.weekly_instance_count,
-    pattern.weekly_instance_count_prev,
-  );
   const avgViewsLabel =
     pattern.avg_views != null ? formatViews(pattern.avg_views) : "—";
 
@@ -82,7 +77,7 @@ function PatternModalBody({
       <header className="flex items-start justify-between gap-4 border-b border-[color:var(--gv-rule)] px-7 py-[18px]">
         <div className="min-w-0 flex-1">
           <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-            PATTERN · {pattern.instance_count} VIDEO · {avgViewsLabel} VIEW TB · {lifecycle.text.toUpperCase()}
+            PATTERN · {pattern.instance_count} VIDEO · {avgViewsLabel} VIEW TB
           </p>
           <DialogTitle className="gv-tight m-0 text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-[color:var(--gv-ink)]">
             {pattern.display_name}

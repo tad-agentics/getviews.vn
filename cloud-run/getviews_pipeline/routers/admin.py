@@ -15,7 +15,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.config import ENSEMBLEDATA_API_TOKEN
@@ -396,7 +396,15 @@ class AdminTriggerIngestBody(StrictBody):
 
 
 class AdminTriggerMorningRitualBody(StrictBody):
-    user_ids: list[str] | None = None
+    """Same job as ``POST /batch/morning-ritual`` but JWT+is_admin instead of X-Batch-Secret."""
+
+    user_ids: list[str] | None = Field(
+        default=None,
+        description=(
+            "Profile UUIDs to process. Omit or null = every user with at least one "
+            "followed niche: one 3-script bundle per (user, niche), up to 3 niches per profile."
+        ),
+    )
 
 
 class AdminTriggerEmptyBody(StrictBody):
@@ -1029,7 +1037,12 @@ async def admin_list_triggers(
                 "body_schema": {},
                 "heavy": True,
             },
-            {"id": "morning_ritual", "label": "Morning ritual scripts (/batch/morning-ritual)", "body_schema": {"user_ids": "uuid[] | null"}, "heavy": True},
+            {
+                "id": "morning_ritual",
+                "label": "Daily ritual — 3 scripts / user / followed niche (null user_ids = full run)",
+                "body_schema": {"user_ids": "uuid[] | null — omit for all users × all their niches (max 3)"},
+                "heavy": True,
+            },
             {"id": "analytics", "label": "Weekly analytics + signal grading (/batch/analytics)", "body_schema": {}, "heavy": True},
             {"id": "layer0", "label": "Layer 0 insights", "body_schema": {}, "heavy": True},
             {"id": "scene_intelligence", "label": "Scene intelligence refresh (/batch/scene-intelligence)", "body_schema": {}, "heavy": True},
@@ -1068,7 +1081,15 @@ async def admin_trigger_ingest(
     )
 
 
-@router.post("/admin/trigger/morning_ritual")
+@router.post(
+    "/admin/trigger/morning_ritual",
+    summary="Regenerate daily ritual (manual)",
+    description=(
+        "Same workload as POST /batch/morning-ritual. Omit user_ids to process "
+        "every profile: one 3-script bundle per (user, each followed niche), "
+        "up to three niches per user."
+    ),
+)
 async def admin_trigger_morning_ritual(
     body: AdminTriggerMorningRitualBody = AdminTriggerMorningRitualBody(),
     admin: dict[str, Any] = Depends(require_admin),

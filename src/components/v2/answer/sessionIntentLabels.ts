@@ -143,7 +143,7 @@ export function ideasLeadAndSectionTitles(args: {
   }
   return {
     leadTitle: "Tóm tắt",
-    sectionKicker: "5 video tiếp theo",
+    sectionKicker: "3 video tiếp theo",
     ideasHeading: "Lịch quay tuần này",
   };
 }

@@ -66,12 +66,12 @@ describe("TrendsRail", () => {
   it("renders both section headers + sub-lines per design", () => {
     mockUseTrendsRailVideos.mockReturnValue({ data: samplePayload(), isPending: false });
     const { getByText } = wrap(<TrendsRail nicheId={4} />);
-    expect(getByText("VIDEO NÊN BẮT CHƯỚC")).toBeTruthy();
+    expect(getByText("VIDEO NÊN THAM KHẢO")).toBeTruthy();
     expect(getByText("Đang nổi lên")).toBeTruthy();
     expect(getByText("Top 5 view 7 ngày qua")).toBeTruthy();
-    expect(getByText("VIDEO ĐỈNH")).toBeTruthy();
-    expect(getByText("Viral mọi thời")).toBeTruthy();
-    expect(getByText("Top 5 mọi thời gian, ngách của bạn")).toBeTruthy();
+    expect(getByText("VIDEO LEO ĐỈNH")).toBeTruthy();
+    expect(getByText("Đang Viral")).toBeTruthy();
+    expect(getByText("Top 5 Viral Video trong ngách của bạn")).toBeTruthy();
   });
 
   it("renders one row per video with hook phrase as the title", () => {

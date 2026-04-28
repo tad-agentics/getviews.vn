@@ -1,186 +1,130 @@
 # Morning Ritual
 
-Three ready-to-shoot TikTok scripts every creator wakes up to, generated
-overnight and keyed to their niche + reference channels.
+Three ready-to-shoot TikTok scripts per **followed niche** (up to three niches per
+profile from `profiles.niche_ids`, else `primary_niche`), generated in batch
+and stored in `daily_ritual`.
 
-This is the hero feature of the Home screen (design's MorningRitual block).
-Phase A · A2 ships the generator + endpoint + a banner in the existing
-ChatScreen so we can validate the output before investing in the A3 Home
-shell.
+This is the hero feature of the Home screen tier **01** (“3 video tiếp theo bạn
+nên làm”). The UI is `HomeSuggestionsToday` + `StudioHero` +
+`useDailyRitual`.
 
 Implementations:
-- `cloud-run/getviews_pipeline/morning_ritual.py`
-- `supabase/migrations/20260423000050_daily_ritual.sql`
-- `cloud-run/main.py::home_daily_ritual` + `::batch_morning_ritual`
+
+- `cloud-run/getviews_pipeline/morning_ritual.py` — `run_morning_ritual_batch`
+- `supabase/migrations/20260423000050_daily_ritual.sql` (PK extended in
+  `20260629000000_ritual_per_niche_and_sync_primary.sql`)
+- `GET /home/daily-ritual` · `POST /batch/morning-ritual` ·
+  `POST /admin/trigger/morning_ritual`
 - `src/hooks/useDailyRitual.ts`
-- `src/routes/_app/components/MorningRitualBanner.tsx`
 
 ## Why
 
-"Mở app ra, biết hôm nay quay gì" is the single-largest creator-value
-shortcut this product can take. If we nail it, everything else — pulse,
-ticker, Kênh Tham Chiếu — is supporting evidence for the Morning Ritual.
+“Mở app ra, biết hôm nay quay gì” is the main creator shortcut. Pulse, ticker,
+and Kênh tham chiếu are supporting context for the ritual.
 
 ## Schema
 
-Each row in `daily_ritual`:
+Each row in `daily_ritual` (one per **user + UTC date + niche**):
 
 ```
-user_id UUID              -- FK auth.users, cascade delete
-generated_for_date DATE   -- UTC date the ritual is for
-niche_id INTEGER          -- niche the user was in when generated
-scripts JSONB             -- list of 3 RitualScript objects (see below)
-adequacy TEXT             -- claim-tier of the grounding corpus slice
-grounded_video_ids TEXT[] -- audit trail
+user_id UUID
+generated_for_date DATE   -- UTC
+niche_id INTEGER
+scripts JSONB              -- 3 × RitualScript
+adequacy TEXT
+grounded_video_ids TEXT[]
 generated_at TIMESTAMPTZ
-PRIMARY KEY (user_id, generated_for_date)
+PRIMARY KEY (user_id, generated_for_date, niche_id)
 ```
 
-Each RitualScript:
-
-```
-hook_type_en      Literal[...]  -- one of 19 canonical enum values
-hook_type_vi      string        -- HOOK_TYPE_VI[hook_type_en]
-title_vi          string        -- the hook line itself, ≤ 90 chars, quoted
-why_works         string        -- 1 Vietnamese sentence, ≤ 140 chars
-retention_est_pct int (30–90)
-shot_count        int (2–8)
-length_sec        int (15–90)
-```
-
-Validation is pydantic at generation time, so any row in `daily_ritual.scripts`
-has already cleared the schema. The UI doesn't need to defend against malformed
-data.
+`GET /home/daily-ritual?niche_id=` returns the row for the caller and resolved
+niche (see `resolve_home_niche_id`).
 
 ## Generation flow
 
-`generate_ritual_for_user(client, user_id, niche_id, niche_name, reference_handles)`:
-
-1. **Grounding ladder** — build a 10–20 video pool:
-   - Primary: `video_corpus` rows in niche, created ≤ 7d ago, where
-     `creator_handle IN reference_handles`
-   - Fallback 1: niche-wide top-views last 7d
-   - Fallback 2: niche-wide top-views last 30d
-   - If still < 10 → return `thin_corpus` error; caller writes nothing
-
-2. **Prompt** — `_PROMPT_TEMPLATE` injects:
-   - Vietnamese niche name
-   - Trimmed grounding JSON (just hook + hook_type + views per row)
-   - Optional reference-handles note ("Ưu tiên giọng giống @a, @b")
-   - Explicit requirement that the 3 scripts use **different** hook types
-
-3. **Gemini call** with `response_json_schema = RitualBundle.model_json_schema()`
-   so the output is structurally guaranteed. Temperature 0.6 — distinct
-   scripts need some creativity.
-
-4. **Post-processing**:
-   - Defensive dedupe by `hook_type_en` (Gemini occasionally returns two
-     `pov` despite the prompt rule). If < 3 distinct remain, treat as soft
-     failure.
-   - Enrich each script with `hook_type_vi` by mapping through `HOOK_TYPE_VI`.
-
-5. **Upsert** to `daily_ritual` on `(user_id, generated_for_date)`.
-
-`adequacy` comes from `claim_tiers.flags_for_count(pool_size).highest_passing_tier`
-and is written alongside the scripts. The UI uses it to soften retention
-claims on thin niches.
+(See `morning_ritual.py` for full detail: grounding ladder → Gemini
+`RitualBundle` → `upsert` with `on_conflict=user_id,generated_for_date,niche_id`.)
 
 ## Endpoints
 
-### `GET /home/daily-ritual` (user-scoped)
+### `GET /home/daily-ritual` (user JWT)
 
-Returns the most recent row for the calling user (≤ today). 404 when none
-exists — the nightly cron runs at 07:00 ICT and new creators won't have a
-row yet on day 0. The frontend renders a "sắp có" state for that case.
+404 + `{ "code": "ritual_no_row" | "ritual_niche_stale" }` when missing / mismatch.
 
-### `POST /batch/morning-ritual` (X-Batch-Secret gated)
+### `POST /batch/morning-ritual` (`X-Batch-Secret`)
 
-Runs the nightly batch. Body:
+Nightly / on-demand batch. Body:
+
 ```json
-{ "user_ids": null }    // omit/null → all profiles with niche_id set
-{ "user_ids": ["..."] } // smoke-test a specific set
+{}
 ```
 
-Response:
+or
+
 ```json
-{
-  "ok": true,
-  "generated": 42,
-  "skipped_thin": 3,
-  "failed_schema": 1,
-  "failed_gemini": 0,
-  "users_no_niche": 5
-}
+{ "user_ids": null }
 ```
 
-**Cloud Scheduler wiring** (to add manually in GCP):
-```
-schedule:     "0 0 * * *"        # 07:00 ICT = 00:00 UTC
-time zone:    "UTC"
-target:       POST https://<service>/batch/morning-ritual
-headers:      X-Batch-Secret: <BATCH_SECRET>
-body:         {}
+= **all users** with a niche, **each (user, followed niche slot)** up to 3
+niches. For smoke tests:
+
+```json
+{ "user_ids": ["<uuid-1>"] }
 ```
 
-## UI integration (Phase A · A2)
+Response includes `generated`, `skipped_thin`, `failed_*`, `users_no_niche`.
 
-`MorningRitualBanner` is rendered above the QUICK_ACTIONS grid on both the
-mobile and desktop ChatScreen empty states. It:
+### `POST /admin/trigger/morning_ritual` (user JWT + `profiles.is_admin`)
 
-- Reads `useDailyRitual()` — returns `null` if no ritual today (no banner renders)
-- Shows 3 cards; the first is ink-filled (emphasis), the others are paper
-- Each card click prefills the chat textarea with a shot-list prompt
-  grounded in that script (`promptFromScript`) — submits via the existing
-  chat stream
-- Shows a "dữ liệu thưa" badge when `adequacy ∈ {none, reference_pool}`
-  so the creator knows the retention numbers are directional
+**Manual full or partial run** — same Python entrypoint as
+`/batch/morning-ritual`, but authenticated as an admin user (no batch secret).
 
-In A3 the banner relocates to the Home screen and card clicks route to the
-Answer screen instead of the chat.
+- `{}` or `{ "user_ids": null }` — **mọi user** × **mỗi ngách đang follow** (tối
+  đa 3 ngách / profile), khớp cron.
+- `{ "user_ids": ["<uuid>"] }` — chỉ những profile đó (vẫn lặp từng
+  `niche_ids` slot).
+
+```bash
+curl -sS -X POST "https://<cloud-run>/admin/trigger/morning_ritual" \
+  -H "Authorization: Bearer <admin_supabase_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+## Schedules (keep these aligned)
+
+1. **GCP Cloud Scheduler (recommended in `deploy.sh`)**  
+   - `getviews-morning-ritual`: `0 22 * * *`, time zone
+     `Asia/Ho_Chi_Minh` — **22:00 VN** (scripts ready before the next
+     morning).  
+   - `POST` …`/batch/morning-ritual` with header `X-Batch-Secret: <BATCH_SECRET>`,
+     body `{}`.
+
+2. **Supabase pg_cron** (`20260526000000_pg_cron_morning_ritual_scene_intel.sql`)  
+   - Example job uses **UTC** cron; if both GCP and Supabase call the same URL,
+     **do not** double-charge: disable one or stagger.
+
+Document whichever is active in the Supabase / GCP console after deploy.
+
+## UI integration
+
+`StudioHero` lists `ritual.scripts` (3 rows). `useDailyRitual` requires
+`nicheId` and `VITE_CLOUD_RUN_API_URL`.
 
 ## Cost
 
-One Gemini synthesis call per active creator per day.
-Rough back-of-envelope on `GEMINI_SYNTHESIS_MODEL` with ~20 grounding videos:
-- In: ~50k tokens
-- Out: ~2k tokens
-- ~$0.02/user/day
+Roughly **one Gemini synthesis per (user, niche)** in the batch run (not
+once per user). Budget accordingly when `user_ids` is null.
 
-At 100 users: ~$2/day = ~$60/month.
+## Operator fields
 
-## What Phase A validates
+| Field | Meaning |
+|--------|---------|
+| `generated` | Successful upserts |
+| `skipped_thin` | Grounding pool < 10 videos |
+| `failed_schema` / `failed_gemini` / `failed_duplicate_hooks` | Model / validation |
+| `users_no_niche` | No `niche_ids` or `primary_niche` |
 
-- Do creators click the cards?
-- Do they return the next day to see new scripts?
-- Are the scripts distinct enough day-to-day?
-- Does the `adequacy` tier correctly soften messaging on thin niches?
+## Tests
 
-If the answer is yes across the board, the A3 investment (Home shell +
-tokens + onboarding step 2) is justified. If no, we rework the ritual (or
-the grounding) before touching the shell.
-
-## Testing
-
-`cloud-run/tests/test_morning_ritual.py` covers grounding-ladder priorities,
-prompt shape under reference / no-reference conditions, and the upsert
-guard against errored results. The Gemini call itself is not exercised —
-that's the job of CI's live-smoke on a staging project.
-
-Frontend: `MorningRitualBanner` has no unit tests yet — it's a render-only
-component with a single query hook. A Playwright flow against staging is
-the right next test.
-
-## Operator guidance
-
-When the nightly batch runs, check the summary fields:
-
-| Field | What it means | Action if elevated |
-|---|---|---|
-| `generated` | Successful writes | — |
-| `skipped_thin` | Pool < 10 after all fallbacks | Expect 1–3 niches; persistent growth = corpus-health issue |
-| `failed_schema` | Gemini returned invalid JSON | Check model version; if >5% of runs, tighten the prompt |
-| `failed_gemini` | Gemini call itself errored | Network / quota; retry tomorrow |
-| `users_no_niche` | Users haven't onboarded | Informational; surfaces onboarding-funnel leak |
-
-`daily_ritual.grounded_video_ids` lets you reconstruct "why did we suggest
-this script" after the fact.
+`cloud-run/tests/test_morning_ritual.py` (grounding ladder, no live Gemini in CI).

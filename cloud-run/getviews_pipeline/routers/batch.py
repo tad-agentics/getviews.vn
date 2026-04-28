@@ -640,10 +640,11 @@ async def batch_morning_ritual(
     body: RitualBatchRequest = RitualBatchRequest(),
     _caller: dict | None = Depends(require_batch_caller),
 ) -> JSONResponse:
-    """Nightly cron: generate 3 scripts for every creator with a niche set.
+    """Nightly batch: generate 3 scripts per (creator, followed niche).
 
-    Protected by require_batch_caller. Called by Cloud Scheduler at ~07:00 Asia/
-    Ho_Chi_Minh so the ritual is ready when the creator opens the app.
+    Protected by require_batch_caller. Production schedule (see ``deploy.sh``):
+    ``0 22 * * *`` in ``Asia/Ho_Chi_Minh`` (22:00 VN) so rows are warm before
+    the next morning. Supabase pg_cron may use a different UTC slot — keep in sync.
     """
     from getviews_pipeline.morning_ritual import run_morning_ritual_batch
     from getviews_pipeline.supabase_client import get_service_client

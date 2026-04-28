@@ -787,7 +787,7 @@ export interface IdeaBlockPayloadData {
   prerequisites: string[];
   confidence: Record<string, number>;
   style: string;
-  // 2026-05-10 — Wave 2 PR #2/#3: "5 video tiếp theo" content-calendar fields.
+  // 2026-05-10 — Wave 2 PR #2/#3: "3 video tiếp theo" content-calendar fields (ideas stack).
   // All optional for back-compat; older payloads render unchanged.
   rank?: number;                                              // 1..5
   opening_line?: string;                                      // 6-12 word VN first-spoken-line
