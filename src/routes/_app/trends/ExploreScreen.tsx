@@ -353,7 +353,7 @@ function KhoSelectChip({
 }) {
   return (
     <div
-      className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[9px] font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
+      className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[9px] font-medium leading-none text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
     >
       {onRemove && isDirty ? (
         <button
@@ -370,11 +370,11 @@ function KhoSelectChip({
         onClick={onClick}
         className={
           isDirty && onRemove
-            ? "flex min-h-0 flex-1 items-center gap-0.5 pl-0.5 pr-1.5"
-            : "flex min-h-0 flex-1 items-center gap-0.5 px-2"
+            ? "flex min-h-0 flex-1 items-center gap-0.5 pl-0.5 pr-1.5 !text-[9px] !font-medium !leading-none"
+            : "flex min-h-0 flex-1 items-center gap-0.5 px-2 !text-[9px] !font-medium !leading-none"
         }
       >
-        <span className={isDirty ? "font-semibold" : "font-medium"}>{label}</span>
+        <span className={isDirty ? "font-semibold !leading-none" : "font-medium !leading-none"}>{label}</span>
         {hasArrow ? <ChevronDown className="h-2 w-2 shrink-0 text-[var(--faint)]" strokeWidth={2} aria-hidden /> : null}
       </button>
     </div>
@@ -404,13 +404,23 @@ function KhoTogglePill({
         <button
           type="button"
           onClick={onClick}
-          className={`flex shrink-0 items-center border-none px-2 text-left transition-[background] ${
+          className={
+            `flex shrink-0 items-center border-none px-2 text-left transition-[background] ${
             active
-              ? "text-[color:var(--gv-paper)]"
-              : "text-[color:var(--gv-ink)] hover:bg-[var(--surface-alt)]"
-          }`}
+              ? ""
+              : "hover:bg-[var(--surface-alt)]"
+            }`
+          }
         >
-          {label}
+          <span
+            className={
+              active
+                ? "block !text-[9px] !font-medium !leading-none text-[color:var(--gv-paper)]"
+                : "block !text-[9px] !font-medium !leading-none text-[color:var(--gv-ink)]"
+            }
+          >
+            {label}
+          </span>
         </button>
         {active ? (
           <button
@@ -429,7 +439,7 @@ function KhoTogglePill({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex ${KHO_FILTER_CHIP_H} shrink-0 items-center justify-center rounded-full border px-2 text-[9px] font-medium leading-none transition-all duration-[120ms] ${
+      className={`inline-flex ${KHO_FILTER_CHIP_H} shrink-0 items-center justify-center rounded-full border px-2 !text-[9px] !font-medium !leading-none transition-all duration-[120ms] ${
         active
           ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]"
           : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)]"
@@ -881,7 +891,7 @@ export default function ExploreScreen() {
               </div>
 
               <div className="w-full shrink-0 min-[1100px]:w-[min(100%,22rem)] min-[1100px]:max-w-[40%]">
-                <div className="flex h-11 w-full min-w-0 items-center gap-2.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 shadow-sm transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]">
+                <div className="flex h-11 w-full min-w-0 items-center gap-2.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]">
                   <Search
                     className="h-3.5 w-3.5 shrink-0 text-[var(--faint)]"
                     strokeWidth={1.8}
