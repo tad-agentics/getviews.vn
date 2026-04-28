@@ -126,9 +126,9 @@ BATCH_CONCURRENCY = int(os.environ.get("BATCH_CONCURRENCY", "4"))
 
 # Quality gates — tune via env vars without redeploying
 # Minimum views a post must have to enter the corpus (filters low-reach content)
-BATCH_MIN_VIEWS = int(os.environ.get("BATCH_MIN_VIEWS", "20000"))
+BATCH_MIN_VIEWS = int(os.environ.get("BATCH_MIN_VIEWS", "10000"))
 # Minimum engagement rate % — (likes+comments+shares)/views*100 (filters dead content)
-BATCH_MIN_ER = float(os.environ.get("BATCH_MIN_ER", "2.0"))
+BATCH_MIN_ER = float(os.environ.get("BATCH_MIN_ER", "1.0"))
 # Keyword search pages fetched per niche (each page ~20 posts, broadens candidate pool)
 BATCH_KEYWORD_PAGES = int(os.environ.get("BATCH_KEYWORD_PAGES", "2"))
 # Carousel ingest: carousels per niche per batch run
