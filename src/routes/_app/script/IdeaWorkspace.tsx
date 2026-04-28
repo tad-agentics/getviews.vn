@@ -1,11 +1,16 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Plus, Sparkles } from "lucide-react";
+import { TopBar } from "@/components/v2/TopBar";
+import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
+import { Btn } from "@/components/v2/Btn";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
+import { useHomePulse } from "@/hooks/useHomePulse";
 import { useScriptDrafts } from "@/hooks/useScriptSave";
 import { useProfile } from "@/hooks/useProfile";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
+import { env } from "@/lib/env";
 import type { ScriptDraftRow } from "@/lib/api-types";
 
 /**
@@ -44,6 +49,8 @@ export function IdeaWorkspace() {
   const drafts = useScriptDrafts(true);
   const draftsList: ScriptDraftRow[] = drafts.data?.drafts ?? [];
 
+  const { data: pulse } = useHomePulse(Boolean(env.VITE_CLOUD_RUN_API_URL));
+
   const [showAllDrafts, setShowAllDrafts] = useState(false);
   const visibleDrafts = showAllDrafts ? draftsList : draftsList.slice(0, 6);
 
@@ -53,24 +60,33 @@ export function IdeaWorkspace() {
   };
 
   return (
-    <div className="bg-[color:var(--gv-canvas)] min-h-full">
-      <div className="mx-auto max-w-[1080px] px-7 pt-6 pb-14">
-        {/* Header */}
-        <div className="mb-5">
-          <p className="gv-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--gv-accent)] font-semibold mb-2">
-            XƯỞNG VIẾT · CHỌN XUẤT PHÁT ĐIỂM
-          </p>
-          <h1
-            className="gv-tight text-[clamp(30px,3.6vw,42px)] font-medium leading-[1.1] text-[color:var(--gv-ink)]"
-            style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.025em" }}
-          >
-            Bạn muốn viết gì hôm nay?
-          </h1>
-          <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
-            Chọn từ ý tưởng AI gợi ý dựa trên ngách của bạn, tự nhập chủ đề, hoặc
-            mở nháp đang viết dở.
-          </p>
-        </div>
+    <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
+      <TopBar
+        kicker="STUDIO"
+        title="Xưởng Viết"
+        right={
+          <>
+            <DataFreshnessPill asOfIso={pulse?.as_of} />
+            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              Phân tích mới
+            </Btn>
+          </>
+        }
+      />
+      <main className="gv-route-main pb-14">
+        <div className="mx-auto w-full max-w-[1080px]">
+          <div className="mb-5">
+            <h1
+              className="gv-tight text-[clamp(30px,3.6vw,42px)] font-medium leading-[1.1] text-[color:var(--gv-ink)]"
+              style={{ fontFamily: "var(--gv-font-display)", letterSpacing: "-0.025em" }}
+            >
+              Bạn muốn quay gì hôm nay?
+            </h1>
+            <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
+              Lấy ý tưởng từ gợi ý có sẵn, tự nhập chủ đề của mình, hoặc mở lại bản nháp đang bỏ dở.
+            </p>
+          </div>
 
         {/* Path A — AI ideas */}
         <section className="mb-10">
@@ -156,7 +172,8 @@ export function IdeaWorkspace() {
             </>
           )}
         </section>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

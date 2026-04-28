@@ -11,6 +11,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
 import { TopBar } from "@/components/v2/TopBar";
+import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
 import { RetentionCurve } from "@/components/v2/RetentionCurve";
 import { Timeline } from "@/components/v2/Timeline";
 import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
@@ -20,7 +21,6 @@ import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { looksLikeTikTokUrl } from "@/lib/tiktokUrl";
-import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import type {
   FlopHeadline,
@@ -142,13 +142,6 @@ export default function VideoScreen() {
   }, [url]);
   const { data: pulse } = useHomePulse(cloudConfigured);
 
-  const asOf = useMemo(() => {
-    if (!pulse?.as_of) return null;
-    const d = new Date(pulse.as_of);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [pulse?.as_of]);
-  const asOfRelative = useMemo(() => formatRelativeSinceVi(new Date(), asOf), [asOf]);
-
   /** B.1.5 — same handoff as chat: `location.state.prefillUrl` → stable `?url=` query. */
   useEffect(() => {
     const st = location.state as { prefillUrl?: string } | null | undefined;
@@ -193,15 +186,7 @@ export default function VideoScreen() {
         title="Phân Tích Video"
         right={
           <>
-            {pulse?.as_of ? (
-              <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)] md:inline-flex">
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
-                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
-                />
-                Dữ liệu cập nhật {asOfRelative}
-              </span>
-            ) : null}
+            <DataFreshnessPill asOfIso={pulse?.as_of} />
             {/* Bookmark / "Đã Lưu" stub removed (D.6-era cleanup) — no
                  handler, no data model, just visual clutter. Re-add
                  when the "save video for later" feature lands. */}

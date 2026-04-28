@@ -191,7 +191,7 @@ describe("ScriptScreen", () => {
     // the sidebar CHỦ ĐỀ field. We assert against the header one.
     const headerTopic = screen.getByLabelText(/Chủ đề kịch bản/) as HTMLTextAreaElement;
     expect(headerTopic.value).toMatch(/Review tai nghe 200k vs 2 triệu/);
-    expect(screen.getByText(/XƯỞNG VIẾT · KỊCH BẢN SỐ/)).toBeTruthy();
+    expect(screen.getByText(/KỊCH BẢN SỐ/)).toBeTruthy();
   });
 
   it("honours ?topic= to pre-fill the topic textarea", () => {

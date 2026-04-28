@@ -23,7 +23,7 @@ export default function ShootScreen() {
   const draft = data?.draft ?? null;
 
   return (
-    <AppLayout enableMobileSidebar>
+    <AppLayout active="script" enableMobileSidebar>
       <TopBar
         kicker="CHẾ ĐỘ QUAY"
         title={draft?.topic || "Kịch bản"}

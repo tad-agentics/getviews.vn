@@ -3,8 +3,8 @@ import { Sparkles } from "lucide-react";
 
 /**
  * Editorial section title — matches UIUX `home.jsx` SectionHeader:
- * ● kicker in accent-deep mono 10px, h2 28px tight, caption 13px ink-3
- * on the same baseline row as the title when space allows.
+ * ● kicker in accent-deep mono 10px, h2 tight, caption ink-3.
+ * Mobile: title + caption stack full-width; sm+: caption can sit on the title row when space allows.
  */
 export function SectionHeader({
   kicker,
@@ -34,8 +34,10 @@ export function SectionHeader({
   return (
     <header
       className={[
-        "mb-4 flex justify-between gap-4",
-        right ? "items-end" : "items-start",
+        "mb-4 flex gap-3 sm:gap-4",
+        right
+          ? "flex-col sm:flex-row sm:items-end sm:justify-between"
+          : "flex-col sm:flex-row sm:items-start sm:justify-between",
         className ?? "",
       ]
         .join(" ")
@@ -57,16 +59,18 @@ export function SectionHeader({
             <>● {kicker}</>
           )}
         </span>
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="gv-tight m-0 text-[28px] leading-none text-[color:var(--gv-ink)]">{title}</h2>
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3 sm:gap-y-1">
+          <h2 className="gv-tight m-0 w-full text-[22px] font-semibold leading-[1.1] tracking-[-0.02em] text-[color:var(--gv-ink)] sm:w-auto sm:max-w-[min(100%,36rem)] sm:text-[26px] sm:leading-none lg:text-[28px]">
+            {title}
+          </h2>
           {caption ? (
-            <p className="min-w-0 max-w-prose flex-1 text-[13px] leading-snug text-[color:var(--gv-ink-3)]">
+            <p className="min-w-0 w-full text-[12.5px] leading-relaxed text-[color:var(--gv-ink-3)] sm:max-w-prose sm:flex-1 sm:text-[13px] sm:leading-snug">
               {caption}
             </p>
           ) : null}
         </div>
       </div>
-      {right ? <div className="shrink-0">{right}</div> : null}
+      {right ? <div className="shrink-0 self-start sm:self-auto">{right}</div> : null}
     </header>
   );
 }

@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { QueryComposer } from "@/components/v2/QueryComposer";
 import { TopBar } from "@/components/v2/TopBar";
+import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
@@ -158,6 +159,7 @@ export default function HomeScreen() {
           title="Sảnh Sáng Tạo"
           right={
             <>
+              <DataFreshnessPill asOfIso={pulse?.as_of} />
               <Btn variant="ink" size="sm" onClick={() => navigate("/app/answer")}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới

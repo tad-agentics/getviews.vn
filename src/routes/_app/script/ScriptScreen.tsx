@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Download, Film, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
 import type { ScriptExportFormat } from "@/lib/api-types";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
+import { TopBar } from "@/components/v2/TopBar";
+import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
 import { IdeaWorkspace } from "./IdeaWorkspace";
 import { IdeaRefStrip } from "./IdeaRefStrip";
 import { ScriptExportModal } from "./ScriptExportModal";
@@ -19,6 +21,7 @@ import { ScriptForecastBar } from "@/components/v2/ScriptForecastBar";
 import { ScriptPacingRibbon } from "@/components/v2/ScriptPacingRibbon";
 import { ScriptShotRow } from "@/components/v2/ScriptShotRow";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
 import { useScriptExport, useScriptSave } from "@/hooks/useScriptSave";
 import { useScriptGenerate } from "@/hooks/useScriptGenerate";
@@ -150,7 +153,7 @@ export default function ScriptScreen() {
     !searchParams.has("duration");
   if (isWorkspaceMode) {
     return (
-      <AppLayout>
+      <AppLayout active="script" enableMobileSidebar>
         <IdeaWorkspace />
       </AppLayout>
     );
@@ -163,6 +166,7 @@ function ScriptDetailScreen() {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
+  const { data: pulse } = useHomePulse(cloudConfigured);
 
   const paramNiche = parseNicheId(searchParams.get("niche_id"));
   const effectiveNicheId = paramNiche ?? profile?.primary_niche ?? null;
@@ -595,15 +599,19 @@ function ScriptDetailScreen() {
 
   return (
     <AppLayout active="script" enableMobileSidebar>
-      {/* D7 — design pack ``screens/script.jsx`` doesn't render a
-          shell-level TopBar; the detail header (``XƯỞNG VIẾT · KỊCH
-          BẢN SỐ N · DỰA TRÊN …``) below IS the screen header.
-          Pre-D7 we mounted a ``<TopBar>`` here too, which created a
-          double "XƯỞNG VIẾT" stack. The freshness pill + "Phân tích
-          mới" button it carried were shell-level affordances:
-          AppLayout's sidebar already has a "+" button for new
-          analysis, and the freshness signal isn't critical on Script
-          (content is user-driven, not data-pulled). */}
+      <TopBar
+        kicker="STUDIO"
+        title="Xưởng Viết"
+        right={
+          <>
+            <DataFreshnessPill asOfIso={pulse?.as_of} />
+            <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              Phân tích mới
+            </Btn>
+          </>
+        }
+      />
       <main className="gv-route-main gv-route-main--1280">
         {!cloudConfigured ? (
           <div className="mx-auto w-full max-w-[1380px]">
@@ -642,7 +650,7 @@ function ScriptDetailScreen() {
                     citation data is absent (e.g. hook-patterns query
                     still pending or thin-corpus niches). */}
                 <div className="gv-mono gv-uc mb-1.5 text-[10px] font-semibold leading-none tracking-[0.18em] text-[color:var(--gv-accent)]">
-                  XƯỞNG VIẾT · KỊCH BẢN SỐ {scriptNo}
+                  KỊCH BẢN SỐ {scriptNo}
                   {hookData?.citation?.sample_size != null &&
                   hookData.citation.sample_size > 0 &&
                   nicheDisplayName ? (

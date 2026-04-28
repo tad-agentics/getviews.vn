@@ -9,6 +9,7 @@ import { FormulaBar } from "@/components/v2/FormulaBar";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { PostingHeatmap } from "@/components/v2/channel/PostingHeatmap";
 import { TopBar } from "@/components/v2/TopBar";
+import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { channelAnalyzeHandleKey, useChannelAnalyze } from "@/hooks/useChannelAnalyze";
 import { extractChannelHandleFromMessage } from "@/lib/channelHandle";
@@ -17,7 +18,7 @@ import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromChannel } from "@/lib/scriptPrefill";
 import type { ChannelAnalyzeResponse, VideoKpi } from "@/lib/api-types";
-import { formatFollowers, formatRelativeSinceVi, formatViews } from "@/lib/formatters";
+import { formatFollowers, formatViews } from "@/lib/formatters";
 
 function formatViewsVi(n: number): string {
   return n.toLocaleString("vi-VN");
@@ -77,13 +78,6 @@ export default function ChannelScreen() {
   const cloudConfigured = Boolean(env.VITE_CLOUD_RUN_API_URL);
   const { data: pulse } = useHomePulse(cloudConfigured);
 
-  const asOf = useMemo(() => {
-    if (!pulse?.as_of) return null;
-    const d = new Date(pulse.as_of);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [pulse?.as_of]);
-  const asOfRelative = useMemo(() => formatRelativeSinceVi(new Date(), asOf), [asOf]);
-
   const { data, isPending, isError, error, refetch, isFetching } = useChannelAnalyze({
     handle: rawHandle,
     forceRefresh,
@@ -132,15 +126,7 @@ export default function ChannelScreen() {
         title="Phân Tích Kênh"
         right={
           <>
-            {pulse?.as_of ? (
-              <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.1em] text-[color:var(--gv-ink-3)] md:inline-flex">
-                <span
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
-                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
-                />
-                Dữ liệu cập nhật {asOfRelative}
-              </span>
-            ) : null}
+            <DataFreshnessPill asOfIso={pulse?.as_of} />
           </>
         }
       />

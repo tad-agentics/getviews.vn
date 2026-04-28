@@ -301,28 +301,47 @@ export const HomeMyChannelSection = memo(function HomeMyChannelSection({
        * design pack (home.jsx:497-504). The Khám lại + Soi sâu actions
        * moved into the inner card header next to the channel identity
        * row so they sit closer to the data they affect. */}
-      <header className="mb-4 flex flex-col gap-1 min-w-0">
+      <header className="mb-4 flex min-w-0 flex-col gap-2">
         <span className="gv-uc flex items-center gap-1.5 text-[10px] font-semibold text-[color:var(--gv-accent-deep)]">
           <span className="text-[color:var(--gv-accent)]" aria-hidden>
             ●
           </span>
           KÊNH CỦA BẠN
         </span>
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="gv-tight m-0 text-[28px] font-semibold leading-none tracking-[-0.03em] text-[color:var(--gv-ink)]">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3 sm:gap-y-1">
+          <h2 className="gv-tight m-0 w-full text-[22px] font-semibold leading-[1.1] tracking-[-0.03em] text-[color:var(--gv-ink)] sm:w-auto sm:max-w-[min(100%,36rem)] sm:text-[26px] sm:leading-none lg:text-[28px]">
             {hasHandle ? (
               <>
                 Tóm tắt kênh{" "}
-                <span className="text-[color:var(--gv-ink)]">@{handleForUrl}</span>
+                <span className="break-all text-[color:var(--gv-ink)] sm:break-normal">
+                  @{handleForUrl}
+                </span>
               </>
             ) : (
-              "Kết nối kênh TikTok của bạn"
+              "Khám kênh nhanh"
             )}
           </h2>
-          <p className="min-w-0 max-w-prose flex-1 text-[13px] leading-snug text-[color:var(--gv-ink-3)]">
-            {hasHandle
-              ? `Bạn ở đâu trong ngách ${nicheLabel} — và 3 việc nên làm tuần này.`
-              : "Dán link để Getviews soi gương kênh của bạn — bạn ở đâu trong ngách, video nào đang lên / tụt, nên làm gì tuần này."}
+          <p className="min-w-0 w-full text-[12.5px] leading-relaxed text-[color:var(--gv-ink-3)] sm:max-w-prose sm:flex-1 sm:text-[13px] sm:leading-snug">
+            {hasHandle ? (
+              <>
+                <span className="sm:hidden">
+                  Trong ngách {nicheShortLabel(nicheLabel)} — 3 việc nên làm tuần này.
+                </span>
+                <span className="hidden sm:inline">
+                  {`Bạn ở đâu trong ngách ${nicheLabel} — và 3 việc nên làm tuần này.`}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="sm:hidden">
+                  Dán link TikTok — Getviews soi vị trí ngách, video lên/tụt và việc nên làm tuần này.
+                </span>
+                <span className="hidden sm:inline">
+                  Dán link kênh của bạn để được khám — video nào đang hoạt động, video nào đang mất đà, và tuần này
+                  bạn nên tập trung vào hướng nào.
+                </span>
+              </>
+            )}
           </p>
         </div>
       </header>

@@ -52,6 +52,9 @@ vi.mock("@/hooks/useDailyRitual", () => ({
 vi.mock("@/hooks/useScriptSave", () => ({
   useScriptDrafts: (enabled: boolean) => mockUseScriptDrafts(enabled),
 }));
+vi.mock("@/hooks/useHomePulse", () => ({
+  useHomePulse: () => ({ data: null, isPending: false, isError: false }),
+}));
 
 const { IdeaWorkspace } = await import("./IdeaWorkspace");
 
@@ -119,9 +122,10 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("IdeaWorkspace", () => {
-  it("renders the H1 and three path letter chips A/B/C", () => {
+  it("renders the H1, shell TopBar title, and three path letter chips A/B/C", () => {
     renderWorkspace();
-    expect(screen.getByText(/Bạn muốn viết gì hôm nay/)).toBeTruthy();
+    expect(screen.getByText("Xưởng Viết")).toBeTruthy();
+    expect(screen.getByText(/Bạn muốn quay gì hôm nay/)).toBeTruthy();
     expect(screen.getByText("A")).toBeTruthy();
     expect(screen.getByText("B")).toBeTruthy();
     expect(screen.getByText("C")).toBeTruthy();

@@ -40,6 +40,10 @@ vi.mock("@/hooks/useProfile", () => ({
   useProfile: () => useProfile(),
 }));
 
+vi.mock("@/hooks/useHomePulse", () => ({
+  useHomePulse: () => ({ data: null, isPending: false, isError: false, refetch: vi.fn() }),
+}));
+
 const { default: DouyinScreen } = await import("./DouyinScreen");
 
 

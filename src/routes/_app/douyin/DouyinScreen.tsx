@@ -5,8 +5,10 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { TopBar } from "@/components/v2/TopBar";
+import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
 import { useDouyinFeed } from "@/hooks/useDouyinFeed";
 import { useDouyinPatterns } from "@/hooks/useDouyinPatterns";
+import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
 import type { DouyinVideo } from "@/lib/api-types";
 
@@ -48,6 +50,7 @@ export default function DouyinScreen() {
     refetch: refetchPatterns,
   } = useDouyinPatterns();
   const { data: profile } = useProfile();
+  const { data: pulse } = useHomePulse();
   const { has: isSaved, toggle: toggleSaved, set: savedIds, size: savedCount } =
     useDouyinSavedSet();
 
@@ -154,10 +157,13 @@ export default function DouyinScreen() {
           kicker="THAM CHIẾU"
           title="Kho Douyin"
           right={
-            <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/trends")}>
-              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-              Về Xu hướng
-            </Btn>
+            <>
+              <DataFreshnessPill asOfIso={pulse?.as_of} />
+              <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/trends")}>
+                <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                Về Xu hướng
+              </Btn>
+            </>
           }
         />
 
