@@ -297,7 +297,8 @@ def _unclear_fallback(
 
     The "honesty" invariant: when we don't have enough signal (no Gemini
     key, empty query, or Gemini failure), we refuse to invent verdicts
-    and funnel the user back to /app/video instead.
+    and funnel the user back to /app/answer (URL paste → video session)
+    instead.
     """
     categories = [_unclear_category(name, query) for name in DIAGNOSTIC_CATEGORY_NAMES]
     return {
@@ -340,7 +341,7 @@ def _paste_link_prescription(query: str) -> dict[str, str]:
     del query
     return {
         "priority": "P1",
-        "action": "Dán link video vào /app/video để chấm điểm chính xác từng phần.",
+        "action": "Dán link video vào composer ở /app/answer để chấm điểm chính xác từng phần.",
         "impact": "Chuyển từ chẩn đoán mô tả sang phân tích thực tế từng giây.",
         "effort": "low",
     }

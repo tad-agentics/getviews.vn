@@ -3,13 +3,20 @@
  *
  * Same EvidenceCardPayload shape as Pattern, but scoped to exactly 3
  * tiles. Thumbnails use the server-seeded `bg_color`; clicking a tile
- * routes to `/app/video`.
+ * launches a new video diagnosis session on `/app/answer` (PR-3 of
+ * the video-as-template migration; previously this routed to the
+ * deleted `/app/video?video_id=…` deep-link).
  */
 
 import { useNavigate } from "react-router";
 
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { EvidenceCardPayloadData } from "@/lib/api-types";
+
+function tiktokUrlFor(handle: string, videoId: string): string {
+  const h = handle.replace(/^@/, "");
+  return `https://www.tiktok.com/@${h}/video/${videoId}`;
+}
 
 function formatViews(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -42,7 +49,11 @@ export function GenericEvidenceGrid({
         >
           <button
             type="button"
-            onClick={() => navigate(`/app/video?video_id=${encodeURIComponent(v.video_id)}`)}
+            onClick={() =>
+              navigate("/app/answer", {
+                state: { prefillUrl: tiktokUrlFor(v.creator_handle, v.video_id) },
+              })
+            }
             aria-label={`Mở video tham khảo ${v.video_id}`}
             className="relative block aspect-[9/12] w-full text-left"
             style={{ backgroundColor: v.bg_color || "var(--gv-canvas-2)" }}

@@ -347,9 +347,12 @@ class DiagnosticPrescription(BaseModel):
 
 
 def _default_paste_link_cta() -> dict[str, str]:
+    # PR-3 of the video-as-template migration replaced /app/video with
+    # /app/answer; the FE composer detects pasted URLs and creates a
+    # video_diagnosis session there.
     return {
-        "title": "Có link video? Mở /app/video để chấm điểm chính xác từng phần.",
-        "route": "/app/video",
+        "title": "Có link video? Dán vào composer để chấm điểm chính xác từng phần.",
+        "route": "/app/answer",
     }
 
 

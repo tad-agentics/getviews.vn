@@ -356,7 +356,10 @@ function ChannelBody({
             {data.top_videos.slice(0, 4).map((v) => (
               <Link
                 key={v.video_id}
-                to={`/app/video?video_id=${encodeURIComponent(v.video_id)}`}
+                to="/app/answer"
+                state={{
+                  prefillUrl: `https://www.tiktok.com/@${(data.handle ?? "").replace(/^@/, "")}/video/${v.video_id}`,
+                }}
                 className="group block text-left"
               >
                 <div

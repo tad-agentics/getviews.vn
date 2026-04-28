@@ -29,6 +29,7 @@ import pytest
 
 from getviews_pipeline.report_video import (
     build_video_report,
+    extract_aweme_id,
     extract_tiktok_url,
 )
 
@@ -72,6 +73,95 @@ def test_extract_tiktok_url_picks_first_when_multiple() -> None:
     /video/analyze single-URL contract."""
     q = "https://www.tiktok.com/@a/video/1 vs https://www.tiktok.com/@b/video/2"
     assert extract_tiktok_url(q) == "https://www.tiktok.com/@a/video/1"
+
+
+# ── extract_aweme_id ────────────────────────────────────────────────
+
+
+def test_extract_aweme_id_finds_bare_numeric_id() -> None:
+    """PR-3 evidence-tile click path: ``state.prefillUrl`` is just
+    the corpus row's video_id (no creator handle to build a URL).
+    The builder must accept it as a corpus lookup key."""
+    assert extract_aweme_id("7630766288574369045") == "7630766288574369045"
+
+
+def test_extract_aweme_id_returns_none_for_short_runs() -> None:
+    """Years (4 digits), follower counts, etc. must not match —
+    aweme_ids are strictly 15-21 digits."""
+    assert extract_aweme_id("Đăng năm 2026") is None
+    assert extract_aweme_id("100K views") is None
+
+
+def test_extract_aweme_id_returns_none_for_text() -> None:
+    assert extract_aweme_id("tại sao video flop") is None
+
+
+# ── build_video_report — aweme_id-only path ─────────────────────────
+
+
+def test_build_video_report_corpus_path_with_bare_aweme_id() -> None:
+    """Evidence-tile click sends just the video_id as prefillUrl.
+    The builder routes it through ``video_id=`` instead of
+    ``tiktok_url=`` so the corpus lookup uses the canonical id key."""
+    expected = _video_response_fixture()
+    pipeline_mock = MagicMock(return_value=expected)
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               pipeline_mock):
+        build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query="7630766288574369045",
+        )
+
+    call_kwargs = pipeline_mock.call_args.kwargs
+    assert call_kwargs["video_id"] == "7630766288574369045"
+    assert call_kwargs["tiktok_url"] is None
+
+
+def test_build_video_report_aweme_id_corpus_miss_does_not_call_on_demand() -> None:
+    """On-demand path needs a real URL to fetch from EnsembleData —
+    a bare aweme_id can't drive that fetch. So an id-only request
+    that misses corpus must hard-404, not silently degrade."""
+
+    def _pipeline_raises(*_a, **_kw):
+        raise ValueError("Không tìm thấy video trong corpus cho URL này")
+
+    pipeline_mock = MagicMock(side_effect=_pipeline_raises)
+    on_demand_mock = MagicMock(return_value="must-not-be-called")
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               pipeline_mock), \
+         patch("getviews_pipeline.report_video.run_video_analyze_on_demand",
+               on_demand_mock):
+        with pytest.raises(ValueError, match="cho id này"):
+            build_video_report(
+                service_sb=MagicMock(),
+                user_sb=MagicMock(),
+                query="7630766288574369045",
+            )
+
+    on_demand_mock.assert_not_called()
+
+
+def test_build_video_report_prefers_url_over_aweme_id_when_both_present() -> None:
+    """When the query has both a URL and a stray digit run, prefer
+    the URL — it's the structurally-richer signal."""
+    expected = _video_response_fixture()
+    pipeline_mock = MagicMock(return_value=expected)
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               pipeline_mock):
+        build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query="https://www.tiktok.com/@x/video/123 7630766288574369045",
+        )
+
+    call_kwargs = pipeline_mock.call_args.kwargs
+    # URL won — video_id stays None.
+    assert call_kwargs["tiktok_url"] == "https://www.tiktok.com/@x/video/123"
+    assert call_kwargs["video_id"] is None
 
 
 # ── build_video_report — happy paths ────────────────────────────────

@@ -27,7 +27,6 @@ export type IntentDecision = {
  * ``Destination`` union in
  * ``cloud-run/getviews_pipeline/intent_router.py``. */
 export type Destination =
-  | "video"
   | "channel"
   | "script"
   | "compare"
@@ -36,7 +35,8 @@ export type Destination =
   | "answer:timing"
   | "answer:lifecycle"
   | "answer:diagnostic"
-  | "answer:generic";
+  | "answer:generic"
+  | "answer:video";
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
  *
@@ -69,7 +69,13 @@ export type FixedIntentId =
   | "follow_up_unclassifiable";
 
 export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
-  video_diagnosis: "video",
+  // ``video_diagnosis`` was the dedicated /app/video screen until the
+  // template-migration. PR-3 (this commit) folds it into /app/answer
+  // as just another session format alongside Pattern, Ideas, Timing,
+  // Lifecycle, Diagnostic — same dispatcher, same chrome, follow-ups
+  // stay in the same thread. /app/video is deleted entirely (zero
+  // pre-launch traffic, no shim needed).
+  video_diagnosis: "answer:video",
   competitor_profile: "channel",
   own_channel: "channel",
   // Creator-only pivot (PR #176, branch claude/remove-kol-creator-only):
@@ -79,7 +85,12 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // the generic answer surface instead of a dedicated screen.
   creator_search: "answer:generic",
   shot_list: "script",
-  metadata_only: "video",
+  // ``metadata_only`` is a stripped-down corpus-row preview (no Gemini
+  // synth) that historically routed to /app/video. With the screen gone
+  // we fall it through to the generic answer body so the user still
+  // gets *something*; this intent classifies extremely rarely and the
+  // generic body's evidence grid is a reasonable fallback.
+  metadata_only: "answer:generic",
   trend_spike: "answer:pattern",
   content_directions: "answer:pattern",
   // Lifecycle template (2026-04-22) — stage pill + reach delta + health
@@ -320,7 +331,8 @@ export type AnswerSessionFormat =
   | "timing"
   | "generic"
   | "lifecycle"
-  | "diagnostic";
+  | "diagnostic"
+  | "video";
 
 /**
  * Studio → `/app/answer` entry: map `detectIntent` to either a non-answer redirect
@@ -343,19 +355,9 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
 
   const dest = INTENT_DESTINATIONS[intentType as FixedIntentId];
 
-  if (dest === "video") {
-    const urlMatch = trimmed.match(/https?:\/\/[^\s]*tiktok\.com[^\s]*/i);
-    const to = urlMatch
-      ? `/app/video?url=${encodeURIComponent(urlMatch[0])}`
-      : "/app/video";
-    return { kind: "redirect", to };
-  }
   if (dest === "compare") {
     // Wave 4 PR #2 — pull the first two TikTok URLs (mirror of the
-    // server-side ≥2-URL classification) and pass both as query
-    // params. /app/compare lands in PR #3 — until then, the redirect
-    // resolves to a 404 + the existing ``intent`` in
-    // INTENT_DESTINATIONS still pins the contract for the test below.
+    // server-side ≥2-URL classification) and pass both as query params.
     const matches = trimmed.match(TIKTOK_URL_GLOBAL_RE) ?? [];
     const a = matches[0];
     const b = matches[1];
@@ -367,9 +369,9 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
     }
     // Defensive — should never happen because detectIntent only returns
     // compare_videos when ≥ 2 URLs are present, but if the routing path
-    // gets called with just one URL we fall back to the single-video
-    // screen rather than a half-baked compare URL.
-    return { kind: "redirect", to: "/app/video" };
+    // gets called with just one URL we fall back to the single-URL
+    // video diagnosis session rather than a half-baked compare URL.
+    return { kind: "session", format: "video", intent_type: "video_diagnosis" };
   }
   if (dest === "channel") {
     const handleMatch = trimmed.match(/@([\w.]+)/);
@@ -393,7 +395,9 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
             ? "lifecycle"
             : dest === "answer:diagnostic"
               ? "diagnostic"
-              : "generic";
+              : dest === "answer:video"
+                ? "video"
+                : "generic";
 
   return { kind: "session", format, intent_type: intentType };
 }

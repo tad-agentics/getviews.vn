@@ -57,7 +57,7 @@ export const ChannelRecent7dList = memo(function ChannelRecent7dList({
           >
             <button
               type="button"
-              onClick={() => navigate("/app/video")}
+              onClick={() => navigate("/app/answer")}
               className="contents text-left"
               aria-label={`Mở chi tiết: ${v.title}`}
             >

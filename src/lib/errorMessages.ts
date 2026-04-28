@@ -1,7 +1,7 @@
 /**
  * Translate the named analysis errors thrown by Cloud Run hooks into
- * the Vietnamese copy shown on /app/video, /app/channel, /app/script,
- * /app/answer and anywhere else a cloud-run analysis can fail.
+ * the Vietnamese copy shown on /app/answer, /app/channel, /app/script,
+ * and anywhere else a cloud-run analysis can fail.
  *
  * Hooks throw `new Error("insufficient_credits")` with
  * `err.name = "InsufficientCredits"` (and similar for

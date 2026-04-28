@@ -91,7 +91,10 @@ export default function CompareScreen() {
         const surviving =
           (final as { metadata?: { tiktok_url?: string } }).metadata?.tiktok_url
           ?? urlA;
-        navigate(`/app/video?url=${encodeURIComponent(surviving)}`, { replace: true });
+        navigate("/app/answer", {
+          replace: true,
+          state: { prefillUrl: surviving },
+        });
         return;
       }
       if (_isCompare(final)) {

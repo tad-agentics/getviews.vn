@@ -72,9 +72,13 @@ def test_fixture_confidence_never_exceeds_medium() -> None:
     assert p.confidence.intent_confidence in ("medium", "low")
 
 
-def test_fixture_paste_link_cta_points_to_video_screen() -> None:
+def test_fixture_paste_link_cta_points_to_answer_surface() -> None:
+    """PR-3 of the video-as-template migration replaced /app/video
+    with the unified /app/answer surface; composer URL paste creates
+    a video_diagnosis session there. Default CTA route updated to
+    match (see ``_default_paste_link_cta`` in report_types.py)."""
     p = DiagnosticPayload.model_validate(build_fixture_diagnostic_report())
-    assert p.paste_link_cta["route"] == "/app/video"
+    assert p.paste_link_cta["route"] == "/app/answer"
     assert "link" in p.paste_link_cta["title"].lower()
 
 

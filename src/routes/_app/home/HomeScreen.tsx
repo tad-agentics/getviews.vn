@@ -239,7 +239,9 @@ export default function HomeScreen() {
               nicheLabel={nicheLabel}
               corpusCount={currentNicheCount}
               showUrlChip={URL_IN_TEXT.test(composerText)}
-              onPasteVideoClick={() => navigate("/app/video")}
+              onPasteVideoClick={() =>
+                fillComposer("Tại sao video này nổ/flop? Dán link TikTok vào đây:\n")
+              }
               onPasteHandleClick={() =>
                 fillComposer("Soi kênh đối thủ — dán @handle TikTok vào đây:\n")
               }
