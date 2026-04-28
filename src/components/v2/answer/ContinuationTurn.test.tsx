@@ -43,6 +43,9 @@ vi.mock("@/components/v2/answer/diagnostic/DiagnosticBody", () => ({
 vi.mock("@/components/v2/answer/generic/GenericBody", () => ({
   GenericBody: () => <div data-testid="generic-body">generic-body</div>,
 }));
+vi.mock("@/components/v2/answer/video/VideoBody", () => ({
+  VideoBody: () => <div data-testid="video-body">video-body</div>,
+}));
 
 import { ContinuationTurn } from "./ContinuationTurn";
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
@@ -127,6 +130,31 @@ describe("ContinuationTurn payload dispatch", () => {
     render(<ContinuationTurn turn={mkTurn({ kind: "generic", report: {} })} />);
     expect(screen.getByTestId("generic-body")).toBeTruthy();
     expect(screen.getByText("Tổng quát")).toBeTruthy();
+  });
+
+  it("renders VideoBody for kind: video (bare AnswerBlock)", () => {
+    // VideoBody is wrapped in ``<AnswerBlock kicker="Mổ video" bare>``.
+    // ``bare`` mode drops the kicker chrome (matches the Pattern case
+    // above), so we assert the body renders without asserting on the
+    // dropped kicker text.
+    render(<ContinuationTurn turn={mkTurn({ kind: "video", report: {} })} />);
+    expect(screen.getByTestId("video-body")).toBeTruthy();
+  });
+
+  it("uses 'MỔ VIDEO · LƯỢT NN' divider label for video continuation turns", () => {
+    // The TURN_KIND_LABEL map drives the accent kicker on the divider
+    // header (rendered above the body for non-primary turns). Pinning
+    // the label so adding new intents doesn't accidentally drop the
+    // video case.
+    render(
+      <ContinuationTurn
+        turn={mkTurn(
+          { kind: "video", report: {} },
+          { kind: "video", turn_index: 1 },
+        )}
+      />,
+    );
+    expect(screen.getByText(/MỔ VIDEO · LƯỢT 02/)).toBeTruthy();
   });
 
   it("renders UnknownPayloadSurface with payload JSON when kind is unrecognized", () => {

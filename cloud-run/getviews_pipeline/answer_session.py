@@ -70,7 +70,7 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
         return (
             session_fmt
             if session_fmt in (
-                "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic",
+                "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video",
             )
             else "pattern"
         )
@@ -449,6 +449,22 @@ def append_turn(
         elif builder_fmt == "diagnostic":
             inner = build_diagnostic_report(
                 niche_pk, query, window_days=window_days,
+            )
+        elif builder_fmt == "video":
+            # Bridges to /video/analyze pipeline (corpus-cached) +
+            # on-demand fallback (PR #286). The user-scoped client
+            # we built above for credit deduction also services the
+            # corpus-row lookup — RLS guarantees visibility but we
+            # already created sb_user only inside the credit branch,
+            # so re-derive here for non-primary turns too.
+            from getviews_pipeline.report_video import build_video_report
+            from getviews_pipeline.supabase_client import user_supabase
+
+            sb_user_for_video = user_supabase(access_token)
+            inner = build_video_report(
+                service_sb=sb_srv,
+                user_sb=sb_user_for_video,
+                query=query,
             )
         else:
             inner = build_generic_report(session.get("niche_id"), query)
