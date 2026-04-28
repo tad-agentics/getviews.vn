@@ -304,6 +304,24 @@ R2_VIDEO_PUBLIC_URL = os.environ.get("R2_VIDEO_PUBLIC_URL", "").rstrip("/")
 # 0s = hook frame, 1s = after hook, 3s = body start.
 FRAME_TIMESTAMPS_SEC: list[float] = [0.0, 1.0, 3.0]
 
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+# Local ffmpeg one-frame extraction (R2 hook frames + per-scene stills). Cloud Run
+# shared vCPU can exceed 30s of wall time on heavy H.264/HEVC short-form MP4s;
+# 120s per invocation stays under typical analysis request budgets.
+FFMPEG_FRAME_TIMEOUT_SEC = max(30, _int_env("FFMPEG_FRAME_TIMEOUT_SEC", 120))
+# Second attempt: narrower width = faster swscale + smaller encode.
+FFMPEG_FRAME_FALLBACK_SCALE_WIDTH = max(160, _int_env("FFMPEG_FRAME_FALLBACK_SCALE_WIDTH", 480))
+
 FILES_API_POLL_INITIAL_SEC = 1.0
 FILES_API_POLL_MAX_SEC = 8.0
 FILES_API_POLL_TIMEOUT_SEC = 90.0  # upper bound; creators uploading dense 60s

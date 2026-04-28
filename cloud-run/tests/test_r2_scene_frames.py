@@ -89,6 +89,30 @@ def test_extract_success_path_returns_index_path_pairs(tmp_path: Path, monkeypat
         assert f"_{idx}" in path.name
 
 
+def test_extract_retries_second_scale_when_first_ffmpeg_fails(tmp_path: Path) -> None:
+    """First attempt (720p) can fail; second attempt (fallback width) may succeed."""
+    vid = tmp_path / "video.mp4"
+    vid.write_bytes(b"fake")
+    call_n = {"n": 0}
+
+    def fake_run(cmd, capture_output=True, timeout=None):
+        call_n["n"] += 1
+        out = Path(cmd[-1])
+        if call_n["n"] == 1:
+            return MagicMock(returncode=1, stderr=b"decode stall")
+        out.write_bytes(b"fake-jpg-bytes" * 100)
+        return MagicMock(returncode=0, stderr=b"")
+
+    with patch("getviews_pipeline.r2._ffmpeg_available", return_value=True), \
+         patch("subprocess.run", side_effect=fake_run):
+        result = extract_scene_frames(
+            vid, "vid-1", [(0, 1.0)],
+        )
+
+    assert len(result) == 1
+    assert call_n["n"] == 2
+
+
 def test_extract_skips_failed_ffmpeg_runs(tmp_path: Path) -> None:
     """ffmpeg returncode != 0 for one scene should not abort the
     others — we still get the other scenes back."""
@@ -100,8 +124,10 @@ def test_extract_skips_failed_ffmpeg_runs(tmp_path: Path) -> None:
     def fake_run(cmd, capture_output=True, timeout=None):
         out = Path(cmd[-1])
         call_count["n"] += 1
-        if call_count["n"] == 2:
-            # Second scene fails
+        n = call_count["n"]
+        # With primary+fallback, scene 1 (middle) must fail both attempts:
+        # invocations 2 and 3 = 720p + fallback for the second scene.
+        if n in (2, 3):
             return MagicMock(returncode=1, stderr=b"ffmpeg decoding error")
         out.write_bytes(b"jpg" * 100)
         return MagicMock(returncode=0, stderr=b"")
@@ -110,7 +136,7 @@ def test_extract_skips_failed_ffmpeg_runs(tmp_path: Path) -> None:
          patch("subprocess.run", side_effect=fake_run):
         result = extract_scene_frames(vid, "vid-1", [(0, 1.0), (1, 3.0), (2, 5.0)])
 
-    # 3 attempted, 1 failed → 2 successful
+    # 3 scenes; middle scene fails both scale attempts → 2 successful
     assert len(result) == 2
     assert [i for i, _ in result] == [0, 2]
 

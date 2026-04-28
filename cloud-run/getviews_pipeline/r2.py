@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import shutil
+import subprocess
 import uuid
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,8 @@ from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from getviews_pipeline.config import (
+    FFMPEG_FRAME_FALLBACK_SCALE_WIDTH,
+    FFMPEG_FRAME_TIMEOUT_SEC,
     FRAME_TIMESTAMPS_SEC,
     R2_ACCESS_KEY_ID,
     R2_ACCOUNT_ID,
@@ -86,6 +89,73 @@ def _ffmpeg_available() -> bool:
     return shutil.which("ffmpeg") is not None
 
 
+def _input_seek_sec(ts: float) -> float:
+    """Timestamp for ``-ss`` before ``-i`` (fast input seek). Avoid 0.0 on
+    some containers; align with scene midpoint floor.
+    """
+    return max(_SCENE_FRAME_MIN_TS, float(ts))
+
+
+def _ffmpeg_extract_still(
+    video_path: Path,
+    out_path: Path,
+    seek_sec: float,
+    *,
+    scale_w: int,
+    timeout_sec: float,
+    png_q: int,
+    jpg_q: int,
+) -> bool:
+    """Run ffmpeg: input seek, strip audio/subs, one video frame, scale.
+
+    Returns True if a non-empty file under ``_MAX_FRAME_BYTES`` was written.
+    """
+    out_path.unlink(missing_ok=True)
+    is_jpg = out_path.suffix.lower() in (".jpg", ".jpeg")
+    cmd: list[str] = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-nostdin",
+        "-ss",
+        str(seek_sec),
+        "-i",
+        str(video_path),
+        "-an",
+        "-sn",
+        "-dn",
+        "-vframes",
+        "1",
+        "-vf",
+        f"scale={scale_w}:-2",
+    ]
+    if is_jpg:
+        cmd.extend(["-q:v", str(jpg_q)])
+    else:
+        cmd.extend(["-q:v", str(png_q)])
+    cmd.append(str(out_path))
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=timeout_sec,
+        )
+    except subprocess.TimeoutExpired:
+        return False
+    except Exception:
+        return False
+    if result.returncode != 0:
+        return False
+    if not out_path.exists() or out_path.stat().st_size == 0:
+        return False
+    if out_path.stat().st_size > _MAX_FRAME_BYTES:
+        out_path.unlink(missing_ok=True)
+        return False
+    return True
+
+
 def extract_frames(video_path: Path, video_id: str) -> list[Path]:
     """Extract PNG frames from video_path at FRAME_TIMESTAMPS_SEC using ffmpeg.
 
@@ -106,57 +176,47 @@ def extract_frames(video_path: Path, video_id: str) -> list[Path]:
 
     for i, ts in enumerate(FRAME_TIMESTAMPS_SEC):
         out_path = Path("/tmp") / f"frame_{video_id}_{run_id}_{i}{_FRAME_EXT}"
-        cmd = [
-            "ffmpeg",
-            "-y",                    # overwrite without prompt
-            "-ss", str(ts),          # seek to timestamp
-            "-i", str(video_path),   # input file
-            "-vframes", "1",         # extract exactly one frame
-            "-vf", "scale=720:-2",   # resize width=720, keep aspect ratio
-            "-q:v", "3",             # PNG compression quality (1=best, 31=worst)
-            str(out_path),
-        ]
-        try:
-            import subprocess
-
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                timeout=30,
+        seek = _input_seek_sec(ts)
+        ok = False
+        for scale_w, png_q, jpg_q in (
+            (720, 3, 4),
+            (FFMPEG_FRAME_FALLBACK_SCALE_WIDTH, 5, 7),
+        ):
+            if _ffmpeg_extract_still(
+                video_path,
+                out_path,
+                seek,
+                scale_w=scale_w,
+                timeout_sec=float(FFMPEG_FRAME_TIMEOUT_SEC),
+                png_q=png_q,
+                jpg_q=jpg_q,
+            ):
+                ok = True
+                break
+        if not ok:
+            logger.warning(
+                "[r2] ffmpeg failed for %s ts=%.1fs after %ds timeout + fallback scale",
+                video_id,
+                ts,
+                FFMPEG_FRAME_TIMEOUT_SEC,
             )
-            if result.returncode != 0:
-                logger.warning(
-                    "[r2] ffmpeg failed for %s ts=%.1fs: %s",
-                    video_id,
-                    ts,
-                    result.stderr.decode(errors="replace")[:200],
-                )
-                continue
-            if out_path.exists() and out_path.stat().st_size > 0:
-                if out_path.stat().st_size > _MAX_FRAME_BYTES:
-                    logger.warning(
-                        "[r2] frame %s at ts=%.1fs is %.1fMB — skipping (too large)",
-                        video_id,
-                        ts,
-                        out_path.stat().st_size / 1024 / 1024,
-                    )
-                    out_path.unlink(missing_ok=True)
-                    continue
-                frame_paths.append(out_path)
-                logger.debug(
-                    "[r2] extracted frame %d/%d for %s at ts=%.1fs (%d bytes)",
-                    i + 1,
-                    len(FRAME_TIMESTAMPS_SEC),
-                    video_id,
-                    ts,
-                    out_path.stat().st_size,
-                )
-            else:
-                logger.warning("[r2] ffmpeg produced empty frame for %s ts=%.1fs", video_id, ts)
-        except Exception as exc:
-            logger.warning("[r2] ffmpeg error for %s ts=%.1fs: %s", video_id, ts, exc)
+            continue
+        frame_paths.append(out_path)
+        logger.debug(
+            "[r2] extracted frame %d/%d for %s at ts=%.1fs (%d bytes)",
+            i + 1,
+            len(FRAME_TIMESTAMPS_SEC),
+            video_id,
+            ts,
+            out_path.stat().st_size,
+        )
 
-    logger.info("[r2] extracted %d/%d frames for %s", len(frame_paths), len(FRAME_TIMESTAMPS_SEC), video_id)
+    logger.info(
+        "[r2] extracted %d/%d frames for %s",
+        len(frame_paths),
+        len(FRAME_TIMESTAMPS_SEC),
+        video_id,
+    )
     return frame_paths
 
 
@@ -334,8 +394,6 @@ async def download_and_extract_frames(
         logger.warning("[r2] ffmpeg not available — skipping frame extraction for %s", video_id)
         return []
 
-    import subprocess
-
     loop = asyncio.get_event_loop()
     clip_path = Path("/tmp") / f"clip_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
 
@@ -467,8 +525,6 @@ async def download_and_upload_video(
     if not _ffmpeg_available():
         logger.warning("[r2] ffmpeg not available — skipping video upload for %s", video_id)
         return None
-
-    import subprocess
 
     loop = asyncio.get_event_loop()
     clip_path = Path("/tmp") / f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
@@ -669,46 +725,36 @@ def extract_scene_frames(
     results: list[tuple[int, Path]] = []
 
     for scene_index, ts in scene_midpoints:
-        safe_ts = max(_SCENE_FRAME_MIN_TS, float(ts))
+        safe_ts = _input_seek_sec(float(ts))
         out_path = Path("/tmp") / (
             f"scene_{video_id}_{run_id}_{scene_index}{_SCENE_FRAME_EXT}"
         )
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-ss", f"{safe_ts:.2f}",
-            "-i", str(video_path),
-            "-vframes", "1",
-            "-vf", "scale=720:-2",
-            "-q:v", "4",              # JPEG quality 1–31 (lower=better); 4 ≈ ~high
-            str(out_path),
-        ]
-        try:
-            import subprocess
-
-            result = subprocess.run(cmd, capture_output=True, timeout=30)
-            if result.returncode != 0:
-                logger.warning(
-                    "[r2] scene ffmpeg failed %s scene=%d ts=%.2fs: %s",
-                    video_id, scene_index, safe_ts,
-                    result.stderr.decode(errors="replace")[:200],
-                )
-                continue
-            if not out_path.exists() or out_path.stat().st_size == 0:
-                continue
-            if out_path.stat().st_size > _MAX_FRAME_BYTES:
-                logger.warning(
-                    "[r2] scene frame too large %s scene=%d (%.1fMB) — skipping",
-                    video_id, scene_index, out_path.stat().st_size / 1024 / 1024,
-                )
-                out_path.unlink(missing_ok=True)
-                continue
-            results.append((scene_index, out_path))
-        except Exception as exc:
+        ok = False
+        for scale_w, jpg_q in (
+            (720, 4),
+            (FFMPEG_FRAME_FALLBACK_SCALE_WIDTH, 7),
+        ):
+            if _ffmpeg_extract_still(
+                video_path,
+                out_path,
+                safe_ts,
+                scale_w=scale_w,
+                timeout_sec=float(FFMPEG_FRAME_TIMEOUT_SEC),
+                png_q=3,
+                jpg_q=jpg_q,
+            ):
+                ok = True
+                break
+        if not ok:
             logger.warning(
-                "[r2] scene extraction error %s scene=%d: %s",
-                video_id, scene_index, exc,
+                "[r2] scene extraction failed %s scene=%d ts=%.2fs (timeout %ds + fallback)",
+                video_id,
+                scene_index,
+                safe_ts,
+                FFMPEG_FRAME_TIMEOUT_SEC,
             )
+            continue
+        results.append((scene_index, out_path))
 
     logger.info(
         "[r2] extracted %d/%d scene frames for %s",
