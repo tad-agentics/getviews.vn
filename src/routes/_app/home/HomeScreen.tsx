@@ -39,23 +39,11 @@ export default function HomeScreen() {
   const [composerText, setComposerText] = useState("");
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
-  const { data: pulse } = useHomePulse();
-
-  // D7 — LIVE badge surfaces a relative timestamp ("LIVE · CẬP NHẬT
-  // 2 PHÚT TRƯỚC") per design pack ``screens/home.jsx`` line 98.
-  // Falls back to "LIVE · STUDIO" when ``pulse.as_of`` isn't loaded
-  // yet so the chip renders something during the first paint.
-  const liveBadgeLabel = useMemo(() => {
-    if (!pulse?.as_of) return "LIVE · STUDIO";
-    const rel = formatRelativeSinceVi(new Date(), new Date(pulse.as_of));
-    if (rel === "—") return "LIVE · STUDIO";
-    return `LIVE · CẬP NHẬT ${rel.toUpperCase()}`;
-  }, [pulse?.as_of]);
 
   // PR-5 — niche picker: viewing-niche state on Home defaults to the
   // user's primary_niche but can be switched among the niches they
-  // follow (``profile.niche_ids``). Only the suggestions stack reads
-  // ``selectedNicheId``; HomeMyChannelSection stays pinned to
+  // follow (``profile.niche_ids``). ``selectedNicheId`` drives gợi ý,
+  // pulse, ticker, and top-patterns; HomeMyChannelSection stays pinned to
   // primary_niche because /channel/analyze runs server-side off it.
   const followedNicheIds = useMemo(
     () => normalizeNicheIds(profile?.niche_ids ?? []),
@@ -79,6 +67,19 @@ export default function HomeScreen() {
       setSelectedNicheId(defaultNicheId);
     }
   }, [defaultNicheId, followedNicheIds, selectedNicheId]);
+
+  const { data: pulse } = useHomePulse(true, selectedNicheId);
+
+  // D7 — LIVE badge surfaces a relative timestamp ("LIVE · CẬP NHẬT
+  // 2 PHÚT TRƯỚC") per design pack ``screens/home.jsx`` line 98.
+  // Falls back to "LIVE · STUDIO" when ``pulse.as_of`` isn't loaded
+  // yet so the chip renders something during the first paint.
+  const liveBadgeLabel = useMemo(() => {
+    if (!pulse?.as_of) return "LIVE · STUDIO";
+    const rel = formatRelativeSinceVi(new Date(), new Date(pulse.as_of));
+    if (rel === "—") return "LIVE · STUDIO";
+    return `LIVE · CẬP NHẬT ${rel.toUpperCase()}`;
+  }, [pulse?.as_of]);
 
   const nicheLabel = useMemo(() => {
     const id = selectedNicheId;
@@ -173,7 +174,7 @@ export default function HomeScreen() {
             onDismiss={dismissFirstRun}
           />
         ) : null}
-        <TickerMarquee />
+        <TickerMarquee viewNicheId={selectedNicheId} />
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
           <div className="gv-fade-up">

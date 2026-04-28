@@ -17,7 +17,7 @@ import type { NicheWithHot } from "@/hooks/useTopNiches";
  *
  * The picker doesn't change which kênh /channel/analyze runs against
  * (that stays pinned to the user's primary_niche server-side). It
- * only re-pins the suggestions stack on the FE.
+ * re-pins the suggestions stack, ticker marquee, and pulse on Home.
  */
 
 export const NichePicker = memo(function NichePicker({

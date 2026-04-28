@@ -19,15 +19,23 @@ export type TickerItem = {
  * dropped from the bucket set. The server may still emit it during
  * transitional rollout — we filter at the hook layer so legacy items
  * never reach the renderer (TickerMarquee). */
-export function useHomeTicker(enabled = true) {
+export function useHomeTicker(
+  enabled = true,
+  /** When set, filters ticker to this followed niche; omitted = primary niche on server. */
+  nicheId?: number | null,
+) {
   return useQuery<TickerItem[]>({
-    queryKey: ["home", "ticker"],
+    queryKey: ["home", "ticker", nicheId ?? "default"],
     queryFn: async () => {
       const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
       if (!cloudRunUrl) return [];
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return [];
-      const res = await fetch(`${cloudRunUrl}/home/ticker`, {
+      const q =
+        nicheId != null
+          ? `?niche_id=${encodeURIComponent(String(nicheId))}`
+          : "";
+      const res = await fetch(`${cloudRunUrl}/home/ticker${q}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.status === 404) return [];

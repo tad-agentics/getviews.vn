@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
-from getviews_pipeline.deps import _resolve_caller_niche_id, require_user
+from getviews_pipeline.deps import (
+    _resolve_caller_niche_id,
+    require_user,
+    resolve_home_niche_id,
+)
 from getviews_pipeline.supabase_client import user_supabase
 
 logger = logging.getLogger(__name__)
@@ -16,33 +20,39 @@ router = APIRouter()
 
 
 @router.get("/home/pulse")
-async def home_pulse(user: dict = Depends(require_user)) -> JSONResponse:
-    """PulseCard payload for the caller's primary niche."""
+async def home_pulse(
+    user: dict = Depends(require_user),
+    niche_id: int | None = Query(default=None, alias="niche_id"),
+) -> JSONResponse:
+    """PulseCard payload for the caller's niche (primary by default, or a followed niche)."""
     from getviews_pipeline.pulse import compute_pulse
     from getviews_pipeline.supabase_client import get_service_client
 
-    niche_id = await _resolve_caller_niche_id(user["access_token"])
+    resolved = await resolve_home_niche_id(user["access_token"], niche_id)
     try:
-        stats = await compute_pulse(get_service_client(), niche_id)
+        stats = await compute_pulse(get_service_client(), resolved)
     except Exception as exc:
-        logger.exception("[home_pulse] niche=%s failed: %s", niche_id, exc)
+        logger.exception("[home_pulse] niche=%s failed: %s", resolved, exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return JSONResponse(stats.to_json())
 
 
 @router.get("/home/ticker")
-async def home_ticker(user: dict = Depends(require_user)) -> JSONResponse:
-    """Marquee ticker items for the caller's primary niche."""
-    from getviews_pipeline.ticker import compute_ticker
+async def home_ticker(
+    user: dict = Depends(require_user),
+    niche_id: int | None = Query(default=None, alias="niche_id"),
+) -> JSONResponse:
+    """Marquee ticker items for the caller's niche (primary by default, or a followed niche)."""
     from getviews_pipeline.supabase_client import get_service_client
+    from getviews_pipeline.ticker import compute_ticker
 
-    niche_id = await _resolve_caller_niche_id(user["access_token"])
+    resolved = await resolve_home_niche_id(user["access_token"], niche_id)
     try:
-        items = await compute_ticker(get_service_client(), niche_id)
+        items = await compute_ticker(get_service_client(), resolved)
     except Exception as exc:
-        logger.exception("[home_ticker] niche=%s failed: %s", niche_id, exc)
+        logger.exception("[home_ticker] niche=%s failed: %s", resolved, exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse({"niche_id": niche_id, "items": [it.to_json() for it in items]})
+    return JSONResponse({"niche_id": resolved, "items": [it.to_json() for it in items]})
 
 
 @router.get("/home/starter-creators")

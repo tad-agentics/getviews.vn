@@ -209,3 +209,71 @@ async def _resolve_caller_niche_id(access_token: str) -> int:
             detail="Chưa chọn ngách — chạy onboarding trước.",
         )
     return int(nid)
+
+
+async def resolve_home_niche_id(access_token: str, requested: int | None) -> int:
+    """Niche for /home/ticker and /home/pulse when the client passes an optional ``niche_id``.
+
+    - If ``requested`` is ``None``: use ``profiles.primary_niche`` (same as
+      :func:`_resolve_caller_niche_id`).
+    - If ``requested`` is set: it must be in the caller's allowed set —
+      every id in ``profiles.niche_ids`` plus ``primary_niche`` (legacy rows
+      with only primary still allow that id).
+
+    Raises ``HTTPException`` 400 when ``requested`` is not allowed, 404 when
+    the profile has no niche configured.
+    """
+    from getviews_pipeline.supabase_client import user_supabase
+
+    sb = user_supabase(access_token)
+    try:
+        res = (
+            sb.table("profiles")
+            .select("primary_niche, niche_ids")
+            .single()
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"profile lookup: {exc}"
+        ) from exc
+
+    row = res.data or {}
+    primary = row.get("primary_niche")
+    raw_ids = row.get("niche_ids")
+    allowed: set[int] = set()
+    if isinstance(raw_ids, list) and len(raw_ids) > 0:
+        for x in raw_ids:
+            try:
+                allowed.add(int(x))
+            except (TypeError, ValueError):
+                continue
+    if primary is not None:
+        allowed.add(int(primary))
+
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chưa chọn ngách — chạy onboarding trước.",
+        )
+    if requested is None:
+        if primary is None:
+            # Should not happen if allowed non-empty, but keep explicit.
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Chưa chọn ngách — chạy onboarding trước.",
+            )
+        return int(primary)
+
+    try:
+        rid = int(requested)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_niche_id"
+        ) from exc
+    if rid not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="niche_not_in_profile",
+        )
+    return rid

@@ -49,8 +49,13 @@ const BUCKET_TONE: Record<TickerItem["bucket"], string> = {
   âm_thanh:   "text-[color:var(--gv-lime)]",
 };
 
-export const TickerMarquee = memo(function TickerMarquee() {
-  const { data: items = [] } = useHomeTicker();
+export const TickerMarquee = memo(function TickerMarquee({
+  viewNicheId = null,
+}: {
+  /** Matches ``NichePicker`` / Home headline — same niche as gợi ý & pulse. */
+  viewNicheId?: number | null;
+} = {}) {
+  const { data: items = [] } = useHomeTicker(true, viewNicheId);
 
   const rowItems = useMemo(() => {
     const list = items.length >= 3 ? items : FALLBACK_ITEMS;

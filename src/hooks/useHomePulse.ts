@@ -18,16 +18,24 @@ export type PulseStats = {
   as_of: string;
 };
 
-/** GET /home/pulse — 6 numbers + adequacy tier for the user's niche. */
-export function useHomePulse(enabled = true) {
+/** GET /home/pulse — 6 numbers + adequacy tier for the user's niche (primary or a followed niche). */
+export function useHomePulse(
+  enabled = true,
+  /** When set, scopes pulse to this followed niche; omitted = primary niche on server. */
+  nicheId?: number | null,
+) {
   return useQuery<PulseStats | null>({
-    queryKey: ["home", "pulse"],
+    queryKey: ["home", "pulse", nicheId ?? "default"],
     queryFn: async () => {
       const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
       if (!cloudRunUrl) return null;
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return null;
-      const res = await fetch(`${cloudRunUrl}/home/pulse`, {
+      const q =
+        nicheId != null
+          ? `?niche_id=${encodeURIComponent(String(nicheId))}`
+          : "";
+      const res = await fetch(`${cloudRunUrl}/home/pulse${q}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (res.status === 404) return null;
