@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import Field
 
@@ -350,10 +350,42 @@ async def batch_r2_janitor(
     return JSONResponse({"ok": True, **result})
 
 
+def _cover_url_from_ensemble_post(post: dict[str, Any] | None) -> str | None:
+    """First TikTok cover URL from an EnsembleData post payload."""
+    if not post or not isinstance(post, dict):
+        return None
+    detail = post.get("aweme_detail") or post
+    if not isinstance(detail, dict):
+        return None
+    video = detail.get("video") or {}
+    if not isinstance(video, dict):
+        return None
+    cover = video.get("origin_cover") or video.get("cover") or {}
+    if not isinstance(cover, dict):
+        return None
+    cover_urls = cover.get("url_list") or []
+    if isinstance(cover_urls, list) and len(cover_urls) > 0 and isinstance(cover_urls[0], str):
+        return cover_urls[0]
+    return None
+
+
 @router.post("/batch/backfill-thumbnails")
 async def batch_backfill_thumbnails(
     request: Request,
     _caller: dict | None = Depends(require_batch_caller),
+    ed_fallback: bool = Query(
+        True,
+        description=(
+            "If true, after R2 frame copy and CDN mirror fail, batch-fetch "
+            "EnsembleData multi_info and rehost a fresh cover to R2 (ED units + proxy)."
+        ),
+    ),
+    limit: int | None = Query(
+        None,
+        ge=1,
+        le=200_000,
+        description="Max candidate rows to process; omit = all that need a stable R2 thumbnail.",
+    ),
 ) -> JSONResponse:
     """Backfill ``video_corpus.thumbnail_url`` to a permanent R2 URL.
 
@@ -366,17 +398,19 @@ async def batch_backfill_thumbnails(
          row has a non-empty ``thumbnail_url``. Costs proxy bandwidth;
          the URL may already be expired (TikTok CDN tokens rotate every
          few weeks), in which case the download fails and we fall through.
-      3. **NULL the column** — when both miss, set ``thumbnail_url=NULL``
-         so we stop chasing dead URLs. The FE handles NULL via
-         ``<VideoThumbnail>`` (clean placeholder, no broken-image icon).
-         Re-running the job will retry (NULL rows stay in the candidate
-         set) — useful after a re-analysis pass uploads frame[0].
+      3. **EnsembleData fresh cover** (optional, ``ed_fallback``) — batch
+         ``fetch_post_multi_info`` for rows still missing a thumbnail, then
+         ``download_and_upload_thumbnail`` for each fresh cover URL.
+         Use when the row never got frame[0] on R2 and CDN is dead/empty.
+      4. **NULL the column** — when all steps miss, set ``thumbnail_url=NULL``
+         so the FE uses ``<VideoThumbnail>`` placeholder.
 
     Rows already pointing at the R2 public URL are skipped. Reads are
     paginated to bypass the 1000-row Supabase default.
 
     Protected by ``require_batch_caller``. Idempotent — safe to re-run.
     """
+    from getviews_pipeline import ensemble
     from getviews_pipeline.config import R2_PUBLIC_URL
     from getviews_pipeline.r2 import (
         copy_first_frame_to_thumbnail,
@@ -393,7 +427,13 @@ async def batch_backfill_thumbnails(
         raise HTTPException(status_code=500, detail="R2_PUBLIC_URL missing")
 
     sb = get_service_client()
-    logger.info("POST /batch/backfill-thumbnails — starting")
+
+    def _set_thumb(vid: str, url: str | None) -> None:
+        sb.table("video_corpus").update({"thumbnail_url": url}).eq("video_id", vid).execute()
+
+    logger.info(
+        "POST /batch/backfill-thumbnails — starting (ed_fallback=%s limit=%s)", ed_fallback, limit,
+    )
 
     # Paginate around supabase-py's 1000-row default — corpus is ~46K rows.
     rows: list[dict[str, Any]] = []
@@ -416,78 +456,179 @@ async def batch_backfill_thumbnails(
         r for r in rows
         if not (r.get("thumbnail_url") or "").startswith(r2_prefix)
     ]
+    if limit is not None:
+        to_backfill = to_backfill[:limit]
+
     logger.info(
-        "[backfill-thumbnails] %d/%d rows need backfill", len(to_backfill), len(rows),
+        "[backfill-thumbnails] %d/%d rows need backfill (capped=%s)",
+        len(to_backfill), len(rows), limit,
     )
 
     loop = asyncio.get_event_loop()
 
-    async def _backfill_one(row: dict[str, Any]) -> tuple[str, str | None]:
-        """Returns (source, url): source ∈ {frame, cdn, none}."""
-        vid = row["video_id"]
-        # 1) R2 server-side copy from frame[0] — zero CDN cost.
-        frame_url = await loop.run_in_executor(None, copy_first_frame_to_thumbnail, vid)
-        if frame_url:
-            return ("frame", frame_url)
-        # 2) CDN mirror fallback (costs proxy bandwidth).
+    async def _mirror_cdn(row: dict[str, Any]) -> str | None:
         cdn_url = row.get("thumbnail_url")
-        if cdn_url:
-            try:
-                mirrored = await download_and_upload_thumbnail(cdn_url, vid)
-            except Exception as exc:  # noqa: BLE001 — non-fatal, we fall through to NULL
-                logger.warning("[backfill-thumbnails] CDN mirror error for %s: %s", vid, exc)
-                mirrored = None
-            if mirrored:
-                return ("cdn", mirrored)
-        # 3) Both miss → caller will NULL the row.
-        return ("none", None)
+        if not cdn_url or not str(cdn_url).strip():
+            return None
+        try:
+            return await download_and_upload_thumbnail(str(cdn_url), str(row["video_id"]))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "[backfill-thumbnails] CDN mirror error for %s: %s", row["video_id"], exc,
+            )
+            return None
 
-    from_frame = from_cdn = nulled = failed = 0
+    from_frame = from_cdn = from_ed = nulled = failed = 0
     CHUNK = 10
     for i in range(0, len(to_backfill), CHUNK):
-        chunk = to_backfill[i:i + CHUNK]
-        results = await asyncio.gather(
-            *(_backfill_one(r) for r in chunk), return_exceptions=True,
+        chunk = to_backfill[i: i + CHUNK]
+        frame_results = await asyncio.gather(
+            *[
+                loop.run_in_executor(None, copy_first_frame_to_thumbnail, str(r["video_id"]))
+                for r in chunk
+            ],
+            return_exceptions=True,
         )
-        for row, res in zip(chunk, results):
-            vid = row["video_id"]
-            if isinstance(res, Exception):
-                logger.warning("[backfill-thumbnails] task error for %s: %s", vid, res)
-                failed += 1
+
+        need_cdn: list[dict[str, Any]] = []
+        for row, fr in zip(chunk, frame_results):
+            vid = str(row["video_id"])
+            if isinstance(fr, Exception):
+                logger.warning("[backfill-thumbnails] frame copy task error for %s: %s", vid, fr)
+                need_cdn.append(row)
                 continue
-            source, url = res
-            try:
-                if url:
-                    sb.table("video_corpus").update(
-                        {"thumbnail_url": url}
-                    ).eq("video_id", vid).execute()
-                    if source == "frame":
-                        from_frame += 1
-                    else:
-                        from_cdn += 1
-                else:
-                    # Both R2 frame copy and CDN mirror missed — NULL it so
-                    # the FE renders the placeholder cleanly and we stop
-                    # chasing the dead URL on every rerun.
-                    sb.table("video_corpus").update(
-                        {"thumbnail_url": None}
-                    ).eq("video_id", vid).execute()
+            if fr:
+                try:
+                    _set_thumb(vid, fr)
+                    from_frame += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB patch failed (frame) for %s: %s", vid, exc,
+                    )
+                    failed += 1
+            else:
+                need_cdn.append(row)
+
+        if not need_cdn:
+            continue
+
+        cdn_urls = await asyncio.gather(
+            *[_mirror_cdn(r) for r in need_cdn], return_exceptions=True,
+        )
+        need_ed: list[dict[str, Any]] = []
+        for row, cu in zip(need_cdn, cdn_urls):
+            vid = str(row["video_id"])
+            if isinstance(cu, Exception):
+                logger.warning("[backfill-thumbnails] cdn path error for %s: %s", vid, cu)
+                need_ed.append(row)
+                continue
+            if cu:
+                try:
+                    _set_thumb(vid, cu)
+                    from_cdn += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB patch failed (cdn) for %s: %s", vid, exc,
+                    )
+                    failed += 1
+            else:
+                need_ed.append(row)
+
+        if not need_ed:
+            continue
+
+        if not ed_fallback:
+            for row in need_ed:
+                vid = str(row["video_id"])
+                try:
+                    _set_thumb(vid, None)
                     nulled += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB patch failed (null) for %s: %s", vid, exc,
+                    )
+                    failed += 1
+            continue
+
+        vids = [str(r["video_id"]) for r in need_ed]
+        try:
+            fresh_posts = await ensemble.fetch_post_multi_info(vids)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[backfill-thumbnails] ED multi_info failed for batch: %s", exc)
+            for row in need_ed:
+                try:
+                    _set_thumb(str(row["video_id"]), None)
+                    nulled += 1
+                except Exception as dbe:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB null after ED fail for %s: %s", row["video_id"], dbe,
+                    )
+                    failed += 1
+            continue
+
+        fresh_by_id: dict[str, dict[str, Any]] = {}
+        for post in fresh_posts or []:
+            if not isinstance(post, dict):
+                continue
+            detail = post.get("aweme_detail") or post
+            if isinstance(detail, dict):
+                aid = str(detail.get("aweme_id") or "")
+                if aid:
+                    fresh_by_id[aid] = post
+
+        for row in need_ed:
+            vid = str(row["video_id"])
+            post = fresh_by_id.get(vid)
+            cover = _cover_url_from_ensemble_post(post)
+            if not cover:
+                try:
+                    _set_thumb(vid, None)
+                    nulled += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB patch failed (null) for %s: %s", vid, exc,
+                    )
+                    failed += 1
+                continue
+            try:
+                uploaded = await download_and_upload_thumbnail(cover, vid)
             except Exception as exc:  # noqa: BLE001
-                logger.warning("[backfill-thumbnails] DB patch failed for %s: %s", vid, exc)
-                failed += 1
+                logger.warning("[backfill-thumbnails] ED cover upload error for %s: %s", vid, exc)
+                uploaded = None
+            if uploaded:
+                try:
+                    _set_thumb(vid, uploaded)
+                    from_ed += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB patch failed (ed) for %s: %s", vid, exc,
+                    )
+                    failed += 1
+            else:
+                try:
+                    _set_thumb(vid, None)
+                    nulled += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[backfill-thumbnails] DB patch failed (null) for %s: %s", vid, exc,
+                    )
+                    failed += 1
 
     logger.info(
-        "[backfill-thumbnails] done — from_frame=%d from_cdn=%d nulled=%d failed=%d total=%d",
-        from_frame, from_cdn, nulled, failed, len(to_backfill),
+        "[backfill-thumbnails] done — from_frame=%d from_cdn=%d from_ed=%d "
+        "nulled=%d failed=%d total=%d",
+        from_frame, from_cdn, from_ed, nulled, failed, len(to_backfill),
     )
     return JSONResponse({
         "ok": True,
         "from_frame": from_frame,
         "from_cdn": from_cdn,
+        "from_ed": from_ed,
         "nulled": nulled,
         "failed": failed,
         "total": len(to_backfill),
+        "ed_fallback": ed_fallback,
+        "limit": limit,
     })
 
 

@@ -6,9 +6,9 @@ Per-row strategy under test:
      ``frames/{vid}/0.png``. Zero CDN cost. Chosen when frame exists.
   2. **CDN mirror fallback** — only when frame copy returns ``None`` and
      the row carries a non-empty ``thumbnail_url``.
-  3. **NULL the column** — both miss. The FE handles NULL via the new
-     ``<VideoThumbnail>`` placeholder; the row stays in the candidate
-     set on rerun (so a later re-analysis can heal it).
+  3. **EnsembleData fresh cover** (``ed_fallback=true`` default) — when
+     frame+CDN both miss, ``fetch_post_multi_info`` + mirror the cover.
+  4. **NULL the column** — if all miss. The FE uses ``<VideoThumbnail>``.
 
 Rows already on the R2 public URL are skipped. The Supabase read is
 paginated (1000-row default would silently truncate the ~46K corpus).
@@ -110,11 +110,11 @@ def _patch_r2_env():
     )
 
 
-def _post(client: TestClient):
+def _post(client: TestClient, **query) -> object:
     return client.post(
         "/batch/backfill-thumbnails",
         headers={"X-Batch-Secret": _SECRET},
-        json={},
+        params=query or None,
     )
 
 
@@ -144,9 +144,12 @@ def test_frame_copy_path_skips_cdn_and_writes_r2_url(client: TestClient) -> None
         "ok": True,
         "from_frame": 1,
         "from_cdn": 0,
+        "from_ed": 0,
         "nulled": 0,
         "failed": 0,
         "total": 1,
+        "ed_fallback": True,
+        "limit": None,
     }
     cdn_mock.assert_not_awaited()
     assert fake_sb.video_corpus.updates == [
@@ -200,6 +203,7 @@ def test_nulls_when_frame_and_cdn_both_miss(client: TestClient) -> None:
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", return_value=None), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail",
                new=AsyncMock(return_value=None)), \
+         patch("getviews_pipeline.ensemble.fetch_post_multi_info", new=AsyncMock(return_value=[])), \
          patch("getviews_pipeline.supabase_client.get_service_client",
                return_value=fake_sb):
         resp = _post(client)
@@ -207,7 +211,8 @@ def test_nulls_when_frame_and_cdn_both_miss(client: TestClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["nulled"] == 1
-    assert body["from_frame"] == 0 and body["from_cdn"] == 0 and body["failed"] == 0
+    assert body["from_frame"] == 0 and body["from_cdn"] == 0 and body["from_ed"] == 0
+    assert body["failed"] == 0
     assert fake_sb.video_corpus.updates == [
         {"col": "video_id", "val": "v3", "patch": {"thumbnail_url": None}},
     ]
@@ -254,6 +259,7 @@ def test_null_cdn_url_with_no_frame_does_not_touch_cdn(client: TestClient) -> No
          patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", return_value=None), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail", cdn_mock), \
+         patch("getviews_pipeline.ensemble.fetch_post_multi_info", new=AsyncMock(return_value=[])), \
          patch("getviews_pipeline.supabase_client.get_service_client",
                return_value=fake_sb):
         resp = _post(client)
@@ -262,6 +268,7 @@ def test_null_cdn_url_with_no_frame_does_not_touch_cdn(client: TestClient) -> No
     body = resp.json()
     assert body["nulled"] == 1
     assert body["from_cdn"] == 0
+    assert body["from_ed"] == 0
     cdn_mock.assert_not_awaited()
 
 
@@ -380,6 +387,7 @@ def test_per_row_exception_is_isolated(client: TestClient) -> None:
                side_effect=_frame_side_effect), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail",
                new=AsyncMock(return_value=None)), \
+         patch("getviews_pipeline.ensemble.fetch_post_multi_info", new=AsyncMock(return_value=[])), \
          patch("getviews_pipeline.supabase_client.get_service_client",
                return_value=fake_sb):
         resp = _post(client)
@@ -387,6 +395,7 @@ def test_per_row_exception_is_isolated(client: TestClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["from_frame"] == 2
+    assert body["from_ed"] == 0
     assert body["failed"] == 1
     # The failing row must NOT have written anything (no NULL, no patch).
     written_ids = [u["val"] for u in fake_sb.video_corpus.updates]
@@ -421,6 +430,7 @@ def test_cdn_mirror_exception_falls_through_to_null(client: TestClient) -> None:
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", return_value=None), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail",
                new=AsyncMock(side_effect=RuntimeError("proxy timeout"))), \
+         patch("getviews_pipeline.ensemble.fetch_post_multi_info", new=AsyncMock(return_value=[])), \
          patch("getviews_pipeline.supabase_client.get_service_client",
                return_value=fake_sb):
         resp = _post(client)
@@ -428,4 +438,5 @@ def test_cdn_mirror_exception_falls_through_to_null(client: TestClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["nulled"] == 1
+    assert body["from_ed"] == 0
     assert body["failed"] == 0
