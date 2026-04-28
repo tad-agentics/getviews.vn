@@ -46,16 +46,18 @@ from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
 from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
 from getviews_pipeline.douyin_translator import translate_douyin_caption
-from getviews_pipeline.tikhub_douyin import (
-    fetch_douyin_hashtag_posts,
-    fetch_douyin_keyword_search,
-)
 from getviews_pipeline.r2 import (
+    copy_first_frame_to_thumbnail,
+    download_and_upload_thumbnail,
     extract_and_upload,
     extract_and_upload_scene_frames,
     r2_configured,
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
+from getviews_pipeline.tikhub_douyin import (
+    fetch_douyin_hashtag_posts,
+    fetch_douyin_keyword_search,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -523,6 +525,45 @@ async def _ingest_candidate_awemes_douyin(
 
     if not rows:
         return result
+
+    # "One heavy CDN pull per video, ever." — frame[0] is already in
+    # R2 from ``extract_and_upload`` above. Derive the user-facing
+    # thumbnail by server-side copying ``frames/{vid}/0.png`` →
+    # ``thumbnails/{vid}.png`` (one R2 op, zero CDN bytes). When frame
+    # extraction failed for a row (no R2 source to copy), fall back to
+    # mirroring the platform CDN URL — best-effort, douyinpic.com may
+    # reject the TikTok-shaped Referer header in which case we leave
+    # the row's existing thumbnail_url alone (the FE's <VideoThumbnail>
+    # handles broken URLs via onError).
+    if r2_configured():
+        loop = asyncio.get_event_loop()
+
+        async def _row_thumbnail(row: dict[str, Any]) -> str | None:
+            vid = row["video_id"]
+            has_frame = bool(hook_frames_by_id.get(vid))
+            if has_frame:
+                return await loop.run_in_executor(
+                    None, copy_first_frame_to_thumbnail, vid,
+                )
+            return await download_and_upload_thumbnail(
+                row.get("thumbnail_url") or "", vid,
+            )
+
+        thumb_results = await asyncio.gather(
+            *[_row_thumbnail(row) for row in rows], return_exceptions=True,
+        )
+        for row, thumb_result in zip(rows, thumb_results):
+            if isinstance(thumb_result, str) and thumb_result:
+                row["thumbnail_url"] = thumb_result
+                logger.info(
+                    "[douyin-ingest] %s — thumbnail uploaded to R2: %s",
+                    row["video_id"], thumb_result,
+                )
+            elif isinstance(thumb_result, Exception):
+                logger.warning(
+                    "[douyin-ingest] thumbnail upload error for %s: %s",
+                    row["video_id"], thumb_result,
+                )
 
     # Upsert corpus rows.
     try:
