@@ -136,6 +136,51 @@ def test_is_flop_mode_winning() -> None:
     assert is_flop_mode(video, niche) is False
 
 
+# ── Niche-less fallback (PR-A) ──────────────────────────────────────
+
+
+def test_is_flop_mode_niche_less_clear_underperformance() -> None:
+    """No niche cohort → absolute floor. Pre-fix this branch silently
+    defaulted to win regardless of metrics, mis-rendering every URL
+    paste whose hashtags didn't classify."""
+    # 2K views = clear under-performance, doesn't matter what ER is.
+    video = {"views": 2_000, "engagement_rate": 5.0}
+    assert is_flop_mode(video, niche_row=None) is True
+
+
+def test_is_flop_mode_niche_less_low_er_at_modest_views() -> None:
+    """Decent reach (12K views) but weak ER (0.8%) — flop. The AND
+    on the loose tier protects against false positives on
+    passive-consumption niches; weak engagement at moderate views
+    is the genuine flop signal."""
+    video = {"views": 12_000, "engagement_rate": 0.8}
+    assert is_flop_mode(video, niche_row=None) is True
+
+
+def test_is_flop_mode_niche_less_high_views_pass_even_with_low_er() -> None:
+    """50K views with low ER (0.5%) — passive-consumption niches
+    (asmr/sleep/relax) can have low ER but high reach. Don't flag
+    these as flop in the niche-less fallback. Niche-cohort path
+    can still flag if available; absolute thresholds are
+    deliberately conservative."""
+    video = {"views": 50_000, "engagement_rate": 0.5}
+    assert is_flop_mode(video, niche_row=None) is False
+
+
+def test_is_flop_mode_niche_less_modest_views_with_strong_er_pass() -> None:
+    """10K views + 4% ER — modest reach but engaging. Not a flop;
+    the loose tier requires BOTH weak views AND weak ER."""
+    video = {"views": 10_000, "engagement_rate": 4.0}
+    assert is_flop_mode(video, niche_row=None) is False
+
+
+def test_is_flop_mode_niche_less_zero_views_no_signal() -> None:
+    """0 views — brand-new post, no metrics yet. Fallback shouldn't
+    flag this as flop (the floor checks ``> 0``)."""
+    video = {"views": 0, "engagement_rate": 0.0}
+    assert is_flop_mode(video, niche_row=None) is False
+
+
 def test_diagnostics_fresh_within_ttl() -> None:
     now = datetime.now(timezone.utc)
     row = {"computed_at": now.isoformat()}

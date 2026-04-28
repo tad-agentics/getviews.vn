@@ -29,6 +29,7 @@ import pytest
 
 from getviews_pipeline.report_video import (
     build_video_report,
+    detect_mode_from_query,
     extract_aweme_id,
     extract_tiktok_url,
 )
@@ -356,3 +357,154 @@ def test_build_video_report_response_validates_via_videopayload() -> None:
     # Must validate cleanly so append_turn → validate_and_store_report
     # → answer_turns.payload INSERT doesn't blow up at runtime.
     VideoPayload.model_validate(out)
+
+
+# ── detect_mode_from_query ──────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "tại sao video này không có view",
+        "vì sao chưa có view nhỉ",
+        "video flop",
+        "video này flop quá",
+        "tại sao kém vậy",
+        "vì sao không nổ",
+        "tại sao chưa nổ",
+        "ít view quá em ơi",
+        "view thấp",
+        "video này không lên xu hướng",
+        "tại sao chưa lên trending",
+        "video tệ quá",
+        "video kém",
+    ],
+)
+def test_detect_mode_from_query_returns_flop_for_loss_signals(query: str) -> None:
+    """Vietnamese flop phrasings the detector must catch — these are
+    the dominant patterns observed in creator prompts. Adding new
+    phrasings is fine; these existing ones must NEVER stop matching."""
+    assert detect_mode_from_query(query) == "flop"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "tại sao video này viral",
+        "vì sao video nổ",
+        "video viral lắm",
+        "tại sao nổ",
+        "vì sao thành công",
+        "vì sao nhiều view",
+        "video lên top",
+        "video lên xu hướng",
+        "tại sao lên trending",
+        "video thành công vậy",
+    ],
+)
+def test_detect_mode_from_query_returns_win_for_success_signals(query: str) -> None:
+    """Vietnamese win phrasings — same contract as flop, different
+    direction."""
+    assert detect_mode_from_query(query) == "win"
+
+
+def test_detect_mode_from_query_returns_none_for_neutral_text() -> None:
+    """Pure URL paste, no question. Falls through to the BE
+    ``is_flop_mode`` heuristic."""
+    assert detect_mode_from_query("https://www.tiktok.com/@x/video/1") is None
+    assert detect_mode_from_query("phân tích video này") is None
+    assert detect_mode_from_query("") is None
+
+
+def test_detect_mode_from_query_returns_none_when_signals_contradict() -> None:
+    """Both signals present (rare but possible — user pastes one URL
+    that flopped + another that went viral, asks both at once). Defer
+    to the heuristic rather than guess."""
+    assert detect_mode_from_query("video này flop nhưng viral") is None
+
+
+def test_detect_mode_from_query_is_case_insensitive() -> None:
+    """Lower-cased + capitalized + caps all match the same pattern."""
+    assert detect_mode_from_query("VIRAL") == "win"
+    assert detect_mode_from_query("Tại sao FLOP") == "flop"
+
+
+# ── build_video_report — mode auto-detection from query ─────────────
+
+
+def test_build_video_report_passes_detected_flop_mode_to_pipeline() -> None:
+    """Mode hint flows: detect_mode_from_query → build_video_report
+    forwards as ``mode="flop"`` to the pipeline. The Gemini synth
+    runs the flop branch instead of letting the niche heuristic
+    flip it (which gets it wrong when there's no cohort)."""
+    expected = _video_response_fixture()
+    pipeline_mock = MagicMock(return_value=expected)
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               pipeline_mock):
+        build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query=(
+                "tại sao video này không có view "
+                "https://www.tiktok.com/@x/video/1"
+            ),
+        )
+
+    assert pipeline_mock.call_args.kwargs["mode"] == "flop"
+
+
+def test_build_video_report_passes_detected_win_mode_to_pipeline() -> None:
+    """Win-mode signal mirror of the flop case."""
+    expected = _video_response_fixture()
+    pipeline_mock = MagicMock(return_value=expected)
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               pipeline_mock):
+        build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query="vì sao video này viral https://www.tiktok.com/@x/video/1",
+        )
+
+    assert pipeline_mock.call_args.kwargs["mode"] == "win"
+
+
+def test_build_video_report_explicit_mode_overrides_detection() -> None:
+    """Caller-supplied ``mode`` wins over keyword detection. (Today
+    no caller passes mode explicitly, but the contract matters for
+    future surfaces — e.g. an admin force-refresh that needs to pin
+    a specific branch.)"""
+    expected = _video_response_fixture()
+    pipeline_mock = MagicMock(return_value=expected)
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               pipeline_mock):
+        build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query=(
+                "tại sao video này không có view "  # would detect flop
+                "https://www.tiktok.com/@x/video/1"
+            ),
+            mode="win",  # explicit override
+        )
+
+    assert pipeline_mock.call_args.kwargs["mode"] == "win"
+
+
+def test_build_video_report_no_mode_signal_passes_none() -> None:
+    """Neutral query — no mode hint, ``is_flop_mode`` heuristic
+    decides downstream."""
+    expected = _video_response_fixture()
+    pipeline_mock = MagicMock(return_value=expected)
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               pipeline_mock):
+        build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query="phân tích https://www.tiktok.com/@x/video/1",
+        )
+
+    assert pipeline_mock.call_args.kwargs["mode"] is None

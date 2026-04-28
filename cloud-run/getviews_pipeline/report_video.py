@@ -80,6 +80,79 @@ def extract_aweme_id(query: str) -> str | None:
     return m.group(1) if m else None
 
 
+# Vietnamese phrase signals for win/flop intent. Patterns cover the
+# common creator phrasings observed in /app/answer prompts:
+#
+#   Flop:  "không có view", "ít view", "view thấp", "không nổ",
+#          "tại sao flop", "video flop", "vì sao kém", "không lên",
+#          "video tệ", "không lên xu hướng"
+#   Win:   "viral", "video nổ", "tại sao nổ", "nhiều view",
+#          "vì sao thành công", "lên top", "lên xu hướng",
+#          "tại sao lên trending"
+#
+# Detection runs against the lower-cased query. Tie (both sets match)
+# returns None so the BE heuristic (``is_flop_mode``) makes the call.
+_FLOP_SIGNALS = (
+    re.compile(r"\b(không|chưa)\s+có\s+view", re.IGNORECASE),
+    re.compile(r"\bít\s+view\b", re.IGNORECASE),
+    re.compile(r"\bview\s+thấp\b", re.IGNORECASE),
+    re.compile(r"\b(không|chưa)\s+nổ\b", re.IGNORECASE),
+    re.compile(r"\b(không|chưa)\s+lên\b", re.IGNORECASE),
+    re.compile(r"\b(không|chưa)\s+lên\s+xu\s+hướng\b", re.IGNORECASE),
+    re.compile(r"\b(không|chưa)\s+lên\s+trending\b", re.IGNORECASE),
+    re.compile(r"\bflop\b", re.IGNORECASE),
+    re.compile(r"\bvideo\s+kém\b", re.IGNORECASE),
+    re.compile(r"\bvideo\s+tệ\b", re.IGNORECASE),
+    re.compile(r"\b(tại|vì)\s+sao\s+kém\b", re.IGNORECASE),
+    re.compile(r"\b(tại|vì)\s+sao\s+(không|chưa)\s+nổ\b", re.IGNORECASE),
+)
+# Negative lookbehinds prevent the win patterns from matching when
+# preceded by a Vietnamese negation ("không lên xu hướng" should be
+# flop, not win-with-tie). Python's re supports fixed-width
+# lookbehinds; ``không `` is 6 chars, ``chưa `` is 5 chars — both
+# fixed, so two separate ``(?<!...)`` clauses do the job.
+_NEG_LOOKBEHINDS = r"(?<!không\s)(?<!chưa\s)"
+_WIN_SIGNALS = (
+    re.compile(r"\bviral\b", re.IGNORECASE),
+    re.compile(rf"{_NEG_LOOKBEHINDS}\bvideo\s+nổ\b", re.IGNORECASE),
+    re.compile(rf"{_NEG_LOOKBEHINDS}\bnhiều\s+view\b", re.IGNORECASE),
+    re.compile(rf"{_NEG_LOOKBEHINDS}\b(tại|vì)\s+sao\s+nổ\b", re.IGNORECASE),
+    re.compile(rf"{_NEG_LOOKBEHINDS}\b(tại|vì)\s+sao\s+(thành\s+công|nhiều\s+view)\b", re.IGNORECASE),
+    re.compile(rf"{_NEG_LOOKBEHINDS}\blên\s+(top|xu\s+hướng|trending)\b", re.IGNORECASE),
+    re.compile(rf"{_NEG_LOOKBEHINDS}\b(tại|vì)\s+sao\s+lên\s+(top|xu\s+hướng|trending)\b", re.IGNORECASE),
+    re.compile(rf"{_NEG_LOOKBEHINDS}\bvideo\s+thành\s+công\b", re.IGNORECASE),
+)
+
+
+def detect_mode_from_query(query: str) -> str | None:
+    """Pull a win/flop hint out of the user's accompanying text.
+
+    The video-as-template migration preserved the user's full message
+    as the answer-session ``initial_q``. So when a creator pastes
+    ``tại sao video này không có view + URL``, the BE can read that
+    intent directly instead of relying on the niche-cohort heuristic
+    (which gets it wrong when there's no cohort to compare against).
+
+    Returns ``"win"``, ``"flop"``, or ``None`` (no signal or
+    contradictory signals — let ``is_flop_mode`` decide). Word
+    boundaries are conservative; novel phrasings will fall through
+    to the heuristic until we add them. Acceptable trade-off:
+    keyword-based detection is predictable + auditable, vs LLM
+    classification which is opaque + costs tokens per turn.
+    """
+    if not query:
+        return None
+    flop_hit = any(p.search(query) for p in _FLOP_SIGNALS)
+    win_hit = any(p.search(query) for p in _WIN_SIGNALS)
+    if flop_hit and win_hit:
+        return None  # Contradictory — defer to heuristic.
+    if flop_hit:
+        return "flop"
+    if win_hit:
+        return "win"
+    return None
+
+
 def build_video_report(
     *,
     service_sb: Any,
@@ -112,6 +185,22 @@ def build_video_report(
     if not url and not aweme_id:
         raise ValueError("Không tìm thấy link TikTok trong câu hỏi")
 
+    # Mode resolution priority:
+    #   1. Caller-supplied ``mode`` (explicit win/flop override).
+    #   2. Vietnamese keyword detection from the user's accompanying
+    #      text — when the creator says "tại sao không có view", we
+    #      respect that intent instead of letting the niche heuristic
+    #      flip it.
+    #   3. None → BE ``is_flop_mode`` heuristic decides (niche cohort
+    #      comparison + niche-less absolute thresholds).
+    resolved_mode: str | None = mode if mode in ("win", "flop") else None
+    if resolved_mode is None:
+        resolved_mode = detect_mode_from_query(query)
+        if resolved_mode is not None:
+            logger.info(
+                "[report_video] mode hint from query: %s", resolved_mode,
+            )
+
     try:
         out = run_video_analyze_pipeline(
             service_sb,
@@ -119,7 +208,7 @@ def build_video_report(
             video_id=aweme_id,
             tiktok_url=url,
             force_refresh=False,
-            mode=mode if mode in ("win", "flop") else None,  # type: ignore[arg-type]
+            mode=resolved_mode,  # type: ignore[arg-type]
         )
     except ValueError as exc:
         msg = str(exc)
@@ -144,7 +233,7 @@ def build_video_report(
             service_sb,
             user_sb,
             tiktok_url=url,
-            mode=mode if mode in ("win", "flop") else None,  # type: ignore[arg-type]
+            mode=resolved_mode,  # type: ignore[arg-type]
         )
 
     # Add the answer-shell common fields. ``sources`` empty because a

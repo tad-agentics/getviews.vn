@@ -136,12 +136,57 @@ def _median_views_proxy(niche_row: dict[str, Any] | None) -> float:
     return max(o, c, 5_000.0)
 
 
+# Niche-less flop thresholds — used when ``niche_row`` is None (no
+# hashtag classifier match, or niche_intelligence MV empty for that
+# niche). Conservative: both tiers flag clear underperformance only.
+#   • views < 5K — too few eyeballs to claim "win" by any metric
+#   • views < 20K AND er < 1.5% — decent reach but weak engagement
+# Otherwise default to win. Tunable via env vars for ops dial-back
+# without a code push.
+import os as _os  # local alias to avoid polluting module-level imports
+
+NICHELESS_FLOP_VIEWS_FLOOR = int(_os.environ.get("NICHELESS_FLOP_VIEWS_FLOOR", "5000"))
+NICHELESS_FLOP_VIEWS_LOOSE = int(_os.environ.get("NICHELESS_FLOP_VIEWS_LOOSE", "20000"))
+NICHELESS_FLOP_ER_FLOOR = float(_os.environ.get("NICHELESS_FLOP_ER_FLOOR", "1.5"))
+
+
 def is_flop_mode(video: dict[str, Any], niche_row: dict[str, Any] | None) -> bool:
-    """Heuristic from phase-b-plan: views or engagement vs niche medians."""
+    """Decide whether to render the flop UI for this video.
+
+    Two-tier decision:
+
+      1. **Niche cohort present** — compare against niche medians. Flop
+         when views < 50% of niche median OR ER < 60% of niche median.
+         This is the corpus-grounded signal — most accurate when we
+         have a meaningful cohort.
+
+      2. **No niche cohort** (``niche_row`` is None) — fall back to
+         absolute thresholds. Pre-migration this branch silently
+         defaulted to win, which mis-rendered every URL paste whose
+         hashtags didn't classify (a high-frequency case for new niches
+         + generic-tag videos). The absolute thresholds are
+         conservative — they only flag clear underperformance, so a
+         creator-relative comparison would be more accurate. Acceptable
+         trade-off until we can derive a creator-cohort signal.
+    """
     views = int(video.get("views") or 0)
     er = float(video.get("engagement_rate") or 0.0)
+
     if not niche_row:
+        # Niche-less fallback. AND on the loose tier so a high-views
+        # video with weak ER doesn't trigger flop unless ER is
+        # genuinely poor — protects against false-positive flop on
+        # passive-consumption niches (asmr, sleep content, etc.).
+        if NICHELESS_FLOP_VIEWS_FLOOR > 0 and 0 < views < NICHELESS_FLOP_VIEWS_FLOOR:
+            return True
+        if (
+            NICHELESS_FLOP_VIEWS_LOOSE > 0
+            and 0 < views < NICHELESS_FLOP_VIEWS_LOOSE
+            and 0 < er < NICHELESS_FLOP_ER_FLOOR
+        ):
+            return True
         return False
+
     niche_views = _median_views_proxy(niche_row)
     median_er = float(niche_row.get("median_er") or 0.04)
     if niche_views > 0 and views < niche_views * 0.5:
