@@ -26,7 +26,6 @@ from getviews_pipeline.intents import QueryIntent
 # shipped this as ``answer:compare``; the rename here is a one-time
 # correction before any FE shipped against the wrong slot.
 Destination = Literal[
-    "video",
     "channel",
     "kol",
     "script",
@@ -37,6 +36,7 @@ Destination = Literal[
     "answer:lifecycle",
     "answer:diagnostic",
     "answer:generic",
+    "answer:video",
 ]
 
 # Fixed intents → destination. follow_up_classifiable is resolved at runtime via subject.
@@ -45,13 +45,21 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     # 2026-04-22 cleanup: ``series_audit`` + ``comparison`` intents
     # dropped; ``creator_search`` is the canonical creator-discovery
     # label (``find_creators`` kept as a back-compat alias).
-    QueryIntent.VIDEO_DIAGNOSIS.value: "video",
+    # ``video_diagnosis`` was the dedicated /app/video screen until the
+    # template-migration. PR-3 (FE flip 2026-04-28) folds it into
+    # /app/answer as just another session format. Mirror in the FE
+    # ``INTENT_DESTINATIONS`` map.
+    QueryIntent.VIDEO_DIAGNOSIS.value: "answer:video",
     QueryIntent.COMPETITOR_PROFILE.value: "channel",
     QueryIntent.OWN_CHANNEL.value: "channel",
     QueryIntent.CREATOR_SEARCH.value: "kol",
     QueryIntent.FIND_CREATORS.value: "kol",  # legacy alias
     QueryIntent.SHOT_LIST.value: "script",
-    QueryIntent.METADATA_ONLY.value: "video",
+    # ``metadata_only`` previously routed to /app/video (corpus-row
+    # preview, no Gemini synth). With the screen gone, fall through to
+    # generic — the rare classification still produces *something*
+    # rather than dead-ending on the deleted destination.
+    QueryIntent.METADATA_ONLY.value: "answer:generic",
     # Diagnostic template (2026-04-22) — URL-less flop diagnosis. See
     # ``artifacts/docs/report-template-prd-diagnostic.md``.
     QueryIntent.OWN_FLOP_NO_URL.value: "answer:diagnostic",
@@ -123,7 +131,7 @@ def resolve_destination(intent_id: str, *, follow_up_subject: str | None = None)
 # alias (the classifier no longer emits it but old cached rounds might);
 # ``content_calendar`` rerouted to timing (Branch 1).
 _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
-    "video_diagnosis": "video",
+    "video_diagnosis": "answer:video",
     "content_directions": "answer:pattern",
     "trend_spike": "answer:pattern",
     "brief_generation": "answer:ideas",
@@ -132,7 +140,7 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     "own_channel": "channel",
     "creator_search": "kol",
     "find_creators": "kol",  # legacy alias
-    "metadata_only": "video",
+    "metadata_only": "answer:generic",
     "timing": "answer:timing",
     # 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` cut from lifecycle
     # shelf; see ``INTENT_TO_DESTINATION`` comment above for rationale.

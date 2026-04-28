@@ -67,7 +67,7 @@ def test_empty_query_returns_all_unclear() -> None:
     assert verdicts == ["unclear"] * 5
     # Must ship a paste-link prescription — DiagnosticPayload requires ≥1.
     assert len(out["prescriptions"]) == 1
-    assert "/app/video" in out["prescriptions"][0]["action"]
+    assert "/app/answer" in out["prescriptions"][0]["action"]
 
 
 @patch("getviews_pipeline.config.GEMINI_API_KEY", "fake-key")

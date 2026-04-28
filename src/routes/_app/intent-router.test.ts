@@ -302,11 +302,17 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     }
   });
 
-  it("TikTok URL → redirect to /app/video", () => {
+  it("TikTok URL → video session (lands on /app/answer with format=video)", () => {
+    // PR-3 of the video-as-template migration: composer URL pastes
+    // stay on /app/answer instead of redirecting to the deleted
+    // /app/video screen. The session's ``initial_q`` carries the URL
+    // verbatim; the BE ``build_video_report`` extracts it back out
+    // and runs the existing /video/analyze pipeline.
     const p = planAnswerEntry("https://www.tiktok.com/@x/video/123", false);
-    expect(p.kind).toBe("redirect");
-    if (p.kind === "redirect") {
-      expect(p.to).toContain("/app/video");
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("video");
+      expect(p.intent_type).toBe("video_diagnosis");
     }
   });
 

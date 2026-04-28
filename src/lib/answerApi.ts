@@ -31,7 +31,7 @@ export type CreateAnswerSessionBody = {
   initial_q: string;
   intent_type: string;
   niche_id: number | null;
-  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic";
+  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic" | "video";
 };
 
 /** ``POST /answer/sessions`` — Idempotency-Key optional (120s server-side cache). */

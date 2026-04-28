@@ -41,6 +41,14 @@ _TIKTOK_URL_RE = re.compile(
     re.IGNORECASE,
 )
 
+# TikTok aweme_ids are 19-digit numeric strings. Standalone matching
+# (no surrounding URL) covers PR-3's evidence-tile clicks: those tiles
+# only carry the bare ``video_id`` from the corpus row, not a full
+# URL. We accept the id alongside URLs so the same builder serves
+# both code paths (``state.prefillUrl = "https://..."`` and
+# ``state.prefillUrl = "<aweme_id>"``).
+_AWEME_ID_RE = re.compile(r"\b(\d{15,21})\b")
+
 
 def extract_tiktok_url(query: str) -> str | None:
     """Pull the first TikTok URL out of a free-form Vietnamese query.
@@ -54,6 +62,22 @@ def extract_tiktok_url(query: str) -> str | None:
         return None
     m = _TIKTOK_URL_RE.search(query)
     return m.group(0) if m else None
+
+
+def extract_aweme_id(query: str) -> str | None:
+    """Pull a bare TikTok ``aweme_id`` (numeric video_id) out of the
+    query when no URL is present. Used by the evidence-tile click
+    path: corpus rows expose ``video_id`` but the FE click site
+    doesn't always have the creator handle to build a tiktok_url.
+
+    Returns the first 15-21 digit run that isn't part of a URL match.
+    Caller must check ``extract_tiktok_url`` first — this function
+    blindly returns the digit run regardless of any URL also present.
+    """
+    if not query:
+        return None
+    m = _AWEME_ID_RE.search(query)
+    return m.group(1) if m else None
 
 
 def build_video_report(
@@ -80,18 +104,19 @@ def build_video_report(
     ``related_questions`` with niche-aware suggestions.
 
     Raises ``ValueError`` when the query has no parseable TikTok URL
-    (caller → 400) or when both corpus + on-demand paths miss in a
-    way that can't be analysed (e.g. invalid URL shape).
+    or aweme_id (caller → 400) or when both corpus + on-demand paths
+    miss in a way that can't be analysed (e.g. invalid URL shape).
     """
     url = extract_tiktok_url(query)
-    if not url:
+    aweme_id = extract_aweme_id(query) if not url else None
+    if not url and not aweme_id:
         raise ValueError("Không tìm thấy link TikTok trong câu hỏi")
 
     try:
         out = run_video_analyze_pipeline(
             service_sb,
             user_sb,
-            video_id=None,
+            video_id=aweme_id,
             tiktok_url=url,
             force_refresh=False,
             mode=mode if mode in ("win", "flop") else None,  # type: ignore[arg-type]
@@ -107,6 +132,13 @@ def build_video_report(
         )
         if not url_miss:
             raise
+        # On-demand path needs a real URL — bare aweme_id can't be
+        # fetched without first knowing the creator handle. So an
+        # aweme_id-only request that misses corpus is a hard 404.
+        if not url:
+            raise ValueError(
+                "Không tìm thấy video trong corpus cho id này"
+            ) from exc
         logger.info("[report_video] corpus miss → on-demand path url=%s", url)
         out = run_video_analyze_on_demand(
             service_sb,

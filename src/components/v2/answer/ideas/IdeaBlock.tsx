@@ -99,9 +99,11 @@ function MetricBlock({ metric }: { metric: IdeaBlockPayloadData["metric"] }) {
 }
 
 /**
- * Thumbnail tile — token-only background (no hardcoded hex). Users tap into
- * `/app/video?video_id=…` to see the real thumbnail; the tile here is a
- * neutral placeholder with a mono rank chip.
+ * Thumbnail tile — token-only background (no hardcoded hex). Users tap
+ * into `/app/answer` (with the aweme_id seeded as the session prompt;
+ * ``build_video_report`` accepts bare ids and routes them through the
+ * corpus video_id lookup) to open the structured Win/Flop report. The
+ * tile here is a neutral placeholder with a mono rank chip.
  */
 function EvidenceThumbs({ ids }: { ids: string[] }) {
   const navigate = useNavigate();
@@ -112,7 +114,9 @@ function EvidenceThumbs({ ids }: { ids: string[] }) {
         <button
           key={vid}
           type="button"
-          onClick={() => navigate(`/app/video?video_id=${encodeURIComponent(vid)}`)}
+          onClick={() =>
+            navigate("/app/answer", { state: { prefillUrl: vid } })
+          }
           className="relative aspect-[9/12] w-full overflow-hidden rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-left"
           aria-label={`Xem video tham khảo ${vid}`}
         >

@@ -117,7 +117,10 @@ export function SceneIntelligencePanel({
             ? referenceClips.map((c, i) => (
                 <Link
                   key={c.video_id}
-                  to={`/app/video?video_id=${encodeURIComponent(c.video_id)}`}
+                  to="/app/answer"
+                  state={{
+                    prefillUrl: `https://www.tiktok.com/@${c.creator_handle.replace(/^@/, "")}/video/${c.video_id}`,
+                  }}
                   className={`relative flex aspect-[9/13] w-20 shrink-0 flex-col justify-end overflow-hidden rounded p-1.5 text-left text-[color:var(--gv-canvas)] ${
                     !c.thumbnail_url ? CLIP_FALLBACK_BG[i % CLIP_FALLBACK_BG.length] : ""
                   }`}

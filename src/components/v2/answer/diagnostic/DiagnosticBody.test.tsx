@@ -77,14 +77,14 @@ function mkReport(
     prescriptions: [
       {
         priority: "P1",
-        action: "Dán link video vào /app/video",
+        action: "Dán link video vào /app/answer",
         impact: "Chẩn đoán chính xác hơn",
         effort: "low",
       },
     ],
     paste_link_cta: {
-      title: "Có link video? Mở /app/video để chấm điểm chính xác.",
-      route: "/app/video",
+      title: "Có link video? Mở /app/answer để chấm điểm chính xác.",
+      route: "/app/answer",
     },
     sources: [],
     related_questions: [],
@@ -258,7 +258,7 @@ describe("DiagnosticBody paste-link CTA", () => {
     expect(screen.getByText("Chẩn đoán chính xác")).toBeTruthy();
     expect(
       screen.getByText(
-        /Có link video\? Mở \/app\/video để chấm điểm chính xác\./,
+        /Có link video\? Mở \/app\/answer để chấm điểm chính xác\./,
       ),
     ).toBeTruthy();
   });

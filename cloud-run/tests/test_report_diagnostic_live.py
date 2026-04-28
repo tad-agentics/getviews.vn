@@ -103,7 +103,7 @@ def test_service_client_unavailable_falls_back_to_unclear(
     verdicts = [c["verdict"] for c in r["categories"]]
     assert verdicts == ["unclear"] * 5
     assert len(r["prescriptions"]) == 1
-    assert "/app/video" in r["prescriptions"][0]["action"]
+    assert "/app/answer" in r["prescriptions"][0]["action"]
 
 
 @patch("getviews_pipeline.supabase_client.get_service_client")

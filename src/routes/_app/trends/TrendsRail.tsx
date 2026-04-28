@@ -149,7 +149,13 @@ function RailRow({ video }: { video: RailVideo }) {
       <button
         type="button"
         onClick={() =>
-          navigate(`/app/video?video_id=${encodeURIComponent(video.video_id)}`)
+          navigate("/app/answer", {
+            state: {
+              prefillUrl: video.creator_handle
+                ? `https://www.tiktok.com/@${video.creator_handle.replace(/^@/, "")}/video/${video.video_id}`
+                : video.video_id,
+            },
+          })
         }
         className="grid w-full grid-cols-[44px_1fr] items-center gap-2.5 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-2 text-left transition-colors hover:border-[color:var(--gv-ink)]"
       >

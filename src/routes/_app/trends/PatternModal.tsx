@@ -123,7 +123,13 @@ function PatternModalBody({
             disabled={!active?.video_id}
             onClick={() => {
               if (active?.video_id) {
-                navigate(`/app/video?video_id=${encodeURIComponent(active.video_id)}`);
+                navigate("/app/answer", {
+                  state: {
+                    prefillUrl: active.creator_handle
+                      ? `https://www.tiktok.com/@${active.creator_handle.replace(/^@/, "")}/video/${active.video_id}`
+                      : active.video_id,
+                  },
+                });
               }
             }}
           >
