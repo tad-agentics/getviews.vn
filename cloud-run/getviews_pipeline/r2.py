@@ -222,6 +222,70 @@ def _cleanup_frames(frame_paths: list[Path]) -> None:
             pass
 
 
+def copy_first_frame_to_thumbnail(video_id: str) -> str | None:
+    """Copy the already-uploaded frame[0] PNG to the thumbnail key
+    via an R2 server-side ``copy_object`` call. No local file read,
+    no second CDN call.
+
+    Architecture principle: one heavy CDN pull per video, ever. The
+    video binary is downloaded once during ``corpus_ingest``; from
+    that single download we extract everything we need and never
+    hotlink the platform CDN again. Thumbnails are part of "everything
+    we need" — frame[0] is already in R2 from ``upload_frames``; we
+    just clone it under the ``thumbnails/`` namespace so the FE has
+    a stable URL pattern and the R2 janitor can manage ``frames/``
+    (analysis cache, evictable) and ``thumbnails/`` (user-facing,
+    permanent) independently.
+
+    Why frame[0] (not the platform's ``origin_cover``):
+      • Some creators don't set a custom cover, so the platform
+        default is whatever frame the platform picked — often
+        unrelated to the hook.
+      • Frame[0] is a deterministic capture WE control. No CDN
+        round-trip, no URL rotation, no creator-cover edge case.
+      • The PNG is already in R2 — a server-side copy is one HTTP
+        op (no GB transfer, no local disk read).
+
+    Key pattern: ``thumbnails/{video_id}.png`` (sibling to the
+    ``thumbnails/{video_id}.jpg`` written by
+    ``download_and_upload_thumbnail`` for legacy CDN-mirror flows;
+    different extension keeps the keys distinct).
+
+    Returns the permanent R2 public URL on success; ``None`` on
+    skip-or-failure. Non-fatal — corpus ingest continues and the
+    platform CDN URL (set earlier in the row) survives as the
+    ``thumbnail_url`` value.
+    """
+    if not r2_configured():
+        return None
+    src_key = f"frames/{video_id}/0{_FRAME_EXT}"
+    dst_key = f"thumbnails/{video_id}{_FRAME_EXT}"
+    try:
+        client = _get_r2_client()
+        client.copy_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=dst_key,
+            CopySource={"Bucket": R2_BUCKET_NAME, "Key": src_key},
+            ContentType=_FRAME_CONTENT_TYPE,
+            CacheControl="public, max-age=31536000, immutable",
+            MetadataDirective="REPLACE",
+        )
+    except (BotoCoreError, ClientError) as exc:
+        logger.warning(
+            "[r2] thumbnail-from-frame copy failed for %s (src=%s): %s",
+            video_id, src_key, exc,
+        )
+        return None
+    except Exception as exc:
+        logger.warning(
+            "[r2] unexpected error copying frame→thumbnail for %s: %s", video_id, exc,
+        )
+        return None
+    url = f"{R2_PUBLIC_URL.rstrip('/')}/{dst_key}"
+    logger.info("[r2] thumbnail derived from frame[0] for %s → %s", video_id, url)
+    return url
+
+
 async def extract_and_upload(video_path: Path, video_id: str) -> list[str]:
     """Extract frames + upload to R2. Returns public URLs. Always cleans up /tmp files.
 
