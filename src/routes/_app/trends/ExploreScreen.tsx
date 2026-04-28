@@ -336,7 +336,7 @@ function VideoCard({
 const PATTERN_CHIP_PLACEHOLDER = "Pattern";
 
 /** Cao cố định khớp KhoTogglePill — toàn bộ chip trong toolbar "Bộ lọc kho video". */
-const KHO_FILTER_CHIP_H = "h-9";
+const KHO_FILTER_CHIP_H = "h-6";
 
 function KhoSelectChip({
   label,
@@ -353,16 +353,16 @@ function KhoSelectChip({
 }) {
   return (
     <div
-      className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[11px] font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
+      className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[9px] font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
     >
       {onRemove && isDirty ? (
         <button
           type="button"
-          className="flex w-9 shrink-0 items-center justify-center self-stretch text-[var(--faint)] hover:text-[var(--ink)]"
+          className="flex w-6 shrink-0 items-center justify-center self-stretch text-[var(--faint)] hover:text-[var(--ink)]"
           onClick={onRemove}
           aria-label="Xóa bộ lọc"
         >
-          <X className="h-3 w-3" strokeWidth={2} aria-hidden />
+          <X className="h-2.5 w-2.5" strokeWidth={2} aria-hidden />
         </button>
       ) : null}
       <button
@@ -370,12 +370,12 @@ function KhoSelectChip({
         onClick={onClick}
         className={
           isDirty && onRemove
-            ? "flex min-h-0 flex-1 items-center gap-1.5 pl-0.5 pr-2.5"
-            : "flex min-h-0 flex-1 items-center gap-1.5 px-3.5"
+            ? "flex min-h-0 flex-1 items-center gap-0.5 pl-0.5 pr-1.5"
+            : "flex min-h-0 flex-1 items-center gap-0.5 px-2"
         }
       >
         <span className={isDirty ? "font-semibold" : "font-medium"}>{label}</span>
-        {hasArrow ? <ChevronDown className="h-3 w-3 shrink-0 text-[var(--faint)]" strokeWidth={2} aria-hidden /> : null}
+        {hasArrow ? <ChevronDown className="h-2 w-2 shrink-0 text-[var(--faint)]" strokeWidth={2} aria-hidden /> : null}
       </button>
     </div>
   );
@@ -395,7 +395,7 @@ function KhoTogglePill({
   if (onRemove) {
     return (
       <div
-        className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[11px] font-medium leading-none ${KHO_FILTER_CHIP_H} ${
+        className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[9px] font-medium leading-none ${KHO_FILTER_CHIP_H} ${
           active
             ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)]"
             : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]"
@@ -404,7 +404,7 @@ function KhoTogglePill({
         <button
           type="button"
           onClick={onClick}
-          className={`flex shrink-0 items-center border-none px-3.5 text-left transition-[background] ${
+          className={`flex shrink-0 items-center border-none px-2 text-left transition-[background] ${
             active
               ? "text-[color:var(--gv-paper)]"
               : "text-[color:var(--gv-ink)] hover:bg-[var(--surface-alt)]"
@@ -416,10 +416,10 @@ function KhoTogglePill({
           <button
             type="button"
             onClick={onRemove}
-            className="flex w-9 shrink-0 items-center justify-center border-l border-[color:var(--gv-paper)]/25 text-[color:var(--gv-paper)]"
+            className="flex w-6 shrink-0 items-center justify-center border-l border-[color:var(--gv-paper)]/25 text-[color:var(--gv-paper)]"
             aria-label="Xóa bộ lọc"
           >
-            <X className="h-3 w-3" strokeWidth={2} />
+            <X className="h-2.5 w-2.5" strokeWidth={2} />
           </button>
         ) : null}
       </div>
@@ -429,7 +429,7 @@ function KhoTogglePill({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex ${KHO_FILTER_CHIP_H} shrink-0 items-center justify-center rounded-full border px-3.5 text-[11px] font-medium leading-none transition-all duration-[120ms] ${
+      className={`inline-flex ${KHO_FILTER_CHIP_H} shrink-0 items-center justify-center rounded-full border px-2 text-[9px] font-medium leading-none transition-all duration-[120ms] ${
         active
           ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)] text-[color:var(--gv-paper)]"
           : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink)]"
