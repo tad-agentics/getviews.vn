@@ -38,6 +38,7 @@ from getviews_pipeline.helpers import (
     merge_aweme_lists,
 )
 from getviews_pipeline.r2 import (
+    copy_first_frame_to_thumbnail,
     download_and_upload_thumbnail,
     download_and_upload_video,
     extract_and_upload,
@@ -1322,13 +1323,28 @@ async def _ingest_candidate_awemes(
             )
             for row in video_rows
         ]
-        thumb_tasks = [
-            download_and_upload_thumbnail(
-                row.get("thumbnail_url") or "",
-                row["video_id"],
+        # "One heavy CDN pull per video, ever." — when frame[0] was
+        # already extracted from the single video download into R2,
+        # derive the user-facing thumbnail by server-side copying
+        # ``frames/{video_id}/0.png`` → ``thumbnails/{video_id}.png``
+        # (one R2 op, zero CDN bytes). Only fall back to the CDN
+        # mirror when frame extraction failed for that row — without
+        # an R2 frame to copy from, the platform CDN URL is the only
+        # source for the thumbnail.
+        loop = asyncio.get_event_loop()
+
+        async def _row_thumbnail(row: dict[str, Any]) -> str | None:
+            vid = row["video_id"]
+            has_frame = bool((frame_urls_by_video_id.get(vid) or []))
+            if has_frame:
+                return await loop.run_in_executor(
+                    None, copy_first_frame_to_thumbnail, vid,
+                )
+            return await download_and_upload_thumbnail(
+                row.get("thumbnail_url") or "", vid,
             )
-            for row in rows
-        ]
+
+        thumb_tasks = [_row_thumbnail(row) for row in rows]
 
         video_results, thumb_results = await asyncio.gather(
             asyncio.gather(*video_upload_tasks, return_exceptions=True),
