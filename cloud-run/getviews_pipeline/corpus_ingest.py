@@ -53,9 +53,30 @@ from getviews_pipeline.video_shots_writer import (
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_csv_niche_ids(raw: str) -> frozenset[int]:
+    """Comma-separated ``niche_taxonomy.id`` for priority ingest (star niches)."""
+    out: set[int] = set()
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            n = int(part, 10)
+        except ValueError:
+            logger.warning(
+                "[corpus] invalid BATCH_PRIORITY_NICHE_IDS segment, skipping: %r", part
+            )
+            continue
+        if n > 0:
+            out.add(n)
+    return frozenset(out)
+
+
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-BATCH_VIDEOS_PER_NICHE = int(os.environ.get("BATCH_VIDEOS_PER_NICHE", "10"))
+# Raised default 10→15 with higher daily ED unit budgets; override via env on small plans.
+BATCH_VIDEOS_PER_NICHE = int(os.environ.get("BATCH_VIDEOS_PER_NICHE", "15"))
 BATCH_RECENCY_DAYS = int(os.environ.get("BATCH_RECENCY_DAYS", "30"))
 
 # Wave 5+ Phase 2 — thin-niche prioritization. Per-batch quota multiplier
@@ -67,6 +88,19 @@ BATCH_RECENCY_DAYS = int(os.environ.get("BATCH_RECENCY_DAYS", "30"))
 # See artifacts/docs/implementation-plan.md Wave 5+ growth-continuation.
 CORPUS_TARGET_PER_NICHE = int(os.environ.get("CORPUS_TARGET_PER_NICHE", "200"))
 THIN_NICHE_MAX_MULTIPLIER = float(os.environ.get("THIN_NICHE_MAX_MULTIPLIER", "3.0"))
+
+# Star niches (e.g. 3 = Thời trang / Outfit) — min videos per batch run even when
+# the niche is already "rich" (thin-niche mult stuck at 1×). Comma-separated IDs;
+# set BATCH_PRIORITY_NICHE_VPN_FLOOR=0 to disable. Cap avoids blowing ED in one wave.
+BATCH_PRIORITY_NICHE_IDS = _parse_csv_niche_ids(
+    os.environ.get("BATCH_PRIORITY_NICHE_IDS", "3")
+)
+BATCH_PRIORITY_NICHE_VPN_FLOOR = int(
+    os.environ.get("BATCH_PRIORITY_NICHE_VPN_FLOOR", "22") or "0"
+)
+BATCH_PRIORITY_NICHE_MAX_VPN = max(
+    1, int(os.environ.get("BATCH_PRIORITY_NICHE_MAX_VPN", "45") or "45")
+)
 BATCH_MAX_FAILURES = int(os.environ.get("BATCH_MAX_FAILURES", "3"))
 BATCH_CONCURRENCY = int(os.environ.get("BATCH_CONCURRENCY", "4"))
 
@@ -1869,7 +1903,7 @@ async def run_batch_ingest(
     cpn: int | None = None
     if deep_pool:
         kw = min(BATCH_KEYWORD_PAGES * 3, 8)
-        vpn = min(BATCH_VIDEOS_PER_NICHE * 2, 40)
+        vpn = min(BATCH_VIDEOS_PER_NICHE * 2, 50)
         cpn = min(BATCH_CAROUSELS_PER_NICHE * 2, 12)
         logger.info(
             "[corpus] deep_pool ingest: keyword_pages=%d videos_per_niche=%d carousels=%d",
@@ -1905,7 +1939,26 @@ async def run_batch_ingest(
                 "current_count": current,
                 "multiplier": round(mult, 2),
                 "allocated_vpn": allocated,
+                "priority_floor": False,
             })
+        # Star niches (e.g. Thời trang) — floor so main verticals keep ingesting
+        # after thin-niche math drops them to 1×.
+        if BATCH_PRIORITY_NICHE_IDS and BATCH_PRIORITY_NICHE_VPN_FLOOR > 0:
+            by_id: dict[int, dict[str, Any]] = {int(r["niche_id"]): r for r in niche_allocation_log}
+            for n in niches:
+                nid = int(n["id"])
+                if nid not in BATCH_PRIORITY_NICHE_IDS:
+                    continue
+                prev = per_niche_vpn.get(nid, BATCH_VIDEOS_PER_NICHE)
+                new = min(
+                    max(prev, BATCH_PRIORITY_NICHE_VPN_FLOOR), BATCH_PRIORITY_NICHE_MAX_VPN,
+                )
+                if new != prev:
+                    per_niche_vpn[nid] = new
+                row = by_id.get(nid)
+                if row is not None:
+                    row["allocated_vpn"] = new
+                    row["priority_floor"] = True
         # Log the allocation so dogfood + batch_observability can see
         # which niches got prioritized this run.
         top5 = sorted(
@@ -1917,10 +1970,16 @@ async def run_batch_ingest(
             f"{a['niche_name']}:{a['current_count']}→{a['allocated_vpn']}"
             for a in top5
         )
+        star_note = ""
+        if BATCH_PRIORITY_NICHE_IDS and BATCH_PRIORITY_NICHE_VPN_FLOOR > 0:
+            star_note = (
+                f" | priority_niches={','.join(str(x) for x in sorted(BATCH_PRIORITY_NICHE_IDS))} "
+                f"floor>={BATCH_PRIORITY_NICHE_VPN_FLOOR} cap<={BATCH_PRIORITY_NICHE_MAX_VPN}"
+            )
         logger.info(
             "[corpus] thin-niche prioritization — target=%d, max_mult=%.1f. "
-            "Top-5 allocations: %s",
-            CORPUS_TARGET_PER_NICHE, THIN_NICHE_MAX_MULTIPLIER, allocation_summary,
+            "Top-5 allocations: %s%s",
+            CORPUS_TARGET_PER_NICHE, THIN_NICHE_MAX_MULTIPLIER, allocation_summary, star_note,
         )
         summary.thin_niche_allocations = niche_allocation_log
 

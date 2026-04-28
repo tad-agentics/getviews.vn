@@ -22,10 +22,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from getviews_pipeline.corpus_ingest import (
+    BATCH_PRIORITY_NICHE_IDS,
+    BATCH_PRIORITY_NICHE_VPN_FLOOR,
     BATCH_VIDEOS_PER_NICHE,
     CORPUS_TARGET_PER_NICHE,
     THIN_NICHE_MAX_MULTIPLIER,
     _fetch_niche_counts_sync,
+    _parse_csv_niche_ids,
     apply_thin_niche_multiplier,
     compute_thin_niche_multiplier,
 )
@@ -186,3 +189,14 @@ def test_allocation_snapshot_thinnest_gets_most_videos() -> None:
     # Rich stays at base, empty hits the cap.
     assert allocations["rich"] == base
     assert allocations["empty"] == hard_cap
+
+
+def test_parse_csv_niche_ids() -> None:
+    assert _parse_csv_niche_ids("") == frozenset()
+    assert _parse_csv_niche_ids("3, 7 ,12") == frozenset({3, 7, 12})
+
+
+def test_default_priority_includes_fashion_niche() -> None:
+    """Product default: Thời trang / Outfit (taxonomy id 3) gets a floor."""
+    assert 3 in BATCH_PRIORITY_NICHE_IDS
+    assert BATCH_PRIORITY_NICHE_VPN_FLOOR >= BATCH_VIDEOS_PER_NICHE
