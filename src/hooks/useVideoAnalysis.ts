@@ -68,10 +68,13 @@ export function useVideoAnalysis({
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
-        // Video analysis hits Gemini multimodal — cold-start + long clip
-        // can stretch past the 30s default. 60s leaves headroom without
+        // Two paths under one timeout:
+        //  • Corpus hit (cached diagnostics): <2s
+        //  • On-demand (URL not in corpus → ED fetch + video download +
+        //    Gemini multimodal): 60-90s typical, up to 110s on cold start
+        // 120s leaves headroom for the on-demand cold path without
         // letting a stuck request swallow the tab indefinitely.
-        timeoutMs: 60_000,
+        timeoutMs: 120_000,
       });
 
       if (res.status === 401) {
