@@ -8,6 +8,7 @@
 
 import { useNavigate } from "react-router";
 
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { EvidenceCardPayloadData } from "@/lib/api-types";
 
 function formatViews(n: number): string {
@@ -46,14 +47,11 @@ export function GenericEvidenceGrid({
             className="relative block aspect-[9/12] w-full text-left"
             style={{ backgroundColor: v.bg_color || "var(--gv-canvas-2)" }}
           >
-            {v.thumbnail_url ? (
-              <img
-                src={v.thumbnail_url}
-                alt=""
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            ) : null}
+            <VideoThumbnail
+              thumbnailUrl={v.thumbnail_url}
+              className="h-full w-full"
+              placeholderClassName=""
+            />
             <span className="gv-mono absolute left-1 top-1 rounded bg-[color:var(--gv-paper)] px-1 text-[10px] text-[color:var(--gv-ink-3)]">
               #{i + 1}
             </span>
