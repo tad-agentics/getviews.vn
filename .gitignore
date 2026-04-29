@@ -87,6 +87,10 @@ rad-rr7-template/.sync-target
 .env.local
 .env.*.local
 
+# Cloud Run — filled local env (step 4 ops; keep *.example tracked)
+cloud-run/deployment/gv-batch.env
+cloud-run/deployment/gv-user.env
+
 # Supabase CLI cache
 supabase/.temp/
 supabase/.branches/

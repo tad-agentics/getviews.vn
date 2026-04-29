@@ -8,7 +8,7 @@ import os
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from getviews_pipeline.config import ENSEMBLEDATA_API_TOKEN, GEMINI_API_KEY, SUPABASE_JWKS_URL, SUPABASE_JWT_SECRET
+from getviews_pipeline.config import ENSEMBLEDATA_API_TOKEN, SUPABASE_JWKS_URL, SUPABASE_JWT_SECRET
 from getviews_pipeline.deps import require_admin, require_user
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ router = APIRouter()
 async def health() -> JSONResponse:
     from getviews_pipeline.r2 import r2_configured
     checks = {
-        "gemini_key_set": bool(GEMINI_API_KEY),
+        "gemini_key_set": bool((os.environ.get("GEMINI_API_KEY") or "").strip()),
         "ensemble_key_set": bool(ENSEMBLEDATA_API_TOKEN),
         "jwt_configured": bool(SUPABASE_JWT_SECRET) or bool(SUPABASE_JWKS_URL),
         "cdn_proxy_set": bool(os.environ.get("RESIDENTIAL_PROXY_URL")),

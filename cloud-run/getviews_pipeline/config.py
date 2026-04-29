@@ -353,6 +353,8 @@ def require_ensembledata_token() -> str:
 
 
 def require_gemini_api_key() -> str:
-    if not GEMINI_API_KEY:
+    """Read from the environment on each call (not the module-level snapshot)."""
+    key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if not key:
         raise ValueError("GEMINI_API_KEY is not set")
-    return GEMINI_API_KEY
+    return key

@@ -108,6 +108,7 @@ from getviews_pipeline.routers.home import router as home_router
 from getviews_pipeline.routers.answer import router as answer_router
 from getviews_pipeline.routers.douyin import router as douyin_router
 from getviews_pipeline.routers.batch import router as batch_router
+from getviews_pipeline.routers.batch_proxy import router as batch_proxy_router
 from getviews_pipeline.routers.admin import router as admin_router
 
 # /health is mounted on every shape — Cloud Run liveness probe needs it.
@@ -120,6 +121,11 @@ if SERVICE_ROLE in {"all", "user"}:
     app.include_router(home_router)
     app.include_router(answer_router)
     app.include_router(douyin_router)
+
+# When split-deployed, pg_cron may still POST to the user service URL. Forward the
+# heaviest scheduled jobs to the batch origin (see ``batch_proxy`` module).
+if SERVICE_ROLE == "user":
+    app.include_router(batch_proxy_router)
 
 if SERVICE_ROLE in {"all", "batch"}:
     app.include_router(batch_router)

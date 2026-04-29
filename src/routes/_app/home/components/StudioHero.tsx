@@ -64,7 +64,7 @@ export const StudioHero = memo(function StudioHero({
         <p className="mt-1.5">
           {isNicheStale
             ? "Lần tạo kế tiếp sẽ có 3 kịch bản theo ngách bạn vừa chọn."
-            : "Cron sáng sẽ xếp sẵn 3 kịch bản mới vào 7h. Ghé lại sáng mai nhé."}
+            : "Job hệ thống tạo kịch bản mỗi tối — sáng hôm sau sẽ thấy. Nếu lâu không có, bấm Thử tải lại."}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Btn variant="ghost" size="sm" type="button" onClick={() => void refetch()}>
@@ -159,7 +159,7 @@ const StudioHeroRow = memo(function StudioHeroRow({
           ) : null}
         </div>
         <p
-          className="gv-serif-italic m-0 text-[19px] font-medium leading-[1.3] tracking-[-0.01em] text-[color:var(--gv-ink)]"
+          className="gv-serif m-0 text-[19px] font-medium leading-[1.3] tracking-[-0.01em] text-[color:var(--gv-ink)]"
           style={{ textWrap: "pretty" }}
         >
           &ldquo;{script.title_vi}&rdquo;
