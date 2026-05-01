@@ -49,8 +49,8 @@ export function useCorpusHealth() {
     queryKey: ["admin", "corpus-health"] as const,
     enabled: isAdmin,
     queryFn: async (): Promise<CorpusHealthResponse> => {
-      const base = env.VITE_CLOUD_RUN_API_URL;
-      if (!base) throw new Error("cloud_run_url_unset");
+      const base = env.VITE_CLOUD_RUN_BATCH_URL;
+      if (!base) throw new Error("cloud_run_batch_url_unset");
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) throw new Error("no_session");
