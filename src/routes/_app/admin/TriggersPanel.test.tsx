@@ -24,6 +24,7 @@ vi.mock("@/lib/env", () => ({
     VITE_SUPABASE_URL: "https://test.supabase.co",
     VITE_SUPABASE_PUBLISHABLE_KEY: "test-key",
     VITE_CLOUD_RUN_API_URL: "https://cloud-run.test",
+    VITE_CLOUD_RUN_BATCH_URL: "https://cloud-run.test",
   },
 }));
 

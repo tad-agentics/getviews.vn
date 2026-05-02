@@ -67,6 +67,9 @@ export function analysisErrorCopy(error: unknown): string {
   if (code === "no_cloud_run") {
     return "Dịch vụ phân tích chưa cấu hình (VITE_CLOUD_RUN_API_URL).";
   }
+  if (code === "cloud_run_batch_url_unset") {
+    return "Trang admin chưa cấu hình URL batch (VITE_CLOUD_RUN_BATCH_URL).";
+  }
   // Structured codes returned by the Cloud Run ``/answer/sessions`` handler
   // when the DB rejects the insert. Without these, the client previously
   // surfaced raw Postgres strings.

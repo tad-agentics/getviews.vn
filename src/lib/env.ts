@@ -20,6 +20,13 @@ const clientEnvSchema = z.object({
   VITE_SUPABASE_URL: z.string().url(),
   VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   VITE_CLOUD_RUN_API_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+  // Cloud Run is split into two services (see cloud-run/deploy.sh): the
+  // user pod (mounts intent/video/script/home/answer/douyin) and the batch
+  // pod (mounts /batch/* + /admin/*). The admin panel hits /admin/*, so
+  // it must call the batch URL — the user URL serves 404 for /admin/*.
+  // Falls back to VITE_CLOUD_RUN_API_URL only as a soft default for the
+  // legacy single-service "all" deployment shape used in dev.
+  VITE_CLOUD_RUN_BATCH_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   VITE_R2_PUBLIC_URL: z.string().url().optional().or(z.literal("").transform(() => undefined)),
   /** Feature flag: shows the ZaloPay pricing option in PricingScreen.
    *  Off by default (PayOS is the live payment gateway). Set to ``"true"``
@@ -65,6 +72,7 @@ function loadClientEnv(): ClientEnv {
     VITE_SUPABASE_URL: url,
     VITE_SUPABASE_PUBLISHABLE_KEY: publishable,
     VITE_CLOUD_RUN_API_URL: import.meta.env.VITE_CLOUD_RUN_API_URL,
+    VITE_CLOUD_RUN_BATCH_URL: import.meta.env.VITE_CLOUD_RUN_BATCH_URL,
     VITE_R2_PUBLIC_URL: import.meta.env.VITE_R2_PUBLIC_URL,
     VITE_ZALOPAY_ENABLED: import.meta.env.VITE_ZALOPAY_ENABLED,
   });
@@ -78,10 +86,16 @@ function loadClientEnv(): ClientEnv {
 
   const d = parsed.data;
   const cloud = d.VITE_CLOUD_RUN_API_URL;
+  const batch = d.VITE_CLOUD_RUN_BATCH_URL;
+  const cloudClean = cloud != null && cloud !== "" ? cloud.replace(/\/+$/, "") : undefined;
+  const batchClean = batch != null && batch !== "" ? batch.replace(/\/+$/, "") : undefined;
   return {
     ...d,
-    VITE_CLOUD_RUN_API_URL:
-      cloud != null && cloud !== "" ? cloud.replace(/\/+$/, "") : undefined,
+    VITE_CLOUD_RUN_API_URL: cloudClean,
+    // Soft-fallback: dev / single-service "all" deployments don't need a
+    // separate batch URL. Production must set VITE_CLOUD_RUN_BATCH_URL or
+    // /admin/* will 404 (admin router only mounted on the batch pod).
+    VITE_CLOUD_RUN_BATCH_URL: batchClean ?? cloudClean,
   };
 }
 
