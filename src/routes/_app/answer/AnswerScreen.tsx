@@ -27,7 +27,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1, SourceRowData } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
-import { Plus, Check, ArrowLeft, List } from "lucide-react";
+import { Plus, Check, ArrowLeft, List, Loader2 } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
@@ -114,7 +114,7 @@ export default function AnswerScreen() {
   const listQuery = useAnswerSessionsList(uid, Boolean(CLOUD && uid));
   const detailQuery = useAnswerSessionDetail(sessionId, uid);
 
-  const { stream } = useSessionStream<ReportV1>({
+  const { stream, status: streamStatus } = useSessionStream<ReportV1>({
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
 
@@ -177,8 +177,11 @@ export default function AnswerScreen() {
     return `Xu hướng đang hot trong ${niche} tuần này?`;
   }, [seedQ, nicheLabel]);
 
+  const streamInFlight = streamStatus === "streaming";
+
   const loading =
     bootstrapLoading ||
+    streamInFlight ||
     (Boolean(sessionId) && detailQuery.isLoading && !detailQuery.data);
 
   const researchStage = useResearchStage(loading);
@@ -466,7 +469,7 @@ export default function AnswerScreen() {
 
   const submitComposer = useCallback(() => {
     const q = followUp.trim();
-    if (!q || !CLOUD || !user || bootstrapLoading) return;
+    if (!q || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
     if (!sessionId) {
       setSearchParams({ q }, { replace: true });
       return;
@@ -477,6 +480,7 @@ export default function AnswerScreen() {
     CLOUD,
     user,
     bootstrapLoading,
+    streamInFlight,
     sessionId,
     setSearchParams,
     submitFollowUp,
@@ -615,7 +619,29 @@ export default function AnswerScreen() {
                 >
                   {emptyStateHeroQuestion}
                 </h1>
-                <p className="mt-4 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
+                {bootstrapLoading && seedQ.trim() ? (
+                  <>
+                    <ResearchProcessBar
+                      loading={loading}
+                      stage={researchStage}
+                      done={false}
+                      videoCount={surfaceStats?.sampleVideos}
+                      channelCount={
+                        surfaceStats && surfaceStats.channelRows > 0
+                          ? surfaceStats.channelRows
+                          : null
+                      }
+                    />
+                    <MiniResearchStrip active={loading} />
+                  </>
+                ) : null}
+                <p
+                  className={
+                    bootstrapLoading && seedQ.trim()
+                      ? "sr-only"
+                      : "mt-4 max-w-[640px] text-sm leading-relaxed text-[color:var(--gv-ink-3)]"
+                  }
+                >
                   Dán câu hỏi từ Studio hoặc mở phiên có sẵn từ Lịch sử — bạn cũng có thể sửa khung hỏi bên dưới để
                   bắt đầu phân tích mới.
                 </p>
@@ -637,7 +663,27 @@ export default function AnswerScreen() {
                 </p>
               ) : null}
               {loading ? (
-                <p className="text-sm text-[var(--gv-ink-3)]">Đang tải báo cáo…</p>
+                <div
+                  role="status"
+                  aria-live="polite"
+                  aria-busy="true"
+                  className="mt-2 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-10 text-center"
+                >
+                  <Loader2
+                    className="mx-auto h-9 w-9 animate-spin text-[color:var(--gv-accent)] motion-reduce:animate-none"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                  <p className="mt-5 gv-serif text-[clamp(1rem,2.4vw,1.125rem)] font-medium leading-snug text-[color:var(--gv-ink)]">
+                    Đang tạo báo cáo…
+                  </p>
+                  <p className="mx-auto mt-2 max-w-[26rem] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
+                    Hệ thống đang phân tích và so với corpus — thường mất khoảng 20–40 giây. Giữ tab mở.
+                  </p>
+                  <div className="gv-answer-loading-track">
+                    <div className="gv-answer-loading-bar" />
+                  </div>
+                </div>
               ) : turnCount > 0 ? (
                 <div
                   className="space-y-10"
@@ -673,7 +719,7 @@ export default function AnswerScreen() {
                 onSubmit={submitComposer}
                 suggestedPrompts={related}
                 variant={sessionId ? "followUp" : "initial"}
-                disabled={!CLOUD || !user || bootstrapLoading}
+                disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
               />
             </TimelineRail>
           }
