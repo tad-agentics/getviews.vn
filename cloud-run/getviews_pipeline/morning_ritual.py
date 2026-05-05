@@ -406,11 +406,15 @@ def run_morning_ritual_batch(
     """
     summary = RitualBatchSummary()
 
-    # Single niche per user since 2026-05-05 (``niche_ids`` array dropped).
-    # The "max 3 niches per profile" cap that lived here historically was a
-    # band-aid against runaway compute under the multi-follow model.
+    # Single niche per user. Two-axis refactor PR5 — read the canonical
+    # ``creator_niche_id`` (from PR3) and resolve to the representative
+    # legacy ``niche_taxonomy.id`` so downstream ritual generation
+    # (which queries video_corpus.niche_id) keeps working unchanged.
+    # Falls back to ``primary_niche`` for any row not yet backfilled.
+    from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
+
     query = client.table("profiles").select(
-        "id, primary_niche, reference_channel_handles",
+        "id, primary_niche, creator_niche_id, reference_channel_handles",
     )
     if user_ids:
         query = query.in_("id", user_ids)
@@ -426,13 +430,8 @@ def run_morning_ritual_batch(
     }
 
     for prof in profiles:
-        pn = prof.get("primary_niche")
-        if pn is None:
-            summary.users_no_niche += 1
-            continue
-        try:
-            nid = int(pn)
-        except (TypeError, ValueError):
+        nid = resolve_legacy_niche_from_profile_row(prof)
+        if nid is None:
             summary.users_no_niche += 1
             continue
         result = generate_ritual_for_user(

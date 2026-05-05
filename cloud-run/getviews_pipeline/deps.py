@@ -190,31 +190,42 @@ async def require_batch_caller(request: Request) -> dict[str, Any] | None:
 # ── Shared route helper ────────────────────────────────────────────────────────
 
 def _default_niche_id_from_profile_row(row: dict) -> int | None:
-    """Single niche per user — ``profiles.primary_niche`` after the
-    2026-05-05 single-niche refactor (``niche_ids`` array dropped)."""
-    p = row.get("primary_niche")
-    if p is not None:
-        try:
-            return int(p)
-        except (TypeError, ValueError):
-            return None
-    return None
+    """Resolve the legacy niche_id for a profile row.
+
+    PR5 of the two-axis refactor: prefers ``creator_niche_id`` (canonical
+    UX-facing column from PR3) and resolves it to the representative
+    ``niche_taxonomy.id`` so downstream queries
+    (video_corpus / daily_ritual / cross_creator_patterns) that still
+    filter on ``niche_id`` keep working unchanged. Falls back to
+    legacy ``primary_niche`` for rows not yet backfilled — defensive,
+    PR3 backfilled every populated row.
+    """
+    from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
+
+    return resolve_legacy_niche_from_profile_row(row)
 
 
 async def _resolve_caller_niche_id(access_token: str) -> int:
-    """Default niche for the caller: ``profiles.primary_niche``.
+    """Default legacy niche_id for the caller.
 
-    Used by routes that need one niche when the client omits ``niche_id``.
+    Reads both ``creator_niche_id`` (new canonical) and ``primary_niche``
+    (legacy fallback). Returns the representative legacy niche_id so
+    callers (compute_pulse, ticker, /script/*, /channel/*) that filter
+    on ``niche_id`` keep working through the transition window.
     """
     from getviews_pipeline.supabase_client import user_supabase
 
     sb = user_supabase(access_token)
     try:
-        res = sb.table("profiles").select("primary_niche").single().execute()
+        res = (
+            sb.table("profiles")
+            .select("primary_niche, creator_niche_id")
+            .single()
+            .execute()
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"profile lookup: {exc}") from exc
-    row = res.data or {}
-    nid = _default_niche_id_from_profile_row(row)
+    nid = _default_niche_id_from_profile_row(res.data or {})
     if nid is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -224,12 +235,14 @@ async def _resolve_caller_niche_id(access_token: str) -> int:
 
 
 async def resolve_home_niche_id(access_token: str, requested: int | None) -> int:
-    """Niche for /home/* when the client passes an optional ``niche_id``.
+    """Resolve the legacy niche_id for /home/* given an optional override.
 
-    - ``requested`` is ``None``: use ``profiles.primary_niche``.
-    - Otherwise: must equal ``profiles.primary_niche`` (single-niche model
-      since 2026-05-05). The Trends pill row lets users *browse* other
-      niches; the home surfaces remain anchored to the user's own niche.
+    - ``requested`` is ``None``: use the caller's profile niche (resolved
+      via ``creator_niche_id`` → legacy mapping; falls back to
+      ``primary_niche``).
+    - Otherwise: must equal the resolved legacy niche_id. The Trends
+      pill row lets users *browse* other niches; the home surfaces
+      stay anchored to the user's own niche.
 
     Raises ``HTTPException`` 400 when ``requested`` mismatches, 404 when
     the profile has no niche configured.
@@ -240,7 +253,7 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
     try:
         res = (
             sb.table("profiles")
-            .select("primary_niche")
+            .select("primary_niche, creator_niche_id")
             .single()
             .execute()
         )
@@ -250,21 +263,15 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
         ) from exc
 
     row = res.data or {}
-    primary = row.get("primary_niche")
-    if primary is None:
+    legacy_nid = _default_niche_id_from_profile_row(row)
+    if legacy_nid is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Chưa chọn ngách — chạy onboarding trước.",
         )
-    try:
-        primary_int = int(primary)
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=500, detail="invalid_profile_niche"
-        ) from exc
 
     if requested is None:
-        return primary_int
+        return legacy_nid
 
     try:
         rid = int(requested)
@@ -272,7 +279,7 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_niche_id"
         ) from exc
-    if rid != primary_int:
+    if rid != legacy_nid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="niche_not_in_profile",
