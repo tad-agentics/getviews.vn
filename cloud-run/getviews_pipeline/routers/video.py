@@ -181,21 +181,14 @@ async def channel_refresh_mine_endpoint(
     sb_user = user_supabase(user["access_token"])
 
     try:
-        pres = sb_user.table("profiles").select("tiktok_handle, primary_niche, niche_ids").single().execute()
+        pres = sb_user.table("profiles").select("tiktok_handle, primary_niche").single().execute()
     except Exception as exc:
         logger.warning("[channel/refresh-mine] profile read failed: %s", exc)
         raise HTTPException(status_code=500, detail="profile_read_failed") from exc
 
     profile = pres.data or {}
     handle = (profile.get("tiktok_handle") or "").strip().lstrip("@")
-    raw_ids = profile.get("niche_ids")
-    if isinstance(raw_ids, list) and len(raw_ids) > 0:
-        try:
-            niche_id_raw = int(raw_ids[0])
-        except (TypeError, ValueError):
-            niche_id_raw = profile.get("primary_niche")
-    else:
-        niche_id_raw = profile.get("primary_niche")
+    niche_id_raw = profile.get("primary_niche")
 
     if not handle:
         return JSONResponse({"status": "error", "reason": "no_handle_on_profile"}, status_code=400)
