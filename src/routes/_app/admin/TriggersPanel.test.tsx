@@ -67,6 +67,12 @@ const STUB_CATALOG = [
     body_schema: {},
     heavy: true,
   },
+  {
+    id: "refresh",
+    label: "Corpus freshness refresh",
+    body_schema: { limit: "int | null", stale_days: "int | null" },
+    heavy: true,
+  },
 ];
 
 beforeEach(() => {
@@ -86,7 +92,18 @@ describe("TriggersPanel", () => {
     renderPanel();
     expect(screen.getByText("Corpus ingest (/batch/ingest)")).toBeTruthy();
     expect(screen.getByText("Weekly analytics")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Run" }).length).toBe(2);
+    expect(screen.getByText("Corpus freshness refresh")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Run" }).length).toBe(3);
+  });
+
+  it("non-ingest param job (e.g. refresh) → Run opens confirm directly — no dead-end showForm", () => {
+    renderPanel();
+    const runs = screen.getAllByRole("button", { name: "Run" });
+    fireEvent.click(runs[2]);
+
+    expect(screen.getByRole("button", { name: "Xác nhận chạy" })).toBeTruthy();
+    expect(screen.queryByPlaceholderText("1, 3, 7")).toBeNull();
+    expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
   it("no-param job → Run opens confirm directly (no inline form)", () => {
@@ -141,7 +158,7 @@ describe("TriggersPanel", () => {
 
     expect(mockMutateAsync).not.toHaveBeenCalled();
     // Run button is back.
-    expect(screen.getAllByRole("button", { name: "Run" }).length).toBe(2);
+    expect(screen.getAllByRole("button", { name: "Run" }).length).toBe(3);
   });
 
   it("confirm → 202 accepted → polling state (awaiting worker)", async () => {

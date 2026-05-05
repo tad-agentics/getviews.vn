@@ -238,7 +238,9 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
           <Btn
             variant="ghost"
             size="sm"
-            onClick={() => (hasParams ? setShowForm(true) : startWith({}))}
+            onClick={() =>
+              job.id === "ingest" && hasParams ? setShowForm(true) : startWith({})
+            }
           >
             Run
           </Btn>
