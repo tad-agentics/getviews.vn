@@ -33,7 +33,7 @@ async def home_pulse(
     user: dict = Depends(require_user),
     niche_id: int | None = Query(default=None, alias="niche_id"),
 ) -> JSONResponse:
-    """PulseCard payload for the caller's niche (profile niche by default (``creator_niche_id`` resolved to legacy id, falls back to ``primary_niche``); ``?niche_id=`` must match the resolved value)."""
+    """PulseCard payload for the caller's niche (profile niche = ``creator_niche_id`` resolved to legacy ``niche_taxonomy.id``; ``?niche_id=`` must match the resolved value)."""
     from getviews_pipeline.pulse import compute_pulse
     from getviews_pipeline.supabase_client import get_service_client
 

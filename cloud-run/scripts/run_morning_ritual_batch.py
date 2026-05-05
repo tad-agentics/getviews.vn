@@ -42,7 +42,7 @@ def main() -> None:
         "--user-ids",
         nargs="*",
         default=None,
-        help="Profile UUIDs to process. Omit to process every profile with primary_niche set.",
+        help="Profile UUIDs to process. Omit to process every profile with creator_niche_id set.",
     )
     parser.add_argument(
         "--json",
