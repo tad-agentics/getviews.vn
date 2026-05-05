@@ -400,8 +400,8 @@ class AdminTriggerMorningRitualBody(StrictBody):
     user_ids: list[str] | None = Field(
         default=None,
         description=(
-            "Profile UUIDs to process. Omit or null = every user with at least one "
-            "followed niche: one 3-script bundle per (user, niche), up to 3 niches per profile."
+            "Profile UUIDs to process. Omit or null = every user with a niche "
+            "set: one 3-script bundle per user (single-niche model since 2026-05-05)."
         ),
     )
 
@@ -1038,8 +1038,8 @@ async def admin_list_triggers(
             },
             {
                 "id": "morning_ritual",
-                "label": "Daily ritual — 3 scripts / user / followed niche (null user_ids = full run)",
-                "body_schema": {"user_ids": "uuid[] | null — omit for all users × all their niches (max 3)"},
+                "label": "Daily ritual — 3 scripts / user (null user_ids = full run)",
+                "body_schema": {"user_ids": "uuid[] | null — omit for all users (one bundle per profile.primary_niche)"},
                 "heavy": True,
             },
             {"id": "analytics", "label": "Weekly analytics + signal grading (/batch/analytics)", "body_schema": {}, "heavy": True},
@@ -1085,8 +1085,7 @@ async def admin_trigger_ingest(
     summary="Regenerate daily ritual (manual)",
     description=(
         "Same workload as POST /batch/morning-ritual. Omit user_ids to process "
-        "every profile: one 3-script bundle per (user, each followed niche), "
-        "up to three niches per user."
+        "every profile: one 3-script bundle per user (single-niche model since 2026-05-05)."
     ),
 )
 async def admin_trigger_morning_ritual(
