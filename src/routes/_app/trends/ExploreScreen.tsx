@@ -289,9 +289,13 @@ function VideoCard({
     el.currentTime = 0;
   }, []);
 
-  const cardLabel = video.text
-    ? `Video ${video.handle}: ${video.text}`
-    : `Video ${video.handle}`;
+  const cardLabel = onNavigate
+    ? video.text
+      ? `Phân tích video ${video.handle}: ${video.text}`
+      : `Phân tích video ${video.handle}`
+    : video.text
+      ? `Video ${video.handle}: ${video.text}`
+      : `Video ${video.handle}`;
 
   const br = video.breakoutMultiplier;
   const showBreakout = br != null && br >= 1.5;
@@ -366,9 +370,9 @@ function VideoCard({
         <span className="shrink-0 font-mono text-[10px] text-[var(--faint)]">{video.time}</span>
       </div>
       {onNavigate ? (
-        <div className="flex items-center justify-between rounded-md border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1.5 text-[11px] text-[var(--gv-ink-3)]">
-          <span>Xem clip →</span>
-          <span className="max-w-[45%] truncate font-mono text-[10px] text-[var(--faint)]">
+        <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-alt)] px-2.5 py-1.5 text-[11px] text-[var(--gv-ink-3)]">
+          <span className="min-w-0 truncate">Phân tích video →</span>
+          <span className="max-w-[45%] shrink-0 truncate font-mono text-[10px] text-[var(--faint)]">
             {nicheLabel ?? video.contentFormat ?? "—"}
           </span>
         </div>
@@ -671,9 +675,14 @@ export default function ExploreScreen() {
     setDidSeedViewFilter(true);
   }, [didSeedViewFilter, searchParams, setFilter]);
 
+  // Label must match the pill: ``niches`` rows are ``creator_niches`` (UX ids).
+  // ``selectedNicheId`` is the legacy ``video_corpus.niche_id`` — do not use it here.
   const selectedNicheName = useMemo(
-    () => niches?.find((n) => n.id === selectedNicheId)?.name,
-    [niches, selectedNicheId],
+    () =>
+      selectedCreatorNicheId != null
+        ? niches?.find((n) => n.id === selectedCreatorNicheId)?.name
+        : undefined,
+    [niches, selectedCreatorNicheId],
   );
 
   const nicheIntelRecord = nicheIntel as Record<string, unknown> | null | undefined;
