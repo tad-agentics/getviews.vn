@@ -1,32 +1,49 @@
 import { describe, expect, it } from "vitest";
 import {
   canonicalNicheTaxonomyId,
+  legacyNicheIdForCreatorNiche,
+  profileCreatorNicheId,
   profileFirstNicheId,
   profileHasNiche,
   resolveNicheNameVn,
 } from "./profileNiches";
 
-describe("profileNiches (single-niche model)", () => {
-  it("profileHasNiche accepts a profile with primary_niche set", () => {
-    expect(profileHasNiche({ primary_niche: 4 })).toBe(true);
-    expect(profileHasNiche({ primary_niche: 1 })).toBe(true);
+describe("profileNiches (two-axis model since PR6)", () => {
+  it("profileHasNiche accepts a profile with creator_niche_id set", () => {
+    expect(profileHasNiche({ creator_niche_id: 1 })).toBe(true);
+    expect(profileHasNiche({ creator_niche_id: 14 })).toBe(true);
   });
 
   it("profileHasNiche rejects null/empty profile", () => {
     expect(profileHasNiche(null)).toBe(false);
     expect(profileHasNiche(undefined)).toBe(false);
-    expect(profileHasNiche({ primary_niche: null })).toBe(false);
+    expect(profileHasNiche({ creator_niche_id: null })).toBe(false);
     expect(profileHasNiche({})).toBe(false);
   });
 
-  it("profileFirstNicheId returns canonical primary_niche or null", () => {
-    expect(profileFirstNicheId({ primary_niche: 7 })).toBe(7);
-    expect(profileFirstNicheId({ primary_niche: 4 })).toBe(4);
-    // Retired-merged ids resolve to the surviving id.
-    expect(profileFirstNicheId({ primary_niche: 18 })).toBe(4);
-    expect(profileFirstNicheId({ primary_niche: 23 })).toBe(11);
+  it("profileCreatorNicheId returns the column value or null", () => {
+    expect(profileCreatorNicheId({ creator_niche_id: 5 })).toBe(5);
+    expect(profileCreatorNicheId({ creator_niche_id: null })).toBeNull();
+    expect(profileCreatorNicheId(null)).toBeNull();
+  });
+
+  it("profileFirstNicheId resolves creator_niche_id → representative legacy niche_id", () => {
+    expect(profileFirstNicheId({ creator_niche_id: 1 })).toBe(2);    // Beauty → Skincare
+    expect(profileFirstNicheId({ creator_niche_id: 3 })).toBe(4);    // Food → F&B
+    expect(profileFirstNicheId({ creator_niche_id: 14 })).toBe(8);   // Gym & Fitness → Gym
     expect(profileFirstNicheId(null)).toBeNull();
-    expect(profileFirstNicheId({ primary_niche: null })).toBeNull();
+    expect(profileFirstNicheId({ creator_niche_id: null })).toBeNull();
+  });
+
+  it("legacyNicheIdForCreatorNiche covers all 14 creator_niches", () => {
+    const expected: Record<number, number> = {
+      1: 2, 2: 3, 3: 4, 4: 13, 5: 13, 6: 7, 7: 11, 8: 9, 9: 5,
+      10: 26, 11: 16, 12: 14, 13: 19, 14: 8,
+    };
+    for (const [cni, legacy] of Object.entries(expected)) {
+      expect(legacyNicheIdForCreatorNiche(Number(cni))).toBe(legacy);
+    }
+    expect(legacyNicheIdForCreatorNiche(999)).toBeNull();
   });
 
   it("canonicalNicheTaxonomyId maps retired ids and is a no-op for current ones", () => {

@@ -100,15 +100,23 @@ When touching billing, payments, or streaming, preserve these — they are the d
 
 Other hard rules: `video_corpus` INSERT is batch-only via service_role (client writes blocked by RLS); `chat_messages` are immutable (no UPDATE); soft-delete removed — sessions are hard-deleted via RPC (see migrations `_034`, `_035`, `_036`).
 
-### Niche model
+### Niche model — two-axis (since 2026-05-13)
 
-**Single niche per user** (since the 2026-05-05 single-niche refactor; `profiles.niche_ids` array dropped, `primary_niche INTEGER FK → niche_taxonomy(id)` is the canonical column). Onboarding is a single radio pick. Settings → Ngách offers a confirm-modal change that fires `POST /home/regenerate-ritual` so the user gets fresh Home content without waiting for the nightly cron.
+The 2026-05-10 → 2026-05-13 two-axis refactor split the conflated `niche_taxonomy` into two independent concerns:
 
-`profiles.primary_niche` drives: Home daily ritual, Home pulse default, Trends default pill, flop-baseline / niche-norms in the diagnosis pipeline. The Trends pill row (`TrendsNichePills`) lets users browse other niches transiently — re-mount resets to the user's profile niche.
+- **`creator_niches`** (14 buckets) — UX-facing. Drives onboarding picker, Settings → Ngách, Trends pills, profile self-id (`profiles.creator_niche_id INTEGER FK`). Coarse, friendly Vietnamese labels matching how creators describe themselves ("tôi làm content beauty"). Cognitive load < 1s. Display order matches the seeded order in `20260510000000_two_axis_niche_pr1_schema.sql`. **Single niche per user.**
+- **`content_classifications`** (74 categories) — analysis-facing. Sharp `(topic × format)` boundaries on `video_corpus.content_class_id`. Drives benchmark grouping + pattern thesis sample selection. `format_axis` denormalised for cheap cross-niche format queries.
+- **`creator_niche_content_classes`** — M:N junction. Most rows are 1:1 but some content_classes legitimately span (`travel_food_tour ∈ {Travel, Food}`). `is_primary` flags the canonical home for benchmarks.
 
-Niche taxonomy is mutable under SQL migrations (8+ add / merge / retire / rename migrations across 2026-04 → 2026-05). FE has two compensating layers in `src/lib/profileNiches.ts`: `RETIRED_NICHE_TAXONOMY_IDS` (filter out of pickers) and `NICHE_TAXONOMY_ALIASES` (resolve legacy ids when stale profile state references a retired niche). Always update both when a migration retires or merges a niche.
+Onboarding is a single radio pick. Settings → Ngách offers a confirm-modal change that fires `POST /home/regenerate-ritual` so the user gets fresh Home content without waiting for the nightly cron.
 
-The `morning-ritual` cron generates **one 3-script bundle per user** (was per-niche-up-to-3 before the refactor). Scope simplification cut Gemini cost ~3×.
+`profiles.primary_niche` was dropped in PR6 (2026-05-13). Cloud Run profile reads (`deps.py`, `morning_ritual.py`, `channel_analyze.py`, `routers/video.py`) read `creator_niche_id` and resolve to the representative legacy `niche_taxonomy.id` via `profile_niches.legacy_niche_id_for_creator_niche()` so downstream queries (`video_corpus.niche_id` filters in `compute_pulse` / pattern thesis / `daily_ritual`) keep working unchanged. The mirror FE helper is `legacyNicheIdForCreatorNiche()` in `src/lib/profileNiches.ts` — both must stay in sync.
+
+`niche_taxonomy` table + `video_corpus.niche_id` column are intentionally kept (downstream analysis still queries them). Future work: pivot pattern thesis / hook efficacy queries from `niche_id` filters to `content_class_id` joins through the junction — sharper benchmarks once corpus scales. PR2 backfilled `video_corpus.content_class_id` from `(niche_id × content_format)` so the column is ready.
+
+FE legacy-niche helpers in `src/lib/profileNiches.ts`: `RETIRED_NICHE_TAXONOMY_IDS` (filter out of legacy pickers — used by `useNicheTaxonomy()` for label lookups), `NICHE_TAXONOMY_ALIASES` (resolve legacy ids when video_corpus.niche_id references a retired niche). Always update both when a migration retires or merges a legacy niche.
+
+The `morning-ritual` cron generates **one 3-script bundle per user** (was per-niche-up-to-3 before the 2026-05-05 single-niche refactor). Scope simplification cut Gemini cost ~3×.
 
 ### Route structure
 

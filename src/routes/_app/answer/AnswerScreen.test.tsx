@@ -223,7 +223,7 @@ describe("AnswerScreen state transitions", () => {
       session: { user: { id: "user-1" } },
       loading: false,
     });
-    mockUseProfile.mockReturnValue({ data: { primary_niche: null } });
+    mockUseProfile.mockReturnValue({ data: { creator_niche_id: null } });
     mockUseNicheTaxonomy.mockReturnValue({ data: [] });
     mockUseAnswerSessionsList.mockReturnValue({
       data: { sessions: [], next_cursor: null },

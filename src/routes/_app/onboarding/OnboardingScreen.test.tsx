@@ -62,7 +62,7 @@ beforeEach(() => {
   mockNavigate.mockReset();
   mutateAsync.mockClear();
   mockUseProfile.mockReturnValue({
-    data: { primary_niche: null },
+    data: { creator_niche_id: null },
     isPending: false,
   });
   mockUseUpdateProfile.mockReturnValue({ mutateAsync, isPending: false });
@@ -107,17 +107,14 @@ describe("OnboardingScreen — single creator-niche pick", () => {
     expect(beauty.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("primary CTA dual-writes creator_niche_id + legacy primary_niche, then navigates", async () => {
+  it("primary CTA writes creator_niche_id + navigates to /app", async () => {
     render(<OnboardingScreen />);
-    // creator_niche_id 8 (tech_gaming) → legacy primary_niche 9 (Tech)
     fireEvent.click(screen.getByRole("radio", { name: /Công nghệ · Gaming/ }));
     fireEvent.click(screen.getByRole("button", { name: /Vào Creator Studio/ }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
-    expect(mutateAsync).toHaveBeenCalledWith({
-      creator_niche_id: 8,
-      primary_niche: 9,
-    });
+    // PR6: legacy primary_niche column dropped — only creator_niche_id is written.
+    expect(mutateAsync).toHaveBeenCalledWith({ creator_niche_id: 8 });
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true }),
     );
@@ -132,16 +129,7 @@ describe("OnboardingScreen — single creator-niche pick", () => {
 
   it("bounces already-onboarded profiles (creator_niche_id set) straight to /app", () => {
     mockUseProfile.mockReturnValue({
-      data: { primary_niche: null, creator_niche_id: 1 },
-      isPending: false,
-    });
-    render(<OnboardingScreen />);
-    expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true });
-  });
-
-  it("bounces already-onboarded legacy profiles (primary_niche only) to /app", () => {
-    mockUseProfile.mockReturnValue({
-      data: { primary_niche: 4, creator_niche_id: null },
+      data: { creator_niche_id: 1 },
       isPending: false,
     });
     render(<OnboardingScreen />);

@@ -45,33 +45,18 @@ def test_legacy_niche_id_unknown() -> None:
     assert legacy_niche_id_for_creator_niche(None) is None
 
 
-def test_resolve_prefers_creator_niche_id_over_primary() -> None:
-    # creator_niche_id=1 (Beauty) → resolves to legacy 2 (Skincare),
-    # NOT the legacy primary_niche=99 (which would be a stale value).
-    row = {"creator_niche_id": 1, "primary_niche": 99}
-    assert resolve_legacy_niche_from_profile_row(row) == 2
-
-
-def test_resolve_falls_back_to_primary_when_creator_unset() -> None:
-    row = {"creator_niche_id": None, "primary_niche": 4}
-    assert resolve_legacy_niche_from_profile_row(row) == 4
+def test_resolve_uses_creator_niche_id() -> None:
+    # PR6 (2026-05-13): primary_niche column dropped; creator_niche_id is
+    # the only source. Beauty (1) → representative legacy id 2 (Skincare).
+    assert resolve_legacy_niche_from_profile_row({"creator_niche_id": 1}) == 2
+    assert resolve_legacy_niche_from_profile_row({"creator_niche_id": 14}) == 8
 
 
 def test_resolve_returns_none_for_pre_onboarding() -> None:
-    assert resolve_legacy_niche_from_profile_row({"creator_niche_id": None, "primary_niche": None}) is None
+    assert resolve_legacy_niche_from_profile_row({"creator_niche_id": None}) is None
     assert resolve_legacy_niche_from_profile_row({}) is None
     assert resolve_legacy_niche_from_profile_row(None) is None
 
 
-def test_resolve_handles_unknown_creator_niche_id_gracefully() -> None:
-    # Unknown creator_niche_id → falls through to primary_niche if set.
-    row = {"creator_niche_id": 999, "primary_niche": 4}
-    assert resolve_legacy_niche_from_profile_row(row) == 4
-    # Unknown + no fallback → None.
+def test_resolve_returns_none_for_unknown_creator_niche_id() -> None:
     assert resolve_legacy_niche_from_profile_row({"creator_niche_id": 999}) is None
-
-
-def test_resolve_coerces_string_primary_niche() -> None:
-    # primary_niche came back as "4" from a stringified column.
-    row = {"creator_niche_id": None, "primary_niche": "4"}
-    assert resolve_legacy_niche_from_profile_row(row) == 4

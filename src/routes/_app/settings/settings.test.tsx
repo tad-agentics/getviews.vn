@@ -89,7 +89,7 @@ const MOCK_PROFILE: ProfileRow = {
   email: "test@getviews.vn",
   subscription_tier: "free",
   deep_credits_remaining: 10,
-  primary_niche: null,
+  creator_niche_id: null,
   credits_reset_at: null,
 } as ProfileRow;
 
