@@ -192,13 +192,11 @@ async def require_batch_caller(request: Request) -> dict[str, Any] | None:
 def _default_niche_id_from_profile_row(row: dict) -> int | None:
     """Resolve the legacy niche_id for a profile row.
 
-    PR5 of the two-axis refactor: prefers ``creator_niche_id`` (canonical
-    UX-facing column from PR3) and resolves it to the representative
-    ``niche_taxonomy.id`` so downstream queries
-    (video_corpus / daily_ritual / cross_creator_patterns) that still
-    filter on ``niche_id`` keep working unchanged. Falls back to
-    legacy ``primary_niche`` for rows not yet backfilled — defensive,
-    PR3 backfilled every populated row.
+    PR5 of the two-axis refactor: reads ``creator_niche_id`` (canonical
+    UX-facing column added in PR3, backfilled for all populated rows) and
+    resolves it to the representative ``niche_taxonomy.id`` so downstream
+    queries (video_corpus / daily_ritual / cross_creator_patterns) that
+    still filter on ``niche_id`` keep working unchanged.
     """
     from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
 
@@ -208,10 +206,10 @@ def _default_niche_id_from_profile_row(row: dict) -> int | None:
 async def _resolve_caller_niche_id(access_token: str) -> int:
     """Default legacy niche_id for the caller.
 
-    Reads both ``creator_niche_id`` (new canonical) and ``primary_niche``
-    (legacy fallback). Returns the representative legacy niche_id so
-    callers (compute_pulse, ticker, /script/*, /channel/*) that filter
-    on ``niche_id`` keep working through the transition window.
+    Reads ``creator_niche_id`` (canonical, backfilled in PR3) and resolves
+    it to the representative legacy niche_id so callers (compute_pulse,
+    ticker, /script/*, /channel/*) that filter on ``niche_id`` keep
+    working unchanged.
     """
     from getviews_pipeline.supabase_client import user_supabase
 

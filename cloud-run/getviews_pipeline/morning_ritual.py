@@ -482,10 +482,9 @@ def run_morning_ritual_batch(
     summary = RitualBatchSummary()
 
     # Single niche per user. Two-axis refactor PR5 — read the canonical
-    # ``creator_niche_id`` (from PR3) and resolve to the representative
-    # legacy ``niche_taxonomy.id`` so downstream ritual generation
-    # (which queries video_corpus.niche_id) keeps working unchanged.
-    # Falls back to ``primary_niche`` for any row not yet backfilled.
+    # ``creator_niche_id`` (from PR3, backfilled for all rows) and resolve
+    # to the representative legacy ``niche_taxonomy.id`` so downstream
+    # ritual generation (which queries video_corpus.niche_id) works unchanged.
     from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
 
     query = client.table("profiles").select(

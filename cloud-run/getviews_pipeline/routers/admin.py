@@ -1126,7 +1126,7 @@ async def admin_list_triggers(
             {
                 "id": "morning_ritual",
                 "label": "Daily ritual — 3 scripts / user (null user_ids = full run)",
-                "body_schema": {"user_ids": "uuid[] | null — omit for all users (one bundle per profile.primary_niche)"},
+                "body_schema": {"user_ids": "uuid[] | null — omit for all users (one bundle per profile.creator_niche_id)"},
                 "heavy": True,
             },
             {"id": "analytics", "label": "Weekly analytics + signal grading (/batch/analytics)", "body_schema": {}, "heavy": True},
