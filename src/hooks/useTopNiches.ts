@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
   canonicalNicheTaxonomyId,
-  normalizeNicheIds,
   resolveNicheNameVn,
   RETIRED_NICHE_TAXONOMY_IDS,
 } from "@/lib/profileNiches";
@@ -54,9 +53,16 @@ export function useTopNiches(preferNicheId: number | null, limit: number | "all"
   });
 }
 
-/** Sidebar: resolve taxonomy names + hot counts for an ordered list of niche ids (max 3 typical). */
+/** Sidebar: resolve taxonomy names + hot counts for the user's single niche (passed as a 1-element array). */
 export function useNicheRowsForIds(ids: readonly number[] | null | undefined) {
-  const ordered = normalizeNicheIds((ids ?? []).map(canonicalNicheTaxonomyId)).slice(0, 3);
+  const seen = new Set<number>();
+  const ordered: number[] = [];
+  for (const raw of (ids ?? [])) {
+    const id = canonicalNicheTaxonomyId(raw);
+    if (!Number.isFinite(id) || seen.has(id)) continue;
+    seen.add(id);
+    ordered.push(id);
+  }
   const key = ordered.join(",");
 
   return useQuery<NicheWithHot[]>({

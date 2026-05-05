@@ -6,21 +6,13 @@ import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useTopNiches } from "@/hooks/useTopNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
-import {
-  MAX_CREATOR_NICHES,
-  MIN_CREATOR_NICHES,
-  normalizeNicheIds,
-  profileFirstNicheId,
-  profileHasMinimumNiches,
-} from "@/lib/profileNiches";
+import { profileFirstNicheId, profileHasNiche } from "@/lib/profileNiches";
 
 /**
- * Onboarding — single-step niche pick (BƯỚC 01 / 01) per the creator-only
- * design pack (screens/onboarding-settings.jsx). Reference-channels step was
- * removed: the design treats onboarding as a 30-second niche pick and pushes
- * reference-channel curation downstream (Settings → Ngách + the in-app
- * "track this channel" CTA on /app/video). Selection is fixed to
- * MIN_CREATOR_NICHES–MAX_CREATOR_NICHES (3) for studio personalisation.
+ * Onboarding — single-step single-niche pick (BƯỚC 01 / 01). The 2026-05-05
+ * single-niche refactor collapsed multi-niche follow lists down to one. The
+ * Trends page still lets users browse other niches via pills, but Home,
+ * flop baselines, and KPI dashboards anchor to this one pick.
  */
 
 export default function OnboardingScreen() {
@@ -34,11 +26,10 @@ export default function OnboardingScreen() {
     refetch: refetchTaxonomy,
   } = useNicheTaxonomy();
 
-  const [pendingNiches, setPendingNiches] = useState<number[]>([]);
+  const [pendingNiche, setPendingNiche] = useState<number | null>(null);
   const didInitFromProfile = useRef(false);
 
-  const primaryForOrdering = pendingNiches[0] ?? profileFirstNicheId(profile);
-  const { data: topNiches } = useTopNiches(primaryForOrdering, "all");
+  const { data: topNiches } = useTopNiches(pendingNiche ?? profileFirstNicheId(profile), "all");
 
   const niches = useMemo(() => {
     const hotBy = new Map<number, number>();
@@ -50,39 +41,21 @@ export default function OnboardingScreen() {
     if (profilePending) return;
     if (didInitFromProfile.current) return;
     didInitFromProfile.current = true;
-    if (profileHasMinimumNiches(profile)) {
+    if (profileHasNiche(profile)) {
       // User already onboarded — bounce them back into the studio.
       navigate("/app", { replace: true });
       return;
     }
-    if (profile?.primary_niche != null) {
-      setPendingNiches([profile.primary_niche]);
-    }
   }, [profilePending, profile, navigate]);
 
-  const togglePendingNiche = (id: number) => {
-    setPendingNiches((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= MAX_CREATOR_NICHES) return prev;
-      return [...prev, id];
-    });
-  };
-
-  const canAdvance = pendingNiches.length >= MIN_CREATOR_NICHES;
+  const canAdvance = pendingNiche != null;
 
   const finish = async () => {
     if (!canAdvance) return;
-    const ids = normalizeNicheIds(pendingNiches);
-    // PR1 of single-niche refactor: collapses multi-select to first pick.
-    // Multi-select UI rework lands in PR3.
-    await save.mutateAsync({ primary_niche: ids[0] ?? null });
+    await save.mutateAsync({ primary_niche: pendingNiche });
     navigate("/app", { replace: true });
   };
 
-  // ``Bỏ qua`` lets users back out to the marketing landing without
-  // committing. The index route still redirects unniche'd users back here
-  // on next /app visit — this is just a visible escape hatch that matches
-  // the design's footer pattern.
   const skip = () => navigate("/", { replace: true });
 
   if (profilePending) {
@@ -117,8 +90,8 @@ export default function OnboardingScreen() {
             <em className="gv-serif-italic text-[color:var(--gv-accent)]">ngách</em> nào?
           </h1>
           <p className="mt-[18px] max-w-[420px] text-base leading-snug text-[color:var(--gv-ink-3)]">
-            Chọn đúng {MAX_CREATOR_NICHES} ngách. Studio tải dữ liệu 14 ngày
-            gần nhất — xu hướng, hook, sound đang nổi trong các ngách bạn quan tâm.
+            Chọn ngách của bạn. Studio tải dữ liệu 14 ngày gần nhất —
+            xu hướng, hook, sound đang nổi trong ngách bạn chọn.
           </p>
         </div>
 
@@ -150,9 +123,9 @@ export default function OnboardingScreen() {
             <>
               <NicheGrid
                 niches={niches}
-                selectedIds={pendingNiches}
+                selectedId={pendingNiche}
                 disabled={save.isPending}
-                onToggle={togglePendingNiche}
+                onSelect={setPendingNiche}
               />
 
               <div className="mt-9 flex items-center justify-between">
@@ -185,57 +158,55 @@ export default function OnboardingScreen() {
 
 function NicheGrid({
   niches,
-  selectedIds,
+  selectedId,
   disabled,
-  onToggle,
+  onSelect,
 }: {
   niches: ReadonlyArray<{ id: number; name: string; hot: number }>;
-  selectedIds: readonly number[];
+  selectedId: number | null;
   disabled: boolean;
-  onToggle: (id: number) => void;
+  onSelect: (id: number) => void;
 }) {
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const atCap = selectedIds.length >= MAX_CREATOR_NICHES;
   return (
-    <div>
+    <div role="radiogroup" aria-label="Chọn ngách">
       <div className="mb-3.5 flex items-center justify-between">
         <p className="gv-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-          NGÁCH CHÍNH · {MAX_CREATOR_NICHES} NGÁCH
+          NGÁCH CỦA BẠN
         </p>
         <p
           className={
             "gv-mono text-[10px] " +
-            (atCap
+            (selectedId != null
               ? "text-[color:var(--gv-accent-deep)]"
               : "text-[color:var(--gv-ink-4)]")
           }
         >
-          {selectedIds.length}/{MAX_CREATOR_NICHES} đã chọn
+          {selectedId != null ? "đã chọn" : "chưa chọn"}
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {niches.map((n) => {
-          const selected = selectedSet.has(n.id);
-          const lockAdd = !selected && atCap;
+          const selected = selectedId === n.id;
           return (
             <button
               key={n.id}
               type="button"
-              disabled={disabled || lockAdd}
-              onClick={() => onToggle(n.id)}
+              role="radio"
+              aria-checked={selected}
+              disabled={disabled}
+              onClick={() => onSelect(n.id)}
               className={
                 "flex items-center justify-between gap-3 rounded-[8px] px-4 py-3.5 text-left text-sm transition-colors " +
                 (selected
                   ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] border border-[color:var(--gv-ink)]"
-                  : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-4)]") +
-                (lockAdd ? " opacity-40 cursor-not-allowed" : "")
+                  : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-4)]")
               }
             >
               <span className="flex items-center gap-2.5 min-w-0">
                 <span
                   aria-hidden="true"
                   className={
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border " +
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border " +
                     (selected
                       ? "border-[color:var(--gv-canvas)] bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]"
                       : "border-[color:var(--gv-ink-3)] bg-transparent text-transparent")

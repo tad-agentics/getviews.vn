@@ -3,7 +3,7 @@ import type { MetaFunction } from "react-router";
 import { Navigate, useLocation, useSearchParams } from "react-router";
 import { useProfile } from "@/hooks/useProfile";
 import { pageMeta } from "@/lib/pageTitle";
-import { profileHasMinimumNiches } from "@/lib/profileNiches";
+import { profileHasNiche } from "@/lib/profileNiches";
 
 export const meta: MetaFunction = () => pageMeta("Sảnh Sáng Tạo");
 
@@ -15,8 +15,8 @@ const HomeScreen = lazy(() => import("./home/HomeScreen"));
  * Routing rules:
  *   - `/app?session=<id>` redirects to `/app/history/chat/<id>` (legacy
  *     chat transcript URLs).
- *   - If the profile has no niches yet (legacy: no primary_niche; new:
- *     fewer than 3 picks in niche_ids), redirect to `/app/onboarding`.
+ *   - If the profile has no niche yet (single-niche refactor 2026-05-05),
+ *     redirect to `/app/onboarding`.
  *   - Otherwise render HomeScreen.
  */
 export default function AppIndexRoute() {
@@ -41,7 +41,7 @@ export default function AppIndexRoute() {
     );
   }
 
-  if (profile && !profileHasMinimumNiches(profile)) {
+  if (profile && !profileHasNiche(profile)) {
     return <Navigate to="/app/onboarding" replace />;
   }
 

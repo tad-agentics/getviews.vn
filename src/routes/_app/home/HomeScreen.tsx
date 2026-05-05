@@ -13,7 +13,7 @@ import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { useTopPatterns } from "@/hooks/useTopPatterns";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
-import { profileFirstNicheId, profileFollowedNicheIds } from "@/lib/profileNiches";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
@@ -42,15 +42,14 @@ export default function HomeScreen() {
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
 
-  // PR-5 — tối đa 3 ngách trong ``niche_ids``; default chọn = slot [0]. ``selectedNicheId``
-  // drives gợi ý, pulse, ticker, kịch bản sáng, patterns. Kênh của bạn dùng cùng
-  // default server (id đầu trong hồ sơ) cho /channel/analyze.
-  const followedNicheIds = useMemo(
-    () => profileFollowedNicheIds(profile),
-    [profile],
-  );
+  // Single niche per user since 2026-05-05 — Home anchors to ``profile.primary_niche``.
+  // The Trends pills handle browsing other niches; Home stays on the user's pick.
+  const followedNicheIds = useMemo(() => {
+    const id = profileFirstNicheId(profile);
+    return id != null ? [id] : [];
+  }, [profile]);
   const { data: followedNiches = [] } = useNicheRowsForIds(followedNicheIds);
-  const defaultNicheId = profileFirstNicheId(profile) ?? followedNicheIds[0] ?? null;
+  const defaultNicheId = followedNicheIds[0] ?? null;
   const [selectedNicheId, setSelectedNicheId] = useState<number | null>(defaultNicheId);
 
   // Resync when the profile follow list or default slot changes
