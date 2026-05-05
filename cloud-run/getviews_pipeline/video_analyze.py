@@ -406,11 +406,99 @@ def _response_from_diagnostics_row(
     }
 
 
+# ── D2 (2026-05-15) — synthesis prompt v2 helpers ────────────────────────
+
+# Forbidden cliché list — embedded in both Win + Flop prompts so Gemini
+# doesn't hide behind sáo-rỗng vocabulary. Mirror of the morning-ritual
+# v2 list (single source of truth would be nice; for now keep duplicated
+# until a shared ``vn_copy_rules.py`` is justified).
+_FORBIDDEN_PHRASES_VI = (
+    '"tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", '
+    '"hack não", "đừng bỏ qua", "xem ngay kẻo muộn", "triệu view", '
+    '"bùng nổ", "công thức vàng", "chấn động"'
+)
+
+# Psychology mechanism vocabulary — same 7 from morning-ritual v2.
+# Win prompt cites these so "lessons" name a mechanism instead of generic
+# "tạo sự tò mò" boilerplate.
+_MECHANISM_VOCAB_VI = (
+    "- curiosity_gap: tạo khoảng trống thông tin viewer cần lấp\n"
+    "- social_proof: ai đã làm + kết quả gì\n"
+    "- identification: viewer thấy 'đó là mình' / 'đúng tình huống tôi'\n"
+    "- contrarian_take: đi ngược common belief\n"
+    "- before_after_promise: hứa transformation cụ thể đo được\n"
+    "- status_anchor: gắn với identity / class viewer muốn thuộc về\n"
+    "- fomo_loss: nguy cơ bỏ lỡ / thiệt hại nếu không hành động"
+)
+
+
+def _summarise_retention_curve(curve: list[dict[str, Any]] | None) -> str:
+    """Compress a retention curve into a 1-line summary for prompt context.
+
+    Identifies the steepest drop (timing + magnitude) so Gemini can anchor
+    diagnosis to where viewers actually leave. Returns "" when the curve
+    has fewer than 3 points (not enough signal).
+    """
+    if not curve or len(curve) < 3:
+        return ""
+    points = [
+        (float(p.get("t") or 0.0), float(p.get("pct") or 0.0))
+        for p in curve
+        if isinstance(p, dict)
+    ]
+    if len(points) < 3:
+        return ""
+    points.sort(key=lambda p: p[0])
+    # Find the largest single-step drop (next - current).
+    biggest_drop = 0.0
+    drop_at = 0.0
+    drop_to = 0.0
+    for i in range(len(points) - 1):
+        delta = points[i + 1][1] - points[i][1]
+        if delta < biggest_drop:  # delta is negative when retention drops
+            biggest_drop = delta
+            drop_at = points[i][0]
+            drop_to = points[i + 1][1]
+    end_pct = points[-1][1]
+    if biggest_drop > -3:  # < 3% step drop → no notable drop
+        return f"Retention end {end_pct:.0f}% — không có drop đột biến."
+    return (
+        f"Retention end {end_pct:.0f}%. Drop lớn nhất: "
+        f"{abs(biggest_drop):.0f}% tại {drop_at:.1f}s → {drop_to:.0f}%."
+    )
+
+
+def _summarise_niche_row(row: dict[str, Any] | None) -> str:
+    """Pre-format the niche/content_class row as bullets for prompt context.
+
+    The legacy Flop prompt dumped raw JSON; Gemini parses fine but the
+    signal-to-noise was bad. Bullet form reduces tokens AND makes
+    the comparison anchor explicit.
+    """
+    if not row:
+        return "(chưa có dữ liệu ngách)"
+    bits: list[str] = []
+    sample = row.get("sample_size")
+    if sample is not None:
+        bits.append(f"sample={sample}")
+    avg_views = row.get("organic_avg_views") or row.get("avg_views")
+    if avg_views is not None:
+        bits.append(f"avg_views≈{int(avg_views):,}")
+    median_er = row.get("median_er") or row.get("avg_engagement_rate")
+    if median_er is not None:
+        bits.append(f"median_er={float(median_er):.3f}")
+    median_views = row.get("median_views")
+    if median_views is not None:
+        bits.append(f"median_views≈{int(median_views):,}")
+    return "Ngách norms: " + ", ".join(bits) if bits else "(thưa data)"
+
+
 def _call_win_gemini(
     *,
     video: dict[str, Any],
     analysis: dict[str, Any],
     niche_label: str,
+    retention_curve: list[dict[str, Any]] | None = None,
 ) -> WinAnalysisLLM:
     from google.genai import types
 
@@ -422,17 +510,40 @@ def _call_win_gemini(
     )
 
     hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
+    retention_summary = _summarise_retention_curve(retention_curve)
     prompt = f"""Bạn là biên tập TikTok tiếng Việt. Viết JSON theo schema cho màn "Vì sao video NỔ".
 
 Ngách: {niche_label}
 Video: creator @{video.get("creator_handle","")} | views ~{int(video.get("views") or 0)}
 Hook phrase: {hook.get("hook_phrase") or ""}
 Hook type: {hook.get("hook_type") or ""}
+{retention_summary}
 
-Quy tắc:
-- Headline + subtext súc tích, không sáo rỗng, không cụm cấm trong playbook GetViews.
-- 3 lessons: title ngắn + body 1-2 câu, khả năng áp dụng thực tế.
-- hook_bodies: đúng 3 đoạn cho 3 ô 0.0–0.8s / 0.8–1.8s / 1.8–3.0s — mỗi đoạn 2-4 câu tiếng Việt, mô tả cơ chế hook (không copy nguyên hook phrase).
+## Mechanism vocabulary (mỗi lesson PHẢI nêu tên 1 cơ chế từ list)
+
+{_MECHANISM_VOCAB_VI}
+
+## Quy tắc
+
+- Headline + subtext súc tích, không sáo rỗng. Headline ≤ 90 ký tự.
+- 3 lessons: title ngắn (≤ 50 ký tự) + body 1-2 câu. **Body PHẢI bắt đầu
+  bằng tên mechanism từ list trên** + câu giải thích cụ thể (vd:
+  "social_proof — số 47K view + creator @x đã chứng minh format này
+  work cho ngách"). KHÔNG generic ("tạo sự thu hút", "engaging viewer").
+- hook_bodies: đúng 3 đoạn cho 3 ô 0.0–0.8s / 0.8–1.8s / 1.8–3.0s.
+  Mỗi đoạn 2-4 câu mô tả CƠ CHẾ hook tại window đó:
+  - 0.0–0.8s = visual hook (frame mở đầu, body language, on-screen text)
+  - 0.8–1.8s = narrative hook (câu mở miệng, promise)
+  - 1.8–3.0s = retention hook (lý do viewer ở lại sau 3 giây)
+  KHÔNG copy-paste hook phrase nguyên văn — diễn giải mechanism.
+- TRÁNH TUYỆT ĐỐI cụm: {_FORBIDDEN_PHRASES_VI}.
+
+## Few-shot (ví dụ ĐÚNG cho 1 lesson)
+
+{{
+  "title": "Số liệu cụ thể chốt curiosity",
+  "body": "social_proof — '67% phụ nữ VN dùng SPF dưới 50' là social proof có data backing, viewer cần xem tiếp để biết mình thuộc nhóm nào."
+}}
 """
     config = types.GenerateContentConfig(
         temperature=0.55,
@@ -455,6 +566,7 @@ def _call_flop_gemini(
     analysis: dict[str, Any],
     niche_label: str,
     niche_row: dict[str, Any] | None,
+    retention_curve: list[dict[str, Any]] | None = None,
 ) -> FlopAnalysisLLM:
     from google.genai import types
 
@@ -466,25 +578,59 @@ def _call_flop_gemini(
     )
 
     hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
-    niche_hint = json.dumps(niche_row or {}, ensure_ascii=False)[:2500]
-    prompt = f"""Bạn là chẩn đoán cấu trúc TikTok tiếng Việt. Video đang FLOP so với ngách.
+    niche_summary = _summarise_niche_row(niche_row)
+    retention_summary = _summarise_retention_curve(retention_curve)
+    prompt = f"""Bạn là chẩn đoán cấu trúc TikTok tiếng Việt. Video FLOP so với ngách.
 
 Ngách: {niche_label}
-Context niche (JSON rút gọn): {niche_hint}
+{niche_summary}
 Video: @{video.get("creator_handle","")} | views {int(video.get("views") or 0)} | ER {float(video.get("engagement_rate") or 0):.4f}
 Hook phrase: {hook.get("hook_phrase") or ""}
+{retention_summary}
 
-Trả về JSON theo schema:
-- analysis_headline: object với đúng 5 trường (tiếng Việt, không HTML):
+## Severity anchor cho flop_issues (rule of thumb)
+
+- high: retention drop >30% trong <2s, hoặc hook miss trong 0-3s, hoặc
+  CTA conflict gây save_rate gần 0. Issue phải fix mới có hy vọng.
+- mid: retention drop 15-30% trong cửa sổ 2-5s, hoặc structure issue
+  (scene 6-8 thiếu payoff). Issue đáng fix nhưng không catastrophic.
+- low: polish (text overlay legibility, sound mix, CTA wording).
+
+## Fix vocabulary cho flop_issues.fix (mỗi fix PHẢI dùng 1 trong các action verb sau)
+
+- "Đổi hook sang [type]" — khi hook_type không match niche norms
+- "Cắt scene [N] / gộp [N] và [M]" — khi structure rời rạc
+- "Đẩy CTA xuống giây [X]" / "Bỏ CTA mở đầu" — khi CTA conflict
+- "Thay sound trending [genre]" — khi sound original không carry
+- "Thêm text overlay tại giây [X]" — khi visual hook yếu
+- "Compress hook về dưới [X]s" — khi hook stretch quá dài
+
+## Schema
+
+- analysis_headline: object 5 trường:
   - prefix: mở đầu ngắn (vd "Video dừng ở")
   - view_accent: cụm view ngắn (vd "8.4K view") — số khớp views video
   - middle: chẩn đoán flop (hook/scene…)
-  - prediction_pos: dự đoán ngắn có dấu ~ (vd "~34K") NẾU có con số cụ thể;
-    NẾU KHÔNG có dự báo thì TRẢ VỀ CHUỖI RỖNG "" — KHÔNG dùng "~0", "~—"
-    hay placeholder giả. Người dùng sẽ đọc câu nối liền 5 đoạn.
+  - prediction_pos: dự đoán có dấu ~ (vd "~34K") NẾU có dự báo cụ thể;
+    NẾU KHÔNG, TRẢ VỀ CHUỖI RỖNG "" — KHÔNG dùng "~0", "~—" placeholder.
   - suffix: kết (vd "." hoặc " nếu áp fix.")
-  Tổng độ dài nối 5 chuỗi ≤ 400 ký tự.
-- flop_issues: 3-6 mục, sắp xếp theo ảnh hưởng. sev high/mid/low. t/end là giây trên timeline. detail + fix cụ thể, tiếng Việt.
+  Tổng độ dài ≤ 400 ký tự.
+- flop_issues: 3-6 mục, sắp xếp theo ảnh hưởng (high → low).
+  - sev: 'high' | 'mid' | 'low' (theo rule trên).
+  - t/end: giây timestamp trên timeline video.
+  - detail: 1-2 câu chẩn đoán cụ thể.
+  - fix: action-driven, dùng vocabulary trên với placeholder cụ thể.
+- TRÁNH TUYỆT ĐỐI cụm: {_FORBIDDEN_PHRASES_VI}.
+
+## Few-shot (ví dụ ĐÚNG cho 1 issue)
+
+{{
+  "sev": "high",
+  "t": 0.2,
+  "end": 1.8,
+  "detail": "Hook 1.8s mới hiện face creator, viewer đã skip ở 0.6s vì frame mở đầu là logo + text English.",
+  "fix": "Đổi hook sang pov face-first: scene 1 = 0.0–0.6s face creator + caption 'Tôi đã sai 3 năm khi…'."
+}}
 """
     config = types.GenerateContentConfig(
         temperature=0.45,
@@ -702,7 +848,10 @@ def run_video_analyze_pipeline(
     hook_cards = extract_hook_phases(analysis)
 
     if mode_resolved == "win":
-        llm = _call_win_gemini(video=video, analysis=analysis, niche_label=gemini_niche_label)
+        llm = _call_win_gemini(
+            video=video, analysis=analysis, niche_label=gemini_niche_label,
+            retention_curve=retention_user,
+        )
         for i, body in enumerate(llm.hook_bodies[:3]):
             if i < len(hook_cards):
                 hook_cards[i]["body"] = body
@@ -713,7 +862,8 @@ def run_video_analyze_pipeline(
         projected = None
     else:
         llm = _call_flop_gemini(
-            video=video, analysis=analysis, niche_label=gemini_niche_label, niche_row=niche_intel
+            video=video, analysis=analysis, niche_label=gemini_niche_label,
+            niche_row=niche_intel, retention_curve=retention_user,
         )
         headline = llm.analysis_headline.model_dump_json()
         subtext = None
@@ -956,7 +1106,10 @@ def run_video_analyze_on_demand(
     hook_cards = extract_hook_phases(analysis)
 
     if mode_resolved == "win":
-        llm = _call_win_gemini(video=video, analysis=analysis, niche_label=gemini_niche_label)
+        llm = _call_win_gemini(
+            video=video, analysis=analysis, niche_label=gemini_niche_label,
+            retention_curve=retention_user,
+        )
         for i, body in enumerate(llm.hook_bodies[:3]):
             if i < len(hook_cards):
                 hook_cards[i]["body"] = body
@@ -967,7 +1120,8 @@ def run_video_analyze_on_demand(
         projected: int | None = None
     else:
         llm_flop = _call_flop_gemini(
-            video=video, analysis=analysis, niche_label=gemini_niche_label, niche_row=niche_intel,
+            video=video, analysis=analysis, niche_label=gemini_niche_label,
+            niche_row=niche_intel, retention_curve=retention_user,
         )
         headline = llm_flop.analysis_headline.model_dump_json()
         subtext = None
