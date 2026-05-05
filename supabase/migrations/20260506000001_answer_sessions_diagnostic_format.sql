@@ -19,5 +19,5 @@ ALTER TABLE public.answer_sessions
 ALTER TABLE public.answer_sessions
   ADD CONSTRAINT answer_sessions_format_check
   CHECK (format IN (
-    'pattern', 'ideas', 'timing', 'generic', 'lifecycle', 'diagnostic'
+    'pattern', 'ideas', 'timing', 'generic', 'lifecycle', 'diagnostic', 'video'
   ));

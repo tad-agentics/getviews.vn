@@ -13,10 +13,10 @@
 --   1. Rebadge any user with primary_niche=22 → niche 13 (Hài / Giải
 --      trí), the closest creator-niche fit for entertainment-leaning
 --      content. Same for chat_sessions (read-only legacy transcripts).
---   2. Delete niche-22 rows from NO-ACTION FK tables. CASCADE tables
---      (scene_intelligence, starter_creators, cross_creator_patterns,
---      trending_sounds, trending_cards, channel_formulas) auto-clear
---      when the niche row drops.
+--   2. Delete niche-22 rows from NO-ACTION FK tables (or re-point to
+--      niche 13). CASCADE tables (scene_intelligence, starter_creators,
+--      cross_creator_patterns, trending_sounds, trending_cards,
+--      channel_formulas) auto-clear when the niche row drops.
 --   3. Delete niche 22 from niche_taxonomy.
 --
 -- Storage caveat: video_corpus DELETE cascades to video_shots and
@@ -41,8 +41,18 @@ BEGIN;
 -- ── 1. Re-route profiles + chat sessions to niche 13 (Hài / Giải trí) ──
 UPDATE profiles      SET primary_niche = 13 WHERE primary_niche = 22;
 UPDATE chat_sessions SET niche_id      = 13 WHERE niche_id      = 22;
+UPDATE answer_sessions SET niche_id = 13 WHERE niche_id = 22;
 
 -- ── 2. Clear NO-ACTION FK references for niche 22 ─────────────────
+DELETE FROM niche_insights WHERE niche_id = 22;
+UPDATE niche_candidates SET assigned_niche_id = 13 WHERE assigned_niche_id = 22;
+UPDATE competitor_tracking SET niche_id = 13 WHERE niche_id = 22;
+UPDATE creator_pattern SET niche_id = 13 WHERE niche_id = 22;
+DELETE FROM niche_daily_sounds WHERE niche_id = 22;
+DELETE FROM niche_weekly_digest WHERE niche_id = 22;
+UPDATE draft_scripts SET niche_id = 13 WHERE niche_id = 22;
+
+-- ── 2b. Corpus + analytics tables (same as niche-6 retirement) ────
 -- video_corpus DELETE cascades to video_shots and video_diagnostics
 -- via the video_id FK.
 DELETE FROM video_corpus       WHERE niche_id = 22;

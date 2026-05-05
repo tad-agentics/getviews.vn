@@ -12,5 +12,8 @@
 -- the DDL is guaranteed to succeed.
 
 ALTER TABLE public.hook_effectiveness
+  DROP CONSTRAINT IF EXISTS hook_effectiveness_niche_hook_unique;
+
+ALTER TABLE public.hook_effectiveness
   ADD CONSTRAINT hook_effectiveness_niche_hook_unique
   UNIQUE (niche_id, hook_type);

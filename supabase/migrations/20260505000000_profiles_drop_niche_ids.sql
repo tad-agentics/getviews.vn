@@ -17,6 +17,13 @@
 -- primary_niche stays nullable: pre-onboarding profiles legitimately
 -- have NULL until they finish the niche picker. The /app/* layout
 -- guard already redirects null-niche profiles into onboarding.
+--
+-- DBs that already applied 20260629000000_ritual_per_niche_and_sync_primary.sql
+-- have ``trg_profiles_sync_primary_niche_from_niche_ids`` on ``niche_ids`` —
+-- drop it before ``DROP COLUMN`` so ``supabase db push --include-all`` works.
+
+DROP TRIGGER IF EXISTS trg_profiles_sync_primary_niche_from_niche_ids ON public.profiles;
+DROP FUNCTION IF EXISTS public.sync_profile_primary_niche_from_niche_ids() CASCADE;
 
 UPDATE public.profiles
 SET primary_niche = niche_ids[1]
