@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**GetViews.vn** — Vietnamese TikTok creative intelligence platform. Users paste a TikTok URL or ask a question in Vietnamese; the system analyzes the video frame-by-frame with Gemini vision, compares it against a pre-indexed corpus of ~46,000 Vietnamese TikTok videos, and returns diagnosis + hook rankings + actionable fixes in Vietnamese via streamed SSE.
+**GetViews.vn** — Vietnamese TikTok creative intelligence platform. Users paste a TikTok URL or ask a question in Vietnamese; the system analyzes the video frame-by-frame with Gemini vision, compares it against a corpus of Vietnamese TikTok videos (built up via nightly EnsembleData ingest), and returns diagnosis + hook rankings + actionable fixes in Vietnamese via streamed SSE.
+
+**Status: pre-launch.** The corpus is still growing — at any point, expect that some niches have thin samples and per-niche benchmarks may sit on the "thin/unreliable" claim tier until the nightly cron has run long enough to build coverage. **Do not put fabricated corpus-size numbers in user-facing copy or docs**; query `video_corpus` for actual counts when a number matters.
 
 **Deployment mode:** `pwa` (web-only). The `mobile/` Expo workspace was removed; this app ships web only. `shared/` remains for cross-surface types/API helpers used by the web app.
 
@@ -54,7 +56,11 @@ This is not a single-codebase app. AI inference is split across three runtimes f
 
 2. **Vercel Edge Functions (`api/`)** — `/api/chat` (text intents ⑤⑥⑦ + follow-ups). Streams Gemini SSE. Auth = user's Supabase JWT in `Authorization: Bearer`. Used for the fast/cheap path.
 
-3. **Cloud Run Python service (`cloud-run/`)** — FastAPI + `google-genai`. Owns video intents ①③④ and batch corpus ingest. SSE `/stream` endpoint called directly from the browser; JWT validated via Supabase JWKS (asymmetric, stateless). Two deployment shapes: user-facing (`min-instances: 1`) and batch (cron-triggered, `min-instances: 0`). This is required because Vercel's 60s timeout cannot complete a video analysis.
+3. **Cloud Run Python service (`cloud-run/`)** — FastAPI + `google-genai`. Owns video intents ①③④ and batch corpus ingest. SSE `/stream` endpoint called directly from the browser; JWT validated via Supabase JWKS (asymmetric, stateless). **Two services share one image** (selected via `SERVICE_ROLE` env) so live SSE traffic and 30-min cron batches don't share quota:
+   - `getviews-pipeline-user` (min:1, 2Gi, 300s) — `/intent`, `/video`, `/script`, `/home`, `/answer`, `/douyin`, plus a thin `batch_proxy` forwarder for `morning-ritual` + `scene-intelligence`.
+   - `getviews-pipeline-batch` (min:0, 4Gi, 3600s) — `/batch/*` + **`/admin/*`**.
+
+   This split is required because Vercel's 60s timeout cannot complete a video analysis, and because admin / cron workloads need different scaling and timeout caps than user-facing SSE.
 
 4. **Supabase** — DB + Auth + RLS + Storage + Edge Functions (Deno). **RLS is the only authorization boundary** — every table has RLS; JWT in the Supabase client scopes every query. Edge Functions (`supabase/functions/`) handle webhooks (PayOS), cron (expiry, free-query reset, prune, stale processing guard), and Resend email. No custom Node backend exists.
 
@@ -88,15 +94,25 @@ When touching billing, payments, or streaming, preserve these — they are the d
 
 - **TD-1 — Atomic credit deduction:** use the Supabase RPC `decrement_credit()` which has a `WHERE credits > 0` guard. Never deduct via two-step read-then-write from the client.
 - **TD-2 — PayOS webhook idempotency:** `processed_webhook_events` UNIQUE constraint. Check before writes; retries must be safe.
-- **TD-3 — Concurrent request guard:** `profiles.is_processing` boolean. Cron (`cron-reset-processing`) clears flags older than 5 min.
+- **TD-3 — Concurrent request guard:** `profiles.is_processing` boolean for the analyze pipeline (TikTok-URL video work). Cron (`cron-reset-processing`) clears flags older than 5 min. The user-facing ritual regen (`POST /home/regenerate-ritual`) uses a separate in-memory in-flight set so a regen never blocks a credit-spending analysis.
 - **TD-4 — SSE reconnection:** Cloud Run emits `stream_id` + `seq` per token and replays from a 60s in-memory buffer on reconnect.
 - **TD-5 — Credits granted upfront at PAID webhook.** PayOS is **one-time**, not a subscription. There is no monthly top-up cron.
 
 Other hard rules: `video_corpus` INSERT is batch-only via service_role (client writes blocked by RLS); `chat_messages` are immutable (no UPDATE); soft-delete removed — sessions are hard-deleted via RPC (see migrations `_034`, `_035`, `_036`).
 
+### Niche model
+
+**Single niche per user** (since the 2026-05-05 single-niche refactor; `profiles.niche_ids` array dropped, `primary_niche INTEGER FK → niche_taxonomy(id)` is the canonical column). Onboarding is a single radio pick. Settings → Ngách offers a confirm-modal change that fires `POST /home/regenerate-ritual` so the user gets fresh Home content without waiting for the nightly cron.
+
+`profiles.primary_niche` drives: Home daily ritual, Home pulse default, Trends default pill, flop-baseline / niche-norms in the diagnosis pipeline. The Trends pill row (`TrendsNichePills`) lets users browse other niches transiently — re-mount resets to the user's profile niche.
+
+Niche taxonomy is mutable under SQL migrations (8+ add / merge / retire / rename migrations across 2026-04 → 2026-05). FE has two compensating layers in `src/lib/profileNiches.ts`: `RETIRED_NICHE_TAXONOMY_IDS` (filter out of pickers) and `NICHE_TAXONOMY_ALIASES` (resolve legacy ids when stale profile state references a retired niche). Always update both when a migration retires or merges a niche.
+
+The `morning-ritual` cron generates **one 3-script bundle per user** (was per-niche-up-to-3 before the refactor). Scope simplification cut Gemini cost ~3×.
+
 ### Route structure
 
-`src/routes.ts` declares the routes explicitly (not pure file-based). Landing at `/` (prerendered), `/login`, `/signup`, `/auth/callback`, then `layout("routes/_app/layout.tsx", …)` guards all `/app/*` routes: `answer`, `onboarding`, `history`, `history/chat/:sessionId` (read-only legacy transcript viewer), `trends`, `video`, `channel`, `script`, `script/shoot/:draftId`, `kol`, `settings`, `learn-more`, `pricing`, `checkout`, `payment-success`. The former `/app/chat` surface was removed in Phase C; active research happens through `/app/answer` sessions.
+`src/routes.ts` declares the routes explicitly (not pure file-based). Landing at `/` (prerendered), `/login`, `/signup`, `/auth/callback`, then `layout("routes/_app/layout.tsx", …)` guards all `/app/*` routes: `answer`, `onboarding`, `history`, `history/chat/:sessionId` (read-only legacy transcript viewer), `trends`, `douyin`, `compare`, `channel`, `script`, `script/shoot/:draftId`, `settings`, `learn-more`, `pricing`, `checkout`, `payment-success`, `admin`. The former `/app/chat` and `/app/video` surfaces were removed: chat → archived in Phase C; video paste → folded into `/app/answer` as a video-template session in the video-as-template migration. `/app/admin` is gated client-side by `useIsAdmin` (`profiles.is_admin = true`) and server-side by `require_admin` on the batch pod.
 
 Every `/app/*` leaf route **must** be code-split with `React.lazy` + `Suspense` in its `route.tsx`; the real screen lives alongside (e.g. `AnswerScreen.tsx`). Keep the landing page, auth routes, and layout modules eager — they run on every navigation.
 
@@ -122,9 +138,10 @@ Do **not** use React Router v7 `clientLoader` for data. TanStack Query is the si
 
 Copy `.env.example` → `.env.local`. Key distinctions:
 
-- `VITE_*` → ships in client bundle. Only: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_CLOUD_RUN_API_URL`, `VITE_R2_PUBLIC_URL`. All validated in `src/lib/env.ts` — add new client vars to the Zod schema there, never read `import.meta.env` directly.
-- Server-only (no `VITE_`): `GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `ENSEMBLEDATA_API_KEY`, `PROXY_URL`, `PAYOS_*`, `RESEND_API_KEY`, `R2_*`.
+- `VITE_*` → ships in client bundle. Only: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_CLOUD_RUN_API_URL` (user pod), `VITE_CLOUD_RUN_BATCH_URL` (batch pod — required for `/admin/*`; soft-falls-back to the user URL for dev / single-service "all" deployments), `VITE_R2_PUBLIC_URL`, `VITE_ZALOPAY_ENABLED`. All validated in `src/lib/env.ts` — add new client vars to the Zod schema there, never read `import.meta.env` directly.
+- Server-only (no `VITE_`): `GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `ENSEMBLEDATA_API_KEY`, `PROXY_URL`, `BATCH_SECRET`, `BATCH_SERVICE_BASE_URL` (set on the user pod so its `batch_proxy` can forward to batch), `PAYOS_*`, `RESEND_API_KEY`, `R2_*`.
 - Vercel Edge (`api/chat.ts`) reads `SUPABASE_URL` / `SUPABASE_ANON_KEY` with `VITE_*` fallback — set non-`VITE_` aliases in Vercel project settings too.
+- Supabase Vault holds `cloud_run_api_url` (must point to the **batch** service URL — pg_cron schedules call `/batch/*` paths) and `cloud_run_batch_secret` (must match `BATCH_SECRET` on the batch pod). Rotating either without updating the other breaks every cron silently — `cron.job_run_details.return_message` will succeed but `net._http_response.status_code` will be 401/404.
 
 ## Bundle splitting
 
@@ -148,4 +165,4 @@ Commit convention (bisect-friendly, one logical change per commit):
 
 ## Out of scope (do not build)
 
-English UI · MCP server access · Reels/Shorts · creator marketplace · video editing · scheduling/posting · Shopee analytics · admin dashboard · recurring subscriptions (PayOS is one-time, packs expire manually) · Zalo notifications (Wave 2) · full livestream analysis (Wave 3+).
+English UI · MCP server access · Reels/Shorts · creator marketplace · video editing · scheduling/posting · Shopee analytics · recurring subscriptions (PayOS is one-time, packs expire manually) · Zalo notifications (Wave 2) · full livestream analysis (Wave 3+).
