@@ -5,6 +5,7 @@ import { Btn } from "@/components/v2/Btn";
 import { useProfile } from "@/hooks/useProfile";
 import { useCreatorNiches, type CreatorNiche } from "@/hooks/useCreatorNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
+import { logUsage } from "@/lib/logUsage";
 import { profileHasNiche } from "@/lib/profileNiches";
 
 /**
@@ -47,10 +48,14 @@ export default function OnboardingScreen() {
   const finish = async () => {
     if (!canAdvance) return;
     await save.mutateAsync({ creator_niche_id: pendingNiche });
+    logUsage("onboarding_completed", { creator_niche_id: pendingNiche });
     navigate("/app", { replace: true });
   };
 
-  const skip = () => navigate("/", { replace: true });
+  const skip = () => {
+    logUsage("onboarding_skipped");
+    navigate("/", { replace: true });
+  };
 
   if (profilePending) {
     return (

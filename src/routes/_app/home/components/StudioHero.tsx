@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
 import { formatRelativeSinceVi } from "@/lib/formatters";
+import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 
 /**
@@ -101,6 +102,13 @@ export const StudioHero = memo(function StudioHero({
             onClick={() => {
               const nid = ritual?.niche_id ?? nicheId;
               if (nid == null) return;
+              logUsage("daily_ritual_script_clicked", {
+                niche_id: nid,
+                rank: i + 1,
+                hook_type_en: s.hook_type_en,
+                shot_count: s.shot_count,
+                length_sec: s.length_sec,
+              });
               navigate(scriptPrefillFromRitual(s, nid));
             }}
           />

@@ -42,6 +42,7 @@ import {
   profileCreatorNicheId,
 } from "@/lib/profileNiches";
 import { TrendsNichePills } from "./TrendsNichePills";
+import { logUsage } from "@/lib/logUsage";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -572,13 +573,27 @@ export default function ExploreScreen() {
     () => profileCreatorNicheId(profile),
     [profile],
   );
-  const [selectedCreatorNicheId, setSelectedCreatorNicheId] = useState<number | null>(
+  const [selectedCreatorNicheId, setSelectedCreatorNicheIdState] = useState<number | null>(
     defaultCreatorNicheId,
+  );
+
+  // Wraps setState so a user-initiated pill change emits a tracking event.
+  // The auto-seed effect (next block) also calls setState but stays silent.
+  const setSelectedCreatorNicheId = useCallback(
+    (next: number) => {
+      logUsage("trends_niche_pill_switched", {
+        from: selectedCreatorNicheId,
+        to: next,
+        from_default: selectedCreatorNicheId === defaultCreatorNicheId,
+      });
+      setSelectedCreatorNicheIdState(next);
+    },
+    [selectedCreatorNicheId, defaultCreatorNicheId],
   );
 
   useEffect(() => {
     if (selectedCreatorNicheId == null && defaultCreatorNicheId != null) {
-      setSelectedCreatorNicheId(defaultCreatorNicheId);
+      setSelectedCreatorNicheIdState(defaultCreatorNicheId);
     }
   }, [defaultCreatorNicheId, selectedCreatorNicheId]);
 
