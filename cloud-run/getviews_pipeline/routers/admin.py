@@ -995,6 +995,93 @@ async def admin_action_log(
     return JSONResponse({"ok": True, "entries": resp.data or []})
 
 
+@router.get("/admin/funnel")
+async def admin_funnel(
+    _admin: dict[str, Any] = Depends(require_admin),
+    days: int = Query(7, ge=1, le=30),
+) -> JSONResponse:
+    """Aggregate funnel + engagement counts from ``usage_events``.
+
+    Pre-launch / launch instrumentation surface (D3, 2026-05-13). Reads
+    every usage_events row in the window and groups by ``action`` —
+    cheap given pre-launch volume. Once corpus + traffic grow, swap for
+    a daily-aggregate materialised view.
+
+    Returns:
+      ``totals``       — { action: count } across the window
+      ``unique_users`` — { action: distinct_user_count }
+      ``daily``        — top-10 actions × N days bucketed counts
+      ``conversion``   — onboarding_completed / signup, ritual_click /
+                         onboarding_completed, video_body_load /
+                         answer_session_create
+    """
+    from getviews_pipeline.supabase_client import get_service_client
+
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    sb = get_service_client()
+    try:
+        resp = (
+            sb.table("usage_events")
+            .select("user_id, action, created_at")
+            .gte("created_at", since)
+            .limit(50000)
+            .execute()
+        )
+        rows = resp.data or []
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    totals: dict[str, int] = {}
+    unique_by_action: dict[str, set[str]] = {}
+    daily: dict[str, dict[str, int]] = {}
+
+    for row in rows:
+        action = row.get("action") or "unknown"
+        uid = row.get("user_id") or ""
+        ts = row.get("created_at") or ""
+        day = ts[:10]  # YYYY-MM-DD prefix; cheap bucketing
+
+        totals[action] = totals.get(action, 0) + 1
+        unique_by_action.setdefault(action, set()).add(uid)
+        daily.setdefault(action, {})
+        daily[action][day] = daily[action].get(day, 0) + 1
+
+    unique_users = {a: len(uids) for a, uids in unique_by_action.items()}
+
+    # Top-10 actions for the daily breakdown — keeps payload small.
+    top_actions = sorted(totals.items(), key=lambda kv: -kv[1])[:10]
+    daily_top = {a: daily.get(a, {}) for a, _ in top_actions}
+
+    # Conversion ratios — defensive against zero-divides; "%" decimal.
+    def _pct(numer: str, denom: str) -> float | None:
+        d = totals.get(denom, 0)
+        if d == 0:
+            return None
+        return round((totals.get(numer, 0) / d) * 100, 1)
+
+    conversion = {
+        "onboarding_completed_per_skipped_ratio": _pct(
+            "onboarding_completed", "onboarding_skipped"
+        ),
+        "ritual_click_per_session_create": _pct(
+            "daily_ritual_script_clicked", "answer_session_create"
+        ),
+        "video_body_load_per_session_create": _pct(
+            "video_body_load", "answer_session_create"
+        ),
+    }
+
+    return JSONResponse({
+        "ok": True,
+        "as_of": datetime.now(timezone.utc).isoformat(),
+        "days": days,
+        "totals": totals,
+        "unique_users": unique_users,
+        "daily_top_actions": daily_top,
+        "conversion": conversion,
+    })
+
+
 @router.get("/admin/jobs/{job_id}")
 async def admin_job_status(
     job_id: str,

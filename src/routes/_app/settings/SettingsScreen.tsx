@@ -21,6 +21,7 @@ import { useProfile, type ProfileRow } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCreditTransactions } from "@/hooks/useCreditTransactions";
 import { useCreatorNiches } from "@/hooks/useCreatorNiches";
+import { logUsage } from "@/lib/logUsage";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import { useRegenerateRitual } from "@/hooks/useRegenerateRitual";
 import { useLogout } from "@/hooks/useLogout";
@@ -540,12 +541,17 @@ function NichePanel({
   const confirmChange = useCallback(() => {
     if (pendingChange == null) return;
     const target = pendingChange;
+    const previous = serverSelectedId;
     setPendingChange(null);
     // PR6: legacy primary_niche column dropped — write only the new column.
     updateMutation.mutate(
       { creator_niche_id: target },
       {
         onSuccess: () => {
+          logUsage("settings_niche_changed", {
+            from: previous,
+            to: target,
+          });
           // Background regen so Home / Trends content rewrites without
           // waiting for the nightly cron. Fire-and-forget — the toast tells
           // the user something is happening, polling on useDailyRitual /
