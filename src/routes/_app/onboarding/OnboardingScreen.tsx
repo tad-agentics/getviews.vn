@@ -5,17 +5,16 @@ import { Btn } from "@/components/v2/Btn";
 import { useProfile } from "@/hooks/useProfile";
 import { useCreatorNiches, type CreatorNiche } from "@/hooks/useCreatorNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
-import { legacyNicheIdForCreatorNiche, profileHasNiche } from "@/lib/profileNiches";
+import { profileHasNiche } from "@/lib/profileNiches";
 
 /**
  * Onboarding — single-step single-niche pick (BƯỚC 01 / 01).
  *
- * Two-axis refactor PR4 (2026-05-10): picker now reads ``creator_niches``
- * (14 UX-facing buckets) instead of the legacy ``niche_taxonomy``. Save
- * dual-writes ``creator_niche_id`` (new canonical) AND ``primary_niche``
- * (legacy, via ``legacyNicheIdForCreatorNiche``) so Cloud Run /home/*
- * endpoints (still on primary_niche pre-PR5) keep working through the
- * transition.
+ * Two-axis refactor PR6 (2026-05-13): legacy ``primary_niche`` column
+ * dropped. Save writes only ``creator_niche_id`` — the new canonical
+ * UX-facing column. Cloud Run profile reads (deps.py /
+ * profile_niches.py) resolve creator_niche_id → representative legacy
+ * niche_id at the read boundary for downstream analysis queries.
  */
 
 export default function OnboardingScreen() {
@@ -47,13 +46,7 @@ export default function OnboardingScreen() {
 
   const finish = async () => {
     if (!canAdvance) return;
-    // Dual-write during the two-axis transition: new column is the
-    // canonical UX identity; legacy column keeps Cloud Run /home/*
-    // working until PR5 pivots its reads to creator_niche_id.
-    await save.mutateAsync({
-      creator_niche_id: pendingNiche,
-      primary_niche: legacyNicheIdForCreatorNiche(pendingNiche),
-    });
+    await save.mutateAsync({ creator_niche_id: pendingNiche });
     navigate("/app", { replace: true });
   };
 

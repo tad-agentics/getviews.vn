@@ -102,7 +102,7 @@ describe("ScriptScreen", () => {
     mockUseScriptHookPatterns.mockReset();
     mockUseScriptGenerate.mockReset();
 
-    mockUseProfile.mockReturnValue({ data: { primary_niche: 4 } });
+    mockUseProfile.mockReturnValue({ data: { creator_niche_id: 3 } });
     mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
     mockUseScriptSceneIntelligence.mockReturnValue({
       data: null,
@@ -132,7 +132,7 @@ describe("ScriptScreen", () => {
   });
 
   it("renders the niche-gate prompt when profile has no niche and no ?niche_id query", () => {
-    mockUseProfile.mockReturnValue({ data: { primary_niche: null } });
+    mockUseProfile.mockReturnValue({ data: { creator_niche_id: null } });
     renderScreen();
     expect(screen.getByText(/Chọn ngách trong onboarding/)).toBeTruthy();
   });

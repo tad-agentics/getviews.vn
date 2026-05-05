@@ -99,7 +99,8 @@ def client_with_user() -> TestClient:
 def test_returns_202_queued_when_profile_has_niche(
     client_with_user: TestClient, fresh_inflight: set[str]
 ) -> None:
-    fake = _FakeSupabase({"profiles": {"primary_niche": 7}})
+    # creator_niche_id 8 (Tech & Gaming) → legacy 9 (Tech) representative.
+    fake = _FakeSupabase({"profiles": {"creator_niche_id": 8}})
     with patch(
         "getviews_pipeline.supabase_client.user_supabase", return_value=fake
     ), patch(
@@ -109,9 +110,9 @@ def test_returns_202_queued_when_profile_has_niche(
 
     assert r.status_code == 202
     body = r.json()
-    assert body == {"status": "queued", "niche_id": 7}
+    assert body == {"status": "queued", "niche_id": 9}
     # Background task scheduled with the resolved niche.
-    run_mock.assert_called_once_with("00000000-0000-0000-0000-0000000000aa", 7)
+    run_mock.assert_called_once_with("00000000-0000-0000-0000-0000000000aa", 9)
     # In-flight tracker now contains the user — until the bg task drains it
     # (which the patched _run_regen_ritual never reaches).
     assert "00000000-0000-0000-0000-0000000000aa" in fresh_inflight
@@ -135,7 +136,7 @@ def test_returns_202_already_in_flight_when_duplicate(
 def test_returns_404_when_profile_has_no_niche(
     client_with_user: TestClient, fresh_inflight: set[str]
 ) -> None:
-    fake = _FakeSupabase({"profiles": {"primary_niche": None}})
+    fake = _FakeSupabase({"profiles": {"creator_niche_id": None}})
     with patch(
         "getviews_pipeline.supabase_client.user_supabase", return_value=fake
     ), patch(

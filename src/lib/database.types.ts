@@ -552,7 +552,6 @@ export type Database = {
           is_admin: boolean
           is_processing: boolean
           lifetime_credits_used: number
-          primary_niche: number | null
           creator_niche_id: number | null
           reference_channel_handles: string[]
           subscription_tier: string
@@ -572,7 +571,6 @@ export type Database = {
           is_admin?: boolean
           is_processing?: boolean
           lifetime_credits_used?: number
-          primary_niche?: number | null
           creator_niche_id?: number | null
           reference_channel_handles?: string[]
           subscription_tier?: string
@@ -592,7 +590,6 @@ export type Database = {
           is_admin?: boolean
           is_processing?: boolean
           lifetime_credits_used?: number
-          primary_niche?: number | null
           creator_niche_id?: number | null
           reference_channel_handles?: string[]
           subscription_tier?: string
@@ -601,17 +598,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_profiles_primary_niche"
-            columns: ["primary_niche"]
+            foreignKeyName: "profiles_creator_niche_id_fkey"
+            columns: ["creator_niche_id"]
             isOneToOne: false
-            referencedRelation: "niche_intelligence"
-            referencedColumns: ["niche_id"]
-          },
-          {
-            foreignKeyName: "fk_profiles_primary_niche"
-            columns: ["primary_niche"]
-            isOneToOne: false
-            referencedRelation: "niche_taxonomy"
+            referencedRelation: "creator_niches"
             referencedColumns: ["id"]
           },
         ]

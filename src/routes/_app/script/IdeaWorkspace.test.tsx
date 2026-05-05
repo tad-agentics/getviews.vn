@@ -107,7 +107,7 @@ function renderWorkspace() {
 
 beforeEach(() => {
   mockNavigate.mockReset();
-  mockUseProfile.mockReturnValue({ data: { primary_niche: 4 } });
+  mockUseProfile.mockReturnValue({ data: { creator_niche_id: 3 } });
   mockUseDailyRitual.mockReturnValue({
     data: { niche_id: 4, scripts: RITUAL_SCRIPTS },
     emptyReason: null,

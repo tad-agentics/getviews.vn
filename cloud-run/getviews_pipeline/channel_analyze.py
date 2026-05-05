@@ -1218,7 +1218,7 @@ def run_channel_analyze_sync(
         raise ValueError("Thiếu handle")
 
     try:
-        pres = user_sb.table("profiles").select("primary_niche, creator_niche_id").single().execute()
+        pres = user_sb.table("profiles").select("creator_niche_id").single().execute()
     except Exception as exc:
         raise ValueError(f"Hồ sơ: {exc}") from exc
     # Two-axis refactor PR5: prefer creator_niche_id (canonical) and

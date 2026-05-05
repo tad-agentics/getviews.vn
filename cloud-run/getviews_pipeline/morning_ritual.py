@@ -414,7 +414,7 @@ def run_morning_ritual_batch(
     from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
 
     query = client.table("profiles").select(
-        "id, primary_niche, creator_niche_id, reference_channel_handles",
+        "id, creator_niche_id, reference_channel_handles",
     )
     if user_ids:
         query = query.in_("id", user_ids)

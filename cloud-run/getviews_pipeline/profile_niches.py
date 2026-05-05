@@ -53,22 +53,13 @@ def legacy_niche_id_for_creator_niche(creator_niche_id: int | None) -> int | Non
 def resolve_legacy_niche_from_profile_row(row: dict | None) -> int | None:
     """Pick the legacy niche_id for a profile row.
 
-    Prefers ``creator_niche_id`` (canonical post-PR3) and resolves to the
-    representative legacy niche_id; falls back to the legacy
-    ``primary_niche`` column for rows that haven't been backfilled yet
-    (defensive — PR3 backfilled every populated row).
+    PR6 (2026-05-13) — legacy ``primary_niche`` column was dropped;
+    ``creator_niche_id`` is the only profile niche column. Returns
+    ``None`` for pre-onboarding profiles.
     """
     if not row:
         return None
     cni = row.get("creator_niche_id")
-    if cni is not None:
-        legacy = legacy_niche_id_for_creator_niche(cni)
-        if legacy is not None:
-            return legacy
-    pn = row.get("primary_niche")
-    if pn is not None:
-        try:
-            return int(pn)
-        except (TypeError, ValueError):
-            return None
-    return None
+    if cni is None:
+        return None
+    return legacy_niche_id_for_creator_niche(cni)

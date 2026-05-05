@@ -33,12 +33,22 @@ export function resolveNicheNameVn(id: number, nameVnFromDb: string): string {
   return NICHE_TAXONOMY_NAME_VN_BY_ID[id] ?? nameVnFromDb;
 }
 
-/** The user's single legacy niche id, or `null` before onboarding completes. */
+/**
+ * The user's representative legacy niche id (for downstream queries
+ * that still filter on ``video_corpus.niche_id``). Returns ``null`` for
+ * pre-onboarding profiles.
+ *
+ * Two-axis refactor PR6: derived from ``creator_niche_id`` (canonical
+ * column since PR3). The ``primary_niche`` column was dropped in PR6;
+ * Trends pills, Home, Script, Answer, etc. that previously read
+ * ``primary_niche`` directly continue to work because the helper
+ * signature is unchanged.
+ */
 export function profileFirstNicheId(
-  profile: { primary_niche?: number | null } | null | undefined,
+  profile: { creator_niche_id?: number | null } | null | undefined,
 ): number | null {
-  if (!profile || profile.primary_niche == null) return null;
-  return canonicalNicheTaxonomyId(profile.primary_niche);
+  if (!profile || profile.creator_niche_id == null) return null;
+  return legacyNicheIdForCreatorNiche(profile.creator_niche_id);
 }
 
 /**
@@ -55,17 +65,13 @@ export function profileCreatorNicheId(
 
 /**
  * Whether the profile has a niche set (used by the /app/* layout guard).
- * Two-axis refactor PR4: accept either column. New onboarding writes
- * ``creator_niche_id``; legacy rows still on ``primary_niche`` only.
+ * Two-axis refactor PR6: only ``creator_niche_id`` matters now;
+ * legacy ``primary_niche`` column was dropped.
  */
 export function profileHasNiche(
-  profile:
-    | { primary_niche?: number | null; creator_niche_id?: number | null }
-    | null
-    | undefined,
+  profile: { creator_niche_id?: number | null } | null | undefined,
 ): boolean {
-  if (!profile) return false;
-  return profile.primary_niche != null || profile.creator_niche_id != null;
+  return profile?.creator_niche_id != null;
 }
 
 /**

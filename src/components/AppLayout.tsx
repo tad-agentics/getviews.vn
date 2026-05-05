@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth";
 import { useProfile } from "@/hooks/useProfile";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
 import { chatKeys } from "@/hooks/useChatSession";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,10 +64,14 @@ function LogoMark() {
 function NicheOfYoursBlock() {
   const { data: profile } = useProfile();
 
+  // Two-axis refactor PR6: profile.primary_niche dropped. Resolve the
+  // representative legacy niche_id from creator_niche_id (the canonical
+  // UX-facing column) so the existing useNicheRowsForIds lookup
+  // (keyed by legacy niche_id) keeps working unchanged.
   const sidebarIds = useMemo(() => {
-    if (profile?.primary_niche != null) return [profile.primary_niche];
-    return [];
-  }, [profile?.primary_niche]);
+    const id = profileFirstNicheId(profile);
+    return id != null ? [id] : [];
+  }, [profile]);
 
   const { data: niches = [], isPending } = useNicheRowsForIds(sidebarIds.length ? sidebarIds : null);
 

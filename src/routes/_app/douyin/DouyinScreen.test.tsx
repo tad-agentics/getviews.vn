@@ -318,8 +318,8 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
       data: _feed(),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    // VN niche 8 = Gym / Fitness VN → maps to "wellness" slug.
-    useProfile.mockReturnValue({ data: { primary_niche: 8 } });
+    // creator_niche 14 (Gym & Fitness) → legacy 8 → maps to "wellness" slug.
+    useProfile.mockReturnValue({ data: { creator_niche_id: 14 } });
     _renderScreen();
     // Banner present — "Wellness" appears both in the niche chip and
     // the banner, so we assert via the banner status role.
@@ -363,8 +363,8 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
       data: _feed(),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    // VN niche 17 = Gaming → no Douyin slug.
-    useProfile.mockReturnValue({ data: { primary_niche: 17 } });
+    // creator_niche 5 (Comedy) → legacy 13 (Hài) — no Douyin slug.
+    useProfile.mockReturnValue({ data: { creator_niche_id: 5 } });
     _renderScreen();
     expect(screen.queryByText(/Đang lọc theo ngách bạn theo dõi/)).toBeNull();
     // Grid stays at full corpus.

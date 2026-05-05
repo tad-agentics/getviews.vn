@@ -151,7 +151,8 @@ def test_run_channel_analyze_thin_corpus_no_credit() -> None:
     """Below gate video count → thin_corpus; must not call decrement_credit."""
     user_sb = MagicMock()
     user_sb.table.return_value.select.return_value.single.return_value.execute.return_value = MagicMock(
-        data={"primary_niche": 1},
+        # creator_niche 9 (Business) → legacy 5 (Kinh doanh) representative.
+        data={"creator_niche_id": 9},
     )
     service_sb = MagicMock()
     with (

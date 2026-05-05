@@ -219,7 +219,7 @@ async def _resolve_caller_niche_id(access_token: str) -> int:
     try:
         res = (
             sb.table("profiles")
-            .select("primary_niche, creator_niche_id")
+            .select("creator_niche_id")
             .single()
             .execute()
         )
@@ -238,8 +238,7 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
     """Resolve the legacy niche_id for /home/* given an optional override.
 
     - ``requested`` is ``None``: use the caller's profile niche (resolved
-      via ``creator_niche_id`` → legacy mapping; falls back to
-      ``primary_niche``).
+      via ``creator_niche_id`` → legacy mapping).
     - Otherwise: must equal the resolved legacy niche_id. The Trends
       pill row lets users *browse* other niches; the home surfaces
       stay anchored to the user's own niche.
@@ -253,7 +252,7 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
     try:
         res = (
             sb.table("profiles")
-            .select("primary_niche, creator_niche_id")
+            .select("creator_niche_id")
             .single()
             .execute()
         )

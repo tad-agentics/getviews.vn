@@ -21,7 +21,6 @@ import { useProfile, type ProfileRow } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCreditTransactions } from "@/hooks/useCreditTransactions";
 import { useCreatorNiches } from "@/hooks/useCreatorNiches";
-import { legacyNicheIdForCreatorNiche } from "@/lib/profileNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import { useRegenerateRitual } from "@/hooks/useRegenerateRitual";
 import { useLogout } from "@/hooks/useLogout";
@@ -542,13 +541,9 @@ function NichePanel({
     if (pendingChange == null) return;
     const target = pendingChange;
     setPendingChange(null);
-    // Dual-write during the two-axis transition: new column is canonical;
-    // legacy column keeps Cloud Run /home/* working until PR5 pivots it.
+    // PR6: legacy primary_niche column dropped — write only the new column.
     updateMutation.mutate(
-      {
-        creator_niche_id: target,
-        primary_niche: legacyNicheIdForCreatorNiche(target),
-      },
+      { creator_niche_id: target },
       {
         onSuccess: () => {
           // Background regen so Home / Trends content rewrites without

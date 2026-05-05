@@ -78,7 +78,7 @@ const HomeScreen = (await import("./HomeScreen")).default;
 
 function setHooksDefaults() {
   mockUseProfile.mockReturnValue({
-    data: { id: "u", display_name: "An Do", primary_niche: 4 },
+    data: { id: "u", display_name: "An Do", creator_niche_id: 3 },
   });
   mockUseNicheTaxonomy.mockReturnValue({
     data: [{ id: 4, name: "Ẩm thực" }],
@@ -193,7 +193,7 @@ describe("HomeScreen", () => {
 
   it("falls back to 'Bạn' when display_name is empty", () => {
     mockUseProfile.mockReturnValue({
-      data: { id: "u", display_name: "", primary_niche: null },
+      data: { id: "u", display_name: "", creator_niche_id: null },
     });
     renderHome();
     const headline = screen
@@ -207,7 +207,7 @@ describe("HomeScreen", () => {
     // Default mock: useNicheRowsForIds returns []. Override to surface a
     // niche with a hot count matching the user's selected niche.
     mockUseProfile.mockReturnValue({
-      data: { id: "u", display_name: "An", primary_niche: 4, niche_ids: [4] },
+      data: { id: "u", display_name: "An", creator_niche_id: 3 },
     });
     mockUseNicheRowsForIds.mockReturnValue({
       data: [{ id: 4, name: "Ẩm thực", hot: 1240 }],
@@ -218,7 +218,7 @@ describe("HomeScreen", () => {
 
   it("hides the corpus count chip when the selected niche has hot = 0", () => {
     mockUseProfile.mockReturnValue({
-      data: { id: "u", display_name: "An", primary_niche: 4, niche_ids: [4] },
+      data: { id: "u", display_name: "An", creator_niche_id: 3 },
     });
     mockUseNicheRowsForIds.mockReturnValue({
       data: [{ id: 4, name: "Ẩm thực", hot: 0 }],

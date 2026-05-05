@@ -182,7 +182,7 @@ async def channel_refresh_mine_endpoint(
 
     try:
         pres = sb_user.table("profiles").select(
-            "tiktok_handle, primary_niche, creator_niche_id"
+            "tiktok_handle, creator_niche_id"
         ).single().execute()
     except Exception as exc:
         logger.warning("[channel/refresh-mine] profile read failed: %s", exc)
