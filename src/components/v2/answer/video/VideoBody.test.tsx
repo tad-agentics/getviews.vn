@@ -188,7 +188,27 @@ describe("VideoBody render", () => {
 
   it("renders the diagnosis strip in flop mode (with niche cohort)", () => {
     renderInRouter(makeFlopReport());
-    expect(screen.getByText(/So sánh với 30 video thắng/)).toBeTruthy();
+    expect(screen.getByText(/So sánh với 30 video thắng trong ngách/)).toBeTruthy();
+    expect(screen.getByText(/Ngách TB:/)).toBeTruthy();
+  });
+
+  it("flips diagnosis strip to 'cùng format' when benchmark_axis = content_class", () => {
+    // A.2.4 — when BE returns benchmark_axis="content_class" (sharper cohort
+    // from content_class_intelligence MV), labels switch from niche-wide
+    // copy to content-class copy so creators know the cohort is narrower.
+    const cc = makeFlopReport({
+      niche_meta: {
+        avg_views: 100_000,
+        avg_retention: 0.55,
+        avg_ctr: 0.04,
+        sample_size: 200,
+        winners_sample_size: 30,
+        benchmark_axis: "content_class",
+      },
+    });
+    renderInRouter(cc);
+    expect(screen.getByText(/So sánh với 30 video cùng format/)).toBeTruthy();
+    expect(screen.getByText(/Cùng format TB:/)).toBeTruthy();
   });
 
   it("renders 'Đang xây dựng pool' fallback when niche cohort < 10", () => {
