@@ -23,15 +23,13 @@ import {
 
 // Map ``AnswerTurnRow.kind`` → accent kicker copy. Continuation turns
 // only — primary turn renders a different header (QueryHeader at the
-// page level).
+// page level). Keys are turn kinds ("timing"|"creators"|"script"|"generic"),
+// not payload kinds — the payload kind switch is in ReportPayloadBody below.
 const TURN_KIND_LABEL: Record<string, string> = {
-  pattern: "ĐÀO SÂU",
-  ideas: "Ý TƯỞNG",
   timing: "THỜI ĐIỂM",
-  lifecycle: "VÒNG ĐỜI",
-  diagnostic: "CHẨN ĐOÁN",
+  creators: "NGƯỜI TẠO",
+  script: "KỊCH BẢN",
   generic: "ĐÀO SÂU",
-  video: "MỔ VIDEO",
 };
 
 function TurnMiniResearch() {
