@@ -146,3 +146,83 @@ def fetch_niche_intelligence_sync(sb: Any, niche_id: int) -> dict[str, Any] | No
         return None
     rows = res.data or []
     return rows[0] if rows and isinstance(rows[0], dict) else None
+
+
+# ── Two-axis A.2.3 (2026-05-15) — content_class benchmark fetch ─────────────────
+
+
+# Sample-size threshold for preferring content_class_intelligence over
+# niche_intelligence. content_class buckets are narrower so we want at
+# least N rows before switching axis. Below this floor, fall back to
+# niche-wide for stable benchmarks.
+CONTENT_CLASS_BENCHMARK_MIN_SAMPLE = 15
+
+
+def fetch_content_class_intelligence_sync(sb: Any, content_class_id: int) -> dict[str, Any] | None:
+    """Blocking fetch from ``content_class_intelligence`` MV.
+
+    Two-axis A.2.3 (2026-05-15) — parallel to ``fetch_niche_intelligence_sync``
+    but for the sharper (topic × format) axis introduced in A.2.1. Returns
+    ``None`` when MV row missing OR sample_size below the stability floor;
+    callers fall back to niche-scoped row.
+
+    Column shape mirrors the niche MV columns the FE meta consumer needs
+    (avg_views/median_er/sample_size/computed_at) plus median_views/
+    median_scene_count which are A.2.1-only additions.
+    """
+    if not content_class_id:
+        return None
+    try:
+        res = (
+            sb.table("content_class_intelligence")
+            .select(
+                "content_class_id,sample_size,avg_views,median_views,"
+                "median_er,avg_engagement_rate,median_scene_count,computed_at"
+            )
+            .eq("content_class_id", content_class_id)
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning(
+            "[niche_benchmark] select content_class=%s failed (acceptable "
+            "if migration 20260514000000 not yet applied): %s",
+            content_class_id, exc,
+        )
+        return None
+    rows = res.data or []
+    row = rows[0] if rows and isinstance(rows[0], dict) else None
+    if row is None:
+        return None
+    sample = _to_int(row.get("sample_size"), 0)
+    if sample < CONTENT_CLASS_BENCHMARK_MIN_SAMPLE:
+        # Too thin to back claims — caller falls back to niche-wide.
+        return None
+    return row
+
+
+def fetch_video_benchmark_with_axis(
+    sb: Any,
+    *,
+    niche_id: int,
+    content_class_id: int | None,
+) -> tuple[dict[str, Any] | None, str]:
+    """Pick the sharper benchmark row available, with axis label.
+
+    Tries ``content_class_intelligence`` first when ``content_class_id`` is
+    provided AND the row clears ``CONTENT_CLASS_BENCHMARK_MIN_SAMPLE``.
+    Falls back to ``niche_intelligence`` keyed on ``niche_id``.
+
+    Returns ``(row, axis)`` where ``axis`` is ``"content_class"`` or
+    ``"niche"`` (or ``"none"`` when both queries miss). The axis flows
+    through ``VideoNicheMeta`` so the FE can render
+    "vs N similar-format videos" vs "vs N videos in your niche".
+    """
+    if content_class_id is not None:
+        cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
+        if cc_row is not None:
+            return cc_row, "content_class"
+    if niche_id:
+        n_row = fetch_niche_intelligence_sync(sb, niche_id)
+        if n_row is not None:
+            return n_row, "niche"
+    return None, "none"

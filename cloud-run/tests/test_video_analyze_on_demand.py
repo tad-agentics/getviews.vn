@@ -293,6 +293,13 @@ def test_on_demand_picks_flop_when_below_niche_median() -> None:
     ), patch(
         "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
         return_value=niche_intel,
+    ), patch(
+        # A.2.3 — video_analyze now goes through the axis-orchestrator
+        # which prefers content_class_intelligence then falls back. Patch
+        # it to return the same legacy niche row so the test stays
+        # behaviour-compatible (axis="niche").
+        "getviews_pipeline.video_analyze.fetch_video_benchmark_with_axis",
+        return_value=(niche_intel, "niche"),
     ):
         out = run_video_analyze_on_demand(
             service_sb, user_sb, tiktok_url="https://www.tiktok.com/@x/video/1",
@@ -337,6 +344,13 @@ def test_on_demand_respects_explicit_mode_override() -> None:
     ), patch(
         "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
         return_value=niche_intel,
+    ), patch(
+        # A.2.3 — video_analyze now goes through the axis-orchestrator
+        # which prefers content_class_intelligence then falls back. Patch
+        # it to return the same legacy niche row so the test stays
+        # behaviour-compatible (axis="niche").
+        "getviews_pipeline.video_analyze.fetch_video_benchmark_with_axis",
+        return_value=(niche_intel, "niche"),
     ):
         out = run_video_analyze_on_demand(
             service_sb, user_sb,
