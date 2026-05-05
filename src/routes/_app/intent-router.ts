@@ -192,6 +192,14 @@ export function detectIntent(
     return { intentType: "own_flop_no_url", isFree: false, confidence: "medium" };
   }
 
+  // ── 0. BARE AWEME-ID (structural — EvidenceThumbs tile navigation) ─────────
+  // IdeaBlock passes the raw aweme_id (15-20 digits) via prefillUrl; no URL
+  // is present. build_video_report accepts bare ids and routes them through
+  // the corpus video_id lookup. Must precede the URL branch.
+  if (/^\d{15,20}$/.test(q)) {
+    return { intentType: "video_diagnosis", isFree: false, confidence: "high" };
+  }
+
   // ── 1. URL DETECTION (highest confidence — structural) ────────────────────
   if (/https?:\/\/[^\s]*tiktok\.com/i.test(q)) {
     const hasTiktokProfileUrl = /tiktok\.com\/@[^\s/]+(?:\/(?!video|photo)[^\s]*)?(?:\s|$)/i.test(q)

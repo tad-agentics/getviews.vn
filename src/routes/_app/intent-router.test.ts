@@ -77,6 +77,24 @@ describe("detectIntent — own_channel without a handle requires self-reference"
   });
 });
 
+describe("detectIntent — bare aweme_id (EvidenceThumbs tile)", () => {
+  it("video_diagnosis on bare 19-digit aweme_id", () => {
+    const r = detectIntent("7398542123456789012", false);
+    expect(r.intentType).toBe("video_diagnosis");
+    expect(r.confidence).toBe("high");
+  });
+
+  it("video_diagnosis on 15-digit aweme_id (lower bound)", () => {
+    const r = detectIntent("739854212345678", false);
+    expect(r.intentType).toBe("video_diagnosis");
+  });
+
+  it("does NOT match a short numeric string (not an aweme_id)", () => {
+    const r = detectIntent("12345", false);
+    expect(r.intentType).not.toBe("video_diagnosis");
+  });
+});
+
 describe("detectIntent — URL branches unchanged", () => {
   it("video_diagnosis on tiktok video URL", () => {
     const r = detectIntent(

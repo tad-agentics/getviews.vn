@@ -10,11 +10,10 @@ the ``VideoAnalyzeResponse``-shaped dict; ``answer_session`` then
 hands it to ``validate_and_store_report("video", ...)`` to land in
 ``answer_turns.payload`` as a ``ReportV1`` envelope.
 
-PR-2 ships dark — the composer still redirects URL pastes to
-``/app/video``, so this builder is unreachable in production until
-PR-3 flips ``INTENT_DESTINATIONS.video_diagnosis``. Tests exercise
-it directly by calling ``build_video_report`` so the dark code
-isn't unverified.
+Also handles bare aweme_ids passed from ``EvidenceThumbs`` (IdeaBlock):
+``detect_intent`` classifies a bare 15-20 digit string as
+``video_diagnosis`` so ``answer_session`` routes here; ``extract_aweme_id``
+picks up the id and routes to the corpus path.
 """
 
 from __future__ import annotations
