@@ -20,7 +20,8 @@ import { useAuth } from "@/lib/auth";
 import { useProfile, type ProfileRow } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCreditTransactions } from "@/hooks/useCreditTransactions";
-import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useCreatorNiches } from "@/hooks/useCreatorNiches";
+import { legacyNicheIdForCreatorNiche } from "@/lib/profileNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
 import { useRegenerateRitual } from "@/hooks/useRegenerateRitual";
 import { useLogout } from "@/hooks/useLogout";
@@ -518,7 +519,11 @@ function NichePanel({
   updateProfile: ProfileUpdateMutation;
 }) {
   const regenerate = useRegenerateRitual();
-  const serverSelectedId = profile?.primary_niche ?? null;
+  // Two-axis refactor PR4: read creator_niche_id (new column). Fallback to
+  // primary_niche only for the brief deploy window where a profile may
+  // have been backfilled but FE picker hasn't run yet.
+  const serverSelectedId =
+    profile?.creator_niche_id ?? null;
   const [pendingChange, setPendingChange] = useState<number | null>(null);
 
   const handleSelect = useCallback(
@@ -537,8 +542,13 @@ function NichePanel({
     if (pendingChange == null) return;
     const target = pendingChange;
     setPendingChange(null);
+    // Dual-write during the two-axis transition: new column is canonical;
+    // legacy column keeps Cloud Run /home/* working until PR5 pivots it.
     updateMutation.mutate(
-      { primary_niche: target },
+      {
+        creator_niche_id: target,
+        primary_niche: legacyNicheIdForCreatorNiche(target),
+      },
       {
         onSuccess: () => {
           // Background regen so Home / Trends content rewrites without
@@ -836,7 +846,7 @@ export default function SettingsScreen() {
   const { data: profile, isPending: profileLoading, isError: profileError, refetch } = useProfile();
   const { data: subscription } = useSubscription();
   const { data: transactions, isPending: txLoading } = useCreditTransactions(20);
-  const { data: niches, isPending: nicheLoading } = useNicheTaxonomy();
+  const { data: niches, isPending: nicheLoading } = useCreatorNiches();
   const updateProfileMutation = useUpdateProfile();
   const logout = useLogout();
 

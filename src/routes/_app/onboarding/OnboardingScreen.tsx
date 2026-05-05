@@ -1,18 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Btn } from "@/components/v2/Btn";
 import { useProfile } from "@/hooks/useProfile";
-import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
-import { useTopNiches } from "@/hooks/useTopNiches";
+import { useCreatorNiches, type CreatorNiche } from "@/hooks/useCreatorNiches";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
-import { profileFirstNicheId, profileHasNiche } from "@/lib/profileNiches";
+import { legacyNicheIdForCreatorNiche, profileHasNiche } from "@/lib/profileNiches";
 
 /**
- * Onboarding — single-step single-niche pick (BƯỚC 01 / 01). The 2026-05-05
- * single-niche refactor collapsed multi-niche follow lists down to one. The
- * Trends page still lets users browse other niches via pills, but Home,
- * flop baselines, and KPI dashboards anchor to this one pick.
+ * Onboarding — single-step single-niche pick (BƯỚC 01 / 01).
+ *
+ * Two-axis refactor PR4 (2026-05-10): picker now reads ``creator_niches``
+ * (14 UX-facing buckets) instead of the legacy ``niche_taxonomy``. Save
+ * dual-writes ``creator_niche_id`` (new canonical) AND ``primary_niche``
+ * (legacy, via ``legacyNicheIdForCreatorNiche``) so Cloud Run /home/*
+ * endpoints (still on primary_niche pre-PR5) keep working through the
+ * transition.
  */
 
 export default function OnboardingScreen() {
@@ -20,22 +23,14 @@ export default function OnboardingScreen() {
   const { data: profile, isPending: profilePending } = useProfile();
   const save = useUpdateProfile();
   const {
-    data: taxonomy,
-    isPending: taxonomyPending,
-    isError: taxonomyError,
-    refetch: refetchTaxonomy,
-  } = useNicheTaxonomy();
+    data: niches,
+    isPending: nichesPending,
+    isError: nichesError,
+    refetch: refetchNiches,
+  } = useCreatorNiches();
 
   const [pendingNiche, setPendingNiche] = useState<number | null>(null);
   const didInitFromProfile = useRef(false);
-
-  const { data: topNiches } = useTopNiches(pendingNiche ?? profileFirstNicheId(profile), "all");
-
-  const niches = useMemo(() => {
-    const hotBy = new Map<number, number>();
-    for (const n of topNiches ?? []) hotBy.set(n.id, n.hot);
-    return (taxonomy ?? []).map((t) => ({ id: t.id, name: t.name, hot: hotBy.get(t.id) ?? 0 }));
-  }, [taxonomy, topNiches]);
 
   useEffect(() => {
     if (profilePending) return;
@@ -52,7 +47,13 @@ export default function OnboardingScreen() {
 
   const finish = async () => {
     if (!canAdvance) return;
-    await save.mutateAsync({ primary_niche: pendingNiche });
+    // Dual-write during the two-axis transition: new column is the
+    // canonical UX identity; legacy column keeps Cloud Run /home/*
+    // working until PR5 pivots its reads to creator_niche_id.
+    await save.mutateAsync({
+      creator_niche_id: pendingNiche,
+      primary_niche: legacyNicheIdForCreatorNiche(pendingNiche),
+    });
     navigate("/app", { replace: true });
   };
 
@@ -104,18 +105,18 @@ export default function OnboardingScreen() {
       {/* Right column — form */}
       <section className="flex flex-1 flex-col justify-center px-6 py-12 md:px-[60px] md:py-[60px]">
         <div className="w-full max-w-[640px] mx-auto">
-          {taxonomyError ? (
+          {nichesError ? (
             <div className="rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5 text-center">
               <p className="mb-4 text-sm text-[color:var(--gv-ink-3)]">
                 Không tải được danh sách ngách.
               </p>
-              <Btn type="button" variant="ink" size="sm" onClick={() => void refetchTaxonomy()}>
+              <Btn type="button" variant="ink" size="sm" onClick={() => void refetchNiches()}>
                 Thử lại
               </Btn>
             </div>
-          ) : taxonomyPending ? (
+          ) : nichesPending ? (
             <p className="text-sm text-[color:var(--gv-ink-4)]">Đang tải danh sách ngách…</p>
-          ) : niches.length === 0 ? (
+          ) : !niches || niches.length === 0 ? (
             <p className="text-sm text-[color:var(--gv-ink-3)]">
               Chưa có ngách trong hệ thống. Liên hệ hỗ trợ.
             </p>
@@ -162,7 +163,7 @@ function NicheGrid({
   disabled,
   onSelect,
 }: {
-  niches: ReadonlyArray<{ id: number; name: string; hot: number }>;
+  niches: ReadonlyArray<CreatorNiche>;
   selectedId: number | null;
   disabled: boolean;
   onSelect: (id: number) => void;
@@ -196,17 +197,17 @@ function NicheGrid({
               disabled={disabled}
               onClick={() => onSelect(n.id)}
               className={
-                "flex items-center justify-between gap-3 rounded-[8px] px-4 py-3.5 text-left text-sm transition-colors " +
+                "flex items-start justify-between gap-3 rounded-[8px] px-4 py-3.5 text-left text-sm transition-colors " +
                 (selected
                   ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)] border border-[color:var(--gv-ink)]"
                   : "bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink-4)]")
               }
             >
-              <span className="flex items-center gap-2.5 min-w-0">
+              <span className="flex items-start gap-2.5 min-w-0">
                 <span
                   aria-hidden="true"
                   className={
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border " +
+                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border " +
                     (selected
                       ? "border-[color:var(--gv-canvas)] bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]"
                       : "border-[color:var(--gv-ink-3)] bg-transparent text-transparent")
@@ -214,15 +215,19 @@ function NicheGrid({
                 >
                   {selected ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
                 </span>
-                <span className="truncate">{n.name}</span>
-              </span>
-              <span
-                className={
-                  "gv-mono text-[10px] shrink-0 " +
-                  (selected ? "opacity-60" : "text-[color:var(--gv-ink-4)]")
-                }
-              >
-                {n.hot} video
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{n.name}</span>
+                  {n.description ? (
+                    <span
+                      className={
+                        "mt-0.5 block text-[11px] leading-snug " +
+                        (selected ? "opacity-70" : "text-[color:var(--gv-ink-4)]")
+                      }
+                    >
+                      {n.description}
+                    </span>
+                  ) : null}
+                </span>
               </span>
             </button>
           );
