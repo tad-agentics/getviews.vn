@@ -165,7 +165,7 @@ export default function ChannelScreen() {
                     if (handleError) setHandleError(null);
                   }}
                   placeholder="@creator hoặc creator"
-                  className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
+                  className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-[16px] text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)] sm:text-sm"
                   autoComplete="off"
                   aria-invalid={handleError ? true : undefined}
                 />

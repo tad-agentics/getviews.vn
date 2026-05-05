@@ -111,7 +111,7 @@ export const DouyinToolbar = memo(function DouyinToolbar({
         <select
           value={filters.sort}
           onChange={(e) => setSort(e.target.value as DouyinSortKey)}
-          className="h-8 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[12px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)]"
+          className="h-11 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 text-[16px] text-[color:var(--gv-ink)] outline-none transition-colors hover:border-[color:var(--gv-ink-4)] sm:h-8 sm:text-[12px]"
           aria-label="Sắp xếp video"
         >
           {SORT_OPTIONS.map((opt) => (

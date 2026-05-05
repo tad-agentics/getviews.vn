@@ -36,8 +36,9 @@ export function TimingHeatmap({
       <p className="gv-mono mb-[10px] text-[10px] uppercase tracking-wide text-[color:var(--gv-accent)] font-semibold">
         Heatmap · 7 ngày × 8 khung giờ
       </p>
+      <div className="overflow-x-auto">
       <div
-        className="grid gap-[3px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[10px]"
+        className="grid min-w-[580px] gap-[3px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[10px]"
         style={{ gridTemplateColumns: "28px repeat(8, minmax(0, 1fr))" }}
       >
         <div />
@@ -57,6 +58,7 @@ export function TimingHeatmap({
             maskBelowFive={maskBelowFive}
           />
         ))}
+      </div>
       </div>
       <div className="mt-[10px] flex items-center gap-3 text-[10px]">
         <span className="gv-mono text-[color:var(--gv-ink-4)]">Thấp</span>

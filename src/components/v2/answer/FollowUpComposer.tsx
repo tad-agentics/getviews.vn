@@ -3,7 +3,7 @@ import { Sparkles } from "lucide-react";
 import { QueryComposer } from "@/components/v2/QueryComposer";
 
 const FOLLOW_UP_PILL =
-  "inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-[11px] font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-left text-[11px] font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] disabled:pointer-events-none disabled:opacity-40";
 
 const DEFAULT_FOLLOW_UPS = [
   "Thời điểm đăng nào tốt nhất cho các hook này?",
