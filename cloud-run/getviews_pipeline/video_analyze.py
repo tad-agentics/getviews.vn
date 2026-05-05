@@ -357,6 +357,7 @@ def _response_from_diagnostics_row(
     retention_user: list[dict[str, float]],
     niche_label: str,
     retention_source: Literal["real", "modeled"] = "modeled",
+    cross_format_signal: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     analysis = video.get("analysis_json") or {}
     if isinstance(analysis, str):
@@ -403,6 +404,9 @@ def _response_from_diagnostics_row(
         "retention_curve": ret_curve,
         "niche_benchmark_curve": bench_curve,
         "niche_meta": niche_meta,
+        # A.1 — cross-niche format insight (null when format is single-niche
+        # or sample is too thin; FE renders only when present).
+        "cross_format_signal": cross_format_signal,
     }
 
 
@@ -754,6 +758,13 @@ def run_video_analyze_pipeline(
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
         user_sb, niche_id=niche_id, content_class_id=content_class_id,
     )
+    # A.1 — cross-niche format signal. Cheap read; returns None when
+    # format is single-niche or sample is too thin so the FE renders
+    # only when meaningful.
+    from getviews_pipeline.cross_format import get_cross_format_signal
+    cross_format_signal = get_cross_format_signal(
+        user_sb, content_class_id=content_class_id,
+    )
     default_niche_meta = {
         "avg_views": 0,
         "avg_retention": 0.5,
@@ -828,6 +839,7 @@ def run_video_analyze_pipeline(
             retention_user=retention_user,
             niche_label=niche_label_resolved,
             retention_source=retention_source,
+            cross_format_signal=cross_format_signal,
         )
         return _merge_sidecars_into_response(
             base,
@@ -906,6 +918,7 @@ def run_video_analyze_pipeline(
         retention_user=retention_user,
         niche_label=niche_label_resolved,
         retention_source=retention_source,
+        cross_format_signal=cross_format_signal,
     )
     if projected is not None:
         out["projected_views"] = projected
@@ -1060,6 +1073,13 @@ def run_video_analyze_on_demand(
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
         user_sb, niche_id=niche_id, content_class_id=content_class_id,
     )
+    # A.1 — cross-niche format signal. Cheap read; returns None when
+    # format is single-niche or sample is too thin so the FE renders
+    # only when meaningful.
+    from getviews_pipeline.cross_format import get_cross_format_signal
+    cross_format_signal = get_cross_format_signal(
+        user_sb, content_class_id=content_class_id,
+    )
     default_niche_meta = {
         "avg_views": 0,
         "avg_retention": 0.5,
@@ -1155,6 +1175,7 @@ def run_video_analyze_on_demand(
         retention_user=retention_user,
         niche_label=niche_label_resolved,
         retention_source=retention_source,
+        cross_format_signal=cross_format_signal,
     )
     if projected is not None:
         out["projected_views"] = projected
