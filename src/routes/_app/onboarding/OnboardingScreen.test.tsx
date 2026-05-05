@@ -34,35 +34,27 @@ vi.mock("react-router", async () => {
 
 const mockUseProfile = vi.fn();
 const mockUseUpdateProfile = vi.fn();
-const mockUseNicheTaxonomy = vi.fn();
-const mockUseTopNiches = vi.fn();
+const mockUseCreatorNiches = vi.fn();
 
 vi.mock("@/hooks/useProfile", () => ({ useProfile: () => mockUseProfile() }));
 vi.mock("@/hooks/useUpdateProfile", () => ({
   useUpdateProfile: () => mockUseUpdateProfile(),
 }));
-vi.mock("@/hooks/useNicheTaxonomy", () => ({
-  useNicheTaxonomy: () => mockUseNicheTaxonomy(),
-}));
-vi.mock("@/hooks/useTopNiches", () => ({
-  useTopNiches: () => mockUseTopNiches(),
+vi.mock("@/hooks/useCreatorNiches", () => ({
+  useCreatorNiches: () => mockUseCreatorNiches(),
 }));
 
 const OnboardingScreen = (await import("./OnboardingScreen")).default;
 
-const TAXONOMY = [
-  { id: 1, name: "Ẩm thực" },
-  { id: 2, name: "Beauty" },
-  { id: 3, name: "Tech" },
-  { id: 4, name: "Du lịch" },
-  { id: 5, name: "Tài chính" },
+// Mirrors the seeded creator_niches in
+// 20260510000000_two_axis_niche_pr1_schema.sql for the picker.
+const CREATOR_NICHES = [
+  { id: 1, slug: "beauty", name: "Làm đẹp · Skincare", description: "Skincare routine, makeup, review.", display_order: 10 },
+  { id: 3, slug: "food", name: "Ẩm thực · Ăn uống", description: "Review quán, công thức, ăn vặt.", display_order: 30 },
+  { id: 8, slug: "tech_gaming", name: "Công nghệ · Gaming", description: "Review gadget, gameplay.", display_order: 80 },
+  { id: 11, slug: "travel", name: "Du lịch · Thể thao", description: "Du lịch, marathon, trekking.", display_order: 110 },
+  { id: 9, slug: "business", name: "Kinh doanh · Tài chính", description: "Affiliate, đầu tư, BĐS.", display_order: 90 },
 ];
-
-const TOP_NICHES = TAXONOMY.map((t, i) => ({
-  id: t.id,
-  name: t.name,
-  hot: 1000 - i * 100,
-}));
 
 const mutateAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -74,24 +66,23 @@ beforeEach(() => {
     isPending: false,
   });
   mockUseUpdateProfile.mockReturnValue({ mutateAsync, isPending: false });
-  mockUseNicheTaxonomy.mockReturnValue({
-    data: TAXONOMY,
+  mockUseCreatorNiches.mockReturnValue({
+    data: CREATOR_NICHES,
     isPending: false,
     isError: false,
     refetch: vi.fn(),
   });
-  mockUseTopNiches.mockReturnValue({ data: TOP_NICHES });
 });
 
 afterEach(() => {
   cleanup();
 });
 
-describe("OnboardingScreen — single niche pick", () => {
-  it("renders niche radio grid with video counts", () => {
+describe("OnboardingScreen — single creator-niche pick", () => {
+  it("renders creator-niche radio grid with descriptions", () => {
     render(<OnboardingScreen />);
-    expect(screen.getByRole("radio", { name: /Ẩm thực/ })).toBeTruthy();
-    expect(screen.getByText("1000 video")).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /Ẩm thực · Ăn uống/ })).toBeTruthy();
+    expect(screen.getByText(/Skincare routine/)).toBeTruthy();
     expect(screen.getByText(/chưa chọn/)).toBeTruthy();
   });
 
@@ -100,29 +91,33 @@ describe("OnboardingScreen — single niche pick", () => {
     const cta = screen.getByRole("button", { name: /Vào Creator Studio/ }) as HTMLButtonElement;
     expect(cta.disabled).toBe(true);
 
-    fireEvent.click(screen.getByRole("radio", { name: /Ẩm thực/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Ẩm thực · Ăn uống/ }));
     expect(cta.disabled).toBe(false);
     expect(screen.getByText(/đã chọn/)).toBeTruthy();
   });
 
   it("selecting a different niche replaces the previous pick", () => {
     render(<OnboardingScreen />);
-    fireEvent.click(screen.getByRole("radio", { name: /Ẩm thực/ }));
-    fireEvent.click(screen.getByRole("radio", { name: /Beauty/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Ẩm thực · Ăn uống/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Làm đẹp · Skincare/ }));
 
-    const amthuc = screen.getByRole("radio", { name: /Ẩm thực/ });
-    const beauty = screen.getByRole("radio", { name: /Beauty/ });
-    expect(amthuc.getAttribute("aria-checked")).toBe("false");
+    const food = screen.getByRole("radio", { name: /Ẩm thực · Ăn uống/ });
+    const beauty = screen.getByRole("radio", { name: /Làm đẹp · Skincare/ });
+    expect(food.getAttribute("aria-checked")).toBe("false");
     expect(beauty.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("primary CTA writes primary_niche + navigates to /app", async () => {
+  it("primary CTA dual-writes creator_niche_id + legacy primary_niche, then navigates", async () => {
     render(<OnboardingScreen />);
-    fireEvent.click(screen.getByRole("radio", { name: /Tech/ }));
+    // creator_niche_id 8 (tech_gaming) → legacy primary_niche 9 (Tech)
+    fireEvent.click(screen.getByRole("radio", { name: /Công nghệ · Gaming/ }));
     fireEvent.click(screen.getByRole("button", { name: /Vào Creator Studio/ }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
-    expect(mutateAsync).toHaveBeenCalledWith({ primary_niche: 3 });
+    expect(mutateAsync).toHaveBeenCalledWith({
+      creator_niche_id: 8,
+      primary_niche: 9,
+    });
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true }),
     );
@@ -135,18 +130,27 @@ describe("OnboardingScreen — single niche pick", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true });
   });
 
-  it("bounces already-onboarded profiles straight to /app", () => {
+  it("bounces already-onboarded profiles (creator_niche_id set) straight to /app", () => {
     mockUseProfile.mockReturnValue({
-      data: { primary_niche: 1 },
+      data: { primary_niche: null, creator_niche_id: 1 },
       isPending: false,
     });
     render(<OnboardingScreen />);
     expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true });
   });
 
-  it("shows error state with retry when taxonomy fetch fails", () => {
+  it("bounces already-onboarded legacy profiles (primary_niche only) to /app", () => {
+    mockUseProfile.mockReturnValue({
+      data: { primary_niche: 4, creator_niche_id: null },
+      isPending: false,
+    });
+    render(<OnboardingScreen />);
+    expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true });
+  });
+
+  it("shows error state with retry when niches fetch fails", () => {
     const refetch = vi.fn();
-    mockUseNicheTaxonomy.mockReturnValue({
+    mockUseCreatorNiches.mockReturnValue({
       data: undefined,
       isPending: false,
       isError: true,

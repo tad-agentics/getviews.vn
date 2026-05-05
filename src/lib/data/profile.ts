@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase";
 export interface ProfilePatch {
   /** Single niche per user (PR1 of single-niche refactor — niche_ids array dropped). */
   primary_niche?: number | null;
+  /** Two-axis refactor PR3: UX-facing creator_niches FK. PR4 dual-writes both columns. */
+  creator_niche_id?: number | null;
   // profiles.niche_id was dropped in migration 0017 — do NOT add it back.
   tiktok_handle?: string | null;
   display_name?: string;
