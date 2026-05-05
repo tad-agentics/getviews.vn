@@ -141,20 +141,30 @@ describe("ContinuationTurn payload dispatch", () => {
     expect(screen.getByTestId("video-body")).toBeTruthy();
   });
 
-  it("uses 'MỔ VIDEO · LƯỢT NN' divider label for video continuation turns", () => {
-    // The TURN_KIND_LABEL map drives the accent kicker on the divider
-    // header (rendered above the body for non-primary turns). Pinning
-    // the label so adding new intents doesn't accidentally drop the
-    // video case.
+  it("uses 'NGƯỜI TẠO · LƯỢT NN' divider label for creators continuation turns", () => {
+    // TURN_KIND_LABEL is keyed by AnswerTurnRow.kind (turn kinds), not
+    // payload kinds. "creators" maps to "NGƯỜI TẠO".
     render(
       <ContinuationTurn
         turn={mkTurn(
-          { kind: "video", report: {} },
-          { kind: "video", turn_index: 1 },
+          { kind: "generic", report: {} },
+          { kind: "creators", turn_index: 1 },
         )}
       />,
     );
-    expect(screen.getByText(/MỔ VIDEO · LƯỢT 02/)).toBeTruthy();
+    expect(screen.getByText(/NGƯỜI TẠO · LƯỢT 02/)).toBeTruthy();
+  });
+
+  it("uses 'KỊCH BẢN · LƯỢT NN' divider label for script continuation turns", () => {
+    render(
+      <ContinuationTurn
+        turn={mkTurn(
+          { kind: "ideas", report: {} },
+          { kind: "script", turn_index: 1 },
+        )}
+      />,
+    );
+    expect(screen.getByText(/KỊCH BẢN · LƯỢT 02/)).toBeTruthy();
   });
 
   it("renders UnknownPayloadSurface with payload JSON when kind is unrecognized", () => {

@@ -585,11 +585,6 @@ export default function AnswerScreen() {
                 >
                   {heroQuestion}
                 </h1>
-                {detailQuery.data?.session?.intent_type ? (
-                  <p className="mt-2 gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
-                    {detailQuery.data.session.format} · {detailQuery.data.session.intent_type}
-                  </p>
-                ) : null}
                 <ResearchProcessBar
                   loading={loading}
                   stage={researchStage}
