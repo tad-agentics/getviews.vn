@@ -88,7 +88,7 @@ const testimonials = [
   {
     initials: "LH",
     handle: "@linhbeauty.vn",
-    niche: "Làm đẹp / Skincare",
+    niche: "Làm đẹp · Skincare",
     followers: "~120K",
     quote:
       "Trước đây toàn phải screenshot thủ công rồi quên sạch. Giờ chỉ cần hỏi \"hook nào hot tuần này\" — AI lọc ra luôn 5 mẫu đang viral nhất, kèm link video gốc để học theo.",
@@ -131,7 +131,7 @@ const painPoints = [
 ];
 
 const nicheList = [
-  "Thời trang / Outfit", "Làm đẹp / Skincare", "Review đồ Shopee",
+  "Thời trang / Outfit", "Làm đẹp · Skincare", "Review đồ Shopee",
   "Ẩm thực & Ăn uống", "Mẹ bỉm sữa",
   "Gym / Fitness & Sức khoẻ", "Thể thao & Ngoài trời", "Gaming",
   "Công nghệ / Tech", "EduTok VN", "Tài chính / Đầu tư",

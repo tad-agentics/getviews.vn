@@ -54,7 +54,8 @@ describe("profileNiches (two-axis model since PR6)", () => {
     expect(canonicalNicheTaxonomyId(7)).toBe(7);
   });
 
-  it("resolveNicheNameVn pins overridden labels for ids 3 + 4", () => {
+  it("resolveNicheNameVn pins overridden labels for ids 2–4 (taxonomy ↔ creator copy)", () => {
+    expect(resolveNicheNameVn(2, "Làm đẹp / Skincare")).toBe("Làm đẹp · Skincare");
     expect(resolveNicheNameVn(4, "Review đồ ăn / F&B")).toBe("Ẩm thực & Ăn uống");
     expect(resolveNicheNameVn(3, "Thời trang / Outfit")).toBe("Thời trang Phụ kiện");
     // No override → DB value passes through.

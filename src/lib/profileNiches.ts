@@ -24,6 +24,8 @@ export function canonicalNicheTaxonomyId(id: number): number {
  * Keys must stay aligned with `niche_taxonomy` UPDATEs in merge migrations.
  */
 const NICHE_TAXONOMY_NAME_VN_BY_ID: Readonly<Partial<Record<number, string>>> = {
+  /** Corpus row id=2 — align label with ``creator_niches`` id=1 (PR1 middle dot, not slash). */
+  2: "Làm đẹp · Skincare",
   3: "Thời trang Phụ kiện",
   4: "Ẩm thực & Ăn uống",
 };

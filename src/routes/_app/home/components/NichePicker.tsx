@@ -78,14 +78,14 @@ export const NichePicker = memo(function NichePicker({
   if (niches.length <= 1) {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 gv-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink)]"
+        className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-[13px] font-medium text-[color:var(--gv-ink)]"
         aria-label="Ngách đang theo dõi"
       >
         <span
-          className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--gv-accent)]"
+          className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-accent)]"
           aria-hidden
         />
-        {current.name}
+        <span className="min-w-0 truncate">{current.name}</span>
       </span>
     );
   }
