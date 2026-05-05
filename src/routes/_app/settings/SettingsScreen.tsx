@@ -526,11 +526,9 @@ function NichePanel({
   updateProfile: ProfileUpdateMutation;
 }) {
   const serverSelected = useMemo(() => {
-    const ids = profile?.niche_ids;
-    if (Array.isArray(ids) && ids.length > 0) return normalizeNicheIdsForProfile(ids);
     if (profile?.primary_niche != null) return normalizeNicheIdsForProfile([profile.primary_niche]);
     return [];
-  }, [profile?.niche_ids, profile?.primary_niche]);
+  }, [profile?.primary_niche]);
 
   const serverKey = useMemo(() => serverSelected.join(","), [serverSelected]);
 
@@ -555,8 +553,10 @@ function NichePanel({
       const next = normalizeNicheIds(Array.from(set));
       if (next.length >= MIN_CREATOR_NICHES) {
         setDraft(next);
+        // PR1 of single-niche refactor: collapses multi-select to first pick.
+        // Multi-select UI → single radio + auto-regen wiring lands in PR3.
         updateMutation.mutate(
-          { niche_ids: next },
+          { primary_niche: next[0] ?? null },
           { onError: (err) => toastProfilePatchError(err) },
         );
       } else {

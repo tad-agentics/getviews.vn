@@ -65,13 +65,9 @@ function NicheOfYoursBlock() {
   const { data: profile } = useProfile();
 
   const sidebarIds = useMemo(() => {
-    const raw = profile?.niche_ids;
-    if (Array.isArray(raw) && raw.length > 0) {
-      return normalizeNicheIds(raw).slice(0, 3);
-    }
     if (profile?.primary_niche != null) return [profile.primary_niche];
     return [];
-  }, [profile?.niche_ids, profile?.primary_niche]);
+  }, [profile?.primary_niche]);
 
   const { data: niches = [], isPending } = useNicheRowsForIds(sidebarIds.length ? sidebarIds : null);
 
