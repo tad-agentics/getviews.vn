@@ -111,6 +111,34 @@ export interface VideoNicheBenchmarkResponse {
 }
 
 /** Response body for `POST /video/analyze`. */
+/**
+ * A.1 — cross-niche format signal.
+ *
+ * When the user's video has a recognised ``content_class_id``, the BE
+ * looks at how the same ``format_axis`` (e.g. "pov_storytelling",
+ * "tutorial", "review_unboxing") is performing across other niches in
+ * the last 30 days. This surfaces "your format is rising in 5 niches —
+ * here are the top hooks others are using" type insight that the
+ * niche-only diagnosis can't see.
+ *
+ * Returned only when ``niches_with_format >= 3`` (cross-niche
+ * meaningful) AND ``sample_size >= 20`` total — below that it's not
+ * a "trend", it's noise.
+ */
+export interface CrossFormatHook {
+  hook_type: string;
+  avg_views: number;
+  niche_spread: number;
+}
+
+export interface CrossFormatSignal {
+  format_axis: string;
+  format_label_vi: string;
+  niches_with_format: number;
+  total_sample_size: number;
+  top_hooks: CrossFormatHook[];
+}
+
 export interface VideoAnalyzeResponse {
   video_id: string;
   mode: VideoAnalyzeMode;
@@ -132,6 +160,8 @@ export interface VideoAnalyzeResponse {
   thumbnail_analysis?: ThumbnailAnalysisData | null;
   /** Comment sentiment + purchase intent; null when sparse / fetch miss. */
   comment_radar?: CommentRadarData | null;
+  /** A.1 cross-niche format signal; null when niches_with_format < 3. */
+  cross_format_signal?: CrossFormatSignal | null;
 }
 
 export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";
