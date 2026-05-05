@@ -18,6 +18,7 @@ from unittest.mock import MagicMock
 from getviews_pipeline.hook_effectiveness_compute import (
     SAMPLE_FLOOR,
     _compute_buckets,
+    _compute_content_class_buckets,
     _trend_direction,
     run_hook_effectiveness,
 )
@@ -26,6 +27,7 @@ from getviews_pipeline.hook_effectiveness_compute import (
 def _video(
     *,
     niche_id: int = 1,
+    content_class_id: int | None = None,
     hook_type: str = "question",
     views: int = 1000,
     engagement_rate: float | None = 0.05,
@@ -33,6 +35,7 @@ def _video(
 ) -> dict[str, Any]:
     return {
         "niche_id": niche_id,
+        "content_class_id": content_class_id,
         "hook_type": hook_type,
         "views": views,
         "engagement_rate": engagement_rate,
@@ -139,6 +142,51 @@ def test_multiple_niches_and_hooks_separately_bucketed() -> None:
     assert buckets[(1, "question")]["avg_views"] == 1000
     assert buckets[(1, "shock_stat")]["avg_views"] == 5000
     assert buckets[(2, "question")]["avg_views"] == 500
+
+
+# ── _compute_content_class_buckets (A.2.2 content_class scoped) ──────────
+
+
+def test_content_class_buckets_grouped_by_content_class_and_hook() -> None:
+    """A.2.2: group rows by ``(content_class_id, hook_type)`` instead of niche.
+
+    Two rows with the same content_class + hook should aggregate; rows
+    with different content_class stay separate even if same niche.
+    """
+    rows = (
+        [_video(content_class_id=11, hook_type="pov", views=1000) for _ in range(3)]
+        + [_video(content_class_id=11, hook_type="pov", views=2000) for _ in range(3)]
+        + [_video(content_class_id=13, hook_type="pov", views=500) for _ in range(3)]
+    )
+    buckets = _compute_content_class_buckets(rows)
+    assert (11, "pov") in buckets
+    assert (13, "pov") in buckets
+    # 6 videos in (11, pov) — 3 at 1000 + 3 at 2000
+    assert buckets[(11, "pov")]["sample_size"] == 6
+    assert buckets[(11, "pov")]["avg_views"] == 1500
+    assert buckets[(13, "pov")]["sample_size"] == 3
+
+
+def test_content_class_buckets_skip_null_content_class_rows() -> None:
+    """A.2.2: rows with content_class_id IS NULL (pre-PR2 backfill or
+    new niches without classified content) are dropped from the
+    content_class aggregate. They still feed the niche-scoped path."""
+    rows = (
+        [_video(content_class_id=None, hook_type="pov") for _ in range(3)]
+        + [_video(content_class_id=11, hook_type="pov") for _ in range(3)]
+    )
+    buckets = _compute_content_class_buckets(rows)
+    # No (None, "pov") bucket; only (11, "pov").
+    assert all(k[0] is not None for k in buckets.keys())
+    assert (11, "pov") in buckets
+    assert buckets[(11, "pov")]["sample_size"] == 3
+
+
+def test_content_class_buckets_respect_sample_floor() -> None:
+    """SAMPLE_FLOOR applies symmetrically to content_class buckets."""
+    rows = [_video(content_class_id=11, hook_type="rare") for _ in range(SAMPLE_FLOOR - 1)]
+    buckets = _compute_content_class_buckets(rows)
+    assert (11, "rare") not in buckets
 
 
 # ── _trend_direction ──────────────────────────────────────────────────────

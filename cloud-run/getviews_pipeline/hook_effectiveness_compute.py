@@ -70,7 +70,7 @@ def _fetch_corpus_window(
     """Pull the rows needed for aggregation — narrow column list."""
     q = (
         client.table("video_corpus")
-        .select("niche_id, hook_type, views, engagement_rate, save_rate, indexed_at")
+        .select("niche_id, content_class_id, hook_type, views, engagement_rate, save_rate, indexed_at")
         .not_.is_("hook_type", None)
         .gte("indexed_at", since.isoformat())
     )
@@ -85,13 +85,32 @@ def _fetch_corpus_window(
     ]
 
 
+def _bucket_metrics(bucket_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Compute avg_views / avg_engagement_rate / avg_completion_rate for one bucket.
+
+    Returns None when the bucket has zero usable views (every row had
+    views=0 — no point storing the row).
+    """
+    views = [float(r.get("views") or 0) for r in bucket_rows if (r.get("views") or 0) > 0]
+    er = [float(r["engagement_rate"]) for r in bucket_rows if r.get("engagement_rate") is not None]
+    sr = [float(r["save_rate"]) for r in bucket_rows if r.get("save_rate") is not None]
+
+    avg_views_val = _mean(views)
+    if avg_views_val is None:
+        return None
+
+    return {
+        "avg_views": int(round(avg_views_val)),
+        "avg_engagement_rate": round(_mean(er), 6) if er else None,
+        "avg_completion_rate": round(_mean(sr), 6) if sr else None,
+        "sample_size": len(bucket_rows),
+    }
+
+
 def _compute_buckets(rows: list[dict[str, Any]]) -> dict[tuple[int, str], dict[str, Any]]:
     """Group rows by ``(niche_id, hook_type)`` and compute averages.
 
     Returns one entry per bucket with ``sample_size >= SAMPLE_FLOOR``.
-    ``views`` → ``avg_views`` (int); ``engagement_rate`` + ``save_rate``
-    are averaged and stored under ``avg_engagement_rate`` +
-    ``avg_completion_rate`` respectively.
     """
     groups: dict[tuple[int, str], list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
@@ -102,23 +121,47 @@ def _compute_buckets(rows: list[dict[str, Any]]) -> dict[tuple[int, str], dict[s
     for (niche_id, hook_type), bucket_rows in groups.items():
         if len(bucket_rows) < SAMPLE_FLOOR:
             continue
-
-        views = [float(r.get("views") or 0) for r in bucket_rows if (r.get("views") or 0) > 0]
-        er = [float(r["engagement_rate"]) for r in bucket_rows if r.get("engagement_rate") is not None]
-        sr = [float(r["save_rate"]) for r in bucket_rows if r.get("save_rate") is not None]
-
-        avg_views_val = _mean(views)
-        if avg_views_val is None:
-            # Every row had 0 views — don't store the bucket.
+        metrics = _bucket_metrics(bucket_rows)
+        if metrics is None:
             continue
-
         buckets[(niche_id, hook_type)] = {
             "niche_id": niche_id,
             "hook_type": hook_type,
-            "avg_views": int(round(avg_views_val)),
-            "avg_engagement_rate": round(_mean(er), 6) if er else None,
-            "avg_completion_rate": round(_mean(sr), 6) if sr else None,
-            "sample_size": len(bucket_rows),
+            **metrics,
+        }
+    return buckets
+
+
+def _compute_content_class_buckets(
+    rows: list[dict[str, Any]],
+) -> dict[tuple[int, str], dict[str, Any]]:
+    """Group rows by ``(content_class_id, hook_type)``.
+
+    Two-axis A.2.2 (2026-05-15): parallel to ``_compute_buckets`` but
+    keyed on ``content_class_id`` so pattern thesis / video diagnosis
+    can rank hooks at the (topic × format) granularity. Rows with
+    ``content_class_id IS NULL`` are skipped (pre-PR2 corpus); they'll
+    fill in once PR2 backfill + ingest classifier catches up.
+    """
+    groups: dict[tuple[int, str], list[dict[str, Any]]] = defaultdict(list)
+    for r in rows:
+        cci = r.get("content_class_id")
+        if cci is None:
+            continue
+        key = (int(cci), str(r["hook_type"]))
+        groups[key].append(r)
+
+    buckets: dict[tuple[int, str], dict[str, Any]] = {}
+    for (content_class_id, hook_type), bucket_rows in groups.items():
+        if len(bucket_rows) < SAMPLE_FLOOR:
+            continue
+        metrics = _bucket_metrics(bucket_rows)
+        if metrics is None:
+            continue
+        buckets[(content_class_id, hook_type)] = {
+            "content_class_id": content_class_id,
+            "hook_type": hook_type,
+            **metrics,
         }
     return buckets
 
@@ -140,11 +183,14 @@ def _trend_direction(current_avg: float, prior_avg: float) -> str:
 
 
 def run_hook_effectiveness(client: Any | None = None) -> dict[str, Any]:
-    """Recompute + upsert the ``hook_effectiveness`` table.
+    """Recompute + upsert ``hook_effectiveness`` AND ``content_class_hook_effectiveness``.
 
-    Returns ``{"upserted": int, "current_buckets": int, "prior_buckets": int}``
-    — the two counts diverging signals which buckets newly crossed the
-    sample floor (or fell off it) this week.
+    Returns counts for both tables — the two-axis A.2.2 pivot writes
+    parallel niche-scoped + content_class-scoped aggregates from a
+    single corpus pass so the read layer (A.2.3) can pick the right
+    grouping axis based on caller context (e.g. pattern thesis for a
+    pasted video uses content_class; pattern thesis for a niche-wide
+    query uses niche).
     """
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -159,6 +205,7 @@ def run_hook_effectiveness(client: Any | None = None) -> dict[str, Any]:
     current_rows = _fetch_corpus_window(client, since=current_since)
     prior_rows = _fetch_corpus_window(client, since=prior_since, until=prior_until)
 
+    # ── Niche-scoped (legacy) ─────────────────────────────────────────
     current_buckets = _compute_buckets(current_rows)
     prior_buckets = _compute_buckets(prior_rows)
 
@@ -171,34 +218,73 @@ def run_hook_effectiveness(client: Any | None = None) -> dict[str, Any]:
             "computed_at": now.isoformat(),
         })
 
-    if not upsert_rows:
+    written = 0
+    if upsert_rows:
+        for i in range(0, len(upsert_rows), 200):
+            chunk = upsert_rows[i:i + 200]
+            client.table("hook_effectiveness").upsert(
+                chunk,
+                on_conflict="niche_id,hook_type",
+            ).execute()
+            written += len(chunk)
+        logger.info(
+            "[hook_effectiveness] upserted %d rows (current=%d prior=%d)",
+            written, len(current_buckets), len(prior_buckets),
+        )
+    else:
         logger.warning(
-            "[hook_effectiveness] 0 buckets cleared the sample floor (n_rows=%d)",
+            "[hook_effectiveness] 0 niche buckets cleared the sample floor (n_rows=%d)",
             len(current_rows),
         )
-        return {
-            "upserted": 0,
-            "current_buckets": 0,
-            "prior_buckets": len(prior_buckets),
-        }
 
-    # Chunk the upserts — 200/request is well under Supabase PostgREST
-    # defaults and matches the existing batch-job patterns.
-    written = 0
-    for i in range(0, len(upsert_rows), 200):
-        chunk = upsert_rows[i:i + 200]
-        client.table("hook_effectiveness").upsert(
-            chunk,
-            on_conflict="niche_id,hook_type",
-        ).execute()
-        written += len(chunk)
+    # ── Content-class-scoped (A.2.2 — 2026-05-15) ─────────────────────
+    current_cc_buckets = _compute_content_class_buckets(current_rows)
+    prior_cc_buckets = _compute_content_class_buckets(prior_rows)
 
-    logger.info(
-        "[hook_effectiveness] upserted %d rows (current=%d prior=%d)",
-        written, len(current_buckets), len(prior_buckets),
-    )
+    cc_upsert_rows: list[dict[str, Any]] = []
+    for key, bucket in current_cc_buckets.items():
+        prior_avg = float((prior_cc_buckets.get(key) or {}).get("avg_views") or 0)
+        cc_upsert_rows.append({
+            **bucket,
+            "trend_direction": _trend_direction(float(bucket["avg_views"]), prior_avg),
+            "computed_at": now.isoformat(),
+        })
+
+    cc_written = 0
+    if cc_upsert_rows:
+        try:
+            for i in range(0, len(cc_upsert_rows), 200):
+                chunk = cc_upsert_rows[i:i + 200]
+                client.table("content_class_hook_effectiveness").upsert(
+                    chunk,
+                    on_conflict="content_class_id,hook_type",
+                ).execute()
+                cc_written += len(chunk)
+            logger.info(
+                "[hook_effectiveness] content_class upserted %d rows (current=%d prior=%d)",
+                cc_written, len(current_cc_buckets), len(prior_cc_buckets),
+            )
+        except Exception as exc:
+            # Migration 20260515000000 may not yet be applied on this DB
+            # (deploy gap window). Log + continue — niche-scoped path
+            # already succeeded so the cron isn't a total wash.
+            logger.warning(
+                "[hook_effectiveness] content_class upsert failed (acceptable "
+                "if migration 20260515000000 not yet applied): %s",
+                exc,
+            )
+    else:
+        logger.info(
+            "[hook_effectiveness] 0 content_class buckets cleared the sample floor "
+            "(n_rows=%d, content_class_id null on most rows pre-PR2 backfill?)",
+            len(current_rows),
+        )
+
     return {
         "upserted": written,
         "current_buckets": len(current_buckets),
         "prior_buckets": len(prior_buckets),
+        "content_class_upserted": cc_written,
+        "content_class_current_buckets": len(current_cc_buckets),
+        "content_class_prior_buckets": len(prior_cc_buckets),
     }

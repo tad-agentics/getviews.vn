@@ -322,6 +322,50 @@ export type Database = {
           },
         ]
       }
+      content_class_hook_effectiveness: {
+        Row: {
+          avg_completion_rate: number | null
+          avg_engagement_rate: number | null
+          avg_views: number | null
+          computed_at: string | null
+          content_class_id: number
+          hook_type: string
+          id: string
+          sample_size: number | null
+          trend_direction: string | null
+        }
+        Insert: {
+          avg_completion_rate?: number | null
+          avg_engagement_rate?: number | null
+          avg_views?: number | null
+          computed_at?: string | null
+          content_class_id: number
+          hook_type: string
+          id?: string
+          sample_size?: number | null
+          trend_direction?: string | null
+        }
+        Update: {
+          avg_completion_rate?: number | null
+          avg_engagement_rate?: number | null
+          avg_views?: number | null
+          computed_at?: string | null
+          content_class_id?: number
+          hook_type?: string
+          id?: string
+          sample_size?: number | null
+          trend_direction?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_class_hook_effectiveness_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hook_effectiveness: {
         Row: {
           avg_completion_rate: number | null
