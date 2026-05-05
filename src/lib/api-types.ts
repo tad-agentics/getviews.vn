@@ -91,6 +91,13 @@ export interface VideoNicheMeta {
   sample_size: number;
   /** Corpus “winner” pool in niche (breakout ≥1.5 or ER > median_er); null if not computed. */
   winners_sample_size: number | null;
+  /**
+   * Two-axis A.2.3 — which axis the benchmark cohort came from. Lets the FE
+   * label "based on N similar-format videos" (sharper) vs "based on N videos
+   * in your niche" (broader fallback). Optional because pre-A.2.3 API
+   * responses didn't carry this; default to ``"niche"`` semantics in the FE.
+   */
+  benchmark_axis?: "content_class" | "niche" | "none";
 }
 
 /** GET `/video/niche-benchmark` (Cloud Run, JWT). */

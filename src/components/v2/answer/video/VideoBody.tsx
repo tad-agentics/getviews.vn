@@ -98,9 +98,18 @@ function FlopDiagnosisStrip({
 }) {
   const retLabel = retentionEnd != null ? `${Math.round(retentionEnd)}% giữ chân` : "— giữ chân";
   const nicheViews = nicheMeta?.avg_views != null ? formatViewsVi(nicheMeta.avg_views) : "—";
+  // A.2.4 — when the BE pivoted the cohort to content_class
+  // (benchmark_axis="content_class" from A.2.3), the comparison is sharper:
+  // same (topic × format) bucket. Label reflects that so creators know the
+  // benchmark is "videos cùng format" not just "videos cùng ngách". Default
+  // ``"niche"`` for legacy responses without the axis tag.
+  const isContentClass = nicheMeta?.benchmark_axis === "content_class";
+  const cohortLabel = isContentClass ? "Cùng format TB" : "Ngách TB";
+  const retSuffix = isContentClass ? "ret cùng format" : "ret ngách TB";
+  const winnersLabel = isContentClass ? "video cùng format" : "video thắng trong ngách";
   const nicheRet =
     nicheMeta?.avg_retention != null
-      ? `${Math.round(nicheMeta.avg_retention * 100)}% ret ngách TB`
+      ? `${Math.round(nicheMeta.avg_retention * 100)}% ${retSuffix}`
       : null;
   const winnersN = nicheMeta?.winners_sample_size ?? null;
 
@@ -112,12 +121,12 @@ function FlopDiagnosisStrip({
         </span>
         <span className="text-[color:var(--gv-ink-4)]">/</span>
         <span>
-          Ngách TB: {nicheViews}
+          {cohortLabel}: {nicheViews}
           {nicheRet ? ` · ${nicheRet}` : ""}
         </span>
         <span className="text-[color:var(--gv-ink-4)]">/</span>
         {winnersN != null && winnersN >= WINNERS_CLAIM_MIN ? (
-          <span>So sánh với {winnersN} video thắng</span>
+          <span>So sánh với {winnersN} {winnersLabel}</span>
         ) : (
           <span className="text-[color:var(--gv-ink-4)]">
             Đang xây dựng pool (≥10 video cần thu thập)
