@@ -4,7 +4,7 @@ export const RETIRED_NICHE_TAXONOMY_IDS: ReadonlySet<number> = new Set([1, 6, 12
 /** Legacy id → surviving taxonomy id (matches Supabase merge / retire migrations). */
 const NICHE_TAXONOMY_ALIASES: Readonly<Record<number, number>> = {
   1: 5, // Review đồ Shopee / Gia dụng → Kinh doanh online / Bán hàng
-  6: 3, // Chị đẹp retired → Thời trang
+  6: 3, // Chị đẹp retired → Thời trang Phụ kiện
   12: 5, // Livestream → Kinh doanh online
   18: 4, // Nấu ăn / Công thức → Ẩm thực & Ăn uống (id 4)
   22: 13, // K-pop / Âm nhạc retired → Hài / Giải trí
@@ -24,6 +24,7 @@ export function canonicalNicheTaxonomyId(id: number): number {
  * Keys must stay aligned with `niche_taxonomy` UPDATEs in merge migrations.
  */
 const NICHE_TAXONOMY_NAME_VN_BY_ID: Readonly<Partial<Record<number, string>>> = {
+  3: "Thời trang Phụ kiện",
   4: "Ẩm thực & Ăn uống",
 };
 

@@ -37,8 +37,10 @@ describe("profileNiches (single-niche model)", () => {
     expect(canonicalNicheTaxonomyId(7)).toBe(7);
   });
 
-  it("resolveNicheNameVn pins merged food niche label for id 4", () => {
+  it("resolveNicheNameVn pins overridden labels for ids 3 + 4", () => {
     expect(resolveNicheNameVn(4, "Review đồ ăn / F&B")).toBe("Ẩm thực & Ăn uống");
-    expect(resolveNicheNameVn(3, "Thời trang")).toBe("Thời trang");
+    expect(resolveNicheNameVn(3, "Thời trang / Outfit")).toBe("Thời trang Phụ kiện");
+    // No override → DB value passes through.
+    expect(resolveNicheNameVn(7, "Mẹ bỉm sữa / Parenting")).toBe("Mẹ bỉm sữa / Parenting");
   });
 });
