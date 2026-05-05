@@ -129,8 +129,10 @@ describe("OnboardingScreen — single-step", () => {
     fireEvent.click(screen.getByRole("button", { name: /Vào Creator Studio/ }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    // PR1 of single-niche refactor: only the first picked niche is saved
+    // (multi-select UI rework lands in PR3).
     expect(mutateAsync).toHaveBeenCalledWith({
-      niche_ids: [1, 2, 3],
+      primary_niche: 1,
     });
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true }),

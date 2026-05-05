@@ -55,10 +55,7 @@ export default function OnboardingScreen() {
       navigate("/app", { replace: true });
       return;
     }
-    const ids = profile?.niche_ids;
-    if (Array.isArray(ids) && ids.length > 0) {
-      setPendingNiches(normalizeNicheIds(ids).slice(0, MAX_CREATOR_NICHES));
-    } else if (profile?.primary_niche != null) {
+    if (profile?.primary_niche != null) {
       setPendingNiches([profile.primary_niche]);
     }
   }, [profilePending, profile, navigate]);
@@ -76,7 +73,9 @@ export default function OnboardingScreen() {
   const finish = async () => {
     if (!canAdvance) return;
     const ids = normalizeNicheIds(pendingNiches);
-    await save.mutateAsync({ niche_ids: ids });
+    // PR1 of single-niche refactor: collapses multi-select to first pick.
+    // Multi-select UI rework lands in PR3.
+    await save.mutateAsync({ primary_niche: ids[0] ?? null });
     navigate("/app", { replace: true });
   };
 

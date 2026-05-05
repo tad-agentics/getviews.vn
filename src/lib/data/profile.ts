@@ -1,10 +1,8 @@
 import { supabase } from "@/lib/supabase";
 
 export interface ProfilePatch {
-  /** Derived in DB from ``niche_ids[1]`` — avoid setting from the client. */
+  /** Single niche per user (PR1 of single-niche refactor — niche_ids array dropped). */
   primary_niche?: number | null;
-  /** Up to 3 ordered niche picks — sole product-facing list. */
-  niche_ids?: number[] | null;
   // profiles.niche_id was dropped in migration 0017 — do NOT add it back.
   tiktok_handle?: string | null;
   display_name?: string;
