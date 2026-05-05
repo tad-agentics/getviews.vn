@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, model_validator
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
     fetch_niche_intelligence_sync,
+    fetch_video_benchmark_with_axis,
 )
 from getviews_pipeline.video_structural import (
     decompose_segments,
@@ -279,8 +280,8 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
 
     cols = (
         "video_id,creator_handle,views,likes,comments,shares,saves,save_rate,"
-        "engagement_rate,thumbnail_url,created_at,niche_id,analysis_json,"
-        "breakout_multiplier,tiktok_url"
+        "engagement_rate,thumbnail_url,created_at,niche_id,content_class_id,"
+        "content_format,analysis_json,breakout_multiplier,tiktok_url"
     )
     try:
         vres = user_sb.table("video_corpus").select(cols).eq("video_id", vid).maybe_single().execute()
@@ -593,7 +594,20 @@ def run_video_analyze_pipeline(
     video = _fetch_corpus_row(user_sb, vid)
 
     niche_id = int(video.get("niche_id") or 0)
-    niche_intel = fetch_niche_intelligence_sync(user_sb, niche_id) if niche_id else None
+    # A.2.3 — prefer content_class_intelligence when the corpus row carries
+    # content_class_id (PR2-backfilled or freshly classified at ingest) AND
+    # the bucket has enough samples. Falls back to niche_intelligence
+    # transparently. ``benchmark_axis`` flows into VideoNicheMeta so the
+    # FE can label "based on N similar-format videos" vs niche-wide.
+    content_class_id = video.get("content_class_id")
+    if content_class_id is None and video.get("content_format") and niche_id:
+        # Defensive: corpus row may pre-date PR2 backfill but we know the
+        # niche × format → derive on the fly so the new path can fire.
+        from getviews_pipeline.corpus_ingest import _content_class_for
+        content_class_id = _content_class_for(niche_id, video.get("content_format"))
+    niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
+        user_sb, niche_id=niche_id, content_class_id=content_class_id,
+    )
     default_niche_meta = {
         "avg_views": 0,
         "avg_retention": 0.5,
@@ -634,6 +648,10 @@ def run_video_analyze_pipeline(
     )
     niche_benchmark = bench_payload["niche_benchmark_curve"]
     niche_meta = bench_payload["niche_meta"] if bench_payload.get("niche_meta") is not None else default_niche_meta
+    # A.2.3 — tag meta with which axis the benchmark came from so the FE
+    # can render "vs N similar-format videos" vs "vs N videos in your niche".
+    if niche_meta is not default_niche_meta:
+        niche_meta["benchmark_axis"] = benchmark_axis
     rs = bench_payload.get("retention_source") or "modeled"
     retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
 
@@ -882,7 +900,16 @@ def run_video_analyze_on_demand(
     analysis = video["analysis_json"]
     dur = video_duration_sec(analysis)
 
-    niche_intel = fetch_niche_intelligence_sync(user_sb, niche_id) if niche_id else None
+    # A.2.3 — derive content_class_id from analysis so the on-demand path
+    # (video not yet in corpus) can also benefit from sharper benchmarks.
+    # classify_format does the format detection; _content_class_for maps
+    # (niche × format) to a content_class.
+    from getviews_pipeline.corpus_ingest import _content_class_for, classify_format
+    _on_demand_format = classify_format(analysis, niche_id) if niche_id else None
+    content_class_id = _content_class_for(niche_id, _on_demand_format) if niche_id else None
+    niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
+        user_sb, niche_id=niche_id, content_class_id=content_class_id,
+    )
     default_niche_meta = {
         "avg_views": 0,
         "avg_retention": 0.5,
@@ -908,6 +935,9 @@ def run_video_analyze_on_demand(
         if bench_payload.get("niche_meta") is not None
         else default_niche_meta
     )
+    # A.2.3 — tag axis (matches corpus path).
+    if niche_meta is not default_niche_meta:
+        niche_meta["benchmark_axis"] = benchmark_axis
     rs = bench_payload.get("retention_source") or "modeled"
     retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
 
