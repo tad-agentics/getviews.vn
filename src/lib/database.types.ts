@@ -415,6 +415,108 @@ export type Database = {
         }
         Relationships: []
       }
+      creator_niches: {
+        Row: {
+          active: boolean
+          created_at: string
+          description_vn: string | null
+          display_order: number
+          id: number
+          name_en: string
+          name_vn: string
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          display_order?: number
+          id?: number
+          name_en: string
+          name_vn: string
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          display_order?: number
+          id?: number
+          name_en?: string
+          name_vn?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      content_classifications: {
+        Row: {
+          active: boolean
+          created_at: string
+          description_vn: string | null
+          format_axis: string
+          id: number
+          name_en: string
+          name_vn: string
+          slug: string
+          topic_axis: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          format_axis: string
+          id?: number
+          name_en: string
+          name_vn: string
+          slug: string
+          topic_axis: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          format_axis?: string
+          id?: number
+          name_en?: string
+          name_vn?: string
+          slug?: string
+          topic_axis?: string
+        }
+        Relationships: []
+      }
+      creator_niche_content_classes: {
+        Row: {
+          content_class_id: number
+          creator_niche_id: number
+          is_primary: boolean
+        }
+        Insert: {
+          content_class_id: number
+          creator_niche_id: number
+          is_primary?: boolean
+        }
+        Update: {
+          content_class_id?: number
+          creator_niche_id?: number
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_niche_content_classes_creator_niche_id_fkey"
+            columns: ["creator_niche_id"]
+            isOneToOne: false
+            referencedRelation: "creator_niches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_niche_content_classes_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processed_webhook_events: {
         Row: {
           created_at: string
