@@ -157,6 +157,110 @@ def test_prompt_omits_reference_note_when_handles_empty() -> None:
     assert "kênh tham chiếu" not in prompt
 
 
+# ── Prompt v2 (D1 quality lift, 2026-05-13) ────────────────────────────────
+
+
+def test_prompt_v2_lists_all_seven_psychology_mechanisms() -> None:
+    """why_works guidance must enumerate the 7 named mechanisms so Gemini
+    has a vocabulary to pick from instead of hallucinating generic
+    'tạo sự tò mò' phrasing."""
+    try:
+        from getviews_pipeline.morning_ritual import _build_prompt
+    except ModuleNotFoundError:
+        import pytest
+        pytest.skip("pydantic not installed in test env")
+    prompt = _build_prompt("Beauty", [{"video_id": "v1"}], [])
+    for mechanism in (
+        "curiosity_gap", "social_proof", "identification",
+        "contrarian_take", "before_after_promise",
+        "status_anchor", "fomo_loss",
+    ):
+        assert mechanism in prompt, f"missing mechanism keyword: {mechanism}"
+
+
+def test_prompt_v2_anchors_shot_count_and_length_to_grounding_median() -> None:
+    """Prompt should inject median shot_count + length_sec from grounding
+    so Gemini matches the niche's winning videos rather than picking
+    an arbitrary point inside the 3-6 / 20-45 hard-coded range."""
+    try:
+        from getviews_pipeline.morning_ritual import _build_prompt
+    except ModuleNotFoundError:
+        import pytest
+        pytest.skip("pydantic not installed in test env")
+    videos = [
+        {"video_id": "v1", "scene_count": 5, "video_duration": 28},
+        {"video_id": "v2", "scene_count": 5, "video_duration": 30},
+        {"video_id": "v3", "scene_count": 6, "video_duration": 32},
+    ]
+    prompt = _build_prompt("Beauty", videos, [])
+    # Median shot_count = 5, length_sec = 30 — both should anchor in prompt.
+    assert "5 shot" in prompt
+    assert "30 giây" in prompt
+
+
+def test_prompt_v2_adequacy_note_changes_with_tier() -> None:
+    """The adequacy-conditional retention guidance must propagate into
+    the prompt so Gemini calibrates retention claims to grounding
+    confidence (thin pool → conservative; niche_norms → can claim more)."""
+    try:
+        from getviews_pipeline.morning_ritual import _build_prompt
+    except ModuleNotFoundError:
+        import pytest
+        pytest.skip("pydantic not installed in test env")
+    videos = [{"video_id": "v1"}]
+    thin_prompt = _build_prompt("Tech", videos, [], adequacy="thin")
+    norms_prompt = _build_prompt("Tech", videos, [], adequacy="niche_norms")
+    assert "Adequacy tier**: thin" in thin_prompt
+    assert "Adequacy tier**: niche_norms" in norms_prompt
+    assert "≤55%" in thin_prompt or "45-60%" in thin_prompt
+    assert "60-75%" in norms_prompt
+
+
+def test_prompt_v2_includes_few_shot_example() -> None:
+    """At least one concrete schema example must be embedded — measurably
+    lifts quality vs zero-shot instructional prompts."""
+    try:
+        from getviews_pipeline.morning_ritual import _build_prompt
+    except ModuleNotFoundError:
+        import pytest
+        pytest.skip("pydantic not installed in test env")
+    prompt = _build_prompt("Beauty", [{"video_id": "v1"}], [])
+    assert "Few-shot" in prompt or "ví dụ ĐÚNG" in prompt
+    assert "tretinoin" in prompt  # the seeded example anchor
+
+
+def test_prompt_v2_grounding_carries_engagement_and_scene_fields() -> None:
+    """Per-row grounding payload must carry scene_count + length_sec +
+    engagement_rate so Gemini has signal to anchor outputs to high-ER
+    videos rather than just view-count toplines."""
+    try:
+        from getviews_pipeline.morning_ritual import _build_prompt
+    except ModuleNotFoundError:
+        import pytest
+        pytest.skip("pydantic not installed in test env")
+    videos = [{
+        "video_id": "v1", "creator_handle": "@x", "views": 1000,
+        "hook_type": "pov", "hook_phrase": "POV: ...",
+        "scene_count": 4, "video_duration": 25, "engagement_rate": 8.2,
+    }]
+    prompt = _build_prompt("Beauty", videos, [])
+    assert '"scene_count": 4' in prompt
+    assert '"length_sec": 25' in prompt
+    assert '"engagement_rate": 8.2' in prompt
+
+
+def test_median_helper_handles_edge_cases() -> None:
+    try:
+        from getviews_pipeline.morning_ritual import _median
+    except ModuleNotFoundError:
+        import pytest
+        pytest.skip("pydantic not installed in test env")
+    assert _median([]) is None
+    assert _median([5]) == 5
+    assert _median([3, 5, 7]) == 5
+    assert _median([2, 4, 6, 8]) == 5  # (4+6)//2 = 5
+
+
 # ── Batch summary counters ─────────────────────────────────────────────────
 
 
