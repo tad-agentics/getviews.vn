@@ -1,5 +1,5 @@
 /** Taxonomy ids merged or retired — exclude from niche pickers (covers pre-migration DB rows). */
-export const RETIRED_NICHE_TAXONOMY_IDS: ReadonlySet<number> = new Set([1, 6, 12, 18, 23, 24, 25]);
+export const RETIRED_NICHE_TAXONOMY_IDS: ReadonlySet<number> = new Set([1, 6, 12, 18, 22, 23, 24, 25]);
 
 /** Legacy id → surviving taxonomy id (matches Supabase merge / retire migrations). */
 const NICHE_TAXONOMY_ALIASES: Readonly<Record<number, number>> = {
@@ -7,6 +7,7 @@ const NICHE_TAXONOMY_ALIASES: Readonly<Record<number, number>> = {
   6: 3, // Chị đẹp retired → Thời trang
   12: 5, // Livestream → Kinh doanh online
   18: 4, // Nấu ăn / Công thức → Ẩm thực & Ăn uống (id 4)
+  22: 13, // K-pop / Âm nhạc retired → Hài / Giải trí
   23: 11, // Học tiếng → EduTok VN
   24: 15, // Crypto / Web3 → Tài chính / Đầu tư
   25: 14, // Moto culture → Ô tô / Xe máy

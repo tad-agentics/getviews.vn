@@ -843,15 +843,16 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     # positive match). Short music-driven reaction/moment clips.
     # Intentionally loose heuristic: runs AFTER dance + faceless so
     # tighter buckets claim their rows first. Niche set: Ô tô / Xe máy (14,
-    # includes former moto culture 25) / travel (16) / gaming (17) / sports
-    # (21) / K-pop music (22). Niche 6 (Chị đẹp) was removed when that niche was
-    # retired 2026-04-25 — its rows were dominated by showbiz
-    # aggregators, not real creator highlight content.
+    # includes former moto culture 25) / travel (16) / gaming (17) /
+    # sports (21). Niche 6 (Chị đẹp) and niche 22 (K-pop / Âm nhạc) were
+    # removed when those niches were retired (2026-04-25, 2026-05-07) —
+    # both had traffic dominated by aggregator/repost accounts rather
+    # than creator highlight content.
     # Scene count ≥ 4 filters out single-shot videos. Short-transcript
     # gate (≤ 80 chars OR music-only marker) distinguishes from vlog
     # / storytelling (transcript-heavy).
     if (
-        niche_id in (14, 16, 17, 21, 22)
+        niche_id in (14, 16, 17, 21)
         and tone in ("entertaining", "humorous", "inspirational")
         and len(scenes) >= 4
         and (
