@@ -30,6 +30,7 @@ describe("profileNiches (single-niche model)", () => {
   });
 
   it("canonicalNicheTaxonomyId maps retired ids and is a no-op for current ones", () => {
+    expect(canonicalNicheTaxonomyId(1)).toBe(5); // Shopee review → Kinh doanh online
     expect(canonicalNicheTaxonomyId(18)).toBe(4);
     expect(canonicalNicheTaxonomyId(23)).toBe(11);
     expect(canonicalNicheTaxonomyId(7)).toBe(7);
