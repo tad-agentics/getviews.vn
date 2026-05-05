@@ -26,17 +26,26 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
 import { profileFirstNicheId } from "@/lib/profileNiches";
 import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
+import {
+  answerSessionKeys,
+  useAnswerSessionsList,
+  useArchiveAnswerSession,
+  useRenameAnswerSession,
+} from "@/hooks/useAnswerSessionQueries";
 import { chatKeys } from "@/hooks/useChatSession";
+import { env } from "@/lib/env";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BottomTabBar, type AppShellActive } from "@/components/BottomTabBar";
 
+/** Sidebar row — legacy chat thread or Phase C answer (research) session. */
 type Session = {
   id: string;
   first_message: string | null;
   title?: string | null;
   label?: string;
+  source: "chat" | "answer";
 };
 
 /**
@@ -152,10 +161,34 @@ function NavItem({
 function DeleteConfirmDialog({
   onConfirm,
   onCancel,
+  variant,
 }: {
   onConfirm: () => void;
   onCancel: () => void;
+  variant: "chat" | "answer";
 }) {
+  const title =
+    variant === "answer" ? "Ẩn phiên nghiên cứu" : "Xoá cuộc trò chuyện";
+  const body =
+    variant === "answer" ? (
+      <>
+        Phiên sẽ biến khỏi Studio và Lịch sử — bạn không mở lại được từ đây.
+        <br />
+        <span className="text-[color:var(--gv-ink)] font-semibold">
+          Lượt phân tích đã chạy vẫn được lưu ở hạ tầng (không hiện lại trong app).
+        </span>
+      </>
+    ) : (
+      <>
+        Bạn có chắc muốn xoá cuộc trò chuyện này không?
+        <br />
+        <span className="text-[color:var(--gv-ink)] font-semibold">
+          Tất cả phân tích và insights sẽ bị xoá vĩnh viễn.
+        </span>
+      </>
+    );
+  const confirmLabel = variant === "answer" ? "Ẩn phiên" : "Xoá vĩnh viễn";
+
   return (
     <>
       <motion.div
@@ -179,13 +212,9 @@ function DeleteConfirmDialog({
             <div className="w-8 h-8 rounded-full bg-[color:var(--gv-neg-soft)] flex items-center justify-center flex-shrink-0">
               <Trash2 className="w-4 h-4 text-[color:var(--gv-neg)]" strokeWidth={1.8} />
             </div>
-            <p className="font-extrabold text-sm text-[color:var(--gv-ink)]">Xoá cuộc trò chuyện</p>
+            <p className="font-extrabold text-sm text-[color:var(--gv-ink)]">{title}</p>
           </div>
-          <p className="text-xs text-[color:var(--gv-ink-2)] leading-relaxed mb-5">
-            Bạn có chắc muốn xoá cuộc trò chuyện này không?
-            <br />
-            <span className="text-[color:var(--gv-ink)] font-semibold">Tất cả phân tích và insights sẽ bị xoá vĩnh viễn.</span>
-          </p>
+          <p className="text-xs text-[color:var(--gv-ink-2)] leading-relaxed mb-5">{body}</p>
           <div className="flex gap-2">
             <button
               onClick={onCancel}
@@ -197,7 +226,7 @@ function DeleteConfirmDialog({
               onClick={onConfirm}
               className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-white bg-[color:var(--gv-neg)] hover:opacity-90 transition-opacity duration-[120ms]"
             >
-              Xoá vĩnh viễn
+              {confirmLabel}
             </button>
           </div>
         </div>
@@ -322,7 +351,11 @@ function SessionRow({
     setMenuOpen(true);
   };
 
-  const displayLabel = session.label ?? session.title ?? session.first_message ?? "Phiên chat";
+  const displayLabel =
+    session.label ??
+    session.title ??
+    session.first_message ??
+    (session.source === "answer" ? "Phiên nghiên cứu" : "Phiên chat");
 
   return (
     <div className="relative group/row">
@@ -362,7 +395,7 @@ function SessionRow({
           <button
             ref={moreRef}
             onClick={openMenu}
-            aria-label="Tuỳ chọn phiên chat"
+            aria-label={session.source === "answer" ? "Tuỳ chọn phiên nghiên cứu" : "Tuỳ chọn phiên chat"}
             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors duration-100 hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
               menuOpen ? "lg:opacity-100 text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-4)]"
             }`}
@@ -404,23 +437,72 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const { isAdmin } = useIsAdmin();
-  const { data: sessionsData } = useChatSessions();
+  const chatSessionsQuery = useChatSessions();
+  const { data: sessionsData, isPending: chatSessionsPending } = chatSessionsQuery;
   const qc = useQueryClient();
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
+  const archiveAnswerSession = useArchiveAnswerSession();
+  const renameAnswerSession = useRenameAnswerSession();
+  const cloudUrl = env.VITE_CLOUD_RUN_API_URL;
+  const answerListQuery = useAnswerSessionsList(
+    user?.id,
+    Boolean(user?.id && cloudUrl),
+    "all",
+    55,
+  );
+
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    source: "chat" | "answer";
+  } | null>(null);
 
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
-  // Derive session list directly from TanStack Query cache — no local copy.
-  // The optimistic delete in useDeleteSession mutates the cache immediately,
-  // so removing the local useState/useEffect eliminates the race where the
-  // useEffect would re-add a deleted session after onSettled invalidation.
-  const sessions: Session[] = (sessionsData ?? []).map((s) => ({
-    id: s.id,
-    first_message: s.first_message,
-    title: s.title ?? null,
-  }));
+  // Merge legacy ``chat_sessions`` + Phase C ``answer_sessions`` (Cloud Run
+  // list) so Studio sidebar matches what users see under /app/answer.
+  const sessions: Session[] = useMemo(() => {
+    const chatRows = sessionsData ?? [];
+    const answerRows = answerListQuery.data?.sessions ?? [];
+    type Row = { session: Session; sortMs: number };
+    const merged: Row[] = [];
+
+    for (const s of chatRows as Array<{
+      id: string;
+      first_message: string | null;
+      title?: string | null;
+      created_at: string;
+    }>) {
+      const ts = new Date(s.created_at).getTime();
+      merged.push({
+        session: {
+          id: s.id,
+          first_message: s.first_message,
+          title: s.title ?? null,
+          source: "chat",
+        },
+        sortMs: Number.isFinite(ts) ? ts : 0,
+      });
+    }
+    for (const s of answerRows) {
+      const iso = s.updated_at ?? s.created_at;
+      const ts = iso ? new Date(iso).getTime() : 0;
+      merged.push({
+        session: {
+          id: s.id,
+          first_message: s.initial_q ?? null,
+          title: s.title ?? null,
+          source: "answer",
+        },
+        sortMs: Number.isFinite(ts) ? ts : 0,
+      });
+    }
+    merged.sort((a, b) => b.sortMs - a.sortMs);
+    return merged.map((r) => r.session).slice(0, 60);
+  }, [sessionsData, answerListQuery.data?.sessions]);
+
+  const sidebarSessionsLoading =
+    chatSessionsPending || (Boolean(cloudUrl) && answerListQuery.isPending);
 
   const pinned = sessions.filter((s) => pinnedIds.has(s.id));
   const recent = sessions.filter((s) => !pinnedIds.has(s.id));
@@ -432,30 +514,53 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
       return next;
     });
 
-  const handleDelete = (id: string) => {
-    setDeleteConfirmId(id);
+  const handleDelete = (id: string, source: Session["source"]) => {
+    setDeleteTarget({ id, source });
   };
 
   const confirmDelete = () => {
-    const id = deleteConfirmId;
-    if (!id) return;
-    setDeleteConfirmId(null);
-    deleteSession.mutate(id, {
+    const t = deleteTarget;
+    if (!t) return;
+    setDeleteTarget(null);
+    if (t.source === "answer") {
+      archiveAnswerSession.mutate(t.id, {
+        onSuccess: () => {
+          void qc.invalidateQueries({ queryKey: answerSessionKeys.all });
+          setPinnedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(t.id);
+            return next;
+          });
+          if (
+            window.location.pathname === "/app/answer" &&
+            new URLSearchParams(window.location.search).get("session") === t.id
+          ) {
+            navigate("/app/answer");
+          }
+        },
+      });
+      return;
+    }
+    deleteSession.mutate(t.id, {
       onSuccess: () => {
-        qc.removeQueries({ queryKey: chatKeys.session(id) });
-        qc.removeQueries({ queryKey: chatKeys.messages(id) });
+        qc.removeQueries({ queryKey: chatKeys.session(t.id) });
+        qc.removeQueries({ queryKey: chatKeys.messages(t.id) });
         setPinnedIds((prev) => {
           const next = new Set(prev);
-          next.delete(id);
+          next.delete(t.id);
           return next;
         });
         const activeId = new URLSearchParams(window.location.search).get("session");
-        if (activeId === id) navigate("/app/answer");
+        if (activeId === t.id) navigate("/app/answer");
       },
     });
   };
 
-  const handleRename = (id: string, label: string) => {
+  const handleRename = (id: string, label: string, source: Session["source"]) => {
+    if (source === "answer") {
+      renameAnswerSession.mutate({ sessionId: id, title: label });
+      return;
+    }
     updateSession.mutate({ sessionId: id, title: label });
   };
 
@@ -619,16 +724,20 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 <div className="mb-3 flex flex-col gap-0.5">
                   {pinned.map((session) => (
                     <SessionRow
-                      key={session.id}
+                      key={`${session.source}-${session.id}`}
                       session={session}
                       isPinned
                       onNavigate={() => {
-                        navigate(`/app/history/chat/${session.id}`);
+                        if (session.source === "answer") {
+                          navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
+                        } else {
+                          navigate(`/app/history/chat/${session.id}`);
+                        }
                         onClose?.();
                       }}
                       onPin={() => handlePin(session.id)}
-                      onDelete={() => handleDelete(session.id)}
-                      onRename={(label) => handleRename(session.id, label)}
+                      onDelete={() => handleDelete(session.id, session.source)}
+                      onRename={(label) => handleRename(session.id, label, session.source)}
                     />
                   ))}
                 </div>
@@ -642,27 +751,34 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               <div className="flex flex-col gap-0.5">
                 {recent.map((session) => (
                   <SessionRow
-                    key={session.id}
+                    key={`${session.source}-${session.id}`}
                     session={session}
                     isPinned={false}
                     onNavigate={() => {
-                      navigate(`/app/history/chat/${session.id}`);
+                      if (session.source === "answer") {
+                        navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
+                      } else {
+                        navigate(`/app/history/chat/${session.id}`);
+                      }
                       onClose?.();
                     }}
                     onPin={() => handlePin(session.id)}
-                    onDelete={() => handleDelete(session.id)}
-                    onRename={(label) => handleRename(session.id, label)}
+                    onDelete={() => handleDelete(session.id, session.source)}
+                    onRename={(label) => handleRename(session.id, label, session.source)}
                   />
                 ))}
               </div>
             </>
           )}
 
-          {sessions.length === 0 && (
+          {sidebarSessionsLoading && sessions.length === 0 ? (
+            <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">Đang tải phiên…</p>
+          ) : null}
+          {!sidebarSessionsLoading && sessions.length === 0 ? (
             <p className="py-3 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
-              Chưa có hội thoại nào.
+              Chưa có hội thoại hay phiên nghiên cứu nào.
             </p>
-          )}
+          ) : null}
         </div>
 
         {/* Footer — shell.jsx: padding 10px 12px, border-top, gap 8; settings 6px 8px 12px; avatar 28px */}
@@ -757,10 +873,11 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
       {/* ── Delete confirmation dialog ── */}
       <AnimatePresence>
-        {deleteConfirmId && (
+        {deleteTarget && (
           <DeleteConfirmDialog
+            variant={deleteTarget.source}
             onConfirm={confirmDelete}
-            onCancel={() => setDeleteConfirmId(null)}
+            onCancel={() => setDeleteTarget(null)}
           />
         )}
       </AnimatePresence>

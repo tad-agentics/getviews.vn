@@ -315,10 +315,10 @@ describe("AnswerScreen state transitions", () => {
     expect(screen.getByText(/Phiên không tồn tại/)).toBeTruthy();
   });
 
-  it("disables the follow-up composer until a sessionId is in the URL", () => {
+  it("enables the composer on blank /app/answer so a new question can start (Cloud Run + user present)", () => {
     renderScreen("/app/answer");
     const composer = screen.getByTestId("follow-up-composer");
-    expect(composer.getAttribute("data-disabled")).toBe("true");
+    expect(composer.getAttribute("data-disabled")).toBe("false");
   });
 
   it("enables the follow-up composer once a sessionId is in the URL", () => {

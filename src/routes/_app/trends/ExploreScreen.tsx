@@ -264,6 +264,30 @@ function VideoCard({
   nicheLabel?: string;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
+  const [hoverClip, setHoverClip] = useState(false);
+  const clipRef = useRef<HTMLVideoElement>(null);
+  const clipSrc = video.videoUrl?.trim() ?? "";
+  const canHoverClip = Boolean(clipSrc);
+
+  const startHoverClip = useCallback(() => {
+    if (!canHoverClip) return;
+    const el = clipRef.current;
+    if (!el) return;
+    if (!el.getAttribute("src")) {
+      el.src = clipSrc;
+      el.load();
+    }
+    void el.play().catch(() => {});
+    setHoverClip(true);
+  }, [canHoverClip, clipSrc]);
+
+  const stopHoverClip = useCallback(() => {
+    setHoverClip(false);
+    const el = clipRef.current;
+    if (!el) return;
+    el.pause();
+    el.currentTime = 0;
+  }, []);
 
   const cardLabel = video.text
     ? `Video ${video.handle}: ${video.text}`
@@ -283,19 +307,36 @@ function VideoCard({
       <div
         className="relative overflow-hidden rounded-lg bg-[var(--surface-alt)] border border-[var(--border)] transition-colors duration-[120ms] hover:border-[var(--gv-ink)]"
         style={{ aspectRatio: "9/16" }}
+        onMouseEnter={startHoverClip}
+        onMouseLeave={stopHoverClip}
       >
+        {canHoverClip ? (
+          <video
+            ref={clipRef}
+            muted
+            loop
+            playsInline
+            preload="none"
+            className={`pointer-events-none absolute inset-0 z-[5] h-full w-full object-cover transition-opacity duration-200 ease-out ${
+              hoverClip ? "opacity-100" : "opacity-0"
+            }`}
+            aria-hidden
+          />
+        ) : null}
         {!imgFailed ? (
           <img
             src={video.img}
             alt=""
             loading="lazy"
-            className="h-full w-full object-cover"
+            className={`absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-200 ease-out ${
+              hoverClip && canHoverClip ? "opacity-0" : "opacity-100"
+            }`}
             onError={() => setImgFailed(true)}
           />
         ) : (
-          <div className="h-full w-full bg-[var(--surface-alt)]" />
+          <div className="absolute inset-0 z-10 h-full w-full bg-[var(--surface-alt)]" />
         )}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent from-40% to-black/70" />
+        <div className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70" />
         {(showBreakout || showViral) && (
           <div className="absolute top-2 left-2 flex gap-1">
             {showBreakout ? (

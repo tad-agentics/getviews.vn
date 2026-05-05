@@ -29,13 +29,17 @@ export function useAnswerSessionsList(
   userId: string | undefined,
   enabled: boolean,
   scope: "30d" | "all" = "30d",
+  /** Sidebar / drawer may request more rows than the default Answer screen cap. */
+  limit = 40,
 ) {
   return useQuery({
-    queryKey: userId ? answerSessionKeys.list(userId, scope) : ["answer-sessions", "list", "none"],
+    queryKey: userId
+      ? [...answerSessionKeys.list(userId, scope), limit]
+      : ["answer-sessions", "list", "none"],
     queryFn: async () => {
       const t = await getToken();
       if (!t) throw new Error("auth");
-      return fetchAnswerSessions(t, { limit: 40, scope });
+      return fetchAnswerSessions(t, { limit, scope });
     },
     enabled: Boolean(userId && enabled),
     staleTime: 60_000,

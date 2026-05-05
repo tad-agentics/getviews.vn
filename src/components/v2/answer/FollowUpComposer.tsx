@@ -37,7 +37,8 @@ export function FollowUpComposer({
   onSubmit,
   disabled,
   suggestedPrompts,
-  placeholder = "Hỏi thêm về kết quả này…",
+  variant = "followUp",
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -45,37 +46,47 @@ export function FollowUpComposer({
   disabled?: boolean;
   /** `related_questions` từ báo cáo — ưu tiên hiển thị, bổ sung bằng gợi ý mặc định. */
   suggestedPrompts?: string[];
+  /** `initial` — chưa có phiên: bắt đầu phân tích mới (không disable theo session). */
+  variant?: "initial" | "followUp";
   placeholder?: string;
 }) {
   const prompts = useMemo(() => mergeFollowUpPrompts(suggestedPrompts), [suggestedPrompts]);
+  const kicker = variant === "initial" ? "Bắt đầu phân tích" : "Tiếp tục nghiên cứu";
+  const resolvedPlaceholder =
+    placeholder ??
+    (variant === "initial"
+      ? "Dán link TikTok hoặc đặt câu hỏi…"
+      : "Hỏi thêm về kết quả này…");
 
   return (
     <div className="mt-10">
       <p className="mb-3 font-mono text-[10px] uppercase tracking-wide text-[var(--gv-ink-4)]">
-        Tiếp tục nghiên cứu
+        {kicker}
       </p>
       <QueryComposer
         value={value}
         onChange={onChange}
         onSubmit={onSubmit}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         showNicheCaption={false}
         disabled={disabled}
         followUpSlot={
-          <>
-            {prompts.map((p) => (
-              <button
-                key={p}
-                type="button"
-                disabled={disabled}
-                className={FOLLOW_UP_PILL}
-                onClick={() => onChange(p)}
-              >
-                <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
-                <span className="min-w-0">{p}</span>
-              </button>
-            ))}
-          </>
+          variant === "followUp" ? (
+            <>
+              {prompts.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  disabled={disabled}
+                  className={FOLLOW_UP_PILL}
+                  onClick={() => onChange(p)}
+                >
+                  <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
+                  <span className="min-w-0">{p}</span>
+                </button>
+              ))}
+            </>
+          ) : undefined
         }
       />
     </div>

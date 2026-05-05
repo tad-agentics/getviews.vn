@@ -294,6 +294,7 @@ export default function AnswerScreen() {
   useEffect(() => {
     if (!sessionId && !seedQ.trim()) {
       bootstrapInFlightRef.current = null;
+      setFollowUp("");
     }
   }, [sessionId, seedQ]);
 
@@ -462,6 +463,24 @@ export default function AnswerScreen() {
       setBootstrapLoading(false);
     }
   }, [sessionId, followUp, CLOUD, user, navigate, queryClient, uid, stream]);
+
+  const submitComposer = useCallback(() => {
+    const q = followUp.trim();
+    if (!q || !CLOUD || !user || bootstrapLoading) return;
+    if (!sessionId) {
+      setSearchParams({ q }, { replace: true });
+      return;
+    }
+    void submitFollowUp();
+  }, [
+    followUp,
+    CLOUD,
+    user,
+    bootstrapLoading,
+    sessionId,
+    setSearchParams,
+    submitFollowUp,
+  ]);
 
   const openDrawer = useCallback(() => {
     setDrawerOpen(true);
@@ -651,9 +670,10 @@ export default function AnswerScreen() {
               <FollowUpComposer
                 value={followUp}
                 onChange={setFollowUp}
-                onSubmit={() => void submitFollowUp()}
+                onSubmit={submitComposer}
                 suggestedPrompts={related}
-                disabled={!sessionId}
+                variant={sessionId ? "followUp" : "initial"}
+                disabled={!CLOUD || !user || bootstrapLoading}
               />
             </TimelineRail>
           }
