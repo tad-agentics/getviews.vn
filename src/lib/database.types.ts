@@ -1114,6 +1114,39 @@ export type Database = {
         }
         Relationships: []
       }
+      content_class_intelligence: {
+        Row: {
+          content_class_id: number | null
+          sample_size: number | null
+          hook_distribution: Json | null
+          tone_distribution: Json | null
+          avg_face_appears_at: number | null
+          pct_face_in_half_sec: number | null
+          avg_transitions_per_second: number | null
+          avg_duration: number | null
+          median_duration: number | null
+          min_duration: number | null
+          max_duration: number | null
+          avg_engagement_rate: number | null
+          median_er: number | null
+          median_views: number | null
+          avg_views: number | null
+          avg_text_overlays: number | null
+          commerce_pct: number | null
+          commerce_avg_views: number | null
+          organic_avg_views: number | null
+          southern_count: number | null
+          northern_count: number | null
+          has_cta_pct: number | null
+          pct_has_specific_hashtags: number | null
+          pct_has_caption_text: number | null
+          avg_hashtag_count: number | null
+          pct_original_sound: number | null
+          median_scene_count: number | null
+          computed_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       decrement_and_grant_credits: {
@@ -1143,6 +1176,7 @@ export type Database = {
         }[]
       }
       refresh_niche_intelligence: { Args: never; Returns: undefined }
+      refresh_content_class_intelligence: { Args: never; Returns: undefined }
       // D.2.4 — cross-type history search (ILIKE + pg_trgm GIN).
       search_history_union: {
         Args: { p_query: string; p_limit?: number }

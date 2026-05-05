@@ -1820,16 +1820,50 @@ def _refresh_niche_intelligence_sync(client: Any) -> None:
     client.rpc("refresh_niche_intelligence", {}).execute()
 
 
+def _refresh_content_class_intelligence_sync(client: Any) -> None:
+    """Refresh content_class_intelligence MV via RPC.
+
+    Two-axis A.2.1 (2026-05-14): parallel MV keyed on
+    content_classifications.id. Refreshed after every corpus update so
+    pattern thesis / video diagnosis can pivot to the (topic × format)
+    granularity once A.2.3 lands.
+    """
+    client.rpc("refresh_content_class_intelligence", {}).execute()
+
+
 async def _refresh_niche_intelligence(client: Any) -> bool:
+    """Refresh both niche_intelligence and content_class_intelligence MVs.
+
+    Returns True only when BOTH refreshes succeed — content_class_intelligence
+    feeds the new analytics path; niche_intelligence still feeds the
+    legacy path. Both must be in-sync after a corpus update.
+    """
+    niche_ok = False
+    cc_ok = False
     try:
         await asyncio.get_event_loop().run_in_executor(
             None, lambda: _refresh_niche_intelligence_sync(client)
         )
         logger.info("[corpus] niche_intelligence materialized view refreshed")
-        return True
+        niche_ok = True
     except Exception as exc:
-        logger.error("[corpus] materialized view refresh failed: %s", exc)
-        return False
+        logger.error("[corpus] niche_intelligence refresh failed: %s", exc)
+    try:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _refresh_content_class_intelligence_sync(client)
+        )
+        logger.info("[corpus] content_class_intelligence materialized view refreshed")
+        cc_ok = True
+    except Exception as exc:
+        # MV may not exist on older DBs (migration 20260514000000 not
+        # applied) — log + continue. Once the migration ships everywhere,
+        # this branch becomes a hard failure path on the next iteration.
+        logger.warning(
+            "[corpus] content_class_intelligence refresh failed (acceptable "
+            "if migration 20260514000000 not yet applied): %s",
+            exc,
+        )
+    return niche_ok and cc_ok
 
 
 def _pick_top_videos_for_enrichment_sync(
