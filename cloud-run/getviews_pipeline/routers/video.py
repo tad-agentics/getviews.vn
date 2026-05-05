@@ -181,21 +181,26 @@ async def channel_refresh_mine_endpoint(
     sb_user = user_supabase(user["access_token"])
 
     try:
-        pres = sb_user.table("profiles").select("tiktok_handle, primary_niche").single().execute()
+        pres = sb_user.table("profiles").select(
+            "tiktok_handle, primary_niche, creator_niche_id"
+        ).single().execute()
     except Exception as exc:
         logger.warning("[channel/refresh-mine] profile read failed: %s", exc)
         raise HTTPException(status_code=500, detail="profile_read_failed") from exc
 
     profile = pres.data or {}
     handle = (profile.get("tiktok_handle") or "").strip().lstrip("@")
-    niche_id_raw = profile.get("primary_niche")
+
+    # Two-axis refactor PR5: prefer creator_niche_id (canonical) and
+    # resolve to legacy niche_id for the per-handle corpus query.
+    from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
+
+    niche_id = resolve_legacy_niche_from_profile_row(profile)
 
     if not handle:
         return JSONResponse({"status": "error", "reason": "no_handle_on_profile"}, status_code=400)
-    if niche_id_raw is None:
+    if niche_id is None:
         return JSONResponse({"status": "error", "reason": "no_niche_on_profile"}, status_code=400)
-
-    niche_id = int(niche_id_raw)
 
     # Fetch niche_name for IngestResult tagging + log lines.
     niche_name = ""

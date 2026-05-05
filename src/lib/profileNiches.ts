@@ -42,6 +42,18 @@ export function profileFirstNicheId(
 }
 
 /**
+ * The user's creator_niche_id (UX-facing axis since PR3). Returns null
+ * for pre-onboarding profiles. Used by Trends pills + Settings active
+ * highlight — surfaces that should display the new 14-bucket label.
+ */
+export function profileCreatorNicheId(
+  profile: { creator_niche_id?: number | null } | null | undefined,
+): number | null {
+  if (!profile || profile.creator_niche_id == null) return null;
+  return profile.creator_niche_id;
+}
+
+/**
  * Whether the profile has a niche set (used by the /app/* layout guard).
  * Two-axis refactor PR4: accept either column. New onboarding writes
  * ``creator_niche_id``; legacy rows still on ``primary_niche`` only.

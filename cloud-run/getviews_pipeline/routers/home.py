@@ -33,7 +33,7 @@ async def home_pulse(
     user: dict = Depends(require_user),
     niche_id: int | None = Query(default=None, alias="niche_id"),
 ) -> JSONResponse:
-    """PulseCard payload for the caller's niche (``profiles.primary_niche`` by default, or ``?niche_id=`` (must match))."""
+    """PulseCard payload for the caller's niche (profile niche by default (``creator_niche_id`` resolved to legacy id, falls back to ``primary_niche``); ``?niche_id=`` must match the resolved value)."""
     from getviews_pipeline.pulse import compute_pulse
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -51,7 +51,7 @@ async def home_ticker(
     user: dict = Depends(require_user),
     niche_id: int | None = Query(default=None, alias="niche_id"),
 ) -> JSONResponse:
-    """Marquee ticker items for the caller's niche (default = ``profiles.primary_niche``; ``?niche_id=`` must match)."""
+    """Marquee ticker items for the caller's niche (default = profile niche resolved via ``creator_niche_id`` → legacy id; ``?niche_id=`` must match)."""
     from getviews_pipeline.supabase_client import get_service_client
     from getviews_pipeline.ticker import compute_ticker
 

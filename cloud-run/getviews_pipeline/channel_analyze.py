@@ -1218,11 +1218,15 @@ def run_channel_analyze_sync(
         raise ValueError("Thiếu handle")
 
     try:
-        pres = user_sb.table("profiles").select("primary_niche").single().execute()
+        pres = user_sb.table("profiles").select("primary_niche, creator_niche_id").single().execute()
     except Exception as exc:
         raise ValueError(f"Hồ sơ: {exc}") from exc
-    row = pres.data or {}
-    niche_id = row.get("primary_niche")
+    # Two-axis refactor PR5: prefer creator_niche_id (canonical) and
+    # resolve to legacy niche_id so the channel-corpus query
+    # (video_corpus.niche_id) keeps working unchanged.
+    from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
+
+    niche_id = resolve_legacy_niche_from_profile_row(pres.data or {})
     if niche_id is None:
         raise ValueError("Chưa chọn ngách")
 

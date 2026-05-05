@@ -16,7 +16,7 @@ import { Btn } from "@/components/v2/Btn";
 import { supabase } from "@/lib/supabase";
 import { corpusKeys, useVideoCorpus } from "@/hooks/useVideoCorpus";
 import { useProfile } from "@/hooks/useProfile";
-import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
+import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { TrendsDouyinCard } from "./TrendsDouyinCard";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
@@ -37,7 +37,10 @@ import {
 } from "@/components/ui/dialog";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
-import { profileFirstNicheId } from "@/lib/profileNiches";
+import {
+  legacyNicheIdForCreatorNiche,
+  profileCreatorNicheId,
+} from "@/lib/profileNiches";
 import { TrendsNichePills } from "./TrendsNichePills";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
@@ -562,18 +565,29 @@ export default function ExploreScreen() {
   // /app/trends) reset to the default — Trends is a daily-pulse surface,
   // exploration shouldn't stick.
   const { data: profile } = useProfile();
-  const defaultTrendsNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
-  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(defaultTrendsNicheId);
+  // Two-axis refactor PR5: pills source from creator_niches (UX axis).
+  // Pill state stores the creator_niche_id; downstream queries (which
+  // still filter video_corpus.niche_id) get the resolved legacy id.
+  const defaultCreatorNicheId = useMemo(
+    () => profileCreatorNicheId(profile),
+    [profile],
+  );
+  const [selectedCreatorNicheId, setSelectedCreatorNicheId] = useState<number | null>(
+    defaultCreatorNicheId,
+  );
 
-  // Sync once the profile resolves (profile is async; the initial state
-  // above will be ``null`` on first render).
   useEffect(() => {
-    if (selectedNicheId == null && defaultTrendsNicheId != null) {
-      setSelectedNicheId(defaultTrendsNicheId);
+    if (selectedCreatorNicheId == null && defaultCreatorNicheId != null) {
+      setSelectedCreatorNicheId(defaultCreatorNicheId);
     }
-  }, [defaultTrendsNicheId, selectedNicheId]);
+  }, [defaultCreatorNicheId, selectedCreatorNicheId]);
 
-  const { data: niches } = useNicheTaxonomy();
+  const selectedNicheId = useMemo(
+    () => legacyNicheIdForCreatorNiche(selectedCreatorNicheId ?? -1),
+    [selectedCreatorNicheId],
+  );
+
+  const { data: niches } = useCreatorNiches();
 
   const {
     data: nicheIntel,
@@ -788,14 +802,16 @@ export default function ExploreScreen() {
             className="border-[var(--border)] px-4 pb-[60px] pt-4 sm:px-7 min-[1100px]:min-h-0 min-[1100px]:min-w-0 min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:pt-5"
             style={{ scrollbarWidth: "thin" }}
           >
-          {/* PR4 (single-niche, 2026-05-05) — niche pill row above the
-              hero. Default selection = ``profile.primary_niche``; users
-              can browse other niches transiently. Re-mount resets. */}
+          {/* PR5 (two-axis, 2026-05-10) — niche pill row sourced from
+              ``creator_niches`` (14 UX-facing buckets). Default selection
+              = ``profile.creator_niche_id``; users can browse other niches
+              transiently. Re-mount resets. Pill ids are creator_niche_id;
+              downstream queries derive the legacy niche_id. */}
           <TrendsNichePills
             niches={niches ?? []}
-            activeId={selectedNicheId}
-            onSelect={setSelectedNicheId}
-            disabled={selectedNicheId == null && defaultTrendsNicheId == null}
+            activeId={selectedCreatorNicheId}
+            onSelect={setSelectedCreatorNicheId}
+            disabled={selectedCreatorNicheId == null && defaultCreatorNicheId == null}
           />
 
           {/* ── Zone 1: Discovery + hero (sounds carousel &lt;1100px) ───── */}
