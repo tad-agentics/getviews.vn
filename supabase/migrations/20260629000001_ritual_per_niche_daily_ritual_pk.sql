@@ -1,7 +1,10 @@
 -- daily_ritual: allow one row per (user, date, niche) so the morning job can
 -- write up to 3 ritual bundles (one per followed niche).
--- profiles: drive ``primary_niche`` from ``niche_ids[1]`` so server code and
--- legacy triggers keep a single derived column (no “focus niche” in product UI).
+--
+-- profiles: optional ``primary_niche`` sync from ``niche_ids[1]`` only when
+-- BOTH legacy columns still exist. After ``20260513000001`` (PR6) drops
+-- ``primary_niche``, or when ``niche_ids`` is absent, this block is a no-op
+-- so ``supabase db push`` does not reference a removed column.
 
 -- ── 1) daily_ritual composite primary key ─────────────────────────────
 ALTER TABLE public.daily_ritual DROP CONSTRAINT IF EXISTS daily_ritual_pkey;
@@ -12,10 +15,7 @@ ALTER TABLE public.daily_ritual
 COMMENT ON TABLE public.daily_ritual IS
   'Tối đa một bộ 3 kịch bản / (user, ngày, niche_id) — tối đa 3 ngày theo 3 slot niche_ids.';
 
--- ── 2) Sync primary_niche from niche_ids[1] (1-based in Postgres arrays) ──
--- Skip entirely when ``niche_ids`` was already removed (e.g. migration
--- 20260505000000 ran first on a greenfield DB, or ``db push --include-all``
--- applied the drop before this file).
+-- ── 2) Sync primary_niche from niche_ids[1] (legacy path only) ─────
 DO $sync$
 BEGIN
   IF EXISTS (
@@ -23,6 +23,11 @@ BEGIN
     WHERE table_schema = 'public'
       AND table_name = 'profiles'
       AND column_name = 'niche_ids'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'profiles'
+      AND column_name = 'primary_niche'
   ) THEN
   CREATE OR REPLACE FUNCTION public.sync_profile_primary_niche_from_niche_ids()
   RETURNS TRIGGER
