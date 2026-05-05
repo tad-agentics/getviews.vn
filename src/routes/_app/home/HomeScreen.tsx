@@ -42,8 +42,8 @@ export default function HomeScreen() {
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
 
-  // Single niche per user since 2026-05-05 — Home anchors to ``profile.primary_niche``.
-  // The Trends pills handle browsing other niches; Home stays on the user's pick.
+  // Single niche per user — Home anchors to ``profileFirstNicheId(profile)`` (creator_niche_id → legacy niche_taxonomy row).
+  // Trends pills browse other niches; this surface stays on the user's pick.
   const followedNicheIds = useMemo(() => {
     const id = profileFirstNicheId(profile);
     return id != null ? [id] : [];

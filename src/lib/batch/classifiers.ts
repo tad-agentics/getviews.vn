@@ -235,11 +235,3 @@ export function detectDialect(
   return southScore > northScore ? 'southern' : 'northern';
 }
 
-// ── Handle normalization ─────────────────────────────────────────────────────
-
-/**
- * Normalize TikTok handle: strip @ prefix, lowercase, trim.
- */
-export function normalizeHandle(handle: string): string {
-  return handle.replace(/^@/, '').toLowerCase().trim();
-}

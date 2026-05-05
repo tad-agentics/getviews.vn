@@ -27,8 +27,8 @@ export type RefreshMyChannelResponse =
  * POST `/channel/refresh-mine`. Per-handle on-demand corpus refresh —
  * closes the ~24h staleness gap from the nightly ``cron-batch-ingest``.
  *
- * Server reads the caller's ``profiles.tiktok_handle`` and
- * ``profiles.primary_niche`` and only scrapes that handle (a creator
+ * Server reads the caller's ``profiles.tiktok_handle`` and profile niche scope
+ * (post-PR6: ``creator_niche_id`` / legacy corpus id) and only scrapes that handle (a creator
  * can only refresh their OWN channel via this route). 18h staleness
  * gate is enforced server-side — repeated calls within the window
  * return ``status: "cached"`` without burning ED units.

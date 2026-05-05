@@ -67,8 +67,8 @@ function LogoMark() {
 }
 
 /* ── NicheOfYoursBlock ──────────────────────────────────────────────────────
- * "Ngách Của Bạn" — single niche row from ``profiles.primary_niche``
- * (single-niche model since 2026-05-05). Read-only; change in Cài đặt.
+ * "Ngách Của Bạn" — single row from ``profileFirstNicheId`` (creator_niche_id → corpus niche_id).
+ * Read-only; đổi trong Cài đặt.
  */
 function NicheOfYoursBlock() {
   const { data: profile } = useProfile();

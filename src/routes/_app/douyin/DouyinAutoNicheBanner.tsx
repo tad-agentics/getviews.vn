@@ -8,8 +8,8 @@ import { ArrowRight } from "lucide-react";
  *   "ưu tiên dựa trên hồ sơ" (suggestion) to "đang lọc theo ngách"
  *   (active filter) so users understand the chip is engaged.
  *
- * Renders a thin strip above the toolbar when the user's
- * ``profiles.primary_niche`` maps to a Douyin slug AND that slug has
+ * Renders a thin strip above the toolbar when the user's legacy niche row
+ * (``profileFirstNicheId``) maps to a Douyin slug AND that slug has
  * at least one video in the corpus. The dismiss button clears the
  * chip back to "Tất cả" and reads "MỞ RỘNG → TẤT CẢ NGÁCH" per the
  * design (more direct than a generic X icon).

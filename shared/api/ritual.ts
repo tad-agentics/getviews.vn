@@ -3,7 +3,7 @@ import type { DailyRitual, RitualEmptyReason, RitualErrorBody, RitualResult } fr
 export type FetchDailyRitualParams = {
   baseUrl: string;
   accessToken: string;
-  /** Niche row to load (must be one of the user’s ``niche_ids``). */
+  /** Legacy ``niche_taxonomy.id`` for the ritual row (must match GET query ``niche_id``). */
   expectedNicheId: number;
 };
 

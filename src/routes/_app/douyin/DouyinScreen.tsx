@@ -32,7 +32,7 @@ import { profileFirstNicheId } from "@/lib/profileNiches";
 /**
  * D4b (2026-06-04) — Kho Douyin · main screen.
  * D4c (2026-06-04) — toolbar (search / adapt / sort / saved-only),
- *                    auto-niche banner from first ``niche_ids`` slot,
+ *                    auto-niche banner from ``profileFirstNicheId`` heuristic,
  *                    "Xoá bộ lọc" reset.
  *
  * Out of scope for D4c:

@@ -4,21 +4,14 @@ import type { NicheWithHot } from "@/hooks/useTopNiches";
 /**
  * Studio Home — niche picker pill (PR-5).
  *
- * Sits at the right end of the greeting row. The user follows up to 3
- * niches in their profile (``profiles.niche_ids``); this picker lets
- * them choose which one drives the GỢI Ý HÔM NAY tier stack on Home.
+ * Sits at the right end of the greeting row. Callers pass the user's niche row(s)
+ * (today: one element from ``profileFirstNicheId`` + ``useNicheRowsForIds``).
  *
  * Behaviour:
- *   • Single-niche profile → renders as a static chip (no dropdown).
- *   • ≥2 niches → button toggles a small dropdown panel with each
- *     niche's name and ``hot`` count (corpus sample size). Selecting
- *     fires ``onSelectNiche``; the bottom row routes to /app/settings
- *     via ``onEditNiches``.
+ *   • Một ngách → chip tĩnh (không dropdown).
+ *   • ≥2 rows → nút mở listbox; chọn gọi ``onSelectNiche``; footer mở Cài đặt qua ``onEditNiches``.
  *
- * The picker doesn't change which TikTok handle /channel/analyze targets
- * (one handle on profile; server uses the first id in ``niche_ids`` for
- * ngách mặc định khi phân tích kênh). It re-pins the whole Home surface
- * (gợi ý, ticker, pulse, kịch bản sáng) theo ngách đang xem.
+ * Không đổi TikTok handle trên profile; chỉ đổi ngách đang ghim cho Home (gợi ý, ticker, pulse, ritual).
  */
 
 export const NichePicker = memo(function NichePicker({

@@ -39,7 +39,7 @@ export function scriptPrefillFromChannel(data: {
 
 /** Path + query from a winning video analysis screen. */
 export function scriptPrefillFromVideo(opts: {
-  /** When omitted (default for video → script), URL has no ``niche_id`` — ``ScriptScreen`` falls back to ``profiles.primary_niche``. */
+  /** When omitted (default for video → script), URL has no ``niche_id`` — ``ScriptScreen`` falls back to profile niche (``creator_niche_id`` → legacy row). */
   niche_id?: number | null;
   topic: string;
   hook?: string | null;
