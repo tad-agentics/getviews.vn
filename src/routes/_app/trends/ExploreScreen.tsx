@@ -38,7 +38,7 @@ import {
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
 import { profileFirstNicheId } from "@/lib/profileNiches";
-import { readStudioNicheId } from "@/lib/studioNicheSession";
+import { TrendsNichePills } from "./TrendsNichePills";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
 
@@ -517,8 +517,6 @@ export default function ExploreScreen() {
   const activeFormat = searchParams.get("format");
   const activeViewFilter = parsePositiveInt(searchParams.get("min_views"));
   const searchQuery = searchParams.get("q") ?? "";
-  const nicheParam = parsePositiveInt(searchParams.get("niche"));
-  const nicheExplicitClear = searchParams.get("niche") === "0";
   // PR-T7 — date filter pills (Hôm nay / 7 ngày). Maps to ``dateFrom``
   // on ``useVideoCorpus`` (filtered against ``indexed_at``). Not in
   // ``SORT_VALUES`` style — only two valid values.
@@ -557,21 +555,24 @@ export default function ExploreScreen() {
     window.setTimeout(() => setCorpusPreview(video), 0);
   }, []);
 
-  // Profile → niche auto-seed. `?niche=0` in the URL encodes "user cleared
-  // niche this session" and suppresses the seed. Any positive `?niche=N`
-  // wins over profile.
-  const selectedNicheId: number | null = nicheParam;
-
+  // Trends niche selection — local state only since 2026-05-05 (PR4 of
+  // single-niche refactor). Default = the user's profile niche; pill
+  // clicks let the user transiently browse other niches without altering
+  // their profile. Re-mounts (e.g. navigating away then back to
+  // /app/trends) reset to the default — Trends is a daily-pulse surface,
+  // exploration shouldn't stick.
   const { data: profile } = useProfile();
   const defaultTrendsNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
-  // Single niche per user since 2026-05-05. PR4 (Trends pills) lets users
-  // browse other niches transiently; this list still gates the Studio →
-  // Trends session-resume so the "remember last Home pick" behaviour only
-  // restores when the saved id matches the user's profile niche.
-  const followedNicheIds = useMemo(
-    () => (defaultTrendsNicheId != null ? [defaultTrendsNicheId] : []),
-    [defaultTrendsNicheId],
-  );
+  const [selectedNicheId, setSelectedNicheId] = useState<number | null>(defaultTrendsNicheId);
+
+  // Sync once the profile resolves (profile is async; the initial state
+  // above will be ``null`` on first render).
+  useEffect(() => {
+    if (selectedNicheId == null && defaultTrendsNicheId != null) {
+      setSelectedNicheId(defaultTrendsNicheId);
+    }
+  }, [defaultTrendsNicheId, selectedNicheId]);
+
   const { data: niches } = useNicheTaxonomy();
 
   const {
@@ -579,43 +580,6 @@ export default function ExploreScreen() {
     isPending: nicheIntelLoading,
     isError: nicheIntelQueryError,
   } = useNicheIntelligence(selectedNicheId);
-
-  // Auto-seed when URL has no `?niche=`: prefer last Studio (Home) pick, else profile first slot.
-  // Skip when the URL explicitly carries `?niche=0` (user cleared) or a positive `?niche=` is present.
-  useEffect(() => {
-    if (nicheExplicitClear) return;
-    if (selectedNicheId !== null) return;
-    const fromSession = readStudioNicheId();
-    const pick =
-      fromSession != null && followedNicheIds.includes(fromSession)
-        ? fromSession
-        : defaultTrendsNicheId;
-    if (pick != null) setFilter({ niche: String(pick) });
-  }, [
-    defaultTrendsNicheId,
-    followedNicheIds,
-    selectedNicheId,
-    nicheExplicitClear,
-    setFilter,
-  ]);
-
-  // On each navigation to Xu hướng, apply last Studio pick so it tracks Home (session may be newer
-  // than a stale `?niche` left on the tab). Respects `?niche=0` (cleared niche for this session).
-  useEffect(() => {
-    if (location.pathname !== "/app/trends") return;
-    if (nicheExplicitClear) return;
-    const s = readStudioNicheId();
-    if (s == null || !followedNicheIds.includes(s)) return;
-    if (s === selectedNicheId) return;
-    setFilter({ niche: String(s) });
-  }, [
-    location.key,
-    location.pathname,
-    nicheExplicitClear,
-    followedNicheIds,
-    setFilter,
-    selectedNicheId,
-  ]);
 
   // T5 (D7) — seed the 100K+ view filter on first mount when the URL
   // doesn't already carry a ``?min_views=`` param. Design pack
@@ -824,6 +788,16 @@ export default function ExploreScreen() {
             className="border-[var(--border)] px-4 pb-[60px] pt-4 sm:px-7 min-[1100px]:min-h-0 min-[1100px]:min-w-0 min-[1100px]:overflow-y-auto min-[1100px]:border-r min-[1100px]:pt-5"
             style={{ scrollbarWidth: "thin" }}
           >
+          {/* PR4 (single-niche, 2026-05-05) — niche pill row above the
+              hero. Default selection = ``profile.primary_niche``; users
+              can browse other niches transiently. Re-mount resets. */}
+          <TrendsNichePills
+            niches={niches ?? []}
+            activeId={selectedNicheId}
+            onSelect={setSelectedNicheId}
+            disabled={selectedNicheId == null && defaultTrendsNicheId == null}
+          />
+
           {/* ── Zone 1: Discovery + hero (sounds carousel &lt;1100px) ───── */}
           <section className="pb-4">
             {/* PR-T2 — pattern-thesis hero replaces the old niche-intel
