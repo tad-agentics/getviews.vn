@@ -57,7 +57,7 @@ export const FirstRunWelcomeStrip = memo(function FirstRunWelcomeStrip({
           type="button"
           onClick={onDismiss}
           aria-label="Đóng chào mừng"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-[color:var(--gv-canvas)]/70 transition-colors hover:bg-white/10 hover:text-[color:var(--gv-canvas)]"
+          className="flex h-11 w-11 items-center justify-center rounded-md text-[color:var(--gv-canvas)]/70 transition-colors hover:bg-white/10 hover:text-[color:var(--gv-canvas)]"
         >
           <XIcon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
         </button>

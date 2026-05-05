@@ -249,7 +249,7 @@ function ProfileSettingsSection({
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             maxLength={40}
-            className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3.5 py-2.5 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
+            className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3.5 py-2.5 text-[16px] text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)] sm:text-sm"
           />
         </SettingsField>
         <SettingsField label="Email">
@@ -271,7 +271,7 @@ function ProfileSettingsSection({
               value={draftTiktok}
               onChange={(e) => setDraftTiktok(e.target.value)}
               placeholder="@username"
-              className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-2.5 pl-9 pr-3.5 text-sm text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] focus:border-[color:var(--gv-ink)]"
+              className="w-full rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] py-2.5 pl-9 pr-3.5 text-[16px] text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)] focus:border-[color:var(--gv-ink)] sm:text-sm"
             />
           </div>
         </SettingsField>
