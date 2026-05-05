@@ -1,5 +1,5 @@
 /**
- * Layer0Panel — hashtag-discovery health for the admin console.
+ * Layer0Panel — hashtag / signal health per taxonomy niche (admin).
  *
  * Visualises the four signals that ``/batch/layer0`` produces:
  *
@@ -97,7 +97,7 @@ function StaleChip({ count }: { count: number }) {
   }
   return (
     <span className="inline-flex items-center rounded-full px-2.5 py-0.5 gv-mono text-[10px] font-semibold uppercase tracking-[0.08em] bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]">
-      {count} stale
+      {count} tín hiệu quá hạn
     </span>
   );
 }
@@ -198,12 +198,12 @@ export function Layer0Panel() {
         <Bignum
           label="Hashtag chờ duyệt"
           value={summary.pending_review_count}
-          sub={`/${formatVN(summary.hashtag_map_size)} đã ánh xạ`}
+          sub={`trên ${formatVN(summary.hashtag_map_size)} hashtag đã ánh xạ`}
         />
         <Bignum
-          label="Niche signal stale"
+          label="Ngách có tín hiệu quá hạn"
           value={summary.niches_with_stale_signals}
-          sub={`/${summary.niches_total} niche`}
+          sub={`/${summary.niches_total} dòng taxonomy`}
         />
         <Bignum
           label="Thời lượng lần chạy"
@@ -214,27 +214,27 @@ export function Layer0Panel() {
       {/* Niche freshness */}
       <div>
         <p className="gv-uc mb-2.5 text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
-          Niche freshness · top 10 stale-first
+          Độ tươi signal · 10 dòng taxonomy ưu tiên quá hạn trước
         </p>
         {topStaleNiches.length === 0 ? (
           <p className="text-[13px] text-[color:var(--gv-ink-3)]">
-            Không có niche nào — kiểm tra niche_taxonomy.
+            Không có dòng taxonomy nào — kiểm tra bảng niche_taxonomy.
           </p>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Niche
+                  Ngách (taxonomy)
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Signals
+                  Số tín hiệu
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Stale
+                  Quá hạn
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Refresh gần nhất
+                  Refresh hashtag gần nhất
                 </th>
               </tr>
             </thead>
@@ -250,11 +250,11 @@ export function Layer0Panel() {
       {/* Pending candidates */}
       <div>
         <p className="gv-uc mb-2.5 text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
-          Hashtag chờ duyệt · top 20 theo occurrences
+          Hashtag chờ duyệt · 20 dòng đầu theo số lần xuất hiện
         </p>
         {data.pending_candidates.length === 0 ? (
           <p className="text-[13px] text-[color:var(--gv-ink-3)]">
-            Không còn candidate nào trong hàng đợi.
+            Không còn hashtag ứng viên nào trong hàng đợi duyệt.
           </p>
         ) : (
           <table className="w-full">
@@ -264,10 +264,10 @@ export function Layer0Panel() {
                   Hashtag
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Occurrences
+                  Số lần xuất hiện
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Avg views
+                  View trung bình
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
                   Phát hiện
@@ -286,27 +286,27 @@ export function Layer0Panel() {
       {/* Recent runs */}
       <div>
         <p className="gv-uc mb-2.5 text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
-          5 lần chạy gần nhất · batch/layer0
+          5 lần chạy gần nhất · job batch Layer0
         </p>
         {data.recent_runs.length === 0 ? (
           <p className="text-[13px] text-[color:var(--gv-ink-3)]">
-            Chưa có lần chạy nào — kiểm tra cron-batch-layer0 trong cron.job.
+            Chưa có lần chạy nào — kiểm tra lịch cron batch Layer0 (Cloud Run).
           </p>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Khi
+                  Thời điểm
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Status
+                  Trạng thái
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
                   Thời lượng
                 </th>
                 <th className="py-2 pr-4 text-left gv-uc text-[9px] font-semibold text-[color:var(--gv-ink-4)]">
-                  Summary / error
+                  Tóm tắt / lỗi
                 </th>
               </tr>
             </thead>

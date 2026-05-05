@@ -3,20 +3,20 @@
  *
  * Renders the `/admin/corpus-health` response with the editorial rhythm
  * from `artifacts/uiux-reference/screens/*.jsx`: gv-bignum counters in
- * a four-column strip, a kicker-labelled claim-tier histogram, and a
- * table of niches by 30d volume (10 rows by default, expandable to all). Tier chips use the
+ * a four-column strip, a claim-tier histogram, and a table of taxonomy
+ * niches by 30d volume (10 rows by default, expandable to all). Tier chips use the
  * accent-soft / ink-4 palette the reference sound/trend chips use.
  */
 import { useMemo, useState } from "react";
 import { useCorpusHealth, type ClaimTier, type CorpusHealthNicheRow } from "@/hooks/useCorpusHealth";
 
 const TIER_LABEL: Record<ClaimTier, string> = {
-  none: "Chưa đủ",
-  reference_pool: "Reference pool",
-  basic_citation: "Basic citation",
-  niche_norms: "Niche norms",
-  hook_effectiveness: "Hook effectiveness",
-  trend_delta: "Trend delta",
+  none: "Chưa đủ ngưỡng",
+  reference_pool: "Pool tham chiếu (≥5 / 30d)",
+  basic_citation: "Trích dẫn cơ bản (≥20)",
+  niche_norms: "Chuẩn ngách (≥30)",
+  hook_effectiveness: "Hiệu quả hook (≥50)",
+  trend_delta: "Delta xu hướng (≥100)",
 };
 
 /** Default rows before "Xem thêm"; full list available via toggle. */
@@ -73,7 +73,7 @@ function TierHistogram({ histogram, total }: { histogram: Record<ClaimTier, numb
   if (total === 0) {
     return (
       <p className="text-[13px] text-[color:var(--gv-ink-3)]">
-        Chưa có niche nào đạt ngưỡng đầu tiên.
+        Chưa có dòng taxonomy nào trong danh sách.
       </p>
     );
   }
@@ -122,6 +122,9 @@ function NicheRow({ row }: { row: CorpusHealthNicheRow }) {
       </td>
       <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
         {relativeAge(row.last_ingest_at)}
+      </td>
+      <td className="py-2.5 pr-4 gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+        {relativeAge(row.last_pattern_at ?? null)}
       </td>
       <td className="py-2.5">
         <TierChip tier={row.highest_passing_tier} />
@@ -174,16 +177,16 @@ export function CorpusHealthPanel() {
     <div className="flex flex-col gap-7">
       {/* Summary strip */}
       <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4">
-        <Bignum label="Niches" value={summary.niches_total} />
-        <Bignum label="Videos · 7d" value={summary.videos_7d_total} />
-        <Bignum label="Videos · 30d" value={summary.videos_30d_total} />
-        <Bignum label="Videos · 90d" value={summary.videos_90d_total} />
+        <Bignum label="Dòng taxonomy" value={summary.niches_total} />
+        <Bignum label="Video corpus · 7 ngày" value={summary.videos_7d_total} />
+        <Bignum label="Video corpus · 30 ngày" value={summary.videos_30d_total} />
+        <Bignum label="Video corpus · 90 ngày" value={summary.videos_90d_total} />
       </div>
 
       {/* Tier distribution */}
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-kicker gv-kicker--dot mb-3">
-          Claim tier distribution
+          Phân bố tier claim (theo video 30d / niche_id)
         </p>
         <TierHistogram histogram={summary.tier_histogram} total={summary.niches_total} />
       </div>
@@ -191,18 +194,19 @@ export function CorpusHealthPanel() {
       {/* Niche volume table — collapsed to first rows; expand to full list */}
       <div className="rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
         <p className="gv-kicker gv-kicker--dot gv-kicker--muted mb-3">
-          Top niches by 30d volume
+          Bảng taxonomy — sắp theo lượng video 30 ngày
         </p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[color:var(--gv-rule)]">
-                <TH>Niche</TH>
-                <TH>7d</TH>
-                <TH>30d</TH>
-                <TH>90d</TH>
-                <TH>Last ingest</TH>
-                <TH>Tier</TH>
+                <TH>Ngách (taxonomy)</TH>
+                <TH>7 ngày</TH>
+                <TH>30 ngày</TH>
+                <TH>90 ngày</TH>
+                <TH>Ingest gần nhất</TH>
+                <TH>Mẫu trend</TH>
+                <TH>Tier claim</TH>
               </tr>
             </thead>
             <tbody>
@@ -229,7 +233,7 @@ export function CorpusHealthPanel() {
       </div>
 
       <p className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
-        As of {new Date(as_of).toLocaleString("vi-VN")} · {niches.length} niches total
+        Cập nhật {new Date(as_of).toLocaleString("vi-VN")} · {niches.length} dòng taxonomy
       </p>
     </div>
   );

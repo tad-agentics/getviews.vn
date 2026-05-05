@@ -8,8 +8,7 @@
  *      types /app/admin directly. Server-side require_admin blocks the
  *      data fetches but the DOM should also stay clean.)
  *   2. Admin: panels mount inside the Studio chrome (TopBar + sections).
- *      We assert the kickers for all five sections so a panel
- *      accidentally dropped in a future refactor fails the test.
+ *      We assert section kickers so a panel dropped in a refactor fails the test.
  */
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,9 +47,6 @@ vi.mock("./TriggersPanel", () => ({
 }));
 vi.mock("./ActionLogPanel", () => ({
   ActionLogPanel: () => <div data-testid="panel-actionlog" />,
-}));
-vi.mock("./AlertsPanel", () => ({
-  AlertsPanel: () => <div data-testid="panel-alerts" />,
 }));
 
 // TopBar / SectionHeader — render enough structure to assert against.
@@ -127,7 +123,7 @@ describe("AdminScreen gate", () => {
     expect(screen.queryByTestId("panel-triggers")).toBeNull();
   });
 
-  it("renders the TopBar + all five sections when the user is admin", () => {
+  it("renders the TopBar + all admin sections when the user is admin", () => {
     mockUseIsAdmin.mockReturnValue({ isAdmin: true, isLoading: false });
     renderScreen();
     expect(mockNavigate).not.toHaveBeenCalled();
@@ -138,15 +134,14 @@ describe("AdminScreen gate", () => {
     // Section kickers lock the rendering order / presence so a future
     // refactor that drops a section fails here rather than shipping a
     // half-empty dashboard.
-    expect(screen.getByTestId("kicker-ALERTS · THRESHOLD RULES")).toBeTruthy();
-    expect(screen.getByTestId("kicker-CORPUS · INGEST + CLAIM TIERS")).toBeTruthy();
+    expect(screen.getByTestId("kicker-CORPUS · TAXONOMY + CLAIM TIERS")).toBeTruthy();
+    expect(screen.getByTestId("kicker-LAYER0 · TAXONOMY + HASHTAG")).toBeTruthy();
     expect(screen.getByTestId("kicker-ENSEMBLEDATA · USED UNITS")).toBeTruthy();
     expect(screen.getByTestId("kicker-CLOUD RUN · STDOUT TAIL")).toBeTruthy();
     expect(screen.getByTestId("kicker-MANUAL RUN · CRON JOBS")).toBeTruthy();
     expect(screen.getByTestId("kicker-AUDIT · WHO RAN WHAT")).toBeTruthy();
 
-    // All six panels mount.
-    expect(screen.getByTestId("panel-alerts")).toBeTruthy();
+    // Stubbed panels mount (Layer0Panel is not mocked — real component).
     expect(screen.getByTestId("panel-corpus")).toBeTruthy();
     expect(screen.getByTestId("panel-ensemble")).toBeTruthy();
     expect(screen.getByTestId("panel-logs")).toBeTruthy();

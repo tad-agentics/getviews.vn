@@ -4,8 +4,7 @@
  * Editorial layout mirrors `artifacts/uiux-reference/screens/home.jsx`:
  * sticky TopBar, 1320px main wrap, SectionHeader with kicker dot + tight
  * 28px title for each panel, `<hr>` rules between sections, and
- * `gv-fade-up` staggered entries. The four panels (CorpusHealth,
- * EnsembleCredits, Logs, Triggers) handle their own data + visual
+ * `gv-fade-up` staggered entries. Each panel handles its own data + visual
  * density; this file is purely the routing + section rhythm.
  *
  * Gate: the SPA checks `useIsAdmin()` and bounces non-admins to /app.
@@ -20,7 +19,6 @@ import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TopBar } from "@/components/v2/TopBar";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ActionLogPanel } from "./ActionLogPanel";
-import { AlertsPanel } from "./AlertsPanel";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 import { Layer0Panel } from "./Layer0Panel";
@@ -63,21 +61,9 @@ export default function AdminScreen() {
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
           <section className="gv-fade-up">
             <SectionHeader
-              kicker="ALERTS · THRESHOLD RULES"
-              title="Cảnh báo hệ thống"
-              caption="Rule fires trong 24h gần nhất. Slack webhook gửi khi breach — không lặp khi đã firing."
-              kickerTone="pos"
-            />
-            <AlertsPanel />
-          </section>
-
-          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
-
-          <section className="gv-fade-up">
-            <SectionHeader
-              kicker="CORPUS · INGEST + CLAIM TIERS"
+              kicker="CORPUS · TAXONOMY + CLAIM TIERS"
               title="Sức khỏe corpus"
-              caption="Lượng video 7d / 30d / 90d theo niche và tier claim hiện tại."
+              caption="Theo từng dòng niche_taxonomy (kho video đa ngách). Người dùng chỉ chọn một creator_niche_id; tier claim vẫn tính trên lượng video 30d của từng niche_id trong corpus."
             />
             <CorpusHealthPanel />
           </section>
@@ -86,9 +72,9 @@ export default function AdminScreen() {
 
           <section className="gv-fade-up gv-fade-up-delay-1">
             <SectionHeader
-              kicker="LAYER0 · HASHTAG DISCOVERY"
-              title="Khám phá hashtag"
-              caption="Lần chạy gần nhất, niche đang stale, và hashtag đang chờ duyệt."
+              kicker="LAYER0 · TAXONOMY + HASHTAG"
+              title="Tín hiệu hashtag theo ngách"
+              caption="Batch quét theo từng dòng niche_taxonomy (signal_hashtags, hashtag_niche_map, niche_candidates). Khác với creator_niche_id trên profile — đây là tầng kho / Layer0 cho toàn taxonomy."
             />
             <Layer0Panel />
           </section>
