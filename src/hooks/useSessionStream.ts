@@ -5,7 +5,14 @@
  * - **Answer research** (`mode: 'answer_turn'`): `POST` `/answer/sessions/:id/turns` (SSE, §J `ReportV1`).
  */
 
-import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
 import { useQueryClient, type QueryClient, type QueryKey } from "@tanstack/react-query";
 
 import { env } from "@/lib/env";
@@ -133,6 +140,9 @@ export function useSessionStream<TPayload = unknown>(
   options: StreamOptions<TPayload> = {},
 ) {
   const qc = useQueryClient();
+  /** Fresh ``invalidateKeys`` / ``onFinal`` without forcing ``stream`` to change identity every render. */
+  const streamOptsRef = useRef(options);
+  streamOptsRef.current = options;
   const abortRef = useRef<AbortController | null>(null);
   const [state, setState] = useState<StreamState<TPayload>>({
     status: "idle",
@@ -275,7 +285,7 @@ export function useSessionStream<TPayload = unknown>(
               res,
               setState,
               qc,
-              options,
+              streamOptsRef,
               args.answerSessionId,
               carriedPayload,
               persistProgress,
@@ -391,7 +401,7 @@ export function useSessionStream<TPayload = unknown>(
           res,
           setState,
           qc,
-          options,
+          streamOptsRef,
           args.sessionId,
           args.resumeStreamId,
           args.lastSeq,
@@ -404,7 +414,7 @@ export function useSessionStream<TPayload = unknown>(
         return { ok: false, error: "stream_failed" };
       }
     },
-    [qc, options],
+    [qc],
   );
 
   const abort = useCallback(() => {
@@ -452,7 +462,7 @@ async function consumeAnswerSse<TPayload>(
   res: Response,
   setState: SetState<TPayload>,
   qc: QueryClient,
-  options: StreamOptions<TPayload>,
+  streamOptsRef: MutableRefObject<StreamOptions<TPayload>>,
   _answerSessionId: string,
   carriedPayload: TPayload | null = null,
   onProgress?: (streamId: string, seq: number) => void,
@@ -526,11 +536,12 @@ async function consumeAnswerSse<TPayload>(
           });
           void qc.invalidateQueries({ queryKey: ["profile"] });
           void qc.invalidateQueries({ queryKey: ["credits"] });
-          for (const key of options.invalidateKeys ?? []) {
+          const streamOpts = streamOptsRef.current;
+          for (const key of streamOpts.invalidateKeys ?? []) {
             void qc.invalidateQueries({ queryKey: key });
           }
-          if (payload !== null && options.onFinal) {
-            options.onFinal(payload);
+          if (payload !== null && streamOpts.onFinal) {
+            streamOpts.onFinal(payload);
           }
           return { ok: true, streamId: lastStreamId, lastSeq, payload };
         }
@@ -563,7 +574,7 @@ async function consumeChatSse<TPayload>(
   res: Response,
   setState: SetState<TPayload>,
   qc: QueryClient,
-  options: StreamOptions<TPayload>,
+  streamOptsRef: MutableRefObject<StreamOptions<TPayload>>,
   sessionId: string,
   resumeStreamId: string | undefined,
   resumeSeq: number | undefined,
@@ -630,11 +641,12 @@ async function consumeChatSse<TPayload>(
           void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
           void qc.invalidateQueries({ queryKey: ["profile"] });
           void qc.invalidateQueries({ queryKey: ["credits"] });
-          for (const key of options.invalidateKeys ?? []) {
+          const streamOpts = streamOptsRef.current;
+          for (const key of streamOpts.invalidateKeys ?? []) {
             void qc.invalidateQueries({ queryKey: key });
           }
-          if (payload !== null && options.onFinal) {
-            options.onFinal(payload);
+          if (payload !== null && streamOpts.onFinal) {
+            streamOpts.onFinal(payload);
           }
           return { ok: true, finalPayload: payload };
         }
