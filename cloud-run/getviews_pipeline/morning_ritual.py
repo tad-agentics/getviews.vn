@@ -406,10 +406,11 @@ def run_morning_ritual_batch(
     """
     summary = RitualBatchSummary()
 
-    # Up to 3 niches per profile in ``niche_ids``; legacy rows may only have
-    # ``primary_niche`` until the user re-saves settings.
+    # Single niche per user since 2026-05-05 (``niche_ids`` array dropped).
+    # The "max 3 niches per profile" cap that lived here historically was a
+    # band-aid against runaway compute under the multi-follow model.
     query = client.table("profiles").select(
-        "id, primary_niche, niche_ids, reference_channel_handles",
+        "id, primary_niche, reference_channel_handles",
     )
     if user_ids:
         query = query.in_("id", user_ids)
@@ -425,42 +426,35 @@ def run_morning_ritual_batch(
     }
 
     for prof in profiles:
-        raw = prof.get("niche_ids")
-        nids: list[int] = []
-        if isinstance(raw, list) and len(raw) > 0:
-            for x in raw[:3]:
-                try:
-                    nids.append(int(x))
-                except (TypeError, ValueError):
-                    continue
-        if not nids:
-            pn = prof.get("primary_niche")
-            if pn is not None:
-                nids = [int(pn)]
-        if not nids:
+        pn = prof.get("primary_niche")
+        if pn is None:
             summary.users_no_niche += 1
             continue
-        for nid in nids:
-            result = generate_ritual_for_user(
-                client,
-                user_id=prof["id"],
-                niche_id=int(nid),
-                niche_name=niche_name_map.get(int(nid), str(nid)),
-                reference_handles=list(prof.get("reference_channel_handles") or []),
-            )
-            if result.error is None and result.scripts:
-                if upsert_ritual(client, result):
-                    summary.generated += 1
-                else:
-                    summary.failed_upsert += 1
-            elif result.error and result.error.startswith("thin_corpus"):
-                summary.skipped_thin += 1
-            elif result.error and result.error.startswith("schema_error"):
-                summary.failed_schema += 1
-            elif result.error and result.error.startswith("gemini_error"):
-                summary.failed_gemini += 1
-            elif result.error and result.error.startswith("duplicate_hook_types"):
-                summary.failed_duplicate_hooks += 1
+        try:
+            nid = int(pn)
+        except (TypeError, ValueError):
+            summary.users_no_niche += 1
+            continue
+        result = generate_ritual_for_user(
+            client,
+            user_id=prof["id"],
+            niche_id=nid,
+            niche_name=niche_name_map.get(nid, str(nid)),
+            reference_handles=list(prof.get("reference_channel_handles") or []),
+        )
+        if result.error is None and result.scripts:
+            if upsert_ritual(client, result):
+                summary.generated += 1
+            else:
+                summary.failed_upsert += 1
+        elif result.error and result.error.startswith("thin_corpus"):
+            summary.skipped_thin += 1
+        elif result.error and result.error.startswith("schema_error"):
+            summary.failed_schema += 1
+        elif result.error and result.error.startswith("gemini_error"):
+            summary.failed_gemini += 1
+        elif result.error and result.error.startswith("duplicate_hook_types"):
+            summary.failed_duplicate_hooks += 1
     return summary
 
 

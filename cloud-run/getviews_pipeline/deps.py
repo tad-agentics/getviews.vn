@@ -190,13 +190,8 @@ async def require_batch_caller(request: Request) -> dict[str, Any] | None:
 # ── Shared route helper ────────────────────────────────────────────────────────
 
 def _default_niche_id_from_profile_row(row: dict) -> int | None:
-    """First id in ``niche_ids`` (up to 3), else legacy ``primary_niche``."""
-    raw_ids = row.get("niche_ids")
-    if isinstance(raw_ids, list) and len(raw_ids) > 0:
-        try:
-            return int(raw_ids[0])
-        except (TypeError, ValueError):
-            pass
+    """Single niche per user — ``profiles.primary_niche`` after the
+    2026-05-05 single-niche refactor (``niche_ids`` array dropped)."""
     p = row.get("primary_niche")
     if p is not None:
         try:
@@ -207,7 +202,7 @@ def _default_niche_id_from_profile_row(row: dict) -> int | None:
 
 
 async def _resolve_caller_niche_id(access_token: str) -> int:
-    """Default niche for the caller: ``niche_ids[0]`` or legacy ``primary_niche``.
+    """Default niche for the caller: ``profiles.primary_niche``.
 
     Used by routes that need one niche when the client omits ``niche_id``.
     """
@@ -215,7 +210,7 @@ async def _resolve_caller_niche_id(access_token: str) -> int:
 
     sb = user_supabase(access_token)
     try:
-        res = sb.table("profiles").select("primary_niche, niche_ids").single().execute()
+        res = sb.table("profiles").select("primary_niche").single().execute()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"profile lookup: {exc}") from exc
     row = res.data or {}
@@ -231,12 +226,12 @@ async def _resolve_caller_niche_id(access_token: str) -> int:
 async def resolve_home_niche_id(access_token: str, requested: int | None) -> int:
     """Niche for /home/* when the client passes an optional ``niche_id``.
 
-    - If ``requested`` is ``None``: use ``niche_ids[0]`` (or legacy
-      ``primary_niche``) — same default as :func:`_resolve_caller_niche_id`.
-    - If set: must be one of the caller's up-to-three ``niche_ids`` (or legacy
-      primary-only row).
+    - ``requested`` is ``None``: use ``profiles.primary_niche``.
+    - Otherwise: must equal ``profiles.primary_niche`` (single-niche model
+      since 2026-05-05). The Trends pill row lets users *browse* other
+      niches; the home surfaces remain anchored to the user's own niche.
 
-    Raises ``HTTPException`` 400 when ``requested`` is not allowed, 404 when
+    Raises ``HTTPException`` 400 when ``requested`` mismatches, 404 when
     the profile has no niche configured.
     """
     from getviews_pipeline.supabase_client import user_supabase
@@ -245,7 +240,7 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
     try:
         res = (
             sb.table("profiles")
-            .select("primary_niche, niche_ids")
+            .select("primary_niche")
             .single()
             .execute()
         )
@@ -256,33 +251,20 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
 
     row = res.data or {}
     primary = row.get("primary_niche")
-    raw_ids = row.get("niche_ids")
-    allowed: set[int] = set()
-    if isinstance(raw_ids, list) and len(raw_ids) > 0:
-        for x in raw_ids:
-            try:
-                allowed.add(int(x))
-            except (TypeError, ValueError):
-                continue
-    if primary is not None:
-        try:
-            allowed.add(int(primary))
-        except (TypeError, ValueError):
-            pass
-
-    if not allowed:
+    if primary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Chưa chọn ngách — chạy onboarding trước.",
         )
+    try:
+        primary_int = int(primary)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=500, detail="invalid_profile_niche"
+        ) from exc
+
     if requested is None:
-        dft = _default_niche_id_from_profile_row(row)
-        if dft is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Chưa chọn ngách — chạy onboarding trước.",
-            )
-        return int(dft)
+        return primary_int
 
     try:
         rid = int(requested)
@@ -290,7 +272,7 @@ async def resolve_home_niche_id(access_token: str, requested: int | None) -> int
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_niche_id"
         ) from exc
-    if rid not in allowed:
+    if rid != primary_int:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="niche_not_in_profile",
