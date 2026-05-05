@@ -166,7 +166,7 @@ async def channel_refresh_mine_endpoint(
     channel. Closes the ~24h staleness gap between TikTok-live and the
     nightly ``cron-batch-ingest``.
 
-    Reads ``profiles.tiktok_handle`` + ``profiles.primary_niche`` for the
+    Reads ``profiles.tiktok_handle`` + ``profiles.creator_niche_id`` for the
     caller — a creator can only refresh their OWN channel via this route.
     Server-side 18h staleness gate prevents tab-spam from burning ED units.
 

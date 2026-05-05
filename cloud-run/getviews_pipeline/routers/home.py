@@ -91,7 +91,7 @@ async def home_daily_ritual(
 ) -> JSONResponse:
     """Today's 3 ready-to-shoot scripts for the caller's niche.
 
-    Pass ``niche_id`` only to assert it matches ``profiles.primary_niche``
+    Pass ``niche_id`` only to assert it matches the resolved ``creator_niche_id``
     (single-niche model since 2026-05-05); omitted = use the profile niche.
     Returns 404 when no row exists for that (user, date, niche) yet — the FE
     polls this endpoint after POST /home/regenerate-ritual until a row lands.
