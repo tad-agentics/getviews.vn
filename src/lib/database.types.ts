@@ -816,6 +816,7 @@ export type Database = {
           comments: number
           content_type: string
           content_format: string | null
+          content_class_id: number | null
           created_at: string
           creator_handle: string
           creator_followers: number | null
@@ -872,6 +873,7 @@ export type Database = {
           comments?: number
           content_type: string
           content_format?: string | null
+          content_class_id?: number | null
           created_at?: string
           creator_handle: string
           creator_followers?: number | null
@@ -928,6 +930,7 @@ export type Database = {
           comments?: number
           content_type?: string
           content_format?: string | null
+          content_class_id?: number | null
           created_at?: string
           creator_handle?: string
           creator_followers?: number | null

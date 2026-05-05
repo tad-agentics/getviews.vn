@@ -864,6 +864,127 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     return "other"
 
 
+# Two-axis niche refactor PR2 — Python mirror of
+# ``map_legacy_corpus_to_content_class`` SQL function. Both must stay in
+# sync; the SQL handles backfill of existing rows, this handles new
+# ingest. Keys: legacy ``niche_taxonomy.id`` (some retired ids preserved
+# for cold-clone DBs that still have history). Values: ``content_classifications.id``
+# (seeded in 20260510000000_two_axis_niche_pr1_schema). Tightened
+# format-specific rules listed first; per-niche fallback last.
+def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
+    if niche_id is None:
+        return None
+    cf = content_format or ""
+
+    # ── Beauty (legacy 2)
+    if niche_id == 2:
+        if cf in ("review", "comparison"): return 3
+        if cf == "haul":                   return 4
+        if cf == "tutorial":               return 1
+        if cf == "grwm":                   return 2
+        if cf in ("before_after", "storytelling", "pov"): return 5
+        return 1
+    # ── Fashion (legacy 3)
+    if niche_id == 3:
+        if cf == "haul":                                   return 7
+        if cf in ("review", "comparison"):                 return 8
+        if cf in ("outfit_transition", "highlight", "dance"): return 9
+        if cf in ("vlog", "storytelling", "pov"):          return 10
+        return 6
+    # ── Food (legacy 4)
+    if niche_id == 4:
+        if cf == "recipe":                          return 13
+        if cf == "mukbang":                         return 14
+        if cf in ("review", "comparison"):          return 11
+        if cf in ("vlog", "storytelling", "pov"):   return 12
+        return 11
+    # ── Business / Finance / Real estate
+    if niche_id == 5:
+        if cf in ("haul", "review", "comparison"): return 49
+        if cf == "tutorial":                       return 48
+        if cf == "storytelling":                   return 47
+        return 48
+    if niche_id == 10:                             return 51
+    if niche_id == 15:
+        if cf == "storytelling":                   return 47
+        if cf == "comparison":                     return 46
+        return 45
+    # ── Family / Parenting (legacy 7)
+    if niche_id == 7:
+        if cf == "comedy_skit":                    return 31
+        if cf in ("vlog", "storytelling", "pov"):  return 30
+        if cf in ("lesson", "tutorial"):           return 33
+        return 33
+    # ── Education (legacy 11, 23)
+    if niche_id in (11, 23):
+        if cf == "lesson":                         return 36
+        if cf in ("tutorial", "comparison"):       return 37
+        if cf == "storytelling":                   return 38
+        return 35
+    # ── Tech (legacy 9)
+    if niche_id == 9:
+        if cf in ("haul", "review", "comparison"): return 40
+        if cf == "tutorial":                       return 41
+        return 40
+    # ── Gaming (legacy 17)
+    if niche_id == 17:
+        if cf == "gameplay":                       return 42
+        if cf in ("review", "comparison"):         return 43
+        return 42
+    # ── Comedy (legacy 13)
+    if niche_id == 13:
+        if cf == "comedy_skit":                    return 24
+        if cf == "dance":                          return 29
+        if cf in ("storytelling", "pov"):          return 26
+        return 24
+    # ── Music (legacy 22 retired, kept for backfill)
+    if niche_id == 22:
+        if cf == "dance":                          return 29
+        return 28
+    # ── Auto (legacy 14, 25)
+    if niche_id in (14, 25):
+        if cf in ("review", "comparison"):         return 65
+        if cf == "tutorial":                       return 67
+        if cf in ("vlog", "storytelling"):         return 66
+        return 65
+    # ── Travel & Sports (legacy 16, 21)
+    if niche_id == 16:
+        if cf == "lesson":                                  return 62
+        if cf in ("highlight", "outfit_transition"):        return 63
+        return 60
+    if niche_id == 21:
+        if cf == "highlight": return 64
+        if cf == "vlog":      return 63
+        return 64
+    # ── Gym / Fitness (legacy 8)
+    if niche_id == 8:
+        if cf in ("vlog", "storytelling"):         return 59
+        return 56
+    # ── Wellness (legacy 26)
+    if niche_id == 26:
+        if cf in ("vlog", "storytelling"):         return 55
+        if cf == "lesson":                         return 53
+        return 52
+    # ── Pets (legacy 19)
+    if niche_id == 19:
+        if cf == "tutorial":                                   return 71
+        if cf == "lesson":                                     return 70
+        if cf in ("storytelling", "pov", "comedy_skit"):       return 72
+        return 69
+    # ── Home (legacy 20)
+    if niche_id == 20:
+        if cf == "tutorial":                       return 74
+        if cf in ("haul", "review"):               return 73
+        return 73
+    # ── Retired niches with no special format mapping
+    if niche_id == 1:  return 49   # Shopee review
+    if niche_id == 6:  return 23   # Chị đẹp → lifestyle_aesthetic
+    if niche_id == 12: return 50   # Livestream
+    if niche_id == 18: return 13   # Nấu ăn
+    if niche_id == 24: return 46   # Crypto
+    return None
+
+
 def _classify_cta(cta: str | None) -> str | None:
     """Map a raw CTA phrase to one of 7 taxonomy buckets or ``None`` / ``"other"``.
 
@@ -1103,6 +1224,8 @@ def _build_corpus_row(
             video_id, hook_phrase[:60],
         )
 
+    _format = classify_format(analysis_json, niche_id)
+
     return {
         # ── Core columns (existing 17) ──
         "video_id": video_id,
@@ -1139,7 +1262,11 @@ def _build_corpus_row(
         "language": "vi",  # guaranteed by Gate 3/4 in ingest_niche
 
         # ── Group B: Vietnamese/Asian TikTok-specific (4 columns) ──
-        "content_format": classify_format(analysis_json, niche_id),
+        "content_format": _format,
+        # Two-axis niche refactor PR2 — sharp (topic × format) classification
+        # for analysis. Mirrors map_legacy_corpus_to_content_class() in
+        # supabase/migrations/20260511000000_two_axis_niche_pr2_corpus.sql.
+        "content_class_id": _content_class_for(niche_id, _format),
         "cta_type": _classify_cta(analysis_json.get("cta")),
         "is_commerce": _detect_commerce(analysis_json),
         "dialect": _detect_dialect(transcript),
