@@ -133,7 +133,7 @@ def _fetch_grounding_videos(
         try:
             rows = (
                 client.table("video_corpus")
-                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type")
+                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate")
                 .eq("niche_id", niche_id)
                 .in_("creator_handle", reference_handles)
                 .gte("created_at", since_7d)
@@ -151,7 +151,7 @@ def _fetch_grounding_videos(
         try:
             rows = (
                 client.table("video_corpus")
-                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type")
+                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate")
                 .eq("niche_id", niche_id)
                 .gte("created_at", since_7d)
                 .order("views", desc=True)
@@ -169,7 +169,7 @@ def _fetch_grounding_videos(
         try:
             rows = (
                 client.table("video_corpus")
-                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type")
+                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate")
                 .eq("niche_id", niche_id)
                 .gte("created_at", since_30d)
                 .order("views", desc=True)
@@ -192,35 +192,90 @@ def _fetch_grounding_videos(
 # ── Prompt ─────────────────────────────────────────────────────────────────
 
 
-_PROMPT_TEMPLATE = """Bạn là content strategist cho TikTok creator trong ngách **{niche_name}**.
+_PROMPT_TEMPLATE = """Bạn là content strategist cho TikTok creator Việt Nam trong ngách **{niche_name}**.
 
-Hãy tạo 3 kịch bản video ĐỘC LẬP, mỗi cái dùng **một hook_type_en khác nhau** (không trùng).
+Tạo 3 kịch bản video ĐỘC LẬP, mỗi cái dùng **một hook_type_en khác nhau** (không trùng).
 
-Grounding (20 video nổi bật trong ngách tuần này):
+## Grounding ({grounding_count} video nổi bật trong ngách 7 ngày qua)
+
 {grounding_json}
 
-Yêu cầu cho mỗi kịch bản:
-- hook_type_en: pick 1 trong danh sách literal schema cho phép.
-- title_vi: câu hook creator đọc trực tiếp vào camera, đặt trong "dấu ngoặc kép". ≤ 90 ký tự. KHÔNG mô tả ("video về…"), viết thành câu.
-- why_works: 1 câu Vietnamese, ≤ 140 ký tự. Giải thích cơ chế psychology, KHÔNG hứa hẹn "viral".
-- retention_est_pct: realistic 40-75% dựa trên grounding. Đừng cường điệu.
-- shot_count + length_sec: realistic cho TikTok ngắn (3-6 shot, 20-45 giây là sweet spot).
+**Median của top winning videos**: {median_shot_count} shot, {median_length_sec} giây — dùng làm anchor cho shot_count + length_sec.
+**Adequacy tier**: {adequacy_tier} — {adequacy_note}
 
-QUY TẮC:
-- Title phải ngắn, punchy, tiếng Việt tự nhiên — không dịch Anh-Việt cứng.
-- KHÔNG lặp lại y nguyên hook của video trong grounding — chắt lọc pattern, không copy-paste.
-- 3 kịch bản phải ĐA DẠNG hook_type (VD: pov + shock_stat + story_open, không phải 3 pov).
-- TRÁNH TUYỆT ĐỐI các cụm sáo rỗng: "tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", "hack não", "đừng bỏ qua", "xem ngay kẻo muộn". Thay bằng chi tiết cụ thể từ ngách.
+## Cách suy nghĩ (làm theo thứ tự)
+
+**Bước 1 — Trích pattern, không copy hook.** Đọc 20 hook ở grounding. Tìm 3 PATTERN khác nhau lặp lại ở các video high-view. Ví dụ pattern: "số liệu cụ thể + so sánh ngược trực giác", "POV người mới bắt đầu", "trước/sau 30 ngày". KHÔNG copy hook nguyên văn — chỉ rút khung.
+
+**Bước 2 — Chọn cơ chế psychology cho mỗi script.** Mỗi `why_works` PHẢI nêu tên 1 cơ chế từ danh sách:
+- `curiosity_gap`: tạo khoảng trống thông tin viewer cần lấp
+- `social_proof`: ai đã làm + kết quả gì
+- `identification`: viewer thấy "đó là mình" / "đúng tình huống tôi"
+- `contrarian_take`: đi ngược common belief
+- `before_after_promise`: hứa transformation cụ thể đo được
+- `status_anchor`: gắn với identity / class viewer muốn thuộc về
+- `fomo_loss`: nguy cơ bỏ lỡ / thiệt hại nếu không hành động
+why_works phải giải thích MECHANISM = [tên cơ chế] HOẠT ĐỘNG NHƯ NÀO trong 1 câu, không generic ("tạo sự tò mò").
+
+**Bước 3 — Chốt số liệu thực tế.** retention_est_pct, shot_count, length_sec phải bám median grounding. Nếu adequacy là "thin" / "none", retention_est_pct giữ trong 40-55% (không tự tin được). Nếu adequacy là "basic_citation" hoặc cao hơn, có thể lên 60-75% nếu pattern có lịch sử mạnh.
+
+## Schema mỗi kịch bản
+
+- `hook_type_en`: 1 literal trong enum cho phép.
+- `title_vi`: câu hook creator đọc trực tiếp vào camera, trong "dấu ngoặc kép". ≤ 90 ký tự. Phải có **ít nhất 1 noun cụ thể từ ngách** (sản phẩm, địa danh, brand, action verb đặc trưng — KHÔNG generic).
+- `why_works`: 1 câu Vietnamese, ≤ 140 ký tự. Format: "[mechanism_name] — [giải thích cụ thể trong 1 câu]". Ví dụ: "curiosity_gap — số 67% trong câu hook khiến viewer cần lý do, retention spike ở giây 3-5."
+- `retention_est_pct`: integer 40-75. Bám adequacy tier như nói trên.
+- `shot_count`: integer 2-8. Bám median grounding ± 1.
+- `length_sec`: integer 15-90. Bám median grounding ± 5.
+
+## Few-shot (ví dụ ĐÚNG cho ngách Beauty)
+
+{{
+  "hook_type_en": "before_after",
+  "title_vi": "\\"30 ngày dùng tretinoin 0.025% — đây là khuôn mặt tôi mỗi tuần\\"",
+  "why_works": "before_after_promise — promise transformation đo được theo tuần buộc viewer xem hết để thấy kết quả tuần 4.",
+  "retention_est_pct": 62,
+  "shot_count": 5,
+  "length_sec": 30
+}}
+
+## Quy tắc cứng
+
+- Title PHẢI tiếng Việt tự nhiên — không dịch Anh-Việt cứng (sai: "Đừng bỏ lỡ điều này"; đúng: "Tôi đã sai 3 năm").
+- 3 kịch bản PHẢI đa dạng hook_type_en (không 3 pov, không 3 shock_stat).
+- TRÁNH TUYỆT ĐỐI: "tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", "hack não", "đừng bỏ qua", "xem ngay kẻo muộn", "triệu view", "bùng nổ", "công thức vàng". Thay bằng chi tiết cụ thể từ grounding (số liệu, tên brand, tên creator, địa danh).
+- KHÔNG lặp lại y nguyên hook video trong grounding — chỉ rút pattern.
 {reference_note}"""
+
+
+def _median(values: list[int]) -> int | None:
+    """Plain median for small int lists. None on empty."""
+    if not values:
+        return None
+    s = sorted(values)
+    n = len(s)
+    if n % 2 == 1:
+        return s[n // 2]
+    return (s[n // 2 - 1] + s[n // 2]) // 2
+
+
+_ADEQUACY_NOTES: dict[str, str] = {
+    "none": "grounding rất mỏng, retention_est_pct giữ ≤55%; pattern còn unreliable, viết hook conservative.",
+    "thin": "grounding mỏng, retention_est_pct giữ 45-60%; tránh promise mạnh.",
+    "reference_pool": "grounding ok từ kênh tham chiếu, retention 50-70% là realistic.",
+    "basic_citation": "grounding tốt, retention 55-72% nếu pattern lặp ≥3 video.",
+    "niche_norms": "grounding mạnh + đủ sample, retention 60-75% cho pattern hot.",
+}
 
 
 def _build_prompt(
     niche_name: str,
     videos: list[dict[str, Any]],
     reference_handles: list[str],
+    adequacy: str = "thin",
 ) -> str:
     # Trim the grounding payload so the prompt doesn't balloon — Gemini
-    # only needs hook + hook_type + views per row to pattern-match.
+    # only needs hook + hook_type + views + counts per row to pattern-match.
     trimmed = [
         {
             "video_id": v.get("video_id"),
@@ -228,18 +283,38 @@ def _build_prompt(
             "views":   v.get("views"),
             "hook_type": v.get("hook_type"),
             "hook_phrase": v.get("hook_phrase"),
+            "scene_count": v.get("scene_count"),
+            "length_sec": v.get("video_duration"),
+            "engagement_rate": v.get("engagement_rate"),
         }
         for v in videos
     ]
+
+    # Median anchors for shot_count + length_sec — tells Gemini what
+    # "realistic" looks like in this specific niche's winning videos
+    # rather than relying on a hard-coded 3-6 / 20-45 range.
+    shot_counts = [int(v.get("scene_count")) for v in videos if v.get("scene_count") is not None]
+    durations = [int(v.get("video_duration")) for v in videos if v.get("video_duration") is not None]
+    median_shot_count = _median(shot_counts) or 4
+    median_length_sec = _median(durations) or 30
+
     reference_note = ""
     if reference_handles:
         handles_fmt = ", ".join(f"@{h}" for h in reference_handles[:3])
         reference_note = (
             f"\n- Ưu tiên giọng + phong cách giống các kênh tham chiếu của creator: {handles_fmt}."
         )
+
+    adequacy_note = _ADEQUACY_NOTES.get(adequacy, _ADEQUACY_NOTES["thin"])
+
     return _PROMPT_TEMPLATE.format(
         niche_name=niche_name,
+        grounding_count=len(videos),
         grounding_json=json.dumps(trimmed, ensure_ascii=False, indent=2),
+        median_shot_count=median_shot_count,
+        median_length_sec=median_length_sec,
+        adequacy_tier=adequacy,
+        adequacy_note=adequacy_note,
         reference_note=reference_note,
     )
 
@@ -277,7 +352,7 @@ def generate_ritual_for_user(
             error=f"thin_corpus: only {len(videos)} grounding videos",
         )
 
-    prompt = _build_prompt(niche_name, videos, reference_handles)
+    prompt = _build_prompt(niche_name, videos, reference_handles, adequacy=adequacy)
     config = types.GenerateContentConfig(
         temperature=0.6,   # distinct scripts need some creativity
         response_mime_type="application/json",
