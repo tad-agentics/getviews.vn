@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, type ReactNode } from "react";
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from "react-router";
 import {
   Plus,
   Home,
@@ -302,6 +302,7 @@ function ContextMenu({
 function SessionRow({
   session,
   isPinned,
+  isActive = false,
   onNavigate,
   onPin,
   onDelete,
@@ -309,6 +310,8 @@ function SessionRow({
 }: {
   session: Session;
   isPinned: boolean;
+  /** Current ``/app/answer?session=`` row — matches shell “you are here”. */
+  isActive?: boolean;
   onNavigate: () => void;
   onPin: () => void;
   onDelete: () => void;
@@ -380,14 +383,35 @@ function SessionRow({
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-2 rounded-md px-2.5 py-[7px] transition-colors duration-100 hover:bg-[rgba(20,17,12,0.04)]">
+        <div
+          className={
+            "flex items-center gap-2 rounded-md px-2.5 py-[7px] transition-colors duration-100 " +
+            (isActive && session.source === "answer"
+              ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
+              : "hover:bg-[rgba(20,17,12,0.04)]")
+          }
+        >
           <button
             onClick={onNavigate}
             title={displayLabel}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left text-[12px] text-[color:var(--gv-ink-2)] hover:text-[color:var(--gv-ink)]"
+            aria-current={isActive && session.source === "answer" ? "true" : undefined}
+            className={
+              "flex min-w-0 flex-1 items-center gap-2 text-left text-[12px] " +
+              (isActive && session.source === "answer"
+                ? "font-semibold text-[color:var(--gv-canvas)]"
+                : "text-[color:var(--gv-ink-2)] hover:text-[color:var(--gv-ink)]")
+            }
           >
             {isPinned && (
-              <Pin className="h-2.5 w-2.5 flex-shrink-0 rotate-45 text-[color:var(--gv-accent)]" strokeWidth={2} />
+              <Pin
+                className={
+                  "h-2.5 w-2.5 flex-shrink-0 rotate-45 " +
+                  (isActive && session.source === "answer"
+                    ? "text-[color:var(--gv-accent-2)]"
+                    : "text-[color:var(--gv-accent)]")
+                }
+                strokeWidth={2}
+              />
             )}
             <span className="min-w-0 truncate">{displayLabel}</span>
           </button>
@@ -396,8 +420,12 @@ function SessionRow({
             ref={moreRef}
             onClick={openMenu}
             aria-label={session.source === "answer" ? "Tuỳ chọn phiên nghiên cứu" : "Tuỳ chọn phiên chat"}
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors duration-100 hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
-              menuOpen ? "lg:opacity-100 text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-4)]"
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
+              isActive && session.source === "answer"
+                ? "text-[color:var(--gv-canvas)] hover:bg-[color:rgba(255,255,255,0.12)]"
+                : `hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] ${
+                    menuOpen ? "lg:opacity-100 text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-4)]"
+                  }`
             }`}
           >
             <MoreHorizontal className="h-4 w-4" strokeWidth={1.8} />
@@ -434,6 +462,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ active, children, enableMobileSidebar = false }: AppLayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile();
   const { isAdmin } = useIsAdmin();
@@ -506,6 +535,12 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
   const pinned = sessions.filter((s) => pinnedIds.has(s.id));
   const recent = sessions.filter((s) => !pinnedIds.has(s.id));
+
+  const activeAnswerSessionId = useMemo(() => {
+    if (location.pathname !== "/app/answer") return null;
+    const q = new URLSearchParams(location.search);
+    return q.get("session") ?? q.get("session_id");
+  }, [location.pathname, location.search]);
 
   const handlePin = (id: string) =>
     setPinnedIds((prev) => {
@@ -727,6 +762,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                       key={`${session.source}-${session.id}`}
                       session={session}
                       isPinned
+                      isActive={session.source === "answer" && activeAnswerSessionId === session.id}
                       onNavigate={() => {
                         if (session.source === "answer") {
                           navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
@@ -754,6 +790,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                     key={`${session.source}-${session.id}`}
                     session={session}
                     isPinned={false}
+                    isActive={session.source === "answer" && activeAnswerSessionId === session.id}
                     onNavigate={() => {
                       if (session.source === "answer") {
                         navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);

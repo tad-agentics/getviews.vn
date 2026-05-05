@@ -13,7 +13,6 @@ import {
   injectOptimisticTurn,
   lastPayloadFromTurns,
   useAnswerSessionDetail,
-  useAnswerSessionsList,
   type AnswerDetailCache,
 } from "@/hooks/useAnswerSessionQueries";
 import { useSessionStream } from "@/hooks/useSessionStream";
@@ -27,11 +26,10 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1, SourceRowData } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
-import { Plus, Check, ArrowLeft, List, Loader2 } from "lucide-react";
+import { Plus, Check, ArrowLeft, Loader2 } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
-import { SessionDrawer } from "@/components/v2/answer/SessionDrawer";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import { AnswerSourcesCard } from "@/components/v2/answer/AnswerSourcesCard";
 import { TemplatizeCard } from "@/components/v2/answer/TemplatizeCard";
@@ -105,13 +103,11 @@ export default function AnswerScreen() {
   const sessionId = searchParams.get("session") ?? searchParams.get("session_id");
   const seedQ = searchParams.get("q") ?? "";
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [bootstrapLoading, setBootstrapLoading] = useState(false);
 
   const uid = user?.id;
-  const listQuery = useAnswerSessionsList(uid, Boolean(CLOUD && uid));
   const detailQuery = useAnswerSessionDetail(sessionId, uid);
 
   const { stream, status: streamStatus } = useSessionStream<ReportV1>({
@@ -126,16 +122,6 @@ export default function AnswerScreen() {
     const n = niches.find((row: { id: number; name: string }) => row.id === id);
     return n?.name;
   }, [defaultProfileNicheId, niches]);
-
-  // A2 — closure over the loaded taxonomy so SessionDrawer can render
-  // a niche chip per row without coupling to the hook itself.
-  const nicheLabelOf = useMemo(() => {
-    return (id: number | null): string | null => {
-      if (id == null || !niches?.length) return null;
-      const n = niches.find((row: { id: number; name: string }) => row.id === id);
-      return n?.name ?? null;
-    };
-  }, [niches]);
 
   const displayTitle = useMemo(() => {
     const t = detailQuery.data?.session?.title?.trim();
@@ -486,13 +472,7 @@ export default function AnswerScreen() {
     submitFollowUp,
   ]);
 
-  const openDrawer = useCallback(() => {
-    setDrawerOpen(true);
-    logUsage("answer_drawer_open", { session_id: sessionId });
-  }, [sessionId]);
-
   const related = relatedFromReport(lastPayload);
-  const sessions = listQuery.data?.sessions ?? [];
 
   return (
     <AppLayout active="answer" enableMobileSidebar>
@@ -516,17 +496,6 @@ export default function AnswerScreen() {
             </>
           }
         />
-        <SessionDrawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          sessions={sessions}
-          activeSessionId={sessionId}
-          onSelect={(id) => navigate(`/app/answer?session=${encodeURIComponent(id)}`)}
-          onNewSession={() => navigate("/app/answer")}
-          onViewAll={() => navigate("/app/history?filter=answer")}
-          isLoading={listQuery.isLoading}
-          nicheLabelOf={nicheLabelOf}
-        />
         <AnswerShell
           crumb={
             <div className="mb-6 flex flex-col gap-3 border-b border-[color:var(--gv-rule)] pb-5 min-[700px]:flex-row min-[700px]:items-center min-[700px]:justify-between">
@@ -541,14 +510,6 @@ export default function AnswerScreen() {
                 >
                   <ArrowLeft className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
                   Studio
-                </button>
-                <button
-                  type="button"
-                  onClick={openDrawer}
-                  className="inline-flex min-h-[30px] items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-1 gv-mono text-[11px] font-medium leading-none tracking-[0.06em] text-[color:var(--gv-ink-3)] transition-colors hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)]"
-                >
-                  <List className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
-                  Phiên nghiên cứu · {sessions.length}
                 </button>
                 {nicheLabel ? (
                   <span className="gv-mono text-[11px] uppercase tracking-[0.06em] text-[color:var(--gv-ink-3)]">

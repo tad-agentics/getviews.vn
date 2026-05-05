@@ -540,13 +540,13 @@ def list_sessions(
     scope: str = "30d",
     cursor: str | None = None,
 ) -> list[dict[str, Any]]:
-    """List sessions for drawer / history. ``scope=30d`` filters ``updated_at`` to last 30 days.
+    """List sessions for Studio sidebar / history. ``scope=30d`` filters ``updated_at`` to last 30 days.
 
     Keyset pagination: pass ``cursor`` = ``updated_at`` ISO from the previous page's last row
     (strictly older rows). Ordered by ``updated_at DESC``.
 
     A2 — Each row carries a denormalized ``turn_count`` so the FE
-    SessionDrawer can render "N lượt" per row without N+1 lookups. The
+    sidebar can render "N lượt" per row without N+1 lookups. The
     count comes from one extra batched ``answer_turns`` query keyed by
     the page's session ids; sessions with no turns get ``turn_count=0``.
     """

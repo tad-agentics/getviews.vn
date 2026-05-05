@@ -87,9 +87,6 @@ vi.mock("@/components/v2/Btn", () => ({
     </button>
   ),
 }));
-vi.mock("@/components/v2/answer/SessionDrawer", () => ({
-  SessionDrawer: () => <div data-testid="session-drawer" />,
-}));
 vi.mock("@/components/v2/answer/FollowUpComposer", () => ({
   FollowUpComposer: ({
     disabled,
@@ -143,7 +140,6 @@ vi.mock("@/hooks/useNicheTaxonomy", () => ({
   useNicheTaxonomy: () => mockUseNicheTaxonomy(),
 }));
 
-const mockUseAnswerSessionsList = vi.fn();
 const mockUseAnswerSessionDetail = vi.fn();
 vi.mock("@/hooks/useAnswerSessionQueries", async () => {
   const actual = await vi.importActual<typeof import("@/hooks/useAnswerSessionQueries")>(
@@ -151,7 +147,6 @@ vi.mock("@/hooks/useAnswerSessionQueries", async () => {
   );
   return {
     ...actual,
-    useAnswerSessionsList: (...args: unknown[]) => mockUseAnswerSessionsList(...args),
     useAnswerSessionDetail: (...args: unknown[]) => mockUseAnswerSessionDetail(...args),
   };
 });
@@ -225,10 +220,6 @@ describe("AnswerScreen state transitions", () => {
     });
     mockUseProfile.mockReturnValue({ data: { creator_niche_id: null } });
     mockUseNicheTaxonomy.mockReturnValue({ data: [] });
-    mockUseAnswerSessionsList.mockReturnValue({
-      data: { sessions: [], next_cursor: null },
-      isLoading: false,
-    });
     mockUseAnswerSessionDetail.mockReturnValue({
       data: undefined,
       isLoading: false,
