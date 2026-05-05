@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
-import { profileFirstNicheId, profileFollowedNicheIds } from "@/lib/profileNiches";
+import { profileFirstNicheId } from "@/lib/profileNiches";
 import { readStudioNicheId } from "@/lib/studioNicheSession";
 
 const PLACEHOLDER_THUMB = "/placeholder.svg";
@@ -564,9 +564,13 @@ export default function ExploreScreen() {
 
   const { data: profile } = useProfile();
   const defaultTrendsNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
+  // Single niche per user since 2026-05-05. PR4 (Trends pills) lets users
+  // browse other niches transiently; this list still gates the Studio →
+  // Trends session-resume so the "remember last Home pick" behaviour only
+  // restores when the saved id matches the user's profile niche.
   const followedNicheIds = useMemo(
-    () => profileFollowedNicheIds(profile),
-    [profile],
+    () => (defaultTrendsNicheId != null ? [defaultTrendsNicheId] : []),
+    [defaultTrendsNicheId],
   );
   const { data: niches } = useNicheTaxonomy();
 

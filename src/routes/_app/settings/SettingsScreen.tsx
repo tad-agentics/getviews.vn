@@ -4,23 +4,28 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, Zap, Check, User, Mail, Activity } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
+import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth";
 import { useProfile, type ProfileRow } from "@/hooks/useProfile";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useCreditTransactions } from "@/hooks/useCreditTransactions";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useUpdateProfile } from "@/hooks/useUpdateProfile";
+import { useRegenerateRitual } from "@/hooks/useRegenerateRitual";
 import { useLogout } from "@/hooks/useLogout";
 import type { UseMutationResult } from "@tanstack/react-query";
 import { updateProfile, type ProfilePatch } from "@/lib/data/profile";
-import {
-  MAX_CREATOR_NICHES,
-  MIN_CREATOR_NICHES,
-  normalizeNicheIds,
-  normalizeNicheIdsForProfile,
-} from "@/lib/profileNiches";
 
 type ProfileUpdateMutation = UseMutationResult<
   Awaited<ReturnType<typeof updateProfile>>,
@@ -451,34 +456,28 @@ function PlanPanel({
 
 function toastProfilePatchError(err: unknown) {
   const raw = err instanceof Error ? err.message : "Không lưu được hồ sơ.";
-  if (/niche_ids|PGRST204|schema cache|Could not find.*column.*profiles/i.test(raw)) {
-    toast.error(
-      "Chưa lưu được ngách: database chưa có cột niche_ids. Chạy migration Supabase mới nhất (profiles.niche_ids) hoặc báo team.",
-    );
-    return;
-  }
   toast.error(raw);
 }
 
-const NicheToggleChip = memo(function NicheToggleChip({
+const NicheRadioRow = memo(function NicheRadioRow({
   name,
   id,
   selected,
-  isFocus,
   disabled,
-  onToggle,
+  onSelect,
 }: {
   name: string;
   id: number;
   selected: boolean;
-  isFocus: boolean;
   disabled?: boolean;
-  onToggle: (id: number) => void;
+  onSelect: (id: number) => void;
 }) {
-  const handleClick = useCallback(() => onToggle(id), [id, onToggle]);
+  const handleClick = useCallback(() => onSelect(id), [id, onSelect]);
   return (
     <motion.button
       type="button"
+      role="radio"
+      aria-checked={selected}
       disabled={disabled}
       onClick={handleClick}
       whileTap={{ scale: 0.98 }}
@@ -489,14 +488,7 @@ const NicheToggleChip = memo(function NicheToggleChip({
           : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:border-[color:var(--gv-ink-3)]"
       } disabled:opacity-50`}
     >
-      <span className="font-medium">
-        {name}
-        {isFocus && selected ? (
-          <span className="ml-1.5 font-mono text-[9px] font-semibold uppercase tracking-wider opacity-70">
-            · trọng tâm
-          </span>
-        ) : null}
-      </span>
+      <span className="font-medium">{name}</span>
       <AnimatePresence initial={false}>
         {selected ? (
           <motion.span
@@ -525,46 +517,46 @@ function NichePanel({
   nicheLoading: boolean;
   updateProfile: ProfileUpdateMutation;
 }) {
-  const serverSelected = useMemo(() => {
-    if (profile?.primary_niche != null) return normalizeNicheIdsForProfile([profile.primary_niche]);
-    return [];
-  }, [profile?.primary_niche]);
+  const regenerate = useRegenerateRitual();
+  const serverSelectedId = profile?.primary_niche ?? null;
+  const [pendingChange, setPendingChange] = useState<number | null>(null);
 
-  const serverKey = useMemo(() => serverSelected.join(","), [serverSelected]);
-
-  const [draft, setDraft] = useState<number[] | null>(null);
-
-  useEffect(() => {
-    setDraft(null);
-  }, [serverKey]);
-
-  const selected = draft ?? serverSelected;
-
-  const handleToggle = useCallback(
+  const handleSelect = useCallback(
     (id: number) => {
-      const base = draft ?? serverSelected;
-      const set = new Set(base);
-      if (set.has(id)) {
-        set.delete(id);
-      } else {
-        if (base.length >= MAX_CREATOR_NICHES) return;
-        set.add(id);
-      }
-      const next = normalizeNicheIds(Array.from(set));
-      if (next.length >= MIN_CREATOR_NICHES) {
-        setDraft(next);
-        // PR1 of single-niche refactor: collapses multi-select to first pick.
-        // Multi-select UI → single radio + auto-regen wiring lands in PR3.
-        updateMutation.mutate(
-          { primary_niche: next[0] ?? null },
-          { onError: (err) => toastProfilePatchError(err) },
-        );
-      } else {
-        setDraft(next);
-      }
+      // Same niche → no-op. The PATCH would be wasted and the regen would
+      // fire a Gemini batch for nothing.
+      if (id === serverSelectedId) return;
+      setPendingChange(id);
     },
-    [draft, serverSelected, updateMutation],
+    [serverSelectedId],
   );
+
+  const cancelChange = useCallback(() => setPendingChange(null), []);
+
+  const confirmChange = useCallback(() => {
+    if (pendingChange == null) return;
+    const target = pendingChange;
+    setPendingChange(null);
+    updateMutation.mutate(
+      { primary_niche: target },
+      {
+        onSuccess: () => {
+          // Background regen so Home / Trends content rewrites without
+          // waiting for the nightly cron. Fire-and-forget — the toast tells
+          // the user something is happening, polling on useDailyRitual /
+          // useTopPatterns will surface fresh data when generation lands.
+          regenerate.mutate();
+          toast.success("Đã cập nhật ngách. Đang chuẩn bị gợi ý mới…");
+        },
+        onError: (err) => toastProfilePatchError(err),
+      },
+    );
+  }, [pendingChange, regenerate, updateMutation]);
+
+  const pendingNicheName = useMemo(() => {
+    if (pendingChange == null) return null;
+    return niches?.find((n) => n.id === pendingChange)?.name ?? null;
+  }, [pendingChange, niches]);
 
   return (
     <motion.div
@@ -575,35 +567,52 @@ function NichePanel({
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
     >
-      <p className="text-sm text-[color:var(--gv-ink-3)]">Chọn 3 ngách bạn đang làm nội dung nhé.</p>
-      <p className="text-[12px] text-[color:var(--gv-ink-4)]">
-        Đã chọn <span className="font-medium text-[color:var(--gv-ink)]">{selected.length}</span> / {MAX_CREATOR_NICHES}
-        {draft != null && selected.length < MIN_CREATOR_NICHES ? (
-          <span className="ml-1 text-[color:var(--gv-accent-deep)]"> — chưa lưu cho đến khi đủ {MIN_CREATOR_NICHES} ngách</span>
-        ) : null}
+      <p className="text-sm text-[color:var(--gv-ink-3)]">
+        Chọn ngách bạn đang làm nội dung. Mọi gợi ý ở Trang chủ và Xu hướng sẽ bám theo lựa chọn này.
       </p>
       {nicheLoading ? (
         <div className="h-24 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]" />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(niches ?? []).map((n) => {
-            const isSel = selected.includes(n.id);
-            return (
-              <NicheToggleChip
-                key={n.id}
-                id={n.id}
-                name={n.name}
-                selected={isSel}
-                isFocus={selected[0] === n.id}
-                onToggle={handleToggle}
-                disabled={
-                  updateMutation.isPending || (!isSel && selected.length >= MAX_CREATOR_NICHES)
-                }
-              />
-            );
-          })}
+        <div role="radiogroup" aria-label="Ngách của bạn" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {(niches ?? []).map((n) => (
+            <NicheRadioRow
+              key={n.id}
+              id={n.id}
+              name={n.name}
+              selected={serverSelectedId === n.id}
+              disabled={updateMutation.isPending}
+              onSelect={handleSelect}
+            />
+          ))}
         </div>
       )}
+
+      <AlertDialog
+        open={pendingChange !== null}
+        onOpenChange={(open) => {
+          if (!open) cancelChange();
+        }}
+      >
+        <AlertDialogContent className="bg-[color:var(--gv-paper)] border-[color:var(--gv-rule)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[color:var(--gv-ink)]">
+              Đổi ngách sang {pendingNicheName ?? "ngách này"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[color:var(--gv-ink-3)]">
+              Trang chủ, Xu hướng và baseline đối chiếu sẽ cập nhật theo
+              ngách mới. Có thể mất vài phút để gợi ý mới sẵn sàng.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-[color:var(--gv-rule)]">
+              Huỷ
+            </AlertDialogCancel>
+            <Button type="button" variant="primary" onClick={confirmChange}>
+              Đổi ngách
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

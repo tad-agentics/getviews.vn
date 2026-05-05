@@ -1,9 +1,3 @@
-/** Minimum niches a creator must pick when using multi-niche onboarding / settings. */
-export const MIN_CREATOR_NICHES = 3;
-
-/** Upper bound — aligns with onboarding and settings (exactly three focus niches). */
-export const MAX_CREATOR_NICHES = 3;
-
 /** Taxonomy ids merged or retired — exclude from niche pickers (covers pre-migration DB rows). */
 export const RETIRED_NICHE_TAXONOMY_IDS: ReadonlySet<number> = new Set([6, 12, 18, 23, 24, 25]);
 
@@ -36,59 +30,17 @@ export function resolveNicheNameVn(id: number, nameVnFromDb: string): string {
   return NICHE_TAXONOMY_NAME_VN_BY_ID[id] ?? nameVnFromDb;
 }
 
-/** Apply merge aliases then dedupe order — use when reading profile niche picks in the UI. */
-export function normalizeNicheIdsForProfile(ids: readonly number[]): number[] {
-  return normalizeNicheIds(ids.map(canonicalNicheTaxonomyId));
-}
-
-/** First slot in ``niche_ids`` (thứ tự người dùng chọn), hoặc legacy ``primary_niche``. */
+/** The user's single niche, or `null` before onboarding completes. */
 export function profileFirstNicheId(
-  profile: { primary_niche?: number | null; niche_ids?: number[] | null } | null | undefined,
+  profile: { primary_niche?: number | null } | null | undefined,
 ): number | null {
-  if (!profile) return null;
-  const ids = profile.niche_ids;
-  if (Array.isArray(ids) && ids.length > 0) {
-    const n = normalizeNicheIdsForProfile(ids);
-    return n[0] ?? null;
-  }
-  if (profile.primary_niche != null) return canonicalNicheTaxonomyId(profile.primary_niche);
-  return null;
+  if (!profile || profile.primary_niche == null) return null;
+  return canonicalNicheTaxonomyId(profile.primary_niche);
 }
 
-/** Tối đa 3 ngách quan tâm cho picker — từ ``niche_ids`` hoặc một id legacy. */
-export function profileFollowedNicheIds(
-  profile: { primary_niche?: number | null; niche_ids?: number[] | null } | null | undefined,
-): number[] {
-  if (!profile) return [];
-  const ids = profile.niche_ids;
-  if (Array.isArray(ids) && ids.length > 0) {
-    return normalizeNicheIdsForProfile(ids).slice(0, MAX_CREATOR_NICHES);
-  }
-  if (profile.primary_niche != null) {
-    return [canonicalNicheTaxonomyId(profile.primary_niche)];
-  }
-  return [];
-}
-
-export function profileHasMinimumNiches(
-  profile: { primary_niche?: number | null; niche_ids?: number[] | null } | null | undefined,
+/** Whether the profile has a niche set (used by the /app/* layout guard). */
+export function profileHasNiche(
+  profile: { primary_niche?: number | null } | null | undefined,
 ): boolean {
-  if (!profile) return false;
-  const ids = profile.niche_ids;
-  if (Array.isArray(ids) && ids.length >= MIN_CREATOR_NICHES) return true;
-  // Legacy: only primary_niche before multi-niche column shipped
-  if ((!ids || ids.length === 0) && profile.primary_niche != null) return true;
-  return false;
-}
-
-/** Dedupe while preserving first-seen order. */
-export function normalizeNicheIds(ids: readonly number[]): number[] {
-  const seen = new Set<number>();
-  const out: number[] = [];
-  for (const id of ids) {
-    if (!Number.isFinite(id) || seen.has(id)) continue;
-    seen.add(id);
-    out.push(id);
-  }
-  return out;
+  return profile?.primary_niche != null;
 }

@@ -1,20 +1,21 @@
 /**
- * OnboardingScreen tests — single-step niche pick (post-design-pack collapse).
+ * OnboardingScreen tests — single-niche refactor (PR3, 2026-05-05).
  *
  * Surface contracts:
- *   1. Renders the niche grid with hot count labels.
- *   2. Section header counter advances and turns accent-deep at the cap.
- *   3. Picker hard-caps at MAX_CREATOR_NICHES (3); 4th unselected
- *      tile becomes disabled.
- *   4. Primary CTA is gated on MIN_CREATOR_NICHES (3) and triggers
- *      useUpdateProfile + navigates to /app on success.
+ *   1. Renders the niche radio grid with hot count labels.
+ *   2. Status label flips from "chưa chọn" → "đã chọn" on first pick.
+ *   3. Picking a different niche replaces the previous selection (single
+ *      radio semantics, not toggle).
+ *   4. Primary CTA is gated on a non-null pick and saves
+ *      ``primary_niche`` then navigates to /app on success.
  *   5. "Bỏ qua" navigates back to landing without writing the profile.
  *   6. Already-onboarded profiles are bounced to /app immediately.
+ *   7. Taxonomy fetch error shows a retry button.
  */
 
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 vi.mock("@/lib/env", () => ({
   env: {
@@ -69,7 +70,7 @@ beforeEach(() => {
   mockNavigate.mockReset();
   mutateAsync.mockClear();
   mockUseProfile.mockReturnValue({
-    data: { primary_niche: null, niche_ids: [] },
+    data: { primary_niche: null },
     isPending: false,
   });
   mockUseUpdateProfile.mockReturnValue({ mutateAsync, isPending: false });
@@ -86,54 +87,42 @@ afterEach(() => {
   cleanup();
 });
 
-describe("OnboardingScreen — single-step", () => {
-  it("renders niche grid with video counts", () => {
+describe("OnboardingScreen — single niche pick", () => {
+  it("renders niche radio grid with video counts", () => {
     render(<OnboardingScreen />);
-    expect(screen.getByRole("button", { name: /Ẩm thực/ })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /Ẩm thực/ })).toBeTruthy();
     expect(screen.getByText("1000 video")).toBeTruthy();
-    expect(screen.getByText(/0\/3 đã chọn/)).toBeTruthy();
+    expect(screen.getByText(/chưa chọn/)).toBeTruthy();
   });
 
-  it("counter advances and the primary CTA stays disabled until 3 picks", () => {
+  it("primary CTA stays disabled until a niche is picked", () => {
     render(<OnboardingScreen />);
     const cta = screen.getByRole("button", { name: /Vào Creator Studio/ }) as HTMLButtonElement;
     expect(cta.disabled).toBe(true);
 
-    fireEvent.click(screen.getByRole("button", { name: /Ẩm thực/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Beauty/ }));
-    expect(cta.disabled).toBe(true);
-    expect(screen.getByText(/2\/3 đã chọn/)).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: /Tech/ }));
-    expect(screen.getByText(/3\/3 đã chọn/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: /Ẩm thực/ }));
     expect(cta.disabled).toBe(false);
+    expect(screen.getByText(/đã chọn/)).toBeTruthy();
   });
 
-  it("hard-caps the picker at 3 — extra unselected tiles are disabled", () => {
+  it("selecting a different niche replaces the previous pick", () => {
     render(<OnboardingScreen />);
-    fireEvent.click(screen.getByRole("button", { name: /Ẩm thực/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Beauty/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Tech/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Ẩm thực/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Beauty/ }));
 
-    const dulich = screen.getByRole("button", { name: /Du lịch/ }) as HTMLButtonElement;
-    const taichinh = screen.getByRole("button", { name: /Tài chính/ }) as HTMLButtonElement;
-    expect(dulich.disabled).toBe(true);
-    expect(taichinh.disabled).toBe(true);
+    const amthuc = screen.getByRole("radio", { name: /Ẩm thực/ });
+    const beauty = screen.getByRole("radio", { name: /Beauty/ });
+    expect(amthuc.getAttribute("aria-checked")).toBe("false");
+    expect(beauty.getAttribute("aria-checked")).toBe("true");
   });
 
-  it("primary CTA writes profile + navigates to /app", async () => {
+  it("primary CTA writes primary_niche + navigates to /app", async () => {
     render(<OnboardingScreen />);
-    fireEvent.click(screen.getByRole("button", { name: /Ẩm thực/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Beauty/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Tech/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /Tech/ }));
     fireEvent.click(screen.getByRole("button", { name: /Vào Creator Studio/ }));
 
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
-    // PR1 of single-niche refactor: only the first picked niche is saved
-    // (multi-select UI rework lands in PR3).
-    expect(mutateAsync).toHaveBeenCalledWith({
-      primary_niche: 1,
-    });
+    expect(mutateAsync).toHaveBeenCalledWith({ primary_niche: 3 });
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith("/app", { replace: true }),
     );
@@ -148,7 +137,7 @@ describe("OnboardingScreen — single-step", () => {
 
   it("bounces already-onboarded profiles straight to /app", () => {
     mockUseProfile.mockReturnValue({
-      data: { primary_niche: 1, niche_ids: [1, 2, 3] },
+      data: { primary_niche: 1 },
       isPending: false,
     });
     render(<OnboardingScreen />);
@@ -167,16 +156,5 @@ describe("OnboardingScreen — single-step", () => {
     const retry = screen.getByRole("button", { name: /Thử lại/ });
     fireEvent.click(retry);
     expect(refetch).toHaveBeenCalled();
-  });
-
-  // Section-header counter colour: accent-deep when at cap, ink-4 otherwise.
-  // We assert by reading the className token rather than a computed colour.
-  it("counter switches to accent class when at cap", () => {
-    render(<OnboardingScreen />);
-    fireEvent.click(screen.getByRole("button", { name: /Ẩm thực/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Beauty/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Tech/ }));
-    const counter = screen.getByText(/3\/3 đã chọn/);
-    expect(counter.className).toMatch(/gv-accent-deep/);
   });
 });
