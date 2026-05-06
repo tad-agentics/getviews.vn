@@ -23,9 +23,9 @@ export type IntentDecision = {
  * ``video`` (single-URL diagnosis), not the niche-scoped
  * ``answer:diagnostic`` shelf. PR #1 shipped this temporarily as
  * ``answer:compare``; the rename happens here before any FE component
- * shipped against the wrong slot. Mirror of the server-side
- * ``Destination`` union in
- * ``cloud-run/getviews_pipeline/intent_router.py``. */
+ * shipped against the wrong slot. Canonical source — the BE side
+ * had a mirror ``Destination`` Literal until L1.5 audit follow-up
+ * (purged with the destination-resolution helpers it served). */
 export type Destination =
   | "channel"
   | "script"
@@ -96,9 +96,11 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // (they rode lifecycle's fixture-with-disclaimer path because the
   // upstream hook-timeseries + subniche-taxonomy signal doesn't exist
   // yet). Pattern's niche leaderboard answers both questions more
-  // honestly. Keep backend and frontend rerouting in sync — see
-  // `cloud-run/getviews_pipeline/intent_router.py` for the matching
-  // comment. Historical sessions still render via lifecycle.
+  // honestly. The BE no longer has a mirror routing matrix (purged
+  // L1.5 audit follow-up — server-side dispatch happens via
+  // ``answer_session.select_builder_for_turn``); this map is the
+  // single source of truth. Historical sessions still render via
+  // lifecycle for stored ``mode="hook_fatigue" | "subniche"``.
   subniche_breakdown: "answer:pattern",
   format_lifecycle_optimize: "answer:lifecycle",
   fatigue: "answer:pattern",
@@ -120,7 +122,11 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
 };
 
 /** Subjects the Gemini classifier may emit alongside `follow_up_classifiable`.
- * Mirrors ``FollowUpSubject`` in ``cloud-run/getviews_pipeline/intent_router.py``.
+ * Canonical source — the BE had a mirror ``FollowUpSubject`` Literal
+ * until L1.5 audit follow-up (purged with the destination helpers it
+ * served). The Gemini classifier prompt enumerates these subjects;
+ * server-side normalisation accepts whatever Gemini returns and the
+ * answer-session dispatcher reads ``session.intent_type`` directly.
  * Extended 2026-05-07 with `lifecycle` + `diagnostic` so follow-ups that
  * belong on those shelves are routed there instead of being downgraded to
  * `answer:generic` just because the classifier vocabulary was narrower. */
@@ -177,8 +183,10 @@ export function detectIntent(
 
   // ── OWN CHANNEL / VIDEO FLOP (no TikTok URL) ─────────────────────────────
   // 2026-05-07: the flop-keyword branch widened with colloquial
-  // Vietnamese expressions (see ``cloud-run/getviews_pipeline/intents.py``
-  // for the matching backend regex — keep the two in sync).
+  // Vietnamese expressions. The BE deterministic mirror in
+  // ``cloud-run/getviews_pipeline/intents.py`` was purged L1.5 audit;
+  // this regex is now the single source of truth — ``/stream``'s
+  // null-intent fallback uses Gemini classification, not a regex.
   if (
     !/https?:\/\/[^\s]*tiktok\.com/i.test(q)
     && (
