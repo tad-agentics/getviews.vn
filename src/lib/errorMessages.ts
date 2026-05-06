@@ -67,6 +67,10 @@ export function analysisErrorCopy(error: unknown): string {
   if (code === "no_cloud_run") {
     return "Dịch vụ phân tích chưa cấu hình (VITE_CLOUD_RUN_API_URL).";
   }
+  /** Cloud Run auth: JWKS URL unset (``deps.py`` / missing ``SUPABASE_URL``). */
+  if (code === "jwks_url_unset") {
+    return "Không thể tải phân tích. Thử lại sau ít giây; nếu vẫn lỗi, kiểm tra kết nối rồi báo hỗ trợ.";
+  }
   if (code === "cloud_run_batch_url_unset") {
     return "Trang admin chưa cấu hình URL batch (VITE_CLOUD_RUN_BATCH_URL).";
   }
@@ -92,6 +96,11 @@ export function analysisErrorCopy(error: unknown): string {
   if (code.startsWith("http_")) {
     const status = code.slice(5);
     return `Server trả lỗi (HTTP ${status}). Thử lại sau ít giây.`;
+  }
+  // ``shared/api/ritual.ts`` throws ``new Error(`HTTP ${status}`)`` on non-2xx.
+  const httpUpper = /^HTTP (\d{3})$/.exec(code);
+  if (httpUpper) {
+    return `Server trả lỗi (HTTP ${httpUpper[1]}). Thử lại sau ít giây.`;
   }
 
   // Error-instance inputs keep the historical fall-through — hooks

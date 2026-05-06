@@ -27,9 +27,9 @@ describe("analysisErrorCopy", () => {
     expect(analysisErrorCopy(e)).toMatch(/hết lượt miễn phí/);
   });
 
-  it("falls through to the raw message for unclassified errors", () => {
-    const e = new Error("HTTP 502");
-    expect(analysisErrorCopy(e)).toBe("HTTP 502");
+  it("translates ritual-style HTTP status messages to Vietnamese", () => {
+    expect(analysisErrorCopy(new Error("HTTP 500"))).toMatch(/Server trả lỗi \(HTTP 500\)/);
+    expect(analysisErrorCopy(new Error("HTTP 502"))).toMatch(/Server trả lỗi \(HTTP 502\)/);
   });
 
   it("handles non-Error values defensively", () => {
@@ -50,6 +50,7 @@ describe("analysisErrorCopy", () => {
     ["stream_timeout", /Server im lặng quá lâu/],
     ["session_not_found", /Phiên không tồn tại/],
     ["no_cloud_run", /VITE_CLOUD_RUN_API_URL/],
+    ["jwks_url_unset", /Không thể tải phân tích/],
     ["aborted", /đã bị huỷ/],
     ["auth", /Chưa đăng nhập/],
     ["http_500", /HTTP 500/],

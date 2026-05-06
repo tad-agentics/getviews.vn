@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { readErrorDetail } from "@/lib/cloudRunErrors";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 import { supabase } from "@/lib/supabase";
@@ -60,19 +61,17 @@ export function useRefreshMyChannel() {
         timeoutMs: 60_000,
       });
       if (!res.ok) {
-        const text = await res.text().catch((err: unknown) => {
-          // ``Response.text()`` failures are rare (broken stream,
-          // aborted body) but silent fallback to "" used to mask the
-          // root cause. Log so a flaky CDN shows up in dashboards;
-          // the throw below still surfaces the HTTP status to the
-          // user.
+        let detail: string;
+        try {
+          detail = await readErrorDetail(res);
+        } catch (err: unknown) {
           console.warn(
             `[useRefreshMyChannel] failed to read response body for http_${res.status}:`,
             err,
           );
-          return "";
-        });
-        throw new Error(text || `http_${res.status}`);
+          detail = "";
+        }
+        throw new Error(detail || `http_${res.status}`);
       }
       return (await res.json()) as RefreshMyChannelResponse;
     },

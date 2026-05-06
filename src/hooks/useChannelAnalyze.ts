@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChannelAnalyzeResponse } from "@/lib/api-types";
 import { throwSessionExpired } from "@/lib/authErrors";
+import { readErrorDetail } from "@/lib/cloudRunErrors";
 import { normalizeChannelHandleInput } from "@/lib/channelHandle";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
@@ -74,8 +75,8 @@ export function useChannelAnalyze({
         throw new Error(detail.detail ?? "Không tìm thấy kênh trong ngách này");
       }
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `HTTP ${res.status}`);
+        const detail = await readErrorDetail(res);
+        throw new Error(detail || `HTTP ${res.status}`);
       }
       return (await res.json()) as ChannelAnalyzeResponse;
     },
