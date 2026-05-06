@@ -8,6 +8,9 @@
 --
 -- Idempotent. Safe if ``20260613000000_drop_creator_velocity_match_score.sql``
 -- and ``20260630000000_drop_primary_niche_sync_trigger_pr6.sql`` already ran.
+--
+-- NOTE: Must not share timestamp ``20260701000000`` with another migration —
+-- ``schema_migrations.version`` is unique per numeric prefix only.
 
 DROP TRIGGER IF EXISTS trg_invalidate_creator_velocity_match_score
   ON public.profiles;
