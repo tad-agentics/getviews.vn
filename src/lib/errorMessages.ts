@@ -49,6 +49,9 @@ export function analysisErrorCopy(error: unknown): string {
 
   // AnswerScreen codes — these are stored as raw strings in state and
   // rendered via `analysisErrorCopy(error)`.
+  if (code === "network_failed") {
+    return "Không kết nối được máy chủ phân tích (mạng hoặc máy chủ không phản hồi). Thử lại sau vài giây.";
+  }
   if (code === "start_failed") {
     return "Không tạo được phiên nghiên cứu. Kiểm tra kết nối rồi thử lại.";
   }

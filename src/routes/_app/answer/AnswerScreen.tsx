@@ -59,6 +59,7 @@ const ANSWER_ERROR_CODES = new Set([
   "stream_timeout",
   "session_not_found",
   "no_cloud_run",
+  "network_failed",
   "start_failed",
   "follow_up_failed",
   "aborted",
@@ -75,6 +76,15 @@ function pickAnswerErrorCode(e: unknown, fallback: string): string {
     if (e.name === "SessionExpired") return "session_expired";
     if (e.name === "SessionNotFound") return "session_not_found";
     if (e.name === "FetchTimeout") return "stream_timeout";
+    const lower = e.message?.toLowerCase() ?? "";
+    if (
+      lower.includes("failed to fetch") ||
+      lower.includes("networkerror") ||
+      lower.includes("load failed") ||
+      (e.name === "TypeError" && lower.includes("fetch"))
+    ) {
+      return "network_failed";
+    }
     if (ANSWER_ERROR_CODES.has(e.message)) return e.message;
     if (e.message?.startsWith("http_")) return e.message;
   }
@@ -334,7 +344,8 @@ export default function AnswerScreen() {
         if (!result.ok) {
           bootstrapInFlightRef.current = null;
           setFollowUp(submittedQ);
-          setError(pickAnswerErrorCode(result.error, "start_failed"));
+          // Session row already exists — failure is the primary SSE turn, not create.
+          setError(pickAnswerErrorCode(result.error, "stream_failed"));
           return;
         }
 

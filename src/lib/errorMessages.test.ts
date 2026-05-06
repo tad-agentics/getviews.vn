@@ -44,6 +44,7 @@ describe("analysisErrorCopy", () => {
   });
 
   it.each([
+    ["network_failed", /Không kết nối được máy chủ phân tích/],
     ["start_failed", /Không tạo được phiên/],
     ["follow_up_failed", /Câu hỏi tiếp theo chưa gửi được/],
     ["stream_failed", /Kết nối streaming bị ngắt/],
