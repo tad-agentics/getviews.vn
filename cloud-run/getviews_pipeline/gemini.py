@@ -645,13 +645,15 @@ def _response_text(response: Any) -> str:
     return "".join(parts)
 
 
-# Phase C.0.1 — keep in sync with ``query_intent_to_gemini_primary`` in intents.py
-# 2026-04-22 intent-list cleanup (see ``artifacts/docs/report-templates-audit.md``):
-#   - Dropped ``series_audit`` and ``comparison`` (intent-level) — no template,
-#     not in the frontend FixedIntentId union any more.
-#   - Dropped ``find_creators`` as a classifier label — the canonical name is
-#     ``creator_search``. Legacy ``find_creators`` output from older Gemini
-#     runs is still normalised to ``creator_search`` in
+# Gemini-side intent labels. ``query_intent_to_gemini_primary`` (the BE
+# enum→label mapper) was removed L1.5 audit follow-up along with the
+# deterministic classifier; this list is now self-contained — keep it
+# in sync with the frontend FixedIntentId union in
+# ``src/routes/_app/intent-router.ts`` instead.
+# Historical removals: ``series_audit`` (2026-04-22), ``comparison`` /
+# ``find_creators`` / ``followup`` / ``metadata_only`` (L1.5). Legacy
+# Gemini outputs that still emit these are normalised to current values
+# at the router edge in
 #     ``routers/intent.py``; this list drives the prompt the model sees
 #     today.
 GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (
@@ -663,7 +665,6 @@ GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (
     "competitor_profile",
     "own_channel",
     "creator_search",
-    "metadata_only",
     "timing",
     "fatigue",
     "hook_variants",
@@ -688,7 +689,6 @@ Classify the user message into ONE primary intent from this fixed list:
 - competitor_profile   — user wants analysis of another creator's account (@handle or profile URL)
 - own_channel          — user wants analysis of their OWN channel
 - creator_search       — user wants to find/discover TikTok creators in a niche (formerly ``find_creators``)
-- metadata_only        — user only wants stats/metrics on a video or profile, not creative diagnosis
 - timing               — best time/day to post, posting window, schedule
 - fatigue              — declining format, pattern dying, trend exhaustion
 - hook_variants        — rewrite hooks, hook variations
@@ -794,7 +794,7 @@ def classify_intent_gemini(
 
 
 def gemini_text_only(message: str, session_context: dict[str, Any]) -> str:
-    """§3a Rule A / FOLLOWUP — knowledge or session-grounded text."""
+    """§3a Rule A / follow-up — knowledge or session-grounded text."""
     prompt = build_knowledge_prompt(message, session_context)
     cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=1024)
     response = _generate_content_models(

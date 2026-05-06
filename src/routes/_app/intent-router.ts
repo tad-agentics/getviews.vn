@@ -40,11 +40,15 @@ export type Destination =
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
  *
- * Dropped 2026-04-22 per product-lead scope decision (see
- * ``artifacts/docs/report-templates-audit.md``):
- *   - ``series_audit`` — multi-URL corpus comparison; not covered by any template.
- *   - ``comparison``   — head-to-head creator comparison; replaced by using
- *     ``competitor_profile`` twice or by the planned KOL screen comparison.
+ * Historical drops:
+ *   - 2026-04-22 — ``series_audit`` (multi-URL corpus comparison; no template)
+ *     and ``comparison`` (head-to-head creator comparison; replaced by using
+ *     ``competitor_profile`` twice or COMPARE_VIDEOS for two URLs).
+ *   - L1.5 (2026-05-06) — server-side enum cleanup removed
+ *     ``find_creators`` (alias for ``creator_search``), ``followup``
+ *     (chat-era catch-all), and the ``comparison`` enum value (FE never
+ *     listed it). Historical session intent_type strings normalise at
+ *     the server router edge.
  */
 export type FixedIntentId =
   | "video_diagnosis"
@@ -52,7 +56,6 @@ export type FixedIntentId =
   | "own_channel"
   | "creator_search"
   | "shot_list"
-  | "metadata_only"
   | "trend_spike"
   | "content_directions"
   | "subniche_breakdown"
@@ -85,12 +88,6 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // the generic answer surface instead of a dedicated screen.
   creator_search: "answer:generic",
   shot_list: "script",
-  // ``metadata_only`` is a stripped-down corpus-row preview (no Gemini
-  // synth) that historically routed to /app/video. With the screen gone
-  // we fall it through to the generic answer body so the user still
-  // gets *something*; this intent classifies extremely rarely and the
-  // generic body's evidence grid is a reasonable fallback.
-  metadata_only: "answer:generic",
   trend_spike: "answer:pattern",
   content_directions: "answer:pattern",
   // Lifecycle template (2026-04-22) — stage pill + reach delta + health
@@ -147,8 +144,10 @@ export function resolveDestination(intent: ClassifiedIntent): Destination {
 
 // TikTok URL regex shared across every URL branch below. Matches
 // www.tiktok.com, tiktok.com, and the short-link subdomains
-// (vm/vt/m.tiktok.com). Mirror of ``_TIKTOK_URL_RE`` in
-// ``cloud-run/getviews_pipeline/intents.py`` — keep in sync.
+// (vm/vt/m.tiktok.com). MUST stay in sync with the BE canonical pattern
+// at ``cloud-run/getviews_pipeline/url_patterns.py:TIKTOK_URL_RE``.
+// When TikTok publishes a new short-link subdomain, update both files
+// together — drift here causes silent classify-vs-extract dead-ends.
 const TIKTOK_URL_GLOBAL_RE = /https?:\/\/(?:(?:www\.)?tiktok\.com|(?:vm|vt|m)\.tiktok\.com)\/\S+/gi;
 
 export function detectIntent(
@@ -201,17 +200,16 @@ export function detectIntent(
   }
 
   // ── 1. URL DETECTION (highest confidence — structural) ────────────────────
+  // L1.5 audit — METADATA_ONLY removed. Pre-migration it routed to a
+  // dedicated /app/video corpus-row preview that genuinely skipped Gemini;
+  // post-migration it fell through to the generic-fallback path which DOES
+  // call Gemini, so the no-cost framing was broken silently. Stats-only
+  // queries with a profile URL now route through competitor_profile (a
+  // Gemini-backed channel report) — same effective cost, honest labelling.
   if (/https?:\/\/[^\s]*tiktok\.com/i.test(q)) {
     const hasTiktokProfileUrl = /tiktok\.com\/@[^\s/]+(?:\/(?!video|photo)[^\s]*)?(?:\s|$)/i.test(q)
       && !/\/video\//i.test(q)
       && !/\/photo\//i.test(q);
-    if (
-      hasTiktokProfileUrl
-      && /\b(stats|metrics|lượt xem|view|follow|chỉ số|số liệu)\b/i.test(ql)
-      && !/\b(phân tích|analyze|tại sao|why|flop)\b/i.test(ql)
-    ) {
-      return { intentType: "metadata_only", isFree: false, confidence: "high" };
-    }
     return hasTiktokProfileUrl
       ? { intentType: "competitor_profile", isFree: false, confidence: "high" }
       : { intentType: "video_diagnosis", isFree: false, confidence: "high" };

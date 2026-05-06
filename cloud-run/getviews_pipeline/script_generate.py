@@ -55,7 +55,7 @@ IntelSceneT = Literal["face_to_camera", "product_shot", "demo", "action"]
 
 
 class InsufficientCreditsError(Exception):
-    """``decrement_credit`` returned false or raised."""
+    """``decrement_credit`` returned NULL (no credits to spend) or raised."""
 
 
 class ScriptGenerateBody(BaseModel):
@@ -464,7 +464,10 @@ def build_script_shots(body: ScriptGenerateBody) -> list[dict[str, Any]]:
 def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
     try:
         rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        if rpc_resp.data is False:
+        # RPC returns INTEGER balance (can be 0) on success or NULL → Python
+        # None on no-credits. ``is None`` is the correct insufficient-credits
+        # check (see migration 20260409000002_profiles.sql contract).
+        if rpc_resp.data is None:
             raise InsufficientCreditsError()
     except InsufficientCreditsError:
         raise

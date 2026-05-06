@@ -93,6 +93,26 @@ describe("PatternMiniChart", () => {
     const { container } = render(<PatternMiniChart cell={cell} />);
     // SoundMixBar wraps in a flex container with two children.
     expect(container.querySelector(".bg-\\[color\\:var\\(--gv-accent-soft\\)\\]")).toBeTruthy();
+    // Falls back to legacy "Gốc · Trend" legend when no top_sounds.
+    expect(screen.getByText("Gốc · Trend")).toBeTruthy();
+  });
+
+  it("renders top trending sound names in sound_mix when chart_data.top_sounds present (L1.4)", () => {
+    const cell = makeCell({
+      chart_kind: "sound_mix",
+      chart_data: {
+        primary_pct: 62,
+        top_sounds: [
+          { name: "Trend A", usage_count: 12 },
+          { name: "Trend B", usage_count: 8 },
+          { name: "Trend C", usage_count: 6 },
+        ],
+      },
+    });
+    render(<PatternMiniChart cell={cell} />);
+    // Names join with separator " · " and replace the legacy legend.
+    expect(screen.getByText("Trend A · Trend B · Trend C")).toBeTruthy();
+    expect(screen.queryByText("Gốc · Trend")).toBeNull();
   });
 
   it("renders hook_timing track with marker", () => {

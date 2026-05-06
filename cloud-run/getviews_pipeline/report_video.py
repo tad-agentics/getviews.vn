@@ -22,6 +22,7 @@ import logging
 import re
 from typing import Any
 
+from getviews_pipeline.url_patterns import TIKTOK_URL_RE
 from getviews_pipeline.video_analyze import (
     run_video_analyze_on_demand,
     run_video_analyze_pipeline,
@@ -30,15 +31,10 @@ from getviews_pipeline.video_analyze import (
 logger = logging.getLogger(__name__)
 
 
-# Match TikTok URLs the same way the FE intent-router does. Covers
-# www.tiktok.com, m.tiktok.com, and the vm.tiktok.com short-link
-# format (the post_info endpoint follows redirects, so the short
-# URL works as a /video/analyze input as long as we extract it
-# verbatim).
-_TIKTOK_URL_RE = re.compile(
-    r"https?://(?:www\.|m\.|vm\.)?tiktok\.com/[^\s]+",
-    re.IGNORECASE,
-)
+# L1.5 — canonical pattern lives in url_patterns. The previous local
+# regex was missing vt.tiktok.com support, which let intent classification
+# accept vt-links that this builder couldn't extract — silent dead-end.
+_TIKTOK_URL_RE = TIKTOK_URL_RE
 
 # TikTok aweme_ids are 19-digit numeric strings. Standalone matching
 # (no surrounding URL) covers PR-3's evidence-tile clicks: those tiles

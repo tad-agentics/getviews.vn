@@ -158,6 +158,67 @@ def test_fetch_pattern_wow_diff_rows_fail_open(_mock: MagicMock) -> None:
     assert fetch_pattern_wow_diff_rows(1) == []
 
 
+# ── L1.4: trending_sounds wire-through ─────────────────────────────────────
+
+
+def test_top_sounds_payload_filters_originals_and_shapes_to_three() -> None:
+    """`_top_sounds_payload` keeps non-original sounds, capped at 3, name+count only."""
+    from getviews_pipeline.report_pattern_compute import _top_sounds_payload
+
+    rows = [
+        {"sound_name": "Original BGM", "usage_count": 99, "is_original_sound": True},
+        {"sound_name": "Trend A", "usage_count": 12, "is_original_sound": False},
+        {"sound_name": "Trend B", "usage_count": 8, "is_original_sound": False},
+        {"sound_name": "Trend C", "usage_count": 6, "is_original_sound": False},
+        {"sound_name": "Trend D", "usage_count": 3, "is_original_sound": False},
+        {"sound_name": "", "usage_count": 1, "is_original_sound": False},
+    ]
+    out = _top_sounds_payload(rows)
+    assert out == [
+        {"name": "Trend A", "usage_count": 12},
+        {"name": "Trend B", "usage_count": 8},
+        {"name": "Trend C", "usage_count": 6},
+    ]
+
+
+def test_top_sounds_payload_empty_when_no_rows() -> None:
+    from getviews_pipeline.report_pattern_compute import _top_sounds_payload
+
+    assert _top_sounds_payload(None) == []
+    assert _top_sounds_payload([]) == []
+
+
+def test_build_pattern_cells_embeds_trending_sounds_in_sound_mix() -> None:
+    """Sound_mix cell carries top_sounds in chart_data when supplied."""
+    from getviews_pipeline.report_pattern_compute import build_pattern_cells
+
+    ni = {"pct_original_sound": 0.62, "median_duration": 28, "median_hook_offset_norm": 0.4}
+    sounds = [
+        {"sound_name": "Trend A", "usage_count": 12, "is_original_sound": False},
+        {"sound_name": "Trend B", "usage_count": 8, "is_original_sound": False},
+    ]
+    cells = build_pattern_cells(ni, trending_sounds=sounds)
+
+    sound_cell = next(c for c in cells if c.chart_kind == "sound_mix")
+    assert sound_cell.chart_data["top_sounds"] == [
+        {"name": "Trend A", "usage_count": 12},
+        {"name": "Trend B", "usage_count": 8},
+    ]
+    assert "Trend A" in sound_cell.detail
+
+
+def test_build_pattern_cells_falls_back_when_no_sounds() -> None:
+    """Sound_mix cell keeps legacy detail copy + empty top_sounds when absent."""
+    from getviews_pipeline.report_pattern_compute import build_pattern_cells
+
+    ni = {"pct_original_sound": 0.62, "median_duration": 28, "median_hook_offset_norm": 0.4}
+    cells = build_pattern_cells(ni, trending_sounds=None)
+
+    sound_cell = next(c for c in cells if c.chart_kind == "sound_mix")
+    assert sound_cell.chart_data["top_sounds"] == []
+    assert sound_cell.detail == "ước lượng từ corpus"
+
+
 def test_c22_what_stalled_acceptance_invariant() -> None:
     """Either 2–3 stalled rows or [] with non-null reason (C.2.2)."""
     he = [

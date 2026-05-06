@@ -90,6 +90,14 @@ AS $$
 DECLARE
   v_balance INTEGER;
 BEGIN
+  -- CONTRACT FOR CALLERS:
+  --   Returns the NEW balance (an INTEGER, possibly 0 when the caller
+  --   just spent their last credit) on a successful decrement.
+  --   Returns NULL when WHERE matched zero rows — i.e. user had no
+  --   credits to spend. From Python (Supabase client), inspect
+  --   ``rpc.data is None`` to detect insufficient_credits. DO NOT use
+  --   ``rpc.data is False`` (NULL→Python None, never False) and DO NOT
+  --   use ``not rpc.data`` (mis-fires when the new balance is 0).
   IF auth.uid() IS NULL OR p_user_id <> auth.uid() THEN
     RAISE EXCEPTION 'not allowed' USING ERRCODE = '42501';
   END IF;

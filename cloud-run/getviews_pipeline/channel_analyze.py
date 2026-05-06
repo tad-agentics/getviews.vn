@@ -74,7 +74,7 @@ class LiveSignals:
 
 
 class InsufficientCreditsError(Exception):
-    """``decrement_credit`` returned false or raised."""
+    """``decrement_credit`` returned NULL (no credits to spend) or raised."""
 
 
 class ChannelFormulaStepLLM(BaseModel):
@@ -183,7 +183,10 @@ def _normalize_formula_pcts(formula: list[dict[str, Any]]) -> list[dict[str, Any
 def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
     try:
         rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        if rpc_resp.data is False:
+        # RPC returns INTEGER balance (can be 0) or NULL on no-credits.
+        # ``is None`` is the correct check (see contract in migration
+        # 20260409000002_profiles.sql).
+        if rpc_resp.data is None:
             raise InsufficientCreditsError()
     except InsufficientCreditsError:
         raise

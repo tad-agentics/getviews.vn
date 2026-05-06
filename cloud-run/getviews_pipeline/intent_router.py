@@ -1,170 +1,22 @@
-"""Phase C — destination dispatch matrix (§A, phase-c-plan.md).
+"""Pattern-subreport detection for the Pattern report builder.
 
-Maps classified intent ids to concrete app destinations. Client mirrors this in
-`src/routes/_app/intent-router.ts` as `INTENT_DESTINATIONS`.
+Pre-L1.5 this module also held a destination-dispatch matrix
+(``INTENT_TO_DESTINATION``, ``destination_for_intent``, the Gemini-label
+matrix, ``resolve_destination``) used by the now-deleted
+``/classify-intent`` endpoint. The report-based UX classifies + routes
+client-side via ``src/routes/_app/intent-router.ts``, so the BE no
+longer needs its own routing matrix.
+
+What stays in this module: the ``_TIMING_MERGE_RE`` keyword cues +
+``detect_pattern_subreports`` which the answer-session dispatcher calls
+to fold a timing subreport into a Pattern payload when the user query
+asks "post gì khi nào". This is the only multi-intent merge that
+survived the chat→report migration.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Literal
-
-from getviews_pipeline.intents import QueryIntent
-
-# String form matches TypeScript `Destination` post-C.7 (no "chat").
-# ``answer:lifecycle`` added 2026-04-22 for the Lifecycle template (serves
-# ``format_lifecycle_optimize``, ``fatigue``, ``subniche_breakdown`` —
-# previously force-fit into the Pattern template).
-# ``answer:diagnostic`` added 2026-04-22 for the Diagnostic template (serves
-# ``own_flop_no_url`` — URL-less flop diagnosis).
-# ``compare`` added Wave 4 PR #2 (2026-05-12) for the Compare flow
-# (serves ``compare_videos`` — paste two TikTok URLs for side-by-side
-# diagnosis). Top-level (no ``answer:`` prefix) because compare is
-# URL-bearing — it dispatches through ``/stream`` with a Cloud-Run
-# orchestration, mirroring how ``video_diagnosis`` is handled, NOT
-# through the niche-scoped ``/answer`` session shelf. PR #1 originally
-# shipped this as ``answer:compare``; the rename here is a one-time
-# correction before any FE shipped against the wrong slot.
-Destination = Literal[
-    "channel",
-    "kol",
-    "script",
-    "compare",
-    "answer:pattern",
-    "answer:ideas",
-    "answer:timing",
-    "answer:lifecycle",
-    "answer:diagnostic",
-    "answer:generic",
-    "answer:video",
-]
-
-# Fixed intents → destination. follow_up_classifiable is resolved at runtime via subject.
-INTENT_TO_DESTINATION: dict[str, Destination] = {
-    # §A.1 — existing screens.
-    # 2026-04-22 cleanup: ``series_audit`` + ``comparison`` intents
-    # dropped; ``creator_search`` is the canonical creator-discovery
-    # label (``find_creators`` kept as a back-compat alias).
-    # ``video_diagnosis`` was the dedicated /app/video screen until the
-    # template-migration. PR-3 (FE flip 2026-04-28) folds it into
-    # /app/answer as just another session format. Mirror in the FE
-    # ``INTENT_DESTINATIONS`` map.
-    QueryIntent.VIDEO_DIAGNOSIS.value: "answer:video",
-    QueryIntent.COMPETITOR_PROFILE.value: "channel",
-    QueryIntent.OWN_CHANNEL.value: "channel",
-    QueryIntent.CREATOR_SEARCH.value: "kol",
-    QueryIntent.FIND_CREATORS.value: "kol",  # legacy alias
-    QueryIntent.SHOT_LIST.value: "script",
-    # ``metadata_only`` previously routed to /app/video (corpus-row
-    # preview, no Gemini synth). With the screen gone, fall through to
-    # generic — the rare classification still produces *something*
-    # rather than dead-ending on the deleted destination.
-    QueryIntent.METADATA_ONLY.value: "answer:generic",
-    # Diagnostic template (2026-04-22) — URL-less flop diagnosis. See
-    # ``artifacts/docs/report-template-prd-diagnostic.md``.
-    QueryIntent.OWN_FLOP_NO_URL.value: "answer:diagnostic",
-    # Compare template (Wave 4 PR #1, 2026-05-11) — two URLs → side-by-
-    # side diagnosis with delta summary. See Wave 4 in implementation-
-    # plan.md + future CompareBody.tsx.
-    QueryIntent.COMPARE_VIDEOS.value: "compare",
-    # §A.2 — /answer report formats
-    QueryIntent.TREND_SPIKE.value: "answer:pattern",
-    QueryIntent.CONTENT_DIRECTIONS.value: "answer:pattern",
-    # 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` redirected off
-    # ``answer:lifecycle`` back to ``answer:pattern``. Rationale:
-    # lifecycle's hook_fatigue + subniche modes shipped fixture-with-
-    # honesty-disclaimer cells because the upstream signal (per-hook
-    # weekly reach timeseries, subniche taxonomy) doesn't exist yet.
-    # Pattern's niche-hook-leaderboard is a more honest fit for both
-    # questions ("what's rising/declining in my niche?") until that
-    # signal lands. The lifecycle module still renders historical
-    # sessions with ``mode="hook_fatigue" | "subniche"`` — only new
-    # sessions reroute.
-    QueryIntent.SUBNICHE_BREAKDOWN.value: "answer:pattern",
-    QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE.value: "answer:lifecycle",
-    QueryIntent.FATIGUE.value: "answer:pattern",
-    QueryIntent.BRIEF_GENERATION.value: "answer:ideas",
-    QueryIntent.HOOK_VARIANTS.value: "answer:ideas",
-    QueryIntent.TIMING.value: "answer:timing",
-    # ``content_calendar`` merged into timing on 2026-04-22 (Branch 1).
-    QueryIntent.CONTENT_CALENDAR.value: "answer:timing",
-    # Legacy ``comparison`` reading from historical sessions → fall back
-    # to the KOL screen.
-    QueryIntent.COMPARISON.value: "kol",
-    QueryIntent.FOLLOW_UP_UNCLASSIFIABLE.value: "answer:generic",
-}
-
-
-def destination_for_intent(intent_id: str) -> Destination | None:
-    """Return destination for a fixed intent id, or None if unknown / dynamic."""
-    return INTENT_TO_DESTINATION.get(intent_id)
-
-
-# Subjects the Gemini classifier may emit alongside ``follow_up_classifiable``.
-# Keep in sync with the frontend union in ``src/routes/_app/intent-router.ts``.
-# Extended 2026-05-07 with ``lifecycle`` + ``diagnostic`` so follow-ups on
-# those session shapes can be routed back to their own shelf instead of
-# being downgraded to ``answer:generic`` just because the classifier's
-# subject vocabulary was capped at the three original report kinds.
-FollowUpSubject = Literal["pattern", "ideas", "timing", "lifecycle", "diagnostic"]
-_FOLLOW_UP_SUBJECTS: frozenset[str] = frozenset(
-    {"pattern", "ideas", "timing", "lifecycle", "diagnostic"}
-)
-
-
-def destination_for_follow_up_classifiable(subject: FollowUpSubject) -> Destination:
-    """C.7 `follow_up_classifiable` — classifier supplies subject family."""
-    return f"answer:{subject}"  # type: ignore[return-value]
-
-
-def resolve_destination(intent_id: str, *, follow_up_subject: str | None = None) -> Destination | None:
-    """Resolve final destination including dynamic follow-up."""
-    if intent_id == QueryIntent.FOLLOW_UP_CLASSIFIABLE.value:
-        if follow_up_subject in _FOLLOW_UP_SUBJECTS:
-            return destination_for_follow_up_classifiable(follow_up_subject)  # type: ignore[arg-type]
-        return None
-    return destination_for_intent(intent_id)
-
-
-# Gemini classifier primary labels → same Destination union as §A (C.0.1 preview field).
-# 2026-04-22 cleanup: dropped ``series_audit``; ``find_creators`` kept as
-# alias (the classifier no longer emits it but old cached rounds might);
-# ``content_calendar`` rerouted to timing (Branch 1).
-_GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
-    "video_diagnosis": "answer:video",
-    "content_directions": "answer:pattern",
-    "trend_spike": "answer:pattern",
-    "brief_generation": "answer:ideas",
-    "shot_list": "script",
-    "competitor_profile": "channel",
-    "own_channel": "channel",
-    "creator_search": "kol",
-    "find_creators": "kol",  # legacy alias
-    "metadata_only": "answer:generic",
-    "timing": "answer:timing",
-    # 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` cut from lifecycle
-    # shelf; see ``INTENT_TO_DESTINATION`` comment above for rationale.
-    "fatigue": "answer:pattern",
-    "hook_variants": "answer:ideas",
-    "content_calendar": "answer:timing",
-    "subniche_breakdown": "answer:pattern",
-    "format_lifecycle_optimize": "answer:lifecycle",
-    # ``comparison`` kept only so legacy session preview rounds still
-    # route somewhere sensible; the classifier no longer emits it.
-    "comparison": "kol",
-    "own_flop_no_url": "answer:diagnostic",
-    # Wave 4 PR #1 — Gemini classifier may also emit this when it spots
-    # two URLs in a long free-form query that slipped the fast-path
-    # regex (e.g. URLs wrapped in punctuation).
-    "compare_videos": "compare",
-    "follow_up": "answer:generic",
-}
-
-
-def destination_for_gemini_primary_label(primary: str) -> Destination:
-    """Map ``classify_intent_gemini`` / merged ``primary`` string → app destination."""
-    return _GEMINI_PRIMARY_TO_DESTINATION.get(primary, "answer:generic")
-
 
 # ── §A.4 — multi-intent merge detection (C.5.3) ────────────────────────────
 

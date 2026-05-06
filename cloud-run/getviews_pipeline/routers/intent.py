@@ -19,11 +19,8 @@ from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.config import TIKTOK_ALLOWED_HOSTS
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.gemini import classify_intent_gemini, gemini_text_only
-from getviews_pipeline.intent_router import destination_for_gemini_primary_label
 from getviews_pipeline.intents import (
-    classify_intent,
     extract_urls_and_handles,
-    merge_deterministic_with_gemini,
     split_into_questions,
 )
 from getviews_pipeline.helpers import infer_niche_from_hashtags
@@ -64,14 +61,27 @@ _RESOLVED_TIKTOK_HOSTS = TIKTOK_ALLOWED_HOSTS | _SHORT_TIKTOK_HOSTS
 
 
 def _normalize_intent_name(raw: str | None) -> str | None:
+    """Fold legacy / external intent_type strings into current enum values.
+
+    L1.5 Tier B added ``"comparison"`` (legacy alias for COMPETITOR_PROFILE,
+    historical sessions only) and consolidated the FOLLOWUP collapse so
+    callers passing the chat-era ``"followup"`` string land on the modern
+    follow_up_unclassifiable surface. ``"find_creators"`` stays as a
+    back-compat alias even after the enum value was removed — historical
+    Gemini classifier outputs may still carry it.
+    """
     if raw is None:
         return None
     aliases = {
         "tiktok_url_diagnosis": "video_diagnosis",
         "kol_search": "creator_search",
-        "find_creators": "creator_search",
+        "find_creators": "creator_search",  # L1.5: enum removed, alias kept
         "kol_finder": "creator_search",
-        "followup": "follow_up",
+        "followup": "follow_up_unclassifiable",  # L1.5: chat-era → modern
+        "comparison": "competitor_profile",  # L1.5: legacy session rows
+        # L1.5 audit — METADATA_ONLY removed (no longer no-cost). Historical
+        # session intent_type strings fold into the generic-fallback path.
+        "metadata_only": "follow_up_unclassifiable",
     }
     return aliases.get(raw, raw)
 
@@ -229,11 +239,6 @@ def _insert_chat_message_best_effort(
         logger.warning("Supabase chat_messages insert failed (non-fatal): %s", exc)
 
 
-class ClassifyIntentRequest(StrictBody):
-    query: str
-    has_session: bool = False
-
-
 class StreamRequest(StrictBody):
     session_id: str
     query: str
@@ -246,25 +251,15 @@ class StreamRequest(StrictBody):
     last_seq: int | None = None
 
 
-@router.post("/classify-intent")
-async def classify_intent_endpoint(
-    body: ClassifyIntentRequest,
-    user: dict = Depends(require_user),
-) -> JSONResponse:
-    """Tier-3 semantic intent classification — no credit cost."""
-    urls, handles = extract_urls_and_handles(body.query)
-    det = classify_intent(body.query, urls, handles, body.has_session)
-    gem = await run_sync(
-        classify_intent_gemini,
-        body.query,
-        has_url=bool(urls),
-        has_handle=bool(handles),
-    )
-    merged = merge_deterministic_with_gemini(det, gem)
-    primary = str(merged.get("primary") or "follow_up")
-    merged_out: dict[str, object] = dict(merged)
-    merged_out["destination_or_format"] = destination_for_gemini_primary_label(primary)
-    return JSONResponse(merged_out)
+# L1.5 audit — ``/classify-intent`` endpoint removed (zero FE callers,
+# Gemini-cost-and-attack surface for nothing). The cascade — the
+# deterministic ``classify_intent`` keyword classifier, the layered
+# ``merge_deterministic_with_gemini`` merger, and the BE destination-
+# resolution helpers (``destination_for_intent``,
+# ``destination_for_gemini_primary_label``, ``resolve_destination``) —
+# was also dropped L1.5 audit follow-up. The FE classifies + routes
+# client-side via ``intent-router.ts``; ``/stream``'s null-intent
+# fallback uses ``classify_intent_gemini`` directly.
 
 
 @router.post("/stream")
@@ -301,7 +296,9 @@ async def stream(
 
     try:
         rpc_resp = sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        if rpc_resp.data is False:
+        # ``decrement_credit`` returns INTEGER balance (can be 0) on success
+        # or NULL when no credits remain. ``is None`` is the correct check.
+        if rpc_resp.data is None:
             sb.rpc("end_processing", {"p_user_id": user_id}).execute()
             return JSONResponse(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
