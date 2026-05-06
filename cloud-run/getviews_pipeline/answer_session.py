@@ -379,7 +379,14 @@ def append_turn(
     if kind == "primary":
         sb_user = user_supabase(access_token)
         rpc = sb_user.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        if rpc.data is False:
+        # ``decrement_credit`` returns the new INTEGER balance on success
+        # (could be 0 when the caller just spent their last credit) or NULL
+        # → Python ``None`` when the row matched zero (no credits to spend).
+        # ``is None`` is the only correct check — ``is False`` never fires
+        # because the RPC never returns SQL false; ``not rpc.data`` would
+        # incorrectly fire when the new balance is 0. See migration
+        # 20260409000002_profiles.sql contract comment.
+        if rpc.data is None:
             logger.warning("[answer/turns] insufficient_credits user=%s session=%s", user_id, session_id)
             raise RuntimeError("insufficient_credits")
 

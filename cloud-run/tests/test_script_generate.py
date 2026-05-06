@@ -526,3 +526,50 @@ def test_voline_pydantic_validates_required_fields() -> None:
         VoLine(t="", text="hi")  # empty t fails min_length=1
     with pytest.raises(ValidationError):
         VoLine(t="0:00", text="")  # empty text fails min_length=1
+
+
+# ── L1.1: decrement_credit guard contract ─────────────────────────────────
+#
+# The Supabase RPC ``decrement_credit`` returns INTEGER (the new balance,
+# possibly 0 when the caller just spent their last credit) on success, or
+# NULL → Python None when no credits remain. The original code used
+# ``if rpc.data is False`` which never matched (None ≠ False) — users
+# with 0 credits silently passed the guard and ran expensive Gemini calls.
+# These tests pin the corrected contract on ``_decrement_credit_or_raise``:
+# the off-by-one case (just spent last credit, balance == 0) MUST NOT
+# raise, while NULL (no credits) MUST raise.
+def test_decrement_credit_or_raise_raises_on_null() -> None:
+    """RPC returns None (insufficient_credits) → raises."""
+    import pytest
+
+    from getviews_pipeline.script_generate import (
+        InsufficientCreditsError,
+        _decrement_credit_or_raise,
+    )
+
+    sb = MagicMock()
+    sb.rpc.return_value.execute.return_value = SimpleNamespace(data=None)
+
+    with pytest.raises(InsufficientCreditsError):
+        _decrement_credit_or_raise(sb, user_id="user-with-no-credits")
+
+
+def test_decrement_credit_or_raise_succeeds_on_zero_balance() -> None:
+    """RPC returns 0 (just spent last credit) → must NOT raise."""
+    from getviews_pipeline.script_generate import _decrement_credit_or_raise
+
+    sb = MagicMock()
+    sb.rpc.return_value.execute.return_value = SimpleNamespace(data=0)
+
+    # No exception — returns implicitly None.
+    _decrement_credit_or_raise(sb, user_id="user-just-spent-last-credit")
+
+
+def test_decrement_credit_or_raise_succeeds_on_positive_balance() -> None:
+    """RPC returns positive int (typical happy path) → must NOT raise."""
+    from getviews_pipeline.script_generate import _decrement_credit_or_raise
+
+    sb = MagicMock()
+    sb.rpc.return_value.execute.return_value = SimpleNamespace(data=4)
+
+    _decrement_credit_or_raise(sb, user_id="user-with-credits")

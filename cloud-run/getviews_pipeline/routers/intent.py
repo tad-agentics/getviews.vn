@@ -301,7 +301,9 @@ async def stream(
 
     try:
         rpc_resp = sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        if rpc_resp.data is False:
+        # ``decrement_credit`` returns INTEGER balance (can be 0) on success
+        # or NULL when no credits remain. ``is None`` is the correct check.
+        if rpc_resp.data is None:
             sb.rpc("end_processing", {"p_user_id": user_id}).execute()
             return JSONResponse(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
