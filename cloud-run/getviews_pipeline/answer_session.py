@@ -105,11 +105,12 @@ def lifecycle_mode_for_intent(intent_type: str | None) -> LifecycleMode:
         return "format"
     return _INTENT_TO_LIFECYCLE_MODE.get(intent_type, "format")
 
-# D.2.3 — classifier confidence thresholds. Aligned with Vercel Edge's
-# GEMINI_DISAGREE_WIN_MIN_CONFIDENCE (0.3) and the intent-router's practice
-# of treating < 0.6 as "not confident enough to ship a high-quality
-# narrative." The low-confidence event fires so D.5.1 can surface how
-# often paid turns run on shaky classifications.
+# D.2.3 — classifier confidence thresholds. Treats < 0.6 as "not
+# confident enough to ship a high-quality narrative." The low-confidence
+# event fires so D.5.1 can surface how often paid turns run on shaky
+# classifications. The historical sibling ``GEMINI_DISAGREE_WIN_MIN_CONFIDENCE``
+# (0.3 — used by the Phase C.0.1 deterministic-vs-Gemini merger) was
+# removed L1.5 audit when ``merge_deterministic_with_gemini`` was deleted.
 CLASSIFIER_LOW_CONFIDENCE_THRESHOLD = 0.6
 CLASSIFIER_MEDIUM_CONFIDENCE_THRESHOLD = 0.8
 

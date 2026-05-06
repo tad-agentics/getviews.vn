@@ -645,13 +645,15 @@ def _response_text(response: Any) -> str:
     return "".join(parts)
 
 
-# Phase C.0.1 — keep in sync with ``query_intent_to_gemini_primary`` in intents.py
-# 2026-04-22 intent-list cleanup (see ``artifacts/docs/report-templates-audit.md``):
-#   - Dropped ``series_audit`` and ``comparison`` (intent-level) — no template,
-#     not in the frontend FixedIntentId union any more.
-#   - Dropped ``find_creators`` as a classifier label — the canonical name is
-#     ``creator_search``. Legacy ``find_creators`` output from older Gemini
-#     runs is still normalised to ``creator_search`` in
+# Gemini-side intent labels. ``query_intent_to_gemini_primary`` (the BE
+# enum→label mapper) was removed L1.5 audit follow-up along with the
+# deterministic classifier; this list is now self-contained — keep it
+# in sync with the frontend FixedIntentId union in
+# ``src/routes/_app/intent-router.ts`` instead.
+# Historical removals: ``series_audit`` (2026-04-22), ``comparison`` /
+# ``find_creators`` / ``followup`` / ``metadata_only`` (L1.5). Legacy
+# Gemini outputs that still emit these are normalised to current values
+# at the router edge in
 #     ``routers/intent.py``; this list drives the prompt the model sees
 #     today.
 GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (

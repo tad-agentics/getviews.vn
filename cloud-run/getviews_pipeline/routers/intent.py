@@ -251,18 +251,15 @@ class StreamRequest(StrictBody):
     last_seq: int | None = None
 
 
-# L1.5 audit — ``/classify-intent`` endpoint removed. Zero FE callers
-# (the report-based UX classifies client-side via intent-router.ts) and
-# the endpoint ran Gemini on every hit, an unnecessary cost-and-attack
-# surface for an authenticated route nobody calls.
-#
-# Cascade — these are now also dead in production but kept in the codebase
-# pending a separate audit pass:
-#   - ``intents.classify_intent`` (deterministic Vietnamese keyword classifier)
-#   - ``intents.merge_deterministic_with_gemini``
-#   - ``intent_router.destination_for_gemini_primary_label``
-# ``/stream`` falls back to ``classify_intent_gemini`` (Gemini-backed),
-# not to the deterministic classifier, when ``intent_type`` is null.
+# L1.5 audit — ``/classify-intent`` endpoint removed (zero FE callers,
+# Gemini-cost-and-attack surface for nothing). The cascade — the
+# deterministic ``classify_intent`` keyword classifier, the layered
+# ``merge_deterministic_with_gemini`` merger, and the BE destination-
+# resolution helpers (``destination_for_intent``,
+# ``destination_for_gemini_primary_label``, ``resolve_destination``) —
+# was also dropped L1.5 audit follow-up. The FE classifies + routes
+# client-side via ``intent-router.ts``; ``/stream``'s null-intent
+# fallback uses ``classify_intent_gemini`` directly.
 
 
 @router.post("/stream")
