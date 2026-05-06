@@ -35,6 +35,11 @@ from getviews_pipeline.output_redesign import HOOK_TYPE_VI
 
 logger = logging.getLogger(__name__)
 
+# PostgREST ``select=`` for batch ritual profile reads (PR6 — no ``primary_niche``).
+# Exposed on ``/health`` so ops can ``curl`` the batch URL and confirm the
+# deployed image matches this repo after a deploy.
+PROFILE_SELECT_RITUAL_BATCH = "id,creator_niche_id,reference_channel_handles"
+
 
 # ── Canonical hook-type enum (matches HOOK_TYPE_VI keys) ──────────────────
 # Gemini must pick one of these 15 literals; we derive the Vietnamese
@@ -487,9 +492,7 @@ def run_morning_ritual_batch(
     # ritual generation (which queries video_corpus.niche_id) works unchanged.
     from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
 
-    query = client.table("profiles").select(
-        "id, creator_niche_id, reference_channel_handles",
-    )
+    query = client.table("profiles").select(PROFILE_SELECT_RITUAL_BATCH)
     if user_ids:
         query = query.in_("id", user_ids)
     profiles = (query.execute().data or [])
@@ -535,6 +538,7 @@ __all__ = [
     "CLAIM_TIERS",
     "HookTypeEn",
     "MIN_GROUNDING_VIDEOS",
+    "PROFILE_SELECT_RITUAL_BATCH",
     "RitualBatchSummary",
     "RitualBundle",
     "RitualResult",

@@ -19,12 +19,23 @@ router = APIRouter()
 @router.get("/health")
 async def health() -> JSONResponse:
     from getviews_pipeline.r2 import r2_configured
+
+    try:
+        from getviews_pipeline.morning_ritual import PROFILE_SELECT_RITUAL_BATCH
+
+        ritual_profile_select = PROFILE_SELECT_RITUAL_BATCH
+    except Exception:
+        ritual_profile_select = "import_error"
+
     checks = {
         "gemini_key_set": bool((os.environ.get("GEMINI_API_KEY") or "").strip()),
         "ensemble_key_set": bool(ENSEMBLEDATA_API_TOKEN),
         "jwt_configured": bool(SUPABASE_JWT_SECRET) or bool(SUPABASE_JWKS_URL),
         "cdn_proxy_set": bool(os.environ.get("RESIDENTIAL_PROXY_URL")),
         "r2_configured": r2_configured(),
+        # Proves which ``profiles`` select list the batch morning-ritual job uses
+        # (must not include dropped ``primary_niche`` — see PR6).
+        "morning_ritual_profile_select": ritual_profile_select,
     }
     required = {k: v for k, v in checks.items() if k not in ("cdn_proxy_set", "r2_configured")}
     ok = all(required.values())
