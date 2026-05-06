@@ -94,6 +94,7 @@ function PatternModalBody({
         </div>
         <button
           type="button"
+          onPointerDown={(e) => e.preventDefault()}
           onClick={onClose}
           aria-label="Đóng"
           className="-mr-2 -mt-1 shrink-0 rounded-md p-2 text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
@@ -232,7 +233,6 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
             src={`https://www.tiktok.com/embed/v2/${embedId}`}
             className="absolute inset-0 h-full w-full border-0"
             allow="encrypted-media; fullscreen; autoplay; picture-in-picture"
-            allowFullScreen
           />
         </div>
         <PhoneTileMeta video={video} />
