@@ -20,7 +20,7 @@ export function TemplatizeCard({ sessionId }: { sessionId: string | null }) {
         >
           Lưu
         </Btn>
-        <Btn variant="ghost" size="sm" type="button" className="text-[var(--gv-canvas)]">
+        <Btn variant="ghost" size="sm" type="button">
           Chia sẻ
         </Btn>
       </div>
