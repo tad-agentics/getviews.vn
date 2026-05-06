@@ -22,6 +22,11 @@ import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
 import { NichePicker } from "./components/NichePicker";
 import { DateChip } from "./components/DateChip";
 import { useIsFirstRun } from "./components/useIsFirstRun";
+import {
+  PASTE_HANDLE_TEMPLATE,
+  PASTE_VIDEO_TEMPLATE,
+  unfilledPasteTemplateHint,
+} from "./pasteTemplates";
 
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
@@ -39,6 +44,10 @@ export default function HomeScreen() {
   const location = useLocation();
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [composerText, setComposerText] = useState("");
+  // L1.5 audit follow-up — surfaces a Vietnamese hint when the user
+  // submits an unfilled paste-template chip (e.g. clicked "Dán @handle"
+  // and pressed enter without replacing the placeholder).
+  const [placeholderHint, setPlaceholderHint] = useState<string | null>(null);
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
 
@@ -150,12 +159,29 @@ export default function HomeScreen() {
 
   const fillComposer = (text: string) => {
     setComposerText(text);
+    setPlaceholderHint(null);
     queueMicrotask(() => composerRef.current?.focus());
+  };
+
+  // Clear the placeholder hint when the user edits the textarea —
+  // typing a real URL/handle or any other change should dismiss the
+  // inline nudge so it doesn't linger across submissions.
+  const handleComposerChange = (v: string) => {
+    setComposerText(v);
+    if (placeholderHint) setPlaceholderHint(null);
   };
 
   const submitStudioComposer = () => {
     const text = composerText.trim();
     if (!text) return;
+    const hint = unfilledPasteTemplateHint(text);
+    if (hint) {
+      setPlaceholderHint(hint);
+      logUsage("studio_composer_blocked", { reason: "unfilled_paste_template" });
+      composerRef.current?.focus();
+      return;
+    }
+    setPlaceholderHint(null);
     setComposerText("");
     launchChat(text);
   };
@@ -248,19 +274,23 @@ export default function HomeScreen() {
             <QueryComposer
               ref={composerRef}
               value={composerText}
-              onChange={setComposerText}
+              onChange={handleComposerChange}
               onSubmit={submitStudioComposer}
               placeholder={`Hỏi về hook, trend, hay kênh trong ngách ${nicheLabel}…`}
               nicheLabel={nicheLabel}
               corpusCount={currentNicheCount}
               showUrlChip={URL_IN_TEXT.test(composerText)}
-              onPasteVideoClick={() =>
-                fillComposer("Tại sao video này nổ/flop? Dán link TikTok vào đây:\n")
-              }
-              onPasteHandleClick={() =>
-                fillComposer("Soi kênh đối thủ — dán @handle TikTok vào đây:\n")
-              }
+              onPasteVideoClick={() => fillComposer(PASTE_VIDEO_TEMPLATE)}
+              onPasteHandleClick={() => fillComposer(PASTE_HANDLE_TEMPLATE)}
             />
+            {placeholderHint ? (
+              <p
+                className="mt-2 text-[12px] leading-snug text-[color:var(--gv-warn)]"
+                role="alert"
+              >
+                {placeholderHint}
+              </p>
+            ) : null}
           </div>
 
           {/* PR-cleanup-A — "BẮT ĐẦU NHANH" prompt-shortcut chips only.
