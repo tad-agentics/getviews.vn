@@ -40,11 +40,15 @@ export type Destination =
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
  *
- * Dropped 2026-04-22 per product-lead scope decision (see
- * ``artifacts/docs/report-templates-audit.md``):
- *   - ``series_audit`` — multi-URL corpus comparison; not covered by any template.
- *   - ``comparison``   — head-to-head creator comparison; replaced by using
- *     ``competitor_profile`` twice or by the planned KOL screen comparison.
+ * Historical drops:
+ *   - 2026-04-22 — ``series_audit`` (multi-URL corpus comparison; no template)
+ *     and ``comparison`` (head-to-head creator comparison; replaced by using
+ *     ``competitor_profile`` twice or COMPARE_VIDEOS for two URLs).
+ *   - L1.5 (2026-05-06) — server-side enum cleanup removed
+ *     ``find_creators`` (alias for ``creator_search``), ``followup``
+ *     (chat-era catch-all), and the ``comparison`` enum value (FE never
+ *     listed it). Historical session intent_type strings normalise at
+ *     the server router edge.
  */
 export type FixedIntentId =
   | "video_diagnosis"
