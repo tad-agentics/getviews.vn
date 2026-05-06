@@ -148,10 +148,20 @@ export function PatternMiniChart({ cell }: { cell: PatternCellPayloadData }) {
     );
   }
   if (cell.chart_kind === "sound_mix" && typeof d.primary_pct === "number") {
+    // L1.4 — top trending sounds for the niche (latest week, ranked by
+    // usage_count). Empty/missing → render the legacy "Gốc · Trend"
+    // legend; populated → render sound names instead.
+    const topSounds = Array.isArray(d.top_sounds) ? d.top_sounds : [];
     return (
       <div className="min-h-[60px] rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2">
         <SoundMixBar primaryPct={d.primary_pct} />
-        <p className="gv-mono mt-1 text-[9px] text-[color:var(--gv-ink-4)]">Gốc · Trend</p>
+        {topSounds.length > 0 ? (
+          <p className="gv-mono mt-1 truncate text-[9px] text-[color:var(--gv-ink-3)]" title={topSounds.map((s: { name: string }) => s.name).join(" · ")}>
+            {topSounds.slice(0, 3).map((s: { name: string }) => s.name).join(" · ")}
+          </p>
+        ) : (
+          <p className="gv-mono mt-1 text-[9px] text-[color:var(--gv-ink-4)]">Gốc · Trend</p>
+        )}
       </div>
     );
   }

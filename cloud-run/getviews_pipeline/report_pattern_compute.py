@@ -295,7 +295,43 @@ def build_tldr_callouts(ni: dict[str, Any], window_days: int) -> list[SumStat]:
     ]
 
 
-def build_pattern_cells(ni: dict[str, Any]) -> list[PatternCellPayload]:
+def _top_sounds_payload(
+    rows: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Reduce trending_sounds rows to the FE-facing shape.
+
+    Keeps only ``sound_name`` + ``usage_count`` (the only fields the
+    PatternMiniChart sound_mix branch consumes). Filters out original-
+    sound rows — we want to recommend trending music, not surface that
+    other creators are using their own audio.
+    """
+    if not rows:
+        return []
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        if r.get("is_original_sound"):
+            continue
+        name = (r.get("sound_name") or "").strip()
+        if not name:
+            continue
+        out.append({"name": name, "usage_count": int(r.get("usage_count") or 0)})
+        if len(out) >= 3:
+            break
+    return out
+
+
+def _sound_cell_detail(rows: list[dict[str, Any]] | None) -> str:
+    """Compose the small Vietnamese detail string under the sound % bar."""
+    top = _top_sounds_payload(rows)
+    if not top:
+        return "ước lượng từ corpus"
+    return f"top ngách: {top[0]['name']}"
+
+
+def build_pattern_cells(
+    ni: dict[str, Any],
+    trending_sounds: list[dict[str, Any]] | None = None,
+) -> list[PatternCellPayload]:
     """Four cells from niche_intelligence norms (best-effort)."""
     med_dur = float(ni.get("median_duration") or ni.get("avg_video_length_seconds") or ni.get("avg_duration") or 28)
     md = int(med_dur)
@@ -328,9 +364,15 @@ def build_pattern_cells(ni: dict[str, Any]) -> list[PatternCellPayload]:
         PatternCellPayload(
             title="Nhạc nền",
             finding=f"{int(primary_pct)}% gốc",
-            detail="ước lượng từ corpus",
+            detail=_sound_cell_detail(trending_sounds),
             chart_kind="sound_mix",
-            chart_data={"primary_pct": primary_pct},
+            chart_data={
+                "primary_pct": primary_pct,
+                # L1.4 — top trending sounds from ``trending_sounds`` table
+                # (latest week, ranked by usage_count). Empty list when the
+                # niche has no sound aggregates yet (thin corpus or pre-cron).
+                "top_sounds": _top_sounds_payload(trending_sounds),
+            },
         ),
         PatternCellPayload(
             title="CTA",
@@ -422,11 +464,30 @@ def load_pattern_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, A
 
         corpus = fetch_corpus_window(sb, niche_id, max(window_days, 14))
 
+        # L1.4 — top trending sounds for the niche, latest week. Failure is
+        # non-fatal: empty list flows through to ``build_pattern_cells``
+        # which falls back to the original "ước lượng từ corpus" copy.
+        trending_sounds: list[dict[str, Any]] = []
+        try:
+            ts_res = (
+                sb.table("trending_sounds")
+                .select("sound_name,sound_id,usage_count,is_original_sound,total_views,week_of")
+                .eq("niche_id", niche_id)
+                .order("week_of", desc=True)
+                .order("usage_count", desc=True)
+                .limit(10)
+                .execute()
+            )
+            trending_sounds = ts_res.data or []
+        except Exception as exc:
+            logger.warning("[pattern] trending_sounds fetch failed niche=%s: %s", niche_id, exc)
+
         return {
             "niche_label": label,
             "ni": ni,
             "he_rows": he_latest,
             "corpus": corpus,
+            "trending_sounds": trending_sounds,
         }
     except Exception as exc:
         logger.warning("[pattern] load_pattern_inputs failed: %s", exc)
