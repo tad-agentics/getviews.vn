@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 
 import { Btn } from "@/components/v2/Btn";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
+import { analysisErrorCopy } from "@/lib/errorMessages";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
@@ -36,7 +37,7 @@ export const StudioHero = memo(function StudioHero({
 }: {
   nicheId: number | null;
 }) {
-  const { data: ritual, emptyReason, isPending, refetch } = useDailyRitual(true, nicheId);
+  const { data: ritual, emptyReason, isPending, isError, error, refetch } = useDailyRitual(true, nicheId);
   const navigate = useNavigate();
 
   if (isPending) {
@@ -51,6 +52,27 @@ export const StudioHero = memo(function StudioHero({
             }
           />
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+        <p className="m-0 text-[14px] font-medium text-[color:var(--gv-danger)]">
+          {analysisErrorCopy(error)}
+        </p>
+        <p className="mt-1.5">
+          Gợi ý hôm nay tải từ máy chủ phân tích. Kiểm tra kết nối rồi thử lại — nếu vừa đổi ngách, có thể cần vài phút để job tạo kịch bản chạy.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Btn variant="ghost" size="sm" type="button" onClick={() => void refetch()}>
+            Thử tải lại
+          </Btn>
+          <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/trends")}>
+            Khám phá ngách
+          </Btn>
+        </div>
       </div>
     );
   }

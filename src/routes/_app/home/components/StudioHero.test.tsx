@@ -60,6 +60,8 @@ describe("StudioHero", () => {
       }),
       emptyReason: null,
       isPending: false,
+      isError: false,
+      error: undefined,
       refetch: vi.fn(),
     });
     const { getAllByRole, getByText } = wrap(<StudioHero nicheId={4} />);
@@ -81,6 +83,8 @@ describe("StudioHero", () => {
       }),
       emptyReason: null,
       isPending: false,
+      isError: false,
+      error: undefined,
       refetch: vi.fn(),
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
@@ -94,6 +98,8 @@ describe("StudioHero", () => {
       }),
       emptyReason: null,
       isPending: false,
+      isError: false,
+      error: undefined,
       refetch: vi.fn(),
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
@@ -106,6 +112,8 @@ describe("StudioHero", () => {
       data: null,
       emptyReason: "ritual_no_row",
       isPending: false,
+      isError: false,
+      error: undefined,
       refetch: vi.fn(),
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
@@ -117,6 +125,8 @@ describe("StudioHero", () => {
       data: null,
       emptyReason: "ritual_niche_stale",
       isPending: false,
+      isError: false,
+      error: undefined,
       refetch: vi.fn(),
     });
     const { getByText } = wrap(<StudioHero nicheId={4} />);
@@ -128,9 +138,25 @@ describe("StudioHero", () => {
       data: null,
       emptyReason: null,
       isPending: true,
+      isError: false,
+      error: undefined,
       refetch: vi.fn(),
     });
     const { container } = wrap(<StudioHero nicheId={4} />);
     expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
+
+  it("renders a fetch-failure banner instead of the empty cron stub when the ritual query errors", () => {
+    mockUseDailyRitual.mockReturnValue({
+      data: null,
+      emptyReason: null,
+      isPending: false,
+      isError: true,
+      error: new Error("HTTP 500"),
+      refetch: vi.fn(),
+    });
+    const { getByText } = wrap(<StudioHero nicheId={4} />);
+    expect(getByText(/Server trả lỗi \(HTTP 500\)/)).toBeTruthy();
+    expect(() => getByText(/Đang tạo kịch bản cho ngày đầu/)).toThrow();
   });
 });
