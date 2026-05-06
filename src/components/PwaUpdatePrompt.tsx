@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 /**
@@ -6,6 +7,12 @@ import { useRegisterSW } from "virtual:pwa-register/react";
  * waiting to activate. Tapping "Tải lại" calls
  * ``updateServiceWorker(true)`` which posts ``SKIP_WAITING`` and
  * reloads.
+ *
+ * ``useRegisterSW`` can flip ``needRefresh`` back to true while the
+ * waiting worker is still installed — ``setNeedRefresh(false)`` alone
+ * does not keep the banner dismissed across navigations. A local
+ * ``deferredByUser`` flag hides the banner for the rest of this tab
+ * session until ``needRefresh`` clears (e.g. after a successful reload).
  *
  * Mounted once at the root so every authenticated screen can pick
  * up the banner without each layout having to opt in. The
@@ -24,7 +31,15 @@ export function PwaUpdatePrompt() {
     },
   });
 
-  if (!needRefresh) return null;
+  const [deferredByUser, setDeferredByUser] = useState(false);
+
+  useEffect(() => {
+    if (!needRefresh) setDeferredByUser(false);
+  }, [needRefresh]);
+
+  const showBanner = needRefresh && !deferredByUser;
+
+  if (!showBanner) return null;
 
   return (
     <div
@@ -39,7 +54,10 @@ export function PwaUpdatePrompt() {
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => setNeedRefresh(false)}
+            onClick={() => {
+              setDeferredByUser(true);
+              setNeedRefresh(false);
+            }}
             className="rounded-md px-3 py-1.5 text-xs text-[color:var(--gv-ink-3)] hover:text-[color:var(--gv-ink)]"
           >
             Để sau
