@@ -18,6 +18,7 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   display_name: "Sau ___ tháng dùng",
   weekly_instance_count: 12,
   weekly_instance_count_prev: 4,
+  niche_video_count: 4,
   instance_count: 47,
   niche_spread: [4],
   avg_views: 142_000,

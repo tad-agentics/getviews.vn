@@ -32,6 +32,7 @@ const samplePattern = (id: string, overrides: Partial<TopPattern> = {}): TopPatt
   display_name: `Pattern ${id}`,
   weekly_instance_count: 10,
   weekly_instance_count_prev: 4,
+  niche_video_count: 0,
   instance_count: 30,
   niche_spread: [4],
   avg_views: 100_000,

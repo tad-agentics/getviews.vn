@@ -7,7 +7,9 @@ import { useTopPatterns, STUDIO_HOME_TOP_PATTERNS_LIMIT, type TopPattern } from 
  *   #, MẪU HOOK, TĂNG, LƯỢT DÙNG, VIEW TB, VÍ DỤ
  *
  * VIEW TB + VÍ DỤ come from the top-viewed video_corpus row in each
- * pattern bucket (see useTopPatterns); other fields from video_patterns.
+ * pattern bucket (see useTopPatterns). LƯỢT DÙNG = ``niche_video_count``
+ * (video trong ngách gắn pattern); TĂNG vẫn dùng weekly_instance_count
+ * toàn corpus (ISSUE-015).
  */
 
 function deltaCell(curr: number, prev: number) {
@@ -110,11 +112,17 @@ export const HooksTable = memo(function HooksTable({
 
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-[color:var(--gv-rule-2)] pt-3">
               <div>
-                <dt className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                <dt
+                  className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]"
+                  title="Số video trong ngách của bạn gắn pattern này (corpus)."
+                >
                   Lượt dùng
                 </dt>
-                <dd className="gv-mono mt-0.5 text-sm text-[color:var(--gv-ink)]">
-                  {p.weekly_instance_count.toLocaleString("vi-VN")}
+                <dd
+                  className="gv-mono mt-0.5 text-sm text-[color:var(--gv-ink)]"
+                  title="Số video trong ngách của bạn gắn pattern này (corpus)."
+                >
+                  {p.niche_video_count.toLocaleString("vi-VN")}
                 </dd>
               </div>
               <div>
@@ -152,8 +160,18 @@ export const HooksTable = memo(function HooksTable({
               <tr>
                 <Th className="w-[60px] text-center">#</Th>
                 <Th>MẪU HOOK</Th>
-                <Th className="w-[100px]">TĂNG</Th>
-                <Th className="w-[90px] text-right">LƯỢT DÙNG</Th>
+                <Th
+                  className="w-[100px]"
+                  hint="So sánh lượt gắn pattern trên toàn corpus giữa 7 ngày vừa rồi và 7 ngày trước. «Mới» = tuần trước chưa có dữ liệu so sánh (pattern vừa xuất hiện trên bảng tổng)."
+                >
+                  TĂNG
+                </Th>
+                <Th
+                  className="w-[90px] text-right"
+                  hint="Số video trong ngách của bạn đã gắn pattern này (corpus). Khác với cột Tăng — đó là số liệu toàn hệ thống theo tuần."
+                >
+                  LƯỢT DÙNG
+                </Th>
                 <Th className="w-[100px] text-right">VIEW TB</Th>
                 <Th>VÍ DỤ</Th>
               </tr>
@@ -173,8 +191,11 @@ export const HooksTable = memo(function HooksTable({
                   <td className="px-3 py-3">
                     {deltaCell(p.weekly_instance_count, p.weekly_instance_count_prev)}
                   </td>
-                  <td className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]">
-                    {p.weekly_instance_count.toLocaleString("vi-VN")}
+                  <td
+                    className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]"
+                    title="Số video trong ngách của bạn gắn pattern này (corpus)."
+                  >
+                    {p.niche_video_count.toLocaleString("vi-VN")}
                   </td>
                   <td className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]">
                     {formatViews(p.avg_views)}
@@ -200,17 +221,27 @@ export const HooksTable = memo(function HooksTable({
       <SectionHeader
         kicker="BẢNG XẾP HẠNG"
         title="Hook đang chạy"
-        caption={`Top ${patterns.length} mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua.`}
+        caption={`Top ${patterns.length} mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua. «Lượt dùng» đếm video trong ngách của bạn; «Tăng» so toàn corpus 7 ngày.`}
       />
       {listAndTable}
     </section>
   );
 });
 
-function Th({ children, className }: { children: React.ReactNode; className?: string }) {
+function Th({
+  children,
+  className,
+  hint,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  /** Native tooltip — giải thích cột (ISSUE-015). */
+  hint?: string;
+}) {
   return (
     <th
       scope="col"
+      title={hint}
       className={[
         "px-3 py-2 text-left gv-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]",
         className ?? "",

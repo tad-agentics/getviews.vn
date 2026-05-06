@@ -24,6 +24,8 @@ export type TopPattern = {
   display_name: string;
   weekly_instance_count: number;
   weekly_instance_count_prev: number;
+  /** Video trong ngách đang xem gắn pattern này (``video_corpus``). Khác ``weekly_instance_count`` (toàn corpus 7 ngày). */
+  niche_video_count: number;
   instance_count: number;
   niche_spread: number[];
   /** Average views across all corpus rows tagged with this pattern. */
@@ -138,6 +140,7 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
           : [];
         return {
           ...p,
+          niche_video_count: stat?.n ?? 0,
           avg_views: stat && stat.n > 0 ? Math.round(stat.totalViews / stat.n) : null,
           sample_hook: stat?.topHook ?? null,
           videos,
