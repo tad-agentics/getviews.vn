@@ -122,7 +122,7 @@ export default function ChannelScreen() {
   return (
     <AppLayout enableMobileSidebar>
       <TopBar
-        kicker="ĐỐI THỦ"
+        kicker="KÊNH"
         title="Phân Tích Kênh"
         right={
           <>
