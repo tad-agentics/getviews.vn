@@ -44,6 +44,15 @@ deploy_user() {
   # 300s timeout is plenty for the longest video analysis (Gemini caps
   # at ~120s end-to-end). Smaller memory than batch since one request
   # streams one video, not a corpus wave.
+  #
+  # ``--update-env-vars`` (NOT ``--set-env-vars``): we only want to
+  # ensure SERVICE_ROLE is set, NOT to wipe every other env var on the
+  # service. ``--set-env-vars`` REPLACES the entire env block, which
+  # would nuke SUPABASE_URL / GEMINI_API_KEY / ENSEMBLE_DATA_API_KEY /
+  # SUPABASE_JWT_SECRET on every deploy and break JWT verification
+  # (``jwks_url_unset`` 500 on every authenticated route). The other
+  # env vars must be set out-of-band via ``gcloud run services update
+  # --update-env-vars`` — see the printed instructions below.
   echo ""
   echo "Deploying getviews-pipeline-user..."
   gcloud run deploy getviews-pipeline-user \
@@ -57,13 +66,14 @@ deploy_user() {
     --concurrency 20 \
     --min-instances 1 \
     --max-instances 5 \
-    --set-env-vars "SERVICE_ROLE=user"
+    --update-env-vars "SERVICE_ROLE=user"
 }
 
 deploy_batch() {
   # Batch pod: cold-starts are fine (Cloud Scheduler tolerates startup
   # latency). 4Gi to fit parallel TikTok MP4 downloads + Gemini fan-out.
   # 3600s timeout because all-niche ingest can run 10–30+ minutes.
+  # Same ``--update-env-vars`` rationale as deploy_user — see comment above.
   echo ""
   echo "Deploying getviews-pipeline-batch..."
   gcloud run deploy getviews-pipeline-batch \
@@ -77,7 +87,7 @@ deploy_batch() {
     --concurrency 5 \
     --min-instances 0 \
     --max-instances 3 \
-    --set-env-vars "SERVICE_ROLE=batch"
+    --update-env-vars "SERVICE_ROLE=batch"
 }
 
 case "$TARGET" in
@@ -109,9 +119,13 @@ if [[ -n "$USER_URL" && -n "$BATCH_URL" ]]; then
   echo "      --update-env-vars BATCH_SERVICE_BASE_URL=$BATCH_URL,BATCH_SECRET=<SAME_AS_BATCH_SERVICE>"
   echo ""
 fi
-echo "Set env vars per service via:"
-echo "  gcloud run services update getviews-pipeline-user  --region $REGION --set-env-vars KEY=VALUE"
-echo "  gcloud run services update getviews-pipeline-batch --region $REGION --set-env-vars KEY=VALUE"
+echo "Set env vars per service via (USE --update-env-vars, NOT --set-env-vars):"
+echo "  gcloud run services update getviews-pipeline-user  --region $REGION --update-env-vars KEY=VALUE"
+echo "  gcloud run services update getviews-pipeline-batch --region $REGION --update-env-vars KEY=VALUE"
+echo ""
+echo "  ``--set-env-vars`` REPLACES the entire env block — using it"
+echo "  will wipe every variable not in the comma list and break JWT"
+echo "  verification (jwks_url_unset 500). Always use --update-env-vars."
 echo ""
 echo "Required env vars (both services):"
 echo "  GEMINI_API_KEY, ENSEMBLE_DATA_API_KEY,"
