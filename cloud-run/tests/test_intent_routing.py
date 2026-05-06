@@ -129,34 +129,12 @@ def test_classify_trend_spike() -> None:
     assert i == QueryIntent.TREND_SPIKE
 
 
-def test_classify_metadata_only() -> None:
-    url = "https://www.tiktok.com/@x/video/9"
-    i = classify_intent(f"How many views on {url}", [url], [], False)
-    assert i == QueryIntent.METADATA_ONLY
-
-
 def test_classify_followup_with_session() -> None:
     """L1.5 — chat-era FOLLOWUP collapsed into FOLLOW_UP_UNCLASSIFIABLE.
     The deterministic classifier can't infer the subject; Gemini's
     classifiable subject can later upgrade it via the layered merge."""
     i = classify_intent("Can you elaborate on that hook pattern?", [], [], True)
     assert i == QueryIntent.FOLLOW_UP_UNCLASSIFIABLE
-
-
-def test_classify_metadata_only_not_blocked_by_what() -> None:
-    """The 'what' keyword no longer blocks METADATA_ONLY routing."""
-    url = "https://www.tiktok.com/@x/video/9"
-    i = classify_intent(f"What are the stats on {url}", [url], [], False)
-    assert i == QueryIntent.METADATA_ONLY
-
-
-def test_classify_what_should_overrides_metadata() -> None:
-    """'what should' routes to VIDEO_DIAGNOSIS, not METADATA_ONLY."""
-    url = "https://www.tiktok.com/@x/video/9"
-    i = classify_intent(
-        f"What should I fix on this {url} stats are bad", [url], [], False
-    )
-    assert i == QueryIntent.VIDEO_DIAGNOSIS
 
 
 # ── New intent enum members (added post-foundation) ───────────────────────────
@@ -174,6 +152,8 @@ def test_query_intent_enum_has_shot_list_and_creator_search() -> None:
     assert not hasattr(QueryIntent, "FIND_CREATORS")
     assert not hasattr(QueryIntent, "COMPARISON")
     assert not hasattr(QueryIntent, "FOLLOWUP")
+    # L1.5 audit — METADATA_ONLY also removed (was no longer no-cost).
+    assert not hasattr(QueryIntent, "METADATA_ONLY")
 
 
 def test_classify_shot_list_falls_through_to_content_directions() -> None:
@@ -408,6 +388,43 @@ def test_legacy_intent_strings_normalise_to_current_values() -> None:
     # (was previously normalised to "follow_up" which is a Gemini label,
     # not an enum value).
     assert _normalize_intent_name("followup") == "follow_up_unclassifiable"
+    # METADATA_ONLY removed L1.5 audit — historical session rows fold into
+    # the generic-fallback path (which is what the FE comment used to
+    # promise but didn't actually deliver).
+    assert _normalize_intent_name("metadata_only") == "follow_up_unclassifiable"
     # Sanity: unrelated values pass through unchanged.
     assert _normalize_intent_name("video_diagnosis") == "video_diagnosis"
     assert _normalize_intent_name(None) is None
+
+
+# ── L1.5 audit: shared TIKTOK_URL_RE consolidation ────────────────────────
+
+
+def test_canonical_tiktok_url_re_matches_all_subdomains() -> None:
+    """The shared pattern must match every short-link subdomain TikTok ships.
+    Pre-L1.5, ``report_video.py`` had its own regex missing ``vt.tiktok.com``,
+    so a vt-link could classify as video_diagnosis (intents.py matched it)
+    and then fail extraction in the report builder — silent dead-end."""
+    from getviews_pipeline.url_patterns import TIKTOK_URL_RE
+
+    cases = [
+        "https://www.tiktok.com/@user/video/123",
+        "https://tiktok.com/@user/video/123",
+        "https://m.tiktok.com/v/123",
+        "https://vm.tiktok.com/abc123",
+        "https://vt.tiktok.com/abc123",  # critical — was missing in report_video.py
+        "http://www.tiktok.com/@user/video/123",  # http (rare but valid)
+    ]
+    for url in cases:
+        assert TIKTOK_URL_RE.search(url), f"Failed to match: {url}"
+
+
+def test_canonical_tiktok_url_re_used_by_both_be_callers() -> None:
+    """``intents.py`` and ``report_video.py`` must share the same compiled
+    pattern — drift is exactly what L1.5 fixed."""
+    from getviews_pipeline.intents import _TIKTOK_URL_RE as intents_re
+    from getviews_pipeline.report_video import _TIKTOK_URL_RE as report_re
+    from getviews_pipeline.url_patterns import TIKTOK_URL_RE
+
+    assert intents_re is TIKTOK_URL_RE
+    assert report_re is TIKTOK_URL_RE

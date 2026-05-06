@@ -55,11 +55,13 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     QueryIntent.OWN_CHANNEL.value: "channel",
     QueryIntent.CREATOR_SEARCH.value: "kol",
     QueryIntent.SHOT_LIST.value: "script",
-    # ``metadata_only`` previously routed to /app/video (corpus-row
-    # preview, no Gemini synth). With the screen gone, fall through to
-    # generic — the rare classification still produces *something*
-    # rather than dead-ending on the deleted destination.
-    QueryIntent.METADATA_ONLY.value: "answer:generic",
+    # ``METADATA_ONLY`` removed L1.5 — pre-migration it routed to a
+    # /app/video corpus-row preview that genuinely skipped Gemini; post-
+    # migration it fell through to ``build_generic_report`` which calls
+    # Gemini, so the no-cost framing was broken silently. Stats-only
+    # queries now fall through to VIDEO_DIAGNOSIS (paid) — the same
+    # outcome they got via the generic fallback before, just labelled
+    # honestly.
     # Diagnostic template (2026-04-22) — URL-less flop diagnosis. See
     # ``artifacts/docs/report-template-prd-diagnostic.md``.
     QueryIntent.OWN_FLOP_NO_URL.value: "answer:diagnostic",
@@ -137,7 +139,6 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     "competitor_profile": "channel",
     "own_channel": "channel",
     "creator_search": "kol",
-    "metadata_only": "answer:generic",
     "timing": "answer:timing",
     # 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` cut from lifecycle
     # shelf; see ``INTENT_TO_DESTINATION`` comment above for rationale.

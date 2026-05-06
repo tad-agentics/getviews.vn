@@ -40,7 +40,7 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
     ("GET", "/health"),
     ("GET", "/auth-check"),
     ("GET", "/admin/ping"),
-    ("POST", "/classify-intent"),
+    # ``/classify-intent`` removed L1.5 audit — zero FE callers.
     ("POST", "/stream"),
     ("POST", "/batch/ingest"),
     ("POST", "/batch/reingest-videos"),

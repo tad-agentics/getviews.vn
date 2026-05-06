@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from enum import StrEnum
 
+from getviews_pipeline.url_patterns import TIKTOK_URL_RE
+
 
 class QueryIntent(StrEnum):
     """Intent taxonomy — mirror of ``GEMINI_CLASSIFIER_PRIMARY_LABELS``.
@@ -21,6 +23,13 @@ class QueryIntent(StrEnum):
       - ``FOLLOWUP`` removed L1.5 (Tier B). Chat-era catch-all replaced
         by ``FOLLOW_UP_CLASSIFIABLE`` / ``FOLLOW_UP_UNCLASSIFIABLE``.
         Legacy ``"followup"`` strings normalised to ``"follow_up"``.
+      - ``METADATA_ONLY`` removed L1.5 (audit). Pre-template-migration this
+        routed to a dedicated /app/video corpus-row preview that skipped
+        Gemini; post-migration it falls through to ``build_generic_report``
+        which DOES call Gemini. The "no-cost stats preview" promise was
+        broken silently, so the intent provided zero UX differentiation
+        vs FOLLOW_UP_UNCLASSIFIABLE. Legacy strings normalised at the
+        router edge to ``follow_up_unclassifiable``.
     """
 
     VIDEO_DIAGNOSIS = "video_diagnosis"
@@ -28,7 +37,6 @@ class QueryIntent(StrEnum):
     COMPETITOR_PROFILE = "competitor_profile"
     BRIEF_GENERATION = "brief_generation"
     TREND_SPIKE = "trend_spike"
-    METADATA_ONLY = "metadata_only"
     OWN_CHANNEL = "own_channel"  # "Soi Kênh" — same pipeline as video_diagnosis
     CREATOR_SEARCH = "creator_search"  # canonical label for KOL/creator discovery
     SHOT_LIST = "shot_list"  # detailed shot list for production
@@ -49,12 +57,9 @@ class QueryIntent(StrEnum):
     FOLLOW_UP_UNCLASSIFIABLE = "follow_up_unclassifiable"
 
 
-_TIKTOK_URL_RE = re.compile(
-    # Matches full TikTok URLs (www.tiktok.com, tiktok.com) and all short-link
-    # domains (vm.tiktok.com, vt.tiktok.com, and any future *.tiktok.com variants).
-    r"https?://(?:(?:www\.)?tiktok\.com|(?:vm|vt|m)\.tiktok\.com)/\S+",
-    re.IGNORECASE,
-)
+# L1.5 — canonical pattern moved to url_patterns module so report_video.py
+# uses the same definition (was missing vt.tiktok.com short-links before).
+_TIKTOK_URL_RE = TIKTOK_URL_RE
 _HANDLE_RE = re.compile(r"@([a-zA-Z0-9_.]+)")
 
 
@@ -143,22 +148,11 @@ def classify_intent(
     ):
         return QueryIntent.BRIEF_GENERATION
 
-    if has_urls and any(
-        kw in msg
-        for kw in [
-            # English
-            "stats", "metrics", "followers", "how many", "views on",
-            # Vietnamese
-            "lượt xem", "người theo dõi", "bao nhiêu view", "bao nhiêu follow",
-            "chỉ số", "số liệu",
-        ]
-    ) and not any(kw in msg for kw in [
-        # English negation
-        "analyze", "why", "what should", "what's wrong",
-        # Vietnamese negation
-        "phân tích", "tại sao", "vì sao", "nên làm gì", "sai ở đâu",
-    ]):
-        return QueryIntent.METADATA_ONLY
+    # L1.5 — METADATA_ONLY removed. Stats-only queries with a URL now
+    # fall through to VIDEO_DIAGNOSIS below, which is the same outcome the
+    # post-migration generic-fallback produced (Gemini-bounded narrative).
+    # Future "no-credit metric preview" should be a separate non-Gemini
+    # endpoint, not a routing artifact pretending to be one.
 
     if has_urls and any(
         kw in msg
@@ -377,7 +371,6 @@ def query_intent_to_gemini_primary(qi: QueryIntent) -> str:
         QueryIntent.COMPETITOR_PROFILE: "competitor_profile",
         QueryIntent.BRIEF_GENERATION: "brief_generation",
         QueryIntent.TREND_SPIKE: "trend_spike",
-        QueryIntent.METADATA_ONLY: "metadata_only",
         QueryIntent.OWN_CHANNEL: "own_channel",
         QueryIntent.CREATOR_SEARCH: "creator_search",
         QueryIntent.SHOT_LIST: "shot_list",

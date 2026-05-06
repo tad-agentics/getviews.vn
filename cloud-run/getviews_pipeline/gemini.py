@@ -663,7 +663,6 @@ GEMINI_CLASSIFIER_PRIMARY_LABELS: tuple[str, ...] = (
     "competitor_profile",
     "own_channel",
     "creator_search",
-    "metadata_only",
     "timing",
     "fatigue",
     "hook_variants",
@@ -688,7 +687,6 @@ Classify the user message into ONE primary intent from this fixed list:
 - competitor_profile   — user wants analysis of another creator's account (@handle or profile URL)
 - own_channel          — user wants analysis of their OWN channel
 - creator_search       — user wants to find/discover TikTok creators in a niche (formerly ``find_creators``)
-- metadata_only        — user only wants stats/metrics on a video or profile, not creative diagnosis
 - timing               — best time/day to post, posting window, schedule
 - fatigue              — declining format, pattern dying, trend exhaustion
 - hook_variants        — rewrite hooks, hook variations
