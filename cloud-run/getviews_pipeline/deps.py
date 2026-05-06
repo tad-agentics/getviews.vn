@@ -39,12 +39,30 @@ async def _get_jwks() -> dict[str, Any]:
             detail="jwks_url_unset",
         )
     now = time.monotonic()
-    if not _jwks_cache or now - _jwks_fetched_at > _JWKS_TTL:
-        async with httpx.AsyncClient(timeout=5) as client:
+    # Fresh enough — skip network (ISSUE-016: avoid thundering herd on cold instances).
+    if _jwks_cache and (now - _jwks_fetched_at) <= _JWKS_TTL:
+        return _jwks_cache
+
+    # Stale-while-revalidate: on Supabase blip / timeout, keep serving last
+    # good JWKS so authed routes stay up; ES256 key rotation is rare.
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(SUPABASE_JWKS_URL)
             resp.raise_for_status()
-            _jwks_cache = resp.json()
+            body = resp.json()
+            if not body:
+                raise ValueError("empty JWKS body")
+            _jwks_cache = body
             _jwks_fetched_at = now
+    except Exception as exc:
+        if _jwks_cache:
+            logger.warning("[jwks] refresh failed, using stale cache: %s", exc)
+        else:
+            logger.error("[jwks] initial fetch failed (no cache): %s", exc, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="jwks_fetch_failed",
+            ) from exc
     return _jwks_cache
 
 
