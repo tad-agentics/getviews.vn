@@ -73,7 +73,7 @@
   },
   "scripts": {
     "dev": "react-router dev",
-    "build": "react-router build",
+    "build": "react-router build && node scripts/append-pwa-precache-index.mjs",
     "preview": "npx serve build/client",
     "test": "vitest run",
     "typecheck": "react-router typegen && tsc --build --force && node scripts/check-tokens.mjs",
