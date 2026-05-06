@@ -17,7 +17,7 @@ export const creatorNichesKeys = {
 /**
  * Two-axis niche refactor PR4 (2026-05-10) — replaces ``useNicheTaxonomy``
  * for picker UIs (Onboarding, Settings, Trends pills). Returns the
- * coarse 14-bucket UX-facing taxonomy creators self-identify with.
+ * coarse 16-bucket UX-facing taxonomy creators self-identify with.
  *
  * Sorted by ``display_order`` so the picker matches the seeded order
  * in 20260510000000_two_axis_niche_pr1_schema.sql (beauty → fashion →

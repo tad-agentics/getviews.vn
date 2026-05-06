@@ -868,7 +868,7 @@ export default function ExploreScreen() {
             style={{ scrollbarWidth: "thin" }}
           >
           {/* PR5 (two-axis, 2026-05-10) — niche pill row sourced from
-              ``creator_niches`` (14 UX-facing buckets). Default selection
+              ``creator_niches`` (16 UX-facing buckets). Default selection
               = ``profile.creator_niche_id``; users can browse other niches
               transiently. Re-mount resets. Pill ids are creator_niche_id;
               downstream queries derive the legacy niche_id. */}

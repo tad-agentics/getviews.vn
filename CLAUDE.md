@@ -104,7 +104,7 @@ Other hard rules: `video_corpus` INSERT is batch-only via service_role (client w
 
 The 2026-05-10 → 2026-05-13 two-axis refactor split the conflated `niche_taxonomy` into two independent concerns:
 
-- **`creator_niches`** (14 buckets) — UX-facing. Drives onboarding picker, Settings → Ngách, Trends pills, profile self-id (`profiles.creator_niche_id INTEGER FK`). Coarse, friendly Vietnamese labels matching how creators describe themselves ("tôi làm content beauty"). Cognitive load < 1s. Display order matches the seeded order in `20260510000000_two_axis_niche_pr1_schema.sql`. **Single niche per user.**
+- **`creator_niches`** (16 buckets) — UX-facing. Drives onboarding picker, Settings → Ngách, Trends pills, profile self-id (`profiles.creator_niche_id INTEGER FK`). Coarse, friendly Vietnamese labels matching how creators describe themselves ("tôi làm content beauty"). Cognitive load < 1s. Display order matches the seeded order in `20260510000000_two_axis_niche_pr1_schema.sql` plus `20260630000001_creator_niches_16_music_real_estate.sql` (music + real estate). **Single niche per user.**
 - **`content_classifications`** (74 categories) — analysis-facing. Sharp `(topic × format)` boundaries on `video_corpus.content_class_id`. Drives benchmark grouping + pattern thesis sample selection. `format_axis` denormalised for cheap cross-niche format queries.
 - **`creator_niche_content_classes`** — M:N junction. Most rows are 1:1 but some content_classes legitimately span (`travel_food_tour ∈ {Travel, Food}`). `is_primary` flags the canonical home for benchmarks.
 

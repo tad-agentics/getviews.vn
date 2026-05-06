@@ -56,7 +56,7 @@ export function profileFirstNicheId(
 /**
  * The user's creator_niche_id (UX-facing axis since PR3). Returns null
  * for pre-onboarding profiles. Used by Trends pills + Settings active
- * highlight — surfaces that should display the new 14-bucket label.
+ * highlight — surfaces that should display the new 16-bucket label.
  */
 export function profileCreatorNicheId(
   profile: { creator_niche_id?: number | null } | null | undefined,
@@ -104,6 +104,8 @@ export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | n
     case 12: return 14; // Auto & Moto → Ô tô / Xe máy
     case 13: return 19; // Pets & Home → Pets (representative; Home = legacy 20)
     case 14: return 8;  // Gym & Fitness → Gym / Fitness VN
+    case 15: return 13; // Music & Dance → Hài / Giải trí (corpus entertainment bucket)
+    case 16: return 10; // Real Estate → Bất động sản (niche_taxonomy)
     default: return null;
   }
 }

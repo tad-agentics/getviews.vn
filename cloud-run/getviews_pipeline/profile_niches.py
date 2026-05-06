@@ -34,6 +34,8 @@ _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     12: 14,  # Auto & Moto → Ô tô / Xe máy
     13: 19,  # Pets & Home → Pets (representative; Home = legacy 20)
     14: 8,   # Gym & Fitness → Gym / Fitness VN
+    15: 13,  # Music & Dance → Hài / Giải trí (corpus entertainment bucket)
+    16: 10,  # Real Estate → Bất động sản (niche_taxonomy)
 }
 
 

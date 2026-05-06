@@ -34,6 +34,8 @@ from getviews_pipeline.profile_niches import (
         (12, 14),  # Auto & Moto
         (13, 19),  # Pets & Home → Pets (representative)
         (14, 8),   # Gym & Fitness
+        (15, 13),  # Music & Dance → Hài / Giải trí
+        (16, 10),  # Real Estate → Bất động sản
     ],
 )
 def test_legacy_niche_id_for_creator_niche(creator_niche_id: int, expected: int) -> None:

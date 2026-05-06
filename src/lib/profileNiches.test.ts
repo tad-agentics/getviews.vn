@@ -35,10 +35,10 @@ describe("profileNiches (two-axis model since PR6)", () => {
     expect(profileFirstNicheId({ creator_niche_id: null })).toBeNull();
   });
 
-  it("legacyNicheIdForCreatorNiche covers all 14 creator_niches", () => {
+  it("legacyNicheIdForCreatorNiche covers all 16 creator_niches", () => {
     const expected: Record<number, number> = {
       1: 2, 2: 3, 3: 4, 4: 13, 5: 13, 6: 7, 7: 11, 8: 9, 9: 5,
-      10: 26, 11: 16, 12: 14, 13: 19, 14: 8,
+      10: 26, 11: 16, 12: 14, 13: 19, 14: 8, 15: 13, 16: 10,
     };
     for (const [cni, legacy] of Object.entries(expected)) {
       expect(legacyNicheIdForCreatorNiche(Number(cni))).toBe(legacy);
