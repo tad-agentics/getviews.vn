@@ -3,7 +3,6 @@ import { Link } from "react-router";
 import { r2FrameUrl } from "@/lib/r2";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown, Database, Play, Globe, Zap, Search, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { pricingPlans, pricingSavings } from "@/lib/mock-data";
 
@@ -638,13 +637,11 @@ function CredibilitySection() {
           <p className="text-sm text-[color:var(--gv-ink-3)] leading-relaxed mb-6">
             Chúng tôi là những creator đã tự xây kênh TikTok từ 0 — và nhận ra rằng mọi quyết định nội dung đều đang được đưa ra dựa trên cảm tính. GetViews được xây để thay đổi điều đó: mỗi gợi ý đều có video thật làm bằng chứng, bạn bấm vào kiểm chứng được luôn.
           </p>
-          <Link to="/login">
-            <button
-              type="button"
-              className="rounded-lg bg-[color:var(--gv-accent)] px-6 py-3 text-sm font-medium text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-accent-deep)] active:scale-95"
-            >
-              Thử miễn phí — không cần thẻ
-            </button>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--gv-accent)] px-6 py-3 text-sm font-medium text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-accent-deep)] active:scale-95"
+          >
+            Thử miễn phí — không cần thẻ
           </Link>
         </div>
 
@@ -780,10 +777,11 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
               </span>
               <div className="flex items-center gap-4">
                 <span className="text-xs text-white/60 hidden sm:block">Không cần thẻ tín dụng</span>
-                <Link to="/login">
-                  <button className="bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] text-sm font-medium px-5 py-2 rounded-lg transition-colors duration-[120ms] active:scale-95">
-                    Soi Video Miễn Phí
-                  </button>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center rounded-lg bg-[color:var(--gv-paper)] px-5 py-2 text-sm font-medium text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:bg-[color:var(--gv-canvas-2)] active:scale-95"
+                >
+                  Soi Video Miễn Phí
                 </Link>
               </div>
             </div>
@@ -837,10 +835,11 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                       />
                     </div>
                   </div>
-                  <Link to="/login">
-                    <button className="w-full rounded-xl bg-[color:var(--gv-ink)] px-8 py-4 text-base font-semibold text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-ink-2)] active:scale-[0.98]">
-                      Soi Video Miễn Phí →
-                    </button>
+                  <Link
+                    to="/login"
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-[color:var(--gv-ink)] px-8 py-4 text-base font-semibold text-white transition-all duration-[120ms] hover:bg-[color:var(--gv-ink-2)] active:scale-[0.98]"
+                  >
+                    Soi Video Miễn Phí →
                   </Link>
                 </div>
 
@@ -1185,10 +1184,15 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
                   )}
                 </div>
                 <p className="text-xs text-[color:var(--gv-ink-3)] mb-5" style={{ lineHeight: "1.5" }}>{plan.credits}</p>
-                <Link to="/login">
-                  <Button fullWidth variant={plan.popular ? "primary" : "outlined"} className="text-sm py-2">
-                    {plan.name === "Free" ? "Bắt đầu miễn phí" : `Nâng cấp ${plan.name}`}
-                  </Button>
+                <Link
+                  to="/login"
+                  className={`inline-flex w-full items-center justify-center rounded-lg px-6 py-3 text-sm font-medium transition-all duration-[120ms] ease-out active:scale-95 ${
+                    plan.popular
+                      ? "bg-[color:var(--gv-accent)] text-white hover:bg-[color:var(--gv-accent-deep)] disabled:opacity-50"
+                      : "border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-rule-2)]"
+                  } py-2`}
+                >
+                  {plan.name === "Free" ? "Bắt đầu miễn phí" : `Nâng cấp ${plan.name}`}
                 </Link>
               </motion.div>
             ))}
@@ -1244,10 +1248,11 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
           <h2 className="gv-landing-h2 font-extrabold text-white mb-6 leading-tight">
             Dán 1 link. Xem GetViews nói gì.
           </h2>
-          <Link to="/login">
-            <button className="bg-[color:var(--gv-paper)] text-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] font-semibold px-10 py-4 rounded-xl text-base transition-all duration-[120ms] active:scale-95">
-              Soi Video Miễn Phí
-            </button>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center rounded-xl bg-[color:var(--gv-paper)] px-10 py-4 text-base font-semibold text-[color:var(--gv-ink)] transition-all duration-[120ms] hover:bg-[color:var(--gv-canvas-2)] active:scale-95"
+          >
+            Soi Video Miễn Phí
           </Link>
           <p className="text-sm text-white/60 mt-4">10 lần miễn phí · Không cần thẻ</p>
         </div>
