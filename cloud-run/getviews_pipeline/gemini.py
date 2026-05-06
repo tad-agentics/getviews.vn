@@ -794,7 +794,7 @@ def classify_intent_gemini(
 
 
 def gemini_text_only(message: str, session_context: dict[str, Any]) -> str:
-    """§3a Rule A / FOLLOWUP — knowledge or session-grounded text."""
+    """§3a Rule A / follow-up — knowledge or session-grounded text."""
     prompt = build_knowledge_prompt(message, session_context)
     cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=1024)
     response = _generate_content_models(

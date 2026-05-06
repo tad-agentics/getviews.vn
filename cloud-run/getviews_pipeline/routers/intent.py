@@ -64,14 +64,24 @@ _RESOLVED_TIKTOK_HOSTS = TIKTOK_ALLOWED_HOSTS | _SHORT_TIKTOK_HOSTS
 
 
 def _normalize_intent_name(raw: str | None) -> str | None:
+    """Fold legacy / external intent_type strings into current enum values.
+
+    L1.5 Tier B added ``"comparison"`` (legacy alias for COMPETITOR_PROFILE,
+    historical sessions only) and consolidated the FOLLOWUP collapse so
+    callers passing the chat-era ``"followup"`` string land on the modern
+    follow_up_unclassifiable surface. ``"find_creators"`` stays as a
+    back-compat alias even after the enum value was removed — historical
+    Gemini classifier outputs may still carry it.
+    """
     if raw is None:
         return None
     aliases = {
         "tiktok_url_diagnosis": "video_diagnosis",
         "kol_search": "creator_search",
-        "find_creators": "creator_search",
+        "find_creators": "creator_search",  # L1.5: enum removed, alias kept
         "kol_finder": "creator_search",
-        "followup": "follow_up",
+        "followup": "follow_up_unclassifiable",  # L1.5: chat-era → modern
+        "comparison": "competitor_profile",  # L1.5: legacy session rows
     }
     return aliases.get(raw, raw)
 

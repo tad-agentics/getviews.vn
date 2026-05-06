@@ -7,16 +7,20 @@ from enum import StrEnum
 
 
 class QueryIntent(StrEnum):
-    """Intent taxonomy — mirror of ``GEMINI_CLASSIFIER_PRIMARY_LABELS`` with
-    a few historical aliases kept for backward-compat.
+    """Intent taxonomy — mirror of ``GEMINI_CLASSIFIER_PRIMARY_LABELS``.
 
-    2026-04-22 cleanup (see ``artifacts/docs/report-templates-audit.md``):
-      - ``SERIES_AUDIT`` REMOVED — no template, not classified any more.
-      - ``COMPARISON`` KEPT as deprecated — historical session rows still
-        carry this label; new classifications no longer produce it.
-      - ``FIND_CREATORS`` KEPT as deprecated alias — canonical name is
-        ``CREATOR_SEARCH``. Callers should prefer ``CREATOR_SEARCH``; the
-        legacy value is normalised at the router edge.
+    Historical removals:
+      - ``SERIES_AUDIT`` removed 2026-04-22 (no template, not classified).
+      - ``COMPARISON`` removed L1.5 (Tier B). Was a deprecated alias for
+        ``COMPETITOR_PROFILE`` kept only for historical session reads —
+        ``routers/intent.py:_normalize_intent_name`` now folds the legacy
+        ``"comparison"`` string into ``competitor_profile`` at the router
+        edge so any historical-session intent_type still resolves.
+      - ``FIND_CREATORS`` removed L1.5 (Tier B). Was a deprecated alias
+        for ``CREATOR_SEARCH``; same back-compat normaliser strategy.
+      - ``FOLLOWUP`` removed L1.5 (Tier B). Chat-era catch-all replaced
+        by ``FOLLOW_UP_CLASSIFIABLE`` / ``FOLLOW_UP_UNCLASSIFIABLE``.
+        Legacy ``"followup"`` strings normalised to ``"follow_up"``.
     """
 
     VIDEO_DIAGNOSIS = "video_diagnosis"
@@ -25,10 +29,8 @@ class QueryIntent(StrEnum):
     BRIEF_GENERATION = "brief_generation"
     TREND_SPIKE = "trend_spike"
     METADATA_ONLY = "metadata_only"
-    FOLLOWUP = "followup"
     OWN_CHANNEL = "own_channel"  # "Soi Kênh" — same pipeline as video_diagnosis
     CREATOR_SEARCH = "creator_search"  # canonical label for KOL/creator discovery
-    FIND_CREATORS = "find_creators"  # DEPRECATED — alias for CREATOR_SEARCH
     SHOT_LIST = "shot_list"  # detailed shot list for production
     # Phase C §A.2 — `/answer` report intents (classify_intent + Gemini)
     SUBNICHE_BREAKDOWN = "subniche_breakdown"
@@ -37,7 +39,6 @@ class QueryIntent(StrEnum):
     HOOK_VARIANTS = "hook_variants"
     TIMING = "timing"
     CONTENT_CALENDAR = "content_calendar"
-    COMPARISON = "comparison"  # DEPRECATED — historical session rows only
     # Wave 4 PR #1 (2026-05-11) — two-URL side-by-side diagnosis. Distinct
     # from the retired ``COMPARISON`` (handle-based) + retired
     # ``SERIES_AUDIT`` (multi-URL corpus) intents; this one ships a real
@@ -438,7 +439,13 @@ def classify_intent(
         return QueryIntent.CONTENT_DIRECTIONS
 
     if not has_urls and has_session:
-        return QueryIntent.FOLLOWUP
+        # L1.5 (Tier B) — was QueryIntent.FOLLOWUP; collapsed into the
+        # newer classifiable/unclassifiable pair. The deterministic
+        # classifier can't tell the subject (that's Gemini's job),
+        # so we route to UNCLASSIFIABLE; the layered merge in
+        # ``merge_deterministic_with_gemini`` lets a confident Gemini
+        # result upgrade this to a specific subject.
+        return QueryIntent.FOLLOW_UP_UNCLASSIFIABLE
 
     return QueryIntent.VIDEO_DIAGNOSIS if has_urls else QueryIntent.CONTENT_DIRECTIONS
 
@@ -611,18 +618,19 @@ def collapse_to_intents(
         QueryIntent.BRIEF_GENERATION,
         QueryIntent.VIDEO_DIAGNOSIS,
         QueryIntent.COMPETITOR_PROFILE,
-        # ``SERIES_AUDIT`` and ``COMPARISON`` dropped 2026-04-22.
+        # ``SERIES_AUDIT`` (2026-04-22) and ``COMPARISON`` (L1.5) dropped.
         QueryIntent.OWN_CHANNEL,
         QueryIntent.OWN_FLOP_NO_URL,
         QueryIntent.SHOT_LIST,
-        # ``FIND_CREATORS`` collapsed into ``CREATOR_SEARCH`` — but the
-        # StrEnum keeps the old value for backward-compat with session
-        # history; the classifier no longer produces it.
-        QueryIntent.FIND_CREATORS,
+        # ``FIND_CREATORS`` (L1.5) collapsed into ``CREATOR_SEARCH``;
+        # historical-session intent_type strings normalised at the
+        # router edge — see routers/intent.py:_normalize_intent_name.
+        QueryIntent.CREATOR_SEARCH,
         QueryIntent.METADATA_ONLY,
         QueryIntent.FOLLOW_UP_CLASSIFIABLE,
         QueryIntent.FOLLOW_UP_UNCLASSIFIABLE,
-        QueryIntent.FOLLOWUP,
+        # ``FOLLOWUP`` (chat-era catch-all) dropped L1.5 — replaced by
+        # the classifiable / unclassifiable pair above.
     ]
     pairs = [(i, intent_groups[i]) for i in order if i in intent_groups]
     return CollapseResult(pairs, knowledge_qs)
@@ -658,11 +666,14 @@ def check_chain_dependencies(
 
 
 def query_intent_to_gemini_primary(qi: QueryIntent) -> str:
-    """Map server ``QueryIntent`` to Gemini classifier primary labels (keep in sync with gemini).
+    """Map server ``QueryIntent`` to Gemini classifier primary labels.
 
-    2026-04-22 cleanup: ``SERIES_AUDIT`` removed entirely; ``FIND_CREATORS``
-    now maps to the canonical ``creator_search`` label; ``COMPARISON`` is
-    kept only for reading back historical session rows.
+    Keep in sync with ``GEMINI_CLASSIFIER_PRIMARY_LABELS`` in gemini.py.
+
+    Historical removals: ``SERIES_AUDIT`` (2026-04-22), ``FIND_CREATORS``
+    / ``COMPARISON`` / ``FOLLOWUP`` (L1.5 Tier B). Legacy session
+    intent_type strings are normalised to current values at the router
+    edge — see ``routers/intent.py:_normalize_intent_name``.
     """
     m: dict[QueryIntent, str] = {
         QueryIntent.VIDEO_DIAGNOSIS: "video_diagnosis",
@@ -671,10 +682,8 @@ def query_intent_to_gemini_primary(qi: QueryIntent) -> str:
         QueryIntent.BRIEF_GENERATION: "brief_generation",
         QueryIntent.TREND_SPIKE: "trend_spike",
         QueryIntent.METADATA_ONLY: "metadata_only",
-        QueryIntent.FOLLOWUP: "follow_up",
         QueryIntent.OWN_CHANNEL: "own_channel",
         QueryIntent.CREATOR_SEARCH: "creator_search",
-        QueryIntent.FIND_CREATORS: "creator_search",  # legacy alias → canonical
         QueryIntent.SHOT_LIST: "shot_list",
         QueryIntent.SUBNICHE_BREAKDOWN: "subniche_breakdown",
         QueryIntent.FORMAT_LIFECYCLE_OPTIMIZE: "format_lifecycle_optimize",
@@ -682,7 +691,7 @@ def query_intent_to_gemini_primary(qi: QueryIntent) -> str:
         QueryIntent.HOOK_VARIANTS: "hook_variants",
         QueryIntent.TIMING: "timing",
         QueryIntent.CONTENT_CALENDAR: "content_calendar",
-        QueryIntent.COMPARISON: "competitor_profile",  # legacy → use competitor_profile
+        QueryIntent.COMPARE_VIDEOS: "compare_videos",
         QueryIntent.OWN_FLOP_NO_URL: "own_flop_no_url",
         QueryIntent.FOLLOW_UP_CLASSIFIABLE: "follow_up",
         QueryIntent.FOLLOW_UP_UNCLASSIFIABLE: "follow_up",

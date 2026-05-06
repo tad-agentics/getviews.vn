@@ -147,8 +147,11 @@ def test_classify_metadata_only() -> None:
 
 
 def test_classify_followup_with_session() -> None:
+    """L1.5 — chat-era FOLLOWUP collapsed into FOLLOW_UP_UNCLASSIFIABLE.
+    The deterministic classifier can't infer the subject; Gemini's
+    classifiable subject can later upgrade it via the layered merge."""
     i = classify_intent("Can you elaborate on that hook pattern?", [], [], True)
-    assert i == QueryIntent.FOLLOWUP
+    assert i == QueryIntent.FOLLOW_UP_UNCLASSIFIABLE
 
 
 def test_knowledge_no_url() -> None:
@@ -280,69 +283,33 @@ def test_reset_session_clears_context() -> None:
 
 def test_query_intent_enum_has_shot_list_and_creator_search() -> None:
     """SHOT_LIST, CREATOR_SEARCH (canonical), and OWN_CHANNEL must be in
-    the enum with correct values. ``FIND_CREATORS`` is kept as a
-    deprecated alias for backward-compat with historical session rows
-    (2026-04-22 cleanup)."""
+    the enum with correct values. ``FIND_CREATORS`` was removed L1.5;
+    the back-compat alias lives in ``routers/intent.py:_normalize_intent_name``
+    so historical sessions with intent_type=``find_creators`` still resolve."""
     assert QueryIntent.SHOT_LIST == "shot_list"
     assert QueryIntent.CREATOR_SEARCH == "creator_search"
-    assert QueryIntent.FIND_CREATORS == "find_creators"  # deprecated alias
     assert QueryIntent.OWN_CHANNEL == "own_channel"
+    # Confirm Tier B values are gone from the enum.
+    assert not hasattr(QueryIntent, "FIND_CREATORS")
+    assert not hasattr(QueryIntent, "COMPARISON")
+    assert not hasattr(QueryIntent, "FOLLOWUP")
 
 
-def test_collapse_order_includes_shot_list_and_find_creators() -> None:
-    """Both intents must appear in the collapse ordering so they're never silently dropped."""
-    # Inject them directly into intent_groups by wrapping collapse_to_intents
-    # with a message that would fall to CONTENT_DIRECTIONS, then verify via the
-    # order list by checking the source code constant directly.
+def test_collapse_routes_no_url_to_content_directions() -> None:
+    """A no-URL prompt without an active session must fall through to
+    CONTENT_DIRECTIONS, not get misrouted to VIDEO_DIAGNOSIS or TREND_SPIKE.
+
+    Renamed L1.5 — was ``test_collapse_order_includes_shot_list_and_find_creators``.
+    The original mixed two concerns (collapse routing + ordering); the
+    ordering half is now ``test_collapse_order_shot_list_before_creator_search``.
+    """
     from getviews_pipeline.intents import collapse_to_intents as _collapse
 
-    # Build a CollapseResult that exercises SHOT_LIST ordering by passing
-    # a single-question list that we know maps to shot_list through the fallback
-    # (no URL, no session) → CONTENT_DIRECTIONS.  Instead, test the order list
-    # by invoking collapse_to_intents with a fabricated multi-intent scenario
-    # and asserting SHOT_LIST comes after BRIEF_GENERATION and before FIND_CREATORS.
-    # The cleanest way: check the order list exposed inside the function's closure
-    # is to verify CollapseResult preserves SHOT_LIST order when it appears.
-
-    # Directly call collapse with a question the classifier would route to
-    # CONTENT_DIRECTIONS, then separately assert enum membership guards order.
     result = _collapse(["tạo shot list cho video review mỹ phẩm"], [], [], False)
-    # Python classifier has no shot_list keyword branch — falls through to
-    # CONTENT_DIRECTIONS (no URL, no session).  Assert it is NOT misrouted to
-    # an unrelated intent like VIDEO_DIAGNOSIS or TREND_SPIKE.
     intents_found = [p[0] for p in result.pairs]
     assert QueryIntent.VIDEO_DIAGNOSIS not in intents_found
     assert QueryIntent.TREND_SPIKE not in intents_found
-    # Must land on CONTENT_DIRECTIONS (the correct fallback for a no-URL prompt)
     assert QueryIntent.CONTENT_DIRECTIONS in intents_found
-
-
-def test_collapse_order_shot_list_before_find_creators() -> None:
-    """SHOT_LIST must appear before FIND_CREATORS in the collapse ordering.
-
-    The order list drives pipeline execution priority; shot_list production
-    work should run before creator search. ``SERIES_AUDIT`` is intentionally
-    absent from this fixture (dropped 2026-04-22).
-    """
-    order = [
-        QueryIntent.TREND_SPIKE,
-        QueryIntent.CONTENT_DIRECTIONS,
-        QueryIntent.VIDEO_DIAGNOSIS,
-        QueryIntent.COMPETITOR_PROFILE,
-        QueryIntent.OWN_CHANNEL,
-        QueryIntent.BRIEF_GENERATION,
-        QueryIntent.SHOT_LIST,
-        QueryIntent.FIND_CREATORS,
-        QueryIntent.METADATA_ONLY,
-        QueryIntent.FOLLOWUP,
-    ]
-    assert QueryIntent.SHOT_LIST in order
-    assert QueryIntent.FIND_CREATORS in order
-    shot_idx = order.index(QueryIntent.SHOT_LIST)
-    find_idx = order.index(QueryIntent.FIND_CREATORS)
-    assert shot_idx < find_idx, (
-        "SHOT_LIST must be ordered before FIND_CREATORS in collapse_to_intents"
-    )
 
 
 def test_classify_shot_list_falls_through_to_content_directions() -> None:
@@ -357,10 +324,11 @@ def test_classify_shot_list_falls_through_to_content_directions() -> None:
     assert i == QueryIntent.CONTENT_DIRECTIONS
 
 
-def test_classify_shot_list_returns_followup_with_session() -> None:
-    """With an active session and no URL, shot_list prompt falls through to FOLLOWUP."""
+def test_classify_shot_list_with_session_returns_unclassifiable() -> None:
+    """L1.5 — with active session and no URL, shot_list prompt falls
+    through to FOLLOW_UP_UNCLASSIFIABLE (was FOLLOWUP pre-Tier-B)."""
     i = classify_intent("tạo shot list cho video review mỹ phẩm", [], [], True)
-    assert i == QueryIntent.FOLLOWUP
+    assert i == QueryIntent.FOLLOW_UP_UNCLASSIFIABLE
 
 
 # ── Short URL routing (vm.tiktok.com) ─────────────────────────────────────────
@@ -564,3 +532,27 @@ def test_compare_videos_routes_to_compare_destination() -> None:
 
     assert destination_for_intent(QueryIntent.COMPARE_VIDEOS.value) == "compare"
     assert destination_for_gemini_primary_label("compare_videos") == "compare"
+
+
+# ── L1.5 Tier B back-compat aliases ─────────────────────────────────────
+
+
+def test_legacy_intent_strings_normalise_to_current_values() -> None:
+    """Historical session intent_type strings (Tier B removed enums) must
+    still resolve via the router-edge alias normaliser. Without these
+    aliases, /intent endpoint requests carrying legacy strings (or
+    Gemini cached classifier outputs) would fail validation downstream."""
+    from getviews_pipeline.routers.intent import _normalize_intent_name
+
+    # FIND_CREATORS removed in L1.5 → folds into canonical CREATOR_SEARCH.
+    assert _normalize_intent_name("find_creators") == "creator_search"
+    # COMPARISON removed → folds into COMPETITOR_PROFILE (where it used to
+    # alias). Historical session preview rounds still resolve.
+    assert _normalize_intent_name("comparison") == "competitor_profile"
+    # FOLLOWUP removed → folds into the modern unclassifiable surface
+    # (was previously normalised to "follow_up" which is a Gemini label,
+    # not an enum value).
+    assert _normalize_intent_name("followup") == "follow_up_unclassifiable"
+    # Sanity: unrelated values pass through unchanged.
+    assert _normalize_intent_name("video_diagnosis") == "video_diagnosis"
+    assert _normalize_intent_name(None) is None

@@ -41,10 +41,11 @@ Destination = Literal[
 
 # Fixed intents → destination. follow_up_classifiable is resolved at runtime via subject.
 INTENT_TO_DESTINATION: dict[str, Destination] = {
-    # §A.1 — existing screens.
-    # 2026-04-22 cleanup: ``series_audit`` + ``comparison`` intents
-    # dropped; ``creator_search`` is the canonical creator-discovery
-    # label (``find_creators`` kept as a back-compat alias).
+    # §A.1 — existing screens. Historical removals: ``series_audit``
+    # (2026-04-22), ``find_creators`` / ``comparison`` (L1.5 Tier B).
+    # Legacy session intent_type strings are normalised at the router
+    # edge — see ``routers/intent.py:_normalize_intent_name`` — so
+    # historical sessions still resolve to a current destination.
     # ``video_diagnosis`` was the dedicated /app/video screen until the
     # template-migration. PR-3 (FE flip 2026-04-28) folds it into
     # /app/answer as just another session format. Mirror in the FE
@@ -53,7 +54,6 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     QueryIntent.COMPETITOR_PROFILE.value: "channel",
     QueryIntent.OWN_CHANNEL.value: "channel",
     QueryIntent.CREATOR_SEARCH.value: "kol",
-    QueryIntent.FIND_CREATORS.value: "kol",  # legacy alias
     QueryIntent.SHOT_LIST.value: "script",
     # ``metadata_only`` previously routed to /app/video (corpus-row
     # preview, no Gemini synth). With the screen gone, fall through to
@@ -88,9 +88,6 @@ INTENT_TO_DESTINATION: dict[str, Destination] = {
     QueryIntent.TIMING.value: "answer:timing",
     # ``content_calendar`` merged into timing on 2026-04-22 (Branch 1).
     QueryIntent.CONTENT_CALENDAR.value: "answer:timing",
-    # Legacy ``comparison`` reading from historical sessions → fall back
-    # to the KOL screen.
-    QueryIntent.COMPARISON.value: "kol",
     QueryIntent.FOLLOW_UP_UNCLASSIFIABLE.value: "answer:generic",
 }
 
@@ -127,9 +124,10 @@ def resolve_destination(intent_id: str, *, follow_up_subject: str | None = None)
 
 
 # Gemini classifier primary labels → same Destination union as §A (C.0.1 preview field).
-# 2026-04-22 cleanup: dropped ``series_audit``; ``find_creators`` kept as
-# alias (the classifier no longer emits it but old cached rounds might);
-# ``content_calendar`` rerouted to timing (Branch 1).
+# Historical removals: ``series_audit`` (2026-04-22), ``find_creators`` /
+# ``comparison`` (L1.5 Tier B). Legacy classifier outputs from older
+# cached Gemini rounds get normalised at the router edge before lookup
+# here — see ``routers/intent.py:_normalize_intent_name``.
 _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     "video_diagnosis": "answer:video",
     "content_directions": "answer:pattern",
@@ -139,7 +137,6 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     "competitor_profile": "channel",
     "own_channel": "channel",
     "creator_search": "kol",
-    "find_creators": "kol",  # legacy alias
     "metadata_only": "answer:generic",
     "timing": "answer:timing",
     # 2026-05-08 — ``fatigue`` + ``subniche_breakdown`` cut from lifecycle
@@ -149,9 +146,6 @@ _GEMINI_PRIMARY_TO_DESTINATION: dict[str, Destination] = {
     "content_calendar": "answer:timing",
     "subniche_breakdown": "answer:pattern",
     "format_lifecycle_optimize": "answer:lifecycle",
-    # ``comparison`` kept only so legacy session preview rounds still
-    # route somewhere sensible; the classifier no longer emits it.
-    "comparison": "kol",
     "own_flop_no_url": "answer:diagnostic",
     # Wave 4 PR #1 — Gemini classifier may also emit this when it spots
     # two URLs in a long free-form query that slipped the fast-path
