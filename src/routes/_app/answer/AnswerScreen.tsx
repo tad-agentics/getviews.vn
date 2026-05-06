@@ -289,9 +289,9 @@ export default function AnswerScreen() {
 
   useEffect(() => {
     if (sessionId || !seedQ.trim() || !CLOUD || !user) return;
-    const q = seedQ.trim();
-    if (bootstrapInFlightRef.current === q) return;
-    bootstrapInFlightRef.current = q;
+    const submittedQ = seedQ.trim();
+    if (bootstrapInFlightRef.current === submittedQ) return;
+    bootstrapInFlightRef.current = submittedQ;
 
     void (async () => {
       setBootstrapLoading(true);
@@ -333,6 +333,7 @@ export default function AnswerScreen() {
 
         if (!result.ok) {
           bootstrapInFlightRef.current = null;
+          setFollowUp(submittedQ);
           setError(pickAnswerErrorCode(result.error, "start_failed"));
           return;
         }
@@ -371,6 +372,7 @@ export default function AnswerScreen() {
         if (typeof console !== "undefined") {
           console.error("[answer/bootstrap] failed", e);
         }
+        setFollowUp(submittedQ);
         setError(pickAnswerErrorCode(e, "start_failed"));
       } finally {
         setBootstrapLoading(false);
@@ -458,6 +460,7 @@ export default function AnswerScreen() {
     if (!q || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
     if (!sessionId) {
       setSearchParams({ q }, { replace: true });
+      setFollowUp("");
       return;
     }
     void submitFollowUp();

@@ -17,11 +17,12 @@
  */
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 
 import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
+import { createAnswerSession } from "@/lib/answerApi";
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 vi.mock("@/lib/env", () => ({
@@ -90,13 +91,25 @@ vi.mock("@/components/v2/Btn", () => ({
 vi.mock("@/components/v2/answer/FollowUpComposer", () => ({
   FollowUpComposer: ({
     disabled,
+    value,
+    onChange,
+    onSubmit,
   }: {
     disabled?: boolean;
     value: string;
     onChange: (v: string) => void;
     onSubmit: () => void;
   }) => (
-    <div data-testid="follow-up-composer" data-disabled={String(disabled ?? false)} />
+    <div data-testid="follow-up-composer" data-disabled={String(disabled ?? false)}>
+      <textarea
+        data-testid="composer-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <button type="button" data-testid="composer-submit" disabled={disabled} onClick={onSubmit}>
+        Gửi
+      </button>
+    </div>
   ),
 }));
 vi.mock("@/components/v2/answer/AnswerSourcesCard", () => ({
@@ -170,6 +183,8 @@ vi.mock("@/hooks/useSessionStream", () => ({
 // Ordered after mocks (per Vitest hoist rules).
 const AnswerScreen = (await import("./AnswerScreen")).default;
 
+const mockCreateAnswerSession = vi.mocked(createAnswerSession);
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 function makeSession(overrides: Partial<AnswerSessionRow> = {}): AnswerSessionRow & {
   title: string | null;
@@ -227,6 +242,7 @@ describe("AnswerScreen state transitions", () => {
       refetch: vi.fn(),
     });
     mockStream.mockReset();
+    mockCreateAnswerSession.mockReset();
   });
   afterEach(cleanup);
 
@@ -310,6 +326,60 @@ describe("AnswerScreen state transitions", () => {
     renderScreen("/app/answer");
     const composer = screen.getByTestId("follow-up-composer");
     expect(composer.getAttribute("data-disabled")).toBe("false");
+  });
+
+  it("clears composer text after submitting a new query (no session)", async () => {
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "new-sess",
+      user_id: "user-1",
+      title: null,
+      initial_q: "Xu hướng test",
+      intent_type: "follow_up_unclassifiable",
+      format: "generic",
+      niche_id: null,
+    });
+    mockStream.mockResolvedValue({
+      ok: true,
+      finalPayload: {
+        kind: "generic",
+        report: { tldr: "ok", related_questions: [] },
+      } as unknown as ReportV1,
+    });
+
+    renderScreen("/app/answer");
+    const input = screen.getByTestId("composer-input") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "Xu hướng test" } });
+    fireEvent.click(screen.getByTestId("composer-submit"));
+
+    await waitFor(() => {
+      expect(input.value).toBe("");
+    });
+  });
+
+  it("restores composer text when the initial stream fails after submit", async () => {
+    mockCreateAnswerSession.mockResolvedValue({
+      id: "new-sess",
+      user_id: "user-1",
+      title: null,
+      initial_q: "my query",
+      intent_type: "follow_up_unclassifiable",
+      format: "generic",
+      niche_id: null,
+    });
+    mockStream.mockResolvedValue({ ok: false, error: "stream_failed" });
+
+    renderScreen("/app/answer");
+    const input = screen.getByTestId("composer-input") as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: "my query" } });
+    fireEvent.click(screen.getByTestId("composer-submit"));
+
+    await waitFor(() => {
+      expect(input.value).toBe("");
+    });
+
+    await waitFor(() => {
+      expect(input.value).toBe("my query");
+    });
   });
 
   it("enables the follow-up composer once a sessionId is in the URL", () => {
