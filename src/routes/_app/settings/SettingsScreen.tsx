@@ -356,8 +356,7 @@ function PlanPanel({
       className="w-full space-y-5"
       variants={sectionVariants}
       initial="initial"
-      whileInView="animate"
-      viewport={{ once: true, margin: "-40px" }}
+      animate="animate"
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
     >
       <Card className="p-6">
@@ -414,8 +413,7 @@ function PlanPanel({
         <div className="mb-5 h-2 overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]">
           <motion.div
             initial={{ width: 0 }}
-            whileInView={{ width: `${creditPct}%` }}
-            viewport={{ once: true }}
+            animate={{ width: `${creditPct}%` }}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
             className="h-full rounded-full bg-[color:var(--gv-accent)]"
           />
@@ -574,15 +572,19 @@ function NichePanel({
       className="w-full space-y-5"
       variants={sectionVariants}
       initial="initial"
-      whileInView="animate"
-      viewport={{ once: true, margin: "-40px" }}
+      animate="animate"
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
     >
       <p className="text-sm text-[color:var(--gv-ink-3)]">
         Chọn ngách bạn đang làm nội dung. Mọi gợi ý ở Trang chủ và Xu hướng sẽ bám theo lựa chọn này.
       </p>
       {nicheLoading ? (
-        <div className="h-24 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]" />
+        <div
+          className="h-24 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]"
+          role="status"
+          aria-busy="true"
+          aria-label="Đang tải danh sách ngách"
+        />
       ) : (
         <div role="radiogroup" aria-label="Ngách của bạn" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(niches ?? []).map((n) => (
@@ -718,8 +720,7 @@ const HistoryPanel = memo(function HistoryPanel({
       className="w-full space-y-5"
       variants={sectionVariants}
       initial="initial"
-      whileInView="animate"
-      viewport={{ once: true, margin: "-40px" }}
+      animate="animate"
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.12 }}
     >
       <div>
@@ -747,8 +748,7 @@ const HistoryPanel = memo(function HistoryPanel({
                   key={tx.id}
                   className="flex items-center justify-between border-b border-[color:var(--gv-rule)] px-4 py-3.5 last:border-0"
                   initial={{ opacity: 0, x: -12 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
+                  animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <div className="flex min-w-0 items-center gap-3.5">
