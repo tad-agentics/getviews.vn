@@ -52,7 +52,14 @@ app = FastAPI(title="GetViews Pipeline", version="0.1.0", lifespan=lifespan)
 # local dev on any port.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app|https://(www\.)?getviews\.vn|http://localhost:\d+",
+    # Exact production origins + regex for previews / localhost (Starlette matches
+    # allow_origins first, then allow_origin_regex — avoids edge cases where only
+    # regex is evaluated against www vs apex).
+    allow_origins=[
+        "https://getviews.vn",
+        "https://www.getviews.vn",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+",
     allow_credentials=True,
     # ``*`` → all methods (Starlette); avoids preflight 400 when clients add PATCH/HEAD/etc.
     allow_methods=["*"],

@@ -246,6 +246,22 @@ def test_create_answer_session_cors_preflight_allows_idempotency_key(
     assert "authorization" in allowed
 
 
+def test_create_answer_session_cors_preflight_www_origin(
+    client_with_user: TestClient,
+) -> None:
+    """Production uses ``www.getviews.vn`` — explicit allow_origins must match."""
+    res = client_with_user.options(
+        "/answer/sessions",
+        headers={
+            "Origin": "https://www.getviews.vn",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert res.headers.get("access-control-allow-origin") == "https://www.getviews.vn"
+
+
 def test_create_answer_session_maps_fk_violation_to_invalid_niche(
     client_with_user: TestClient,
 ) -> None:
