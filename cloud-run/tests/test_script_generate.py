@@ -573,3 +573,147 @@ def test_decrement_credit_or_raise_succeeds_on_positive_balance() -> None:
     sb.rpc.return_value.execute.return_value = SimpleNamespace(data=4)
 
     _decrement_credit_or_raise(sb, user_id="user-with-credits")
+
+
+# ── L2.2: hook_effectiveness evidence injection into Gemini prompt ────────
+#
+# Hook Library plumbing — every script generated via ``/script/generate``
+# (and by extension, the daily_ritual ``MỞ SCRIPT`` handoff) now grounds
+# its hook + tone in the niche's top performing hooks instead of the
+# generic ``_BACKBONE`` template. Tests pin the contract for the helpers
+# + the prompt-injection shape.
+
+
+def test_format_views_compact_vietnamese_units() -> None:
+    """Vietnamese-friendly compact view counts: tr (triệu) / k / raw."""
+    from getviews_pipeline.script_generate import _format_views_compact
+
+    assert _format_views_compact(0) == "0"
+    assert _format_views_compact(456) == "456"
+    assert _format_views_compact(1_500) == "1k"  # integer floor
+    assert _format_views_compact(12_345) == "12k"
+    assert _format_views_compact(1_234_567) == "1.2tr"
+    assert _format_views_compact(2_500_000) == "2.5tr"
+
+
+def test_fetch_top_niche_hooks_filters_other_and_none() -> None:
+    """Helper drops ``other``/``none`` hook_types — they're noise for evidence."""
+    from getviews_pipeline.script_generate import _fetch_top_niche_hooks
+
+    sb = MagicMock()
+    sb.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = SimpleNamespace(
+        data=[
+            {"hook_type": "question", "avg_views": 320_000, "avg_completion_rate": 0.62, "sample_size": 47},
+            {"hook_type": "other", "avg_views": 180_000, "avg_completion_rate": 0.55, "sample_size": 22},
+            {"hook_type": "shock_stat", "avg_views": 240_000, "avg_completion_rate": 0.71, "sample_size": 31},
+            {"hook_type": None, "avg_views": 90_000, "avg_completion_rate": 0.4, "sample_size": 8},
+            {"hook_type": "story_open", "avg_views": 210_000, "avg_completion_rate": 0.58, "sample_size": 19},
+            {"hook_type": "none", "avg_views": 150_000, "avg_completion_rate": 0.5, "sample_size": 12},
+        ]
+    )
+
+    out = _fetch_top_niche_hooks(sb, niche_id=2, limit=3)
+
+    # 3 entries, in order, no other/none/null
+    assert [h["hook_type"] for h in out] == ["question", "shock_stat", "story_open"]
+    # completion_pct converted to percentage
+    assert out[0]["completion_pct"] == 62.0
+    assert out[0]["sample_size"] == 47
+
+
+def test_fetch_top_niche_hooks_returns_empty_on_error() -> None:
+    """Any Supabase failure must not break script generation — return [] gracefully."""
+    from getviews_pipeline.script_generate import _fetch_top_niche_hooks
+
+    sb = MagicMock()
+    sb.table.side_effect = RuntimeError("supabase down")
+
+    assert _fetch_top_niche_hooks(sb, niche_id=2) == []
+    # And no client = empty (used by tests + any caller without service role).
+    assert _fetch_top_niche_hooks(None, niche_id=2) == []
+    # Invalid niche_id = empty.
+    assert _fetch_top_niche_hooks(sb, niche_id=0) == []
+
+
+def test_format_hook_evidence_block_empty_returns_empty_string() -> None:
+    """No hooks → empty string so the prompt shape stays the same as before L2.2."""
+    from getviews_pipeline.script_generate import _format_hook_evidence_block
+
+    assert _format_hook_evidence_block([]) == ""
+
+
+def test_format_hook_evidence_block_renders_vietnamese_with_metrics() -> None:
+    """Evidence block uses Vietnamese hook labels + compact view counts."""
+    from getviews_pipeline.script_generate import _format_hook_evidence_block
+
+    hooks = [
+        {"hook_type": "question", "avg_views": 320_000, "completion_pct": 62.0, "sample_size": 47},
+        {"hook_type": "shock_stat", "avg_views": 1_500_000, "completion_pct": 71.0, "sample_size": 31},
+    ]
+    block = _format_hook_evidence_block(hooks)
+
+    # Vietnamese label + English enum (so Gemini can reason on either)
+    assert "Đặt câu hỏi" in block
+    assert "(question)" in block
+    assert "Số liệu gây sốc" in block
+    # Metrics shape: tr/k units + retention + sample size
+    assert "320k view" in block
+    assert "1.5tr view" in block
+    assert "giữ chân 62.0%" in block
+    assert "47 video" in block
+    # Closing instruction tells Gemini this is evidence, not boilerplate
+    assert "kiểm chứng" in block
+
+
+def test_build_script_shots_passes_top_hooks_to_gemini(monkeypatch) -> None:
+    """``build_script_shots`` threads top_hooks into ``_call_script_gemini``."""
+    from getviews_pipeline import script_generate as sg
+
+    seen: dict[str, object] = {}
+
+    def fake_call_gemini(body, *, top_hooks=None):
+        seen["top_hooks"] = top_hooks
+        # Force the deterministic fallback path so we don't need to mock
+        # the full Gemini response shape — the assertion is on what got
+        # passed in, not on the script output.
+        raise RuntimeError("forced fallback")
+
+    monkeypatch.setattr(sg, "_call_script_gemini", fake_call_gemini)
+
+    sb = MagicMock()
+    sb.table.return_value.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = SimpleNamespace(
+        data=[
+            {"hook_type": "question", "avg_views": 100_000, "avg_completion_rate": 0.6, "sample_size": 10},
+        ]
+    )
+
+    body = sg.ScriptGenerateBody(
+        topic="skincare", hook="Bạn có biết...", hook_delay_ms=800,
+        duration=30, tone="Tâm sự", niche_id=2,
+    )
+    sg.build_script_shots(body, client=sb)
+
+    assert seen["top_hooks"], "build_script_shots must fetch + thread top_hooks when client provided"
+    assert seen["top_hooks"][0]["hook_type"] == "question"
+
+
+def test_build_script_shots_omits_top_hooks_when_no_client(monkeypatch) -> None:
+    """Without a client, build_script_shots passes empty top_hooks (legacy path)."""
+    from getviews_pipeline import script_generate as sg
+
+    seen: dict[str, object] = {}
+
+    def fake_call_gemini(body, *, top_hooks=None):
+        seen["top_hooks"] = top_hooks
+        raise RuntimeError("forced fallback")
+
+    monkeypatch.setattr(sg, "_call_script_gemini", fake_call_gemini)
+
+    body = sg.ScriptGenerateBody(
+        topic="skincare", hook="Bạn có biết...", hook_delay_ms=800,
+        duration=30, tone="Tâm sự", niche_id=2,
+    )
+    sg.build_script_shots(body)  # no client
+
+    # Either None or empty list — Gemini call sees no evidence block either way.
+    assert not seen["top_hooks"]
