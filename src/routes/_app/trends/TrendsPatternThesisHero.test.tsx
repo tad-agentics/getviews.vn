@@ -33,7 +33,7 @@ const sampleStats: NichePatternStats = {
 const defaultCounts = { weekAnalyzedCount: 301, totalAnalyzedInNiche: 47288 };
 
 describe("TrendsPatternThesisHero", () => {
-  it("renders the week kicker, niche name, and pattern thesis H1 (week vs patterns)", () => {
+  it("renders the week kicker, niche name, and pattern-first H1", () => {
     mockUseNichePatternStats.mockReturnValue({ data: sampleStats });
     const { getByText, getByRole } = render(
       <TrendsPatternThesisHero
@@ -46,12 +46,13 @@ describe("TrendsPatternThesisHero", () => {
     );
     expect(getByText(/TUẦN 17 · 22\.4—28\.4 · NGÁCH CÔNG NGHỆ/)).toBeTruthy();
     const h1 = getByRole("heading", { level: 1 });
-    expect(h1.textContent).toContain("301 video đã phân tích trong tuần qua");
     expect(h1.textContent).toContain("7 pattern");
-    expect(h1.textContent).toContain("lặp lại");
+    expect(h1.textContent).toContain("đang có nhịp trong ngách");
+    expect(h1.textContent).toContain("301 video mới vào kho");
+    expect(h1.textContent).toContain("47.288");
   });
 
-  it("renders the 3-stat strip with total analyzed, pattern total, fresh %", () => {
+  it("renders the 3-stat strip: pattern week, total patterns, fresh %", () => {
     mockUseNichePatternStats.mockReturnValue({ data: sampleStats });
     const { getAllByText } = render(
       <TrendsPatternThesisHero
@@ -61,9 +62,10 @@ describe("TrendsPatternThesisHero", () => {
         {...defaultCounts}
       />,
     );
-    expect(getAllByText("VIDEO ĐÃ PHÂN TÍCH").length).toBeGreaterThan(0);
-    expect(getAllByText("47.288").length).toBeGreaterThan(0);
-    expect(getAllByText("PATTERN PHÁT HIỆN").length).toBeGreaterThan(0);
+    expect(getAllByText("PATTERN ~7 NGÀY").length).toBeGreaterThan(0);
+    expect(getAllByText("TỔNG PATTERN").length).toBeGreaterThan(0);
+    expect(getAllByText("7").length).toBeGreaterThan(0);
+    expect(getAllByText("14").length).toBeGreaterThan(0);
     expect(getAllByText("ĐỘ MỚI").length).toBeGreaterThan(0);
     expect(getAllByText("64%").length).toBeGreaterThan(0);
   });
@@ -80,23 +82,9 @@ describe("TrendsPatternThesisHero", () => {
       />,
     );
     const h1 = getByRole("heading", { level: 1 });
-    expect(h1.textContent).toContain("— video đã phân tích trong tuần qua");
     expect(h1.textContent).toMatch(/—\s*pattern/);
-    expect(getAllByText("—").length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("uses topCreatorsLabel as the VIDEO ĐÃ PHÂN TÍCH sub when provided", () => {
-    mockUseNichePatternStats.mockReturnValue({ data: sampleStats });
-    const { getByText } = render(
-      <TrendsPatternThesisHero
-        nicheId={4}
-        nicheLabel="Công nghệ"
-        weekKicker="TUẦN 17"
-        {...defaultCounts}
-        topCreatorsLabel="89 creator hàng đầu"
-      />,
-    );
-    expect(getByText("89 creator hàng đầu")).toBeTruthy();
+    expect(h1.textContent).toContain("đang có nhịp");
+    expect(getAllByText("—").length).toBeGreaterThanOrEqual(3);
   });
 
   it("uppercases the niche label in the kicker line", () => {
@@ -113,7 +101,7 @@ describe("TrendsPatternThesisHero", () => {
     expect(getByText(/NGÁCH ẨM THỰC/)).toBeTruthy();
   });
 
-  it("uses the accent color span on the pattern count fragment", () => {
+  it("uses the accent color span on the leading pattern count", () => {
     mockUseNichePatternStats.mockReturnValue({ data: sampleStats });
     const { getByText } = render(
       <TrendsPatternThesisHero

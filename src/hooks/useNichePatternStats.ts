@@ -6,10 +6,11 @@ import { supabase } from "@/lib/supabase";
  *
  * Source: ``video_patterns`` filtered by ``is_active=true`` AND
  * ``niche_spread @> [nicheId]``. Returns:
- *   • ``total`` — active patterns in the niche from a bounded sample (max 200 rows)
+ *   • ``total`` — full count of active patterns for the niche (exact DB count)
  *   • ``patterns_active_this_week`` — head count of patterns with
  *     ``weekly_instance_count > 0`` (pipeline week bucket, not rolling 7d)
- *   • ``fresh`` / ``fresh_pct`` — from the same 200-row sample
+ *   • ``fresh`` / ``fresh_pct`` — patterns with ``weekly_instance_count_prev``
+ *     null or 0, over the same filtered set (exact counts)
  *
  * Returns ``null`` when ``nicheId`` is null.
  */
@@ -32,32 +33,34 @@ export function useNichePatternStats(nicheId: number | null) {
     queryFn: async (): Promise<NichePatternStats | null> => {
       if (nicheId == null) return null;
 
-      const [weekRes, sampleRes] = await Promise.all([
+      const [weekRes, totalRes, freshRes] = await Promise.all([
         supabase
           .from("video_patterns")
-          .select("*", { count: "planned", head: true })
+          .select("*", { count: "exact", head: true })
           .eq("is_active", true)
           .contains("niche_spread", [nicheId])
           .gt("weekly_instance_count", 0),
         supabase
           .from("video_patterns")
-          .select("weekly_instance_count_prev")
+          .select("*", { count: "exact", head: true })
+          .eq("is_active", true)
+          .contains("niche_spread", [nicheId]),
+        supabase
+          .from("video_patterns")
+          .select("*", { count: "exact", head: true })
           .eq("is_active", true)
           .contains("niche_spread", [nicheId])
-          .limit(200),
+          .or("weekly_instance_count_prev.is.null,weekly_instance_count_prev.eq.0"),
       ]);
 
-      if (sampleRes.error) throw sampleRes.error;
+      if (totalRes.error) throw totalRes.error;
+      if (freshRes.error) throw freshRes.error;
 
       const patterns_active_this_week = weekRes.error ? null : weekRes.count ?? null;
 
-      const rows = (sampleRes.data ?? []) as Array<{ weekly_instance_count_prev: number | null }>;
-      const total = rows.length;
-      const fresh = rows.filter(
-        (r) => Number(r.weekly_instance_count_prev ?? 0) === 0,
-      ).length;
-      const fresh_pct =
-        total > 0 ? `${Math.round((fresh / total) * 100)}%` : "—";
+      const total = totalRes.count ?? 0;
+      const fresh = freshRes.count ?? 0;
+      const fresh_pct = total > 0 ? `${Math.round((fresh / total) * 100)}%` : "—";
       return { total, patterns_active_this_week, fresh, fresh_pct };
     },
     enabled: nicheId != null,

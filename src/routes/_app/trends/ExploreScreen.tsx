@@ -755,8 +755,8 @@ export default function ExploreScreen() {
     staleTime: 5 * 60_000,
   });
 
-  /** Total analyzed videos in niche — hero stat only (no grid filters). */
-  const { data: nicheTotalCount } = useQuery({
+  /** Total videos in niche (no search / view / format filters) — §II kho title. */
+  const { data: nicheTotalCount, isPending: nicheTotalCountPending } = useQuery({
     queryKey: corpusKeys.nicheTotal(selectedNicheId),
     queryFn: async () => {
       const { count, error } = await supabase
@@ -803,11 +803,19 @@ export default function ExploreScreen() {
   }, [corpusRows]);
 
   const exploreTitleBase = "Khám phá";
-  const exploreTitleCount = isPending
-    ? null
-    : corpusCount != null
-      ? corpusCount.toLocaleString("vi-VN")
-      : `${videos.length}${hasNextPage ? "+" : ""}`;
+  /** Đã chọn ngách: tổng video trong ngách (không lọc). Chưa chọn: ước lượng theo bộ lọc grid hoặc đếm trang. */
+  const exploreTitleCount =
+    selectedNicheId != null
+      ? nicheTotalCountPending
+        ? null
+        : nicheTotalCount != null
+          ? nicheTotalCount.toLocaleString("vi-VN")
+          : null
+      : isPending
+        ? null
+        : corpusCount != null
+          ? corpusCount.toLocaleString("vi-VN")
+          : `${videos.length}${hasNextPage ? "+" : ""}`;
 
   const fetchNextPageStable = useCallback(() => {
     void fetchNextPage();

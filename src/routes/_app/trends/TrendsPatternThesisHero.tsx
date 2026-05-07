@@ -4,24 +4,20 @@ import { useNichePatternStats } from "@/hooks/useNichePatternStats";
 /**
  * Trends — pattern-thesis hero (PR-T2).
  *
- * Replaces the niche-intel-snapshot ``TrendsHeroCompact`` with the
- * design pack's editorial thesis hero (``screens/trends.jsx`` lines
- * 331-348): ink-bg card with a week kicker, a single H1 stating the
- * pattern thesis (``"X video đã phân tích trong tuần qua → Y pattern lặp lại"``); ``Y`` is
- * patterns with instances in the pipeline stats week (``weekly_instance_count > 0``), not the
- * rolling 7d video window. 3-stat strip below.
+ * Creator-first: the hero leads with **pattern** (format đang chạy), then
+ * grounds trust with corpus video counts. H1 no longer implies a naive
+ * ratio ``videos → patterns``; it states pattern activity (~7d) and corpus
+ * context separately.
  *
- * Stats:
- *   • VIDEO ĐÃ PHÂN TÍCH — all analyzed videos in this niche (total)
- *   • PATTERN PHÁT HIỆN — active patterns (sample) covering the niche
- *   • ĐỘ MỚI — fresh % (patterns with weekly_instance_count_prev = 0)
- *
- * Pattern stats come from ``useNichePatternStats(nicheId)`` —
- * fetched once and memoized via React Query. The hero stays empty
- * (returns null) when the caller hasn't picked a niche yet.
+ * Stats strip (pattern order):
+ *   • PATTERN ~7 NGÀY — `patterns_active_this_week` ( có video mới gắn pattern )
+ *   • TỔNG PATTERN — active patterns in niche ( `useNichePatternStats` total )
+ *   • ĐỘ MỚI — fresh % trên cùng tập pattern đó
  */
 
-const DEFAULT_TOTAL_VIDEO_SUB = "Tổng video GetViews đã phân tích trong ngách này";
+const PATTERN_WEEK_SUB =
+  "Công thức có thêm video trong ngách trong ~7 ngày (pattern đã gom từ phân tích)";
+const PATTERN_TOTAL_SUB = "Tổng pattern đang hoạt động trong ngách (để bạn bắt trend có cơ sở)";
 
 export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
   nicheId,
@@ -29,25 +25,27 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
   weekKicker,
   weekAnalyzedCount,
   totalAnalyzedInNiche,
-  topCreatorsLabel,
 }: {
   nicheId: number | null;
   nicheLabel: string;
   /** "TUẦN 16 · 12.4—18.4" — caller computes for testability. */
   weekKicker: string;
-  /** Videos indexed in the last 7 days for the niche (H1); falls back to "—" when null. */
+  /** Videos indexed in the last 7 days for the niche (corpus line in H1). */
   weekAnalyzedCount: number | null | undefined;
-  /** All analyzed videos in the niche (first stat); falls back to "—" when null. */
+  /** All analyzed videos in the niche (corpus line in H1). */
   totalAnalyzedInNiche: number | null | undefined;
-  /** Optional sub-label for VIDEO ĐÃ PHÂN TÍCH (replaces default product copy). */
-  topCreatorsLabel?: string;
 }) {
   const { data: stats } = useNichePatternStats(nicheId);
   const headlineVideos = formatStatCount(weekAnalyzedCount);
   const totalVideosLabel = formatStatCount(totalAnalyzedInNiche);
-  const headlinePatternsLabel = formatStatCount(stats?.patterns_active_this_week);
-  const patternsLabel = stats?.total != null ? String(stats.total) : "—";
+  const headlinePatternsThisWeek = formatStatCount(stats?.patterns_active_this_week);
+  const patternsTotalLabel = stats?.total != null ? String(stats.total) : "—";
   const freshLabel = stats?.fresh_pct ?? "—";
+
+  const corpusBits: string[] = [];
+  if (headlineVideos !== "—") corpusBits.push(`${headlineVideos} video mới vào kho (~7 ngày)`);
+  if (totalVideosLabel !== "—") corpusBits.push(`tổng kho ${totalVideosLabel} video`);
+  const corpusSentence = corpusBits.length ? `${corpusBits.join(" · ")}.` : "";
 
   return (
     <section
@@ -61,23 +59,19 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
         className="gv-tight m-0 mb-[18px] text-[clamp(28px,4vw,46px)] font-semibold leading-[1.05] tracking-[-0.03em] text-[color:var(--gv-canvas)]"
         style={{ textWrap: "pretty" }}
       >
-        {headlineVideos} video đã phân tích trong tuần qua →{" "}
         <span className="text-[color:var(--gv-accent)]">
-          {headlinePatternsLabel} pattern
+          {headlinePatternsThisWeek} pattern
         </span>{" "}
-        lặp lại
+        đang có nhịp trong ngách (~7 ngày).
+        {corpusSentence ? ` ${corpusSentence}` : ""}
       </h1>
       <div className="grid grid-cols-1 gap-5 border-t border-[color:var(--gv-ink-2)] pt-4 sm:grid-cols-3 sm:gap-6">
         <HeroStat
-          label="VIDEO ĐÃ PHÂN TÍCH"
-          value={totalVideosLabel}
-          sub={topCreatorsLabel ?? DEFAULT_TOTAL_VIDEO_SUB}
+          label="PATTERN ~7 NGÀY"
+          value={headlinePatternsThisWeek}
+          sub={PATTERN_WEEK_SUB}
         />
-        <HeroStat
-          label="PATTERN PHÁT HIỆN"
-          value={patternsLabel}
-          sub="6 đáng chú ý dưới đây"
-        />
+        <HeroStat label="TỔNG PATTERN" value={patternsTotalLabel} sub={PATTERN_TOTAL_SUB} />
         <HeroStat
           label="ĐỘ MỚI"
           value={freshLabel}
