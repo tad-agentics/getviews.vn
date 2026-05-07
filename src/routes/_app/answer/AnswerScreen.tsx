@@ -24,14 +24,13 @@ import {
   loadPendingAnswerStream,
 } from "@/lib/sseResume";
 import { supabase } from "@/lib/supabase";
-import type { AnswerTurnRow, ReportV1, SourceRowData } from "@/lib/api-types";
+import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
 import { Plus, Check, ArrowLeft, Loader2 } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
-import { AnswerSourcesCard } from "@/components/v2/answer/AnswerSourcesCard";
 import { TemplatizeCard } from "@/components/v2/answer/TemplatizeCard";
 import {
   MiniResearchStrip,
@@ -92,10 +91,9 @@ function pickAnswerErrorCode(e: unknown, fallback: string): string {
   return fallback;
 }
 
-function sourcesFromReport(p: ReportV1 | null): SourceRowData[] | undefined {
-  if (!p) return undefined;
-  return p.report.sources;
-}
+/** Hero H1: long TikTok URLs wrap; font scales down on narrow viewports (vi). */
+const ANSWER_HERO_H1_CLASS =
+  "gv-tight mt-0 w-full min-w-0 max-w-[880px] [overflow-wrap:anywhere] text-[clamp(0.875rem,2.25vi+0.45rem,2.35rem)] leading-[1.2] tracking-[-0.03em] text-[color:var(--gv-ink)] sm:leading-[1.15]";
 
 function relatedFromReport(p: ReportV1 | null): string[] {
   if (!p) return [];
@@ -490,7 +488,7 @@ export default function AnswerScreen() {
 
   return (
     <AppLayout active="answer" enableMobileSidebar>
-      <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
+      <div className="w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
         <TopBar
           kicker="Nghiên cứu"
           title="Báo Cáo Nghiên Cứu"
@@ -559,8 +557,9 @@ export default function AnswerScreen() {
                   ) : null}
                 </div>
                 <h1
-                  className="gv-tight mt-0 max-w-[880px] text-[clamp(1.35rem,3.2vw,2.35rem)] leading-[1.15] tracking-[-0.03em] text-[color:var(--gv-ink)]"
+                  className={ANSWER_HERO_H1_CLASS}
                   style={{ fontFamily: "var(--gv-font-display)" }}
+                  title={heroQuestion}
                 >
                   {heroQuestion}
                 </h1>
@@ -584,8 +583,9 @@ export default function AnswerScreen() {
                   <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">—</p>
                 </div>
                 <h1
-                  className="gv-tight mt-0 max-w-[880px] text-[clamp(1.35rem,3.2vw,2.35rem)] leading-[1.15] tracking-[-0.03em] text-[color:var(--gv-ink)]"
+                  className={ANSWER_HERO_H1_CLASS}
                   style={{ fontFamily: "var(--gv-font-display)" }}
+                  title={emptyStateHeroQuestion}
                 >
                   {emptyStateHeroQuestion}
                 </h1>
@@ -696,7 +696,6 @@ export default function AnswerScreen() {
           aside={
             sessionId ? (
               <>
-                <AnswerSourcesCard sources={sourcesFromReport(lastPayload)} />
                 <RelatedQsCard items={related} onPick={setFollowUp} />
                 <TemplatizeCard sessionId={sessionId} />
               </>

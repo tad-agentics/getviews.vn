@@ -22,9 +22,8 @@ import {
 } from "@/components/v2/answer/sessionIntentLabels";
 
 // Map ``AnswerTurnRow.kind`` → accent kicker copy. Continuation turns
-// only — primary turn renders a different header (QueryHeader at the
-// page level). Keys are turn kinds ("timing"|"creators"|"script"|"generic"),
-// not payload kinds — the payload kind switch is in ReportPayloadBody below.
+// only — primary is omitted at render time (AnswerScreen hero). Keys are
+// turn kinds ("timing"|"creators"|"script"|"generic"), not payload kinds.
 const TURN_KIND_LABEL: Record<string, string> = {
   timing: "THỜI ĐIỂM",
   creators: "NGƯỜI TẠO",
@@ -225,9 +224,12 @@ export function ContinuationTurn({
   turn: AnswerTurnRow;
   sessionIntentType?: string;
 }) {
+  // Primary turn duplicates AnswerScreen hero (“Câu hỏi” + H1). Divider +
+  // H2 are for follow-ups only (see module comment on TURN_KIND_LABEL).
+  const showTurnDivider = turn.kind !== "primary";
   return (
     <article className="min-w-0">
-      <TurnDivider turn={turn} />
+      {showTurnDivider ? <TurnDivider turn={turn} /> : null}
       <ReportPayloadBody payload={turn.payload} sessionIntentType={sessionIntentType} />
     </article>
   );

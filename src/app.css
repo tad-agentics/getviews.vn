@@ -640,6 +640,12 @@
 .gv-route-main--answer {
   padding: 28px 28px 120px;
 }
+@media (min-width: 1024px) {
+  /* Desktop: no BottomTabBar — large 120px pad read as empty canvas after long scroll */
+  .gv-route-main--answer {
+    padding-bottom: 88px;
+  }
+}
 
 /* UIUX ref `fade-up` — light entrance; respects reduced-motion via Tailwind if layered */
 @keyframes gv-fade-up {

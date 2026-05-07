@@ -1000,7 +1000,7 @@ export interface DiagnosticReportPayload {
  *
  *  ``sources`` + ``related_questions`` are part of every other
  *  ``ReportV1`` body so the answer-shell readers (AnswerScreen,
- *  AnswerSourcesCard, RelatedQs) can pull them generically. Video
+ *  RelatedQs) can pull them generically. Video
  *  reports populate them best-effort: ``sources`` typically empty
  *  (one-video diagnosis has no comparison cohort to cite), and
  *  ``related_questions`` carries follow-up prompts the FE composer

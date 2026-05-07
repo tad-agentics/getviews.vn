@@ -229,6 +229,13 @@ describe("ContinuationTurn payload dispatch", () => {
     expect(screen.getByText(/Trả lời/)).toBeTruthy();
   });
 
+  it("omits TurnDivider for primary turns (hero shows the question)", () => {
+    render(<ContinuationTurn turn={mkTurn({ kind: "video", report: {} })} />);
+    expect(screen.getByTestId("video-body")).toBeTruthy();
+    expect(screen.queryByText(/LƯỢT 01/)).toBeNull();
+    expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
+  });
+
   it("falls back to ĐÀO SÂU for unknown kinds", () => {
     render(
       <ContinuationTurn
