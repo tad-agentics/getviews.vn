@@ -73,6 +73,7 @@ describe("scriptPrefillFromPattern", () => {
   const patternSample = (overrides: Partial<TopPattern> = {}): TopPattern => ({
     id: "p1",
     display_name: "Hướng dẫn + mặt người",
+    tier: "strong",
     weekly_instance_count: 12,
     weekly_instance_count_prev: 4,
     niche_video_count: 6,

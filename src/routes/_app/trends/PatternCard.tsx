@@ -76,19 +76,33 @@ export const PatternCard = memo(function PatternCard({
             ) : null}
           </div>
 
-          {/* Stat strip — niche-scoped lift + niche-scoped count.
-              Cross-niche ``instance_count`` is intentionally hidden here. */}
+          {/* Stat strip — tier-aware (Sprint 7b).
+              "strong" tier (n≥3 + lift≥1.2×) → green ↑ {lift}× ngách badge.
+              "early" tier (n≥1 + lift≥1.5×) → yellow "Tín hiệu sớm" badge so
+              creators don't read small-sample observations as the strict
+              "đang chạy tốt" claim. */}
           <div className="flex items-center gap-2 border-t border-[color:var(--gv-rule)] pt-2">
-            {liftLabel ? (
+            {pattern.tier === "strong" && liftLabel ? (
               <span
                 className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em]"
                 style={{
                   background: "color-mix(in srgb, var(--gv-pos) 14%, transparent)",
                   color: "var(--gv-pos-deep)",
                 }}
-                title="View trung bình của pattern này so với median của ngách trong 30 ngày qua"
+                title="View trung bình pattern này so với median của ngách trong 30 ngày qua"
               >
                 ↑ {liftLabel} ngách
+              </span>
+            ) : pattern.tier === "early" ? (
+              <span
+                className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em]"
+                style={{
+                  background: "color-mix(in srgb, var(--gv-warn,#d49a3b) 18%, transparent)",
+                  color: "var(--gv-warn-deep,#7a4a00)",
+                }}
+                title={`Tín hiệu sớm — chỉ ${pattern.niche_video_count} video tham chiếu trong ngách, lift ${liftLabel ?? '—'}`}
+              >
+                Tín hiệu sớm{liftLabel ? ` · ↑${liftLabel}` : ""}
               </span>
             ) : null}
             <span className="gv-mono text-[10.5px] text-[color:var(--gv-ink-3)] truncate">

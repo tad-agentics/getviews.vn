@@ -39,6 +39,7 @@ const samplePattern = (id: string, overrides: Partial<TopPattern> = {}): TopPatt
   lift_vs_niche: 2.0,
   sample_hook: "Sample",
   videos: [],
+  tier: "strong",
   // Sprint 5 — only deck-synthesized patterns reach the FE.
   structure: ["Mở: hook (0-2s)", "Setup", "Body", "Payoff"],
   why: "Why it works.",
