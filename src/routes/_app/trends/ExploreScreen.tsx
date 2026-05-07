@@ -31,6 +31,7 @@ import {
 import { type ExploreGridVideo } from "@/components/explore/VideoPlayerModal";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -184,15 +185,15 @@ function ExploreCorpusVideoModal({
                   {video.handle} · ↑ {video.views}
                 </p>
               </div>
-              <button
-                type="button"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => onOpenChange(false)}
-                aria-label="Đóng"
-                className="-mr-1 -mt-0.5 shrink-0 rounded-md p-2 text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
-              >
-                <X className="h-4 w-4" strokeWidth={2} aria-hidden />
-              </button>
+              <DialogClose asChild>
+                <button
+                  type="button"
+                  aria-label="Đóng"
+                  className="-mr-1 -mt-0.5 shrink-0 rounded-md p-2 text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
+                >
+                  <X className="h-4 w-4" strokeWidth={2} aria-hidden />
+                </button>
+              </DialogClose>
             </header>
             <DialogDescription className="sr-only">
               Xem video TikTok trong nền tảng trước khi mở phân tích

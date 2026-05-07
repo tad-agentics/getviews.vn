@@ -4,6 +4,7 @@ import { ArrowRight, Play, X } from "lucide-react";
 
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -50,20 +51,14 @@ export const PatternModal = memo(function PatternModal({
         onInteractOutside={() => onOpenChange(false)}
       >
         {pattern ? (
-          <PatternModalBody pattern={pattern} onClose={() => onOpenChange(false)} />
+          <PatternModalBody pattern={pattern} />
         ) : null}
       </DialogContent>
     </Dialog>
   );
 });
 
-function PatternModalBody({
-  pattern,
-  onClose,
-}: {
-  pattern: TopPattern;
-  onClose: () => void;
-}) {
+function PatternModalBody({ pattern }: { pattern: TopPattern }) {
   const navigate = useNavigate();
   const videos = pattern.videos.length > 0 ? pattern.videos : ([] as PatternVideo[]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -92,15 +87,15 @@ function PatternModalBody({
             </DialogDescription>
           )}
         </div>
-        <button
-          type="button"
-          onPointerDown={(e) => e.preventDefault()}
-          onClick={onClose}
-          aria-label="Đóng"
-          className="-mr-2 -mt-1 shrink-0 rounded-md p-2 text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
-        >
-          <X className="h-4 w-4" strokeWidth={2} aria-hidden />
-        </button>
+        <DialogClose asChild>
+          <button
+            type="button"
+            aria-label="Đóng"
+            className="-mr-2 -mt-1 shrink-0 rounded-md p-2 text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
+          >
+            <X className="h-4 w-4" strokeWidth={2} aria-hidden />
+          </button>
+        </DialogClose>
       </header>
 
       {/* Body — 2 col on desktop, stacked < 820px */}

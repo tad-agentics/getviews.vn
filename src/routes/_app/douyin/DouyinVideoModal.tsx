@@ -10,6 +10,7 @@ import {
 
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -216,14 +217,15 @@ function DouyinVideoModalBody({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Đóng"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
+          <DialogClose asChild>
+            <button
+              type="button"
+              aria-label="Đóng"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[color:var(--gv-ink-3)] transition-colors hover:bg-[color:var(--gv-canvas-2)] hover:text-[color:var(--gv-ink)]"
+            >
+              <X className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </button>
+          </DialogClose>
         </header>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
