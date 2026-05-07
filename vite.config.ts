@@ -149,7 +149,9 @@ export default defineConfig({
         // React Router v7 client build writes here (not Vite default ``dist/``).
         globDirectory: "build/client",
         globPatterns: ["**/*.{js,mjs,css,html,ico,png,svg,webp,woff2,json}"],
-        navigateFallback: "/index.html",
+        // Must match Vercel SPA rewrites: ``index.html`` is the prerendered ``/`` landing only.
+        // Serving it for /app/* causes React hydration #418 (server tree ≠ client /app tree).
+        navigateFallback: "/__spa-fallback.html",
         // Do not restrict fallback to /^\/app/ — that breaks /login, /signup, /auth/callback,
         // and / on hard refresh when the service worker handles navigation.
         navigateFallbackDenylist: [/^\/api\//],

@@ -3,8 +3,12 @@
   "installCommand": "npm install --legacy-peer-deps",
   "rewrites": [
     {
-      "source": "/((?!api|assets|icons|fonts|screenshots|manifest\\.json|sw\\.js|robots\\.txt|sitemap\\.xml).*)",
+      "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api|assets|icons|fonts|screenshots|manifest\\.json|sw\\.js|robots\\.txt|sitemap\\.xml).*)",
+      "destination": "/__spa-fallback.html"
     }
   ]
 }
