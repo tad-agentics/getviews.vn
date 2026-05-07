@@ -5,16 +5,13 @@ import { PatternCard } from "./PatternCard";
 import { PatternModal } from "./PatternModal";
 
 /**
- * Trends — § I PATTERN section (PR-T3 + T4).
+ * Trends — § I PATTERN section.
  *
- * Mirrors the design pack's pattern toolbar + grid (``screens/trends.jsx``
- * lines 387-417). Renders a section header (``§ I — PATTERN`` mono
- * kicker + H2 + ``CLICK PATTERN → MỞ FULL
- * DECK`` mono caption on the right) followed by a 3-column auto-grid
- * of PatternCards (2 cols < 1100px, 1 col < 760px).
- *
- * Click on a card opens the PR-T4 ``PatternModal`` with the pattern
- * pre-selected.
+ * L2.2 Sprint 5 reshape — section now answers "công thức nào đang được
+ * video viral trong ngách dùng" (heading "Công thức từ video viral
+ * trong ngách"). Cards are filtered to deck-synthesized patterns with
+ * within-niche credibility (≥3 videos) and lift (≥1.2× niche median),
+ * ranked by lift. Click → ``PatternModal`` opens the deep-teach deck.
  */
 
 const PATTERN_LIMIT = 6;
@@ -28,7 +25,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
   const [openPattern, setOpenPattern] = useState<TopPattern | null>(null);
 
   return (
-    <section aria-label="Công thức đang chạy tốt" className="mb-14">
+    <section aria-label="Công thức từ video viral trong ngách" className="mb-14">
       {/* Header */}
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
@@ -36,11 +33,11 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
             § I — PATTERN
           </p>
           <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)]">
-            6 công thức đang chạy tốt
+            Công thức từ video viral trong ngách
           </h2>
         </div>
         <p className="gv-mono whitespace-nowrap text-[10px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-          CLICK PATTERN → MỞ FULL DECK
+          CLICK → HỌC FULL DECK
         </p>
       </div>
 
@@ -59,8 +56,8 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
         </div>
       ) : patterns.length === 0 ? (
         <p className="rounded-md border border-dashed border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[12.5px] text-[color:var(--gv-ink-3)]">
-          Chưa đủ pattern để xếp hạng tuần này — dữ liệu corpus đang cập
-          nhật.
+          Chưa đủ công thức có lift cao trong ngách này tuần qua — corpus
+          đang cập nhật, sẽ có sau khi đủ video tham chiếu.
         </p>
       ) : (
         <div
