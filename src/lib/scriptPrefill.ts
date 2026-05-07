@@ -1,4 +1,5 @@
 import type { RitualScript } from "@/hooks/useDailyRitual";
+import type { TopPattern } from "@/hooks/useTopPatterns";
 
 function appendHookAndDuration(
   qs: URLSearchParams,
@@ -40,6 +41,48 @@ export function scriptPrefillFromChannel(data: {
   const name = data.name?.trim() || `@${data.handle.trim() || "kênh"}`;
   qs.set("topic", `Kịch bản theo công thức · ${name}`);
   appendHookAndDuration(qs, data.top_hook, null);
+  return `/app/script?${qs.toString()}`;
+}
+
+/**
+ * Path + query for Studio script from a Trends pattern formula.
+ *
+ * L2.2 Sprint 6b — closes the discovery → action gap. Creator opens the
+ * PatternModal, reads the deck, then taps "Áp dụng công thức này" — we
+ * route them to ``/app/script`` with the formula identity (Hook line
+ * from ``structure[0]``) as the topic and the most-viewed
+ * ``sample_hook`` as the hook reference. The script studio then has
+ * enough to draft a brief grounded in the pattern.
+ *
+ * Why ``structure[0]`` not ``display_name``:
+ * ``display_name`` is the 7-attribute taxonomy bucket label
+ * ("Hướng dẫn + mặt người"); not actionable as a topic. ``structure[0]``
+ * is the deck-synthesized Hook line ("Mở: câu hỏi cá nhân (0-2s)") —
+ * concrete recipe-shaped topic the script studio can build a brief
+ * around.
+ */
+export function scriptPrefillFromPattern(
+  pattern: TopPattern,
+  nicheId: number,
+): string {
+  const qs = new URLSearchParams();
+  qs.set("niche_id", String(nicheId));
+
+  // Topic = the recipe headline (Hook line). Strip the leading "Mở:" /
+  // "Hook:" tag the deck synth sometimes produces — same rule the card
+  // headline applies — so the topic field reads as a clean sentence.
+  const hookLine = pattern.structure?.[0]?.trim()
+    ?.replace(/^(?:Mở|Hook)\s*[:：]\s*/i, "")
+    .trim();
+  const topic = hookLine || pattern.display_name?.trim() || "Công thức từ video viral";
+  qs.set("topic", topic.slice(0, 500));
+
+  // Hook reference = the most-viewed sample_hook in this pattern (a real
+  // line a real creator used). Fallback to the bucket display_name —
+  // less useful but still a hook signal for Gemini.
+  const hook = pattern.sample_hook?.trim() || pattern.display_name?.trim() || null;
+  appendHookAndDuration(qs, hook, null);
+
   return `/app/script?${qs.toString()}`;
 }
 

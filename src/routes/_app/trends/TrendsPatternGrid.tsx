@@ -76,6 +76,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
 
       <PatternModal
         pattern={openPattern}
+        nicheId={nicheId}
         open={openPattern !== null}
         onOpenChange={(next) => {
           if (!next) setOpenPattern(null);

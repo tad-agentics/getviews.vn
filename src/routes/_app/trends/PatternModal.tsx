@@ -13,6 +13,8 @@ import { Btn } from "@/components/v2/Btn";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
+import { logUsage } from "@/lib/logUsage";
+import { scriptPrefillFromPattern } from "@/lib/scriptPrefill";
 import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
 
 /**
@@ -36,10 +38,17 @@ import { tiktokAwemeIdForEmbed } from "@/lib/tiktokEmbed";
 
 export const PatternModal = memo(function PatternModal({
   pattern,
+  nicheId,
   open,
   onOpenChange,
 }: {
   pattern: TopPattern | null;
+  /** L2.2 Sprint 6b — required for the "Áp dụng công thức này" CTA so
+   * the script studio knows which niche to scope the brief to. ``null``
+   * = the CTA renders disabled so the discovery surface stays usable
+   * even on niche-less pages (defensive — the Trends grid always has
+   * a niche). */
+  nicheId: number | null;
   open: boolean;
   onOpenChange: (next: boolean) => void;
 }) {
@@ -51,14 +60,14 @@ export const PatternModal = memo(function PatternModal({
         onInteractOutside={() => onOpenChange(false)}
       >
         {pattern ? (
-          <PatternModalBody pattern={pattern} />
+          <PatternModalBody pattern={pattern} nicheId={nicheId} />
         ) : null}
       </DialogContent>
     </Dialog>
   );
 });
 
-function PatternModalBody({ pattern }: { pattern: TopPattern }) {
+function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: number | null }) {
   const navigate = useNavigate();
   const videos = pattern.videos.length > 0 ? pattern.videos : ([] as PatternVideo[]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -172,7 +181,7 @@ function PatternModalBody({ pattern }: { pattern: TopPattern }) {
           ) : null}
         </aside>
 
-        {/* Right — takeaway / structure / angles */}
+        {/* Right — takeaway / structure / angles + primary action CTA */}
         <section className="flex flex-col gap-5 px-7 py-6">
           <Takeaway
             hookSample={pattern.sample_hook}
@@ -181,6 +190,37 @@ function PatternModalBody({ pattern }: { pattern: TopPattern }) {
           />
           <StructureBlock structure={pattern.structure} />
           <GapAnglesBlock angles={pattern.angles} />
+
+          {/* L2.2 Sprint 6b — closes the discovery → action gap.
+              The deck teaches the formula; this CTA hands it to the
+              script studio with the recipe already prefilled, so a
+              creator who just learned a formula can act on it without
+              retyping anything. */}
+          <div className="border-t border-[color:var(--gv-rule)] pt-4">
+            <Btn
+              variant="ink"
+              size="md"
+              type="button"
+              className="w-full justify-center"
+              disabled={nicheId == null}
+              onClick={() => {
+                if (nicheId == null) return;
+                logUsage("pattern_to_script", {
+                  pattern_id: pattern.id,
+                  niche_id: nicheId,
+                  niche_video_count: pattern.niche_video_count,
+                  lift_vs_niche: pattern.lift_vs_niche,
+                });
+                navigate(scriptPrefillFromPattern(pattern, nicheId));
+              }}
+            >
+              Áp dụng công thức này → tạo kịch bản
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+            </Btn>
+            <p className="gv-mono mt-1.5 text-center text-[10px] text-[color:var(--gv-ink-4)]">
+              Studio sẽ mở sẵn brief với hook line + sample hook đã có ở deck này.
+            </p>
+          </div>
         </section>
       </div>
     </>
