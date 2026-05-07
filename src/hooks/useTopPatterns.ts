@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-/** Top-K example videos in a pattern — drives the PatternCard 2×2 collage (PR-T3). */
+/** Top-K example videos in a pattern — drives the PatternCard collage strip. */
 export type PatternVideo = {
   video_id: string;
   thumbnail_url: string | null;
@@ -24,22 +24,28 @@ export type TopPattern = {
   display_name: string;
   weekly_instance_count: number;
   weekly_instance_count_prev: number;
-  /** Video trong ngách đang xem gắn pattern này (``video_corpus``). Khác ``weekly_instance_count`` (toàn corpus 7 ngày). */
+  /** Within-niche corpus rows tagged with this pattern (the credibility number). */
   niche_video_count: number;
+  /** All-time, cross-niche corpus count. Kept for the modal header copy; the
+   * card no longer surfaces this directly because mixing it with niche-scoped
+   * VIEW TB confused creators ("VIDEO 1 · VIEW TB 121K" reads as a sample-of-1). */
   instance_count: number;
   niche_spread: number[];
-  /** Average views across all corpus rows tagged with this pattern. */
+  /** Within-niche average views — denominator of ``lift`` against niche median. */
   avg_views: number | null;
+  /** L2.2 Sprint 5 — niche-scoped lift over the niche median (last 30d).
+   * ``null`` when the niche median is unknown or zero. Cards rank by this. */
+  lift_vs_niche: number | null;
   /** Hook phrase from the most-viewed video in this pattern (display example). */
   sample_hook: string | null;
-  /** Top 4 videos in this pattern by view count (PR-T3). Empty array when no
-   *  corpus rows tagged with the pattern are available. */
+  /** Top videos in this pattern by view count, niche-scoped. Empty array when
+   * no corpus rows tagged with the pattern exist in the caller's niche. */
   videos: PatternVideo[];
   /**
    * Deck content synthesized by ``pattern_deck_synth.py`` (nightly).
    * All four fields are ``null`` until the cron has run for this
-   * pattern; ``PatternModal`` renders "Đang chuẩn bị" stubs in that
-   * state, real content otherwise.
+   * pattern; the card filters un-decked patterns out (no formula = no
+   * card) so any ``TopPattern`` reaching the FE has a real recipe.
    */
   structure: string[] | null;
   why: string | null;
@@ -50,16 +56,51 @@ export type TopPattern = {
 /** Studio Home hook tier + ``HooksTable`` — shared cap (query key includes this). */
 export const STUDIO_HOME_TOP_PATTERNS_LIMIT = 6;
 
+/** L2.2 Sprint 5 — minimum niche-scoped corpus rows required to count as a
+ * "công thức". Below this we don't have enough samples to claim the
+ * pattern is winning in the niche; better to drop the card. */
+const MIN_NICHE_VIDEOS = 3;
+
+/** Required lift over niche median for a pattern to count as "đang chạy tốt".
+ * 1.2× = noticeably above the typical video; lower thresholds let in noise. */
+const MIN_LIFT_VS_NICHE = 1.2;
+
+/** How many top-views niche videos to sample when computing the niche median.
+ * 200 is plenty for a stable median across the rolling 30-day window without
+ * pulling the entire corpus over the wire. */
+const NICHE_MEDIAN_SAMPLE = 200;
+
+function computeMedian(values: ReadonlyArray<number>): number | null {
+  const filtered = values.filter((v) => Number.isFinite(v) && v > 0);
+  if (filtered.length === 0) return null;
+  const sorted = [...filtered].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[mid]!
+    : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
 /**
- * Top video_patterns whose niche_spread contains the user's niche, plus
- * derived avg-views + a sample hook phrase per pattern. Runs two reads:
- *   1. video_patterns — top 50 by weekly_instance_count, filtered client-side
- *      to niche_spread containing the caller's niche.
- *   2. video_corpus — rows with pattern_id in the top ids **and**
- *      niche_id = caller niche, from which we compute avg views and pick
- *      the hook_phrase of the top-viewed row (avoids cross-niche examples).
+ * Top patterns whose niche_spread contains the user's niche, ranked by
+ * within-niche lift over the niche-median view count.
  *
- * Small table, single-digit round-trip, good enough for the Home table.
+ * L2.2 Sprint 5 reshape — the surface answers "công thức nào đang được
+ * các video viral khác trong ngách dùng" instead of "what video buckets
+ * exist". Concrete shape:
+ *
+ *   1. ``video_patterns`` — pull the deck-synthesized rows (``structure``
+ *      is non-null) whose niche_spread contains the caller. Only patterns
+ *      that have a Gemini-extracted recipe are eligible — un-decked
+ *      patterns have no formula to teach.
+ *   2. ``video_corpus`` — niche-scoped rows tagged with one of those
+ *      pattern ids (drives ``avg_views`` / ``niche_video_count`` /
+ *      ``videos[]``).
+ *   3. ``video_corpus`` — niche-scoped views over last 30d, top
+ *      ``NICHE_MEDIAN_SAMPLE`` by views, used to compute the niche
+ *      median view count (lift denominator).
+ *
+ * Then filter+rank: keep patterns with ``niche_video_count ≥ 3`` AND
+ * ``lift_vs_niche ≥ 1.2``, sort by lift DESC.
  */
 export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_PATTERNS_LIMIT) {
   return useQuery<TopPattern[]>({
@@ -67,33 +108,56 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
     queryFn: async () => {
       if (nicheId == null) return [];
 
-      // ``structure`` / ``why`` / ``careful`` / ``angles`` come from
-      // the deck synthesizer (cron-batch-pattern-decks). Default to
-      // null on un-decked rows; the FE PatternModal renders "Đang
-      // chuẩn bị" stubs in that case.
+      // Step 1 — eligible patterns (deck-synthesized, niche match).
+      // Cap at 50 to keep the client-side niche-spread filter cheap; in
+      // practice the 6-card slot fills well before that.
       const { data: patternRows, error: pErr } = await supabase
         .from("video_patterns")
         .select(
           "id, display_name, weekly_instance_count, weekly_instance_count_prev, instance_count, niche_spread, structure, why, careful, angles",
         )
         .eq("is_active", true)
+        .not("structure", "is", null)
         .order("weekly_instance_count", { ascending: false })
         .limit(50);
       if (pErr) throw pErr;
 
       type PatternRow = TopPattern & { niche_spread?: number[] };
-      const patterns = ((patternRows ?? []) as PatternRow[])
-        .filter((r) => (r.niche_spread ?? []).includes(nicheId))
-        .slice(0, limit);
-      if (patterns.length === 0) return [];
+      const eligible = ((patternRows ?? []) as PatternRow[]).filter((r) =>
+        (r.niche_spread ?? []).includes(nicheId),
+      );
+      if (eligible.length === 0) return [];
 
-      const ids = patterns.map((p) => p.id);
-      const { data: corpusRows, error: cErr } = await supabase
+      const ids = eligible.map((p) => p.id);
+
+      // Step 2 — niche-scoped corpus rows for the eligible patterns.
+      const corpusPromise = supabase
         .from("video_corpus")
         .select("video_id, pattern_id, views, hook_phrase, thumbnail_url, creator_handle, tiktok_url")
         .in("pattern_id", ids)
         .eq("niche_id", nicheId);
-      if (cErr) throw cErr;
+
+      // Step 3 — niche median over the recent corpus (lift denominator).
+      // ``views`` only — keeps the wire payload trivial. We sort DESC so
+      // the median is computed off the top-200 (roughly the active head
+      // of the niche), not the whole long tail of legacy rows.
+      const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const medianPromise = supabase
+        .from("video_corpus")
+        .select("views")
+        .eq("niche_id", nicheId)
+        .gte("created_at", since30d)
+        .not("views", "is", null)
+        .order("views", { ascending: false })
+        .limit(NICHE_MEDIAN_SAMPLE);
+
+      const [corpusRes, medianRes] = await Promise.all([corpusPromise, medianPromise]);
+      if (corpusRes.error) throw corpusRes.error;
+      if (medianRes.error) throw medianRes.error;
+
+      const nicheMedian = computeMedian(
+        (medianRes.data ?? []).map((r) => Number((r as { views?: number | null }).views ?? 0)),
+      );
 
       type RowAcc = {
         totalViews: number;
@@ -103,7 +167,7 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
         rows: PatternVideo[];
       };
       const byPattern = new Map<string, RowAcc>();
-      for (const row of corpusRows ?? []) {
+      for (const row of corpusRes.data ?? []) {
         const pid = (row as { pattern_id?: string | null }).pattern_id;
         if (!pid) continue;
         const views = Number((row as { views?: number | null }).views ?? 0);
@@ -133,26 +197,49 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
         byPattern.set(pid, acc);
       }
 
-      return patterns.map((p) => {
+      const enriched = eligible.map((p) => {
         const stat = byPattern.get(p.id);
+        const avgViews = stat && stat.n > 0 ? Math.round(stat.totalViews / stat.n) : null;
+        const lift =
+          avgViews != null && nicheMedian != null && nicheMedian > 0
+            ? avgViews / nicheMedian
+            : null;
         const videos = stat
           ? [...stat.rows].sort((a, b) => b.views - a.views).slice(0, 4)
           : [];
         return {
           ...p,
           niche_video_count: stat?.n ?? 0,
-          avg_views: stat && stat.n > 0 ? Math.round(stat.totalViews / stat.n) : null,
+          avg_views: avgViews,
+          lift_vs_niche: lift,
           sample_hook: stat?.topHook ?? null,
           videos,
-          // Explicit ``null`` normalisation — supabase returns
-          // ``undefined`` when the row's column is JSON null on
-          // un-decked patterns; downstream code branches on null.
           structure: (p as { structure?: string[] | null }).structure ?? null,
           why: (p as { why?: string | null }).why ?? null,
           careful: (p as { careful?: string | null }).careful ?? null,
           angles: (p as { angles?: PatternDeckAngle[] | null }).angles ?? null,
         };
       });
+
+      // Filter — no credibility below MIN_NICHE_VIDEOS or below the lift
+      // threshold. When nicheMedian is unknown (corpus too thin to compute),
+      // we keep the credibility filter and rely on niche_video_count alone.
+      const filtered = enriched.filter((p) => {
+        if (p.niche_video_count < MIN_NICHE_VIDEOS) return false;
+        if (p.lift_vs_niche != null && p.lift_vs_niche < MIN_LIFT_VS_NICHE) return false;
+        return true;
+      });
+
+      // Rank by lift DESC, tie-break by within-niche n (more samples = more
+      // confidence). Patterns with null lift (no median) sort last.
+      filtered.sort((a, b) => {
+        const lA = a.lift_vs_niche ?? -1;
+        const lB = b.lift_vs_niche ?? -1;
+        if (lB !== lA) return lB - lA;
+        return b.niche_video_count - a.niche_video_count;
+      });
+
+      return filtered.slice(0, limit);
     },
     enabled: nicheId != null,
     staleTime: 10 * 60 * 1000,

@@ -32,30 +32,28 @@ const samplePattern = (id: string, overrides: Partial<TopPattern> = {}): TopPatt
   display_name: `Pattern ${id}`,
   weekly_instance_count: 10,
   weekly_instance_count_prev: 4,
-  niche_video_count: 0,
+  niche_video_count: 5,
   instance_count: 30,
   niche_spread: [4],
-  avg_views: 100_000,
+  avg_views: 200_000,
+  lift_vs_niche: 2.0,
   sample_hook: "Sample",
   videos: [],
-  structure: null,
-  why: null,
-  careful: null,
+  // Sprint 5 — only deck-synthesized patterns reach the FE.
+  structure: ["Mở: hook (0-2s)", "Setup", "Body", "Payoff"],
+  why: "Why it works.",
+  careful: "Be careful.",
   angles: null,
   ...overrides,
 });
 
 describe("TrendsPatternGrid", () => {
-  it("renders the §I header + heading + click hint", () => {
-    // Header copy was updated from "đang sống · cập nhật mỗi tuần" to
-    // "đang chạy tốt" + a click-hint. The "cập nhật mỗi tuần" caption
-    // was dropped entirely. Test now mirrors the actual TrendsPatternGrid
-    // header chrome (lines 35-44 in TrendsPatternGrid.tsx).
+  it("renders the §I header with the Sprint 5 reshape heading", () => {
     mockUseTopPatterns.mockReturnValue({ data: [samplePattern("p1")], isPending: false });
     const { getByText } = render(<TrendsPatternGrid nicheId={4} />);
     expect(getByText("§ I — PATTERN")).toBeTruthy();
-    expect(getByText(/6 công thức đang chạy tốt/)).toBeTruthy();
-    expect(getByText(/CLICK PATTERN → MỞ FULL DECK/)).toBeTruthy();
+    expect(getByText(/Công thức từ video viral trong ngách/)).toBeTruthy();
+    expect(getByText(/CLICK → HỌC FULL DECK/)).toBeTruthy();
   });
 
   it("renders one card per pattern", () => {
@@ -64,7 +62,7 @@ describe("TrendsPatternGrid", () => {
       isPending: false,
     });
     const { getAllByLabelText } = render(<TrendsPatternGrid nicheId={4} />);
-    const cards = getAllByLabelText(/Mở pattern:/);
+    const cards = getAllByLabelText(/Mở công thức:/);
     expect(cards).toHaveLength(3);
   });
 
@@ -75,9 +73,9 @@ describe("TrendsPatternGrid", () => {
     expect(skeletons.length).toBe(6);
   });
 
-  it("renders an empty stub when no patterns are returned", () => {
+  it("renders the Sprint 5 empty-state copy when no qualified patterns are returned", () => {
     mockUseTopPatterns.mockReturnValue({ data: [], isPending: false });
     const { getByText } = render(<TrendsPatternGrid nicheId={4} />);
-    expect(getByText(/Chưa đủ pattern/)).toBeTruthy();
+    expect(getByText(/Chưa đủ công thức có lift cao/)).toBeTruthy();
   });
 });
