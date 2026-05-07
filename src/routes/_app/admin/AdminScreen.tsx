@@ -21,6 +21,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { ActionLogPanel } from "./ActionLogPanel";
 import { CorpusHealthPanel } from "./CorpusHealthPanel";
 import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
+import { FunnelPanel } from "./FunnelPanel";
 import { Layer0Panel } from "./Layer0Panel";
 import { LogsPanel } from "./LogsPanel";
 import { TriggersPanel } from "./TriggersPanel";
@@ -59,6 +60,17 @@ export default function AdminScreen() {
         <TopBar kicker="ADMIN · OPS CONSOLE" title="Sức khỏe hệ thống" />
 
         <main className="gv-home-wrap mx-auto w-full max-w-[1320px]">
+          <section className="gv-fade-up">
+            <SectionHeader
+              kicker="L2.2 · CREATOR-VIEWS-UPLIFT FUNNEL"
+              title="Funnel & enrichment uptake"
+              caption="Đọc các logUsage event được nhúng qua Sprint 1-5. Cửa sổ mặc định 7 ngày — toggle để mở rộng. Mục tiêu: trả lời 'creator có thực sự dùng vòng lặp này không'."
+            />
+            <FunnelPanel />
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
           <section className="gv-fade-up">
             <SectionHeader
               kicker="CORPUS · TAXONOMY + CLAIM TIERS"
