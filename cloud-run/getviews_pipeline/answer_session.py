@@ -234,13 +234,17 @@ def _idem_db_get(sb: Any, user_id: str, idempotency_key: str) -> str | None:
 def _idem_db_store(sb: Any, user_id: str, idempotency_key: str, session_id: str) -> None:
     """Upsert the idempotency mapping into L2 (Postgres). Never raises."""
     try:
-        sb.table("answer_session_idempotency").insert(
+        # supabase-py 2.x: insert() has no on_conflict; use upsert + ignore_duplicates
+        # → PostgREST ON CONFLICT DO NOTHING on (user_id, idempotency_key).
+        sb.table("answer_session_idempotency").upsert(
             {
                 "user_id": user_id,
                 "idempotency_key": idempotency_key,
                 "session_id": session_id,
-            }
-        ).on_conflict("user_id,idempotency_key").ignore().execute()
+            },
+            on_conflict="user_id,idempotency_key",
+            ignore_duplicates=True,
+        ).execute()
     except Exception as exc:
         logger.warning("[answer_session] idem_db_store failed: %s", exc)
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
+from getviews_pipeline.postgrest_time import indexed_at_cutoff_iso
 from getviews_pipeline.supabase_client import get_service_client
 
 logger = logging.getLogger(__name__)
@@ -33,16 +34,22 @@ def count_video_corpus_for_niche(niche_id: int, days: int) -> int:
         return 0
     try:
         sb = get_service_client()
+        cutoff = indexed_at_cutoff_iso(days)
         res = (
             sb.table("video_corpus")
             .select("video_id", count="exact")
             .eq("niche_id", niche_id)
-            .gte("indexed_at", f"now() - interval '{days} days'")
+            .gte("indexed_at", cutoff)
             .execute()
         )
         return int(res.count or 0)
     except Exception as exc:  # pragma: no cover - network / schema
-        logger.warning("[adaptive_window] count failed niche_id=%s days=%s: %s", niche_id, days, exc)
+        logger.warning(
+            "[adaptive_window] count failed niche_id=%s days=%s: %s",
+            niche_id,
+            days,
+            exc,
+        )
         return 0
 
 

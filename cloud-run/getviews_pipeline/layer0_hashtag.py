@@ -26,6 +26,8 @@ import logging
 from datetime import date
 from typing import Any
 
+from getviews_pipeline.postgrest_time import indexed_at_cutoff_iso
+
 logger = logging.getLogger(__name__)
 
 # Minimum number of distinct high-performing videos a hashtag must appear in
@@ -124,7 +126,12 @@ async def run_hashtag_discovery(client: Any) -> dict[str, Any]:
                 None, lambda nid=niche_id, t=tags: _append_tags_to_niche(client, nid, t)
             )
             added += n_added
-            logger.info("[layer0d] niche_id=%d appended %d new tags: %s", niche_id, n_added, t[:n_added])
+            logger.info(
+                "[layer0d] niche_id=%d appended %d new tags: %s",
+                niche_id,
+                n_added,
+                tags[:n_added],
+            )
         except Exception as exc:
             msg = f"niche_id={niche_id}: {exc}"
             logger.warning("[layer0d] Failed to append tags: %s", msg)
@@ -427,7 +434,7 @@ def _update_freshness(client: Any, niches: list[dict], days: int = 30) -> int:
     result = (
         client.table("video_corpus")
         .select("hashtags")
-        .gte("indexed_at", f"now() - interval '{days} days'")
+        .gte("indexed_at", indexed_at_cutoff_iso(days))
         .not_.is_("hashtags", None)
         .execute()
     )

@@ -77,14 +77,15 @@ def test_create_session_idempotent_returns_cached_row(mock_get: MagicMock) -> No
     chain = MagicMock()
     mock_sb.table.return_value = chain
     chain.insert.return_value = chain
+    chain.upsert.return_value = chain
     chain.select.return_value = chain
     chain.eq.return_value = chain
     chain.single.return_value = chain
     chain.execute.side_effect = [
         MagicMock(data=None),    # _idem_db_get L2 check → no existing row
-        MagicMock(data=[cached]),  # insert().execute()
-        # _idem_db_store uses on_conflict().ignore() chain — not captured here
-        MagicMock(data=cached),  # L1-hit select().single().execute() on 2nd call
+        MagicMock(data=[cached]),  # answer_sessions insert().execute()
+        MagicMock(),  # _idem_db_store upsert().execute()
+        MagicMock(data=cached),  # 2nd call L1-hit: select session by id
     ]
     mock_get.return_value = mock_sb
 
@@ -97,8 +98,8 @@ def test_create_session_idempotent_returns_cached_row(mock_get: MagicMock) -> No
         idempotency_key="idem-1",
     )
     assert out1["id"] == sid
-    # Two inserts: one into answer_sessions, one into answer_session_idempotency (L2 store).
-    assert chain.insert.call_count == 2
+    assert chain.insert.call_count == 1  # answer_sessions only
+    assert chain.upsert.call_count == 1  # answer_session_idempotency L2 store
 
     out2 = create_session(
         "u1",
@@ -109,8 +110,9 @@ def test_create_session_idempotent_returns_cached_row(mock_get: MagicMock) -> No
         idempotency_key="idem-1",
     )
     assert out2["id"] == sid
-    # L1 cache hit — no new inserts on the second call.
-    assert chain.insert.call_count == 2
+    # L1 cache hit — no new inserts or upserts on the second call.
+    assert chain.insert.call_count == 1
+    assert chain.upsert.call_count == 1
     mod._IDEMPOTENCY.clear()
 
 

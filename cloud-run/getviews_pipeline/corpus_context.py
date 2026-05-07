@@ -25,6 +25,7 @@ from getviews_pipeline.claim_tiers import (
     should_cite_hook_effectiveness,
 )
 from getviews_pipeline.formatters import citation_vi, timeframe_vi
+from getviews_pipeline.postgrest_time import indexed_at_cutoff_iso
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +146,7 @@ async def get_corpus_count(
         query = (
             client.table("video_corpus")
             .select("id", count="exact")
-            .gte("indexed_at", f"now() - interval '{days} days'")
+            .gte("indexed_at", indexed_at_cutoff_iso(days))
         )
         if niche_id is not None:
             query = query.eq("niche_id", niche_id)
@@ -401,7 +402,7 @@ async def get_top_breakout_videos(
             client.table("video_corpus")
             .select("video_id, creator_handle, views, breakout_multiplier, indexed_at")
             .gt("breakout_multiplier", 1.0)
-            .gte("indexed_at", f"now() - interval '{days} days'")
+            .gte("indexed_at", indexed_at_cutoff_iso(days))
             .order("breakout_multiplier", desc=True)
             .limit(limit)
         )
@@ -538,7 +539,7 @@ async def fetch_corpus_reference_pool(
                 "indexed_at, content_format, content_type, analysis_json"
             )
             .eq("niche_id", niche_id)
-            .gte("indexed_at", f"now() - interval '{days} days'")
+            .gte("indexed_at", indexed_at_cutoff_iso(days))
             .order("engagement_rate", desc=True)
             .limit(limit)
         )

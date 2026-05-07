@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from getviews_pipeline.adaptive_window import choose_adaptive_window_days
@@ -151,3 +153,26 @@ def test_floor_constants_public() -> None:
     assert TIMING_SAMPLE_FLOOR == 80
     assert LIFECYCLE_SAMPLE_FLOOR == 80
     assert DIAGNOSTIC_SAMPLE_FLOOR == 30
+
+
+def test_count_video_corpus_gte_is_iso_not_sql_literal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PostgREST rejects ``now() - interval`` as a timestamptz literal (BUG-11)."""
+    mock_sb = MagicMock()
+    chain = MagicMock()
+    mock_sb.table.return_value = chain
+    chain.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.gte.return_value = chain
+    chain.execute.return_value = MagicMock(count=3)
+
+    monkeypatch.setattr(
+        "getviews_pipeline.adaptive_window.get_service_client",
+        lambda: mock_sb,
+    )
+    from getviews_pipeline.adaptive_window import count_video_corpus_for_niche
+
+    assert count_video_corpus_for_niche(2, 7) == 3
+    gte_val = chain.gte.call_args[0][1]
+    assert "now()" not in gte_val
+    assert "interval" not in gte_val
+    assert "T" in gte_val  # ISO-8601 from datetime.isoformat()

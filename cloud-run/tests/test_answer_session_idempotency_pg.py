@@ -29,13 +29,12 @@ def _make_sb_mock(insert_row: dict, existing_session: dict | None = None) -> Mag
     chain = MagicMock()
     mock_sb.table.return_value = chain
     chain.insert.return_value = chain
+    chain.upsert.return_value = chain
     chain.select.return_value = chain
     chain.eq.return_value = chain
     chain.single.return_value = chain
     chain.delete.return_value = chain
     chain.lt.return_value = chain
-    chain.on_conflict.return_value = chain
-    chain.ignore.return_value = chain
 
     if existing_session:
         # For L2 check: first .single().execute() → the idempotency row,
@@ -46,13 +45,13 @@ def _make_sb_mock(insert_row: dict, existing_session: dict | None = None) -> Mag
         ]
     else:
         # No L2 hit: first .single().execute() raises (no row found),
-        # insert().execute() → new session, idem_db_store → ignored, L1 warm
+        # insert().execute() → new session, idem_db_store upsert, L1 warm
         no_row = MagicMock()
         no_row.data = None
         chain.execute.side_effect = [
             MagicMock(data=None),  # L2 get → no existing mapping
             MagicMock(data=[insert_row]),  # answer_sessions.insert
-            MagicMock(),  # idem_db_store
+            MagicMock(),  # idem_db_store → upsert().execute()
         ]
     return mock_sb
 
@@ -86,6 +85,27 @@ def test_idem_db_get_returns_none_on_error(mock_get: MagicMock) -> None:
 
     result = _idem_db_get(mock_sb, "u1", "key-1")
     assert result is None  # fail-open
+
+
+def test_idem_db_store_upserts_with_ignore_duplicates() -> None:
+    mock_sb = MagicMock()
+    chain = MagicMock()
+    mock_sb.table.return_value = chain
+    chain.upsert.return_value = chain
+    chain.execute.return_value = MagicMock()
+
+    _idem_db_store(mock_sb, "u1", "k1", "sess-1")
+
+    chain.upsert.assert_called_once()
+    args, kwargs = chain.upsert.call_args
+    assert args[0] == {
+        "user_id": "u1",
+        "idempotency_key": "k1",
+        "session_id": "sess-1",
+    }
+    assert kwargs.get("on_conflict") == "user_id,idempotency_key"
+    assert kwargs.get("ignore_duplicates") is True
+    chain.execute.assert_called_once()
 
 
 # ── create_session — cross-instance scenario ───────────────────────────────────
@@ -164,18 +184,17 @@ def test_create_session_different_users_same_key_independent(mock_get: MagicMock
     chain = MagicMock()
     mock_sb.table.return_value = chain
     chain.insert.return_value = chain
+    chain.upsert.return_value = chain
     chain.select.return_value = chain
     chain.eq.return_value = chain
     chain.single.return_value = chain
-    chain.on_conflict.return_value = chain
-    chain.ignore.return_value = chain
     chain.execute.side_effect = [
         MagicMock(data=None),       # L2 get u1 → miss
         MagicMock(data=[row_u1]),   # insert u1
-        MagicMock(),                # idem store u1
+        MagicMock(),                # idem store u1 → upsert
         MagicMock(data=None),       # L2 get u2 → miss
         MagicMock(data=[row_u2]),   # insert u2
-        MagicMock(),                # idem store u2
+        MagicMock(),                # idem store u2 → upsert
     ]
     mock_get.return_value = mock_sb
 
