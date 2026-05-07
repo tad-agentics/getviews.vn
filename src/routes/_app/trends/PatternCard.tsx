@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { PatternVideo, TopPattern } from "@/hooks/useTopPatterns";
 import { formatViews } from "@/lib/formatters";
+import { logUsage } from "@/lib/logUsage";
 
 /**
  * Trends — § I PatternCard.
@@ -45,7 +46,17 @@ export const PatternCard = memo(function PatternCard({
     <article className="overflow-hidden rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.18)]">
       <button
         type="button"
-        onClick={() => onOpen?.(pattern)}
+        onClick={() => {
+          // L2.2 measurement — pairs with daily_ritual_script_clicked /
+          // daily_ritual_evidence_expanded so the admin funnel can
+          // attribute deck opens to the Trends discovery surface.
+          logUsage("pattern_card_clicked", {
+            pattern_id: pattern.id,
+            niche_video_count: pattern.niche_video_count,
+            lift_vs_niche: pattern.lift_vs_niche,
+          });
+          onOpen?.(pattern);
+        }}
         className="group flex h-full w-full flex-col text-left"
         aria-label={`Mở công thức: ${headline}`}
       >
