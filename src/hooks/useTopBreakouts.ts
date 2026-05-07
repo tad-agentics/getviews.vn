@@ -24,71 +24,97 @@ function withNiche<T extends { eq: (a: string, b: number) => T }>(
   return q.eq("niche_id", nicheId);
 }
 
+/** Exported for unit tests — deterministic slice that rotates over time when pool > limit. */
+export function pickRotatingBreakoutWindow<T extends { video_id: string }>(
+  rows: T[],
+  limit: number,
+  nowMs: number,
+  rotationMs: number,
+): T[] {
+  if (rows.length <= limit) return rows.slice(0, limit);
+  const bucket = Math.floor(nowMs / rotationMs);
+  const maxStart = rows.length - limit;
+  const start = maxStart === 0 ? 0 : bucket % (maxStart + 1);
+  return rows.slice(start, start + limit);
+}
+
+/** How often the visible trio shifts among the top breakout pool (must divide refetch cadence sensibly). */
+const HOME_BREAKOUT_ROTATION_MS = 15 * 60 * 1000;
+
 /**
  * Top breakout-style tiles for Home. Strategy:
- * 1) True breakouts (multiplier set) in the last 14 days, niche-scoped or global if no niche.
- * 2) If still short: same filter but 90-day window.
+ * 1) True breakouts (multiplier set) in the last 14 days by ``indexed_at`` (corpus freshness),
+ *    niche-scoped or global if no niche. Fetch a **pool** (not only top-3) so we can rotate.
+ * 2) If pool still short: same filter but 90-day window.
  * 3) If still short: top by views in niche (or globally) to always surface three tiles when corpus has data.
+ *
+ * ``pickRotatingBreakoutWindow`` cycles through overlapping high-multiplier rows so the row does not
+ * stay frozen on the same three IDs until DB ranks change.
  */
 async function fetchTopBreakoutsForHome(
   nicheId: number | null,
   limit: number,
 ): Promise<BreakoutVideo[]> {
-  const since14 = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString();
-  const since90 = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+  const now = Date.now();
+  const since14 = new Date(now - 14 * 24 * 3600 * 1000).toISOString();
+  const since90 = new Date(now - 90 * 24 * 3600 * 1000).toISOString();
 
-  const out: BreakoutVideo[] = [];
+  const pool: BreakoutVideo[] = [];
   const seen = new Set<string>();
 
-  const pushUnique = (rows: BreakoutVideo[] | null) => {
+  const appendUnique = (rows: BreakoutVideo[] | null) => {
     for (const row of rows ?? []) {
-      if (out.length >= limit) break;
       if (seen.has(row.video_id)) continue;
       seen.add(row.video_id);
-      out.push(row);
+      pool.push(row);
     }
   };
 
-  // 1) Recent breakouts
+  // 1) Recent breakouts — indexed_at matches ingest/corpus updates better than created_at row stamp.
   let q1 = supabase
     .from("video_corpus")
     .select(CORPUS_COLS)
-    .gte("created_at", since14)
+    .gte("indexed_at", since14)
     .not("breakout_multiplier", "is", null);
   q1 = withNiche(q1, nicheId);
   const { data: d1, error: e1 } = await q1
     .order("breakout_multiplier", { ascending: false })
-    .limit(limit);
+    .order("indexed_at", { ascending: false })
+    .limit(24);
   if (e1) throw e1;
-  pushUnique((d1 ?? []) as BreakoutVideo[]);
+  appendUnique((d1 ?? []) as BreakoutVideo[]);
 
   // 2) Older breakouts (multiplier still set)
-  if (out.length < limit) {
+  if (pool.length < limit) {
     let q2 = supabase
       .from("video_corpus")
       .select(CORPUS_COLS)
-      .gte("created_at", since90)
+      .gte("indexed_at", since90)
       .not("breakout_multiplier", "is", null);
     q2 = withNiche(q2, nicheId);
     const { data: d2, error: e2 } = await q2
       .order("breakout_multiplier", { ascending: false })
-      .limit(limit * 3);
+      .order("indexed_at", { ascending: false })
+      .limit(48);
     if (e2) throw e2;
-    pushUnique((d2 ?? []) as BreakoutVideo[]);
+    appendUnique((d2 ?? []) as BreakoutVideo[]);
   }
 
   // 3) Top views — fills the row when multipliers are not backfilled yet
-  if (out.length < limit) {
+  if (pool.length < limit) {
     let q3 = supabase.from("video_corpus").select(CORPUS_COLS);
     q3 = withNiche(q3, nicheId);
     const { data: d3, error: e3 } = await q3
       .order("views", { ascending: false })
-      .limit(40);
+      .order("indexed_at", { ascending: false })
+      .limit(60);
     if (e3) throw e3;
-    pushUnique((d3 ?? []) as BreakoutVideo[]);
+    appendUnique((d3 ?? []) as BreakoutVideo[]);
   }
 
-  return out.slice(0, limit);
+  if (pool.length === 0) return [];
+
+  return pickRotatingBreakoutWindow(pool, limit, now, HOME_BREAKOUT_ROTATION_MS);
 }
 
 /**
@@ -99,7 +125,10 @@ export function useTopBreakouts(nicheId: number | null, limit = 3) {
   return useQuery<BreakoutVideo[]>({
     queryKey: ["home", "top_breakouts", nicheId ?? "all", limit],
     queryFn: () => fetchTopBreakoutsForHome(nicheId, limit),
-    staleTime: 10 * 60 * 1000,
+    // Short stale + interval so rotation (15m buckets) and corpus updates surface without a hard refresh.
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 4 * 60 * 1000,
+    refetchIntervalInBackground: false,
     retry: false,
   });
 }
