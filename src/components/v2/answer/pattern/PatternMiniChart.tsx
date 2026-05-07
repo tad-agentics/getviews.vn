@@ -150,14 +150,44 @@ export function PatternMiniChart({ cell }: { cell: PatternCellPayloadData }) {
   if (cell.chart_kind === "sound_mix" && typeof d.primary_pct === "number") {
     // L1.4 — top trending sounds for the niche (latest week, ranked by
     // usage_count). Empty/missing → render the legacy "Gốc · Trend"
-    // legend; populated → render sound names instead.
-    const topSounds = Array.isArray(d.top_sounds) ? d.top_sounds : [];
+    // legend; populated → render sound names.
+    // L2.2 Sprint 2 (Sound Radar) — each sound entry may carry
+    // ``trend ∈ {"accelerating","peaking","cooling"}`` from
+    // ``trend_velocity.sound_trends``. We prepend an icon (↑/→/↓) and
+    // tint the row when set so creators see velocity at a glance, not
+    // just the snapshot leaderboard. Sounds with no trend render
+    // unchanged from the L1.4 baseline.
+    type SoundEntry = { name: string; trend?: "accelerating" | "peaking" | "cooling" };
+    const topSounds: SoundEntry[] = Array.isArray(d.top_sounds) ? d.top_sounds : [];
+    const trendIcon = (t: SoundEntry["trend"]): string => {
+      if (t === "accelerating") return "↑";
+      if (t === "peaking") return "→";
+      if (t === "cooling") return "↓";
+      return "";
+    };
+    const trendColor = (t: SoundEntry["trend"]): string => {
+      if (t === "accelerating") return "text-[color:var(--gv-pos-deep)]";
+      if (t === "cooling") return "text-[color:var(--gv-neg-deep)]";
+      return "text-[color:var(--gv-ink-3)]";
+    };
+    const titleAttr = topSounds
+      .map((s) => (s.trend ? `${trendIcon(s.trend)} ${s.name}` : s.name))
+      .join(" · ");
     return (
       <div className="min-h-[60px] rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-2">
         <SoundMixBar primaryPct={d.primary_pct} />
         {topSounds.length > 0 ? (
-          <p className="gv-mono mt-1 truncate text-[9px] text-[color:var(--gv-ink-3)]" title={topSounds.map((s: { name: string }) => s.name).join(" · ")}>
-            {topSounds.slice(0, 3).map((s: { name: string }) => s.name).join(" · ")}
+          <p
+            className="gv-mono mt-1 flex flex-wrap gap-x-1.5 truncate text-[9px]"
+            title={titleAttr}
+          >
+            {topSounds.slice(0, 3).map((s, i) => (
+              <span key={`${s.name}-${i}`} className={trendColor(s.trend)}>
+                {s.trend ? <span aria-hidden className="mr-0.5">{trendIcon(s.trend)}</span> : null}
+                {s.name}
+                {i < Math.min(topSounds.length, 3) - 1 ? <span className="ml-1.5 text-[color:var(--gv-ink-4)]">·</span> : null}
+              </span>
+            ))}
           </p>
         ) : (
           <p className="gv-mono mt-1 text-[9px] text-[color:var(--gv-ink-4)]">Gốc · Trend</p>

@@ -46,6 +46,8 @@ _REQUIRED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/batch/reingest-videos"),
     ("POST", "/batch/refresh"),
     ("POST", "/batch/reclassify-format"),
+    # L2.2 Sprint 2 — Sound Radar (/batch/trend-velocity) + L1.4 sound-aggregate
+    ("POST", "/batch/trend-velocity"),
     ("POST", "/batch/backfill-thumbnails"),
     ("POST", "/batch/analytics"),
     ("POST", "/batch/layer0"),

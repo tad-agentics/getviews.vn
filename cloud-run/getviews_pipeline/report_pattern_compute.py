@@ -295,18 +295,48 @@ def build_tldr_callouts(ni: dict[str, Any], window_days: int) -> list[SumStat]:
     ]
 
 
+def _build_sound_trend_lookup(
+    sound_trends: dict[str, Any] | None,
+) -> dict[str, str]:
+    """Flatten ``trend_velocity.sound_trends`` into a sound_id → label map.
+
+    L2.2 Sprint 2 — Sound Radar. Returns {sound_id: "accelerating" |
+    "peaking" | "cooling"} so ``_top_sounds_payload`` can stamp each
+    sound with its current trend bucket. Empty dict when sound_trends
+    is missing (FE renders no icons — graceful pre-Monday-cron state).
+    """
+    if not sound_trends:
+        return {}
+    out: dict[str, str] = {}
+    for label in ("accelerating", "peaking", "cooling"):
+        for entry in sound_trends.get(label) or []:
+            sid = entry.get("sound_id")
+            if sid:
+                out[sid] = label
+    return out
+
+
 def _top_sounds_payload(
     rows: list[dict[str, Any]] | None,
+    *,
+    sound_trends_by_id: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Reduce trending_sounds rows to the FE-facing shape.
 
-    Keeps only ``sound_name`` + ``usage_count`` (the only fields the
-    PatternMiniChart sound_mix branch consumes). Filters out original-
-    sound rows — we want to recommend trending music, not surface that
-    other creators are using their own audio.
+    Each entry: ``{name, usage_count, trend?}`` — the FE
+    PatternMiniChart sound_mix branch consumes ``name`` for display
+    and ``trend`` for the ↑/→/↓ icon. Filters out original-sound rows
+    (we recommend trending music, not original audio).
+
+    L2.2 Sprint 2 — when ``sound_trends_by_id`` is supplied, each
+    sound that maps to a bucket gets a ``trend`` field
+    ("accelerating" / "peaking" / "cooling"). Sounds with no bucket
+    omit the field entirely so the FE renders no icon — same UX as
+    pre-Sprint-2 for those entries.
     """
     if not rows:
         return []
+    lookup = sound_trends_by_id or {}
     out: list[dict[str, Any]] = []
     for r in rows:
         if r.get("is_original_sound"):
@@ -314,23 +344,40 @@ def _top_sounds_payload(
         name = (r.get("sound_name") or "").strip()
         if not name:
             continue
-        out.append({"name": name, "usage_count": int(r.get("usage_count") or 0)})
+        sid = r.get("sound_id")
+        entry: dict[str, Any] = {"name": name, "usage_count": int(r.get("usage_count") or 0)}
+        trend = lookup.get(sid) if sid else None
+        if trend:
+            entry["trend"] = trend
+        out.append(entry)
         if len(out) >= 3:
             break
     return out
 
 
-def _sound_cell_detail(rows: list[dict[str, Any]] | None) -> str:
+def _sound_cell_detail(
+    rows: list[dict[str, Any]] | None,
+    *,
+    sound_trends_by_id: dict[str, str] | None = None,
+) -> str:
     """Compose the small Vietnamese detail string under the sound % bar."""
-    top = _top_sounds_payload(rows)
+    top = _top_sounds_payload(rows, sound_trends_by_id=sound_trends_by_id)
     if not top:
         return "ước lượng từ corpus"
-    return f"top ngách: {top[0]['name']}"
+    # When the #1 sound is accelerating, surface that explicitly in the
+    # detail line — it's the highest-leverage signal a creator can
+    # act on this week.
+    leader = top[0]
+    if leader.get("trend") == "accelerating":
+        return f"đang nổi: {leader['name']}"
+    return f"top ngách: {leader['name']}"
 
 
 def build_pattern_cells(
     ni: dict[str, Any],
     trending_sounds: list[dict[str, Any]] | None = None,
+    *,
+    sound_trends: dict[str, Any] | None = None,
 ) -> list[PatternCellPayload]:
     """Four cells from niche_intelligence norms (best-effort)."""
     med_dur = float(ni.get("median_duration") or ni.get("avg_video_length_seconds") or ni.get("avg_duration") or 28)
@@ -346,6 +393,12 @@ def build_pattern_cells(
     hook_marker = min(1.0, max(0.0, hook_marker))
     ps_raw = float(ni.get("pct_original_sound") or 60)
     primary_pct = ps_raw * 100.0 if ps_raw <= 1.0 else min(100.0, ps_raw)
+
+    # L2.2 Sprint 2 — flatten trend_velocity.sound_trends into a quick
+    # sound_id → bucket lookup, threaded through to the sound_mix cell
+    # so each top_sound entry renders an ↑/→/↓ icon on the FE.
+    sound_trends_by_id = _build_sound_trend_lookup(sound_trends)
+
     return [
         PatternCellPayload(
             title="Thời lượng vàng",
@@ -364,14 +417,20 @@ def build_pattern_cells(
         PatternCellPayload(
             title="Nhạc nền",
             finding=f"{int(primary_pct)}% gốc",
-            detail=_sound_cell_detail(trending_sounds),
+            detail=_sound_cell_detail(trending_sounds, sound_trends_by_id=sound_trends_by_id),
             chart_kind="sound_mix",
             chart_data={
                 "primary_pct": primary_pct,
                 # L1.4 — top trending sounds from ``trending_sounds`` table
                 # (latest week, ranked by usage_count). Empty list when the
                 # niche has no sound aggregates yet (thin corpus or pre-cron).
-                "top_sounds": _top_sounds_payload(trending_sounds),
+                # L2.2 Sprint 2 — each entry now optionally carries
+                # ``trend ∈ {"accelerating","peaking","cooling"}`` from
+                # ``trend_velocity.sound_trends``; FE renders ↑/→/↓ when set.
+                "top_sounds": _top_sounds_payload(
+                    trending_sounds,
+                    sound_trends_by_id=sound_trends_by_id,
+                ),
             },
         ),
         PatternCellPayload(
@@ -482,12 +541,33 @@ def load_pattern_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, A
         except Exception as exc:
             logger.warning("[pattern] trending_sounds fetch failed niche=%s: %s", niche_id, exc)
 
+        # L2.2 Sprint 2 — Sound Radar bucket lookup from trend_velocity.
+        # Reads the most recent row's ``sound_trends`` JSONB and flattens
+        # it into a sound_id → label map. Failure is non-fatal: empty
+        # dict means the FE renders no ↑/→/↓ icons (pre-Sprint-2 UX).
+        sound_trends: dict[str, Any] = {}
+        try:
+            tv_res = (
+                sb.table("trend_velocity")
+                .select("sound_trends, week_start")
+                .eq("niche_id", niche_id)
+                .order("week_start", desc=True)
+                .limit(1)
+                .execute()
+            )
+            tv_rows = tv_res.data or []
+            if tv_rows:
+                sound_trends = tv_rows[0].get("sound_trends") or {}
+        except Exception as exc:
+            logger.warning("[pattern] trend_velocity fetch failed niche=%s: %s", niche_id, exc)
+
         return {
             "niche_label": label,
             "ni": ni,
             "he_rows": he_latest,
             "corpus": corpus,
             "trending_sounds": trending_sounds,
+            "sound_trends": sound_trends,
         }
     except Exception as exc:
         logger.warning("[pattern] load_pattern_inputs failed: %s", exc)

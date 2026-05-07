@@ -341,6 +341,56 @@ async def batch_sound_aggregate(
     return JSONResponse({"ok": True, **result})
 
 
+@router.post("/batch/trend-velocity")
+async def batch_trend_velocity(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Compute weekly trend_velocity rows (hook shifts + Sound Radar) per niche.
+
+    L2.2 Sprint 2 — Sound Radar. Standalone runner so the cron is
+    independent of the heavier Sunday ``/batch/analytics`` job. Reads
+    ``trending_sounds`` (refreshed by ``/batch/sound-aggregate`` at
+    Monday 21:30 UTC) and ``video_corpus`` (continuously refreshed by
+    ``/batch/ingest``); writes one row per niche to ``trend_velocity``
+    keyed on ``(niche_id, week_start)``.
+
+    Pre-launch corpus is small (~5k videos / 18 niches) so this runs
+    in seconds — no risk of pg_cron timeout. Idempotent: upserts on
+    ``(niche_id, week_start)``. Cost: zero Gemini, ~36 Supabase reads
+    + 1 batched upsert.
+
+    Schedule: Mondays 22:30 UTC (30 min after sound-aggregate so the
+    Monday-aligned ``trending_sounds.week_of`` is fresh in time).
+    Protected by ``require_batch_caller``.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.supabase_client import get_service_client
+    from getviews_pipeline.trend_velocity import run_trend_velocity
+
+    logger.info("POST /batch/trend-velocity triggered")
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/trend-velocity") as obs_summary:
+        try:
+            result = await run_trend_velocity(client)
+        except Exception as exc:
+            logger.exception("Batch trend-velocity failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update({
+            "niches_processed": result.niches_processed,
+            "rows_upserted":    result.rows_upserted,
+            "errors":           result.errors,
+        })
+
+    return JSONResponse({
+        "ok": not result.errors,
+        "niches_processed": result.niches_processed,
+        "rows_upserted":    result.rows_upserted,
+        "errors":           result.errors,
+    })
+
+
 @router.post("/batch/r2-janitor")
 async def batch_r2_janitor(
     request: Request,

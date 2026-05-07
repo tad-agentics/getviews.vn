@@ -110,9 +110,59 @@ describe("PatternMiniChart", () => {
       },
     });
     render(<PatternMiniChart cell={cell} />);
-    // Names join with separator " · " and replace the legacy legend.
-    expect(screen.getByText("Trend A · Trend B · Trend C")).toBeTruthy();
+    // L2.2 Sprint 2 — names render in separate spans (so each can carry
+    // its own trend icon + color); legacy "Gốc · Trend" legend is replaced.
+    expect(screen.getByText("Trend A")).toBeTruthy();
+    expect(screen.getByText("Trend B")).toBeTruthy();
+    expect(screen.getByText("Trend C")).toBeTruthy();
     expect(screen.queryByText("Gốc · Trend")).toBeNull();
+  });
+
+  it("renders ↑/→/↓ trend icons next to sound names when trend field present (L2.2 Sprint 2)", () => {
+    const cell = makeCell({
+      chart_kind: "sound_mix",
+      chart_data: {
+        primary_pct: 62,
+        top_sounds: [
+          { name: "Hot New",  usage_count: 18, trend: "accelerating" },
+          { name: "Stable",   usage_count: 24, trend: "peaking" },
+          { name: "Faded",    usage_count: 4,  trend: "cooling" },
+        ],
+      },
+    });
+    const { container } = render(<PatternMiniChart cell={cell} />);
+
+    // Sound names still render
+    expect(screen.getByText("Hot New")).toBeTruthy();
+    expect(screen.getByText("Stable")).toBeTruthy();
+    expect(screen.getByText("Faded")).toBeTruthy();
+
+    // Trend icons rendered as decorative siblings (aria-hidden)
+    const text = container.textContent ?? "";
+    expect(text).toContain("↑");  // accelerating
+    expect(text).toContain("→");  // peaking
+    expect(text).toContain("↓");  // cooling
+
+    // Title attr carries the joined accessible representation
+    const para = container.querySelector("p[title]");
+    expect(para?.getAttribute("title")).toContain("↑ Hot New");
+  });
+
+  it("omits trend icon when sound entry has no trend field (graceful degrade)", () => {
+    const cell = makeCell({
+      chart_kind: "sound_mix",
+      chart_data: {
+        primary_pct: 62,
+        top_sounds: [
+          { name: "No Trend Data", usage_count: 8 },
+        ],
+      },
+    });
+    const { container } = render(<PatternMiniChart cell={cell} />);
+    expect(screen.getByText("No Trend Data")).toBeTruthy();
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("↑");
+    expect(text).not.toContain("↓");
   });
 
   it("renders hook_timing track with marker", () => {
