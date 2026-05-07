@@ -304,6 +304,43 @@ async def batch_reclassify_format(
     return JSONResponse({"ok": True, **result})
 
 
+@router.post("/batch/sound-aggregate")
+async def batch_sound_aggregate(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Aggregate trending sounds per niche for the current week.
+
+    Standalone counterpart to ``run_sound_aggregation`` which previously
+    only fired at the *end* of ``/batch/ingest``. The full ingest pipeline
+    occasionally exceeds the pg_cron 5-min HTTP timeout, killing the
+    sound aggregator step before ``trending_sounds`` gets refreshed —
+    leaving the L1.4 pattern report's ``top_sounds`` cell stuck on last
+    week's data. This endpoint runs only the aggregator (~30s) so the
+    weekly cron stays inside the timeout window.
+
+    Idempotent: upserts on ``(niche_id, sound_id, week_of)``. Cost:
+    zero Gemini, ~50 small Supabase reads + 1 batched upsert per niche.
+    Protected by ``require_batch_caller``.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.sound_aggregator import run_sound_aggregation
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info("POST /batch/sound-aggregate triggered")
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/sound-aggregate") as obs_summary:
+        try:
+            result = await run_sound_aggregation(client)
+        except Exception as exc:
+            logger.exception("Batch sound-aggregate failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 @router.post("/batch/r2-janitor")
 async def batch_r2_janitor(
     request: Request,
