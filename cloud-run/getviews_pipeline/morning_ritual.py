@@ -422,6 +422,63 @@ def _fetch_sound_recommendations(
     return out
 
 
+# ── Evidence strip (L2.2 Sprint 4) ─────────────────────────────────────────
+
+
+EVIDENCE_PER_SCRIPT = 12
+EVIDENCE_MIN_HOOK_MATCH = 4   # below this, top up with top-of-pool fallback
+
+
+def _pick_evidence_for_script(
+    pool: list[dict[str, Any]],
+    hook_type_en: str,
+    *,
+    limit: int = EVIDENCE_PER_SCRIPT,
+) -> list[str]:
+    """Pick up to ``limit`` corpus video_ids that prove the hook works.
+
+    Strategy:
+      1. Filter ``pool`` by ``hook_type == hook_type_en`` (case-insensitive,
+         pool order = views-DESC) — these are the strongest evidence.
+      2. If the filtered set is < ``EVIDENCE_MIN_HOOK_MATCH``, top up with
+         the highest-views videos from ``pool`` that aren't already in the
+         filtered set. Better to show a mixed-hook strip than nothing.
+
+    The pool itself is already DESC-sorted by views (see
+    ``_fetch_grounding_videos``), so taking-from-the-top preserves the
+    "what's actually winning" ordering the FE renders.
+
+    Returns a deduped list of video_id strings (empty when ``pool`` is
+    empty or no entries have a video_id).
+    """
+    if not pool:
+        return []
+    target = (hook_type_en or "").strip().lower()
+
+    matched: list[str] = []
+    fallback: list[str] = []
+    for v in pool:
+        vid = v.get("video_id")
+        if not isinstance(vid, str) or not vid:
+            continue
+        v_hook = str(v.get("hook_type") or "").strip().lower()
+        if target and v_hook == target:
+            matched.append(vid)
+        else:
+            fallback.append(vid)
+
+    if len(matched) >= EVIDENCE_MIN_HOOK_MATCH:
+        return matched[:limit]
+    # Mix: matched first (preserves "this hook won here" framing), then
+    # fallback by views to fill up to limit.
+    out = list(matched)
+    for vid in fallback:
+        if len(out) >= limit:
+            break
+        out.append(vid)
+    return out[:limit]
+
+
 # ── Main entry ─────────────────────────────────────────────────────────────
 
 
@@ -527,6 +584,18 @@ def generate_ritual_for_user(
         if i >= len(scripts_out):
             break
         scripts_out[i].update(rec)
+
+    # L2.2 Sprint 4 — per-script evidence strip. Each ritual row gets up
+    # to 12 video_ids from the grounding pool that match the script's
+    # hook_type, so the FE can hydrate thumbnails on-demand and prove
+    # "this hook is winning right now in your niche". Falls back to top-
+    # of-pool when fewer than 4 hook-matched videos exist. Pre-Sprint-4
+    # ritual rows have no ``evidence_video_ids`` field and the FE
+    # gracefully omits the strip.
+    for item in scripts_out:
+        item["evidence_video_ids"] = _pick_evidence_for_script(
+            videos, item.get("hook_type_en", ""),
+        )
 
     return RitualResult(
         user_id=user_id,
@@ -645,6 +714,7 @@ def run_morning_ritual_batch(
 
 __all__ = [
     "CLAIM_TIERS",
+    "EVIDENCE_PER_SCRIPT",
     "HookTypeEn",
     "MIN_GROUNDING_VIDEOS",
     "PROFILE_SELECT_RITUAL_BATCH",

@@ -29,6 +29,13 @@ export type RitualScript = {
   sound_velocity?: SoundVelocity | null;
   sound_delta_pct?: number | null;
   urgency_band?: SoundUrgencyBand | null;
+  /** Evidence strip (L2.2 Sprint 4) — up to 12 video_corpus video_ids
+   * whose hook_type matches this script's hook_type_en (with top-of-pool
+   * fallback when fewer than 4 hook-matched videos exist). Drives the
+   * expandable "Xem N video tương tự" thumbnail strip on each StudioHero
+   * row. Absent on pre-Sprint-4 daily_ritual rows; the FE omits the
+   * trigger when the array is empty / undefined. */
+  evidence_video_ids?: string[];
 };
 
 export type DailyRitual = {

@@ -1,11 +1,13 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight, Music2 } from "lucide-react";
+import { ArrowRight, ChevronDown, Music2 } from "lucide-react";
 
+import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { Btn } from "@/components/v2/Btn";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
+import { useRitualEvidenceVideos } from "@/hooks/useRitualEvidenceVideos";
 import { analysisErrorCopy } from "@/lib/errorMessages";
-import { formatRelativeSinceVi } from "@/lib/formatters";
+import { formatRelativeSinceVi, formatViews } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
 import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 
@@ -209,6 +211,127 @@ const SoundRecommendationStrip = memo(function SoundRecommendationStrip({
   );
 });
 
+/**
+ * L2.2 Sprint 4 — Evidence strip per ritual row.
+ *
+ * Each ritual script ships up to 12 ``evidence_video_ids`` from the
+ * grounding pool that match the script's ``hook_type_en``. This
+ * component renders a collapsed "Xem N video tương tự ↓" trigger
+ * inline; on expand, it hydrates the corpus rows via
+ * ``useRitualEvidenceVideos`` and renders a horizontal-scroll thumbnail
+ * strip. Clicking a thumbnail opens the original TikTok video in a new
+ * tab — the goal here is *trust* (proof the hook is winning), not
+ * triggering another diagnosis.
+ *
+ * Lives **outside** the row's primary ``<button>`` so the trigger
+ * doesn't accidentally fire the "open script" navigation. Returns null
+ * when ``evidence_video_ids`` is absent / empty (pre-Sprint-4 rows).
+ */
+const RitualEvidenceStrip = memo(function RitualEvidenceStrip({
+  script,
+  rank,
+}: {
+  script: RitualScript;
+  rank: number;
+}) {
+  const ids = script.evidence_video_ids ?? [];
+  const [expanded, setExpanded] = useState(false);
+  const { data: videos, isPending, isError } = useRitualEvidenceVideos(ids, expanded);
+
+  if (ids.length === 0) return null;
+
+  const visibleCount = videos?.length ?? ids.length;
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => {
+          if (!expanded) {
+            logUsage("daily_ritual_evidence_expanded", {
+              rank,
+              hook_type_en: script.hook_type_en,
+              evidence_count: ids.length,
+            });
+          }
+          setExpanded((v) => !v);
+        }}
+        aria-expanded={expanded}
+        aria-controls={`ritual-evidence-${rank}`}
+        className="gv-mono inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-2)] transition-colors"
+      >
+        Xem {ids.length} video tương tự
+        <ChevronDown
+          className={"h-3 w-3 transition-transform " + (expanded ? "rotate-180" : "")}
+          strokeWidth={2.2}
+          aria-hidden
+        />
+      </button>
+      {expanded ? (
+        <div
+          id={`ritual-evidence-${rank}`}
+          className="mt-2 -mx-[18px] overflow-x-auto px-[18px]"
+        >
+          {isPending ? (
+            <div className="flex gap-2">
+              {Array.from({ length: Math.min(ids.length, 6) }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[120px] w-[68px] shrink-0 animate-pulse rounded-[3px] bg-[color:var(--gv-canvas-2)]"
+                />
+              ))}
+            </div>
+          ) : isError || !videos ? (
+            <p className="text-[11px] text-[color:var(--gv-ink-4)]">
+              Không tải được video tham chiếu — thử lại sau.
+            </p>
+          ) : visibleCount === 0 ? (
+            <p className="text-[11px] text-[color:var(--gv-ink-4)]">
+              Chưa có thumbnail cho hook này — kịch bản vẫn dùng được.
+            </p>
+          ) : (
+            <ul className="flex gap-2" aria-label={`Video chứng minh hook #${rank}`}>
+              {videos.map((v) => {
+                const handle = (v.creator_handle ?? "").replace(/^@/, "");
+                const href = handle
+                  ? `https://www.tiktok.com/@${handle}/video/${v.video_id}`
+                  : null;
+                const Element = href ? "a" : "div";
+                const interactiveProps = href
+                  ? { href, target: "_blank" as const, rel: "noopener noreferrer" }
+                  : {};
+                return (
+                  <li key={v.video_id} className="shrink-0">
+                    <Element
+                      {...interactiveProps}
+                      className="block w-[68px]"
+                      onClick={() =>
+                        logUsage("daily_ritual_evidence_thumb_clicked", {
+                          rank,
+                          hook_type_en: script.hook_type_en,
+                          video_id: v.video_id,
+                        })
+                      }
+                    >
+                      <VideoThumbnail
+                        thumbnailUrl={v.thumbnail_url}
+                        className="aspect-[9/12] w-full rounded-[3px] object-cover"
+                      />
+                      <span className="gv-mono mt-1 block truncate text-[9px] text-[color:var(--gv-ink-4)]">
+                        {formatViews(v.views)}
+                      </span>
+                    </Element>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+});
+
 const StudioHeroRow = memo(function StudioHeroRow({
   script,
   rank,
@@ -222,64 +345,69 @@ const StudioHeroRow = memo(function StudioHeroRow({
 }) {
   const rankLabel = String(rank).padStart(2, "0");
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={
-        "group grid w-full grid-cols-[40px_1fr_auto] items-center gap-x-4 gap-y-2 py-[18px] text-left transition-colors hover:bg-[color:var(--gv-canvas-2)] " +
+        "py-[18px] " +
         (isFirst ? "" : "border-t border-[color:var(--gv-rule)]")
       }
     >
-      <span
-        className="gv-mono self-start pt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink-4)]"
-        aria-hidden
+      <button
+        type="button"
+        onClick={onClick}
+        className="group grid w-full grid-cols-[40px_1fr_auto] items-center gap-x-4 gap-y-2 text-left transition-colors hover:bg-[color:var(--gv-canvas-2)]"
       >
-        {rankLabel}
-      </span>
-      <div className="min-w-0">
-        <div className="mb-1.5 flex flex-wrap items-center gap-2">
-          <span className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] bg-[color:var(--gv-ink)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-white">
-            HOOK #{rank}
-          </span>
-          <span
-            className="gv-mono inline-flex items-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
-            style={{
-              background: "color-mix(in srgb, var(--gv-pos) 12%, transparent)",
-              color: "var(--gv-pos-deep)",
-            }}
-          >
-            <span aria-hidden>●</span>
-            SCRIPT SẴN · {script.shot_count} shot · {script.length_sec}s
-          </span>
-          {script.hook_type_vi ? (
-            <span className="gv-mono text-[10px] font-medium text-[color:var(--gv-ink-4)]">
-              {script.hook_type_vi}
-            </span>
-          ) : null}
-        </div>
-        <p
-          className="gv-serif m-0 text-[19px] font-medium leading-[1.3] tracking-[-0.01em] text-[color:var(--gv-ink)]"
-          style={{ textWrap: "pretty" }}
+        <span
+          className="gv-mono self-start pt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] text-[color:var(--gv-ink-4)]"
+          aria-hidden
         >
-          &ldquo;{script.title_vi}&rdquo;
-        </p>
-        {script.why_works ? (
-          <p className="mt-1.5 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
-            {script.why_works}
+          {rankLabel}
+        </span>
+        <div className="min-w-0">
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
+            <span className="gv-mono inline-flex items-center whitespace-nowrap rounded-[2px] bg-[color:var(--gv-ink)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-white">
+              HOOK #{rank}
+            </span>
+            <span
+              className="gv-mono inline-flex items-center gap-1 whitespace-nowrap rounded-[2px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
+              style={{
+                background: "color-mix(in srgb, var(--gv-pos) 12%, transparent)",
+                color: "var(--gv-pos-deep)",
+              }}
+            >
+              <span aria-hidden>●</span>
+              SCRIPT SẴN · {script.shot_count} shot · {script.length_sec}s
+            </span>
+            {script.hook_type_vi ? (
+              <span className="gv-mono text-[10px] font-medium text-[color:var(--gv-ink-4)]">
+                {script.hook_type_vi}
+              </span>
+            ) : null}
+          </div>
+          <p
+            className="gv-serif m-0 text-[19px] font-medium leading-[1.3] tracking-[-0.01em] text-[color:var(--gv-ink)]"
+            style={{ textWrap: "pretty" }}
+          >
+            &ldquo;{script.title_vi}&rdquo;
           </p>
-        ) : null}
-        <SoundRecommendationStrip script={script} />
-      </div>
-      <div className="flex flex-col items-end gap-1 whitespace-nowrap">
-        <span className="gv-mono text-[14px] font-bold" style={{ color: "var(--gv-pos)" }}>
-          ▲ ~{script.retention_est_pct}%
-        </span>
-        <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">giữ chân</span>
-        <span className="gv-mono mt-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
-          MỞ SCRIPT
-          <ArrowRight className="h-3 w-3" strokeWidth={2.4} aria-hidden />
-        </span>
-      </div>
-    </button>
+          {script.why_works ? (
+            <p className="mt-1.5 text-[12.5px] leading-[1.5] text-[color:var(--gv-ink-3)]">
+              {script.why_works}
+            </p>
+          ) : null}
+          <SoundRecommendationStrip script={script} />
+        </div>
+        <div className="flex flex-col items-end gap-1 whitespace-nowrap">
+          <span className="gv-mono text-[14px] font-bold" style={{ color: "var(--gv-pos)" }}>
+            ▲ ~{script.retention_est_pct}%
+          </span>
+          <span className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">giữ chân</span>
+          <span className="gv-mono mt-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--gv-accent)] group-hover:translate-x-0.5 transition-transform">
+            MỞ SCRIPT
+            <ArrowRight className="h-3 w-3" strokeWidth={2.4} aria-hidden />
+          </span>
+        </div>
+      </button>
+      <RitualEvidenceStrip script={script} rank={rank} />
+    </div>
   );
 });
