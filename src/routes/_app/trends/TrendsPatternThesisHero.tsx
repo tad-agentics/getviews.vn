@@ -7,12 +7,13 @@ import { useNichePatternStats } from "@/hooks/useNichePatternStats";
  * Replaces the niche-intel-snapshot ``TrendsHeroCompact`` with the
  * design pack's editorial thesis hero (``screens/trends.jsx`` lines
  * 331-348): ink-bg card with a week kicker, a single H1 stating the
- * pattern thesis (``"X video đã phân tích trong tuần qua → Y pattern lặp lại"``), and a
- * 3-stat strip below.
+ * pattern thesis (``"X video đã phân tích trong tuần qua → Y pattern lặp lại"``); ``Y`` is
+ * patterns with instances in the pipeline stats week (``weekly_instance_count > 0``), not the
+ * rolling 7d video window. 3-stat strip below.
  *
  * Stats:
  *   • VIDEO ĐÃ PHÂN TÍCH — all analyzed videos in this niche (total)
- *   • PATTERN PHÁT HIỆN — active patterns covering the niche
+ *   • PATTERN PHÁT HIỆN — active patterns (sample) covering the niche
  *   • ĐỘ MỚI — fresh % (patterns with weekly_instance_count_prev = 0)
  *
  * Pattern stats come from ``useNichePatternStats(nicheId)`` —
@@ -44,6 +45,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
   const { data: stats } = useNichePatternStats(nicheId);
   const headlineVideos = formatStatCount(weekAnalyzedCount);
   const totalVideosLabel = formatStatCount(totalAnalyzedInNiche);
+  const headlinePatternsLabel = formatStatCount(stats?.patterns_active_this_week);
   const patternsLabel = stats?.total != null ? String(stats.total) : "—";
   const freshLabel = stats?.fresh_pct ?? "—";
 
@@ -61,7 +63,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
       >
         {headlineVideos} video đã phân tích trong tuần qua →{" "}
         <span className="text-[color:var(--gv-accent)]">
-          {patternsLabel} pattern
+          {headlinePatternsLabel} pattern
         </span>{" "}
         lặp lại
       </h1>

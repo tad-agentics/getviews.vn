@@ -23,7 +23,12 @@ afterEach(() => {
   cleanup();
 });
 
-const sampleStats: NichePatternStats = { total: 14, fresh: 9, fresh_pct: "64%" };
+const sampleStats: NichePatternStats = {
+  total: 14,
+  patterns_active_this_week: 7,
+  fresh: 9,
+  fresh_pct: "64%",
+};
 
 const defaultCounts = { weekAnalyzedCount: 301, totalAnalyzedInNiche: 47288 };
 
@@ -42,7 +47,7 @@ describe("TrendsPatternThesisHero", () => {
     expect(getByText(/TUẦN 17 · 22\.4—28\.4 · NGÁCH CÔNG NGHỆ/)).toBeTruthy();
     const h1 = getByRole("heading", { level: 1 });
     expect(h1.textContent).toContain("301 video đã phân tích trong tuần qua");
-    expect(h1.textContent).toContain("14 pattern");
+    expect(h1.textContent).toContain("7 pattern");
     expect(h1.textContent).toContain("lặp lại");
   });
 
@@ -76,7 +81,7 @@ describe("TrendsPatternThesisHero", () => {
     );
     const h1 = getByRole("heading", { level: 1 });
     expect(h1.textContent).toContain("— video đã phân tích trong tuần qua");
-    expect(h1.textContent).toContain("— pattern");
+    expect(h1.textContent).toMatch(/—\s*pattern/);
     expect(getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 
@@ -118,7 +123,7 @@ describe("TrendsPatternThesisHero", () => {
         {...defaultCounts}
       />,
     );
-    const span = getByText(/14 pattern/);
+    const span = getByText(/7 pattern/);
     expect(span.tagName).toBe("SPAN");
     expect(span.className).toMatch(/gv-accent/);
   });
