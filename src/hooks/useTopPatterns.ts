@@ -65,10 +65,13 @@ const MIN_NICHE_VIDEOS = 3;
  * 1.2× = noticeably above the typical video; lower thresholds let in noise. */
 const MIN_LIFT_VS_NICHE = 1.2;
 
-/** How many top-views niche videos to sample when computing the niche median.
- * 200 is plenty for a stable median across the rolling 30-day window without
- * pulling the entire corpus over the wire. */
-const NICHE_MEDIAN_SAMPLE = 200;
+/** L2.2 Sprint 7a — safety cap on the niche-views payload. We pull every
+ * 30d niche video for a true median; this cap protects the wire from a
+ * runaway niche (currently the largest niche has ~600 in 30d, but a
+ * future viral niche could spike). The cap is large enough that the
+ * head-bias of fetching only the top-N (which inflated the "median"
+ * 2-5× before this fix) is negligible at realistic niche sizes. */
+const NICHE_VIEWS_MAX = 5000;
 
 function computeMedian(values: ReadonlyArray<number>): number | null {
   const filtered = values.filter((v) => Number.isFinite(v) && v > 0);
@@ -138,9 +141,17 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
         .eq("niche_id", nicheId);
 
       // Step 3 — niche median over the recent corpus (lift denominator).
-      // ``views`` only — keeps the wire payload trivial. We sort DESC so
-      // the median is computed off the top-200 (roughly the active head
-      // of the niche), not the whole long tail of legacy rows.
+      // ``views`` only — payload is a single integer per row, ~6 bytes.
+      //
+      // L2.2 Sprint 7a — fetch every video in the 30d window, not just the
+      // top-N by views. The Sprint 5 ``NICHE_MEDIAN_SAMPLE = 200`` cap
+      // combined with ``ORDER BY views DESC`` silently computed the
+      // median of the top-200 head of the distribution → 2-5× higher
+      // than the true niche median for any niche with ≥200 videos in
+      // 30d. The 1.2× lift gate accidentally became 2.4-6× the true
+      // median, hiding patterns that actually were winning. Fix is to
+      // skip the order/limit-based sampling entirely and let the median
+      // be computed over the actual population.
       const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const medianPromise = supabase
         .from("video_corpus")
@@ -148,8 +159,7 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
         .eq("niche_id", nicheId)
         .gte("created_at", since30d)
         .not("views", "is", null)
-        .order("views", { ascending: false })
-        .limit(NICHE_MEDIAN_SAMPLE);
+        .limit(NICHE_VIEWS_MAX);
 
       const [corpusRes, medianRes] = await Promise.all([corpusPromise, medianPromise]);
       if (corpusRes.error) throw corpusRes.error;
