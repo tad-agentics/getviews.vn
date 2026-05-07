@@ -755,6 +755,21 @@ export default function ExploreScreen() {
     staleTime: 5 * 60_000,
   });
 
+  /** Niche-wide corpus size (no search / views / format) — powers TrendsPatternThesisHero only. */
+  const { data: nicheCorpusTotal } = useQuery({
+    queryKey: corpusKeys.nicheTotal(selectedNicheId),
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("video_corpus")
+        .select("*", { count: "planned", head: true })
+        .eq("niche_id", selectedNicheId!);
+      if (error) return null;
+      return count;
+    },
+    enabled: selectedNicheId != null,
+    staleTime: 5 * 60_000,
+  });
+
   const corpusRows = useMemo(() => (data?.pages ?? []).flat() as CorpusRow[], [data?.pages]);
   // BUG-14 (QA audit 2026-04-22): all corpus rows are tagged ``language='vi'``
   // even when the caption is Han/Hangul ("沉浸式早八 淡颜韩系日常妆" showed up
@@ -890,7 +905,7 @@ export default function ExploreScreen() {
                 nicheId={selectedNicheId}
                 nicheLabel={selectedNicheName}
                 weekKicker={viWeekKicker()}
-                corpusCount={corpusCount}
+                corpusCount={nicheCorpusTotal ?? null}
               />
             ) : null}
             <TrendingSoundsSection nicheId={selectedNicheId} className="mb-4 min-[1100px]:hidden" />

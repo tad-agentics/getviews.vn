@@ -38,7 +38,7 @@ describe("TrendsPatternThesisHero", () => {
     );
     expect(getByText(/TUẦN 17 · 22\.4—28\.4 · NGÁCH CÔNG NGHỆ/)).toBeTruthy();
     const h1 = getByRole("heading", { level: 1 });
-    expect(h1.textContent).toContain("47.288 video tuần qua");
+    expect(h1.textContent).toContain("47.288 video trong corpus");
     expect(h1.textContent).toContain("14 pattern");
     expect(h1.textContent).toContain("lặp lại");
   });
@@ -70,7 +70,7 @@ describe("TrendsPatternThesisHero", () => {
       />,
     );
     const h1 = getByRole("heading", { level: 1 });
-    expect(h1.textContent).toContain("— video tuần qua");
+    expect(h1.textContent).toContain("— video trong corpus");
     expect(h1.textContent).toContain("— pattern");
     // Em-dashes show in stat cells too.
     expect(getAllByText("—").length).toBeGreaterThanOrEqual(2);

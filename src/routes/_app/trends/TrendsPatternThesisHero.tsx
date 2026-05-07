@@ -7,11 +7,11 @@ import { useNichePatternStats } from "@/hooks/useNichePatternStats";
  * Replaces the niche-intel-snapshot ``TrendsHeroCompact`` with the
  * design pack's editorial thesis hero (``screens/trends.jsx`` lines
  * 331-348): ink-bg card with a week kicker, a single H1 stating the
- * pattern thesis (``"X video tuần qua → Y pattern lặp lại"``), and a
+ * pattern thesis (``"X video trong corpus → Y pattern lặp lại"``), and a
  * 3-stat strip below.
  *
  * Stats:
- *   • VIDEO ĐÃ PHÂN TÍCH — total corpus videos in the niche (30d window)
+ *   • VIDEO ĐÃ PHÂN TÍCH — all ``video_corpus`` rows for the niche (no grid filters)
  *   • PATTERN PHÁT HIỆN — active patterns covering the niche
  *   • ĐỘ MỚI — fresh % (patterns with weekly_instance_count_prev = 0)
  *
@@ -31,9 +31,9 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
   nicheLabel: string;
   /** "TUẦN 16 · 12.4—18.4" — caller computes for testability. */
   weekKicker: string;
-  /** Total corpus videos in the niche; falls back to "—" when null. */
+  /** Total ``video_corpus`` rows for the niche (unfiltered); falls back to "—" when null. */
   corpusCount: number | null | undefined;
-  /** Optional sub-label for VIDEO ĐÃ PHÂN TÍCH (e.g. "89 creator hàng đầu"). */
+  /** Optional sub-label for VIDEO ĐÃ PHÂN TÍCH (replaces default "Tổng trong corpus ngách"). */
   topCreatorsLabel?: string;
 }) {
   const { data: stats } = useNichePatternStats(nicheId);
@@ -53,7 +53,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
         className="gv-tight m-0 mb-[18px] text-[clamp(28px,4vw,46px)] font-semibold leading-[1.05] tracking-[-0.03em] text-[color:var(--gv-canvas)]"
         style={{ textWrap: "pretty" }}
       >
-        {videosLabel} video tuần qua →{" "}
+        {videosLabel} video trong corpus →{" "}
         <span className="text-[color:var(--gv-accent)]">
           {patternsLabel} pattern
         </span>{" "}
@@ -63,7 +63,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
         <HeroStat
           label="VIDEO ĐÃ PHÂN TÍCH"
           value={videosLabel}
-          sub={topCreatorsLabel ?? "Trong 30 ngày"}
+          sub={topCreatorsLabel ?? "Tổng trong corpus ngách"}
         />
         <HeroStat
           label="PATTERN PHÁT HIỆN"

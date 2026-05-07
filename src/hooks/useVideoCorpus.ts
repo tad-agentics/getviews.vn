@@ -25,6 +25,8 @@ export const corpusKeys = {
    *  filter chip's "N kết quả" affordance without paying for a full fetch. */
   count: (filters: Pick<VideoCorpusFilters, "nicheId" | "search" | "minViews" | "contentFormat">) =>
     ["video_corpus", "count", filters] as const,
+  /** All indexed videos for a niche — no search / views / format filters (hero, trust). */
+  nicheTotal: (nicheId: number | null) => ["video_corpus", "niche_total", nicheId] as const,
 };
 
 export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
