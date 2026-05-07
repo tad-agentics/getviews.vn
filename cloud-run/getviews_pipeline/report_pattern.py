@@ -444,7 +444,11 @@ def build_pattern_report(
         findings=findings,
         what_stalled=stalled_models,
         evidence_videos=evidence if evidence else pick_evidence_videos(corpus, set(), limit=6),
-        patterns=build_pattern_cells(ni, trending_sounds=ctx.get("trending_sounds")),
+        patterns=build_pattern_cells(
+            ni,
+            trending_sounds=ctx.get("trending_sounds"),
+            sound_trends=ctx.get("sound_trends"),
+        ),
         actions=static_action_cards(baseline_views),
         sources=sources,
         related_questions=list(narr.get("related_questions") or [])[:4],
