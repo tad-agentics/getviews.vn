@@ -755,14 +755,31 @@ export default function ExploreScreen() {
     staleTime: 5 * 60_000,
   });
 
-  /** Niche-wide corpus size (no search / views / format) — powers TrendsPatternThesisHero only. */
-  const { data: nicheCorpusTotal } = useQuery({
+  /** Total analyzed videos in niche — hero stat only (no grid filters). */
+  const { data: nicheTotalCount } = useQuery({
     queryKey: corpusKeys.nicheTotal(selectedNicheId),
     queryFn: async () => {
       const { count, error } = await supabase
         .from("video_corpus")
         .select("*", { count: "planned", head: true })
         .eq("niche_id", selectedNicheId!);
+      if (error) return null;
+      return count;
+    },
+    enabled: selectedNicheId != null,
+    staleTime: 5 * 60_000,
+  });
+
+  /** Rolling 7d indexed count — hero H1 (“tuần qua”); uses ``indexed_at`` like the grid date filter. */
+  const { data: nicheWeekCount } = useQuery({
+    queryKey: corpusKeys.nicheLast7d(selectedNicheId),
+    queryFn: async () => {
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { count, error } = await supabase
+        .from("video_corpus")
+        .select("*", { count: "planned", head: true })
+        .eq("niche_id", selectedNicheId!)
+        .gte("indexed_at", since);
       if (error) return null;
       return count;
     },
@@ -905,7 +922,8 @@ export default function ExploreScreen() {
                 nicheId={selectedNicheId}
                 nicheLabel={selectedNicheName}
                 weekKicker={viWeekKicker()}
-                corpusCount={nicheCorpusTotal ?? null}
+                weekAnalyzedCount={nicheWeekCount ?? null}
+                totalAnalyzedInNiche={nicheTotalCount ?? null}
               />
             ) : null}
             <TrendingSoundsSection nicheId={selectedNicheId} className="mb-4 min-[1100px]:hidden" />

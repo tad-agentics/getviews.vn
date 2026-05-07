@@ -27,6 +27,8 @@ export const corpusKeys = {
     ["video_corpus", "count", filters] as const,
   /** All indexed videos for a niche — no search / views / format filters (hero, trust). */
   nicheTotal: (nicheId: number | null) => ["video_corpus", "niche_total", nicheId] as const,
+  /** Videos indexed in the rolling last 7 days for a niche (hero H1). */
+  nicheLast7d: (nicheId: number | null) => ["video_corpus", "niche_last7d", nicheId] as const,
 };
 
 export function useVideoCorpus(filters: VideoCorpusFilters = {}) {

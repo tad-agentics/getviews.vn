@@ -25,54 +25,58 @@ afterEach(() => {
 
 const sampleStats: NichePatternStats = { total: 14, fresh: 9, fresh_pct: "64%" };
 
+const defaultCounts = { weekAnalyzedCount: 301, totalAnalyzedInNiche: 47288 };
+
 describe("TrendsPatternThesisHero", () => {
-  it("renders the week kicker, niche name, and pattern thesis H1", () => {
+  it("renders the week kicker, niche name, and pattern thesis H1 (week vs patterns)", () => {
     mockUseNichePatternStats.mockReturnValue({ data: sampleStats });
     const { getByText, getByRole } = render(
       <TrendsPatternThesisHero
         nicheId={4}
         nicheLabel="Công nghệ"
         weekKicker="TUẦN 17 · 22.4—28.4"
-        corpusCount={47288}
+        weekAnalyzedCount={301}
+        totalAnalyzedInNiche={47288}
       />,
     );
     expect(getByText(/TUẦN 17 · 22\.4—28\.4 · NGÁCH CÔNG NGHỆ/)).toBeTruthy();
     const h1 = getByRole("heading", { level: 1 });
-    expect(h1.textContent).toContain("47.288 video trong corpus");
+    expect(h1.textContent).toContain("301 video đã phân tích trong tuần qua");
     expect(h1.textContent).toContain("14 pattern");
     expect(h1.textContent).toContain("lặp lại");
   });
 
-  it("renders the 3-stat strip with corpus count, pattern total, fresh %", () => {
+  it("renders the 3-stat strip with total analyzed, pattern total, fresh %", () => {
     mockUseNichePatternStats.mockReturnValue({ data: sampleStats });
     const { getAllByText } = render(
       <TrendsPatternThesisHero
         nicheId={4}
         nicheLabel="Công nghệ"
         weekKicker="TUẦN 17"
-        corpusCount={47288}
+        {...defaultCounts}
       />,
     );
     expect(getAllByText("VIDEO ĐÃ PHÂN TÍCH").length).toBeGreaterThan(0);
+    expect(getAllByText("47.288").length).toBeGreaterThan(0);
     expect(getAllByText("PATTERN PHÁT HIỆN").length).toBeGreaterThan(0);
     expect(getAllByText("ĐỘ MỚI").length).toBeGreaterThan(0);
     expect(getAllByText("64%").length).toBeGreaterThan(0);
   });
 
-  it("renders em-dash placeholders when stats and corpus count are unavailable", () => {
+  it("renders em-dash placeholders when stats and counts are unavailable", () => {
     mockUseNichePatternStats.mockReturnValue({ data: null });
     const { getByRole, getAllByText } = render(
       <TrendsPatternThesisHero
         nicheId={4}
         nicheLabel="Công nghệ"
         weekKicker="TUẦN 17"
-        corpusCount={null}
+        weekAnalyzedCount={null}
+        totalAnalyzedInNiche={null}
       />,
     );
     const h1 = getByRole("heading", { level: 1 });
-    expect(h1.textContent).toContain("— video trong corpus");
+    expect(h1.textContent).toContain("— video đã phân tích trong tuần qua");
     expect(h1.textContent).toContain("— pattern");
-    // Em-dashes show in stat cells too.
     expect(getAllByText("—").length).toBeGreaterThanOrEqual(2);
   });
 
@@ -83,7 +87,7 @@ describe("TrendsPatternThesisHero", () => {
         nicheId={4}
         nicheLabel="Công nghệ"
         weekKicker="TUẦN 17"
-        corpusCount={47288}
+        {...defaultCounts}
         topCreatorsLabel="89 creator hàng đầu"
       />,
     );
@@ -97,7 +101,8 @@ describe("TrendsPatternThesisHero", () => {
         nicheId={4}
         nicheLabel="ẩm thực"
         weekKicker="TUẦN 17"
-        corpusCount={1000}
+        weekAnalyzedCount={50}
+        totalAnalyzedInNiche={1000}
       />,
     );
     expect(getByText(/NGÁCH ẨM THỰC/)).toBeTruthy();
@@ -110,7 +115,7 @@ describe("TrendsPatternThesisHero", () => {
         nicheId={4}
         nicheLabel="Công nghệ"
         weekKicker="TUẦN 17"
-        corpusCount={47288}
+        {...defaultCounts}
       />,
     );
     const span = getByText(/14 pattern/);

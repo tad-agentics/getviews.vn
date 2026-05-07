@@ -7,11 +7,11 @@ import { useNichePatternStats } from "@/hooks/useNichePatternStats";
  * Replaces the niche-intel-snapshot ``TrendsHeroCompact`` with the
  * design pack's editorial thesis hero (``screens/trends.jsx`` lines
  * 331-348): ink-bg card with a week kicker, a single H1 stating the
- * pattern thesis (``"X video trong corpus → Y pattern lặp lại"``), and a
+ * pattern thesis (``"X video đã phân tích trong tuần qua → Y pattern lặp lại"``), and a
  * 3-stat strip below.
  *
  * Stats:
- *   • VIDEO ĐÃ PHÂN TÍCH — all ``video_corpus`` rows for the niche (no grid filters)
+ *   • VIDEO ĐÃ PHÂN TÍCH — all analyzed videos in this niche (total)
  *   • PATTERN PHÁT HIỆN — active patterns covering the niche
  *   • ĐỘ MỚI — fresh % (patterns with weekly_instance_count_prev = 0)
  *
@@ -20,24 +20,30 @@ import { useNichePatternStats } from "@/hooks/useNichePatternStats";
  * (returns null) when the caller hasn't picked a niche yet.
  */
 
+const DEFAULT_TOTAL_VIDEO_SUB = "Tổng video GetViews đã phân tích trong ngách này";
+
 export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
   nicheId,
   nicheLabel,
   weekKicker,
-  corpusCount,
+  weekAnalyzedCount,
+  totalAnalyzedInNiche,
   topCreatorsLabel,
 }: {
   nicheId: number | null;
   nicheLabel: string;
   /** "TUẦN 16 · 12.4—18.4" — caller computes for testability. */
   weekKicker: string;
-  /** Total ``video_corpus`` rows for the niche (unfiltered); falls back to "—" when null. */
-  corpusCount: number | null | undefined;
-  /** Optional sub-label for VIDEO ĐÃ PHÂN TÍCH (replaces default "Tổng trong corpus ngách"). */
+  /** Videos indexed in the last 7 days for the niche (H1); falls back to "—" when null. */
+  weekAnalyzedCount: number | null | undefined;
+  /** All analyzed videos in the niche (first stat); falls back to "—" when null. */
+  totalAnalyzedInNiche: number | null | undefined;
+  /** Optional sub-label for VIDEO ĐÃ PHÂN TÍCH (replaces default product copy). */
   topCreatorsLabel?: string;
 }) {
   const { data: stats } = useNichePatternStats(nicheId);
-  const videosLabel = formatCorpusCount(corpusCount);
+  const headlineVideos = formatStatCount(weekAnalyzedCount);
+  const totalVideosLabel = formatStatCount(totalAnalyzedInNiche);
   const patternsLabel = stats?.total != null ? String(stats.total) : "—";
   const freshLabel = stats?.fresh_pct ?? "—";
 
@@ -53,7 +59,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
         className="gv-tight m-0 mb-[18px] text-[clamp(28px,4vw,46px)] font-semibold leading-[1.05] tracking-[-0.03em] text-[color:var(--gv-canvas)]"
         style={{ textWrap: "pretty" }}
       >
-        {videosLabel} video trong corpus →{" "}
+        {headlineVideos} video đã phân tích trong tuần qua →{" "}
         <span className="text-[color:var(--gv-accent)]">
           {patternsLabel} pattern
         </span>{" "}
@@ -62,8 +68,8 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
       <div className="grid grid-cols-1 gap-5 border-t border-[color:var(--gv-ink-2)] pt-4 sm:grid-cols-3 sm:gap-6">
         <HeroStat
           label="VIDEO ĐÃ PHÂN TÍCH"
-          value={videosLabel}
-          sub={topCreatorsLabel ?? "Tổng trong corpus ngách"}
+          value={totalVideosLabel}
+          sub={topCreatorsLabel ?? DEFAULT_TOTAL_VIDEO_SUB}
         />
         <HeroStat
           label="PATTERN PHÁT HIỆN"
@@ -96,7 +102,7 @@ function HeroStat({ label, value, sub }: { label: string; value: string; sub: st
   );
 }
 
-function formatCorpusCount(n: number | null | undefined): string {
+function formatStatCount(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
   return n.toLocaleString("vi-VN");
 }
