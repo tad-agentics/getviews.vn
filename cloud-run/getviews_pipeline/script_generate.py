@@ -348,7 +348,101 @@ def _format_timestamp(seconds: int) -> str:
     return f"{s // 60}:{s % 60:02d}"
 
 
-def _call_script_gemini(body: ScriptGenerateBody) -> ScriptGenerateLLM:
+def _format_views_compact(n: int) -> str:
+    """Vietnamese-friendly compact view count: 1234567 → '1.2tr', 12345 → '12k'."""
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}tr"
+    if n >= 1_000:
+        return f"{n // 1_000}k"
+    return str(n)
+
+
+def _fetch_top_niche_hooks(
+    client: Any | None,
+    niche_id: int,
+    *,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
+    """Top hooks in the niche by avg_views, with retention + sample size.
+
+    Used by ``_call_script_gemini`` as evidence-backed context: instead
+    of relying on ``_BACKBONE``'s generic structure, the LLM sees what's
+    actually winning in the niche this week and grounds the script's
+    hook + tone in real performance data.
+
+    Returns a list of dicts shaped for ``_format_hook_evidence_block``;
+    empty list on any failure (graceful — Gemini falls back to its
+    default creative output and the deterministic ``_BACKBONE`` rows
+    cover the structural fields anyway).
+    """
+    if client is None or niche_id is None or niche_id < 1:
+        return []
+    try:
+        res = (
+            client.table("hook_effectiveness")
+            .select("hook_type, avg_views, avg_completion_rate, sample_size")
+            .eq("niche_id", niche_id)
+            .order("avg_views", desc=True)
+            .limit(max(limit * 2, 6))  # over-fetch; we filter "other"/"none"
+            .execute()
+        )
+        rows = res.data or []
+    except Exception as exc:
+        logger.warning(
+            "[script/generate] hook_effectiveness fetch failed niche=%s: %s",
+            niche_id, exc,
+        )
+        return []
+
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        ht = (r.get("hook_type") or "").strip().lower()
+        if not ht or ht in ("other", "none"):
+            continue
+        out.append({
+            "hook_type": ht,
+            "avg_views": int(r.get("avg_views") or 0),
+            "completion_pct": round(float(r.get("avg_completion_rate") or 0) * 100, 1),
+            "sample_size": int(r.get("sample_size") or 0),
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _format_hook_evidence_block(hooks: list[dict[str, Any]]) -> str:
+    """Compact Vietnamese evidence block for the Gemini prompt.
+
+    Empty string when no hooks — caller treats it as "no evidence
+    section in the prompt" so the prompt shape stays the same as before
+    L2.2. Uses HOOK_TYPE_VI for the human label and keeps the English
+    enum visible so Gemini can map back if needed.
+    """
+    if not hooks:
+        return ""
+    from getviews_pipeline.enum_labels_vi import hook_type_vi
+
+    lines = ["", "Hook đang thắng trong ngách (top tuần qua, có dữ liệu):"]
+    for i, h in enumerate(hooks, start=1):
+        vi = hook_type_vi(h["hook_type"], default=h["hook_type"])
+        n = _format_views_compact(h["avg_views"])
+        lines.append(
+            f"{i}. {vi} ({h['hook_type']}) — trung bình {n} view, "
+            f"giữ chân {h['completion_pct']}% ({h['sample_size']} video)"
+        )
+    lines.append(
+        "Khi viết shot 1 (hook), ưu tiên giọng + cấu trúc giống hook "
+        "hạng cao nhất ở trên — đây là pattern đã được kiểm chứng trên ngách, "
+        "không phải mẫu chung."
+    )
+    return "\n".join(lines)
+
+
+def _call_script_gemini(
+    body: ScriptGenerateBody,
+    *,
+    top_hooks: list[dict[str, Any]] | None = None,
+) -> ScriptGenerateLLM:
     """Pydantic-bound Gemini synthesis for 6 shots. Raises on any failure."""
     from google.genai import types
 
@@ -362,6 +456,9 @@ def _call_script_gemini(body: ScriptGenerateBody) -> ScriptGenerateLLM:
     topic = _sanitize_snippet(body.topic, 500)
     hook = _sanitize_snippet(body.hook, 200)
     delay_s = round(body.hook_delay_ms / 1000.0, 2)
+    # L2.2 — evidence block from hook_effectiveness. Empty string when no
+    # data; the prompt then matches the pre-L2.2 shape exactly.
+    hook_evidence = _format_hook_evidence_block(top_hooks or [])
 
     prompt = f"""Bạn là biên kịch TikTok tiếng Việt ngắn (dưới {body.duration}s). Viết kịch bản 6 shot cho video.
 
@@ -370,6 +467,7 @@ Hook (dùng cho shot 1): {hook}
 Hook rơi lúc: {delay_s}s
 Tone: {body.tone}
 Thời lượng tổng: {body.duration}s
+{hook_evidence}
 
 Cấu trúc 6 shot CỐ ĐỊNH (phải giữ đúng overlay + intel_scene_type theo template):
 1. cam="Cận mặt", overlay="BOLD CENTER", intel_scene_type="face_to_camera" — hook mạnh trong 3s đầu.
@@ -421,7 +519,11 @@ Quy tắc copy:
     return ScriptGenerateLLM.model_validate_json(_normalize_response(raw))
 
 
-def build_script_shots(body: ScriptGenerateBody) -> list[dict[str, Any]]:
+def build_script_shots(
+    body: ScriptGenerateBody,
+    *,
+    client: Any | None = None,
+) -> list[dict[str, Any]]:
     """Gemini-first shot builder with deterministic fallback.
 
     Returns the B.4 response shape — 6 shots each with
@@ -430,13 +532,22 @@ def build_script_shots(body: ScriptGenerateBody) -> list[dict[str, Any]]:
     (framing/pace/overlay_style/subject/motion). ``references`` is
     added by the outer ``run_script_generate_sync`` — matcher needs
     the Supabase client which isn't in scope here.
+
+    ``client`` (optional, L2.2 — service-role Supabase) gates the hook
+    evidence enrichment: when present, the top niche hooks from
+    ``hook_effectiveness`` are injected into the Gemini prompt so the
+    LLM grounds its hook + tone choices in real performance data
+    instead of generic backbone defaults. ``None`` keeps the legacy
+    Gemini-only behaviour — useful for tests and any caller that
+    doesn't have a service client at this layer.
     """
     topic = _sanitize_snippet(body.topic, 500)
     hook = _sanitize_snippet(body.hook, 200)
+    top_hooks = _fetch_top_niche_hooks(client, body.niche_id) if client is not None else []
 
     creative: list[_CreativeRow] | None = None
     try:
-        llm = _call_script_gemini(body)
+        llm = _call_script_gemini(body, top_hooks=top_hooks)
         creative = [
             (
                 s.cam, s.overlay, s.intel_scene_type,
@@ -530,7 +641,11 @@ def run_script_generate_sync(
     service_sb: Any | None = None,
 ) -> dict[str, Any]:
     _decrement_credit_or_raise(user_sb, user_id=user_id)
-    shots = build_script_shots(body)
+    # L2.2 — pass service_sb to ``build_script_shots`` so the Gemini
+    # prompt can inject the niche's top hook_effectiveness rows as
+    # evidence. service_sb (not user_sb) because hook_effectiveness is
+    # service-role-readable; user-scoped reads would hit RLS.
+    shots = build_script_shots(body, client=service_sb)
 
     # Reference lookup against video_shots. service_sb is optional at
     # this layer so tests can inject a mock; in the route handler we
