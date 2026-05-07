@@ -51,6 +51,7 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   lift_vs_niche: 2.4,
   sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
   videos: sampleVideos,
+  tier: "strong",
   structure: [
     "Mở: câu hỏi cá nhân (0-2s)",
     "Setup: bối cảnh dùng sản phẩm (2-6s)",
@@ -109,6 +110,36 @@ describe("PatternCard", () => {
       <PatternCard pattern={samplePattern({ lift_vs_niche: 4.6 })} />,
     );
     expect(getByText(/↑ 5× ngách/)).toBeTruthy();
+  });
+
+  it("renders the 'Tín hiệu sớm' badge instead of the lift badge for tier=early (Sprint 7b)", () => {
+    const earlyPattern = samplePattern({
+      tier: "early",
+      niche_video_count: 1,
+      lift_vs_niche: 13.7,   // strong lift, but only 1 sample
+    });
+    const { getByText, queryByText } = render(<PatternCard pattern={earlyPattern} />);
+    // The "đang chạy tốt" badge ("↑ X× ngách") is gated to tier=strong.
+    expect(queryByText(/× ngách$/)).toBeNull();
+    // Tier-B framing surfaces the lift (formatted as integer for ≥3×) inside
+    // the early-signal label.
+    expect(getByText(/Tín hiệu sớm · ↑14×/)).toBeTruthy();
+    // The within-niche count still shows so creators see the small sample
+    // (n=1) and can judge credibility for themselves.
+    expect(getByText("1 video trong ngách")).toBeTruthy();
+  });
+
+  it("does not render any tier badge when tier is missing or lift is null on early tier", () => {
+    const earlyNoLift = samplePattern({
+      tier: "early",
+      niche_video_count: 2,
+      lift_vs_niche: null,
+    });
+    const { container } = render(<PatternCard pattern={earlyNoLift} />);
+    // Defensive — early tier without lift renders the early label without
+    // the inline lift suffix; the niche count still surfaces.
+    expect(container.textContent).toContain("Tín hiệu sớm");
+    expect(container.textContent).toContain("2 video trong ngách");
   });
 
   it("shows the verb-CTA so creators know clicking will teach the formula", () => {

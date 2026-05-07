@@ -41,6 +41,14 @@ export type TopPattern = {
   /** Top videos in this pattern by view count, niche-scoped. Empty array when
    * no corpus rows tagged with the pattern exist in the caller's niche. */
   videos: PatternVideo[];
+  /** L2.2 Sprint 7b — credibility tier the card was admitted under.
+   *  - ``"strong"`` — n≥3 AND lift≥1.2× (the original Sprint 5 strict gate).
+   *    Card renders with the green ``↑ {lift}× ngách`` badge.
+   *  - ``"early"`` — n≥1 AND lift≥1.5× (relaxed count, raised lift to keep
+   *    anti-signal patterns out). Card renders with a yellow "Tín hiệu sớm"
+   *    badge so creators know it's a smaller-sample observation, not a
+   *    credible "đang chạy tốt" claim. */
+  tier: "strong" | "early";
   /**
    * Deck content synthesized by ``pattern_deck_synth.py`` (nightly).
    * All four fields are ``null`` until the cron has run for this
@@ -56,14 +64,19 @@ export type TopPattern = {
 /** Studio Home hook tier + ``HooksTable`` — shared cap (query key includes this). */
 export const STUDIO_HOME_TOP_PATTERNS_LIMIT = 6;
 
-/** L2.2 Sprint 5 — minimum niche-scoped corpus rows required to count as a
- * "công thức". Below this we don't have enough samples to claim the
- * pattern is winning in the niche; better to drop the card. */
-const MIN_NICHE_VIDEOS = 3;
+/** L2.2 Sprint 5 — Tier A ("strong" credibility) gate. n≥3 niche-scoped
+ *  corpus rows AND avg-views at least 1.2× the niche 30d median. */
+const TIER_A_MIN_NICHE_VIDEOS = 3;
+const TIER_A_MIN_LIFT = 1.2;
 
-/** Required lift over niche median for a pattern to count as "đang chạy tốt".
- * 1.2× = noticeably above the typical video; lower thresholds let in noise. */
-const MIN_LIFT_VS_NICHE = 1.2;
+/** L2.2 Sprint 7b — Tier B ("early signal") gate. Drops the n≥3 floor but
+ *  raises the lift bar to 1.5× to filter anti-signal patterns
+ *  (e.g., n=3 patterns averaging *below* niche median). The asymmetry
+ *  is deliberate: a single video at 13× niche median is more
+ *  trustworthy than three videos at 0.3× niche median. Card chrome
+ *  flags these as "Tín hiệu sớm" so creators don't read them as
+ *  "đang chạy tốt" — the strict claim stays reserved for Tier A. */
+const TIER_B_MIN_LIFT = 1.5;
 
 /** L2.2 Sprint 7a — safety cap on the niche-views payload. We pull every
  * 30d niche video for a true median; this cap protects the wire from a
@@ -207,49 +220,61 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
         byPattern.set(pid, acc);
       }
 
-      const enriched = eligible.map((p) => {
+      // Tier the patterns:
+      //   Tier A — strict credibility ("đang chạy tốt"): n≥3 AND lift≥1.2×.
+      //   Tier B — early signal ("tín hiệu sớm"): n≥1 AND lift≥1.5×.
+      // Patterns missing both gates are dropped (no card). When ``lift`` is
+      // null (niche median unknown), only Tier A's count gate applies — we
+      // can't tier as "early signal" without a lift comparator, so we tier
+      // by ``strong`` if n is sufficient, else drop.
+      type Tier = "strong" | "early" | null;
+      const tierOf = (n: number, lift: number | null): Tier => {
+        if (lift == null) return n >= TIER_A_MIN_NICHE_VIDEOS ? "strong" : null;
+        if (n >= TIER_A_MIN_NICHE_VIDEOS && lift >= TIER_A_MIN_LIFT) return "strong";
+        if (n >= 1 && lift >= TIER_B_MIN_LIFT) return "early";
+        return null;
+      };
+
+      const enriched = eligible.flatMap((p) => {
         const stat = byPattern.get(p.id);
+        const n = stat?.n ?? 0;
         const avgViews = stat && stat.n > 0 ? Math.round(stat.totalViews / stat.n) : null;
         const lift =
           avgViews != null && nicheMedian != null && nicheMedian > 0
             ? avgViews / nicheMedian
             : null;
+        const tier = tierOf(n, lift);
+        if (tier == null) return [];
         const videos = stat
           ? [...stat.rows].sort((a, b) => b.views - a.views).slice(0, 4)
           : [];
-        return {
+        return [{
           ...p,
-          niche_video_count: stat?.n ?? 0,
+          niche_video_count: n,
           avg_views: avgViews,
           lift_vs_niche: lift,
           sample_hook: stat?.topHook ?? null,
           videos,
+          tier,
           structure: (p as { structure?: string[] | null }).structure ?? null,
           why: (p as { why?: string | null }).why ?? null,
           careful: (p as { careful?: string | null }).careful ?? null,
           angles: (p as { angles?: PatternDeckAngle[] | null }).angles ?? null,
-        };
+        }];
       });
 
-      // Filter — no credibility below MIN_NICHE_VIDEOS or below the lift
-      // threshold. When nicheMedian is unknown (corpus too thin to compute),
-      // we keep the credibility filter and rely on niche_video_count alone.
-      const filtered = enriched.filter((p) => {
-        if (p.niche_video_count < MIN_NICHE_VIDEOS) return false;
-        if (p.lift_vs_niche != null && p.lift_vs_niche < MIN_LIFT_VS_NICHE) return false;
-        return true;
-      });
-
-      // Rank by lift DESC, tie-break by within-niche n (more samples = more
-      // confidence). Patterns with null lift (no median) sort last.
-      filtered.sort((a, b) => {
+      // Rank: strong tier first (sorted by lift DESC), then early tier
+      // (sorted by lift DESC). Within a tier, tie-break by within-niche n
+      // (more samples = more confidence).
+      enriched.sort((a, b) => {
+        if (a.tier !== b.tier) return a.tier === "strong" ? -1 : 1;
         const lA = a.lift_vs_niche ?? -1;
         const lB = b.lift_vs_niche ?? -1;
         if (lB !== lA) return lB - lA;
         return b.niche_video_count - a.niche_video_count;
       });
 
-      return filtered.slice(0, limit);
+      return enriched.slice(0, limit);
     },
     enabled: nicheId != null,
     staleTime: 10 * 60 * 1000,

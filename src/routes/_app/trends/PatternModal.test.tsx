@@ -24,6 +24,7 @@ const samplePattern = (overrides: Partial<TopPattern> = {}): TopPattern => ({
   niche_spread: [4],
   avg_views: 142_000,
   lift_vs_niche: 1.8,
+  tier: "strong",
   sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
   videos: [
     {
