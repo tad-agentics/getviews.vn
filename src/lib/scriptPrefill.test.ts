@@ -21,6 +21,30 @@ describe("scriptPrefillFromRitual", () => {
     expect(qs.get("hook")).toBe("So sánh");
     expect(qs.get("duration")).toBe("45");
   });
+
+  it("forwards sound_id + sound_name when ritual carries Sound Radar fields (L2.2 Sprint 3)", () => {
+    const path = scriptPrefillFromRitual(
+      {
+        ...ritualSample,
+        sound_id: "abc123",
+        sound_name: "Hot Track",
+        sound_velocity: "accelerating",
+        sound_delta_pct: 200,
+        urgency_band: "post_within_48h",
+      },
+      3,
+    );
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("sound_id")).toBe("abc123");
+    expect(qs.get("sound_name")).toBe("Hot Track");
+  });
+
+  it("omits sound_* params when fields are absent (pre-Sprint-3 ritual rows)", () => {
+    const path = scriptPrefillFromRitual(ritualSample, 3);
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("sound_id")).toBeNull();
+    expect(qs.get("sound_name")).toBeNull();
+  });
 });
 
 describe("scriptPrefillFromChannel", () => {
