@@ -363,7 +363,7 @@ function SessionRow({
   return (
     <div className="relative group/row">
       {renaming ? (
-        <div className="flex items-center gap-1 px-2 py-1.5">
+        <div className="flex items-center gap-1 px-2 py-1">
           <input
             ref={inputRef}
             value={draft}
@@ -385,7 +385,7 @@ function SessionRow({
       ) : (
         <div
           className={
-            "flex items-center gap-2 rounded-md px-2.5 py-[7px] transition-colors duration-100 " +
+            "flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors duration-100 " +
             (isActive && session.source === "answer"
               ? "bg-[color:var(--gv-ink)] text-[color:var(--gv-canvas)]"
               : "hover:bg-[rgba(20,17,12,0.04)]")
@@ -396,7 +396,7 @@ function SessionRow({
             title={displayLabel}
             aria-current={isActive && session.source === "answer" ? "true" : undefined}
             className={
-              "flex min-w-0 flex-1 items-center gap-2 text-left text-[12px] " +
+              "flex min-w-0 flex-1 items-center gap-1.5 text-left text-[12px] leading-snug " +
               (isActive && session.source === "answer"
                 ? "font-semibold text-[color:var(--gv-canvas)]"
                 : "text-[color:var(--gv-ink-2)] hover:text-[color:var(--gv-ink)]")
@@ -420,7 +420,7 @@ function SessionRow({
             ref={moreRef}
             onClick={openMenu}
             aria-label={session.source === "answer" ? "Tuỳ chọn phiên nghiên cứu" : "Tuỳ chọn phiên chat"}
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
               isActive && session.source === "answer"
                 ? "text-[color:var(--gv-canvas)] hover:bg-[color:rgba(255,255,255,0.12)]"
                 : `hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] ${
@@ -428,7 +428,7 @@ function SessionRow({
                   }`
             }`}
           >
-            <MoreHorizontal className="h-4 w-4" strokeWidth={1.8} />
+            <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
           </button>
         </div>
       )}
@@ -756,7 +756,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                   <Pin className="h-2.5 w-2.5 rotate-45" strokeWidth={2} />
                   Ghim
                 </p>
-                <div className="mb-3 flex flex-col gap-0.5">
+                <div className="mb-3 flex flex-col gap-0">
                   {pinned.map((session) => (
                     <SessionRow
                       key={`${session.source}-${session.id}`}
@@ -784,7 +784,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           {recent.length > 0 && (
             <>
               <p className="gv-uc mb-2.5 text-[9px] text-[color:var(--gv-ink-4)]">Gần Đây</p>
-              <div className="flex flex-col gap-0.5">
+              <div className="flex flex-col gap-0">
                 {recent.map((session) => (
                   <SessionRow
                     key={`${session.source}-${session.id}`}

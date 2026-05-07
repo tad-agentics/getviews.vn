@@ -3,9 +3,11 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 ROOT = "project-ddfb2960-ee81-4c98-b4f"
 REGION = "asia-southeast1"
+DEPLOYMENT_DIR = Path(__file__).resolve().parent
 
 
 def gcloud_json(args: list[str]) -> dict:
@@ -71,9 +73,8 @@ def main() -> int:
     if "R2_BUCKET" in b and "R2_BUCKET_NAME" not in b:
         b["R2_BUCKET_NAME"] = b["R2_BUCKET"]
 
-    base = "/Users/ductrinh/getviews.vn/getviews.vn-1/cloud-run/deployment"
-    out_u = f"{base}/gv-user.env"
-    out_b = f"{base}/gv-batch.env"
+    out_u = str(DEPLOYMENT_DIR / "gv-user.env")
+    out_b = str(DEPLOYMENT_DIR / "gv-batch.env")
     write_env_file(out_u, u)
     write_env_file(out_b, b)
     print("wrote", out_u, "keys", len(u))
