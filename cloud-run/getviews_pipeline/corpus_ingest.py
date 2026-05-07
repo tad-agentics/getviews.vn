@@ -2344,19 +2344,6 @@ async def _run_weekly_analytics(client: Any) -> None:
         logger.error("[signal] Signal grading failed (non-fatal): %s", exc)
 
     try:
-        from getviews_pipeline.trending_cards import run_trending_cards
-
-        tc_result = await run_trending_cards(client)
-        logger.info(
-            "[trending_cards] cards_written=%d niches=%d errors=%s",
-            tc_result.cards_written,
-            tc_result.niches_processed,
-            tc_result.errors or "none",
-        )
-    except Exception as exc:
-        logger.error("[trending_cards] Trending cards generation failed (non-fatal): %s", exc)
-
-    try:
         from getviews_pipeline.cross_creator import run_cross_creator_detection
 
         cc_result = await run_cross_creator_detection(client)

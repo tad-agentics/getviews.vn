@@ -1,7 +1,8 @@
 # Explore / Trends screen — UIUX reference audit
 
 **Reference:** `artifacts/uiux-reference/screens/trends.jsx` (`TrendsScreen`)  
-**Implementation:** `src/routes/_app/trends/ExploreScreen.tsx` (+ `TrendingSection.tsx`, `TrendingSoundsSection.tsx`, `VideoDangHocSidebar.tsx`, shared explore components)  
+**Implementation:** `src/routes/_app/trends/ExploreScreen.tsx` (+ `TrendingSoundsSection.tsx`, `VideoDangHocSidebar.tsx`, shared explore components)  
+**Note:** `TrendingSection` / `trending_cards` Explore strip was **removed** (2026-05); Monday email may still consume `trending_cards` via Edge.  
 **Shell:** Reference is a bare screen; production wraps **`AppLayout`** (`active="trends"`) — expected integration delta.
 
 ---
@@ -11,7 +12,7 @@
 | Reference (`trends.jsx`) | Production (`ExploreScreen.tsx`) | Verdict |
 |--------------------------|----------------------------------|---------|
 | Single **two-column** layout: main + **320px** rail | Main scroll column + **`lg:`** aside **`w-[290px]`** | **Partial** — rail present but width −30px; rail hidden &lt; `lg` (~1024px) vs reference **1100px** collapse |
-| **Hero** “newsroom” card: week kicker, big stat, 4× `HeroStat`, editorial paragraph | **No** equivalent hero; replaced by **`TrendingSection`** + **`TrendingSoundsSection`** (data cards / horizontal strips) | **Gap** — different narrative hierarchy |
+| **Hero** “newsroom” card: week kicker, big stat, 4× `HeroStat`, editorial paragraph | **No** full reference hero; **`TrendsPatternThesisHero`** + **`TrendingSoundsSection`** carry part of “week / discovery” intent | **Partial** — different narrative hierarchy |
 | Main: toolbar → **grid OR list** (`view` state) | **Grid only**; infinite scroll + skeleton; no list mode | **Gap** |
 | Rail: three **`RailSection`** blocks (Video / Sounds / Format) with **curated copy** | Rail: **“Video nên xem”** + breakout / viral **rows** from `video_corpus`; **Sounds** live in **main** column; **Format** analytics in **main** below fold | **Partial** — content type overlap; **Sounds + Format** not in rail as in reference |
 
@@ -65,7 +66,6 @@ Per `.cursor/rules/design-system.mdc` (no raw hex in components; slop guard).
 | `ExploreScreen.tsx` — `TikTokIcon` / `IGIcon` / `YTIcon` | **Brand SVG fills** (`#69C9D0`, `#EE1D52`, `#FF0000`, Instagram gradient) — **intentional** for platform marks; document as exception or swap to tokenized marks if EDS requires |
 | `ExploreScreen.tsx` — hook bar `rgba(100, 100, 120, …)` | **Raw RGBA** for bar fallback — prefer **`--gv-*`** scale |
 | `ExploreScreen.tsx` — format rows `style={{ color: "var(--success, #22c55e)" }}` / `danger` | **Hex fallbacks** in inline style — prefer **semantic tokens only** |
-| `TrendingSection.tsx` — `signalBarColor` | **`#F59E0B`**, **`#EF4444`** hardcoded — **token violation** |
 | `TrendingSoundsSection.tsx` — `BreakoutSoundBanner` | **`💰`** in commerce label — conflicts with **“No emoji as visual design elements”** in design-system rules |
 
 ---
@@ -85,7 +85,7 @@ Per `.cursor/rules/design-system.mdc` (no raw hex in components; slop guard).
 | Area | Match | Notes |
 |------|-------|-------|
 | Two-column discovery + rail | **~70%** | Width, breakpoint, rail content split differ |
-| Hero + week editorial | **0%** | Not built; trending cards substitute part of intent |
+| Hero + week editorial | **0%** | Not built; pattern-thesis hero + sounds cover part of intent |
 | Toolbar (search, niche, sort, views) | **~75%** | Extra sort/format depth; no list toggle |
 | Video grid tile visual | **~55%** | Aspect ratio, gap, badges, CTA copy differ |
 | Sounds / Format “rail” | **~40%** | Moved to main / below fold |
@@ -98,7 +98,7 @@ Per `.cursor/rules/design-system.mdc` (no raw hex in components; slop guard).
 1. **Decide product scope:** Either add a **compact hero** (week summary + 4 stats) wired to `niche_intelligence` / corpus counts, or formally **deprecate** that block in `trends.jsx` and update the UIUX pack so reference matches shipped IA.
 2. **Align breakpoints:** `lg:` rail vs **1100px** media query — pick one spec (update reference or Tailwind `min-[1100px]:`).
 3. **List view:** Implement **`VideoList`**-equivalent or remove from reference to avoid false expectation.
-4. **Token pass:** Replace `signalBarColor` hexes, format row inline hex fallbacks, hook bar rgba with **`--gv-*` / semantic** classes only; remove **emoji** from commerce chip or replace with text/icon.
+4. **Token pass:** Replace format row inline hex fallbacks, hook bar rgba with **`--gv-*` / semantic** classes only; audit **`TrendingSoundsSection`** for any residual hardcoded signal colors; remove **emoji** from commerce chip or replace with text/icon.
 5. **Grid geometry:** Reconcile **gap 14** + **minmax(190px,1fr)** vs current responsive 2/3/4 columns for closer Make fidelity.
 
 ---

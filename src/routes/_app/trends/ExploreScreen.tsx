@@ -24,7 +24,6 @@ import { TrendsRail } from "./TrendsRail";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews, formatRelativeSinceVi } from "@/lib/formatters";
 import { looksLikeNonVietnameseCaption } from "@/lib/nonVietnameseFilter";
-import { TrendingSection } from "@/components/explore/TrendingSection";
 import {
   TrendingSoundsSection,
 } from "@/components/explore/TrendingSoundsSection";
@@ -894,7 +893,6 @@ export default function ExploreScreen() {
                 corpusCount={corpusCount}
               />
             ) : null}
-            <TrendingSection nicheId={selectedNicheId} />
             <TrendingSoundsSection nicheId={selectedNicheId} className="mb-4 min-[1100px]:hidden" />
             {selectedNicheId !== null && lowVideoCorpus ? (
               <p className="mb-4 text-xs text-[var(--muted)]">

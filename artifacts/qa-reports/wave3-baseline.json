@@ -12,12 +12,20 @@
     "P1-6": "PASS",
     "P1-7": "PASS",
     "P1-8": "PASS",
-    "P1-9": "PASS",
+    "P1-9": "RETIRED",
     "P1-10": "PASS",
     "P2-11": "PASS",
     "P2-12": "PASS"
   },
   "findings": [
+    {
+      "feature": "P1-9",
+      "severity": "info",
+      "title": "Trending This Week (Explore) removed from product",
+      "detail": "2026-05: deleted SPA `TrendingSection` + `useTrendingCards` and Cloud Run `trending_cards.py` / `corpus_ingest` hook. Schema `trending_cards`, RPC `get_weekly_trend_summaries`, and `cron-monday-email` remain; digest may skip or use stale rows.",
+      "status": "retired",
+      "resolved_in": null
+    },
     {
       "feature": "P0-6",
       "severity": "info",

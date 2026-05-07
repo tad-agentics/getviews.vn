@@ -15,20 +15,20 @@ grep -rlE 'var\(--(purple|purple-light|ink-soft|border-active)\)|\
 --gv-purple|variant="purple"' src/
 ```
 
-**39 files** total (plan estimated 38; 1-file drift tolerated). Breakdown:
+**38 files** total (was 39 before `TrendingSection.tsx` removal, 2026-05). Breakdown:
 
 | Cluster | File count | D.4.1 commit | Files |
 |---|---|---|---|
 | `src/components/ui` | 4 | **D.4.1.a** (first — lowest primitive) | `Badge.tsx`, `Button.tsx`, `Card.tsx`, `Input.tsx` |
 | `src/components/chat` | 9 | **D.4.1.b** | `AgentStepLogger.tsx`, `CopyableBlock.tsx`, `CreatorGridCard.tsx`, `FollowUpChips.tsx`, `StepSpinner.tsx`, `StepThumbnails.tsx`, `TrendCard.tsx`, `TrendingSoundCard.tsx`, `VideoRefCard.tsx` |
-| `src/components/explore` | 4 | **D.4.1.c** | `TrendingSection.tsx`, `TrendingSoundsSection.tsx`, `VideoDangHocSidebar.tsx`, `VideoPlayerModal.tsx` |
+| `src/components/explore` | 3 | **D.4.1.c** | `TrendingSoundsSection.tsx`, `VideoDangHocSidebar.tsx`, `VideoPlayerModal.tsx` |
 | `src/routes/_app/components` | 11 | **D.4.1.d** (largest cluster) | `AnalysisLimitCard.tsx`, `CopyButton.tsx`, `CreatorCard.tsx`, `CreditBar.tsx`, `DiagnosisRow.tsx`, `EmptyStates.tsx`, `MorningRitualBanner.tsx`, `PromptCards.tsx`, `QuickActionModal.tsx`, `ThumbnailStrip.tsx`, `URLChip.tsx` |
 | `src/routes/_app/{checkout,history,learn-more,payment-success,pricing,settings,trends}` | 7 | **D.4.1.e** (legacy-layout screens — token-only, 0 JSX changes) | `CheckoutScreen.tsx`, `ChatSessionReadScreen.tsx`, `LearnMoreScreen.tsx`, `PaymentSuccessScreen.tsx`, `PricingScreen.tsx`, `SettingsScreen.tsx`, `ExploreScreen.tsx` |
 | `src/routes/_auth` | 2 | **D.4.1.f** | `callback/route.tsx`, `login/route.tsx` |
 | `src/routes/_index` | 1 | **D.4.1.e** (grouped with legacy-layout screens) | `LandingPage.tsx` |
 | `src/app.css` (legacy defs) | 1 | **D.4.2** (last — deletes defs) | `app.css` |
 
-Total = 39. The plan's D.4.1.e cluster absorbs both the 7 `_app` single-file
+Total = 38. The plan's D.4.1.e cluster absorbs both the 7 `_app` single-file
 screens and the single `_index/LandingPage.tsx` because the legacy-layout
 rule applies to all eight (strict token-only; 0 JSX structure changes).
 
@@ -160,7 +160,7 @@ D.4.3 CI lint rule locks that invariant forward.
 
 ## Sign-off
 
-Inventory locked at 39 files. Cluster assignment matches the plan's
+Inventory locked at 38 files (post-2026-05: explore cluster 3 files). Cluster assignment matches the plan's
 D.4.1.a-f commits. Rebind map covers all five legacy namespace
 references. Scope-guard on D.4.1.e documented.
 

@@ -48,11 +48,11 @@
 | `processed_webhook_events` | table | **—** / **Edge** | `payos-webhook`, `cron-prune-webhooks` |
 | `profiles` | table | **R/W** | `main.py` (`is_processing`, `primary_niche`), `morning_ritual.py`, `kol_browse.py`, `channel_analyze.py` |
 | `scene_intelligence` | table | **R/W** | `scene_intelligence_refresh.py`, `script_data.py` |
-| `signal_grades` | table | **R/W** | `signal_classifier.py`, `corpus_context.py`, `trending_cards.py` |
+| `signal_grades` | table | **R/W** | `signal_classifier.py`, `corpus_context.py` |
 | `starter_creators` | table | **R** | `main.py`, `channel_analyze.py`, `kol_browse.py` |
 | `subscriptions` | table | **—** / **Edge** | `create-payment`, `cron-expiry-check` |
 | `trend_velocity` | table | **R/W** | `trend_velocity.py` |
-| `trending_cards` | table | **R/W** | `trending_cards.py`; **Edge** `cron-monday-email` |
+| `trending_cards` | table | **R** (+ **W** via **Edge**) | **No Cloud Run batch writer** (module removed 2026-05). **Edge** `cron-monday-email` (RPC `get_weekly_trend_summaries`, optional `meta_insight` update); historical migrations / niche merges may still reference the table. |
 | `trending_sounds` | table | **R/W** | `layer0_sound.py`, `sound_aggregator.py`, `pipelines.py`, `ticker.py` |
 | `usage_events` | table | **W** | `answer_session.py` server-emits (e.g. classifier / pattern empty); **SPA** `logUsage` for product analytics |
 | `video_corpus` | table | **R/W** | Dominant: ingest, layer0, analyze, reports, thumbnails, comment radar, etc. |
