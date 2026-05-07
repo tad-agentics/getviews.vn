@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Music2 } from "lucide-react";
 
 import { Btn } from "@/components/v2/Btn";
 import { useDailyRitual, type RitualScript } from "@/hooks/useDailyRitual";
@@ -140,6 +140,75 @@ export const StudioHero = memo(function StudioHero({
   );
 });
 
+/**
+ * L2.2 Sprint 3 — Sound Radar recommendation strip rendered inside each
+ * StudioHero ritual row. Shows: 🔊 sound name · ↑+200% · 🔥 Đăng trong 48h
+ * (or → · Tuần này for peaking). Renders nothing when ``sound_id`` is
+ * absent — pre-Sprint-3 ritual rows look unchanged.
+ */
+const SoundRecommendationStrip = memo(function SoundRecommendationStrip({
+  script,
+}: {
+  script: RitualScript;
+}) {
+  if (!script.sound_id || !script.sound_name) return null;
+
+  const accelerating = script.sound_velocity === "accelerating";
+  const trendArrow = accelerating ? "↑" : "→";
+  const trendColor = accelerating
+    ? "text-[color:var(--gv-pos-deep)]"
+    : "text-[color:var(--gv-ink-3)]";
+
+  // sound_delta_pct may be null (brand-new sound — no prev-week data),
+  // so render the percentage only when we actually have a number.
+  const deltaPct =
+    typeof script.sound_delta_pct === "number" && Number.isFinite(script.sound_delta_pct)
+      ? `${script.sound_delta_pct >= 0 ? "+" : ""}${Math.round(script.sound_delta_pct)}%`
+      : null;
+
+  const urgencyCopy =
+    script.urgency_band === "post_within_48h"
+      ? "🔥 Đăng trong 48h"
+      : script.urgency_band === "this_week"
+        ? "Tuần này"
+        : null;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[color:var(--gv-ink-3)]">
+      <span className="inline-flex items-center gap-1.5 max-w-full">
+        <Music2 className="h-3 w-3 shrink-0 text-[color:var(--gv-ink-4)]" aria-hidden />
+        <span className={`gv-mono ${trendColor}`} aria-hidden>
+          {trendArrow}
+        </span>
+        <span className="truncate font-medium text-[color:var(--gv-ink-2)]">
+          {script.sound_name}
+        </span>
+      </span>
+      {deltaPct ? (
+        <span className={`gv-mono text-[10px] ${trendColor}`}>{deltaPct}</span>
+      ) : null}
+      {urgencyCopy ? (
+        <span
+          className="gv-mono inline-flex items-center rounded-[2px] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em]"
+          style={
+            accelerating
+              ? {
+                  background: "color-mix(in srgb, var(--gv-accent) 14%, transparent)",
+                  color: "var(--gv-accent-deep)",
+                }
+              : {
+                  background: "var(--gv-canvas-2)",
+                  color: "var(--gv-ink-3)",
+                }
+          }
+        >
+          {urgencyCopy}
+        </span>
+      ) : null}
+    </div>
+  );
+});
+
 const StudioHeroRow = memo(function StudioHeroRow({
   script,
   rank,
@@ -199,6 +268,7 @@ const StudioHeroRow = memo(function StudioHeroRow({
             {script.why_works}
           </p>
         ) : null}
+        <SoundRecommendationStrip script={script} />
       </div>
       <div className="flex flex-col items-end gap-1 whitespace-nowrap">
         <span className="gv-mono text-[14px] font-bold" style={{ color: "var(--gv-pos)" }}>

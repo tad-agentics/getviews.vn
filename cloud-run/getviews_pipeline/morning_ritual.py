@@ -324,6 +324,104 @@ def _build_prompt(
     )
 
 
+# ── Sound Radar enrichment (L2.2 Sprint 3) ─────────────────────────────────
+
+
+def _urgency_band_for(velocity: str | None) -> str | None:
+    """Map a Sound Radar bucket label to a creator-facing urgency band.
+
+    The FE renders this as the small "Đăng trong 48h" / "Tuần này" /
+    "Bất kỳ" badge next to the sound name. None → omit the urgency
+    badge entirely (script falls back to the L1.4 sound-less render).
+    """
+    if velocity == "accelerating":
+        return "post_within_48h"
+    if velocity == "peaking":
+        return "this_week"
+    return None
+
+
+def _fetch_sound_recommendations(
+    client: Any,
+    niche_id: int,
+    *,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
+    """Pull this week's accelerating sounds for the niche, in priority order.
+
+    Reads ``trend_velocity.sound_trends`` (Sound Radar — populated by
+    ``cron-batch-trend-velocity``). Prefers ``accelerating`` (highest-
+    leverage post-NOW signal), then ``peaking`` (moderate). Skips
+    ``cooling`` and unbucketed sounds — we only recommend things worth
+    posting against this week.
+
+    Returns up to ``limit`` dicts, each shaped to drop directly onto a
+    ritual script via ``script_obj.update(...)``:
+
+      ``{
+         "sound_id":      "...",
+         "sound_name":    "...",
+         "sound_velocity": "accelerating" | "peaking",
+         "sound_delta_pct": 200.0 | None,
+         "urgency_band":  "post_within_48h" | "this_week",
+      }``
+
+    Empty list on any failure or when no recommendations exist —
+    callers treat that as "ritual scripts ship without sound this
+    cycle, identical to pre-Sprint-3 UX".
+    """
+    if client is None or niche_id is None:
+        return []
+    try:
+        res = (
+            client.table("trend_velocity")
+            .select("sound_trends, week_start")
+            .eq("niche_id", niche_id)
+            .order("week_start", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = res.data or []
+    except Exception as exc:
+        logger.warning(
+            "[ritual/sound] niche=%s trend_velocity fetch failed: %s",
+            niche_id, exc,
+        )
+        return []
+
+    if not rows:
+        return []
+    sound_trends = rows[0].get("sound_trends") or {}
+
+    out: list[dict[str, Any]] = []
+    # Priority order matters — top accelerating sound goes to script 1
+    # (the highest-billed idea on the StudioHero row), peaking fills
+    # remaining slots only if accelerating ran out.
+    for label in ("accelerating", "peaking"):
+        for entry in sound_trends.get(label) or []:
+            sid = entry.get("sound_id")
+            name = entry.get("name") or sid
+            if not sid or not name:
+                continue
+            band = _urgency_band_for(label)
+            delta = entry.get("delta_pct")
+            # delta_pct=9999 is the "brand-new this week" sentinel from
+            # _compute_sound_trends_for_niche; surface it as None on
+            # the FE so we don't render a misleading "+9999%" string.
+            if isinstance(delta, (int, float)) and delta >= 9000:
+                delta = None
+            out.append({
+                "sound_id":        sid,
+                "sound_name":      name,
+                "sound_velocity":  label,
+                "sound_delta_pct": delta,
+                "urgency_band":    band,
+            })
+            if len(out) >= limit:
+                return out
+    return out
+
+
 # ── Main entry ─────────────────────────────────────────────────────────────
 
 
@@ -418,6 +516,17 @@ def generate_ritual_for_user(
             generated_for_date=target_date,
             error=f"duplicate_hook_types: {len(scripts_out)} distinct",
         )
+
+    # L2.2 Sprint 3 — Sound Radar enrichment. Distribute one
+    # accelerating/peaking sound per ritual script so the StudioHero
+    # row renders "🔊 [Sound] · 🔥 Đăng trong 48h" alongside the hook.
+    # Pre-Sprint-3 rituals have zero sound fields; the FE falls back
+    # to the un-enriched render path — graceful both directions.
+    sound_recs = _fetch_sound_recommendations(client, niche_id, limit=len(scripts_out))
+    for i, rec in enumerate(sound_recs):
+        if i >= len(scripts_out):
+            break
+        scripts_out[i].update(rec)
 
     return RitualResult(
         user_id=user_id,
