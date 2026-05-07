@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { scriptPrefillFromChannel, scriptPrefillFromRitual, scriptPrefillFromVideo } from "./scriptPrefill";
+import {
+  scriptPrefillFromChannel,
+  scriptPrefillFromPattern,
+  scriptPrefillFromRitual,
+  scriptPrefillFromVideo,
+} from "./scriptPrefill";
+
+import type { TopPattern } from "@/hooks/useTopPatterns";
 
 const ritualSample = {
   hook_type_en: "comparison",
@@ -59,6 +66,70 @@ describe("scriptPrefillFromChannel", () => {
     expect(qs.get("niche_id")).toBe("2");
     expect(qs.get("topic")).toContain("Creator X");
     expect(qs.get("hook")).toBe("POV mở đầu");
+  });
+});
+
+describe("scriptPrefillFromPattern", () => {
+  const patternSample = (overrides: Partial<TopPattern> = {}): TopPattern => ({
+    id: "p1",
+    display_name: "Hướng dẫn + mặt người",
+    weekly_instance_count: 12,
+    weekly_instance_count_prev: 4,
+    niche_video_count: 6,
+    instance_count: 47,
+    niche_spread: [3],
+    avg_views: 200_000,
+    lift_vs_niche: 2.4,
+    sample_hook: "Mình dùng iPad Pro 6 tháng rồi và…",
+    videos: [],
+    structure: [
+      "Mở: câu hỏi cá nhân (0-2s)",
+      "Setup: bối cảnh dùng sản phẩm (2-6s)",
+      "Body: 3 chi tiết bất ngờ (6-22s)",
+      "Payoff: so sánh + CTA (22-30s)",
+    ],
+    why: "why",
+    careful: "careful",
+    angles: null,
+    ...overrides,
+  });
+
+  it("uses structure[0] (Hook line) as topic, stripping the leading 'Mở:' / 'Hook:' tag", () => {
+    const path = scriptPrefillFromPattern(patternSample(), 3);
+    expect(path).toMatch(/^\/app\/script\?/);
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("niche_id")).toBe("3");
+    expect(qs.get("topic")).toBe("câu hỏi cá nhân (0-2s)");
+  });
+
+  it("forwards sample_hook as the hook reference", () => {
+    const path = scriptPrefillFromPattern(patternSample(), 3);
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("hook")).toBe("Mình dùng iPad Pro 6 tháng rồi và…");
+  });
+
+  it("falls back to display_name when structure is missing (defensive — filtered out by hook normally)", () => {
+    const path = scriptPrefillFromPattern(
+      patternSample({ structure: null }),
+      3,
+    );
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("topic")).toBe("Hướng dẫn + mặt người");
+  });
+
+  it("falls back to display_name as the hook when sample_hook is missing", () => {
+    const path = scriptPrefillFromPattern(
+      patternSample({ sample_hook: null }),
+      3,
+    );
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("hook")).toBe("Hướng dẫn + mặt người");
+  });
+
+  it("never sets a duration param (a pattern doesn't carry length_sec)", () => {
+    const path = scriptPrefillFromPattern(patternSample(), 3);
+    const qs = new URLSearchParams(path.split("?")[1]!);
+    expect(qs.get("duration")).toBeNull();
   });
 });
 

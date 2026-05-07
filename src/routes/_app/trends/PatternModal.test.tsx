@@ -62,14 +62,14 @@ function wrap(node: React.ReactNode) {
 describe("PatternModal — closed state", () => {
   it("renders nothing when open=false", () => {
     const { queryByText } = wrap(
-      <PatternModal pattern={samplePattern()} open={false} onOpenChange={() => {}} />,
+      <PatternModal pattern={samplePattern()} nicheId={4} open={false} onOpenChange={() => {}} />,
     );
     expect(queryByText("Sau ___ tháng dùng")).toBeNull();
   });
 
   it("renders nothing when pattern is null", () => {
     const { queryByText } = wrap(
-      <PatternModal pattern={null} open onOpenChange={() => {}} />,
+      <PatternModal pattern={null} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(queryByText("PATTERN ·")).toBeNull();
   });
@@ -78,7 +78,7 @@ describe("PatternModal — closed state", () => {
 describe("PatternModal — open state", () => {
   it("renders the header kicker, title, and sample-hook description", () => {
     const { getByText, getAllByText } = wrap(
-      <PatternModal pattern={samplePattern()} open onOpenChange={() => {}} />,
+      <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(getByText(/PATTERN · 47 VIDEO · 142\.0K VIEW TB/)).toBeTruthy();
     expect(getByText("Sau ___ tháng dùng")).toBeTruthy();
@@ -89,7 +89,7 @@ describe("PatternModal — open state", () => {
 
   it("renders the takeaway / structure / gap-angles stub blocks", () => {
     const { getByText } = wrap(
-      <PatternModal pattern={samplePattern()} open onOpenChange={() => {}} />,
+      <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(getByText("Ý CHÍNH")).toBeTruthy();
     expect(getByText("CẤU TRÚC ĐIỂN HÌNH")).toBeTruthy();
@@ -100,7 +100,7 @@ describe("PatternModal — open state", () => {
 
   it("renders the sample switcher when ≥ 2 videos are available", () => {
     const { getByText, getAllByLabelText } = wrap(
-      <PatternModal pattern={samplePattern()} open onOpenChange={() => {}} />,
+      <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(getByText(/CHUYỂN VIDEO \(1\/3\)/)).toBeTruthy();
     expect(getAllByLabelText(/Mẫu \d+/).length).toBe(3);
@@ -111,14 +111,14 @@ describe("PatternModal — open state", () => {
       videos: [samplePattern().videos[0]],
     });
     const { queryByText } = wrap(
-      <PatternModal pattern={onePattern} open onOpenChange={() => {}} />,
+      <PatternModal pattern={onePattern} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(queryByText(/CHUYỂN VIDEO/)).toBeNull();
   });
 
   it("clicking a sample thumbnail switches the active video", () => {
     const { getByLabelText, getAllByText } = wrap(
-      <PatternModal pattern={samplePattern()} open onOpenChange={() => {}} />,
+      <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
     const initialHandles = getAllByText(/^@an\.tech$/);
     expect(initialHandles.length).toBeGreaterThan(0);
@@ -130,7 +130,7 @@ describe("PatternModal — open state", () => {
   it("close button calls onOpenChange(false)", () => {
     const onChange = vi.fn();
     const { getByLabelText } = wrap(
-      <PatternModal pattern={samplePattern()} open onOpenChange={onChange} />,
+      <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={onChange} />,
     );
     fireEvent.click(getByLabelText("Đóng"));
     expect(onChange).toHaveBeenCalledWith(false);
@@ -149,7 +149,7 @@ describe("PatternModal — open state", () => {
         ...samplePattern().videos.slice(1),
       ],
     });
-    wrap(<PatternModal pattern={p} open onOpenChange={() => {}} />);
+    wrap(<PatternModal pattern={p} nicheId={4} open onOpenChange={() => {}} />);
     const iframe = document.body.querySelector(
       'iframe[src*="tiktok.com/embed/v2/7349098765432101123"]',
     );
@@ -159,14 +159,14 @@ describe("PatternModal — open state", () => {
   it("renders a 'no video' fallback when pattern has zero videos", () => {
     const empty = samplePattern({ videos: [] });
     const { getByText } = wrap(
-      <PatternModal pattern={empty} open onOpenChange={() => {}} />,
+      <PatternModal pattern={empty} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(getByText(/Chưa có video mẫu/)).toBeTruthy();
   });
 
   it("normalises bare creator handles with leading @ in the phone tile", () => {
     const { getByText } = wrap(
-      <PatternModal pattern={samplePattern()} open onOpenChange={() => {}} />,
+      <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
     // First video has bare "an.tech" — renders with @ prefix.
     expect(getByText("@an.tech")).toBeTruthy();
@@ -180,7 +180,7 @@ describe("PatternModal — deck content (post-synth)", () => {
       careful: "Nếu chưa thực sự dùng X tháng, đừng giả — comment sẽ phát hiện.",
     });
     const { getByText, queryByText } = wrap(
-      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+      <PatternModal pattern={decked} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(getByText(/Format thử-thách-thời-gian/)).toBeTruthy();
     expect(getByText(/đừng giả/)).toBeTruthy();
@@ -198,7 +198,7 @@ describe("PatternModal — deck content (post-synth)", () => {
       ],
     });
     const { getByText } = wrap(
-      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+      <PatternModal pattern={decked} nicheId={4} open onOpenChange={() => {}} />,
     );
     // Each step renders.
     expect(getByText(/Mở: câu hỏi/)).toBeTruthy();
@@ -220,7 +220,7 @@ describe("PatternModal — deck content (post-synth)", () => {
       ],
     });
     const { getByText, queryByText } = wrap(
-      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+      <PatternModal pattern={decked} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(getByText(/2 cơ hội/)).toBeTruthy();
     expect(getByText("Phụ kiện cao cấp")).toBeTruthy();
@@ -238,8 +238,25 @@ describe("PatternModal — deck content (post-synth)", () => {
       ],
     });
     const { getByText } = wrap(
-      <PatternModal pattern={decked} open onOpenChange={() => {}} />,
+      <PatternModal pattern={decked} nicheId={4} open onOpenChange={() => {}} />,
     );
     expect(getByText(/đã có creator khai thác/)).toBeTruthy();
+  });
+});
+
+describe("PatternModal — apply-formula CTA (L2.2 Sprint 6b)", () => {
+  it("renders the primary 'Áp dụng công thức' CTA when nicheId is provided", () => {
+    const { getByText } = wrap(
+      <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
+    );
+    expect(getByText(/Áp dụng công thức này/)).toBeTruthy();
+  });
+
+  it("disables the CTA when nicheId is null (defensive — Trends always passes one)", () => {
+    const { getByRole } = wrap(
+      <PatternModal pattern={samplePattern()} nicheId={null} open onOpenChange={() => {}} />,
+    );
+    const cta = getByRole("button", { name: /Áp dụng công thức này/ });
+    expect((cta as HTMLButtonElement).disabled).toBe(true);
   });
 });
