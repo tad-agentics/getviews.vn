@@ -23,6 +23,7 @@ per 18-hour window per handle.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -30,7 +31,9 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.corpus_ingest import (
     IngestResult,
+    _fetch_niches_sync,
     _ingest_candidate_awemes,
+    _niche_signal_hashtags_by_id_from_niches,
     _normalize_handle,
 )
 
@@ -149,8 +152,16 @@ async def refresh_channel_corpus(
     capped = new_awemes[:MAX_PER_REFRESH]
 
     try:
+        niches = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _fetch_niches_sync(client)
+        )
+        signal_map = _niche_signal_hashtags_by_id_from_niches(niches)
         result: IngestResult = await _ingest_candidate_awemes(
-            client, niche_id, niche_name, capped,
+            client,
+            niche_id,
+            niche_name,
+            capped,
+            niche_signal_hashtags_by_id=signal_map,
         )
     except Exception as exc:
         logger.exception("[refresh-mine] ingest failed for @%s: %s", norm, exc)
