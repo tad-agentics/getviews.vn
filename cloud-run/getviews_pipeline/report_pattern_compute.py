@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
@@ -27,7 +29,11 @@ _TILE_COLORS = ("#D9EB9A", "#E8E4DC", "#C5F0E8", "#F5E6C8", "#1F2A3B", "#2A2438"
 
 def _evidence_card_extras(row: dict[str, Any]) -> tuple[float | None, int | None, str | None]:
     """Breakout for evidence strip (prefers ``breakout_ratio``), days since index, TikTok URL."""
-    _br = row.get("breakout_ratio") or row.get("breakout_multiplier")
+    if "breakout_ratio" in row:
+        _br_raw = row["breakout_ratio"]
+        _br = _br_raw if _br_raw is not None and _br_raw != "" else row.get("breakout_multiplier")
+    else:
+        _br = row.get("breakout_multiplier")
     breakout_val: float | None = None
     if _br is not None and _br != "":
         try:
@@ -52,6 +58,93 @@ def _evidence_card_extras(row: dict[str, Any]) -> tuple[float | None, int | None
 def _pattern_label(hook_type: str) -> str:
     key = (hook_type or "").strip().lower().replace("-", "_")
     return HOOK_TYPE_PATTERN_VI.get(key, hook_type.replace("_", " ").title() or "Hook")
+
+
+def build_micro_context(
+    corpus_rows: list[dict[str, Any]],
+    hook_types: list[str],
+    top_n: int = 5,
+) -> str:
+    """Aggregate scene-level micro-elements per hook_type for synthesis context.
+
+    Extracts framing, overlay_style, pace, avg_duration, and first-scene
+    descriptions from the top-N corpus videos per hook type. Returns a compact
+    multi-line string injected into the Gemini prompt so the synthesis can name
+    specific visual details rather than generic hook descriptions.
+    """
+    lines: list[str] = []
+
+    for hook_type in hook_types:
+        matching = [r for r in corpus_rows if (r.get("hook_type") or "") == hook_type]
+        top = sorted(matching, key=lambda x: int(x.get("views") or 0), reverse=True)[:top_n]
+        if not top:
+            continue
+
+        framings: Counter[str] = Counter()
+        overlays: Counter[str] = Counter()
+        paces: Counter[str] = Counter()
+        subjects: Counter[str] = Counter()
+        durations: list[float] = []
+        scene_descriptions: list[str] = []
+
+        for row in top:
+            aj = row.get("analysis_json") or {}
+            if isinstance(aj, str):
+                try:
+                    aj = json.loads(aj)
+                except Exception:
+                    aj = {}
+            scenes = aj.get("scenes") or []
+
+            for s in scenes[:3]:
+                if s.get("framing"):
+                    framings[str(s["framing"])] += 1
+                if s.get("overlay_style"):
+                    overlays[str(s["overlay_style"])] += 1
+                if s.get("pace"):
+                    paces[str(s["pace"])] += 1
+                if s.get("subject"):
+                    subjects[str(s["subject"])] += 1
+                desc = (s.get("description") or "").strip()
+                if desc and len(scene_descriptions) < 3:
+                    scene_descriptions.append(desc[:70])
+
+            dur = aj.get("video_duration") or row.get("video_duration")
+            if dur:
+                try:
+                    durations.append(float(dur))
+                except (TypeError, ValueError):
+                    pass
+
+        n = len(top)
+        avg_dur = f"{sum(durations) / len(durations):.0f}s" if durations else "?"
+
+        label = _pattern_label(hook_type)
+        parts: list[str] = []
+
+        top_framing = framings.most_common(1)
+        top_overlay = overlays.most_common(1)
+        top_pace = paces.most_common(1)
+        top_subject = subjects.most_common(1)
+
+        if top_framing:
+            parts.append(f"góc quay={top_framing[0][0]}({top_framing[0][1]}/{n})")
+        if top_overlay:
+            parts.append(f"text_overlay={top_overlay[0][0]}({top_overlay[0][1]}/{n})")
+        if top_pace:
+            parts.append(f"nhịp={top_pace[0][0]}({top_pace[0][1]}/{n})")
+        if top_subject:
+            parts.append(f"chủ thể={top_subject[0][0]}({top_subject[0][1]}/{n})")
+        parts.append(f"avg={avg_dur}")
+        parts.append(f"{n} creator khác nhau")
+
+        if scene_descriptions:
+            sample = "; ".join(scene_descriptions[:2])
+            parts.append(f"scene mẫu: [{sample}]")
+
+        lines.append(f"Hook '{label}': {', '.join(parts)}")
+
+    return "\n".join(lines)
 
 
 def fetch_outlier_story(
@@ -204,9 +297,7 @@ def compute_findings(
 ) -> list[HookFinding]:
     """Build up to 3 positive HookFinding rows from ranked hook_effectiveness rows."""
     if creator_sets is None:
-        from collections import defaultdict as _defaultdict
-
-        _cs: dict[str, set[str]] = _defaultdict(set)
+        _cs: dict[str, set[str]] = defaultdict(set)
         for row in corpus_rows:
             ht = str(row.get("hook_type") or "")
             ch = str(row.get("creator_handle") or "")

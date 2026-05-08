@@ -48,6 +48,8 @@ def fill_pattern_narrative(
     top_hook_labels: list[str],
     stalled_hook_labels: list[str],
     live_context: str = "",
+    micro_context: str = "",
+    creator_counts_str: str = "",
 ) -> dict[str, Any]:
     """Return thesis, hook_insights, stalled_insights, related_questions.
 
@@ -85,6 +87,12 @@ def fill_pattern_narrative(
         # shape — the output is an answer to ``query`` grounded in them.
         extra = (live_context or "").strip()
         live_block = f"\n{extra}\n" if extra else ""
+        micro_extra = (micro_context or "").strip()
+        micro_block = f"\nMicro-element (cảnh/corpus top hook):\n{micro_extra}\n" if micro_extra else ""
+        counts_extra = (creator_counts_str or "").strip()
+        counts_block = (
+            f"\nĐa dạng creator (top hook): {counts_extra}\n" if counts_extra else ""
+        )
         prompt = f"""Bạn là trợ lý phân tích TikTok cho creator Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi của người dùng, không phải tóm tắt chung.
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
@@ -97,15 +105,16 @@ Ngách: {niche_label}
 Câu hỏi người dùng: "{query_clean or '(không nêu rõ — trả lời dựa trên xu hướng hook hiện tại)'}"
 Hook đang thắng (xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
-{live_block}
+{live_block}{micro_block}{counts_block}
 Quy tắc:
 - Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn".
 - Không dùng từ "chắc chắn", "hiệu quả", "bùng nổ" (xem copy rules).
+- Khi có khối micro-element, hãy dùng chi tiết hình ảnh cụ thể (góc quay, overlay, nhịp, mô tả cảnh) trong thesis/insight thay vì mô tả chung chung.
 - Số liệu chỉ được trích từ danh sách hook/corpus trên; phần bổ sung live (nếu có) chỉ là ví dụ xu hướng — không tự bịa aggregate.
 """
         cfg = types.GenerateContentConfig(
             temperature=0.35,
-            max_output_tokens=1024,
+            max_output_tokens=2048,
             response_mime_type="application/json",
             response_json_schema=PatternNarrativeLLM.model_json_schema(),
         )

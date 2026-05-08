@@ -234,12 +234,10 @@ class VideoAnalysis(BaseModel):
 
     @field_validator("promotion_type", mode="before")
     @classmethod
-    def normalize_promotion_type(cls, v: object) -> object:
-        if v is None or v == "":
-            return "organic"
-        if not isinstance(v, str):
-            return v
-        s = v.strip().lower()
+    def normalize_promotion_type(cls, v: object) -> str:
+        # Mirror corpus_ingest._normalize_promotion_type: coerce any JSON value to str
+        # so Gemini ints/bools/enums never reach Literal validation raw.
+        s = str(v or "organic").strip().lower()
         if s in ("organic", "brand_deal", "affiliate", "self_promotion"):
             return s
         return "organic"

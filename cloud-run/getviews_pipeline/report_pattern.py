@@ -346,6 +346,7 @@ def build_pattern_report(
         return data
 
     from getviews_pipeline.report_pattern_compute import (
+        build_micro_context,
         build_pattern_cells,
         build_tldr_callouts,
         compute_findings,
@@ -447,8 +448,14 @@ def build_pattern_report(
         if i + 1 < len(ranked):
             runner_ups[ht] = str(ranked[i + 1].get("hook_type") or "other")
 
-    top3_types = {str(r.get("hook_type") or "") for r in ranked[:3]}
+    top3_hook_list = [str(r.get("hook_type") or "") for r in ranked[:3]]
+    top3_types = set(top3_hook_list)
     top_labels = [_pattern_label_from_he_row(r) for r in ranked[:3]]
+    micro_context = build_micro_context(corpus, top3_hook_list, top_n=5)
+    creator_counts_str = ", ".join(
+        f"{label}: {len(_creator_sets.get(ht, set()))} creator"
+        for ht, label in zip(top3_hook_list, top_labels)
+    )
 
     stalled, stalled_reason = compute_what_stalled(
         he_rows, top3_types, baseline_views, creator_sets=_creator_sets
@@ -464,14 +471,13 @@ def build_pattern_report(
     )
 
     if GEMINI_API_KEY and needs_live_search(query, len(corpus)):
-        top_hook_types = [str(r.get("hook_type") or "") for r in ranked[:3]]
         loop = asyncio.new_event_loop()
         try:
             live_awemes = loop.run_until_complete(
                 fetch_live_supplement(
                     query=query,
                     niche_label=niche_label,
-                    top_hook_types=top_hook_types,
+                    top_hook_types=top3_hook_list,
                     corpus_count=len(corpus),
                     iteration_start=2,
                     step_queue=step_queue,
@@ -493,6 +499,8 @@ def build_pattern_report(
         top_hook_labels=top_labels,
         stalled_hook_labels=stalled_labels,
         live_context=live_context,
+        micro_context=micro_context,
+        creator_counts_str=creator_counts_str,
     )
 
     why_won = build_why_won_list(top_labels)
