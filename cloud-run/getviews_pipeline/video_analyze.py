@@ -281,7 +281,8 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
     cols = (
         "video_id,creator_handle,views,likes,comments,shares,saves,save_rate,"
         "engagement_rate,thumbnail_url,created_at,niche_id,content_class_id,"
-        "content_format,analysis_json,breakout_multiplier,tiktok_url"
+        "content_format,analysis_json,breakout_multiplier,tiktok_url,"
+        "creator_median_views"
     )
     try:
         vres = user_sb.table("video_corpus").select(cols).eq("video_id", vid).maybe_single().execute()
@@ -373,6 +374,38 @@ def _response_from_diagnostics_row(
     ret_curve = diag.get("retention_curve") or retention_user
     bench_curve = diag.get("niche_benchmark_curve") or niche_benchmark
     ret_end = float(ret_curve[-1]["pct"]) if ret_curve else 0.0
+
+    # Channel-relative breakout: views vs the creator's own median.
+    # Corpus path: read denormalized creator_median_views (from corpus_ingest).
+    # On-demand path: column missing → skip; FE renders only when present.
+    cm_views_raw = video.get("creator_median_views")
+    creator_median_views = int(cm_views_raw) if cm_views_raw else None
+    target_vs_creator_median = (
+        round(int(video.get("views") or 0) / float(creator_median_views), 2)
+        if creator_median_views and creator_median_views > 0
+        else None
+    )
+
+    # Enrichment fields extracted by Gemini (VideoAnalysis schema, 2026-05-08).
+    # Available on both corpus rows (analysis_json) and on-demand
+    # (fresh extraction). Render only when populated to avoid empty chips.
+    pain_points_raw = analysis.get("pain_points") or []
+    style_tags_raw = analysis.get("style_tags") or []
+    target_audience = str(analysis.get("target_audience") or "").strip()
+    promotion_type = str(analysis.get("promotion_type") or "organic").strip().lower()
+    pain_points = [str(p).strip() for p in pain_points_raw if isinstance(p, str) and p.strip()]
+    style_tags = [str(s).strip() for s in style_tags_raw if isinstance(s, str) and s.strip()]
+    enrichment: dict[str, Any] | None = None
+    if target_audience or pain_points or style_tags or promotion_type != "organic":
+        enrichment = {
+            "target_audience": target_audience or None,
+            "pain_points": pain_points,
+            "promotion_type": promotion_type if promotion_type in (
+                "organic", "brand_deal", "affiliate", "self_promotion",
+            ) else "organic",
+            "style_tags": style_tags,
+        }
+
     return {
         "video_id": video["video_id"],
         "mode": mode,
@@ -393,7 +426,10 @@ def _response_from_diagnostics_row(
             "title": title_hint or None,
             "niche_label": niche_label or None,
             "retention_source": retention_source,
+            "creator_median_views": creator_median_views,
+            "target_vs_creator_median": target_vs_creator_median,
         },
+        "enrichment": enrichment,
         "kpis": build_kpis(video, niche_meta, mode=mode, retention_end_pct=ret_end),
         "segments": diag.get("segments") or [],
         "hook_phases": diag.get("hook_phases") or [],

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -705,3 +706,144 @@ def test_resolve_video_id_neither_raises() -> None:
     sb = MagicMock()
     with pytest.raises(ValueError, match="Cần video_id hoặc tiktok_url"):
         resolve_video_id(sb, video_id=None, tiktok_url=None)
+
+
+# ── target_vs_creator_median + enrichment surface (2026-05-08) ──────────
+
+
+def _video_for_response(**overrides: Any) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "video_id": "v1",
+        "creator_handle": "u",
+        "views": 250_000,
+        "likes": 18_000,
+        "comments": 800,
+        "shares": 1_200,
+        "saves": 10_000,
+        "save_rate": 0.04,
+        "analysis_json": {},
+        "created_at": None,
+    }
+    base.update(overrides)
+    return base
+
+
+def _empty_diag() -> dict[str, Any]:
+    return {
+        "analysis_headline": "h",
+        "segments": [],
+        "hook_phases": [],
+        "lessons": [],
+        "flop_issues": None,
+    }
+
+
+def test_response_meta_carries_creator_median_views_and_ratio() -> None:
+    """`creator_median_views` from the corpus row should pass through to
+    `meta` along with the pre-computed `target_vs_creator_median` ratio
+    (rounded 2dp). FE renders the "X.Y× kênh trung bình" tag from these."""
+    video = _video_for_response(views=1_000_000, creator_median_views=400_000)
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="win",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Tech",
+        retention_source="modeled",
+    )
+    assert out["meta"]["creator_median_views"] == 400_000
+    assert out["meta"]["target_vs_creator_median"] == 2.5
+
+
+def test_response_meta_omits_ratio_when_creator_median_missing() -> None:
+    """On-demand path (or pre-2026-05-08 corpus rows) has no
+    `creator_median_views` — meta should report None for both fields
+    so the FE just hides the strip instead of dividing by zero."""
+    video = _video_for_response()  # no creator_median_views
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="win",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Tech",
+        retention_source="modeled",
+    )
+    assert out["meta"]["creator_median_views"] is None
+    assert out["meta"]["target_vs_creator_median"] is None
+
+
+def test_response_surfaces_enrichment_from_analysis_json() -> None:
+    """`target_audience` / `pain_points` / `promotion_type` / `style_tags`
+    are extracted by Gemini into VideoAnalysis but never previously
+    surfaced. Pulling from `analysis_json` works for both corpus and
+    on-demand paths since both populate the same dict."""
+    video = _video_for_response(analysis_json={
+        "target_audience": "phụ nữ 25–34 vùng đô thị",
+        "pain_points": ["da dầu mụn ẩn", "ngân sách hạn chế"],
+        "promotion_type": "brand_deal",
+        "style_tags": ["talking_head", "POV", "fast_cuts"],
+    })
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="win",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Beauty",
+        retention_source="modeled",
+    )
+    enrichment = out["enrichment"]
+    assert enrichment is not None
+    assert enrichment["target_audience"] == "phụ nữ 25–34 vùng đô thị"
+    assert enrichment["pain_points"] == ["da dầu mụn ẩn", "ngân sách hạn chế"]
+    assert enrichment["promotion_type"] == "brand_deal"
+    assert enrichment["style_tags"] == ["talking_head", "POV", "fast_cuts"]
+
+
+def test_response_omits_enrichment_when_analysis_empty() -> None:
+    """Default VideoAnalysis values (empty audience, empty lists, organic
+    promotion) signal "Gemini didn't surface anything useful" — emit
+    None so FE hides the section instead of rendering a blank chip row."""
+    video = _video_for_response(analysis_json={
+        "target_audience": "",
+        "pain_points": [],
+        "promotion_type": "organic",
+        "style_tags": [],
+    })
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="win",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Tech",
+        retention_source="modeled",
+    )
+    assert out["enrichment"] is None
+
+
+def test_response_enrichment_normalizes_unknown_promotion_type() -> None:
+    """Defensive: any unrecognised `promotion_type` (older corpus rows,
+    Gemini hallucination) should fall back to `organic`, never leaked
+    raw — VideoEnrichmentPayload has a strict Literal."""
+    video = _video_for_response(analysis_json={
+        "target_audience": "audience",
+        "promotion_type": "viral_paid",  # not in the literal
+    })
+    out = _response_from_diagnostics_row(
+        video,
+        _empty_diag(),
+        mode="win",
+        niche_meta={"avg_views": 50_000, "avg_retention": 0.5, "avg_ctr": 0.04, "sample_size": 10},
+        niche_benchmark=[],
+        retention_user=[],
+        niche_label="Tech",
+        retention_source="modeled",
+    )
+    assert out["enrichment"]["promotion_type"] == "organic"
