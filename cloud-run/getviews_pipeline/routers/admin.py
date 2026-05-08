@@ -318,11 +318,52 @@ def _evaluate_cron_batch_failures(rule: dict[str, Any]) -> tuple[bool, str, dict
     return (breached, msg, context)
 
 
+def _evaluate_pg_net_batch_http_4xx(rule: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
+    """Fire when pg_net logged HTTP 4xx for a ``/batch/*`` request (recent window).
+
+    Complements ``cron_batch_failures``: Cloud Run may never run when pg_cron
+    hits the wrong service (401/404) so ``batch_job_runs`` stays empty. This
+    rule reads ``net._http_response`` × ``net.http_request_queue`` via RPC
+    ``admin_pg_net_batch_http_4xx_events``.
+    """
+    t = rule.get("threshold_json") or {}
+    hours = int(t.get("hours", 6))
+    max_4xx = int(t.get("max_4xx", 0))
+    from getviews_pipeline.supabase_client import get_service_client
+
+    try:
+        resp = (
+            get_service_client()
+            .rpc("admin_pg_net_batch_http_4xx_events", {"p_hours": hours})
+            .execute()
+        )
+        rows = resp.data or []
+    except Exception as exc:
+        return (False, f"query failed: {exc}", {"reason": "query_error"})
+
+    n = len(rows)
+    breached = n > max_4xx
+    sample = rows[:5] if rows else []
+    context = {
+        "count_4xx": n,
+        "max_4xx": max_4xx,
+        "hours": hours,
+        "sample": sample,
+    }
+    if breached:
+        codes = ", ".join(str(r.get("status_code")) for r in sample if r.get("status_code") is not None)
+        msg = f"pg_net: {n} HTTP 4xx tới /batch/* trong {hours}h (mã mẫu: {codes or 'n/a'})"
+    else:
+        msg = f"pg_net batch HTTP ok · 0 4xx trong {hours}h (ngưỡng {max_4xx})"
+    return (breached, msg, context)
+
+
 _EVALUATORS: dict[str, Any] = {
     "ensemble_runway_low": _evaluate_ensemble_runway_low,
     "corpus_stale": _evaluate_corpus_stale,
     "admin_trigger_error_spike": _evaluate_trigger_error_spike,
     "cron_batch_failures": _evaluate_cron_batch_failures,
+    "pg_net_batch_http_4xx": _evaluate_pg_net_batch_http_4xx,
 }
 
 

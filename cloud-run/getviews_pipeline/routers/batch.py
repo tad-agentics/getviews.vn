@@ -19,6 +19,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.post("/batch/ping")
+async def batch_ping(
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Cheap auth probe for Vault + pg_cron wiring (URL + ``X-Batch-Secret``).
+
+    Returns immediately — use to confirm ``cloud_run_api_url`` points at the
+    service that mounts ``/batch/*`` (the batch pod), not the user-only pod.
+    """
+    return JSONResponse({"ok": True})
+
+
 class BatchIngestRequest(StrictBody):
     niche_ids: list[int] | None = Field(
         default=None,
