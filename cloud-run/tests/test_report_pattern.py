@@ -262,3 +262,85 @@ def test_find_ab_pair_returns_none_below_min_ratio() -> None:
         {"creator_handle": "@alice", "hook_type": "question", "views": 5000, "video_id": "2"},
     ]
     assert find_ab_pair(corpus, "bold_claim", min_delta=5) is None
+
+
+# Audit Pass-2 fix #1 — guard against zero-view flops producing fake A/B pairs.
+def test_find_ab_pair_skips_zero_view_flops() -> None:
+    """EnsembleData often returns ``play_count: 0`` for fresh / private
+    posts. Without the guard, ``max(flop_views, 1)`` floored division
+    produced misleading mega-deltas (e.g. ``5K view / 0 view = 5,000×``)
+    that the FE then rendered as evidence on Pattern + StudioHero."""
+    from getviews_pipeline.report_pattern_compute import find_ab_pair
+
+    corpus = [
+        {"creator_handle": "@alice", "hook_type": "bold_claim", "views": 5_000, "video_id": "1"},
+        {"creator_handle": "@alice", "hook_type": "question", "views": 0, "video_id": "2"},
+    ]
+    # Without the guard this would return a misleading delta=5000 pair.
+    assert find_ab_pair(corpus, "bold_claim", min_delta=5) is None
+
+
+def test_find_ab_pair_skips_low_view_flops_under_threshold() -> None:
+    """Same guard at the boundary — a flop with <100 views is treated
+    as ``too noisy to be a baseline``. This filters genuinely-no-reach
+    posts (e.g. fresh uploads in the first hour) without the explicit
+    zero-guard test passing alone."""
+    from getviews_pipeline.report_pattern_compute import find_ab_pair
+
+    corpus = [
+        {"creator_handle": "@alice", "hook_type": "bold_claim", "views": 50_000, "video_id": "1"},
+        {"creator_handle": "@alice", "hook_type": "question", "views": 50, "video_id": "2"},
+    ]
+    assert find_ab_pair(corpus, "bold_claim", min_delta=5) is None
+
+
+def test_find_ab_pair_accepts_flop_at_threshold_boundary() -> None:
+    """Sanity: 100 views is the floor — at-or-above must pass."""
+    from getviews_pipeline.report_pattern_compute import find_ab_pair
+
+    corpus = [
+        {"creator_handle": "@alice", "hook_type": "bold_claim", "views": 1_000, "video_id": "1"},
+        {"creator_handle": "@alice", "hook_type": "question", "views": 100, "video_id": "2"},
+    ]
+    pair = find_ab_pair(corpus, "bold_claim", min_delta=5)
+    assert pair is not None
+    assert pair.delta == 10  # 1000 / 100
+
+
+# ── build_top_performers_context — week math + cite-ready format ────────
+
+
+def test_build_top_performers_context_emits_handle_and_views() -> None:
+    """Smoke test on the new helper added in commit 94aef14 (no test
+    coverage prior to Audit Pass-2)."""
+    from getviews_pipeline.report_pattern_compute import (
+        build_top_performers_context,
+    )
+
+    corpus = [
+        {
+            "creator_handle": "@alice",
+            "hook_type": "bold_claim",
+            "views": 1_500_000,
+            "indexed_at": "2026-04-25T00:00:00+00:00",
+        },
+    ]
+    out = build_top_performers_context(corpus, ["bold_claim"], top_n=2)
+    # Citation-ready string — handle + view K/M short form
+    assert "@alice" in out
+    assert "1.5M" in out
+
+
+def test_build_top_performers_context_handles_empty_match() -> None:
+    """No matching hook_type → empty string (NOT a section header
+    that misleadingly suggests "no winners found in this hook")."""
+    from getviews_pipeline.report_pattern_compute import (
+        build_top_performers_context,
+    )
+
+    out = build_top_performers_context(
+        [{"creator_handle": "@alice", "hook_type": "story_open", "views": 100}],
+        ["bold_claim"],
+        top_n=2,
+    )
+    assert out == ""

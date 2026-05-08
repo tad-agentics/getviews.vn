@@ -84,9 +84,18 @@ def step_tool_complete(
     found: int,
     thumbnails: list[str],
     tool: str = "search",
+    *,
+    filtered: int = 0,
 ) -> dict[str, Any]:
-    """Parallel tool card — spinner resolves to count + thumbnail strip."""
-    return {
+    """Parallel tool card — spinner resolves to count + thumbnail strip.
+
+    ``filtered`` (audit Pass-2 fix #6) — number of awemes the tool
+    fetched from upstream but discarded before reporting. Surfaces the
+    blocklist (or any future content filter) so the UX doesn't read
+    "search ran, no results" when reality is "all results filtered".
+    Defaults to 0 for non-filtering tools.
+    """
+    payload: dict[str, Any] = {
         "type": "step_tool_complete",
         "iteration": iteration,
         "index": index,
@@ -94,6 +103,9 @@ def step_tool_complete(
         "thumbnails": thumbnails[:5],
         "tool": tool,
     }
+    if filtered > 0:
+        payload["filtered"] = filtered
+    return payload
 
 
 def step_status(iteration: int, text: str) -> dict[str, Any]:

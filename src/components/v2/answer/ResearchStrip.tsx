@@ -171,6 +171,11 @@ interface ToolCardState {
   done: boolean;
   found: number;
   thumbnails: string[];
+  /** Awemes returned by upstream but discarded by the tool (e.g.,
+   *  blocklist). Audit Pass-2 fix #6 — surfaces the gap between
+   *  "search returned nothing" and "search returned only filtered
+   *  results". */
+  filtered?: number;
 }
 
 // ── ThumbnailStrip ────────────────────────────────────────────────────────────
@@ -231,6 +236,14 @@ function ToolCard({ card }: { card: ToolCardState }) {
         {card.done && card.found > 0 && (
           <span className="ml-auto shrink-0 font-mono text-[10px] text-[var(--gv-ink-3)]">
             {card.found.toLocaleString("vi-VN")} video
+            {card.filtered && card.filtered > 0
+              ? ` · lọc ${card.filtered.toLocaleString("vi-VN")}`
+              : ""}
+          </span>
+        )}
+        {card.done && card.found === 0 && card.filtered && card.filtered > 0 && (
+          <span className="ml-auto shrink-0 font-mono text-[10px] text-[var(--gv-ink-4)]">
+            {card.filtered.toLocaleString("vi-VN")} bị lọc (kênh tin tức)
           </span>
         )}
       </div>
@@ -309,7 +322,11 @@ export function LivePipelineStrip({
   // pipelines emit. Without these branches the strip shows a spinner
   // until the outer ``done:true`` token, dropping the Vietnamese
   // error message and leaving chat-path users with an empty strip.
-  let errorEvent: import("@/lib/types/sse-events").StepError | null = null;
+  // Audit Pass-2 fix #3 — collect ALL step_error events and render the
+  // FIRST one (root cause). live_search.py emits one per failed term
+  // (up to 3 in a row); the previous single-slot capture overwrote
+  // earlier, more-diagnostic errors with the last one in the stream.
+  const errorEvents: import("@/lib/types/sse-events").StepError[] = [];
   const legacyLines: string[] = [];
 
   for (const event of steps) {
@@ -340,10 +357,11 @@ export function LivePipelineStrip({
           done: true,
           found: event.found,
           thumbnails: event.thumbnails,
+          filtered: event.filtered,
         });
       }
     } else if (event.type === "step_error") {
-      errorEvent = event;
+      errorEvents.push(event);
     } else if (event.type === "step_start" || event.type === "step_process") {
       legacyLines.push(event.label);
     } else if (event.type === "step_search") {
@@ -387,10 +405,19 @@ export function LivePipelineStrip({
       ))}
 
       {/* Legacy sequential events (chat-mode pipelines.py emitters).
-          Only rendered when no parallel-tool cards are present, so the
-          two render shapes don't double-up. */}
-      {iterationOrder.length === 0 && legacyLines.length > 0 && (
-        <ul className="space-y-1.5 pl-5 text-[12.5px] leading-snug text-[var(--gv-ink-3)]">
+          Audit Pass-2 fix #2 — render alongside iteration cards, not
+          gated on `iterationOrder.length === 0`. Some pipelines emit
+          BOTH step_status (parallel) AND step_done (legacy summary
+          like "Xong — đang hiển thị kết quả"); the previous gate
+          silently dropped the summary on every video diagnosis +
+          diagnostic answer. */}
+      {legacyLines.length > 0 && (
+        <ul
+          className={
+            "space-y-1.5 pl-5 text-[12.5px] leading-snug text-[var(--gv-ink-3)] " +
+            (iterationOrder.length > 0 ? "mt-3" : "")
+          }
+        >
           {legacyLines.map((line, i) => (
             <li key={`${i}-${line.slice(0, 24)}`} className="flex items-start gap-2">
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--gv-ink-4)]" />
@@ -400,29 +427,33 @@ export function LivePipelineStrip({
         </ul>
       )}
 
-      {/* step_error — surface the Vietnamese message_vi so the user
-          sees a concrete failure instead of a never-resolving spinner. */}
-      {errorEvent && (
+      {/* step_error — surface the Vietnamese message_vi (root cause:
+          first error in the stream) so the user sees a concrete
+          failure instead of a never-resolving spinner. */}
+      {errorEvents.length > 0 && (
         <div
           role="alert"
           className="mt-2 flex items-start gap-2 rounded-md border border-[color:var(--gv-neg)]/40 bg-[color:var(--gv-neg)]/8 px-3 py-2 text-[12.5px] text-[color:var(--gv-neg-deep)]"
         >
           <span aria-hidden>⚠</span>
           <div className="flex flex-col gap-0.5">
-            <span className="font-medium">{errorEvent.message_vi}</span>
-            <span className="gv-mono text-[10px] opacity-70">{errorEvent.code}</span>
+            <span className="font-medium">{errorEvents[0]!.message_vi}</span>
+            <span className="gv-mono text-[10px] opacity-70">
+              {errorEvents[0]!.code}
+              {errorEvents.length > 1 ? ` · +${errorEvents.length - 1} thêm` : ""}
+            </span>
           </div>
         </div>
       )}
 
-      {loading && !done && !errorEvent && steps.some((s) => s.type === "step_tool_complete") && (
+      {loading && !done && errorEvents.length === 0 && steps.some((s) => s.type === "step_tool_complete") && (
         <div className="flex items-center gap-2 pt-2 text-[11px] text-[var(--gv-ink-3)]">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--gv-accent)]" />
           Đang tổng hợp báo cáo…
         </div>
       )}
 
-      {done && !errorEvent && (
+      {done && errorEvents.length === 0 && (
         <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-[var(--gv-pos)]">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <circle cx="6" cy="6" r="5" fill="currentColor" opacity="0.15" />
