@@ -47,6 +47,7 @@ def fill_pattern_narrative(
     niche_label: str,
     top_hook_labels: list[str],
     stalled_hook_labels: list[str],
+    live_context: str = "",
 ) -> dict[str, Any]:
     """Return thesis, hook_insights, stalled_insights, related_questions.
 
@@ -82,6 +83,8 @@ def fill_pattern_narrative(
         #     not generic niche follow-ups.
         # The ranked hook list + stalled list are context, not the output
         # shape — the output is an answer to ``query`` grounded in them.
+        extra = (live_context or "").strip()
+        live_block = f"\n{extra}\n" if extra else ""
         prompt = f"""Bạn là trợ lý phân tích TikTok cho creator Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi của người dùng, không phải tóm tắt chung.
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
@@ -94,11 +97,11 @@ Ngách: {niche_label}
 Câu hỏi người dùng: "{query_clean or '(không nêu rõ — trả lời dựa trên xu hướng hook hiện tại)'}"
 Hook đang thắng (xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
-
+{live_block}
 Quy tắc:
 - Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn".
 - Không dùng từ "chắc chắn", "hiệu quả", "bùng nổ" (xem copy rules).
-- Số liệu chỉ được trích từ danh sách trên; không tự bịa ra %.
+- Số liệu chỉ được trích từ danh sách hook/corpus trên; phần bổ sung live (nếu có) chỉ là ví dụ xu hướng — không tự bịa aggregate.
 """
         cfg = types.GenerateContentConfig(
             temperature=0.35,

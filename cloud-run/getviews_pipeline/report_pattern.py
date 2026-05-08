@@ -455,17 +455,44 @@ def build_pattern_report(
     )
     stalled_labels = [s.pattern for s in stalled] if stalled else []
 
+    live_context = ""
+    from getviews_pipeline.config import GEMINI_API_KEY
+    from getviews_pipeline.live_search import (
+        fetch_live_supplement,
+        format_live_awemes_for_prompt,
+        needs_live_search,
+    )
+
+    if GEMINI_API_KEY and needs_live_search(query, len(corpus)):
+        top_hook_types = [str(r.get("hook_type") or "") for r in ranked[:3]]
+        loop = asyncio.new_event_loop()
+        try:
+            live_awemes = loop.run_until_complete(
+                fetch_live_supplement(
+                    query=query,
+                    niche_label=niche_label,
+                    top_hook_types=top_hook_types,
+                    corpus_count=len(corpus),
+                    iteration_start=2,
+                    step_queue=step_queue,
+                )
+            )
+        finally:
+            loop.close()
+        live_context = format_live_awemes_for_prompt(live_awemes[:20])
+
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_status, step_tool_start
 
-        emit(step_queue, step_status(2, "Đang tổng hợp pattern nổi bật..."))
-        emit(step_queue, step_tool_start("Viết báo cáo pattern", 2, 0, tool="synthesis"))
+        emit(step_queue, step_status(3, "Đang tổng hợp pattern nổi bật..."))
+        emit(step_queue, step_tool_start("Viết báo cáo pattern", 3, 0, tool="synthesis"))
 
     narr = fill_pattern_narrative(
         query=query,
         niche_label=niche_label,
         top_hook_labels=top_labels,
         stalled_hook_labels=stalled_labels,
+        live_context=live_context,
     )
 
     why_won = build_why_won_list(top_labels)
@@ -550,7 +577,7 @@ def build_pattern_report(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_done, step_tool_complete
 
-        emit(step_queue, step_tool_complete(2, 0, 0, [], tool="synthesis"))
+        emit(step_queue, step_tool_complete(3, 0, 0, [], tool="synthesis"))
         emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 

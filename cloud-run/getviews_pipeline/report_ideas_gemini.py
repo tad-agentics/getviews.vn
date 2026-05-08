@@ -79,6 +79,7 @@ def fill_ideas_narrative(
     niche_label: str,
     sample_n: int,
     top_idea_hooks: list[str],
+    live_context: str = "",
 ) -> dict[str, Any]:
     """Return ``{lead, related_questions}`` grounded in the top ideas and
     phrased as an answer to ``query``."""
@@ -110,6 +111,8 @@ def fill_ideas_narrative(
             f"  {i + 1}. {h}" for i, h in enumerate(top_idea_hooks[:5])
         ) or "  (chưa đủ dữ liệu xếp hạng)"
         n_hooks = min(len(top_idea_hooks), 5)
+        extra = (live_context or "").strip()
+        live_block = f"\n{extra}\n" if extra else ""
         prompt = f"""Bạn là trợ lý kịch bản TikTok cho creator Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi của người dùng bằng bộ ý tưởng đã xếp hạng, không tóm tắt chung.
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
@@ -122,11 +125,11 @@ Câu hỏi người dùng: "{query_clean}"
 Top ý tưởng (đã xếp hạng):
 {numbered_hooks}
 Mẫu: {sample_n} video thắng trong ngách, tuần qua.
-
+{live_block}
 Quy tắc:
 - Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn" / "Tuyệt vời" / "Wow".
 - Không dùng từ "chắc chắn", "hiệu quả", "bùng nổ", "bí mật", "công thức vàng".
-- Không bịa thêm ý tưởng ngoài danh sách trên.
+- Không bịa thêm ý tưởng ngoài danh sách trên; phần bổ sung live (nếu có) chỉ là ví dụ — không thêm rank.
 - `opening_line` phải đọc được tự nhiên khi creator nói trên camera — TRÁNH các mẫu chung chung như "Hôm nay mình kể" mà ĐỀ XUẤT câu mở cụ thể gắn với pattern của rank đó.
 - `hook_lines` phải có đủ {n_hooks} entry theo đúng thứ tự rank 1..{n_hooks}.
 """

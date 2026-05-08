@@ -299,11 +299,37 @@ def build_ideas_report(
     # budget exhausted envs — the fallback is still query-aware).
     from getviews_pipeline.report_ideas_gemini import fill_ideas_narrative
 
+    live_context = ""
+    from getviews_pipeline.config import GEMINI_API_KEY
+    from getviews_pipeline.live_search import (
+        fetch_live_supplement,
+        format_live_awemes_for_prompt,
+        needs_live_search,
+    )
+
+    if GEMINI_API_KEY and needs_live_search(query, len(corpus)):
+        top_hook_types = [str(r.get("hook_type") or "") for r in ranked[:3]]
+        loop = asyncio.new_event_loop()
+        try:
+            live_awemes = loop.run_until_complete(
+                fetch_live_supplement(
+                    query=query,
+                    niche_label=niche_label,
+                    top_hook_types=top_hook_types,
+                    corpus_count=len(corpus),
+                    iteration_start=2,
+                    step_queue=step_queue,
+                )
+            )
+        finally:
+            loop.close()
+        live_context = format_live_awemes_for_prompt(live_awemes[:20])
+
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_status, step_tool_start
 
-        emit(step_queue, step_status(2, "Đang tạo ý tưởng dựa trên corpus..."))
-        emit(step_queue, step_tool_start("Gemini tổng hợp ý tưởng", 2, 0, tool="synthesis"))
+        emit(step_queue, step_status(3, "Đang tạo ý tưởng dựa trên corpus..."))
+        emit(step_queue, step_tool_start("Gemini tổng hợp ý tưởng", 3, 0, tool="synthesis"))
 
     top_idea_hooks = [b.hook for b in ideas_blocks[:5] if getattr(b, "hook", None)]
     narrative = fill_ideas_narrative(
@@ -311,6 +337,7 @@ def build_ideas_report(
         niche_label=niche_label,
         sample_n=sample_n,
         top_idea_hooks=top_idea_hooks,
+        live_context=live_context,
     )
 
     # 2026-05-10 — Wave 2 PR #3: merge Gemini per-rank copy into each
@@ -354,7 +381,7 @@ def build_ideas_report(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_done, step_tool_complete
 
-        emit(step_queue, step_tool_complete(2, 0, len(ideas_blocks), [], tool="synthesis"))
+        emit(step_queue, step_tool_complete(3, 0, len(ideas_blocks), [], tool="synthesis"))
         emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 
