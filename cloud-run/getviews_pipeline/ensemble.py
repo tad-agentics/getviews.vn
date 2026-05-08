@@ -552,16 +552,39 @@ def aweme_from_feed_item(item: Any) -> dict[str, Any] | None:
 
 
 def iter_awemes_from_search_payload(data: Any) -> list[dict[str, Any]]:
-    """Extract list of aweme dicts from keyword/hashtag ``data`` field."""
+    """Extract list of aweme dicts from a TikTok feed-shaped ``data`` field.
+
+    Handles three observed shapes from EnsembleData:
+      • keyword/hashtag search → ``data.data`` is the list
+      • user/posts (legacy ``new_version=False``) → ``data.aweme_list``
+      • bare list → use directly
+
+    Until 2026-05-08 only ``data.data`` was checked, so every
+    ``fetch_user_posts`` call silently returned ``[]`` and creator
+    comparison was unreachable in production. The aweme_list fallback
+    fixes that without changing the keyword/hashtag path.
+    """
     if data is None:
         return []
     if isinstance(data, list):
         raw_items = data
     elif isinstance(data, dict):
-        inner = data.get("data")
+        inner = data.get("aweme_list")
+        if not isinstance(inner, list):
+            inner = data.get("data")
         if isinstance(inner, list):
             raw_items = inner
         else:
+            # Surface the unexpected envelope so we can debug against
+            # ED contract changes from Cloud Run logs without redeploys.
+            try:
+                top_keys = sorted(data.keys())[:8]
+            except Exception:
+                top_keys = []
+            logger.info(
+                "[ensemble] unexpected feed payload shape — no aweme_list / data list found "
+                "(top_keys=%r)", top_keys,
+            )
             return []
     else:
         return []
@@ -673,6 +696,11 @@ async def fetch_user_posts(
     )
     data = payload.get("data")
     out = iter_awemes_from_search_payload(data)
+    if not out:
+        logger.info(
+            "[ensemble] fetch_user_posts returned empty username=%r depth=%d "
+            "data_type=%s", u, depth, type(data).__name__,
+        )
     _user_path_cache.set(cache_key, out)
     return out
 

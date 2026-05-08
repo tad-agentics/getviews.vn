@@ -230,9 +230,20 @@ def build_kpis(
     views = int(video.get("views") or 0)
     shares = int(video.get("shares") or 0)
     saves = int(video.get("saves") or 0)
-    niche_avg = max(int(niche_meta.get("avg_views") or 0), 1)
-    mult = views / niche_avg if niche_avg else 0.0
-    delta_views = f"{mult:.1f}× kênh" if mult >= 0.1 else "—"
+    # Niche-relative multiplier — historically labelled "× kênh" which
+    # reads as "× channel" in Vietnamese but actually compares against
+    # the niche cohort average. Two fixes (2026-05-08):
+    #   1. Honest label: "× ngách" so it doesn't conflict with the
+    #      true channel-relative ratio in ContextStrip.
+    #   2. Hide the multiplier when the niche cohort is too thin
+    #      (avg_views < 1_000) — otherwise the ``max(..., 1)`` floor
+    #      produces nonsense like "126192.0× ngách" for sparse niches.
+    niche_avg_raw = int(niche_meta.get("avg_views") or 0)
+    if niche_avg_raw >= 1_000:
+        mult = views / niche_avg_raw
+        delta_views = f"{mult:.1f}× ngách" if mult >= 0.1 else "—"
+    else:
+        delta_views = "—"
     ret_pct = f"{retention_end_pct:.0f}%"
     ret_delta = "top 5%" if retention_end_pct >= 70 else "ngách TB"
     save_rate = (saves / views * 100.0) if views else 0.0

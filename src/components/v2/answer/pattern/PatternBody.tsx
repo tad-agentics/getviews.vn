@@ -15,6 +15,7 @@ import { WhatStalledRow } from "./WhatStalledRow";
 import { WoWDiffBand } from "./WoWDiffBand";
 import { tiktokVideoHref, wowDiffHasContent } from "./patternFormat";
 import { PatternSubreports } from "../multi/PatternSubreport";
+import { NicheInsightCard } from "../ideas/NicheInsightCard";
 import { patternLabelsForSessionIntent } from "../sessionIntentLabels";
 
 function sumToneClass(tone: SumStatData["tone"]): string {
@@ -282,6 +283,10 @@ export function PatternBody({
       ) : null}
 
       <PatternSubreports report={report} />
+
+      <section className="gv-fade-up" style={{ animationDelay: "390ms" }}>
+        <NicheInsightCard insight={report.niche_insight} />
+      </section>
 
       {report.actions.length > 0 ? (
         <section className="gv-fade-up" style={{ animationDelay: "420ms" }}>
