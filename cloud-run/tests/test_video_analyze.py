@@ -828,6 +828,54 @@ def test_response_omits_enrichment_when_analysis_empty() -> None:
     assert out["enrichment"] is None
 
 
+# ── KPI delta — niche-relative multiplier (× ngách) ─────────────────
+
+
+def test_build_kpis_views_delta_uses_nguach_label_with_thick_cohort() -> None:
+    """Honest label: it's a niche-cohort comparison, not a channel one.
+    Was previously "× kênh" which conflicts with the true channel-
+    relative ratio in ContextStrip."""
+    from getviews_pipeline.video_analyze import build_kpis
+
+    out = build_kpis(
+        {"views": 250_000, "shares": 0, "saves": 0},
+        {"avg_views": 100_000},
+        mode="win",
+        retention_end_pct=70,
+    )
+    assert out[0]["label"] == "VIEW"
+    assert out[0]["delta"] == "2.5× ngách"
+
+
+def test_build_kpis_hides_views_delta_when_cohort_is_sparse() -> None:
+    """Pre-2026-05-08 a sparse niche (avg_views = 0 → max(0,1) = 1)
+    produced "126192.0× kênh" for a 126K-view video. Now: any cohort
+    avg < 1_000 is too thin to anchor a ratio — show "—" instead."""
+    from getviews_pipeline.video_analyze import build_kpis
+
+    out = build_kpis(
+        {"views": 126_192, "shares": 0, "saves": 0},
+        {"avg_views": 0},  # niche cohort thin → no benchmark
+        mode="win",
+        retention_end_pct=50,
+    )
+    assert out[0]["delta"] == "—"
+
+
+def test_build_kpis_hides_views_delta_when_cohort_below_floor() -> None:
+    """Threshold check at 1_000 — anything below is treated as
+    too-thin to publish a multiplier the user will trust."""
+    from getviews_pipeline.video_analyze import build_kpis
+
+    out = build_kpis(
+        {"views": 50_000, "shares": 0, "saves": 0},
+        {"avg_views": 800},
+        mode="win",
+        retention_end_pct=50,
+    )
+    assert out[0]["delta"] == "—"
+
+
 def test_response_enrichment_normalizes_unknown_promotion_type() -> None:
     """Defensive: any unrecognised `promotion_type` (older corpus rows,
     Gemini hallucination) should fall back to `organic`, never leaked
