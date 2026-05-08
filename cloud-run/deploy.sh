@@ -15,9 +15,20 @@
 #   ./deploy.sh batch             # build + deploy batch only
 #   SKIP_BUILD=1 ./deploy.sh ...  # reuse previous image
 #
+# Project: set GCP_PROJECT_ID or ``gcloud config set project ID`` (active
+# config is used when GCP_PROJECT_ID is unset).
+#
 set -euo pipefail
 
-PROJECT_ID="${GCP_PROJECT_ID:?Set GCP_PROJECT_ID}"
+if [[ -n "${GCP_PROJECT_ID:-}" ]]; then
+  PROJECT_ID="${GCP_PROJECT_ID//[[:space:]]/}"
+else
+  PROJECT_ID="$(gcloud config get-value project 2>/dev/null | tr -d '[:space:]')"
+fi
+if [[ -z "$PROJECT_ID" ]]; then
+  echo "Missing project: set GCP_PROJECT_ID or run gcloud config set project YOUR_PROJECT_ID" >&2
+  exit 2
+fi
 REGION="${REGION:-asia-southeast1}"   # Singapore — lowest latency to Vietnam
 IMAGE="gcr.io/$PROJECT_ID/getviews-pipeline"
 
@@ -34,7 +45,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
   echo "Building image $IMAGE..."
-  gcloud builds submit --tag "$IMAGE" "$SCRIPT_DIR"
+  gcloud builds submit --project "$PROJECT_ID" --tag "$IMAGE" "$SCRIPT_DIR"
 else
   echo "SKIP_BUILD=1 — reusing existing image $IMAGE"
 fi
@@ -56,6 +67,7 @@ deploy_user() {
   echo ""
   echo "Deploying getviews-pipeline-user..."
   gcloud run deploy getviews-pipeline-user \
+    --project "$PROJECT_ID" \
     --image "$IMAGE" \
     --region "$REGION" \
     --platform managed \
@@ -77,6 +89,7 @@ deploy_batch() {
   echo ""
   echo "Deploying getviews-pipeline-batch..."
   gcloud run deploy getviews-pipeline-batch \
+    --project "$PROJECT_ID" \
     --image "$IMAGE" \
     --region "$REGION" \
     --platform managed \
@@ -100,10 +113,12 @@ USER_URL=""
 BATCH_URL=""
 if [[ "$TARGET" == "user" || "$TARGET" == "both" ]]; then
   USER_URL=$(gcloud run services describe getviews-pipeline-user \
+    --project "$PROJECT_ID" \
     --region "$REGION" --format="value(status.url)" 2>/dev/null || true)
 fi
 if [[ "$TARGET" == "batch" || "$TARGET" == "both" ]]; then
   BATCH_URL=$(gcloud run services describe getviews-pipeline-batch \
+    --project "$PROJECT_ID" \
     --region "$REGION" --format="value(status.url)" 2>/dev/null || true)
 fi
 
@@ -120,8 +135,8 @@ if [[ -n "$USER_URL" && -n "$BATCH_URL" ]]; then
   echo ""
 fi
 echo "Set env vars per service via (USE --update-env-vars, NOT --set-env-vars):"
-echo "  gcloud run services update getviews-pipeline-user  --region $REGION --update-env-vars KEY=VALUE"
-echo "  gcloud run services update getviews-pipeline-batch --region $REGION --update-env-vars KEY=VALUE"
+echo "  gcloud run services update getviews-pipeline-user  --project $PROJECT_ID --region $REGION --update-env-vars KEY=VALUE"
+echo "  gcloud run services update getviews-pipeline-batch --project $PROJECT_ID --region $REGION --update-env-vars KEY=VALUE"
 echo ""
 echo "  ``--set-env-vars`` REPLACES the entire env block — using it"
 echo "  will wipe every variable not in the comma list and break JWT"
