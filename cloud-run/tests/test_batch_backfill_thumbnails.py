@@ -367,8 +367,12 @@ def test_pagination_reads_past_first_1000(client: TestClient) -> None:
 
 
 def test_per_row_exception_is_isolated(client: TestClient) -> None:
-    """If one row's helpers raise, only that row counts as failed —
-    the rest of the batch must still process."""
+    """Frame copy raising falls through to CDN → ED → NULL; other rows still succeed.
+
+    A raised exception from ``copy_first_frame_to_thumbnail`` is treated as a miss
+    (same as ``None``): the row joins the CDN retry queue rather than incrementing
+    ``failed`` — ``failed`` is reserved for DB write errors.
+    """
     rows = [
         {"video_id": "ok1", "thumbnail_url": "https://cdn/old.jpg"},
         {"video_id": "boom", "thumbnail_url": "https://cdn/old.jpg"},
@@ -396,11 +400,12 @@ def test_per_row_exception_is_isolated(client: TestClient) -> None:
     body = resp.json()
     assert body["from_frame"] == 2
     assert body["from_ed"] == 0
-    assert body["failed"] == 1
-    # The failing row must NOT have written anything (no NULL, no patch).
-    written_ids = [u["val"] for u in fake_sb.video_corpus.updates]
-    assert "boom" not in written_ids
-    assert set(written_ids) == {"ok1", "ok2"}
+    assert body["failed"] == 0
+    assert body["nulled"] == 1
+    written = {u["val"]: u["patch"].get("thumbnail_url") for u in fake_sb.video_corpus.updates}
+    assert written["ok1"] and str(written["ok1"]).startswith(_R2_PUBLIC)
+    assert written["ok2"] and str(written["ok2"]).startswith(_R2_PUBLIC)
+    assert written["boom"] is None
 
 
 # ── 9. R2 not configured → 500 (not silent) ────────────────────────

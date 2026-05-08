@@ -13,6 +13,7 @@ from getviews_pipeline.report_types import (
     HookFinding,
     Lifecycle,
     Metric,
+    OutlierStory,
     PatternCellPayload,
     PatternPayload,
     SourceRow,
@@ -92,6 +93,7 @@ def build_fixture_pattern_report() -> dict[str, Any]:
         prerequisites=["Face visible 0–1s", "On-screen text"],
         insight="Strong hook retention vs niche baseline.",
         evidence_video_ids=[],
+        creator_count=18,
     )
     ev = EvidenceCardPayload(
         video_id="stub-1",
@@ -103,6 +105,7 @@ def build_fixture_pattern_report() -> dict[str, Any]:
         bg_color="#1F2A3B",
         hook_family="testimonial",
         thumbnail_url=None,
+        engagement_rate=0.087,
     )
     payload = PatternPayload(
         confidence=confidence,
@@ -179,6 +182,13 @@ def build_fixture_pattern_report() -> dict[str, Any]:
             SourceRow(kind="video", label="Corpus", count=47, sub="Tech · 7d"),
         ],
         related_questions=["Hook nào đang giảm?", "Format nào oversaturated?", "Niche con nào đang nổi?"],
+        outlier_story=OutlierStory(
+            creator_handle="@viral_demo",
+            views=3_400_000,
+            breakout_ratio=340.0,
+            hook_type="Cảnh báo / twist",
+            days_ago=2,
+        ),
     )
     return payload.model_dump()
 
@@ -327,6 +337,7 @@ def build_pattern_report(
         build_tldr_callouts,
         compute_findings,
         compute_what_stalled,
+        fetch_outlier_story,
         load_pattern_inputs,
         pick_evidence_videos,
         rank_hooks_for_pattern,
@@ -359,11 +370,23 @@ def build_pattern_report(
         thin["wow_diff"] = wow
         if isinstance(thin.get("confidence"), dict):
             thin["confidence"]["freshness_hours"] = _freshness_hours_from_corpus(corpus)
+        outlier_t = fetch_outlier_story(sb, niche_id, window_days)
+        if outlier_t is not None:
+            thin["outlier_story"] = outlier_t.model_dump()
         return thin
 
     org = float(ni.get("organic_avg_views") or 0)
     com = float(ni.get("commerce_avg_views") or 0)
     baseline_views = org if org > 0 else (com if com > 0 else 1.0)
+
+    from collections import defaultdict
+
+    _creator_sets: dict[str, set[str]] = defaultdict(set)
+    for row in corpus:
+        h = str(row.get("hook_type") or "")
+        ch = str(row.get("creator_handle") or "")
+        if h and ch:
+            _creator_sets[h].add(ch)
 
     runner_ups: dict[str, str] = {}
     for i, r in enumerate(ranked[:3]):
@@ -374,7 +397,9 @@ def build_pattern_report(
     top3_types = {str(r.get("hook_type") or "") for r in ranked[:3]}
     top_labels = [_pattern_label_from_he_row(r) for r in ranked[:3]]
 
-    stalled, stalled_reason = compute_what_stalled(he_rows, top3_types, baseline_views)
+    stalled, stalled_reason = compute_what_stalled(
+        he_rows, top3_types, baseline_views, creator_sets=_creator_sets
+    )
     stalled_labels = [s.pattern for s in stalled] if stalled else []
 
     narr = fill_pattern_narrative(
@@ -393,6 +418,7 @@ def build_pattern_report(
         runner_ups,
         insights,
         why_won,
+        creator_sets=_creator_sets,
     )
 
     stalled_insights = narr.get("stalled_insights") or []
@@ -432,7 +458,9 @@ def build_pattern_report(
     # and insight_text as preamble context. Graceful-null if the Layer
     # 0 cron hasn't run for this niche.
     from getviews_pipeline.niche_insight_fetcher import fetch_niche_insight
+
     niche_insight = fetch_niche_insight(niche_id, client=sb)
+    outlier_story = fetch_outlier_story(sb, niche_id, window_days)
 
     payload = PatternPayload(
         confidence=confidence,
@@ -458,6 +486,7 @@ def build_pattern_report(
             else None
         ),
         niche_insight=niche_insight,
+        outlier_story=outlier_story,
     )
     return payload.model_dump()
 

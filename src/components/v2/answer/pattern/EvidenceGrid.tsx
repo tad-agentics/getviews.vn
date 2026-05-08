@@ -37,6 +37,11 @@ export function EvidenceGrid({ items }: { items: EvidenceCardPayloadData[] }) {
             <p className="line-clamp-2 text-sm font-medium text-[color:var(--gv-ink)]">{v.title}</p>
             <div className="flex flex-wrap gap-x-3 gap-y-1 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
               <span>{formatViews(v.views)} view</span>
+              {v.engagement_rate != null && v.engagement_rate > 0 && (
+                <span className="font-semibold text-[color:var(--gv-accent)]">
+                  {(v.engagement_rate * 100).toFixed(1)}% ER
+                </span>
+              )}
               <span>{Math.round(v.retention * 100)}% giữ</span>
               <span>{formatDurationSec(v.duration_sec)}</span>
               <span className="text-[color:var(--gv-accent)]">{v.hook_family}</span>

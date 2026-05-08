@@ -72,10 +72,15 @@ export function GenericEvidenceGrid({
               {v.creator_handle}
             </p>
             <p className="line-clamp-2 text-[color:var(--gv-ink-2)]">{v.title}</p>
-            <p className="gv-mono flex items-center justify-between text-[10px] text-[color:var(--gv-ink-3)]">
-              <span>{formatViews(v.views)} views</span>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 gv-mono text-[10px] text-[color:var(--gv-ink-3)]">
+              <span>{formatViews(v.views)} view</span>
+              {v.engagement_rate != null && v.engagement_rate > 0 && (
+                <span className="font-semibold text-[color:var(--gv-accent)]">
+                  {(v.engagement_rate * 100).toFixed(1)}% ER
+                </span>
+              )}
               <span>{formatDuration(v.duration_sec)}</span>
-            </p>
+            </div>
           </div>
         </li>
       ))}

@@ -60,6 +60,11 @@ export function HookFindingCard({ row }: { row: HookFindingData }) {
           </span>
         </div>
         <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{row.uses} lượt</p>
+        {row.creator_count != null && row.creator_count > 0 && (
+          <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+            {row.creator_count} creator
+          </p>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
  * Thin sample (&lt;30): first finding only, no WhatStalled, 3 evidence tiles, humility UX.
  */
 import { useState } from "react";
-import type { PatternReportPayload, SumStatData } from "@/lib/api-types";
+import type { OutlierStory, PatternReportPayload, SumStatData } from "@/lib/api-types";
 import { ConfidenceStrip } from "./ConfidenceStrip";
 import { EvidenceGrid } from "./EvidenceGrid";
 import { HookFindingCard } from "./HookFindingCard";
@@ -21,6 +21,40 @@ function sumToneClass(tone: SumStatData["tone"]): string {
   if (tone === "up") return "text-[color:var(--gv-pos)]";
   if (tone === "down") return "text-[color:var(--gv-neg)]";
   return "text-[color:var(--gv-ink-3)]";
+}
+
+function OutlierStoryBanner({ story }: { story: OutlierStory }) {
+  const fmtViews = (v: number) =>
+    v >= 1_000_000
+      ? `${(v / 1_000_000).toFixed(1)}M`
+      : v >= 1_000
+        ? `${Math.round(v / 1_000)}K`
+        : v.toLocaleString("vi-VN");
+
+  return (
+    <div className="mb-6 rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-3.5">
+      <p className="gv-mono mb-1 text-[9px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
+        Đỉnh cao tuần này
+      </p>
+      <p className="text-[15px] leading-snug text-[color:var(--gv-ink)]">
+        <span className="font-semibold">{story.creator_handle}</span> đạt{" "}
+        <span className="font-mono font-bold text-[color:var(--gv-accent)]">
+          {fmtViews(story.views)} view
+        </span>{" "}
+        — gấp{" "}
+        <span className="font-mono font-bold">
+          {story.breakout_ratio.toLocaleString("vi-VN")}×
+        </span>{" "}
+        mức trung bình creator · hook <span className="font-semibold">{story.hook_type}</span>
+        {story.days_ago != null && story.days_ago <= 7 && (
+          <span className="text-[color:var(--gv-ink-3)]">
+            {" "}
+            · {story.days_ago === 0 ? "hôm nay" : `${story.days_ago} ngày trước`}
+          </span>
+        )}
+      </p>
+    </div>
+  );
 }
 
 export function PatternBody({
@@ -52,6 +86,8 @@ export function PatternBody({
       />
 
       {thin && humilityOpen ? <HumilityBanner /> : null}
+
+      {report.outlier_story ? <OutlierStoryBanner story={report.outlier_story} /> : null}
 
       {showWow && wow ? <WoWDiffBand data={wow} /> : null}
 

@@ -31,7 +31,13 @@ export function IssueCard({ issue, onApplyToScript, className = "" }: IssueCardP
           {issue.t}s – {issue.end}s
         </div>
         <div
-          className={`gv-mono mt-1 text-[9px] uppercase tracking-[0.14em] ${isHigh ? "text-[color:var(--gv-accent)]" : "text-[color:var(--gv-ink-4)]"}`}
+          className={`gv-mono mt-1 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
+            issue.sev === "high"
+              ? "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg)]"
+              : issue.sev === "mid"
+                ? "bg-[color:var(--gv-warn-soft)] text-[color:var(--gv-warn)]"
+                : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-4)]"
+          }`}
         >
           {sevLabel[issue.sev] ?? issue.sev}
         </div>

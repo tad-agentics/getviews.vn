@@ -76,6 +76,7 @@ def build_fixture_generic_report(query: str = "câu hỏi chung") -> dict[str, A
             duration_sec=28,
             bg_color=_tile_color_for(i),
             hook_family="talking_head",
+            engagement_rate=round(0.055 + i * 0.004, 4),
         )
         for i in range(3)
     ]
@@ -267,8 +268,9 @@ def _niche_label(sb: Any, niche_id: int) -> str | None:
 
 def _corpus_row_to_evidence(row: dict[str, Any], idx: int) -> EvidenceCardPayload:
     vid = str(row.get("video_id") or f"g-{idx}")
-    er = float(row.get("engagement_rate") or 0)
-    retention = min(0.99, er / 100.0) if er > 1.0 else min(0.99, max(0.0, er))
+    er_raw = float(row.get("engagement_rate") or 0)
+    retention = min(0.99, er_raw / 100.0) if er_raw > 1.0 else min(0.99, max(0.0, er_raw))
+    er_decimal = round((er_raw / 100.0) if er_raw > 1.0 else er_raw, 4)
     dur = int(float(row.get("video_duration") or 0) or 0)
     if dur <= 0:
         aj = row.get("analysis_json") or {}
@@ -292,6 +294,7 @@ def _corpus_row_to_evidence(row: dict[str, Any], idx: int) -> EvidenceCardPayloa
         bg_color=_tile_color_for(idx),
         hook_family=str(row.get("hook_type") or "other"),
         thumbnail_url=thumb or None,
+        engagement_rate=er_decimal,
     )
 
 

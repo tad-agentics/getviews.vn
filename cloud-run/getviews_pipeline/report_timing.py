@@ -246,6 +246,14 @@ def build_timing_report(
     lowest = _lowest_window_from_grid(grid)
     variance = classify_variance(top_windows)
 
+    contrarian: str | None = None
+    if isinstance(variance, dict) and variance.get("kind") == "sparse":
+        contrarian = (
+            "Trong ngách này, giờ đăng không tạo ra sự khác biệt rõ rệt — "
+            "top video xuất hiện đều ở mọi khung giờ. "
+            "Tập trung vào format và hook sẽ hiệu quả hơn."
+        )
+
     # Fatigue: only populate when the #1 window has been top for 4+ weeks.
     fatigue: dict[str, Any] | None = None
     if top_windows:
@@ -329,6 +337,7 @@ def build_timing_report(
         lowest_window=lowest,
         grid=grid,
         variance_note=variance,
+        contrarian_note=contrarian,
         fatigue_band=fatigue,
         actions=static_timing_action_cards(top_windows[0] if top_windows else None),
         sources=[SourceRow(kind="video", label="Corpus", count=sample_n, sub=f"{niche_label} · {window_days}d")],

@@ -13,6 +13,7 @@ from getviews_pipeline.report_types import (
     HookFinding,
     Lifecycle,
     Metric,
+    OutlierStory,
     PatternCellPayload,
     SumStat,
 )
@@ -27,6 +28,63 @@ _TILE_COLORS = ("#D9EB9A", "#E8E4DC", "#C5F0E8", "#F5E6C8", "#1F2A3B", "#2A2438"
 def _pattern_label(hook_type: str) -> str:
     key = (hook_type or "").strip().lower().replace("-", "_")
     return HOOK_TYPE_PATTERN_VI.get(key, hook_type.replace("_", " ").title() or "Hook")
+
+
+def fetch_outlier_story(
+    client: Any,
+    niche_id: int,
+    window_days: int,
+) -> OutlierStory | None:
+    """Highest-breakout corpus row in the window (requires ``breakout_ratio`` populated)."""
+    since = datetime.now(timezone.utc) - timedelta(days=window_days)
+    since_iso = since.isoformat()
+    try:
+        resp = (
+            client.table("video_corpus")
+            .select("creator_handle, views, breakout_ratio, hook_type, indexed_at")
+            .eq("niche_id", niche_id)
+            .gte("indexed_at", since_iso)
+            .not_.is_("breakout_ratio", "null")
+            .gt("breakout_ratio", 5.0)
+            .order("breakout_ratio", desc=True)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning("[pattern] outlier_story query failed: %s", exc)
+        return None
+
+    rows = resp.data or []
+    if not rows:
+        return None
+
+    r = rows[0]
+    ch = str(r.get("creator_handle") or "").strip().lstrip("@")
+    if not ch:
+        return None
+
+    days_ago: int | None = None
+    raw_idx = r.get("indexed_at")
+    if raw_idx:
+        try:
+            dt = datetime.fromisoformat(str(raw_idx).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            days_ago = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).days
+        except Exception:
+            pass
+
+    br = r.get("breakout_ratio")
+    if br is None:
+        return None
+
+    return OutlierStory(
+        creator_handle=f"@{ch}",
+        views=int(r.get("views") or 0),
+        breakout_ratio=float(round(float(br), 0)),
+        hook_type=_pattern_label(str(r.get("hook_type") or "")),
+        days_ago=days_ago,
+    )
 
 
 def _prereq_chips(hook_type: str) -> list[str]:
@@ -116,8 +174,22 @@ def compute_findings(
     runner_ups: dict[str, str],
     insights: list[str],
     why_won: list[str],
+    generated_prereqs: list[list[str]] | None = None,
+    *,
+    creator_sets: dict[str, set[str]] | None = None,
 ) -> list[HookFinding]:
     """Build up to 3 positive HookFinding rows from ranked hook_effectiveness rows."""
+    if creator_sets is None:
+        from collections import defaultdict as _defaultdict
+
+        _cs: dict[str, set[str]] = _defaultdict(set)
+        for row in corpus_rows:
+            ht = str(row.get("hook_type") or "")
+            ch = str(row.get("creator_handle") or "")
+            if ht and ch:
+                _cs[ht].add(ch)
+        creator_sets = _cs
+
     out: list[HookFinding] = []
     for i, r in enumerate(ranked_hooks[:3]):
         ht = str(r.get("hook_type") or "")
@@ -136,6 +208,15 @@ def compute_findings(
         insight = insights[i] if i < len(insights) else f"{_pattern_label(ht)} đang vượt baseline ngách."
         wy = why_won[i] if i < len(why_won) else f"Phù hợp xu hướng xem hiện tại so với {runner_label}."
         ev_ids = _evidence_ids_for_hook(corpus_rows, ht, limit=2)
+        n_creators = len(creator_sets.get(ht, set())) if creator_sets else 0
+        if (
+            generated_prereqs
+            and i < len(generated_prereqs)
+            and generated_prereqs[i]
+        ):
+            prereqs = list(generated_prereqs[i])
+        else:
+            prereqs = _prereq_chips(ht)
         out.append(
             HookFinding(
                 rank=i + 1,
@@ -147,9 +228,10 @@ def compute_findings(
                 uses=uses,
                 lifecycle=lf,
                 contrast_against=ContrastAgainst(pattern=runner_label, why_this_won=wy[:200]),
-                prerequisites=_prereq_chips(ht),
+                prerequisites=prereqs,
                 insight=insight[:200],
                 evidence_video_ids=ev_ids,
+                creator_count=n_creators if n_creators > 0 else None,
             )
         )
     return out
@@ -181,8 +263,9 @@ def pick_evidence_videos(
         vid = str(row.get("video_id") or "")
         if not vid:
             continue
-        er = float(row.get("engagement_rate") or 0)
-        retention = min(0.99, er / 100.0) if er > 1.0 else min(0.99, max(0.0, er))
+        er_raw = float(row.get("engagement_rate") or 0)
+        retention = min(0.99, er_raw / 100.0) if er_raw > 1.0 else min(0.99, max(0.0, er_raw))
+        er_decimal = round((er_raw / 100.0) if er_raw > 1.0 else er_raw, 4)
         dur = int(float(row.get("video_duration") or 0) or 0)
         if dur <= 0:
             aj = row.get("analysis_json") or {}
@@ -207,8 +290,9 @@ def pick_evidence_videos(
                 retention=retention,
                 duration_sec=max(1, dur),
                 bg_color=bg,
-                hook_family=str(row.get("hook_type") or "other"),
+                hook_family=_pattern_label(str(row.get("hook_type") or "")),
                 thumbnail_url=thumb_raw or None,
+                engagement_rate=er_decimal,
             )
         )
         if len(out) >= limit:
@@ -220,6 +304,8 @@ def compute_what_stalled(
     he_rows: list[dict[str, Any]],
     top3_types: set[str],
     baseline_views: float,
+    *,
+    creator_sets: dict[str, set[str]] | None = None,
 ) -> tuple[list[HookFinding], str | None]:
     """Return 2–3 stalled hooks or [] + human-readable reason (C.2 §5)."""
     eligible = [r for r in he_rows if int(r.get("sample_size") or 0) >= 5]
@@ -263,6 +349,7 @@ def compute_what_stalled(
             f"Retention trung bình thấp hơn các hook đang thắng; "
             f"xem xét giảm dùng {_pattern_label(ht)} trong 7 ngày tới."
         )[:200]
+        n_creators = len(creator_sets.get(ht, set())) if creator_sets else 0
         stalled.append(
             HookFinding(
                 rank=i + 1,
@@ -278,6 +365,7 @@ def compute_what_stalled(
                 prerequisites=_prereq_chips(ht)[:1],
                 insight=insight,
                 evidence_video_ids=[],
+                creator_count=n_creators if n_creators > 0 else None,
             )
         )
     return stalled, None

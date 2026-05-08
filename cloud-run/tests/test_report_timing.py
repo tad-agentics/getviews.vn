@@ -43,6 +43,15 @@ def test_fixture_timing_validates() -> None:
     p = TimingPayload.model_validate(inner)
     assert p.confidence.sample_size >= 80
     assert len(p.grid) == 7 and all(len(row) == 8 for row in p.grid)
+
+
+def test_timing_payload_contrarian_note_optional() -> None:
+    inner = build_fixture_timing_report()
+    p = TimingPayload.model_validate(inner)
+    assert p.contrarian_note is None
+    inner["contrarian_note"] = "Ngách phẳng — ưu tiên hook."
+    p2 = TimingPayload.model_validate(inner)
+    assert p2.contrarian_note == "Ngách phẳng — ưu tiên hook."
     assert len(p.top_3_windows) == 3
     assert p.variance_note["kind"] == "strong"
     assert p.fatigue_band is None
@@ -90,6 +99,36 @@ def test_build_timing_report_thin_niche_routes_to_thin(mock_load: MagicMock) -> 
     p = TimingPayload.model_validate(inner)
     assert p.confidence.sample_size < 80
     assert p.variance_note["kind"] == "sparse"
+
+
+@patch("getviews_pipeline.report_timing_compute.fetch_top_window_streak", return_value=0)
+@patch("getviews_pipeline.report_timing_compute.classify_variance")
+@patch("getviews_pipeline.report_timing_gemini.fill_timing_narrative")
+@patch("getviews_pipeline.report_timing_compute.load_timing_inputs")
+def test_build_timing_report_sets_contrarian_when_variance_sparse(
+    mock_load: MagicMock,
+    mock_narr: MagicMock,
+    mock_var: MagicMock,
+    _streak: MagicMock,
+) -> None:
+    base = datetime(2026, 4, 18, 19, 0, tzinfo=timezone.utc)
+    rows = [
+        {"video_id": f"s{i}", "views": 10_000, "posted_at": base.isoformat()}
+        for i in range(100)
+    ]
+    mock_load.return_value = {"niche_label": "Tech", "corpus": rows}
+    mock_var.return_value = {
+        "kind": "sparse",
+        "label": "Heatmap CHƯA ổn định",
+        "detail": "Lift thấp.",
+    }
+    mock_narr.return_value = {"insight": "insight text", "related_questions": ["q1"]}
+    with patch("getviews_pipeline.supabase_client.get_service_client", return_value=MagicMock()):
+        inner = build_timing_report(5, "q", window_days=14)
+    p = TimingPayload.model_validate(inner)
+    assert p.variance_note["kind"] == "sparse"
+    assert p.contrarian_note is not None
+    assert "hook" in (p.contrarian_note or "").lower()
 
 
 @patch("getviews_pipeline.report_timing_compute.fetch_top_window_streak")

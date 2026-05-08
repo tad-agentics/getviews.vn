@@ -744,6 +744,8 @@ export interface HookFindingData {
   prerequisites: string[];
   insight: string;
   evidence_video_ids: string[];
+  /** Distinct creators in corpus window using this hook (pattern report). */
+  creator_count?: number | null;
 }
 
 export interface SumStatData {
@@ -764,6 +766,8 @@ export interface EvidenceCardPayloadData {
   hook_family: string;
   /** Cover URL when present (falls back to `bg_color` tile). */
   thumbnail_url?: string | null;
+  /** Raw decimal (e.g. 0.087 = 8.7% ER); multiply by 100 for display. */
+  engagement_rate?: number | null;
 }
 
 export interface PatternCellPayloadData {
@@ -797,6 +801,14 @@ export interface WoWDiffData {
   rank_changes: Array<Record<string, unknown>>;
 }
 
+export interface OutlierStory {
+  creator_handle: string;
+  views: number;
+  breakout_ratio: number;
+  hook_type: string;
+  days_ago: number | null;
+}
+
 export interface PatternReportPayload {
   confidence: ConfidenceStripData;
   wow_diff: WoWDiffData | null;
@@ -809,6 +821,7 @@ export interface PatternReportPayload {
   sources: SourceRowData[];
   related_questions: string[];
   subreports?: Record<string, unknown> | null;
+  outlier_story?: OutlierStory | null;
 }
 
 export interface IdeaBlockPayloadData {
@@ -890,6 +903,8 @@ export interface TimingReportPayload {
   actions: ActionCardPayloadData[];
   sources: SourceRowData[];
   related_questions: string[];
+  /** Present when variance is lift-sparse: timing is not a differentiator. */
+  contrarian_note?: string | null;
 }
 
 export interface GenericReportPayload {

@@ -44,6 +44,7 @@ class HookFinding(BaseModel):
     prerequisites: list[str] = Field(default_factory=list)
     insight: str = Field(max_length=200)
     evidence_video_ids: list[str] = Field(default_factory=list)
+    creator_count: int | None = None
 
 
 class SumStat(BaseModel):
@@ -63,6 +64,8 @@ class EvidenceCardPayload(BaseModel):
     bg_color: str
     hook_family: str
     thumbnail_url: str | None = None
+    #: Raw decimal engagement rate (e.g. 0.087 = 8.7%). Column may be 0–1 or percent.
+    engagement_rate: float | None = None
 
 
 class PatternCellPayload(BaseModel):
@@ -94,6 +97,16 @@ class WoWDiff(BaseModel):
     new_entries: list[dict[str, Any]] = Field(default_factory=list)
     dropped: list[dict[str, Any]] = Field(default_factory=list)
     rank_changes: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class OutlierStory(BaseModel):
+    """Single highest-breakout row in the pattern window (corpus social proof)."""
+
+    creator_handle: str
+    views: int
+    breakout_ratio: float  # e.g. 340 → "340× median" in copy
+    hook_type: str  # Vietnamese label
+    days_ago: int | None = None
 
 
 class NicheInsight(BaseModel):
@@ -130,6 +143,7 @@ class PatternPayload(BaseModel):
     # Layer 0 niche_insights injection. Optional because the cron may
     # not have populated a row for this niche yet.
     niche_insight: NicheInsight | None = None
+    outlier_story: OutlierStory | None = None
 
     @model_validator(mode="after")
     def _what_stalled_invariant(self) -> PatternPayload:
@@ -224,6 +238,8 @@ class TimingPayload(BaseModel):
     lowest_window: dict[str, str]
     grid: list[list[float]]
     variance_note: dict[str, str]
+    # Only when classify_variance says sparse (lift < 1.3): time slot is not a lever.
+    contrarian_note: str | None = None
     fatigue_band: dict[str, Any] | None = None
     # New 2026-04-22: populated when the intent is content_calendar (or
     # when the query contains scheduling keywords). Empty for pure timing
