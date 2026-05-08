@@ -78,15 +78,15 @@ export function profileHasNiche(
 
 /**
  * Reverse map: ``creator_niches.id`` → most-representative
- * ``niche_taxonomy.id`` for legacy callers (Cloud Run /home/* still
- * reads ``profile.primary_niche``). Used for dual-write during the
- * two-axis transition. Mirror of (but inverse of)
+ * ``niche_taxonomy.id`` for legacy callers (Cloud Run still filters
+ * ``video_corpus.niche_id`` after PR6). Mirror of (inverse of)
  * ``map_legacy_niche_to_creator_niche()`` in
- * 20260510000000_two_axis_niche_pr1_schema.sql.
+ * ``20260510000004_two_axis_niche_pr1_schema.sql``.
  *
  * Returns the canonical legacy id post-merge (e.g. id=4 for Food, not
- * the retired id=18). PR6 retires this helper after Cloud Run pivots
- * to ``creator_niche_id``.
+ * the retired id=18). Keep for ≥30 days after PR6 and until analysis
+ * pivots off legacy ``niche_id`` — see
+ * ``artifacts/docs/two-axis-niche-cutover-runbook.md``.
  */
 export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | null {
   switch (creatorNicheId) {

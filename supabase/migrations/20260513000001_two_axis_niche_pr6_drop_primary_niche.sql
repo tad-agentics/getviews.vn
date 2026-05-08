@@ -6,6 +6,11 @@
 -- settings preserved primary_niche during the transition window for
 -- safety; PR6 removes both the column and the dual-write.
 --
+-- Deploy order: do not run this migration until production traffic uses
+-- Cloud Run + FE builds that only ``select`` ``creator_niche_id`` for
+-- profile niche (never ``primary_niche`). See
+-- ``artifacts/docs/two-axis-niche-cutover-runbook.md``.
+--
 -- Kept (intentional, NOT cleanup scope):
 --   - ``niche_taxonomy`` table — ``video_corpus.niche_id`` still FKs
 --     here. Downstream analysis (compute_pulse, pattern thesis,

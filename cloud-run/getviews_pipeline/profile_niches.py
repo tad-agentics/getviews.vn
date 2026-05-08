@@ -19,6 +19,10 @@ from __future__ import annotations
 # Reverse map: creator_niches.id → most-representative niche_taxonomy.id.
 # Mirror of ``legacyNicheIdForCreatorNiche()`` in
 # ``src/lib/profileNiches.ts``. Both files must stay in sync.
+#
+# Keep for ≥30 days after PR6 and until analysis pivots off
+# ``video_corpus.niche_id`` / this representative mapping (see
+# ``artifacts/docs/two-axis-niche-cutover-runbook.md``).
 _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     1:  2,   # Beauty → Skincare
     2:  3,   # Fashion → Thời trang Phụ kiện
