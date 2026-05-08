@@ -315,3 +315,73 @@ def test_upsert_skips_errored_results() -> None:
         ),
     )
     assert calls == []
+
+
+# ── Audit Pass-3 fix #3 — uncaught-exception catch-all ────────────────
+
+
+def test_run_morning_ritual_batch_skips_user_on_uncaught_exception() -> None:
+    """When ``generate_ritual_for_user`` raises something its inner
+    try/except blocks don't catch, the outer batch loop must continue
+    so the rest of the user list still gets a ritual that day. The
+    summary's ``failed_unhandled`` counter increments for visibility."""
+    from unittest.mock import MagicMock, patch
+
+    from getviews_pipeline.morning_ritual import (
+        RitualBatchSummary,
+        RitualResult,
+        run_morning_ritual_batch,
+    )
+
+    # Stub Supabase: 3 profiles, niche-taxonomy lookup returns one row.
+    profiles = [
+        {"id": "user-1", "creator_niche_id": 2, "reference_channel_handles": []},
+        {"id": "user-2", "creator_niche_id": 2, "reference_channel_handles": []},
+        {"id": "user-3", "creator_niche_id": 2, "reference_channel_handles": []},
+    ]
+    client = MagicMock()
+    profiles_q = MagicMock()
+    profiles_q.execute.return_value = MagicMock(data=profiles)
+    niche_q = MagicMock()
+    niche_q.execute.return_value = MagicMock(
+        data=[{"id": 2, "name_vn": "Skincare", "name_en": "Beauty"}],
+    )
+
+    def _table(name: str) -> MagicMock:
+        if name == "profiles":
+            return MagicMock(select=lambda *a, **k: profiles_q)
+        if name == "niche_taxonomy":
+            return MagicMock(select=lambda *a, **k: niche_q)
+        return MagicMock()
+
+    client.table.side_effect = _table
+
+    # Resolve every profile to legacy niche_id=2. The import is lazy
+    # (inside ``run_morning_ritual_batch``), so patch the source.
+    with patch(
+        "getviews_pipeline.profile_niches.resolve_legacy_niche_from_profile_row",
+        return_value=2,
+    ):
+        # Make user-2's call raise; the others succeed.
+        def _flaky(client: Any, *, user_id: str, **kw: Any) -> RitualResult:
+            from datetime import date as _date
+            if user_id == "user-2":
+                raise RuntimeError("simulated SDK explosion")
+            return RitualResult(
+                user_id=user_id, niche_id=2, scripts=[],
+                adequacy="thin", grounded_video_ids=[],
+                generated_for_date=_date.today(),
+                error="thin_corpus: only 2 grounding videos",
+            )
+
+        with patch(
+            "getviews_pipeline.morning_ritual.generate_ritual_for_user",
+            side_effect=_flaky,
+        ):
+            summary = run_morning_ritual_batch(client)
+
+    assert isinstance(summary, RitualBatchSummary)
+    # The exception didn't abort the loop — user-1 and user-3 ran.
+    assert summary.failed_unhandled == 1
+    # Both users-1 and -3 returned thin_corpus, so skipped_thin == 2.
+    assert summary.skipped_thin == 2

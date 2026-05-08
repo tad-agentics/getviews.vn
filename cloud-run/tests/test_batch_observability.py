@@ -19,11 +19,22 @@ import pytest
 from getviews_pipeline.batch_observability import record_job_run
 
 
-def _build_client(insert_row: dict[str, Any] | None = None) -> MagicMock:
-    """Minimal Supabase chain: ``client.table(x).insert(…).execute()``
-    and ``.update(…).eq(…).execute()``.
+def _build_client(
+    insert_row: dict[str, Any] | None = None,
+    *,
+    active_runs: list[dict[str, Any]] | None = None,
+) -> MagicMock:
+    """Minimal Supabase chain:
+      • ``client.table(x).select(…).eq(…).eq(…).gte(…).limit(…).execute()``
+        — concurrency probe added by Audit Pass-3 fix #1; defaults to
+        empty (no overlap).
+      • ``client.table(x).insert(…).execute()``
+      • ``.update(…).eq(…).execute()``
     """
     client = MagicMock()
+
+    select_resp = MagicMock(data=active_runs or [])
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value = select_resp
 
     insert_resp = MagicMock(data=[insert_row] if insert_row else [])
     client.table.return_value.insert.return_value.execute.return_value = insert_resp
@@ -122,6 +133,9 @@ async def test_insert_failure_does_not_block_body() -> None:
     context manager must still yield. Losing an observability row is
     strictly better than aborting the real cron."""
     client = MagicMock()
+    # Concurrency probe (Audit Pass-3 fix #1) returns empty so we
+    # don't short-circuit before reaching the INSERT failure path.
+    client.table.return_value.select.return_value.eq.return_value.eq.return_value.gte.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
     client.table.return_value.insert.return_value.execute.side_effect = RuntimeError(
         "supabase down"
     )
@@ -185,3 +199,53 @@ async def test_summary_is_serializable_dict() -> None:
 
     update_payload = client.table.return_value.update.call_args.args[0]
     assert update_payload["summary"] == nested
+
+
+# ── Audit Pass-3 fix #1 — concurrency guard ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_concurrent_run_raises_batch_already_running() -> None:
+    """When a previous run for the same job_name is still ``running``
+    within the lookback window, the second invocation must refuse to
+    start instead of racing."""
+    from getviews_pipeline.batch_observability import BatchAlreadyRunning
+
+    client = _build_client(
+        insert_row={"id": "run-7"},
+        active_runs=[{"id": "run-prior", "started_at": "2026-05-09T10:00:00+00:00"}],
+    )
+
+    with pytest.raises(BatchAlreadyRunning, match="run-prior"):
+        async with record_job_run(client, "batch/pattern-decks"):
+            pass
+
+    # Critical: no INSERT was attempted for the new run.
+    client.table.return_value.insert.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_no_active_run_proceeds_normally() -> None:
+    """When the concurrency probe returns an empty list, the run
+    proceeds (INSERT 'running' + UPDATE 'ok')."""
+    client = _build_client(insert_row={"id": "run-8"}, active_runs=[])
+
+    async with record_job_run(client, "batch/morning-ritual") as summary:
+        summary["users"] = 5
+
+    client.table.return_value.insert.assert_called_once()
+    client.table.return_value.update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_concurrency_check_db_error_fails_open() -> None:
+    """If the concurrency probe itself crashes (DB flake), we proceed
+    — better to over-run than to miss every cron because the audit
+    table is unreachable."""
+    client = _build_client(insert_row={"id": "run-9"})
+    # Replace the select chain with one that throws.
+    client.table.return_value.select.side_effect = RuntimeError("db unreachable")
+
+    # Should not raise — still proceeds to the body.
+    async with record_job_run(client, "batch/sound-aggregate") as summary:
+        summary["ok"] = True

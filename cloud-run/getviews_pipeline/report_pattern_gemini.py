@@ -123,7 +123,7 @@ def fill_pattern_narrative(
 """
         ab_ex = (ab_context or "").strip() or "(không tìm thấy cặp A/B)"
         ab_block = f"""
---- A/B corpus (cite nếu phù hợp vào cross_pattern_synthesis / thesis) ---
+--- A/B corpus (có thể cite vào phần tóm lại tuần này hoặc thesis) ---
 {ab_ex}
 """
         has_top_performers = bool((top_performers_str or "").strip())

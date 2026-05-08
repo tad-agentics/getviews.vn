@@ -22,7 +22,13 @@ export function WhatStalledCard({ row }: { row: HookFindingData }) {
       </div>
       <div className="flex flex-col items-end gap-1 text-right">
         <div className="flex items-center gap-1">
-          <span className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">RET</span>
+          {/* Audit Pass-3 fix #6 — match HookFindingCard's Vietnamese label. */}
+          <span
+            className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]"
+            aria-label="Tỉ lệ giữ chân người xem"
+          >
+            Giữ
+          </span>
           <span className="gv-mono text-sm font-medium text-[color:var(--gv-ink)]">{row.retention.value}</span>
         </div>
         <div className="flex items-center gap-1">

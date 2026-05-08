@@ -51,7 +51,7 @@ const VERCEL_CHAT_URL = "/api/chat";
  * TD-4 — a single auto-retry covers the common network-blip case where the
  * client received the `seq=1` payload token but lost the connection before
  * the `seq=2` done marker arrived. On retry we pass `resume_stream_id` +
- * `resume_from_seq` so the server replays from its 120s chunk buffer and
+ * `resume_from_seq` so the server replays from its 60s chunk buffer and
  * does **not** re-run Gemini / re-bill credits (see `cloud-run/main.py`).
  * Higher retry counts would risk unbounded cost if the cache missed and
  * the server fell through to a fresh run.
@@ -62,7 +62,7 @@ const MAX_ANSWER_RETRIES = 1;
  * Idle-timeout for the SSE reader loop. If no bytes arrive for this long
  * the stream is considered hung and we surface ``stream_timeout``. The
  * retry loop will then re-attempt with resume params, letting Cloud Run's
- * 120s replay buffer recover in-flight work without re-billing. Rolling
+ * 60s replay buffer recover in-flight work without re-billing. Rolling
  * timer — every chunk resets it, so long but healthy streams don't trip.
  */
 const SSE_IDLE_TIMEOUT_MS = 45_000;
@@ -119,7 +119,8 @@ export type StreamArgs =
       /**
        * Unix ms timestamp of the original stream — preserved across
        * reloads so the sessionStorage entry keeps its age relative to
-       * Cloud Run's 120s replay-buffer TTL (``src/lib/sseResume.ts``).
+       * Cloud Run's 60s replay-buffer TTL
+       * (``cloud-run/getviews_pipeline/session_store.py:_STREAM_REPLAY_TTL_SEC``).
        * Omit on the first attempt; caller passes it back when resuming
        * from a stored pending entry.
        */
