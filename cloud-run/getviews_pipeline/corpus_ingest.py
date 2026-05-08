@@ -25,6 +25,7 @@ from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
+from getviews_pipeline.creator_blocklist import is_blocklisted_handle
 from getviews_pipeline.config import (
     ADAPTIVE_HASHTAG_MIN_FETCH,
     CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
@@ -1805,9 +1806,23 @@ async def ingest_niche(
 
     # ── Video candidates ─────────────────────────────────────────────────────────
     candidates = []
+    blocklist_skipped = 0
     for a in pool:
         vid = str(a.get("aweme_id", "") or "")
         if vid in existing_ids:
+            continue
+
+        # Gate 0: news/aggregator blocklist — skip before any expensive
+        # check. Vietnamese media outlets (theanh28, vtvcab, kenh14, 24h
+        # family, sports/esports news) are NOT creators in our target
+        # audience; their videos pollute niche signal and produce fake
+        # patterns. Sprint 8.5.
+        author_handle = str((a.get("author") or {}).get("unique_id") or "")
+        if is_blocklisted_handle(author_handle):
+            blocklist_skipped += 1
+            logger.debug(
+                "[corpus] skip %s — blocklisted handle @%s", vid, author_handle,
+            )
             continue
 
         stats = a.get("statistics") or {}
@@ -1866,6 +1881,15 @@ async def ingest_niche(
         if any(str(c.get("aweme_id", "")) == vid for c in candidates):
             continue
 
+        # Gate 0: news/aggregator blocklist — same rule as videos. Sprint 8.5.
+        author_handle = str((a.get("author") or {}).get("unique_id") or "")
+        if is_blocklisted_handle(author_handle):
+            blocklist_skipped += 1
+            logger.debug(
+                "[corpus] skip carousel %s — blocklisted handle @%s", vid, author_handle,
+            )
+            continue
+
         stats = a.get("statistics") or {}
         likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
 
@@ -1896,6 +1920,16 @@ async def ingest_niche(
 
     # Merge video + carousel candidates
     candidates = candidates + carousel_candidates
+
+    # Sprint 8.5 — surface how many awemes the news/aggregator
+    # blocklist filtered this pass. Visible in cron logs so ops can
+    # spot when a noisy media account starts dominating an EnsembleData
+    # hashtag fetch.
+    if blocklist_skipped > 0:
+        logger.info(
+            "[corpus] niche=%s — blocklist filtered %d aweme(s) (news/aggregator handles)",
+            niche_name, blocklist_skipped,
+        )
 
     if not candidates:
         vdiag = _video_pool_gate_diagnostics(pool, existing_ids)
