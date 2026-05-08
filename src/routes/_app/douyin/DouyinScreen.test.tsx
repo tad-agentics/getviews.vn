@@ -44,6 +44,10 @@ vi.mock("@/hooks/useHomePulse", () => ({
   useHomePulse: () => ({ data: null, isPending: false, isError: false, refetch: vi.fn() }),
 }));
 
+vi.mock("@/lib/douyinFlags", () => ({
+  KHO_DOUYIN_COMING_SOON: false,
+}));
+
 const { default: DouyinScreen } = await import("./DouyinScreen");
 
 

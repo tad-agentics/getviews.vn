@@ -11,7 +11,9 @@ import { useDouyinPatterns } from "@/hooks/useDouyinPatterns";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
 import type { DouyinVideo } from "@/lib/api-types";
+import { KHO_DOUYIN_COMING_SOON } from "@/lib/douyinFlags";
 
+import { DouyinComingSoonModal } from "./DouyinComingSoonModal";
 import { DouyinAutoNicheBanner } from "./DouyinAutoNicheBanner";
 import { DouyinHero } from "./DouyinHero";
 import { DouyinNicheChips } from "./DouyinNicheChips";
@@ -42,6 +44,33 @@ import { profileFirstNicheId } from "@/lib/profileNiches";
  */
 
 export default function DouyinScreen() {
+  const navigate = useNavigate();
+  if (KHO_DOUYIN_COMING_SOON) {
+    return (
+      <AppLayout active="douyin" enableMobileSidebar>
+        <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
+          <TopBar
+            kicker="THAM CHIẾU"
+            title="Kho Douyin"
+            right={
+              <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/trends")}>
+                <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                Về Xu hướng
+              </Btn>
+            }
+          />
+          <main className="mx-auto flex min-h-[50vh] w-full max-w-[1400px] items-center justify-center px-5 pb-20 pt-10 sm:px-7">
+            <p className="sr-only">Kho Douyin hiện chưa mở. Dùng nút trên thanh hoặc trong hộp thoại để chuyển trang.</p>
+          </main>
+          <DouyinComingSoonModal />
+        </div>
+      </AppLayout>
+    );
+  }
+  return <DouyinScreenMain />;
+}
+
+function DouyinScreenMain() {
   const navigate = useNavigate();
   const { data, isPending, isError, refetch } = useDouyinFeed();
   const {
