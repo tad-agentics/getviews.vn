@@ -14,6 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_action_log: {
+        Row: {
+          action: string
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          params_json: Json
+          result_json: Json | null
+          result_status: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          params_json?: Json
+          result_json?: Json | null
+          result_status: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          params_json?: Json
+          result_json?: Json | null
+          result_status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      admin_alert_fires: {
+        Row: {
+          context_json: Json
+          created_at: string
+          delivered_at: string | null
+          id: string
+          message: string
+          phase: string
+          rule_key: string
+          severity: string
+        }
+        Insert: {
+          context_json?: Json
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          message: string
+          phase?: string
+          rule_key: string
+          severity: string
+        }
+        Update: {
+          context_json?: Json
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          message?: string
+          phase?: string
+          rule_key?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_alert_fires_rule_key_fkey"
+            columns: ["rule_key"]
+            isOneToOne: false
+            referencedRelation: "admin_alert_rules"
+            referencedColumns: ["rule_key"]
+          },
+        ]
+      }
+      admin_alert_rules: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          label: string
+          rule_key: string
+          severity: string
+          threshold_json: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          rule_key: string
+          severity?: string
+          threshold_json?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          rule_key?: string
+          severity?: string
+          threshold_json?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       anonymous_usage: {
         Row: {
           created_at: string
@@ -34,6 +144,132 @@ export type Database = {
           ip_hash?: string
         }
         Relationships: []
+      }
+      answer_session_idempotency: {
+        Row: {
+          created_at: string
+          idempotency_key: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          idempotency_key: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          idempotency_key?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answer_session_idempotency_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "answer_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      answer_sessions: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          format: string
+          id: string
+          initial_q: string
+          intent_type: string
+          niche_id: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          format: string
+          id?: string
+          initial_q: string
+          intent_type: string
+          niche_id?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          format?: string
+          id?: string
+          initial_q?: string
+          intent_type?: string
+          niche_id?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answer_sessions_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      answer_turns: {
+        Row: {
+          classifier_confidence: string
+          cloud_run_run_id: string | null
+          created_at: string
+          credits_used: number
+          id: string
+          intent_confidence: string
+          kind: string
+          payload: Json
+          query: string
+          session_id: string
+          turn_index: number
+        }
+        Insert: {
+          classifier_confidence: string
+          cloud_run_run_id?: string | null
+          created_at?: string
+          credits_used?: number
+          id?: string
+          intent_confidence: string
+          kind: string
+          payload?: Json
+          query: string
+          session_id: string
+          turn_index: number
+        }
+        Update: {
+          classifier_confidence?: string
+          cloud_run_run_id?: string | null
+          created_at?: string
+          credits_used?: number
+          id?: string
+          intent_confidence?: string
+          kind?: string
+          payload?: Json
+          query?: string
+          session_id?: string
+          turn_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answer_turns_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "answer_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       batch_failures: {
         Row: {
@@ -62,6 +298,131 @@ export type Database = {
           id?: string
           last_failed_at?: string | null
           video_id?: string
+        }
+        Relationships: []
+      }
+      batch_job_runs: {
+        Row: {
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job_name: string
+          started_at: string
+          status: string
+          summary: Json | null
+        }
+        Insert: {
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_name: string
+          started_at?: string
+          status?: string
+          summary?: Json | null
+        }
+        Update: {
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_name?: string
+          started_at?: string
+          status?: string
+          summary?: Json | null
+        }
+        Relationships: []
+      }
+      channel_formulas: {
+        Row: {
+          avg_views: number | null
+          bio: string
+          computed_at: string
+          engagement_pct: number | null
+          formula: Json
+          handle: string
+          lessons: Json
+          niche_id: number
+          optimal_length: string
+          posting_cadence: string
+          posting_time: string
+          strengths: Json
+          top_hook: string
+          total_videos: number
+          weaknesses: Json
+        }
+        Insert: {
+          avg_views?: number | null
+          bio?: string
+          computed_at?: string
+          engagement_pct?: number | null
+          formula?: Json
+          handle: string
+          lessons?: Json
+          niche_id: number
+          optimal_length?: string
+          posting_cadence?: string
+          posting_time?: string
+          strengths?: Json
+          top_hook?: string
+          total_videos?: number
+          weaknesses?: Json
+        }
+        Update: {
+          avg_views?: number | null
+          bio?: string
+          computed_at?: string
+          engagement_pct?: number | null
+          formula?: Json
+          handle?: string
+          lessons?: Json
+          niche_id?: number
+          optimal_length?: string
+          posting_cadence?: string
+          posting_time?: string
+          strengths?: Json
+          top_hook?: string
+          total_videos?: number
+          weaknesses?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_formulas_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_archival_audit: {
+        Row: {
+          archived_at: string
+          id: string
+          message_count: number
+          session_created_at: string | null
+          session_id: string
+          session_updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          archived_at?: string
+          id?: string
+          message_count: number
+          session_created_at?: string | null
+          session_id: string
+          session_updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          archived_at?: string
+          id?: string
+          message_count?: number
+          session_created_at?: string | null
+          session_id?: string
+          session_updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -119,7 +480,6 @@ export type Database = {
         Row: {
           created_at: string
           credits_used: number
-          deleted_at: string | null
           first_message: string
           id: string
           intent_type: string | null
@@ -132,7 +492,6 @@ export type Database = {
         Insert: {
           created_at?: string
           credits_used?: number
-          deleted_at?: string | null
           first_message: string
           id?: string
           intent_type?: string | null
@@ -145,7 +504,6 @@ export type Database = {
         Update: {
           created_at?: string
           credits_used?: number
-          deleted_at?: string | null
           first_message?: string
           id?: string
           intent_type?: string | null
@@ -160,20 +518,286 @@ export type Database = {
             foreignKeyName: "chat_sessions_niche_id_fkey"
             columns: ["niche_id"]
             isOneToOne: false
-            referencedRelation: "niche_intelligence"
-            referencedColumns: ["niche_id"]
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
           },
+        ]
+      }
+      competitor_tracking: {
+        Row: {
+          added_at: string
+          competitor_handle: string
+          id: string
+          last_checked_at: string | null
+          last_format: string | null
+          last_hook_type: string | null
+          niche_id: number
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          competitor_handle: string
+          id?: string
+          last_checked_at?: string | null
+          last_format?: string | null
+          last_hook_type?: string | null
+          niche_id: number
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          competitor_handle?: string
+          id?: string
+          last_checked_at?: string | null
+          last_format?: string | null
+          last_hook_type?: string | null
+          niche_id?: number
+          user_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "chat_sessions_niche_id_fkey"
+            foreignKeyName: "competitor_tracking_niche_id_fkey"
             columns: ["niche_id"]
             isOneToOne: false
             referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_tracking_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_class_hook_effectiveness: {
+        Row: {
+          avg_completion_rate: number | null
+          avg_engagement_rate: number | null
+          avg_views: number | null
+          computed_at: string | null
+          content_class_id: number
+          hook_type: string
+          id: string
+          sample_size: number | null
+          trend_direction: string | null
+        }
+        Insert: {
+          avg_completion_rate?: number | null
+          avg_engagement_rate?: number | null
+          avg_views?: number | null
+          computed_at?: string | null
+          content_class_id: number
+          hook_type: string
+          id?: string
+          sample_size?: number | null
+          trend_direction?: string | null
+        }
+        Update: {
+          avg_completion_rate?: number | null
+          avg_engagement_rate?: number | null
+          avg_views?: number | null
+          computed_at?: string | null
+          content_class_id?: number
+          hook_type?: string
+          id?: string
+          sample_size?: number | null
+          trend_direction?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_class_hook_effectiveness_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_classifications: {
+        Row: {
+          active: boolean
+          created_at: string
+          description_vn: string | null
+          format_axis: string
+          id: number
+          name_en: string
+          name_vn: string
+          slug: string
+          topic_axis: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          format_axis: string
+          id?: number
+          name_en: string
+          name_vn: string
+          slug: string
+          topic_axis: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          format_axis?: string
+          id?: number
+          name_en?: string
+          name_vn?: string
+          slug?: string
+          topic_axis?: string
+        }
+        Relationships: []
+      }
+      creator_niche_content_classes: {
+        Row: {
+          content_class_id: number
+          creator_niche_id: number
+          is_primary: boolean
+        }
+        Insert: {
+          content_class_id: number
+          creator_niche_id: number
+          is_primary?: boolean
+        }
+        Update: {
+          content_class_id?: number
+          creator_niche_id?: number
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_niche_content_classes_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_niche_content_classes_creator_niche_id_fkey"
+            columns: ["creator_niche_id"]
+            isOneToOne: false
+            referencedRelation: "creator_niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_niches: {
+        Row: {
+          active: boolean
+          created_at: string
+          description_vn: string | null
+          display_order: number
+          id: number
+          name_en: string
+          name_vn: string
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          display_order?: number
+          id?: number
+          name_en: string
+          name_vn: string
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description_vn?: string | null
+          display_order?: number
+          id?: number
+          name_en?: string
+          name_vn?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      creator_pattern: {
+        Row: {
+          avg_posting_hour: number | null
+          avg_save_rate: number | null
+          avg_views: number | null
+          computed_at: string
+          dominant_format: string | null
+          dominant_hook_type: string | null
+          format_distribution: Json | null
+          hook_type_distribution: Json | null
+          id: string
+          niche_id: number
+          recent_video_count: number | null
+          repeating_pattern: string | null
+          save_rate_vs_niche: number | null
+          tiktok_handle: string
+          untried_formats: Json | null
+          user_id: string
+          views_trend: string | null
+          views_trend_data: Json | null
+        }
+        Insert: {
+          avg_posting_hour?: number | null
+          avg_save_rate?: number | null
+          avg_views?: number | null
+          computed_at?: string
+          dominant_format?: string | null
+          dominant_hook_type?: string | null
+          format_distribution?: Json | null
+          hook_type_distribution?: Json | null
+          id?: string
+          niche_id: number
+          recent_video_count?: number | null
+          repeating_pattern?: string | null
+          save_rate_vs_niche?: number | null
+          tiktok_handle: string
+          untried_formats?: Json | null
+          user_id: string
+          views_trend?: string | null
+          views_trend_data?: Json | null
+        }
+        Update: {
+          avg_posting_hour?: number | null
+          avg_save_rate?: number | null
+          avg_views?: number | null
+          computed_at?: string
+          dominant_format?: string | null
+          dominant_hook_type?: string | null
+          format_distribution?: Json | null
+          hook_type_distribution?: Json | null
+          id?: string
+          niche_id?: number
+          recent_video_count?: number | null
+          repeating_pattern?: string | null
+          save_rate_vs_niche?: number | null
+          tiktok_handle?: string
+          untried_formats?: Json | null
+          user_id?: string
+          views_trend?: string | null
+          views_trend_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_pattern_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_pattern_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
       creator_velocity: {
         Row: {
+          avg_views: number | null
           computed_at: string | null
           creator_handle: string
           dominant_format: string | null
@@ -184,8 +808,12 @@ export type Database = {
           niche_id: number
           posting_frequency_per_week: number | null
           velocity_score: number | null
+          video_count: number | null
+          view_velocity_30d_pct: number | null
+          view_velocity_computed_at: string | null
         }
         Insert: {
+          avg_views?: number | null
           computed_at?: string | null
           creator_handle: string
           dominant_format?: string | null
@@ -196,8 +824,12 @@ export type Database = {
           niche_id: number
           posting_frequency_per_week?: number | null
           velocity_score?: number | null
+          video_count?: number | null
+          view_velocity_30d_pct?: number | null
+          view_velocity_computed_at?: string | null
         }
         Update: {
+          avg_views?: number | null
           computed_at?: string | null
           creator_handle?: string
           dominant_format?: string | null
@@ -208,15 +840,11 @@ export type Database = {
           niche_id?: number
           posting_frequency_per_week?: number | null
           velocity_score?: number | null
+          video_count?: number | null
+          view_velocity_30d_pct?: number | null
+          view_velocity_computed_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "creator_velocity_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
-            referencedRelation: "niche_intelligence"
-            referencedColumns: ["niche_id"]
-          },
           {
             foreignKeyName: "creator_velocity_niche_id_fkey"
             columns: ["niche_id"]
@@ -274,6 +902,463 @@ export type Database = {
           },
         ]
       }
+      cross_creator_patterns: {
+        Row: {
+          computed_at: string
+          creator_count: number
+          creators: string[]
+          hook_type: string
+          id: string
+          niche_id: number
+          total_views: number
+          week_of: string
+        }
+        Insert: {
+          computed_at?: string
+          creator_count: number
+          creators?: string[]
+          hook_type: string
+          id?: string
+          niche_id: number
+          total_views: number
+          week_of: string
+        }
+        Update: {
+          computed_at?: string
+          creator_count?: number
+          creators?: string[]
+          hook_type?: string
+          id?: string
+          niche_id?: number
+          total_views?: number
+          week_of?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cross_creator_patterns_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_ritual: {
+        Row: {
+          adequacy: string
+          generated_at: string
+          generated_for_date: string
+          grounded_video_ids: string[]
+          niche_id: number
+          scripts: Json
+          user_id: string
+        }
+        Insert: {
+          adequacy?: string
+          generated_at?: string
+          generated_for_date: string
+          grounded_video_ids?: string[]
+          niche_id: number
+          scripts: Json
+          user_id: string
+        }
+        Update: {
+          adequacy?: string
+          generated_at?: string
+          generated_for_date?: string
+          grounded_video_ids?: string[]
+          niche_id?: number
+          scripts?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_ritual_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      douyin_niche_taxonomy: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: number
+          name_en: string
+          name_vn: string
+          name_zh: string
+          signal_hashtags_zh: string[]
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: number
+          name_en: string
+          name_vn: string
+          name_zh: string
+          signal_hashtags_zh?: string[]
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: number
+          name_en?: string
+          name_vn?: string
+          name_zh?: string
+          signal_hashtags_zh?: string[]
+          slug?: string
+        }
+        Relationships: []
+      }
+      douyin_patterns: {
+        Row: {
+          cn_rise_pct_avg: number | null
+          computed_at: string
+          created_at: string
+          format_signal_vi: string
+          hook_template_vi: string
+          id: string
+          name_vn: string
+          name_zh: string | null
+          niche_id: number
+          rank: number
+          sample_video_ids: string[]
+          week_of: string
+        }
+        Insert: {
+          cn_rise_pct_avg?: number | null
+          computed_at?: string
+          created_at?: string
+          format_signal_vi: string
+          hook_template_vi: string
+          id?: string
+          name_vn: string
+          name_zh?: string | null
+          niche_id: number
+          rank: number
+          sample_video_ids: string[]
+          week_of: string
+        }
+        Update: {
+          cn_rise_pct_avg?: number | null
+          computed_at?: string
+          created_at?: string
+          format_signal_vi?: string
+          hook_template_vi?: string
+          id?: string
+          name_vn?: string
+          name_zh?: string | null
+          niche_id?: number
+          rank?: number
+          sample_video_ids?: string[]
+          week_of?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "douyin_patterns_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "douyin_niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      douyin_video_corpus: {
+        Row: {
+          adapt_level: string | null
+          adapt_reason: string | null
+          analysis_json: Json
+          cn_rise_pct: number | null
+          comments: number
+          content_format: string | null
+          content_type: string
+          created_at: string
+          creator_followers: number | null
+          creator_handle: string
+          creator_name: string | null
+          cta_type: string | null
+          douyin_url: string
+          engagement_rate: number
+          eta_weeks_max: number | null
+          eta_weeks_min: number | null
+          frame_urls: string[]
+          hashtags_zh: string[] | null
+          hook_phrase: string | null
+          hook_type: string | null
+          id: string
+          indexed_at: string
+          likes: number
+          niche_id: number
+          posted_at: string | null
+          saves: number
+          shares: number
+          sub_vi: string | null
+          synth_computed_at: string | null
+          thumbnail_url: string | null
+          title_vi: string | null
+          title_zh: string | null
+          translator_notes: Json | null
+          video_duration: number | null
+          video_id: string
+          video_url: string | null
+          views: number
+        }
+        Insert: {
+          adapt_level?: string | null
+          adapt_reason?: string | null
+          analysis_json: Json
+          cn_rise_pct?: number | null
+          comments?: number
+          content_format?: string | null
+          content_type: string
+          created_at?: string
+          creator_followers?: number | null
+          creator_handle: string
+          creator_name?: string | null
+          cta_type?: string | null
+          douyin_url: string
+          engagement_rate?: number
+          eta_weeks_max?: number | null
+          eta_weeks_min?: number | null
+          frame_urls?: string[]
+          hashtags_zh?: string[] | null
+          hook_phrase?: string | null
+          hook_type?: string | null
+          id?: string
+          indexed_at?: string
+          likes?: number
+          niche_id: number
+          posted_at?: string | null
+          saves?: number
+          shares?: number
+          sub_vi?: string | null
+          synth_computed_at?: string | null
+          thumbnail_url?: string | null
+          title_vi?: string | null
+          title_zh?: string | null
+          translator_notes?: Json | null
+          video_duration?: number | null
+          video_id: string
+          video_url?: string | null
+          views?: number
+        }
+        Update: {
+          adapt_level?: string | null
+          adapt_reason?: string | null
+          analysis_json?: Json
+          cn_rise_pct?: number | null
+          comments?: number
+          content_format?: string | null
+          content_type?: string
+          created_at?: string
+          creator_followers?: number | null
+          creator_handle?: string
+          creator_name?: string | null
+          cta_type?: string | null
+          douyin_url?: string
+          engagement_rate?: number
+          eta_weeks_max?: number | null
+          eta_weeks_min?: number | null
+          frame_urls?: string[]
+          hashtags_zh?: string[] | null
+          hook_phrase?: string | null
+          hook_type?: string | null
+          id?: string
+          indexed_at?: string
+          likes?: number
+          niche_id?: number
+          posted_at?: string | null
+          saves?: number
+          shares?: number
+          sub_vi?: string | null
+          synth_computed_at?: string | null
+          thumbnail_url?: string | null
+          title_vi?: string | null
+          title_zh?: string | null
+          translator_notes?: Json | null
+          video_duration?: number | null
+          video_id?: string
+          video_url?: string | null
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "douyin_video_corpus_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "douyin_niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      douyin_video_shots: {
+        Row: {
+          created_at: string
+          creator_handle: string | null
+          description: string | null
+          douyin_url: string | null
+          end_s: number | null
+          frame_url: string | null
+          framing: string | null
+          hook_type: string | null
+          id: string
+          motion: string | null
+          niche_id: number
+          overlay_style: string | null
+          pace: string | null
+          scene_index: number
+          scene_type: string | null
+          start_s: number | null
+          subject: string | null
+          thumbnail_url: string | null
+          video_id: string
+          views: number | null
+        }
+        Insert: {
+          created_at?: string
+          creator_handle?: string | null
+          description?: string | null
+          douyin_url?: string | null
+          end_s?: number | null
+          frame_url?: string | null
+          framing?: string | null
+          hook_type?: string | null
+          id?: string
+          motion?: string | null
+          niche_id: number
+          overlay_style?: string | null
+          pace?: string | null
+          scene_index: number
+          scene_type?: string | null
+          start_s?: number | null
+          subject?: string | null
+          thumbnail_url?: string | null
+          video_id: string
+          views?: number | null
+        }
+        Update: {
+          created_at?: string
+          creator_handle?: string | null
+          description?: string | null
+          douyin_url?: string | null
+          end_s?: number | null
+          frame_url?: string | null
+          framing?: string | null
+          hook_type?: string | null
+          id?: string
+          motion?: string | null
+          niche_id?: number
+          overlay_style?: string | null
+          pace?: string | null
+          scene_index?: number
+          scene_type?: string | null
+          start_s?: number | null
+          subject?: string | null
+          thumbnail_url?: string | null
+          video_id?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "douyin_video_shots_video_fk"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "douyin_video_corpus"
+            referencedColumns: ["video_id"]
+          },
+        ]
+      }
+      draft_scripts: {
+        Row: {
+          created_at: string
+          duration_sec: number
+          hook: string
+          hook_delay_ms: number
+          id: string
+          niche_id: number | null
+          shots: Json
+          source_session_id: string | null
+          tone: string
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_sec: number
+          hook: string
+          hook_delay_ms: number
+          id?: string
+          niche_id?: number | null
+          shots?: Json
+          source_session_id?: string | null
+          tone: string
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_sec?: number
+          hook?: string
+          hook_delay_ms?: number
+          id?: string
+          niche_id?: number | null
+          shots?: Json
+          source_session_id?: string | null
+          tone?: string
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "draft_scripts_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "draft_scripts_source_session_id_fkey"
+            columns: ["source_session_id"]
+            isOneToOne: false
+            referencedRelation: "answer_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ensemble_calls: {
+        Row: {
+          call_site: string
+          created_at: string
+          duration_ms: number | null
+          endpoint: string
+          id: string
+          request_class: string
+        }
+        Insert: {
+          call_site?: string
+          created_at?: string
+          duration_ms?: number | null
+          endpoint: string
+          id?: string
+          request_class?: string
+        }
+        Update: {
+          call_site?: string
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: string
+          id?: string
+          request_class?: string
+        }
+        Relationships: []
+      }
       format_lifecycle: {
         Row: {
           computed_at: string | null
@@ -310,58 +1395,96 @@ export type Database = {
             foreignKeyName: "format_lifecycle_niche_id_fkey"
             columns: ["niche_id"]
             isOneToOne: false
-            referencedRelation: "niche_intelligence"
-            referencedColumns: ["niche_id"]
-          },
-          {
-            foreignKeyName: "format_lifecycle_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
             referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
           },
         ]
       }
-      content_class_hook_effectiveness: {
+      gemini_calls: {
         Row: {
-          avg_completion_rate: number | null
-          avg_engagement_rate: number | null
-          avg_views: number | null
-          computed_at: string | null
-          content_class_id: number
-          hook_type: string
+          call_site: string
+          cost_usd: number
+          created_at: string
+          duration_ms: number
+          error_code: string | null
           id: string
-          sample_size: number | null
-          trend_direction: string | null
+          model_name: string
+          session_id: string | null
+          success: boolean
+          tokens_in: number
+          tokens_out: number
+          user_id: string | null
         }
         Insert: {
-          avg_completion_rate?: number | null
-          avg_engagement_rate?: number | null
-          avg_views?: number | null
-          computed_at?: string | null
-          content_class_id: number
-          hook_type: string
+          call_site: string
+          cost_usd: number
+          created_at?: string
+          duration_ms: number
+          error_code?: string | null
           id?: string
-          sample_size?: number | null
-          trend_direction?: string | null
+          model_name: string
+          session_id?: string | null
+          success?: boolean
+          tokens_in: number
+          tokens_out: number
+          user_id?: string | null
         }
         Update: {
-          avg_completion_rate?: number | null
-          avg_engagement_rate?: number | null
-          avg_views?: number | null
-          computed_at?: string | null
-          content_class_id?: number
-          hook_type?: string
+          call_site?: string
+          cost_usd?: number
+          created_at?: string
+          duration_ms?: number
+          error_code?: string | null
           id?: string
-          sample_size?: number | null
-          trend_direction?: string | null
+          model_name?: string
+          session_id?: string | null
+          success?: boolean
+          tokens_in?: number
+          tokens_out?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      hashtag_niche_map: {
+        Row: {
+          confidence: string | null
+          created_at: string | null
+          hashtag: string
+          is_generic: boolean | null
+          niche_count: number | null
+          niche_id: number | null
+          occurrences: number | null
+          source: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          confidence?: string | null
+          created_at?: string | null
+          hashtag: string
+          is_generic?: boolean | null
+          niche_count?: number | null
+          niche_id?: number | null
+          occurrences?: number | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          confidence?: string | null
+          created_at?: string | null
+          hashtag?: string
+          is_generic?: boolean | null
+          niche_count?: number | null
+          niche_id?: number | null
+          occurrences?: number | null
+          source?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "content_class_hook_effectiveness_content_class_id_fkey"
-            columns: ["content_class_id"]
+            foreignKeyName: "hashtag_niche_map_niche_id_fkey"
+            columns: ["niche_id"]
             isOneToOne: false
-            referencedRelation: "content_classifications"
+            referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
           },
         ]
@@ -405,13 +1528,6 @@ export type Database = {
             foreignKeyName: "hook_effectiveness_niche_id_fkey"
             columns: ["niche_id"]
             isOneToOne: false
-            referencedRelation: "niche_intelligence"
-            referencedColumns: ["niche_id"]
-          },
-          {
-            foreignKeyName: "hook_effectiveness_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
             referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
           },
@@ -435,128 +1551,262 @@ export type Database = {
         }
         Relationships: []
       }
+      niche_candidates: {
+        Row: {
+          assigned_niche_id: number | null
+          avg_views: number | null
+          created_at: string | null
+          discovery_date: string
+          hashtag: string
+          id: number
+          notes: string | null
+          occurrences: number | null
+          reviewed: boolean | null
+          sample_video_ids: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_niche_id?: number | null
+          avg_views?: number | null
+          created_at?: string | null
+          discovery_date?: string
+          hashtag: string
+          id?: number
+          notes?: string | null
+          occurrences?: number | null
+          reviewed?: boolean | null
+          sample_video_ids?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_niche_id?: number | null
+          avg_views?: number | null
+          created_at?: string | null
+          discovery_date?: string
+          hashtag?: string
+          id?: number
+          notes?: string | null
+          occurrences?: number | null
+          reviewed?: boolean | null
+          sample_video_ids?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "niche_candidates_assigned_niche_id_fkey"
+            columns: ["assigned_niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      niche_daily_sounds: {
+        Row: {
+          computed_at: string
+          computed_date: string
+          emerging_sounds: Json | null
+          id: string
+          niche_id: number
+          sound_insight_text: string | null
+          top_sounds_3d: Json | null
+          top_sounds_7d: Json | null
+        }
+        Insert: {
+          computed_at?: string
+          computed_date?: string
+          emerging_sounds?: Json | null
+          id?: string
+          niche_id: number
+          sound_insight_text?: string | null
+          top_sounds_3d?: Json | null
+          top_sounds_7d?: Json | null
+        }
+        Update: {
+          computed_at?: string
+          computed_date?: string
+          emerging_sounds?: Json | null
+          id?: string
+          niche_id?: number
+          sound_insight_text?: string | null
+          top_sounds_3d?: Json | null
+          top_sounds_7d?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "niche_daily_sounds_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      niche_insights: {
+        Row: {
+          computed_at: string | null
+          cross_niche_signals: Json | null
+          execution_tip: string | null
+          id: string
+          insight_text: string | null
+          mechanisms: Json | null
+          niche_id: number
+          quality_flag: string | null
+          staleness_risk: string | null
+          top_formula_format: string | null
+          top_formula_hook: string | null
+          week_of: string
+        }
+        Insert: {
+          computed_at?: string | null
+          cross_niche_signals?: Json | null
+          execution_tip?: string | null
+          id?: string
+          insight_text?: string | null
+          mechanisms?: Json | null
+          niche_id: number
+          quality_flag?: string | null
+          staleness_risk?: string | null
+          top_formula_format?: string | null
+          top_formula_hook?: string | null
+          week_of: string
+        }
+        Update: {
+          computed_at?: string | null
+          cross_niche_signals?: Json | null
+          execution_tip?: string | null
+          id?: string
+          insight_text?: string | null
+          mechanisms?: Json | null
+          niche_id?: number
+          quality_flag?: string | null
+          staleness_risk?: string | null
+          top_formula_format?: string | null
+          top_formula_hook?: string | null
+          week_of?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "niche_insights_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       niche_taxonomy: {
         Row: {
           created_at: string
           id: number
+          last_hashtag_refresh: string | null
           name_en: string
           name_vn: string
           signal_hashtags: string[]
+          stale_signal_count: number | null
+          style_distribution: Json
         }
         Insert: {
           created_at?: string
           id?: number
+          last_hashtag_refresh?: string | null
           name_en: string
           name_vn: string
           signal_hashtags?: string[]
+          stale_signal_count?: number | null
+          style_distribution?: Json
         }
         Update: {
           created_at?: string
           id?: number
+          last_hashtag_refresh?: string | null
           name_en?: string
           name_vn?: string
           signal_hashtags?: string[]
+          stale_signal_count?: number | null
+          style_distribution?: Json
         }
         Relationships: []
       }
-      creator_niches: {
+      niche_weekly_digest: {
         Row: {
-          active: boolean
-          created_at: string
-          description_vn: string | null
-          display_order: number
-          id: number
-          name_en: string
-          name_vn: string
-          slug: string
+          avg_save_rate: number | null
+          avg_views: number | null
+          best_posting_hours_json: Json | null
+          carousel_avg_save_rate: number | null
+          carousel_avg_views: number | null
+          carousel_count: number | null
+          computed_at: string
+          cross_niche_signals: Json | null
+          formula_changed: boolean | null
+          formula_structural_pattern: Json | null
+          id: string
+          new_sounds_json: Json | null
+          niche_id: number
+          niche_insight_text: string | null
+          previous_top_formula_json: Json | null
+          top_formula_json: Json | null
+          top_sounds_json: Json | null
+          total_videos_indexed: number | null
+          video_avg_save_rate: number | null
+          video_avg_views: number | null
+          video_count: number | null
+          week_of: string
         }
         Insert: {
-          active?: boolean
-          created_at?: string
-          description_vn?: string | null
-          display_order?: number
-          id?: number
-          name_en: string
-          name_vn: string
-          slug: string
+          avg_save_rate?: number | null
+          avg_views?: number | null
+          best_posting_hours_json?: Json | null
+          carousel_avg_save_rate?: number | null
+          carousel_avg_views?: number | null
+          carousel_count?: number | null
+          computed_at?: string
+          cross_niche_signals?: Json | null
+          formula_changed?: boolean | null
+          formula_structural_pattern?: Json | null
+          id?: string
+          new_sounds_json?: Json | null
+          niche_id: number
+          niche_insight_text?: string | null
+          previous_top_formula_json?: Json | null
+          top_formula_json?: Json | null
+          top_sounds_json?: Json | null
+          total_videos_indexed?: number | null
+          video_avg_save_rate?: number | null
+          video_avg_views?: number | null
+          video_count?: number | null
+          week_of: string
         }
         Update: {
-          active?: boolean
-          created_at?: string
-          description_vn?: string | null
-          display_order?: number
-          id?: number
-          name_en?: string
-          name_vn?: string
-          slug?: string
-        }
-        Relationships: []
-      }
-      content_classifications: {
-        Row: {
-          active: boolean
-          created_at: string
-          description_vn: string | null
-          format_axis: string
-          id: number
-          name_en: string
-          name_vn: string
-          slug: string
-          topic_axis: string
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          description_vn?: string | null
-          format_axis: string
-          id?: number
-          name_en: string
-          name_vn: string
-          slug: string
-          topic_axis: string
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          description_vn?: string | null
-          format_axis?: string
-          id?: number
-          name_en?: string
-          name_vn?: string
-          slug?: string
-          topic_axis?: string
-        }
-        Relationships: []
-      }
-      creator_niche_content_classes: {
-        Row: {
-          content_class_id: number
-          creator_niche_id: number
-          is_primary: boolean
-        }
-        Insert: {
-          content_class_id: number
-          creator_niche_id: number
-          is_primary?: boolean
-        }
-        Update: {
-          content_class_id?: number
-          creator_niche_id?: number
-          is_primary?: boolean
+          avg_save_rate?: number | null
+          avg_views?: number | null
+          best_posting_hours_json?: Json | null
+          carousel_avg_save_rate?: number | null
+          carousel_avg_views?: number | null
+          carousel_count?: number | null
+          computed_at?: string
+          cross_niche_signals?: Json | null
+          formula_changed?: boolean | null
+          formula_structural_pattern?: Json | null
+          id?: string
+          new_sounds_json?: Json | null
+          niche_id?: number
+          niche_insight_text?: string | null
+          previous_top_formula_json?: Json | null
+          top_formula_json?: Json | null
+          top_sounds_json?: Json | null
+          total_videos_indexed?: number | null
+          video_avg_save_rate?: number | null
+          video_avg_views?: number | null
+          video_count?: number | null
+          week_of?: string
         }
         Relationships: [
           {
-            foreignKeyName: "creator_niche_content_classes_creator_niche_id_fkey"
-            columns: ["creator_niche_id"]
+            foreignKeyName: "niche_weekly_digest_niche_id_fkey"
+            columns: ["niche_id"]
             isOneToOne: false
-            referencedRelation: "creator_niches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "creator_niche_content_classes_content_class_id_fkey"
-            columns: ["content_class_id"]
-            isOneToOne: false
-            referencedRelation: "content_classifications"
+            referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
           },
         ]
@@ -586,6 +1836,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          creator_niche_id: number | null
           credits_reset_at: string | null
           daily_free_query_count: number
           daily_free_query_reset_at: string | null
@@ -596,7 +1847,8 @@ export type Database = {
           is_admin: boolean
           is_processing: boolean
           lifetime_credits_used: number
-          creator_niche_id: number | null
+          niche_ids: number[] | null
+          onboarding_free_diagnosis_used: boolean | null
           reference_channel_handles: string[]
           subscription_tier: string
           tiktok_handle: string | null
@@ -605,6 +1857,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          creator_niche_id?: number | null
           credits_reset_at?: string | null
           daily_free_query_count?: number
           daily_free_query_reset_at?: string | null
@@ -615,7 +1868,8 @@ export type Database = {
           is_admin?: boolean
           is_processing?: boolean
           lifetime_credits_used?: number
-          creator_niche_id?: number | null
+          niche_ids?: number[] | null
+          onboarding_free_diagnosis_used?: boolean | null
           reference_channel_handles?: string[]
           subscription_tier?: string
           tiktok_handle?: string | null
@@ -624,6 +1878,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          creator_niche_id?: number | null
           credits_reset_at?: string | null
           daily_free_query_count?: number
           daily_free_query_reset_at?: string | null
@@ -634,7 +1889,8 @@ export type Database = {
           is_admin?: boolean
           is_processing?: boolean
           lifetime_credits_used?: number
-          creator_niche_id?: number | null
+          niche_ids?: number[] | null
+          onboarding_free_diagnosis_used?: boolean | null
           reference_channel_handles?: string[]
           subscription_tier?: string
           tiktok_handle?: string | null
@@ -646,6 +1902,182 @@ export type Database = {
             columns: ["creator_niche_id"]
             isOneToOne: false
             referencedRelation: "creator_niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_events: {
+        Row: {
+          created_at: string
+          event_data: Json
+          event_type: string
+          id: string
+          read_at: string | null
+          sent_email: boolean | null
+          sent_inapp: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_data: Json
+          event_type: string
+          id?: string
+          read_at?: string | null
+          sent_email?: boolean | null
+          sent_inapp?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          read_at?: string | null
+          sent_email?: boolean | null
+          sent_inapp?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scene_intelligence: {
+        Row: {
+          computed_at: string
+          corpus_avg_duration: number | null
+          niche_id: number
+          overlay_samples: Json
+          reference_video_ids: string[]
+          sample_size: number
+          scene_type: string
+          tip: string | null
+          winner_avg_duration: number | null
+          winner_overlay_style: string | null
+        }
+        Insert: {
+          computed_at?: string
+          corpus_avg_duration?: number | null
+          niche_id: number
+          overlay_samples?: Json
+          reference_video_ids?: string[]
+          sample_size?: number
+          scene_type: string
+          tip?: string | null
+          winner_avg_duration?: number | null
+          winner_overlay_style?: string | null
+        }
+        Update: {
+          computed_at?: string
+          corpus_avg_duration?: number | null
+          niche_id?: number
+          overlay_samples?: Json
+          reference_video_ids?: string[]
+          sample_size?: number
+          scene_type?: string
+          tip?: string | null
+          winner_avg_duration?: number | null
+          winner_overlay_style?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scene_intelligence_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signal_grades: {
+        Row: {
+          computed_at: string
+          creator_count: number
+          hook_type: string
+          id: string
+          niche_id: number
+          sample_size: number
+          signal: string
+          total_views: number
+          week_start: string
+        }
+        Insert: {
+          computed_at?: string
+          creator_count?: number
+          hook_type: string
+          id?: string
+          niche_id: number
+          sample_size?: number
+          signal: string
+          total_views?: number
+          week_start: string
+        }
+        Update: {
+          computed_at?: string
+          creator_count?: number
+          hook_type?: string
+          id?: string
+          niche_id?: number
+          sample_size?: number
+          signal?: string
+          total_views?: number
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signal_grades_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      starter_creators: {
+        Row: {
+          avg_views: number
+          display_name: string | null
+          followers: number
+          handle: string
+          is_curated: boolean
+          last_seeded_at: string
+          niche_id: number
+          rank: number
+          video_count: number
+        }
+        Insert: {
+          avg_views?: number
+          display_name?: string | null
+          followers?: number
+          handle: string
+          is_curated?: boolean
+          last_seeded_at?: string
+          niche_id: number
+          rank?: number
+          video_count?: number
+        }
+        Update: {
+          avg_views?: number
+          display_name?: string | null
+          followers?: number
+          handle?: string
+          is_curated?: boolean
+          last_seeded_at?: string
+          niche_id?: number
+          rank?: number
+          video_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "starter_creators_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
           },
         ]
@@ -743,13 +2175,6 @@ export type Database = {
             foreignKeyName: "trend_velocity_niche_id_fkey"
             columns: ["niche_id"]
             isOneToOne: false
-            referencedRelation: "niche_intelligence"
-            referencedColumns: ["niche_id"]
-          },
-          {
-            foreignKeyName: "trend_velocity_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
             referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
           },
@@ -757,47 +2182,108 @@ export type Database = {
       }
       trending_cards: {
         Row: {
-          id: string
-          niche_id: number
-          title: string
-          description: string
-          signal: string
-          hook_type: string | null
-          hook_template: string | null
-          video_ids: string[] | null
+          computed_at: string
           corpus_cite: string | null
-          computed_at: string | null
+          description: string
+          hook_template: string | null
+          hook_type: string | null
+          id: string
+          meta_insight: string | null
+          niche_id: number
+          signal: string
+          title: string
+          video_ids: string[]
           week_of: string
         }
         Insert: {
-          id?: string
-          niche_id: number
-          title: string
-          description: string
-          signal: string
-          hook_type?: string | null
-          hook_template?: string | null
-          video_ids?: string[] | null
+          computed_at?: string
           corpus_cite?: string | null
-          computed_at?: string | null
+          description: string
+          hook_template?: string | null
+          hook_type?: string | null
+          id?: string
+          meta_insight?: string | null
+          niche_id: number
+          signal: string
+          title: string
+          video_ids?: string[]
           week_of: string
         }
         Update: {
-          id?: string
-          niche_id?: number
-          title?: string
-          description?: string
-          signal?: string
-          hook_type?: string | null
-          hook_template?: string | null
-          video_ids?: string[] | null
+          computed_at?: string
           corpus_cite?: string | null
-          computed_at?: string | null
+          description?: string
+          hook_template?: string | null
+          hook_type?: string | null
+          id?: string
+          meta_insight?: string | null
+          niche_id?: number
+          signal?: string
+          title?: string
+          video_ids?: string[]
           week_of?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trending_cards_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-            usage_events: {
+      trending_sounds: {
+        Row: {
+          commerce_signal: boolean
+          computed_at: string
+          id: string
+          is_original_sound: boolean
+          niche_id: number | null
+          sound_id: string
+          sound_insight_text: string | null
+          sound_name: string
+          total_views: number
+          usage_count: number
+          week_of: string
+        }
+        Insert: {
+          commerce_signal?: boolean
+          computed_at?: string
+          id?: string
+          is_original_sound?: boolean
+          niche_id?: number | null
+          sound_id: string
+          sound_insight_text?: string | null
+          sound_name: string
+          total_views?: number
+          usage_count?: number
+          week_of: string
+        }
+        Update: {
+          commerce_signal?: boolean
+          computed_at?: string
+          id?: string
+          is_original_sound?: boolean
+          niche_id?: number | null
+          sound_id?: string
+          sound_insight_text?: string | null
+          sound_name?: string
+          total_views?: number
+          usage_count?: number
+          week_of?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trending_sounds_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "niche_taxonomy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_events: {
         Row: {
           action: string
           created_at: string
@@ -821,42 +2307,22 @@ export type Database = {
         }
         Relationships: []
       }
-      video_dang_hoc: {
-        Row: {
-          video_id: string
-          list_type: string
-          rank: number
-          breakout_multiplier: number | null
-          velocity: number | null
-        }
-        Insert: {
-          video_id: string
-          list_type: string
-          rank: number
-          breakout_multiplier?: number | null
-          velocity?: number | null
-        }
-        Update: {
-          video_id?: string
-          list_type?: string
-          rank?: number
-          breakout_multiplier?: number | null
-          velocity?: number | null
-        }
-        Relationships: []
-      }
       video_corpus: {
         Row: {
           analysis_json: Json
           breakout_multiplier: number | null
+          breakout_ratio: number | null
           caption: string | null
+          comment_radar: Json | null
+          comment_radar_fetched_at: string | null
           comments: number
-          content_type: string
-          content_format: string | null
           content_class_id: number | null
+          content_format: string | null
+          content_type: string
           created_at: string
-          creator_handle: string
           creator_followers: number | null
+          creator_handle: string
+          creator_median_views: number | null
           creator_tier: string | null
           cta_type: string | null
           dialect: string | null
@@ -877,18 +2343,23 @@ export type Database = {
           is_original_sound: boolean | null
           is_stitch: boolean | null
           language: string | null
+          last_refetched_at: string | null
           likes: number
           niche_id: number
+          pain_points: Json | null
           pattern_id: string | null
           posted_at: string | null
           posting_hour: number | null
+          promotion_type: string | null
           save_rate: number | null
           saves: number | null
           scene_count: number | null
-          search_vector: unknown | null
+          search_vector: unknown
           shares: number
           sound_id: string | null
           sound_name: string | null
+          style_tags: Json | null
+          target_audience: string | null
           text_overlay_count: number | null
           thumbnail_analysis: Json | null
           thumbnail_analysis_fetched_at: string | null
@@ -898,22 +2369,26 @@ export type Database = {
           topics: string[] | null
           transcript_snippet: string | null
           transitions_per_second: number | null
+          video_duration: number | null
           video_id: string
           video_url: string | null
           views: number
-          video_duration: number | null
         }
         Insert: {
           analysis_json: Json
           breakout_multiplier?: number | null
+          breakout_ratio?: number | null
           caption?: string | null
+          comment_radar?: Json | null
+          comment_radar_fetched_at?: string | null
           comments?: number
-          content_type: string
-          content_format?: string | null
           content_class_id?: number | null
+          content_format?: string | null
+          content_type: string
           created_at?: string
-          creator_handle: string
           creator_followers?: number | null
+          creator_handle: string
+          creator_median_views?: number | null
           creator_tier?: string | null
           cta_type?: string | null
           dialect?: string | null
@@ -934,18 +2409,23 @@ export type Database = {
           is_original_sound?: boolean | null
           is_stitch?: boolean | null
           language?: string | null
+          last_refetched_at?: string | null
           likes?: number
           niche_id: number
+          pain_points?: Json | null
           pattern_id?: string | null
           posted_at?: string | null
           posting_hour?: number | null
+          promotion_type?: string | null
           save_rate?: number | null
           saves?: number | null
           scene_count?: number | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           shares?: number
           sound_id?: string | null
           sound_name?: string | null
+          style_tags?: Json | null
+          target_audience?: string | null
           text_overlay_count?: number | null
           thumbnail_analysis?: Json | null
           thumbnail_analysis_fetched_at?: string | null
@@ -955,22 +2435,26 @@ export type Database = {
           topics?: string[] | null
           transcript_snippet?: string | null
           transitions_per_second?: number | null
+          video_duration?: number | null
           video_id: string
           video_url?: string | null
           views?: number
-          video_duration?: number | null
         }
         Update: {
           analysis_json?: Json
           breakout_multiplier?: number | null
+          breakout_ratio?: number | null
           caption?: string | null
+          comment_radar?: Json | null
+          comment_radar_fetched_at?: string | null
           comments?: number
-          content_type?: string
-          content_format?: string | null
           content_class_id?: number | null
+          content_format?: string | null
+          content_type?: string
           created_at?: string
-          creator_handle?: string
           creator_followers?: number | null
+          creator_handle?: string
+          creator_median_views?: number | null
           creator_tier?: string | null
           cta_type?: string | null
           dialect?: string | null
@@ -991,18 +2475,23 @@ export type Database = {
           is_original_sound?: boolean | null
           is_stitch?: boolean | null
           language?: string | null
+          last_refetched_at?: string | null
           likes?: number
           niche_id?: number
+          pain_points?: Json | null
           pattern_id?: string | null
           posted_at?: string | null
           posting_hour?: number | null
+          promotion_type?: string | null
           save_rate?: number | null
           saves?: number | null
           scene_count?: number | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           shares?: number
           sound_id?: string | null
           sound_name?: string | null
+          style_tags?: Json | null
+          target_audience?: string | null
           text_overlay_count?: number | null
           thumbnail_analysis?: Json | null
           thumbnail_analysis_fetched_at?: string | null
@@ -1012,18 +2501,18 @@ export type Database = {
           topics?: string[] | null
           transcript_snippet?: string | null
           transitions_per_second?: number | null
+          video_duration?: number | null
           video_id?: string
           video_url?: string | null
           views?: number
-          video_duration?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "video_corpus_niche_id_fkey"
-            columns: ["niche_id"]
+            foreignKeyName: "video_corpus_content_class_id_fkey"
+            columns: ["content_class_id"]
             isOneToOne: false
-            referencedRelation: "niche_intelligence"
-            referencedColumns: ["niche_id"]
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "video_corpus_niche_id_fkey"
@@ -1031,109 +2520,305 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_corpus_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "video_patterns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_dang_hoc: {
+        Row: {
+          breakout_multiplier: number | null
+          id: string
+          list_type: string
+          rank: number
+          refreshed_at: string
+          velocity: number | null
+          video_id: string
+        }
+        Insert: {
+          breakout_multiplier?: number | null
+          id?: string
+          list_type: string
+          rank: number
+          refreshed_at?: string
+          velocity?: number | null
+          video_id: string
+        }
+        Update: {
+          breakout_multiplier?: number | null
+          id?: string
+          list_type?: string
+          rank?: number
+          refreshed_at?: string
+          velocity?: number | null
+          video_id?: string
+        }
+        Relationships: []
+      }
+      video_diagnostics: {
+        Row: {
+          analysis_headline: string | null
+          analysis_subtext: string | null
+          computed_at: string
+          flop_issues: Json | null
+          hook_phases: Json
+          lessons: Json
+          niche_benchmark_curve: Json | null
+          retention_curve: Json | null
+          segments: Json
+          video_id: string
+        }
+        Insert: {
+          analysis_headline?: string | null
+          analysis_subtext?: string | null
+          computed_at?: string
+          flop_issues?: Json | null
+          hook_phases?: Json
+          lessons?: Json
+          niche_benchmark_curve?: Json | null
+          retention_curve?: Json | null
+          segments?: Json
+          video_id: string
+        }
+        Update: {
+          analysis_headline?: string | null
+          analysis_subtext?: string | null
+          computed_at?: string
+          flop_issues?: Json | null
+          hook_phases?: Json
+          lessons?: Json
+          niche_benchmark_curve?: Json | null
+          retention_curve?: Json | null
+          segments?: Json
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_diagnostics_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: true
+            referencedRelation: "video_corpus"
+            referencedColumns: ["video_id"]
           },
         ]
       }
       video_patterns: {
         Row: {
-          id: string
-          signature_hash: string
-          signature: Json
+          angles: Json | null
+          careful: string | null
+          computed_at: string
+          deck_computed_at: string | null
           display_name: string | null
           first_seen_at: string
-          last_seen_at: string
+          id: string
           instance_count: number
+          is_active: boolean
+          last_seen_at: string
           niche_spread: number[]
+          signature: Json
+          signature_hash: string
+          structure: Json | null
           weekly_instance_count: number
           weekly_instance_count_prev: number
-          is_active: boolean
-          computed_at: string
-          structure: Json | null
           why: string | null
-          careful: string | null
-          angles: Json | null
-          deck_computed_at: string | null
         }
         Insert: {
-          id?: string
-          signature_hash: string
-          signature: Json
+          angles?: Json | null
+          careful?: string | null
+          computed_at?: string
+          deck_computed_at?: string | null
           display_name?: string | null
           first_seen_at: string
-          last_seen_at: string
+          id?: string
           instance_count?: number
+          is_active?: boolean
+          last_seen_at: string
           niche_spread?: number[]
+          signature: Json
+          signature_hash: string
+          structure?: Json | null
           weekly_instance_count?: number
           weekly_instance_count_prev?: number
-          is_active?: boolean
-          computed_at?: string
-          structure?: Json | null
           why?: string | null
-          careful?: string | null
-          angles?: Json | null
-          deck_computed_at?: string | null
         }
         Update: {
-          id?: string
-          signature_hash?: string
-          signature?: Json
+          angles?: Json | null
+          careful?: string | null
+          computed_at?: string
+          deck_computed_at?: string | null
           display_name?: string | null
           first_seen_at?: string
-          last_seen_at?: string
+          id?: string
           instance_count?: number
+          is_active?: boolean
+          last_seen_at?: string
           niche_spread?: number[]
+          signature?: Json
+          signature_hash?: string
+          structure?: Json | null
           weekly_instance_count?: number
           weekly_instance_count_prev?: number
-          is_active?: boolean
-          computed_at?: string
-          structure?: Json | null
           why?: string | null
-          careful?: string | null
-          angles?: Json | null
-          deck_computed_at?: string | null
         }
         Relationships: []
       }
-      trending_sounds: {
+      video_shots: {
         Row: {
+          created_at: string
+          creator_handle: string | null
+          description: string | null
+          end_s: number | null
+          frame_url: string | null
+          framing: string | null
+          hook_type: string | null
           id: string
-          niche_id: number | null
-          sound_id: string
-          sound_name: string
-          usage_count: number
-          is_original_sound: boolean
-          total_views: number
-          commerce_signal: boolean
-          week_of: string
-          computed_at: string
+          motion: string | null
+          niche_id: number
+          overlay_style: string | null
+          pace: string | null
+          scene_index: number
+          scene_type: string | null
+          start_s: number | null
+          subject: string | null
+          thumbnail_url: string | null
+          tiktok_url: string | null
+          video_id: string
+          views: number | null
         }
         Insert: {
+          created_at?: string
+          creator_handle?: string | null
+          description?: string | null
+          end_s?: number | null
+          frame_url?: string | null
+          framing?: string | null
+          hook_type?: string | null
           id?: string
-          niche_id?: number | null
-          sound_id: string
-          sound_name: string
-          usage_count?: number
-          is_original_sound?: boolean
-          total_views?: number
-          commerce_signal?: boolean
-          week_of: string
-          computed_at?: string
+          motion?: string | null
+          niche_id: number
+          overlay_style?: string | null
+          pace?: string | null
+          scene_index: number
+          scene_type?: string | null
+          start_s?: number | null
+          subject?: string | null
+          thumbnail_url?: string | null
+          tiktok_url?: string | null
+          video_id: string
+          views?: number | null
         }
         Update: {
+          created_at?: string
+          creator_handle?: string | null
+          description?: string | null
+          end_s?: number | null
+          frame_url?: string | null
+          framing?: string | null
+          hook_type?: string | null
           id?: string
-          niche_id?: number | null
-          sound_id?: string
-          sound_name?: string
-          usage_count?: number
-          is_original_sound?: boolean
-          total_views?: number
-          commerce_signal?: boolean
-          week_of?: string
-          computed_at?: string
+          motion?: string | null
+          niche_id?: number
+          overlay_style?: string | null
+          pace?: string | null
+          scene_index?: number
+          scene_type?: string | null
+          start_s?: number | null
+          subject?: string | null
+          thumbnail_url?: string | null
+          tiktok_url?: string | null
+          video_id?: string
+          views?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "trending_sounds_niche_id_fkey"
+            foreignKeyName: "video_shots_video_fk"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "video_corpus"
+            referencedColumns: ["video_id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      content_class_intelligence: {
+        Row: {
+          avg_duration: number | null
+          avg_engagement_rate: number | null
+          avg_face_appears_at: number | null
+          avg_hashtag_count: number | null
+          avg_text_overlays: number | null
+          avg_transitions_per_second: number | null
+          avg_views: number | null
+          commerce_avg_views: number | null
+          commerce_pct: number | null
+          computed_at: string | null
+          content_class_id: number | null
+          has_cta_pct: number | null
+          hook_distribution: Json | null
+          max_duration: number | null
+          median_duration: number | null
+          median_er: number | null
+          median_scene_count: number | null
+          median_views: number | null
+          min_duration: number | null
+          northern_count: number | null
+          organic_avg_views: number | null
+          pct_face_in_half_sec: number | null
+          pct_has_caption_text: number | null
+          pct_has_specific_hashtags: number | null
+          pct_original_sound: number | null
+          sample_size: number | null
+          southern_count: number | null
+          tone_distribution: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_corpus_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      niche_intelligence: {
+        Row: {
+          avg_duration: number | null
+          avg_engagement_rate: number | null
+          avg_face_appears_at: number | null
+          avg_hashtag_count: number | null
+          avg_text_overlays: number | null
+          avg_transitions_per_second: number | null
+          commerce_avg_views: number | null
+          commerce_pct: number | null
+          computed_at: string | null
+          format_distribution: Json | null
+          has_cta_pct: number | null
+          hook_distribution: Json | null
+          max_duration: number | null
+          median_duration: number | null
+          median_er: number | null
+          min_duration: number | null
+          niche_id: number | null
+          northern_count: number | null
+          organic_avg_views: number | null
+          pct_face_in_half_sec: number | null
+          pct_has_caption_text: number | null
+          pct_has_specific_hashtags: number | null
+          pct_original_sound: number | null
+          sample_size: number | null
+          southern_count: number | null
+          tone_distribution: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_corpus_niche_id_fkey"
             columns: ["niche_id"]
             isOneToOne: false
             referencedRelation: "niche_taxonomy"
@@ -1142,57 +2827,55 @@ export type Database = {
         ]
       }
     }
-    Views: {
-      niche_intelligence: {
-        Row: {
-          avg_face_appears_at: number | null
-          avg_transitions_per_second: number | null
-          avg_video_length_seconds: number | null
-          computed_at: string | null
-          hook_type_distribution: Json | null
-          median_engagement_rate: number | null
-          niche_id: number | null
-          sample_size: number | null
-          trending_keywords: Json | null
-          video_count_7d: number | null
-        }
-        Relationships: []
-      }
-      content_class_intelligence: {
-        Row: {
-          content_class_id: number | null
-          sample_size: number | null
-          hook_distribution: Json | null
-          tone_distribution: Json | null
-          avg_face_appears_at: number | null
-          pct_face_in_half_sec: number | null
-          avg_transitions_per_second: number | null
-          avg_duration: number | null
-          median_duration: number | null
-          min_duration: number | null
-          max_duration: number | null
-          avg_engagement_rate: number | null
-          median_er: number | null
-          median_views: number | null
-          avg_views: number | null
-          avg_text_overlays: number | null
-          commerce_pct: number | null
-          commerce_avg_views: number | null
-          organic_avg_views: number | null
-          southern_count: number | null
-          northern_count: number | null
-          has_cta_pct: number | null
-          pct_has_specific_hashtags: number | null
-          pct_has_caption_text: number | null
-          avg_hashtag_count: number | null
-          pct_original_sound: number | null
-          median_scene_count: number | null
-          computed_at: string | null
-        }
-        Relationships: []
-      }
-    }
     Functions: {
+      admin_pg_net_batch_http_4xx_events: {
+        Args: { p_hours?: number }
+        Returns: {
+          created_at: string
+          request_url: string
+          response_id: number
+          status_code: number
+        }[]
+      }
+      answer_session_list_title: {
+        Args: { p_initial_q: string; p_title: string }
+        Returns: string
+      }
+      begin_processing: { Args: { p_user_id: string }; Returns: boolean }
+      channel_corpus_stats: {
+        Args: { p_handle: string; p_niche: number }
+        Returns: Json
+      }
+      corpus_hashtag_yields_14d: {
+        Args: never
+        Returns: {
+          hashtag: string
+          ingest_count: number
+          niche_id: number
+        }[]
+      }
+      cron_assert_no_recent_pg_net_batch_http_4xx: {
+        Args: { p_hours?: number }
+        Returns: undefined
+      }
+      cross_creator_pattern_aggregate: {
+        Args: { p_lookback_days?: number }
+        Returns: {
+          creator_count: number
+          creators: string[]
+          hook_type: string
+          niche_id: number
+          total_views: number
+        }[]
+      }
+      daily_corpus_growth_by_niche: {
+        Args: { p_since: string }
+        Returns: {
+          delta_24h: number
+          niche_id: number
+          niche_name: string
+        }[]
+      }
       decrement_and_grant_credits: {
         Args: {
           p_event_type: string
@@ -1202,35 +2885,71 @@ export type Database = {
         Returns: Json
       }
       decrement_credit: { Args: { p_user_id: string }; Returns: number }
-      // C.6.1 — unified history view (answer_sessions + chat_sessions).
-      history_union: {
-        Args: {
-          p_filter?: string
-          p_cursor?: string | null
-          p_limit?: number
-        }
+      end_processing: { Args: { p_user_id: string }; Returns: boolean }
+      get_weekly_trend_summaries: {
+        Args: { p_week_of: string }
         Returns: {
+          card_count: number
+          niche_name: string
+          top_hook_type: string
+          top_signal: string
+        }[]
+      }
+      history_union: {
+        Args: { p_cursor?: string; p_filter?: string; p_limit?: number }
+        Returns: {
+          format: string
           id: string
-          type: string
-          format: string | null
-          niche_id: number | null
-          title: string | null
+          niche_id: number
+          title: string
           turn_count: number
+          type: string
           updated_at: string
         }[]
       }
-      refresh_niche_intelligence: { Args: never; Returns: undefined }
-      refresh_content_class_intelligence: { Args: never; Returns: undefined }
-      // D.2.4 — cross-type history search (ILIKE + pg_trgm GIN).
-      search_history_union: {
-        Args: { p_query: string; p_limit?: number }
+      increment_free_query_count: { Args: { p_user_id: string }; Returns: Json }
+      map_legacy_corpus_to_content_class: {
+        Args: { p_content_format: string; p_niche_id: number }
+        Returns: number
+      }
+      map_legacy_niche_to_creator_niche: {
+        Args: { legacy_id: number }
+        Returns: number
+      }
+      niche_channel_benchmarks: {
+        Args: { p_niche_id: number }
         Returns: {
+          avg_views_p50: number
+          avg_views_p75: number
+          channel_count: number
+          engagement_p50: number
+          engagement_p75: number
+          posts_per_week_p50: number
+          posts_per_week_p75: number
+        }[]
+      }
+      pattern_wow_diff_7d: {
+        Args: { p_niche_id: number }
+        Returns: {
+          hook_type: string
+          is_dropped: boolean
+          is_new: boolean
+          rank_change: number
+          rank_now: number
+          rank_prior: number
+        }[]
+      }
+      refresh_content_class_intelligence: { Args: never; Returns: undefined }
+      refresh_niche_intelligence: { Args: never; Returns: undefined }
+      search_history_union: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          format: string
           id: string
-          type: string
-          format: string | null
-          niche_id: number | null
-          title: string | null
+          niche_id: number
+          title: string
           turn_count: number
+          type: string
           updated_at: string
         }[]
       }
@@ -1239,7 +2958,6 @@ export type Database = {
         Returns: {
           created_at: string
           credits_used: number
-          deleted_at: string | null
           first_message: string
           id: string
           intent_type: string | null
@@ -1255,6 +2973,21 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      seed_starter_creators: {
+        Args: { p_top_n?: number }
+        Returns: {
+          out_niche_id: number
+          out_seeded: number
+        }[]
+      }
+      timing_top_window_streak: {
+        Args: { p_day: number; p_hour_bucket: number; p_niche_id: number }
+        Returns: number
+      }
+      toggle_reference_channel: {
+        Args: { p_handle: string }
+        Returns: undefined
       }
     }
     Enums: {
@@ -1388,3 +3121,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

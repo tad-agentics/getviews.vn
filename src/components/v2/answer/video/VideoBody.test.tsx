@@ -245,4 +245,66 @@ describe("VideoBody render", () => {
     expect(screen.queryByText(/Copy hook/)).toBeNull();
     expect(screen.queryByText(/Tạo kịch bản từ video này/)).toBeNull();
   });
+
+  // ── CreatorComparisonCard (Lightreel hit/flop adoption from b7d4bc8) ──
+
+  it("renders CreatorComparisonCard when creator_comparison is present", () => {
+    const withComparison = makeFlopReport({
+      creator_comparison: {
+        creator_handle: "@creatorx",
+        total_posts_analyzed: 12,
+        median_views: 90_000,
+        target_percentile: "top 35%",
+        delta: 24,
+        hit: {
+          video_id: "v_hit",
+          tiktok_url: "https://www.tiktok.com/@creatorx/video/v_hit",
+          views: 1_200_000,
+        },
+        flop: {
+          video_id: "v_flop",
+          tiktok_url: "https://www.tiktok.com/@creatorx/video/v_flop",
+          views: 50_000,
+        },
+      },
+    });
+    renderInRouter(withComparison);
+    // Kicker carries the creator handle inline with the section title.
+    expect(screen.getByText(/SO SÁNH TRONG KÊNH · @creatorx/)).toBeTruthy();
+    // Hit views formatted as 1.2M (formatViews threshold)
+    expect(screen.getByText("1.2M")).toBeTruthy();
+    // Flop views formatted as 50K
+    expect(screen.getByText("50K")).toBeTruthy();
+    // Delta multiplier
+    expect(screen.getByText("24×")).toBeTruthy();
+    // Percentile rendering
+    expect(screen.getByText("top 35%")).toBeTruthy();
+    // Cohort copy "X video" is part of a larger sentence — partial match.
+    expect(screen.getByText(/12 video/)).toBeTruthy();
+  });
+
+  it("omits CreatorComparisonCard when creator_comparison is null", () => {
+    renderInRouter(makeFlopReport({ creator_comparison: null }));
+    expect(screen.queryByText(/SO SÁNH TRONG KÊNH/)).toBeNull();
+  });
+
+  it("falls back to '#' href when a comparison video has no tiktok_url", () => {
+    const withMissingUrls = makeFlopReport({
+      creator_comparison: {
+        creator_handle: "@creatorx",
+        total_posts_analyzed: 8,
+        median_views: 60_000,
+        target_percentile: "median",
+        delta: 4,
+        hit: { video_id: null, tiktok_url: null, views: 240_000 },
+        flop: { video_id: null, tiktok_url: null, views: 60_000 },
+      },
+    });
+    const { container } = renderInRouter(withMissingUrls);
+    // Both anchors should have href="#" defensively rather than crash.
+    const cardAnchors = Array.from(container.querySelectorAll("a")).filter(
+      (a) => a.getAttribute("href") === "#",
+    );
+    expect(cardAnchors.length).toBeGreaterThanOrEqual(2);
+  });
 });

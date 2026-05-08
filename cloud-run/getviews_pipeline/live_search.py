@@ -15,8 +15,14 @@ import logging
 import re
 from typing import Any
 
+from getviews_pipeline.creator_blocklist import is_blocklisted_handle
 from getviews_pipeline.ensemble import fetch_keyword_search
-from getviews_pipeline.step_events import emit, step_tool_complete, step_tool_start
+from getviews_pipeline.step_events import (
+    emit,
+    step_error,
+    step_tool_complete,
+    step_tool_start,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,9 +120,12 @@ async def fetch_live_supplement(
     results: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
 
+    # The terms list is bounded at MAX_LIVE_SEARCHES via derive_search_terms,
+    # so all calls land at iteration_start. The earlier "i // MAX_LIVE_SEARCHES"
+    # arithmetic was dead code (always 0) — kept the calc removed.
     for i, term in enumerate(terms):
-        iteration = iteration_start + (i // MAX_LIVE_SEARCHES)
-        index = i % MAX_LIVE_SEARCHES
+        iteration = iteration_start
+        index = i
         emit(
             step_queue,
             step_tool_start(
@@ -128,12 +137,46 @@ async def fetch_live_supplement(
         )
 
         awemes: list[dict[str, Any]] = []
+        ed_failed = False
         try:
             awemes, _ = await fetch_keyword_search(
                 term, period=7, sorting=1, country="vn"
             )
         except Exception as exc:
+            ed_failed = True
             logger.warning("[live_search] ED keyword search failed term=%r: %s", term, exc)
+            # Surface the failure as a step_error so the FE can flip the
+            # "TikTok Live" card into an error state instead of showing
+            # "0 video" — which reads as "search ran and found nothing"
+            # rather than "search itself failed".
+            emit(
+                step_queue,
+                step_error(
+                    code="live_search_failed",
+                    message_vi="Tìm kiếm TikTok live thất bại — kết quả pattern dùng corpus đã có.",
+                    detail=f"term={term!r}: {exc}",
+                ),
+            )
+
+        # Sprint 8.5 — apply the same news/aggregator blocklist the corpus
+        # ingest enforces. Without this filter, EnsembleData live keyword
+        # search returns theanh28*/kenh14*/24h.* / vtvcab.* etc. and feeds
+        # them into the Gemini synthesis prompt for Pattern + Ideas,
+        # silently undoing Sprint 8.5's value on the most prominent
+        # surfaces. Re-uses ``is_blocklisted_handle`` from the corpus path.
+        before = len(awemes)
+        awemes = [
+            a for a in awemes
+            if not is_blocklisted_handle(
+                str((a.get("author") or {}).get("unique_id") or "")
+            )
+        ]
+        filtered = before - len(awemes)
+        if filtered > 0:
+            logger.info(
+                "[live_search] term=%r filtered %d blocklisted aweme(s) (kept %d)",
+                term, filtered, len(awemes),
+            )
 
         thumbs: list[str] = []
         for a in awemes[:5]:
@@ -144,16 +187,21 @@ async def fetch_live_supplement(
             if isinstance(url, str) and url:
                 thumbs.append(url)
 
-        emit(
-            step_queue,
-            step_tool_complete(
-                iteration=iteration,
-                index=index,
-                found=len(awemes),
-                thumbnails=thumbs,
-                tool="tiktok_live",
-            ),
-        )
+        # Skip the tool_complete emit when the ED call itself failed —
+        # the step_error above already informs the FE; emitting a
+        # complete with found=0 would double-up and look like a clean
+        # "no results" outcome instead of an error.
+        if not ed_failed:
+            emit(
+                step_queue,
+                step_tool_complete(
+                    iteration=iteration,
+                    index=index,
+                    found=len(awemes),
+                    thumbnails=thumbs,
+                    tool="tiktok_live",
+                ),
+            )
 
         for a in awemes:
             aid = str(a.get("aweme_id") or "")

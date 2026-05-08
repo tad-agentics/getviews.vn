@@ -533,7 +533,7 @@ async function consumeAnswerSse<TPayload>(
               text,
               streamId: lastStreamId,
               lastSeq,
-              error: token.error,
+              error: token.error ?? null,
               finalPayload: null,
             }));
             void qc.invalidateQueries({ queryKey: ["profile"] });
@@ -646,7 +646,7 @@ async function consumeChatSse<TPayload>(
               text,
               streamId: lastStreamId,
               lastSeq,
-              error: token.error,
+              error: token.error ?? null,
               finalPayload: null,
             }));
             void qc.invalidateQueries({ queryKey: ["profile"] });
