@@ -33,8 +33,8 @@ import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import { TemplatizeCard } from "@/components/v2/answer/TemplatizeCard";
 import {
+  LivePipelineStrip,
   MiniResearchStrip,
-  ResearchProcessBar,
   useResearchStage,
 } from "@/components/v2/answer/ResearchStrip";
 import { RelatedQsCard } from "@/components/v2/answer/RelatedQs";
@@ -118,7 +118,7 @@ export default function AnswerScreen() {
   const uid = user?.id;
   const detailQuery = useAnswerSessionDetail(sessionId, uid);
 
-  const { stream, status: streamStatus } = useSessionStream<ReportV1>({
+  const { stream, status: streamStatus, steps } = useSessionStream<ReportV1>({
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
 
@@ -563,10 +563,11 @@ export default function AnswerScreen() {
                 >
                   {heroQuestion}
                 </h1>
-                <ResearchProcessBar
+                <LivePipelineStrip
+                  steps={steps}
+                  done={Boolean(!loading && lastPayload)}
                   loading={loading}
                   stage={researchStage}
-                  done={Boolean(!loading && lastPayload)}
                   videoCount={surfaceStats?.sampleVideos}
                   channelCount={
                     surfaceStats && surfaceStats.channelRows > 0 ? surfaceStats.channelRows : null
@@ -591,10 +592,11 @@ export default function AnswerScreen() {
                 </h1>
                 {bootstrapLoading && seedQ.trim() ? (
                   <>
-                    <ResearchProcessBar
+                    <LivePipelineStrip
+                      steps={steps}
+                      done={false}
                       loading={loading}
                       stage={researchStage}
-                      done={false}
                       videoCount={surfaceStats?.sampleVideos}
                       channelCount={
                         surfaceStats && surfaceStats.channelRows > 0

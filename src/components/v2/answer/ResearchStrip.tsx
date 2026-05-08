@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
+import type { StepEvent } from "@/lib/types/sse-events";
 
 const STEPS = ["Quét", "Phân tích", "Tìm pattern", "Tóm tắt"] as const;
 
@@ -156,6 +157,230 @@ export function MiniResearchStrip({ active }: { active: boolean }) {
       aria-hidden
     >
       <div className="h-full w-1/3 animate-pulse rounded-full bg-[color:var(--gv-accent)] motion-reduce:animate-none" />
+    </div>
+  );
+}
+
+// ── Tool card state ──────────────────────────────────────────────────────────
+// Keyed by `${iteration}-${index}` for parallel card tracking.
+
+interface ToolCardState {
+  key: string;
+  label: string;
+  tool: string;
+  done: boolean;
+  found: number;
+  thumbnails: string[];
+}
+
+// ── ThumbnailStrip ────────────────────────────────────────────────────────────
+
+function ThumbnailStrip({ urls }: { urls: string[] }) {
+  if (!urls.length) return null;
+  return (
+    <div className="mt-1.5 flex items-center gap-1 overflow-x-auto">
+      {urls.slice(0, 5).map((url, i) => (
+        <img
+          key={i}
+          src={url}
+          alt=""
+          className="h-7 w-7 shrink-0 rounded-full border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── SourceBadge ───────────────────────────────────────────────────────────────
+
+function SourceBadge({ tool }: { tool: string }) {
+  const isTiktok = tool === "tiktok_live";
+  return (
+    <span
+      className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${
+        isTiktok
+          ? "bg-[#010101] text-white"
+          : "border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] text-[var(--gv-ink-3)]"
+      }`}
+    >
+      {isTiktok ? "TikTok Live" : tool === "corpus" ? "Corpus" : tool === "synthesis" ? "AI" : tool}
+    </span>
+  );
+}
+
+// ── ToolCard ─────────────────────────────────────────────────────────────────
+
+function ToolCard({ card }: { card: ToolCardState }) {
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-[var(--gv-rule)] py-2 last:border-0">
+      <div className="flex min-w-0 items-center gap-2">
+        {card.done ? (
+          <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-[var(--gv-pos)]">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M1.5 4L3 5.5L6.5 2" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          </span>
+        ) : (
+          <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[var(--gv-accent)] border-t-transparent" />
+        )}
+        <span className="truncate text-[12px] text-[var(--gv-ink-2)]">{card.label}</span>
+        <SourceBadge tool={card.tool} />
+        {card.done && card.found > 0 && (
+          <span className="ml-auto shrink-0 font-mono text-[10px] text-[var(--gv-ink-3)]">
+            {card.found.toLocaleString("vi-VN")} video
+          </span>
+        )}
+      </div>
+      {card.done && card.thumbnails.length > 0 && (
+        <ThumbnailStrip urls={card.thumbnails} />
+      )}
+    </div>
+  );
+}
+
+// ── StatusRow ────────────────────────────────────────────────────────────────
+
+function StatusRow({ text, iteration }: { text: string; iteration: number }) {
+  return (
+    <div className="flex items-center gap-2 pb-1 pt-3 first:pt-0">
+      <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-[var(--gv-ink-4)]">
+        {iteration}
+      </span>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--gv-ink)]">
+        {text}
+      </span>
+    </div>
+  );
+}
+
+// ── LivePipelineStrip ─────────────────────────────────────────────────────────
+
+/**
+ * Renders real-time pipeline events as parallel tool cards.
+ *
+ * Replaces timer-based ResearchProcessBar for answer sessions that
+ * emit step events. Matches Lightreel's pipeline transparency UX:
+ * - Status header per iteration
+ * - Tool cards with spinner → found count + thumbnail strip
+ * - Multiple cards per iteration complete out of order
+ *
+ * Falls back to ResearchProcessBar when steps array is empty (legacy
+ * builders not yet updated to emit step events).
+ */
+export function LivePipelineStrip({
+  steps,
+  done,
+  loading,
+  stage,
+  videoCount,
+  channelCount,
+}: {
+  steps: StepEvent[];
+  done: boolean;
+  loading: boolean;
+  stage?: number;
+  videoCount?: number | null;
+  channelCount?: number | null;
+}) {
+  if (steps.length === 0 && loading) {
+    return (
+      <ResearchProcessBar
+        loading={loading}
+        stage={stage ?? 0}
+        done={done}
+        videoCount={videoCount}
+        channelCount={channelCount}
+      />
+    );
+  }
+
+  if (steps.length === 0 && done) return null;
+
+  const cardMap = new Map<string, ToolCardState>();
+  const statusByIteration = new Map<number, string>();
+  const iterationOrder: number[] = [];
+
+  for (const event of steps) {
+    if (event.type === "step_status") {
+      statusByIteration.set(event.iteration, event.text);
+      if (!iterationOrder.includes(event.iteration)) {
+        iterationOrder.push(event.iteration);
+      }
+    } else if (event.type === "step_tool_start") {
+      const key = `${event.iteration}-${event.index}`;
+      cardMap.set(key, {
+        key,
+        label: event.label,
+        tool: event.tool,
+        done: false,
+        found: 0,
+        thumbnails: [],
+      });
+      if (!iterationOrder.includes(event.iteration)) {
+        iterationOrder.push(event.iteration);
+      }
+    } else if (event.type === "step_tool_complete") {
+      const key = `${event.iteration}-${event.index}`;
+      const existing = cardMap.get(key);
+      if (existing) {
+        cardMap.set(key, {
+          ...existing,
+          done: true,
+          found: event.found,
+          thumbnails: event.thumbnails,
+        });
+      }
+    }
+  }
+
+  const cardsByIteration = new Map<number, ToolCardState[]>();
+  for (const [, card] of cardMap) {
+    const iter = Number.parseInt(card.key.split("-")[0] ?? "0", 10);
+    const arr = cardsByIteration.get(iter) ?? [];
+    arr.push(card);
+    cardsByIteration.set(iter, arr);
+  }
+
+  return (
+    <div className="mt-5 border-y border-[var(--gv-rule)] py-4">
+      {iterationOrder.map((iter) => (
+        <div key={iter}>
+          {statusByIteration.has(iter) && (
+            <StatusRow text={statusByIteration.get(iter)!} iteration={iter} />
+          )}
+          <div className="pl-5">
+            {(cardsByIteration.get(iter) ?? [])
+              .sort(
+                (a, b) =>
+                  Number.parseInt(a.key.split("-")[1] ?? "0", 10) -
+                  Number.parseInt(b.key.split("-")[1] ?? "0", 10),
+              )
+              .map((card) => (
+                <ToolCard key={card.key} card={card} />
+              ))}
+          </div>
+        </div>
+      ))}
+
+      {loading && !done && steps.some((s) => s.type === "step_tool_complete") && (
+        <div className="flex items-center gap-2 pt-2 text-[11px] text-[var(--gv-ink-3)]">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--gv-accent)]" />
+          Đang tổng hợp báo cáo…
+        </div>
+      )}
+
+      {done && (
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-[var(--gv-pos)]">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <circle cx="6" cy="6" r="5" fill="currentColor" opacity="0.15" />
+            <path d="M3.5 6L5 7.5L8.5 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          Hoàn tất
+        </div>
+      )}
     </div>
   );
 }
