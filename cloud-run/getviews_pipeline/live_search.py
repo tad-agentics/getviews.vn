@@ -200,6 +200,10 @@ async def fetch_live_supplement(
                     found=len(awemes),
                     thumbnails=thumbs,
                     tool="tiktok_live",
+                    # Audit Pass-2 fix #6 — distinguish "search returned
+                    # nothing" from "search returned only blocklisted
+                    # media outlets" so the UX can read the difference.
+                    filtered=filtered,
                 ),
             )
 

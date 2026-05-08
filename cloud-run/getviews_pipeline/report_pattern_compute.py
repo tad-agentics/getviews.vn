@@ -257,7 +257,16 @@ def find_ab_pair(
 
         hit_views = int(best_hit.get("views") or 0)
         flop_views = int(worst_flop.get("views") or 0)
-        delta = round(hit_views / max(flop_views, 1))
+        # Audit fix #1 (Pass 2) — guard against zero/near-zero flops.
+        # EnsembleData often returns ``play_count: 0`` for fresh or
+        # private posts. Without this guard, ``max(flop_views, 1)``
+        # floored division produced misleading mega-deltas
+        # (e.g. "Video đỉnh 5K view vs Video thấp 0 view · 5,000×")
+        # that the FE then rendered as evidence. Require a non-trivial
+        # baseline before claiming an A/B pair exists.
+        if flop_views < 100 or hit_views <= 0:
+            continue
+        delta = round(hit_views / flop_views)
 
         if delta < min_delta or delta <= best_delta:
             continue

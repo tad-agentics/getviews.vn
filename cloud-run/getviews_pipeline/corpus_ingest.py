@@ -1147,6 +1147,12 @@ def _haystack_for_niche_resolution(
     caption: str | None,
 ) -> str:
     """Flatten caption + hook phrase + topics into one lowercase search blob."""
+    # Audit Pass-2 fix #5 — haystack is intentionally limited to
+    # ``caption + hook_phrase`` to stay aligned with the SQL backfill in
+    # ``20260708120000_reclassify_misclassified_corpus_niche.sql`` (which
+    # uses the same two fields). Including Gemini-extracted ``topics``
+    # here would let ingest reassign rows the migration would have left
+    # alone, creating drift between historical and incoming data.
     cap = caption or ""
     inner: dict[str, Any] = {}
     if analysis and isinstance(analysis, dict):
@@ -1157,11 +1163,7 @@ def _haystack_for_niche_resolution(
     hook_obj = inner.get("hook_analysis")
     if isinstance(hook_obj, dict):
         hook = str(hook_obj.get("hook_phrase") or "")
-    topics = inner.get("topics")
-    topic_s = ""
-    if isinstance(topics, list):
-        topic_s = " ".join(str(x) for x in topics if x is not None)
-    return f"{cap} {hook} {topic_s}".strip().lower()
+    return f"{cap} {hook}".strip().lower()
 
 
 def _signal_hit_counts_per_niche(
@@ -1187,28 +1189,33 @@ def _resolve_actual_niche_from_content(
     caption: str | None,
     niche_signal_hashtags_by_id: dict[int, list[str]],
     default_niche_id: int,
-) -> int:
+) -> tuple[int, dict[int, int]]:
     """Pick a niche from signal_hashtag hits when another niche leads by ≥2 hits.
 
-    Mirrors the Sprint 8 SQL backfill: substring match on caption + hook phrase +
-    Gemini ``topics`` (same signals the batch loop cannot trust from the pool alone).
+    Mirrors the Sprint 8 SQL backfill: substring match on caption +
+    hook_phrase only (intentionally excluding Gemini ``topics``; see
+    ``_haystack_for_niche_resolution``).
+
+    Audit Pass-2 fix #7 — returns ``(resolved_nid, per_niche_hits)`` so
+    callers logging the decision don't have to recompute the haystack +
+    hit map. Empty hits dict when haystack is empty / no signal map.
     """
     if not niche_signal_hashtags_by_id:
-        return default_niche_id
+        return default_niche_id, {}
     haystack = _haystack_for_niche_resolution(analysis, caption)
     if not haystack:
-        return default_niche_id
+        return default_niche_id, {}
     counts = _signal_hit_counts_per_niche(haystack, niche_signal_hashtags_by_id)
     if not counts:
-        return default_niche_id
+        return default_niche_id, {}
     max_hits = max(counts.values())
     if max_hits <= 0:
-        return default_niche_id
+        return default_niche_id, counts
     best_nid = min(nid for nid, c in counts.items() if c == max_hits)
     default_hits = counts.get(default_niche_id, 0)
     if best_nid != default_niche_id and max_hits >= default_hits + 2:
-        return best_nid
-    return default_niche_id
+        return best_nid, counts
+    return default_niche_id, counts
 
 
 def _build_corpus_row(
@@ -1623,16 +1630,15 @@ async def _ingest_candidate_awemes(
         )
         signal_map = niche_signal_hashtags_by_id
         if signal_map:
-            resolved_nid = _resolve_actual_niche_from_content(
+            # Audit Pass-2 fix #7 — resolver now returns the per-niche
+            # hits map it computed internally so the call site doesn't
+            # rebuild the haystack a second time per candidate.
+            resolved_nid, per_niche_hits = _resolve_actual_niche_from_content(
                 analysis,
                 caption_for_resolution or None,
                 signal_map,
                 loop_nid,
             )
-            haystack = _haystack_for_niche_resolution(
-                analysis, caption_for_resolution or None,
-            )
-            per_niche_hits = _signal_hit_counts_per_niche(haystack, signal_map)
         else:
             resolved_nid = loop_nid
             per_niche_hits = {}
@@ -2021,12 +2027,21 @@ async def ingest_niche(
 
 
 def _existing_video_ids_sync(client: Any, niche_id: int) -> set[str]:
-    result = (
-        client.table("video_corpus")
-        .select("video_id")
-        .eq("niche_id", niche_id)
-        .execute()
-    )
+    """Return every ``video_id`` already in ``video_corpus`` (any niche).
+
+    Audit Pass-2 fix #4 — was previously filtered by ``niche_id``, but
+    Sprint 9's content-aware resolver reassigns rows from the loop niche
+    to a different one. After reassignment, the loop niche's existing-id
+    check no longer sees the row, so the next cron pass re-pulls + re-
+    analyzes it (expensive Gemini call) before reassigning to the same
+    target niche again. Global dedup avoids the wasted analysis.
+
+    The ``niche_id`` argument is kept (logging breadcrumb) but no longer
+    influences the query — so callers that previously relied on per-niche
+    isolation must understand the wider scope.
+    """
+    _ = niche_id  # kept on the signature; rows are deduped globally now
+    result = client.table("video_corpus").select("video_id").execute()
     return {row["video_id"] for row in (result.data or [])}
 
 

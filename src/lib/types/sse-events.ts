@@ -31,9 +31,16 @@ export interface StepToolComplete {
   type: "step_tool_complete";
   iteration: number;
   index: number;
+  /** Awemes returned to the synthesis prompt (post-filter). */
   found: number;
   thumbnails: string[]; // max 5 URLs
   tool: StepToolName;
+  /** Awemes the tool fetched but discarded (e.g., news-aggregator
+   *  blocklist). Optional — only emitted when > 0. The FE can render
+   *  "Tìm thấy N · lọc M" so users see the difference between
+   *  "search returned nothing" and "search returned only filtered
+   *  results". */
+  filtered?: number;
 }
 
 // Legacy sequential events (still emitted by some builders)
