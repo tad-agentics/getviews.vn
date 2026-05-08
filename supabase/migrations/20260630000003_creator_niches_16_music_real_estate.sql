@@ -9,9 +9,9 @@
 -- callers align with ``src/lib/profileNiches.ts`` + Cloud Run
 -- ``profile_niches.py``.
 --
--- Version ``20260630000001`` (not ``…000000``) — remote already has
--- ``20260630000000_drop_primary_niche_sync_trigger_pr6.sql`` in
--- ``schema_migrations``; Supabase uses one row per numeric prefix.
+-- Uses ``20260630000003`` because ``20260630000001`` is
+-- ``auto_fill_content_class_id_trigger``; Supabase records one row per
+-- numeric prefix.
 
 BEGIN;
 

@@ -1,4 +1,5 @@
 -- PR6 follow-up: remove any leftover ``primary_niche`` sync trigger/function.
+-- Version ``20260630000002``: ``20260630000000`` is ``cron_batch_sound_aggregate``.
 --
 -- ``profiles.primary_niche`` was dropped in ``20260513000001``. The
 -- conditional block in ``20260629000001`` only (re)creates the sync
