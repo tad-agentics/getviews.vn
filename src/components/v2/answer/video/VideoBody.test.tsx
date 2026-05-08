@@ -255,6 +255,7 @@ describe("VideoBody render", () => {
         total_posts_analyzed: 12,
         median_views: 90_000,
         target_percentile: "top 35%",
+        target_vs_median: 1.4,
         delta: 24,
         hit: {
           video_id: "v_hit",
@@ -295,6 +296,7 @@ describe("VideoBody render", () => {
         total_posts_analyzed: 8,
         median_views: 60_000,
         target_percentile: "median",
+        target_vs_median: 1.0,
         delta: 4,
         hit: { video_id: null, tiktok_url: null, views: 240_000 },
         flop: { video_id: null, tiktok_url: null, views: 60_000 },
