@@ -8,6 +8,7 @@ empty Pattern diagnoses back to their source sessions.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
@@ -21,6 +22,7 @@ from getviews_pipeline.report_lifecycle import build_lifecycle_report
 from getviews_pipeline.report_pattern import build_pattern_report
 from getviews_pipeline.report_timing import build_timing_report
 from getviews_pipeline.report_types import LifecycleMode, validate_and_store_report
+from getviews_pipeline.step_events import emit_sentinel
 from getviews_pipeline.supabase_client import get_service_client
 
 logger = logging.getLogger(__name__)
@@ -342,6 +344,7 @@ def append_turn(
     kind: str,
     classifier_confidence_score: float | None = None,
     intent_id: str | None = None,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Append validated turn; primary kind deducts credit via user client (caller passes token).
 
@@ -430,6 +433,7 @@ def append_turn(
                 session.get("intent_type") or "trend_spike",
                 window_days=window_days,
                 subreports=subs or None,
+                step_queue=step_queue,
             )
         elif builder_fmt == "ideas":
             inner = build_ideas_report(
@@ -437,6 +441,7 @@ def append_turn(
                 query,
                 session.get("intent_type") or "brief_generation",
                 window_days=window_days,
+                step_queue=step_queue,
             )
         elif builder_fmt == "timing":
             # ``content_calendar`` intent shares the timing template but
@@ -449,7 +454,11 @@ def append_turn(
                 else None
             )
             inner = build_timing_report(
-                niche_pk, query, window_days=window_days, mode=timing_mode,
+                niche_pk,
+                query,
+                window_days=window_days,
+                mode=timing_mode,
+                step_queue=step_queue,
             )
         elif builder_fmt == "lifecycle":
             inner = build_lifecycle_report(
@@ -457,10 +466,11 @@ def append_turn(
                 query,
                 lifecycle_mode_for_intent(session.get("intent_type")),
                 window_days=window_days,
+                step_queue=step_queue,
             )
         elif builder_fmt == "diagnostic":
             inner = build_diagnostic_report(
-                niche_pk, query, window_days=window_days,
+                niche_pk, query, window_days=window_days, step_queue=step_queue,
             )
         elif builder_fmt == "video":
             # Bridges to /video/analyze pipeline (corpus-cached) +
@@ -477,15 +487,21 @@ def append_turn(
                 service_sb=sb_srv,
                 user_sb=sb_user_for_video,
                 query=query,
+                step_queue=step_queue,
             )
         else:
-            inner = build_generic_report(session.get("niche_id"), query)
+            inner = build_generic_report(
+                session.get("niche_id"), query, step_queue=step_queue,
+            )
     except Exception:
         logger.exception(
             "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",
             builder_fmt, niche_pk, session_id,
         )
         raise
+    finally:
+        if step_queue is not None:
+            emit_sentinel(step_queue)
 
     try:
         payload_dict = validate_and_store_report(builder_fmt, inner)

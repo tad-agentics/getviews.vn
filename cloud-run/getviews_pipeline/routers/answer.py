@@ -142,6 +142,9 @@ async def answer_append_turn(
         # 60–120 s; without heartbeats the client SSE_IDLE_TIMEOUT_MS
         # (45 s) fires, the retry misses the in-flight replay cache, and
         # a second append_turn runs → double credit deduction (TD-1).
+        step_queue: asyncio.Queue = asyncio.Queue()
+        stream_cache: list[dict[str, Any]] = []
+
         append_task = asyncio.create_task(
             run_sync(
                 append_turn,
@@ -152,14 +155,39 @@ async def answer_append_turn(
                 kind=body.kind,
                 classifier_confidence_score=body.classifier_confidence_score,
                 intent_id=body.intent_id,
+                step_queue=step_queue,
             )
         )
         _HB = 10.0
         while not append_task.done():
+            while True:
+                try:
+                    event = step_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+                if event is None:
+                    break
+                seq += 1
+                item = {"seq": seq, **event}
+                stream_cache.append(item)
+                yield _sse_line({"stream_id": stream_id, **item, "done": False})
+
             done_set, _ = await asyncio.wait({append_task}, timeout=_HB)
             if not done_set:
                 seq += 1
                 yield _sse_line({"stream_id": stream_id, "seq": seq, "heartbeat": True, "done": False})
+
+        while True:
+            try:
+                event = step_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            if event is None:
+                continue
+            seq += 1
+            item = {"seq": seq, **event}
+            stream_cache.append(item)
+            yield _sse_line({"stream_id": stream_id, **item, "done": False})
 
         try:
             out = append_task.result()
@@ -193,7 +221,7 @@ async def answer_append_turn(
         # disconnects during the yield phase and immediately retries will
         # find a hot cache and replay instead of re-running append_turn
         # (closes the yield-phase window of TD-1 double-deduction).
-        put_stream_chunks(stream_id, [payload_item, done_item])
+        put_stream_chunks(stream_id, stream_cache + [payload_item, done_item])
 
         yield _sse_line({"stream_id": stream_id, **payload_item, "done": False})
         yield _sse_line({"stream_id": stream_id, **done_item})

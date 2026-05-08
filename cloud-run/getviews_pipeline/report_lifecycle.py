@@ -31,6 +31,7 @@ onto the confidence strip so the UI can show "mẫu thưa".
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -358,6 +359,8 @@ def build_lifecycle_report(
     query: str,
     mode: LifecycleMode = "format",
     window_days: int = 30,
+    *,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Live lifecycle report.
 
@@ -397,8 +400,18 @@ def build_lifecycle_report(
             mode=mode, query=query, niche_label=None, window_days=window_days,
         )
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(1, "Đang phân tích vòng đời format trong ngách..."))
+        emit(step_queue, step_tool_start("Tải corpus lifecycle", 1, 0, tool="corpus"))
+
     ctx = load_lifecycle_inputs(sb, niche_id, window_days)
     if ctx is None:
+        if step_queue is not None:
+            from getviews_pipeline.step_events import emit, step_tool_complete
+
+            emit(step_queue, step_tool_complete(1, 0, 0, [], tool="corpus"))
         return _fixture_with_narrative(
             mode=mode, query=query, niche_label=None, window_days=window_days,
         )
@@ -407,11 +420,39 @@ def build_lifecycle_report(
     niche_label = str(ctx["niche_label"])
     sample_n = len(corpus)
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete, step_tool_start
+
+        thumbs: list[str] = []
+        for row in corpus:
+            u = row.get("thumbnail_url") or row.get("thumbnail")
+            if isinstance(u, str) and u.strip():
+                thumbs.append(u.strip())
+            if len(thumbs) >= 5:
+                break
+        emit(step_queue, step_tool_complete(1, 0, sample_n, thumbs, tool="corpus"))
+        emit(
+            step_queue,
+            step_tool_start(f"Quét format theo reach · {niche_label}", 1, 1, tool="corpus"),
+        )
+
+    def _emit_fixture_tail(*, second_card_found: int = 0) -> None:
+        if step_queue is None:
+            return
+        from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+
+        emit(step_queue, step_tool_complete(1, 1, second_card_found, [], tool="corpus"))
+        emit(step_queue, step_status(2, "Đang tổng hợp lifecycle..."))
+        emit(step_queue, step_tool_start("Gemini lifecycle", 2, 0, tool="synthesis"))
+        emit(step_queue, step_tool_complete(2, 0, 0, [], tool="synthesis"))
+        emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
+
     if sample_n < LIFECYCLE_SAMPLE_FLOOR:
         logger.info(
             "[lifecycle] thin corpus n=%s < floor=%s — fixture path",
             sample_n, LIFECYCLE_SAMPLE_FLOOR,
         )
+        _emit_fixture_tail(second_card_found=sample_n)
         return _fixture_with_narrative(
             mode=mode, query=query, niche_label=niche_label,
             window_days=window_days, sample_size=sample_n,
@@ -428,6 +469,7 @@ def build_lifecycle_report(
     # disclaimer — otherwise the UI would render "N=200 · high confidence"
     # against hardcoded cells, which is actively misleading.
     if mode != "format":
+        _emit_fixture_tail(second_card_found=sample_n)
         return _fixture_with_narrative(
             mode=mode, query=query, niche_label=niche_label,
             window_days=window_days, sample_size=sample_n,
@@ -437,15 +479,27 @@ def build_lifecycle_report(
     cells_raw = compute_format_cells(corpus, window_days=window_days)
     if len(cells_raw) < 1:
         logger.info("[lifecycle] format aggregation produced 0 cells — fixture path")
+        _emit_fixture_tail(second_card_found=sample_n)
         return _fixture_with_narrative(
             mode=mode, query=query, niche_label=niche_label,
             window_days=window_days, sample_size=sample_n,
         )
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete
+
+        emit(step_queue, step_tool_complete(1, 1, len(cells_raw), [], tool="corpus"))
+
     clean_cells = strip_internal_fields(cells_raw)
     has_weak_cell = any(c.get("stage") in ("declining", "plateau") for c in clean_cells)
 
     from getviews_pipeline.report_lifecycle_gemini import fill_lifecycle_narrative
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(2, "Đang tổng hợp insight lifecycle..."))
+        emit(step_queue, step_tool_start("Gemini lifecycle", 2, 0, tool="synthesis"))
 
     narrative = fill_lifecycle_narrative(
         query=query,
@@ -493,6 +547,11 @@ def build_lifecycle_report(
         ],
         related_questions=narrative["related_questions"],
     )
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_done, step_tool_complete
+
+        emit(step_queue, step_tool_complete(2, 0, len(lifecycle_cells), [], tool="synthesis"))
+        emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 
 

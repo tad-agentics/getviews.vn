@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -173,6 +174,8 @@ def build_ideas_report(
     intent_type: str,
     window_days: int = 7,
     variant: str = "standard",
+    *,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Live Ideas report. Falls back to fixture when DB / niche is unavailable.
 
@@ -181,6 +184,8 @@ def build_ideas_report(
     - Any other value → standard.
 
     Empty state (sample_size < 60 in standard mode) → thin-corpus fixture.
+
+    ``step_queue`` — optional; live SSE step events for answer turns.
     """
     v = "hook_variants" if variant == "hook_variants" else "standard"
     if v == "hook_variants":
@@ -209,8 +214,18 @@ def build_ideas_report(
         static_ideas_action_cards,
     )
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(1, "Đang phân tích ý tưởng content trong ngách..."))
+        emit(step_queue, step_tool_start("Tìm video mẫu · …", 1, 0, tool="corpus"))
+
     ctx = load_ideas_inputs(sb, niche_id, window_days)
     if ctx is None:
+        if step_queue is not None:
+            from getviews_pipeline.step_events import emit, step_tool_complete
+
+            emit(step_queue, step_tool_complete(1, 0, 0, [], tool="corpus"))
         data = build_fixture_ideas_report()
         if isinstance(data.get("confidence"), dict):
             data["confidence"]["window_days"] = window_days
@@ -222,9 +237,38 @@ def build_ideas_report(
     niche_label = str(ctx["niche_label"])
     style_distribution: list[dict[str, Any]] = ctx.get("style_distribution") or []
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete, step_tool_start
+
+        thumbs: list[str] = []
+        for row in corpus:
+            u = row.get("thumbnail_url") or row.get("thumbnail")
+            if isinstance(u, str) and u.strip():
+                thumbs.append(u.strip())
+            if len(thumbs) >= 5:
+                break
+        emit(step_queue, step_tool_complete(1, 0, len(corpus), thumbs, tool="corpus"))
+        emit(
+            step_queue,
+            step_tool_start(f"Tìm video mẫu · {niche_label}", 1, 1, tool="corpus"),
+        )
+
     sample_n = int(ni.get("sample_size") or 0)
     ranked = rank_hooks_for_ideas(he_rows)
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete
+
+        emit(step_queue, step_tool_complete(1, 1, len(ranked), [], tool="corpus"))
+
     if niche_id <= 0 or sample_n < 60 or len(ranked) < 3:
+        if step_queue is not None:
+            from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+
+            emit(step_queue, step_status(2, "Đang tạo ý tưởng dựa trên corpus..."))
+            emit(step_queue, step_tool_start("Gemini tổng hợp ý tưởng", 2, 0, tool="synthesis"))
+            emit(step_queue, step_tool_complete(2, 0, 0, [], tool="synthesis"))
+            emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
         thin = build_thin_corpus_ideas_report()
         if isinstance(thin.get("confidence"), dict):
             thin["confidence"]["window_days"] = window_days
@@ -254,6 +298,12 @@ def build_ideas_report(
     # the specific question (falls back deterministically on no-key /
     # budget exhausted envs — the fallback is still query-aware).
     from getviews_pipeline.report_ideas_gemini import fill_ideas_narrative
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(2, "Đang tạo ý tưởng dựa trên corpus..."))
+        emit(step_queue, step_tool_start("Gemini tổng hợp ý tưởng", 2, 0, tool="synthesis"))
 
     top_idea_hooks = [b.hook for b in ideas_blocks[:5] if getattr(b, "hook", None)]
     narrative = fill_ideas_narrative(
@@ -301,6 +351,11 @@ def build_ideas_report(
         variant="standard",
         niche_insight=niche_insight,
     )
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_done, step_tool_complete
+
+        emit(step_queue, step_tool_complete(2, 0, len(ideas_blocks), [], tool="synthesis"))
+        emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 
 

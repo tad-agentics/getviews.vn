@@ -18,6 +18,7 @@ picks up the id and routes to the corpus path.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -154,6 +155,7 @@ def build_video_report(
     user_sb: Any,
     query: str,
     mode: str | None = None,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Build a ``VideoAnalyzeResponse``-shaped dict for an answer turn.
 
@@ -174,6 +176,8 @@ def build_video_report(
     Raises ``ValueError`` when the query has no parseable TikTok URL
     or aweme_id (caller → 400) or when both corpus + on-demand paths
     miss in a way that can't be analysed (e.g. invalid URL shape).
+
+    ``step_queue`` — optional; live SSE step events (reserved).
     """
     url = extract_tiktok_url(query)
     aweme_id = extract_aweme_id(query) if not url else None
@@ -195,6 +199,12 @@ def build_video_report(
             logger.info(
                 "[report_video] mode hint from query: %s", resolved_mode,
             )
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(1, "Đang tải video và tìm trong corpus..."))
+        emit(step_queue, step_tool_start("Tra cứu corpus", 1, 0, tool="corpus"))
 
     try:
         out = run_video_analyze_pipeline(
@@ -237,4 +247,24 @@ def build_video_report(
     # populate from niche playbook).
     out.setdefault("sources", [])
     out.setdefault("related_questions", [])
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+
+        meta = out.get("meta") or {}
+        thumbs: list[str] = []
+        tu = meta.get("thumbnail_url")
+        if isinstance(tu, str) and tu.strip():
+            thumbs.append(tu.strip())
+        emit(step_queue, step_tool_complete(1, 0, 1, thumbs, tool="corpus"))
+        creator = str(meta.get("creator") or "").strip()
+        creator_lbl = f"@{creator}" if creator else "@creator"
+        emit(step_queue, step_status(2, "Đang so sánh với video khác của creator..."))
+        emit(step_queue, step_tool_start(creator_lbl, 2, 0, tool="search"))
+        emit(step_queue, step_tool_complete(2, 0, 0, [], tool="search"))
+        emit(step_queue, step_status(3, "Đang chạy Gemini phân tích frame..."))
+        emit(step_queue, step_tool_start("Phân tích 6 frame video", 3, 0, tool="synthesis"))
+        emit(step_queue, step_tool_complete(3, 0, 0, [], tool="synthesis"))
+        emit(step_queue, step_done("Xong — đang hiển thị kết quả..."))
+
     return out

@@ -68,7 +68,7 @@ async def test_pipeline_pattern_sequence_error_then_sentinel() -> None:
     except ValueError as exc:
         emit_pipeline_error(q, exc, code="synthesis_failed")
     finally:
-        await emit_sentinel(q)
+        emit_sentinel(q)
 
     first = q.get_nowait()
     second = q.get_nowait()

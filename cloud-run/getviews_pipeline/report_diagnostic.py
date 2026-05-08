@@ -23,6 +23,7 @@ shape — the "honesty" invariant.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -275,6 +276,8 @@ def build_diagnostic_report(
     niche_id: int,
     query: str,
     window_days: int = 14,
+    *,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Live URL-less flop diagnostic.
 
@@ -302,10 +305,28 @@ def build_diagnostic_report(
         logger.warning("[diagnostic] service client unavailable: %s — fallback", exc)
         return _fallback_payload(query=query, window_days=window_days)
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(1, "Đang thu thập dữ liệu kênh và ngách..."))
+        emit(step_queue, step_tool_start("Tải dữ liệu chẩn đoán", 1, 0, tool="corpus"))
+
     niche_label, benchmarks = _load_niche_benchmarks(sb, niche_id)
     niche_execution_tip = _fetch_niche_execution_tip(sb, niche_id)
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete
+
+        bench_n = int(benchmarks.get("sample_size") or 0)
+        emit(step_queue, step_tool_complete(1, 0, bench_n, [], tool="corpus"))
+
     from getviews_pipeline.report_diagnostic_gemini import fill_diagnostic_narrative
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(2, "Đang phân tích điểm yếu..."))
+        emit(step_queue, step_tool_start("Gemini chẩn đoán", 2, 0, tool="synthesis"))
 
     narrative = fill_diagnostic_narrative(
         query=query,
@@ -319,6 +340,11 @@ def build_diagnostic_report(
 
     categories = [DiagnosticCategory(**c) for c in narrative["categories"]]
     prescriptions = [DiagnosticPrescription(**p) for p in narrative["prescriptions"]]
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete
+
+        emit(step_queue, step_tool_complete(2, 0, len(categories), [], tool="synthesis"))
 
     try:
         payload = DiagnosticPayload(
@@ -353,6 +379,11 @@ def build_diagnostic_report(
             niche_label=niche_label,
             niche_execution_tip=niche_execution_tip,
         )
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_done
+
+        emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
 
     return payload.model_dump()
 

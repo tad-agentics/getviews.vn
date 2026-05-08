@@ -391,13 +391,13 @@ async def run_compare_pipeline(
         logger.warning("[compare] left side failed, returning single-video right: %s", left_res)
         if step_queue is not None:
             await step_queue.put(step_done("Một video lỗi — chỉ trả kết quả video còn lại."))
-            await emit_sentinel(step_queue)
+            emit_sentinel(step_queue)
         return right_res
     if isinstance(right_res, Exception):
         logger.warning("[compare] right side failed, returning single-video left: %s", right_res)
         if step_queue is not None:
             await step_queue.put(step_done("Một video lỗi — chỉ trả kết quả video còn lại."))
-            await emit_sentinel(step_queue)
+            emit_sentinel(step_queue)
         return left_res
 
     niche = None
@@ -410,6 +410,6 @@ async def run_compare_pipeline(
 
     if step_queue is not None:
         await step_queue.put(step_done("Đã so sánh xong — đang viết tổng kết..."))
-        await emit_sentinel(step_queue)
+        emit_sentinel(step_queue)
 
     return payload.model_dump()

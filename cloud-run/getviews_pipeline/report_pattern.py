@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -301,6 +302,17 @@ def _freshness_hours_from_corpus(corpus: list[dict[str, Any]]) -> int:
     return max(1, int(delta.total_seconds() // 3600))
 
 
+def _pattern_thumb_urls(corpus: list[dict[str, Any]], limit: int = 5) -> list[str]:
+    thumbs: list[str] = []
+    for row in corpus:
+        u = row.get("thumbnail_url") or row.get("thumbnail")
+        if isinstance(u, str) and u.strip():
+            thumbs.append(u.strip())
+        if len(thumbs) >= limit:
+            break
+    return thumbs
+
+
 def build_pattern_report(
     niche_id: int,
     query: str,
@@ -308,6 +320,7 @@ def build_pattern_report(
     window_days: int = 7,
     *,
     subreports: list[str] | None = None,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """C.2.2 — live pattern report: DB aggregators + optional Gemini copy + WoW merge.
 
@@ -345,11 +358,19 @@ def build_pattern_report(
     )
     from getviews_pipeline.report_pattern_gemini import build_why_won_list, fill_pattern_narrative
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+
+        emit(step_queue, step_status(1, "Đang quét corpus TikTok Việt Nam..."))
+        emit(
+            step_queue,
+            step_tool_start("Tải corpus ngách...", 1, 0, tool="corpus"),
+        )
+
     ctx = load_pattern_inputs(sb, niche_id, window_days)
     if ctx is None:
-        # load_pattern_inputs returns None when the niche has no usable
-        # rows in the corpus — render an honest empty state instead of
-        # the @demo fixture (BUG-01).
+        if step_queue is not None:
+            emit(step_queue, step_tool_complete(1, 0, 0, [], tool="corpus"))
         data = build_empty_pattern_report(window_days=window_days)
         data["wow_diff"] = wow
         return data
@@ -358,10 +379,42 @@ def build_pattern_report(
     he_rows: list[dict[str, Any]] = ctx["he_rows"]
     corpus: list[dict[str, Any]] = ctx["corpus"]
     niche_label = str(ctx["niche_label"])
+    niche_label_for_steps = niche_label if niche_label else f"Niche {niche_id}"
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete, step_tool_start
+
+        thumbs = _pattern_thumb_urls(corpus)
+        emit(
+            step_queue,
+            step_tool_complete(1, 0, len(corpus), thumbs, tool="corpus"),
+        )
+        emit(
+            step_queue,
+            step_tool_start(
+                f"Phân tích hook · {niche_label_for_steps}",
+                1,
+                1,
+                tool="corpus",
+            ),
+        )
 
     sample_n = int(ni.get("sample_size") or 0)
     ranked = rank_hooks_for_pattern(he_rows)
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete
+
+        emit(step_queue, step_tool_complete(1, 1, len(ranked), [], tool="corpus"))
+
     if niche_id <= 0 or sample_n < 30 or len(ranked) < 3:
+        if step_queue is not None:
+            from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+
+            emit(step_queue, step_status(2, "Đang tổng hợp pattern nổi bật..."))
+            emit(step_queue, step_tool_start("Viết báo cáo pattern", 2, 0, tool="synthesis"))
+            emit(step_queue, step_tool_complete(2, 0, 0, [], tool="synthesis"))
+            emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
         thin = build_thin_corpus_pattern_report(
             sample_size=sample_n,
             niche_label=niche_label,
@@ -401,6 +454,12 @@ def build_pattern_report(
         he_rows, top3_types, baseline_views, creator_sets=_creator_sets
     )
     stalled_labels = [s.pattern for s in stalled] if stalled else []
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(2, "Đang tổng hợp pattern nổi bật..."))
+        emit(step_queue, step_tool_start("Viết báo cáo pattern", 2, 0, tool="synthesis"))
 
     narr = fill_pattern_narrative(
         query=query,
@@ -488,6 +547,11 @@ def build_pattern_report(
         niche_insight=niche_insight,
         outlier_story=outlier_story,
     )
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_done, step_tool_complete
+
+        emit(step_queue, step_tool_complete(2, 0, 0, [], tool="synthesis"))
+        emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 
 

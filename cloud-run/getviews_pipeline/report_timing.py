@@ -11,6 +11,7 @@ Design source: ``artifacts/uiux-reference/screens/thread-turns.jsx`` lines
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -182,6 +183,7 @@ def build_timing_report(
     window_days: int = 14,
     *,
     mode: str | None = None,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Live Timing report. Falls back to fixture when DB / niche is unavailable.
 
@@ -201,6 +203,8 @@ def build_timing_report(
     scheduling keywords (``lịch``, ``kế hoạch``, ``tuần tới``, …). Pure
     timing queries leave ``calendar_slots`` empty and the frontend hides
     the calendar strip.
+
+    ``step_queue`` — optional; live SSE step events (reserved).
     """
     try:
         from getviews_pipeline.supabase_client import get_service_client
@@ -222,8 +226,21 @@ def build_timing_report(
         static_timing_action_cards,
     )
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(1, "Đang phân tích khung giờ đăng tối ưu..."))
+        emit(
+            step_queue,
+            step_tool_start(f"Quét lịch đăng {window_days} ngày qua", 1, 0, tool="corpus"),
+        )
+
     ctx = load_timing_inputs(sb, niche_id, window_days)
     if ctx is None:
+        if step_queue is not None:
+            from getviews_pipeline.step_events import emit, step_tool_complete
+
+            emit(step_queue, step_tool_complete(1, 0, 0, [], tool="corpus"))
         data = build_fixture_timing_report()
         if isinstance(data.get("confidence"), dict):
             data["confidence"]["window_days"] = window_days
@@ -233,13 +250,38 @@ def build_timing_report(
     niche_label = str(ctx["niche_label"])
     sample_n = len(corpus)
 
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_tool_complete
+
+        thumbs: list[str] = []
+        for row in corpus:
+            u = row.get("thumbnail_url") or row.get("thumbnail")
+            if isinstance(u, str) and u.strip():
+                thumbs.append(u.strip())
+            if len(thumbs) >= 5:
+                break
+        emit(step_queue, step_tool_complete(1, 0, sample_n, thumbs, tool="corpus"))
+
     if niche_id <= 0 or sample_n < 80:
+        if step_queue is not None:
+            from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+
+            emit(step_queue, step_status(2, "Đang tính khung giờ vàng..."))
+            emit(step_queue, step_tool_start("Tổng hợp heatmap", 2, 0, tool="corpus"))
+            emit(step_queue, step_tool_complete(2, 0, 0, [], tool="corpus"))
+            emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
         thin = build_thin_corpus_timing_report()
         if isinstance(thin.get("confidence"), dict):
             thin["confidence"]["window_days"] = window_days
             thin["confidence"]["niche_scope"] = niche_label
             thin["confidence"]["sample_size"] = sample_n
         return thin
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+
+        emit(step_queue, step_status(2, "Đang tính khung giờ vàng..."))
+        emit(step_queue, step_tool_start("Tổng hợp heatmap", 2, 0, tool="corpus"))
 
     grid, counts, niche_median = build_heatmap_grid(corpus)
     top_windows = compute_top_windows(grid, counts, niche_median=niche_median)
@@ -344,6 +386,12 @@ def build_timing_report(
         calendar_slots=calendar_slots_raw,
         related_questions=related_questions,
     )
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_done, step_tool_complete
+
+        heat_found = len(top_windows) if top_windows else 0
+        emit(step_queue, step_tool_complete(2, 0, heat_found, [], tool="corpus"))
+        emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 
 

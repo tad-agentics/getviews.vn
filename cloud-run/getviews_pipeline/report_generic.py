@@ -20,6 +20,7 @@ validated ``GenericPayload`` and nothing more.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -110,6 +111,7 @@ def build_generic_report(
     *,
     intent_confidence: str = "low",  # noqa: ARG001 — reserved for telemetry
     window_days: int = 14,
+    step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Live Generic report. Falls back to fixture when DB / niche unavailable.
 
@@ -122,7 +124,10 @@ def build_generic_report(
 
     Never raises — the fallback path must always surface a payload so the
     UI can render the OffTaxonomyBanner + suggestions.
+
+    ``step_queue`` — optional; live SSE step events (reserved).
     """
+    _ = step_queue
     try:
         from getviews_pipeline.supabase_client import get_service_client
 

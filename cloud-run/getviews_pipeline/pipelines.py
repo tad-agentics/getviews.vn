@@ -591,7 +591,7 @@ async def run_content_directions(
         emit_pipeline_error(step_queue, exc, code="content_directions_failed")
         raise
     finally:
-        await emit_sentinel(step_queue)
+        emit_sentinel(step_queue)
 
 
 async def run_trend_spike(
@@ -807,7 +807,7 @@ async def run_trend_spike(
         emit_pipeline_error(step_queue, exc, code="trend_spike_failed")
         raise
     finally:
-        await emit_sentinel(step_queue)
+        emit_sentinel(step_queue)
 
 
 async def run_competitor_profile(
@@ -858,7 +858,7 @@ async def run_competitor_profile(
         delta_videos=len(analyzed),
         intent_label="competitor_profile",
     )
-    await emit_sentinel(step_queue)
+    emit_sentinel(step_queue)
     return {
         "intent": "competitor_profile",
         "handle": handle,
@@ -936,7 +936,7 @@ async def run_brief_generation(
         emit_pipeline_error(step_queue, exc, code="brief_generation_failed")
         raise
     finally:
-        await emit_sentinel(step_queue)
+        emit_sentinel(step_queue)
 
 
 async def run_shot_list(
@@ -1007,7 +1007,7 @@ async def run_shot_list(
         emit_pipeline_error(step_queue, exc, code="shot_list_failed")
         raise
     finally:
-        await emit_sentinel(step_queue)
+        emit_sentinel(step_queue)
 
 
 _DIRECTION_KEYWORDS = (
@@ -1414,7 +1414,7 @@ async def run_video_diagnosis(
         delta_videos=1 + len(references),
         intent_label="video_diagnosis",
     )
-    await emit_sentinel(step_queue)
+    emit_sentinel(step_queue)
 
     # Parallel side-queries — each fails open so a miss never blocks the
     # primary diagnosis path. Share the resolved video_id so both reads hit

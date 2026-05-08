@@ -9,7 +9,9 @@ Event schema (mirrors src/lib/types/sse-events.ts):
     {"type": "step_start",   "label": "Đang phân tích video..."}
     {"type": "step_search",  "source": "tiktok"|"corpus", "query": "..."}
     {"type": "step_creator", "handle": "@creator"}
-    {"type": "step_count",   "count": 120, "thumbnails": ["url1", ...]}
+    {"type": "step_tool_start", "label": "...", "iteration": 0, "index": 0, "tool": "search"}
+    {"type": "step_tool_complete", "iteration": 0, "index": 0, "found": 12, "thumbnails": [], "tool": "search"}
+    {"type": "step_status", "iteration": 0, "text": "..."}
     {"type": "step_process", "label": "Đang tổng hợp chiến lược..."}
     {"type": "step_done",    "summary": "Phân tích xong — đang viết..."}
     {"type": "step_error",   "code": "synthesis_failed",
@@ -59,6 +61,45 @@ def step_creator(handle: str) -> dict[str, Any]:
 def step_count(count: int, thumbnails: list[str] | None = None) -> dict[str, Any]:
     """Count line — 'Đã tìm X video' + optional circular thumbnail previews."""
     return {"type": "step_count", "count": count, "thumbnails": thumbnails or []}
+
+
+def step_tool_start(
+    label: str,
+    iteration: int,
+    index: int,
+    tool: str = "search",
+) -> dict[str, Any]:
+    """Parallel tool card — spinner start. Maps to Lightreel tool_start event."""
+    return {
+        "type": "step_tool_start",
+        "label": label,
+        "iteration": iteration,
+        "index": index,
+        "tool": tool,
+    }
+
+
+def step_tool_complete(
+    iteration: int,
+    index: int,
+    found: int,
+    thumbnails: list[str],
+    tool: str = "search",
+) -> dict[str, Any]:
+    """Parallel tool card — spinner resolves to count + thumbnail strip."""
+    return {
+        "type": "step_tool_complete",
+        "iteration": iteration,
+        "index": index,
+        "found": found,
+        "thumbnails": thumbnails[:5],
+        "tool": tool,
+    }
+
+
+def step_status(iteration: int, text: str) -> dict[str, Any]:
+    """Phase label above the tool cards for this iteration."""
+    return {"type": "step_status", "iteration": iteration, "text": text}
 
 
 def step_process(label: str) -> dict[str, Any]:
@@ -123,8 +164,11 @@ def emit(queue: asyncio.Queue | None, event: dict[str, Any]) -> None:
         pass  # should never happen with unbounded queue
 
 
-async def emit_sentinel(queue: asyncio.Queue | None) -> None:
-    """Signal that step events are finished. Must be called in finally block."""
+def emit_sentinel(queue: asyncio.Queue | None) -> None:
+    """Signal that step events are finished (thread-safe for executor workers).
+
+    Call from the main pipeline thread or from a ``run_in_executor`` worker.
+    """
     if queue is None:
         return
     try:
@@ -153,6 +197,6 @@ def emit_pipeline_error(
             emit_pipeline_error(step_queue, exc)
             raise
         finally:
-            await emit_sentinel(step_queue)
+            emit_sentinel(step_queue)
     """
     emit(queue, step_error(code=code, message_vi=message_vi, detail=type(exc).__name__))
