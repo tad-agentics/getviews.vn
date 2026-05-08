@@ -349,9 +349,11 @@ def build_pattern_report(
         build_micro_context,
         build_pattern_cells,
         build_tldr_callouts,
+        build_top_performers_context,
         compute_findings,
         compute_what_stalled,
         fetch_outlier_story,
+        find_ab_pair,
         load_pattern_inputs,
         pick_evidence_videos,
         rank_hooks_for_pattern,
@@ -456,6 +458,12 @@ def build_pattern_report(
         f"{label}: {len(_creator_sets.get(ht, set()))} creator"
         for ht, label in zip(top3_hook_list, top_labels)
     )
+    top_performers_str = build_top_performers_context(corpus, top3_hook_list, top_n=3)
+
+    ab_pair = None
+    top_hook_type = str(ranked[0].get("hook_type") or "") if ranked else ""
+    if top_hook_type:
+        ab_pair = find_ab_pair(corpus, top_hook_type, min_delta=5)
 
     stalled, stalled_reason = compute_what_stalled(
         he_rows, top3_types, baseline_views, creator_sets=_creator_sets
@@ -493,6 +501,15 @@ def build_pattern_report(
         emit(step_queue, step_status(3, "Đang tổng hợp pattern nổi bật..."))
         emit(step_queue, step_tool_start("Viết báo cáo pattern", 3, 0, tool="synthesis"))
 
+    ab_context = ""
+    if ab_pair:
+        ab_context = (
+            f"A/B cùng creator: {ab_pair.creator_handle} — "
+            f"hit ({ab_pair.hit.hook_type}, {ab_pair.hit.views:,} view) vs "
+            f"flop ({ab_pair.flop.hook_type}, {ab_pair.flop.views:,} view) — "
+            f"delta {ab_pair.delta}×. Có thể cite trong cross_pattern_synthesis."
+        )
+
     narr = fill_pattern_narrative(
         query=query,
         niche_label=niche_label,
@@ -501,6 +518,8 @@ def build_pattern_report(
         live_context=live_context,
         micro_context=micro_context,
         creator_counts_str=creator_counts_str,
+        top_performers_str=top_performers_str,
+        ab_context=ab_context,
     )
 
     why_won = build_why_won_list(top_labels)
@@ -581,6 +600,7 @@ def build_pattern_report(
         ),
         niche_insight=niche_insight,
         outlier_story=outlier_story,
+        ab_pair=ab_pair,
     )
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_done, step_tool_complete

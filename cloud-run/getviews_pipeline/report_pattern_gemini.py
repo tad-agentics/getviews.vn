@@ -50,6 +50,8 @@ def fill_pattern_narrative(
     live_context: str = "",
     micro_context: str = "",
     creator_counts_str: str = "",
+    top_performers_str: str = "",
+    ab_context: str = "",
 ) -> dict[str, Any]:
     """Return thesis, hook_insights, stalled_insights, related_questions.
 
@@ -93,6 +95,17 @@ def fill_pattern_narrative(
         counts_block = (
             f"\nĐa dạng creator (top hook): {counts_extra}\n" if counts_extra else ""
         )
+        top_perf = (top_performers_str or "").strip() or "(không có dữ liệu)"
+        performers_block = f"""
+Top creator có view cao nhất per hook (CITE TRỰC TIẾP trong hook_insights với "@handle (X view)"):
+{top_perf}
+Quy tắc cite: chỉ cite creator từ danh sách trên — không bịa. Định dạng: "@handle đạt X view với hook này".
+"""
+        ab_ex = (ab_context or "").strip() or "(không tìm thấy cặp A/B)"
+        ab_block = f"""
+A/B pair từ corpus (cite nếu phù hợp):
+{ab_ex}
+"""
         prompt = f"""Bạn là trợ lý phân tích TikTok cho creator Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi của người dùng, không phải tóm tắt chung.
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
@@ -105,7 +118,7 @@ Ngách: {niche_label}
 Câu hỏi người dùng: "{query_clean or '(không nêu rõ — trả lời dựa trên xu hướng hook hiện tại)'}"
 Hook đang thắng (xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
-{live_block}{micro_block}{counts_block}
+{live_block}{micro_block}{counts_block}{performers_block}{ab_block}
 Quy tắc:
 - Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn".
 - Không dùng từ "chắc chắn", "hiệu quả", "bùng nổ" (xem copy rules).

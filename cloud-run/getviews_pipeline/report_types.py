@@ -111,6 +111,24 @@ class OutlierStory(BaseModel):
     days_ago: int | None = None
 
 
+class ABPairVideo(BaseModel):
+    video_id: str
+    tiktok_url: str | None = None
+    views: int
+    hook_type: str  # Vietnamese label
+    days_ago: int | None = None
+
+
+class PatternABPair(BaseModel):
+    """Same-creator hit/flop from corpus — only hook_type differs."""
+
+    creator_handle: str
+    hit: ABPairVideo
+    flop: ABPairVideo
+    delta: int  # hit.views / flop.views, e.g. 28
+    hook_contrast: str
+
+
 class NicheInsight(BaseModel):
     """Layer 0 weekly-computed niche insight, attached to Pattern + Ideas
     report payloads so the UI can surface ``execution_tip`` as the
@@ -146,6 +164,7 @@ class PatternPayload(BaseModel):
     # not have populated a row for this niche yet.
     niche_insight: NicheInsight | None = None
     outlier_story: OutlierStory | None = None
+    ab_pair: PatternABPair | None = None
 
     @model_validator(mode="after")
     def _what_stalled_invariant(self) -> PatternPayload:

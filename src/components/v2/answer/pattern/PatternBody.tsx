@@ -3,7 +3,7 @@
  * Thin sample (&lt;30): first finding only, no WhatStalled, 3 evidence tiles, humility UX.
  */
 import { useState } from "react";
-import type { OutlierStory, PatternReportPayload, SumStatData } from "@/lib/api-types";
+import type { OutlierStory, PatternABPair, PatternReportPayload, SumStatData } from "@/lib/api-types";
 import { ConfidenceStrip } from "./ConfidenceStrip";
 import { EvidenceGrid } from "./EvidenceGrid";
 import { HookFindingCard } from "./HookFindingCard";
@@ -57,6 +57,59 @@ function OutlierStoryBanner({ story }: { story: OutlierStory }) {
   );
 }
 
+function ABPairStrip({ pair }: { pair: PatternABPair }) {
+  const fmt = (v: number) =>
+    v >= 1_000_000
+      ? `${(v / 1_000_000).toFixed(1)}M`
+      : v >= 1_000
+        ? `${Math.round(v / 1_000)}K`
+        : v.toLocaleString("vi-VN");
+
+  return (
+    <div className="mb-6 overflow-hidden rounded-xl border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+      <div className="border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-2.5">
+        <span className="gv-mono text-[9px] uppercase tracking-widest text-[color:var(--gv-ink-4)]">
+          A/B cùng creator · {pair.creator_handle}
+        </span>
+        <span className="gv-mono ml-2 text-[9px] text-[color:var(--gv-ink-3)]">{pair.hook_contrast}</span>
+      </div>
+      <div className="grid grid-cols-2 divide-x divide-[color:var(--gv-rule)]">
+        <a
+          href={pair.hit.tiktok_url ?? "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block p-4 no-underline"
+        >
+          <p className="gv-mono mb-1 text-[9px] uppercase text-[color:var(--gv-pos)]">Hook thắng</p>
+          <p className="gv-mono text-[22px] font-bold leading-none text-[color:var(--gv-ink)]">
+            {fmt(pair.hit.views)}
+          </p>
+          <p className="mt-1 text-[11px] text-[color:var(--gv-ink-3)]">{pair.hit.hook_type}</p>
+        </a>
+        <a
+          href={pair.flop.tiktok_url ?? "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block p-4 no-underline"
+        >
+          <p className="gv-mono mb-1 text-[9px] uppercase text-[color:var(--gv-ink-4)]">Hook thua</p>
+          <p className="gv-mono text-[22px] font-bold leading-none text-[color:var(--gv-ink-3)]">
+            {fmt(pair.flop.views)}
+          </p>
+          <p className="mt-1 text-[11px] text-[color:var(--gv-ink-3)]">{pair.flop.hook_type}</p>
+        </a>
+      </div>
+      <div className="border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-4 py-2">
+        <p className="text-[12px] text-[color:var(--gv-ink-2)]">
+          Hook thắng vượt hook thua{" "}
+          <span className="font-mono font-bold text-[color:var(--gv-ink)]">{pair.delta}×</span> — cùng creator,
+          cùng ngách, khác hook.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function PatternBody({
   report,
   sessionIntentType,
@@ -88,6 +141,8 @@ export function PatternBody({
       {thin && humilityOpen ? <HumilityBanner /> : null}
 
       {report.outlier_story ? <OutlierStoryBanner story={report.outlier_story} /> : null}
+
+      {report.ab_pair ? <ABPairStrip pair={report.ab_pair} /> : null}
 
       {showWow && wow ? <WoWDiffBand data={wow} /> : null}
 

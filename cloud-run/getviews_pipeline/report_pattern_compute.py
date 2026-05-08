@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, cast
 
 from getviews_pipeline.report_types import (
+    ABPairVideo,
     ActionCardPayload,
     ContrastAgainst,
     EvidenceCardPayload,
@@ -16,6 +17,7 @@ from getviews_pipeline.report_types import (
     Lifecycle,
     Metric,
     OutlierStory,
+    PatternABPair,
     PatternCellPayload,
     SumStat,
 )
@@ -136,7 +138,6 @@ def build_micro_context(
         if top_subject:
             parts.append(f"chủ thể={top_subject[0][0]}({top_subject[0][1]}/{n})")
         parts.append(f"avg={avg_dur}")
-        parts.append(f"{n} creator khác nhau")
 
         if scene_descriptions:
             sample = "; ".join(scene_descriptions[:2])
@@ -145,6 +146,146 @@ def build_micro_context(
         lines.append(f"Hook '{label}': {', '.join(parts)}")
 
     return "\n".join(lines)
+
+
+def build_top_performers_context(
+    corpus_rows: list[dict[str, Any]],
+    hook_types: list[str],
+    top_n: int = 3,
+) -> str:
+    """Format top-N corpus videos per hook_type as a citation-ready string."""
+    now = datetime.now(timezone.utc)
+    lines: list[str] = []
+    for hook_type in hook_types:
+        matching = sorted(
+            [r for r in corpus_rows if (r.get("hook_type") or "") == hook_type],
+            key=lambda x: int(x.get("views") or 0),
+            reverse=True,
+        )[:top_n]
+        if not matching:
+            continue
+        label = _pattern_label(hook_type)
+        lines.append(f"Hook '{label}':")
+        for r in matching:
+            handle = r.get("creator_handle") or "unknown"
+            views = int(r.get("views") or 0)
+            views_str = (
+                f"{views / 1_000_000:.1f}M"
+                if views >= 1_000_000
+                else f"{views // 1_000}K"
+                if views >= 1_000
+                else str(views)
+            )
+            raw_ts = r.get("indexed_at") or r.get("created_at")
+            recency = ""
+            if raw_ts:
+                try:
+                    dt = datetime.fromisoformat(str(raw_ts).replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    days = (now - dt.astimezone(timezone.utc)).days
+                    recency = (
+                        ", đăng hôm nay"
+                        if days == 0
+                        else f", đăng {days} ngày trước"
+                        if days <= 14
+                        else f", đăng {days // 7} tuần trước"
+                    )
+                except Exception:
+                    pass
+            lines.append(f"  @{str(handle).lstrip('@')} — {views_str} view{recency}")
+    return "\n".join(lines)
+
+
+def find_ab_pair(
+    corpus_rows: list[dict[str, Any]],
+    top_hook_type: str,
+    min_delta: int = 5,
+) -> PatternABPair | None:
+    """Same-creator hit (top_hook_type) vs flop (other hook), min hit/flop view ratio."""
+    now = datetime.now(timezone.utc)
+
+    by_creator: dict[str, list[dict[str, Any]]] = {}
+    for r in corpus_rows:
+        ch_raw = r.get("creator_handle") or ""
+        if not ch_raw:
+            continue
+        ch = str(ch_raw).lstrip("@").strip()
+        if not ch:
+            continue
+        by_creator.setdefault(ch, []).append(r)
+
+    best_pair: PatternABPair | None = None
+    best_delta = 0
+
+    def _days(row: dict[str, Any]) -> int | None:
+        raw = row.get("indexed_at") or row.get("created_at")
+        if not raw:
+            return None
+        try:
+            dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return max(0, (now - dt.astimezone(timezone.utc)).days)
+        except Exception:
+            return None
+
+    def _url(row: dict[str, Any]) -> str | None:
+        raw = str(row.get("tiktok_url") or "").strip()
+        if raw.startswith("http"):
+            return raw
+        vid = row.get("video_id") or ""
+        h = str(row.get("creator_handle") or "").lstrip("@")
+        return f"https://www.tiktok.com/@{h}/video/{vid}" if vid and h else None
+
+    for handle, rows in by_creator.items():
+        if len(rows) < 2:
+            continue
+
+        hits = [r for r in rows if (r.get("hook_type") or "") == top_hook_type]
+        flops = [
+            r
+            for r in rows
+            if (r.get("hook_type") or "") != top_hook_type and r.get("hook_type")
+        ]
+
+        if not hits or not flops:
+            continue
+
+        best_hit = max(hits, key=lambda x: int(x.get("views") or 0))
+        worst_flop = min(flops, key=lambda x: int(x.get("views") or 0))
+
+        hit_views = int(best_hit.get("views") or 0)
+        flop_views = int(worst_flop.get("views") or 0)
+        delta = round(hit_views / max(flop_views, 1))
+
+        if delta < min_delta or delta <= best_delta:
+            continue
+
+        flop_hook_label = _pattern_label(str(worst_flop.get("hook_type") or ""))
+
+        best_pair = PatternABPair(
+            creator_handle=f"@{handle}",
+            hit=ABPairVideo(
+                video_id=str(best_hit.get("video_id") or ""),
+                tiktok_url=_url(best_hit),
+                views=hit_views,
+                hook_type=_pattern_label(top_hook_type),
+                days_ago=_days(best_hit),
+            ),
+            flop=ABPairVideo(
+                video_id=str(worst_flop.get("video_id") or ""),
+                tiktok_url=_url(worst_flop),
+                views=flop_views,
+                hook_type=flop_hook_label,
+                days_ago=_days(worst_flop),
+            ),
+            delta=delta,
+            hook_contrast=f"{_pattern_label(top_hook_type)} vs {flop_hook_label}",
+        )
+        best_delta = delta
+
+    return best_pair
 
 
 def fetch_outlier_story(

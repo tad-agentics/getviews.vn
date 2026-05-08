@@ -235,3 +235,30 @@ def test_c22_what_stalled_acceptance_invariant() -> None:
     else:
         assert 2 <= len(stalled) <= 3
         assert reason is None
+
+
+def test_find_ab_pair_same_creator_best_delta() -> None:
+    from getviews_pipeline.report_pattern_compute import find_ab_pair
+
+    corpus = [
+        {"creator_handle": "@alice", "hook_type": "bold_claim", "views": 50_000, "video_id": "1"},
+        {"creator_handle": "alice", "hook_type": "question", "views": 5000, "video_id": "2"},
+        {"creator_handle": "@bob", "hook_type": "bold_claim", "views": 100_000, "video_id": "3"},
+        {"creator_handle": "@bob", "hook_type": "question", "views": 25_000, "video_id": "4"},
+    ]
+    pair = find_ab_pair(corpus, "bold_claim", min_delta=5)
+    assert pair is not None
+    assert pair.creator_handle == "@alice"
+    assert pair.hit.views == 50_000
+    assert pair.flop.views == 5000
+    assert pair.delta == 10
+
+
+def test_find_ab_pair_returns_none_below_min_ratio() -> None:
+    from getviews_pipeline.report_pattern_compute import find_ab_pair
+
+    corpus = [
+        {"creator_handle": "@alice", "hook_type": "bold_claim", "views": 20_000, "video_id": "1"},
+        {"creator_handle": "@alice", "hook_type": "question", "views": 5000, "video_id": "2"},
+    ]
+    assert find_ab_pair(corpus, "bold_claim", min_delta=5) is None

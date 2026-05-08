@@ -835,6 +835,22 @@ export interface OutlierStory {
   days_ago: number | null;
 }
 
+export interface ABPairVideo {
+  video_id: string;
+  tiktok_url: string | null;
+  views: number;
+  hook_type: string;
+  days_ago: number | null;
+}
+
+export interface PatternABPair {
+  creator_handle: string;
+  hit: ABPairVideo;
+  flop: ABPairVideo;
+  delta: number;
+  hook_contrast: string;
+}
+
 export interface PatternReportPayload {
   confidence: ConfidenceStripData;
   wow_diff: WoWDiffData | null;
@@ -848,6 +864,7 @@ export interface PatternReportPayload {
   related_questions: string[];
   subreports?: Record<string, unknown> | null;
   outlier_story?: OutlierStory | null;
+  ab_pair?: PatternABPair | null;
 }
 
 export interface IdeaBlockPayloadData {
