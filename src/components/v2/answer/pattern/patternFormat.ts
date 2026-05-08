@@ -1,4 +1,36 @@
-import type { LifecycleData } from "@/lib/api-types";
+import type { EvidenceCardPayloadData, LifecycleData } from "@/lib/api-types";
+
+/** Canonical TikTok URL — matches `report_pattern_compute` evidence + A/B pair URL rules.
+ * Returns `null` when no usable URL exists (same idea as Python `None` for `tiktok_url`).
+ */
+export function tiktokVideoHref(params: {
+  video_id: string;
+  creator_handle: string;
+  tiktok_url?: string | null;
+}): string | null {
+  const raw = params.tiktok_url?.trim() ?? "";
+  if (raw.startsWith("http")) {
+    return raw;
+  }
+  const vid = params.video_id?.trim() ?? "";
+  const h = (params.creator_handle ?? "").replace(/^@/, "").trim();
+  if (vid && h) {
+    return `https://www.tiktok.com/@${h}/video/${vid}`;
+  }
+  if (vid) {
+    return `https://www.tiktok.com/video/${vid}`;
+  }
+  return null;
+}
+
+/** Evidence card — delegates to {@link tiktokVideoHref}. */
+export function evidenceTiktokHref(v: EvidenceCardPayloadData): string | null {
+  return tiktokVideoHref({
+    video_id: v.video_id,
+    creator_handle: v.creator_handle,
+    tiktok_url: v.tiktok_url,
+  });
+}
 
 export function formatViews(n: number): string {
   if (!Number.isFinite(n) || n < 0) return "0";

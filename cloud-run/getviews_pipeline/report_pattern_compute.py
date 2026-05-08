@@ -53,8 +53,15 @@ def _evidence_card_extras(row: dict[str, Any]) -> tuple[float | None, int | None
             days_ago = max(0, delta.days)
         except Exception:
             days_ago = None
-    tu = str(row.get("tiktok_url") or "").strip() or None
-    return breakout_val, days_ago, tu
+    raw_url = str(row.get("tiktok_url") or "").strip()
+    tiktok_u: str | None = raw_url if raw_url.startswith("http") else None
+    if not tiktok_u:
+        vid = str(row.get("video_id") or "").strip()
+        ch = str(row.get("creator_handle") or "").strip()
+        if vid and ch:
+            handle = ch.lstrip("@")
+            tiktok_u = f"https://www.tiktok.com/@{handle}/video/{vid}"
+    return breakout_val, days_ago, tiktok_u
 
 
 def _pattern_label(hook_type: str) -> str:

@@ -24,6 +24,7 @@ def test_pattern_narrative_llm_schema_has_required_keys() -> None:
         "related_questions",
         "cultural_framing",
         "cross_pattern_synthesis",
+        "generated_prerequisites",
     }
 
 
@@ -55,6 +56,10 @@ def test_pattern_narrative_happy_path_uses_pydantic_binding(
         ],
         "cultural_framing": ["", ""],
         "cross_pattern_synthesis": ["Chuẩn overlay đang đồng thuận xuyên hook."],
+        "generated_prerequisites": [
+            ["Dưới 15s", "Text đậm frame đầu"],
+            ["Câu hỏi trong 1s", "Không nhạc nền"],
+        ],
     }
     monkeypatch.setattr(
         "getviews_pipeline.gemini._generate_content_models",
@@ -79,6 +84,10 @@ def test_pattern_narrative_happy_path_uses_pydantic_binding(
     assert out["related_questions"][0] == "Hook nào đang giảm tốc?"
     assert out["cultural_framing"] == ["", ""]
     assert out["cross_pattern_synthesis"] == ["Chuẩn overlay đang đồng thuận xuyên hook."]
+    assert out["generated_prerequisites"] == [
+        ["Dưới 15s", "Text đậm frame đầu"],
+        ["Câu hỏi trong 1s", "Không nhạc nền"],
+    ]
 
 
 def test_pattern_narrative_invalid_json_falls_back(
@@ -91,14 +100,12 @@ def test_pattern_narrative_invalid_json_falls_back(
         text = "not-json-garbage {"
 
     monkeypatch.setattr(
-        "getviews_pipeline.report_pattern_gemini._generate_content_models",
+        "getviews_pipeline.gemini._generate_content_models",
         lambda *a, **k: _RawResp(),
-        raising=False,
     )
     monkeypatch.setattr(
-        "getviews_pipeline.report_pattern_gemini._response_text",
+        "getviews_pipeline.gemini._response_text",
         lambda resp: resp.text,
-        raising=False,
     )
 
     out = fill_pattern_narrative(
@@ -112,6 +119,7 @@ def test_pattern_narrative_invalid_json_falls_back(
     assert "Tech" in out["thesis"]
     assert len(out["hook_insights"]) == 1
     assert out["related_questions"] and len(out["related_questions"]) == 4
+    assert out["generated_prerequisites"] == []
 
 
 def test_pattern_narrative_schema_drift_falls_back(
@@ -124,14 +132,12 @@ def test_pattern_narrative_schema_drift_falls_back(
         {"thesis": 42, "hook_insights": "not-a-list", "stalled_insights": [], "related_questions": []}
     )
     monkeypatch.setattr(
-        "getviews_pipeline.report_pattern_gemini._generate_content_models",
+        "getviews_pipeline.gemini._generate_content_models",
         lambda *a, **k: drifted,
-        raising=False,
     )
     monkeypatch.setattr(
-        "getviews_pipeline.report_pattern_gemini._response_text",
+        "getviews_pipeline.gemini._response_text",
         lambda resp: resp.text,
-        raising=False,
     )
 
     out = fill_pattern_narrative(
@@ -143,6 +149,7 @@ def test_pattern_narrative_schema_drift_falls_back(
     # Same shape as a pure fallback.
     direct = _fallback_narrative("pattern", "Tech", ["A"], [])
     assert out["thesis"] == direct["thesis"]
+    assert out["generated_prerequisites"] == direct["generated_prerequisites"]
 
 
 def test_pattern_narrative_no_api_key_falls_back_without_gemini(
@@ -171,3 +178,4 @@ def test_pattern_narrative_no_api_key_falls_back_without_gemini(
     )
     assert not calls
     assert "Lifestyle" in out["thesis"]
+    assert out["generated_prerequisites"] == []

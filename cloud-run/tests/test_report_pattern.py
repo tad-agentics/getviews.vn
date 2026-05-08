@@ -344,3 +344,165 @@ def test_build_top_performers_context_handles_empty_match() -> None:
         top_n=2,
     )
     assert out == ""
+
+
+# ── Phase 8: narrative helpers wired (micro, counts, performers, A/B) ────
+
+
+@patch("getviews_pipeline.report_pattern.fill_pattern_narrative")
+@patch("getviews_pipeline.niche_insight_fetcher.fetch_niche_insight", return_value=None)
+@patch("getviews_pipeline.report_pattern.fetch_outlier_story", return_value=None)
+@patch("getviews_pipeline.report_pattern.load_pattern_inputs")
+@patch("getviews_pipeline.supabase_client.get_service_client")
+@patch("getviews_pipeline.report_pattern.fetch_pattern_wow_diff_rows", return_value=[])
+def test_build_pattern_report_wires_phase8_narrative_and_payload(
+    _mock_wow: MagicMock,
+    mock_get_sb: MagicMock,
+    mock_load: MagicMock,
+    _mock_outlier: MagicMock,
+    _mock_niche_insight: MagicMock,
+    mock_fill: MagicMock,
+) -> None:
+    """Beauty-style niche: fill_pattern_narrative gets 4 context strings + ab_context;
+    payload carries cross_pattern_synthesis, ab_pair, cultural_framing on findings."""
+    mock_get_sb.return_value = MagicMock()
+
+    he_rows = [
+        {
+            "hook_type": "bold_claim",
+            "avg_views": 100_000,
+            "avg_completion_rate": 0.82,
+            "sample_size": 30,
+            "trend_direction": "rising",
+        },
+        {
+            "hook_type": "question",
+            "avg_views": 90_000,
+            "avg_completion_rate": 0.78,
+            "sample_size": 25,
+            "trend_direction": "stable",
+        },
+        {
+            "hook_type": "story_open",
+            "avg_views": 80_000,
+            "avg_completion_rate": 0.75,
+            "sample_size": 22,
+            "trend_direction": "stable",
+        },
+        {
+            "hook_type": "listicle",
+            "avg_views": 50_000,
+            "avg_completion_rate": 0.55,
+            "sample_size": 18,
+            "trend_direction": "stable",
+        },
+        {
+            "hook_type": "stalled_a",
+            "avg_views": 2000,
+            "avg_completion_rate": 0.12,
+            "sample_size": 12,
+            "trend_direction": "declining",
+        },
+        {
+            "hook_type": "stalled_b",
+            "avg_views": 1500,
+            "avg_completion_rate": 0.1,
+            "sample_size": 11,
+            "trend_direction": "declining",
+        },
+    ]
+    corpus = [
+        {
+            "video_id": "v-hit",
+            "creator_handle": "@chef_beauty",
+            "hook_type": "bold_claim",
+            "views": 500_000,
+            "engagement_rate": 8.5,
+            "video_duration": 22,
+            "indexed_at": "2026-05-04T12:00:00+00:00",
+            "thumbnail_url": "https://example.com/t.jpg",
+        },
+        {
+            "video_id": "v-flop",
+            "creator_handle": "@chef_beauty",
+            "hook_type": "question",
+            "views": 10_000,
+            "engagement_rate": 6.0,
+            "video_duration": 20,
+            "indexed_at": "2026-05-03T12:00:00+00:00",
+            "thumbnail_url": "https://example.com/t2.jpg",
+        },
+        {
+            "video_id": "v-other",
+            "creator_handle": "@other",
+            "hook_type": "question",
+            "views": 300_000,
+            "engagement_rate": 7.0,
+            "video_duration": 25,
+            "indexed_at": "2026-05-02T12:00:00+00:00",
+            "thumbnail_url": "https://example.com/t3.jpg",
+        },
+        {
+            "video_id": "v4",
+            "creator_handle": "@bob",
+            "hook_type": "story_open",
+            "views": 200_000,
+            "engagement_rate": 7.5,
+            "video_duration": 30,
+            "indexed_at": "2026-05-01T12:00:00+00:00",
+            "thumbnail_url": "",
+        },
+    ]
+    mock_load.return_value = {
+        "niche_label": "Làm đẹp",
+        "ni": {
+            "sample_size": 120,
+            "median_er": 0.062,
+            "pct_original_sound": 0.55,
+            "median_duration": 24,
+            "median_hook_offset_norm": 0.35,
+        },
+        "he_rows": he_rows,
+        "corpus": corpus,
+        "trending_sounds": [],
+        "sound_trends": {},
+    }
+
+    def _fake_fill(**kwargs: object) -> dict[str, object]:
+        return {
+            "thesis": "3 hook đang dẫn đầu ngách Làm đẹp tuần này: thử nghiệm wiring Phase 8.",
+            "hook_insights": ["i1", "i2", "i3"],
+            "stalled_insights": ["sa", "sb"],
+            "related_questions": ["q1", "q2", "q3", "q4"],
+            "cultural_framing": [
+                "Văn hóa skincare routine tại VN khiến bold_claim về sản phẩm bùng nổ hơn thị trường khác.",
+                "",
+                "",
+            ],
+            "cross_pattern_synthesis": [
+                "ASMR swatch và text vàng đang đồng thuận xuyên Food/Beauty tuần này.",
+                "Video dưới 25s giữ tốc độ xem cao hơn trung vị ngách.",
+            ],
+            "generated_prerequisites": [["a", "b"], ["c", "d"], ["e", "f"]],
+        }
+
+    mock_fill.side_effect = _fake_fill
+
+    out = build_pattern_report(501, "xu hướng skincare viral", "pattern", window_days=7)
+    p = PatternPayload.model_validate(out)
+
+    call_kw = mock_fill.call_args.kwargs
+    assert call_kw["query"] == "xu hướng skincare viral"
+    assert call_kw["niche_label"] == "Làm đẹp"
+    assert len(call_kw["top_hook_labels"]) == 3
+    assert "Tuyên bố táo bạo" in call_kw["micro_context"] or "bold_claim" in call_kw["micro_context"]
+    assert "creator" in (call_kw["creator_counts_str"] or "").lower()
+    assert call_kw["ab_context"] and "A/B cùng creator" in call_kw["ab_context"]
+
+    assert p.cross_pattern_synthesis and len(p.cross_pattern_synthesis) >= 2
+    assert p.ab_pair is not None
+    assert p.ab_pair.creator_handle
+    assert any(
+        (f.cultural_framing or "").strip()
+        for f in p.findings
+    ), "expected at least one non-empty cultural_framing on findings (Beauty copy)"

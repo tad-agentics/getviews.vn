@@ -4,8 +4,24 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import defaultdict
 from typing import Any
 
+from getviews_pipeline.report_pattern_compute import (
+    build_micro_context,
+    build_pattern_cells,
+    build_tldr_callouts,
+    build_top_performers_context,
+    compute_findings,
+    compute_what_stalled,
+    fetch_outlier_story,
+    find_ab_pair,
+    load_pattern_inputs,
+    pick_evidence_videos,
+    rank_hooks_for_pattern,
+    static_action_cards,
+)
+from getviews_pipeline.report_pattern_gemini import build_why_won_list, fill_pattern_narrative
 from getviews_pipeline.report_types import (
     ActionCardPayload,
     ConfidenceStrip,
@@ -345,22 +361,6 @@ def build_pattern_report(
             data["subreports"] = _build_pattern_subreports(niche_id, query, window_days, subreports)
         return data
 
-    from getviews_pipeline.report_pattern_compute import (
-        build_micro_context,
-        build_pattern_cells,
-        build_tldr_callouts,
-        build_top_performers_context,
-        compute_findings,
-        compute_what_stalled,
-        fetch_outlier_story,
-        find_ab_pair,
-        load_pattern_inputs,
-        pick_evidence_videos,
-        rank_hooks_for_pattern,
-        static_action_cards,
-    )
-    from getviews_pipeline.report_pattern_gemini import build_why_won_list, fill_pattern_narrative
-
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
 
@@ -435,8 +435,6 @@ def build_pattern_report(
     com = float(ni.get("commerce_avg_views") or 0)
     baseline_views = org if org > 0 else (com if com > 0 else 1.0)
 
-    from collections import defaultdict
-
     _creator_sets: dict[str, set[str]] = defaultdict(set)
     for row in corpus:
         h = str(row.get("hook_type") or "")
@@ -461,9 +459,17 @@ def build_pattern_report(
     top_performers_str = build_top_performers_context(corpus, top3_hook_list, top_n=3)
 
     ab_pair = None
-    top_hook_type = str(ranked[0].get("hook_type") or "") if ranked else ""
+    top_hook_type = top3_hook_list[0] if top3_hook_list else ""
     if top_hook_type:
         ab_pair = find_ab_pair(corpus, top_hook_type, min_delta=5)
+    ab_context = ""
+    if ab_pair:
+        ab_context = (
+            f"A/B cùng creator: {ab_pair.creator_handle} — "
+            f"hit ({ab_pair.hit.hook_type}, {ab_pair.hit.views:,} view) vs "
+            f"flop ({ab_pair.flop.hook_type}, {ab_pair.flop.views:,} view) — "
+            f"delta {ab_pair.delta}×. Có thể cite trong cross_pattern_synthesis."
+        )
 
     stalled, stalled_reason = compute_what_stalled(
         he_rows, top3_types, baseline_views, creator_sets=_creator_sets
@@ -501,29 +507,21 @@ def build_pattern_report(
         emit(step_queue, step_status(3, "Đang tổng hợp pattern nổi bật..."))
         emit(step_queue, step_tool_start("Viết báo cáo pattern", 3, 0, tool="synthesis"))
 
-    ab_context = ""
-    if ab_pair:
-        ab_context = (
-            f"A/B cùng creator: {ab_pair.creator_handle} — "
-            f"hit ({ab_pair.hit.hook_type}, {ab_pair.hit.views:,} view) vs "
-            f"flop ({ab_pair.flop.hook_type}, {ab_pair.flop.views:,} view) — "
-            f"delta {ab_pair.delta}×. Có thể cite trong cross_pattern_synthesis."
-        )
-
     narr = fill_pattern_narrative(
         query=query,
         niche_label=niche_label,
         top_hook_labels=top_labels,
         stalled_hook_labels=stalled_labels,
-        live_context=live_context,
         micro_context=micro_context,
         creator_counts_str=creator_counts_str,
         top_performers_str=top_performers_str,
         ab_context=ab_context,
+        live_context=live_context,
     )
 
     why_won = build_why_won_list(top_labels)
     insights = narr.get("hook_insights") or []
+    generated_prereqs = narr.get("generated_prerequisites") or []
     findings = compute_findings(
         ranked,
         corpus,
@@ -531,6 +529,7 @@ def build_pattern_report(
         runner_ups,
         insights,
         why_won,
+        generated_prereqs,
         creator_sets=_creator_sets,
     )
 

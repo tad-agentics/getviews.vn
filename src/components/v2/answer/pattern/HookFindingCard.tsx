@@ -29,6 +29,17 @@ export function HookFindingCard({ row }: { row: HookFindingData }) {
         <p className="mt-2 text-[12px] leading-[1.5] text-[color:var(--gv-ink-2)]">
           Thắng vì: {row.contrast_against.why_this_won} · So với: “{row.contrast_against.pattern}”
         </p>
+        {row.cultural_framing != null && row.cultural_framing.trim() !== "" ? (
+          <div className="mt-2 flex items-start gap-2 rounded-md border-l-2 border-[color:var(--gv-accent)] bg-[color:var(--gv-canvas-2)] px-3 py-2">
+            <span
+              className="gv-mono mt-0.5 shrink-0 text-[9px] font-semibold uppercase tracking-wider text-[color:var(--gv-accent)]"
+              aria-label="Văn hóa Việt Nam"
+            >
+              VN
+            </span>
+            <p className="text-[12px] leading-relaxed text-[color:var(--gv-ink-3)]">{row.cultural_framing}</p>
+          </div>
+        ) : null}
         {row.prerequisites.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {row.prerequisites.map((p) => (
@@ -59,12 +70,10 @@ export function HookFindingCard({ row }: { row: HookFindingData }) {
             {row.delta.value}
           </span>
         </div>
-        <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">{row.uses} lượt</p>
-        {row.creator_count != null && row.creator_count > 0 && (
-          <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
-            {row.creator_count} creator
-          </p>
-        )}
+        <p className="gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+          {row.uses} lượt
+          {row.creator_count != null && row.creator_count > 0 ? ` · ${row.creator_count} creator` : ""}
+        </p>
       </div>
     </div>
   );
