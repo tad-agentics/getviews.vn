@@ -175,6 +175,33 @@ describe("useSessionStream — SSE line buffer", () => {
     await waitFor(() => expect(result.current.status).toBe("error"), { timeout: 3000 });
     expect(result.current.error).toBe("analysis_timeout");
   });
+
+  it("collects step_* SSE tokens into steps", async () => {
+    const chunks = [
+      `data: {"stream_id":"abc","seq":1,"type":"step_status","iteration":1,"text":"Phase 1"}\n\n`,
+      `data: {"stream_id":"abc","seq":2,"delta":"hi","done":false}\n\n`,
+      `data: {"stream_id":"abc","seq":3,"type":"step_tool_start","label":"Corpus","iteration":1,"index":0,"tool":"corpus"}\n\n`,
+      `data: {"stream_id":"abc","seq":4,"delta":"","done":true}\n\n`,
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockFetchStream(chunks)));
+
+    const { result } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    result.current.stream(BASE_PARAMS);
+
+    await waitFor(() => expect(result.current.status).toBe("done"), { timeout: 3000 });
+    expect(result.current.steps).toHaveLength(2);
+    expect(result.current.steps[0]).toMatchObject({
+      type: "step_status",
+      iteration: 1,
+      text: "Phase 1",
+    });
+    expect(result.current.steps[1]).toMatchObject({
+      type: "step_tool_start",
+      tool: "corpus",
+    });
+    expect(result.current.text).toBe("hi");
+  });
 });
 
 describe("useSessionStream — report payload delivery", () => {

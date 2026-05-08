@@ -24,6 +24,7 @@ import {
   type PendingAnswerTurnKind,
 } from "@/lib/sseResume";
 import { chatKeys } from "./useChatSession";
+import { STEP_EVENT_TYPES, type StepEvent } from "@/lib/types/sse-events";
 
 /**
  * D.5.2 SSE observability — three usage_events fired from the answer_turn
@@ -88,6 +89,7 @@ export interface StreamState<TPayload = unknown> {
   lastSeq: number;
   error: string | null;
   finalPayload: TPayload | null;
+  steps: StepEvent[];
 }
 
 export interface StreamOptions<TPayload = unknown> {
@@ -151,6 +153,7 @@ export function useSessionStream<TPayload = unknown>(
     lastSeq: 0,
     error: null,
     finalPayload: null,
+    steps: [],
   });
 
   const stream = useCallback(
@@ -166,6 +169,7 @@ export function useSessionStream<TPayload = unknown>(
         lastSeq: args.lastSeq ?? 0,
         error: null,
         finalPayload: null,
+        steps: [],
       });
 
       try {
@@ -419,7 +423,7 @@ export function useSessionStream<TPayload = unknown>(
 
   const abort = useCallback(() => {
     abortRef.current?.abort();
-    setState((s) => ({ ...s, status: "idle" }));
+    setState((s) => ({ ...s, status: "idle", steps: [] }));
   }, []);
 
   const reset = useCallback(() => {
@@ -430,6 +434,7 @@ export function useSessionStream<TPayload = unknown>(
       lastSeq: 0,
       error: null,
       finalPayload: null,
+      steps: [],
     });
   }, []);
 
@@ -497,6 +502,7 @@ async function consumeAnswerSse<TPayload>(
       if (!row.startsWith("data: ")) continue;
       try {
         const token = JSON.parse(row.slice(6)) as {
+          type?: string;
           stream_id?: string;
           seq?: number;
           delta?: string;
@@ -504,6 +510,13 @@ async function consumeAnswerSse<TPayload>(
           error?: string;
           payload?: TPayload;
         };
+        if (token.type !== undefined && STEP_EVENT_TYPES.has(token.type)) {
+          setState((s) => ({
+            ...s,
+            steps: [...s.steps, token as StepEvent],
+          }));
+          continue;
+        }
         if (token.stream_id) lastStreamId = token.stream_id;
         if (typeof token.seq === "number") lastSeq = token.seq;
         if (token.payload !== undefined) payload = token.payload;
@@ -514,26 +527,28 @@ async function consumeAnswerSse<TPayload>(
         if (onProgress && lastStreamId) onProgress(lastStreamId, lastSeq);
         if (token.done) {
           if (token.error) {
-            setState({
+            setState((s) => ({
+              ...s,
               status: "error",
               text,
               streamId: lastStreamId,
               lastSeq,
               error: token.error,
               finalPayload: null,
-            });
+            }));
             void qc.invalidateQueries({ queryKey: ["profile"] });
             void qc.invalidateQueries({ queryKey: ["credits"] });
             return { ok: false, error: token.error, streamId: lastStreamId, lastSeq, payload };
           }
-          setState({
+          setState((s) => ({
+            ...s,
             status: "done",
             text,
             streamId: lastStreamId,
             lastSeq,
             error: null,
             finalPayload: payload,
-          });
+          }));
           void qc.invalidateQueries({ queryKey: ["profile"] });
           void qc.invalidateQueries({ queryKey: ["credits"] });
           const streamOpts = streamOptsRef.current;
@@ -604,6 +619,7 @@ async function consumeChatSse<TPayload>(
       if (!row.startsWith("data: ")) continue;
       try {
         const token = JSON.parse(row.slice(6)) as {
+          type?: string;
           stream_id?: string;
           seq?: number;
           delta?: string;
@@ -611,32 +627,41 @@ async function consumeChatSse<TPayload>(
           error?: string;
           payload?: TPayload;
         };
+        if (token.type !== undefined && STEP_EVENT_TYPES.has(token.type)) {
+          setState((s) => ({
+            ...s,
+            steps: [...s.steps, token as StepEvent],
+          }));
+          continue;
+        }
         if (token.stream_id) lastStreamId = token.stream_id;
         if (typeof token.seq === "number") lastSeq = token.seq;
         if (token.payload !== undefined) payload = token.payload;
         if (token.delta) text += token.delta;
         if (token.done) {
           if (token.error) {
-            setState({
+            setState((s) => ({
+              ...s,
               status: "error",
               text,
               streamId: lastStreamId,
               lastSeq,
               error: token.error,
               finalPayload: null,
-            });
+            }));
             void qc.invalidateQueries({ queryKey: ["profile"] });
             void qc.invalidateQueries({ queryKey: ["credits"] });
             return { ok: false, error: token.error };
           }
-          setState({
+          setState((s) => ({
+            ...s,
             status: "done",
             text,
             streamId: lastStreamId,
             lastSeq,
             error: null,
             finalPayload: payload,
-          });
+          }));
           void qc.invalidateQueries({ queryKey: chatKeys.session(sessionId) });
           void qc.invalidateQueries({ queryKey: chatKeys.sessions() });
           void qc.invalidateQueries({ queryKey: ["profile"] });

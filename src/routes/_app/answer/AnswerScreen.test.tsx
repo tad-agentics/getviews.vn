@@ -170,7 +170,7 @@ vi.mock("@/hooks/useSessionStream", () => ({
     streamId: null,
     lastSeq: 0,
     error: null,
-    stepEvents: [],
+    steps: [],
     finalPayload: null,
     abort: vi.fn(),
     reset: vi.fn(),
