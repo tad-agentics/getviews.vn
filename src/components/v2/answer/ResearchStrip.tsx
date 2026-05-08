@@ -303,6 +303,15 @@ export function LivePipelineStrip({
   const statusByIteration = new Map<number, string>();
   const iterationOrder: number[] = [];
 
+  // Audit fix #3: also surface ``step_error`` (red banner) and the
+  // legacy sequential events (``step_start``/``step_search``/
+  // ``step_count``/``step_process``/``step_done``) the chat-mode
+  // pipelines emit. Without these branches the strip shows a spinner
+  // until the outer ``done:true`` token, dropping the Vietnamese
+  // error message and leaving chat-path users with an empty strip.
+  let errorEvent: import("@/lib/types/sse-events").StepError | null = null;
+  const legacyLines: string[] = [];
+
   for (const event of steps) {
     if (event.type === "step_status") {
       statusByIteration.set(event.iteration, event.text);
@@ -333,6 +342,18 @@ export function LivePipelineStrip({
           thumbnails: event.thumbnails,
         });
       }
+    } else if (event.type === "step_error") {
+      errorEvent = event;
+    } else if (event.type === "step_start" || event.type === "step_process") {
+      legacyLines.push(event.label);
+    } else if (event.type === "step_search") {
+      legacyLines.push(`Tìm kiếm ${event.source}: "${event.query}"`);
+    } else if (event.type === "step_creator") {
+      legacyLines.push(`Phân tích kênh @${event.handle}`);
+    } else if (event.type === "step_count") {
+      legacyLines.push(`Đã tìm ${event.count} mẫu`);
+    } else if (event.type === "step_done") {
+      legacyLines.push(event.summary);
     }
   }
 
@@ -365,14 +386,43 @@ export function LivePipelineStrip({
         </div>
       ))}
 
-      {loading && !done && steps.some((s) => s.type === "step_tool_complete") && (
+      {/* Legacy sequential events (chat-mode pipelines.py emitters).
+          Only rendered when no parallel-tool cards are present, so the
+          two render shapes don't double-up. */}
+      {iterationOrder.length === 0 && legacyLines.length > 0 && (
+        <ul className="space-y-1.5 pl-5 text-[12.5px] leading-snug text-[var(--gv-ink-3)]">
+          {legacyLines.map((line, i) => (
+            <li key={`${i}-${line.slice(0, 24)}`} className="flex items-start gap-2">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--gv-ink-4)]" />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* step_error — surface the Vietnamese message_vi so the user
+          sees a concrete failure instead of a never-resolving spinner. */}
+      {errorEvent && (
+        <div
+          role="alert"
+          className="mt-2 flex items-start gap-2 rounded-md border border-[color:var(--gv-neg)]/40 bg-[color:var(--gv-neg)]/8 px-3 py-2 text-[12.5px] text-[color:var(--gv-neg-deep)]"
+        >
+          <span aria-hidden>⚠</span>
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium">{errorEvent.message_vi}</span>
+            <span className="gv-mono text-[10px] opacity-70">{errorEvent.code}</span>
+          </div>
+        </div>
+      )}
+
+      {loading && !done && !errorEvent && steps.some((s) => s.type === "step_tool_complete") && (
         <div className="flex items-center gap-2 pt-2 text-[11px] text-[var(--gv-ink-3)]">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--gv-accent)]" />
           Đang tổng hợp báo cáo…
         </div>
       )}
 
-      {done && (
+      {done && !errorEvent && (
         <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-[var(--gv-pos)]">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <circle cx="6" cy="6" r="5" fill="currentColor" opacity="0.15" />

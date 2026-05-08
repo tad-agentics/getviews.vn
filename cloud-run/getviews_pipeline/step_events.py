@@ -7,7 +7,7 @@ the queue and yields SSE tokens before and during synthesis.
 Event schema (mirrors src/lib/types/sse-events.ts):
 
     {"type": "step_start",   "label": "Đang phân tích video..."}
-    {"type": "step_search",  "source": "tiktok"|"corpus", "query": "..."}
+    {"type": "step_search",  "source": "corpus"|"ensemble"|"tiktok", "query": "..."}
     {"type": "step_creator", "handle": "@creator"}
     {"type": "step_tool_start", "label": "...", "iteration": 0, "index": 0, "tool": "search"}
     {"type": "step_tool_complete", "iteration": 0, "index": 0, "found": 12, "thumbnails": [], "tool": "search"}
@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # Constructors

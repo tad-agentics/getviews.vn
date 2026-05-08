@@ -42,7 +42,7 @@ export function useHistoryUnion(filter: "all" | "answer" | "chat", enabled: bool
     queryFn: async ({ pageParam }) => {
       const { data, error } = await supabase.rpc("history_union", {
         p_filter: filter,
-        p_cursor: (pageParam as string | null) ?? null,
+        p_cursor: (pageParam as string | null) ?? undefined,
         p_limit: HISTORY_PAGE_SIZE,
       });
       if (error) throw error;

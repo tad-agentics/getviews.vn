@@ -43,6 +43,9 @@ export interface StepStart {
 }
 export interface StepSearch {
   type: "step_search";
+  // Matches step_events.py docstring — pipelines emit "corpus" |
+  // "ensemble" | "tiktok" in practice. Kept as `string` for forward
+  // compat (BE may add more sources without an FE type bump).
   source: string;
   query: string;
 }
