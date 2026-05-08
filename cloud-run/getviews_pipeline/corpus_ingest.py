@@ -1094,6 +1094,95 @@ def _normalize_handle(handle: str) -> str:
     return handle.lstrip("@").lower().strip()
 
 
+def _niche_signal_hashtags_by_id_from_niches(
+    niches: list[dict[str, Any]],
+) -> dict[int, list[str]]:
+    """All ``niche_taxonomy.id → signal_hashtags`` for batch niche validation."""
+    out: dict[int, list[str]] = {}
+    for row in niches:
+        nid = int(row["id"])
+        raw = row.get("signal_hashtags")
+        if isinstance(raw, list):
+            out[nid] = [str(x) for x in raw]
+        else:
+            out[nid] = []
+    return out
+
+
+def _normalize_signal_tag_fragment(raw: str) -> str:
+    """Lowercase substring needle; strip leading ``#`` (DB tags may include it)."""
+    return (raw or "").strip().lstrip("#").lower()
+
+
+def _haystack_for_niche_resolution(
+    analysis: dict[str, Any] | None,
+    caption: str | None,
+) -> str:
+    """Flatten caption + hook phrase + topics into one lowercase search blob."""
+    cap = caption or ""
+    inner: dict[str, Any] = {}
+    if analysis and isinstance(analysis, dict):
+        raw_inner = analysis.get("analysis")
+        if isinstance(raw_inner, dict):
+            inner = raw_inner
+    hook = ""
+    hook_obj = inner.get("hook_analysis")
+    if isinstance(hook_obj, dict):
+        hook = str(hook_obj.get("hook_phrase") or "")
+    topics = inner.get("topics")
+    topic_s = ""
+    if isinstance(topics, list):
+        topic_s = " ".join(str(x) for x in topics if x is not None)
+    return f"{cap} {hook} {topic_s}".strip().lower()
+
+
+def _signal_hit_counts_per_niche(
+    haystack_lower: str,
+    niche_signal_hashtags_by_id: dict[int, list[str]],
+) -> dict[int, int]:
+    """Per-niche counts: each matching signal tag adds one (substring, case-insensitive)."""
+    if not haystack_lower:
+        return {nid: 0 for nid in niche_signal_hashtags_by_id}
+    counts: dict[int, int] = {}
+    for nid, tags in niche_signal_hashtags_by_id.items():
+        n = 0
+        for t in tags:
+            frag = _normalize_signal_tag_fragment(t)
+            if frag and frag in haystack_lower:
+                n += 1
+        counts[nid] = n
+    return counts
+
+
+def _resolve_actual_niche_from_content(
+    analysis: dict[str, Any] | None,
+    caption: str | None,
+    niche_signal_hashtags_by_id: dict[int, list[str]],
+    default_niche_id: int,
+) -> int:
+    """Pick a niche from signal_hashtag hits when another niche leads by ≥2 hits.
+
+    Mirrors the Sprint 8 SQL backfill: substring match on caption + hook phrase +
+    Gemini ``topics`` (same signals the batch loop cannot trust from the pool alone).
+    """
+    if not niche_signal_hashtags_by_id:
+        return default_niche_id
+    haystack = _haystack_for_niche_resolution(analysis, caption)
+    if not haystack:
+        return default_niche_id
+    counts = _signal_hit_counts_per_niche(haystack, niche_signal_hashtags_by_id)
+    if not counts:
+        return default_niche_id
+    max_hits = max(counts.values())
+    if max_hits <= 0:
+        return default_niche_id
+    best_nid = min(nid for nid, c in counts.items() if c == max_hits)
+    default_hits = counts.get(default_niche_id, 0)
+    if best_nid != default_niche_id and max_hits >= default_hits + 2:
+        return best_nid
+    return default_niche_id
+
+
 def _build_corpus_row(
     aweme: dict[str, Any],
     analysis: dict[str, Any],
@@ -1360,6 +1449,8 @@ async def _ingest_candidate_awemes(
     niche_id: int,
     niche_name: str,
     candidates: list[dict[str, Any]],
+    *,
+    niche_signal_hashtags_by_id: dict[int, list[str]] | None = None,
 ) -> IngestResult:
     """Analyze prepared aweme dicts and upsert rows (shared by pool ingest + explicit reingest)."""
     result = IngestResult(niche_id=niche_id, niche_name=niche_name)
@@ -1467,8 +1558,45 @@ async def _ingest_candidate_awemes(
             result.errors.append(str(gather_result))
             continue
         analysis, frame_urls, scene_frame_pairs = gather_result
-        row = _build_corpus_row(aweme, analysis, niche_id)
+        loop_nid = niche_id
+        desc_raw = str(aweme.get("desc") or "")
+        challenge_titles = [
+            str(c.get("title") or "")
+            for c in (aweme.get("challenges") or [])
+            if c.get("title")
+        ]
+        caption_for_resolution = (
+            f"{desc_raw} {' '.join(challenge_titles)}".strip()
+        )
+        signal_map = niche_signal_hashtags_by_id
+        if signal_map:
+            resolved_nid = _resolve_actual_niche_from_content(
+                analysis,
+                caption_for_resolution or None,
+                signal_map,
+                loop_nid,
+            )
+            haystack = _haystack_for_niche_resolution(
+                analysis, caption_for_resolution or None,
+            )
+            per_niche_hits = _signal_hit_counts_per_niche(haystack, signal_map)
+        else:
+            resolved_nid = loop_nid
+            per_niche_hits = {}
         vid = str(aweme.get("aweme_id", "") or "")
+        if resolved_nid != loop_nid:
+            logger.info(
+                "[corpus] niche reassigned video_id=%s loop_niche=%s → actual=%s "
+                "(caption_hits %s=%s, %s=%s)",
+                vid,
+                loop_nid,
+                resolved_nid,
+                loop_nid,
+                per_niche_hits.get(loop_nid, 0),
+                resolved_nid,
+                per_niche_hits.get(resolved_nid, 0),
+            )
+        row = _build_corpus_row(aweme, analysis, resolved_nid)
         if row is None:
             result.skipped += 1
             err = analysis.get("error")
@@ -1486,7 +1614,7 @@ async def _ingest_candidate_awemes(
                 )
 
                 pattern_id = await compute_and_upsert_pattern(
-                    client, analysis.get("analysis") or {}, niche_id,
+                    client, analysis.get("analysis") or {}, resolved_nid,
                 )
                 if pattern_id:
                     row["pattern_id"] = pattern_id
@@ -1605,7 +1733,7 @@ async def _ingest_candidate_awemes(
                 if row_hashtags:
                     await learn_hashtag_mappings(
                         video_hashtags=row_hashtags,
-                        niche_id=niche_id,
+                        niche_id=row["niche_id"],
                         niche_source="corpus_batch",
                         client=client,
                     )
@@ -1627,6 +1755,7 @@ async def ingest_niche(
     videos_per_niche_override: int | None = None,
     carousels_per_niche_override: int | None = None,
     hashtag_yields_for_niche: dict[str, int] | None = None,
+    niche_signal_hashtags_by_id: dict[int, list[str]] | None = None,
 ) -> IngestResult:
     niche_id: int = niche["id"]
     niche_name: str = niche.get("name_en") or niche.get("name_vn") or str(niche_id)
@@ -1791,7 +1920,13 @@ async def ingest_niche(
         preview,
     )
 
-    sub = await _ingest_candidate_awemes(client, niche_id, niche_name, candidates)
+    sub = await _ingest_candidate_awemes(
+        client,
+        niche_id,
+        niche_name,
+        candidates,
+        niche_signal_hashtags_by_id=niche_signal_hashtags_by_id,
+    )
     result.inserted = sub.inserted
     result.skipped = sub.skipped
     result.failed = sub.failed
@@ -1982,6 +2117,7 @@ async def run_reingest_video_items(
         None, lambda: _fetch_niches_sync(client)
     )
     niches_by_id = {int(n["id"]): n for n in niches}
+    niche_signal_map = _niche_signal_hashtags_by_id_from_niches(niches)
 
     by_niche: dict[int, list[str]] = defaultdict(list)
     for vid, nid in ordered:
@@ -2031,7 +2167,13 @@ async def run_reingest_video_items(
                     len(ids),
                 )
 
-            sub = await _ingest_candidate_awemes(client, niche_id, niche_name, candidates)
+            sub = await _ingest_candidate_awemes(
+                client,
+                niche_id,
+                niche_name,
+                candidates,
+                niche_signal_hashtags_by_id=niche_signal_map,
+            )
             sub_failed = sub.failed + missing
             err_extra = ([f"multi_info_missing:{missing}"] if missing else [])
             summary.total_inserted += sub.inserted
@@ -2090,6 +2232,7 @@ async def run_batch_ingest(
     niches: list[dict[str, Any]] = await asyncio.get_event_loop().run_in_executor(
         None, lambda: _fetch_niches_sync(client)
     )
+    niche_signal_map = _niche_signal_hashtags_by_id_from_niches(niches)
 
     if niche_ids:
         niches = [n for n in niches if n["id"] in niche_ids]
@@ -2222,6 +2365,7 @@ async def run_batch_ingest(
                         ),
                         carousels_per_niche_override=cpn,
                         hashtag_yields_for_niche=hashtag_yields_all.get(int(n["id"]), {}),
+                        niche_signal_hashtags_by_id=niche_signal_map,
                     )
                     for n in batch
                 ],
