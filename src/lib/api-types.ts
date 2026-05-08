@@ -892,6 +892,12 @@ export interface PatternReportPayload {
   /** Cross-hook themes from narrative synthesis (pattern report). */
   cross_pattern_synthesis?: string[];
   ab_pair?: PatternABPair | null;
+  /** Layer 0 niche insight (Wave-2 PR #1) — same shape used by IdeasPayload.
+   * Mirrors `PatternPayload.niche_insight` in
+   * `cloud-run/getviews_pipeline/report_types.py`. Rendered via
+   * `<NicheInsightCard>`; null when the cron hasn't populated a row,
+   * the row is quality-flagged, or it's older than the freshness window. */
+  niche_insight?: NicheInsightData | null;
 }
 
 export interface IdeaBlockPayloadData {
