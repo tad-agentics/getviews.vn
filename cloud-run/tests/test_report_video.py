@@ -653,3 +653,82 @@ async def test_build_creator_comparison_logs_target_views_zero(
     with caplog.at_level(logging.INFO, logger="getviews_pipeline.report_video"):
         await build_creator_comparison("@x", target_video_id="z", target_views=0)
     assert any("reason=target_views_zero" in rec.message for rec in caplog.records)
+
+
+# ── live channel-median backfill from CreatorComparison ────────────
+
+
+@pytest.mark.no_creator_stub
+def test_build_video_report_backfills_meta_from_creator_comparison() -> None:
+    """On-demand path has no `creator_median_views` corpus column —
+    but `build_creator_comparison` already fetched the creator's
+    recent posts and computed a median. Use it to backfill
+    `meta.creator_median_views` + `meta.target_vs_creator_median` so
+    the FE ContextStrip renders even on fresh URLs.
+    """
+    from unittest.mock import AsyncMock
+
+    from getviews_pipeline.report_types import (
+        CreatorComparison,
+        CreatorComparisonVideo,
+    )
+
+    expected = _video_response_fixture()
+    expected["meta"]["views"] = 250_000
+    expected["meta"]["creator"] = "creatorx"
+    # On-demand-style payload: no creator_median_views from the corpus.
+    expected["meta"]["creator_median_views"] = None
+    expected["meta"]["target_vs_creator_median"] = None
+
+    fake_comparison = CreatorComparison(
+        creator_handle="@creatorx",
+        total_posts_analyzed=8,
+        median_views=100_000,
+        hit=CreatorComparisonVideo(views=500_000),
+        flop=CreatorComparisonVideo(views=20_000),
+        delta=25,
+        target_vs_median=2.5,
+        target_percentile="trên mức trung bình",
+    )
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               MagicMock(return_value=expected)), \
+         patch("getviews_pipeline.report_video.build_creator_comparison",
+               AsyncMock(return_value=fake_comparison)):
+        out = build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query="https://www.tiktok.com/@creatorx/video/1",
+        )
+
+    # Live median wins — even if the column was None, comparison fills.
+    assert out["meta"]["creator_median_views"] == 100_000
+    assert out["meta"]["target_vs_creator_median"] == 2.5
+    # Comparison itself still rides along.
+    assert out["creator_comparison"]["median_views"] == 100_000
+
+
+@pytest.mark.no_creator_stub
+def test_build_video_report_does_not_clobber_meta_when_comparison_missing() -> None:
+    """No comparison (e.g. < 2 posts with views) → leave meta as-is.
+    Corpus rows ingested before 2026-05-08 have None for these fields
+    and the FE just hides the ContextStrip — that's the intended path."""
+    from unittest.mock import AsyncMock
+
+    expected = _video_response_fixture()
+    expected["meta"]["creator_median_views"] = None
+    expected["meta"]["target_vs_creator_median"] = None
+
+    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
+               MagicMock(return_value=expected)), \
+         patch("getviews_pipeline.report_video.build_creator_comparison",
+               AsyncMock(return_value=None)):
+        out = build_video_report(
+            service_sb=MagicMock(),
+            user_sb=MagicMock(),
+            query="https://www.tiktok.com/@creatorx/video/1",
+        )
+
+    assert out["meta"]["creator_median_views"] is None
+    assert out["meta"]["target_vs_creator_median"] is None
+    assert out["creator_comparison"] is None

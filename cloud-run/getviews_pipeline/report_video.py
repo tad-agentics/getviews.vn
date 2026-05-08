@@ -500,6 +500,22 @@ def build_video_report(
         comparison.model_dump() if comparison is not None else None
     )
 
+    # Live channel median: when CreatorComparison fetched ≥2 view-bearing
+    # posts, use *that* median over the corpus-ingest snapshot. This is
+    # what unblocks the "X.Y× kênh trung bình" tag on the on-demand path
+    # (no corpus row → no `creator_median_views` column) and also keeps
+    # corpus rows fresh against drift between ingest time and now.
+    if comparison is not None:
+        meta = out.get("meta") or {}
+        live_median = int(comparison.median_views or 0)
+        if live_median > 0:
+            meta["creator_median_views"] = live_median
+            target_views = int(meta.get("views") or 0)
+            meta["target_vs_creator_median"] = (
+                round(target_views / live_median, 2) if target_views else None
+            )
+            out["meta"] = meta
+
     if step_queue is not None:
         from getviews_pipeline.step_events import (
             emit,
