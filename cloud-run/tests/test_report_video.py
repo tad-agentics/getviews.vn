@@ -35,6 +35,22 @@ from getviews_pipeline.report_video import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _stub_creator_comparison_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``build_video_report`` calls Ensemble for creator posts — stub in unit tests."""
+
+    async def _noop(
+        *_a: object,
+        **_k: object,
+    ) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "getviews_pipeline.report_video.build_creator_comparison",
+        _noop,
+    )
+
+
 # ── extract_tiktok_url ──────────────────────────────────────────────
 
 
@@ -221,6 +237,7 @@ def test_build_video_report_corpus_path_when_url_indexed() -> None:
     # answer-shell readers (sources card, related qs) type-narrow.
     assert out["sources"] == []
     assert out["related_questions"] == []
+    assert out.get("creator_comparison") is None
 
 
 def test_build_video_report_falls_through_to_on_demand_on_corpus_miss() -> None:

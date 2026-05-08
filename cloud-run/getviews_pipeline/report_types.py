@@ -455,6 +455,27 @@ class VideoNicheMetaPayload(BaseModel):
     model_config = {"extra": "allow"}
 
 
+class CreatorComparisonVideo(BaseModel):
+    video_id: str | None = None
+    tiktok_url: str | None = None
+    views: int
+    hook_type: str | None = None
+    thumbnail_url: str | None = None
+
+
+class CreatorComparison(BaseModel):
+    """Same-creator hit/flop comparison for video diagnosis (Lightreel-style)."""
+
+    creator_handle: str
+    total_posts_analyzed: int
+    median_views: int
+    hit: CreatorComparisonVideo
+    flop: CreatorComparisonVideo
+    delta: int
+    target_vs_median: float
+    target_percentile: str
+
+
 class VideoPayload(BaseModel):
     """Video diagnosis report — mirror of the /video/analyze response.
 
@@ -491,6 +512,7 @@ class VideoPayload(BaseModel):
     # cohort to cite), related_questions optional follow-up prompts.
     sources: list[SourceRow] = Field(default_factory=list)
     related_questions: list[str] = Field(default_factory=list)
+    creator_comparison: CreatorComparison | None = None
 
     model_config = {"extra": "allow"}
 

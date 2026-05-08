@@ -23,6 +23,7 @@ import logging
 import re
 from typing import Any
 
+from getviews_pipeline.report_types import CreatorComparison, CreatorComparisonVideo
 from getviews_pipeline.url_patterns import TIKTOK_URL_RE
 from getviews_pipeline.video_analyze import (
     run_video_analyze_on_demand,
@@ -118,6 +119,160 @@ _WIN_SIGNALS = (
     re.compile(rf"{_NEG_LOOKBEHINDS}\b(tại|vì)\s+sao\s+lên\s+(top|xu\s+hướng|trending)\b", re.IGNORECASE),
     re.compile(rf"{_NEG_LOOKBEHINDS}\bvideo\s+thành\s+công\b", re.IGNORECASE),
 )
+
+
+async def build_creator_comparison(
+    creator_handle: str,
+    target_video_id: str,
+    target_views: int,
+    *,
+    step_queue: asyncio.Queue | None = None,
+) -> CreatorComparison | None:
+    """Fetch creator recent posts; pick hit/flop vs median. Returns None on miss."""
+
+    from getviews_pipeline.ensemble import fetch_user_posts
+    from getviews_pipeline.step_events import emit, step_tool_complete, step_tool_start
+
+    if not creator_handle or target_views <= 0:
+        return None
+
+    handle_clean = creator_handle.lstrip("@").strip()
+    if not handle_clean:
+        return None
+
+    emit(
+        step_queue,
+        step_tool_start(
+            label=f"So sánh video của @{handle_clean}",
+            iteration=2,
+            index=0,
+            tool="creator_posts",
+        ),
+    )
+    posts: list[dict[str, Any]] = []
+    try:
+        posts = await fetch_user_posts(handle_clean, depth=1)
+    except Exception as exc:
+        logger.warning("[video] creator posts failed handle=%r: %s", handle_clean, exc)
+        emit(
+            step_queue,
+            step_tool_complete(2, 0, 0, [], tool="creator_posts"),
+        )
+        return None
+
+    posts = posts[:20]
+    if len(posts) < 3:
+        emit(
+            step_queue,
+            step_tool_complete(2, 0, 0, [], tool="creator_posts"),
+        )
+        return None
+
+    target_vid = str(target_video_id or "")
+    parsed: list[tuple[int, dict[str, Any]]] = []
+    for p in posts:
+        vid_id = str(p.get("aweme_id") or p.get("id") or "")
+        if vid_id and vid_id == target_vid:
+            continue
+        stats = p.get("statistics") or p.get("stats") or {}
+        v = int(stats.get("play_count") or stats.get("playCount") or 0)
+        if v > 0:
+            parsed.append((v, p))
+
+    if len(parsed) < 3:
+        emit(
+            step_queue,
+            step_tool_complete(2, 0, 0, [], tool="creator_posts"),
+        )
+        return None
+
+    sorted_by_views = sorted(parsed, key=lambda x: x[0], reverse=True)
+    all_views = [v for v, _ in sorted_by_views]
+
+    hit_views, hit_post = sorted_by_views[0]
+    flop_views, flop_post = sorted_by_views[-1]
+    median_views = sorted(all_views)[len(all_views) // 2]
+
+    delta = round(hit_views / max(flop_views, 1))
+    target_ratio = target_views / max(median_views, 1)
+
+    if target_ratio >= 5:
+        percentile = "top 10% kênh"
+    elif target_ratio >= 2:
+        percentile = "trên mức trung bình"
+    elif target_ratio >= 0.5:
+        percentile = "dưới mức trung bình"
+    else:
+        percentile = "hiệu suất thấp nhất kênh"
+
+    def _video_url(p: dict[str, Any]) -> str | None:
+        vid = str(p.get("aweme_id") or p.get("id") or "")
+        author = p.get("author") if isinstance(p.get("author"), dict) else {}
+        handle = (
+            author.get("unique_id")
+            or author.get("uniqueId")
+            or handle_clean
+        )
+        if isinstance(handle, str) and vid:
+            return f"https://www.tiktok.com/@{handle.lstrip('@')}/video/{vid}"
+        return None
+
+    def _snippet(p: dict[str, Any]) -> str | None:
+        d = str(p.get("desc") or p.get("caption") or "").strip()
+        return d[:60] if d else None
+
+    def _thumb(p: dict[str, Any]) -> str | None:
+        video = p.get("video") if isinstance(p.get("video"), dict) else {}
+        cover = video.get("cover") if isinstance(video.get("cover"), dict) else {}
+        urls = cover.get("url_list") or []
+        if urls and isinstance(urls[0], str):
+            return urls[0]
+        return None
+
+    thumbs: list[str] = []
+    for _, post in (hit_post, flop_post):
+        t = _thumb(post)
+        if t:
+            thumbs.append(t)
+            if len(thumbs) >= 2:
+                break
+
+    emit(
+        step_queue,
+        step_tool_complete(
+            iteration=2,
+            index=0,
+            found=len(parsed),
+            thumbnails=thumbs[:5],
+            tool="creator_posts",
+        ),
+    )
+
+    hid = str(hit_post.get("aweme_id") or hit_post.get("id") or "")
+    fid = str(flop_post.get("aweme_id") or flop_post.get("id") or "")
+
+    return CreatorComparison(
+        creator_handle=f"@{handle_clean}",
+        total_posts_analyzed=len(parsed),
+        median_views=int(median_views),
+        hit=CreatorComparisonVideo(
+            video_id=hid or None,
+            tiktok_url=_video_url(hit_post),
+            views=hit_views,
+            hook_type=_snippet(hit_post),
+            thumbnail_url=_thumb(hit_post),
+        ),
+        flop=CreatorComparisonVideo(
+            video_id=fid or None,
+            tiktok_url=_video_url(flop_post),
+            views=flop_views,
+            hook_type=_snippet(flop_post),
+            thumbnail_url=_thumb(flop_post),
+        ),
+        delta=delta,
+        target_vs_median=round(target_ratio, 1),
+        target_percentile=percentile,
+    )
 
 
 def detect_mode_from_query(query: str) -> str | None:
@@ -248,22 +403,73 @@ def build_video_report(
     out.setdefault("sources", [])
     out.setdefault("related_questions", [])
 
-    if step_queue is not None:
-        from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+    meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+    creator_handle = (
+        str(meta.get("creator") or "").strip()
+        or str(out.get("creator_handle") or "").strip()
+    )
+    target_views = int(meta.get("views") or 0)
+    target_video_id = str(out.get("video_id") or "")
 
-        meta = out.get("meta") or {}
+    if step_queue is not None:
+        from getviews_pipeline.step_events import (
+            emit,
+            step_done,
+            step_status,
+            step_tool_complete,
+            step_tool_start,
+        )
+
         thumbs: list[str] = []
         tu = meta.get("thumbnail_url")
         if isinstance(tu, str) and tu.strip():
             thumbs.append(tu.strip())
         emit(step_queue, step_tool_complete(1, 0, 1, thumbs, tool="corpus"))
-        creator = str(meta.get("creator") or "").strip()
-        creator_lbl = f"@{creator}" if creator else "@creator"
-        emit(step_queue, step_status(2, "Đang so sánh với video khác của creator..."))
-        emit(step_queue, step_tool_start(creator_lbl, 2, 0, tool="search"))
-        emit(step_queue, step_tool_complete(2, 0, 0, [], tool="search"))
-        emit(step_queue, step_status(3, "Đang chạy Gemini phân tích frame..."))
-        emit(step_queue, step_tool_start("Phân tích 6 frame video", 3, 0, tool="synthesis"))
+        if creator_handle and target_views > 0:
+            emit(
+                step_queue,
+                step_status(2, "Đang so sánh với video khác của creator..."),
+            )
+
+    comparison: CreatorComparison | None = None
+    if creator_handle and target_views > 0:
+        try:
+            _cmp_loop = asyncio.new_event_loop()
+            try:
+                comparison = _cmp_loop.run_until_complete(
+                    build_creator_comparison(
+                        creator_handle,
+                        target_video_id,
+                        target_views,
+                        step_queue=step_queue,
+                    )
+                )
+            finally:
+                _cmp_loop.close()
+        except Exception as exc:
+            logger.warning("[video] creator comparison failed: %s", exc)
+
+    out["creator_comparison"] = (
+        comparison.model_dump() if comparison is not None else None
+    )
+
+    if step_queue is not None:
+        from getviews_pipeline.step_events import (
+            emit,
+            step_done,
+            step_status,
+            step_tool_start,
+            step_tool_complete,
+        )
+
+        emit(
+            step_queue,
+            step_status(3, "Đang chạy Gemini phân tích frame..."),
+        )
+        emit(
+            step_queue,
+            step_tool_start("Phân tích 6 frame video", 3, 0, tool="synthesis"),
+        )
         emit(step_queue, step_tool_complete(3, 0, 0, [], tool="synthesis"))
         emit(step_queue, step_done("Xong — đang hiển thị kết quả..."))
 

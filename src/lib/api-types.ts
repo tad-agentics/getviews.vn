@@ -139,6 +139,26 @@ export interface CrossFormatSignal {
   top_hooks: CrossFormatHook[];
 }
 
+/** Same-creator hit vs flop comparison (video diagnosis). */
+export interface CreatorComparisonVideo {
+  video_id?: string | null;
+  tiktok_url?: string | null;
+  views: number;
+  hook_type?: string | null;
+  thumbnail_url?: string | null;
+}
+
+export interface CreatorComparison {
+  creator_handle: string;
+  total_posts_analyzed: number;
+  median_views: number;
+  hit: CreatorComparisonVideo;
+  flop: CreatorComparisonVideo;
+  delta: number;
+  target_vs_median: number;
+  target_percentile: string;
+}
+
 export interface VideoAnalyzeResponse {
   video_id: string;
   mode: VideoAnalyzeMode;
@@ -162,6 +182,8 @@ export interface VideoAnalyzeResponse {
   comment_radar?: CommentRadarData | null;
   /** A.1 cross-niche format signal; null when niches_with_format < 3. */
   cross_format_signal?: CrossFormatSignal | null;
+  /** Same-creator hit/flop benchmark; null when fetch or sample too small. */
+  creator_comparison?: CreatorComparison | null;
 }
 
 export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";

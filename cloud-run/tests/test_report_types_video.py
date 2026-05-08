@@ -91,6 +91,35 @@ def test_video_payload_accepts_full_corpus_shape() -> None:
     assert out.niche_meta.winners_sample_size == 30
 
 
+def test_video_payload_accepts_creator_comparison() -> None:
+    payload = _video_payload_fixture()
+    payload["creator_comparison"] = {
+        "creator_handle": "@creatorx",
+        "total_posts_analyzed": 12,
+        "median_views": 50_000,
+        "hit": {
+            "video_id": "111",
+            "tiktok_url": "https://www.tiktok.com/@creatorx/video/111",
+            "views": 800_000,
+            "hook_type": "Hook a",
+            "thumbnail_url": "https://x.test/h.png",
+        },
+        "flop": {
+            "video_id": "222",
+            "tiktok_url": "https://www.tiktok.com/@creatorx/video/222",
+            "views": 400,
+            "hook_type": "Hook b",
+            "thumbnail_url": None,
+        },
+        "delta": 2000,
+        "target_vs_median": 5.0,
+        "target_percentile": "top 10% kênh",
+    }
+    out = VideoPayload.model_validate(payload)
+    assert out.creator_comparison is not None
+    assert out.creator_comparison.delta == 2000
+
+
 def test_video_payload_accepts_flop_with_structured_headline() -> None:
     """Flop-mode response: ``analysis_headline`` is a structured dict
     (FlopHeadline.model_dump()) instead of a plain string. Both shapes
