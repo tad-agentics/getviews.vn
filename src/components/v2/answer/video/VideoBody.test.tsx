@@ -300,6 +300,60 @@ describe("VideoBody render", () => {
     expect(screen.queryByText(/SO SÁNH TRONG KÊNH/)).toBeNull();
   });
 
+  it("omits ContextStrip entirely when no enrichment + no creator_median_views", () => {
+    const { container } = renderInRouter(makeFlopReport());
+    expect(container.querySelector("[aria-label='Bối cảnh phân tích']")).toBeNull();
+    expect(screen.queryByText(/BỐI CẢNH PHÂN TÍCH/)).toBeNull();
+  });
+
+  it("renders target_vs_creator_median in the ContextStrip", () => {
+    const base = makeFlopReport();
+    const withRatio = makeFlopReport({
+      meta: {
+        ...base.meta,
+        creator_median_views: 100_000,
+        target_vs_creator_median: 0.6,
+      },
+    });
+    renderInRouter(withRatio);
+    expect(screen.getByText(/SO VỚI KÊNH BẠN/)).toBeTruthy();
+    expect(screen.getByText(/0,6× kênh trung bình/)).toBeTruthy();
+    expect(screen.getByText(/Trung vị 100\.000 view/)).toBeTruthy();
+  });
+
+  it("renders enrichment chips, audience, and pain points", () => {
+    renderInRouter(
+      makeFlopReport({
+        enrichment: {
+          target_audience: "phụ nữ 25–34 vùng đô thị",
+          pain_points: ["da dầu mụn ẩn", "ngân sách hạn chế", "thời gian eo hẹp"],
+          promotion_type: "brand_deal",
+          style_tags: ["talking_head", "POV", "fast_cuts"],
+        },
+      }),
+    );
+    expect(screen.getByText("phụ nữ 25–34 vùng đô thị")).toBeTruthy();
+    expect(screen.getByText("da dầu mụn ẩn")).toBeTruthy();
+    expect(screen.getByText("Đặt hàng nhãn")).toBeTruthy();
+    expect(screen.getByText("talking_head")).toBeTruthy();
+  });
+
+  it("hides promotion chip when promotion_type is organic but still shows style tags", () => {
+    renderInRouter(
+      makeFlopReport({
+        enrichment: {
+          target_audience: null,
+          pain_points: [],
+          promotion_type: "organic",
+          style_tags: ["talking_head"],
+        },
+      }),
+    );
+    // No promotion-type chip — `Tự sản xuất` shouldn't render for organic.
+    expect(screen.queryByText("Tự sản xuất")).toBeNull();
+    expect(screen.getByText("talking_head")).toBeTruthy();
+  });
+
   it("falls back to '#' href when a comparison video has no tiktok_url", () => {
     const withMissingUrls = makeFlopReport({
       creator_comparison: {

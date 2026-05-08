@@ -32,6 +32,15 @@ export interface VideoAnalyzeMeta {
   saves?: number;
   /** Drives retention chart kicker (B.0.1): modeled vs real telemetry. */
   retention_source?: RetentionCurveSource;
+  /** Channel-relative breakout — the creator's own median views over recent
+   * posts. Distinct from {@link CreatorComparison.delta} (hit / flop within
+   * the same channel). Renders the "X.Y× kênh trung bình" tag in the meta
+   * strip. Null when the row predates `creator_median_views` ingest, or
+   * when on-demand analysis has no historical-posts fetch. */
+  creator_median_views?: number | null;
+  /** ``views / creator_median_views`` rounded to 2dp. Pre-computed BE-side
+   * so FE doesn't re-derive on every render. */
+  target_vs_creator_median?: number | null;
 }
 
 export interface VideoKpi {
@@ -159,6 +168,17 @@ export interface CreatorComparison {
   target_percentile: string;
 }
 
+/** Gemini-extracted creative context surfaced from `analysis_json`
+ * (corpus path) or fresh on-demand extraction. Shape mirrors
+ * `VideoEnrichmentPayload` in `cloud-run/getviews_pipeline/report_types.py`.
+ * Null when no signal is populated. */
+export interface VideoEnrichment {
+  target_audience?: string | null;
+  pain_points: string[];
+  promotion_type: "organic" | "brand_deal" | "affiliate" | "self_promotion";
+  style_tags: string[];
+}
+
 export interface VideoAnalyzeResponse {
   video_id: string;
   mode: VideoAnalyzeMode;
@@ -184,6 +204,9 @@ export interface VideoAnalyzeResponse {
   cross_format_signal?: CrossFormatSignal | null;
   /** Same-creator hit/flop benchmark; null when fetch or sample too small. */
   creator_comparison?: CreatorComparison | null;
+  /** Gemini enrichment (audience / pain points / promotion / style); null
+   * when no signal was extracted (very short or low-energy videos). */
+  enrichment?: VideoEnrichment | null;
 }
 
 export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";

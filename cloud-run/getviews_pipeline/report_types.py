@@ -464,6 +464,28 @@ class VideoMeta(BaseModel):
     is_breakout: bool | None = None
     saves: int | None = None
     retention_source: Literal["real", "modeled"] | None = None
+    # Channel-relative breakout — views vs the creator's own median posts.
+    # Distinct from CreatorComparison.delta (which is hit / flop within the
+    # same channel). target_vs_creator_median answers "is this a hit *for me*"
+    # — the answer creators most want from the report.
+    creator_median_views: int | None = None
+    target_vs_creator_median: float | None = None
+
+    model_config = {"extra": "allow"}
+
+
+class VideoEnrichmentPayload(BaseModel):
+    """Gemini-extracted creative context for the analysed video.
+
+    Mirrors VideoAnalysis fields surfaced from corpus_ingest's enrichment
+    schema (2026-05-08): audience read, pain points, promotion classification,
+    style tags. Renders only when at least one signal is populated.
+    """
+
+    target_audience: str | None = None
+    pain_points: list[str] = Field(default_factory=list)
+    promotion_type: Literal["organic", "brand_deal", "affiliate", "self_promotion"] = "organic"
+    style_tags: list[str] = Field(default_factory=list)
 
     model_config = {"extra": "allow"}
 
@@ -536,6 +558,7 @@ class VideoPayload(BaseModel):
     sources: list[SourceRow] = Field(default_factory=list)
     related_questions: list[str] = Field(default_factory=list)
     creator_comparison: CreatorComparison | None = None
+    enrichment: VideoEnrichmentPayload | None = None
 
     model_config = {"extra": "allow"}
 
