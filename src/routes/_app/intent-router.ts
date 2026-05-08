@@ -268,9 +268,15 @@ export function detectIntent(
   // sit between the verb and the temporal question, and the reversed form. Keeps
   // the standalone phrases ("khung giờ vàng", "best time to post") so pure-timing
   // queries without a "post" verb still classify correctly.
+  //
+  // Also match "thời điểm đăng nào tốt…" / "đăng nào tốt nhất…" — common follow-ups
+  // after a pattern report; older patterns required the substring "giờ nào", which
+  // these phrasings omit, so they fell through to generic / follow_up_unclassifiable.
   if (
     /(đăng|post).{0,40}giờ nào/i.test(ql)
     || /giờ nào.{0,40}(đăng|post)/i.test(ql)
+    || /thời điểm.{0,40}(đăng|post)/i.test(ql)
+    || /(đăng|post)\s+nào tốt/i.test(ql)
     || /giờ nào tốt|thứ mấy tốt|best time to post|when to post|posting time|khung giờ vàng|lịch đăng/i.test(ql)
   ) {
     return { intentType: "timing", isFree: false, confidence: "medium" };

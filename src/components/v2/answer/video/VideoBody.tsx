@@ -309,49 +309,55 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
 
   return (
     <div className="grid grid-cols-1 gap-8 min-[900px]:grid-cols-[320px_1fr]">
-      <aside>
-        <div
-          className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
-          style={{
-            backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
-            backgroundColor: "var(--gv-canvas-2)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
-          {!isFlop && meta.is_breakout ? (
-            <div className="pointer-events-none absolute left-3 top-3 z-[1]">
-              <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] text-[color:var(--gv-paper)]">
-                BREAKOUT
-              </span>
-            </div>
-          ) : null}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:color-mix(in_srgb,var(--gv-ink)_55%,transparent)]" />
-          {tiktokWatchUrl ? (
-            <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center">
-              <a
-                href={tiktokWatchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--gv-paper)_24%,transparent)] text-[color:var(--gv-paper)] outline-none ring-offset-2 backdrop-blur-sm transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
-                aria-label="Mở video trên TikTok"
-              >
-                <Play className="ml-0.5 h-7 w-7" strokeWidth={1.35} aria-hidden />
-              </a>
-            </div>
-          ) : null}
-          <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
-            <div className="gv-mono text-[11px] opacity-90">
-              @{meta.creator} · {Math.round(duration)}s
-            </div>
-            {meta.title ? (
-              <p className="gv-tight mt-1 text-lg leading-tight">{meta.title}</p>
+      <aside className="min-w-0">
+        {/*
+          Sticky within the studio scrollport: follows the user down the report
+          until the grid row ends (same height as the main column), then scrolls away.
+        */}
+        <div className="sticky top-20 space-y-3 lg:top-24">
+          <div
+            className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
+            style={{
+              backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
+              backgroundColor: "var(--gv-canvas-2)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            {!isFlop && meta.is_breakout ? (
+              <div className="pointer-events-none absolute left-3 top-3 z-[1]">
+                <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] text-[color:var(--gv-paper)]">
+                  BREAKOUT
+                </span>
+              </div>
             ) : null}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[color:color-mix(in_srgb,var(--gv-ink)_55%,transparent)]" />
+            {tiktokWatchUrl ? (
+              <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center">
+                <a
+                  href={tiktokWatchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--gv-paper)_24%,transparent)] text-[color:var(--gv-paper)] outline-none ring-offset-2 backdrop-blur-sm transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-[color:var(--gv-accent)]"
+                  aria-label="Mở video trên TikTok"
+                >
+                  <Play className="ml-0.5 h-7 w-7" strokeWidth={1.35} aria-hidden />
+                </a>
+              </div>
+            ) : null}
+            <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
+              <div className="gv-mono text-[11px] opacity-90">
+                @{meta.creator} · {Math.round(duration)}s
+              </div>
+              {meta.title ? (
+                <p className="gv-tight mt-1 text-lg leading-tight">{meta.title}</p>
+              ) : null}
+            </div>
           </div>
+          <p className="gv-mono text-center text-[11px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
+            {thumbStats}
+          </p>
         </div>
-        <p className="gv-mono mt-3 text-center text-[11px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-          {thumbStats}
-        </p>
       </aside>
 
       <div className="flex flex-col gap-7">

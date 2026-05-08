@@ -413,6 +413,12 @@ describe("appendTurnKindForQuery", () => {
     expect(appendTurnKindForQuery("Tìm KOL làm review son", true)).toBe("creators");
   });
 
+  it("pattern-style timing follow-up → timing kind (thời điểm / đăng nào tốt)", () => {
+    expect(
+      appendTurnKindForQuery("Thời điểm đăng nào tốt nhất cho các hook này?", true),
+    ).toBe("timing");
+  });
+
   it("default → generic kind", () => {
     expect(appendTurnKindForQuery("Giải thích thêm giúp mình", true)).toBe("generic");
   });
