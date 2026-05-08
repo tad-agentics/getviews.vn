@@ -36,8 +36,17 @@ from getviews_pipeline.report_video import (
 
 
 @pytest.fixture(autouse=True)
-def _stub_creator_comparison_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``build_video_report`` calls Ensemble for creator posts — stub in unit tests."""
+def _stub_creator_comparison_network(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+) -> None:
+    """``build_video_report`` calls Ensemble for creator posts — stub in unit tests.
+
+    Tests that exercise ``build_creator_comparison`` itself opt out
+    via ``@pytest.mark.no_creator_stub``.
+    """
+    if "no_creator_stub" in request.keywords:
+        return
 
     async def _noop(
         *_a: object,
@@ -525,3 +534,122 @@ def test_build_video_report_no_mode_signal_passes_none() -> None:
         )
 
     assert pipeline_mock.call_args.kwargs["mode"] is None
+
+
+# ── build_creator_comparison gate fixes (2026-05-08 hot-fix) ─────────
+
+
+def _post(aweme_id: str, views: int) -> dict[str, Any]:
+    return {"aweme_id": aweme_id, "statistics": {"play_count": views}}
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_creator_stub
+async def test_build_creator_comparison_two_post_pair_now_passes() -> None:
+    """Was failing in production for every video_diagnosis — the
+    ``len(parsed) < 3`` gate was too strict given EnsembleData often
+    returns posts with ``play_count: 0`` for fresh / private uploads.
+    Lowered to ``< 2``; one hit + one flop is still valid evidence."""
+    from unittest.mock import AsyncMock, patch
+
+    from getviews_pipeline.report_video import build_creator_comparison
+
+    posts = [_post("a", 1_500_000), _post("b", 50_000)]
+    with patch(
+        "getviews_pipeline.ensemble.fetch_user_posts",
+        AsyncMock(return_value=posts),
+    ):
+        result = await build_creator_comparison(
+            "@creatorx",
+            target_video_id="z",
+            target_views=200_000,
+        )
+    assert result is not None
+    assert result.hit.views == 1_500_000
+    assert result.flop.views == 50_000
+    assert result.delta == 30  # 1.5M / 50K
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_creator_stub
+async def test_build_creator_comparison_filters_zero_view_floor() -> None:
+    """Audit Pass-2 zero-views guard, applied here too: a flop with
+    < 100 views fabricates a misleading mega-delta and should be
+    filtered out of consideration (not used as the flop anchor)."""
+    from unittest.mock import AsyncMock, patch
+
+    from getviews_pipeline.report_video import build_creator_comparison
+
+    # 1 hit, 1 zero-view post (filtered), 1 real flop.
+    posts = [
+        _post("a", 1_000_000),
+        _post("b", 0),         # filtered by 100-view floor
+        _post("c", 80_000),    # the real baseline
+    ]
+    with patch(
+        "getviews_pipeline.ensemble.fetch_user_posts",
+        AsyncMock(return_value=posts),
+    ):
+        result = await build_creator_comparison(
+            "@creatorx",
+            target_video_id="z",
+            target_views=200_000,
+        )
+    assert result is not None
+    assert result.flop.views == 80_000  # NOT 0
+    assert result.delta == 12            # round(1_000_000 / 80_000) → 12
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_creator_stub
+async def test_build_creator_comparison_returns_none_when_zero_views_dominate() -> None:
+    """All non-target posts at play_count=0 → no credible baseline →
+    return None. Was previously caught by < 3 gate; now caught by
+    the explicit play_count >= 100 floor + < 2 length gate."""
+    from unittest.mock import AsyncMock, patch
+
+    from getviews_pipeline.report_video import build_creator_comparison
+
+    posts = [_post("a", 50), _post("b", 30), _post("c", 0)]  # all below floor
+    with patch(
+        "getviews_pipeline.ensemble.fetch_user_posts",
+        AsyncMock(return_value=posts),
+    ):
+        result = await build_creator_comparison(
+            "@creatorx",
+            target_video_id="z",
+            target_views=10_000,
+        )
+    assert result is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_creator_stub
+async def test_build_creator_comparison_logs_miss_reason(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Diagnostic logging — every early-return must surface a
+    ``reason=`` tag so Cloud Run logs reveal why the comparison
+    was skipped without a re-deploy. Before the fix, all misses
+    were silent."""
+    import logging
+
+    from getviews_pipeline.report_video import build_creator_comparison
+
+    with caplog.at_level(logging.INFO, logger="getviews_pipeline.report_video"):
+        await build_creator_comparison("", target_video_id="z", target_views=100)
+    assert any("reason=missing_creator_handle" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.asyncio
+@pytest.mark.no_creator_stub
+async def test_build_creator_comparison_logs_target_views_zero(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    from getviews_pipeline.report_video import build_creator_comparison
+
+    with caplog.at_level(logging.INFO, logger="getviews_pipeline.report_video"):
+        await build_creator_comparison("@x", target_video_id="z", target_views=0)
+    assert any("reason=target_views_zero" in rec.message for rec in caplog.records)

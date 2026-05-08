@@ -128,16 +128,47 @@ async def build_creator_comparison(
     *,
     step_queue: asyncio.Queue | None = None,
 ) -> CreatorComparison | None:
-    """Fetch creator recent posts; pick hit/flop vs median. Returns None on miss."""
+    """Fetch creator recent posts; pick hit/flop vs median. Returns None on miss.
+
+    Bug-fix (2026-05-08) — every video_diagnosis turn over the prior 14 days
+    rendered without the SO SÁNH TRONG KÊNH card because this function
+    returned None silently. Two changes:
+      1. The ``len(parsed) < 3`` gate is lowered to ``< 2`` — a single
+         hit + single flop is still a valid comparison; requiring three
+         was too strict against EnsembleData's noisy ``play_count: 0``
+         responses for fresh / private posts.
+      2. Every early-return now emits a structured WARNING with a
+         ``reason`` tag so we can diagnose subsequent misses from
+         Cloud Run logs without re-deploying.
+
+    Also applies the zero-views guard already deployed for
+    ``find_ab_pair`` (audit Pass 2): a flop with < 100 views is treated
+    as too noisy to anchor a delta — we filter it out of consideration
+    rather than letting it fabricate a misleading multiplier.
+    """
 
     from getviews_pipeline.ensemble import fetch_user_posts
     from getviews_pipeline.step_events import emit, step_tool_complete, step_tool_start
 
-    if not creator_handle or target_views <= 0:
+    def _miss(reason: str, **details: Any) -> None:
+        """Log + emit the empty tool_complete card for a miss."""
+        logger.info(
+            "[video] creator_comparison miss handle=%r reason=%s details=%s",
+            creator_handle, reason, details,
+        )
+        if step_queue is not None:
+            emit(step_queue, step_tool_complete(2, 0, 0, [], tool="creator_posts"))
+
+    if not creator_handle:
+        _miss("missing_creator_handle")
+        return None
+    if target_views <= 0:
+        _miss("target_views_zero", target_views=target_views)
         return None
 
     handle_clean = creator_handle.lstrip("@").strip()
     if not handle_clean:
+        _miss("empty_handle_after_clean", raw=creator_handle)
         return None
 
     emit(
@@ -153,19 +184,17 @@ async def build_creator_comparison(
     try:
         posts = await fetch_user_posts(handle_clean, depth=1)
     except Exception as exc:
-        logger.warning("[video] creator posts failed handle=%r: %s", handle_clean, exc)
-        emit(
-            step_queue,
-            step_tool_complete(2, 0, 0, [], tool="creator_posts"),
+        logger.warning(
+            "[video] creator_comparison miss handle=%r reason=ed_fetch_failed: %s",
+            handle_clean, exc,
         )
+        if step_queue is not None:
+            emit(step_queue, step_tool_complete(2, 0, 0, [], tool="creator_posts"))
         return None
 
     posts = posts[:20]
-    if len(posts) < 3:
-        emit(
-            step_queue,
-            step_tool_complete(2, 0, 0, [], tool="creator_posts"),
-        )
+    if len(posts) < 2:
+        _miss("ed_returned_too_few_posts", returned=len(posts))
         return None
 
     target_vid = str(target_video_id or "")
@@ -176,13 +205,24 @@ async def build_creator_comparison(
             continue
         stats = p.get("statistics") or p.get("stats") or {}
         v = int(stats.get("play_count") or stats.get("playCount") or 0)
-        if v > 0:
+        # 100-view floor matches the find_ab_pair guard from audit
+        # Pass-2: flops with effectively-zero reach fabricate misleading
+        # ``hit / flop`` deltas (5K / 0 = 5,000× would be rendered
+        # as evidence to the user).
+        if v >= 100:
             parsed.append((v, p))
 
-    if len(parsed) < 3:
-        emit(
-            step_queue,
-            step_tool_complete(2, 0, 0, [], tool="creator_posts"),
+    if len(parsed) < 2:
+        zero_views_count = sum(
+            1 for p in posts
+            if int((p.get("statistics") or p.get("stats") or {})
+                   .get("play_count") or 0) == 0
+        )
+        _miss(
+            "too_few_posts_with_views",
+            posts_returned=len(posts),
+            posts_with_views=len(parsed),
+            zero_view_posts=zero_views_count,
         )
         return None
 
@@ -192,6 +232,13 @@ async def build_creator_comparison(
     hit_views, hit_post = sorted_by_views[0]
     flop_views, flop_post = sorted_by_views[-1]
     median_views = sorted(all_views)[len(all_views) // 2]
+
+    # Same hit==flop guard: with only 1 post, hit_post == flop_post and
+    # the comparison is meaningless. The < 2 gate should prevent this
+    # but be defensive — render no card rather than a "1× delta" lie.
+    if hit_views == flop_views or hit_post is flop_post:
+        _miss("hit_equals_flop", parsed=len(parsed), hit_views=hit_views)
+        return None
 
     delta = round(hit_views / max(flop_views, 1))
     target_ratio = target_views / max(median_views, 1)
@@ -230,7 +277,7 @@ async def build_creator_comparison(
         return None
 
     thumbs: list[str] = []
-    for _, post in (hit_post, flop_post):
+    for post in (hit_post, flop_post):
         t = _thumb(post)
         if t:
             thumbs.append(t)
