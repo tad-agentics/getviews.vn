@@ -768,6 +768,8 @@ export interface HookFindingData {
   evidence_video_ids: string[];
   /** Distinct creators in corpus window using this hook (pattern report). */
   creator_count?: number | null;
+  /** VN cultural angle for this pattern (pattern narrative, optional). */
+  cultural_framing?: string | null;
 }
 
 export interface SumStatData {
@@ -864,6 +866,8 @@ export interface PatternReportPayload {
   related_questions: string[];
   subreports?: Record<string, unknown> | null;
   outlier_story?: OutlierStory | null;
+  /** Cross-hook themes from narrative synthesis (pattern report). */
+  cross_pattern_synthesis?: string[];
   ab_pair?: PatternABPair | null;
 }
 

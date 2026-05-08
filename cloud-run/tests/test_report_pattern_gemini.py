@@ -15,13 +15,15 @@ from getviews_pipeline.report_pattern_gemini import (
 
 
 def test_pattern_narrative_llm_schema_has_required_keys() -> None:
-    """Response schema must still document all four keys for Gemini prompt-shaping."""
+    """Response schema documents all JSON keys for Gemini structured output."""
     schema = PatternNarrativeLLM.model_json_schema()
     assert set(schema["properties"].keys()) == {
         "thesis",
         "hook_insights",
         "stalled_insights",
         "related_questions",
+        "cultural_framing",
+        "cross_pattern_synthesis",
     }
 
 
@@ -51,6 +53,8 @@ def test_pattern_narrative_happy_path_uses_pydantic_binding(
             "Test hook mới hay tối ưu hook cũ?",
             "Niche con nào breakout?",
         ],
+        "cultural_framing": ["", ""],
+        "cross_pattern_synthesis": ["Chuẩn overlay đang đồng thuận xuyên hook."],
     }
     monkeypatch.setattr(
         "getviews_pipeline.gemini._generate_content_models",
@@ -73,6 +77,8 @@ def test_pattern_narrative_happy_path_uses_pydantic_binding(
     assert len(out["stalled_insights"]) == 1
     assert len(out["related_questions"]) == 4
     assert out["related_questions"][0] == "Hook nào đang giảm tốc?"
+    assert out["cultural_framing"] == ["", ""]
+    assert out["cross_pattern_synthesis"] == ["Chuẩn overlay đang đồng thuận xuyên hook."]
 
 
 def test_pattern_narrative_invalid_json_falls_back(

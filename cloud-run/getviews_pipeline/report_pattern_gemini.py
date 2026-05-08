@@ -21,15 +21,16 @@ class PatternNarrativeLLM(BaseModel):
 
     List lengths aren't pinned at the schema level — the number of hooks
     varies per call (n_top / n_st), and the post-processing loop pads /
-    truncates with deterministic fallbacks. We enforce the outer shape
-    (four required keys, each a string or list of strings) so
-    model_validate_json raises cleanly on drift.
+    truncates with deterministic fallbacks. ``cultural_framing`` is padded
+    to ``n_top``; ``cross_pattern_synthesis`` is capped at 4 strings.
     """
 
     thesis: str = Field(default="")
     hook_insights: list[str] = Field(default_factory=list)
     stalled_insights: list[str] = Field(default_factory=list)
     related_questions: list[str] = Field(default_factory=list)
+    cultural_framing: list[str] = Field(default_factory=list)
+    cross_pattern_synthesis: list[str] = Field(default_factory=list)
 
 
 def build_why_won_list(top_hook_labels: list[str]) -> list[str]:
@@ -53,7 +54,8 @@ def fill_pattern_narrative(
     top_performers_str: str = "",
     ab_context: str = "",
 ) -> dict[str, Any]:
-    """Return thesis, hook_insights, stalled_insights, related_questions.
+    """Return narrative dict for pattern synthesis (thesis, insights, questions,
+    cultural_framing per hook, cross_pattern_synthesis).
 
     Uses Gemini JSON when ``GEMINI_API_KEY`` is available; otherwise deterministic
     Vietnamese copy grounded in labels (still bounded).
@@ -76,54 +78,54 @@ def fill_pattern_narrative(
         n_top = len(top_hook_labels)
         n_st = len(stalled_hook_labels)
         query_clean = (query or "").strip()
-        # Prompt is rebuilt around the user's question (previous version
-        # asked for a generic "niche summary" regardless of what the user
-        # asked, which made every follow-up read the same). Now:
-        #   - ``thesis`` must start by addressing the question directly
-        #     using the ranked hook data.
-        #   - ``hook_insights`` explain why each winner answers the user's
-        #     intent, not just its retention number.
-        #   - ``related_questions`` must branch off the SPECIFIC question,
-        #     not generic niche follow-ups.
-        # The ranked hook list + stalled list are context, not the output
-        # shape — the output is an answer to ``query`` grounded in them.
-        extra = (live_context or "").strip()
-        live_block = f"\n{extra}\n" if extra else ""
-        micro_extra = (micro_context or "").strip()
-        micro_block = f"\nMicro-element (cảnh/corpus top hook):\n{micro_extra}\n" if micro_extra else ""
-        counts_extra = (creator_counts_str or "").strip()
-        counts_block = (
-            f"\nĐa dạng creator (top hook): {counts_extra}\n" if counts_extra else ""
+        micro_inject = (micro_context or "").strip() or "(không có dữ liệu micro-element)"
+        counts_inject = (creator_counts_str or "").strip() or "(không có)"
+        extra_live = (live_context or "").strip()
+        live_block = (
+            f"\n--- BỔ SUNG LIVE (ví dụ xu hướng; không dùng để bịa aggregate) ---\n{extra_live}\n"
+            if extra_live
+            else ""
         )
         top_perf = (top_performers_str or "").strip() or "(không có dữ liệu)"
         performers_block = f"""
-Top creator có view cao nhất per hook (CITE TRỰC TIẾP trong hook_insights với "@handle (X view)"):
+--- Top creator view cao per hook (CITE trong hook_insights; chỉ từ danh sách; "@handle (X view)") ---
 {top_perf}
-Quy tắc cite: chỉ cite creator từ danh sách trên — không bịa. Định dạng: "@handle đạt X view với hook này".
 """
         ab_ex = (ab_context or "").strip() or "(không tìm thấy cặp A/B)"
         ab_block = f"""
-A/B pair từ corpus (cite nếu phù hợp):
+--- A/B corpus (cite nếu phù hợp vào cross_pattern_synthesis / thesis) ---
 {ab_ex}
 """
-        prompt = f"""Bạn là trợ lý phân tích TikTok cho creator Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi của người dùng, không phải tóm tắt chung.
+        prompt = f"""Bạn là chuyên gia phân tích TikTok Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi dưới đây bằng insight thực chiến.
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
-- thesis: string ≤280 ký tự — MỞ ĐẦU bằng câu trả lời trực tiếp cho câu hỏi bên dưới; kết bằng bằng chứng số từ danh sách hook.
-- hook_insights: đúng {n_top} string, mỗi string ≤200 ký tự — mỗi insight giải thích vì sao hook đó TRẢ LỜI câu hỏi (liên hệ lại câu hỏi nếu có thể), không chỉ nêu retention.
-- stalled_insights: đúng {n_st} string, mỗi string ≤200 ký tự — vì sao hook suy liên quan đến câu hỏi người dùng.
-- related_questions: đúng 4 string ngắn — câu hỏi follow-up LIÊN TIẾP câu hỏi hiện tại (mở rộng, đào sâu, so sánh), không phải câu hỏi chung về ngách.
 
+- thesis: string ≤280 ký tự — BẮT ĐẦU BẰNG: '{n_top} hook đang dẫn đầu ngách {niche_label} tuần này:' rồi nêu 1-2 câu tóm tắt xu hướng lớn nhất và kết bằng bằng chứng số. KHÔNG mở đầu bằng 'Trong ngách...' hay câu generic.
+- hook_insights: đúng {n_top} string ≤200 ký tự — vì sao hook đó trả lời câu hỏi. PHẢI đề cập yếu tố cụ thể (framing, overlay, nhịp cắt) khi có trong dữ liệu micro-element bên dưới.
+- stalled_insights: đúng {n_st} string ≤200 ký tự — vì sao hook suy liên quan câu hỏi.
+- related_questions: đúng 4 string ngắn ≤80 ký tự — follow-up LIÊN TIẾP câu hỏi hiện tại.
+- cultural_framing: đúng {n_top} string — QUAN TRỌNG. Mỗi string: nếu pattern này liên kết với văn hóa Việt Nam (mùa thi cử, văn hóa đám cưới, Vinglish/ngôn ngữ bản sắc, tâm lý Gen Z, thói quen tiêu dùng Shopee, v.v.), viết 1 câu giải thích TẠI SAO văn hóa đó làm hook này mạnh hơn ở VN so với thị trường khác. Câu phải cụ thể — không viết chung chung. Nếu KHÔNG có liên kết văn hóa rõ ràng với dữ liệu này, để "". Ví dụ tốt: "Văn hóa áp lực học thi ở VN khiến 'AI thầy giáo khắt khe' cộng hưởng sâu hơn với học sinh — không chỉ giải trí mà còn release tension thực sự." Ví dụ xấu: "Phù hợp với văn hóa Việt Nam."
+- cross_pattern_synthesis: đúng 3-4 string ≤120 ký tự — CHỦ ĐỀ XUYÊN SUỐT nhiều pattern CÙNG LÚC trong tuần này. Đây là "tóm lại tuần này" — không lặp lại insight từng hook. Mỗi string là 1 quy luật cụ thể có thể verify bằng số, ví dụ: "Text overlay vàng đang là chuẩn ngách — 4/5 video viral đều có", "Account nhỏ vẫn thắng — algorithm thưởng format, không thưởng follower count". PHẢI DỰA TRÊN dữ liệu micro-element và creator_count bên dưới.
+
+--- DỮ LIỆU ĐẦU VÀO ---
 Ngách: {niche_label}
 Câu hỏi người dùng: "{query_clean or '(không nêu rõ — trả lời dựa trên xu hướng hook hiện tại)'}"
 Hook đang thắng (xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
-{live_block}{micro_block}{counts_block}{performers_block}{ab_block}
-Quy tắc:
+
+Micro-element từ corpus (dùng để tăng độ cụ thể trong hook_insights + cross_pattern_synthesis):
+{micro_inject}
+
+Creator count per pattern (dùng để framing cross-creator validation):
+{counts_inject}
+Khi creator_count >= 3: ghi rõ "pattern này giữ vững ở X creator — format là biến số, không phải creator"
+{live_block}{performers_block}{ab_block}
+
+--- QUY TẮC ---
 - Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn".
-- Không dùng từ "chắc chắn", "hiệu quả", "bùng nổ" (xem copy rules).
-- Khi có khối micro-element, hãy dùng chi tiết hình ảnh cụ thể (góc quay, overlay, nhịp, mô tả cảnh) trong thesis/insight thay vì mô tả chung chung.
-- Số liệu chỉ được trích từ danh sách hook/corpus trên; phần bổ sung live (nếu có) chỉ là ví dụ xu hướng — không tự bịa aggregate.
+- Không dùng: "chắc chắn", "hiệu quả", "bùng nổ", "công thức vàng".
+- Số liệu chỉ được trích từ dữ liệu trên; không tự bịa ra %.
+- cultural_framing và cross_pattern_synthesis là 2 trường MỚI — không bỏ qua.
 """
         cfg = types.GenerateContentConfig(
             temperature=0.35,
@@ -146,18 +148,25 @@ Quy tắc:
         thesis = data.thesis[:280]
         hi = [s[:200] for s in data.hook_insights]
         si = [s[:200] for s in data.stalled_insights]
-        rq = [s[:120] for s in data.related_questions][:4]
+        rq = [s[:80] for s in data.related_questions][:4]
+        cf = [s[:300] for s in data.cultural_framing]
+        cps = [s[:120] for s in data.cross_pattern_synthesis][:4]
         while len(hi) < n_top:
             hi.append(_fallback_insight(top_hook_labels[len(hi)]))
         while len(si) < n_st:
             si.append(_fallback_stalled(stalled_hook_labels[len(si)]))
         while len(rq) < 4:
             rq.append(f"Xu hướng nào đang nổi trong {niche_label}?")
+        while len(cf) < n_top:
+            cf.append("")
+        cf = cf[:n_top]
         return {
             "thesis": thesis or _fallback_thesis(niche_label, top_hook_labels),
             "hook_insights": hi[:n_top],
             "stalled_insights": si[:n_st],
             "related_questions": rq[:4],
+            "cultural_framing": cf[:n_top],
+            "cross_pattern_synthesis": cps,
         }
     except Exception as exc:
         logger.warning("[pattern] Gemini narrative failed: %s — fallback", exc)
@@ -209,4 +218,6 @@ def _fallback_narrative(
         "hook_insights": hi,
         "stalled_insights": si,
         "related_questions": rq,
+        "cultural_framing": [""] * len(top_hook_labels),
+        "cross_pattern_synthesis": [],
     }

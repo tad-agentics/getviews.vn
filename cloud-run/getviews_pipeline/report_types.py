@@ -44,6 +44,7 @@ class HookFinding(BaseModel):
     prerequisites: list[str] = Field(default_factory=list)
     insight: str = Field(max_length=200)
     evidence_video_ids: list[str] = Field(default_factory=list)
+    cultural_framing: str | None = None
     creator_count: int | None = None
 
 
@@ -164,6 +165,7 @@ class PatternPayload(BaseModel):
     # not have populated a row for this niche yet.
     niche_insight: NicheInsight | None = None
     outlier_story: OutlierStory | None = None
+    cross_pattern_synthesis: list[str] = Field(default_factory=list)
     ab_pair: PatternABPair | None = None
 
     @model_validator(mode="after")

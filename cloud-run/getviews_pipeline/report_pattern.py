@@ -534,6 +534,14 @@ def build_pattern_report(
         creator_sets=_creator_sets,
     )
 
+    cultural_framings = narr.get("cultural_framing") or []
+    for i, finding in enumerate(findings):
+        if i < len(cultural_framings):
+            raw = cultural_framings[i]
+            cf_val = "" if raw is None else str(raw)[:300]
+            findings[i] = finding.model_copy(update={"cultural_framing": cf_val})
+
+    cross_synthesis: list[str] = list(narr.get("cross_pattern_synthesis") or [])
     stalled_insights = narr.get("stalled_insights") or []
     stalled_models: list[Any] = []
     for i, sf in enumerate(stalled):
@@ -600,6 +608,7 @@ def build_pattern_report(
         ),
         niche_insight=niche_insight,
         outlier_story=outlier_story,
+        cross_pattern_synthesis=cross_synthesis,
         ab_pair=ab_pair,
     )
     if step_queue is not None:
