@@ -117,10 +117,6 @@ vi.mock("@/components/v2/answer/ResearchStrip", () => ({
   MiniResearchStrip: () => null,
   useResearchStage: () => 0,
 }));
-vi.mock("@/components/v2/answer/RelatedQs", () => ({
-  RelatedQs: () => <div data-testid="related-qs" />,
-  RelatedQsCard: () => <div data-testid="related-qs-card" />,
-}));
 vi.mock("@/components/v2/answer/TimelineRail", () => ({
   TimelineRail: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="timeline-rail">{children}</div>

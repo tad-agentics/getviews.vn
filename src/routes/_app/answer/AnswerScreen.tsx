@@ -36,7 +36,6 @@ import {
   MiniResearchStrip,
   useResearchStage,
 } from "@/components/v2/answer/ResearchStrip";
-import { RelatedQsCard } from "@/components/v2/answer/RelatedQs";
 import { TimelineRail } from "@/components/v2/answer/TimelineRail";
 import { TopBar } from "@/components/v2/TopBar";
 import { Btn } from "@/components/v2/Btn";
@@ -693,11 +692,6 @@ export default function AnswerScreen() {
                 disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
               />
             </TimelineRail>
-          }
-          aside={
-            sessionId ? (
-              <RelatedQsCard items={related} onPick={setFollowUp} />
-            ) : undefined
           }
         />
       </div>

@@ -30,7 +30,7 @@ grep -q 'export type ReportV1' src/lib/api-types.ts
 
 echo "== grep: C.1 shell primitives =="
 grep -q 'ResearchStepStrip' src/components/v2/answer/ResearchStrip.tsx
-grep -q 'RelatedQs' src/components/v2/answer/RelatedQs.tsx
+grep -q 'export function AnswerShell' src/components/v2/answer/AnswerShell.tsx
 grep -q 'gv-route-main--answer' src/app.css
 grep -q 'listsForUser' src/hooks/useAnswerSessionQueries.ts
 grep -q 'next_cursor' src/lib/answerApi.ts
