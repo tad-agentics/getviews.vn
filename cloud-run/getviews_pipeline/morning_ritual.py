@@ -651,6 +651,13 @@ class RitualBatchSummary:
     failed_duplicate_hooks: int = 0   # Gemini returned <3 distinct hook types
     failed_upsert: int = 0            # DB write failed after successful generation
     users_no_niche: int = 0
+    # Audit Pass-3 fix #3 — count per-user uncaught exceptions so the
+    # batch loop can continue when ``generate_ritual_for_user`` raises
+    # something its internal try/except blocks don't catch (e.g. an SDK
+    # bubble-up from outside the fetch + Gemini guards). Without the
+    # outer catch-all, the entire batch aborted at the first uncaught
+    # error and remaining users got nothing.
+    failed_unhandled: int = 0
 
 
 def run_morning_ritual_batch(
@@ -689,13 +696,28 @@ def run_morning_ritual_batch(
         if nid is None:
             summary.users_no_niche += 1
             continue
-        result = generate_ritual_for_user(
-            client,
-            user_id=prof["id"],
-            niche_id=nid,
-            niche_name=niche_name_map.get(nid, str(nid)),
-            reference_handles=list(prof.get("reference_channel_handles") or []),
-        )
+        # Audit Pass-3 fix #3 — outer catch-all so an uncaught
+        # exception from ``generate_ritual_for_user`` (anything its
+        # internal per-step try/except doesn't intercept — e.g. a
+        # Pydantic schema mismatch on a fresh Gemini SDK version,
+        # a Supabase connection drop) doesn't kill the rest of the
+        # batch. Each user is independent; one bad run shouldn't
+        # rob 99 other creators of their daily ritual.
+        try:
+            result = generate_ritual_for_user(
+                client,
+                user_id=prof["id"],
+                niche_id=nid,
+                niche_name=niche_name_map.get(nid, str(nid)),
+                reference_handles=list(prof.get("reference_channel_handles") or []),
+            )
+        except Exception as exc:
+            logger.exception(
+                "[ritual] uncaught exception user=%s niche=%s: %s",
+                prof.get("id"), nid, exc,
+            )
+            summary.failed_unhandled += 1
+            continue
         if result.error is None and result.scripts:
             if upsert_ritual(client, result):
                 summary.generated += 1

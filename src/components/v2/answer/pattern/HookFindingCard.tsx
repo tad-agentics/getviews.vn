@@ -54,13 +54,27 @@ export function HookFindingCard({ row }: { row: HookFindingData }) {
         ) : null}
       </div>
       <div className="flex flex-col items-end gap-1 text-right">
+        {/* Audit Pass-3 fix #6 — Latin labels (RET, Δ) replaced with
+            plain Vietnamese ("Giữ" = retention, "Đổi" = week-over-week
+            delta). aria-labels keep the analytical meaning legible to
+            screen readers. */}
         <div className="flex items-center gap-1">
-          <span className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">RET</span>
+          <span
+            className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]"
+            aria-label="Tỉ lệ giữ chân người xem"
+          >
+            Giữ
+          </span>
           <TonePill tone="up" />
           <span className="gv-mono text-sm font-medium text-[color:var(--gv-ink)]">{row.retention.value}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]">Δ</span>
+          <span
+            className="gv-mono text-[10px] uppercase tracking-wide text-[color:var(--gv-ink-4)]"
+            aria-label="Thay đổi so với tuần trước"
+          >
+            Đổi
+          </span>
           <TonePill tone={row.delta.numeric >= 0 ? "up" : "down"} />
           <span
             className={`gv-mono text-sm font-medium ${
