@@ -31,7 +31,6 @@ import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
-import { TemplatizeCard } from "@/components/v2/answer/TemplatizeCard";
 import {
   LivePipelineStrip,
   MiniResearchStrip,
@@ -697,10 +696,7 @@ export default function AnswerScreen() {
           }
           aside={
             sessionId ? (
-              <>
-                <RelatedQsCard items={related} onPick={setFollowUp} />
-                <TemplatizeCard sessionId={sessionId} />
-              </>
+              <RelatedQsCard items={related} onPick={setFollowUp} />
             ) : undefined
           }
         />

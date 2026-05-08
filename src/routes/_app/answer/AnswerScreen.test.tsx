@@ -112,9 +112,6 @@ vi.mock("@/components/v2/answer/FollowUpComposer", () => ({
     </div>
   ),
 }));
-vi.mock("@/components/v2/answer/TemplatizeCard", () => ({
-  TemplatizeCard: () => <div data-testid="templatize-card" />,
-}));
 vi.mock("@/components/v2/answer/ResearchStrip", () => ({
   LivePipelineStrip: () => null,
   MiniResearchStrip: () => null,
