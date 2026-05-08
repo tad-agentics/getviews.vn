@@ -788,8 +788,12 @@ export interface EvidenceCardPayloadData {
   hook_family: string;
   /** Cover URL when present (falls back to `bg_color` tile). */
   thumbnail_url?: string | null;
+  /** Breakout signal: DB `breakout_ratio` or interim `breakout_multiplier`. */
+  breakout_ratio?: number | null;
   /** Raw decimal (e.g. 0.087 = 8.7% ER); multiply by 100 for display. */
   engagement_rate?: number | null;
+  days_ago?: number | null;
+  tiktok_url?: string | null;
 }
 
 export interface PatternCellPayloadData {

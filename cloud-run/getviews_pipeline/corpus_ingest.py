@@ -559,6 +559,13 @@ def _has_vietnamese_chars(text: str) -> bool:
     return bool(_VIETNAMESE_PATTERN.search(text))
 
 
+def _safe_int(v: Any) -> int | None:
+    try:
+        return int(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _safe_engagement_rate(
     *,
     er_from_analysis: float | None,
@@ -624,6 +631,26 @@ _NORTHERN = [
     r"\bkhông ạ\b", r"\bấy\b", r"\bđấy\b", r"\bcơ\b",
 ]
 _CENTRAL = [r"\bchi\b", r"\bmô\b(?=\s)", r"\bni\b", r"\brứa\b", r"\brăng\b"]
+
+
+def _normalize_promotion_type(raw: Any) -> str:
+    s = str(raw or "organic").strip().lower()
+    if s in ("organic", "brand_deal", "affiliate", "self_promotion"):
+        return s
+    return "organic"
+
+
+def _normalize_str_list(raw: Any, *, max_items: int, max_len: int) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for x in raw[:max_items]:
+        if x is None:
+            continue
+        t = str(x).strip()[:max_len]
+        if t:
+            out.append(t)
+    return out
 
 
 def _normalize_hook_type(raw: str) -> str:
@@ -1264,6 +1291,25 @@ def _build_corpus_row(
     if creator_followers is not None:
         creator_followers = int(creator_followers)
 
+    # Breakout at ingest: views / creator median play (EnsembleData author stats when enabled).
+    author_stats: dict[str, Any] = (
+        aweme.get("authorStats")
+        or aweme.get("author_stats")
+        or {}
+    )
+    if not author_stats and isinstance(raw_author, dict):
+        author_stats = (
+            raw_author.get("authorStats")
+            or raw_author.get("author_stats")
+            or {}
+        )
+    median_views: int | None = _safe_int(
+        author_stats.get("medianPlayCount") or author_stats.get("median_play_count")
+    )
+    breakout_ratio_ingest: float | None = None
+    if median_views and median_views > 0:
+        breakout_ratio_ingest = round(float(views) / float(median_views), 2)
+
     desc = aweme.get("desc") or ""
     hashtags: list[str] = [
         c.get("title") or ""
@@ -1350,6 +1396,10 @@ def _build_corpus_row(
         "text_overlay_count": len(analysis_json.get("text_overlays") or []),
         "scene_count": len(scenes),
         "language": "vi",  # guaranteed by Gate 3/4 in ingest_niche
+        "target_audience": str(analysis_json.get("target_audience") or "")[:200],
+        "pain_points": _normalize_str_list(analysis_json.get("pain_points"), max_items=3, max_len=160),
+        "promotion_type": _normalize_promotion_type(analysis_json.get("promotion_type")),
+        "style_tags": _normalize_str_list(analysis_json.get("style_tags"), max_items=8, max_len=64),
 
         # ── Group B: Vietnamese/Asian TikTok-specific (4 columns) ──
         "content_format": _format,
@@ -1364,6 +1414,8 @@ def _build_corpus_row(
         # ── Group C: ED metadata (13 columns) ──
         "saves": saves,
         "save_rate": saves / views if views > 0 else None,
+        "breakout_ratio": breakout_ratio_ingest,
+        "creator_median_views": median_views,
         "posted_at": posted_at,
         "posting_hour": _vietnam_hour(create_time),
         "sound_id": sound_id,

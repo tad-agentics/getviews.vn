@@ -64,8 +64,10 @@ class EvidenceCardPayload(BaseModel):
     bg_color: str
     hook_family: str
     thumbnail_url: str | None = None
-    #: Raw decimal engagement rate (e.g. 0.087 = 8.7%). Column may be 0–1 or percent.
+    breakout_ratio: float | None = None  # display: DB breakout_ratio or breakout_multiplier
     engagement_rate: float | None = None
+    days_ago: int | None = None
+    tiktok_url: str | None = None
 
 
 class PatternCellPayload(BaseModel):

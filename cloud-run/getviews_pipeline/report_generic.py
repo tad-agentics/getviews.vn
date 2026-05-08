@@ -38,6 +38,7 @@ from getviews_pipeline.report_types import (
     SourceRow,
     validate_and_store_report,
 )
+from getviews_pipeline.report_pattern_compute import _evidence_card_extras
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +242,8 @@ def _load_broad_corpus(sb: Any, niche_id: int | None, window_days: int) -> list[
             sb.table("video_corpus")
             .select(
                 "video_id, creator_handle, views, hook_type, engagement_rate, "
-                "video_duration, analysis_json, caption, thumbnail_url, indexed_at, created_at"
+                "video_duration, analysis_json, caption, thumbnail_url, indexed_at, created_at, "
+                "tiktok_url, breakout_multiplier, breakout_ratio"
             )
             .gte("indexed_at", cutoff)
             .order("views", desc=True)
@@ -289,6 +291,7 @@ def _corpus_row_to_evidence(row: dict[str, Any], idx: int) -> EvidenceCardPayloa
         if isinstance(aj, dict):
             dur = int(float(aj.get("duration_seconds") or 0) or 0)
     thumb = str(row.get("thumbnail_url") or "").strip()
+    breakout_val, days_ago, tiktok_u = _evidence_card_extras(row)
     return EvidenceCardPayload(
         video_id=vid,
         creator_handle=str(row.get("creator_handle") or "@unknown"),
@@ -299,7 +302,10 @@ def _corpus_row_to_evidence(row: dict[str, Any], idx: int) -> EvidenceCardPayloa
         bg_color=_tile_color_for(idx),
         hook_family=str(row.get("hook_type") or "other"),
         thumbnail_url=thumb or None,
+        breakout_ratio=breakout_val,
         engagement_rate=er_decimal,
+        days_ago=days_ago,
+        tiktok_url=tiktok_u,
     )
 
 

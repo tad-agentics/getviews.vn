@@ -42,7 +42,24 @@ CRITICAL RULES:
 - transitions_per_second: Count total scene boundaries ÷ video duration in seconds.
 - face_appears_at: The FIRST timestamp (in seconds) where a human face is prominently visible. Set to null if no face appears in the entire video.
 - cta: The EXACT verbatim call-to-action text in Vietnamese — spoken in the last ~5 seconds OR shown as a text overlay at the end. Examples: "Lưu lại để áp dụng nha", "Theo dõi mình để xem phần 2", "Comment 'có' nếu bạn muốn", "Link mua ở bio", "Mua ngay tại Shopee Mall". Include the trigger verb. Do NOT paraphrase, do NOT summarize, do NOT translate to English. If no CTA is present (the video ends without any explicit ask), set to null. A product mention without an action verb is NOT a CTA. A bare URL or @ handle without a verb is NOT a CTA.
-- content_direction.what_works: Name the specific STRUCTURAL element making this video effective — e.g. "face in first frame + question hook + 3s scene cuts". NOT generic praise like "good visuals" or "engaging content"."""
+- content_direction.what_works: Name the specific STRUCTURAL element making this video effective — e.g. "face in first frame + question hook + 3s scene cuts". NOT generic praise like "good visuals" or "engaging content".
+- target_audience: ONE concise Vietnamese phrase describing who this video is made for.
+  Examples: "nam giới quan tâm đến tập gym", "mẹ bỉm sữa 25-35 tuổi", "creator beauty mới bắt đầu".
+  Do NOT use generic terms like "mọi người" or "TikTok users". Be specific.
+- pain_points: List of 1-3 psychological triggers this video exploits. Each is a short
+  Vietnamese noun phrase. Examples: ["lo lắng về da mặt", "muốn tiết kiệm chi phí", "sợ bỏ lỡ xu hướng"].
+  Empty list [] if the video has no clear pain-point hook.
+- promotion_type: One of "organic" (no brand deal, creator's own content),
+  "brand_deal" (paid partnership — look for #ad, #sponsored, brand watermark, product CTA),
+  "affiliate" (product link in bio/caption with commission angle),
+  "self_promotion" (creator promoting their own product/course/service).
+  Default to "organic" when unclear.
+- style_tags: List of 2-5 production style descriptors. Choose from:
+  "text_overlay_heavy", "talking_head", "voiceover_only", "b_roll_heavy",
+  "fast_cuts", "slow_reveal", "meme_format", "before_after", "reaction",
+  "duet_stitch", "green_screen", "product_showcase", "lifestyle_b_roll",
+  "educational_slides", "trending_audio".
+  Pick only tags that are clearly visible. Do NOT guess."""
 
 CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts before this text). Return ONLY JSON matching the schema — no markdown.
 

@@ -10,6 +10,10 @@ def test_video_analysis_has_hook_analysis_not_hook_slide() -> None:
     props = schema.get("properties", {})
     assert "hook_analysis" in props
     assert "hook_slide" not in props
+    assert "target_audience" in props
+    assert "pain_points" in props
+    assert "promotion_type" in props
+    assert "style_tags" in props
 
 
 def test_carousel_analysis_uses_slides_not_story_arc() -> None:

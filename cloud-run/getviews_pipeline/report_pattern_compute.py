@@ -25,6 +25,30 @@ logger = logging.getLogger(__name__)
 _TILE_COLORS = ("#D9EB9A", "#E8E4DC", "#C5F0E8", "#F5E6C8", "#1F2A3B", "#2A2438")
 
 
+def _evidence_card_extras(row: dict[str, Any]) -> tuple[float | None, int | None, str | None]:
+    """Breakout for evidence strip (prefers ``breakout_ratio``), days since index, TikTok URL."""
+    _br = row.get("breakout_ratio") or row.get("breakout_multiplier")
+    breakout_val: float | None = None
+    if _br is not None and _br != "":
+        try:
+            breakout_val = round(float(_br), 1)
+        except (TypeError, ValueError):
+            breakout_val = None
+    raw_ts = row.get("indexed_at") or row.get("created_at")
+    days_ago: int | None = None
+    if raw_ts:
+        try:
+            d = datetime.fromisoformat(str(raw_ts).replace("Z", "+00:00"))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=timezone.utc)
+            delta = datetime.now(timezone.utc) - d.astimezone(timezone.utc)
+            days_ago = max(0, delta.days)
+        except Exception:
+            days_ago = None
+    tu = str(row.get("tiktok_url") or "").strip() or None
+    return breakout_val, days_ago, tu
+
+
 def _pattern_label(hook_type: str) -> str:
     key = (hook_type or "").strip().lower().replace("-", "_")
     return HOOK_TYPE_PATTERN_VI.get(key, hook_type.replace("_", " ").title() or "Hook")
@@ -281,6 +305,7 @@ def pick_evidence_videos(
         bg = _TILE_COLORS[i % len(_TILE_COLORS)]
         i += 1
         thumb_raw = str(row.get("thumbnail_url") or "").strip()
+        breakout_val, days_ago, tiktok_u = _evidence_card_extras(row)
         out.append(
             EvidenceCardPayload(
                 video_id=vid,
@@ -292,7 +317,10 @@ def pick_evidence_videos(
                 bg_color=bg,
                 hook_family=_pattern_label(str(row.get("hook_type") or "")),
                 thumbnail_url=thumb_raw or None,
+                breakout_ratio=breakout_val,
                 engagement_rate=er_decimal,
+                days_ago=days_ago,
+                tiktok_url=tiktok_u,
             )
         )
         if len(out) >= limit:
@@ -572,7 +600,8 @@ def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500)
             sb.table("video_corpus")
             .select(
                 "video_id, creator_handle, views, hook_type, indexed_at, created_at, "
-                "engagement_rate, video_duration, analysis_json, caption, transcript_snippet, thumbnail_url"
+                "engagement_rate, video_duration, analysis_json, caption, transcript_snippet, "
+                "thumbnail_url, tiktok_url, breakout_multiplier, breakout_ratio"
             )
             .eq("niche_id", niche_id)
             .gte("indexed_at", cutoff)

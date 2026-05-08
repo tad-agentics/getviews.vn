@@ -211,6 +211,9 @@ class ContentDirection(BaseModel):
     suggested_angles: list[str]
 
 
+PromotionType = Literal["organic", "brand_deal", "affiliate", "self_promotion"]
+
+
 class VideoAnalysis(BaseModel):
     hook_analysis: HookAnalysis
     text_overlays: list[TextOverlay] = Field(default_factory=list)
@@ -224,6 +227,22 @@ class VideoAnalysis(BaseModel):
     key_messages: list[str] = Field(default_factory=list)
     cta: str | None = None
     content_direction: ContentDirection
+    target_audience: str = ""
+    pain_points: list[str] = Field(default_factory=list)
+    promotion_type: PromotionType = "organic"
+    style_tags: list[str] = Field(default_factory=list)
+
+    @field_validator("promotion_type", mode="before")
+    @classmethod
+    def normalize_promotion_type(cls, v: object) -> object:
+        if v is None or v == "":
+            return "organic"
+        if not isinstance(v, str):
+            return v
+        s = v.strip().lower()
+        if s in ("organic", "brand_deal", "affiliate", "self_promotion"):
+            return s
+        return "organic"
 
 
 class SlideAnalysis(BaseModel):

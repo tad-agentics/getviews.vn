@@ -34,6 +34,7 @@ import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
 import type {
+  CreatorComparison,
   FlopHeadline,
   VideoAnalyzeMeta,
   VideoAnalyzeMode,
@@ -58,6 +59,69 @@ function stringifyAnalysisHeadline(h: string | FlopHeadline | null | undefined):
   if (h == null) return "";
   if (typeof h === "string") return h;
   return `${h.prefix}${h.view_accent}${h.middle}${sanitizePredictionPos(h.prediction_pos)}${h.suffix}`;
+}
+
+function CreatorComparisonCard({ data }: { data: CreatorComparison }) {
+  const fmtViews = (v: number) =>
+    v >= 1_000_000
+      ? `${(v / 1_000_000).toFixed(1)}M`
+      : v >= 1_000
+        ? `${Math.round(v / 1_000)}K`
+        : v.toLocaleString("vi-VN");
+
+  return (
+    <div className="mt-6 rounded-xl border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] p-4">
+      <p className="gv-mono mb-3 text-[10px] uppercase tracking-wider text-[var(--gv-ink-3)]">
+        SO SÁNH TRONG KÊNH · {data.creator_handle}
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <a
+          href={data.hit.tiktok_url ?? "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col gap-1 rounded-lg border border-[var(--gv-pos)] bg-[var(--gv-canvas)] p-3 no-underline"
+        >
+          <span className="gv-mono text-[9px] uppercase tracking-wider text-[var(--gv-pos)]">
+            Video đỉnh
+          </span>
+          <span className="gv-mono text-[22px] font-bold leading-none text-[var(--gv-ink)]">
+            {fmtViews(data.hit.views)}
+          </span>
+          <span className="text-[10px] text-[var(--gv-ink-3)]">lượt xem</span>
+        </a>
+
+        <a
+          href={data.flop.tiktok_url ?? "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col gap-1 rounded-lg border border-[var(--gv-rule)] bg-[var(--gv-canvas)] p-3 no-underline"
+        >
+          <span className="gv-mono text-[9px] uppercase tracking-wider text-[var(--gv-ink-3)]">
+            Video thấp nhất
+          </span>
+          <span className="gv-mono text-[22px] font-bold leading-none text-[var(--gv-ink)]">
+            {fmtViews(data.flop.views)}
+          </span>
+          <span className="text-[10px] text-[var(--gv-ink-3)]">lượt xem</span>
+        </a>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between rounded-lg bg-[var(--gv-canvas)] px-3 py-2.5">
+        <span className="text-[12px] text-[var(--gv-ink-2)]">Video đỉnh vượt video thấp nhất</span>
+        <span className="gv-mono text-[13px] font-bold text-[var(--gv-ink)]">
+          {data.delta.toLocaleString("vi-VN")}×
+        </span>
+      </div>
+
+      <p className="mt-2 text-[11px] text-[var(--gv-ink-3)]">
+        Video này đang ở{" "}
+        <span className="font-medium text-[var(--gv-ink)]">{data.target_percentile}</span> so với{" "}
+        <span className="font-medium text-[var(--gv-ink)]">{data.total_posts_analyzed} video</span> gần
+        nhất của {data.creator_handle} (median: {fmtViews(data.median_views)} views).
+      </p>
+    </div>
+  );
 }
 
 function formatSaveRatePct(meta: VideoAnalyzeMeta): string {
@@ -364,6 +428,10 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
         ) : null}
 
         <KpiGrid kpis={report.kpis} />
+
+        {report.creator_comparison ? (
+          <CreatorComparisonCard data={report.creator_comparison} />
+        ) : null}
 
         <RetentionCurve
           durationSec={duration}
