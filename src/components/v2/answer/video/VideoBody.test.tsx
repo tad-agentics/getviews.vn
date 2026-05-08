@@ -284,8 +284,19 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/12 video/)).toBeTruthy();
   });
 
-  it("omits CreatorComparisonCard when creator_comparison is null", () => {
+  it("renders soft fallback when creator_comparison is null but creator is known", () => {
     renderInRouter(makeFlopReport({ creator_comparison: null }));
+    // Header still appears via the unavailable card.
+    expect(screen.getByText(/SO SÁNH TRONG KÊNH/)).toBeTruthy();
+    expect(screen.getByText(/Chưa đủ video gần nhất của creator/)).toBeTruthy();
+  });
+
+  it("omits any creator-comparison block when both comparison and creator are missing", () => {
+    const withoutCreator = makeFlopReport({
+      creator_comparison: null,
+      meta: { ...makeFlopReport().meta, creator: "" },
+    });
+    renderInRouter(withoutCreator);
     expect(screen.queryByText(/SO SÁNH TRONG KÊNH/)).toBeNull();
   });
 

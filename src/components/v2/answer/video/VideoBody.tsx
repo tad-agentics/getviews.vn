@@ -61,6 +61,29 @@ function stringifyAnalysisHeadline(h: string | FlopHeadline | null | undefined):
   return `${h.prefix}${h.view_accent}${h.middle}${sanitizePredictionPos(h.prediction_pos)}${h.suffix}`;
 }
 
+/**
+ * Soft fallback rendered when the BE knows the creator handle but
+ * couldn't build a hit/flop comparison (creator has insufficient
+ * post history, EnsembleData returned only zero-view fresh posts,
+ * etc.). Replaces the previous silent omission so the user sees
+ * "we tried but couldn't" rather than the card vanishing.
+ */
+function CreatorComparisonUnavailable({ creator }: { creator: string }) {
+  const at = creator.startsWith("@") ? creator : `@${creator}`;
+  return (
+    <div className="mt-6 rounded-xl border border-dashed border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] p-4 text-[12.5px] text-[var(--gv-ink-3)]">
+      <p className="gv-mono mb-1 text-[10px] uppercase tracking-wider text-[var(--gv-ink-3)]">
+        SO SÁNH TRONG KÊNH · {at}
+      </p>
+      <p className="m-0 leading-relaxed">
+        Chưa đủ video gần nhất của creator để so sánh hit/flop.
+        {" "}Cần tối thiểu 2 video có lượng view rõ ràng để dựng được
+        cặp đối chiếu.
+      </p>
+    </div>
+  );
+}
+
 function CreatorComparisonCard({ data }: { data: CreatorComparison }) {
   const fmtViews = (v: number) =>
     v >= 1_000_000
@@ -437,6 +460,8 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
 
         {report.creator_comparison ? (
           <CreatorComparisonCard data={report.creator_comparison} />
+        ) : report.meta?.creator ? (
+          <CreatorComparisonUnavailable creator={report.meta.creator} />
         ) : null}
 
         <RetentionCurve
