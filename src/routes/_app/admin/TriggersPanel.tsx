@@ -39,6 +39,32 @@ function parseCsvInts(raw: string): number[] | null {
   return nums.length > 0 ? nums : null;
 }
 
+/** PostgREST errors often reach the UI as Python dict repr or JSON. */
+function formatAdminTriggerError(raw: string): { summary: string; hint: string | null } {
+  let summary = raw.trim();
+  const pyMsg = /'message':\s*'((?:[^'\\]|\\.)*)'/.exec(summary);
+  if (pyMsg?.[1]) {
+    summary = pyMsg[1].replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+  } else {
+    try {
+      const j = JSON.parse(summary) as { message?: unknown };
+      if (typeof j.message === "string") summary = j.message;
+    } catch {
+      /* keep */
+    }
+  }
+
+  let hint: string | null = null;
+  if (
+    summary.includes("profiles.primary_niche") &&
+    summary.includes("does not exist")
+  ) {
+    hint =
+      "Cột legacy đã xóa (PR6). Trên Postgres: áp dụng migration 20260630000002 và 20260701000001, hoặc chạy DROP TRIGGER IF EXISTS trg_profiles_sync_primary_niche_from_niche_ids ON public.profiles; DROP FUNCTION IF EXISTS public.sync_profile_primary_niche_from_niche_ids() CASCADE; (và DROP trigger/function invalidate_creator_velocity nếu còn). Kiểm tra Cloud Run GET …/health — morning_ritual_profile_select phải là id,creator_niche_id,reference_channel_handles; nếu không, redeploy service batch.";
+  }
+  return { summary, hint };
+}
+
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <span className="gv-uc text-[10px] font-semibold text-[color:var(--gv-ink-4)]">
@@ -217,6 +243,8 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
   };
 
   const hasParams = Object.keys(job.body_schema).length > 0;
+  const errorFormatted =
+    dialog.kind === "error" ? formatAdminTriggerError(dialog.message) : null;
 
   return (
     <article className="flex flex-col gap-3 rounded-[var(--gv-radius-lg)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
@@ -283,16 +311,23 @@ function JobRow({ job }: { job: AdminTriggerJob }) {
         <ResultBlock result={dialog.result} onClose={() => setDialog({ kind: "closed" })} />
       ) : null}
 
-      {dialog.kind === "error" ? (
-        <div className="flex items-center justify-between gap-3 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
-          <p className="gv-mono text-[12px] text-[color:var(--gv-danger)]">
-            Lỗi · {dialog.message}
-          </p>
-          <Btn variant="ghost" size="sm" onClick={() => setDialog({ kind: "closed" })}>
-            Đóng
-          </Btn>
-        </div>
-      ) : null}
+      {errorFormatted ? (
+          <div className="flex flex-col gap-2 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 gv-mono text-[12px] text-[color:var(--gv-danger)]">
+                Lỗi · {errorFormatted.summary}
+              </p>
+              <Btn variant="ghost" size="sm" onClick={() => setDialog({ kind: "closed" })}>
+                Đóng
+              </Btn>
+            </div>
+            {errorFormatted.hint ? (
+              <p className="text-[12px] leading-relaxed text-[color:var(--gv-ink-3)]">
+                {errorFormatted.hint}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
     </article>
   );
 }
