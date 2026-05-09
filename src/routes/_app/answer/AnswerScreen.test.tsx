@@ -114,7 +114,6 @@ vi.mock("@/components/v2/answer/FollowUpComposer", () => ({
 }));
 vi.mock("@/components/v2/answer/ResearchStrip", () => ({
   LivePipelineStrip: () => null,
-  MiniResearchStrip: () => null,
   useResearchStage: () => 0,
 }));
 vi.mock("@/components/v2/answer/TimelineRail", () => ({
