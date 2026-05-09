@@ -259,7 +259,8 @@ def build_ideas_report(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_tool_complete
 
-        emit(step_queue, step_tool_complete(1, 1, len(ranked), [], tool="corpus"))
+        ranked_thumbs = [u for r in corpus[:5] if (u := r.get("thumbnail_url") or r.get("thumbnail") or "")]
+        emit(step_queue, step_tool_complete(1, 1, len(ranked), ranked_thumbs, tool="corpus"))
 
     if niche_id <= 0 or sample_n < 60 or len(ranked) < 3:
         if step_queue is not None:
@@ -326,10 +327,11 @@ def build_ideas_report(
         live_context = format_live_awemes_for_prompt(live_awemes[:20])
 
     if step_queue is not None:
-        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+        from getviews_pipeline.step_events import INTENT_STEP_LABELS, emit, step_process, step_status, step_tool_start
 
         emit(step_queue, step_status(3, "Đang tạo ý tưởng dựa trên corpus..."))
         emit(step_queue, step_tool_start("Gemini tổng hợp ý tưởng", 3, 0, tool="synthesis"))
+        emit(step_queue, step_process(INTENT_STEP_LABELS["ideas"][2]))
 
     top_idea_hooks = [b.hook for b in ideas_blocks[:5] if getattr(b, "hook", None)]
     narrative = fill_ideas_narrative(
@@ -381,7 +383,8 @@ def build_ideas_report(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_done, step_tool_complete
 
-        emit(step_queue, step_tool_complete(3, 0, len(ideas_blocks), [], tool="synthesis"))
+        ideas_thumbs = [u for r in corpus[:5] if (u := r.get("thumbnail_url") or r.get("thumbnail") or "")]
+        emit(step_queue, step_tool_complete(3, 0, len(ideas_blocks), ideas_thumbs, tool="synthesis"))
         emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 

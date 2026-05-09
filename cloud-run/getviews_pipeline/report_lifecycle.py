@@ -441,7 +441,8 @@ def build_lifecycle_report(
             return
         from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
 
-        emit(step_queue, step_tool_complete(1, 1, second_card_found, [], tool="corpus"))
+        thin_thumbs = [u for r in corpus[:5] if (u := r.get("thumbnail_url") or r.get("thumbnail") or "")]
+        emit(step_queue, step_tool_complete(1, 1, second_card_found, thin_thumbs, tool="corpus"))
         emit(step_queue, step_status(2, "Đang tổng hợp lifecycle..."))
         emit(step_queue, step_tool_start("Gemini lifecycle", 2, 0, tool="synthesis"))
         emit(step_queue, step_tool_complete(2, 0, 0, [], tool="synthesis"))
@@ -488,7 +489,8 @@ def build_lifecycle_report(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_tool_complete
 
-        emit(step_queue, step_tool_complete(1, 1, len(cells_raw), [], tool="corpus"))
+        cells_thumbs = [u for r in corpus[:5] if (u := r.get("thumbnail_url") or r.get("thumbnail") or "")]
+        emit(step_queue, step_tool_complete(1, 1, len(cells_raw), cells_thumbs, tool="corpus"))
 
     clean_cells = strip_internal_fields(cells_raw)
     has_weak_cell = any(c.get("stage") in ("declining", "plateau") for c in clean_cells)
@@ -496,10 +498,11 @@ def build_lifecycle_report(
     from getviews_pipeline.report_lifecycle_gemini import fill_lifecycle_narrative
 
     if step_queue is not None:
-        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+        from getviews_pipeline.step_events import INTENT_STEP_LABELS, emit, step_process, step_status, step_tool_start
 
         emit(step_queue, step_status(2, "Đang tổng hợp insight lifecycle..."))
         emit(step_queue, step_tool_start("Gemini lifecycle", 2, 0, tool="synthesis"))
+        emit(step_queue, step_process(INTENT_STEP_LABELS["lifecycle"][2]))
 
     narrative = fill_lifecycle_narrative(
         query=query,
@@ -550,7 +553,8 @@ def build_lifecycle_report(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_done, step_tool_complete
 
-        emit(step_queue, step_tool_complete(2, 0, len(lifecycle_cells), [], tool="synthesis"))
+        synth_thumbs = [u for r in corpus[:5] if (u := r.get("thumbnail_url") or r.get("thumbnail") or "")]
+        emit(step_queue, step_tool_complete(2, 0, len(lifecycle_cells), synth_thumbs, tool="synthesis"))
         emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 

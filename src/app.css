@@ -576,42 +576,6 @@
   50%      { opacity: 0.4; transform: scale(0.82); }
 }
 
-/* Answer route — indeterminate bar while Cloud Run streams ReportV1 */
-@keyframes gv-answer-bar-sweep {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(400%);
-  }
-}
-.gv-answer-loading-track {
-  position: relative;
-  height: 0.375rem;
-  max-width: 20rem;
-  margin-inline: auto;
-  margin-top: 1.5rem;
-  overflow: hidden;
-  border-radius: 9999px;
-  background-color: var(--gv-rule);
-}
-.gv-answer-loading-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 38%;
-  border-radius: 9999px;
-  background-color: var(--gv-accent);
-  animation: gv-answer-bar-sweep 1.25s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .gv-answer-loading-bar {
-    animation: none;
-    left: 31%;
-    width: 38%;
-  }
-}
 
 /* Studio Home main column — UIUX ref: max 1320px, padding 36px 28px 80px */
 .gv-home-wrap {

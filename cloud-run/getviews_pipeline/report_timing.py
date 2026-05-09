@@ -331,7 +331,9 @@ def build_timing_report(
         for i, w in enumerate(top_windows[:3])
     ]
     from getviews_pipeline.report_timing_gemini import fill_timing_narrative
+    from getviews_pipeline.step_events import INTENT_STEP_LABELS, emit, step_process
 
+    emit(step_queue, step_process(INTENT_STEP_LABELS["timing"][2]))
     narrative = fill_timing_narrative(
         query=query,
         niche_label=niche_label,
@@ -390,7 +392,8 @@ def build_timing_report(
         from getviews_pipeline.step_events import emit, step_done, step_tool_complete
 
         heat_found = len(top_windows) if top_windows else 0
-        emit(step_queue, step_tool_complete(2, 0, heat_found, [], tool="corpus"))
+        heat_thumbs = [u for r in corpus[:5] if (u := r.get("thumbnail_url") or r.get("thumbnail") or "")]
+        emit(step_queue, step_tool_complete(2, 0, heat_found, heat_thumbs, tool="corpus"))
         emit(step_queue, step_done("Xong — đang hiển thị báo cáo..."))
     return payload.model_dump()
 

@@ -290,6 +290,7 @@ export function LivePipelineStrip({
   stage,
   videoCount,
   channelCount,
+  heartbeatElapsedSec,
 }: {
   steps: StepEvent[];
   done: boolean;
@@ -297,6 +298,8 @@ export function LivePipelineStrip({
   stage?: number;
   videoCount?: number | null;
   channelCount?: number | null;
+  /** Seconds elapsed since last real step event, derived from backend heartbeat pings. */
+  heartbeatElapsedSec?: number;
 }) {
   if (steps.length === 0 && loading) {
     return (
@@ -452,6 +455,13 @@ export function LivePipelineStrip({
           Đang tổng hợp báo cáo…
         </div>
       )}
+
+      {loading && !done && errorEvents.length === 0 && heartbeatElapsedSec && heartbeatElapsedSec > 0 ? (
+        <div className="mt-2 flex items-center gap-1.5 font-mono text-[11px] text-[var(--gv-ink-4)]">
+          <span className="h-1 w-1 animate-pulse rounded-full bg-[var(--gv-ink-4)]" />
+          Vẫn đang xử lý · {heartbeatElapsedSec}s…
+        </div>
+      ) : null}
 
       {done && errorEvents.length === 0 && (
         <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-[var(--gv-pos)]">

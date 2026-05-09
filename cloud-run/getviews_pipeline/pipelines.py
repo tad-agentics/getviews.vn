@@ -62,6 +62,7 @@ from getviews_pipeline.step_events import (
     emit,
     emit_pipeline_error,
     emit_sentinel,
+    label_for_corpus_query,
     step_count,
     step_creator,
     step_done,
@@ -445,7 +446,7 @@ async def run_content_directions(
     try:
         sem = get_analysis_semaphore()
         emit(step_queue, step_start(f"Đang tìm hướng nội dung cho '{niche}'..."))
-        emit(step_queue, step_search("corpus", niche))
+        emit(step_queue, step_search("corpus", label_for_corpus_query(niche)))
         fa: dict[str, Any] = session.setdefault("full_analyses", {})
         cached_ids = set(fa.keys())
 
@@ -462,7 +463,7 @@ async def run_content_directions(
                 "[content_directions] corpus pool too small (%d) for niche '%s', using live search (source=%s)",
                 len(corpus_pool), niche, corpus_source,
             )
-            emit(step_queue, step_search("ensemble", niche))
+            emit(step_queue, step_search("ensemble", label_for_corpus_query(niche)))
             pool = await _niche_aweme_pool(niche, period=30)
             picks = select_reference_videos(
                 pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
@@ -603,7 +604,7 @@ async def run_trend_spike(
     try:
         sem = get_analysis_semaphore()
         emit(step_queue, step_start(f"Đang tìm xu hướng '{niche}'..."))
-        emit(step_queue, step_search("corpus", niche))
+        emit(step_queue, step_search("corpus", label_for_corpus_query(niche, window_days=7)))
         fa = session.setdefault("full_analyses", {})
         cached_ids = set(fa.keys())
 
@@ -621,7 +622,7 @@ async def run_trend_spike(
                 "[trend_spike] corpus pool too small (%d) for niche '%s' (7d), using live search (source=%s)",
                 len(corpus_pool), niche, corpus_source,
             )
-            emit(step_queue, step_search("ensemble", niche))
+            emit(step_queue, step_search("ensemble", label_for_corpus_query(niche, window_days=7)))
             pool = await _niche_aweme_pool(niche, period=7)
             picks = select_reference_videos(
                 pool, recency_days=7, n=REF_N, cached_ids=cached_ids, rank_by="velocity"
@@ -672,7 +673,7 @@ async def run_trend_spike(
         )
 
         # Enrich with real breakout + signal data (P1-7 + P1-8)
-        emit(step_queue, step_search("corpus", f"breakout videos {niche}"))
+        emit(step_queue, step_search("corpus", label_for_corpus_query(niche, window_days=7)))
 
         breakout_task = get_top_breakout_videos(niche_id, days=7, limit=10)
         signal_task = (
@@ -882,7 +883,7 @@ async def run_brief_generation(
 ) -> dict[str, Any]:
     try:
         emit(step_queue, step_start("Đang chuẩn bị brief quay phim..."))
-        emit(step_queue, step_search("corpus", niche or topic))
+        emit(step_queue, step_search("corpus", label_for_corpus_query(niche or topic or "ngách")))
         niche_id = await resolve_niche_id_cached(session, niche)
         count, niche_name = await get_corpus_count_cached(
             session, niche_id=niche_id, days=30, niche_name=niche
@@ -949,7 +950,7 @@ async def run_shot_list(
     """Generate a structured shot-by-shot production list for a video topic."""
     try:
         emit(step_queue, step_start("Đang tạo danh sách cảnh quay..."))
-        emit(step_queue, step_search("corpus", niche or topic))
+        emit(step_queue, step_search("corpus", label_for_corpus_query(niche or topic or "ngách")))
         niche_id = await resolve_niche_id_cached(session, niche)
         count, niche_name = await get_corpus_count_cached(
             session, niche_id=niche_id, days=30, niche_name=niche
@@ -1134,7 +1135,7 @@ async def run_video_diagnosis(
             niche = infer_niche_from_hashtags(meta.hashtags, meta.description)
 
     logger.info("[video_diagnosis] niche resolved=%s hashtags=%s", niche, meta.hashtags[:5])
-    emit(step_queue, step_search("corpus", f"video tương tự trong niche {niche}"))
+    emit(step_queue, step_search("corpus", label_for_corpus_query(niche)))
     uid = str(user_aweme.get("aweme_id", "") or "")
     cached_ids = set(fa.keys())
     if uid:

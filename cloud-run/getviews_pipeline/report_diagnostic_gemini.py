@@ -130,6 +130,104 @@ def fill_diagnostic_narrative(
         return _unclear_fallback(query=query_clean, niche_label=niche_label)
 
 
+# AQ-8 ── Post-synthesis validation ─────────────────────────────────────────
+
+# Phrases that indicate the model hallucinated specific video metrics it
+# could not have known (no video URL provided). The check is intentionally
+# narrow to avoid false positives on legitimately grounded findings.
+_HALLUCI_SIGNALS = [
+    r"\d+[\s\u00a0]*(lượt xem|lượt thích|bình luận|share|view)",
+    r"đạt\s*\d+",
+    r"video của bạn (có|đạt|đạt được|nhận được)",
+    r"tôi (đã|đã) (xem|phân tích|xem xét) video",
+    r"(xem|phân tích) video (của bạn|này)",
+]
+
+_SAFE_FINDING_PLACEHOLDER = "Cần xem video thực để đánh giá chính xác hạng mục này."
+
+
+def validate_diagnostic_narrative(
+    narrative: dict,
+    *,
+    query: str,
+    niche_label: str,
+) -> dict:
+    """AQ-8 validation gate: detect hallucinated specifics in narrative findings.
+
+    Uses gemini-3.1-flash-lite-preview (low cost, < 50 tokens output) to check
+    whether any finding contains metrics the model could not have known without
+    seeing the video.
+
+    Returns:
+        ``{"is_valid": True}``
+        ``{"is_valid": False, "invalid_category_idx": int, "reason": str}``
+
+    Always returns ``{"is_valid": True}`` on any error so the caller never
+    blocks the report on validation failures.
+    """
+    import re
+
+    # Cheap regex pre-check — skip the Gemini call when no suspicious pattern
+    # is present (saves budget when the primary prompt is working correctly).
+    all_findings = " ".join(
+        str(c.get("finding") or "") for c in (narrative.get("categories") or [])
+    ) + " " + str(narrative.get("framing") or "")
+
+    if not any(re.search(pat, all_findings, re.IGNORECASE) for pat in _HALLUCI_SIGNALS):
+        return {"is_valid": True}
+
+    # Gemini confirmation call — only runs when regex flags a candidate.
+    try:
+        from getviews_pipeline.config import GEMINI_API_KEY, GEMINI_INTENT_MODEL, GEMINI_KNOWLEDGE_FALLBACKS
+
+        if not GEMINI_API_KEY:
+            return {"is_valid": True}
+
+        from google.genai import types
+
+        from getviews_pipeline.gemini import _generate_content_models, _response_text
+
+        # Compose compact text for the validator.
+        categories_text = "\n".join(
+            f"{i + 1}. {c.get('name', '')}: {c.get('finding', '')}"
+            for i, c in enumerate(narrative.get("categories") or [])
+        )
+        validation_prompt = (
+            f"Đây là chẩn đoán URL-less (không có video thực) cho niche [{niche_label}].\n"
+            "Kiểm tra: có finding nào chứa số liệu cụ thể về video (lượt xem, lượt thích, tỷ lệ xem) "
+            "mà AI không thể biết vì không có link không?\n"
+            "Nếu có: ghi 'INVALID:<số thứ tự hạng mục>' (ví dụ INVALID:2). "
+            "Nếu không: ghi 'OK'.\n\n"
+            f"Findings:\n{categories_text}"
+        )
+        cfg = types.GenerateContentConfig(temperature=0.0, max_output_tokens=16)
+        resp = _generate_content_models(
+            [validation_prompt],
+            primary_model=GEMINI_INTENT_MODEL,
+            fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
+            config=cfg,
+            call_site="diagnostic_validation",
+        )
+        verdict = (_response_text(resp) or "").strip().upper()
+        logger.info("[diagnostic-validation] verdict=%r query_len=%d", verdict, len(query))
+
+        if verdict.startswith("INVALID"):
+            # Extract category index (1-based from prompt, convert to 0-based).
+            idx_str = verdict.split(":")[-1].strip()
+            try:
+                idx = int(idx_str) - 1
+            except ValueError:
+                idx = 0
+            categories = narrative.get("categories") or []
+            idx = max(0, min(idx, len(categories) - 1))
+            return {"is_valid": False, "invalid_category_idx": idx, "reason": verdict}
+
+    except Exception as exc:
+        logger.info("[diagnostic-validation] skipped: %s", exc)
+
+    return {"is_valid": True}
+
+
 # ── Prompt construction ────────────────────────────────────────────────────
 
 

@@ -552,3 +552,103 @@ describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
     expect(result.to).toContain(`url_b=${encodeURIComponent(URL_A)}`);
   });
 });
+
+// ── AQ-3 — appendTurnKindForQuery keyword coverage ─────────────────────────
+//
+// Regression + gap-fill suite ensuring timing, script/ideas, and generic
+// pass-through buckets each cover the Vietnamese phrasing variants a creator
+// is likely to type as a follow-up. Prior gaps:
+//   • "viết hook" / "viết script" / "tạo script" fell through to "generic"
+//   • "ý tưởng nội dung" fell through to "generic"
+//   • "viết lại hook" / "biến thể hook" (hook_variants) returned "generic"
+//     instead of "script" because appendTurnKindForQuery didn't map them
+//
+// Fixes applied in intent-router.ts:
+//   1. shot_list regex extended with: viết hook, viết script, tạo script, ý tưởng nội dung
+//   2. appendTurnKindForQuery: hook_variants → "script" (creative-output parity)
+
+describe("appendTurnKindForQuery — timing keyword coverage (regression)", () => {
+  it("'đăng giờ nào' → timing", () => {
+    expect(appendTurnKindForQuery("nên đăng giờ nào cho TikTok beauty", true)).toBe("timing");
+  });
+
+  it("'khung giờ vàng' → timing", () => {
+    expect(appendTurnKindForQuery("khung giờ vàng để post video", true)).toBe("timing");
+  });
+
+  it("'lịch đăng' → timing", () => {
+    expect(appendTurnKindForQuery("lịch đăng tuần này nên như nào", true)).toBe("timing");
+  });
+
+  it("'thứ mấy tốt' → timing", () => {
+    expect(appendTurnKindForQuery("thứ mấy tốt để post TikTok", true)).toBe("timing");
+  });
+
+  it("'best time to post' → timing", () => {
+    expect(appendTurnKindForQuery("best time to post trong ngách review", true)).toBe("timing");
+  });
+
+  it("'thời điểm đăng' → timing", () => {
+    expect(appendTurnKindForQuery("thời điểm đăng video nào tốt nhất", true)).toBe("timing");
+  });
+});
+
+describe("appendTurnKindForQuery — script/ideas keyword coverage (gap-fill)", () => {
+  it("'kịch bản' → script (regression)", () => {
+    expect(appendTurnKindForQuery("kịch bản video tutorial trang điểm", true)).toBe("script");
+  });
+
+  it("'danh sách cảnh quay' → script (regression)", () => {
+    expect(appendTurnKindForQuery("danh sách cảnh quay cho video review", true)).toBe("script");
+  });
+
+  it("'viết hook' → script (new coverage)", () => {
+    expect(appendTurnKindForQuery("viết hook cho video beauty", true)).toBe("script");
+  });
+
+  it("'viết script' → script (new coverage)", () => {
+    expect(appendTurnKindForQuery("viết script cho video 30 giây", true)).toBe("script");
+  });
+
+  it("'tạo script' → script (new coverage)", () => {
+    expect(appendTurnKindForQuery("tạo script cho video unboxing", true)).toBe("script");
+  });
+
+  it("'ý tưởng nội dung' → script (new coverage)", () => {
+    expect(appendTurnKindForQuery("ý tưởng nội dung cho ngách skincare", true)).toBe("script");
+  });
+
+  it("'viết lại hook' → script (hook_variants now maps to script)", () => {
+    expect(appendTurnKindForQuery("viết lại hook cho video này", true)).toBe("script");
+  });
+
+  it("'biến thể hook' → script (hook_variants now maps to script)", () => {
+    expect(appendTurnKindForQuery("5 biến thể hook cho video beauty", true)).toBe("script");
+  });
+});
+
+describe("appendTurnKindForQuery — generic pass-through (correct non-routing)", () => {
+  it("'giải thích thêm' → generic", () => {
+    expect(appendTurnKindForQuery("giải thích thêm về pattern này", true)).toBe("generic");
+  });
+
+  it("'tại sao' open question → generic", () => {
+    expect(appendTurnKindForQuery("tại sao hook này không work nhỉ", true)).toBe("generic");
+  });
+
+  it("'so sánh hai kiểu hook' → generic (no URLs, not a compare_videos)", () => {
+    expect(appendTurnKindForQuery("so sánh hai kiểu hook này", true)).toBe("generic");
+  });
+
+  it("'cho mình biết thêm' → generic", () => {
+    expect(appendTurnKindForQuery("cho mình biết thêm", true)).toBe("generic");
+  });
+
+  it("'cụ thể hơn' → generic", () => {
+    expect(appendTurnKindForQuery("cụ thể hơn về video trên đi", true)).toBe("generic");
+  });
+
+  it("'ví dụ cụ thể' → generic", () => {
+    expect(appendTurnKindForQuery("ví dụ cụ thể đi", true)).toBe("generic");
+  });
+});

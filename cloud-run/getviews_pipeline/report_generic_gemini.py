@@ -49,6 +49,7 @@ def fill_generic_narrative(
     niche_label: str | None,
     sample_n: int,
     window_days: int,
+    turn_context: dict | None = None,
 ) -> list[str]:
     """Return 1–2 hedged paragraphs. Empty list on Gemini error or budget
     exceeded — caller supplies deterministic fallback copy.
@@ -83,9 +84,19 @@ def fill_generic_narrative(
         logger.info("[generic-budget] budget check failed: %s", exc)
 
     scope_line = f"niche {niche_label}" if niche_label else "corpus rộng đa ngách"
+
+    # AQ-9 — inject primary turn context so Gemini can reference concrete
+    # hook findings when answering the follow-up question.
+    primary_ctx_line = ""
+    if turn_context:
+        hooks = [str(h) for h in (turn_context.get("top_hook_types") or []) if h][:3]
+        if hooks:
+            primary_ctx_line = f"PRIMARY ANALYSIS: Top hooks — {', '.join(hooks)}.\n"
+
     prompt = (
         f"{_SYSTEM_HEDGE}\n\n"
         f"USER QUERY: {query[:200]}\n"
+        f"{primary_ctx_line}"
         f"CONTEXT: {sample_n} video trong {scope_line}, {window_days} ngày qua.\n"
         "Viết tiếng Việt tự nhiên, không có emoji, không dùng 'Chào bạn'."
     )

@@ -90,6 +90,8 @@ export interface StreamState<TPayload = unknown> {
   error: string | null;
   finalPayload: TPayload | null;
   steps: StepEvent[];
+  /** Number of backend heartbeat pings received. Multiply × 10 to get elapsed seconds. */
+  heartbeatCount: number;
 }
 
 export interface StreamOptions<TPayload = unknown> {
@@ -155,6 +157,7 @@ export function useSessionStream<TPayload = unknown>(
     error: null,
     finalPayload: null,
     steps: [],
+    heartbeatCount: 0,
   });
 
   const stream = useCallback(
@@ -171,6 +174,7 @@ export function useSessionStream<TPayload = unknown>(
         error: null,
         finalPayload: null,
         steps: [],
+        heartbeatCount: 0,
       });
 
       try {
@@ -424,7 +428,7 @@ export function useSessionStream<TPayload = unknown>(
 
   const abort = useCallback(() => {
     abortRef.current?.abort();
-    setState((s) => ({ ...s, status: "idle", steps: [] }));
+    setState((s) => ({ ...s, status: "idle", steps: [], heartbeatCount: 0 }));
   }, []);
 
   const reset = useCallback(() => {
@@ -436,10 +440,13 @@ export function useSessionStream<TPayload = unknown>(
       error: null,
       finalPayload: null,
       steps: [],
+      heartbeatCount: 0,
     });
   }, []);
 
-  return { ...state, stream, abort, reset };
+  const heartbeatElapsedSec = state.heartbeatCount * 10;
+
+  return { ...state, heartbeatElapsedSec, stream, abort, reset };
 }
 
 type SetState<T> = Dispatch<SetStateAction<StreamState<T>>>;
@@ -510,6 +517,7 @@ async function consumeAnswerSse<TPayload>(
           done?: boolean;
           error?: string;
           payload?: TPayload;
+          heartbeat?: boolean;
         };
         if (token.type !== undefined && STEP_EVENT_TYPES.has(token.type)) {
           setState((s) => ({
@@ -517,6 +525,11 @@ async function consumeAnswerSse<TPayload>(
             steps: [...s.steps, token as StepEvent],
           }));
           continue;
+        }
+        // Backend heartbeat ping — emitted every 10s to keep SSE alive.
+        // Increment counter so the UI can show "Vẫn đang xử lý · Ns…".
+        if (token.heartbeat === true) {
+          setState((s) => ({ ...s, heartbeatCount: s.heartbeatCount + 1 }));
         }
         if (token.stream_id) lastStreamId = token.stream_id;
         if (typeof token.seq === "number") lastSeq = token.seq;

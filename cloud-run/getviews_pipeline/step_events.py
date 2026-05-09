@@ -161,6 +161,68 @@ def step_error(
 # Emit helper — safe fire-and-forget into queue (never blocks the pipeline)
 # ---------------------------------------------------------------------------
 
+def label_for_corpus_query(
+    niche_name: str,
+    hook_type_vi: str | None = None,
+    window_days: int = 30,
+) -> str:
+    """Build a Vietnamese query label for step_search events.
+
+    Centralises the string so all corpus-search calls show consistent
+    Vietnamese copy rather than raw internal filter strings like
+    ``"niche_id=12, hook_type=bold_claim"``.
+
+    Examples:
+        label_for_corpus_query("Beauty", window_days=14)
+        → "Đang tìm: video Beauty, 14 ngày qua"
+        label_for_corpus_query("Food", "Câu hỏi tạo tò mò", 30)
+        → "Đang tìm: video Food, hook Câu hỏi tạo tò mò, 30 ngày qua"
+    """
+    parts = [f"video {niche_name}"]
+    if hook_type_vi:
+        parts.append(f"hook {hook_type_vi}")
+    parts.append(f"{window_days} ngày qua")
+    return "Đang tìm: " + ", ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Intent-specific step labels (UX-4 — contextual progress copy per intent)
+# ---------------------------------------------------------------------------
+
+INTENT_STEP_LABELS: dict[str, list[str]] = {
+    "trend_spike": [
+        "Đang quét video viral tuần này…",
+        "Đang xếp hạng hook theo lượt xem…",
+        "Đang tổng hợp pattern…",
+    ],
+    "video_diagnosis": [
+        "Đang tải phân tích video…",
+        "Đang so sánh với benchmark ngách…",
+        "Đang viết chẩn đoán…",
+    ],
+    "timing": [
+        "Đang phân tích 90 ngày dữ liệu đăng bài…",
+        "Đang tính khung giờ đỉnh điểm…",
+        "Đang tạo lịch đăng…",
+    ],
+    "hook_variants": [
+        "Đang tìm video hook mẫu trong ngách…",
+        "Đang chọn lọc 5 loại hook khác nhau…",
+        "Đang viết 5 phiên bản hook…",
+    ],
+    "lifecycle": [
+        "Đang quét corpus lifecycle ngách…",
+        "Đang phân tích format theo giai đoạn vòng đời…",
+        "Đang tổng hợp insight lifecycle…",
+    ],
+    "ideas": [
+        "Đang tìm video mẫu ngách…",
+        "Đang xếp hạng hook hiệu quả…",
+        "Đang tạo ý tưởng content…",
+    ],
+}
+
+
 def emit(queue: asyncio.Queue | None, event: dict[str, Any]) -> None:
     """Put an event onto the step queue. No-op when queue is None.
 

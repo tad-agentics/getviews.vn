@@ -26,14 +26,13 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
-import { Plus, Check, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import {
   LivePipelineStrip,
-  MiniResearchStrip,
   useResearchStage,
 } from "@/components/v2/answer/ResearchStrip";
 import { TimelineRail } from "@/components/v2/answer/TimelineRail";
@@ -116,7 +115,7 @@ export default function AnswerScreen() {
   const uid = user?.id;
   const detailQuery = useAnswerSessionDetail(sessionId, uid);
 
-  const { stream, status: streamStatus, steps } = useSessionStream<ReportV1>({
+  const { stream, status: streamStatus, steps, heartbeatElapsedSec } = useSessionStream<ReportV1>({
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
 
@@ -570,8 +569,8 @@ export default function AnswerScreen() {
                   channelCount={
                     surfaceStats && surfaceStats.channelRows > 0 ? surfaceStats.channelRows : null
                   }
+                  heartbeatElapsedSec={heartbeatElapsedSec}
                 />
-                <MiniResearchStrip active={loading} />
               </header>
             ) : (
               <header className="border-b border-[color:var(--gv-rule)] pb-8">
@@ -589,21 +588,19 @@ export default function AnswerScreen() {
                   {emptyStateHeroQuestion}
                 </h1>
                 {bootstrapLoading && seedQ.trim() ? (
-                  <>
-                    <LivePipelineStrip
-                      steps={steps}
-                      done={false}
-                      loading={loading}
-                      stage={researchStage}
-                      videoCount={surfaceStats?.sampleVideos}
-                      channelCount={
-                        surfaceStats && surfaceStats.channelRows > 0
-                          ? surfaceStats.channelRows
-                          : null
-                      }
-                    />
-                    <MiniResearchStrip active={loading} />
-                  </>
+                  <LivePipelineStrip
+                    steps={steps}
+                    done={false}
+                    loading={loading}
+                    stage={researchStage}
+                    videoCount={surfaceStats?.sampleVideos}
+                    channelCount={
+                      surfaceStats && surfaceStats.channelRows > 0
+                        ? surfaceStats.channelRows
+                        : null
+                    }
+                    heartbeatElapsedSec={heartbeatElapsedSec}
+                  />
                 ) : null}
                 <p
                   className={
@@ -632,29 +629,7 @@ export default function AnswerScreen() {
                   )}
                 </p>
               ) : null}
-              {loading ? (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  aria-busy="true"
-                  className="mt-2 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-10 text-center"
-                >
-                  <Loader2
-                    className="mx-auto h-9 w-9 animate-spin text-[color:var(--gv-accent)] motion-reduce:animate-none"
-                    strokeWidth={2}
-                    aria-hidden
-                  />
-                  <p className="mt-5 gv-serif text-[clamp(1rem,2.4vw,1.125rem)] font-medium leading-snug text-[color:var(--gv-ink)]">
-                    Đang tạo báo cáo…
-                  </p>
-                  <p className="mx-auto mt-2 max-w-[26rem] text-sm leading-relaxed text-[color:var(--gv-ink-3)]">
-                    Hệ thống đang phân tích và so với corpus — thường mất khoảng 20–40 giây. Giữ tab mở.
-                  </p>
-                  <div className="gv-answer-loading-track">
-                    <div className="gv-answer-loading-bar" />
-                  </div>
-                </div>
-              ) : turnCount > 0 ? (
+              {turnCount > 0 ? (
                 <div
                   className="space-y-10"
                   aria-live="polite"
@@ -665,7 +640,22 @@ export default function AnswerScreen() {
                     <ContinuationTurn key={t.id} turn={t} sessionIntentType={sessionIntentType} />
                   ))}
                 </div>
-              ) : sessionId ? (
+              ) : loading ? (
+                // Stream in flight, no turns persisted yet — show a content
+                // skeleton so the body isn't blank while LivePipelineStrip
+                // in the header tracks step-by-step progress.
+                <div
+                  className="mt-6 animate-pulse space-y-3"
+                  aria-live="polite"
+                  aria-busy={true}
+                  aria-label="Đang tạo báo cáo"
+                >
+                  <div className="h-4 w-3/4 rounded-md bg-[color:var(--gv-rule)]" />
+                  <div className="h-4 w-1/2 rounded-md bg-[color:var(--gv-rule)]" />
+                  <div className="h-4 w-2/3 rounded-md bg-[color:var(--gv-rule)]" />
+                  <div className="mt-6 h-24 w-full rounded-[var(--gv-radius-md)] bg-[color:var(--gv-rule)]" />
+                </div>
+              ) : sessionId && !loading ? (
                 <div className="mt-4 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
                   <p className="gv-serif text-[16px] leading-snug text-[color:var(--gv-ink)]">
                     Chưa có lượt trong phiên này.

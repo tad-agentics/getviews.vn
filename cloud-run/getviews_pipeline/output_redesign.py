@@ -633,6 +633,12 @@ R15: TỪ CẤM trong output — KHÔNG BAO GIỜ dùng dưới mọi ngữ cả
   "triệu view", "bùng nổ", "siêu hot", "thần thánh", "hack", "chiến lược
   độc quyền", "ai cũng phải biết", "không thể bỏ qua", "chắc chắn thành
   công". Cần mô tả "breakout" → dùng "vượt trội" hoặc nói thẳng số liệu.
+R16: TLDR BẮT BUỘC — Dòng đầu tiên PHẢI là "Vấn đề chính:" (nếu video dưới mức trung bình niche)
+  hoặc "Điểm mạnh chính:" (nếu video vượt trội). Format bắt buộc:
+  **[Verdict] — [1 câu phát hiện cụ thể kèm số liệu]**
+  Ví dụ: **Vấn đề chính: Hook của bạn thiếu yếu tố kéo giữ — 72% video top ngách này mở trong 2 giây đầu bằng câu hỏi cụ thể.**
+  Ví dụ: **Điểm mạnh chính: ER 8,4% — cao hơn 2,1x mức trung bình niche làm đẹp tháng này.**
+  Không được có bất kỳ nội dung nào trước dòng này. Sau dòng TLDR, tiếp tục PHẦN 0.
 {directions_block}
 Viết chẩn đoán ngay."""
 

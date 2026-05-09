@@ -83,6 +83,8 @@ def fill_pattern_narrative(
     creator_counts_str: str = "",
     top_performers_str: str = "",
     ab_context: str = "",
+    wow_diff: dict | None = None,
+    corpus_size: int = 0,
 ) -> dict[str, Any]:
     """Return narrative dict for pattern synthesis (thesis, insights, questions,
     cultural_framing per hook, cross_pattern_synthesis, generated_prerequisites per hook).
@@ -126,13 +128,51 @@ def fill_pattern_narrative(
 --- A/B corpus (có thể cite vào phần tóm lại tuần này hoặc thesis) ---
 {ab_ex}
 """
+        # AQ-1 — WoW delta injection: build block when corpus is adequate
+        # and the WoW data shows a meaningful rank movement or new entry.
+        wow_block = ""
+        try:
+            from getviews_pipeline.claim_tiers import CLAIM_TIERS
+
+            if wow_diff and corpus_size >= CLAIM_TIERS["trend_delta"]:
+                new_entries = wow_diff.get("new_entries") or []
+                rank_changes = wow_diff.get("rank_changes") or []
+
+                # Priority 1: newly appeared hook (was outside top-10 prior week)
+                if new_entries:
+                    top_new = new_entries[0]
+                    hook_vi = top_new.get("hook_type") or ""
+                    if hook_vi:
+                        wow_block = (
+                            f"WOW ALERT: Hook [{hook_vi}] LẦN ĐẦU vào top-10 tuần này — "
+                            f"không có trong top-10 tuần trước. "
+                            f"Đề cập điều này trong thesis bằng câu cụ thể.\n\n"
+                        )
+
+                # Priority 2: biggest rank climber (rank_change = rank_prior - rank_now → positive = climbed)
+                elif rank_changes:
+                    best = max(rank_changes, key=lambda r: abs(r.get("rank_change") or 0), default=None)
+                    if best:
+                        rc = best.get("rank_change") or 0
+                        hook_vi = best.get("hook_type") or ""
+                        # Treat rank movement >= 2 positions as notable (10-rank scale → ~20% shift)
+                        if hook_vi and abs(rc) >= 2:
+                            direction = "tăng" if rc > 0 else "giảm"
+                            wow_block = (
+                                f"WOW ALERT: Hook [{hook_vi}] {direction} {abs(rc)} bậc so với tuần trước "
+                                f"(rank_prior={best.get('rank_prior')} → rank_now={best.get('rank_now')}). "
+                                f"Đề cập điều này trong thesis bằng câu cụ thể.\n\n"
+                            )
+        except Exception:
+            wow_block = ""
+
         has_top_performers = bool((top_performers_str or "").strip())
         hook_insights_rule = (
             f"- hook_insights: đúng {n_top} string ≤200 ký tự — mỗi string PHẢI: (1) cite ≥1 creator cụ thể từ danh sách top performer với số view thực, (2) giải thích CƠ CHẾ TÂM LÝ (không chỉ mô tả), (3) liên hệ micro-element cụ thể (framing/overlay/nhịp) từ data. Ví dụ tốt: '@kimthichnhacua (333K view) — cận cảnh tay bóp serum 0-3s + không nhạc + text vàng → trigger FOMO từ visual chi tiết.' Ví dụ xấu: 'Hook này có retention tốt vì phù hợp với người xem.'"
             if has_top_performers
             else f"- hook_insights: đúng {n_top} string ≤200 ký tự — vì sao hook đó trả lời câu hỏi. PHẢI đề cập yếu tố cụ thể (framing, overlay, nhịp cắt) khi có trong dữ liệu micro-element bên dưới (khi không có khối top performer, không bắt buộc cite @handle)."
         )
-        prompt = f"""Bạn là chuyên gia phân tích TikTok Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi dưới đây bằng insight thực chiến.
+        prompt = f"""{wow_block}Bạn là chuyên gia phân tích TikTok Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi dưới đây bằng insight thực chiến.
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
 

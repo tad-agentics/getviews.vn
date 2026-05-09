@@ -334,6 +334,34 @@ def build_diagnostic_report(
         benchmarks=benchmarks,
     )
 
+    # AQ-8 — Post-synthesis validation: detect hallucinated video metrics and
+    # surgically replace the offending category finding with a safe placeholder.
+    # Uses gemini-3.1-flash-lite-preview (via GEMINI_INTENT_MODEL) — only fires
+    # when a cheap regex pre-check flags a candidate finding. Never blocks the
+    # report: validation errors fall through silently.
+    from getviews_pipeline.report_diagnostic_gemini import (
+        _SAFE_FINDING_PLACEHOLDER,
+        validate_diagnostic_narrative,
+    )
+
+    validation_result = validate_diagnostic_narrative(
+        narrative,
+        query=query,
+        niche_label=niche_label or "TikTok Việt Nam",
+    )
+    if not validation_result.get("is_valid"):
+        # Surgical splice: reset only the flagged category finding, leave everything
+        # else intact. Do NOT regenerate the full report (latency + cost).
+        idx = validation_result.get("invalid_category_idx", 0)
+        categories = narrative.get("categories") or []
+        if 0 <= idx < len(categories):
+            categories[idx] = {**categories[idx], "finding": _SAFE_FINDING_PLACEHOLDER}
+            narrative = {**narrative, "categories": categories}
+        logger.warning(
+            "[diagnostic] AQ-8 validation spliced category_idx=%d reason=%r session_query_len=%d",
+            idx, validation_result.get("reason"), len(query or ""),
+        )
+
     # confidence intent_confidence stays capped at medium even when we
     # have a query — no video = no "high" confidence.
     confidence_level: str = "medium" if (query or "").strip() else "low"

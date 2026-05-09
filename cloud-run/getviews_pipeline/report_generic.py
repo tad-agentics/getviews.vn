@@ -113,6 +113,7 @@ def build_generic_report(
     intent_confidence: str = "low",  # noqa: ARG001 — reserved for telemetry
     window_days: int = 14,
     step_queue: asyncio.Queue | None = None,
+    turn_context: dict | None = None,
 ) -> dict[str, Any]:
     """Live Generic report. Falls back to fixture when DB / niche unavailable.
 
@@ -126,9 +127,8 @@ def build_generic_report(
     Never raises — the fallback path must always surface a payload so the
     UI can render the OffTaxonomyBanner + suggestions.
 
-    ``step_queue`` — optional; live SSE step events (reserved).
+    ``step_queue`` — optional; live SSE step events.
     """
-    _ = step_queue
     try:
         from getviews_pipeline.supabase_client import get_service_client
 
@@ -157,6 +157,8 @@ def build_generic_report(
         niche_label=niche_label,
         sample_n=sample_n,
         window_days=window_days,
+        step_queue=step_queue,
+        turn_context=turn_context,
     )
     paras = cap_paragraphs(paras)
 
@@ -197,6 +199,8 @@ def _generate_narrative(
     niche_label: str | None,
     sample_n: int,
     window_days: int,
+    step_queue: asyncio.Queue | None = None,
+    turn_context: dict | None = None,
 ) -> list[str]:
     """Bounded Gemini narrative with explicit hedging fallback.
 
@@ -206,12 +210,15 @@ def _generate_narrative(
     """
     try:
         from getviews_pipeline.report_generic_gemini import fill_generic_narrative
+        from getviews_pipeline.step_events import emit, step_process
 
+        emit(step_queue, step_process("Đang phân tích và tổng hợp kết quả..."))
         paras = fill_generic_narrative(
             query=query,
             niche_label=niche_label,
             sample_n=sample_n,
             window_days=window_days,
+            turn_context=turn_context,
         )
         if paras:
             return paras

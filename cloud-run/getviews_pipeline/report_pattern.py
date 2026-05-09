@@ -502,10 +502,11 @@ def build_pattern_report(
         live_context = format_live_awemes_for_prompt(live_awemes[:20])
 
     if step_queue is not None:
-        from getviews_pipeline.step_events import emit, step_status, step_tool_start
+        from getviews_pipeline.step_events import INTENT_STEP_LABELS, emit, step_process, step_status, step_tool_start
 
         emit(step_queue, step_status(3, "Đang tổng hợp pattern nổi bật..."))
         emit(step_queue, step_tool_start("Viết báo cáo pattern", 3, 0, tool="synthesis"))
+        emit(step_queue, step_process(INTENT_STEP_LABELS["trend_spike"][2]))
 
     narr = fill_pattern_narrative(
         query=query,
@@ -517,6 +518,8 @@ def build_pattern_report(
         top_performers_str=top_performers_str,
         ab_context=ab_context,
         live_context=live_context,
+        wow_diff=wow,
+        corpus_size=len(corpus),
     )
 
     why_won = build_why_won_list(top_labels)

@@ -242,8 +242,11 @@ export function detectIntent(
       : { intentType: "competitor_profile", isFree: false, confidence: "high" };
   }
 
-  // ── 3. SHOT LIST ──────────────────────────────────────────────────────────
-  if (/shot list|kịch bản|cách quay|hướng dẫn quay|quay như nào|quay thế nào|quay video|lên ý tưởng quay|plan quay|danh sách cảnh|cảnh quay/i.test(ql)) {
+  // ── 3. SHOT LIST / SCRIPT WRITING ─────────────────────────────────────────
+  // Covers both "what to shoot" (classic shot-list) and "write content" queries
+  // ('viết hook', 'viết script', 'ý tưởng nội dung') — all map to the script
+  // turn kind on the backend so follow-ups get script-style output.
+  if (/shot list|kịch bản|cách quay|hướng dẫn quay|quay như nào|quay thế nào|quay video|lên ý tưởng quay|plan quay|danh sách cảnh|cảnh quay|viết hook|viết script|tạo script|ý tưởng nội dung/i.test(ql)) {
     return { intentType: "shot_list", isFree: false, confidence: "medium" };
   }
 
@@ -433,6 +436,7 @@ export function appendTurnKindForQuery(
   const { intentType } = detectIntent(query.trim(), priorAssistant);
   if (intentType === "timing") return "timing";
   if (intentType === "creator_search") return "creators";
-  if (intentType === "shot_list") return "script";
+  // hook_variants is also creative-output; treat as script turn on the backend.
+  if (intentType === "shot_list" || intentType === "hook_variants") return "script";
   return "generic";
 }

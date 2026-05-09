@@ -490,8 +490,13 @@ def append_turn(
                 step_queue=step_queue,
             )
         else:
+            # AQ-9 — pass turn_context from session so Gemini can reference
+            # the primary turn's top hooks when answering generic follow-ups.
             inner = build_generic_report(
-                session.get("niche_id"), query, step_queue=step_queue,
+                session.get("niche_id"),
+                query,
+                step_queue=step_queue,
+                turn_context=session.get("turn_context") if kind != "primary" else None,
             )
     except Exception:
         logger.exception(
@@ -554,9 +559,38 @@ def append_turn(
     ):
         log_usage_event_server(sb_srv, user_id=user_id, action=action, metadata=metadata)
 
-    sb_srv.table("answer_sessions").update(
-        {"updated_at": datetime.now(timezone.utc).isoformat()}
-    ).eq("id", session_id).execute()
+    # AQ-9 — After primary turn: extract top hook names and evidence video IDs
+    # from the payload and write turn_context to the session row so follow-up
+    # builder dispatch can surface them without an extra DB query.
+    session_update: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if kind == "primary" and isinstance(payload_dict, dict):
+        try:
+            top_hook_types = [
+                str(f.get("pattern") or "")
+                for f in (payload_dict.get("findings") or [])[:3]
+                if f.get("pattern")
+            ]
+            evidence_video_ids = [
+                str(v.get("video_id") or "")
+                for v in (payload_dict.get("evidence_videos") or [])[:5]
+                if v.get("video_id")
+            ]
+            if top_hook_types or evidence_video_ids:
+                session_update["turn_context"] = {
+                    "top_hook_types": top_hook_types,
+                    "evidence_video_ids": evidence_video_ids,
+                }
+                logger.info(
+                    "[answer/turns] turn_context stored session=%s hooks=%s evidence_ids=%s",
+                    session_id, top_hook_types, evidence_video_ids,
+                )
+        except Exception:
+            logger.warning(
+                "[answer/turns] turn_context extraction failed session=%s",
+                session_id, exc_info=True,
+            )
+
+    sb_srv.table("answer_sessions").update(session_update).eq("id", session_id).execute()
     return {"turn": turn, "payload": payload_dict}
 
 
