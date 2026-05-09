@@ -148,19 +148,6 @@ export function ProgressPill({
   );
 }
 
-/** Thin activity line under the header during load. */
-export function MiniResearchStrip({ active }: { active: boolean }) {
-  if (!active) return null;
-  return (
-    <div
-      className="mt-3 h-0.5 w-full overflow-hidden rounded-full bg-[var(--gv-rule)]"
-      aria-hidden
-    >
-      <div className="h-full w-1/3 animate-pulse rounded-full bg-[color:var(--gv-accent)] motion-reduce:animate-none" />
-    </div>
-  );
-}
-
 // ── Tool card state ──────────────────────────────────────────────────────────
 // Keyed by `${iteration}-${index}` for parallel card tracking.
 
