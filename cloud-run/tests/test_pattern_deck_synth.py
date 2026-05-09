@@ -114,6 +114,66 @@ def test_build_prompt_uses_placeholder_when_pattern_name_blank() -> None:
     assert "(chưa có tên)" in prompt
 
 
+def test_build_prompt_single_niche_keeps_niche_specific_phrasing() -> None:
+    """No `niche_labels` (or len < 2) → existing single-niche prompt
+    shape. Don't regress the food-specific / beauty-specific helpfulness
+    of patterns that genuinely live in one niche."""
+    prompt = _build_prompt(
+        pattern_name="Macro shot",
+        niche_name="Làm đẹp / Skincare",
+        videos=SAMPLE_VIDEOS,
+        niche_labels=["Làm đẹp / Skincare"],  # length 1 → still single-niche
+    )
+    assert "Làm đẹp / Skincare" in prompt
+    assert "CHÉO NGÁCH" not in prompt
+    # No cross-niche rule appended when single niche.
+    assert "TRUNG TÍNH" not in prompt
+
+
+def test_build_prompt_cross_niche_neutralises_thesis_phrasing() -> None:
+    """Repro of the audit bug: pattern "Cận" spans 8 niches with
+    food being primary, producing food-flavored copy on a Beauty
+    creator's screen. With niche_labels >= 2 the prompt:
+      - lists all niches so Gemini knows the spread,
+      - explicitly forbids niche-specific examples in why/careful/etc.,
+      - shifts framing to TECHNIQUE + AUDIENCE BEHAVIOUR."""
+    prompt = _build_prompt(
+        pattern_name="Cận",
+        niche_name="Ẩm thực & Ăn uống",
+        videos=SAMPLE_VIDEOS,
+        niche_labels=[
+            "Ẩm thực & Ăn uống",
+            "Làm đẹp / Skincare",
+            "Du lịch / Travel",
+            "Thời trang Phụ kiện",
+        ],
+    )
+    # Cross-niche framing is explicit in the niche clause.
+    assert "CHÉO NGÁCH" in prompt
+    # All niches make it into the prompt — Gemini sees the spread.
+    assert "Làm đẹp / Skincare" in prompt
+    assert "Du lịch / Travel" in prompt
+    # Guardrail clause forbids niche-specific examples.
+    assert "TRUNG TÍNH" in prompt
+    assert "món ăn" in prompt and "skincare" in prompt  # listed as banned examples
+    # Old single-niche phrasing should NOT appear (anchoring bias).
+    assert 'trong ngách "Ẩm thực' not in prompt
+
+
+def test_build_prompt_two_niches_is_already_cross_niche() -> None:
+    """Threshold is `>= 2` — even a 2-niche pattern gets the neutral
+    treatment. Lower bound matches the pattern fingerprinter's own
+    cross-niche signal."""
+    prompt = _build_prompt(
+        pattern_name="Reaction",
+        niche_name="Hài / Giải trí",
+        videos=SAMPLE_VIDEOS,
+        niche_labels=["Hài / Giải trí", "Gaming"],
+    )
+    assert "CHÉO NGÁCH" in prompt
+    assert "Gaming" in prompt
+
+
 # ── synthesize_pattern_deck — end-to-end with mocked Gemini ──────────────
 
 
