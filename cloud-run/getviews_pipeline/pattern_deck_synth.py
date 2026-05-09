@@ -198,10 +198,34 @@ def _resolve_niche_label(client: Any, niche_id: int | None) -> str:
         return f"niche_{niche_id}"
 
 
+def _resolve_niche_labels(client: Any, niche_ids: list[int]) -> list[str]:
+    """Bulk niche-label lookup for cross-niche patterns. Returns labels
+    in the same order as ``niche_ids``; missing rows fall back to
+    ``niche_<id>`` so the prompt still renders cleanly.
+    """
+    if not niche_ids:
+        return []
+    try:
+        res = (
+            client.table("niche_taxonomy")
+            .select("id, name_vn, name_en")
+            .in_("id", [int(n) for n in niche_ids])
+            .execute()
+        )
+        rows = res.data or []
+    except Exception:
+        rows = []
+    by_id: dict[int, str] = {}
+    for r in rows:
+        rid = int(r.get("id"))
+        by_id[rid] = str(r.get("name_vn") or r.get("name_en") or f"niche_{rid}")
+    return [by_id.get(int(n), f"niche_{n}") for n in niche_ids]
+
+
 # ── Gemini call ──────────────────────────────────────────────────────────
 
 
-_PROMPT_TEMPLATE = """Bạn là biên tập TikTok tiếng Việt. Cho một PATTERN nội dung trong ngách "{niche_name}", hãy tổng hợp một bộ "deck" để creator hiểu nhanh và remix được.
+_PROMPT_TEMPLATE = """Bạn là biên tập TikTok tiếng Việt. {niche_clause}, hãy tổng hợp một bộ "deck" để creator hiểu nhanh và remix được.
 
 PATTERN: {pattern_name}
 
@@ -229,10 +253,27 @@ NGUYÊN TẮC:
 - Văn phong tự nhiên tiếng Việt. KHÔNG dùng "bí mật", "công thức vàng", "triệu view", "đột phá".
 - Số liệu cụ thể, không hứa hẹn "sẽ viral".
 - Nếu grounding mỏng, chấp nhận angle đơn giản — đừng bịa thông tin.
-"""
+{cross_niche_rule}"""
 
 
-def _build_prompt(pattern_name: str, niche_name: str, videos: list[dict[str, Any]]) -> str:
+def _build_prompt(
+    pattern_name: str,
+    niche_name: str,
+    videos: list[dict[str, Any]],
+    *,
+    niche_labels: list[str] | None = None,
+) -> str:
+    """Render the pattern-deck Gemini prompt.
+
+    ``niche_labels`` — when supplied with ≥ 2 entries, the pattern is
+    treated as cross-niche. The prompt then asks Gemini to write the
+    thesis and angles **neutrally** (no niche-specific examples like
+    "món ăn", "sản phẩm da", "route du lịch") so the same deck reads
+    correctly when surfaced to creators in *any* of the spread niches.
+    Ships the audit fix where the cross-niche "Cận" pattern (8 niches)
+    was rendering food-flavored copy on a Beauty creator's screen.
+    Single-niche patterns keep the existing niche-specific phrasing.
+    """
     trimmed = [
         {
             "video_id":   v.get("video_id"),
@@ -243,11 +284,31 @@ def _build_prompt(pattern_name: str, niche_name: str, videos: list[dict[str, Any
         }
         for v in videos[:GROUNDING_CAP]
     ]
+    is_cross_niche = bool(niche_labels and len(niche_labels) >= 2)
+    if is_cross_niche:
+        # Quote each niche label so Gemini doesn't free-associate.
+        spread_str = ", ".join(f'"{lbl}"' for lbl in niche_labels)
+        niche_clause = (
+            f"Cho một PATTERN nội dung xuất hiện CHÉO NGÁCH "
+            f"(hiện diện ở các ngách: {spread_str})"
+        )
+        cross_niche_rule = (
+            "- PATTERN này CHÉO NGÁCH — viết why, careful, structure, angles "
+            "TRUNG TÍNH. KHÔNG dùng ví dụ riêng của một ngách (ví dụ: "
+            "\"món ăn\", \"sản phẩm skincare\", \"điểm du lịch\", \"trang phục\"). "
+            "Chỉ mô tả KỸ THUẬT (ASMR, macro, jump-cut, framing) và HÀNH VI "
+            "AUDIENCE (curiosity, dwell time, save rate) — không viễn cảnh hoá "
+            "vào một ngách cụ thể.\n"
+        )
+    else:
+        niche_clause = f'Cho một PATTERN nội dung trong ngách "{niche_name}"'
+        cross_niche_rule = ""
     return _PROMPT_TEMPLATE.format(
-        niche_name=niche_name,
+        niche_clause=niche_clause,
         pattern_name=pattern_name or "(chưa có tên)",
         n=len(trimmed),
         grounding_json=json.dumps(trimmed, ensure_ascii=False, indent=2),
+        cross_niche_rule=cross_niche_rule,
     )
 
 
@@ -305,11 +366,21 @@ def synthesize_pattern_deck(
     niche_spread = list(pattern.get("niche_spread") or [])
     primary_niche = int(niche_spread[0]) if niche_spread else None
     niche_name = _resolve_niche_label(user_sb, primary_niche)
+    # Cross-niche patterns (`niche_spread.length >= 2`) need a neutral
+    # thesis. Without this, Gemini was anchoring on `niche_spread[0]`
+    # and writing e.g. food-specific copy that then rendered on a
+    # Beauty creator's screen.
+    niche_labels = (
+        _resolve_niche_labels(user_sb, [int(n) for n in niche_spread])
+        if len(niche_spread) >= 2
+        else None
+    )
 
     prompt = _build_prompt(
         pattern_name=str(pattern.get("display_name") or ""),
         niche_name=niche_name,
         videos=videos,
+        niche_labels=niche_labels,
     )
 
     try:
