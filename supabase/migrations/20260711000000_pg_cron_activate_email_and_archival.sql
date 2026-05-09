@@ -1,0 +1,125 @@
+-- 2026-05-09 — Activate three Edge Function cron schedules that were
+-- shipping dark.
+--
+-- This migration is **doc-only**: the executable schedule was applied
+-- directly to the production project via Supabase MCP on 2026-05-09 to
+-- avoid committing the SUPABASE_SERVICE_ROLE_KEY bearer JWT into git.
+-- Same convention as 20260410000015_pg_cron_schedules.sql and
+-- 20260512000001_pg_cron_daily_health_digest.sql (the doc-stub this
+-- supersedes for the daily-health-digest job).
+--
+-- The schedules were bootstrapped by templating off the existing
+-- cron-expiry-check cron.job row (its command holds the URL prefix +
+-- bearer JWT). Re-applying the same DO $build$ … $build$ block that
+-- was used to create them is the documented activation path for any
+-- environment that doesn't have these jobs yet — see the snippet at
+-- the bottom of this file.
+--
+-- ── Active schedules (verified live) ────────────────────────────────
+--
+--   jobname                       schedule       UTC → Asia/Ho_Chi_Minh
+--   ────────────────────────────  ─────────────  ──────────────────────
+--   cron-chat-archival            0 3 * * *      03:00 UTC = 10:00 VN
+--   cron-daily-health-digest      0 1 * * *      01:00 UTC = 08:00 VN
+--   cron-monday-email             0 0 * * 1      Mon 00:00 UTC = 07:00 VN
+--
+-- ── Why these three were dark ───────────────────────────────────────
+--
+-- All three Edge Functions ship complete (130/352/249 lines) but were
+-- never wired into pg_cron — the existing dashboard-managed crons
+-- (cron-expiry-check, cron-prune-webhooks, cron-reset-free-queries,
+-- cron-reset-processing) cover the other four. The three scheduled
+-- here:
+--
+-- 1. **cron-chat-archival** — Phase D.5.4 retention. Hard-deletes
+--    chat_sessions where updated_at < now() - 90 days, audited via
+--    chat_archival_audit. Chat is a deprecated read-only surface
+--    (CLAUDE.md §Route structure), so the DB isn't growing — but the
+--    14 legacy rows from April will start crossing 90d in mid-July
+--    and this cron picks them up automatically.
+--
+-- 2. **cron-daily-health-digest** — Wave 5+ ambient-health digest.
+--    Skips cleanly with {ok: true, skipped: true,
+--    reason: "chưa cấu hình OPS_DIGEST_RECIPIENTS"} until that env
+--    var is set on the Edge Function — designed to ship dark exactly
+--    so the schedule can land before recipients are configured.
+--    Once OPS_DIGEST_RECIPIENTS is set in Supabase Dashboard →
+--    Edge Functions → Secrets, the daily digest starts flowing.
+--
+-- 3. **cron-monday-email** — weekly creator trend summary. Same
+--    skip-if-unset pattern, gated on MONDAY_DIGEST_RECIPIENTS. Pre-
+--    launch this fires Monday 00:00 UTC and skips silently; once
+--    a recipient list is wired (email opt-ins from launch flow) the
+--    summary starts going out without code changes.
+--
+-- ── To activate in another environment ──────────────────────────────
+--
+-- Run this in an authenticated SQL session (psql via service role
+-- or Supabase Dashboard → SQL editor). The bearer JWT is read from
+-- an existing edge-function cron's command, so this works on any
+-- project that already has at least one edge-function cron set up
+-- (cron-expiry-check is the most reliable templating source).
+--
+-- DO $build$
+-- DECLARE
+--   template text;
+--   base_url text;
+--   bearer   text;
+-- BEGIN
+--   SELECT command INTO template FROM cron.job
+--    WHERE jobname = 'cron-expiry-check' LIMIT 1;
+--   IF template IS NULL THEN
+--     RAISE EXCEPTION
+--       'cron-expiry-check missing — cannot bootstrap from template';
+--   END IF;
+--   base_url := substring(template FROM 'url := ''([^'']*?/functions/v1/)');
+--   bearer   := substring(template FROM 'Bearer ([A-Za-z0-9._-]+)');
+--   IF base_url IS NULL OR bearer IS NULL THEN
+--     RAISE EXCEPTION 'failed to extract base_url / bearer from template';
+--   END IF;
+--   PERFORM cron.unschedule(jobid)
+--   FROM cron.job
+--   WHERE jobname IN (
+--     'cron-chat-archival', 'cron-daily-health-digest', 'cron-monday-email'
+--   );
+--   PERFORM cron.schedule(
+--     'cron-chat-archival', '0 3 * * *',
+--     format($cmd$SELECT net.http_post(url := %L, headers := %L::jsonb,
+--                                       body := '{}'::jsonb);$cmd$,
+--       base_url || 'cron-chat-archival',
+--       jsonb_build_object('Content-Type', 'application/json',
+--                          'Authorization', 'Bearer ' || bearer)::text));
+--   PERFORM cron.schedule(
+--     'cron-daily-health-digest', '0 1 * * *',
+--     format($cmd$SELECT net.http_post(url := %L, headers := %L::jsonb,
+--                                       body := '{}'::jsonb);$cmd$,
+--       base_url || 'cron-daily-health-digest',
+--       jsonb_build_object('Content-Type', 'application/json',
+--                          'Authorization', 'Bearer ' || bearer)::text));
+--   PERFORM cron.schedule(
+--     'cron-monday-email', '0 0 * * 1',
+--     format($cmd$SELECT net.http_post(url := %L, headers := %L::jsonb,
+--                                       body := '{}'::jsonb);$cmd$,
+--       base_url || 'cron-monday-email',
+--       jsonb_build_object('Content-Type', 'application/json',
+--                          'Authorization', 'Bearer ' || bearer)::text));
+-- END;
+-- $build$;
+--
+-- ── Pause / unpause ─────────────────────────────────────────────────
+--
+--   SELECT cron.unschedule('<jobname>');
+--   -- (re-run the DO block above to resume)
+--
+-- ── Verification (after a few days of runs) ─────────────────────────
+--
+--   SELECT j.jobname, jr.start_time, jr.status, jr.return_message
+--   FROM cron.job j
+--   LEFT JOIN cron.job_run_details jr ON jr.jobid = j.jobid
+--   WHERE j.jobname IN ('cron-chat-archival',
+--                       'cron-daily-health-digest',
+--                       'cron-monday-email')
+--   ORDER BY jr.start_time DESC NULLS LAST
+--   LIMIT 21;
+
+SELECT 1 AS migration_doc_only;
