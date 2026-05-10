@@ -108,14 +108,13 @@ export const StudioHero = memo(function StudioHero({
 
   return (
     <div>
-      <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-4)]">
-        Cập nhật · {updatedRel}
-        {isThin ? (
+      {isThin ? (
+        <p className="gv-mono mb-3 text-[11px] text-[color:var(--gv-ink-4)]">
           <span className="text-[color:var(--gv-ink-3)]">
-            {" "}· Dữ liệu ngách đang thưa, các retention estimate là định hướng.
+            Dữ liệu ngách đang thưa, các retention estimate là định hướng.
           </span>
-        ) : null}
-      </p>
+        </p>
+      ) : null}
       <div className="overflow-hidden rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-[18px]">
         {ritual.scripts.map((s, i) => (
           <StudioHeroRow

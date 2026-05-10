@@ -14,7 +14,6 @@ import { env } from "@/lib/env";
 import { formatFollowers, formatRelativeSinceVi, formatViews } from "@/lib/formatters";
 
 const HANDLE_REGEX = /(?:tiktok\.com\/@|^@)([A-Za-z0-9._]+)/;
-const EXAMPLE_HANDLES: ReadonlyArray<string> = ["@an.tech", "@chinasecrets", "@aifreelance"];
 const CREDIT_COST = 3;
 
 function parseHandle(raw: string): string | null {
@@ -109,19 +108,6 @@ function ExploreInputCard({
           </button>
         </div>
 
-        <div className="mt-3.5 flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--gv-ink-3)]">
-          <span>Ví dụ:</span>
-          {EXAMPLE_HANDLES.map((h) => (
-            <button
-              key={h}
-              type="button"
-              onClick={() => setInputValue(h)}
-              className="gv-mono rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-2.5 py-1 text-[11px] text-[color:var(--gv-ink-2)] hover:border-[color:var(--gv-ink)]"
-            >
-              {h}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-[11px] text-[color:var(--gv-ink-3)] sm:px-6">
