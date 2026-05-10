@@ -1,7 +1,9 @@
-"""News/aggregator handles excluded from video_corpus.
+"""News/aggregator handles excluded from video_corpus, and per-creator
+niche overrides for cross-niche creators whose videos the classifier
+consistently mislabels.
 
-These are NOT creators in the GetViews target audience. They are
-Vietnamese media outlets, news aggregators, or platform-owned
+These are NOT creators in the GetViews target audience (for the blocklist).
+They are Vietnamese media outlets, news aggregators, or platform-owned
 showbiz/sports channels that repackage other creators' content.
 Their presence in the corpus pollutes niche signal, fakes patterns,
 and surfaces irrelevant references in the Pattern grid + daily ritual.
@@ -11,6 +13,20 @@ When adding a handle, group it under the right comment cluster so
 the intent is auditable. Borderline cases (a handle that *might* be
 a personal creator) should NOT be added unless the account clearly
 posts media-style content across multiple unrelated niches.
+
+CREATOR_NICHE_OVERRIDE: maps creator handles (lowercase, no @) to the
+correct niche_id that should be used regardless of which ingest loop
+encountered them. Use this when the Gemini classifier consistently
+mislabels a creator because of visual similarity (e.g., talking-head
+business coaches tagged as Skincare). The override replaces the
+ingest-loop's niche_id for every video from that creator.
+
+niche_id reference (legacy niche_taxonomy):
+  2 = Làm đẹp / Skincare   3 = Thời trang Phụ kiện
+  4 = Ẩm thực & Ăn uống    5 = Kinh doanh online / Bán hàng
+  8 = Gym / Fitness          9 = Công nghệ / Tech
+ 11 = EduTok VN             13 = Hài / Giải trí
+ 15 = Tài chính / Đầu tư   16 = Du lịch / Travel
 """
 
 from __future__ import annotations
@@ -66,6 +82,27 @@ NEWS_AGGREGATOR_HANDLES: frozenset[str] = frozenset({
 })
 
 
+CREATOR_NICHE_OVERRIDE: dict[str, int] = {
+    # ── Business / F&B coaching misclassified as Skincare ───────────────
+    # andypham.academy teaches restaurant operations, HR, and F&B brand
+    # management. Gemini tags talking-head + green-screen frames as skincare.
+    # Correct bucket: niche_id=5 (Kinh doanh online / Bán hàng).
+    "andypham.academy": 5,
+}
+
+
+def niche_override_for_handle(handle: str | None) -> int | None:
+    """Return the forced niche_id for this creator, or None if no override.
+
+    Call this after the blocklist check and use the result to replace the
+    ingest-loop's ``niche_id`` before building the corpus row.
+    """
+    if not handle or not isinstance(handle, str):
+        return None
+    normalized = handle.strip().lstrip("@").lower()
+    return CREATOR_NICHE_OVERRIDE.get(normalized)
+
+
 def is_blocklisted_handle(handle: str | None) -> bool:
     """Case-insensitive, @-tolerant blocklist check.
 
@@ -81,4 +118,4 @@ def is_blocklisted_handle(handle: str | None) -> bool:
     return normalized in NEWS_AGGREGATOR_HANDLES
 
 
-__all__ = ["NEWS_AGGREGATOR_HANDLES", "is_blocklisted_handle"]
+__all__ = ["NEWS_AGGREGATOR_HANDLES", "CREATOR_NICHE_OVERRIDE", "is_blocklisted_handle", "niche_override_for_handle"]

@@ -25,7 +25,7 @@ from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
-from getviews_pipeline.creator_blocklist import is_blocklisted_handle
+from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
 from getviews_pipeline.config import (
     ADAPTIVE_HASHTAG_MIN_FETCH,
     CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
@@ -1883,6 +1883,17 @@ async def ingest_niche(
             )
             continue
 
+        # Creator-level niche override: some creators are consistently
+        # mislabeled by the visual classifier (e.g., business coaches whose
+        # talking-head format matches Skincare). Override before row build.
+        _niche_override = niche_override_for_handle(author_handle)
+        if _niche_override is not None and _niche_override != niche_id:
+            logger.info(
+                "[corpus] niche override @%s: %d → %d",
+                author_handle, niche_id, _niche_override,
+            )
+            niche_id = _niche_override
+
         stats = a.get("statistics") or {}
         play_count = int(stats.get("play_count") or stats.get("playCount") or 0)
 
@@ -1947,6 +1958,14 @@ async def ingest_niche(
                 "[corpus] skip carousel %s — blocklisted handle @%s", vid, author_handle,
             )
             continue
+
+        _niche_override = niche_override_for_handle(author_handle)
+        if _niche_override is not None and _niche_override != niche_id:
+            logger.info(
+                "[corpus] niche override (carousel) @%s: %d → %d",
+                author_handle, niche_id, _niche_override,
+            )
+            niche_id = _niche_override
 
         stats = a.get("statistics") or {}
         likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
