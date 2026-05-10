@@ -510,7 +510,7 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
           <h1
             className={`m-0 max-w-[820px] text-[clamp(26px,3vw,36px)] text-[color:var(--gv-ink)] ${
               isFlop
-                ? "gv-serif text-pretty font-medium leading-[1.1]"
+                ? "gv-serif text-pretty font-medium leading-[1.25]"
                 : "gv-tight font-semibold leading-[1.05] tracking-tight"
             }`}
           >
