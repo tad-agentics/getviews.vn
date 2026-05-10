@@ -37,6 +37,7 @@ const sampleVideo = (overrides: Partial<RailVideo> = {}): RailVideo => ({
   views: 250_000,
   posted_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
   hook_phrase: "Mình vừa test iPad Pro",
+  breakout_multiplier: null,
   ...overrides,
 });
 

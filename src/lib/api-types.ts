@@ -794,6 +794,12 @@ export interface HookFindingData {
   creator_count?: number | null;
   /** VN cultural angle for this pattern (pattern narrative, optional). */
   cultural_framing?: string | null;
+  /** Richer journalist-style narrative (≤500 chars). When present, replaces `insight` in the UI. */
+  narrative?: string | null;
+  /** Psychological/cultural mechanism explaining why this hook works (≤350 chars). */
+  why_it_works?: string | null;
+  /** Specific viral sub-format callout detected in corpus (≤220 chars). Null = none detected. */
+  micro_pattern?: string | null;
 }
 
 export interface SumStatData {

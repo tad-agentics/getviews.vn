@@ -46,6 +46,10 @@ class HookFinding(BaseModel):
     evidence_video_ids: list[str] = Field(default_factory=list)
     cultural_framing: str | None = None
     creator_count: int | None = None
+    # Narrative upgrade — all optional; absent = graceful fallback to `insight`
+    narrative: str | None = Field(default=None, max_length=500)
+    why_it_works: str | None = Field(default=None, max_length=350)
+    micro_pattern: str | None = Field(default=None, max_length=220)
 
 
 class SumStat(BaseModel):

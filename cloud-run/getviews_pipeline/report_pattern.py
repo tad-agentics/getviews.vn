@@ -537,11 +537,25 @@ def build_pattern_report(
     )
 
     cultural_framings = narr.get("cultural_framing") or []
+    hook_narratives = narr.get("hook_narratives") or []
+    why_it_works_list = narr.get("why_it_works") or []
+    micro_patterns_list = narr.get("micro_patterns") or []
     for i, finding in enumerate(findings):
+        updates: dict = {}
         if i < len(cultural_framings):
             raw = cultural_framings[i]
-            cf_val = "" if raw is None else str(raw)[:300]
-            findings[i] = finding.model_copy(update={"cultural_framing": cf_val})
+            updates["cultural_framing"] = "" if raw is None else str(raw)[:300]
+        if i < len(hook_narratives):
+            raw_n = hook_narratives[i]
+            updates["narrative"] = str(raw_n)[:500] if raw_n else None
+        if i < len(why_it_works_list):
+            raw_w = why_it_works_list[i]
+            updates["why_it_works"] = str(raw_w)[:350] if raw_w else None
+        if i < len(micro_patterns_list):
+            raw_m = micro_patterns_list[i]
+            updates["micro_pattern"] = str(raw_m)[:220] if raw_m else None
+        if updates:
+            findings[i] = finding.model_copy(update=updates)
 
     cross_synthesis: list[str] = list(narr.get("cross_pattern_synthesis") or [])
     stalled_insights = narr.get("stalled_insights") or []

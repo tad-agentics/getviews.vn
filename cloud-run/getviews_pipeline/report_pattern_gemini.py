@@ -34,6 +34,10 @@ class PatternNarrativeLLM(BaseModel):
     cultural_framing: list[str] = Field(default_factory=list)
     cross_pattern_synthesis: list[str] = Field(default_factory=list)
     generated_prerequisites: list[list[str]] = Field(default_factory=list)
+    # Narrative upgrade fields — n_top items each; empty string = no data / fallback to hook_insights
+    hook_narratives: list[str] = Field(default_factory=list)
+    why_it_works: list[str] = Field(default_factory=list)
+    micro_patterns: list[str] = Field(default_factory=list)
 
 
 def _normalize_generated_prerequisites(raw: Any, n_top: int) -> list[list[str]]:
@@ -168,19 +172,47 @@ def fill_pattern_narrative(
 
         has_top_performers = bool((top_performers_str or "").strip())
         hook_insights_rule = (
-            f"- hook_insights: đúng {n_top} string ≤200 ký tự — mỗi string PHẢI: (1) cite ≥1 creator cụ thể từ danh sách top performer với số view thực, (2) giải thích CƠ CHẾ TÂM LÝ (không chỉ mô tả), (3) liên hệ micro-element cụ thể (framing/overlay/nhịp) từ data. Ví dụ tốt: '@kimthichnhacua (333K view) — cận cảnh tay bóp serum 0-3s + không nhạc + text vàng → trigger FOMO từ visual chi tiết.' Ví dụ xấu: 'Hook này có retention tốt vì phù hợp với người xem.'"
+            f"- hook_insights: đúng {n_top} string ≤200 ký tự — fallback ngắn cho hook_narratives (dùng khi narrative rỗng). PHẢI: (1) cite ≥1 creator cụ thể từ danh sách top performer với số view thực, (2) giải thích CƠ CHẾ TÂM LÝ (không chỉ mô tả), (3) liên hệ micro-element cụ thể (framing/overlay/nhịp) từ data."
             if has_top_performers
-            else f"- hook_insights: đúng {n_top} string ≤200 ký tự — vì sao hook đó trả lời câu hỏi. PHẢI đề cập yếu tố cụ thể (framing, overlay, nhịp cắt) khi có trong dữ liệu micro-element bên dưới (khi không có khối top performer, không bắt buộc cite @handle)."
+            else f"- hook_insights: đúng {n_top} string ≤200 ký tự — fallback ngắn. Đề cập yếu tố cụ thể (framing, overlay, nhịp cắt) khi có trong dữ liệu micro-element bên dưới."
+        )
+        hook_narratives_rule = (
+            f"- hook_narratives: đúng {n_top} string ≤500 ký tự — đoạn văn KHAI CHUYỆN cho hook đó. "
+            f"CẤU TRÚC BẮT BUỘC: (1) Mở bằng '@handle' cụ thể từ danh sách top performer, kèm số view thực và "
+            f"1-2 câu MÔ TẢ CẢNH QUAY CỤ THỂ: creator làm gì trong 3 giây đầu, có nhạc không, text overlay thế nào. "
+            f"(2) Nếu có view chênh lệch lớn so với video khác cùng kênh, PHẢI đề cập: 'gấp Nx trung bình kênh'. "
+            f"(3) Nếu còn ký tự, thêm creator thứ 2 ngắn gọn (1 câu). "
+            f"Không viết chung chung. Không dùng 'hiệu quả', 'viral', 'bùng nổ'. "
+            f"Ví dụ tốt: '@hagiang.makeup đăng clip cầm serum nói thẳng vào máy \"tôi dùng 30 ngày — đây là kết quả\". "
+            f"Không nhạc nền, close-up da tay, text vàng trên nền đen → 233K view, gấp 4× trung bình kênh.'"
+            if has_top_performers
+            else f"- hook_narratives: đúng {n_top} string ≤500 ký tự — mô tả cách hook này thường được thực hiện, "
+                 f"loại cảnh quay phổ biến, và tại sao format đó kéo được view. Không cần cite @handle nếu không có dữ liệu."
+        )
+        why_it_works_rule = (
+            f"- why_it_works: đúng {n_top} string ≤350 ký tự — giải thích CƠ CHẾ TÂM LÝ hoặc VĂN HÓA khiến hook này "
+            f"hiệu quả ở thị trường Việt Nam tuần này. Viết như giải thích cho người mới — không dùng jargon marketing. "
+            f"Được phép so sánh với hành vi người dùng thực tế (ví dụ: 'người xem đã quen bị quảng cáo che giấu sự thật'). "
+            f"Kết bằng 1 câu chỉ ra điều tạo ra sự khác biệt cụ thể (góc máy, nhịp cắt, ngôn từ, v.v.)."
+        )
+        micro_patterns_rule = (
+            f"- micro_patterns: đúng {n_top} string — nếu trong dữ liệu top performer hoặc scene mẫu có một biến thể "
+            f"CỰC KỲ CỤ THỂ đang nổi (ví dụ: creator nam gọi khán giả là 'vợ', hay creator dùng da tay không makeup để "
+            f"chứng minh), hãy đặt tên và mô tả ngắn gọn ≤220 ký tự: 'Biến thể đang nổi: [tên] — [mô tả + dấu hiệu]'. "
+            f"Nếu KHÔNG thấy biến thể cụ thể đủ nổi bật, để chuỗi rỗng ''. KHÔNG bịa nếu không có bằng chứng trong dữ liệu."
         )
         prompt = f"""{wow_block}Bạn là chuyên gia phân tích TikTok Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi dưới đây bằng insight thực chiến.
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
 
 - thesis: string ≤300 ký tự — BẮT ĐẦU BẰNG "Kết luận nhanh:" rồi 1 câu phát hiện CỤ THỂ NHẤT tuần này kèm số liệu thực. Nếu có WOW ALERT phía trên, ưu tiên đưa số đó vào câu mở (ví dụ: "Kết luận nhanh: Bằng chứng xã hội tăng 3 bậc so với tuần trước — đang là hook thắng tuyệt đối ngách {niche_label}."). Nếu không có WoW delta, mở bằng hook dẫn đầu + view trung bình cụ thể. Sau câu mở, nêu thêm 1 xu hướng bổ sung. KHÔNG bắt đầu bằng "Trong ngách..." hay câu generic.
+{hook_narratives_rule}
 {hook_insights_rule}
 - stalled_insights: đúng {n_st} string ≤200 ký tự — vì sao hook suy liên quan câu hỏi.
 - related_questions: đúng 4 string ngắn ≤80 ký tự — follow-up LIÊN TIẾP câu hỏi hiện tại.
 - cultural_framing: đúng {n_top} string — QUAN TRỌNG. Mỗi string: nếu pattern này liên kết với văn hóa Việt Nam (mùa thi cử, văn hóa đám cưới, Vinglish/ngôn ngữ bản sắc, tâm lý Gen Z, thói quen tiêu dùng Shopee, v.v.), viết 1 câu giải thích TẠI SAO văn hóa đó làm hook này mạnh hơn ở VN so với thị trường khác. Câu phải cụ thể — không viết chung chung. Nếu KHÔNG có liên kết văn hóa rõ ràng với dữ liệu này, để "". Ví dụ tốt: "Văn hóa áp lực học thi ở VN khiến 'AI thầy giáo khắt khe' cộng hưởng sâu hơn với học sinh — không chỉ giải trí mà còn release tension thực sự." Ví dụ xấu: "Phù hợp với văn hóa Việt Nam."
+{why_it_works_rule}
+{micro_patterns_rule}
 - cross_pattern_synthesis: đúng 3-4 string ≤120 ký tự — CHỦ ĐỀ XUYÊN SUỐT nhiều pattern CÙNG LÚC trong tuần này. Đây là "tóm lại tuần này" — không lặp lại insight từng hook. Mỗi string là 1 quy luật cụ thể có thể verify bằng số, ví dụ: "Text overlay vàng đang là chuẩn ngách — 4/5 video viral đều có", "Account nhỏ vẫn thắng — algorithm thưởng format, không thưởng follower count". PHẢI DỰA TRÊN dữ liệu micro-element và creator_count bên dưới.
 - generated_prerequisites: đúng {n_top} sublists. Mỗi sublist: 2-4 yếu tố sản xuất CỤ THỂ và BẮT BUỘC cho hook đó, dựa trên micro-element data. KHÔNG CHUNG CHUNG.
   Tốt: ["Dưới 22 giây", "Không nhạc nền", "Filter biến dạng khuôn mặt", "Text tiếng Việt frame đầu"]
@@ -193,7 +225,7 @@ Câu hỏi người dùng: "{query_clean or '(không nêu rõ — trả lời d�
 Hook đang thắng (xếp hạng): {top_hook_labels}
 Hook suy (nếu có): {stalled_hook_labels}
 
-Micro-element từ corpus (dùng để tăng độ cụ thể trong hook_insights + cross_pattern_synthesis):
+Micro-element từ corpus (dùng để tăng độ cụ thể trong hook_narratives + hook_insights + cross_pattern_synthesis):
 {micro_inject}
 
 Creator count per pattern (dùng để framing cross-creator validation):
@@ -205,12 +237,13 @@ Khi creator_count >= 3: ghi rõ "pattern này giữ vững ở X creator — for
 - Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn".
 - Không dùng: "chắc chắn", "hiệu quả", "bùng nổ", "công thức vàng".
 - Số liệu chỉ được trích từ dữ liệu trên; không tự bịa ra %.
-- cultural_framing và cross_pattern_synthesis là 2 trường MỚI — không bỏ qua.
+- hook_narratives là trường ưu tiên — viết đủ 500 ký tự nếu có dữ liệu. hook_insights chỉ là fallback ngắn.
+- cultural_framing, why_it_works, micro_patterns, cross_pattern_synthesis — không bỏ qua bất kỳ trường nào.
 - generated_prerequisites: bắt buộc đủ {n_top} sublist (có thể rỗng [] nếu không infer được — khi đó backend dùng chip mặc định theo hook).
 """
         cfg = types.GenerateContentConfig(
             temperature=0.35,
-            max_output_tokens=2048,
+            max_output_tokens=3500,
             response_mime_type="application/json",
             response_json_schema=PatternNarrativeLLM.model_json_schema(),
         )
@@ -242,9 +275,27 @@ Khi creator_count >= 3: ghi rõ "pattern này giữ vững ở X creator — for
             cf.append("")
         cf = cf[:n_top]
         gp = _normalize_generated_prerequisites(data.generated_prerequisites, n_top)
+
+        # Narrative upgrade fields
+        raw_narratives = list(data.hook_narratives or [])
+        raw_why = list(data.why_it_works or [])
+        raw_micro = list(data.micro_patterns or [])
+        hook_narratives = [s[:500] for s in raw_narratives]
+        why_it_works_list = [s[:350] for s in raw_why]
+        micro_patterns_list = [s[:220] for s in raw_micro]
+        while len(hook_narratives) < n_top:
+            hook_narratives.append("")
+        while len(why_it_works_list) < n_top:
+            why_it_works_list.append("")
+        while len(micro_patterns_list) < n_top:
+            micro_patterns_list.append("")
+
         return {
             "thesis": thesis or _fallback_thesis(niche_label, top_hook_labels),
             "hook_insights": hi[:n_top],
+            "hook_narratives": hook_narratives[:n_top],
+            "why_it_works": why_it_works_list[:n_top],
+            "micro_patterns": micro_patterns_list[:n_top],
             "stalled_insights": si[:n_st],
             "related_questions": rq[:4],
             "cultural_framing": cf[:n_top],
@@ -300,6 +351,9 @@ def _fallback_narrative(
     return {
         "thesis": thesis,
         "hook_insights": hi,
+        "hook_narratives": [""] * len(top_hook_labels),
+        "why_it_works": [""] * len(top_hook_labels),
+        "micro_patterns": [""] * len(top_hook_labels),
         "stalled_insights": si,
         "related_questions": rq,
         "cultural_framing": [""] * len(top_hook_labels),

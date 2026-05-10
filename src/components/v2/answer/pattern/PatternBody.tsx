@@ -228,7 +228,11 @@ export function PatternBody({
           <h3 className="gv-serif mb-4 text-[18px] text-[color:var(--gv-ink)]">{labels.findingsTitle}</h3>
           <div className="flex flex-col gap-4">
             {findings.map((row) => (
-              <HookFindingCard key={`${row.rank}-${row.pattern}`} row={row} />
+              <HookFindingCard
+                key={`${row.rank}-${row.pattern}`}
+                row={row}
+                evidenceVideos={evidence}
+              />
             ))}
           </div>
         </section>
