@@ -110,12 +110,13 @@ async function fetchTopBreakoutsForHome(
     }
   };
 
-  // 1) Recent breakouts — indexed_at matches ingest/corpus updates better than created_at row stamp.
+  // 1) Recent breakouts — multiplier must be ≥ 1.0 (beat channel average).
+  //    indexed_at matches ingest/corpus updates better than created_at row stamp.
   let q1 = supabase
     .from("video_corpus")
     .select(CORPUS_COLS)
     .gte("indexed_at", since14)
-    .not("breakout_multiplier", "is", null);
+    .gte("breakout_multiplier", 1.0);
   q1 = applyNicheFilter(q1, contentClassIds, legacyNicheId);
   const { data: d1, error: e1 } = await q1
     .order("breakout_multiplier", { ascending: false })
@@ -124,13 +125,13 @@ async function fetchTopBreakoutsForHome(
   if (e1) throw e1;
   appendUnique((d1 ?? []) as BreakoutVideo[]);
 
-  // 2) Older breakouts (multiplier still set)
+  // 2) Older breakouts (multiplier still set and ≥ 1.0)
   if (pool.length < limit) {
     let q2 = supabase
       .from("video_corpus")
       .select(CORPUS_COLS)
       .gte("indexed_at", since90)
-      .not("breakout_multiplier", "is", null);
+      .gte("breakout_multiplier", 1.0);
     q2 = applyNicheFilter(q2, contentClassIds, legacyNicheId);
     const { data: d2, error: e2 } = await q2
       .order("breakout_multiplier", { ascending: false })
