@@ -70,7 +70,7 @@ export const TrendsRail = memo(function TrendsRail({
         sub="Top 5 Viral Video trong ngách của bạn"
         videos={data?.virals ?? []}
         isPending={isPending}
-        emptyText="Chưa có video trong corpus."
+        emptyText="Chưa có video phù hợp."
       />
     </div>
   );

@@ -42,7 +42,7 @@ function parseHandle(raw: string): string | null {
 const STEPS: ReadonlyArray<string> = [
   "Đang tìm kênh trên TikTok…",
   "Đọc 60 video gần nhất…",
-  "So sánh với corpus ngách…",
+  "So sánh với kho video ngách…",
   "Tìm 3 việc nên làm tuần này…",
 ];
 

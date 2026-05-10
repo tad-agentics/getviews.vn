@@ -114,13 +114,13 @@ export const HooksTable = memo(function HooksTable({
               <div>
                 <dt
                   className="gv-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]"
-                  title="Số video trong ngách của bạn gắn pattern này (corpus)."
+                  title="Số video trong ngách của bạn gắn pattern này."
                 >
                   Lượt dùng
                 </dt>
                 <dd
                   className="gv-mono mt-0.5 text-sm text-[color:var(--gv-ink)]"
-                  title="Số video trong ngách của bạn gắn pattern này (corpus)."
+                  title="Số video trong ngách của bạn gắn pattern này."
                 >
                   {p.niche_video_count.toLocaleString("vi-VN")}
                 </dd>
@@ -162,13 +162,13 @@ export const HooksTable = memo(function HooksTable({
                 <Th>MẪU HOOK</Th>
                 <Th
                   className="w-[100px]"
-                  hint="So sánh lượt gắn pattern trên toàn corpus giữa 7 ngày vừa rồi và 7 ngày trước. «Mới» = tuần trước chưa có dữ liệu so sánh (pattern vừa xuất hiện trên bảng tổng)."
+                  hint="So sánh lượt gắn pattern trên toàn hệ thống giữa 7 ngày vừa rồi và 7 ngày trước. «Mới» = tuần trước chưa có dữ liệu so sánh (pattern vừa xuất hiện trên bảng tổng)."
                 >
                   TĂNG
                 </Th>
                 <Th
                   className="w-[90px] text-right"
-                  hint="Số video trong ngách của bạn đã gắn pattern này (corpus). Khác với cột Tăng — đó là số liệu toàn hệ thống theo tuần."
+                  hint="Số video trong ngách của bạn đã gắn pattern này. Khác với cột Tăng — đó là số liệu toàn hệ thống theo tuần."
                 >
                   LƯỢT DÙNG
                 </Th>
@@ -193,7 +193,7 @@ export const HooksTable = memo(function HooksTable({
                   </td>
                   <td
                     className="px-3 py-3 text-right gv-mono text-xs text-[color:var(--gv-ink)]"
-                    title="Số video trong ngách của bạn gắn pattern này (corpus)."
+                    title="Số video trong ngách của bạn gắn pattern này."
                   >
                     {p.niche_video_count.toLocaleString("vi-VN")}
                   </td>
@@ -221,7 +221,7 @@ export const HooksTable = memo(function HooksTable({
       <SectionHeader
         kicker="BẢNG XẾP HẠNG"
         title="Hook đang chạy"
-        caption={`Top ${patterns.length} mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua. «Lượt dùng» đếm video trong ngách của bạn; «Tăng» so toàn corpus 7 ngày.`}
+        caption={`Top ${patterns.length} mẫu hook 3 giây với tăng trưởng nhanh nhất tuần qua. «Lượt dùng» đếm video trong ngách của bạn; «Tăng» so toàn hệ thống 7 ngày.`}
       />
       {listAndTable}
     </section>

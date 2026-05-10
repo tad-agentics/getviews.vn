@@ -141,7 +141,7 @@ export default function ChannelScreen() {
         {emptyParams ? (
           <div className="flex flex-col gap-6">
             <div className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-6 text-center text-[color:var(--gv-ink-3)]">
-              <p className="gv-tight m-0 text-lg text-[color:var(--gv-ink)]">Soi kênh trong corpus</p>
+              <p className="gv-tight m-0 text-lg text-[color:var(--gv-ink)]">Phân tích kênh TikTok</p>
               <p className="mt-2 text-sm">
                 Thêm <span className="font-[family-name:var(--gv-font-mono)]">?handle=tiktok</span> vào URL, hoặc
                 nhập handle bên dưới.
@@ -291,7 +291,7 @@ function ChannelBody({
               {`"${data.bio}"`}
             </p>
           ) : (
-            <p className="text-sm text-[color:var(--gv-ink-4)]">Chưa có bio trong corpus.</p>
+            <p className="text-sm text-[color:var(--gv-ink-4)]">Chưa có thông tin bio.</p>
           )}
           <div className="mt-[18px] flex flex-wrap gap-2">
             {postingChip ? (

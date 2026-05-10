@@ -376,7 +376,7 @@ export const HomeMyChannelSection = memo(function HomeMyChannelSection({
                   Dán @handle hoặc link TikTok — GetViews phân tích kênh bất kỳ trong ngách.
                 </span>
                 <span className="hidden sm:inline">
-                  Dán @handle hoặc link kênh TikTok. GetViews đọc 60 video gần nhất, so sánh với corpus ngách, và trả về
+                  Dán @handle hoặc link kênh TikTok. GetViews đọc 60 video gần nhất, so sánh với kho video ngách, và trả về
                   chẩn đoán: đang tốt ở đâu, tụt ở đâu, tuần này nên tập trung vào hướng nào.
                 </span>
               </>

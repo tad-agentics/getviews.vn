@@ -560,7 +560,7 @@ function LiveDemoSection({ stats }: { stats: { hooks: { hook_type: string; avg_v
 }
 
 const INFRA_FEATURES = [
-  { icon: Database,      label: "1.500+ Video Thực",      sub: "Corpus TikTok Việt Nam, kiểm chứng được" },
+  { icon: Database,      label: "1.500+ Video Thực",      sub: "Kho dữ liệu TikTok Việt Nam, kiểm chứng được" },
   { icon: Play,          label: "Phân Tích Video Thật",    sub: "AI xem frame thực, không đoán mò" },
   { icon: Globe,         label: "20 Niche Việt Nam",       sub: "Làm đẹp, ẩm thực, tài chính, công nghệ..." },
   { icon: Zap,           label: "Hook Pattern Thực Tế",    sub: "Từ video đã viral, không phải lý thuyết" },
