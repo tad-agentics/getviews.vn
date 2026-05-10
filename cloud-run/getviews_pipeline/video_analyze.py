@@ -1099,6 +1099,8 @@ def run_video_analyze_on_demand(
         # Gemini choked on the video; surface as a 500-class error rather
         # than masking it as "not found". Caller maps to HTTP 500.
         err = str(analyze_result.get("error") or "Phân tích video thất bại")
+        # Carousel-specific errors have their own codes — re-raise so callers
+        # can distinguish and surface a Vietnamese message instead of a 500.
         raise RuntimeError(err)
 
     niche_id = asyncio.run(_classify_niche_id_async(service_sb, aweme))

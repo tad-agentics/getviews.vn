@@ -22,7 +22,7 @@ from getviews_pipeline.report_lifecycle import build_lifecycle_report
 from getviews_pipeline.report_pattern import build_pattern_report
 from getviews_pipeline.report_timing import build_timing_report
 from getviews_pipeline.report_types import LifecycleMode, validate_and_store_report
-from getviews_pipeline.step_events import emit_sentinel
+from getviews_pipeline.step_events import emit, emit_sentinel, step_error
 from getviews_pipeline.supabase_client import get_service_client
 
 logger = logging.getLogger(__name__)
@@ -498,6 +498,29 @@ def append_turn(
                 step_queue=step_queue,
                 turn_context=session.get("turn_context") if kind != "primary" else None,
             )
+    except RuntimeError as exc:
+        _code = str(exc)
+        # Carousel-specific errors need a Vietnamese step_error before the sentinel
+        # so the frontend shows a meaningful message instead of a generic stream drop.
+        _CAROUSEL_ERROR_MESSAGES: dict[str, str] = {
+            "carousel_download_failed": (
+                "GetViews chưa tải được ảnh carousel này — CDN TikTok đang chặn tải xuống. "
+                "Thử lại sau ít phút hoặc hỏi 'Carousel skincare đang trending?' để "
+                "xem xu hướng ngách này."
+            ),
+            "carousel_no_images": (
+                "Bài ảnh TikTok chưa hỗ trợ — EnsembleData không trả về ảnh slide. "
+                "Thử hỏi 'Carousel skincare đang trending?' để xem xu hướng ngách này."
+            ),
+        }
+        if _code in _CAROUSEL_ERROR_MESSAGES and step_queue is not None:
+            emit(step_queue, step_error(code=_code, message_vi=_CAROUSEL_ERROR_MESSAGES[_code]))
+        else:
+            logger.exception(
+                "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",
+                builder_fmt, niche_pk, session_id,
+            )
+        raise
     except Exception:
         logger.exception(
             "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",

@@ -1233,20 +1233,22 @@ async def run_video_diagnosis(
     ref_results = await asyncio.gather(*ref_tasks)
     references = [r for r in ref_results if "analysis" in r and not r.get("_skipped")]
 
-    # Graceful degradation — carousel/photo posts can't be analyzed by EnsembleData
-    # (image_post_info.images is empty). Emit step_error so the frontend shows a
-    # specific message and the stream closes cleanly instead of crashing silently.
-    if user_res.get("error") == "carousel_no_images":
-        emit(
-            step_queue,
-            step_error(
-                code="carousel_no_images",
-                message_vi=(
-                    "Bài ảnh TikTok chưa hỗ trợ — GetViews phân tích video. "
-                    "Thử hỏi \"Carousel skincare đang trending?\" để xem xu hướng ngách này."
-                ),
-            ),
+    # Graceful degradation — any carousel error dict from _analyze_carousel()
+    # must be caught here before downstream code assumes "analysis" key exists.
+    # carousel_no_images: EnsembleData returned no slide URLs (even after aweme_id re-query)
+    # carousel_download_failed: CDN download of slides failed (blocked / expired URLs)
+    _user_error = user_res.get("error") if isinstance(user_res, dict) else None
+    if _user_error in ("carousel_no_images", "carousel_download_failed"):
+        _msg = (
+            "GetViews chưa tải được ảnh carousel này — CDN TikTok đang chặn tải xuống. "
+            "Thử lại sau ít phút hoặc hỏi 'Carousel skincare đang trending?' để xem xu hướng."
+            if _user_error == "carousel_download_failed"
+            else (
+                "Bài ảnh TikTok chưa hỗ trợ — EnsembleData không trả về ảnh slide. "
+                "Thử hỏi 'Carousel skincare đang trending?' để xem xu hướng ngách này."
+            )
         )
+        emit(step_queue, step_error(code=_user_error, message_vi=_msg))
         emit_sentinel(step_queue)
         return
 
