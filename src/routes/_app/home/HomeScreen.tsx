@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Plus, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
 import { QueryComposer } from "@/components/v2/QueryComposer";
@@ -153,6 +154,13 @@ export default function HomeScreen() {
   );
 
   const launchChat = (text: string) => {
+    if (/https?:\/\/[^\s]*tiktok\.com[^\s]*\/photo\//i.test(text)) {
+      toast.warning(
+        "Bài ảnh TikTok chưa hỗ trợ — GetViews phân tích video. Thử hỏi \"Carousel skincare đang trending?\" để xem xu hướng ngách này.",
+        { duration: 6000 },
+      );
+      return;
+    }
     logUsage("studio_composer_submit", { surface: "home", length: text.length });
     navigate(`/app/answer?q=${encodeURIComponent(text)}`);
   };

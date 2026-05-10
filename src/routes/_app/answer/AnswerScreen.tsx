@@ -27,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
 import { Plus, Check, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
@@ -298,6 +299,18 @@ export default function AnswerScreen() {
     if (bootstrapInFlightRef.current === submittedQ) return;
     bootstrapInFlightRef.current = submittedQ;
 
+    // Photo/carousel guard — clear the ?q= param and show a toast so the
+    // user is not left on a blank loading screen.
+    if (/https?:\/\/[^\s]*tiktok\.com[^\s]*\/photo\//i.test(submittedQ)) {
+      bootstrapInFlightRef.current = null;
+      setSearchParams({}, { replace: true });
+      toast.warning(
+        "Bài ảnh TikTok chưa hỗ trợ — GetViews phân tích video. Thử hỏi \"Carousel skincare đang trending?\" để xem xu hướng ngách này.",
+        { duration: 6000 },
+      );
+      return;
+    }
+
     void (async () => {
       setBootstrapLoading(true);
       setError(null);
@@ -464,6 +477,14 @@ export default function AnswerScreen() {
   const submitComposer = useCallback(() => {
     const q = followUp.trim();
     if (!q || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
+    if (/https?:\/\/[^\s]*tiktok\.com[^\s]*\/photo\//i.test(q)) {
+      toast.warning(
+        "Bài ảnh TikTok chưa hỗ trợ — GetViews phân tích video. Thử hỏi \"Carousel skincare đang trending?\" để xem xu hướng ngách này.",
+        { duration: 6000 },
+      );
+      setFollowUp("");
+      return;
+    }
     if (!sessionId) {
       setSearchParams({ q }, { replace: true });
       setFollowUp("");

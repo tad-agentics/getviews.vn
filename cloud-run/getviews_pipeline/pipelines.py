@@ -66,6 +66,7 @@ from getviews_pipeline.step_events import (
     step_count,
     step_creator,
     step_done,
+    step_error,
     step_process,
     step_search,
     step_start,
@@ -1229,6 +1230,23 @@ async def run_video_diagnosis(
     user_res = await user_task
     ref_results = await asyncio.gather(*ref_tasks)
     references = [r for r in ref_results if "analysis" in r and not r.get("_skipped")]
+
+    # Graceful degradation — carousel/photo posts can't be analyzed by EnsembleData
+    # (image_post_info.images is empty). Emit step_error so the frontend shows a
+    # specific message and the stream closes cleanly instead of crashing silently.
+    if user_res.get("error") == "carousel_no_images":
+        emit(
+            step_queue,
+            step_error(
+                code="carousel_no_images",
+                message_vi=(
+                    "Bài ảnh TikTok chưa hỗ trợ — GetViews phân tích video. "
+                    "Thử hỏi \"Carousel skincare đang trending?\" để xem xu hướng ngách này."
+                ),
+            ),
+        )
+        emit_sentinel(step_queue)
+        return
 
     niche_id = await resolve_niche_id_cached(session, niche)
     count, niche_name = await get_corpus_count_cached(
