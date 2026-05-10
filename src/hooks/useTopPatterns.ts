@@ -44,7 +44,7 @@ export type TopPattern = {
   /** L2.2 Sprint 7b — credibility tier the card was admitted under.
    *  - ``"strong"`` — n≥3 AND lift≥1.2× (the original Sprint 5 strict gate).
    *    Card renders with the green ``↑ {lift}× ngách`` badge.
-   *  - ``"early"`` — n≥1 AND lift≥1.5× (relaxed count, raised lift to keep
+   *  - ``"early"`` — n≥2 AND lift≥1.5× (raised from n≥1 to avoid single-video
    *    anti-signal patterns out). Card renders with a yellow "Tín hiệu sớm"
    *    badge so creators know it's a smaller-sample observation, not a
    *    credible "đang chạy tốt" claim. */
@@ -69,13 +69,11 @@ export const STUDIO_HOME_TOP_PATTERNS_LIMIT = 6;
 const TIER_A_MIN_NICHE_VIDEOS = 3;
 const TIER_A_MIN_LIFT = 1.2;
 
-/** L2.2 Sprint 7b — Tier B ("early signal") gate. Drops the n≥3 floor but
- *  raises the lift bar to 1.5× to filter anti-signal patterns
- *  (e.g., n=3 patterns averaging *below* niche median). The asymmetry
- *  is deliberate: a single video at 13× niche median is more
- *  trustworthy than three videos at 0.3× niche median. Card chrome
- *  flags these as "Tín hiệu sớm" so creators don't read them as
- *  "đang chạy tốt" — the strict claim stays reserved for Tier A. */
+/** L2.2 Sprint 7b — Tier B ("early signal") gate. Requires at least 2
+ *  niche-scoped videos (raised from n≥1 to avoid single-video patterns
+ *  being surfaced as formulas) and lift ≥1.5× to filter anti-signal
+ *  patterns. Card chrome flags these as "Tín hiệu sớm". */
+const TIER_B_MIN_NICHE_VIDEOS = 2;
 const TIER_B_MIN_LIFT = 1.5;
 
 /** L2.2 Sprint 7a — safety cap on the niche-views payload. We pull every
@@ -222,7 +220,7 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
 
       // Tier the patterns:
       //   Tier A — strict credibility ("đang chạy tốt"): n≥3 AND lift≥1.2×.
-      //   Tier B — early signal ("tín hiệu sớm"): n≥1 AND lift≥1.5×.
+      //   Tier B — early signal ("tín hiệu sớm"): n≥2 AND lift≥1.5×.
       // Patterns missing both gates are dropped (no card). When ``lift`` is
       // null (niche median unknown), only Tier A's count gate applies — we
       // can't tier as "early signal" without a lift comparator, so we tier
@@ -231,7 +229,7 @@ export function useTopPatterns(nicheId: number | null, limit = STUDIO_HOME_TOP_P
       const tierOf = (n: number, lift: number | null): Tier => {
         if (lift == null) return n >= TIER_A_MIN_NICHE_VIDEOS ? "strong" : null;
         if (n >= TIER_A_MIN_NICHE_VIDEOS && lift >= TIER_A_MIN_LIFT) return "strong";
-        if (n >= 1 && lift >= TIER_B_MIN_LIFT) return "early";
+        if (n >= TIER_B_MIN_NICHE_VIDEOS && lift >= TIER_B_MIN_LIFT) return "early";
         return null;
       };
 
