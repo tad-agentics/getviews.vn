@@ -325,7 +325,9 @@ export default function HomeScreen() {
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
 
           <div className="gv-fade-up gv-fade-up-delay-2 mb-12">
-            <HomeMyChannelSection profile={profile} nicheLabel={nicheLabel} />
+            <HomeMyChannelSection
+                credits={(profile as { deep_credits_remaining?: number } | null | undefined)?.deep_credits_remaining ?? 0}
+              />
           </div>
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
