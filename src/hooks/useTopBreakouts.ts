@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { legacyNicheIdForCreatorNiche } from "@/lib/profileNiches";
 
 export type BreakoutVideo = {
   video_id: string;
   tiktok_url: string;
   thumbnail_url: string | null;
+  video_url: string | null;
   creator_handle: string;
   views: number;
   breakout_multiplier: number | null;
@@ -14,14 +16,38 @@ export type BreakoutVideo = {
 };
 
 const CORPUS_COLS =
-  "video_id, tiktok_url, thumbnail_url, creator_handle, views, breakout_multiplier, hook_phrase, hook_type, video_duration";
+  "video_id, tiktok_url, thumbnail_url, video_url, creator_handle, views, breakout_multiplier, hook_phrase, hook_type, video_duration";
 
-function withNiche<T extends { eq: (a: string, b: number) => T }>(
-  q: T,
-  nicheId: number | null,
-): T {
-  if (nicheId == null) return q;
-  return q.eq("niche_id", nicheId);
+/**
+ * Applies the sharpest available niche filter to a query builder:
+ * 1. content_class_id IN (...) — precise two-axis model (preferred)
+ * 2. niche_id = ... — legacy single-bucket fallback
+ * 3. no filter — global, when niche is unknown
+ */
+function applyNicheFilter<
+  T extends {
+    in: (col: string, vals: number[]) => T;
+    eq: (col: string, val: number) => T;
+  },
+>(q: T, contentClassIds: number[], legacyNicheId: number | null): T {
+  if (contentClassIds.length > 0) return q.in("content_class_id", contentClassIds);
+  if (legacyNicheId != null) return q.eq("niche_id", legacyNicheId);
+  return q;
+}
+
+/**
+ * Resolves the content_class_ids for a creator niche via the M:N junction table.
+ * Falls back to an empty array on error (query will then use legacyNicheId fallback).
+ * DB types may not include this table yet — cast is intentional until next `supabase gen types`.
+ */
+async function fetchContentClassIds(creatorNicheId: number): Promise<number[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from("creator_niche_content_classes")
+    .select("content_class_id")
+    .eq("creator_niche_id", creatorNicheId);
+  if (error || !data) return [];
+  return (data as { content_class_id: number }[]).map((r) => r.content_class_id);
 }
 
 /** Exported for unit tests — deterministic slice that rotates over time when pool > limit. */
@@ -43,21 +69,35 @@ const HOME_BREAKOUT_ROTATION_MS = 15 * 60 * 1000;
 
 /**
  * Top breakout-style tiles for Home. Strategy:
- * 1) True breakouts (multiplier set) in the last 14 days by ``indexed_at`` (corpus freshness),
- *    niche-scoped or global if no niche. Fetch a **pool** (not only top-3) so we can rotate.
+ * 1) True breakouts (multiplier set) in the last 14 days, filtered by content_class_id
+ *    (all classes mapped to the user's creator niche via the junction table), with legacy
+ *    niche_id as a safety fallback and global as a last resort.
  * 2) If pool still short: same filter but 90-day window.
- * 3) If still short: top by views in niche (or globally) to always surface three tiles when corpus has data.
+ * 3) If still short: top by views (same filter) to always surface three tiles.
  *
  * ``pickRotatingBreakoutWindow`` cycles through overlapping high-multiplier rows so the row does not
  * stay frozen on the same three IDs until DB ranks change.
  */
 async function fetchTopBreakoutsForHome(
-  nicheId: number | null,
+  creatorNicheId: number | null,
   limit: number,
 ): Promise<BreakoutVideo[]> {
   const now = Date.now();
   const since14 = new Date(now - 14 * 24 * 3600 * 1000).toISOString();
   const since90 = new Date(now - 90 * 24 * 3600 * 1000).toISOString();
+
+  // Resolve the sharpest available filter upfront.
+  let contentClassIds: number[] = [];
+  let legacyNicheId: number | null = null;
+
+  if (creatorNicheId != null) {
+    contentClassIds = await fetchContentClassIds(creatorNicheId);
+    // If the junction table is empty or the table hasn't been seeded for this niche,
+    // fall back to the legacy 1:1 niche mapping.
+    if (contentClassIds.length === 0) {
+      legacyNicheId = legacyNicheIdForCreatorNiche(creatorNicheId);
+    }
+  }
 
   const pool: BreakoutVideo[] = [];
   const seen = new Set<string>();
@@ -76,7 +116,7 @@ async function fetchTopBreakoutsForHome(
     .select(CORPUS_COLS)
     .gte("indexed_at", since14)
     .not("breakout_multiplier", "is", null);
-  q1 = withNiche(q1, nicheId);
+  q1 = applyNicheFilter(q1, contentClassIds, legacyNicheId);
   const { data: d1, error: e1 } = await q1
     .order("breakout_multiplier", { ascending: false })
     .order("indexed_at", { ascending: false })
@@ -91,7 +131,7 @@ async function fetchTopBreakoutsForHome(
       .select(CORPUS_COLS)
       .gte("indexed_at", since90)
       .not("breakout_multiplier", "is", null);
-    q2 = withNiche(q2, nicheId);
+    q2 = applyNicheFilter(q2, contentClassIds, legacyNicheId);
     const { data: d2, error: e2 } = await q2
       .order("breakout_multiplier", { ascending: false })
       .order("indexed_at", { ascending: false })
@@ -103,7 +143,7 @@ async function fetchTopBreakoutsForHome(
   // 3) Top views — fills the row when multipliers are not backfilled yet
   if (pool.length < limit) {
     let q3 = supabase.from("video_corpus").select(CORPUS_COLS);
-    q3 = withNiche(q3, nicheId);
+    q3 = applyNicheFilter(q3, contentClassIds, legacyNicheId);
     const { data: d3, error: e3 } = await q3
       .order("views", { ascending: false })
       .order("indexed_at", { ascending: false })
@@ -118,13 +158,16 @@ async function fetchTopBreakoutsForHome(
 }
 
 /**
- * Top breakout / high-signal videos for the Home row. When `nicheId` is null,
+ * Top breakout / high-signal videos for the Home row. When `creatorNicheId` is null,
  * ranks globally so the section still renders before a primary niche is chosen.
+ *
+ * Filters by content_class_id IN (all classes for the creator's niche) via the
+ * creator_niche_content_classes junction — sharper than the legacy 1:1 niche_id mapping.
  */
-export function useTopBreakouts(nicheId: number | null, limit = 3) {
+export function useTopBreakouts(creatorNicheId: number | null, limit = 3) {
   return useQuery<BreakoutVideo[]>({
-    queryKey: ["home", "top_breakouts", nicheId ?? "all", limit],
-    queryFn: () => fetchTopBreakoutsForHome(nicheId, limit),
+    queryKey: ["home", "top_breakouts", creatorNicheId ?? "all", limit],
+    queryFn: () => fetchTopBreakoutsForHome(creatorNicheId, limit),
     // Short stale + interval so rotation (15m buckets) and corpus updates surface without a hard refresh.
     staleTime: 2 * 60 * 1000,
     refetchInterval: 4 * 60 * 1000,

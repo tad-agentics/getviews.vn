@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef, useState, useCallback } from "react";
 import { Link } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
@@ -29,14 +29,141 @@ function formatDuration(sec: number | string | null | undefined): string | null 
 
 const FALLBACK_PANEL = ["bg-[#2d2640]", "bg-[#5c1f2a]", "bg-[#1f3d2d]"] as const;
 
+/** Single breakout tile with hover-to-play video preview. */
+function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const dur = formatDuration(v.video_duration ?? undefined);
+  const isBreakout = v.breakout_multiplier != null;
+  const panelClass = v.thumbnail_url
+    ? ""
+    : (FALLBACK_PANEL[idx % FALLBACK_PANEL.length] ?? "bg-[color:var(--gv-ink-2)]");
+  const hookShort =
+    v.hook_phrase && v.hook_phrase.length > 48 ? `${v.hook_phrase.slice(0, 48)}…` : v.hook_phrase;
+
+  const handleMouseEnter = useCallback(() => {
+    if (!v.video_url || !videoRef.current) return;
+    videoRef.current.currentTime = 0;
+    void videoRef.current.play().then(() => setPlaying(true)).catch(() => {});
+  }, [v.video_url]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.pause();
+    videoRef.current.currentTime = 0;
+    setPlaying(false);
+  }, []);
+
+  return (
+    <a
+      key={v.video_id}
+      href={v.tiktok_url}
+      target="_blank"
+      rel="noreferrer"
+      className="group block text-left"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div
+        className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
+      >
+        {/* Thumbnail — fades out when video is playing */}
+        <div className={`absolute inset-0 transition-opacity duration-300 ${playing ? "opacity-0" : "opacity-100"}`}>
+          <VideoThumbnail
+            thumbnailUrl={v.thumbnail_url}
+            className="h-full w-full"
+            placeholderClassName=""
+          />
+        </div>
+
+        {/* Video — renders only when a URL is available */}
+        {v.video_url ? (
+          <video
+            ref={videoRef}
+            src={v.video_url}
+            muted
+            loop
+            playsInline
+            preload="none"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${playing ? "opacity-100" : "opacity-0"}`}
+          />
+        ) : null}
+
+        {/* Hover-to-play hint — only shown when video is available and not playing */}
+        {v.video_url && !playing ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="white" aria-hidden>
+                <path d="M3 2.5l10 5.5-10 5.5V2.5z" />
+              </svg>
+            </div>
+          </div>
+        ) : null}
+
+        {v.thumbnail_url || playing ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/20 to-transparent"
+            aria-hidden
+          />
+        ) : null}
+        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3.5 text-white">
+          <div className="flex items-start justify-between gap-2">
+            <span className="rounded px-2 py-0.5 gv-mono text-[10px] font-bold uppercase tracking-[0.05em] text-white bg-[color:var(--gv-accent)]">
+              {isBreakout ? "BREAKOUT" : "ĐANG NỔI"}
+            </span>
+            {dur ? <span className="gv-mono text-[11px] opacity-95">{dur}</span> : null}
+          </div>
+          <div className="min-h-0 flex-1 flex flex-col justify-end pt-8">
+            {v.hook_phrase ? (
+              <p
+                className="gv-tight line-clamp-4 text-[22px] leading-[1.1] text-white"
+                style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}
+              >
+                &ldquo;{v.hook_phrase}&rdquo;
+              </p>
+            ) : (
+              <p className="gv-tight text-[22px] leading-[1.1] text-white/90" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}>
+                @{v.creator_handle}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="gv-mono text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
+            @{v.creator_handle}
+          </span>
+          <span className="gv-mono text-[11px] font-bold text-[color:var(--gv-pos-deep)]">
+            ↑ {formatViews(v.views)}
+          </span>
+        </div>
+        {v.hook_phrase ? (
+          <p className="text-[12px] text-[color:var(--gv-ink-3)]">
+            Hook ·{" "}
+            <span className="font-semibold text-[color:var(--gv-ink-2)]">
+              &ldquo;{hookShort}&rdquo;
+            </span>
+          </p>
+        ) : v.hook_type ? (
+          <p className="text-[12px] text-[color:var(--gv-ink-3)]">
+            Hook · <span className="font-semibold text-[color:var(--gv-ink-2)]">{v.hook_type}</span>
+          </p>
+        ) : null}
+      </div>
+    </a>
+  );
+}
+
 export const BreakoutGrid = memo(function BreakoutGrid({
-  nicheId,
+  creatorNicheId,
   embedded = false,
 }: {
-  nicheId: number | null;
+  creatorNicheId: number | null;
   embedded?: boolean;
 }) {
-  const { data: videos, isPending } = useTopBreakouts(nicheId, 3);
+  const { data: videos, isPending } = useTopBreakouts(creatorNicheId, 3);
 
   const headerRight = (
     <Link
@@ -105,85 +232,9 @@ export const BreakoutGrid = memo(function BreakoutGrid({
         />
       ) : null}
       <div className="grid [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-[18px]">
-        {videos.map((v: BreakoutVideo, idx: number) => {
-          const dur = formatDuration(v.video_duration ?? undefined);
-          const isBreakout = v.breakout_multiplier != null;
-          const panelClass = v.thumbnail_url
-            ? ""
-            : (FALLBACK_PANEL[idx % FALLBACK_PANEL.length] ?? "bg-[color:var(--gv-ink-2)]");
-          const hookShort =
-            v.hook_phrase && v.hook_phrase.length > 48 ? `${v.hook_phrase.slice(0, 48)}…` : v.hook_phrase;
-
-          return (
-            <a
-              key={v.video_id}
-              href={v.tiktok_url}
-              target="_blank"
-              rel="noreferrer"
-              className="group block text-left"
-            >
-              <div
-                className={`relative aspect-[4/5] w-full overflow-hidden rounded-[10px] border border-[color:var(--gv-rule)] ${!v.thumbnail_url ? panelClass : "bg-[color:var(--gv-ink)]"}`}
-              >
-                <VideoThumbnail
-                  thumbnailUrl={v.thumbnail_url}
-                  className="h-full w-full transition-transform duration-300 group-hover:scale-[1.02]"
-                  placeholderClassName=""
-                />
-                {v.thumbnail_url ? (
-                  <div
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/20 to-transparent"
-                    aria-hidden
-                  />
-                ) : null}
-                <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-3.5 text-white">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="rounded px-2 py-0.5 gv-mono text-[10px] font-bold uppercase tracking-[0.05em] text-white bg-[color:var(--gv-accent)]">
-                      {isBreakout ? "BREAKOUT" : "ĐANG NỔI"}
-                    </span>
-                    {dur ? <span className="gv-mono text-[11px] opacity-95">{dur}</span> : null}
-                  </div>
-                  <div className="min-h-0 flex-1 flex flex-col justify-end pt-8">
-                    {v.hook_phrase ? (
-                      <p
-                        className="gv-tight line-clamp-4 text-[22px] leading-[1.1] text-white"
-                        style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}
-                      >
-                        &ldquo;{v.hook_phrase}&rdquo;
-                      </p>
-                    ) : (
-                      <p className="gv-tight text-[22px] leading-[1.1] text-white/90" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}>
-                        @{v.creator_handle}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="gv-mono text-[11px] font-semibold text-[color:var(--gv-ink-3)]">
-                    @{v.creator_handle}
-                  </span>
-                  <span className="gv-mono text-[11px] font-bold text-[color:var(--gv-pos-deep)]">
-                    ↑ {formatViews(v.views)}
-                  </span>
-                </div>
-                {v.hook_phrase ? (
-                  <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-                    Hook ·{" "}
-                    <span className="font-semibold text-[color:var(--gv-ink-2)]">
-                      &ldquo;{hookShort}&rdquo;
-                    </span>
-                  </p>
-                ) : v.hook_type ? (
-                  <p className="text-[12px] text-[color:var(--gv-ink-3)]">
-                    Hook · <span className="font-semibold text-[color:var(--gv-ink-2)]">{v.hook_type}</span>
-                  </p>
-                ) : null}
-              </div>
-            </a>
-          );
-        })}
+        {videos.map((v: BreakoutVideo, idx: number) => (
+          <BreakoutTile key={v.video_id} v={v} idx={idx} />
+        ))}
       </div>
     </section>
   );
