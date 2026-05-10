@@ -692,7 +692,7 @@ function CrossFormatPanel({
   return (
     <section className="rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-5">
       <SectionMini
-        kicker="Cross-niche signal"
+        kicker="Tín hiệu liên ngách"
         title={`Format ${signal.format_label_vi} đang lan toả ${signal.niches_with_format} ngách`}
       />
       <p className="mt-1 text-[13px] text-[color:var(--gv-ink-3)]">
@@ -708,7 +708,7 @@ function CrossFormatPanel({
               className="flex items-center justify-between gap-3 rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-3 py-2 text-[12px]"
             >
               <span className="font-medium text-[color:var(--gv-ink)]">
-                {h.hook_type}
+                {h.hook_type_vi || h.hook_type}
               </span>
               <span className="gv-mono text-[11px] text-[color:var(--gv-ink-3)]">
                 {Math.round(h.avg_views).toLocaleString("vi-VN")} view ·{" "}

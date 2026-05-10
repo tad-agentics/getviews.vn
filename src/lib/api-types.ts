@@ -136,6 +136,7 @@ export interface VideoNicheBenchmarkResponse {
  */
 export interface CrossFormatHook {
   hook_type: string;
+  hook_type_vi?: string;
   avg_views: number;
   niche_spread: number;
 }

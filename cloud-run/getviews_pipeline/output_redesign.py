@@ -323,7 +323,29 @@ Thứ tự ĐÚNG:
 **PHẦN 4 — VIDEO TIẾP THEO**
 1 khuyến nghị duy nhất — không phải danh sách 5-7 điểm.
 Format: "Video tiếp: [1 câu hành động cụ thể]."
-Kết thúc bắt buộc bằng Hook template: "[câu mở đầu dùng [ngoặc vuông] tiếng Việt cho placeholder]"
+
+Kết thúc bắt buộc bằng dòng "**Hook mở đầu:**" rồi ngay sau là template tiếng Việt sẵn sàng copy, dựa trên hook_type của video này:
+
+Tra bảng hook_type → template bên dưới. Điền [placeholder] bằng nội dung cụ thể của ngách này. KHÔNG viết generic, PHẢI điền đủ ngữ cảnh ngách.
+
+- bold_claim / challenge: "[Con số cụ thể] [kết quả bất ngờ] mà không ai nói với bạn về [chủ đề ngách]"
+- curiosity_gap: "Tôi [hành động cụ thể] được [X ngày/tuần] và đây là điều xảy ra..."
+- pain_point: "Nếu bạn đang [tình huống đau thực tế], đây là lý do thực sự..."
+- warning: "Đừng [hành động phổ biến trong ngách] trước khi bạn xem video này"
+- price_shock: "[Sản phẩm/dịch vụ] này chỉ [giá cụ thể] — và nó [kết quả bất ngờ]"
+- reaction: "Tôi thử [hành động viral/trend] và đây là phản ứng của tôi..."
+- comparison: "[A] vs [B] — [tiêu chí bất ngờ] quyết định tất cả"
+- controversy / expose: "Sự thật về [chủ đề/brand] mà không ai dám nói"
+- how_to: "Cách [kết quả cụ thể] trong [thời gian ngắn bất ngờ] — không cần [rào cản phổ biến]"
+- story_open: "[Thời điểm cụ thể], tôi [tình huống] — và mọi thứ thay đổi từ đó"
+- pov: "POV: bạn là [nhân vật/tình huống] và [điều bất ngờ xảy ra]"
+- social_proof / testimonial: "[X người/creator] đã thử cách này — đây là kết quả thực tế"
+- question: "[Câu hỏi gây tranh luận về chủ đề ngách]?"
+- trend_hijack: "[Trend/âm thanh viral] + [nội dung của bạn] = [kết quả bất ngờ]"
+- insider / secret: "Điều mà [người trong ngành] biết nhưng không bao giờ nói công khai về [chủ đề]"
+
+Nếu hook_type không rõ hoặc là "none"/"other": dùng template curiosity_gap.
+Xuất template ĐÚNG 1 dòng. KHÔNG thêm giải thích hay biến thể khác sau template.
 """
 
 # ---------------------------------------------------------------------------
@@ -617,7 +639,7 @@ R4: KHÔNG fabricate metrics. Chỉ dùng số thật từ data JSON.
 R5: Hook type phải từ 14 tên cố định. Không đặt tên mới.
 R6: Bỏ qua yếu tố có weight "skip" cho format {content_format}.
 R7: Tất cả reference videos BẮT BUỘC — xuất video_ref JSON blocks LIÊN TIẾP ở cuối PHẦN 3, KHÔNG xen kẽ với text mô tả.
-R8: Hook template BẮT BUỘC ở cuối PHẦN 4.
+R8: Hook template BẮT BUỘC ở cuối PHẦN 4. Dòng cuối cùng PHẢI bắt đầu bằng "**Hook mở đầu:**" rồi là template điền sẵn. Không được kết thúc PHẦN 4 mà không có dòng này.
 R9: 1 khuyến nghị duy nhất ở PHẦN 4, không phải danh sách.
 R10: Số dùng format Vietnamese: 1.200 (hàng nghìn), 3,2x (thập phân).
 R11: KHÔNG dùng heading markdown (##, ###). Dùng **bold** cho label.
@@ -704,7 +726,26 @@ Sau khi kết thúc tất cả phân tích text, xuất các JSON blocks LIÊN T
 PHẦN 2C — CAROUSEL TIẾP THEO
 1 khuyến nghị duy nhất — không phải danh sách 5-7 điểm.
 Format: "Carousel tiếp: [1 câu hành động cụ thể — arc + hook slide 1 + CTA slide cuối]."
-Kết thúc bắt buộc bằng Hook template slide 1: "[câu hook dùng [ngoặc vuông] tiếng Việt cho placeholder]"
+
+Kết thúc bắt buộc bằng dòng "**Hook slide 1:**" rồi ngay sau là template tiếng Việt sẵn sàng copy, dựa trên hook_type của carousel này. Tra bảng:
+
+- bold_claim / challenge: "[Con số cụ thể] [kết quả bất ngờ] mà không ai nói với bạn về [chủ đề ngách]"
+- curiosity_gap: "Tôi [hành động cụ thể] được [X ngày/tuần] và đây là điều xảy ra..."
+- pain_point: "Nếu bạn đang [tình huống đau thực tế], đây là lý do thực sự..."
+- warning: "Đừng [hành động phổ biến trong ngách] trước khi bạn xem video này"
+- price_shock: "[Sản phẩm] chỉ [giá cụ thể] — và nó [kết quả bất ngờ]"
+- reaction: "Tôi thử [hành động viral/trend] và đây là phản ứng của tôi..."
+- comparison: "[A] vs [B] — [tiêu chí bất ngờ] quyết định tất cả"
+- controversy / expose: "Sự thật về [chủ đề/brand] mà không ai dám nói"
+- how_to: "Cách [kết quả cụ thể] trong [thời gian ngắn] — không cần [rào cản phổ biến]"
+- story_open: "[Thời điểm cụ thể], tôi [tình huống] — và mọi thứ thay đổi từ đó"
+- pov: "POV: bạn là [nhân vật/tình huống] và [điều bất ngờ xảy ra]"
+- social_proof / testimonial: "[X người/creator] đã thử cách này — đây là kết quả thực tế"
+- question: "[Câu hỏi gây tranh luận về chủ đề ngách]?"
+- trend_hijack: "[Trend/âm thanh viral] + [nội dung của bạn] = [kết quả bất ngờ]"
+- insider / secret: "Điều mà [người trong ngành] biết nhưng không bao giờ nói công khai về [chủ đề]"
+
+Nếu hook_type không rõ: dùng template curiosity_gap. Xuất template ĐÚNG 1 dòng.
 """
 
 # ---------------------------------------------------------------------------
@@ -866,7 +907,7 @@ R4: KHÔNG fabricate metrics. Chỉ dùng số thật từ data JSON.
 R5: NẾU slides[].text_on_slide có nội dung, PHẢI trích dẫn — KHÔNG nói "slide không có chữ".
 R6: Bỏ qua tín hiệu video: transitions/s, face_appears_at theo giây, audio, watch time.
 R7: 3 reference carousels BẮT BUỘC — video_ref JSON block cho mỗi carousel.
-R8: Hook template slide 1 BẮT BUỘC ở cuối PHẦN 2C.
+R8: Hook template slide 1 BẮT BUỘC ở cuối PHẦN 2C. Dòng cuối cùng PHẢI bắt đầu bằng "**Hook slide 1:**" rồi là template điền sẵn. Không được kết thúc PHẦN 2C mà không có dòng này.
 R9: 1 khuyến nghị duy nhất ở PHẦN 2C, không phải danh sách.
 R10: Số dùng format Vietnamese: 1.200 (hàng nghìn), 3,2x (thập phân).
 R11: KHÔNG dùng heading markdown (##, ###). Dùng **bold** cho label.

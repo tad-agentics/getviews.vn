@@ -27,7 +27,7 @@ class PatternNarrativeLLM(BaseModel):
     empty sublists fall back to static chips in ``compute_findings``).
     """
 
-    thesis: str = Field(default="")
+    thesis: str = Field(default="", description="Starts with 'Kết luận nhanh:' followed by the single most specific finding with WoW numbers.")
     hook_insights: list[str] = Field(default_factory=list)
     stalled_insights: list[str] = Field(default_factory=list)
     related_questions: list[str] = Field(default_factory=list)
@@ -176,7 +176,7 @@ def fill_pattern_narrative(
 
 Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
 
-- thesis: string ≤280 ký tự — BẮT ĐẦU BẰNG: '{len(top_hook_labels)} hook đang dẫn đầu ngách {niche_label} tuần này:' rồi nêu 1-2 câu tóm tắt xu hướng lớn nhất và kết bằng bằng chứng số. KHÔNG mở đầu bằng 'Trong ngách...' hay câu generic.
+- thesis: string ≤300 ký tự — BẮT ĐẦU BẰNG "Kết luận nhanh:" rồi 1 câu phát hiện CỤ THỂ NHẤT tuần này kèm số liệu thực. Nếu có WOW ALERT phía trên, ưu tiên đưa số đó vào câu mở (ví dụ: "Kết luận nhanh: Bằng chứng xã hội tăng 3 bậc so với tuần trước — đang là hook thắng tuyệt đối ngách {niche_label}."). Nếu không có WoW delta, mở bằng hook dẫn đầu + view trung bình cụ thể. Sau câu mở, nêu thêm 1 xu hướng bổ sung. KHÔNG bắt đầu bằng "Trong ngách..." hay câu generic.
 {hook_insights_rule}
 - stalled_insights: đúng {n_st} string ≤200 ký tự — vì sao hook suy liên quan câu hỏi.
 - related_questions: đúng 4 string ngắn ≤80 ký tự — follow-up LIÊN TIẾP câu hỏi hiện tại.
@@ -226,7 +226,7 @@ Khi creator_count >= 3: ghi rõ "pattern này giữ vững ở X creator — for
         except ValidationError as exc:
             logger.warning("[pattern] Gemini narrative schema mismatch: %s — fallback", exc)
             return _fallback_narrative(query, niche_label, top_hook_labels, stalled_hook_labels)
-        thesis = data.thesis[:280]
+        thesis = data.thesis[:300]
         hi = [s[:200] for s in data.hook_insights]
         si = [s[:200] for s in data.stalled_insights]
         rq = [s[:80] for s in data.related_questions][:4]
@@ -257,8 +257,9 @@ Khi creator_count >= 3: ghi rõ "pattern này giữ vững ở X creator — for
 
 
 def _fallback_thesis(niche_label: str, hooks: list[str]) -> str:
-    h = ", ".join(hooks[:3]) if hooks else "các hook đang được ưa chuộng"
-    return f"Trong {niche_label}, {h} đang mang lại tín hiệu xem ổn định so với baseline ngách."
+    h = hooks[0] if hooks else "hook đang dẫn đầu"
+    extra = f", {hooks[1]}" if len(hooks) > 1 else ""
+    return f"Kết luận nhanh: {h}{extra} đang mang lại tín hiệu xem ổn định trong {niche_label} — cao hơn baseline ngách."
 
 
 def _fallback_insight(label: str) -> str:

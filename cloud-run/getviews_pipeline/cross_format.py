@@ -22,6 +22,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from getviews_pipeline.enum_labels_vi import HOOK_TYPE_VI
+
 logger = logging.getLogger(__name__)
 
 
@@ -182,6 +184,7 @@ def get_cross_format_signal(
         spread = len({e["niche_id"] for e in entries if e["niche_id"] is not None})
         hook_summaries.append({
             "hook_type": hook_type,
+            "hook_type_vi": HOOK_TYPE_VI.get(hook_type.lower(), hook_type),
             "avg_views": int(round(avg_v)),
             "niche_spread": spread,
         })
