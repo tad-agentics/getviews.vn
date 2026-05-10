@@ -512,13 +512,6 @@ export default function AnswerScreen() {
           title="Báo Cáo Nghiên Cứu"
           right={
             <>
-              <span className="hide-narrow hidden items-center gap-2 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1 gv-mono text-[11px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-3)] md:inline-flex">
-                <span
-                  className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-accent)]"
-                  style={{ animation: "gv-pulse 1.6s ease-in-out infinite" }}
-                />
-                Dữ liệu cập nhật {dataFreshLabel ?? "—"}
-              </span>
               <Btn variant="ink" size="sm" type="button" onClick={() => navigate("/app/answer")}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={2} />
                 Phân tích mới
