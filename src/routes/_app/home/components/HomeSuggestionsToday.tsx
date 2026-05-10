@@ -45,8 +45,10 @@ const OPEN_ALL_SCRIPTS = (
  */
 export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
   nicheId,
+  creatorNicheId,
 }: {
   nicheId: number | null;
+  creatorNicheId: number | null;
 }) {
   const { data: hookPatterns, isPending: hooksPending } = useTopPatterns(nicheId);
   const hookCount = hookPatterns?.length ?? 0;
@@ -107,7 +109,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           caption="View vượt 10× trung bình kênh đó trong 48h. Để xem cách kênh khác bứt phá."
           right={SEE_ALL_TRENDS}
         />
-        <BreakoutGrid embedded nicheId={nicheId} />
+        <BreakoutGrid embedded creatorNicheId={creatorNicheId} />
       </div>
     </section>
   );
