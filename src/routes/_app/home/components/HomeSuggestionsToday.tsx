@@ -25,15 +25,6 @@ const SEE_ALL_TRENDS = (
   </Link>
 );
 
-const OPEN_ALL_SCRIPTS = (
-  <Link
-    to="/app/script"
-    className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-xs font-medium text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)]"
-  >
-    <span>Mở tất cả</span>
-    <ArrowRight className="h-3 w-3" aria-hidden />
-  </Link>
-);
 
 /**
  * Khối "GỢI Ý HÔM NAY" — 3 tầng 01 QUAY NGAY · 02 PATTERN · 03 CẢM HỨNG.
@@ -84,7 +75,6 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           tagTone="accent"
           title="3 video tiếp theo bạn nên làm"
           caption="Tổng hợp từ pattern thắng 7 ngày qua. Cả 3 ý tưởng đều có kịch bản sẵn — bấm dòng để mở Xưởng viết."
-          right={OPEN_ALL_SCRIPTS}
         />
         <StudioHero nicheId={nicheId} />
       </div>
