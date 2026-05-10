@@ -137,10 +137,47 @@ async def _analyze_carousel(
 ) -> dict:
     vid = str(aweme.get("aweme_id", "") or "")
     url_lists = ensemble.extract_image_url_lists(aweme)
+
+    # Re-query fallback: URL-based lookups often return empty image_post_info for
+    # /photo/ posts. Querying by native aweme_id (multi-info endpoint) populates
+    # image_post_info.images more reliably — TikTok's CDN URL layout differs.
+    if not url_lists and vid:
+        logger.info(
+            "[carousel] video_id=%s — empty image_post_info from URL lookup; "
+            "re-fetching by aweme_id via fetch_post_multi_info",
+            vid,
+        )
+        try:
+            re_fetched = await ensemble.fetch_post_multi_info([vid])
+            if re_fetched:
+                aweme_refetch = re_fetched[0]
+                url_lists = ensemble.extract_image_url_lists(aweme_refetch)
+                if url_lists:
+                    logger.info(
+                        "[carousel] video_id=%s — re-fetch by aweme_id succeeded: %d slides",
+                        vid,
+                        len(url_lists),
+                    )
+                    # Use re-fetched aweme for downstream slide processing.
+                    aweme = aweme_refetch
+                    # Re-parse metadata in case the re-fetch has richer fields.
+                    metadata = ensemble.parse_metadata(aweme_refetch)
+                else:
+                    logger.warning(
+                        "[carousel] video_id=%s — re-fetch by aweme_id: still no images",
+                        vid,
+                    )
+        except Exception as exc:
+            logger.warning(
+                "[carousel] video_id=%s — re-fetch by aweme_id failed: %s",
+                vid,
+                exc,
+            )
+
     if not url_lists:
         logger.error(
             "[carousel] video_id=%s — aweme_type=2 but no per-slide CDN URLs in "
-            "image_post_info; EnsembleData may not recognize this /photo/ URL format",
+            "image_post_info after URL + aweme_id re-query; EnsembleData gap",
             vid,
         )
         return {

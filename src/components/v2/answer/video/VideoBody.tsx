@@ -499,6 +499,18 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
             <div className="gv-mono mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
               CHẨN ĐOÁN VIDEO CỦA BẠN · {flopIssueCount} ĐIỂM LỖI CẤU TRÚC
             </div>
+          ) : report.carousel_subformat_label ? (
+            <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+              MỔ CAROUSEL VIRAL ·{" "}
+              <span className="normal-case text-[color:var(--gv-ink-3)]">
+                {report.carousel_subformat_label}
+                {report.carousel_slide_count ? ` · ${report.carousel_slide_count} slides` : ""}
+              </span>
+              {" "}·{" "}
+              <span className="normal-case text-[color:var(--gv-ink-3)]">
+                {meta.niche_label ?? "—"}
+              </span>
+            </div>
           ) : (
             <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
               MỔ VIDEO VIRAL ·{" "}

@@ -18,6 +18,7 @@ from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
     fetch_corpus_reference_pool,
+    fetch_creator_format_history,
     get_corpus_count_cached,
     get_niche_intelligence,
     get_signal_grades_for_niche,
@@ -39,6 +40,7 @@ from getviews_pipeline.hashtag_niche_map import (
     classify_from_hashtags,
     score_niche_match,
 )
+from getviews_pipeline.enum_labels_vi import carousel_subformat_vi
 from getviews_pipeline.output_redesign import hook_type_vi
 from getviews_pipeline.pattern_fingerprint import (
     annotate_with_pattern_names,
@@ -1323,6 +1325,7 @@ async def run_video_diagnosis(
             return "carousel_story"
         return "carousel"
 
+    carousel_format: str | None = None
     diagnosis: str
     if include_diagnosis:
         if user_content_type == "carousel":
@@ -1344,12 +1347,48 @@ async def run_video_diagnosis(
             if len(carousel_refs) < REF_N:
                 # Not enough carousel references — use all references (mixed is better than empty)
                 carousel_refs = references
+            # OQ-1 + OQ-2: fetch creator's own format history from corpus for
+            # account-level format pattern diagnosis and baseline multiplier.
+            # Fail-open: None = creator not in corpus → omit section entirely.
+            _author_handle = (user_metadata_dict.get("author") or {}).get("username") or ""
+            creator_history = await fetch_creator_format_history(_author_handle)
+            creator_format_history_block = ""
+            if creator_history and creator_history["carousel_count"] > 0:
+                _cc = creator_history["carousel_count"]
+                _vc = creator_history["video_count"]
+                _total = creator_history["total_posts"]
+                _cavg = creator_history.get("carousel_avg_views")
+                _vavg = creator_history.get("video_recent_avg")
+                _mult = creator_history.get("multiplier")
+                _top_cv = creator_history.get("top_carousel_views")
+                lines = [
+                    "## LỊCH SỬ FORMAT KÊNH (từ kho phân tích)",
+                    f"Trong {_total} bài top của @{_author_handle} trong kho dữ liệu: "
+                    f"{_cc} carousel / {_vc} video.",
+                ]
+                if _cavg:
+                    lines.append(f"Trung bình views carousel: {_cavg:,}.")
+                if _vavg:
+                    lines.append(f"Trung bình views video gần đây (5 bài): {_vavg:,}.")
+                if _mult and _mult > 1.0:
+                    lines.append(
+                        f"Carousel của kênh này đạt trung bình {_mult}× so với video gần đây "
+                        f"— dữ liệu thực, không ước lượng."
+                    )
+                if _top_cv:
+                    lines.append(f"Carousel top nhất của kênh: {_top_cv:,} views.")
+                lines.append(
+                    "Dùng dữ liệu này để đưa ra nhận xét cụ thể về xu hướng format của kênh. "
+                    "KHÔNG bịa đặt số liệu ngoài những con số trên."
+                )
+                creator_format_history_block = "\n".join(lines)
             logger.info(
                 "[carousel] routing to synthesize_diagnosis_carousel_v2 "
-                "format=%s carousel_refs=%d wants_directions=%s",
+                "format=%s carousel_refs=%d wants_directions=%s creator_history=%s",
                 carousel_format,
                 len(carousel_refs),
                 include_carousel_directions,
+                bool(creator_format_history_block),
             )
             diagnosis = await run_sync(
                 synthesize_diagnosis_carousel_v2,
@@ -1365,6 +1404,7 @@ async def run_video_diagnosis(
                 layer0_context=layer0_context,
                 corpus_citation=citation,
                 persona_block=persona_block,
+                creator_format_history_block=creator_format_history_block,
             )
         else:
             diagnosis = await run_sync(
@@ -1498,6 +1538,13 @@ async def run_video_diagnosis(
         out["analysis"] = user_res["analysis"]
     if "content_type" in user_res:
         out["content_type"] = user_res["content_type"]
+    if carousel_format is not None:
+        out["carousel_subformat"] = carousel_format
+        out["carousel_subformat_label"] = carousel_subformat_vi(carousel_format, default=carousel_format)
+        # slide count from metadata (populated by _analyze_carousel via CarouselAnalysis)
+        _slide_count = (user_res.get("metadata") or {}).get("slide_count")
+        if _slide_count:
+            out["carousel_slide_count"] = int(_slide_count)
     return out
 
 

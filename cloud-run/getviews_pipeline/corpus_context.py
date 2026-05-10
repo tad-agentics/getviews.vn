@@ -415,6 +415,89 @@ async def get_top_breakout_videos(
         return []
 
 
+def _fetch_creator_format_history_sync(
+    client: Any,
+    handle: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Sync inner — called via run_sync."""
+    # Strip leading @ if present
+    h = handle.lstrip("@").lower()
+    result = (
+        client.table("video_corpus")
+        .select("video_id, views, content_type, indexed_at, breakout_multiplier")
+        .ilike("creator_handle", h)
+        .order("views", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
+
+
+async def fetch_creator_format_history(
+    handle: str,
+    limit: int = 10,
+) -> dict[str, Any] | None:
+    """Fetch creator's top corpus posts and compute format split + baseline views.
+
+    Returns:
+        None        — creator not in corpus (omit the section; never fabricate)
+        dict        — {
+            total_posts:        int,
+            carousel_count:     int,
+            video_count:        int,
+            carousel_avg_views: int | None,
+            video_recent_avg:   int | None,   # avg of last 5 non-carousel posts
+            top_carousel_views: int | None,
+            multiplier:         float | None,  # carousel_avg / video_recent_avg
+        }
+    """
+    if not handle:
+        return None
+    try:
+        client = _anon_client()
+        from getviews_pipeline.runtime import run_sync  # avoid circular at module level
+        rows = await run_sync(_fetch_creator_format_history_sync, client, handle, limit)
+        if not rows:
+            return None
+
+        carousels = [r for r in rows if (r.get("content_type") or "video") == "carousel"]
+        videos = [r for r in rows if (r.get("content_type") or "video") != "carousel"]
+
+        carousel_views = [int(r.get("views") or 0) for r in carousels if r.get("views")]
+
+        carousel_avg = int(sum(carousel_views) / len(carousel_views)) if carousel_views else None
+        # "Recent average" = last 5 non-carousel by indexed_at desc
+        recent_video_rows = sorted(
+            videos, key=lambda r: r.get("indexed_at") or "", reverse=True
+        )[:5]
+        recent_video_views = [
+            int(r.get("views") or 0) for r in recent_video_rows if r.get("views")
+        ]
+        video_recent_avg = (
+            int(sum(recent_video_views) / len(recent_video_views))
+            if recent_video_views
+            else None
+        )
+
+        multiplier: float | None = None
+        if carousel_avg and video_recent_avg and video_recent_avg > 0:
+            multiplier = round(carousel_avg / video_recent_avg, 1)
+
+        return {
+            "total_posts": len(rows),
+            "carousel_count": len(carousels),
+            "video_count": len(videos),
+            "carousel_avg_views": carousel_avg,
+            "video_recent_avg": video_recent_avg,
+            "top_carousel_views": max(carousel_views) if carousel_views else None,
+            "multiplier": multiplier,
+        }
+    except Exception as exc:
+        logger.warning("[corpus_context] fetch_creator_format_history @%s failed: %s", handle, exc)
+        return None
+
+
 async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
     """Fetch one row from niche_intelligence for a niche identified by name.
 

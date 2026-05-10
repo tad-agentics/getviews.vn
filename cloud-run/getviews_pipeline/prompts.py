@@ -469,6 +469,7 @@ def build_carousel_diagnosis_prompt_v2(
     layer0_context: str = "",
     corpus_citation: str = "",
     persona_block: str = "",
+    creator_format_history_block: str = "",
 ) -> str:
     """V2 carousel diagnosis prompt — 2-layer narrative, corpus-aware.
 
@@ -491,11 +492,15 @@ def build_carousel_diagnosis_prompt_v2(
         user_stats:         User carousel stats (views, breakout_multiplier, etc.).
         wants_directions:   If True, appends 4-5 content direction suggestions.
         layer0_context:     Pre-computed Layer 0 mechanism insight for this niche (optional).
+        creator_format_history_block: Pre-formatted context about the creator's own carousel vs
+                            video performance from the corpus (OQ-1 + OQ-2). Empty = omit.
     """
     voice = build_voice_block(include_examples=False)
     voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
     if layer0_context:
         voice = f"{voice}\n\n{layer0_context}"
+    if creator_format_history_block:
+        voice = f"{voice}\n\n{creator_format_history_block}"
     carousel_context = build_carousel_context()
 
     return build_carousel_diagnosis_narrative_prompt(

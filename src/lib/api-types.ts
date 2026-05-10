@@ -1108,6 +1108,12 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   source?: "corpus" | "on_demand";
   sources?: SourceRowData[];
   related_questions?: string[];
+  /** Carousel-only: internal enum key (e.g. "carousel_product_roundup") */
+  carousel_subformat?: string;
+  /** Carousel-only: Vietnamese display label (e.g. "So sánh") */
+  carousel_subformat_label?: string;
+  /** Carousel-only: number of slides in the post */
+  carousel_slide_count?: number;
 };
 
 export type ReportV1 =

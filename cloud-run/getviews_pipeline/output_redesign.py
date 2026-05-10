@@ -716,12 +716,15 @@ Sau đó đánh giá từng điểm THEO THỨ TỰ QUAN TRỌNG của format (x
 PHẦN 2B — CAROUSEL THAM CHIẾU (phân tích riêng từng carousel)
 Phân tích tất cả reference_carousels. Viết TOÀN BỘ phân tích text trước, sau đó xuất TẤT CẢ video_ref JSON blocks LIÊN TIẾP ở cuối phần này — KHÔNG xen kẽ JSON vào giữa các đoạn text.
 
+Ưu tiên thứ tự: sắp xếp reference_carousels theo breakout (cao nhất trước) — creator với breakout_multiplier cao nhất trên số followers nhỏ là bằng chứng mạnh nhất rằng format này chạy được với kênh bé.
+
 Với mỗi carousel (phần text):
-- "@handle — [views] views — arc: [content_arc] — [days_ago] ngày trước"
+- "@handle — [views] views[, [followers] followers nếu có] — arc: [content_arc] — [days_ago] ngày trước"
 - 1-2 câu mô tả cụ thể LOGIC LƯỚT và TẠI SAO chạy (dùng tên tâm lý lướt)
+- Nếu followers < 10.000 và views > 10.000: thêm 1 câu nhấn mạnh "kênh [followers] followers đạt [views] views — ai cũng có thể làm được điều này"
 
 Sau khi kết thúc tất cả phân tích text, xuất các JSON blocks LIÊN TIẾP:
-{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số nếu >1>, "thumbnail_url": "<thumbnail_url từ metadata nếu có, nếu không bỏ qua field này>"}
+{"type": "video_ref", "video_id": "<id>", "handle": "@<handle>", "views": <số>, "days_ago": <số>, "breakout": <số nếu >1>, "followers": <số nếu có trong metadata>, "thumbnail_url": "<thumbnail_url từ metadata nếu có, nếu không bỏ qua field này>"}
 
 PHẦN 2C — CAROUSEL TIẾP THEO
 1 khuyến nghị duy nhất — không phải danh sách 5-7 điểm.

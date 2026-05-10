@@ -71,6 +71,15 @@ SCENE_TYPE_VI: dict[str, str] = {
     "other": "Khác",
 }
 
+# Carousel subformat — display labels in Vietnamese for the report header.
+# Enum values produced by _carousel_subformat() in pipelines.py.
+CAROUSEL_SUBFORMAT_VI: dict[str, str] = {
+    "carousel_product_roundup": "So sánh",
+    "carousel_tutorial": "Hướng dẫn",
+    "carousel_story": "Kể chuyện",
+    "carousel": "Ảnh carousel",
+}
+
 # Text overlay style — surfaces in script editor + Chế độ quay.
 OVERLAY_STYLE_VI: dict[str, str] = {
     "TEXT_TITLE": "Tiêu đề lớn",
@@ -120,3 +129,7 @@ def scene_type_vi(value: str | None, *, default: str | None = None) -> str:
 
 def overlay_style_vi(value: str | None, *, default: str | None = None) -> str:
     return _lookup(OVERLAY_STYLE_VI, value, default)
+
+
+def carousel_subformat_vi(value: str | None, *, default: str | None = None) -> str:
+    return _lookup(CAROUSEL_SUBFORMAT_VI, value, default)

@@ -565,6 +565,7 @@ def synthesize_diagnosis_carousel_v2(
     layer0_context: str = "",
     corpus_citation: str = "",
     persona_block: str = "",
+    creator_format_history_block: str = "",
 ) -> str:
     """V2 carousel diagnosis — 2-layer narrative (distribution + swipe logic), corpus-aware.
 
@@ -586,6 +587,7 @@ def synthesize_diagnosis_carousel_v2(
         layer0_context=layer0_context,
         corpus_citation=corpus_citation,
         persona_block=persona_block,
+        creator_format_history_block=creator_format_history_block,
     )
     if collapsed_questions:
         question_block = (
