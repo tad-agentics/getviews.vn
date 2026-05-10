@@ -99,7 +99,7 @@ export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | n
     case 7:  return 11; // Education → EduTok VN
     case 8:  return 9;  // Tech & Gaming → Công nghệ (representative; Gaming = legacy 17)
     case 9:  return 5;  // Business & Finance → Kinh doanh online
-    case 10: return 8;  // Wellness → Gym / Fitness & Sức khoẻ (legacy id=26 has 0 rows)
+    case 10: return null; // Wellness — no legacy corpus bucket; content_class_ids 52-55 not yet indexed
     case 11: return 16; // Travel & Outdoor Sports → Travel (representative; Sports = legacy 21)
     case 12: return 14; // Auto & Moto → Ô tô / Xe máy
     case 13: return 19; // Pets & Home → Pets (representative; Home = legacy 20)
