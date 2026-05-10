@@ -5,14 +5,16 @@ import { supabase } from "@/lib/supabase";
  * Trends right-rail data hook (PR-T6).
  *
  * Two parallel ``video_corpus`` queries surfaced as a single payload:
- *   • ``breakouts7d`` — top 5 by views in the trailing 7 days
- *     (``posted_at`` window). Falls back to ``created_at`` when
- *     ``posted_at`` is null on legacy rows.
+ *   • ``breakouts7d`` — top 5 by ``breakout_multiplier`` in the trailing
+ *     30 days (``posted_at`` window). Uses the batch-computed multiplier
+ *     so videos are ranked relative to channel baseline, not raw views.
+ *     Requires ``breakout_multiplier IS NOT NULL`` to skip unprocessed rows.
  *   • ``virals``     — top 5 by views all-time.
  *
- * Both filter to the caller's ``nicheId`` and require a non-null
- * ``thumbnail_url`` so the rail thumbnails render. Returns empty
- * arrays when ``nicheId`` is null.
+ * Both filter to the caller's ``nicheId``, require ``language = 'vi'`` to
+ * exclude cross-posted non-Vietnamese content, and require a non-null
+ * ``thumbnail_url`` so the rail thumbnails render. Returns empty arrays
+ * when ``nicheId`` is null.
  *
  * Cache key includes ``nicheId`` so switching niches refetches.
  */
@@ -24,6 +26,7 @@ export type RailVideo = {
   views: number;
   posted_at: string | null;
   hook_phrase: string | null;
+  breakout_multiplier: number | null;
 };
 
 export type TrendsRailVideos = {
@@ -33,7 +36,7 @@ export type TrendsRailVideos = {
 
 const RAIL_LIMIT = 5;
 const RAIL_COLS =
-  "video_id, thumbnail_url, creator_handle, views, posted_at, hook_phrase";
+  "video_id, thumbnail_url, creator_handle, views, posted_at, hook_phrase, breakout_multiplier";
 
 export const trendsRailKeys = {
   byNiche: (nicheId: number | null) =>
@@ -46,8 +49,11 @@ export function useTrendsRailVideos(nicheId: number | null) {
     queryFn: async (): Promise<TrendsRailVideos> => {
       if (nicheId == null) return { breakouts7d: [], virals: [] };
 
-      const cutoff = new Date(
-        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      // 30-day window for breakouts — wider than the old 7d so the pool
+      // is robust even after a cron gap. breakout_multiplier already
+      // normalises for recency via channel-average comparison.
+      const cutoff30d = new Date(
+        Date.now() - 30 * 24 * 60 * 60 * 1000,
       ).toISOString();
 
       // Run both queries in parallel; the rail block is render-blocking
@@ -57,14 +63,17 @@ export function useTrendsRailVideos(nicheId: number | null) {
           .from("video_corpus")
           .select(RAIL_COLS)
           .eq("niche_id", nicheId)
+          .eq("language", "vi")
           .not("thumbnail_url", "is", null)
-          .gte("posted_at", cutoff)
-          .order("views", { ascending: false })
+          .not("breakout_multiplier", "is", null)
+          .gte("posted_at", cutoff30d)
+          .order("breakout_multiplier", { ascending: false })
           .limit(RAIL_LIMIT),
         supabase
           .from("video_corpus")
           .select(RAIL_COLS)
           .eq("niche_id", nicheId)
+          .eq("language", "vi")
           .not("thumbnail_url", "is", null)
           .order("views", { ascending: false })
           .limit(RAIL_LIMIT),
