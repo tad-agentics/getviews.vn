@@ -521,11 +521,32 @@ def append_turn(
                 builder_fmt, niche_pk, session_id,
             )
         raise
-    except Exception:
-        logger.exception(
-            "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",
-            builder_fmt, niche_pk, session_id,
-        )
+    except Exception as exc:
+        # Surface Gemini 429 (quota exhausted / rate limit) as a user-readable message
+        # instead of a generic stream drop. Check by string because google-genai's
+        # ClientError is not always importable at the top level without version pinning.
+        _exc_str = str(exc)
+        if "429" in _exc_str or "RESOURCE_EXHAUSTED" in _exc_str:
+            logger.warning(
+                "[answer/turns] Gemini 429 RESOURCE_EXHAUSTED builder_fmt=%s session=%s",
+                builder_fmt, session_id,
+            )
+            if step_queue is not None:
+                emit(
+                    step_queue,
+                    step_error(
+                        code="gemini_quota_exceeded",
+                        message_vi=(
+                            "Dịch vụ AI đang quá tải — thử lại sau 1-2 phút. "
+                            "Nếu lỗi tiếp diễn, liên hệ hỗ trợ."
+                        ),
+                    ),
+                )
+        else:
+            logger.exception(
+                "[answer/turns] build FAILED builder_fmt=%s niche=%s session=%s",
+                builder_fmt, niche_pk, session_id,
+            )
         raise
     finally:
         if step_queue is not None:
