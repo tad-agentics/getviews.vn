@@ -1,87 +1,50 @@
-# Welcome to React Router!
+# GetViews.vn
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Web app (PWA) for Vietnamese TikTok creative intelligence — React Router v7, Supabase, TanStack Query, Vercel, Cloud Run Python pipeline.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+## Repo map
 
-## Features
+| Path | Purpose |
+|------|---------|
+| `src/` | SPA: routes, hooks, UI (`src/components/ui/` = shared primitives) |
+| `api/` | Vercel Edge handlers (`/api/chat`, `/api/landing-stats`, …) |
+| `supabase/` | Migrations, Edge Functions (Deno), seed |
+| `cloud-run/` | FastAPI pipeline (video intents, batch jobs) |
+| `shared/` | Cross-surface types/helpers |
+| `artifacts/` | Specs, runbooks, QA baselines — **not** bundled at runtime |
+| `tests/` | Playwright live-site audits (excluded from Vitest) |
+| `.cursor/` | Cursor rules, commands, agent/skills metadata |
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+Canonical engineering notes: **`CLAUDE.md`** (stack, invariants, env). Multi-agent workflow reference: **`AGENTS.md`**.
 
-## Getting Started
+## Prerequisites
 
-### Installation
+- Node 20+ (match Vercel / team standard)
+- `npm install --legacy-peer-deps` (required for this repo’s peer ranges; same as Vercel)
 
-Install the dependencies:
-
-```bash
-npm install
-```
-
-### Development
-
-Start the development server with HMR:
+## Commands
 
 ```bash
-npm run dev
+npm run dev          # local dev (http://localhost:5173)
+npm run build        # production client build
+npm run typecheck    # typegen + tsc + design-token guard
+npm run test         # Vitest (unit tests under src/)
+npm run verify       # typecheck + test (same as CI)
+npm run knip         # unused files / exports (run periodically; see Housekeeping)
 ```
 
-Your application will be available at `http://localhost:5173`.
+**Python pipeline** (Cloud Run): see `cloud-run/README.md` or `CLAUDE.md` § Cloud Run.
 
-## Building for Production
+## CI
 
-Create a production build:
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm run verify` on push and pull requests to `main`.
 
-```bash
-npm run build
-```
+## Housekeeping
 
-## Deployment
+- Run **`npm run knip`** occasionally to find unused files and exports; fix in small PRs (Knip may exit non-zero until findings are cleared).
+- Move **superseded** long-form docs to `artifacts/docs/archive/` with a short note at the top of the moved file.
+- Keep **`agent-workspace/`** for local session notes (gitignored); do not commit scratch state.
 
-### Docker Deployment
+## License / product
 
-To build and run using Docker:
-
-```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+Proprietary — GetViews.vn.

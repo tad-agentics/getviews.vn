@@ -78,6 +78,7 @@
     "test": "vitest run",
     "typecheck": "react-router typegen && tsc --build --force && node scripts/check-tokens.mjs",
     "check-tokens": "node scripts/check-tokens.mjs",
-    "knip": "knip"
+    "verify": "npm run typecheck && npm run test",
+    "knip": "npx knip"
   }
 }
