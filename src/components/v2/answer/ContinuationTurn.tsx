@@ -6,7 +6,13 @@
  */
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
-import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
+import type {
+  AnswerTurnRow,
+  ChannelContext,
+  ReportV1,
+  VideoAnswerNarrativeReadyPayload,
+  VideoAnswerPreSynthesisPayload,
+} from "@/lib/api-types";
 import { PatternBody } from "@/components/v2/answer/pattern/PatternBody";
 import { IdeasBody } from "@/components/v2/answer/ideas/IdeasBody";
 import { TimingBody } from "@/components/v2/answer/timing/TimingBody";
@@ -125,10 +131,17 @@ function TurnDivider({ turn }: { turn: Pick<AnswerTurnRow, "turn_index" | "kind"
 function ReportPayloadBody({
   payload,
   sessionIntentType,
+  videoStreamProgress,
 }: {
   payload: ReportV1;
   /** Intent phiên (câu đầu) — tinh chỉnh kickers/copy khi trùng `format`. */
   sessionIntentType?: string;
+  /** In-flight video answer SSE patches (last video turn only). */
+  videoStreamProgress?: {
+    preSynthesisData: VideoAnswerPreSynthesisPayload | null;
+    channelContext: ChannelContext | null;
+    narrativeReady: VideoAnswerNarrativeReadyPayload | null;
+  };
 }) {
   // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
   // "primary language for user-facing copy: Vietnamese. No English
@@ -178,7 +191,12 @@ function ReportPayloadBody({
       // chart + hook phases need full bleed, not the AnswerBlock card.
       return (
         <AnswerBlock kicker="Mổ video" bare>
-          <VideoBody report={payload.report} />
+          <VideoBody
+            report={payload.report}
+            preSynthesisData={videoStreamProgress?.preSynthesisData ?? null}
+            channelContext={videoStreamProgress?.channelContext ?? null}
+            narrativeReady={videoStreamProgress?.narrativeReady ?? null}
+          />
         </AnswerBlock>
       );
     case "script":
@@ -227,9 +245,15 @@ function UnknownPayloadSurface({ payload }: { payload: unknown }) {
 export function ContinuationTurn({
   turn,
   sessionIntentType,
+  videoStreamProgress,
 }: {
   turn: AnswerTurnRow;
   sessionIntentType?: string;
+  videoStreamProgress?: {
+    preSynthesisData: VideoAnswerPreSynthesisPayload | null;
+    channelContext: ChannelContext | null;
+    narrativeReady: VideoAnswerNarrativeReadyPayload | null;
+  };
 }) {
   // Primary turn duplicates AnswerScreen hero (“Câu hỏi” + H1). Divider +
   // H2 are for follow-ups only (see module comment on TURN_KIND_LABEL).
@@ -237,7 +261,11 @@ export function ContinuationTurn({
   return (
     <article className="min-w-0">
       {showTurnDivider ? <TurnDivider turn={turn} /> : null}
-      <ReportPayloadBody payload={turn.payload} sessionIntentType={sessionIntentType} />
+      <ReportPayloadBody
+        payload={turn.payload}
+        sessionIntentType={sessionIntentType}
+        videoStreamProgress={videoStreamProgress}
+      />
     </article>
   );
 }

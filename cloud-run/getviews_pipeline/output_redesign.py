@@ -533,6 +533,10 @@ def build_diagnosis_narrative_prompt(
     wants_directions: bool = False,
     corpus_citation: str = "",
     persona_block: str = "",
+    performance_tier: str = "unknown",
+    channel_context: dict[str, Any] | None = None,
+    errors: list[dict[str, Any]] | None = None,
+    reference_evidence_block: str = "",
 ) -> str:
     """V2 diagnosis synthesis prompt — narrative structure, format-aware.
 
@@ -553,6 +557,10 @@ def build_diagnosis_narrative_prompt(
                            opening sentence is visible to the model.
         persona_block:     Pre-built persona-slot block from persona.py so audience
                            attributes (age, pain points, geography) aren't dropped.
+        performance_tier: Corpus/account tier: hit | average | flop | unknown.
+        channel_context:  Account context dict (may be available=False).
+        errors:            Structured error list for narrative error_id alignment.
+        reference_evidence_block: Pre-rendered lines of allowed aweme_ids for citations.
     """
     analysis_focus = get_analysis_focus(content_format)
     niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
@@ -581,6 +589,80 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
     citation_section = f"\n{corpus_citation}\n" if corpus_citation else ""
     persona_section = f"\n{persona_block}\n" if persona_block else ""
 
+    errors_payload = errors if errors is not None else []
+    errors_json = json.dumps(errors_payload, ensure_ascii=False, indent=2)
+    channel_ctx = channel_context if channel_context is not None else {"available": False}
+    channel_json = json.dumps(channel_ctx, ensure_ascii=False, indent=2)
+
+    evidence_section = ""
+    if reference_evidence_block.strip():
+        evidence_section = (
+            "\n---\n\n"
+            "Reference videos available for evidence citation "
+            "(select aweme_id ONLY from this list):\n"
+            f"{reference_evidence_block}\n"
+            "IMPORTANT: evidence_aweme_id MUST be one of the IDs above, or null. "
+            "Never invent an ID.\n"
+        )
+
+    tier_label = performance_tier
+    narrative_json_spec = """
+---
+
+## JSON ĐẦU RA (VIẾT TRƯỚC — BẮT BUỘC)
+
+Ở **NGAY ĐẦU** response — trước mọi markdown chẩn đoán — xuất một khối fenced:
+
+```json
+{
+  "narrative_vi": {
+    "ket_luan_nhanh": "2-3 câu. [điểm sáng từ metrics] → [vấn đề gốc cụ thể] → [fix duy nhất cần làm ngay]. Dùng số thực. Không dự báo view.",
+    "van_de_chinh": "3-4 câu giải thích vấn đề lớn nhất. Dùng số thực. Nếu channel_context available, tham chiếu video hit của chính kênh này với tỷ lệ cụ thể.",
+    "loi_chinh_narrative": [
+      {"error_id": "MUST_MATCH_errors_array_exactly", "narrative": "2-3 câu về lỗi này với dữ liệu thực.", "evidence_aweme_id": "from_list_above_or_null"}
+    ],
+    "dinh_huong_chien_luoc": "3-4 câu kết luận. Nói cụ thể creator cần làm gì khác cho video tiếp theo. Dựa trên dữ liệu thực. Không dự báo view."
+  },
+  "format_cards": [
+    {"format_name_vi": "...", "mechanism_vi": "...", "view_range": "CORPUS_DATA", "engagement_rate": "CORPUS_DATA", "example_hook_vi": "dưới 15 từ, tiếng Việt tự nhiên", "evidence_aweme_id": "from_list_above_or_null"}
+  ]
+}
+```
+
+Sau khối ``` đóng của JSON trên, tiếp tục phần markdown chẩn đoán như cấu trúc 5 phần hiện có (PHẦN 0–4).
+
+TONE RULES (áp dụng cho TẤT CẢ narrative_vi strings):
+- Viết như advisor thẳng thắn, không như báo cáo
+- Dùng "video này", "kênh của bạn", "tệp của bạn"
+- KHÔNG bắt đầu câu bằng: "Bạn nên", "Hãy thử", "Tuyệt vời", "Tuy nhiên", "Bên cạnh đó"
+- KHÔNG dùng: bí mật, công thức vàng, triệu view, bùng nổ, viral ngay, đột phá
+- KHÔNG bắt đầu response bằng: "Chào bạn", "Wow", "Thật tuyệt"
+- Dùng số thực: "231 view trong khi format TB đạt 2,400" không phải "view thấp"
+- Dùng tỷ lệ: "100x gap" không phải "kém hơn nhiều"
+- KHÔNG dự báo view: không dùng "nếu bạn làm X thì đạt Y view"
+- Nếu có điểm sáng, nêu trước điểm yếu
+
+Performance tier hiện tại: **__TIER__**
+
+- hit: ket_luan_nhanh dẫn bằng điểm mạnh, fix là "để đẩy xa hơn"; dinh_huong = "cách nhân rộng công thức đã đúng"
+- flop: ket_luan_nhanh dẫn bằng nguyên nhân gốc, fix cấp bách nhất; dinh_huong = "thứ cần thay đổi ngay"
+- average: cân bằng 1 điểm mạnh + 1 khoảng trống; dinh_huong = "một thay đổi cụ thể để đẩy lên cao hơn"
+- unknown: xử lý như flop
+
+Cho tier hit: trong loi_chinh_narrative chỉ gồm lỗi sev "high" (bỏ qua "mid"/"low").
+
+Structured errors array (khớp error_id chính xác cho loi_chinh_narrative):
+
+__ERR__
+
+channel_context JSON:
+
+__CHAN__
+
+__EVIDENCE__
+""".replace("__TIER__", str(tier_label)).replace("__ERR__", errors_json).replace("__CHAN__", channel_json).replace("__EVIDENCE__", evidence_section)
+
+
     return f"""{voice_block}
 
 ---
@@ -588,6 +670,7 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
 {HOOK_TYPE_NAMES_CONSTRAINT}
 {citation_section}
 {persona_section}
+{narrative_json_spec}
 ---
 
 {PATTERN_EXTRACTION_PROMPT}
@@ -628,11 +711,9 @@ Format được phát hiện: **{content_format}**
 
 ## QUY TẮC BẮT BUỘC
 
-R1: KHÔNG mở đầu. Nhảy thẳng vào PHẦN 0 — phân phối. Tuyệt đối KHÔNG bắt
-    đầu bằng: "Chào bạn", "Xin chào", "Rất vui", "Tuyệt vời", "Wow",
-    "Chúc mừng", "Đây là", "Dưới đây là". Giọng là ĐỒNG NGHIỆP CREATOR
-    nhắn trong nhóm Zalo — peer expert, không phải guru, không phải pitch
-    bán hàng, không phải báo cáo quản trị.
+R1: KHÔNG mở đầu prose bằng lời chào. Vi phạm chỉ áp dụng cho markdown sau khối JSON đầu nếu có.
+    Tuyệt đối KHÔNG bắt đầu phần markdown bằng: "Chào bạn", "Xin chào", "Rất vui", "Tuyệt vời", "Wow",
+    "Chúc mừng", "Đây là", "Dưới đây là".
 R2: Mở PHẦN 1 bằng CÔNG THỨC CỦA NICHE, không phải điểm số video người dùng.
 R3: "Chạy vì:" tối đa 1-2 câu. Không giải thích dài dòng.
 R4: KHÔNG fabricate metrics. Chỉ dùng số thật từ data JSON.
@@ -655,12 +736,10 @@ R15: TỪ CẤM trong output — KHÔNG BAO GIỜ dùng dưới mọi ngữ cả
   "triệu view", "bùng nổ", "siêu hot", "thần thánh", "hack", "chiến lược
   độc quyền", "ai cũng phải biết", "không thể bỏ qua", "chắc chắn thành
   công". Cần mô tả "breakout" → dùng "vượt trội" hoặc nói thẳng số liệu.
-R16: TLDR BẮT BUỘC — Dòng đầu tiên PHẢI là "Vấn đề chính:" (nếu video dưới mức trung bình niche)
-  hoặc "Điểm mạnh chính:" (nếu video vượt trội). Format bắt buộc:
-  **[Verdict] — [1 câu phát hiện cụ thể kèm số liệu]**
+R16: Sau khối JSON đầu (nếu có), dòng đầu của markdown TLDR PHẢI là "Vấn đề chính:"
+  hoặc "Điểm mạnh chính:". Format: **[Verdict] — [1 câu phát hiện cụ thể kèm số liệu]**
   Ví dụ: **Vấn đề chính: Hook của bạn thiếu yếu tố kéo giữ — 72% video top ngách này mở trong 2 giây đầu bằng câu hỏi cụ thể.**
-  Ví dụ: **Điểm mạnh chính: ER 8,4% — cao hơn 2,1x mức trung bình niche làm đẹp tháng này.**
-  Không được có bất kỳ nội dung nào trước dòng này. Sau dòng TLDR, tiếp tục PHẦN 0.
+  Không được có prose nào trước dòng TLDR trong phần markdown (khối JSON có thể đứng trước).
 {directions_block}
 Viết chẩn đoán ngay."""
 

@@ -26,6 +26,16 @@ import {
 } from "@/lib/sseResume";
 import { chatKeys } from "./useChatSession";
 import { STEP_EVENT_TYPES, type StepEvent } from "@/lib/types/sse-events";
+import type {
+  BrightSpotSignal,
+  ChannelContext,
+  FormatCard,
+  NarrativeVi,
+  ReferenceVideoCard,
+  VideoAnswerNarrativeReadyPayload,
+  VideoAnswerPreSynthesisPayload,
+  VideoFlopIssue,
+} from "@/lib/api-types";
 
 /**
  * D.5.2 SSE observability — three usage_events fired from the answer_turn
@@ -93,6 +103,10 @@ export interface StreamState<TPayload = unknown> {
   steps: StepEvent[];
   /** Number of backend heartbeat pings received. Multiply × 10 to get elapsed seconds. */
   heartbeatCount: number;
+  /** Video answer SSE: shells + KPI hints before synthesis (merged across tokens). */
+  preSynthesisData: VideoAnswerPreSynthesisPayload | null;
+  channelContext: ChannelContext | null;
+  narrativeReady: VideoAnswerNarrativeReadyPayload | null;
 }
 
 export interface StreamOptions<TPayload = unknown> {
@@ -161,6 +175,9 @@ export function useSessionStream<TPayload = unknown>(
     finalPayload: null,
     steps: [],
     heartbeatCount: 0,
+    preSynthesisData: null,
+    channelContext: null,
+    narrativeReady: null,
   });
 
   const stream = useCallback(
@@ -178,6 +195,9 @@ export function useSessionStream<TPayload = unknown>(
         finalPayload: null,
         steps: [],
         heartbeatCount: 0,
+        preSynthesisData: null,
+        channelContext: null,
+        narrativeReady: null,
       });
 
       try {
@@ -436,7 +456,15 @@ export function useSessionStream<TPayload = unknown>(
 
   const abort = useCallback(() => {
     abortRef.current?.abort();
-    setState((s) => ({ ...s, status: "idle", steps: [], heartbeatCount: 0 }));
+    setState((s) => ({
+      ...s,
+      status: "idle",
+      steps: [],
+      heartbeatCount: 0,
+      preSynthesisData: null,
+      channelContext: null,
+      narrativeReady: null,
+    }));
   }, []);
 
   const reset = useCallback(() => {
@@ -449,6 +477,9 @@ export function useSessionStream<TPayload = unknown>(
       finalPayload: null,
       steps: [],
       heartbeatCount: 0,
+      preSynthesisData: null,
+      channelContext: null,
+      narrativeReady: null,
     });
   }, []);
 
@@ -458,6 +489,56 @@ export function useSessionStream<TPayload = unknown>(
 }
 
 type SetState<T> = Dispatch<SetStateAction<StreamState<T>>>;
+
+function mergePreSynthesis(
+  prev: VideoAnswerPreSynthesisPayload | null,
+  token: Record<string, unknown>,
+): VideoAnswerPreSynthesisPayload {
+  const next: VideoAnswerPreSynthesisPayload = { ...(prev ?? {}) };
+  if (Array.isArray(token.errors)) next.errors = token.errors as VideoFlopIssue[];
+  if (token.kpi != null && typeof token.kpi === "object" && !Array.isArray(token.kpi)) {
+    next.kpi = token.kpi as Record<string, number>;
+  }
+  if (token.bright_spot_signal != null && typeof token.bright_spot_signal === "object") {
+    next.bright_spot_signal = token.bright_spot_signal as BrightSpotSignal;
+  }
+  if (typeof token.performance_tier === "string") next.performance_tier = token.performance_tier;
+  if (Array.isArray(token.reference_videos)) {
+    next.reference_videos = token.reference_videos as ReferenceVideoCard[];
+  }
+  return next;
+}
+
+function channelContextFromToken(token: Record<string, unknown>): ChannelContext | null {
+  const raw = token.channel_context;
+  if (raw && typeof raw === "object" && raw !== null && "available" in raw) {
+    return raw as ChannelContext;
+  }
+  const omit = new Set([
+    "type",
+    "stream_id",
+    "seq",
+    "delta",
+    "done",
+    "error",
+    "payload",
+    "heartbeat",
+  ]);
+  const entries = Object.entries(token).filter(([k]) => !omit.has(k));
+  if (entries.length === 0) return null;
+  return Object.fromEntries(entries) as unknown as ChannelContext;
+}
+
+function mergeNarrativeReady(
+  prev: VideoAnswerNarrativeReadyPayload | null,
+  token: Record<string, unknown>,
+): VideoAnswerNarrativeReadyPayload {
+  const narrative_vi =
+    (token.narrative_vi as NarrativeVi | undefined) ?? prev?.narrative_vi;
+  const format_cards =
+    (token.format_cards as FormatCard[] | undefined) ?? prev?.format_cards;
+  return { narrative_vi, format_cards };
+}
 
 /**
  * Wrap ``reader.read()`` in a rolling idle timeout. Resolves with
@@ -533,6 +614,28 @@ async function consumeAnswerSse<TPayload>(
             steps: [...s.steps, token as StepEvent],
           }));
           continue;
+        }
+        if (token.type === "pre_synthesis") {
+          setState((s) => ({
+            ...s,
+            preSynthesisData: mergePreSynthesis(
+              s.preSynthesisData,
+              token as Record<string, unknown>,
+            ),
+          }));
+        } else if (token.type === "channel_context") {
+          const ctx = channelContextFromToken(token as Record<string, unknown>);
+          if (ctx) {
+            setState((s) => ({ ...s, channelContext: ctx }));
+          }
+        } else if (token.type === "narrative_ready") {
+          setState((s) => ({
+            ...s,
+            narrativeReady: mergeNarrativeReady(
+              s.narrativeReady,
+              token as Record<string, unknown>,
+            ),
+          }));
         }
         // Backend heartbeat ping — emitted every 10s to keep SSE alive.
         // Increment counter so the UI can show "Vẫn đang xử lý · Ns…".

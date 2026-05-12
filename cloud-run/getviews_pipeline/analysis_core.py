@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,44 @@ from getviews_pipeline.models import (
 from getviews_pipeline.runtime import run_sync
 
 logger = logging.getLogger(__name__)
+
+
+def detect_language_market_mismatch(hook_text: str, target_market: str = "vi") -> dict | None:
+    """Detect if hook/caption language doesn't match the target market."""
+    try:
+        from langdetect import detect
+    except ImportError:
+        return None
+
+    cleaned = re.sub(r"#\S+|@\S+|https?://\S+", "", hook_text).strip()
+    words = [w for w in cleaned.split() if re.search(r"[a-zA-ZÀ-ỹ]", w)]
+
+    if len(words) < 4:
+        return None
+
+    try:
+        lang = detect(cleaned)
+    except Exception:
+        return None
+
+    if lang == target_market:
+        return None
+
+    return {
+        "error_id": "lang_market_mismatch",
+        "title": f"Hook dùng ngôn ngữ không phù hợp ({lang.upper()})",
+        "detail": (
+            f"Hook video dùng tiếng {lang.upper()} thay vì tiếng Việt. "
+            "Tệp người xem Việt Nam scroll qua nội dung không đọc được trong 0.5 giây đầu."
+        ),
+        "fix": (
+            "Viết lại hook bằng tiếng Việt với góc nhìn cụ thể về nhu cầu tệp. "
+            "Thay generic call-out bằng POV hoặc câu hỏi gây tò mò."
+        ),
+        "sev": "high",
+        "t": 0.0,
+        "end": 3.0,
+    }
 
 
 async def _finish_analysis(

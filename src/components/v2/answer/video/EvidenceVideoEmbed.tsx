@@ -1,0 +1,69 @@
+import { ExternalLink } from "lucide-react";
+import type { ReferenceVideoCard } from "@/lib/api-types";
+
+interface EvidenceVideoEmbedProps {
+  aweme_id: string | null;
+  reference_videos: ReferenceVideoCard[];
+}
+
+export function EvidenceVideoEmbed({ aweme_id, reference_videos }: EvidenceVideoEmbedProps) {
+  if (!aweme_id) return null;
+  const video = reference_videos.find((r) => r.aweme_id === aweme_id);
+  if (!video) return null;
+
+  return (
+    <div className="mb-3 mt-2 flex gap-3 rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] p-3">
+      {video.thumbnail_url ? (
+        <img
+          src={video.thumbnail_url}
+          alt=""
+          className="h-16 w-10 shrink-0 rounded-[6px] object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+      ) : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {video.author_handle ? (
+            <span className="text-[11px] text-[color:var(--gv-ink-3)]">@{video.author_handle}</span>
+          ) : null}
+          {video.source === "live_search" ? (
+            <span className="rounded-full border border-[color:var(--gv-rule)] px-1.5 py-0.5 font-mono text-[9px] text-[color:var(--gv-ink-4)]">
+              Tìm mới
+            </span>
+          ) : null}
+          {video.hook_type ? (
+            <span className="rounded-full bg-[color:var(--gv-accent-soft)] px-1.5 py-0.5 font-mono text-[9px] text-[color:var(--gv-ink-2)]">
+              {video.hook_type}
+            </span>
+          ) : null}
+        </div>
+        {video.desc ? (
+          <p className="truncate text-[12px] text-[color:var(--gv-ink-2)]">
+            {video.desc.slice(0, 60)}
+            {video.desc.length > 60 ? "…" : ""}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {video.views != null ? (
+            <span className="gv-mono text-[11px] font-medium text-[color:var(--gv-ink)]">
+              {video.views.toLocaleString("vi-VN")} lượt xem
+            </span>
+          ) : null}
+          {video.tiktok_url ? (
+            <a
+              href={video.tiktok_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] items-center gap-1 text-[11px] text-[color:var(--gv-accent)] hover:underline"
+            >
+              Mở TikTok
+              <ExternalLink className="h-3 w-3 shrink-0" />
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -46,10 +46,12 @@ vi.mock("@/components/v2/HookPhaseCard", () => ({
 vi.mock("@/components/v2/KpiGrid", () => ({
   KpiGrid: () => <div data-testid="kpi-grid" />,
 }));
-vi.mock("@/components/v2/IssueCard", () => ({
-  IssueCard: ({ issue }: { issue: { title: string } }) => (
-    <div data-testid="issue-card">{issue.title}</div>
+vi.mock("@/components/ui/collapsible", () => ({
+  Collapsible: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  CollapsibleTrigger: ({ children }: { children: React.ReactNode }) => (
+    <button type="button">{children}</button>
   ),
+  CollapsibleContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 vi.mock("@/routes/_app/components/CommentRadarTile", () => ({
   CommentRadarTile: () => <div data-testid="comment-radar-tile" />,
@@ -177,13 +179,13 @@ describe("VideoBody render", () => {
     expect(screen.getByText("~34K")).toBeTruthy();
   });
 
-  it("renders flop issues + projected views CTA", () => {
+  it("renders flop issues + technical detail trigger + script CTA (no projected views)", () => {
     renderInRouter(makeFlopReport());
     expect(screen.getByText(/CHẨN ĐOÁN VIDEO CỦA BẠN/)).toBeTruthy();
-    expect(screen.getByTestId("issue-card")).toBeTruthy();
     expect(screen.getByText("Hook yếu")).toBeTruthy();
-    expect(screen.getByText(/Dự đoán nếu áp fix chính/)).toBeTruthy();
-    expect(screen.getByText("34.000")).toBeTruthy(); // formatViewsVi(34_000)
+    expect(screen.getByText(/Chi tiết kỹ thuật và cách sửa/)).toBeTruthy();
+    expect(screen.queryByText(/Dự đoán nếu áp fix chính/)).toBeNull();
+    expect(screen.getByText(/Viết lại kịch bản/)).toBeTruthy();
   });
 
   it("renders the diagnosis strip in flop mode (with niche cohort)", () => {

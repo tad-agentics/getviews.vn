@@ -18,7 +18,7 @@
  */
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight, Copy, Play } from "lucide-react";
+import { ArrowRight, ChevronDown, Copy, Play } from "lucide-react";
 
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
@@ -26,20 +26,30 @@ import { RetentionCurve } from "@/components/v2/RetentionCurve";
 import { Timeline } from "@/components/v2/Timeline";
 import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
 import { KpiGrid } from "@/components/v2/KpiGrid";
-import { IssueCard } from "@/components/v2/IssueCard";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { EvidenceVideoEmbed } from "@/components/v2/answer/video/EvidenceVideoEmbed";
 import { sanitizePredictionPos } from "@/lib/sanitizePredictionPos";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
 import type {
+  BrightSpotSignal,
+  ChannelContext,
   CreatorComparison,
   FlopHeadline,
+  FormatCard,
+  LoidChinhNarrativeItem,
+  NarrativeVi,
+  ReferenceVideoCard,
   VideoAnalyzeMeta,
   VideoAnalyzeMode,
   VideoAnalyzeResponse,
+  VideoAnswerNarrativeReadyPayload,
+  VideoAnswerPreSynthesisPayload,
   VideoEnrichment,
+  VideoFlopIssue,
   VideoLesson,
   VideoNicheMeta,
   VideoReportPayload,
@@ -253,6 +263,99 @@ function formatSaveRatePct(meta: VideoAnalyzeMeta): string {
   return `${pct.toFixed(1)}%`;
 }
 
+const FLOP_SEV_LABEL: Record<VideoFlopIssue["sev"], string> = {
+  high: "Cao",
+  mid: "TB",
+  low: "Thấp",
+};
+
+function FlopIssueNarrativeRow({
+  issue,
+  narrativeItem,
+  referenceVideos,
+  defaultOpen,
+  onApplyToScript,
+}: {
+  issue: VideoFlopIssue;
+  narrativeItem?: LoidChinhNarrativeItem;
+  referenceVideos: ReferenceVideoCard[];
+  defaultOpen: boolean;
+  onApplyToScript?: () => void;
+}) {
+  const isHigh = issue.sev === "high";
+  return (
+    <div
+      className={`grid grid-cols-1 items-start gap-4 border border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 sm:grid-cols-[80px_1fr_auto] ${
+        isHigh
+          ? "border-[color:var(--gv-accent)] border-l-[color:var(--gv-accent)]"
+          : "border-[color:var(--gv-rule)] border-l-[color:var(--gv-ink-4)]"
+      }`.trim()}
+    >
+      <div>
+        <div className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
+          {issue.t}s – {issue.end}s
+        </div>
+        <div
+          className={`gv-mono mt-1 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
+            issue.sev === "high"
+              ? "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg)]"
+              : issue.sev === "mid"
+                ? "bg-[color:var(--gv-warn-soft)] text-[color:var(--gv-warn)]"
+                : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-4)]"
+          }`}
+        >
+          {FLOP_SEV_LABEL[issue.sev] ?? issue.sev}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <h4 className="gv-serif m-0 text-[18px] font-medium leading-[1.25] text-[color:var(--gv-ink)]">
+          {issue.title}
+        </h4>
+        {narrativeItem?.narrative ? (
+          <p className="mb-2 mt-1 max-w-[640px] text-[13px] leading-relaxed text-foreground">
+            {narrativeItem.narrative}
+          </p>
+        ) : null}
+        {narrativeItem?.evidence_aweme_id ? (
+          <EvidenceVideoEmbed
+            aweme_id={narrativeItem.evidence_aweme_id}
+            reference_videos={referenceVideos}
+          />
+        ) : null}
+        <Collapsible defaultOpen={defaultOpen}>
+          <CollapsibleTrigger className="flex min-h-11 w-full max-w-[640px] items-center justify-between gap-2 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-2 text-left text-[12px] font-medium text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas)] [&[data-state=open]>svg]:rotate-180">
+            Chi tiết kỹ thuật và cách sửa
+            <ChevronDown
+              className="h-4 w-4 shrink-0 text-[color:var(--gv-ink-3)] transition-transform duration-200"
+              aria-hidden
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2 space-y-2 data-[state=closed]:animate-out">
+            <p className="m-0 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+              {issue.detail}
+            </p>
+            <div className="inline-block bg-[color:var(--gv-canvas-2)] px-2.5 py-1.5 text-xs text-[color:var(--gv-ink-2)]">
+              <span className="gv-uc mr-1.5 text-[9px] text-[color:var(--gv-accent)]">Fix</span>
+              {issue.fix}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+      {onApplyToScript ? (
+        <button
+          type="button"
+          onClick={onApplyToScript}
+          className="min-h-11 self-start rounded-md border border-[color:var(--gv-rule)] bg-transparent px-2 py-1 text-[11px] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)] sm:min-h-11"
+        >
+          Áp vào kịch bản
+        </button>
+      ) : (
+        <span className="w-px shrink-0" aria-hidden />
+      )}
+    </div>
+  );
+}
+
 function retentionEndPct(curve: { t: number; pct: number }[] | null | undefined): number | null {
   if (!curve?.length) return null;
   return curve[curve.length - 1].pct;
@@ -323,7 +426,17 @@ function FlopDiagnosisStrip({
   );
 }
 
-export function VideoBody({ report }: { report: VideoReportPayload }) {
+export function VideoBody({
+  report,
+  preSynthesisData = null,
+  channelContext = null,
+  narrativeReady = null,
+}: {
+  report: VideoReportPayload;
+  preSynthesisData?: VideoAnswerPreSynthesisPayload | null;
+  channelContext?: ChannelContext | null;
+  narrativeReady?: VideoAnswerNarrativeReadyPayload | null;
+}) {
   const navigate = useNavigate();
   const meta = report.meta;
   const duration = meta.duration_sec || 58;
@@ -336,7 +449,21 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
   // so report.mode IS the view mode.
   const viewMode: VideoAnalyzeMode = report.mode ?? "win";
   const isFlop = viewMode === "flop";
-  const flopIssueCount = report.flop_issues?.length ?? 0;
+  const preSynth = preSynthesisData ?? null;
+  const narrativeVi: NarrativeVi | undefined =
+    narrativeReady?.narrative_vi ?? report.narrative_vi;
+  const formatCardsEffective: FormatCard[] | undefined =
+    narrativeReady?.format_cards ?? report.format_cards;
+  const refVideos: ReferenceVideoCard[] =
+    preSynth?.reference_videos ?? report.reference_videos ?? [];
+  const brightEffective: BrightSpotSignal | undefined =
+    preSynth?.bright_spot_signal ?? report.bright_spot_signal;
+  const channelEffective: ChannelContext | undefined =
+    channelContext ?? report.channel_context;
+  const flopIssuesForNarrative: VideoFlopIssue[] =
+    preSynth?.errors ?? report.flop_issues ?? [];
+  const flopIssueCount = flopIssuesForNarrative.length;
+  const firstHighIdx = flopIssuesForNarrative.findIndex((i) => i.sev === "high");
 
   // Reconstruct the public TikTok URL from creator + video_id. On
   // ``/app/video`` the screen had access to the user's pasted ?url=
@@ -567,7 +694,192 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
           />
         ) : null}
 
+        {narrativeVi?.ket_luan_nhanh ? (
+          <section className="mb-4 rounded-[12px] bg-primary/10 px-4 py-3">
+            <p className="max-w-[680px] leading-relaxed text-foreground">
+              {narrativeVi.ket_luan_nhanh}
+            </p>
+          </section>
+        ) : null}
+
         <KpiGrid kpis={report.kpis} />
+
+        {brightEffective ? (
+          <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-2.5">
+            <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[color:var(--gv-accent)]" />
+            <p className="text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+              {brightEffective.message_vi}
+            </p>
+          </div>
+        ) : null}
+
+        {narrativeVi?.van_de_chinh ? (
+          <section className="mb-6">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Vấn đề chính
+            </h3>
+            <p className="max-w-[680px] leading-relaxed text-foreground">
+              {narrativeVi.van_de_chinh}
+            </p>
+          </section>
+        ) : null}
+
+        {viewMode === "flop" && flopIssuesForNarrative.length > 0 ? (
+          <section className="mb-6">
+            <SectionMini kicker="Lỗi cấu trúc" title="Xếp theo ảnh hưởng" />
+            <div className="flex flex-col gap-3">
+              {flopIssuesForNarrative.map((issue, i) => {
+                const narrativeItem = narrativeVi?.loi_chinh_narrative?.find(
+                  (n) => n.error_id === issue.error_id,
+                );
+                const defaultOpen =
+                  firstHighIdx >= 0 ? i === firstHighIdx : i === 0;
+                return (
+                  <FlopIssueNarrativeRow
+                    key={issue.error_id ?? `${issue.title}-${i}`}
+                    issue={issue}
+                    narrativeItem={narrativeItem}
+                    referenceVideos={refVideos}
+                    defaultOpen={defaultOpen}
+                    onApplyToScript={goScript}
+                  />
+                );
+              })}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Btn type="button" variant="accent" onClick={goScript}>
+                Viết lại kịch bản
+                <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+              </Btn>
+            </div>
+          </section>
+        ) : null}
+
+        {channelEffective?.available ? (
+          <section className="mb-6">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Ngữ cảnh kênh
+            </h3>
+            <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-3">
+              {channelEffective.top_videos?.slice(0, 2).map((v) => (
+                <div
+                  key={v.aweme_id}
+                  className="rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3"
+                >
+                  <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-pos)]/15 px-2 py-0.5 font-mono text-[9px] font-semibold uppercase text-[color:var(--gv-pos)]">
+                    HIT
+                  </div>
+                  <p className="truncate text-[12px] text-[color:var(--gv-ink-2)]">
+                    {v.desc ? `${v.desc.slice(0, 50)}${v.desc.length > 50 ? "…" : ""}` : "—"}
+                  </p>
+                  {v.views != null ? (
+                    <p className="gv-mono mt-1 text-[12px] font-medium text-[color:var(--gv-ink)]">
+                      {v.views.toLocaleString("vi-VN")} lượt xem
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+              <div className="rounded-[10px] border border-[color:var(--gv-accent)]/40 bg-[color:var(--gv-paper)] p-3">
+                <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-accent-soft)] px-2 py-0.5 font-mono text-[9px] font-semibold uppercase text-[color:var(--gv-accent)]">
+                  Video này
+                </div>
+                <p className="truncate text-[12px] text-[color:var(--gv-ink-2)]">
+                  {meta.title
+                    ? `${meta.title.slice(0, 50)}${meta.title.length > 50 ? "…" : ""}`
+                    : "—"}
+                </p>
+                <p className="gv-mono mt-1 text-[12px] font-medium text-[color:var(--gv-ink)]">
+                  {formatViewsVi(meta.views)} lượt xem
+                </p>
+              </div>
+            </div>
+            {channelEffective.bottom_videos?.length ? (
+              <div className="mt-3 grid grid-cols-1 gap-3 min-[700px]:grid-cols-2">
+                {channelEffective.bottom_videos.slice(0, 2).map((v) => (
+                  <div
+                    key={v.aweme_id}
+                    className="rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-3"
+                  >
+                    <div className="mb-1 inline-block rounded-full bg-[color:var(--gv-neg-soft)] px-2 py-0.5 font-mono text-[9px] font-semibold uppercase text-[color:var(--gv-neg)]">
+                      Thấp hơn TB
+                    </div>
+                    <p className="truncate text-[12px] text-[color:var(--gv-ink-2)]">
+                      {v.desc ? `${v.desc.slice(0, 50)}${v.desc.length > 50 ? "…" : ""}` : "—"}
+                    </p>
+                    {v.views != null ? (
+                      <p className="gv-mono mt-1 text-[12px] font-medium text-[color:var(--gv-ink)]">
+                        {v.views.toLocaleString("vi-VN")} lượt xem
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {channelEffective.median_views != null ? (
+              <p className="mt-2 text-[12px] text-[color:var(--gv-ink-3)]">
+                Trung vị kênh:{" "}
+                <span className="gv-mono font-medium text-[color:var(--gv-ink)]">
+                  {Math.round(channelEffective.median_views).toLocaleString("vi-VN")}
+                </span>{" "}
+                lượt xem
+                {channelEffective.sample_size != null
+                  ? ` · ${channelEffective.sample_size} video gần nhất`
+                  : ""}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {formatCardsEffective && formatCardsEffective.length > 0 ? (
+          <section className="mb-6">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Format đang hoạt động trong ngách này
+            </h3>
+            <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-3">
+              {formatCardsEffective.map((card, i) => (
+                <div
+                  key={`${card.format_name_vi}-${i}`}
+                  className="flex flex-col rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
+                >
+                  <h4 className="mb-1 text-[13px] font-semibold text-foreground">
+                    {card.format_name_vi}
+                  </h4>
+                  <p className="mb-2 text-[12px] leading-snug text-[color:var(--gv-ink-2)]">
+                    {card.mechanism_vi}
+                  </p>
+                  <div className="mb-2 flex flex-wrap gap-3 text-[11px]">
+                    <span className="gv-mono text-[color:var(--gv-ink-3)]">{card.view_range}</span>
+                    <span className="gv-mono text-[color:var(--gv-ink-3)]">{card.engagement_rate}</span>
+                  </div>
+                  {card.example_hook_vi ? (
+                    <p className="mb-2 text-[11px] italic text-[color:var(--gv-ink-3)]">
+                      &ldquo;{card.example_hook_vi}&rdquo;
+                    </p>
+                  ) : null}
+                  <EvidenceVideoEmbed
+                    aweme_id={card.evidence_aweme_id ?? null}
+                    reference_videos={refVideos}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {report.cross_format_signal ? (
+          <CrossFormatPanel signal={report.cross_format_signal} />
+        ) : null}
+
+        {narrativeVi?.dinh_huong_chien_luoc ? (
+          <section className="mb-6 rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Cần làm gì khác
+            </h3>
+            <p className="max-w-[680px] leading-relaxed text-foreground">
+              {narrativeVi.dinh_huong_chien_luoc}
+            </p>
+          </section>
+        ) : null}
 
         <ContextStrip meta={meta} enrichment={report.enrichment} />
 
@@ -643,53 +955,6 @@ export function VideoBody({ report }: { report: VideoReportPayload }) {
               ))}
             </ul>
           </section>
-        ) : null}
-
-        {viewMode === "flop" && report.flop_issues?.length ? (
-          <section>
-            <SectionMini kicker="Lỗi cấu trúc" title="Xếp theo ảnh hưởng" />
-            <div className="flex flex-col gap-3">
-              {report.flop_issues.map((issue, i) => (
-                <IssueCard key={`${issue.title}-${i}`} issue={issue} onApplyToScript={goScript} />
-              ))}
-            </div>
-            {report.projected_views != null ? (
-              <div className="mt-6 flex flex-col gap-4 bg-[color:var(--gv-ink)] px-5 py-4 text-[color:var(--gv-paper)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                <div>
-                  <div className="gv-mono text-[9.5px] uppercase tracking-[0.16em] opacity-60">
-                    Dự đoán nếu áp fix chính
-                  </div>
-                  <p className="gv-tight m-0 mt-1 text-xl font-medium">
-                    ~
-                    <span className="text-[color:var(--gv-pos)]">
-                      {formatViewsVi(report.projected_views)}
-                    </span>{" "}
-                    view
-                  </p>
-                </div>
-                <Btn
-                  type="button"
-                  variant="accent"
-                  className="w-full sm:w-auto"
-                  onClick={goScript}
-                >
-                  Viết lại kịch bản
-                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-                </Btn>
-              </div>
-            ) : (
-              <div className="mt-4 flex justify-end">
-                <Btn type="button" variant="accent" onClick={goScript}>
-                  Viết lại kịch bản
-                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-                </Btn>
-              </div>
-            )}
-          </section>
-        ) : null}
-
-        {report.cross_format_signal ? (
-          <CrossFormatPanel signal={report.cross_format_signal} />
         ) : null}
       </div>
     </div>

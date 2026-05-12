@@ -214,8 +214,72 @@ class ContentDirection(BaseModel):
 PromotionType = Literal["organic", "brand_deal", "affiliate", "self_promotion"]
 
 
+class NarrativeViItem(BaseModel):
+    error_id: str
+    narrative: str
+    evidence_aweme_id: str | None = None
+
+
+class NarrativeVi(BaseModel):
+    ket_luan_nhanh: str
+    van_de_chinh: str
+    loi_chinh_narrative: list[NarrativeViItem] = Field(default_factory=list)
+    dinh_huong_chien_luoc: str
+
+
+class BrightSpotSignal(BaseModel):
+    signal_type: Literal[
+        "hook_only_problem",
+        "performing_well",
+        "hook_and_distribution",
+        "content_and_hook",
+    ]
+    message_vi: str
+
+
+class FormatCard(BaseModel):
+    format_name_vi: str
+    mechanism_vi: str
+    view_range: str
+    engagement_rate: str
+    example_hook_vi: str
+    evidence_aweme_id: str | None = None
+
+
+class ReferenceVideoCard(BaseModel):
+    aweme_id: str
+    desc: str | None = None
+    hook_type: str | None = None
+    content_format: str | None = None
+    views: int | None = None
+    engagement_rate: float | None = None
+    author_handle: str | None = None
+    thumbnail_url: str | None = None
+    tiktok_url: str | None = None
+    source: Literal["corpus", "live_search"] = "corpus"
+
+
+class ChannelContextVideo(BaseModel):
+    aweme_id: str
+    desc: str | None = None
+    views: int | None = None
+    content_format: str | None = None
+
+
+class ChannelContext(BaseModel):
+    available: bool
+    reason: str | None = None
+    top_videos: list[ChannelContextVideo] | None = None
+    bottom_videos: list[ChannelContextVideo] | None = None
+    best_performing_format: str | None = None
+    sample_size: int | None = None
+    median_views: float | None = None
+
+
 class VideoAnalysis(BaseModel):
     hook_analysis: HookAnalysis
+    has_human_speaking_to_camera: bool = False
+    has_expressed_opinion_or_question: bool = False
     text_overlays: list[TextOverlay] = Field(default_factory=list)
     scenes: list[Scene] = Field(default_factory=list)
     transitions_per_second: float
@@ -357,6 +421,12 @@ class VideoAnalyzeResult(BaseModel):
     metadata: VideoMetadata
     analysis: VideoAnalysis
     diagnosis: str
+    narrative_vi: NarrativeVi | None = None
+    bright_spot_signal: BrightSpotSignal | None = None
+    format_cards: list[FormatCard] | None = None
+    channel_context: ChannelContext | None = None
+    reference_videos: list[ReferenceVideoCard] | None = None
+    performance_tier: str | None = None
 
 
 class CarouselAnalyzeResult(BaseModel):

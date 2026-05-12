@@ -140,7 +140,7 @@ export default function AnswerScreen() {
   const uid = user?.id;
   const detailQuery = useAnswerSessionDetail(sessionId, uid);
 
-  const { stream, status: streamStatus, steps, heartbeatElapsedSec } = useSessionStream<ReportV1>({
+  const { stream, status: streamStatus, steps, heartbeatElapsedSec, preSynthesisData, channelContext, narrativeReady } = useSessionStream<ReportV1>({
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
 
@@ -510,6 +510,11 @@ export default function AnswerScreen() {
 
   const related = relatedFromReport(lastPayload);
 
+  const videoStreamProgress =
+    streamInFlight && detailQuery.data?.session?.format === "video"
+      ? { preSynthesisData, channelContext, narrativeReady }
+      : undefined;
+
   return (
     <AppLayout active="answer" enableMobileSidebar>
       <div className="w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
@@ -656,8 +661,19 @@ export default function AnswerScreen() {
                   aria-busy={loading}
                   aria-relevant="additions text"
                 >
-                  {turns.map((t) => (
-                    <ContinuationTurn key={t.id} turn={t} sessionIntentType={sessionIntentType} />
+                  {turns.map((t, idx) => (
+                    <ContinuationTurn
+                      key={t.id}
+                      turn={t}
+                      sessionIntentType={sessionIntentType}
+                      videoStreamProgress={
+                        videoStreamProgress &&
+                        t.payload.kind === "video" &&
+                        idx === turns.length - 1
+                          ? videoStreamProgress
+                          : undefined
+                      }
+                    />
                   ))}
                 </div>
               ) : loading ? (

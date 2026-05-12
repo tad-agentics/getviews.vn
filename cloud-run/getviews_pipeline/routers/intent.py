@@ -464,7 +464,14 @@ async def stream(
                 if event is None:
                     break
                 seq += 1
-                yield _sse_line({"stream_id": stream_id, "seq": seq, "step": event})
+                if isinstance(event, dict) and event.get("type") in (
+                    "pre_synthesis",
+                    "channel_context",
+                    "narrative_ready",
+                ):
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, **event, "done": False})
+                else:
+                    yield _sse_line({"stream_id": stream_id, "seq": seq, "step": event})
 
             out = await pipeline_task
 
@@ -482,10 +489,30 @@ async def stream(
                     sb.rpc("end_processing", {"p_user_id": user_id}).execute()
                     return
                 full_text = (out.get("diagnosis") or "").strip()
+                structured_extra = (
+                    "narrative_vi",
+                    "format_cards",
+                    "bright_spot_signal",
+                    "channel_context",
+                    "performance_tier",
+                    "errors",
+                    "kpi",
+                )
                 structured: dict[str, Any] | None = {
                     k: out[k]
-                    for k in ("niche", "user_video", "reference_videos", "metadata", "analysis",
-                              "content_type", "coverage", "follow_ups", "comment_radar", "thumbnail_analysis")
+                    for k in (
+                        "niche",
+                        "user_video",
+                        "reference_videos",
+                        "metadata",
+                        "analysis",
+                        "content_type",
+                        "coverage",
+                        "follow_ups",
+                        "comment_radar",
+                        "thumbnail_analysis",
+                        *structured_extra,
+                    )
                     if k in out
                 } or None
             elif normalized == "competitor_profile":

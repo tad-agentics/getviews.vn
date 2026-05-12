@@ -477,6 +477,63 @@ def synthesize_diagnosis(
     return text.strip()
 
 
+def _allowed_aweme_ids(reference_videos: list[dict[str, Any]]) -> set[str]:
+    ids: set[str] = set()
+    for r in reference_videos:
+        aid = r.get("aweme_id")
+        if aid is not None and str(aid):
+            ids.add(str(aid))
+    return ids
+
+
+def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None, str]:
+    """Pull optional leading ```json ... ``` block; return (parsed_obj_or_none, remainder)."""
+    s = full_text.lstrip()
+    if not s.startswith("```"):
+        logger.warning("[diagnosis_v2] no leading fenced JSON — full markdown path")
+        return None, full_text.strip()
+    nl = s.find("\n", 3)
+    if nl == -1:
+        logger.warning("[diagnosis_v2] malformed fence (no newline)")
+        return None, full_text.strip()
+    close = s.find("```", nl + 1)
+    if close == -1:
+        logger.warning("[diagnosis_v2] unclosed json fence")
+        return None, full_text.strip()
+    inner = s[nl + 1 : close].strip()
+    if inner.lower().startswith("json"):
+        inner = inner[4:].lstrip()
+    try:
+        obj = json.loads(inner)
+    except json.JSONDecodeError as exc:
+        logger.warning("[diagnosis_v2] JSON parse failed: %s — prefix=%r", exc, inner[:400])
+        return None, full_text.strip()
+    rest = s[close + 3 :].strip()
+    return obj if isinstance(obj, dict) else None, rest
+
+
+def _validate_narrative_citations(
+    narrative_vi: dict[str, Any] | None,
+    format_cards: list[dict[str, Any]] | None,
+    allowed_aweme: set[str],
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]] | None]:
+    if narrative_vi:
+        for item in narrative_vi.get("loi_chinh_narrative") or []:
+            if not isinstance(item, dict):
+                continue
+            eid = item.get("evidence_aweme_id")
+            if eid is not None and str(eid) not in allowed_aweme:
+                item["evidence_aweme_id"] = None
+    if format_cards:
+        for card in format_cards:
+            if not isinstance(card, dict):
+                continue
+            eid = card.get("evidence_aweme_id")
+            if eid is not None and str(eid) not in allowed_aweme:
+                card["evidence_aweme_id"] = None
+    return narrative_vi, format_cards
+
+
 def synthesize_diagnosis_v2(
     content_format: str,
     niche_name: str,
@@ -490,12 +547,15 @@ def synthesize_diagnosis_v2(
     layer0_context: str = "",
     corpus_citation: str = "",
     persona_block: str = "",
-) -> str:
-    """V2 narrative diagnosis — format-aware, 5-part structure (incl. distribution).
+    *,
+    performance_tier: str = "unknown",
+    channel_context: dict[str, Any] | None = None,
+    errors: list[dict[str, Any]] | None = None,
+    reference_evidence_block: str = "",
+) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
+    """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
-    Uses build_diagnosis_synthesis_prompt_v2() from prompts.py.
-    max_output_tokens bumped to 3072 to accommodate full narrative + optional directions.
-    """
+    allowed = _allowed_aweme_ids(reference_videos)
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     prompt = build_diagnosis_synthesis_prompt_v2(
         content_format=content_format,
@@ -509,6 +569,10 @@ def synthesize_diagnosis_v2(
         layer0_context=layer0_context,
         corpus_citation=corpus_citation,
         persona_block=persona_block,
+        performance_tier=performance_tier,
+        channel_context=channel_context,
+        errors=errors,
+        reference_evidence_block=reference_evidence_block,
     )
     if collapsed_questions:
         question_block = (
@@ -517,8 +581,7 @@ def synthesize_diagnosis_v2(
         )
         prompt = prompt.rstrip() + question_block + "\n\nViết chẩn đoán ngay."
 
-    # Directions block adds ~1000 tokens — extend budget so it isn't truncated.
-    max_tokens = 6000 if wants_directions else 3072
+    max_tokens = 6000 if wants_directions else 3500
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=max_tokens,
@@ -533,15 +596,27 @@ def synthesize_diagnosis_v2(
     text = _response_text(response)
     if not text.strip():
         raise ValueError("synthesize_diagnosis_v2 returned empty response")
-    # Fabricated-metric scan — logs only, never blocks. The voice_guide warns
-    # against invented numbers; this catches the slips so we can track
-    # frequency in production logs and tighten the prompt if needed.
+
+    raw_obj, remainder = _split_diagnosis_leading_json(text)
+    narrative_vi: dict[str, Any] | None = None
+    format_cards: list[dict[str, Any]] | None = None
+    if raw_obj:
+        nv = raw_obj.get("narrative_vi")
+        fc = raw_obj.get("format_cards")
+        narrative_vi = nv if isinstance(nv, dict) else None
+        format_cards = fc if isinstance(fc, list) else None
+        narrative_vi, format_cards = _validate_narrative_citations(
+            narrative_vi, format_cards, allowed
+        )
+    body = remainder.strip()
+
+    scan_target = body if raw_obj else text.strip()
     try:
         from getviews_pipeline.analysis_guards import (
             scan_synthesis_for_fabricated_metrics,
         )
 
-        scan = scan_synthesis_for_fabricated_metrics(text)
+        scan = scan_synthesis_for_fabricated_metrics(scan_target)
         if not scan.clean:
             logger.warning(
                 "[synthesis_guard] possible fabricated metric(s) in diagnosis_v2 output: %s",
@@ -549,7 +624,7 @@ def synthesize_diagnosis_v2(
             )
     except Exception as exc:  # pragma: no cover — pure helper
         logger.warning("[synthesis_guard] scan failed: %s", exc)
-    return text.strip()
+    return body, narrative_vi, format_cards
 
 
 def synthesize_diagnosis_carousel_v2(

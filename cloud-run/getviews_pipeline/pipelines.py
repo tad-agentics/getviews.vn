@@ -6,14 +6,14 @@ import asyncio
 import json as _json
 import logging
 import re
+import statistics as stats_module
 import time
-from datetime import date, timedelta
+from collections import Counter
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from getviews_pipeline.supabase_client import get_service_client
-
 from getviews_pipeline import ensemble
-from getviews_pipeline.analysis_core import analyze_aweme
+from getviews_pipeline.analysis_core import analyze_aweme, detect_language_market_mismatch
 from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
@@ -35,21 +35,18 @@ from getviews_pipeline.creator_enrich import (
     rate_ballpark_for_tier,
     tier_from_followers,
 )
-from getviews_pipeline.hashtag_niche_map import (
-    _refresh_cache as _refresh_hashtag_cache,
-    classify_from_hashtags,
-    score_niche_match,
-)
 from getviews_pipeline.enum_labels_vi import carousel_subformat_vi
-from getviews_pipeline.output_redesign import hook_type_vi
-from getviews_pipeline.pattern_fingerprint import (
-    annotate_with_pattern_names,
-    get_top_delta_patterns,
-)
 from getviews_pipeline.gemini import (
     synthesize_diagnosis_carousel_v2,
     synthesize_diagnosis_v2,
     synthesize_intent_markdown,
+)
+from getviews_pipeline.hashtag_niche_map import (
+    _refresh_cache as _refresh_hashtag_cache,
+)
+from getviews_pipeline.hashtag_niche_map import (
+    classify_from_hashtags,
+    score_niche_match,
 )
 from getviews_pipeline.helpers import (
     filter_recency,
@@ -58,6 +55,11 @@ from getviews_pipeline.helpers import (
     select_reference_videos,
 )
 from getviews_pipeline.intents import QueryIntent
+from getviews_pipeline.output_redesign import hook_type_vi
+from getviews_pipeline.pattern_fingerprint import (
+    annotate_with_pattern_names,
+    get_top_delta_patterns,
+)
 from getviews_pipeline.persona import build_persona_block, extract_persona_slots
 from getviews_pipeline.runtime import get_analysis_semaphore, run_sync
 from getviews_pipeline.step_events import (
@@ -73,10 +75,273 @@ from getviews_pipeline.step_events import (
     step_search,
     step_start,
 )
+from getviews_pipeline.supabase_client import get_service_client
 
 logger = logging.getLogger(__name__)
 
 REF_N = 5
+
+SILENT_FORMAT_EXCEPTIONS = frozenset(
+    {
+        "product_display_silent",
+        "ambient_lifestyle",
+        "macro_closeup_product",
+        "aesthetic_broll",
+        "text_overlay_only",
+        "faceless",
+        "highlight",
+    }
+)
+
+
+def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str, Any]:
+    """Project only fields needed for frontend evidence embeds."""
+    aweme_id = r.get("aweme_id") or ""
+    author = r.get("author") if isinstance(r.get("author"), dict) else {}
+    author_handle = r.get("author_unique_id") or author.get("unique_id")
+    thumb = r.get("thumbnail_url") or (r.get("metadata") or {}).get("thumbnail_url")
+    stats = r.get("statistics") or {}
+    hook_type = r.get("hook_type") or (r.get("analysis") or {}).get("hook_analysis", {}).get(
+        "hook_type"
+    )
+    content_format_val = r.get("content_format") or (r.get("analysis") or {}).get(
+        "content_format"
+    )
+    views_raw = (
+        r.get("statistics_play_count")
+        or stats.get("play_count")
+        or r.get("views")
+        or (r.get("metadata") or {}).get("views")
+    )
+    engagement_rate = r.get("engagement_rate")
+    tiktok_url = None
+    if author_handle and aweme_id:
+        tiktok_url = f"https://tiktok.com/@{author_handle}/video/{aweme_id}"
+    return {
+        "aweme_id": aweme_id,
+        "desc": ((r.get("desc") or "")[:120]) or None,
+        "hook_type": hook_type,
+        "content_format": content_format_val,
+        "views": int(views_raw) if views_raw is not None else None,
+        "engagement_rate": float(engagement_rate) if engagement_rate is not None else None,
+        "author_handle": author_handle,
+        "thumbnail_url": thumb,
+        "tiktok_url": tiktok_url,
+        "source": source,
+    }
+
+
+def compute_bright_spot_signal(
+    er_percentile_rank: float | None,
+    views_vs_avg_ratio: float | None,
+) -> dict[str, Any] | None:
+    """er_percentile_rank is an engagement-rate proxy (50 = at niche avg); not raw retention."""
+    if er_percentile_rank is None or views_vs_avg_ratio is None:
+        return None
+
+    high_er = er_percentile_rank >= 70
+    high_views = views_vs_avg_ratio >= 1.0
+
+    if high_er and not high_views:
+        return {
+            "signal_type": "hook_only_problem",
+            "message_vi": (
+                "Engagement rate cao hơn trung bình niche — nội dung tạo được tương tác tốt. "
+                "Vấn đề là lượt xem vẫn thấp, nghĩa là hook chưa đủ mạnh để kéo đủ người vào xem."
+            ),
+        }
+    elif high_er and high_views:
+        return {
+            "signal_type": "performing_well",
+            "message_vi": (
+                "Video đang hoạt động tốt — cả engagement rate lẫn lượt xem đều vượt mức trung bình format."
+            ),
+        }
+    elif not high_er and not high_views:
+        if er_percentile_rank < 30:
+            return {
+                "signal_type": "content_and_hook",
+                "message_vi": (
+                    "Cả engagement rate lẫn lượt xem đều dưới mức format trung bình — "
+                    "cần xem lại cả hook lẫn nội dung chính."
+                ),
+            }
+        return {
+            "signal_type": "hook_and_distribution",
+            "message_vi": (
+                "Lượt xem và engagement rate đều dưới mức format trung bình — "
+                "cần cải thiện cả hook lẫn khả năng phân phối."
+            ),
+        }
+    return None
+
+
+def classify_performance_tier_corpus(views: int, format_avg: float | None) -> str:
+    if not format_avg or format_avg == 0:
+        return "unknown"
+    ratio = views / format_avg
+    if ratio >= 2.0:
+        return "hit"
+    if ratio < 0.5:
+        return "flop"
+    return "average"
+
+
+def refine_performance_tier(corpus_tier: str, views: int, channel_context: dict[str, Any]) -> str:
+    if not channel_context.get("available"):
+        return corpus_tier
+    median_views = channel_context.get("median_views")
+    if not median_views or median_views == 0:
+        return corpus_tier
+    account_ratio = views / float(median_views)
+    account_tier = (
+        "hit" if account_ratio >= 2.0 else "flop" if account_ratio < 0.5 else "average"
+    )
+    if corpus_tier == account_tier:
+        return corpus_tier
+    if {corpus_tier, account_tier} == {"hit", "flop"}:
+        return "average"
+    return account_tier
+
+
+def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> dict[str, Any]:
+    handle = creator_handle.lstrip("@").strip()
+    vid = str(current_video_id or "").strip()
+    if not handle or not vid:
+        return {"available": False, "reason": "Thiếu handle hoặc video id để tra kênh"}
+
+    try:
+        client = get_service_client()
+        res = (
+            client.table("video_corpus")
+            .select("video_id, caption, views, content_format, posted_at, indexed_at")
+            .eq("creator_handle", handle)
+            .neq("video_id", vid)
+            .order("posted_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+        videos = list(res.data or [])
+        if len(videos) < 2:
+            return {
+                "available": False,
+                "reason": f"Chỉ có {len(videos)} video khác trong kho — chưa đủ để so sánh",
+            }
+
+        view_counts = [int(v.get("views") or 0) for v in videos]
+        median_views = float(stats_module.median(view_counts)) if view_counts else 0.0
+
+        sorted_by_views = sorted(
+            videos,
+            key=lambda v: int(v.get("views") or 0),
+            reverse=True,
+        )
+        top_videos = sorted_by_views[:2]
+        bottom_videos = sorted_by_views[-2:]
+        fmt_counts = Counter(v.get("content_format") for v in top_videos if v.get("content_format"))
+        best_fmt = fmt_counts.most_common(1)[0][0] if fmt_counts else None
+
+        return {
+            "available": True,
+            "top_videos": [
+                {
+                    "aweme_id": v.get("video_id"),
+                    "desc": v.get("caption"),
+                    "views": int(v.get("views") or 0),
+                    "content_format": v.get("content_format"),
+                }
+                for v in top_videos
+            ],
+            "bottom_videos": [
+                {
+                    "aweme_id": v.get("video_id"),
+                    "desc": v.get("caption"),
+                    "views": int(v.get("views") or 0),
+                    "content_format": v.get("content_format"),
+                }
+                for v in bottom_videos
+            ],
+            "best_performing_format": best_fmt,
+            "sample_size": len(videos),
+            "median_views": median_views,
+        }
+    except Exception as exc:
+        msg = str(exc)[:80]
+        return {"available": False, "reason": f"Lỗi truy vấn kênh: {msg}"}
+
+
+async def _run_channel_context(creator_handle: str, current_video_id: str) -> dict[str, Any]:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        fetch_channel_context_sync,
+        creator_handle,
+        current_video_id,
+    )
+
+
+def _format_avg_views_for_diagnosis(niche_id: int, content_format: str) -> float | None:
+    if not niche_id or not content_format:
+        return None
+    try:
+        from getviews_pipeline.corpus_ingest import _content_class_for
+        from getviews_pipeline.video_niche_benchmark import fetch_content_class_intelligence_sync
+
+        cc = _content_class_for(niche_id, content_format)
+        if cc:
+            row = fetch_content_class_intelligence_sync(get_service_client(), cc)
+            if row:
+                v = row.get("median_views") or row.get("avg_views")
+                if v:
+                    return float(v)
+        since_dt = datetime.now(UTC) - timedelta(days=30)
+        since_iso = since_dt.isoformat()
+        client = get_service_client()
+        res = (
+            client.table("video_corpus")
+            .select("views")
+            .eq("niche_id", niche_id)
+            .eq("content_format", content_format)
+            .gte("indexed_at", since_iso)
+            .limit(150)
+            .execute()
+        )
+        vals = sorted(int(r.get("views") or 0) for r in (res.data or []))
+        if len(vals) < 5:
+            return None
+        return float(vals[len(vals) // 2])
+    except Exception as exc:
+        logger.warning("[video_diagnosis] format_avg lookup failed: %s", exc)
+        return None
+
+
+def _estimate_er_percentile_rank(user_er: float, niche_avg_er: float | None) -> float | None:
+    """Estimate where user's engagement rate sits relative to niche avg (50 = at average).
+
+    This is an ER-based proxy, not raw TikTok retention data. Callers should not label
+    the output as "retention" in user-visible copy.
+    """
+    if niche_avg_er is None or niche_avg_er <= 0:
+        return None
+    ratio = float(user_er) / float(niche_avg_er)
+    # Map ratio≈1.0 → rank 50; clamp 5–95 to avoid saturate messaging.
+    ranked = 50.0 + (ratio - 1.0) * 40.0
+    return max(5.0, min(95.0, ranked))
+
+
+def _reference_evidence_lines(
+    refs: list[dict[str, Any]],
+    corpus_source: str,
+) -> str:
+    lines: list[str] = []
+    for ref in refs:
+        aid = ref.get("aweme_id") or ""
+        stats = ref.get("statistics") or {}
+        vc = int(stats.get("play_count") or 0)
+        dsc = (ref.get("desc") or "")[:60]
+        src = corpus_source if ref.get("_from_corpus") else "live_search"
+        lines.append(f"- aweme_id: {aid} | desc: {dsc} | views: {vc} | source: {src}")
+    return "\n".join(lines)
 
 # audio_transcript character limit before synthesis — full transcripts can be
 # 500+ tokens each; 3 refs × 500 tokens = 1500 extra tokens for low-value text.
@@ -141,8 +406,14 @@ def _extract_kol_target_niche(questions: list[str], session_niche: str | None) -
 
     Falls back to session_niche if extraction fails.
     """
-    from getviews_pipeline.gemini import _generate_content_models, _response_text, GEMINI_KNOWLEDGE_MODEL, GEMINI_KNOWLEDGE_FALLBACKS
     from google.genai import types as _types  # type: ignore
+
+    from getviews_pipeline.gemini import (
+        GEMINI_KNOWLEDGE_FALLBACKS,
+        GEMINI_KNOWLEDGE_MODEL,
+        _generate_content_models,
+        _response_text,
+    )
 
     combined = " | ".join(questions)
     labels_str = ", ".join(_NICHE_TAXONOMY_LABELS)
@@ -409,7 +680,7 @@ def _build_follow_ups(
         chips.append("Cho mình 3 hook thí nghiệm cho tuần sau")
         chips.append("Metric target 4 tuần tới — views + ER cần tăng bao nhiêu?")
     elif intent == "creator_search":
-        chips.append(f"Gợi ý brief cho KOL đầu danh sách")
+        chips.append("Gợi ý brief cho KOL đầu danh sách")
         chips.append(f"Xu hướng {n} tuần này")
         chips.append(f"Hướng content đang chạy cho {n}")
     # Dedupe while preserving order, cap at 3.
@@ -1143,6 +1414,10 @@ async def run_video_diagnosis(
     cached_ids = set(fa.keys())
     if uid:
         cached_ids.add(uid)
+    channel_handle_norm = handle.strip().lstrip("@") if handle else ""
+    ch_task: asyncio.Task | None = None
+    if channel_handle_norm and uid:
+        ch_task = asyncio.create_task(_run_channel_context(channel_handle_norm, uid))
 
     # Prefer curated corpus (niche-tagged, ≥20k views) over live search to
     # ensure reference videos are actually in the same niche as the user's video.
@@ -1223,7 +1498,7 @@ async def run_video_diagnosis(
     async def _ref_with_timeout(aweme: dict[str, Any]) -> dict[str, Any]:
         try:
             return await asyncio.wait_for(_ref(aweme), timeout=60.0)
-        except (asyncio.TimeoutError, Exception) as e:
+        except (TimeoutError, Exception) as e:
             logger.warning("[ref_timeout] aweme_id=%s — skipped: %s", aweme.get("aweme_id"), e)
             return {"_skipped": True}
 
@@ -1250,6 +1525,8 @@ async def run_video_diagnosis(
         )
         emit(step_queue, step_error(code=_user_error, message_vi=_msg))
         emit_sentinel(step_queue)
+        if ch_task is not None:
+            ch_task.cancel()
         return
 
     niche_id = await resolve_niche_id_cached(session, niche)
@@ -1329,8 +1606,19 @@ async def run_video_diagnosis(
 
     carousel_format: str | None = None
     diagnosis: str
+    narrative_vi_out: dict[str, Any] | None = None
+    format_cards_out: list[dict[str, Any]] | None = None
+    bright_spot_out: dict[str, Any] | None = None
+    channel_context_out: dict[str, Any] | None = None
+    refined_performance_tier_out: str | None = None
+    diagnosis_errors_out: list[dict[str, Any]] | None = None
+    diagnosis_kpi_out: dict[str, Any] | None = None
     if include_diagnosis:
         if user_content_type == "carousel":
+            # ch_task is not used by the carousel path — cancel immediately to avoid leak.
+            if ch_task is not None:
+                ch_task.cancel()
+                ch_task = None
             carousel_format = _carousel_subformat(user_analysis_dict)
             # Filter references to carousel-only when the corpus has enough;
             # fall back to all references if fewer than REF_N carousels found.
@@ -1409,7 +1697,116 @@ async def run_video_diagnosis(
                 creator_format_history_block=creator_format_history_block,
             )
         else:
-            diagnosis = await run_sync(
+            loop_fmt = asyncio.get_event_loop()
+            format_avg = await loop_fmt.run_in_executor(
+                None,
+                lambda: _format_avg_views_for_diagnosis(int(niche_id or 0), content_format),
+            )
+            raw_avg_er = niche_norms.get("avg_engagement_rate")
+            niche_avg_er = float(raw_avg_er) if raw_avg_er is not None else None
+            user_er = float(user_stats.get("engagement_rate") or 0.0)
+            er_percentile_rank = _estimate_er_percentile_rank(user_er, niche_avg_er)
+            curr_views = int(user_stats.get("views") or 0)
+            views_vs_avg_ratio = (
+                curr_views / float(format_avg) if format_avg else None
+            )
+            bright_spot_signal = compute_bright_spot_signal(er_percentile_rank, views_vs_avg_ratio)
+            corpus_tier = classify_performance_tier_corpus(curr_views, format_avg)
+
+            errors: list[dict[str, Any]] = []
+            ha0 = user_analysis_dict.get("hook_analysis")
+            hook_phrase = (ha0 or {}).get("hook_phrase") if isinstance(ha0, dict) else ""
+            hook_text = f"{meta.description or ''} {hook_phrase or ''}".strip()
+            lang_error = detect_language_market_mismatch(hook_text)
+            if lang_error:
+                errors.insert(0, lang_error)
+            has_human = bool(user_analysis_dict.get("has_human_speaking_to_camera"))
+            has_opinion = bool(user_analysis_dict.get("has_expressed_opinion_or_question"))
+            if (
+                not has_human
+                and not has_opinion
+                and content_format not in SILENT_FORMAT_EXCEPTIONS
+            ):
+                errors.append(
+                    {
+                        "error_id": "no_human_presence",
+                        "title": "Không có người nói chuyện với camera",
+                        "detail": (
+                            "Video không có mặt người hoặc giọng nói trực tiếp. "
+                            "Format này hoạt động tốt hơn khi có người dẫn dắt, "
+                            "tạo kết nối cảm xúc với người xem."
+                        ),
+                        "fix": (
+                            "Thêm ít nhất 2-3 giây mặt người nói chuyện thẳng với camera "
+                            "tại hook hoặc giữa video."
+                        ),
+                        "sev": "mid",
+                        "t": 0.0,
+                        "end": None,
+                    }
+                )
+
+            kpi_dict: dict[str, Any] = {
+                "views": curr_views,
+                "likes": int(user_stats.get("likes") or 0),
+                "comments": int(user_stats.get("comments") or 0),
+                "shares": int(user_stats.get("shares") or 0),
+                "bookmarks": int(user_stats.get("bookmarks") or 0),
+                "engagement_rate": user_er,
+                "er_percentile_rank": er_percentile_rank,
+                "format_avg_views": format_avg,
+            }
+            diagnosis_errors_out = errors
+            diagnosis_kpi_out = kpi_dict
+            bright_spot_out = bright_spot_signal
+
+            ref_pairs: list[tuple[dict[str, Any], str]] = []
+            for ref in references:
+                src = (
+                    "corpus"
+                    if corpus_source in ("corpus", "sparse_fallback")
+                    else "live_search"
+                )
+                ref_pairs.append((ref, src))
+
+            emit(
+                step_queue,
+                {
+                    "type": "pre_synthesis",
+                    "errors": errors,
+                    "kpi": kpi_dict,
+                    "bright_spot_signal": bright_spot_signal,
+                    "performance_tier": corpus_tier,
+                    "reference_videos": [_slim_reference_video(r, s) for r, s in ref_pairs],
+                },
+            )
+
+            if ch_task is not None:
+                try:
+                    channel_context = await ch_task
+                except Exception as exc:
+                    logger.warning("[video_diagnosis] channel_context task failed: %s", exc)
+                    channel_context = {"available": False, "reason": str(exc)[:80]}
+            else:
+                channel_context = {"available": False, "reason": "Không có handle TikTok"}
+
+            refined_tier = refine_performance_tier(corpus_tier, curr_views, channel_context)
+            channel_context_payload = {**channel_context, "performance_tier": refined_tier}
+            channel_context_out = channel_context_payload
+            refined_performance_tier_out = refined_tier
+            emit(step_queue, {"type": "channel_context", **channel_context_payload})
+
+            errors_prompt = list(errors)
+            if refined_tier == "hit":
+                filtered_sev = [
+                    e for e in errors if e.get("sev") == "high"
+                ]
+                if filtered_sev:
+                    errors_prompt = filtered_sev
+
+            evidence_block = _reference_evidence_lines(references, corpus_source)
+
+            diagnosis_md, narrative_vi_out, format_cards_out = await run_sync(
                 synthesize_diagnosis_v2,
                 content_format=content_format,
                 niche_name=niche,
@@ -1423,7 +1820,20 @@ async def run_video_diagnosis(
                 layer0_context=layer0_context,
                 corpus_citation=citation,
                 persona_block=persona_block,
+                performance_tier=refined_tier,
+                channel_context=channel_context_payload,
+                errors=errors_prompt,
+                reference_evidence_block=evidence_block,
             )
+            emit(
+                step_queue,
+                {
+                    "type": "narrative_ready",
+                    "narrative_vi": narrative_vi_out,
+                    "format_cards": format_cards_out,
+                },
+            )
+            diagnosis = diagnosis_md
         # Server-side guarantee: ensure all reference videos appear as video_ref
         # blocks regardless of whether Gemini emitted them. Appended only for refs
         # whose video_id is not already present in the synthesis text.
@@ -1547,6 +1957,21 @@ async def run_video_diagnosis(
         _slide_count = (user_res.get("metadata") or {}).get("slide_count")
         if _slide_count:
             out["carousel_slide_count"] = int(_slide_count)
+    if include_diagnosis and user_content_type == "video":
+        if diagnosis_errors_out is not None:
+            out["errors"] = diagnosis_errors_out
+        if diagnosis_kpi_out is not None:
+            out["kpi"] = diagnosis_kpi_out
+        if bright_spot_out is not None:
+            out["bright_spot_signal"] = bright_spot_out
+        if channel_context_out is not None:
+            out["channel_context"] = channel_context_out
+        if refined_performance_tier_out is not None:
+            out["performance_tier"] = refined_performance_tier_out
+        if narrative_vi_out is not None:
+            out["narrative_vi"] = narrative_vi_out
+        if format_cards_out is not None:
+            out["format_cards"] = format_cards_out
     return out
 
 
@@ -1564,8 +1989,12 @@ async def _enrich_creator_card(
     external call is wrapped and falls back to whatever signals we already
     have in `pool_stats`.
     """
+    from google.genai import types as _types  # type: ignore
+
     from getviews_pipeline.corpus_context import (
         _anon_client as _ac,
+    )
+    from getviews_pipeline.corpus_context import (
         get_cached_analysis,
     )
     from getviews_pipeline.gemini import (
@@ -1574,7 +2003,6 @@ async def _enrich_creator_card(
         _generate_content_models,
         _response_text,
     )
-    from google.genai import types as _types  # type: ignore
 
     h = handle.lstrip("@")
 

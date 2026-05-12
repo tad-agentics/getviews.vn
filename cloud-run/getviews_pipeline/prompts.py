@@ -59,7 +59,9 @@ CRITICAL RULES:
   "fast_cuts", "slow_reveal", "meme_format", "before_after", "reaction",
   "duet_stitch", "green_screen", "product_showcase", "lifestyle_b_roll",
   "educational_slides", "trending_audio".
-  Pick only tags that are clearly visible. Do NOT guess."""
+  Pick only tags that are clearly visible. Do NOT guess.
+- has_human_speaking_to_camera: true if a human face is visible and the person appears to be speaking/talking toward the audience (camera-aware or conversational to viewer), directly or indirectly; false only if purely faceless, product-only ASMR overlay, montage-without-talking-head delivery, etc.
+- has_expressed_opinion_or_question: true if the video contains a spoken line, text overlay, or caption that states a clear opinion, asks a question, or uses an explicit personal POV ("mình", "theo mình"); false only if purely descriptive/neutral narration with no viewpoint."""
 
 CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts before this text). Return ONLY JSON matching the schema — no markdown.
 
@@ -940,6 +942,11 @@ def build_diagnosis_synthesis_prompt_v2(
     layer0_context: str = "",
     corpus_citation: str = "",
     persona_block: str = "",
+    *,
+    performance_tier: str = "unknown",
+    channel_context: dict[str, Any] | None = None,
+    errors: list[dict[str, Any]] | None = None,
+    reference_evidence_block: str = "",
 ) -> str:
     """V2 diagnosis synthesis prompt — narrative structure, format-aware.
 
@@ -976,4 +983,8 @@ def build_diagnosis_synthesis_prompt_v2(
         wants_directions=wants_directions,
         corpus_citation=corpus_citation,
         persona_block=persona_block,
+        performance_tier=performance_tier,
+        channel_context=channel_context,
+        errors=errors,
+        reference_evidence_block=reference_evidence_block,
     )

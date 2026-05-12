@@ -80,6 +80,8 @@ export interface FlopHeadline {
 }
 
 export interface VideoFlopIssue {
+  /** Stable id for narrative join (`loi_chinh_narrative[].error_id`); optional on legacy rows. */
+  error_id?: string;
   sev: FlopIssueSeverity;
   t: number;
   end: number;
@@ -1042,6 +1044,85 @@ export interface LifecycleReportPayload {
   related_questions: string[];
 }
 
+// ── Video diagnosis narrative rebuild (SSE + persisted `VideoReportPayload`) ─
+
+/** Evidence narrative item for each error — join on `error_id` ↔ `VideoFlopIssue.error_id`. */
+export interface LoidChinhNarrativeItem {
+  error_id: string;
+  narrative: string;
+  evidence_aweme_id: string | null;
+}
+
+export interface NarrativeVi {
+  ket_luan_nhanh: string;
+  van_de_chinh: string;
+  loi_chinh_narrative: LoidChinhNarrativeItem[];
+  dinh_huong_chien_luoc: string;
+}
+
+export interface BrightSpotSignal {
+  signal_type:
+    | "hook_only_problem"
+    | "performing_well"
+    | "hook_and_distribution"
+    | "content_and_hook";
+  message_vi: string;
+}
+
+export interface FormatCard {
+  format_name_vi: string;
+  mechanism_vi: string;
+  view_range: string;
+  engagement_rate: string;
+  example_hook_vi: string;
+  evidence_aweme_id: string | null;
+}
+
+export interface ChannelContextVideo {
+  aweme_id: string;
+  desc: string | null;
+  views: number | null;
+  content_format: string | null;
+}
+
+export interface ChannelContext {
+  available: boolean;
+  reason?: string;
+  top_videos?: ChannelContextVideo[];
+  bottom_videos?: ChannelContextVideo[];
+  best_performing_format?: string;
+  sample_size?: number;
+  median_views?: number;
+  performance_tier?: string;
+}
+
+export interface ReferenceVideoCard {
+  aweme_id: string;
+  desc: string | null;
+  hook_type: string | null;
+  content_format: string | null;
+  views: number | null;
+  engagement_rate: number | null;
+  author_handle: string | null;
+  thumbnail_url: string | null;
+  tiktok_url: string | null;
+  source: "corpus" | "live_search";
+}
+
+/** Partial payload streamed before final Vietnamese synthesis lands on `ReportV1`. */
+export interface VideoAnswerPreSynthesisPayload {
+  errors?: VideoFlopIssue[];
+  kpi?: Record<string, number>;
+  bright_spot_signal?: BrightSpotSignal;
+  performance_tier?: string;
+  reference_videos?: ReferenceVideoCard[];
+}
+
+export interface VideoAnswerNarrativeReadyPayload {
+  narrative_vi?: NarrativeVi;
+  format_cards?: FormatCard[];
+}
+
 // ── Diagnostic template (2026-04-22) ──────────────────────────────────────
 // Serves ``own_flop_no_url`` — URL-less flop diagnosis with a 4-level
 // verdict enum instead of a numeric score (we don't have the video).
@@ -1114,6 +1195,13 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   carousel_subformat_label?: string;
   /** Carousel-only: number of slides in the post */
   carousel_slide_count?: number;
+  narrative_vi?: NarrativeVi;
+  bright_spot_signal?: BrightSpotSignal;
+  format_cards?: FormatCard[];
+  channel_context?: ChannelContext;
+  reference_videos?: ReferenceVideoCard[];
+  /** Account-refined tier when available: `hit` | `average` | `flop` | `unknown` */
+  performance_tier?: string;
 };
 
 /** §J — 6-shot TikTok script (answer ``builder_fmt == "script"``). */
