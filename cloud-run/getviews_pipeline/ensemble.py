@@ -394,8 +394,18 @@ def _ensembledata_error_message(code: int) -> str | None:
             return None
 
 
-async def fetch_post_info(url: str) -> dict[str, Any]:
-    """Fetch TikTok post info; return aweme_detail dict."""
+async def fetch_post_info(
+    url: str,
+    *,
+    _client: "httpx.AsyncClient | None" = None,
+) -> dict[str, Any]:
+    """Fetch TikTok post info; return aweme_detail dict.
+
+    ``_client``: optional pre-created httpx.AsyncClient.  Pass one when calling
+    from an isolated ``asyncio.run()`` context (e.g. ``run_video_analyze_on_demand``)
+    so the singleton bound to the main event loop is not reused across loop
+    boundaries — which raises ``RuntimeError: Event loop is closed`` in Py 3.12.
+    """
     cache_key = f"post_info:{url}"
     cached = _user_path_cache.get(cache_key)
     if cached is not None:
@@ -407,7 +417,7 @@ async def fetch_post_info(url: str) -> dict[str, Any]:
 
     await _ensemble_budget_gate()
     token = require_ensembledata_token()
-    client = await get_api_client()
+    client = _client if _client is not None else await get_api_client()
     started = time.monotonic()
     r = await client.get(
         ENSEMBLEDATA_POST_INFO_URL,

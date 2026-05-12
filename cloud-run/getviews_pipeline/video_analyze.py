@@ -1059,11 +1059,21 @@ async def _classify_niche_id_async(service_sb: Any, aweme: dict[str, Any]) -> in
 async def _fetch_and_analyze_async(tiktok_url: str) -> tuple[dict[str, Any], dict[str, Any]]:
     """Fetch the aweme via EnsembleData + run Gemini analysis. Returns
     ``(aweme, analyze_result)``. Wrapped so the sync entry point can
-    drive both steps under a single ``asyncio.run``."""
+    drive both steps under a single ``asyncio.run``.
+
+    Creates a **fresh** httpx.AsyncClient instead of reusing the module-level
+    singleton.  The singleton is bound to the main Cloud Run event loop; reusing
+    it inside ``asyncio.run()`` (which creates a new event loop for the calling
+    thread) raises ``RuntimeError: Event loop is closed`` in Python 3.12.
+    """
+    import httpx
+
     from getviews_pipeline import ensemble
     from getviews_pipeline.analysis_core import analyze_aweme
 
-    aweme = await ensemble.fetch_post_info(tiktok_url)
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=30.0, read=120.0)) as fresh_client:
+        aweme = await ensemble.fetch_post_info(tiktok_url, _client=fresh_client)
+
     analyze_result = await analyze_aweme(aweme, include_diagnosis=False)
     return aweme, analyze_result
 
