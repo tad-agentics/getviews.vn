@@ -25,6 +25,9 @@ def test_pattern_narrative_llm_schema_has_required_keys() -> None:
         "cultural_framing",
         "cross_pattern_synthesis",
         "generated_prerequisites",
+        "hook_narratives",
+        "why_it_works",
+        "micro_patterns",
     }
 
 

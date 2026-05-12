@@ -53,9 +53,10 @@ def test_timing_kind_always_picks_timing_builder() -> None:
     assert select_builder_for_turn("generic", "timing") == "timing"
 
 
-def test_script_kind_maps_to_ideas_builder() -> None:
-    # Shot-list / script feedback lives on the ideas report (brief_generation).
-    assert select_builder_for_turn("pattern", "script") == "ideas"
+def test_script_kind_maps_to_script_builder() -> None:
+    # Shot-list / script follow-ups use the dedicated 6-shot script builder
+    # (answer session format ``script`` + B.4 credit parity — not ideas).
+    assert select_builder_for_turn("pattern", "script") == "script"
 
 
 def test_creators_kind_maps_to_generic_builder() -> None:
@@ -137,6 +138,25 @@ def _fake_generic_payload() -> dict[str, Any]:
     return build_fixture_generic_report(query="stub")
 
 
+def _fake_script_inner() -> dict[str, Any]:
+    """Minimal inner dict that passes ``ScriptPayload`` validation."""
+    shots = [
+        {"beat": i, "dialogue_vi": f"Cảnh {i}", "references": []}
+        for i in range(6)
+    ]
+    return {
+        "topic": "stub topic",
+        "hook": "stub hook",
+        "hook_delay_ms": 1000,
+        "duration": 30,
+        "tone": "Chuyên gia",
+        "niche_label": "",
+        "shots": shots,
+        "sources": [],
+        "related_questions": [],
+    }
+
+
 @patch("getviews_pipeline.supabase_client.user_supabase")
 @patch("getviews_pipeline.answer_session.get_service_client")
 @patch("getviews_pipeline.answer_session.build_pattern_report")
@@ -176,7 +196,9 @@ def test_timing_follow_up_builds_timing_not_session_format(
 @patch("getviews_pipeline.answer_session.build_ideas_report")
 @patch("getviews_pipeline.answer_session.build_timing_report")
 @patch("getviews_pipeline.answer_session.build_generic_report")
-def test_script_follow_up_builds_ideas_not_pattern(
+@patch("getviews_pipeline.answer_session.build_script_report")
+def test_script_follow_up_builds_script_not_pattern(
+    mock_script: MagicMock,
     mock_generic: MagicMock,
     mock_timing: MagicMock,
     mock_ideas: MagicMock,
@@ -185,7 +207,8 @@ def test_script_follow_up_builds_ideas_not_pattern(
     _mock_user_sb: MagicMock,
 ) -> None:
     mock_get_svc.return_value = _mock_supabase_for_turn("pattern")
-    mock_ideas.return_value = _fake_ideas_payload()
+    mock_script.return_value = _fake_script_inner()
+    _mock_user_sb.return_value.rpc.return_value.execute.return_value = MagicMock(data=True)
 
     out = append_turn(
         "u1",
@@ -194,9 +217,10 @@ def test_script_follow_up_builds_ideas_not_pattern(
         query="viết shot list giúp mình",
         kind="script",
     )
-    mock_ideas.assert_called_once()
+    mock_script.assert_called_once()
     mock_pattern.assert_not_called()
-    assert out["payload"]["kind"] == "ideas"
+    mock_ideas.assert_not_called()
+    assert out["payload"]["kind"] == "script"
 
 
 @patch("getviews_pipeline.supabase_client.user_supabase")
