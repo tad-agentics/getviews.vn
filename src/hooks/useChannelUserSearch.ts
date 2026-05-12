@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { throwSessionExpired } from "@/lib/authErrors";
+import { cloudRunAuthedFetch, throwCloudRunError } from "@/lib/cloudRunClient";
 import { env } from "@/lib/env";
-import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
-import { supabase } from "@/lib/supabase";
 
 export type ChannelUserSearchRow = {
   unique_id: string;
@@ -26,29 +24,18 @@ export function useChannelUserSearch(debouncedKeyword: string | null) {
     queryKey: ["channel-user-search", kw] as const,
     queryFn: async () => {
       if (!cloudRunUrl) throw new Error("Cloud Run URL chưa cấu hình");
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Chưa đăng nhập");
-
       const qs = new URLSearchParams({ keyword: kw });
-      const res = await fetchWithTimeout(`${cloudRunUrl}/channel/user-search?${qs.toString()}`, {
+      const res = await cloudRunAuthedFetch(`/channel/user-search?${qs.toString()}`, {
         method: "GET",
-        headers: { Authorization: `Bearer ${session.access_token}` },
         timeoutMs: 20_000,
       });
-
-      if (res.status === 401) {
-        throwSessionExpired("401_from_cloud_run");
-      }
       if (res.status === 429) {
-        const err = new Error("ensemble_quota");
-        err.name = "EnsembleQuota";
-        throw err;
+        await throwCloudRunError(res, {
+          429: { message: "ensemble_quota", name: "EnsembleQuota" },
+        });
       }
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `HTTP ${res.status}`);
+        await throwCloudRunError(res);
       }
       return (await res.json()) as ChannelUserSearchResponse;
     },

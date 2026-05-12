@@ -1180,13 +1180,26 @@ export type GenericPayload = GenericReportPayload;
 export type VideoPayload = VideoReportPayload;
 export type ScriptPayload = ScriptReportPayload;
 
+export const ANSWER_SESSION_FORMATS = [
+  "pattern",
+  "ideas",
+  "timing",
+  "generic",
+  "lifecycle",
+  "diagnostic",
+  "video",
+  "script",
+] as const;
+
+export type AnswerSessionFormat = (typeof ANSWER_SESSION_FORMATS)[number];
+
 export interface AnswerSessionRow {
   id: string;
   user_id: string;
   title: string | null;
   initial_q: string;
   intent_type: string;
-  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic" | "video" | "script";
+  format: AnswerSessionFormat;
   niche_id: number | null;
   created_at?: string;
   updated_at?: string;

@@ -1,11 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChannelAnalyzeResponse } from "@/lib/api-types";
-import { throwSessionExpired } from "@/lib/authErrors";
-import { readErrorDetail } from "@/lib/cloudRunErrors";
 import { normalizeChannelHandleInput } from "@/lib/channelHandle";
+import { cloudRunAuthedFetch, throwCloudRunError } from "@/lib/cloudRunClient";
 import { env } from "@/lib/env";
-import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
-import { supabase } from "@/lib/supabase";
 
 /** Strip @ and whitespace for cache keys and API query. */
 export function channelAnalyzeHandleKey(handle: string | null | undefined): string | null {
@@ -34,7 +31,15 @@ export function useChannelAnalyze({
   const key = channelAnalyzeHandleKey(handle);
   const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
 
-  const nicheKey = creatorNicheId != null && Number.isFinite(creatorNicheId) ? String(creatorNicheId) : "profile";
+  const normalizedCreatorNicheId =
+    creatorNicheId != null &&
+    Number.isFinite(creatorNicheId) &&
+    creatorNicheId >= 1 &&
+    creatorNicheId <= 64
+      ? Math.trunc(creatorNicheId)
+      : null;
+
+  const nicheKey = normalizedCreatorNicheId != null ? String(normalizedCreatorNicheId) : "profile";
 
   const queryKey = key
     ? (["channel-analyze", key, nicheKey, forceRefresh ? "force" : "ok"] as const)
@@ -45,46 +50,33 @@ export function useChannelAnalyze({
     queryFn: async () => {
       if (!cloudRunUrl) throw new Error("Cloud Run URL chưa cấu hình");
       if (!key) throw new Error("Thiếu handle kênh");
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Chưa đăng nhập");
 
       const qs = new URLSearchParams({ handle: key });
       if (forceRefresh) qs.set("force_refresh", "true");
-      if (creatorNicheId != null && Number.isFinite(creatorNicheId)) {
-        qs.set("creator_niche_id", String(Math.trunc(creatorNicheId)));
+      if (normalizedCreatorNicheId != null) {
+        qs.set("creator_niche_id", String(normalizedCreatorNicheId));
       }
 
-      const res = await fetchWithTimeout(`${cloudRunUrl}/channel/analyze?${qs.toString()}`, {
+      const res = await cloudRunAuthedFetch(`/channel/analyze?${qs.toString()}`, {
         method: "GET",
-        headers: { Authorization: `Bearer ${session.access_token}` },
         timeoutMs: 45_000,
       });
-
-      if (res.status === 401) {
-        throwSessionExpired("401_from_cloud_run");
-      }
       if (res.status === 402) {
-        // Name the error so the screen can branch on err.name rather than
-        // regex-matching the Vietnamese message string. Parity with
-        // useVideoAnalysis + useScriptGenerate.
-        const err = new Error("insufficient_credits");
-        err.name = "InsufficientCredits";
-        throw err;
+        await throwCloudRunError(res, {
+          402: { message: "insufficient_credits", name: "InsufficientCredits" },
+        });
       }
       if (res.status === 429) {
-        const err = new Error("daily_free_limit");
-        err.name = "DailyFreeLimit";
-        throw err;
+        await throwCloudRunError(res, {
+          429: { message: "daily_free_limit", name: "DailyFreeLimit" },
+        });
       }
       if (res.status === 404) {
         const detail = (await res.json().catch(() => ({}))) as { detail?: string };
         throw new Error(detail.detail ?? "Không tìm thấy kênh trong ngách so sánh này");
       }
       if (!res.ok) {
-        const detail = await readErrorDetail(res);
-        throw new Error(detail || `HTTP ${res.status}`);
+        await throwCloudRunError(res);
       }
       return (await res.json()) as ChannelAnalyzeResponse;
     },

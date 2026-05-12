@@ -36,4 +36,21 @@ describe("readErrorDetail", () => {
     // Falls through to raw body since detail isn't a string.
     expect(await readErrorDetail(res)).toContain("42");
   });
+
+  it("maps FastAPI validation detail array to invalid_payload", async () => {
+    const res = mockResponse(
+      422,
+      JSON.stringify({
+        detail: [
+          {
+            type: "literal_error",
+            loc: ["body", "format"],
+            msg: "Input should be one of ...",
+            input: "script",
+          },
+        ],
+      }),
+    );
+    expect(await readErrorDetail(res)).toBe("invalid_payload");
+  });
 });

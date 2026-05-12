@@ -18,6 +18,16 @@ export async function readErrorDetail(res: Response): Promise<string> {
     const parsed = JSON.parse(raw) as { detail?: unknown; error?: unknown };
     if (typeof parsed.detail === "string" && parsed.detail.trim()) return parsed.detail;
     if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error;
+    // FastAPI / Pydantic validation errors are typically:
+    // { detail: [{ type, loc, msg, input, ... }] }.
+    // Return a stable app code so UI copy can be precise instead of
+    // collapsing to generic "start_failed".
+    if (Array.isArray(parsed.detail) && parsed.detail.length > 0) {
+      const first = parsed.detail[0];
+      if (first && typeof first === "object") {
+        return "invalid_payload";
+      }
+    }
   } catch {
     /* body is not JSON — fall through to raw */
   }

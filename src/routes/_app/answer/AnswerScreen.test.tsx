@@ -371,6 +371,27 @@ describe("AnswerScreen state transitions", () => {
     });
   });
 
+  it("renders invalid_payload copy when create session fails with FastAPI validation JSON", async () => {
+    mockCreateAnswerSession.mockRejectedValue(
+      new Error(
+        JSON.stringify({
+          detail: [
+            {
+              type: "literal_error",
+              loc: ["body", "format"],
+              msg: "Input should be ...",
+              input: "script",
+            },
+          ],
+        }),
+      ),
+    );
+    renderScreen("/app/answer?q=viết kịch bản");
+    await waitFor(() => {
+      expect(screen.getByText(/Dữ liệu gửi lên không hợp lệ/)).toBeTruthy();
+    });
+  });
+
   it("enables the follow-up composer once a sessionId is in the URL", () => {
     mockUseAnswerSessionDetail.mockReturnValue({
       data: { session: makeSession(), turns: [makeTurn()] },

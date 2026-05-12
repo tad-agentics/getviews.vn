@@ -14,7 +14,7 @@ import { throwSessionExpired } from "@/lib/authErrors";
 import { readErrorDetail } from "@/lib/cloudRunErrors";
 import { env } from "@/lib/env";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
-import type { AnswerSessionRow, AnswerTurnRow } from "@/lib/api-types";
+import type { AnswerSessionFormat, AnswerSessionRow, AnswerTurnRow } from "@/lib/api-types";
 
 export const answerApiBase = () => env.VITE_CLOUD_RUN_API_URL ?? "";
 
@@ -31,7 +31,7 @@ export type CreateAnswerSessionBody = {
   initial_q: string;
   intent_type: string;
   niche_id: number | null;
-  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic" | "video" | "script";
+  format: AnswerSessionFormat;
 };
 
 /** ``POST /answer/sessions`` — Idempotency-Key optional (120s server-side cache). */

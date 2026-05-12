@@ -67,6 +67,29 @@ const ANSWER_ERROR_CODES = new Set([
   "idempotency_conflict",
 ]);
 
+function codeFromRawErrorMessage(message: string): string | null {
+  const trimmed = message.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = JSON.parse(trimmed) as { error?: unknown; detail?: unknown };
+    if (typeof parsed.error === "string" && ANSWER_ERROR_CODES.has(parsed.error)) {
+      return parsed.error;
+    }
+    if (typeof parsed.detail === "string" && ANSWER_ERROR_CODES.has(parsed.detail)) {
+      return parsed.detail;
+    }
+    if (Array.isArray(parsed.detail) && parsed.detail.length > 0) {
+      return "invalid_payload";
+    }
+  } catch {
+    // Not JSON — continue with heuristic matching below.
+  }
+  if (trimmed.includes("literal_error") && trimmed.includes('"loc":["body"')) {
+    return "invalid_payload";
+  }
+  return null;
+}
+
 function pickAnswerErrorCode(e: unknown, fallback: string): string {
   if (e instanceof Error) {
     if (e.name === "SessionExpired") return "session_expired";
@@ -81,6 +104,8 @@ function pickAnswerErrorCode(e: unknown, fallback: string): string {
     ) {
       return "network_failed";
     }
+    const parsedCode = codeFromRawErrorMessage(e.message ?? "");
+    if (parsedCode) return parsedCode;
     if (ANSWER_ERROR_CODES.has(e.message)) return e.message;
     if (e.message?.startsWith("http_")) return e.message;
   }
