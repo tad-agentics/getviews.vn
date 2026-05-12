@@ -482,6 +482,12 @@ def build_video_report(
     if creator_handle and target_views > 0:
         try:
             _cmp_loop = asyncio.new_event_loop()
+            # Must set as current thread's loop so that httpx AsyncClient inside
+            # fetch_user_posts finds the correct loop via asyncio.get_event_loop().
+            # Without this, httpx sees the old closed loop from a prior asyncio.run()
+            # call (in run_video_analyze_pipeline) and raises "Event loop is closed".
+            _prev_loop = asyncio.get_event_loop_policy().get_event_loop()
+            asyncio.set_event_loop(_cmp_loop)
             try:
                 comparison = _cmp_loop.run_until_complete(
                     build_creator_comparison(
@@ -493,6 +499,7 @@ def build_video_report(
                 )
             finally:
                 _cmp_loop.close()
+                asyncio.set_event_loop(_prev_loop)
         except Exception as exc:
             logger.warning("[video] creator comparison failed: %s", exc)
 
