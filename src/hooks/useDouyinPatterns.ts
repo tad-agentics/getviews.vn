@@ -1,11 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import type { DouyinPatternsResponse } from "@/lib/api-types";
-import { throwSessionExpired } from "@/lib/authErrors";
-import { readErrorDetail } from "@/lib/cloudRunErrors";
+import { cloudRunAuthedFetch, throwCloudRunError } from "@/lib/cloudRunClient";
 import { env } from "@/lib/env";
-import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
-import { supabase } from "@/lib/supabase";
 
 /**
  * D5d (2026-06-05) — Kho Douyin weekly pattern-signals hook.
@@ -33,20 +30,12 @@ export function useDouyinPatterns(enabled: boolean = true) {
     queryKey: douyinPatternsKeys.all,
     queryFn: async () => {
       if (!base) throw new Error("Cloud Run URL chưa cấu hình");
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Chưa đăng nhập");
-      const res = await fetchWithTimeout(`${base}/douyin/patterns`, {
+      const res = await cloudRunAuthedFetch("/douyin/patterns", {
         method: "GET",
-        headers: { Authorization: `Bearer ${session.access_token}` },
         timeoutMs: 15_000,
       });
-      if (res.status === 401) {
-        throwSessionExpired("401_from_cloud_run");
-      }
       if (!res.ok) {
-        throw new Error(await readErrorDetail(res));
+        await throwCloudRunError(res);
       }
       return (await res.json()) as DouyinPatternsResponse;
     },
