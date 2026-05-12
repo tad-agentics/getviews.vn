@@ -724,7 +724,7 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {viewMode === "flop" && flopIssuesForNarrative.length > 0 ? (
+        {flopIssuesForNarrative.length > 0 && (viewMode === "flop" || (preSynth?.errors?.length ?? 0) > 0) ? (
           <section className="mb-6">
             <SectionMini kicker="Lỗi cấu trúc" title="Xếp theo ảnh hưởng" />
             <div className="flex flex-col gap-3">
