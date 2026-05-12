@@ -1214,6 +1214,7 @@ def run_channel_analyze_sync(
     user_id: str,
     raw_handle: str,
     force_refresh: bool = False,
+    creator_niche_id: int | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline for GET /channel/analyze."""
     handle = normalize_handle(raw_handle)
@@ -1227,20 +1228,29 @@ def run_channel_analyze_sync(
     # Two-axis refactor PR5: prefer creator_niche_id (canonical) and
     # resolve to legacy niche_id so the channel-corpus query
     # (video_corpus.niche_id) keeps working unchanged.
-    from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
+    from getviews_pipeline.profile_niches import (
+        legacy_niche_id_for_creator_niche,
+        resolve_legacy_niche_from_profile_row,
+    )
 
-    niche_id = resolve_legacy_niche_from_profile_row(pres.data or {})
-    if niche_id is None:
-        raise ValueError("Chưa chọn ngách")
+    if creator_niche_id is not None:
+        resolved = legacy_niche_id_for_creator_niche(int(creator_niche_id))
+        if resolved is None:
+            raise ValueError("Ngách so sánh không hợp lệ")
+        niche_id = int(resolved)
+    else:
+        niche_id = resolve_legacy_niche_from_profile_row(pres.data or {})
+        if niche_id is None:
+            raise ValueError("Chưa chọn ngách")
 
-    niche_id = int(niche_id)
+        niche_id = int(niche_id)
     niche_label = _resolve_niche_label(user_sb, niche_id)
     starter = _fetch_starter_row(user_sb, handle=handle, niche_id=niche_id)
     stats = _fetch_corpus_stats_rpc(user_sb, handle=handle, niche_id=niche_id)
     total = int(stats.get("total") or 0)
 
     if total == 0 and not starter:
-        raise ValueError("Không thấy kênh trong ngách này")
+        raise ValueError("Không thấy kênh trong ngách so sánh này")
 
     top_rows = _fetch_top_corpus_rows(user_sb, handle=handle, niche_id=niche_id, limit=80)
     hook_types = _fetch_hook_types(user_sb, handle=handle, niche_id=niche_id)

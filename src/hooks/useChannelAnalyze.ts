@@ -14,6 +14,8 @@ export function channelAnalyzeHandleKey(handle: string | null | undefined): stri
 
 export type UseChannelAnalyzeOptions = {
   handle?: string | null;
+  /** Maps to Cloud Run ``creator_niche_id`` (corpus lens; default = profile). */
+  creatorNicheId?: number | null;
   /** Maps to Cloud Run `force_refresh=true` (bypass 7d cache when allowed). */
   forceRefresh?: boolean;
   enabled?: boolean;
@@ -25,14 +27,17 @@ export type UseChannelAnalyzeOptions = {
  */
 export function useChannelAnalyze({
   handle = null,
+  creatorNicheId = null,
   forceRefresh = false,
   enabled = true,
 }: UseChannelAnalyzeOptions) {
   const key = channelAnalyzeHandleKey(handle);
   const cloudRunUrl = env.VITE_CLOUD_RUN_API_URL;
 
+  const nicheKey = creatorNicheId != null && Number.isFinite(creatorNicheId) ? String(creatorNicheId) : "profile";
+
   const queryKey = key
-    ? (["channel-analyze", key, forceRefresh ? "force" : "ok"] as const)
+    ? (["channel-analyze", key, nicheKey, forceRefresh ? "force" : "ok"] as const)
     : (["channel-analyze", "__idle__"] as const);
 
   return useQuery<ChannelAnalyzeResponse>({
@@ -47,6 +52,9 @@ export function useChannelAnalyze({
 
       const qs = new URLSearchParams({ handle: key });
       if (forceRefresh) qs.set("force_refresh", "true");
+      if (creatorNicheId != null && Number.isFinite(creatorNicheId)) {
+        qs.set("creator_niche_id", String(Math.trunc(creatorNicheId)));
+      }
 
       const res = await fetchWithTimeout(`${cloudRunUrl}/channel/analyze?${qs.toString()}`, {
         method: "GET",
@@ -72,7 +80,7 @@ export function useChannelAnalyze({
       }
       if (res.status === 404) {
         const detail = (await res.json().catch(() => ({}))) as { detail?: string };
-        throw new Error(detail.detail ?? "Không tìm thấy kênh trong ngách này");
+        throw new Error(detail.detail ?? "Không tìm thấy kênh trong ngách so sánh này");
       }
       if (!res.ok) {
         const detail = await readErrorDetail(res);

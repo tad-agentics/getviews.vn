@@ -11,6 +11,19 @@ export function normalizeChannelHandleInput(raw: string | null | undefined): str
  * Parse a profile URL or first @handle from free text. Skips `/video/` and
  * `/photo/` URLs so video links are not mistaken for channel profiles.
  */
+const EXPLORE_HANDLE_RE = /(?:tiktok\.com\/@|^@)([A-Za-z0-9._]+)/;
+
+/** Parse @handle, bare handle, or tiktok.com/@… for Khám kênh / channel explore. */
+export function parseChannelExploreHandle(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(EXPLORE_HANDLE_RE);
+  if (match) return `@${match[1]}`;
+  if (trimmed.startsWith("@")) return trimmed;
+  if (/^[A-Za-z0-9._]+$/.test(trimmed)) return `@${trimmed}`;
+  return null;
+}
+
 export function extractChannelHandleFromMessage(text: string): string | null {
   const q = text.trim();
   // Video / photo permalinks contain `@handle` in the path — do not treat as profile.

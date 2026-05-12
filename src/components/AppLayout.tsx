@@ -16,6 +16,7 @@ import {
   BookOpen,
   Shield,
   Archive,
+  Search,
 } from 'lucide-react';
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { BrandMark } from "@/components/BrandMark";
@@ -688,6 +689,15 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             active={active === "trends"}
             onClick={() => {
               navigate("/app/trends");
+              onClose?.();
+            }}
+          />
+          <NavItem
+            icon={Search}
+            label="Khám kênh"
+            active={active === "channel"}
+            onClick={() => {
+              navigate("/app/channel");
               onClose?.();
             }}
           />

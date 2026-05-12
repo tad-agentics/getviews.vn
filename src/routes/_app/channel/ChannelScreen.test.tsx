@@ -42,6 +42,29 @@ vi.mock("@/hooks/useChannelAnalyze", () => ({
 }));
 vi.mock("@/hooks/useHomePulse", () => ({ useHomePulse: () => mockUseHomePulse() }));
 
+vi.mock("@/hooks/useProfile", () => ({
+  useProfile: () => ({
+    data: { creator_niche_id: 1, deep_credits_remaining: 10 },
+    isPending: false,
+  }),
+}));
+
+vi.mock("@/hooks/useCreatorNiches", () => ({
+  useCreatorNiches: () => ({
+    data: [{ id: 1, slug: "beauty", name: "Làm đẹp", description: null, display_order: 1 }],
+    isPending: false,
+  }),
+}));
+
+vi.mock("@/hooks/useChannelUserSearch", () => ({
+  useChannelUserSearch: () => ({
+    data: undefined,
+    isFetching: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
 vi.mock("@/components/AppLayout", () => ({
   AppLayout: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -100,17 +123,39 @@ describe("ChannelScreen", () => {
     mockUseChannelAnalyze.mockReset();
     mockUseHomePulse.mockReset();
     mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
+    mockUseChannelAnalyze.mockImplementation(() => ({
+      data: undefined,
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    }));
   });
   afterEach(cleanup);
 
   it("renders empty state when no handle is provided", () => {
-    mockUseChannelAnalyze.mockReturnValue({ data: undefined, isPending: false, isError: false });
+    mockUseChannelAnalyze.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
     renderScreen();
-    expect(screen.getByText(/Phân tích kênh TikTok/)).toBeTruthy();
+    expect(screen.getByText(/Khám bất kỳ kênh TikTok nào/)).toBeTruthy();
   });
 
   it("renders loading indicator while useChannelAnalyze is pending", () => {
-    mockUseChannelAnalyze.mockReturnValue({ data: undefined, isPending: true, isError: false });
+    mockUseChannelAnalyze.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      isFetching: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
     const { container } = renderScreen("?handle=sammie.tech");
     expect(container).toBeTruthy();
   });
@@ -119,7 +164,10 @@ describe("ChannelScreen", () => {
     mockUseChannelAnalyze.mockReturnValue({
       data: makePayload({ handle: "@sammie.tech", niche_label: "Tech" }),
       isPending: false,
+      isFetching: false,
       isError: false,
+      error: null,
+      refetch: vi.fn(),
     });
     renderScreen("?handle=sammie.tech");
     // Handle appears in title / crumb area.
@@ -130,7 +178,10 @@ describe("ChannelScreen", () => {
     mockUseChannelAnalyze.mockReturnValue({
       data: makePayload({ posting_cadence: "3 lần/tuần", posting_time: "tối thứ 4–6" }),
       isPending: false,
+      isFetching: false,
       isError: false,
+      error: null,
+      refetch: vi.fn(),
     });
     renderScreen("?handle=sammie.tech");
     // `postingCadenceChipText` joins the two with " · ".

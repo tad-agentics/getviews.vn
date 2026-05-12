@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -147,6 +149,59 @@ def test_posting_heatmap_buckets_hours_correctly() -> None:
     assert sum(sum(row) for row in grid) == 5
 
 
+def test_run_channel_analyze_creator_niche_override_changes_legacy_niche() -> None:
+    """Optional creator_niche_id must resolve via legacy map, not profile alone."""
+    user_sb = MagicMock()
+    user_sb.table.return_value.select.return_value.single.return_value.execute.return_value = MagicMock(
+        data={"creator_niche_id": 9},
+    )
+    service_sb = MagicMock()
+    seen: dict[str, int] = {}
+
+    def capture_stats(_sb: Any, *, handle: str, niche_id: int) -> dict[str, Any]:
+        seen["niche_id"] = niche_id
+        return {"total": 5, "avg_views": 900, "avg_er": 0.04}
+
+    with (
+        patch("getviews_pipeline.channel_analyze._resolve_niche_label", return_value="Beauty"),
+        patch("getviews_pipeline.channel_analyze._fetch_corpus_stats_rpc", side_effect=capture_stats),
+        patch("getviews_pipeline.channel_analyze._fetch_starter_row", return_value=None),
+        patch("getviews_pipeline.channel_analyze._fetch_top_corpus_rows", return_value=[]),
+        patch("getviews_pipeline.channel_analyze._fetch_hook_types", return_value=[]),
+        patch(
+            "getviews_pipeline.channel_analyze.compute_live_signals",
+            return_value=LiveSignals(),
+        ),
+        patch("getviews_pipeline.channel_analyze._decrement_credit_or_raise") as dec,
+    ):
+        run_channel_analyze_sync(
+            service_sb,
+            user_sb,
+            user_id="u1",
+            raw_handle="@foo",
+            creator_niche_id=1,
+        )
+    dec.assert_not_called()
+    # creator_niche 1 → legacy niche_taxonomy 2 (Beauty → Skincare) per profile_niches map.
+    assert seen.get("niche_id") == 2
+
+
+def test_run_channel_analyze_invalid_creator_niche_override_raises() -> None:
+    user_sb = MagicMock()
+    user_sb.table.return_value.select.return_value.single.return_value.execute.return_value = MagicMock(
+        data={"creator_niche_id": 9},
+    )
+    service_sb = MagicMock()
+    with pytest.raises(ValueError, match="Ngách so sánh không hợp lệ"):
+        run_channel_analyze_sync(
+            service_sb,
+            user_sb,
+            user_id="u1",
+            raw_handle="@foo",
+            creator_niche_id=99,
+        )
+
+
 def test_run_channel_analyze_thin_corpus_no_credit() -> None:
     """Below gate video count → thin_corpus; must not call decrement_credit."""
     user_sb = MagicMock()
@@ -191,7 +246,6 @@ def test_run_channel_analyze_thin_corpus_no_credit() -> None:
     assert out["lessons"] == []
     # PR-3 — cadence is None on thin-corpus (LiveSignals() default).
     assert out["cadence"] is None
-
 
 # ── PR-2 — diagnostic restructure (strengths + weaknesses) ─────────────────
 

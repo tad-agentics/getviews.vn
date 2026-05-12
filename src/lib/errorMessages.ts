@@ -47,6 +47,10 @@ export function analysisErrorCopy(error: unknown): string {
     return "Phiên đăng nhập đã hết hạn — tự động đăng xuất sau giây lát.";
   }
 
+  if (name === "EnsembleQuota" || code === "ensemble_quota") {
+    return "Hệ thống tìm kiếm TikTok đang bận — thử lại sau vài phút.";
+  }
+
   // AnswerScreen codes — these are stored as raw strings in state and
   // rendered via `analysisErrorCopy(error)`.
   if (code === "network_failed") {

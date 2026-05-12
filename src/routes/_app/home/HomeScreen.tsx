@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { Plus, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Btn } from "@/components/v2/Btn";
@@ -17,7 +17,6 @@ import { profileFirstNicheId } from "@/lib/profileNiches";
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
-import { HomeMyChannelSection } from "./components/HomeMyChannelSection";
 import { HomeSuggestionsToday } from "./components/HomeSuggestionsToday";
 import { NichePicker } from "./components/NichePicker";
 import { DateChip } from "./components/DateChip";
@@ -27,12 +26,13 @@ import {
   PASTE_VIDEO_TEMPLATE,
   unfilledPasteTemplateHint,
 } from "./pasteTemplates";
+import { scrollToSuggestionsTier, type SuggestionsTier } from "./components/scrollToTier";
 
 /**
  * Getviews Studio — Home screen (Phase A · A3.4).
  *
  * Order: ticker → greeting → composer → suggested chips + shortcut pills → <hr>
- * → KÊNH CỦA BẠN → GỢI Ý HÔM NAY (tier 01: 3 kịch bản; tier 02–03).
+ * → GỢI Ý HÔM NAY (tier 01: 3 kịch bản; tier 02–03). Khám kênh lives under /app/channel.
  */
 
 /** TikTok / short-video URL — drives the "URL detected" chip in QueryComposer (C.1.0). */
@@ -42,6 +42,26 @@ const URL_IN_TEXT =
 export default function HomeScreen() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Deep-link from /app/channel diagnostics → scroll to Gợi ý hôm nay tier.
+  useEffect(() => {
+    const raw = searchParams.get("scrollTier");
+    if (raw !== "01" && raw !== "02" && raw !== "03") return;
+    const tier = raw as SuggestionsTier;
+    const id = window.requestAnimationFrame(() => {
+      scrollToSuggestionsTier(tier);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("scrollTier");
+          return next;
+        },
+        { replace: true },
+      );
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [searchParams, setSearchParams]);
+
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [composerText, setComposerText] = useState("");
   // L1.5 audit follow-up — surfaces a Vietnamese hint when the user
@@ -320,14 +340,6 @@ export default function HomeScreen() {
                 </button>
               ))}
             </div>
-          </div>
-
-          <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />
-
-          <div className="gv-fade-up gv-fade-up-delay-2 mb-12">
-            <HomeMyChannelSection
-                credits={(profile as { deep_credits_remaining?: number } | null | undefined)?.deep_credits_remaining ?? 0}
-              />
           </div>
 
           <hr className="mb-9 mt-0 border-0 border-t border-[color:var(--gv-rule)]" />

@@ -12,6 +12,8 @@
  * loosely coupled.
  */
 
+import type { NavigateFunction } from "react-router";
+
 export type SuggestionsTier = "01" | "02" | "03";
 
 export function scrollToSuggestionsTier(
@@ -23,4 +25,12 @@ export function scrollToSuggestionsTier(
   if (!target) return false;
   target.scrollIntoView(options);
   return true;
+}
+
+/** From `/app/channel`: jump to Studio suggestions tier (scroll if already on `/app`). */
+export function goToStudioSuggestionsTier(tier: SuggestionsTier, navigate: NavigateFunction): void {
+  if (typeof window !== "undefined" && window.location.pathname === "/app") {
+    if (scrollToSuggestionsTier(tier)) return;
+  }
+  navigate({ pathname: "/app", search: `scrollTier=${tier}` });
 }

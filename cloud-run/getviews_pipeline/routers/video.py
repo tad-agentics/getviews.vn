@@ -130,6 +130,12 @@ async def channel_analyze_endpoint(
     user: dict = Depends(require_user),
     handle: str = Query(..., min_length=1, max_length=200, description="TikTok handle, có hoặc không @"),
     force_refresh: bool = Query(False, description="Bỏ qua cache 7 ngày và gọi lại Gemini (trừ thin_corpus)."),
+    creator_niche_id: int | None = Query(
+        None,
+        ge=1,
+        le=64,
+        description="Optional creator_niches.id — corpus lens; default = profile.",
+    ),
 ) -> JSONResponse:
     """B.3.1 — Phân tích kênh: gate ≥10 video, cache ``channel_formulas``, Gemini + trừ credit khi miss."""
     from getviews_pipeline.channel_analyze import InsufficientCreditsError, run_channel_analyze_sync
@@ -137,11 +143,21 @@ async def channel_analyze_endpoint(
 
     sb_user = user_supabase(user["access_token"])
     try:
-        out = await run_sync(run_channel_analyze_sync, get_service_client(), sb_user, user_id=user["user_id"], raw_handle=handle, force_refresh=force_refresh)
+        out = await run_sync(
+            run_channel_analyze_sync,
+            get_service_client(),
+            sb_user,
+            user_id=user["user_id"],
+            raw_handle=handle,
+            force_refresh=force_refresh,
+            creator_niche_id=creator_niche_id,
+        )
     except InsufficientCreditsError:
         return JSONResponse(status_code=status.HTTP_402_PAYMENT_REQUIRED, content={"error": "insufficient_credits"})
     except ValueError as exc:
         msg = str(exc)
+        if "Ngách so sánh không hợp lệ" in msg:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
         if "Chưa chọn ngách" in msg or "Không thấy kênh" in msg:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
@@ -149,6 +165,75 @@ async def channel_analyze_endpoint(
         logger.exception("[channel/analyze] failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return JSONResponse(out)
+
+
+def _summarize_user_search_row(row: dict[str, Any]) -> dict[str, Any] | None:
+    u = row.get("user") if isinstance(row.get("user"), dict) else row
+    if not isinstance(u, dict):
+        return None
+    unique = str(u.get("uniqueId") or u.get("unique_id") or "").strip()
+    if not unique:
+        return None
+    nick = str(u.get("nickname") or "").strip()
+    stats = u.get("statistics") if isinstance(u.get("statistics"), dict) else u.get("stats")
+    stats = stats if isinstance(stats, dict) else {}
+    followers = int(stats.get("followerCount") or stats.get("follower_count") or 0)
+    avatar = str(
+        u.get("avatarLarger")
+        or u.get("avatar_larger")
+        or u.get("avatarMedium")
+        or u.get("avatar_medium")
+        or "",
+    ).strip()
+    return {
+        "unique_id": unique,
+        "nickname": nick,
+        "follower_count": followers,
+        "avatar_url": avatar or None,
+    }
+
+
+@router.get("/channel/user-search")
+async def channel_user_search_endpoint(
+    user: dict = Depends(require_user),
+    keyword: str = Query(
+        ...,
+        min_length=2,
+        max_length=64,
+        description="Từ khóa tìm kênh TikTok (username hoặc tên).",
+    ),
+) -> JSONResponse:
+    """Tìm kênh TikTok (EnsembleData user search) — không trừ credit."""
+    from getviews_pipeline import ensemble
+    from getviews_pipeline.ensemble import EnsembleDailyBudgetExceeded, fetch_user_search
+
+    _ = user  # JWT gate only
+    kw = keyword.strip()
+    if len(kw) < 2:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Từ khóa quá ngắn")
+
+    try:
+        with ensemble.ed_call_site("channel.user_search"):
+            raw_users, _next = await fetch_user_search(kw, cursor=0)
+    except EnsembleDailyBudgetExceeded as exc:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"error": "ensemble_quota", "detail": str(exc)},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("[channel/user-search] failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    out: list[dict[str, Any]] = []
+    for row in raw_users[:20]:
+        if not isinstance(row, dict):
+            continue
+        item = _summarize_user_search_row(row)
+        if item:
+            out.append(item)
+    return JSONResponse({"users": out})
 
 
 @router.post("/channel/refresh-mine")
