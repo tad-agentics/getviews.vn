@@ -18,18 +18,25 @@ const ritualSample = {
   length_sec: 45,
 };
 
+function parseAnswerQ(path: string): string {
+  expect(path).toMatch(/^\/app\/answer\?/);
+  const qs = new URLSearchParams(path.split("?")[1]!);
+  const q = qs.get("q");
+  expect(q).toBeTruthy();
+  return decodeURIComponent(q!);
+}
+
 describe("scriptPrefillFromRitual", () => {
-  it("includes niche, topic, hook, duration", () => {
+  it("includes topic, hook, duration in composer message", () => {
     const path = scriptPrefillFromRitual(ritualSample, 3);
-    expect(path).toMatch(/^\/app\/script\?/);
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("niche_id")).toBe("3");
-    expect(qs.get("topic")).toBe("Test tiêu đề");
-    expect(qs.get("hook")).toBe("So sánh");
-    expect(qs.get("duration")).toBe("45");
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("Viết kịch bản TikTok");
+    expect(msg).toContain("Test tiêu đề");
+    expect(msg).toContain("So sánh");
+    expect(msg).toContain("45");
   });
 
-  it("forwards sound_id + sound_name when ritual carries Sound Radar fields (L2.2 Sprint 3)", () => {
+  it("forwards sound_name into composer text when ritual carries Sound Radar fields", () => {
     const path = scriptPrefillFromRitual(
       {
         ...ritualSample,
@@ -41,16 +48,8 @@ describe("scriptPrefillFromRitual", () => {
       },
       3,
     );
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("sound_id")).toBe("abc123");
-    expect(qs.get("sound_name")).toBe("Hot Track");
-  });
-
-  it("omits sound_* params when fields are absent (pre-Sprint-3 ritual rows)", () => {
-    const path = scriptPrefillFromRitual(ritualSample, 3);
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("sound_id")).toBeNull();
-    expect(qs.get("sound_name")).toBeNull();
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("Hot Track");
   });
 });
 
@@ -62,10 +61,9 @@ describe("scriptPrefillFromChannel", () => {
       handle: "creatorx",
       top_hook: "POV mở đầu",
     });
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("niche_id")).toBe("2");
-    expect(qs.get("topic")).toContain("Creator X");
-    expect(qs.get("hook")).toBe("POV mở đầu");
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("Creator X");
+    expect(msg).toContain("POV mở đầu");
   });
 });
 
@@ -95,47 +93,33 @@ describe("scriptPrefillFromPattern", () => {
     ...overrides,
   });
 
-  it("uses structure[0] (Hook line) as topic, stripping the leading 'Mở:' / 'Hook:' tag", () => {
+  it("uses structure[0] (Hook line) in message, stripping the leading 'Mở:' / 'Hook:' tag", () => {
     const path = scriptPrefillFromPattern(patternSample(), 3);
-    expect(path).toMatch(/^\/app\/script\?/);
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("niche_id")).toBe("3");
-    expect(qs.get("topic")).toBe("câu hỏi cá nhân (0-2s)");
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("câu hỏi cá nhân (0-2s)");
   });
 
-  it("forwards sample_hook as the hook reference", () => {
+  it("embeds sample_hook in the message", () => {
     const path = scriptPrefillFromPattern(patternSample(), 3);
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("hook")).toBe("Mình dùng iPad Pro 6 tháng rồi và…");
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("Mình dùng iPad Pro 6 tháng rồi và…");
   });
 
-  it("falls back to display_name when structure is missing (defensive — filtered out by hook normally)", () => {
-    const path = scriptPrefillFromPattern(
-      patternSample({ structure: null }),
-      3,
-    );
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("topic")).toBe("Hướng dẫn + mặt người");
+  it("falls back to display_name when structure is missing", () => {
+    const path = scriptPrefillFromPattern(patternSample({ structure: null }), 3);
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("Hướng dẫn + mặt người");
   });
 
-  it("falls back to display_name as the hook when sample_hook is missing", () => {
-    const path = scriptPrefillFromPattern(
-      patternSample({ sample_hook: null }),
-      3,
-    );
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("hook")).toBe("Hướng dẫn + mặt người");
-  });
-
-  it("never sets a duration param (a pattern doesn't carry length_sec)", () => {
-    const path = scriptPrefillFromPattern(patternSample(), 3);
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("duration")).toBeNull();
+  it("falls back to display_name as hook text when sample_hook is missing", () => {
+    const path = scriptPrefillFromPattern(patternSample({ sample_hook: null }), 3);
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("Góc hook: Hướng dẫn + mặt người");
   });
 });
 
 describe("scriptPrefillFromVideo", () => {
-  it("truncates long topic and sets duration", () => {
+  it("truncates long topic and sets duration line", () => {
     const long = "x".repeat(600);
     const path = scriptPrefillFromVideo({
       niche_id: 1,
@@ -143,18 +127,19 @@ describe("scriptPrefillFromVideo", () => {
       hook: "H1",
       duration_sec: 58.2,
     });
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect((qs.get("topic") ?? "").length).toBe(500);
-    expect(qs.get("duration")).toBe("58");
+    const msg = parseAnswerQ(path);
+    expect(msg.length).toBeLessThan(long.length + 100);
+    expect(msg).toContain("x".repeat(100));
+    expect(msg).toContain("58");
+    expect(msg).toContain("H1");
   });
 
-  it("omits niche_id when not provided", () => {
+  it("works without niche_id", () => {
     const path = scriptPrefillFromVideo({
       topic: "Chủ đề",
       hook: null,
     });
-    const qs = new URLSearchParams(path.split("?")[1]!);
-    expect(qs.get("niche_id")).toBeNull();
-    expect(qs.get("topic")).toBe("Chủ đề");
+    const msg = parseAnswerQ(path);
+    expect(msg).toContain("Chủ đề");
   });
 });

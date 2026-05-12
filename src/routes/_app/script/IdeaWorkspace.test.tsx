@@ -147,19 +147,19 @@ describe("IdeaWorkspace", () => {
     expect(screen.getByText("~68%")).toBeTruthy();
   });
 
-  it("Path A — clicking an idea navigates with topic + duration prefill", () => {
+  it("Path A — clicking an idea navigates to answer composer with script message", () => {
     renderWorkspace();
     fireEvent.click(
       screen.getByText("Tai nghe 200k vs 2 triệu — đáng gấp 10 lần?"),
     );
     expect(mockNavigate).toHaveBeenCalledTimes(1);
     const url = mockNavigate.mock.calls[0][0] as string;
-    expect(url).toMatch(/^\/app\/script\?/);
-    expect(url).toMatch(/niche_id=4/);
-    expect(url).toMatch(/duration=32/);
-    expect(decodeURIComponent(url.replace(/\+/g, " "))).toMatch(
-      /Tai nghe 200k vs 2 triệu/,
-    );
+    expect(url).toMatch(/^\/app\/answer\?q=/);
+    const qs = new URLSearchParams(url.split("?")[1]!);
+    const msg = decodeURIComponent(qs.get("q") ?? "");
+    expect(msg).toContain("Viết kịch bản TikTok");
+    expect(msg).toContain("Tai nghe 200k vs 2 triệu");
+    expect(msg).toContain("32");
   });
 
   it("Path A — empty ritual shows friendly fallback", () => {

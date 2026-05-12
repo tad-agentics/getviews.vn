@@ -290,6 +290,15 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     }
   });
 
+  it("shot_list → script session (answer composer)", () => {
+    const p = planAnswerEntry("Viết kịch bản 30s review son", false);
+    expect(p.kind).toBe("session");
+    if (p.kind === "session") {
+      expect(p.format).toBe("script");
+      expect(p.intent_type).toBe("shot_list");
+    }
+  });
+
   it("brief_generation → ideas format", () => {
     const p = planAnswerEntry("Viết brief tuần này cho kênh skincare", false);
     expect(p.kind).toBe("session");
@@ -435,6 +444,7 @@ describe("resolveDestination — follow_up_classifiable subject union", () => {
   it("fixed intent → its INTENT_DESTINATIONS entry", () => {
     expect(resolveDestination({ id: "trend_spike" })).toBe("answer:pattern");
     expect(resolveDestination({ id: "timing" })).toBe("answer:timing");
+    expect(resolveDestination({ id: "shot_list" })).toBe("answer:script");
     // ``format_lifecycle_optimize`` is the only intent still on the
     // lifecycle shelf post-2026-05-08 (fatigue + subniche_breakdown
     // moved to pattern). This case is the canary: if anyone re-adds a
@@ -560,12 +570,12 @@ describe("detectIntent — compare_videos (≥ 2 TikTok URLs)", () => {
 // is likely to type as a follow-up. Prior gaps:
 //   • "viết hook" / "viết script" / "tạo script" fell through to "generic"
 //   • "ý tưởng nội dung" fell through to "generic"
-//   • "viết lại hook" / "biến thể hook" (hook_variants) returned "generic"
-//     instead of "script" because appendTurnKindForQuery didn't map them
+//   • "viết lại hook" / "biến thể hook" (hook_variants) stay ``generic``
+//     — A/B hook lines, not the 6-shot script template.
 //
 // Fixes applied in intent-router.ts:
 //   1. shot_list regex extended with: viết hook, viết script, tạo script, ý tưởng nội dung
-//   2. appendTurnKindForQuery: hook_variants → "script" (creative-output parity)
+//   2. appendTurnKindForQuery: only shot_list → "script"
 
 describe("appendTurnKindForQuery — timing keyword coverage (regression)", () => {
   it("'đăng giờ nào' → timing", () => {
@@ -618,12 +628,12 @@ describe("appendTurnKindForQuery — script/ideas keyword coverage (gap-fill)", 
     expect(appendTurnKindForQuery("ý tưởng nội dung cho ngách skincare", true)).toBe("script");
   });
 
-  it("'viết lại hook' → script (hook_variants now maps to script)", () => {
-    expect(appendTurnKindForQuery("viết lại hook cho video này", true)).toBe("script");
+  it("'viết lại hook' → generic (hook_variants — text variants, not 6-shot script)", () => {
+    expect(appendTurnKindForQuery("viết lại hook cho video này", true)).toBe("generic");
   });
 
-  it("'biến thể hook' → script (hook_variants now maps to script)", () => {
-    expect(appendTurnKindForQuery("5 biến thể hook cho video beauty", true)).toBe("script");
+  it("'biến thể hook' → generic (hook_variants)", () => {
+    expect(appendTurnKindForQuery("5 biến thể hook cho video beauty", true)).toBe("generic");
   });
 });
 

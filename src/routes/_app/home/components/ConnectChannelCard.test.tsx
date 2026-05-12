@@ -122,7 +122,7 @@ describe("ConnectChannelCard — submit & analyze flow", () => {
     expect(getByText(/Đang phân tích/)).toBeTruthy();
     expect(getByText(/Đang tìm kênh trên TikTok/)).toBeTruthy();
     expect(getByText(/Đọc 60 video gần nhất/)).toBeTruthy();
-    expect(getByText(/So sánh với corpus ngách/)).toBeTruthy();
+    expect(getByText(/So sánh với kho video ngách/)).toBeTruthy();
     expect(getByText(/Tìm 3 việc nên làm tuần này/)).toBeTruthy();
   });
 

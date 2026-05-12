@@ -20,6 +20,7 @@ from getviews_pipeline.report_generic import build_generic_report
 from getviews_pipeline.report_ideas import build_ideas_report
 from getviews_pipeline.report_lifecycle import build_lifecycle_report
 from getviews_pipeline.report_pattern import build_pattern_report
+from getviews_pipeline.report_script import build_script_report
 from getviews_pipeline.report_timing import build_timing_report
 from getviews_pipeline.report_types import LifecycleMode, validate_and_store_report
 from getviews_pipeline.step_events import emit, emit_sentinel, step_error
@@ -63,23 +64,30 @@ def select_builder_for_turn(session_fmt: str, kind: str) -> str:
 
     Mapping:
         - ``primary`` → session format (pattern / ideas / timing / generic /
-          lifecycle / diagnostic)
+          lifecycle / diagnostic / video / script)
         - ``timing``  → timing (adaptive window + posting-hour aggregates)
-        - ``script``  → ideas (shot-list / draft feedback sits on ideas)
+        - ``script``  → 6-shot script report (shot-list intent)
         - ``creators`` / ``generic`` / unknown → generic
     """
     if kind == "primary":
         return (
             session_fmt
             if session_fmt in (
-                "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video",
+                "pattern",
+                "ideas",
+                "timing",
+                "generic",
+                "lifecycle",
+                "diagnostic",
+                "video",
+                "script",
             )
             else "pattern"
         )
     if kind == "timing":
         return "timing"
     if kind == "script":
-        return "ideas"
+        return "script"
     # "creators", "generic", or an unexpected value — the generic builder
     # surfaces corpus evidence + a free-form narrative, which is the
     # correct landing when the turn doesn't fit a structured builder.
@@ -384,22 +392,34 @@ def append_turn(
     max_idx = max((r["turn_index"] for r in (existing.data or [])), default=-1)
     turn_index = max_idx + 1
 
-    if kind == "primary":
-        sb_user = user_supabase(access_token)
-        rpc = sb_user.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        # ``decrement_credit`` returns the new INTEGER balance on success
-        # (could be 0 when the caller just spent their last credit) or NULL
-        # → Python ``None`` when the row matched zero (no credits to spend).
-        # ``is None`` is the only correct check — ``is False`` never fires
-        # because the RPC never returns SQL false; ``not rpc.data`` would
-        # incorrectly fire when the new balance is 0. See migration
-        # 20260409000002_profiles.sql contract comment.
-        if rpc.data is None:
-            logger.warning("[answer/turns] insufficient_credits user=%s session=%s", user_id, session_id)
-            raise RuntimeError("insufficient_credits")
-
     session_fmt = session.get("format") or "pattern"
     builder_fmt = select_builder_for_turn(session_fmt, kind)
+
+    def _deduct_one_credit(u: Any) -> None:
+        rpc = u.rpc("decrement_credit", {"p_user_id": user_id}).execute()
+        if rpc.data is None:
+            logger.warning(
+                "[answer/turns] insufficient_credits user=%s session=%s",
+                user_id,
+                session_id,
+            )
+            raise RuntimeError("insufficient_credits")
+
+    sb_user: Any | None = None
+
+    def _user_client() -> Any:
+        nonlocal sb_user
+        if sb_user is None:
+            sb_user = user_supabase(access_token)
+        return sb_user
+
+    # Script turns cost 3 credits (B.4 parity); generic follow-ups stay free.
+    if builder_fmt == "script":
+        u = _user_client()
+        for _ in range(3):
+            _deduct_one_credit(u)
+    elif kind == "primary":
+        _deduct_one_credit(_user_client())
     from getviews_pipeline.adaptive_window import ReportKind, choose_adaptive_window_days
 
     niche_pk = int(session.get("niche_id") or 0)
@@ -480,13 +500,21 @@ def append_turn(
             # already created sb_user only inside the credit branch,
             # so re-derive here for non-primary turns too.
             from getviews_pipeline.report_video import build_video_report
-            from getviews_pipeline.supabase_client import user_supabase
 
             sb_user_for_video = user_supabase(access_token)
             inner = build_video_report(
                 service_sb=sb_srv,
                 user_sb=sb_user_for_video,
                 query=query,
+                step_queue=step_queue,
+            )
+        elif builder_fmt == "script":
+            inner = build_script_report(
+                service_sb=sb_srv,
+                user_sb=_user_client(),
+                user_id=user_id,
+                query=query,
+                niche_id=niche_pk,
                 step_queue=step_queue,
             )
         else:
@@ -562,7 +590,13 @@ def append_turn(
         raise
 
     confidence_label = _confidence_label(classifier_confidence_score)
-    credits_used = 1 if kind == "primary" else 0
+
+    if builder_fmt == "script":
+        credits_used = 3
+    elif kind == "primary":
+        credits_used = 1
+    else:
+        credits_used = 0
     row_ins = {
         "session_id": session_id,
         "turn_index": turn_index,

@@ -14,6 +14,7 @@ import { LifecycleBody } from "@/components/v2/answer/lifecycle/LifecycleBody";
 import { DiagnosticBody } from "@/components/v2/answer/diagnostic/DiagnosticBody";
 import { GenericBody } from "@/components/v2/answer/generic/GenericBody";
 import { VideoBody } from "@/components/v2/answer/video/VideoBody";
+import { ScriptBody } from "@/components/v2/answer/script/ScriptBody";
 import { AnswerBlock } from "@/components/v2/answer/AnswerBlock";
 import {
   ideasAnswerBlockKicker,
@@ -178,6 +179,12 @@ function ReportPayloadBody({
       return (
         <AnswerBlock kicker="Mổ video" bare>
           <VideoBody report={payload.report} />
+        </AnswerBlock>
+      );
+    case "script":
+      return (
+        <AnswerBlock kicker="Kịch bản 6 cảnh" bare>
+          <ScriptBody report={payload.report} />
         </AnswerBlock>
       );
     default:

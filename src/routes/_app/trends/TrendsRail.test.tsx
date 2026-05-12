@@ -97,7 +97,7 @@ describe("TrendsRail", () => {
     });
     const { getByText } = wrap(<TrendsRail nicheId={4} />);
     expect(getByText(/Chưa đủ dữ liệu/)).toBeTruthy();
-    expect(getByText(/Chưa có video trong corpus/)).toBeTruthy();
+    expect(getByText(/Chưa có video phù hợp/)).toBeTruthy();
   });
 
   it("normalises bare creator handles with leading @ in the row caption", () => {

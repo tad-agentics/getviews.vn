@@ -639,8 +639,12 @@ def run_script_generate_sync(
     user_id: str,
     body: ScriptGenerateBody,
     service_sb: Any | None = None,
+    deduct_credit: bool = True,
 ) -> dict[str, Any]:
-    _decrement_credit_or_raise(user_sb, user_id=user_id)
+    """Generate 6-shot script. When ``deduct_credit`` is False (answer-session
+    path), the caller already charged credits — skip the per-call RPC."""
+    if deduct_credit:
+        _decrement_credit_or_raise(user_sb, user_id=user_id)
     # L2.2 — pass service_sb to ``build_script_shots`` so the Gemini
     # prompt can inject the niche's top hook_effectiveness rows as
     # evidence. service_sb (not user_sb) because hook_effectiveness is

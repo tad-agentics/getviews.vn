@@ -19,7 +19,18 @@ import {
 
 const EPOCH = 1_800_000_000_000;
 
-function makeEntry(overrides: Partial<{ sessionId: string; streamId: string; seq: number; startedAt: number }> = {}) {
+function makeEntry(
+  overrides: Partial<{
+    sessionId: string;
+    streamId: string;
+    seq: number;
+    startedAt: number;
+    creditsUsed: number;
+    sessionFormat: string | null;
+  }> = {},
+) {
+  const creditsUsed = overrides.creditsUsed ?? 1;
+  const sessionFormat = overrides.sessionFormat;
   return {
     sessionId: overrides.sessionId ?? "sess-1",
     streamId: overrides.streamId ?? "stream-abc",
@@ -27,6 +38,8 @@ function makeEntry(overrides: Partial<{ sessionId: string; streamId: string; seq
     query: "Ngách tai nghe đang bật gì?",
     turnKind: "primary" as const,
     startedAt: overrides.startedAt ?? EPOCH,
+    creditsUsed,
+    ...(sessionFormat !== undefined ? { sessionFormat } : {}),
   };
 }
 
@@ -44,6 +57,22 @@ describe("sseResume", () => {
     const loaded = loadPendingAnswerStream("sess-1", EPOCH + 10_000);
     expect(loaded?.streamId).toBe("stream-abc");
     expect(loaded?.seq).toBe(2);
+    expect(loaded?.creditsUsed).toBe(1);
+  });
+
+  it("infers creditsUsed=3 for legacy primary + script format when creditsUsed omitted", () => {
+    const legacy = {
+      sessionId: "sess-1",
+      streamId: "stream-abc",
+      seq: 2,
+      query: "Viết kịch bản",
+      turnKind: "primary" as const,
+      startedAt: EPOCH,
+      sessionFormat: "script" as const,
+    };
+    sessionStorage.setItem(PENDING_ANSWER_STREAM_KEY, JSON.stringify(legacy));
+    const loaded = loadPendingAnswerStream("sess-1", EPOCH + 10_000);
+    expect(loaded?.creditsUsed).toBe(3);
   });
 
   it("returns null when the stored session doesn't match the current one", () => {

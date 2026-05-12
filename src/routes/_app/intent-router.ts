@@ -28,7 +28,6 @@ export type IntentDecision = {
  * (purged with the destination-resolution helpers it served). */
 export type Destination =
   | "channel"
-  | "script"
   | "compare"
   | "answer:pattern"
   | "answer:ideas"
@@ -36,7 +35,8 @@ export type Destination =
   | "answer:lifecycle"
   | "answer:diagnostic"
   | "answer:generic"
-  | "answer:video";
+  | "answer:video"
+  | "answer:script";
 
 /** Intents with a fixed row in `INTENT_DESTINATIONS` (excludes dynamic follow_up_classifiable).
  *
@@ -87,7 +87,7 @@ export const INTENT_DESTINATIONS: Record<FixedIntentId, Destination> = {
   // session still renders a "creators" turn block) but it now lands on
   // the generic answer surface instead of a dedicated screen.
   creator_search: "answer:generic",
-  shot_list: "script",
+  shot_list: "answer:script",
   trend_spike: "answer:pattern",
   content_directions: "answer:pattern",
   // Lifecycle template (2026-04-22) — stage pill + reach delta + health
@@ -355,7 +355,8 @@ export type AnswerSessionFormat =
   | "generic"
   | "lifecycle"
   | "diagnostic"
-  | "video";
+  | "video"
+  | "script";
 
 /**
  * Studio → `/app/answer` entry: map `detectIntent` to either a non-answer redirect
@@ -403,10 +404,6 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
       : "/app/channel";
     return { kind: "redirect", to };
   }
-  if (dest === "script") {
-    return { kind: "redirect", to: "/app/script" };
-  }
-
   const format: AnswerSessionFormat =
     dest === "answer:pattern"
       ? "pattern"
@@ -420,7 +417,9 @@ export function planAnswerEntry(query: string, priorAssistant: boolean): AnswerE
               ? "diagnostic"
               : dest === "answer:video"
                 ? "video"
-                : "generic";
+                : dest === "answer:script"
+                  ? "script"
+                  : "generic";
 
   return { kind: "session", format, intent_type: intentType };
 }
@@ -436,7 +435,6 @@ export function appendTurnKindForQuery(
   const { intentType } = detectIntent(query.trim(), priorAssistant);
   if (intentType === "timing") return "timing";
   if (intentType === "creator_search") return "creators";
-  // hook_variants is also creative-output; treat as script turn on the backend.
-  if (intentType === "shot_list" || intentType === "hook_variants") return "script";
+  if (intentType === "shot_list") return "script";
   return "generic";
 }

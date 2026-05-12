@@ -14,7 +14,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 
@@ -77,9 +77,8 @@ const ScriptScreen = (await import("./ScriptScreen")).default;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-// Default to a ``?topic=`` param so the test mounts ScriptDetailScreen,
-// not the new IdeaWorkspace step-1 surface. Workspace behavior is covered
-// by IdeaWorkspace.test.tsx.
+// Default to a ``?topic=`` param so tests mount ScriptDetailScreen.
+// Bare ``/app/script`` redirects to ``/app/answer`` (script → answer session).
 function renderScreen(searchParams = "?topic=Review+tai+nghe+200k+vs+2+tri%E1%BB%87u") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -124,6 +123,21 @@ describe("ScriptScreen", () => {
     });
   });
   afterEach(cleanup);
+
+  it("bare /app/script redirects to /app/answer", () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={["/app/script"]}>
+          <Routes>
+            <Route path="/app/script" element={<ScriptScreen />} />
+            <Route path="/app/answer" element={<div data-testid="answer-landing">answer</div>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByTestId("answer-landing")).toBeTruthy();
+  });
 
   it("renders the env-gate message when VITE_CLOUD_RUN_API_URL is missing", () => {
     mockEnv.VITE_CLOUD_RUN_API_URL = "" as unknown as string;

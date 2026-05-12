@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabase";
 import { logUsage } from "@/lib/logUsage";
 import {
   clearPendingAnswerStream,
+  optimisticAnswerCreditsUsed,
   savePendingAnswerStream,
   type PendingAnswerTurnKind,
 } from "@/lib/sseResume";
@@ -116,6 +117,8 @@ export type StreamArgs =
       answerSessionId: string;
       query: string;
       turnKind: AnswerTurnKind;
+      /** Session row ``format`` — primary script turns bill 3 credits. */
+      sessionFormat?: string | null;
       resumeStreamId?: string;
       lastSeq?: number;
       /**
@@ -208,6 +211,11 @@ export function useSessionStream<TPayload = unknown>(
               query: args.query,
               turnKind: args.turnKind as PendingAnswerTurnKind,
               startedAt,
+              sessionFormat: args.sessionFormat ?? null,
+              creditsUsed: optimisticAnswerCreditsUsed(
+                args.turnKind as PendingAnswerTurnKind,
+                args.sessionFormat,
+              ),
             });
           };
 

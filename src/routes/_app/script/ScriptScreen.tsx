@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Download, Film, Loader2, Plus, Sparkles } from "lucide-react";
 import type { ScriptExportFormat } from "@/lib/api-types";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/AppLayout";
 import { TopBar } from "@/components/v2/TopBar";
 import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
-import { IdeaWorkspace } from "./IdeaWorkspace";
 import { IdeaRefStrip } from "./IdeaRefStrip";
 import { ScriptExportModal } from "./ScriptExportModal";
 import { ScriptExitModal } from "./ScriptExitModal";
@@ -139,12 +138,9 @@ function parseNicheId(raw: string | null): number | null {
 }
 
 /**
- * Mode gate (per design pack ``screens/script.jsx`` lines 24-46): when
- * /app/script is opened with no prefill deeplink, render the IdeaWorkspace
- * step-1 surface instead of dropping the user into the editor with stale
- * defaults. Any of ``?topic=``, ``?hook=``, ``?duration=`` (the existing
- * prefill scheme used by Trends/Channel/Video handoffs) routes to the
- * detail editor below.
+ * Mode gate: bare /app/script → Studio answer composer (script reports).
+ * Prefill deeplinks (?topic= / ?hook= / ?duration=) still open the
+ * legacy shoot editor for drafts + export.
  */
 export default function ScriptScreen() {
   const [searchParams] = useSearchParams();
@@ -153,11 +149,7 @@ export default function ScriptScreen() {
     !searchParams.has("hook") &&
     !searchParams.has("duration");
   if (isWorkspaceMode) {
-    return (
-      <AppLayout active="script" enableMobileSidebar>
-        <IdeaWorkspace />
-      </AppLayout>
-    );
+    return <Navigate to="/app/answer" replace />;
   }
   return <ScriptDetailScreen />;
 }

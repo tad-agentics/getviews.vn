@@ -243,7 +243,7 @@ export default function AnswerScreen() {
             kind: pending.turnKind,
             query: pending.query,
             payload: result.finalPayload,
-            credits_used: pending.turnKind === "primary" ? 1 : 0,
+            credits_used: pending.creditsUsed,
             created_at: new Date().toISOString(),
           };
           queryClient.setQueryData<AnswerDetailCache>(
@@ -334,6 +334,7 @@ export default function AnswerScreen() {
           answerSessionId: row.id,
           query: seedQ,
           turnKind: "primary",
+          sessionFormat: sessionFormat,
         });
 
         if (!result.ok) {
@@ -353,7 +354,7 @@ export default function AnswerScreen() {
             kind: "primary",
             query: seedQ,
             payload: result.finalPayload,
-            credits_used: 1,
+            credits_used: sessionFormat === "script" ? 3 : 1,
             created_at: new Date().toISOString(),
           };
           queryClient.setQueryData<AnswerDetailCache>(
@@ -405,6 +406,7 @@ export default function AnswerScreen() {
         answerSessionId: sessionId,
         query: q,
         turnKind,
+        sessionFormat: detailQuery.data?.session?.format,
       });
       if (!result.ok) {
         setError(pickAnswerErrorCode(result.error, "follow_up_failed"));
@@ -428,7 +430,7 @@ export default function AnswerScreen() {
           kind: turnKind,
           query: q,
           payload: result.finalPayload,
-          credits_used: 0,
+          credits_used: turnKind === "script" ? 3 : 0,
           created_at: new Date().toISOString(),
         };
         queryClient.setQueryData<AnswerDetailCache>(
@@ -459,7 +461,7 @@ export default function AnswerScreen() {
     } finally {
       setBootstrapLoading(false);
     }
-  }, [sessionId, followUp, CLOUD, user, navigate, queryClient, uid, stream]);
+  }, [sessionId, followUp, CLOUD, user, navigate, queryClient, uid, stream, detailQuery.data?.session?.format]);
 
   const submitComposer = useCallback(() => {
     const q = followUp.trim();

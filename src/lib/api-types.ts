@@ -1116,6 +1116,50 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   carousel_slide_count?: number;
 };
 
+/** §J — 6-shot TikTok script (answer ``builder_fmt == "script"``). */
+export interface ScriptVoLineData {
+  t: number | string;
+  text: string;
+  cue?: string | null;
+}
+
+export interface ScriptShotReferenceData {
+  video_id?: string;
+  thumbnail_url?: string;
+  corpus_avg?: number;
+  winner_avg?: number;
+  creator_handle?: string;
+  breakout_multiplier?: number;
+  [key: string]: unknown;
+}
+
+export interface ScriptShotCardData {
+  t0?: number;
+  t1?: number;
+  cam?: string;
+  voice?: string;
+  viz?: string;
+  overlay?: string;
+  intel_scene_type?: string;
+  vo?: ScriptVoLineData[];
+  references?: ScriptShotReferenceData[];
+  corpus_avg?: number;
+  winner_avg?: number;
+  [key: string]: unknown;
+}
+
+export interface ScriptReportPayload {
+  topic: string;
+  hook: string;
+  hook_delay_ms: number;
+  duration: number;
+  tone: string;
+  niche_label: string;
+  shots: ScriptShotCardData[];
+  sources: SourceRowData[];
+  related_questions: string[];
+}
+
 export type ReportV1 =
   | { kind: "pattern"; report: PatternReportPayload }
   | { kind: "ideas"; report: IdeasReportPayload }
@@ -1123,7 +1167,8 @@ export type ReportV1 =
   | { kind: "lifecycle"; report: LifecycleReportPayload }
   | { kind: "diagnostic"; report: DiagnosticReportPayload }
   | { kind: "generic"; report: GenericReportPayload }
-  | { kind: "video"; report: VideoReportPayload };
+  | { kind: "video"; report: VideoReportPayload }
+  | { kind: "script"; report: ScriptReportPayload };
 
 /** §J names — same shapes as `*ReportPayload` (plan uses `PatternPayload`, …). */
 export type PatternPayload = PatternReportPayload;
@@ -1133,6 +1178,7 @@ export type LifecyclePayload = LifecycleReportPayload;
 export type DiagnosticPayload = DiagnosticReportPayload;
 export type GenericPayload = GenericReportPayload;
 export type VideoPayload = VideoReportPayload;
+export type ScriptPayload = ScriptReportPayload;
 
 export interface AnswerSessionRow {
   id: string;
@@ -1140,7 +1186,7 @@ export interface AnswerSessionRow {
   title: string | null;
   initial_q: string;
   intent_type: string;
-  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic" | "video";
+  format: "pattern" | "ideas" | "timing" | "generic" | "lifecycle" | "diagnostic" | "video" | "script";
   niche_id: number | null;
   created_at?: string;
   updated_at?: string;

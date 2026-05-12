@@ -13,7 +13,9 @@ import { renderForecastLine } from "@/components/v2/answer/forecastLine";
 function defaultRoute(a: ActionCardPayloadData): string {
   if (a.route) return a.route;
   const t = a.title.toLowerCase();
-  if (t.includes("lịch") || t.includes("schedule") || t.includes("script")) return "/app/script";
+  if (t.includes("lịch") || t.includes("schedule") || t.includes("script")) {
+    return `/app/answer?q=${encodeURIComponent("Viết kịch bản TikTok theo lịch đăng")}`;
+  }
   // Creator-only pivot: /app/kol retired. "kol"/"đối thủ" titles route to
   // the channel screen (the closest remaining creator-research surface).
   if (t.includes("kol") || t.includes("đối thủ") || t.includes("kênh")) return "/app/channel";

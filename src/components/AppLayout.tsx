@@ -4,7 +4,6 @@ import {
   Plus,
   Home,
   TrendingUp,
-  FileText,
   Settings,
   LogOut,
   X,
@@ -672,7 +671,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
           </div>
         </div>
 
-        {/* Primary nav — shell.jsx: Studio → Xu Hướng → Kênh Tham Chiếu → Kịch Bản; Chat via + only */}
+        {/* Primary nav — Studio → Xu Hướng → Kho Douyin (script lives under Studio /answer); Chat via + only */}
         <nav className="flex flex-col gap-0.5 p-3">
           <NavItem
             icon={Home}
@@ -692,12 +691,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               onClose?.();
             }}
           />
-          {/* D7 — Kho Douyin nav item (design pack ``shell.jsx`` line 9).
-              Renders between Trends and Script per the design's 4-item
-              primary nav. Badge is the CN flag glyph signalling this
-              section's distinct content (the design's "16 MỚI" count
-              is mock data; a real "new since last visit" tracker is a
-              follow-up). */}
+          {/* D7 — Kho Douyin (design pack ``shell.jsx``). Badge = CN flag. */}
           <NavItem
             icon={Archive}
             label="Kho Douyin"
@@ -705,15 +699,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             badge="🇨🇳"
             onClick={() => {
               navigate("/app/douyin");
-              onClose?.();
-            }}
-          />
-          <NavItem
-            icon={FileText}
-            label="Kịch Bản"
-            active={active === "script"}
-            onClick={() => {
-              navigate("/app/script");
               onClose?.();
             }}
           />

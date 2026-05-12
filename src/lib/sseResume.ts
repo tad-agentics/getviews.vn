@@ -27,6 +27,16 @@
 const KEY = "gv:pending-answer-stream-v1";
 const RESUME_MAX_AGE_MS = 90_000;
 
+/** Client-side mirror of ``answer_session.append_turn`` credit accounting. */
+export function optimisticAnswerCreditsUsed(
+  turnKind: PendingAnswerTurnKind,
+  sessionFormat?: string | null,
+): number {
+  if (turnKind === "script") return 3;
+  if (turnKind === "primary") return sessionFormat === "script" ? 3 : 1;
+  return 0;
+}
+
 export type PendingAnswerTurnKind =
   | "primary"
   | "timing"
@@ -42,6 +52,10 @@ export interface PendingAnswerStream {
   turnKind: PendingAnswerTurnKind;
   /** ``Date.now()`` when the stream was first opened. */
   startedAt: number;
+  /** Billable credits for this turn — aligns with ``answer_turns.credits_used``. */
+  creditsUsed: number;
+  /** Session row ``format`` — when ``creditsUsed`` is absent (legacy blob), infer billing. */
+  sessionFormat?: string | null;
 }
 
 function safeStorage(): Storage | null {
@@ -91,9 +105,9 @@ export function loadPendingAnswerStream(
     return null;
   }
   if (!raw) return null;
-  let parsed: PendingAnswerStream;
+  let parsed: PendingAnswerStream | (Omit<PendingAnswerStream, "creditsUsed"> & { creditsUsed?: number });
   try {
-    parsed = JSON.parse(raw) as PendingAnswerStream;
+    parsed = JSON.parse(raw) as typeof parsed;
   } catch {
     clearPendingAnswerStream();
     return null;
@@ -104,7 +118,15 @@ export function loadPendingAnswerStream(
     clearPendingAnswerStream();
     return null;
   }
-  return parsed;
+  const fmt =
+    "sessionFormat" in parsed && parsed.sessionFormat !== undefined
+      ? parsed.sessionFormat
+      : null;
+  const creditsUsed =
+    typeof parsed.creditsUsed === "number"
+      ? parsed.creditsUsed
+      : optimisticAnswerCreditsUsed(parsed.turnKind, fmt);
+  return { ...parsed, creditsUsed, sessionFormat: fmt };
 }
 
 export const PENDING_ANSWER_STREAM_KEY = KEY;

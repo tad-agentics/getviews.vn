@@ -26,8 +26,8 @@ import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
  *   • serif italicised quoted title (the actual hook text)
  *   • right column with ``▲ ~X%`` retention estimate + ``MỞ SCRIPT →``
  *
- * Click routes to ``/app/script`` with the idea preselected via
- * ``scriptPrefillFromRitual``.
+ * Click routes to ``/app/answer?q=…`` (``scriptPrefillFromRitual``) so
+ * ``shot_list`` opens a script answer session.
  *
  * The BE stores one ritual row per (user, day, ``niche_id``) — up to three
  * per day for the three followed niches. Tier 01 loads the row for the

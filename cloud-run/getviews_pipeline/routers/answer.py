@@ -33,7 +33,7 @@ class AnswerSessionCreateBody(StrictBody):
     intent_type: str
     niche_id: int | None = None
     format: Literal[
-        "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video",
+        "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script",
     ] = "pattern"
 
 

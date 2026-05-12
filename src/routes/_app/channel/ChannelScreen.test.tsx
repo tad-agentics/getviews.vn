@@ -106,8 +106,7 @@ describe("ChannelScreen", () => {
   it("renders empty state when no handle is provided", () => {
     mockUseChannelAnalyze.mockReturnValue({ data: undefined, isPending: false, isError: false });
     renderScreen();
-    // Empty state shows the "Soi kênh trong corpus" card + handle input form.
-    expect(screen.getByText(/Soi kênh trong corpus/)).toBeTruthy();
+    expect(screen.getByText(/Phân tích kênh TikTok/)).toBeTruthy();
   });
 
   it("renders loading indicator while useChannelAnalyze is pending", () => {

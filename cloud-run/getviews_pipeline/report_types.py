@@ -567,11 +567,27 @@ class VideoPayload(BaseModel):
     model_config = {"extra": "allow"}
 
 
+class ScriptPayload(BaseModel):
+    """6-shot TikTok script plan (Studio answer session)."""
+
+    topic: str = Field(..., max_length=500)
+    hook: str = Field(..., max_length=200)
+    hook_delay_ms: int = Field(ge=400, le=3000)
+    duration: int = Field(ge=15, le=90)
+    tone: str = Field(..., max_length=20)
+    niche_label: str = Field(default="", max_length=120)
+    shots: list[dict[str, Any]] = Field(min_length=6, max_length=6)
+    sources: list[SourceRow] = Field(default_factory=list)
+    related_questions: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "allow"}
+
+
 ReportKind = Literal[
-    "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video",
+    "pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script",
 ]
 _REPORT_KINDS: frozenset[str] = frozenset(
-    {"pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video"}
+    {"pattern", "ideas", "timing", "generic", "lifecycle", "diagnostic", "video", "script"}
 )
 
 
@@ -585,6 +601,7 @@ class ReportV1(BaseModel):
         | LifecyclePayload
         | DiagnosticPayload
         | VideoPayload
+        | ScriptPayload
     )
 
 
@@ -603,6 +620,8 @@ def validate_and_store_report(kind: str, report: dict[str, Any]) -> dict[str, An
         DiagnosticPayload.model_validate(report)
     elif k == "video":
         VideoPayload.model_validate(report)
+    elif k == "script":
+        ScriptPayload.model_validate(report)
     else:
         GenericPayload.model_validate(report)
     return {"kind": k, "report": report}

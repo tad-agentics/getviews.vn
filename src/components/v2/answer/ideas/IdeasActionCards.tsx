@@ -13,7 +13,9 @@ import { renderForecastLine } from "@/components/v2/answer/forecastLine";
 function defaultRoute(a: ActionCardPayloadData): string {
   if (a.route) return a.route;
   const t = a.title.toLowerCase();
-  if (t.includes("xưởng") || t.includes("viết") || t.includes("script")) return "/app/script";
+  if (t.includes("xưởng") || t.includes("viết") || t.includes("script")) {
+    return `/app/answer?q=${encodeURIComponent("Viết kịch bản TikTok cho tuần này")}`;
+  }
   if (t.includes("lưu") || t.includes("save") || t.includes("template")) return "/app/history";
   return "/app";
 }
