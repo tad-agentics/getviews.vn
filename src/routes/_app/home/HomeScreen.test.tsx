@@ -10,9 +10,10 @@
 
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 
@@ -99,7 +100,9 @@ function renderHome() {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
-        <HomeScreen />
+        <TooltipProvider delayDuration={0}>
+          <HomeScreen />
+        </TooltipProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -239,5 +242,16 @@ describe("HomeScreen", () => {
     });
     renderHome();
     expect(screen.queryByText(/\+ video/)).toBeNull();
+  });
+
+  it("Bắt đầu nhanh: short chip label fills composer with full prompt", () => {
+    renderHome();
+    expect(screen.getByText("Xu hướng tuần này")).toBeTruthy();
+    const full =
+      "Xu hướng và chủ đề nào đang nổi trong ngách Ẩm thực tuần này?";
+    const chip = screen.getByRole("button", { name: full });
+    fireEvent.click(chip);
+    const ta = screen.getByRole("textbox") as HTMLTextAreaElement;
+    expect(ta.value).toBe(full);
   });
 });

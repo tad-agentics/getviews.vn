@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { Plus, Sparkles } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { TooltipContent, TooltipRoot, TooltipTrigger } from "@/components/ui/tooltip";
 import { Btn } from "@/components/v2/Btn";
 import { QueryComposer } from "@/components/v2/QueryComposer";
 import { TopBar } from "@/components/v2/TopBar";
@@ -155,20 +156,47 @@ export default function HomeScreen() {
   const displayName = profile?.display_name?.trim() || "Bạn";
   const firstName = displayName.split(/\s+/).pop() ?? displayName;
 
-  // Bắt đầu nhanh — mỗi thẻ gắn với một intent trong ``detectIntent`` /
-  // ``planAnswerEntry`` (Studio → /app/answer hoặc redirect kênh), tránh
-  // placeholder URL/@ vì không classify được. Giữ ngách trong câu hỏi bằng
-  // ``nicheLabel``.
+  // Bắt đầu nhanh — ``prompt`` đủ dài để ``detectIntent`` khớp đúng intent;
+  // ``label`` ngắn cho nút; hover/aria dùng câu đầy đủ.
   const suggestedPrompts = useMemo(
-    () => [
-      `Xu hướng và chủ đề nào đang nổi trong ngách ${nicheLabel} tuần này?`,
-      `Hướng nội dung và format nào đang chạy tốt nhất trong ngách ${nicheLabel}?`,
-      `Trong ngách ${nicheLabel}, ngách con nào đáng khai thác hoặc mở rộng thêm?`,
-      `Nên đăng TikTok khung giờ nào trong tuần để tối ưu reach?`,
-      `Viết brief sản xuất nội dung tuần này cho ngách ${nicheLabel}.`,
-      `Video của mình flop — phân tích nguyên nhân và nên chỉnh gì?`,
-      `Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.`,
-    ],
+    () =>
+      [
+        {
+          id: "trend-week",
+          label: "Xu hướng tuần này",
+          prompt: `Xu hướng và chủ đề nào đang nổi trong ngách ${nicheLabel} tuần này?`,
+        },
+        {
+          id: "content-format",
+          label: "Format đang chạy tốt",
+          prompt: `Hướng nội dung và format nào đang chạy tốt nhất trong ngách ${nicheLabel}?`,
+        },
+        {
+          id: "subniche",
+          label: "Ngách con tiềm năng",
+          prompt: `Trong ngách ${nicheLabel}, ngách con nào đáng khai thác hoặc mở rộng thêm?`,
+        },
+        {
+          id: "timing",
+          label: "Khung giờ đăng",
+          prompt: `Nên đăng TikTok khung giờ nào trong tuần để tối ưu reach?`,
+        },
+        {
+          id: "brief-week",
+          label: "Brief tuần này",
+          prompt: `Viết brief sản xuất nội dung tuần này cho ngách ${nicheLabel}.`,
+        },
+        {
+          id: "flop-why",
+          label: "Video flop — vì sao?",
+          prompt: `Video của mình flop — phân tích nguyên nhân và nên chỉnh gì?`,
+        },
+        {
+          id: "channel-mine",
+          label: "Soi kênh mình",
+          prompt: `Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.`,
+        },
+      ] as const,
     [nicheLabel],
   );
 
@@ -328,16 +356,27 @@ export default function HomeScreen() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {suggestedPrompts.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => fillComposer(p)}
-                  className="inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-xs font-normal leading-snug text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]"
-                >
-                  <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
-                  <span className="min-w-0">{p}</span>
-                </button>
+              {suggestedPrompts.map((row) => (
+                <TooltipRoot key={row.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={row.prompt}
+                      onClick={() => fillComposer(row.prompt)}
+                      className="inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-1.5 text-left text-xs font-normal leading-snug text-[color:var(--gv-ink)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)]"
+                    >
+                      <Sparkles className="h-3 w-3 shrink-0 text-[color:var(--gv-accent)]" aria-hidden />
+                      <span className="min-w-0">{row.label}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    sideOffset={6}
+                    className="max-w-[min(22rem,calc(100vw-2rem))] px-3 py-2 text-left leading-snug"
+                  >
+                    {row.prompt}
+                  </TooltipContent>
+                </TooltipRoot>
               ))}
             </div>
           </div>

@@ -18,6 +18,13 @@ function TooltipProvider({
   );
 }
 
+/** Use under an ancestor ``TooltipProvider`` (e.g. AppLayout) — no nested provider. */
+function TooltipRoot({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  return <TooltipPrimitive.Root data-slot="tooltip-root" {...props} />;
+}
+
 function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
@@ -58,4 +65,4 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+export { Tooltip, TooltipRoot, TooltipTrigger, TooltipContent, TooltipProvider };
