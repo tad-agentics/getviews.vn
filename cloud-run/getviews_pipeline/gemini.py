@@ -489,28 +489,60 @@ def _allowed_aweme_ids(reference_videos: list[dict[str, Any]]) -> set[str]:
 
 
 def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None, str]:
-    """Pull optional leading ```json ... ``` block; return (parsed_obj_or_none, remainder)."""
-    s = full_text.lstrip()
-    if not s.startswith("```"):
-        logger.warning("[diagnosis_v2] no leading fenced JSON — full markdown path")
-        return None, full_text.strip()
-    nl = s.find("\n", 3)
+    """Extract the narrative JSON block from Gemini's response.
+
+    Handles three formats Gemini 3.x may produce:
+    1. Leading fenced block:  ```json\\n{...}\\n```  then markdown
+    2. Fenced block preceded by a preamble line (model ignores "at the top" instruction)
+    3. Plain JSON object as the entire response (no fences)
+    """
+    s = full_text.strip()
+
+    # ── Format 3: entire response is valid JSON ────────────────────────────
+    if s.startswith("{"):
+        try:
+            obj = json.loads(s)
+            if isinstance(obj, dict):
+                return obj, ""
+        except json.JSONDecodeError:
+            pass  # Fall through to fence scanning
+
+    # ── Formats 1 & 2: find the first ```json ... ``` fence ───────────────
+    fence_start = s.find("```")
+    if fence_start == -1:
+        logger.warning(
+            "[diagnosis_v2] no fenced JSON block found — full markdown path. "
+            "response_prefix=%r",
+            s[:200],
+        )
+        return None, s
+
+    nl = s.find("\n", fence_start + 3)
     if nl == -1:
-        logger.warning("[diagnosis_v2] malformed fence (no newline)")
-        return None, full_text.strip()
+        logger.warning("[diagnosis_v2] malformed fence (no newline after opening ```)")
+        return None, s
+
     close = s.find("```", nl + 1)
     if close == -1:
         logger.warning("[diagnosis_v2] unclosed json fence")
-        return None, full_text.strip()
+        return None, s
+
     inner = s[nl + 1 : close].strip()
     if inner.lower().startswith("json"):
         inner = inner[4:].lstrip()
+
     try:
         obj = json.loads(inner)
     except json.JSONDecodeError as exc:
         logger.warning("[diagnosis_v2] JSON parse failed: %s — prefix=%r", exc, inner[:400])
-        return None, full_text.strip()
+        return None, s
+
     rest = s[close + 3 :].strip()
+    if fence_start > 0:
+        logger.info(
+            "[diagnosis_v2] JSON found after %d-char preamble — model skipped leading-block rule",
+            fence_start,
+        )
     return obj if isinstance(obj, dict) else None, rest
 
 

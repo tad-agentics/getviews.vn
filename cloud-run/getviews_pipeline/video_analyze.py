@@ -976,6 +976,13 @@ def finalize_video_narrative_layer(
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
 
+    if narrative_vi_out is None:
+        logger.warning(
+            "[video_narrative] narrative_vi_out is None after synthesis — "
+            "van_de_chinh will be missing. errors_prompt_len=%d analysis_keys=%s",
+            len(errors_prompt),
+            list((analysis or {}).keys())[:5],
+        )
     if narrative_vi_out is not None:
         dur_note = float(meta.get("duration_sec") or user_stats.get("duration_sec") or 0.0)
         # er_percentile_rank here is a ratio-derived score (~5–95), not a literal corpus
