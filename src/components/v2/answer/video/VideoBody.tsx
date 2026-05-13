@@ -56,6 +56,16 @@ import type {
 // Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers.
 const WINNERS_CLAIM_MIN = 10;
 
+/** Render a TikTok handle with exactly one leading "@".
+ *
+ * Corpus rows can store handles either as "creatorx" or already "@creatorx";
+ * naive `@{handle}` rendering produced "@@creatorx" in those cases. */
+function atHandle(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  if (!s) return "";
+  return s.startsWith("@") ? s : `@${s}`;
+}
+
 function pickFormatCorpusEvidence(card: FormatCard): FormatCardExample | null {
   const xs = card.format_examples;
   if (!xs?.length) return null;
@@ -177,7 +187,7 @@ function ContextStrip({
 }
 
 function CreatorComparisonUnavailable({ creator }: { creator: string }) {
-  const at = creator.startsWith("@") ? creator : `@${creator}`;
+  const at = atHandle(creator);
   return (
     <div className="mt-6 rounded-xl border border-dashed border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] p-4 text-[12.5px] text-[var(--gv-ink-3)]">
       <p className="gv-mono mb-1 text-[10px] uppercase tracking-wider text-[var(--gv-ink-3)]">
@@ -632,7 +642,7 @@ export function VideoBody({
             ) : null}
             <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
               <div className="gv-mono text-[11px] opacity-90">
-                @{meta.creator} · {Math.round(duration)}s
+                {atHandle(meta.creator)} · {Math.round(duration)}s
               </div>
               {meta.title ? (
                 <p className="gv-tight mt-1 text-lg leading-tight">{meta.title}</p>
@@ -959,7 +969,7 @@ export function VideoBody({
                             className="flex items-center justify-between gap-2 text-[11px] text-[color:var(--gv-ink-2)] transition-colors hover:text-[color:var(--gv-accent)]"
                           >
                             <span className="min-w-0 truncate">
-                              @{ex.creator_handle} · {ex.desc || "(không có caption)"}
+                              {atHandle(ex.creator_handle)} · {ex.desc || "(không có caption)"}
                             </span>
                             <span className="gv-mono shrink-0 font-semibold tabular-nums text-[color:var(--gv-ink)]">
                               {ex.play_count.toLocaleString("vi-VN")}
