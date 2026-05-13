@@ -813,7 +813,17 @@ def finalize_video_narrative_layer(
     # exists, every dependent field (format_cards, performance_tier,
     # bright_spot_signal, view_scenarios, channel_context,
     # reference_videos, diagnosis) was written in the same upsert.
-    if out.get("narrative_vi"):
+    #
+    # v5 gate: also require narrative_vi.van_de_chinh (v5-specific field
+    # introduced in Phase 4.3). Old corpus rows have narrative_vi but lack
+    # van_de_chinh — they must go through v5 synthesis to produce the v5
+    # output shape. This ensures corpus cache hits always return v5 responses.
+    _narrative = out.get("narrative_vi")
+    if (
+        _narrative
+        and isinstance(_narrative, dict)
+        and _narrative.get("van_de_chinh")
+    ):
         # Strip pipeline-private keys so the response shape stays clean
         # for the caller (matches the post-synthesis branch below).
         out.pop("__narrative_analysis", None)
