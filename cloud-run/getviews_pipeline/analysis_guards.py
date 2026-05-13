@@ -280,6 +280,45 @@ def apply_timestamp_guards(analysis: dict[str, Any], duration: float | None) -> 
     return analysis
 
 
+def clamp_structural_error_timestamps(
+    errors: list[Any],
+    duration_sec: float | None,
+) -> list[Any]:
+    """Clamp ``t`` / ``end`` on diagnosis error cards to [0, duration].
+
+    Gemini occasionally outputs ranges past EOF (e.g. 12–15s on a 12s clip).
+    """
+    if not errors or duration_sec is None:
+        return errors
+    d = float(duration_sec)
+    if d <= 0:
+        return errors
+    out: list[Any] = []
+    for e in errors:
+        if not isinstance(e, dict):
+            out.append(e)
+            continue
+        ne = dict(e)
+        try:
+            ts_raw = ne.get("t")
+            ts = float(ts_raw) if ts_raw is not None else 0.0
+            end_raw = ne.get("end")
+            te = float(end_raw) if end_raw is not None else ts
+            ts = min(max(ts, 0.0), d)
+            te = min(max(te, 0.0), d)
+            if te <= ts:
+                te = min(ts + 3.0, d)
+            ne["t"] = ts
+            ne["end"] = te
+        except (TypeError, ValueError):
+            logger.debug(
+                "[analysis_guards] skip clamp for error card with non-numeric t/end: %r",
+                e.get("error_id"),
+            )
+        out.append(ne)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Corpus cache staleness
 # ---------------------------------------------------------------------------
@@ -385,6 +424,7 @@ __all__ = [
     "TranscriptVerdict",
     "apply_timestamp_guards",
     "clamp_scene_range",
+    "clamp_structural_error_timestamps",
     "clamp_timestamp",
     "is_cached_analysis_fresh",
     "scan_synthesis_for_fabricated_metrics",

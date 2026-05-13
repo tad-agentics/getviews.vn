@@ -25,6 +25,17 @@ def test_niche_row_to_video_meta_averages_views() -> None:
     assert meta["avg_ctr"] > 0
 
 
+def test_niche_row_to_video_meta_null_views_when_both_zero() -> None:
+    row = {
+        "organic_avg_views": 0,
+        "commerce_avg_views": 0,
+        "median_er": 0.04,
+        "sample_size": 10,
+    }
+    meta = niche_row_to_video_meta(row)
+    assert meta["avg_views"] is None
+
+
 def test_build_payload_empty_row() -> None:
     out = build_niche_benchmark_payload(None, niche_id=4, duration_sec=40.0)
     assert out["niche_id"] == 4

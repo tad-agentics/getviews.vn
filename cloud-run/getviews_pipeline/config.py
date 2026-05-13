@@ -329,6 +329,18 @@ FILES_API_POLL_TIMEOUT_SEC = 90.0  # upper bound; creators uploading dense 60s
                                     # ACTIVE. Was 30s, raised after "Gemini silently
                                     # times out on large videos" audit finding.
 
+# One-shot wall clock for ``analyze_video`` (sync helper): FFmpeg output path →
+# Files API upload + poll + extraction ``generate_content``. Separate from poll-only
+# cap above; prevents unbounded hangs when the model stalls (audit PERF-1).
+GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC = _float_env("GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC", "120")
+# TikTok CDN / proxy fetch for one MP4 before forensic extraction.
+GEMINI_VIDEO_DOWNLOAD_TIMEOUT_SEC = _float_env("GEMINI_VIDEO_DOWNLOAD_TIMEOUT_SEC", "90")
+# Text diagnosis pass after structured extraction (``synthesize_diagnosis``).
+GEMINI_VIDEO_DIAGNOSIS_HARD_TIMEOUT_SEC = _float_env(
+    "GEMINI_VIDEO_DIAGNOSIS_HARD_TIMEOUT_SEC",
+    "120",
+)
+
 # Backward-compat aliases — keep older callers working.
 FILES_API_POLL_INTERVAL_SEC = FILES_API_POLL_INITIAL_SEC
 FILES_API_POLL_MAX_ATTEMPTS = int(FILES_API_POLL_TIMEOUT_SEC / FILES_API_POLL_INITIAL_SEC)

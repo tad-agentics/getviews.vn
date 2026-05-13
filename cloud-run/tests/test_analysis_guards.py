@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from getviews_pipeline.analysis_guards import (
     apply_timestamp_guards,
     clamp_scene_range,
+    clamp_structural_error_timestamps,
     clamp_timestamp,
     is_cached_analysis_fresh,
     scan_synthesis_for_fabricated_metrics,
@@ -274,3 +275,41 @@ def test_scan_reports_multiple_violations() -> None:
     )
     scan = scan_synthesis_for_fabricated_metrics(text)
     assert len(scan.flags) == 2
+
+
+# ── clamp_structural_error_timestamps ─────────────────────────────────────
+
+
+def test_clamp_structural_errors_caps_end_to_duration() -> None:
+    err = [{"error_id": "e1", "sev": "mid", "t": 12.0, "end": 15.0, "title": "x", "detail": "d", "fix": "f"}]
+    out = clamp_structural_error_timestamps(err, 12.0)
+    assert out[0]["t"] == 12.0
+    assert out[0]["end"] == 12.0
+
+
+def test_clamp_structural_errors_extends_short_range() -> None:
+    err = [{"error_id": "e1", "sev": "mid", "t": 10.0, "end": 10.0, "title": "x", "detail": "d", "fix": "f"}]
+    out = clamp_structural_error_timestamps(err, 20.0)
+    assert out[0]["t"] == 10.0
+    assert out[0]["end"] == 13.0
+
+
+def test_clamp_structural_errors_preserves_non_dict_entries() -> None:
+    err = ["skip", {"error_id": "e1", "sev": "mid", "t": 1.0, "end": 2.0, "title": "x", "detail": "d", "fix": "f"}]
+    out = clamp_structural_error_timestamps(err, 10.0)
+    assert out[0] == "skip"
+    assert out[1]["end"] == 2.0
+
+
+def test_clamp_structural_errors_skips_bad_numeric_strings() -> None:
+    err = [{"error_id": "e1", "sev": "mid", "t": "not-a-float", "end": 5.0, "title": "x", "detail": "d", "fix": "f"}]
+    out = clamp_structural_error_timestamps(err, 10.0)
+    # t/end left unchanged when float() fails
+    assert out[0]["t"] == "not-a-float"
+    assert out[0]["end"] == 5.0
+
+
+def test_clamp_structural_errors_skips_without_duration() -> None:
+    err = [{"error_id": "e1", "sev": "mid", "t": 12.0, "end": 15.0, "title": "x", "detail": "d", "fix": "f"}]
+    out = clamp_structural_error_timestamps(err, None)
+    assert out == err

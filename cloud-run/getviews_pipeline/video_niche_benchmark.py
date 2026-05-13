@@ -69,7 +69,8 @@ def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
     if organic > 0 and commerce > 0:
         avg_views = int(round((organic + commerce) / 2.0))
     else:
-        avg_views = int(round(organic or commerce))
+        blended = max(organic, commerce, 0.0)
+        avg_views = int(round(blended)) if blended > 0 else None
 
     median_er = _to_float(row.get("median_er"), 0.04)
     # Heuristic until per-video retention telemetry exists: tighter ER → higher
@@ -80,7 +81,7 @@ def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
     sample_size = _to_int(row.get("sample_size"), 0)
 
     out_meta: dict[str, Any] = {
-        "avg_views": avg_views,
+        "avg_views": avg_views,  # None when cohort has no positive view signal (FE shows "—")
         "avg_retention": round(avg_retention, 4),
         "avg_ctr": round(avg_ctr, 5),
         "sample_size": sample_size,

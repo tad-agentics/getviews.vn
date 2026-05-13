@@ -410,7 +410,10 @@ function FlopDiagnosisStrip({
   retentionEnd: number | null;
 }) {
   const retLabel = retentionEnd != null ? `${Math.round(retentionEnd)}% giữ chân` : "— giữ chân";
-  const nicheViews = nicheMeta?.avg_views != null ? formatViewsVi(nicheMeta.avg_views) : "—";
+  const nicheViews =
+    nicheMeta?.avg_views != null && nicheMeta.avg_views > 0
+      ? formatViewsVi(nicheMeta.avg_views)
+      : "—";
   // A.2.4 — when the BE pivoted the cohort to content_class
   // (benchmark_axis="content_class" from A.2.3), the comparison is sharper:
   // same (topic × format) bucket. Label reflects that so creators know the

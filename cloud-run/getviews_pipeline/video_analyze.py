@@ -425,6 +425,7 @@ def apply_rule_based_video_errors(
     """Augment Gemini error extraction with deterministic guards (language, presence)."""
 
     from getviews_pipeline.analysis_core import detect_language_market_mismatch
+    from getviews_pipeline.analysis_guards import clamp_structural_error_timestamps
 
     out = list(errors)
     ha0 = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else None
@@ -479,7 +480,9 @@ def apply_rule_based_video_errors(
                 "end": end_ts,
             }
         )
-    return _collapse_hook_window_high_errors(_dedupe_lang_market_hook_errors(out))
+    merged = _collapse_hook_window_high_errors(_dedupe_lang_market_hook_errors(out))
+    clamp_dur = float(dur) if dur > 0 else None
+    return clamp_structural_error_timestamps(merged, clamp_dur)
 
 
 def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
@@ -1209,7 +1212,7 @@ def run_video_analyze_pipeline(
         user_sb, content_class_id=content_class_id,
     )
     default_niche_meta = {
-        "avg_views": 0,
+        "avg_views": None,
         "avg_retention": 0.5,
         "avg_ctr": 0.04,
         "sample_size": 0,
@@ -1557,7 +1560,7 @@ def run_video_analyze_on_demand(
         user_sb, content_class_id=content_class_id,
     )
     default_niche_meta = {
-        "avg_views": 0,
+        "avg_views": None,
         "avg_retention": 0.5,
         "avg_ctr": 0.04,
         "sample_size": 0,

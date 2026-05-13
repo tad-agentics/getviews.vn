@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from pathlib import Path
@@ -13,7 +14,13 @@ from getviews_pipeline.analysis_guards import (
     apply_timestamp_guards,
     validate_transcript,
 )
-from getviews_pipeline.config import CAROUSEL_EXTRACT_MAX_SLIDES, CAROUSEL_MAX_SLIDES
+from getviews_pipeline.config import (
+    CAROUSEL_EXTRACT_MAX_SLIDES,
+    CAROUSEL_MAX_SLIDES,
+    GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
+    GEMINI_VIDEO_DIAGNOSIS_HARD_TIMEOUT_SEC,
+    GEMINI_VIDEO_DOWNLOAD_TIMEOUT_SEC,
+)
 from getviews_pipeline.corpus_context import get_cached_analysis
 from getviews_pipeline.entry_cost import score_entry_cost
 from getviews_pipeline.gemini import analyze_carousel, analyze_video, synthesize_diagnosis
@@ -76,11 +83,23 @@ async def _finish_analysis(
     content_type: ContentType = metadata.content_type
     if include_diagnosis:
         try:
-            diagnosis = await run_sync(
-                synthesize_diagnosis,
-                analysis_obj.model_dump(),
-                metadata_for_diagnosis,
-                content_type,
+            diagnosis = await asyncio.wait_for(
+                run_sync(
+                    synthesize_diagnosis,
+                    analysis_obj.model_dump(),
+                    metadata_for_diagnosis,
+                    content_type,
+                ),
+                timeout=GEMINI_VIDEO_DIAGNOSIS_HARD_TIMEOUT_SEC,
+            )
+        except TimeoutError:
+            logger.warning(
+                "[analysis_core] diagnosis synthesis timed out after %.0fs",
+                GEMINI_VIDEO_DIAGNOSIS_HARD_TIMEOUT_SEC,
+            )
+            diagnosis = (
+                "Tổng hợp chẩn đoán mất quá lâu; dữ liệu phân tích cấu trúc (JSON) vẫn đầy đủ. "
+                "Vui lòng thử lại."
             )
         except Exception as e:
             logger.warning("Diagnosis synthesis failed: %s", e)
@@ -147,11 +166,35 @@ async def _analyze_video(
     video_path: Path | None = None
     try:
         try:
-            video_path = await ensemble.download_video(video_urls)
+            video_path = await asyncio.wait_for(
+                ensemble.download_video(video_urls),
+                timeout=GEMINI_VIDEO_DOWNLOAD_TIMEOUT_SEC,
+            )
+        except TimeoutError:
+            logger.warning(
+                "[analysis_core] video download timed out after %.0fs",
+                GEMINI_VIDEO_DOWNLOAD_TIMEOUT_SEC,
+            )
+            return {
+                "error": "Tải video TikTok mất quá lâu. Vui lòng thử lại hoặc kiểm tra mạng.",
+                "metadata": metadata.model_dump(),
+            }
         except Exception as e:
             return {"error": str(e), "metadata": metadata.model_dump()}
         try:
-            analysis = await run_sync(analyze_video, video_path)
+            analysis = await asyncio.wait_for(
+                run_sync(analyze_video, video_path),
+                timeout=GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
+            )
+        except TimeoutError:
+            logger.warning(
+                "[analysis_core] video extraction timed out after %.0fs",
+                GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
+            )
+            return {
+                "error": "Phân tích video mất quá lâu. Vui lòng thử lại hoặc dùng video ngắn hơn.",
+                "metadata": metadata.model_dump(),
+            }
         except Exception as e:
             return {"error": str(e), "metadata": metadata.model_dump()}
         return await _finish_analysis(
@@ -380,7 +423,19 @@ async def analyze_aweme_from_path(
 
     metadata = ensemble.parse_metadata(aweme)
     try:
-        analysis = await run_sync(analyze_video, video_path)
+        analysis = await asyncio.wait_for(
+            run_sync(analyze_video, video_path),
+            timeout=GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
+        )
+    except TimeoutError:
+        logger.warning(
+            "[analysis_core] video extraction timed out after %.0fs (from_path)",
+            GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
+        )
+        return {
+            "error": "Phân tích video mất quá lâu. Vui lòng thử lại hoặc dùng video ngắn hơn.",
+            "metadata": metadata.model_dump(),
+        }
     except Exception as e:
         return {"error": str(e), "metadata": metadata.model_dump()}
 

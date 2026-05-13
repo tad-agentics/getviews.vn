@@ -88,6 +88,15 @@ def test_video_payload_accepts_full_corpus_shape() -> None:
     assert out.niche_meta.winners_sample_size == 30
 
 
+def test_video_payload_accepts_null_niche_avg_views() -> None:
+    payload = _video_payload_fixture()
+    assert payload["niche_meta"] is not None
+    payload["niche_meta"]["avg_views"] = None
+    out = VideoPayload.model_validate(payload)
+    assert out.niche_meta is not None
+    assert out.niche_meta.avg_views is None
+
+
 def test_video_payload_accepts_creator_comparison() -> None:
     payload = _video_payload_fixture()
     payload["creator_comparison"] = {

@@ -92,7 +92,8 @@ export interface RetentionPoint {
 }
 
 export interface VideoNicheMeta {
-  avg_views: number;
+  /** Null / omitted when cohort has no positive benchmark (avoid showing "0"). */
+  avg_views: number | null;
   avg_retention: number;
   avg_ctr: number;
   sample_size: number;

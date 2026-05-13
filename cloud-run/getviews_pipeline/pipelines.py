@@ -432,35 +432,48 @@ async def _run_channel_context(creator_handle: str, current_video_id: str) -> di
 
 
 def _format_avg_views_for_diagnosis(niche_id: int, content_format: str) -> float | None:
-    if not niche_id or not content_format:
+    """Median views for same niche × content_format — MV first, then 30d corpus, then all-time."""
+    fmt = str(content_format or "").strip()
+    if not niche_id or not fmt:
         return None
     try:
         from getviews_pipeline.corpus_ingest import _content_class_for
         from getviews_pipeline.video_niche_benchmark import fetch_content_class_intelligence_sync
 
-        cc = _content_class_for(niche_id, content_format)
+        cc = _content_class_for(niche_id, fmt)
         if cc:
-            row = fetch_content_class_intelligence_sync(get_service_client(), cc)
-            if row:
-                v = row.get("median_views") or row.get("avg_views")
-                if v:
-                    return float(v)
+            mv_row = fetch_content_class_intelligence_sync(get_service_client(), cc)
+            if mv_row:
+                mv_med = mv_row.get("median_views")
+                mv_avg = mv_row.get("avg_views")
+                v_mv = mv_med if mv_med is not None else mv_avg
+                if v_mv is not None and float(v_mv) > 0:
+                    return float(v_mv)
         since_dt = datetime.now(UTC) - timedelta(days=30)
         since_iso = since_dt.isoformat()
         client = get_service_client()
-        res = (
-            client.table("video_corpus")
-            .select("views")
-            .eq("niche_id", niche_id)
-            .eq("content_format", content_format)
-            .gte("indexed_at", since_iso)
-            .limit(150)
-            .execute()
-        )
-        vals = sorted(int(r.get("views") or 0) for r in (res.data or []))
-        if len(vals) < 5:
-            return None
-        return float(vals[len(vals) // 2])
+
+        def _median_from_corpus(*, since: str | None) -> float | None:
+            q = (
+                client.table("video_corpus")
+                .select("views")
+                .eq("niche_id", niche_id)
+                .eq("content_format", fmt)
+                .limit(200)
+            )
+            if since:
+                q = q.gte("indexed_at", since)
+            res = q.execute()
+            vals = sorted(int(r.get("views") or 0) for r in (res.data or []))
+            if len(vals) < 5:
+                return None
+            return float(vals[len(vals) // 2])
+
+        med = _median_from_corpus(since=since_iso)
+        if med is not None:
+            return med
+        # Thin 30d window but corpus has older rows — broadens FORMAT-AVG-0b fallback.
+        return _median_from_corpus(since=None)
     except Exception as exc:
         logger.warning("[video_diagnosis] format_avg lookup failed: %s", exc)
         return None

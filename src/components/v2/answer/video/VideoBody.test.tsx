@@ -218,6 +218,34 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/Cùng format TB:/)).toBeTruthy();
   });
 
+  it("shows en dash for cohort TB views when avg_views is zero and winners pool exists", () => {
+    const r = makeFlopReport({
+      niche_meta: {
+        avg_views: 0,
+        avg_retention: 0.55,
+        avg_ctr: 0.04,
+        sample_size: 200,
+        winners_sample_size: 30,
+      },
+    });
+    renderInRouter(r);
+    expect(screen.getByText(/Ngách TB:\s*—/)).toBeTruthy();
+  });
+
+  it("shows en dash for cohort TB views when avg_views is null", () => {
+    const r = makeFlopReport({
+      niche_meta: {
+        avg_views: null,
+        avg_retention: 0.55,
+        avg_ctr: 0.04,
+        sample_size: 200,
+        winners_sample_size: 30,
+      },
+    });
+    renderInRouter(r);
+    expect(screen.getByText(/Ngách TB:\s*—/)).toBeTruthy();
+  });
+
   it("renders 'Đang xây dựng pool' fallback when niche cohort < 10", () => {
     const sparse = makeFlopReport({
       niche_meta: {

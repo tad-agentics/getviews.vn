@@ -495,7 +495,7 @@ class VideoEnrichmentPayload(BaseModel):
 
 
 class VideoNicheMetaPayload(BaseModel):
-    avg_views: float = 0.0
+    avg_views: float | None = None
     avg_retention: float = 0.5
     avg_ctr: float = 0.04
     sample_size: int = 0

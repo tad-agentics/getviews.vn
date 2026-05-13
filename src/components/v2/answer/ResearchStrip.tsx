@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import type { StepEvent } from "@/lib/types/sse-events";
+import {
+  VIDEO_PIPELINE_ANALYSIS_HARD_TIMEOUT_MS,
+  VIDEO_PIPELINE_SLOW_HINT_MS,
+} from "@/lib/videoPipelineTimeouts";
 
 const STEPS = ["Quét", "Phân tích", "Tìm pattern", "Tóm tắt"] as const;
 
@@ -288,15 +292,59 @@ export function LivePipelineStrip({
   /** Seconds elapsed since last real step event, derived from backend heartbeat pings. */
   heartbeatElapsedSec?: number;
 }) {
+  const [slowWarning, setSlowWarning] = useState(false);
+  const [clientTimedOut, setClientTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!loading || done) {
+      setSlowWarning(false);
+      setClientTimedOut(false);
+      return;
+    }
+    const t1 = window.setTimeout(() => setSlowWarning(true), VIDEO_PIPELINE_SLOW_HINT_MS);
+    const t2 = window.setTimeout(() => setClientTimedOut(true), VIDEO_PIPELINE_ANALYSIS_HARD_TIMEOUT_MS);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [loading, done]);
+
+  const longWaitHints =
+    loading && !done ? (
+      <>
+        {slowWarning && !clientTimedOut ? (
+          <p className="mt-2 text-sm leading-snug text-[color:var(--gv-ink-3)]">
+            Video này cần thêm thời gian phân tích. Vui lòng chờ hoặc thử lại sau 2 phút.
+          </p>
+        ) : null}
+        {clientTimedOut ? (
+          <p className="mt-2 text-sm leading-snug text-[color:var(--gv-accent)]">
+            Phân tích mất quá lâu.{" "}
+            <button
+              type="button"
+              className="font-medium underline decoration-dotted underline-offset-2"
+              onClick={() => window.location.reload()}
+            >
+              Tải lại trang
+            </button>{" "}
+            hoặc dán link khác.
+          </p>
+        ) : null}
+      </>
+    ) : null;
+
   if (steps.length === 0 && loading) {
     return (
-      <ResearchProcessBar
-        loading={loading}
-        stage={stage ?? 0}
-        done={done}
-        videoCount={videoCount}
-        channelCount={channelCount}
-      />
+      <>
+        <ResearchProcessBar
+          loading={loading}
+          stage={stage ?? 0}
+          done={done}
+          videoCount={videoCount}
+          channelCount={channelCount}
+        />
+        {longWaitHints}
+      </>
     );
   }
 
@@ -459,6 +507,8 @@ export function LivePipelineStrip({
           Hoàn tất
         </div>
       )}
+
+      {longWaitHints}
     </div>
   );
 }
