@@ -589,8 +589,9 @@ export function VideoBody({
   };
 
   return (
-    <div className="grid grid-cols-1 items-start gap-8 min-[900px]:grid-cols-[320px_1fr]">
-      <aside className="min-w-0 self-start">
+    <div className="grid grid-cols-1 gap-8 min-[900px]:grid-cols-[320px_1fr]">
+      {/* Stretch row height (grid default) so the sticky thumb has room; items-start + shrink-wrapped aside made sticky a no-op. */}
+      <aside className="flex min-h-0 min-w-0 flex-col">
         {/*
           Sticky within the studio scrollport: follows the user down the report
           until the grid row ends (same height as the main column), then scrolls away.
@@ -772,7 +773,7 @@ export function VideoBody({
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Ngữ cảnh kênh
             </h3>
-            <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1440px]:grid-cols-3">
               {channelEffective.top_videos?.slice(0, 2).map((v) => (
                 <div
                   key={v.aweme_id}
@@ -867,7 +868,7 @@ export function VideoBody({
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Format đang hoạt động trong ngách này
             </h3>
-            <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1440px]:grid-cols-3">
               {formatCardsEffective.map((card, i) => {
                 const corpusEv = pickFormatCorpusEvidence(card);
                 const refHit = card.evidence_aweme_id
