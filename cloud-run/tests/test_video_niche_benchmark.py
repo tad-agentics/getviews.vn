@@ -79,3 +79,44 @@ def test_build_payload_winners_sample_size_with_user_sb() -> None:
 
 def test_count_winners_returns_none_without_sb() -> None:
     assert count_winners_sample_in_niche_sync(None, 1, 0.05) is None
+
+
+def test_niche_row_to_video_meta_falls_back_to_avg_views_for_content_class() -> None:
+    # content_class_intelligence MV has no organic/commerce split — it
+    # exposes avg_views directly. Previously this row produced
+    # avg_views=None, which cascaded into "—" KPI multiplier and
+    # performance_tier="unknown" → narrative flop tone for hit videos.
+    row = {
+        "avg_views": 82000,
+        "median_views": 60000,
+        "median_er": 0.05,
+        "sample_size": 25,
+    }
+    meta = niche_row_to_video_meta(row)
+    assert meta["avg_views"] == 82000
+    assert meta["sample_size"] == 25
+
+
+def test_niche_row_to_video_meta_falls_back_to_median_views_when_avg_missing() -> None:
+    row = {
+        "median_views": 41000,
+        "median_er": 0.03,
+        "sample_size": 18,
+    }
+    meta = niche_row_to_video_meta(row)
+    assert meta["avg_views"] == 41000
+
+
+def test_niche_row_to_video_meta_still_null_when_no_views_column_set() -> None:
+    # Defence: row that genuinely has no positive view signal in any
+    # known column still maps to None (FE renders "—").
+    row = {
+        "organic_avg_views": 0,
+        "commerce_avg_views": 0,
+        "avg_views": 0,
+        "median_views": 0,
+        "median_er": 0.04,
+        "sample_size": 10,
+    }
+    meta = niche_row_to_video_meta(row)
+    assert meta["avg_views"] is None

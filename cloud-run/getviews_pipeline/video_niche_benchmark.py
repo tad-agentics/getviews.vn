@@ -63,14 +63,34 @@ def count_winners_sample_in_niche_sync(sb: Any, niche_id: int, median_er: float)
 
 
 def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
-    """Map `niche_intelligence` MV row → `VideoNicheMeta` shape (api-types.ts)."""
+    """Map `niche_intelligence` or `content_class_intelligence` MV row →
+    `VideoNicheMeta` shape (api-types.ts).
+
+    The niche MV splits views into ``organic_avg_views`` /
+    ``commerce_avg_views``; the content_class MV exposes a single
+    ``avg_views`` (no organic/commerce split). Reading only the niche
+    columns made every content_class cohort collapse to
+    ``avg_views=None``, which cascaded into "—" KPI multiplier, null
+    bright-spot ratio, and ``performance_tier="unknown"`` → narrative
+    flop-tone for what should have been hit videos. Prefer the
+    organic+commerce blend when present; otherwise fall back to the
+    direct ``avg_views`` (or ``median_views`` as a final floor).
+    """
     organic = _to_float(row.get("organic_avg_views"))
     commerce = _to_float(row.get("commerce_avg_views"))
     if organic > 0 and commerce > 0:
         avg_views = int(round((organic + commerce) / 2.0))
     else:
         blended = max(organic, commerce, 0.0)
-        avg_views = int(round(blended)) if blended > 0 else None
+        if blended > 0:
+            avg_views = int(round(blended))
+        else:
+            direct = _to_float(row.get("avg_views"))
+            if direct > 0:
+                avg_views = int(round(direct))
+            else:
+                median = _to_float(row.get("median_views"))
+                avg_views = int(round(median)) if median > 0 else None
 
     median_er = _to_float(row.get("median_er"), 0.04)
     # Heuristic until per-video retention telemetry exists: tighter ER → higher

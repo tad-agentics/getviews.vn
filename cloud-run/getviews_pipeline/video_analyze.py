@@ -118,13 +118,30 @@ class VideoErrorsExtractionLLM(BaseModel):
 
 
 def _median_views_proxy(niche_row: dict[str, Any] | None) -> float:
+    """Best view proxy from a benchmark row (niche or content_class MV).
+
+    The niche MV has organic/commerce split; the content_class MV
+    exposes ``avg_views``/``median_views`` directly. Reading only the
+    niche columns made content_class rows fall through to the 5000
+    floor and is_flop_mode silently classified every video against the
+    wrong baseline.
+    """
     if not niche_row:
         return 10_000.0
     o = float(niche_row.get("organic_avg_views") or 0)
     c = float(niche_row.get("commerce_avg_views") or 0)
     if o > 0 and c > 0:
         return (o + c) / 2.0
-    return max(o, c, 5_000.0)
+    blended = max(o, c, 0.0)
+    if blended > 0:
+        return blended
+    direct = float(niche_row.get("avg_views") or 0)
+    if direct > 0:
+        return direct
+    median = float(niche_row.get("median_views") or 0)
+    if median > 0:
+        return median
+    return 5_000.0
 
 
 # Niche-less flop thresholds — used when ``niche_row`` is None (no
