@@ -32,3 +32,15 @@ def test_hashtags_stripped():
 
 def test_very_short_hook_returns_none():
     assert detect_language_market_mismatch("OK") is None
+
+
+def test_repeated_detection_is_deterministic():
+    # Borderline mixed input is where langdetect is non-deterministic
+    # without a seeded factory. Repeat enough times that probability
+    # of all-same-by-chance under unseeded behaviour is negligible.
+    hook = "Buy now and get 50% off limited offer today only"
+    outcomes = {
+        None if r is None else r["error_id"]
+        for r in (detect_language_market_mismatch(hook) for _ in range(25))
+    }
+    assert len(outcomes) == 1, f"langdetect flapped: {outcomes}"

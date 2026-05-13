@@ -38,9 +38,14 @@ logger = logging.getLogger(__name__)
 def detect_language_market_mismatch(hook_text: str, target_market: str = "vi") -> dict | None:
     """Detect if hook/caption language doesn't match the target market."""
     try:
-        from langdetect import detect
+        from langdetect import DetectorFactory, detect
     except ImportError:
         return None
+
+    # langdetect is probabilistic by default — same input flaps lang label
+    # between calls. Pin the seed so a hook either is or isn't flagged,
+    # consistently across requests.
+    DetectorFactory.seed = 0
 
     cleaned = re.sub(r"#\S+|@\S+|https?://\S+", "", hook_text).strip()
     words = [w for w in cleaned.split() if re.search(r"[a-zA-ZÀ-ỹ]", w)]
