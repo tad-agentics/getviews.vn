@@ -584,6 +584,109 @@ async def get_cached_analysis(video_id: str) -> dict[str, Any] | None:
         return None
 
 
+def _build_reference_awemes_from_rows(
+    rows: list[dict[str, Any]],
+    *,
+    exclude_video_id: str | None,
+) -> list[dict[str, Any]]:
+    """Map ``video_corpus`` PostgREST rows → aweme-shaped dicts for ref selection."""
+    import math
+    from datetime import datetime, timezone as _tz
+
+    awemes: list[dict[str, Any]] = []
+    for row in rows:
+        vid = row.get("video_id") or ""
+        if not vid or vid == exclude_video_id:
+            continue
+        handle = row.get("creator_handle") or ""
+        views = int(row.get("views") or 0)
+        likes = int(row.get("likes") or 0)
+        comments = int(row.get("comments") or 0)
+        shares = int(row.get("shares") or 0)
+        tiktok_url = row.get("tiktok_url") or f"https://www.tiktok.com/@{handle}/video/{vid}"
+        corpus_analysis = row.get("analysis_json") or {}
+        if not corpus_analysis:
+            logger.warning(
+                "[corpus_context] corpus row %s has no analysis_json — skipping", vid
+            )
+            continue
+
+        indexed_at_str = row.get("indexed_at") or ""
+        try:
+            indexed_dt = datetime.fromisoformat(indexed_at_str.replace("Z", "+00:00"))
+            days_ago = max(
+                0,
+                math.floor((datetime.now(_tz.utc) - indexed_dt).total_seconds() / 86400),
+            )
+            create_time = int(indexed_dt.timestamp())
+        except Exception:
+            days_ago = 0
+            create_time = 0
+
+        breakout = float(row.get("breakout_multiplier") or 0.0)
+
+        awemes.append({
+            "aweme_id": vid,
+            "author": {"unique_id": handle},
+            "tiktok_url": tiktok_url,
+            "thumbnail_url": row.get("thumbnail_url"),
+            "statistics": {
+                "play_count": views,
+                "digg_count": likes,
+                "comment_count": comments,
+                "share_count": shares,
+            },
+            "_corpus_er": float(row.get("engagement_rate") or 0.0),
+            "_corpus_days_ago": days_ago,
+            "_corpus_breakout": breakout,
+            "create_time": create_time,
+            "_from_corpus": True,
+            "_corpus_analysis": corpus_analysis,
+            "_corpus_tiktok_url": tiktok_url,
+            "_corpus_scenes": corpus_analysis.get("scenes") or [],
+            "_corpus_hook_analysis": corpus_analysis.get("hook_analysis") or {},
+            "_corpus_content_format": row.get("content_format") or "",
+            "_corpus_content_type": row.get("content_type") or "video",
+        })
+    return awemes
+
+
+def fetch_corpus_reference_pool_sync(
+    niche_name: str,
+    *,
+    days: int = 30,
+    limit: int = 40,
+    exclude_video_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Sync corpus ref pool (no thumbnail repair) for ``finalize_video_narrative_layer``."""
+    try:
+        client = _anon_client()
+        niche_id = _resolve_niche_id(client, niche_name)
+        if niche_id is None:
+            logger.warning(
+                "[corpus_context] fetch_corpus_reference_pool_sync: niche %r not resolved",
+                niche_name,
+            )
+            return []
+        query = (
+            client.table("video_corpus")
+            .select(
+                "video_id, creator_handle, views, likes, comments, shares, "
+                "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
+                "indexed_at, content_format, content_type, analysis_json"
+            )
+            .eq("niche_id", niche_id)
+            .gte("indexed_at", indexed_at_cutoff_iso(days))
+            .order("engagement_rate", desc=True)
+            .limit(limit)
+        )
+        rows = (query.execute().data) or []
+        return _build_reference_awemes_from_rows(rows, exclude_video_id=exclude_video_id)
+    except Exception as exc:
+        logger.warning("[corpus_context] fetch_corpus_reference_pool_sync failed: %s", exc)
+        return []
+
+
 async def fetch_corpus_reference_pool(
     niche_name: str,
     *,
@@ -629,69 +732,7 @@ async def fetch_corpus_reference_pool(
         result = query.execute()
         rows = result.data or []
 
-        import math
-        from datetime import datetime, timezone as _tz
-
-        awemes: list[dict[str, Any]] = []
-        for row in rows:
-            vid = row.get("video_id") or ""
-            if not vid or vid == exclude_video_id:
-                continue
-            handle = row.get("creator_handle") or ""
-            views = int(row.get("views") or 0)
-            likes = int(row.get("likes") or 0)
-            comments = int(row.get("comments") or 0)
-            shares = int(row.get("shares") or 0)
-            tiktok_url = row.get("tiktok_url") or f"https://www.tiktok.com/@{handle}/video/{vid}"
-            corpus_analysis = row.get("analysis_json") or {}
-            if not corpus_analysis:
-                logger.warning(
-                    "[corpus_context] corpus row %s has no analysis_json — skipping", vid
-                )
-                continue
-
-            # Compute real days_ago from indexed_at so Gemini emits accurate recency.
-            indexed_at_str = row.get("indexed_at") or ""
-            try:
-                indexed_dt = datetime.fromisoformat(indexed_at_str.replace("Z", "+00:00"))
-                days_ago = max(0, math.floor(
-                    (datetime.now(_tz.utc) - indexed_dt).total_seconds() / 86400
-                ))
-                # create_time epoch so helpers can sort; we pre-filter by indexed_at
-                create_time = int(indexed_dt.timestamp())
-            except Exception:
-                days_ago = 0
-                create_time = 0
-
-            breakout = float(row.get("breakout_multiplier") or 0.0)
-
-            awemes.append({
-                "aweme_id": vid,
-                "author": {"unique_id": handle},
-                "tiktok_url": tiktok_url,
-                "thumbnail_url": row.get("thumbnail_url"),
-                "statistics": {
-                    "play_count": views,
-                    "digg_count": likes,
-                    "comment_count": comments,
-                    "share_count": shares,
-                },
-                # Use pre-computed engagement_rate from corpus (more accurate than
-                # recomputing from raw counts, which excludes shares in some APIs).
-                "_corpus_er": float(row.get("engagement_rate") or 0.0),
-                "_corpus_days_ago": days_ago,
-                "_corpus_breakout": breakout,
-                "create_time": create_time,
-                # Pre-built analysis from corpus — skip re-analysis in pipeline.
-                "_from_corpus": True,
-                "_corpus_analysis": corpus_analysis,
-                "_corpus_tiktok_url": tiktok_url,
-                # Scene-level pattern data for narrative synthesis.
-                "_corpus_scenes": corpus_analysis.get("scenes") or [],
-                "_corpus_hook_analysis": corpus_analysis.get("hook_analysis") or {},
-                "_corpus_content_format": row.get("content_format") or "",
-                "_corpus_content_type": row.get("content_type") or "video",
-            })
+        awemes = _build_reference_awemes_from_rows(rows, exclude_video_id=exclude_video_id)
 
         # Repair stale (expired TikTok CDN) thumbnails in-place — fire-and-forget,
         # updates DB so subsequent requests get R2 URLs from the start.

@@ -34,9 +34,6 @@ vi.mock("@/components/SectionMini", () => ({
     <div data-testid={`mini-${kicker}`}>{title}</div>
   ),
 }));
-vi.mock("@/components/v2/RetentionCurve", () => ({
-  RetentionCurve: () => <div data-testid="retention-curve" />,
-}));
 vi.mock("@/components/v2/Timeline", () => ({
   Timeline: () => <div data-testid="timeline" />,
 }));
@@ -181,7 +178,13 @@ describe("VideoBody render", () => {
     ).toBeTruthy();
   });
 
-  it("renders flop issues + technical detail trigger + script CTA (no projected views)", () => {
+  it("renders hook phase grid in flop mode when hook_phases are present", () => {
+    renderInRouter(makeFlopReport());
+    expect(screen.getByTestId("hook-phase-grid")).toBeTruthy();
+    expect(screen.getByText(/3 giây đầu — nhịp mở dễ mất người xem/)).toBeTruthy();
+  });
+
+  it("renders flop issues + technical detail heading + script CTA (no projected views)", () => {
     renderInRouter(makeFlopReport());
     expect(screen.getByText(/CHẨN ĐOÁN VIDEO CỦA BẠN/)).toBeTruthy();
     expect(screen.getByText("Hook yếu")).toBeTruthy();
@@ -276,16 +279,58 @@ describe("VideoBody render", () => {
     renderInRouter(withComparison);
     // Kicker carries the creator handle inline with the section title.
     expect(screen.getByText(/SO SÁNH TRONG KÊNH · @creatorx/)).toBeTruthy();
+    expect(screen.getByText("Video có views cao nhất")).toBeTruthy();
+    expect(screen.getByText("Video có views thấp nhất")).toBeTruthy();
     // Hit views formatted as 1.2M (formatViews threshold)
     expect(screen.getByText("1.2M")).toBeTruthy();
     // Flop views formatted as 50K
     expect(screen.getByText("50K")).toBeTruthy();
     // Delta multiplier
     expect(screen.getByText("24×")).toBeTruthy();
+    expect(
+      screen.getByText(/Tỉ lệ views cao nhất so với thấp nhất trong mẫu/),
+    ).toBeTruthy();
+    const tiktokLinks = screen.getAllByRole("link", { name: /Xem video/ });
+    expect(tiktokLinks).toHaveLength(2);
+    expect(tiktokLinks[0]?.getAttribute("href")).toBe(
+      "https://www.tiktok.com/@creatorx/video/v_hit",
+    );
     // Percentile rendering
     expect(screen.getByText("top 35%")).toBeTruthy();
     // Cohort copy "X video" is part of a larger sentence — partial match.
     expect(screen.getByText(/12 video/)).toBeTruthy();
+  });
+
+  it("renders creator comparison thumbnails and caption excerpt when present", () => {
+    const withComparison = makeFlopReport({
+      creator_comparison: {
+        creator_handle: "@creatorx",
+        total_posts_analyzed: 5,
+        median_views: 50_000,
+        target_percentile: "top 35%",
+        target_vs_median: 1.0,
+        delta: 10,
+        hit: {
+          video_id: "a",
+          tiktok_url: "https://www.tiktok.com/@creatorx/video/a",
+          views: 100_000,
+          thumbnail_url: "https://example.com/thumb-a.jpg",
+          hook_type: "Caption hit hay",
+        },
+        flop: {
+          video_id: "b",
+          tiktok_url: "https://www.tiktok.com/@creatorx/video/b",
+          views: 10_000,
+          thumbnail_url: "https://example.com/thumb-b.jpg",
+          hook_type: "Caption flop",
+        },
+      },
+    });
+    const { container } = renderInRouter(withComparison);
+    expect(container.querySelector('img[src="https://example.com/thumb-a.jpg"]')).toBeTruthy();
+    expect(container.querySelector('img[src="https://example.com/thumb-b.jpg"]')).toBeTruthy();
+    expect(screen.getByText("Caption hit hay")).toBeTruthy();
+    expect(screen.getByText("Caption flop")).toBeTruthy();
   });
 
   it("renders soft fallback when creator_comparison is null but creator is known", () => {
@@ -358,7 +403,7 @@ describe("VideoBody render", () => {
     expect(screen.getByText("talking_head")).toBeTruthy();
   });
 
-  it("falls back to '#' href when a comparison video has no tiktok_url", () => {
+  it("shows minh chứng fallback when comparison videos have no TikTok URL", () => {
     const withMissingUrls = makeFlopReport({
       creator_comparison: {
         creator_handle: "@creatorx",
@@ -371,11 +416,8 @@ describe("VideoBody render", () => {
         flop: { video_id: null, tiktok_url: null, views: 60_000 },
       },
     });
-    const { container } = renderInRouter(withMissingUrls);
-    // Both anchors should have href="#" defensively rather than crash.
-    const cardAnchors = Array.from(container.querySelectorAll("a")).filter(
-      (a) => a.getAttribute("href") === "#",
-    );
-    expect(cardAnchors.length).toBeGreaterThanOrEqual(2);
+    renderInRouter(withMissingUrls);
+    expect(screen.getAllByText(/Chưa có link TikTok cho video này/).length).toBe(2);
+    expect(screen.queryAllByRole("link", { name: /Xem video/ })).toHaveLength(0);
   });
 });

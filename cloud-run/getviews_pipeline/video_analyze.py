@@ -289,12 +289,62 @@ def _diagnostics_legacy(diag: dict[str, Any]) -> bool:
     return False
 
 
+# Closed [0, _HOOK_LANG_DEDUPE_WINDOW_END_SEC] — overlap with error [t, end] dedupes vs lang_market.
+_HOOK_LANG_DEDUPE_WINDOW_END_SEC = 4.0
+
+
+def _overlaps_hook_lang_dedupe_window(t: float, end: float) -> bool:
+    err_lo = min(t, end)
+    err_hi = max(t, end)
+    return err_lo <= _HOOK_LANG_DEDUPE_WINDOW_END_SEC and err_hi >= 0.0
+
+
+def _dedupe_lang_market_hook_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """When lang_market_mismatch is present, drop redundant high-sev hook cards overlapping 0–4s."""
+    if not any(str(e.get("error_id") or "") == "lang_market_mismatch" for e in errors):
+        return errors
+    lang_card = next(e for e in errors if str(e.get("error_id") or "") == "lang_market_mismatch")
+    merged_fixes: list[str] = []
+    kept: list[dict[str, Any]] = []
+    for e in errors:
+        eid = str(e.get("error_id") or "")
+        if eid == "lang_market_mismatch":
+            kept.append(e)
+            continue
+        if str(e.get("sev") or "") != "high":
+            kept.append(e)
+            continue
+        t = float(e.get("t") or 0.0)
+        end = float(e.get("end") or t)
+        hook_window = _overlaps_hook_lang_dedupe_window(t, end)
+        title_l = str(e.get("title") or "").lower()
+        eid_l = eid.lower()
+        hook_related = (
+            "hook" in eid_l
+            or eid_l.startswith("err_hook")
+            or "hook" in title_l
+            or "mở đầu" in title_l
+        )
+        if hook_window and hook_related:
+            fx = str(e.get("fix") or "").strip()
+            if fx and fx not in str(lang_card.get("fix") or ""):
+                merged_fixes.append(fx)
+            continue
+        kept.append(e)
+    if merged_fixes:
+        base = str(lang_card.get("fix") or "").strip()
+        extra = "; ".join(merged_fixes[:3])
+        lang_card["fix"] = f"{base} (Bổ sung: {extra})" if base else extra
+    return kept
+
+
 def apply_rule_based_video_errors(
     errors: list[dict[str, Any]],
     analysis: dict[str, Any],
     content_format: str,
     *,
     caption_hint: str | None = None,
+    duration_sec: float | None = None,
 ) -> list[dict[str, Any]]:
     """Augment Gemini error extraction with deterministic guards (language, presence)."""
 
@@ -316,6 +366,10 @@ def apply_rule_based_video_errors(
 
     has_human = bool(analysis.get("has_human_speaking_to_camera"))
     has_opinion = bool(analysis.get("has_expressed_opinion_or_question"))
+    dur = float(duration_sec or 0.0)
+    if dur <= 0:
+        dur = float((analysis.get("duration_sec") or analysis.get("video_duration_sec") or 0) or 0.0)
+    end_ts = float(dur) if dur > 0 else 0.0
     if (
         not has_human
         and not has_opinion
@@ -336,10 +390,10 @@ def apply_rule_based_video_errors(
                 ),
                 "sev": "mid",
                 "t": 0.0,
-                "end": 0.0,
+                "end": end_ts,
             }
         )
-    return out
+    return _dedupe_lang_market_hook_errors(out)
 
 
 def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
@@ -438,6 +492,7 @@ def _response_from_diagnostics_row(
             "title": title_hint or None,
             "engagement_rate": float(video.get("engagement_rate") or 0.0),
             "niche_label": niche_label or None,
+            "niche_id": int(video.get("niche_id") or 0),
             "retention_source": retention_source,
             "creator_median_views": creator_median_views,
             "target_vs_creator_median": target_vs_creator_median,
@@ -680,6 +735,136 @@ def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -
     return str(rows[0]["video_id"])
 
 
+def _corpus_aweme_to_synthesis_ref(aweme: dict[str, Any]) -> dict[str, Any]:
+    """Shape a corpus pool aweme like ``run_video_diagnosis`` analyzed refs."""
+    from getviews_pipeline.output_redesign import hook_type_vi
+
+    stats = aweme.get("statistics") or {}
+    views = int(stats.get("play_count") or 0)
+    handle = (aweme.get("author") or {}).get("unique_id") or ""
+    corpus_analysis = aweme.get("_corpus_analysis") or {}
+    raw_hook_type = (corpus_analysis.get("hook_analysis") or {}).get("hook_type") or ""
+    return {
+        "aweme_id": aweme["aweme_id"],
+        "analysis": corpus_analysis,
+        "metadata": {
+            "video_id": aweme["aweme_id"],
+            "author": {"username": handle},
+            "views": views,
+            "tiktok_url": aweme.get("_corpus_tiktok_url", ""),
+            "thumbnail_url": aweme.get("thumbnail_url"),
+            "days_ago": aweme.get("_corpus_days_ago", 0),
+            "breakout": aweme.get("_corpus_breakout", 0.0),
+            "hook_type": raw_hook_type,
+            "hook_type_vi": hook_type_vi(raw_hook_type),
+            "content_type": aweme.get("_corpus_content_type", "video"),
+        },
+    }
+
+
+def _live_analyzed_to_slim_input(result: dict[str, Any]) -> dict[str, Any]:
+    """Shape ``analyze_aweme`` output like an aweme dict for ``_slim_reference_video``."""
+    meta = result.get("metadata") or {}
+    vid = str(meta.get("video_id") or "")
+    author = meta.get("author") if isinstance(meta.get("author"), dict) else {}
+    handle = str(author.get("username") or "").lstrip("@")
+    metrics = meta.get("metrics") if isinstance(meta.get("metrics"), dict) else {}
+    desc = str(meta.get("description") or "")[:120]
+    return {
+        "aweme_id": vid,
+        "author": {"unique_id": handle},
+        "thumbnail_url": meta.get("thumbnail_url"),
+        "statistics": {"play_count": metrics.get("views")},
+        "desc": desc or None,
+        "engagement_rate": meta.get("engagement_rate"),
+        "analysis": result.get("analysis"),
+    }
+
+
+async def _live_search_references_for_finalize(
+    niche_name: str,
+    target_video_id: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """EnsembleData niche pool + ``analyze_aweme`` — mirrors sparse path in ``run_video_diagnosis``."""
+    from getviews_pipeline.analysis_core import analyze_aweme
+    from getviews_pipeline.helpers import select_reference_videos
+    from getviews_pipeline.pipelines import REF_N, _niche_aweme_pool, _slim_reference_video
+    from getviews_pipeline.runtime import get_analysis_semaphore
+
+    pool = await _niche_aweme_pool(niche_name, period=30)
+    skip = {target_video_id} if target_video_id else set()
+    picks = select_reference_videos(
+        pool, recency_days=30, n=REF_N, cached_ids=skip, rank_by="er"
+    )
+    if not picks:
+        return [], []
+
+    sem = get_analysis_semaphore()
+
+    async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
+        try:
+            async with sem:
+                return await asyncio.wait_for(
+                    analyze_aweme(aweme, include_diagnosis=False, full_analyses=None),
+                    timeout=120.0,
+                )
+        except (TimeoutError, Exception) as exc:
+            logger.warning(
+                "[finalize_narrative] live ref analyze failed aweme_id=%s: %s",
+                aweme.get("aweme_id"),
+                exc,
+            )
+            return {"_skipped": True}
+
+    results = await asyncio.gather(*[_one(a) for a in picks])
+    synthesis_refs: list[dict[str, Any]] = []
+    slim_refs: list[dict[str, Any]] = []
+    for res in results:
+        if not isinstance(res, dict) or res.get("_skipped") or "analysis" not in res:
+            continue
+        meta = res.get("metadata") or {}
+        vid = str(meta.get("video_id") or "")
+        if not vid:
+            continue
+        synthesis_refs.append({**res, "aweme_id": vid})
+        slim_refs.append(
+            _slim_reference_video(_live_analyzed_to_slim_input(res), "live_search")
+        )
+
+    if not synthesis_refs:
+        return [], []
+    return synthesis_refs, slim_refs
+
+
+def _select_corpus_references_for_finalize(
+    niche_name: str,
+    target_video_id: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Corpus refs when pool ≥ REF_N; otherwise Ensemble live search + on-demand analysis."""
+    from getviews_pipeline.corpus_context import fetch_corpus_reference_pool_sync
+    from getviews_pipeline.pipelines import REF_N, _slim_reference_video
+
+    if not niche_name.strip() or not target_video_id.strip():
+        return [], []
+    pool = fetch_corpus_reference_pool_sync(
+        niche_name, days=30, limit=40, exclude_video_id=target_video_id
+    )
+    if len(pool) >= REF_N:
+        pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
+        skip = {target_video_id}
+        picks = [v for v in pool if v.get("aweme_id") not in skip][:REF_N]
+        if len(picks) >= REF_N:
+            synthesis = [_corpus_aweme_to_synthesis_ref(p) for p in picks]
+            slim = [_slim_reference_video(p, "corpus") for p in picks]
+            return synthesis, slim
+
+    try:
+        return asyncio.run(_live_search_references_for_finalize(niche_name, target_video_id))
+    except Exception as exc:
+        logger.warning("[finalize_narrative] live reference search failed: %s", exc)
+        return [], []
+
+
 def finalize_video_narrative_layer(
     out: dict[str, Any],
     *,
@@ -694,11 +879,13 @@ def finalize_video_narrative_layer(
 
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
     from getviews_pipeline.pipelines import (
+        _estimate_er_percentile_rank,
+        _truncate_transcripts,
         classify_performance_tier_corpus,
         compute_bright_spot_signal,
+        enrich_format_cards_from_corpus,
         fetch_channel_context_sync,
         refine_performance_tier,
-        _estimate_er_percentile_rank,
     )
     from getviews_pipeline.step_events import emit
 
@@ -709,13 +896,17 @@ def finalize_video_narrative_layer(
         out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else {}
     )
 
+    niche_name = str(meta.get("niche_label") or "")
+    video_id = str(out.get("video_id") or "")
+    synthesis_refs, slim_refs = _select_corpus_references_for_finalize(niche_name, video_id)
+    out["reference_videos"] = slim_refs
+
     views = int(meta.get("views") or 0)
     corpus_avg_views = float(niche_meta.get("avg_views") or 0.0)
     performance_tier: str = classify_performance_tier_corpus(views, corpus_avg_views or None)
 
     channel_context_payload: dict[str, Any] | None = None
     creator_handle = str(meta.get("creator") or "").strip()
-    video_id = str(out.get("video_id") or "")
     if creator_handle and video_id:
         try:
             raw_ctx = fetch_channel_context_sync(creator_handle, video_id)
@@ -740,7 +931,6 @@ def finalize_video_narrative_layer(
                 {"type": "channel_context", "channel_context": channel_context_payload},
             )
 
-    niche_name = str(meta.get("niche_label") or "")
     corpus_size = int(niche_meta.get("sample_size") or niche_meta.get("corpus_size") or 0)
     user_stats: dict[str, Any] = {
         "views": views,
@@ -792,7 +982,7 @@ def finalize_video_narrative_layer(
             niche_name=niche_name or "unknown",
             corpus_size=corpus_size,
             niche_norms=niche_meta,
-            reference_videos=out.get("reference_videos") or [],
+            reference_videos=_truncate_transcripts(synthesis_refs),
             user_analysis=analysis,
             user_stats=user_stats,
             performance_tier=performance_tier,
@@ -802,6 +992,14 @@ def finalize_video_narrative_layer(
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
+
+    niche_id_finalize = int(meta.get("niche_id") or 0)
+    if format_cards_out and niche_id_finalize:
+        format_cards_out = enrich_format_cards_from_corpus(
+            format_cards_out,
+            niche_id_finalize,
+            analyzed_content_format=content_format or None,
+        )
 
     if step_queue is not None:
         emit(
@@ -1017,6 +1215,7 @@ def run_video_analyze_pipeline(
         analysis,
         content_format_str,
         caption_hint=(str(video.get("caption") or "").strip() or None),
+        duration_sec=float(dur) if dur > 0 else None,
     )
     for _h in hook_cards:
         if isinstance(_h, dict) and "body" in _h:
@@ -1303,6 +1502,7 @@ def run_video_analyze_on_demand(
         analysis,
         content_format_str_od,
         caption_hint=_caption_od or None,
+        duration_sec=float(dur) if dur > 0 else None,
     )
     for _h in hook_cards:
         if isinstance(_h, dict) and "body" in _h:

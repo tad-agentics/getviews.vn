@@ -2,8 +2,6 @@ import type { VideoFlopIssue } from "@/lib/api-types";
 
 export type IssueCardProps = {
   issue: VideoFlopIssue;
-  /** Optional CTA (e.g. navigate to script / chat). */
-  onApplyToScript?: () => void;
   className?: string;
 };
 
@@ -14,13 +12,13 @@ const sevLabel: Record<string, string> = {
 };
 
 /**
- * Flop diagnostic row — grid `80px 1fr auto` per Phase B plan.
+ * Flop diagnostic row — grid `80px 1fr` per Phase B plan.
  */
-export function IssueCard({ issue, onApplyToScript, className = "" }: IssueCardProps) {
+export function IssueCard({ issue, className = "" }: IssueCardProps) {
   const isHigh = issue.sev === "high";
   return (
     <div
-      className={`grid grid-cols-[80px_1fr_auto] items-start gap-4 border border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 ${
+      className={`grid grid-cols-1 items-start gap-4 border border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 sm:grid-cols-[80px_1fr] ${
         isHigh
           ? "border-[color:var(--gv-accent)] border-l-[color:var(--gv-accent)]"
           : "border-[color:var(--gv-rule)] border-l-[color:var(--gv-ink-4)]"
@@ -52,17 +50,6 @@ export function IssueCard({ issue, onApplyToScript, className = "" }: IssueCardP
           {issue.fix}
         </div>
       </div>
-      {onApplyToScript ? (
-        <button
-          type="button"
-          onClick={onApplyToScript}
-          className="self-start rounded-md border border-[color:var(--gv-rule)] bg-transparent px-2 py-1 text-[11px] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
-        >
-          Áp vào kịch bản
-        </button>
-      ) : (
-        <span className="w-px shrink-0" aria-hidden />
-      )}
     </div>
   );
 }

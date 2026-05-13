@@ -508,6 +508,7 @@ class CreatorComparisonVideo(BaseModel):
     video_id: str | None = None
     tiktok_url: str | None = None
     views: int
+    # Caption excerpt (≤60 chars) from Ensemble post — field name is legacy.
     hook_type: str | None = None
     thumbnail_url: str | None = None
 

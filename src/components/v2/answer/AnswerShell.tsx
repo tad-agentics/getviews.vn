@@ -29,7 +29,9 @@ export function AnswerShell({
       >
         <div className="min-w-0">{main}</div>
         {hasAside ? (
-          <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-16">{aside}</aside>
+          <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-16 lg:self-start">
+            {aside}
+          </aside>
         ) : null}
       </section>
     </main>

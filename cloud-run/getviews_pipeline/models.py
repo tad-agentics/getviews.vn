@@ -237,6 +237,14 @@ class BrightSpotSignal(BaseModel):
     message_vi: str
 
 
+class FormatCardExample(BaseModel):
+    aweme_id: str
+    desc: str = ""
+    play_count: int = 0
+    creator_handle: str = ""
+    tiktok_url: str
+
+
 class FormatCard(BaseModel):
     format_name_vi: str
     mechanism_vi: str
@@ -244,6 +252,11 @@ class FormatCard(BaseModel):
     engagement_rate: str
     example_hook_vi: str
     evidence_aweme_id: str | None = None
+    format_examples: list[FormatCardExample] | None = None
+    content_format: str | None = Field(
+        default=None,
+        description="Canonical slug matching video_corpus.content_format",
+    )
 
 
 class ReferenceVideoCard(BaseModel):
@@ -264,6 +277,7 @@ class ChannelContextVideo(BaseModel):
     desc: str | None = None
     views: int | None = None
     content_format: str | None = None
+    tiktok_url: str | None = None
 
 
 class ChannelContext(BaseModel):

@@ -43,6 +43,8 @@ export interface VideoAnalyzeMeta {
   target_vs_creator_median?: number | null;
   /** Engagement rate from corpus / TikTok metadata — powers bright-spot signal. */
   engagement_rate?: number;
+  /** Legacy niche taxonomy id for corpus joins (format benchmarks, examples). */
+  niche_id?: number;
 }
 
 export interface VideoKpi {
@@ -153,6 +155,7 @@ export interface CreatorComparisonVideo {
   video_id?: string | null;
   tiktok_url?: string | null;
   views: number;
+  /** Caption excerpt from channel fetch (≤60 chars); not a hook taxonomy id. */
   hook_type?: string | null;
   thumbnail_url?: string | null;
 }
@@ -1067,13 +1070,25 @@ export interface BrightSpotSignal {
   message_vi: string;
 }
 
+export interface FormatCardExample {
+  aweme_id: string;
+  desc: string;
+  play_count: number;
+  creator_handle: string;
+  tiktok_url: string;
+}
+
 export interface FormatCard {
   format_name_vi: string;
   mechanism_vi: string;
+  /** Canonical slug matching ``video_corpus.content_format`` (optional if only VI labels). */
+  content_format?: string | null;
   view_range: string;
   engagement_rate: string;
   example_hook_vi: string;
   evidence_aweme_id: string | null;
+  /** Top corpus rows for this format + niche; hidden when &lt; 2 samples. */
+  format_examples?: FormatCardExample[];
 }
 
 export interface ChannelContextVideo {
@@ -1081,6 +1096,7 @@ export interface ChannelContextVideo {
   desc: string | null;
   views: number | null;
   content_format: string | null;
+  tiktok_url?: string;
 }
 
 export interface ChannelContext {

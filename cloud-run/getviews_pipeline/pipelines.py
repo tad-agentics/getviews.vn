@@ -55,7 +55,7 @@ from getviews_pipeline.helpers import (
     select_reference_videos,
 )
 from getviews_pipeline.intents import QueryIntent
-from getviews_pipeline.output_redesign import hook_type_vi
+from getviews_pipeline.output_redesign import FORMAT_ANALYSIS_WEIGHTS, hook_type_vi
 from getviews_pipeline.pattern_fingerprint import (
     annotate_with_pattern_names,
     get_top_delta_patterns,
@@ -81,6 +81,89 @@ from getviews_pipeline.video_analyze import apply_rule_based_video_errors, extra
 logger = logging.getLogger(__name__)
 
 REF_N = 5
+
+# Canonical video_corpus.content_format slugs (no carousel* keys).
+_VIDEO_CORPUS_FORMAT_SLUGS: frozenset[str] = frozenset(
+    k for k in FORMAT_ANALYSIS_WEIGHTS if not str(k).startswith("carousel")
+)
+
+# First regex match wins when Gemini omits ``content_format``.
+_FORMAT_SLUG_INFERENCE: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"mukbang|asmr.*ăn|ăn cùng"), "mukbang"),
+    (re.compile(r"\bgrwm\b|get ready|makeup routine|morning routine"), "grwm"),
+    (
+        re.compile(
+            r"gameplay|gaming|liên quân|valorant|minecraft|genshin|roblox|pubg|\blol\b"
+        ),
+        "gameplay",
+    ),
+    (re.compile(r"\brecipe\b|công thức|\bnấu\b|nguyên liệu|ướp\b|\bchiên\b"), "recipe"),
+    (re.compile(r"\bhaul\b|unbox|đập hộp|mở hộp"), "haul"),
+    (re.compile(r"\breview\b|đánh giá|chấm điểm|trải nghiệm sản phẩm"), "review"),
+    (re.compile(r"so sánh|versus|\bvs\.?\b|đối đầu"), "comparison"),
+    (re.compile(r"\btutorial\b|hướng dẫn|\btips\b|mẹo hay"), "tutorial"),
+    (re.compile(r"\blesson\b|bài học|từ vựng|ngữ pháp|học tiếng"), "lesson"),
+    (re.compile(r"comedy skit|\bskit\b|tiểu phẩm|hài kịch|\bprank\b"), "comedy_skit"),
+    (
+        re.compile(r"storytelling|kể chuyện|câu chuyện|chia sẻ câu chuyện"),
+        "storytelling",
+    ),
+    (re.compile(r"before.?after|trước và sau|trước/sau|glow.?up|biến đổi"), "before_after"),
+    (re.compile(r"(^|\s)pov[: ]|\bpov\b"), "pov"),
+    (
+        re.compile(r"\boutfit\b|ootd|phối đồ|mix đồ|\btransition\b"),
+        "outfit_transition",
+    ),
+    (re.compile(r"\bvlog\b|một ngày|daily vlog|thường ngày"), "vlog"),
+    (re.compile(r"\bdance\b|nhảy|choreo"), "dance"),
+    (
+        re.compile(
+            r"faceless|\bb-?roll\b|trình diễn sản phẩm|lifestyle b-?roll|không lộ mặt"
+        ),
+        "faceless",
+    ),
+    (re.compile(r"\bhighlight\b|montage|khoảnh khắc"), "highlight"),
+]
+
+
+def _normalize_card_content_format_slug(raw: Any) -> str | None:
+    if raw is None or raw == "":
+        return None
+    s = str(raw).strip().lower().replace(" ", "_").replace("-", "_")
+    if s in _VIDEO_CORPUS_FORMAT_SLUGS:
+        return s
+    return None
+
+
+def _infer_format_slug_from_card_text(combined: str) -> str | None:
+    if not combined or not str(combined).strip():
+        return None
+    text = str(combined).lower()
+    for pat, slug in _FORMAT_SLUG_INFERENCE:
+        if pat.search(text):
+            return slug
+    return None
+
+
+def _format_card_corpus_slug(
+    card: dict[str, Any],
+    *,
+    analyzed_content_format: str | None,
+    multi_card: bool,
+) -> str | None:
+    slug = _normalize_card_content_format_slug(
+        card.get("content_format") or card.get("format_content_key")
+    )
+    if slug:
+        return slug
+    name = str(card.get("format_name_vi") or "")
+    mech = str(card.get("mechanism_vi") or "")
+    slug = _infer_format_slug_from_card_text(f"{name} {mech}")
+    if slug:
+        return slug
+    if not multi_card and analyzed_content_format:
+        return _normalize_card_content_format_slug(analyzed_content_format)
+    return None
 
 
 def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str, Any]:
@@ -238,6 +321,7 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
                     "desc": v.get("caption"),
                     "views": int(v.get("views") or 0),
                     "content_format": v.get("content_format"),
+                    "tiktok_url": f"https://www.tiktok.com/@{handle}/video/{v.get('video_id')}",
                 }
                 for v in top_videos
             ],
@@ -247,6 +331,7 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
                     "desc": v.get("caption"),
                     "views": int(v.get("views") or 0),
                     "content_format": v.get("content_format"),
+                    "tiktok_url": f"https://www.tiktok.com/@{handle}/video/{v.get('video_id')}",
                 }
                 for v in bottom_videos
             ],
@@ -302,6 +387,130 @@ def _format_avg_views_for_diagnosis(niche_id: int, content_format: str) -> float
     except Exception as exc:
         logger.warning("[video_diagnosis] format_avg lookup failed: %s", exc)
         return None
+
+
+def _fmt_int_vi(n: int) -> str:
+    """Integer with dot thousands separator (matches FE vi-VN style)."""
+    return f"{int(n):,}".replace(",", ".")
+
+
+def fetch_format_corpus_enrichment_sync(
+    content_format: str,
+    niche_id: int,
+    *,
+    example_limit: int = 3,
+) -> tuple[str | None, str | None, list[dict[str, Any]]]:
+    """Corpus view-range + median ER for a format×niche; top videos as linkable examples."""
+    if not content_format or not niche_id:
+        return None, None, []
+    try:
+        since_dt = datetime.now(UTC) - timedelta(days=30)
+        since_iso = since_dt.isoformat()
+        client = get_service_client()
+        res = (
+            client.table("video_corpus")
+            .select("video_id, caption, views, creator_handle, likes, comments, shares")
+            .eq("niche_id", niche_id)
+            .eq("content_format", content_format)
+            .gte("indexed_at", since_iso)
+            .limit(200)
+            .execute()
+        )
+        rows = [r for r in (res.data or []) if r.get("video_id")]
+    except Exception as exc:
+        logger.warning("[format_enrich] corpus query failed: %s", exc)
+        return None, None, []
+
+    view_r: str | None = None
+    er_r: str | None = None
+    if len(rows) >= 5:
+        views_sorted = sorted(
+            int(r.get("views") or 0) for r in rows if int(r.get("views") or 0) > 0
+        )
+        if len(views_sorted) >= 5:
+            n = len(views_sorted)
+            p25 = views_sorted[max(0, (n * 25) // 100)]
+            p75 = views_sorted[min(n - 1, (n * 75) // 100)]
+            view_r = f"{_fmt_int_vi(p25)} – {_fmt_int_vi(p75)}"
+            er_vals: list[float] = []
+            for r in rows:
+                v = int(r.get("views") or 0)
+                if v <= 0:
+                    continue
+                eng = (
+                    int(r.get("likes") or 0)
+                    + int(r.get("comments") or 0)
+                    + int(r.get("shares") or 0)
+                )
+                er_vals.append(eng / float(v))
+            if er_vals:
+                med_er = float(stats_module.median(er_vals))
+                er_r = f"{med_er * 100:.2f}%".replace(".", ",")
+
+    by_v = sorted(rows, key=lambda r: int(r.get("views") or 0), reverse=True)
+    examples: list[dict[str, Any]] = []
+    for r in by_v[:example_limit]:
+        aid = str(r.get("video_id") or "")
+        handle = str(r.get("creator_handle") or "").lstrip("@").strip()
+        if not aid or not handle:
+            continue
+        examples.append(
+            {
+                "aweme_id": aid,
+                "desc": (str(r.get("caption") or "").strip())[:80],
+                "play_count": int(r.get("views") or 0),
+                "creator_handle": handle,
+                "tiktok_url": f"https://www.tiktok.com/@{handle}/video/{aid}",
+            }
+        )
+    if len(examples) < 1:
+        examples = []
+    return view_r, er_r, examples
+
+
+def enrich_format_cards_from_corpus(
+    format_cards: list[dict[str, Any]] | None,
+    niche_id: int,
+    *,
+    analyzed_content_format: str | None = None,
+) -> list[dict[str, Any]] | None:
+    """Merge per-card corpus stats/examples using each card's ``content_format`` slug.
+
+    Slug resolution: optional model ``content_format`` field, then Vietnamese
+    inference from ``format_name_vi`` + ``mechanism_vi``, then (single-card only)
+    the analyzed video's ``analyzed_content_format``.
+    """
+    if not format_cards or not niche_id:
+        return format_cards
+    dict_rows = [c for c in format_cards if isinstance(c, dict)]
+    multi = len(dict_rows) > 1
+    cache: dict[str, tuple[str | None, str | None, list[dict[str, Any]]]] = {}
+    out: list[dict[str, Any]] = []
+    for c in format_cards:
+        if not isinstance(c, dict):
+            continue
+        cc = dict(c)
+        slug = _format_card_corpus_slug(
+            cc,
+            analyzed_content_format=analyzed_content_format,
+            multi_card=multi,
+        )
+        if not slug:
+            out.append(cc)
+            continue
+        if slug not in cache:
+            cache[slug] = fetch_format_corpus_enrichment_sync(slug, niche_id)
+        view_r, er_r, examples = cache[slug]
+        if view_r:
+            cc["view_range"] = view_r
+        if er_r:
+            cc["engagement_rate"] = er_r
+        if examples:
+            cc["format_examples"] = examples
+        else:
+            cc.pop("format_examples", None)
+        out.append(cc)
+    return out
 
 
 def _estimate_er_percentile_rank(user_er: float, niche_avg_er: float | None) -> float | None:
@@ -1723,6 +1932,7 @@ async def run_video_diagnosis(
                 user_analysis_dict,
                 content_format,
                 caption_hint=_post_desc,
+                duration_sec=float(user_stats.get("duration") or 0) or None,
             )
 
             kpi_dict: dict[str, Any] = {
@@ -1803,6 +2013,12 @@ async def run_video_diagnosis(
                 errors=errors_prompt,
                 reference_evidence_block=evidence_block,
             )
+            if format_cards_out and niche_id:
+                format_cards_out = enrich_format_cards_from_corpus(
+                    format_cards_out,
+                    int(niche_id),
+                    analyzed_content_format=content_format or None,
+                )
             _nr_ev: dict[str, Any] = {
                 "type": "narrative_ready",
                 "narrative_vi": narrative_vi_out,

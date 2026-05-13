@@ -626,7 +626,15 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
     "dinh_huong_chien_luoc": "3-4 câu kết luận. Nói cụ thể creator cần làm gì khác cho video tiếp theo. Dựa trên dữ liệu thực. Không dự báo view."
   },
   "format_cards": [
-    {"format_name_vi": "...", "mechanism_vi": "...", "view_range": "CORPUS_DATA", "engagement_rate": "CORPUS_DATA", "example_hook_vi": "dưới 15 từ, tiếng Việt tự nhiên", "evidence_aweme_id": "from_list_above_or_null"}
+    {
+      "format_name_vi": "...",
+      "mechanism_vi": "...",
+      "content_format": "tutorial|review|haul|mukbang|recipe|grwm|comparison|storytelling|before_after|pov|outfit_transition|vlog|dance|faceless|gameplay|comedy_skit|lesson|highlight|other",
+      "view_range": "CORPUS_DATA",
+      "engagement_rate": "CORPUS_DATA",
+      "example_hook_vi": "dưới 15 từ, tiếng Việt tự nhiên",
+      "evidence_aweme_id": "from_list_above_or_null"
+    }
   ]
 }
 ```

@@ -1,8 +1,8 @@
 /**
  * VideoBody — video diagnosis report rendered as an answer-session body.
  *
- * This is the structured Win/Flop report (KPI strip + retention curve +
- * niche overlay + hook phases + errors + narrative_vi)
+ * This is the structured Win/Flop report (KPI strip + niche overlay +
+ * hook phases + errors + narrative_vi)
  * lifted from ``src/routes/_app/video/VideoScreen.tsx``'s
  * ``VideoAnalysisBodyInner``. Visual design and behaviour match the
  * dedicated screen 1:1 — same components, same copy, same handlers.
@@ -18,17 +18,15 @@
  */
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { ArrowRight, ChevronDown, Copy, Play } from "lucide-react";
+import { ArrowRight, Copy, Play } from "lucide-react";
 
 import { SectionMini } from "@/components/SectionMini";
 import { Btn } from "@/components/v2/Btn";
-import { RetentionCurve } from "@/components/v2/RetentionCurve";
 import { Timeline } from "@/components/v2/Timeline";
 import { HookPhaseGrid } from "@/components/v2/HookPhaseCard";
 import { KpiGrid } from "@/components/v2/KpiGrid";
 import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EvidenceVideoEmbed } from "@/components/v2/answer/video/EvidenceVideoEmbed";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
@@ -37,7 +35,9 @@ import type {
   BrightSpotSignal,
   ChannelContext,
   CreatorComparison,
+  CreatorComparisonVideo,
   FormatCard,
+  FormatCardExample,
   LoidChinhNarrativeItem,
   NarrativeVi,
   ReferenceVideoCard,
@@ -54,6 +54,17 @@ import type {
 
 // Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers.
 const WINNERS_CLAIM_MIN = 10;
+
+function pickFormatCorpusEvidence(card: FormatCard): FormatCardExample | null {
+  const xs = card.format_examples;
+  if (!xs?.length) return null;
+  const id = card.evidence_aweme_id;
+  if (id) {
+    const hit = xs.find((e) => e.aweme_id === id);
+    if (hit) return hit;
+  }
+  return xs[0];
+}
 
 function formatViewsVi(n: number): string {
   return n.toLocaleString("vi-VN");
@@ -188,6 +199,70 @@ function CreatorComparisonCard({ data }: { data: CreatorComparison }) {
         ? `${Math.round(v / 1_000)}K`
         : v.toLocaleString("vi-VN");
 
+  function CreatorComparisonEvidenceCell({
+    label,
+    video,
+    accent,
+  }: {
+    label: string;
+    video: CreatorComparisonVideo;
+    accent: "hit" | "flop";
+  }) {
+    const borderCls =
+      accent === "hit" ? "border-[var(--gv-pos)]" : "border-[var(--gv-rule)]";
+    const labelCls =
+      accent === "hit" ? "text-[var(--gv-pos)]" : "text-[var(--gv-ink-3)]";
+    const url = video.tiktok_url?.trim();
+    /** Pipeline stores a short caption preview in ``hook_type`` (see report_video). */
+    const captionHint = video.hook_type?.trim();
+
+    return (
+      <div
+        className={`flex flex-col gap-2 rounded-lg border ${borderCls} bg-[var(--gv-canvas)] p-3`}
+      >
+        <span
+          className={`gv-mono text-[9px] font-semibold uppercase tracking-wider ${labelCls}`}
+        >
+          {label}
+        </span>
+        {video.thumbnail_url ? (
+          <div className="relative mx-auto aspect-[9/16] w-full max-w-[120px] overflow-hidden rounded-md bg-[var(--gv-canvas-2)]">
+            <img
+              src={video.thumbnail_url}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        ) : null}
+        <span className="gv-mono text-[22px] font-bold leading-none text-[var(--gv-ink)]">
+          {fmtViews(video.views)}
+        </span>
+        <span className="text-[10px] text-[var(--gv-ink-3)]">lượt xem</span>
+        {captionHint ? (
+          <p className="m-0 line-clamp-2 text-[11px] leading-snug text-[var(--gv-ink-2)]">
+            {captionHint}
+          </p>
+        ) : null}
+        {url ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-auto pt-1 text-[11px] font-semibold text-[color:var(--gv-accent)] underline underline-offset-2 hover:opacity-90"
+          >
+            Xem video →
+          </a>
+        ) : (
+          <p className="m-0 mt-auto pt-1 text-[10px] text-[var(--gv-ink-4)]">
+            Chưa có link TikTok cho video này.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6 rounded-xl border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] p-4">
       <p className="gv-mono mb-3 text-[10px] uppercase tracking-wider text-[var(--gv-ink-3)]">
@@ -195,40 +270,23 @@ function CreatorComparisonCard({ data }: { data: CreatorComparison }) {
       </p>
 
       <div className="grid grid-cols-2 gap-3">
-        <a
-          href={data.hit.tiktok_url ?? "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col gap-1 rounded-lg border border-[var(--gv-pos)] bg-[var(--gv-canvas)] p-3 no-underline"
-        >
-          <span className="gv-mono text-[9px] uppercase tracking-wider text-[var(--gv-pos)]">
-            Video đỉnh
-          </span>
-          <span className="gv-mono text-[22px] font-bold leading-none text-[var(--gv-ink)]">
-            {fmtViews(data.hit.views)}
-          </span>
-          <span className="text-[10px] text-[var(--gv-ink-3)]">lượt xem</span>
-        </a>
-
-        <a
-          href={data.flop.tiktok_url ?? "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col gap-1 rounded-lg border border-[var(--gv-rule)] bg-[var(--gv-canvas)] p-3 no-underline"
-        >
-          <span className="gv-mono text-[9px] uppercase tracking-wider text-[var(--gv-ink-3)]">
-            Video thấp nhất
-          </span>
-          <span className="gv-mono text-[22px] font-bold leading-none text-[var(--gv-ink)]">
-            {fmtViews(data.flop.views)}
-          </span>
-          <span className="text-[10px] text-[var(--gv-ink-3)]">lượt xem</span>
-        </a>
+        <CreatorComparisonEvidenceCell
+          label="Video có views cao nhất"
+          video={data.hit}
+          accent="hit"
+        />
+        <CreatorComparisonEvidenceCell
+          label="Video có views thấp nhất"
+          video={data.flop}
+          accent="flop"
+        />
       </div>
 
-      <div className="mt-3 flex items-center justify-between rounded-lg bg-[var(--gv-canvas)] px-3 py-2.5">
-        <span className="text-[12px] text-[var(--gv-ink-2)]">Video đỉnh vượt video thấp nhất</span>
-        <span className="gv-mono text-[13px] font-bold text-[var(--gv-ink)]">
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-[var(--gv-canvas)] px-3 py-2.5">
+        <span className="min-w-0 text-[12px] leading-snug text-[var(--gv-ink-2)]">
+          Tỉ lệ views cao nhất so với thấp nhất trong mẫu
+        </span>
+        <span className="gv-mono shrink-0 text-[13px] font-bold text-[var(--gv-ink)]">
           {data.delta.toLocaleString("vi-VN")}×
         </span>
       </div>
@@ -260,19 +318,15 @@ function FlopIssueNarrativeRow({
   issue,
   narrativeItem,
   referenceVideos,
-  defaultOpen,
-  onApplyToScript,
 }: {
   issue: VideoFlopIssue;
   narrativeItem?: LoidChinhNarrativeItem;
   referenceVideos: ReferenceVideoCard[];
-  defaultOpen: boolean;
-  onApplyToScript?: () => void;
 }) {
   const isHigh = issue.sev === "high";
   return (
     <div
-      className={`grid grid-cols-1 items-start gap-4 border border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 sm:grid-cols-[80px_1fr_auto] ${
+      className={`grid grid-cols-1 items-start gap-4 border border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 sm:grid-cols-[80px_1fr] ${
         isHigh
           ? "border-[color:var(--gv-accent)] border-l-[color:var(--gv-accent)]"
           : "border-[color:var(--gv-rule)] border-l-[color:var(--gv-ink-4)]"
@@ -309,36 +363,21 @@ function FlopIssueNarrativeRow({
             reference_videos={referenceVideos}
           />
         ) : null}
-        <Collapsible defaultOpen={defaultOpen}>
-          <CollapsibleTrigger className="flex min-h-11 w-full max-w-[640px] items-center justify-between gap-2 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-2 text-left text-[12px] font-medium text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas)] [&[data-state=open]>svg]:rotate-180">
+        <div className="mt-2 max-w-[640px]">
+          <h5 className="m-0 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Chi tiết kỹ thuật và cách sửa
-            <ChevronDown
-              className="h-4 w-4 shrink-0 text-[color:var(--gv-ink-3)] transition-transform duration-200"
-              aria-hidden
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 space-y-2 data-[state=closed]:animate-out">
-            <p className="m-0 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+          </h5>
+          <div className="space-y-2">
+            <p className="m-0 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
               {issue.detail}
             </p>
             <div className="inline-block bg-[color:var(--gv-canvas-2)] px-2.5 py-1.5 text-xs text-[color:var(--gv-ink-2)]">
               <span className="gv-uc mr-1.5 text-[9px] text-[color:var(--gv-accent)]">Fix</span>
               {issue.fix}
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
+        </div>
       </div>
-      {onApplyToScript ? (
-        <button
-          type="button"
-          onClick={onApplyToScript}
-          className="min-h-11 self-start rounded-md border border-[color:var(--gv-rule)] bg-transparent px-2 py-1 text-[11px] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)] sm:min-h-11"
-        >
-          Áp vào kịch bản
-        </button>
-      ) : (
-        <span className="w-px shrink-0" aria-hidden />
-      )}
     </div>
   );
 }
@@ -428,7 +467,6 @@ export function VideoBody({
   const meta = report.meta;
   const duration = meta.duration_sec || 58;
   const userCurve = report.retention_curve ?? [];
-  const bench = report.niche_benchmark_curve;
   const retEnd = retentionEndPct(userCurve);
   // ``mode`` lives on the report (BE single source of truth). VideoScreen
   // briefly distinguished a ``viewMode`` state during refetch; on the
@@ -458,7 +496,6 @@ export function VideoBody({
     body: l.body,
   }));
   const flopIssueCount = flopIssuesForNarrative.length;
-  const firstHighIdx = flopIssuesForNarrative.findIndex((i) => i.sev === "high");
 
   // Reconstruct the public TikTok URL from creator + video_id. On
   // ``/app/video`` the screen had access to the user's pasted ?url=
@@ -552,13 +589,13 @@ export function VideoBody({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-8 min-[900px]:grid-cols-[320px_1fr]">
-      <aside className="min-w-0">
+    <div className="grid grid-cols-1 items-start gap-8 min-[900px]:grid-cols-[320px_1fr]">
+      <aside className="min-w-0 self-start">
         {/*
           Sticky within the studio scrollport: follows the user down the report
           until the grid row ends (same height as the main column), then scrolls away.
         */}
-        <div className="sticky top-20 space-y-3 lg:top-24">
+        <div className="sticky top-20 space-y-3 self-start lg:top-24">
           <div
             className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
             style={{
@@ -681,7 +718,7 @@ export function VideoBody({
             aria-label="Điểm sáng tín hiệu"
           >
             <p className="gv-mono mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
-              Điểm sáng
+              Tín hiệu
             </p>
             <div className="flex items-start gap-2">
               <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[color:var(--gv-accent)]" />
@@ -711,16 +748,12 @@ export function VideoBody({
                 const narrativeItem = narrativeVi?.loi_chinh_narrative?.find(
                   (n) => n.error_id === issue.error_id,
                 );
-                const defaultOpen =
-                  firstHighIdx >= 0 ? i === firstHighIdx : i === 0;
                 return (
                   <FlopIssueNarrativeRow
                     key={issue.error_id ?? `${issue.title}-${i}`}
                     issue={issue}
                     narrativeItem={narrativeItem}
                     referenceVideos={refVideos}
-                    defaultOpen={defaultOpen}
-                    onApplyToScript={goScript}
                   />
                 );
               })}
@@ -756,6 +789,16 @@ export function VideoBody({
                       {v.views.toLocaleString("vi-VN")} lượt xem
                     </p>
                   ) : null}
+                  {v.tiktok_url ? (
+                    <a
+                      href={v.tiktok_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 block text-[11px] font-semibold text-[color:var(--gv-accent)] underline underline-offset-2 hover:opacity-90"
+                    >
+                      Xem video →
+                    </a>
+                  ) : null}
                 </div>
               ))}
               <div className="rounded-[10px] border border-[color:var(--gv-accent)]/40 bg-[color:var(--gv-paper)] p-3">
@@ -790,6 +833,16 @@ export function VideoBody({
                         {v.views.toLocaleString("vi-VN")} lượt xem
                       </p>
                     ) : null}
+                    {v.tiktok_url ? (
+                      <a
+                        href={v.tiktok_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 block text-[11px] font-semibold text-[color:var(--gv-accent)] underline underline-offset-2 hover:opacity-90"
+                      >
+                        Xem video →
+                      </a>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -815,7 +868,18 @@ export function VideoBody({
               Format đang hoạt động trong ngách này
             </h3>
             <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-3">
-              {formatCardsEffective.map((card, i) => (
+              {formatCardsEffective.map((card, i) => {
+                const corpusEv = pickFormatCorpusEvidence(card);
+                const refHit = card.evidence_aweme_id
+                  ? refVideos.find((r) => r.aweme_id === card.evidence_aweme_id)
+                  : undefined;
+                const featuredId = refHit?.aweme_id ?? corpusEv?.aweme_id ?? null;
+                const moreExamples = (card.format_examples ?? []).filter((ex) =>
+                  featuredId ? ex.aweme_id !== featuredId : true,
+                );
+                const hasEvidence = Boolean(refHit ?? corpusEv);
+
+                return (
                 <div
                   key={`${card.format_name_vi}-${i}`}
                   className="flex flex-col rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4"
@@ -835,12 +899,50 @@ export function VideoBody({
                       &ldquo;{card.example_hook_vi}&rdquo;
                     </p>
                   ) : null}
-                  <EvidenceVideoEmbed
-                    aweme_id={card.evidence_aweme_id ?? null}
-                    reference_videos={refVideos}
-                  />
+                  {hasEvidence ? (
+                    <>
+                      <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                        Minh chứng trong kho
+                      </p>
+                      <EvidenceVideoEmbed
+                        aweme_id={card.evidence_aweme_id ?? null}
+                        reference_videos={refVideos}
+                        corpusExample={corpusEv}
+                      />
+                    </>
+                  ) : (
+                    <p className="mb-2 text-[11px] leading-snug text-[color:var(--gv-ink-4)]">
+                      Chưa có video minh chứng từ kho cho format này.
+                    </p>
+                  )}
+                  {moreExamples.length >= 1 ? (
+                    <div className="mb-2 border-t border-[color:var(--gv-rule)] pt-3">
+                      <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+                        Ví dụ thực tế
+                      </p>
+                      <div className="space-y-1.5">
+                        {moreExamples.map((ex) => (
+                          <a
+                            key={ex.aweme_id}
+                            href={ex.tiktok_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between gap-2 text-[11px] text-[color:var(--gv-ink-2)] transition-colors hover:text-[color:var(--gv-accent)]"
+                          >
+                            <span className="min-w-0 truncate">
+                              @{ex.creator_handle} · {ex.desc || "(không có caption)"}
+                            </span>
+                            <span className="gv-mono shrink-0 font-semibold tabular-nums text-[color:var(--gv-ink)]">
+                              {ex.play_count.toLocaleString("vi-VN")}
+                            </span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         ) : null}
@@ -868,15 +970,13 @@ export function VideoBody({
           <CreatorComparisonUnavailable creator={report.meta.creator} />
         ) : null}
 
-        <RetentionCurve
-          durationSec={duration}
-          userCurve={userCurve}
-          benchmarkCurve={bench}
-          retentionSource={meta.retention_source ?? "modeled"}
-        />
-
         <section>
           <SectionMini kicker="Dòng thời gian" title={`Cấu trúc ${Math.round(duration)} giây`} />
+          <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
+            Phân tích đọc video qua các khung hình được lấy mẫu theo thời gian (nhận diện hình + cấu trúc cảnh), rồi gom
+            thành 8 nhịp kịch bản. Số % trên mỗi ô là phần thời lượng dành cho nhịp đó trong toàn clip — không
+            phải tỉ lệ khán giả còn xem. Trục giây bên dưới khớp độ dài video.
+          </p>
           <Timeline segments={report.segments} durationSec={duration} />
         </section>
 
@@ -896,9 +996,20 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {viewMode === "win" ? (
+        {report.hook_phases?.length ? (
           <section>
-            <SectionMini kicker="Giải mã hook" title="3 giây đầu — vì sao bạn không lướt qua?" />
+            <SectionMini
+              kicker="Giải mã hook"
+              title={
+                isFlop
+                  ? "3 giây đầu — nhịp mở dễ mất người xem"
+                  : "3 giây đầu — vì sao người xem dừng lại?"
+              }
+            />
+            <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
+              Ba thẻ theo cửa sổ 0–3s: hình mở, kiểu hook, chỗ lời/kết nối sớm — tóm tắt từ cùng luồng phân tích
+              hình (không phải lời thoại đầy đủ từng câu).
+            </p>
             <HookPhaseGrid phases={report.hook_phases} />
           </section>
         ) : null}
