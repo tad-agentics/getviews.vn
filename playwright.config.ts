@@ -44,5 +44,12 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"], storageState: ".auth/user.json" },
     },
+    {
+      name: "v5-acceptance",
+      testMatch: /v5-acceptance\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], storageState: ".auth/user.json" },
+      timeout: 5 * 60_000,
+    },
   ],
 });

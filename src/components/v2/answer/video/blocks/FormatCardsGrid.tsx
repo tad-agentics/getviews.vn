@@ -33,7 +33,7 @@ export function FormatCardsGrid({
 
   return (
     <section className="mb-6">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
         Format đang hoạt động trong ngách này
       </h3>
       <div

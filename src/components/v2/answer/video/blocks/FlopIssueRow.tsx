@@ -5,85 +5,84 @@ import type {
   VideoFlopIssue,
 } from "@/lib/api-types";
 
-const FLOP_SEV_LABEL: Record<VideoFlopIssue["sev"], string> = {
-  high: "Cao",
-  mid: "TB",
-  low: "Thấp",
+const SEV_BORDER: Record<VideoFlopIssue["sev"], string> = {
+  high: "border-[color:var(--gv-accent)]",
+  mid: "border-[color:var(--gv-warn)]",
+  low: "border-[color:var(--gv-rule)]",
+};
+
+const SEV_NUM_CLS: Record<VideoFlopIssue["sev"], string> = {
+  high: "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg)]",
+  mid: "bg-[color:var(--gv-warn-soft)] text-[color:var(--gv-warn)]",
+  low: "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]",
 };
 
 /**
- * Phase 4.4.2 — border color extended to 3-tier: red (high) / orange (mid) / yellow (low).
- * Previously: red for high, default rule for mid+low.
+ * Phase 4.4.2 + v5 audit — numbered layout (1/2/3) aligned with spec.
+ * Severity drives border + number badge color; timestamps are removed from
+ * the primary view (available in the collapsed detail only if needed).
+ * "Sửa:" replaces the "Fix" chip to match the Vietnamese voice spec.
  */
 export function FlopIssueNarrativeRow({
+  rank,
   issue,
   narrativeItem,
   referenceVideos,
 }: {
+  rank: number;
   issue: VideoFlopIssue;
   narrativeItem?: LoidChinhNarrativeItem;
   referenceVideos: ReferenceVideoCard[];
 }) {
-  const leftBorderCls =
-    issue.sev === "high"
-      ? "border-l-[color:var(--gv-accent)]"
-      : issue.sev === "mid"
-        ? "border-l-[color:var(--gv-warn)]"
-        : "border-l-[color:var(--gv-ink-4)]";
-
-  const outerBorderCls =
-    issue.sev === "high"
-      ? "border-[color:var(--gv-accent)]"
-      : issue.sev === "mid"
-        ? "border-[color:var(--gv-warn)]"
-        : "border-[color:var(--gv-rule)]";
+  const borderCls = SEV_BORDER[issue.sev] ?? "border-[color:var(--gv-rule)]";
+  const numCls = SEV_NUM_CLS[issue.sev] ?? SEV_NUM_CLS.low;
 
   return (
     <div
-      className={`grid grid-cols-1 items-start gap-4 border border-l-[4px] bg-[color:var(--gv-paper)] px-4 py-3.5 sm:grid-cols-[80px_1fr] ${outerBorderCls} ${leftBorderCls}`.trim()}
+      className={`flex items-start gap-4 rounded-[12px] border bg-[color:var(--gv-paper)] px-4 py-3.5 ${borderCls}`}
     >
-      <div>
-        <div className="gv-mono text-[11px] text-[color:var(--gv-ink-4)]">
-          {issue.t}s – {issue.end}s
-        </div>
-        <div
-          className={`gv-mono mt-1 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] ${
-            issue.sev === "high"
-              ? "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg)]"
-              : issue.sev === "mid"
-                ? "bg-[color:var(--gv-warn-soft)] text-[color:var(--gv-warn)]"
-                : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-4)]"
-          }`}
-        >
-          {FLOP_SEV_LABEL[issue.sev] ?? issue.sev}
-        </div>
+      {/* Rank number */}
+      <div
+        className={`gv-mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${numCls}`}
+        aria-label={`Lỗi ${rank}`}
+      >
+        {rank}
       </div>
-      <div className="min-w-0">
-        <h4 className="gv-serif m-0 text-[18px] font-medium leading-[1.25] text-[color:var(--gv-ink)]">
+
+      <div className="min-w-0 flex-1">
+        <h4 className="gv-serif m-0 text-[17px] font-medium leading-[1.3] text-[color:var(--gv-ink)]">
           {issue.title}
         </h4>
+
         {narrativeItem?.narrative ? (
-          <p className="mb-2 mt-1 max-w-[640px] text-[13px] leading-relaxed text-foreground">
+          <p className="mb-2 mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-foreground">
             {narrativeItem.narrative}
           </p>
         ) : null}
+
         {narrativeItem?.evidence_aweme_id ? (
           <EvidenceVideoEmbed
             aweme_id={narrativeItem.evidence_aweme_id}
             reference_videos={referenceVideos}
           />
         ) : null}
-        <div className="mt-2 max-w-[640px]">
-          <div className="space-y-2">
-            <p className="m-0 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
-              {issue.detail}
-            </p>
-            <div className="inline-block bg-[color:var(--gv-canvas-2)] px-2.5 py-1.5 text-xs text-[color:var(--gv-ink-2)]">
-              <span className="gv-uc mr-1.5 text-[9px] text-[color:var(--gv-accent)]">Fix</span>
-              {issue.fix}
-            </div>
-          </div>
-        </div>
+
+        {/* detail paragraph */}
+        {issue.detail ? (
+          <p className="mb-2 mt-1 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
+            {issue.detail}
+          </p>
+        ) : null}
+
+        {/* Fix action — "Sửa:" matches Vietnamese voice spec */}
+        {issue.fix ? (
+          <p className="mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">
+            <span className="gv-mono mr-1.5 font-semibold text-[color:var(--gv-accent)]">
+              Sửa:
+            </span>
+            {issue.fix}
+          </p>
+        ) : null}
       </div>
     </div>
   );

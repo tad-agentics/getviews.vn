@@ -78,6 +78,44 @@ function retentionEndPct(curve: { t: number; pct: number }[] | null | undefined)
   return curve[curve.length - 1].pct;
 }
 
+/**
+ * "LÀM GÌ TIẾP THEO" — renders dinh_huong_chien_luoc as a bullet list.
+ * The BE may return newline-delimited bullets (with or without leading "• ").
+ * We split, strip leading bullet chars, and render as <ul>.
+ */
+function NextStepsSection({ text }: { text: string }) {
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.replace(/^[•\-\*]\s*/, "").trim())
+    .filter(Boolean);
+
+  return (
+    <section className="mb-6">
+      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+        Làm gì tiếp theo
+      </h3>
+      {lines.length > 1 ? (
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {lines.map((line, i) => (
+            <li
+              key={i}
+              className="flex items-start gap-2 text-[14px] leading-relaxed text-foreground"
+            >
+              <span
+                className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--gv-accent)]"
+                aria-hidden
+              />
+              {line}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="max-w-[680px] text-[14px] leading-relaxed text-foreground">{text}</p>
+      )}
+    </section>
+  );
+}
+
 /** Research handoff — ``AnswerScreen`` reads ``location.state.initialPrompt``. */
 function buildFlopScriptHandoffPrompt(d: VideoReportPayload, watchUrl: string | null): string {
   const issues = d.errors ?? [];
@@ -432,10 +470,10 @@ export function VideoBody({
 
         {narrativeVi?.van_de_chinh ? (
           <section className="mb-6">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Vấn đề chính
+            <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+              Vấn đề cốt lõi
             </h3>
-            <p className="max-w-[680px] leading-relaxed text-foreground">
+            <p className="max-w-[680px] text-[15px] leading-relaxed text-foreground">
               {narrativeVi.van_de_chinh}
             </p>
           </section>
@@ -443,7 +481,6 @@ export function VideoBody({
 
         {viewMode === "flop" && flopIssuesForNarrative.length > 0 ? (
           <section className="mb-6">
-            <SectionMini kicker="" title="Lỗi cấu trúc · xếp theo ảnh hưởng" />
             <div className="flex flex-col gap-3">
               {flopIssuesForNarrative.map((issue, i) => {
                 const narrativeItem = narrativeVi?.loi_chinh_narrative?.find(
@@ -452,6 +489,7 @@ export function VideoBody({
                 return (
                   <FlopIssueNarrativeRow
                     key={issue.error_id ?? `${issue.title}-${i}`}
+                    rank={i + 1}
                     issue={issue}
                     narrativeItem={narrativeItem}
                     referenceVideos={refVideos}
@@ -473,6 +511,7 @@ export function VideoBody({
             <ChannelProofBlock
               channelContext={channelEffective}
               analyzedFormat={meta.content_format ?? null}
+              creatorHandle={meta.creator ?? null}
             />
           ) : (
             <ChannelContextLegacy
@@ -492,14 +531,7 @@ export function VideoBody({
         ) : null}
 
         {narrativeVi?.dinh_huong_chien_luoc ? (
-          <section className="mb-6 rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Cần làm gì khác
-            </h3>
-            <p className="max-w-[680px] leading-relaxed text-foreground">
-              {narrativeVi.dinh_huong_chien_luoc}
-            </p>
-          </section>
+          <NextStepsSection text={narrativeVi.dinh_huong_chien_luoc} />
         ) : null}
 
         {report.creator_comparison ? (

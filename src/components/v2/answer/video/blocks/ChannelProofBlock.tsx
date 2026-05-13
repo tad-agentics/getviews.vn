@@ -1,15 +1,13 @@
 /**
  * Phase 4.4.1 — ChannelProofBlock
  *
- * Reads channel_context.per_format_views (added in Phase 4.1) and renders
- * winner/loser format cards showing which formats perform best on this channel.
+ * Spec (v5 audit): renders "Dữ liệu kênh @handle" with two side-by-side cells
+ * comparing this video's format range vs the channel's best-performing format.
+ * Pattern note is a direct actionable observation (not just a stat).
  *
  * Render conditions:
  *   - channel_context.available === true
- *   - per_format_views is not null (i.e. ≥2 formats with n≥3 each)
- *
- * Falls back to the legacy "Ngữ cảnh kênh" section if per_format_views is
- * unavailable (v4 responses from the BE will not have it).
+ *   - per_format_views has ≥2 formats with n≥3 each
  */
 
 import type { ChannelContext } from "@/lib/api-types";
@@ -28,50 +26,52 @@ function fmtViews(n: number): string {
   return n.toLocaleString("vi-VN");
 }
 
-function FormatCard({
+function fmtRange(entry: PerFormatEntry): string {
+  const lo = fmtViews(entry.min_views);
+  const hi = fmtViews(entry.max_views);
+  if (lo === hi) return `${lo} views`;
+  return `${lo} · ${hi} views`;
+}
+
+function atHandle(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  if (!s) return "";
+  return s.startsWith("@") ? s : `@${s}`;
+}
+
+/** Single data cell — shows a format label + view range */
+function FormatRangeCell({
   formatKey,
   entry,
-  rank,
+  isAnalyzed,
 }: {
   formatKey: string;
   entry: PerFormatEntry;
-  rank: "winner" | "loser" | "neutral";
+  isAnalyzed: boolean;
 }) {
-  const badgeCls =
-    rank === "winner"
-      ? "bg-[color:var(--gv-pos)]/15 text-[color:var(--gv-pos)]"
-      : rank === "loser"
-        ? "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg)]"
-        : "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]";
-  const borderCls =
-    rank === "winner"
-      ? "border-[color:var(--gv-pos)]/40"
-      : rank === "loser"
-        ? "border-[color:var(--gv-rule)]"
-        : "border-[color:var(--gv-rule)]";
-  const rankLabel =
-    rank === "winner" ? "Format mạnh nhất" : rank === "loser" ? "Format yếu nhất" : "Format khác";
-
   return (
     <div
-      className={`flex flex-col gap-2 rounded-[10px] border ${borderCls} bg-[color:var(--gv-paper)] p-3`}
+      className={`flex flex-col gap-1.5 rounded-[10px] border p-3 ${
+        isAnalyzed
+          ? "border-[color:var(--gv-accent)]/40 bg-[color:var(--gv-canvas-2)]"
+          : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]"
+      }`}
     >
-      <div className={`gv-mono inline-self-start rounded px-2 py-0.5 text-[9px] font-semibold uppercase ${badgeCls}`}>
-        {rankLabel}
-      </div>
-      <p className="m-0 text-[13px] font-semibold text-[color:var(--gv-ink)] capitalize">
-        {formatKey.replace(/_/g, " ")}
+      <p
+        className={`gv-mono m-0 text-[18px] font-bold leading-none ${
+          isAnalyzed ? "text-[color:var(--gv-accent)]" : "text-[color:var(--gv-ink)]"
+        }`}
+      >
+        {fmtRange(entry)}
       </p>
-      <div className="flex flex-col gap-0.5">
-        <p className="gv-mono m-0 text-[18px] font-bold leading-none text-[color:var(--gv-ink)]">
-          {fmtViews(entry.avg_views)}
-        </p>
-        <p className="m-0 text-[10px] text-[color:var(--gv-ink-3)]">
-          trung bình · {entry.n} video
-        </p>
-      </div>
+      <p className="m-0 text-[12px] capitalize text-[color:var(--gv-ink-2)]">
+        {formatKey.replace(/_/g, " ")}
+        {isAnalyzed ? (
+          <span className="ml-1.5 text-[color:var(--gv-ink-4)]">(video này)</span>
+        ) : null}
+      </p>
       <p className="m-0 text-[10px] text-[color:var(--gv-ink-4)]">
-        median {fmtViews(entry.median_views)} · min {fmtViews(entry.min_views)} · max {fmtViews(entry.max_views)}
+        {fmtViews(entry.avg_views)} TB · {entry.n} video
       </p>
     </div>
   );
@@ -80,9 +80,11 @@ function FormatCard({
 export function ChannelProofBlock({
   channelContext,
   analyzedFormat,
+  creatorHandle,
 }: {
   channelContext: ChannelContext;
   analyzedFormat?: string | null;
+  creatorHandle?: string | null;
 }) {
   if (!channelContext.available) return null;
 
@@ -96,28 +98,60 @@ export function ChannelProofBlock({
   const sorted = Object.entries(perFormatViews).sort(
     ([, a], [, b]) => b.avg_views - a.avg_views,
   );
-  const winner = sorted[0];
-  const loser = sorted[sorted.length - 1];
 
-  const patternNote =
-    analyzedFormat && winner
-      ? analyzedFormat.toLowerCase() === winner[0].toLowerCase()
-        ? `Video này dùng format '${analyzedFormat}' — đây là format hoạt động tốt nhất trên kênh.`
-        : `Video này dùng format '${analyzedFormat}' nhưng kênh hoạt động tốt nhất với '${winner[0]}' (${fmtViews(winner[1].avg_views)} TB).`
-      : null;
+  const bestEntry = sorted[0];
+  const analyzedKey = analyzedFormat?.toLowerCase().replace(/\s+/g, "_") ?? null;
+  const analyzedEntry = analyzedKey
+    ? Object.entries(perFormatViews).find(
+        ([k]) => k.toLowerCase() === analyzedKey,
+      )
+    : null;
+
+  // If the analyzed format IS the best, show best + second worst for contrast
+  const isBestFormat = analyzedEntry && analyzedEntry[0] === bestEntry[0];
+  const contrastEntry =
+    isBestFormat && sorted.length > 1 ? sorted[sorted.length - 1] : null;
+
+  // Pattern note
+  const patternNote = (() => {
+    if (!analyzedEntry) return null;
+    if (isBestFormat) {
+      return `Video này dùng format '${analyzedFormat}' — đây là format hoạt động tốt nhất trên kênh.`;
+    }
+    const ratio = bestEntry[1].avg_views / Math.max(analyzedEntry[1].avg_views, 1);
+    const times = ratio >= 2 ? `${Math.round(ratio)}×` : "cao hơn đáng kể";
+    return `Mỗi lần bạn đăng '${analyzedFormat}' thì lượt xem thấp hơn '${bestEntry[0].replace(/_/g, " ")}' khoảng ${times}. Đây là pattern nhất quán trong ${bestEntry[1].n} video gần nhất.`;
+  })();
+
+  const handle = atHandle(creatorHandle);
 
   return (
-    <section className="mb-6" aria-label="Bằng chứng kênh theo format">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Bằng chứng kênh · format nào chạy tốt nhất
+    <section className="mb-6" aria-label="Dữ liệu kênh">
+      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+        Dữ liệu kênh {handle || ""}
       </h3>
 
       <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2">
-        {winner ? (
-          <FormatCard formatKey={winner[0]} entry={winner[1]} rank="winner" />
-        ) : null}
-        {loser && loser[0] !== winner?.[0] ? (
-          <FormatCard formatKey={loser[0]} entry={loser[1]} rank="loser" />
+        {/* Best-performing format */}
+        <FormatRangeCell
+          formatKey={bestEntry[0]}
+          entry={bestEntry[1]}
+          isAnalyzed={Boolean(isBestFormat)}
+        />
+
+        {/* This video's format (or worst-performing if analyzed = best) */}
+        {analyzedEntry && !isBestFormat ? (
+          <FormatRangeCell
+            formatKey={analyzedEntry[0]}
+            entry={analyzedEntry[1]}
+            isAnalyzed={true}
+          />
+        ) : contrastEntry ? (
+          <FormatRangeCell
+            formatKey={contrastEntry[0]}
+            entry={contrastEntry[1]}
+            isAnalyzed={false}
+          />
         ) : null}
       </div>
 
@@ -145,7 +179,6 @@ export function ChannelProofBlock({
 
 /**
  * Legacy fallback for v4 BE responses that don't include per_format_views.
- * Renders the original Ngữ cảnh kênh card (top/bottom videos list).
  */
 export function ChannelContextLegacy({
   channelContext,

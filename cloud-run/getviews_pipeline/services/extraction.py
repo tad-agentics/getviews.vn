@@ -429,7 +429,9 @@ def extract_video_errors(
 - Trích xuất **đúng 1–3 lỗi nghiêm trọng nhất**, xếp theo độ nghiêm trọng (high → low).
 - Tối đa 3 mục — chọn lỗi có impact lớn nhất, không liệt kê tất cả.
 - Mỗi mục PHẢI có ``error_id`` ổn định dạng ERR_* (vd ERR_hook_late_face).
-- title: tên ngắn gọn tiếng Việt (≤5 từ, không emoji, không mã lỗi). Ví dụ: "Hook mở đầu yếu", "Pacing quá chậm", "CTA thiếu"."""
+- title: tiếng Việt, ≤10 từ, không emoji, không mã lỗi. Được dùng em-dash (—) để ghép hai ý trái chiều.
+  Ví dụ ĐÚNG: "Không có hook — chỉ có không khí", "Sản phẩm bị lẫn bởi cảnh quay", "Im lặng hoàn toàn — không có giọng người".
+  Ví dụ SAI: "Hook mở đầu yếu" (quá chung), "ERR001: hook" (có mã lỗi)."""
 
     prompt = f"""Bạn là chẩn đoán cấu trúc TikTok tiếng Việt.
 
@@ -452,7 +454,13 @@ def extract_video_errors(
 
 ## Fix vocabulary cho ``fix`` (action-driven, có placeholder cụ thể)
 
-- "Đổi hook sang [type]" | "Cắt scene [N]" | "Đẩy CTA xuống giây [X]" | "Thay sound trending [genre]" | "Thêm text overlay tại giây [X]" | "Compress hook về dưới [X]s"
+Mỗi fix PHẢI có 2 phần: [hành động cụ thể tại giây X] + [ví dụ in thực tế].
+Cấu trúc: "[Hành động] — ví dụ '[text/cảnh cụ thể]'"
+Ví dụ ĐÚNG:
+- "Thêm text overlay ngay giây 0 — ví dụ 'Đồng hồ này phối được với mọi outfit công sở.'"
+- "Cắt cảnh cà phê. Mở bằng macro close-up mặt sản phẩm, sau đó mới reveal bối cảnh."
+- "Thêm câu hỏi qua text tại giây 10 — ví dụ 'Bạn chọn màu đen hay màu trắng?'"
+Ví dụ SAI: "Thêm text overlay" (không có vị trí + không có ví dụ)
 
 ## Schema JSON — trả về một object duy nhất
 

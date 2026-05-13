@@ -186,15 +186,16 @@ test.describe("Phase 4.5 — v5 acceptance protocol", () => {
       detail: `views=${hasViews} retention=${hasRetention} ER=${hasER} save=${hasSave}`,
     });
 
-    // ── C2: Vấn đề chính with multi-sentence narrative ───────────────────
+    // ── C2: Vấn đề cốt lõi with multi-sentence narrative ────────────────
+    // Label changed from "Vấn đề chính" → "Vấn đề cốt lõi" in v5 audit.
     // The section renders BELOW the streaming strip — it may be below the
     // visible viewport when the done-detector fires. Use bodyText (innerText
     // of the [aria-live] container) which captures off-screen rendered text.
-    const vanDeInText = /vấn đề chính/i.test(bodyText);
+    const vanDeInText = /vấn đề cốt lõi|vấn đề chính/i.test(bodyText);
     const vanDeClusters = (bodyText.match(/[.!?…]+/g) ?? []).length;
     criteria.push({
       id: 2,
-      label: "Vấn đề chính section — visible with ≥2 sentence clusters",
+      label: "Vấn đề cốt lõi section — visible with ≥2 sentence clusters",
       pass: vanDeInText && vanDeClusters >= 2,
       detail: `sectionInText=${vanDeInText} punctuationClusters=${vanDeClusters}`,
     });
@@ -221,14 +222,14 @@ test.describe("Phase 4.5 — v5 acceptance protocol", () => {
     });
 
     // ── C5: 3 errors ────────────────────────────────────────────────────
-    // FlopIssueNarrativeRow uses severity labels (Cao/TB/Thấp), not "1." "2." "3.".
-    // The kicker text "N ĐIỂM LỖI CẤU TRÚC" is the backend-confirmed error count.
-    // Secondary: each rendered row has a "Fix" label immediately followed by Vietnamese
-    // text (no space), so `\bFix\b` finds no right word boundary — use /Fix/ directly.
+    // FlopIssueNarrativeRow now uses numbered rows (1/2/3). The kicker text
+    // "N ĐIỂM LỖI CẤU TRÚC" is the backend-confirmed error count.
+    // Secondary: each rendered row has a "Sửa:" label (v5 audit — was "Fix").
     const errorKickerMatch = bodyText.match(/(\d+)\s*(?:điểm lỗi|điểm cần chỉnh)/i);
     const errorCountFromKicker = errorKickerMatch ? parseInt(errorKickerMatch[1], 10) : 0;
-    const fixLabelCount = (bodyText.match(/Fix/gi) ?? []).length;
-    // Primary gate: kicker must report ≥3. Secondary: at least 1 Fix label confirms rows rendered.
+    // Accept both "Sửa:" (v5 spec) and legacy "Fix" during rollout
+    const fixLabelCount = (bodyText.match(/Sửa:|Fix/gi) ?? []).length;
+    // Primary gate: kicker must report ≥3. Secondary: at least 1 Sửa/Fix label confirms rows rendered.
     const hasThreeErrors = errorCountFromKicker >= 3 && fixLabelCount >= 1;
     criteria.push({
       id: 5,
