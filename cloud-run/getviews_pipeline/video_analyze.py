@@ -471,10 +471,23 @@ def _is_hook_related_error(e: dict[str, Any]) -> bool:
     )
 
 
-def _collapse_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Merge multiple high-severity hook errors in the opening window — avoids double-penalty."""
-    hook_high: list[dict[str, Any]] = []
-    rest: list[dict[str, Any]] = []
+def _dedupe_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Single-pass dedupe of multiple high-severity hook errors in the 0–4s window.
+
+    Picks a primary (prefer ``lang_market_mismatch``, else the first
+    overlapping high-sev hook error), merges sibling ``fix`` texts
+    into the primary as "(Bổ sung: …)", and drops the siblings.
+    Preserves relative ordering of non-hook errors and of the primary
+    within the output list.
+
+    Replaces the previous two-pass chain
+    (``_dedupe_lang_market_hook_errors`` → ``_collapse_hook_window_high_errors``)
+    which worked correctly only by accident — pass 1 left exactly one
+    hook-high so pass 2 early-returned. Any future tweak that let two
+    survive pass 1 would have double-merged with "(Bổ sung: …)
+    (Gộp: …)".
+    """
+    overlapping: list[dict[str, Any]] = []
     for e in errors:
         if (
             str(e.get("sev") or "") == "high"
@@ -484,17 +497,16 @@ def _collapse_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict
                 float(e.get("end") or e.get("t") or 0.0),
             )
         ):
-            hook_high.append(e)
-        else:
-            rest.append(e)
-    if len(hook_high) <= 1:
+            overlapping.append(e)
+    if len(overlapping) <= 1:
         return errors
+
     primary = next(
-        (e for e in hook_high if str(e.get("error_id") or "") == "lang_market_mismatch"),
-        hook_high[0],
+        (e for e in overlapping if str(e.get("error_id") or "") == "lang_market_mismatch"),
+        overlapping[0],
     )
     merged_fixes: list[str] = []
-    for e in hook_high:
+    for e in overlapping:
         if e is primary:
             continue
         fx = str(e.get("fix") or "").strip()
@@ -504,8 +516,22 @@ def _collapse_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict
     if merged_fixes:
         base = str(out_primary.get("fix") or "").strip()
         extra = "; ".join(merged_fixes[:3])
-        out_primary["fix"] = f"{base} (Gộp: {extra})" if base else extra
-    return [out_primary] + rest
+        out_primary["fix"] = f"{base} (Bổ sung: {extra})" if base else extra
+
+    # Walk the original input once, dropping the siblings while
+    # preserving every other error's order.
+    siblings = {id(e) for e in overlapping if e is not primary}
+    out: list[dict[str, Any]] = []
+    for e in errors:
+        if id(e) in siblings:
+            continue
+        out.append(out_primary if e is primary else e)
+    return out
+
+
+# Legacy names kept so existing tests + callers still link. Both
+# delegate to the canonical single pass.
+_collapse_hook_window_high_errors = _dedupe_hook_window_high_errors
 
 
 def _product_led_silent_visual(analysis: dict[str, Any]) -> bool:
@@ -531,43 +557,7 @@ def _product_led_silent_visual(analysis: dict[str, Any]) -> bool:
     return False
 
 
-def _dedupe_lang_market_hook_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """When lang_market_mismatch is present, drop redundant high-sev hook cards overlapping 0–4s."""
-    if not any(str(e.get("error_id") or "") == "lang_market_mismatch" for e in errors):
-        return errors
-    lang_card = next(e for e in errors if str(e.get("error_id") or "") == "lang_market_mismatch")
-    merged_fixes: list[str] = []
-    kept: list[dict[str, Any]] = []
-    for e in errors:
-        eid = str(e.get("error_id") or "")
-        if eid == "lang_market_mismatch":
-            kept.append(e)
-            continue
-        if str(e.get("sev") or "") != "high":
-            kept.append(e)
-            continue
-        t = float(e.get("t") or 0.0)
-        end = float(e.get("end") or t)
-        hook_window = _overlaps_hook_lang_dedupe_window(t, end)
-        title_l = str(e.get("title") or "").lower()
-        eid_l = eid.lower()
-        hook_related = (
-            "hook" in eid_l
-            or eid_l.startswith("err_hook")
-            or "hook" in title_l
-            or "mở đầu" in title_l
-        )
-        if hook_window and hook_related:
-            fx = str(e.get("fix") or "").strip()
-            if fx and fx not in str(lang_card.get("fix") or ""):
-                merged_fixes.append(fx)
-            continue
-        kept.append(e)
-    if merged_fixes:
-        base = str(lang_card.get("fix") or "").strip()
-        extra = "; ".join(merged_fixes[:3])
-        lang_card["fix"] = f"{base} (Bổ sung: {extra})" if base else extra
-    return kept
+_dedupe_lang_market_hook_errors = _dedupe_hook_window_high_errors
 
 
 def apply_rule_based_video_errors(
@@ -637,7 +627,7 @@ def apply_rule_based_video_errors(
                 "end": end_ts,
             }
         )
-    merged = _collapse_hook_window_high_errors(_dedupe_lang_market_hook_errors(out))
+    merged = _dedupe_hook_window_high_errors(out)
     clamp_dur = float(dur) if dur > 0 else None
     return clamp_structural_error_timestamps(merged, clamp_dur)
 
