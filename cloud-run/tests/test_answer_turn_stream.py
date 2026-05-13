@@ -53,9 +53,17 @@ async def test_fresh_run_emits_payload_then_done() -> None:
         )
         frames = [chunk async for chunk in response.body_iterator]
 
-    assert len(frames) == 2, f"expected 2 frames, got {len(frames)}"
-    token1 = _parse_sse_frame(frames[0])
-    token2 = _parse_sse_frame(frames[1])
+    # Hello + payload + done. The leading hello frame (seq=0, hello=true)
+    # flushes stream_id early so the client's retry gate has a resume
+    # handle before any heavy work starts; also gives intermediaries
+    # bytes-flowing confirmation to keep TCP alive.
+    assert len(frames) == 3, f"expected 3 frames (hello + payload + done), got {len(frames)}"
+    hello = _parse_sse_frame(frames[0])
+    assert hello.get("hello") is True
+    assert hello["seq"] == 0
+    assert hello["done"] is False
+    token1 = _parse_sse_frame(frames[1])
+    token2 = _parse_sse_frame(frames[2])
 
     assert token1["seq"] == 1 and token1["done"] is False
     assert "payload" in token1 and token1["payload"]["kind"] == "pattern"
@@ -83,8 +91,12 @@ async def test_insufficient_credits_emits_error_done_and_does_not_buffer() -> No
         )
         frames = [chunk async for chunk in response.body_iterator]
 
-    assert len(frames) == 1
-    token = _parse_sse_frame(frames[0])
+    # Hello frame is always emitted on fresh runs, even when append_turn
+    # raises immediately. Done frame carries the semantic error.
+    assert len(frames) == 2, f"expected 2 frames (hello + error done), got {len(frames)}"
+    hello = _parse_sse_frame(frames[0])
+    assert hello.get("hello") is True
+    token = _parse_sse_frame(frames[1])
     assert token["done"] is True
     assert token["error"] == "insufficient_credits"
 
@@ -213,7 +225,11 @@ async def test_resume_above_all_cached_seq_falls_through_to_fresh_run() -> None:
         frames = [chunk async for chunk in response.body_iterator]
 
     assert call_count["n"] == 1
-    assert len(frames) == 2  # payload + done from the fresh run
+    # Cache had items but all ≤ resume_from_seq → fallthrough to fresh
+    # run, which emits hello + payload + done.
+    assert len(frames) == 3
+    hello = _parse_sse_frame(frames[0])
+    assert hello.get("hello") is True
 
 
 @pytest.mark.asyncio
@@ -245,4 +261,7 @@ async def test_resume_cache_miss_falls_through_to_fresh_run() -> None:
         frames = [chunk async for chunk in response.body_iterator]
 
     assert call_count["n"] == 1
-    assert len(frames) == 2  # payload + done
+    # Cache miss → fresh run also emits a hello frame first.
+    assert len(frames) == 3
+    hello = _parse_sse_frame(frames[0])
+    assert hello.get("hello") is True

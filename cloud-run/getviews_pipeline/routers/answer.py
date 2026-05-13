@@ -137,6 +137,20 @@ async def answer_append_turn(
             else:
                 logger.info("[answer/turns] resume cache miss stream_id=%s — running fresh", resume_stream_id)
 
+        # Emit a hello frame before any heavy work starts. Two reasons:
+        #   (a) The client's retry gate (Boolean(resumeStreamId)) gets
+        #       a real stream_id within milliseconds — any later drop is
+        #       now recoverable via the replay buffer instead of a hard
+        #       stream_failed at the client.
+        #   (b) Bytes flow before the long video-extraction phase
+        #       (download + Files API upload + ACTIVE poll), so mobile
+        #       carriers / proxies don't kill the TCP during the
+        #       zero-byte window.
+        # Fires on fresh runs AND on resume-with-cache-miss fallthrough,
+        # but NOT on a successful replay (where the cached items
+        # themselves are the early bytes).
+        yield _sse_line({"stream_id": stream_id, "seq": 0, "hello": True, "done": False})
+
         # Run append_turn as a concurrent task so we can emit heartbeat
         # frames every 10 s while it blocks. Video Gemini analysis takes
         # 60–120 s; without heartbeats the client SSE_IDLE_TIMEOUT_MS
@@ -226,7 +240,22 @@ async def answer_append_turn(
         yield _sse_line({"stream_id": stream_id, **payload_item, "done": False})
         yield _sse_line({"stream_id": stream_id, **done_item})
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    # X-Accel-Buffering: no — without it, Cloud Run's HTTP fronting
+    # layer buffered the entire response body until the generator
+    # completed. SSE heartbeats (~80B every 10s) piled up under the
+    # buffer threshold and never reached the client; users saw 6-7
+    # minutes of zero bytes followed by a hard ``stream_failed`` once
+    # the client gave up. Mirrors the headers /intent has used since
+    # day one (routers/intent.py:578-582).
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/answer/sessions")
