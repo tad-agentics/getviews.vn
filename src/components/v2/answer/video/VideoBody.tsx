@@ -325,6 +325,45 @@ const FLOP_SEV_LABEL: Record<VideoFlopIssue["sev"], string> = {
   low: "Thấp",
 };
 
+/** Performance tier chip rendered alongside the kicker so the user
+ * sees the verdict — hit / average / flop — before reading the report.
+ * BE values come from classify_performance_tier_corpus + refine_performance_tier
+ * (combines corpus benchmarks with channel context). Returns null when the BE
+ * couldn't benchmark (tier="unknown"), so we don't render a placeholder chip. */
+function PerformanceTierChip({ tier }: { tier: string | undefined }) {
+  if (!tier) return null;
+  const lc = tier.toLowerCase();
+  // hit → green, flop → accent (red-ish), average → muted, anything else → hide.
+  let label: string;
+  let tone: "hit" | "average" | "flop";
+  if (lc === "hit") {
+    label = "HIT";
+    tone = "hit";
+  } else if (lc === "flop") {
+    label = "FLOP";
+    tone = "flop";
+  } else if (lc === "average") {
+    label = "TRUNG BÌNH";
+    tone = "average";
+  } else {
+    return null;
+  }
+  const toneClass =
+    tone === "hit"
+      ? "bg-[color:var(--gv-pos)]/15 text-[color:var(--gv-pos)]"
+      : tone === "flop"
+        ? "bg-[color:var(--gv-accent)]/15 text-[color:var(--gv-accent)]"
+        : "bg-[color:var(--gv-ink-4)]/15 text-[color:var(--gv-ink-3)]";
+  return (
+    <span
+      className={`gv-mono rounded-[3px] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] ${toneClass}`}
+      aria-label={`Phân loại hiệu suất: ${label}`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function FlopIssueNarrativeRow({
   issue,
   narrativeItem,
@@ -500,6 +539,13 @@ export function VideoBody({
     narrativeReady?.view_scenarios ?? report.view_scenarios;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
+  // BE classifies each video into a refined tier (`hit | average | flop | unknown`)
+  // by combining corpus benchmarks with channel context. Streamed during the
+  // pre-synthesis SSE phase and persisted on the report; either source is
+  // authoritative. Hidden when "unknown" (BE couldn't benchmark — don't make
+  // up a verdict).
+  const performanceTier: string | undefined =
+    preSynth?.performance_tier ?? report.performance_tier;
   const streamedErrs = narrativeReady?.errors;
   const reportErrs = report.structural_errors ?? report.errors ?? [];
   const flopIssuesForNarrative: VideoFlopIssue[] =
@@ -672,30 +718,39 @@ export function VideoBody({
         ) : null}
         <header>
           {isFlop ? (
-            <div className="gv-mono mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
-              {brightEffective?.signal_type === "hook_only_problem" ||
-              (retEnd != null && retEnd >= 68)
-                ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
-                : `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`}
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="gv-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+                {brightEffective?.signal_type === "hook_only_problem" ||
+                (retEnd != null && retEnd >= 68)
+                  ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
+                  : `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`}
+              </span>
+              <PerformanceTierChip tier={performanceTier} />
             </div>
           ) : report.carousel_subformat_label ? (
-            <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-              MỔ CAROUSEL VIRAL ·{" "}
-              <span className="normal-case text-[color:var(--gv-ink-3)]">
-                {report.carousel_subformat_label}
-                {report.carousel_slide_count ? ` · ${report.carousel_slide_count} slides` : ""}
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+                MỔ CAROUSEL VIRAL ·{" "}
+                <span className="normal-case text-[color:var(--gv-ink-3)]">
+                  {report.carousel_subformat_label}
+                  {report.carousel_slide_count ? ` · ${report.carousel_slide_count} slides` : ""}
+                </span>
+                {" "}·{" "}
+                <span className="normal-case text-[color:var(--gv-ink-3)]">
+                  {meta.niche_label ?? "—"}
+                </span>
               </span>
-              {" "}·{" "}
-              <span className="normal-case text-[color:var(--gv-ink-3)]">
-                {meta.niche_label ?? "—"}
-              </span>
+              <PerformanceTierChip tier={performanceTier} />
             </div>
           ) : (
-            <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-              MỔ VIDEO VIRAL ·{" "}
-              <span className="normal-case text-[color:var(--gv-ink-3)]">
-                {meta.niche_label ?? "—"}
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+                MỔ VIDEO VIRAL ·{" "}
+                <span className="normal-case text-[color:var(--gv-ink-3)]">
+                  {meta.niche_label ?? "—"}
+                </span>
               </span>
+              <PerformanceTierChip tier={performanceTier} />
             </div>
           )}
           <h1
