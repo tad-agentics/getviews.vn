@@ -34,7 +34,6 @@ import { r2FrameUrl } from "@/lib/services/corpus-service";
 import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
 import {
   CreatorComparisonCard,
-  CreatorComparisonUnavailable,
 } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopIssueNarrativeRow } from "@/components/v2/answer/video/blocks/FlopIssueRow";
 import { FlopDiagnosisStrip, formatSaveRatePct } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
@@ -536,8 +535,6 @@ export function VideoBody({
 
         {report.creator_comparison ? (
           <CreatorComparisonCard data={report.creator_comparison} />
-        ) : report.meta?.creator ? (
-          <CreatorComparisonUnavailable creator={report.meta.creator} />
         ) : null}
 
         {report.segments && report.segments.length > 0 ? (
