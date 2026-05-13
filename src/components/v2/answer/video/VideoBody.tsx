@@ -887,7 +887,13 @@ export function VideoBody({
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Format đang hoạt động trong ngách này
             </h3>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1440px]:grid-cols-3">
+            <div
+              className={
+                formatCardsEffective.length === 1
+                  ? "grid grid-cols-1 gap-3"
+                  : "grid grid-cols-1 gap-3 md:grid-cols-2 min-[1440px]:grid-cols-3"
+              }
+            >
               {formatCardsEffective.map((card, i) => {
                 const corpusEv = pickFormatCorpusEvidence(card);
                 const refHit = card.evidence_aweme_id
