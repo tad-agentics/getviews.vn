@@ -608,8 +608,11 @@ export function VideoBody({
         {/*
           Sticky within the studio scrollport: follows the user down the report
           until the grid row ends (same height as the main column), then scrolls away.
+          Only stick once the grid is two-column (>=900px). Below that the aside
+          stacks above the body and a sticky 9/16 thumbnail pins a near-full-viewport
+          poster over the scrolling report at mobile width (360–640px).
         */}
-        <div className="sticky top-20 space-y-3 self-start lg:top-24">
+        <div className="space-y-3 self-start min-[900px]:sticky min-[900px]:top-20 lg:top-24">
           <div
             className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
             style={{
