@@ -37,7 +37,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -62,19 +61,15 @@ from getviews_pipeline.tikhub_douyin import (
 logger = logging.getLogger(__name__)
 
 
-# ── Tuning constants (env-overridable) ──────────────────────────────
+# ── Tuning constants (pydantic-validated via settings.py) ───────────
 
-BATCH_DOUYIN_CONCURRENCY = int(os.environ.get("BATCH_DOUYIN_CONCURRENCY", "2"))
-BATCH_DOUYIN_MIN_VIEWS = int(os.environ.get("BATCH_DOUYIN_MIN_VIEWS", "100000"))
-BATCH_DOUYIN_MIN_ER = float(os.environ.get("BATCH_DOUYIN_MIN_ER", "2.5"))
-BATCH_DOUYIN_HASHTAG_FETCH_LIMIT = int(
-    os.environ.get("BATCH_DOUYIN_HASHTAG_FETCH_LIMIT", "3")
-)
-# Per-niche cap on candidates we run through Gemini. Douyin scale is
-# generous; a smaller cap keeps the daily ED+Gemini budget bounded.
-BATCH_DOUYIN_VIDEOS_PER_NICHE = int(
-    os.environ.get("BATCH_DOUYIN_VIDEOS_PER_NICHE", "5")
-)
+from getviews_pipeline.settings import settings as _settings  # noqa: E402
+
+BATCH_DOUYIN_CONCURRENCY = _settings.batch_douyin_concurrency
+BATCH_DOUYIN_MIN_VIEWS = _settings.batch_douyin_min_views
+BATCH_DOUYIN_MIN_ER = _settings.batch_douyin_min_er
+BATCH_DOUYIN_HASHTAG_FETCH_LIMIT = _settings.batch_douyin_hashtag_fetch_limit
+BATCH_DOUYIN_VIDEOS_PER_NICHE = _settings.batch_douyin_videos_per_niche
 
 
 # ── Result types ────────────────────────────────────────────────────
@@ -445,11 +440,28 @@ async def _analyze_translate_one(
                 if r2_configured()
                 else _noop_frames()
             )
-            analysis, hook_frames, translation = await asyncio.gather(
-                analyze_aweme_from_path(aweme, video_path, include_diagnosis=False),
+            # Phase 3.3 — route through async_run_extraction_core so all
+            # batch ingest flows through the canonical extraction boundary.
+            from getviews_pipeline.services.extraction import async_run_extraction_core
+            extraction_result, hook_frames, translation = await asyncio.gather(
+                async_run_extraction_core(aweme, video_path),
                 frame_coro,
                 translation_task,
             )
+            # Unwrap ExtractionResult → legacy dict shape for downstream helpers.
+            if extraction_result.error:
+                analysis: dict = {
+                    "error": extraction_result.error,
+                    "metadata": extraction_result.metadata.model_dump(),
+                }
+            else:
+                analysis = {
+                    "metadata": extraction_result.metadata.model_dump(),
+                    "analysis": extraction_result.analysis.model_dump() if extraction_result.analysis else {},
+                    "content_type": extraction_result.content_type,
+                    "transcript_quality": extraction_result.transcript_quality,
+                    "entry_cost": extraction_result.entry_cost,
+                }
 
             # Scene-frame extraction (after analysis — needs scene boundaries).
             scene_frame_pairs: list[tuple[int, str]] = []

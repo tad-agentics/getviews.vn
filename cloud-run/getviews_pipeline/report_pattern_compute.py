@@ -320,6 +320,8 @@ def fetch_outlier_story(
             .gte("indexed_at", since_iso)
             .not_.is_("breakout_ratio", "null")
             .gt("breakout_ratio", 5.0)
+            # Phase 5.4 — exclude low-quality user-diagnosed rows from outlier pool.
+            .or_("quality_tier.is.null,quality_tier.in.(high,medium)")
             .order("breakout_ratio", desc=True)
             .limit(1)
             .execute()
@@ -842,6 +844,13 @@ def static_action_cards(baseline_views: float) -> list[ActionCardPayload]:
 
 
 def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500) -> list[dict[str, Any]]:
+    """Phase 5.4 — quality gate: exclude low-quality user-diagnosed rows.
+
+    Rows without quality_tier (all pre-migration batch rows, backfilled to 'high')
+    and rows with 'high' or 'medium' pass through.  Only explicitly tagged
+    'low' rows are excluded.  This prevents thin user-pasted videos from
+    skewing pattern thesis sample sets.
+    """
     try:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         res = (
@@ -853,6 +862,8 @@ def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500)
             )
             .eq("niche_id", niche_id)
             .gte("indexed_at", cutoff)
+            # Exclude low-quality user-diagnosed rows; NULL quality_tier = batch (high).
+            .or_("quality_tier.is.null,quality_tier.in.(high,medium)")
             .order("views", desc=True)
             .limit(limit)
             .execute()

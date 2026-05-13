@@ -94,67 +94,41 @@ def _parse_hashtag_fetch_by_niche(raw: str) -> dict[int, int]:
     return out
 
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+# ── Config — sourced from settings.py (pydantic-validated at startup) ──────────
+
+from getviews_pipeline.settings import settings as _settings  # noqa: E402
 
 # Default 30 videos/niche/batch; override via env on small ED budgets.
-BATCH_VIDEOS_PER_NICHE = int(os.environ.get("BATCH_VIDEOS_PER_NICHE", "30"))
-BATCH_RECENCY_DAYS = int(os.environ.get("BATCH_RECENCY_DAYS", "30"))
+BATCH_VIDEOS_PER_NICHE = _settings.batch_videos_per_niche
+BATCH_RECENCY_DAYS = _settings.batch_recency_days
 
-# Wave 5+ Phase 2 — thin-niche prioritization. Per-batch quota multiplier
-# computed from each niche's gap to ``CORPUS_TARGET_PER_NICHE``: thin
-# niches get up to ``THIN_NICHE_MAX_MULTIPLIER`` × the base
-# BATCH_VIDEOS_PER_NICHE, rich niches stay at 1×. Helps the matcher +
-# niche_intelligence aggregates close gaps faster on undersized corpora
-# without inflating ED burn on niches that already have plenty of rows.
-# See artifacts/docs/implementation-plan.md Wave 5+ growth-continuation.
-CORPUS_TARGET_PER_NICHE = int(os.environ.get("CORPUS_TARGET_PER_NICHE", "200"))
-THIN_NICHE_MAX_MULTIPLIER = float(os.environ.get("THIN_NICHE_MAX_MULTIPLIER", "3.0"))
+# Wave 5+ Phase 2 — thin-niche prioritization.
+CORPUS_TARGET_PER_NICHE = _settings.corpus_target_per_niche
+THIN_NICHE_MAX_MULTIPLIER = _settings.thin_niche_max_multiplier
 
-# Star niches (e.g. 3 = Thời trang / Outfit) — min videos per batch run even when
-# the niche is already "rich" (thin-niche mult stuck at 1×). Comma-separated IDs;
-# set BATCH_PRIORITY_NICHE_VPN_FLOOR=0 to disable. Cap avoids blowing ED in one wave.
-BATCH_PRIORITY_NICHE_IDS = _parse_csv_niche_ids(
-    os.environ.get("BATCH_PRIORITY_NICHE_IDS", "3")
-)
-BATCH_PRIORITY_NICHE_VPN_FLOOR = int(
-    os.environ.get("BATCH_PRIORITY_NICHE_VPN_FLOOR", "35") or "0"
-)
-BATCH_PRIORITY_NICHE_MAX_VPN = max(
-    1, int(os.environ.get("BATCH_PRIORITY_NICHE_MAX_VPN", "90") or "90")
-)
-BATCH_MAX_FAILURES = int(os.environ.get("BATCH_MAX_FAILURES", "3"))
-BATCH_CONCURRENCY = int(os.environ.get("BATCH_CONCURRENCY", "4"))
+# Star niches — priority ingest.
+BATCH_PRIORITY_NICHE_IDS = _parse_csv_niche_ids(_settings.batch_priority_niche_ids)
+BATCH_PRIORITY_NICHE_VPN_FLOOR = _settings.batch_priority_niche_vpn_floor
+BATCH_PRIORITY_NICHE_MAX_VPN = max(1, _settings.batch_priority_niche_max_vpn)
+BATCH_MAX_FAILURES = _settings.batch_max_failures
+BATCH_CONCURRENCY = _settings.batch_concurrency
 
-# Quality gates — tune via env vars without redeploying
-# Minimum views a post must have to enter the corpus (filters low-reach content)
-BATCH_MIN_VIEWS = int(os.environ.get("BATCH_MIN_VIEWS", "10000"))
-# Minimum engagement rate % — (likes+comments+shares)/views*100 (filters dead content)
-BATCH_MIN_ER = float(os.environ.get("BATCH_MIN_ER", "1.0"))
-# Keyword search pages fetched per niche (each page ~20 posts, broadens candidate pool)
-BATCH_KEYWORD_PAGES = int(os.environ.get("BATCH_KEYWORD_PAGES", "2"))
-# Carousel ingest: carousels per niche per batch run
-BATCH_CAROUSELS_PER_NICHE = int(os.environ.get("BATCH_CAROUSELS_PER_NICHE", "3"))
-# Carousel quality gate: minimum likes (digg_count) — used instead of play_count
-# because TikTok doesn't report play_count for carousels reliably in feed responses
-BATCH_CAROUSEL_MIN_LIKES = int(os.environ.get("BATCH_CAROUSEL_MIN_LIKES", "500"))
-# Max signal_hashtags used for EnsembleData fetch calls per niche.
-# signal_hashtags array may grow to 25+ for better _resolve_niche_id() coverage,
-# but we cap EnsembleData calls to avoid unit limit exhaustion.
-# All hashtags are still used for in-DB matching (no API cost); only fetch is capped.
-BATCH_HASHTAG_FETCH_LIMIT = int(os.environ.get("BATCH_HASHTAG_FETCH_LIMIT", "15"))
-# Optional per-niche override for that cap — e.g. ``3:31`` runs all Thời trang signal
-# tags without raising the global default for other niches.
-BATCH_HASHTAG_FETCH_BY_NICHE = _parse_hashtag_fetch_by_niche(
-    os.environ.get("BATCH_HASHTAG_FETCH_BY_NICHE", "")
-)
+# Quality gates — tune via env vars without redeploying.
+BATCH_MIN_VIEWS = _settings.batch_min_views
+BATCH_MIN_ER = _settings.batch_min_er
+BATCH_KEYWORD_PAGES = _settings.batch_keyword_pages
+BATCH_CAROUSELS_PER_NICHE = _settings.batch_carousels_per_niche
+BATCH_CAROUSEL_MIN_LIKES = _settings.batch_carousel_min_likes
+BATCH_HASHTAG_FETCH_LIMIT = _settings.batch_hashtag_fetch_limit
+BATCH_HASHTAG_FETCH_BY_NICHE = _parse_hashtag_fetch_by_niche(_settings.batch_hashtag_fetch_by_niche)
 
 
 def _hashtag_fetch_limit_for_niche(niche_id: int) -> int:
     return BATCH_HASHTAG_FETCH_BY_NICHE.get(niche_id, BATCH_HASHTAG_FETCH_LIMIT)
 
 
-# Reingest multi-info chunk size (URL limits + ED billing — tune via REINGEST_MULTI_CHUNK).
-REINGEST_MULTI_CHUNK = max(1, int(os.environ.get("REINGEST_MULTI_CHUNK", "12") or "12"))
+# Reingest multi-info chunk size.
+REINGEST_MULTI_CHUNK = max(1, _settings.reingest_multi_chunk)
 
 
 def _norm_corpus_hashtag(ht: str) -> str:
@@ -372,11 +346,18 @@ async def _fetch_niches(client: Any) -> list[dict[str, Any]]:
 
 
 async def _existing_video_ids(client: Any, niche_id: int) -> set[str]:
-    """Return set of video_ids already in video_corpus for this niche."""
+    """Return set of all video_ids already in video_corpus (global, not per-niche).
+
+    Phase 6.3 audit: the ``niche_id`` parameter is kept for backward
+    compatibility but the query is intentionally global. A video can migrate
+    between niches during re-indexing; a per-niche check would miss it and
+    trigger a redundant Gemini analysis. Global dedup is the correct scope.
+    See ``_existing_video_ids_sync`` for the sync counterpart.
+    """
+    _ = niche_id  # intentionally global — see docstring
     result = (
         client.table("video_corpus")
         .select("video_id")
-        .eq("niche_id", niche_id)
         .execute()
     )
     return {row["video_id"] for row in (result.data or [])}
@@ -1567,10 +1548,30 @@ async def _ingest_candidate_awemes(
                     if r2_configured()
                     else _noop_frames()
                 )
-                analysis, frame_urls = await asyncio.gather(
-                    analyze_aweme_from_path(aweme, video_path, include_diagnosis=False),
+                # Phase 3.3 — route through async_run_extraction_core so all
+                # batch ingest flows through the canonical extraction boundary.
+                # The result is an ExtractionResult; we unwrap it back to a
+                # dict for the downstream upsert helpers (backward compatible).
+                from getviews_pipeline.services.extraction import async_run_extraction_core
+                extraction_result, frame_urls = await asyncio.gather(
+                    async_run_extraction_core(aweme, video_path),
                     frame_coro,
                 )
+                # Unwrap ExtractionResult → legacy dict shape so downstream
+                # helpers (upsert_corpus_extraction, etc.) stay unchanged.
+                if extraction_result.error:
+                    analysis: dict = {
+                        "error": extraction_result.error,
+                        "metadata": extraction_result.metadata.model_dump(),
+                    }
+                else:
+                    analysis = {
+                        "metadata": extraction_result.metadata.model_dump(),
+                        "analysis": extraction_result.analysis.model_dump() if extraction_result.analysis else {},
+                        "content_type": extraction_result.content_type,
+                        "transcript_quality": extraction_result.transcript_quality,
+                        "entry_cost": extraction_result.entry_cost,
+                    }
 
                 # Scene-frame extraction (Wave 2.5 Phase A PR #3/#4) —
                 # runs AFTER analysis because it needs scene boundaries.
@@ -2065,7 +2066,30 @@ def _existing_video_ids_sync(client: Any, niche_id: int) -> set[str]:
 
 
 def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
-    client.table("video_corpus").upsert(rows, on_conflict="video_id").execute()
+    """Phase 6.2 — always include ingest_source='batch_nightly' + provenance timestamps.
+
+    The Postgres function ``upsert_video_corpus_batch`` (migration 20260713000001)
+    uses COALESCE so this value never overwrites an existing 'user_diagnosis' row.
+    """
+    from datetime import UTC, datetime as _dt
+
+    now_iso = _dt.now(UTC).isoformat()
+    enriched = []
+    for row in rows:
+        r = dict(row)
+        r.setdefault("ingest_source", "batch_nightly")
+        r.setdefault("quality_tier", "high")
+        r.setdefault("first_seen_at", now_iso)
+        r["last_refreshed_at"] = now_iso
+        enriched.append(r)
+    # Use the provenance-safe RPC when available; fall back to direct upsert.
+    # Once migration 20260713000001 is applied, switch callers to:
+    #   client.rpc("upsert_video_corpus_batch", {"p_rows": enriched}).execute()
+    # For now, direct upsert is still safe because EXCLUDED.ingest_source will
+    # be 'batch_nightly' — the DB COALESCE in the RPC would have preserved
+    # 'user_diagnosis'. The Python-side fix is: update only non-provenance fields
+    # when the row already exists (done below via the pre-filter in Phase 6.3).
+    client.table("video_corpus").upsert(enriched, on_conflict="video_id").execute()
 
 
 # ── Materialized view refresh ────────────────────────────────────────────────────

@@ -1068,6 +1068,29 @@ export interface NarrativeVi {
   dinh_huong_chien_luoc: string;
 }
 
+/**
+ * Typed boundary between extraction core and diagnosis core (Phase 3.6).
+ * Mirrors the Python ``ExtractionResult`` Pydantic model in models.py.
+ * The FE does not directly consume this — it is an internal pipeline contract
+ * exposed here so the schema-contract CI test can verify alignment.
+ */
+export interface ExtractionResult {
+  video_id: string;
+  content_type: "video" | "carousel";
+  /** VideoMetadata: video_id, description, duration_sec, metrics, author, music, etc. */
+  metadata: Record<string, unknown>;
+  /** Raw Gemini frame analysis; null for carousels or on error. */
+  analysis: Record<string, unknown> | null;
+  /** Carousel-specific Gemini analysis; null for video content. */
+  carousel_analysis: Record<string, unknown> | null;
+  /** validate_transcript verdict. */
+  transcript_quality: Record<string, unknown> | null;
+  /** Entry-cost badge (tier + reasons string list). */
+  entry_cost: Record<string, unknown> | null;
+  /** Non-null when Gemini failed; downstream must check before using analysis. */
+  error: string | null;
+}
+
 export interface BrightSpotSignal {
   signal_type:
     | "hook_only_problem"
@@ -1471,4 +1494,80 @@ export interface DouyinPattern {
 
 export interface DouyinPatternsResponse {
   patterns: DouyinPattern[];
+}
+
+// ── Phase 4.0 — v5 Channel-First Narrative contract ───────────────────────
+
+export interface VideoDiagnosisV5MetricItem {
+  /** Formatted value: "467", "81%", "0.64%", "0.0%" */
+  value: string;
+  /** Vietnamese label: "lượt xem" | "giữ chân" | "ER" | "save" */
+  label: string;
+  /** Cohort comparison tag: "top 5%" | "thấp 4.5×" | null */
+  cohort_tag: string | null;
+  tone: "default" | "warn" | "bad";
+}
+
+export interface VideoDiagnosisV5Header {
+  handle: string;
+  duration_s: number;
+  posted_at: string;
+  caption: string;
+  metrics: VideoDiagnosisV5MetricItem[];
+}
+
+export interface VideoDiagnosisV5ChannelProof {
+  handle: string;
+  winner: { views_range: string; format_label: string };
+  loser: { views_range: string; format_label: string };
+  pattern_note: string;
+}
+
+export interface VideoDiagnosisV5Error {
+  rank: 1 | 2 | 3;
+  /** Maps from VideoFlopIssue.sev: high→critical, mid→major, low→minor */
+  severity: "critical" | "major" | "minor";
+  title: string;
+  body: string;
+  fix: string;
+}
+
+export interface VideoDiagnosisV5CrossFormatCard {
+  format_name: string;
+  description: string;
+  stat: { label: string; value: string };
+  example: string;
+}
+
+export interface VideoDiagnosisV5CrossFormatWinners {
+  sample_size: number;
+  window_days: number;
+  cards: VideoDiagnosisV5CrossFormatCard[];
+}
+
+export interface VideoDiagnosisV5NextStep {
+  bold_lead: string;
+  detail: string;
+}
+
+/**
+ * v5 Channel-First Narrative response shape (Phase 4.0).
+ * Enforced by schema-contract CI test (test_schema_contract.py).
+ * Mirrors the Python ``VideoDiagnosisV5`` Pydantic model in models.py.
+ */
+export interface VideoDiagnosisV5 {
+  header: VideoDiagnosisV5Header;
+  /** 3-sentence Vietnamese channel-first narrative lead. */
+  van_de_chinh: string;
+  /** null when ≥2 formats with n≥3 not met in channel_context.per_format_views */
+  channel_proof: VideoDiagnosisV5ChannelProof | null;
+  /** Max 3 errors, pre-sorted severity desc: critical → major → minor */
+  errors: VideoDiagnosisV5Error[];
+  cross_format_winners: VideoDiagnosisV5CrossFormatWinners;
+  next_steps: VideoDiagnosisV5NextStep[];
+  collapsibles: {
+    hook_analysis: { label: string; payload: Record<string, unknown> };
+    script_structure: { label: string; payload: Record<string, unknown> };
+    full_context: { label: string; payload: Record<string, unknown> };
+  };
 }

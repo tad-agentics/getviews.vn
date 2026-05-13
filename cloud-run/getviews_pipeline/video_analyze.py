@@ -14,8 +14,6 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
-
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
     fetch_video_benchmark_with_axis,
@@ -74,44 +72,25 @@ def _merge_sidecars_into_response(
 
 # ── Gemini output schemas (Call 1 — structured errors only) ─────────────
 
-_SILENT_FORMAT_EXCEPTIONS_VIDEO = frozenset(
-    {
-        "product_display_silent",
-        "ambient_lifestyle",
-        "macro_closeup_product",
-        "aesthetic_broll",
-        "text_overlay_only",
-        "faceless",
-        "highlight",
-        "product_showcase",
-        "jewelry",
-        "watch_flex",
-        "luxury_broll",
-    }
+# Moved to services/extraction.py — re-exported here for backward compatibility.
+from getviews_pipeline.services.extraction import (  # noqa: E402
+    PRESENTER_NOT_REQUIRED_FORMATS,
+    VideoErrorItemLLM,
+    VideoErrorsExtractionLLM,
+    _FORBIDDEN_PHRASES_VI,
+    _HOOK_LANG_DEDUPE_WINDOW_END_SEC,
+    _SILENT_FORMAT_EXCEPTIONS_VIDEO,
+    _collapse_hook_window_high_errors,
+    _dedupe_hook_window_high_errors,
+    _dedupe_lang_market_hook_errors,
+    _is_hook_related_error,
+    _overlaps_hook_lang_dedupe_window,
+    _product_led_silent_visual,
+    _summarise_niche_row,
+    _summarise_retention_curve,
+    apply_rule_based_video_errors,
+    extract_video_errors,
 )
-
-# Formats where a talking head is not expected — skip no_human_presence (v4 FORMAT-CONTRADICT).
-PRESENTER_NOT_REQUIRED_FORMATS = frozenset({
-    "product_showcase",
-    "flat_lay",
-    "unboxing_silent",
-})
-
-
-class VideoErrorItemLLM(BaseModel):
-    """Matches frontend ``VideoFlopIssue`` (+ error_id)."""
-
-    error_id: str = Field(max_length=64, description="Stable slug e.g. ERR_hook_weak")
-    sev: Literal["high", "mid", "low"]
-    t: float = Field(ge=0.0, le=600.0)
-    end: float = Field(ge=0.0, le=600.0)
-    title: str = Field(max_length=200)
-    detail: str = Field(max_length=900)
-    fix: str = Field(max_length=400)
-
-
-class VideoErrorsExtractionLLM(BaseModel):
-    errors: list[VideoErrorItemLLM] = Field(default_factory=list, max_length=8)
 
 
 # ── Mode + KPI helpers ─────────────────────────────────────────────────────
@@ -161,18 +140,12 @@ def _median_views_proxy(niche_row: dict[str, Any] | None) -> float:
     return 5_000.0
 
 
-# Niche-less flop thresholds — used when ``niche_row`` is None (no
-# hashtag classifier match, or niche_intelligence MV empty for that
-# niche). Conservative: both tiers flag clear underperformance only.
-#   • views < 5K — too few eyeballs to claim "win" by any metric
-#   • views < 20K AND er < 1.5% — decent reach but weak engagement
-# Otherwise default to win. Tunable via env vars for ops dial-back
-# without a code push.
-import os as _os  # local alias to avoid polluting module-level imports
+# Niche-less flop thresholds — tunable via env vars (see settings.py).
+from getviews_pipeline.settings import settings as _settings  # noqa: E402
 
-NICHELESS_FLOP_VIEWS_FLOOR = int(_os.environ.get("NICHELESS_FLOP_VIEWS_FLOOR", "5000"))
-NICHELESS_FLOP_VIEWS_LOOSE = int(_os.environ.get("NICHELESS_FLOP_VIEWS_LOOSE", "20000"))
-NICHELESS_FLOP_ER_FLOOR = float(_os.environ.get("NICHELESS_FLOP_ER_FLOOR", "1.5"))
+NICHELESS_FLOP_VIEWS_FLOOR = _settings.nicheless_flop_views_floor
+NICHELESS_FLOP_VIEWS_LOOSE = _settings.nicheless_flop_views_loose
+NICHELESS_FLOP_ER_FLOOR = _settings.nicheless_flop_er_floor
 
 
 def is_flop_mode(video: dict[str, Any], niche_row: dict[str, Any] | None) -> bool:
@@ -466,187 +439,7 @@ def _diagnostics_legacy(diag: dict[str, Any]) -> bool:
     return False
 
 
-# Closed [0, _HOOK_LANG_DEDUPE_WINDOW_END_SEC] — overlap with error [t, end] dedupes vs lang_market.
-_HOOK_LANG_DEDUPE_WINDOW_END_SEC = 4.0
-
-
-def _overlaps_hook_lang_dedupe_window(t: float, end: float) -> bool:
-    err_lo = min(t, end)
-    err_hi = max(t, end)
-    return err_lo <= _HOOK_LANG_DEDUPE_WINDOW_END_SEC and err_hi >= 0.0
-
-
-def _is_hook_related_error(e: dict[str, Any]) -> bool:
-    eid = str(e.get("error_id") or "").lower()
-    title_l = str(e.get("title") or "").lower()
-    return (
-        "hook" in eid
-        or eid.startswith("err_hook")
-        or "hook" in title_l
-        or "mở đầu" in title_l
-        or title_l.startswith("mở ")
-    )
-
-
-def _dedupe_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Single-pass dedupe of multiple high-severity hook errors in the 0–4s window.
-
-    Picks a primary (prefer ``lang_market_mismatch``, else the first
-    overlapping high-sev hook error), merges sibling ``fix`` texts
-    into the primary as "(Bổ sung: …)", and drops the siblings.
-    Preserves relative ordering of non-hook errors and of the primary
-    within the output list.
-
-    Replaces the previous two-pass chain
-    (``_dedupe_lang_market_hook_errors`` → ``_collapse_hook_window_high_errors``)
-    which worked correctly only by accident — pass 1 left exactly one
-    hook-high so pass 2 early-returned. Any future tweak that let two
-    survive pass 1 would have double-merged with "(Bổ sung: …)
-    (Gộp: …)".
-    """
-    overlapping: list[dict[str, Any]] = []
-    for e in errors:
-        if (
-            str(e.get("sev") or "") == "high"
-            and _is_hook_related_error(e)
-            and _overlaps_hook_lang_dedupe_window(
-                float(e.get("t") or 0.0),
-                float(e.get("end") or e.get("t") or 0.0),
-            )
-        ):
-            overlapping.append(e)
-    if len(overlapping) <= 1:
-        return errors
-
-    primary = next(
-        (e for e in overlapping if str(e.get("error_id") or "") == "lang_market_mismatch"),
-        overlapping[0],
-    )
-    merged_fixes: list[str] = []
-    for e in overlapping:
-        if e is primary:
-            continue
-        fx = str(e.get("fix") or "").strip()
-        if fx and fx not in str(primary.get("fix") or ""):
-            merged_fixes.append(fx)
-    out_primary = dict(primary)
-    if merged_fixes:
-        base = str(out_primary.get("fix") or "").strip()
-        extra = "; ".join(merged_fixes[:3])
-        out_primary["fix"] = f"{base} (Bổ sung: {extra})" if base else extra
-
-    # Walk the original input once, dropping the siblings while
-    # preserving every other error's order.
-    siblings = {id(e) for e in overlapping if e is not primary}
-    out: list[dict[str, Any]] = []
-    for e in errors:
-        if id(e) in siblings:
-            continue
-        out.append(out_primary if e is primary else e)
-    return out
-
-
-# Legacy names kept so existing tests + callers still link. Both
-# delegate to the canonical single pass.
-_collapse_hook_window_high_errors = _dedupe_hook_window_high_errors
-
-
-def _product_led_silent_visual(analysis: dict[str, Any]) -> bool:
-    """True when the opening is intentionally product-forward (no talking head expected)."""
-    ha = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else None
-    if isinstance(ha, dict):
-        fft = str(ha.get("first_frame_type") or "").strip().lower()
-        if fft == "product":
-            return True
-    scenes = analysis.get("scenes") or []
-    if not isinstance(scenes, list):
-        return False
-    for s in scenes[:4]:
-        if not isinstance(s, dict):
-            continue
-        start = float(s.get("start") or 0.0)
-        if start > 4.0:
-            break
-        stype = str(s.get("type") or "")
-        subj = str(s.get("subject") or "")
-        if stype == "product_shot" or subj == "product":
-            return True
-    return False
-
-
-_dedupe_lang_market_hook_errors = _dedupe_hook_window_high_errors
-
-
-def apply_rule_based_video_errors(
-    errors: list[dict[str, Any]],
-    analysis: dict[str, Any],
-    content_format: str,
-    *,
-    caption_hint: str | None = None,
-    duration_sec: float | None = None,
-) -> list[dict[str, Any]]:
-    """Augment Gemini error extraction with deterministic guards (language, presence)."""
-
-    from getviews_pipeline.analysis_core import detect_language_market_mismatch
-    from getviews_pipeline.analysis_guards import clamp_structural_error_timestamps
-
-    out = list(errors)
-    ha0 = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else None
-    hook_phrase = (ha0 or {}).get("hook_phrase") if isinstance(ha0, dict) else ""
-    cap = str(caption_hint or "").strip()
-    phrase = str(hook_phrase or "").strip()
-    hook_text = f"{cap} {phrase}".strip()
-    if hook_text:
-        lang_error = detect_language_market_mismatch(hook_text)
-        if lang_error:
-            le = dict(lang_error)
-            if le.get("end") is None:
-                le["end"] = 0.0
-            out.insert(0, le)
-
-    has_human = bool(analysis.get("has_human_speaking_to_camera"))
-    has_opinion = bool(analysis.get("has_expressed_opinion_or_question"))
-    dur = float(duration_sec or 0.0)
-    if dur <= 0:
-        dur = float((analysis.get("duration_sec") or analysis.get("video_duration_sec") or 0) or 0.0)
-    if dur <= 0:
-        scenes = analysis.get("scenes") or []
-        if isinstance(scenes, list) and scenes:
-            last = scenes[-1]
-            if isinstance(last, dict):
-                dur = float(last.get("end") or 0.0)
-    end_ts = float(dur) if dur > 0 else 11.0
-    skip_no_human = (
-        content_format in _SILENT_FORMAT_EXCEPTIONS_VIDEO
-        or content_format in PRESENTER_NOT_REQUIRED_FORMATS
-        or _product_led_silent_visual(analysis)
-    )
-    if (
-        not has_human
-        and not has_opinion
-        and not skip_no_human
-    ):
-        out.append(
-            {
-                "error_id": "no_human_presence",
-                "title": "Không có người nói chuyện với camera",
-                "detail": (
-                    "Video không có mặt người hoặc giọng nói trực tiếp. "
-                    "Format này hoạt động tốt hơn khi có người dẫn dắt, "
-                    "tạo kết nối cảm xúc với người xem."
-                ),
-                "fix": (
-                    "Thêm ít nhất 2-3 giây mặt người nói chuyện thẳng với camera "
-                    "tại hook hoặc giữa video."
-                ),
-                "sev": "mid",
-                "t": 0.0,
-                "end": end_ts,
-            }
-        )
-    merged = _dedupe_hook_window_high_errors(out)
-    clamp_dur = float(dur) if dur > 0 else None
-    return clamp_structural_error_timestamps(merged, clamp_dur)
+# Functions above moved to services/extraction.py — re-exported at top of this file.
 
 
 def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
@@ -798,173 +591,7 @@ def _response_from_diagnostics_row(
     }
 
 
-# ── D2 (2026-05-15) — synthesis prompt v2 helpers ────────────────────────
-
-# Forbidden cliché list — embedded in both Win + Flop prompts so Gemini
-# doesn't hide behind sáo-rỗng vocabulary. Mirror of the morning-ritual
-# v2 list (single source of truth would be nice; for now keep duplicated
-# until a shared ``vn_copy_rules.py`` is justified).
-_FORBIDDEN_PHRASES_VI = (
-    '"tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", '
-    '"hack não", "đừng bỏ qua", "xem ngay kẻo muộn", "triệu view", '
-    '"bùng nổ", "công thức vàng", "chấn động"'
-)
-
-
-def _summarise_retention_curve(curve: list[dict[str, Any]] | None) -> str:
-    """Compress a retention curve into a 1-line summary for prompt context.
-
-    Identifies the steepest drop (timing + magnitude) so Gemini can anchor
-    diagnosis to where viewers actually leave. Returns "" when the curve
-    has fewer than 3 points (not enough signal).
-    """
-    if not curve or len(curve) < 3:
-        return ""
-    points = [
-        (float(p.get("t") or 0.0), float(p.get("pct") or 0.0))
-        for p in curve
-        if isinstance(p, dict)
-    ]
-    if len(points) < 3:
-        return ""
-    points.sort(key=lambda p: p[0])
-    # Find the largest single-step drop (next - current).
-    biggest_drop = 0.0
-    drop_at = 0.0
-    drop_to = 0.0
-    for i in range(len(points) - 1):
-        delta = points[i + 1][1] - points[i][1]
-        if delta < biggest_drop:  # delta is negative when retention drops
-            biggest_drop = delta
-            drop_at = points[i][0]
-            drop_to = points[i + 1][1]
-    end_pct = points[-1][1]
-    if biggest_drop > -3:  # < 3% step drop → no notable drop
-        return f"Retention end {end_pct:.0f}% — không có drop đột biến."
-    return (
-        f"Retention end {end_pct:.0f}%. Drop lớn nhất: "
-        f"{abs(biggest_drop):.0f}% tại {drop_at:.1f}s → {drop_to:.0f}%."
-    )
-
-
-def _summarise_niche_row(row: dict[str, Any] | None) -> str:
-    """Pre-format the niche/content_class row as bullets for prompt context.
-
-    The legacy Flop prompt dumped raw JSON; Gemini parses fine but the
-    signal-to-noise was bad. Bullet form reduces tokens AND makes
-    the comparison anchor explicit.
-    """
-    if not row:
-        return "(chưa có dữ liệu ngách)"
-    bits: list[str] = []
-    sample = row.get("sample_size")
-    if sample is not None:
-        bits.append(f"sample={sample}")
-    avg_views = row.get("organic_avg_views") or row.get("avg_views")
-    if avg_views is not None:
-        bits.append(f"avg_views≈{int(avg_views):,}")
-    median_er = row.get("median_er") or row.get("avg_engagement_rate")
-    if median_er is not None:
-        bits.append(f"median_er={float(median_er):.3f}")
-    median_views = row.get("median_views")
-    if median_views is not None:
-        bits.append(f"median_views≈{int(median_views):,}")
-    return "Ngách norms: " + ", ".join(bits) if bits else "(thưa data)"
-
-
-def extract_video_errors(
-    *,
-    extraction_mode: Literal["win", "flop"],
-    video: dict[str, Any],
-    analysis: dict[str, Any],
-    niche_label: str,
-    niche_row: dict[str, Any] | None,
-    retention_curve: list[dict[str, Any]] | None = None,
-) -> list[dict[str, Any]]:
-    """Call 1 — Gemini extracts ``VideoFlopIssue``-shaped errors (+ ``error_id``)."""
-
-    from google.genai import types
-
-    from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
-    from getviews_pipeline.gemini import (
-        _generate_content_models,
-        _normalize_response,
-        _response_text,
-    )
-
-    hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
-    niche_summary = _summarise_niche_row(niche_row)
-    retention_summary = _summarise_retention_curve(retention_curve)
-
-    if extraction_mode == "win":
-        mode_block = """## Chế độ WIN (video đang hoạt động tốt)
-
-- Trích xuất **0–3** vấn đề tiềm ẩn hoặc polish (sev chỉ **mid** hoặc **low**).
-- Nếu không có vấn đề đáng kể, trả `"errors": []`.
-- **Không** dùng sev **high** trừ khi có lỗi cấu trúc rõ ràng trong phân tích."""
-    else:
-        mode_block = """## Chế độ FLOP (video yếu so với ngách)
-
-- Trích xuất **ít nhất 1**, tối đa 8 mục ``errors``, xếp theo độ nghiêm trọng (high → low).
-- Mỗi mục PHẢI có ``error_id`` ổn định dạng ERR_* (vd ERR_hook_late_face)."""
-
-    prompt = f"""Bạn là chẩn đoán cấu trúc TikTok tiếng Việt.
-
-{mode_block}
-
-Ngách: {niche_label}
-{niche_summary}
-Video: @{video.get("creator_handle", "")} | views {int(video.get("views") or 0)} | ER {float(video.get("engagement_rate") or 0):.4f}
-Hook phrase: {hook.get("hook_phrase") or ""}
-{retention_summary}
-
-## Severity (chế độ flop)
-
-- high: retention drop >30% trong <2s, hook miss 0-3s, CTA conflict — phải fix mới hy vọng cải thiện.
-- mid: drop 15-30% 2-5s, structure issue — đáng fix.
-- low: polish (text, sound, CTA wording).
-
-## Fix vocabulary cho ``fix`` (action-driven, có placeholder cụ thể)
-
-- "Đổi hook sang [type]" | "Cắt scene [N]" | "Đẩy CTA xuống giây [X]" | "Thay sound trending [genre]" | "Thêm text overlay tại giây [X]" | "Compress hook về dưới [X]s"
-
-## Schema JSON — trả về một object duy nhất
-
-`{{ "errors": [ {{ "error_id", "sev", "t", "end", "title", "detail", "fix" }} ] }}`
-
-- ``t`` / ``end``: giây trên timeline video.
-- TRÁNH: {_FORBIDDEN_PHRASES_VI}
-"""
-
-    config = types.GenerateContentConfig(
-        temperature=0.45,
-        response_mime_type="application/json",
-        response_json_schema=VideoErrorsExtractionLLM.model_json_schema(),
-    )
-    response = _generate_content_models(
-        [prompt],
-        primary_model=GEMINI_SYNTHESIS_MODEL,
-        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
-        config=config,
-    )
-    raw = _response_text(response)
-    parsed = VideoErrorsExtractionLLM.model_validate_json(_normalize_response(raw))
-    items = [e.model_dump() for e in parsed.errors]
-    if extraction_mode == "flop" and not items:
-        items = [
-            {
-                "error_id": "ERR_fallback_extraction",
-                "sev": "mid",
-                "t": 0.0,
-                "end": 3.0,
-                "title": "Cần xem lại hook và pacing mở đầu",
-                "detail": (
-                    "Không trích xuất được lỗi cụ thể từ model — xem lại 3 giây đầu và retention."
-                ),
-                "fix": "Compress hook về dưới 1.5s với payoff rõ trong frame đầu.",
-            }
-        ]
-    return items
+# ── D2 helpers moved to services/extraction.py — re-exported at top of file ──
 
 
 _CORPUS_ROW_UUID_RE = re.compile(
@@ -1201,9 +828,10 @@ def finalize_video_narrative_layer(
         compute_bright_spot_signal,
         compute_view_scenarios,
         enrich_format_cards_from_corpus,
-        fetch_channel_context_sync,
         refine_performance_tier,
     )
+    # Phase 5.5 — use the cached wrapper; same API as pipelines version.
+    from getviews_pipeline.services.channel import fetch_channel_context_sync
     from getviews_pipeline.step_events import emit
 
     analysis: dict[str, Any] = out.pop("__narrative_analysis", None) or {}
@@ -1403,6 +1031,9 @@ def finalize_video_narrative_layer(
         out["format_cards"] = format_cards_out
     if diagnosis_md:
         out["diagnosis"] = diagnosis_md
+    # Phase 4.4.6 — stable BE marker so the FE can detect v5 responses
+    # without brittle sentence-count heuristics on van_de_chinh.
+    out["_schema_version"] = "v5"
 
     # Persist the narrative layer alongside the deterministic one so
     # the next request on the same video_id within the diagnostics TTL
@@ -1441,14 +1072,50 @@ def finalize_video_narrative_layer(
     on_demand_vid = out.pop("__cache_on_demand_vid", None)
     if on_demand_url and on_demand_vid:
         from getviews_pipeline.supabase_client import get_service_client
+        from getviews_pipeline.observability import log_cache_event
 
+        service_client = get_service_client()
         cacheable = {k: v for k, v in out.items() if not k.startswith("__")}
         _persist_on_demand_cache(
-            get_service_client(),
+            service_client,
             tiktok_url=on_demand_url,
             video_id=on_demand_vid,
             response=cacheable,
         )
+        log_cache_event(
+            event="cache_write",
+            cache_source="on_demand_cache",
+            video_id=on_demand_vid,
+        )
+
+        # Phase 5.1b — promote on-demand extraction to video_corpus.
+        # The analysis was already paid for; adding the row grows the corpus
+        # for free and improves future cohort benchmarks.
+        try:
+            from getviews_pipeline.services.corpus_quality import promote_on_demand_to_corpus
+
+            _meta = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+            _analysis = analysis  # captured above before pop
+            _niche_id_raw = _meta.get("niche_id") or out.get("niche_id")
+            _niche_id = int(_niche_id_raw) if _niche_id_raw is not None else None
+            if _niche_id and _analysis:
+                promote_on_demand_to_corpus(
+                    service_client,
+                    video_id=on_demand_vid,
+                    tiktok_url=on_demand_url,
+                    creator_handle=str(_meta.get("creator_handle") or ""),
+                    niche_id=_niche_id,
+                    analysis_json=_analysis,
+                    views=int(_meta.get("views") or 0),
+                    likes=int(_meta.get("likes") or 0),
+                    comments=int(_meta.get("comments") or 0),
+                    shares=int(_meta.get("shares") or 0),
+                    engagement_rate=float(_meta.get("engagement_rate") or 0.0),
+                    content_type=str(_meta.get("content_type") or "video"),
+                    thumbnail_url=str(_meta.get("thumbnail_url") or "") or None,
+                )
+        except Exception as _exc:
+            logger.warning("[finalize] corpus promote failed video_id=%s: %s", on_demand_vid, _exc)
 
 
 def run_video_analyze_pipeline(
@@ -1794,6 +1461,38 @@ async def _fetch_and_analyze_async(tiktok_url: str) -> tuple[dict[str, Any], dic
     return aweme, analyze_result
 
 
+def normalize_tiktok_url(url: str) -> str:
+    """Phase 5.1.1 — Canonicalize a TikTok URL before cache lookup.
+
+    Handles the most common variants that would cause spurious cache misses:
+      - http vs https → always https
+      - www. vs no www. → always www
+      - trailing slash → stripped
+      - query parameters (e.g. ?_r=1, ?share_app_id=...) → stripped
+      - fragment (#comments) → stripped
+      - vt.tiktok.com short links → kept as-is (can't resolve without HTTP)
+      - vm.tiktok.com short links → kept as-is
+
+    Returns a normalized canonical form so that repeat lookups on URL
+    variants (copy-pasted from share sheet, slightly different query params)
+    all resolve to the same cache key.
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    raw = str(url or "").strip()
+    if not raw:
+        return raw
+
+    parsed = urlparse(raw)
+    scheme = "https"
+    netloc = parsed.netloc.lower()
+    if not netloc.startswith("www.") and "tiktok.com" in netloc and "vt." not in netloc and "vm." not in netloc:
+        netloc = "www." + netloc.lstrip("www.")
+    # Strip query + fragment; keep path (strip trailing slash if path != /)
+    path = parsed.path.rstrip("/") if parsed.path not in ("", "/") else parsed.path
+    return urlunparse((scheme, netloc, path, "", "", ""))
+
+
 def _try_on_demand_cache_hit(
     service_sb: Any, tiktok_url: str, *, step_queue: Any | None = None,
 ) -> dict[str, Any] | None:
@@ -1804,14 +1503,29 @@ def _try_on_demand_cache_hit(
     cached response dict on hit, ``None`` on miss / stale / error.
     Avoids the EnsembleData URL → aweme fetch (~4s) and the entire
     Gemini pipeline (~6 min) on hit.
+
+    Phase 5.1.1 — normalizes the URL before lookup so variants
+    (query params, http vs https, trailing slash) hit the same cache row.
     """
     if not tiktok_url:
         return None
+    canonical_url = normalize_tiktok_url(tiktok_url)
+    # Phase 5.8 — track URL normalization collisions (variant → canonical).
+    if canonical_url != tiktok_url:
+        try:
+            from getviews_pipeline.observability import log_url_normalize_event
+            log_url_normalize_event(
+                raw_url=tiktok_url,
+                canonical_url=canonical_url,
+                was_normalized=True,
+            )
+        except Exception:
+            pass
     try:
         res = (
             service_sb.table("video_diagnostics")
             .select("cached_response,computed_at")
-            .eq("tiktok_url", tiktok_url)
+            .eq("tiktok_url", canonical_url)
             .eq("source", "on_demand")
             .limit(1)
             .execute()
@@ -1832,6 +1546,8 @@ def _try_on_demand_cache_hit(
         from getviews_pipeline.step_events import emit, step_process
 
         emit(step_queue, step_process("Đang đọc kết quả phân tích đã lưu..."))
+    from getviews_pipeline.observability import log_cache_event
+    log_cache_event(event="cache_hit", cache_source="on_demand_cache", video_id=None)
     return cached
 
 
@@ -1840,14 +1556,18 @@ def _persist_on_demand_cache(
 ) -> None:
     """Cache an on-demand response so the next request on the same URL
     can short-circuit. Non-fatal: any failure is logged and swallowed.
+
+    Phase 5.1.1 — stores the canonical URL so future variant requests
+    also hit this cache row.
     """
     if not tiktok_url or not video_id or not response:
         return
+    canonical_url = normalize_tiktok_url(tiktok_url)
     try:
         service_sb.table("video_diagnostics").upsert(
             {
                 "video_id": video_id,
-                "tiktok_url": tiktok_url,
+                "tiktok_url": canonical_url,
                 "source": "on_demand",
                 "cached_response": response,
                 "computed_at": datetime.now(UTC).isoformat(),

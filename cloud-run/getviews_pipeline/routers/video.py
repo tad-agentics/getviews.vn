@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
-from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.supabase_client import user_supabase
@@ -24,13 +23,6 @@ _NICHE_BENCH_TTL_SEC = 3600.0
 
 def _niche_bench_cache_key(niche_id: int, duration_sec: float) -> tuple[int, int]:
     return niche_id, int(round(duration_sec))
-
-
-class VideoAnalyzeRequest(StrictBody):
-    video_id: str | None = None
-    tiktok_url: str | None = None
-    force_refresh: bool = False
-    mode: Literal["win", "flop"] | None = None
 
 
 @router.get("/video/niche-benchmark")
@@ -61,81 +53,6 @@ async def video_niche_benchmark(
     payload = build_niche_benchmark_payload(row, niche_id=niche_id, duration_sec=duration_sec, user_sb=sb)
     _NICHE_BENCH_CACHE[ck] = (now, payload)
     return JSONResponse(payload)
-
-
-@router.post("/video/analyze")
-async def video_analyze_endpoint(
-    body: VideoAnalyzeRequest,
-    user: dict = Depends(require_user),
-) -> JSONResponse:
-    """Phase B · B.1.3 — structural slots + Gemini copy, cached in ``video_diagnostics``.
-
-    On-demand fallback: when the user pastes a URL that isn't in
-    ``video_corpus`` (composer → ``/app/video?url=…``), fall through to
-    ``run_video_analyze_on_demand`` so they get a working analysis
-    instead of a 404 dead-end. The fallback never persists — pure
-    one-shot Gemini run, result flagged ``source: "on_demand"``.
-    The fallback only triggers when the user supplied a ``tiktok_url``;
-    a ``video_id`` miss (UUID or numeric aweme_id that's not in corpus)
-    still 404s, since we have no URL to fetch from EnsembleData.
-    """
-    from getviews_pipeline.supabase_client import get_service_client
-    from getviews_pipeline.video_analyze import (
-        finalize_video_narrative_layer,
-        run_video_analyze_on_demand,
-        run_video_analyze_pipeline,
-    )
-
-    vid = (body.video_id or "").strip() if body.video_id else ""
-    url = (body.tiktok_url or "").strip() if body.tiktok_url else ""
-    if not vid and not url:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cần video_id hoặc tiktok_url")
-
-    sb_user = user_supabase(user["access_token"])
-    try:
-        out = await run_sync(
-            run_video_analyze_pipeline,
-            get_service_client(),
-            sb_user,
-            video_id=vid or None,
-            tiktok_url=url or None,
-            force_refresh=body.force_refresh,
-            mode=body.mode,
-        )
-    except ValueError as exc:
-        msg = str(exc)
-        url_miss = (msg == "video not in corpus" and url) or "Không tìm thấy video trong corpus cho URL này" in msg
-        if url_miss and url:
-            try:
-                out = await run_sync(
-                    run_video_analyze_on_demand,
-                    get_service_client(),
-                    sb_user,
-                    tiktok_url=url,
-                    mode=body.mode,
-                )
-                await run_sync(finalize_video_narrative_layer, out)
-                return JSONResponse(out)
-            except ValueError as ondemand_exc:
-                # Bad URL shape, missing aweme_id, etc. — caller's request
-                # was structurally invalid; surface as 400.
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=str(ondemand_exc),
-                ) from ondemand_exc
-            except Exception as ondemand_exc:
-                logger.exception("[video/analyze] on-demand failed: %s", ondemand_exc)
-                raise HTTPException(status_code=500, detail=str(ondemand_exc)) from ondemand_exc
-        if msg == "video not in corpus" or "Không tìm thấy" in msg:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg) from exc
-    except Exception as exc:
-        logger.exception("[video/analyze] failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    else:
-        # Only runs when pipeline succeeded and ``out`` is defined — not after handlers that re-raise.
-        await run_sync(finalize_video_narrative_layer, out)
-        return JSONResponse(out)
 
 
 @router.get("/channel/analyze")

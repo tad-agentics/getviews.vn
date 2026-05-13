@@ -13,7 +13,6 @@ from pydantic import ValidationError
 
 from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.routers.intent import StreamRequest
-from getviews_pipeline.routers.video import VideoAnalyzeRequest
 from getviews_pipeline.routers.batch import BatchIngestRequest
 from getviews_pipeline.routers.answer import AnswerSessionCreateBody
 from getviews_pipeline.routers.admin import AdminTriggerRefreshBody
@@ -31,10 +30,6 @@ def test_strict_body_base_rejects_extras() -> None:
     "model_cls,valid_payload",
     [
         (StreamRequest, {"session_id": "s1", "query": "hi"}),
-        (
-            VideoAnalyzeRequest,
-            {"video_id": "abc", "tiktok_url": None, "force_refresh": False, "mode": None},
-        ),
         (BatchIngestRequest, {"niche_ids": [1, 2], "deep_pool": False}),
         (
             AnswerSessionCreateBody,

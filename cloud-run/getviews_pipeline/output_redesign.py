@@ -24,7 +24,7 @@ def _niche_norms_adequacy_block(corpus_size: int) -> str:
     """Warning block when corpus is too thin to cite niche_norms percentages.
 
     Inserted above the niche_norms JSON dump so the model knows not to quote
-    exact percentages when the sample size hasn't cleared the niche_norms
+    exact percentages when the sample size hasn't cleared the niche_meta
     tier (see claim_tiers.py).
     """
     if should_cite_niche_norms(corpus_size):
@@ -283,7 +283,7 @@ Mở đầu bắt buộc: "**[views] views · [likes] likes · [shares] shares �
    - Không có caption hoặc <50 ký tự = mất ~3x tìm kiếm tiềm năng → 🔴
    - Caption ≥100 ký tự + từ khoá ngách = 🟢
 3. Âm thanh: nếu niche_norms có pct_original_sound — video dùng âm thanh gốc hay trending?
-   - Chỉ đề cập nếu có dữ liệu pct_original_sound trong niche_norms
+   - Chỉ đề cập nếu có dữ liệu pct_original_sound trong niche_meta
 4. Kết luận: 1 câu thẳng thắn — phân phối hay nội dung là vấn đề chính? Chọn 1, không né.
    - Nếu phân phối là vấn đề: nói rõ để creator fix phân phối TRƯỚC khi nghĩ đến nội dung
    - Nếu phân phối ổn: xác nhận và chuyển sang phần nội dung
@@ -526,7 +526,7 @@ def build_diagnosis_narrative_prompt(
     content_format: str,
     niche_name: str,
     corpus_size: int,
-    niche_norms: dict[str, Any],
+    niche_meta: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
@@ -547,7 +547,7 @@ def build_diagnosis_narrative_prompt(
         content_format:    Detected format string (e.g. "tutorial", "mukbang", "dance").
         niche_name:        Human-readable niche name (e.g. "skincare", "ẩm thực").
         corpus_size:       Number of videos in corpus for this niche (last 30 days).
-        niche_norms:       Dict from niche_intelligence materialized view.
+        niche_meta:       Dict from niche_intelligence materialized view.
         reference_videos:  List of reference video dicts with analysis + metadata.
         user_analysis:     Gemini extraction result for the user's video.
         user_stats:        User video stats dict (views, breakout_multiplier, etc.).
@@ -563,8 +563,8 @@ def build_diagnosis_narrative_prompt(
         reference_evidence_block: Pre-rendered lines of allowed aweme_ids for citations.
     """
     analysis_focus = get_analysis_focus(content_format)
-    niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
-    niche_norms_adequacy = _niche_norms_adequacy_block(corpus_size)
+    niche_meta_json = json.dumps(niche_meta, ensure_ascii=False, indent=2)
+    niche_meta_adequacy = _niche_norms_adequacy_block(corpus_size)
     ref_videos_json = json.dumps(reference_videos, ensure_ascii=False, indent=2)
     user_analysis_json = json.dumps(user_analysis, ensure_ascii=False, indent=2)
     user_stats_json = json.dumps(user_stats, ensure_ascii=False, indent=2)
@@ -618,9 +618,9 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
   "narrative_vi": {
     "headline_vi": "Một câu duy nhất (≤ 20 từ): flop → lỗi cụ thể nhất; hit → cơ chế hoạt động mạnh nhất. Tiếng Việt. Không số dự báo view. Không tuyệt đối hoá (từ như 'chắc chắn viral').",
     "ket_luan_nhanh": "2-3 câu. [điểm sáng từ metrics] → [vấn đề gốc cụ thể] → [fix duy nhất cần làm ngay]. Dùng số thực. Không dự báo view.",
-    "van_de_chinh": "3-4 câu giải thích vấn đề lớn nhất. Dùng số thực. Nếu channel_context available, tham chiếu video hit của chính kênh này với tỷ lệ cụ thể.",
+    "van_de_chinh": "ĐÚNG 3 CÂU — channel-first framing: câu 1 đặt video trong bối cảnh kênh (nếu channel_context.available=true, dùng số thực từ top_videos và median_views; nếu không có, dùng corpus benchmark); câu 2 nêu lỗi cụ thể nhất với số đo thực (giây, %, view); câu 3 liên kết lỗi đó với format của video này. Không dự báo view. Không tuyệt đối hoá.",
     "loi_chinh_narrative": [
-      {"error_id": "MUST_MATCH_errors_array_exactly", "narrative": "2-3 câu về lỗi này với dữ liệu thực.", "evidence_aweme_id": "from_list_above_or_null"}
+      {"error_id": "MUST_MATCH_errors_array_exactly — CHỈ 3 LỖI ĐẦU, không hơn", "narrative": "2-3 câu về lỗi này với dữ liệu thực.", "evidence_aweme_id": "from_list_above_or_null"}
     ],
     "lessons": [{"title": "string ≤120 ký tự", "body": "string ≤800 ký tự — 1-2 câu, có thể trích cơ chế (curiosity_gap, social_proof, …)"}],
     "dinh_huong_chien_luoc": "3-4 câu kết luận. Nói cụ thể creator cần làm gì khác cho video tiếp theo. Dựa trên dữ liệu thực. Không dự báo view."
@@ -638,6 +638,8 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
   ]
 }
 ```
+
+QUAN TRỌNG — loi_chinh_narrative: tối đa 3 mục, đúng theo errors[] đầu vào (thứ tự giữ nguyên, chọn 3 severity cao nhất).
 
 Sau khối ``` đóng của JSON trên, tiếp tục phần markdown chẩn đoán như cấu trúc 5 phần hiện có (PHẦN 0–4).
 
@@ -704,9 +706,9 @@ Format được phát hiện: **{content_format}**
 **Niche:** {niche_name}
 **Corpus size (30 ngày):** {corpus_size} video
 
-{niche_norms_adequacy}
+{niche_meta_adequacy}
 **Niche norms (từ niche_intelligence):**
-{niche_norms_json}
+{niche_meta_json}
 
 **User video analysis (Gemini extraction):**
 {user_analysis_json}
@@ -890,7 +892,7 @@ def build_carousel_diagnosis_narrative_prompt(
     carousel_format: str,
     niche_name: str,
     corpus_size: int,
-    niche_norms: dict[str, Any],
+    niche_meta: dict[str, Any],
     reference_carousels: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
@@ -913,15 +915,15 @@ def build_carousel_diagnosis_narrative_prompt(
                                    carousel_tutorial, carousel_story.
         niche_name:                Human-readable niche name.
         corpus_size:               Carousel count in corpus for this niche (last 30 days).
-        niche_norms:               Dict from niche_intelligence (carousel-filtered).
+        niche_meta:               Dict from niche_intelligence (carousel-filtered).
         reference_carousels:       List of 3 reference carousel dicts with analysis + metadata.
         user_analysis:             Gemini carousel extraction result.
         user_stats:                User carousel stats (views, breakout_multiplier, etc.).
         wants_directions:          If True, appends direction generation instruction.
     """
     analysis_focus = get_carousel_analysis_focus(carousel_format)
-    niche_norms_json = json.dumps(niche_norms, ensure_ascii=False, indent=2)
-    niche_norms_adequacy = _niche_norms_adequacy_block(corpus_size)
+    niche_meta_json = json.dumps(niche_meta, ensure_ascii=False, indent=2)
+    niche_meta_adequacy = _niche_norms_adequacy_block(corpus_size)
     ref_carousels_json = json.dumps(reference_carousels, ensure_ascii=False, indent=2)
     user_analysis_json = json.dumps(user_analysis, ensure_ascii=False, indent=2)
     user_stats_json = json.dumps(user_stats, ensure_ascii=False, indent=2)
@@ -974,9 +976,9 @@ Format được phát hiện: **{carousel_format}**
 **Ngách:** {niche_name}
 **Corpus size (30 ngày):** {corpus_size} carousel
 
-{niche_norms_adequacy}
+{niche_meta_adequacy}
 **Niche norms (carousel):**
-{niche_norms_json}
+{niche_meta_json}
 
 **Carousel người dùng — Gemini extraction:**
 {user_analysis_json}

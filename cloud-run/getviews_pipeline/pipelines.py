@@ -76,7 +76,7 @@ from getviews_pipeline.step_events import (
     step_start,
 )
 from getviews_pipeline.supabase_client import get_service_client
-from getviews_pipeline.video_analyze import apply_rule_based_video_errors, extract_video_errors
+from getviews_pipeline.services.extraction import apply_rule_based_video_errors, extract_video_errors
 
 logger = logging.getLogger(__name__)
 
@@ -390,6 +390,31 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
         fmt_counts = Counter(v.get("content_format") for v in top_videos if v.get("content_format"))
         best_fmt = fmt_counts.most_common(1)[0][0] if fmt_counts else None
 
+        # Phase 4.1 — per_format_views: group by content_format, compute avg + median views.
+        # Drives channel_proof block. Returns dict keyed by format; null if <2 formats with n>=3.
+        format_groups: dict[str, list[int]] = {}
+        for v in videos:
+            fmt = str(v.get("content_format") or "").strip()
+            if fmt:
+                format_groups.setdefault(fmt, []).append(int(v.get("views") or 0))
+
+        per_format_views: dict[str, Any] | None = None
+        qualifying = {
+            fmt: vws for fmt, vws in format_groups.items() if len(vws) >= 3
+        }
+        if len(qualifying) >= 2:
+            per_format_views = {}
+            for fmt, vws in qualifying.items():
+                sorted_vws = sorted(vws)
+                n = len(sorted_vws)
+                per_format_views[fmt] = {
+                    "n": n,
+                    "avg_views": int(sum(sorted_vws) / n),
+                    "median_views": int(sorted_vws[n // 2]),
+                    "min_views": sorted_vws[0],
+                    "max_views": sorted_vws[-1],
+                }
+
         return {
             "available": True,
             "top_videos": [
@@ -415,6 +440,7 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
             "best_performing_format": best_fmt,
             "sample_size": len(videos),
             "median_views": median_views,
+            "per_format_views": per_format_views,
         }
     except Exception as exc:
         msg = str(exc)[:80]
@@ -422,10 +448,15 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
 
 
 async def _run_channel_context(creator_handle: str, current_video_id: str) -> dict[str, Any]:
+    # Phase 5.5 — use cached wrapper (24h TTL) so repeat creator handles
+    # within the same instance don't re-query Supabase.
+    from getviews_pipeline.services.channel import (
+        fetch_channel_context_sync as _cached_fetch,
+    )
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
         None,
-        fetch_channel_context_sync,
+        _cached_fetch,
         creator_handle,
         current_video_id,
     )
@@ -1665,6 +1696,8 @@ async def run_video_diagnosis(
     user_message: str = "",
     step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
+    import time as _time
+    _diag_started = _time.monotonic()
     sem = get_analysis_semaphore()
     fa = session.setdefault("full_analyses", {})
 
@@ -1842,13 +1875,13 @@ async def run_video_diagnosis(
     )
 
     # Fetch niche norms from materialized view — fail-open, never raises
-    niche_norms = await get_niche_intelligence(niche)
-    # Inject an explicit no-data marker when niche_norms is empty so Gemini
+    niche_meta = await get_niche_intelligence(niche)
+    # Inject an explicit no-data marker when niche_meta is empty so Gemini
     # cannot hallucinate niche benchmarks. The soft prompt instruction alone
     # ("bỏ qua so sánh") is insufficient — an explicit _note in the JSON is
     # harder for the model to ignore than prose guidance.
-    if not niche_norms:
-        niche_norms = {"_note": "Không có data niche — KHÔNG tạo số liệu niche, KHÔNG so sánh với chuẩn niche"}
+    if not niche_meta:
+        niche_meta = {"_note": "Không có data niche — KHÔNG tạo số liệu niche, KHÔNG so sánh với chuẩn niche"}
 
     # Layer 0 context — pre-computed mechanism insight for this niche (fail-open).
     # Wave 3: also surface the raw execution_tip on the output so the FE can
@@ -1978,7 +2011,7 @@ async def run_video_diagnosis(
                 carousel_format=carousel_format,
                 niche_name=niche,
                 corpus_size=count,
-                niche_norms=niche_norms,
+                niche_meta=niche_meta,
                 reference_carousels=_truncate_transcripts(carousel_refs),
                 user_analysis=_truncate_analysis(user_analysis_dict),
                 user_stats=user_stats,
@@ -1995,7 +2028,7 @@ async def run_video_diagnosis(
                 None,
                 lambda: _format_avg_views_for_diagnosis(int(niche_id or 0), content_format),
             )
-            raw_avg_er = niche_norms.get("avg_engagement_rate")
+            raw_avg_er = niche_meta.get("avg_engagement_rate")
             niche_avg_er = float(raw_avg_er) if raw_avg_er is not None else None
             user_er = float(user_stats.get("engagement_rate") or 0.0)
             er_percentile_rank = _estimate_er_percentile_rank(user_er, niche_avg_er)
@@ -2023,7 +2056,7 @@ async def run_video_diagnosis(
                 video=video_stub,
                 analysis=user_analysis_dict,
                 niche_label=niche,
-                niche_row=niche_norms,
+                niche_row=niche_meta,
                 retention_curve=None,
             )
             _post_desc = str(user_metadata_dict.get("description") or "").strip()
@@ -2120,7 +2153,7 @@ async def run_video_diagnosis(
                 content_format=content_format,
                 niche_name=niche,
                 corpus_size=count,
-                niche_norms=niche_norms,
+                niche_meta=niche_meta,
                 reference_videos=_truncate_transcripts(references),
                 user_analysis=_truncate_analysis(user_analysis_dict),
                 user_stats=user_stats,
@@ -2293,6 +2326,21 @@ async def run_video_diagnosis(
             out["narrative_vi"] = narrative_vi_out
         if format_cards_out is not None:
             out["format_cards"] = format_cards_out
+        # Phase 4.4.6 — stable BE marker so the FE can detect v5 responses
+        # without brittle sentence-count heuristics on van_de_chinh.
+        out["_schema_version"] = "v5"
+
+    from getviews_pipeline.observability import log_diagnosis_event
+    import time as _time_end
+    log_diagnosis_event(
+        request_id=session.get("session_id"),
+        video_id=str((user_res.get("metadata") or {}).get("video_id") or ""),
+        duration_ms=int((_time_end.monotonic() - _diag_started) * 1000),
+        cache_source="fresh",
+        content_format=content_format,
+        niche_id=niche_id,
+        performance_tier=str(refined_performance_tier_out or ""),
+    )
     return out
 
 

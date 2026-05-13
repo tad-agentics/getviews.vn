@@ -450,6 +450,221 @@ class CarouselAnalyzeResult(BaseModel):
     diagnosis: str
 
 
+# ── Phase 4.0 — v5 Channel-First Narrative response models ───────────────────
+
+class VideoDiagnosisV5MetricItem(BaseModel):
+    value: str
+    label: str
+    cohort_tag: str | None = None
+    tone: Literal["default", "warn", "bad"] = "default"
+
+
+class VideoDiagnosisV5Header(BaseModel):
+    handle: str
+    duration_s: float
+    posted_at: str
+    caption: str
+    metrics: list[VideoDiagnosisV5MetricItem] = Field(default_factory=list)
+
+
+class VideoDiagnosisV5ChannelProofCard(BaseModel):
+    views_range: str
+    format_label: str
+
+
+class VideoDiagnosisV5ChannelProof(BaseModel):
+    handle: str
+    winner: VideoDiagnosisV5ChannelProofCard
+    loser: VideoDiagnosisV5ChannelProofCard
+    pattern_note: str
+
+
+class VideoDiagnosisV5Error(BaseModel):
+    rank: Literal[1, 2, 3]
+    severity: Literal["critical", "major", "minor"]
+    title: str
+    body: str
+    fix: str
+
+
+class VideoDiagnosisV5CrossFormatCard(BaseModel):
+    format_name: str
+    description: str
+    stat: dict[str, str]
+    example: str
+
+
+class VideoDiagnosisV5CrossFormatWinners(BaseModel):
+    sample_size: int
+    window_days: int
+    cards: list[VideoDiagnosisV5CrossFormatCard] = Field(default_factory=list)
+
+
+class VideoDiagnosisV5NextStep(BaseModel):
+    bold_lead: str
+    detail: str
+
+
+class VideoDiagnosisV5Collapsibles(BaseModel):
+    hook_analysis: dict[str, object] = Field(default_factory=dict)
+    script_structure: dict[str, object] = Field(default_factory=dict)
+    full_context: dict[str, object] = Field(default_factory=dict)
+
+
+class VideoDiagnosisV5(BaseModel):
+    """v5 Channel-First Narrative response (Phase 4.0).
+
+    Mirrors the TypeScript ``VideoDiagnosisV5`` interface in api-types.ts.
+    Enforced by the Phase 2.3 schema-contract CI test.
+    """
+
+    header: VideoDiagnosisV5Header
+    van_de_chinh: str
+    """3-sentence Vietnamese channel-first narrative lead."""
+    channel_proof: VideoDiagnosisV5ChannelProof | None = None
+    """null when ≥2 formats with n≥3 not met in channel_context.per_format_views."""
+    errors: list[VideoDiagnosisV5Error] = Field(default_factory=list, max_length=3)
+    """Max 3 errors, pre-sorted severity desc: critical → major → minor."""
+    cross_format_winners: VideoDiagnosisV5CrossFormatWinners
+    next_steps: list[VideoDiagnosisV5NextStep] = Field(default_factory=list)
+    collapsibles: VideoDiagnosisV5Collapsibles = Field(
+        default_factory=VideoDiagnosisV5Collapsibles
+    )
+
+
+class DiagnosisSynthesisInput(BaseModel):
+    """Typed input contract for synthesize_diagnosis_v2 (Phase 3.7.2).
+
+    Uses the HYBRID pattern from the plan:
+    - Vietnamese natural-language system instructions remain in the f-string prompt
+    - Structured arrays (reference_videos, errors, channel_context) are injected
+      as a validated JSON sub-block via json.dumps(instance.json_payload())
+
+    This makes the LLM INPUT boundary auditable by the Phase 2.3 schema-contract CI.
+    """
+
+    niche_label: str = Field(default="", max_length=80)
+    content_format: str = Field(default="", max_length=80)
+    corpus_size: int = Field(default=0, ge=0)
+    performance_tier: str = Field(default="unknown", max_length=40)
+    creator_handle: str = Field(default="", max_length=80)
+    views: int = Field(default=0, ge=0)
+    engagement_rate: float = Field(default=0.0, ge=0.0)
+    # Structured arrays — injected as JSON sub-block
+    errors: list[dict[str, object]] = Field(default_factory=list)
+    """Max 3 errors for v5 UI (narrative references first 3 only)."""
+    reference_video_ids: list[str] = Field(default_factory=list)
+    """Allowed aweme_ids from reference pool — used for citation validation."""
+    per_format_views: dict[str, object] | None = None
+    """channel_context.per_format_views — injected when >=2 formats with n>=3."""
+    channel_avg_views: float | None = None
+    channel_avg_er: float | None = None
+
+    def json_payload(self) -> dict[str, object]:
+        """Return the structured sub-block for JSON injection into the prompt.
+
+        Vietnamese natural-language instructions wrap this block; the LLM sees
+        the field names from the Pydantic schema (same as TypeScript interface).
+        """
+        return {
+            "niche_label": self.niche_label,
+            "content_format": self.content_format,
+            "corpus_size": self.corpus_size,
+            "performance_tier": self.performance_tier,
+            "creator_handle": self.creator_handle,
+            "views": self.views,
+            "engagement_rate": self.engagement_rate,
+            "errors": self.errors[:3],
+            "reference_video_ids": self.reference_video_ids,
+            "channel": {
+                "per_format_views": self.per_format_views,
+                "avg_views": self.channel_avg_views,
+                "avg_er": self.channel_avg_er,
+            } if (self.per_format_views or self.channel_avg_views) else None,
+        }
+
+
+class DiagnosisInput(BaseModel):
+    """Input contract for run_video_diagnosis_core (Phase 3.2).
+
+    Packages everything the diagnosis layer needs — the extraction result plus
+    niche/benchmark context — so the diagnosis core has zero Supabase reads.
+    All reads happen in the caller before this model is constructed.
+    """
+
+    extraction: "ExtractionResult"
+    """Typed output from run_extraction_core — must have ok=True."""
+    video_row: dict[str, object]
+    """Aweme-derived dict consumed by extract_video_errors / build_niche_benchmark."""
+    niche_id: int | None = None
+    niche_label: str = ""
+    niche_row: dict[str, object] | None = None
+    """Raw niche intelligence row from video_niche_benchmark queries."""
+    niche_meta: dict[str, object] | None = None
+    """Benchmark summary (avg_views, avg_retention, …) — from build_niche_benchmark_payload."""
+    niche_benchmark: list[dict[str, object]] | None = None
+    """Retention benchmark curve for the niche."""
+    retention_user: list[dict[str, object]] | None = None
+    """Modeled retention curve for this specific video."""
+    mode: Literal["win", "flop"] = "flop"
+    content_format: str = ""
+    retention_source: Literal["real", "modeled"] = "modeled"
+
+
+class DiagnosisResult(BaseModel):
+    """Output contract from run_video_diagnosis_core (Phase 3.2).
+
+    Populated by extract_video_errors + apply_rule_based_video_errors +
+    synthesize_diagnosis_v2. Passed to finalize_video_narrative_layer.
+    """
+
+    errors: list[dict[str, object]] = Field(default_factory=list)
+    """Structured VideoFlopIssue list — max 3 for v5 UI, raw for v4 compat."""
+    hook_cards: list[dict[str, object]] = Field(default_factory=list)
+    segments: list[dict[str, object]] = Field(default_factory=list)
+    retention_curve: list[dict[str, object]] = Field(default_factory=list)
+    niche_benchmark_curve: list[dict[str, object]] = Field(default_factory=list)
+    performance_tier: str | None = None
+    kpi: dict[str, object] | None = None
+    bright_spot_signal: dict[str, object] | None = None
+    view_scenarios: list[dict[str, object]] | None = None
+    narrative_vi: dict[str, object] | None = None
+    format_cards: list[dict[str, object]] | None = None
+    channel_context: dict[str, object] | None = None
+    creator_comparison: dict[str, object] | None = None
+
+
+class ExtractionResult(BaseModel):
+    """Typed boundary between the extraction core and the diagnosis core.
+
+    ``run_extraction_core`` returns this; ``run_video_diagnosis_core`` accepts it.
+    Keeping this boundary explicit means the two cores can evolve independently —
+    the diagnosis core never needs to know *how* the frames were extracted.
+
+    Phase 3.6 — typed contract; Phase 3.1 populates it at the extraction callsite.
+    """
+
+    video_id: str
+    """Canonical aweme / TikTok video ID."""
+    content_type: Literal["video", "carousel"] = "video"
+    metadata: VideoMetadata
+    analysis: VideoAnalysis | None = None
+    """Frame-by-frame Gemini analysis; None for carousel or on error."""
+    carousel_analysis: "CarouselAnalysis | None" = None
+    """Carousel Gemini analysis; None for videos."""
+    transcript_quality: dict[str, object] | None = None
+    """validate_transcript verdict dict attached by _finish_analysis."""
+    entry_cost: dict[str, object] | None = None
+    """Entry-cost badge (tier + reasons) attached by _finish_analysis."""
+    error: str | None = None
+    """Non-None when Gemini analysis failed; downstream must check before using analysis."""
+
+    @property
+    def ok(self) -> bool:
+        """True when the extraction succeeded and analysis is usable."""
+        return self.error is None and (self.analysis is not None or self.carousel_analysis is not None)
+
+
 # ── Thumbnail / frame-0 analysis ───────────────────────────────────────────
 
 ThumbnailDominantElement = Literal["face", "product", "text", "environment"]

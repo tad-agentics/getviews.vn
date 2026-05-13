@@ -17,6 +17,7 @@ from fastapi import Depends, HTTPException, Request, status
 from jose import ExpiredSignatureError, JWTError, jwt
 
 from getviews_pipeline.config import SUPABASE_JWKS_URL, SUPABASE_JWT_SECRET
+from getviews_pipeline.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -162,9 +163,11 @@ async def require_batch_caller(request: Request) -> dict[str, Any] | None:
     Returns None when access was granted via the batch secret (no user context);
     returns the admin user dict when access was granted via JWT.
     """
-    # Read at call time so env-var overrides in tests take effect without
-    # re-importing the module (module-level constants are frozen at first import).
-    batch_secret = os.environ.get("BATCH_SECRET", "")
+    # Read at call time so test env-var overrides (patch.dict) take effect.
+    # In production the settings singleton and the env var agree; this is a
+    # defence-in-depth fallback that also keeps the test suite green.
+    import os as _os
+    batch_secret = _os.environ.get("BATCH_SECRET", "") or settings.batch_secret
     provided_secret = request.headers.get("X-Batch-Secret", "")
     if batch_secret and provided_secret == batch_secret:
         logger.warning(

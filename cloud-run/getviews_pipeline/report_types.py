@@ -513,6 +513,23 @@ class CreatorComparisonVideo(BaseModel):
     thumbnail_url: str | None = None
 
 
+class CreatorComparisonFormatMatch(BaseModel):
+    """Phase 4.2 — whether the analyzed video's format matches the creator's best format.
+
+    Drives the channel-first narrative: if format_matches=False, the narrative can
+    say "bạn đang đăng format mà kênh của bạn không hoạt động tốt".
+    """
+
+    format_matches: bool
+    """True when the analyzed video's content_format == creator's best_performing_format."""
+    analyzed_format: str | None = None
+    """Detected format of the analyzed video (content_format field)."""
+    best_format: str | None = None
+    """Creator's strongest format from recent posts (by avg views)."""
+    note_vi: str | None = None
+    """Vietnamese note explaining the match/mismatch — used by narrative synthesis."""
+
+
 class CreatorComparison(BaseModel):
     """Same-creator hit/flop comparison for video diagnosis (Lightreel-style)."""
 
@@ -524,6 +541,8 @@ class CreatorComparison(BaseModel):
     delta: int
     target_vs_median: float
     target_percentile: str
+    format_match: CreatorComparisonFormatMatch | None = None
+    """Phase 4.2 — format match analysis; None when format data is unavailable."""
 
 
 class VideoPayload(BaseModel):

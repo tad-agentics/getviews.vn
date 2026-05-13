@@ -253,6 +253,26 @@ def log_gemini_call(
         tokens_out=tokens_out,
     ), 6)
 
+    # Structured log — queryable in Cloud Logging.
+    # Build a Cloud Logging dashboard with:
+    #   jsonPayload.event="gemini_call" AND jsonPayload.success=true
+    # to chart sum(jsonPayload.cost_usd) by jsonPayload.model_name.
+    logger.info(
+        "gemini_call",
+        extra={
+            "event": "gemini_call",
+            "call_site": call_site,
+            "model_name": model_name,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "cost_usd": cost_usd,
+            "duration_ms": duration_ms,
+            "session_id": session_id,
+            "success": success,
+            "error_code": error_code,
+        },
+    )
+
     row = {
         "user_id": user_id,
         "call_site": call_site,

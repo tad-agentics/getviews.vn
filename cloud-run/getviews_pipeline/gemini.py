@@ -221,7 +221,9 @@ def _generate_content_models(
                     "contents": contents,
                     "config": effective_config,
                 }
-                response = client.models.generate_content(**kwargs)
+                from getviews_pipeline import telemetry as _tel
+                with _tel.span("gemini.generate_content", model=m, call_site=call_site, attempt=attempt):
+                    response = client.models.generate_content(**kwargs)
                 duration_ms = int((time.monotonic() - started) * 1000)
                 tokens_in, tokens_out = extract_usage(response)
                 log_gemini_call(
@@ -445,7 +447,7 @@ def synthesize_diagnosis(
             carousel_format=carousel_format,
             niche_name=metadata.get("niche") or "",
             corpus_size=0,
-            niche_norms=_no_niche,
+            niche_meta=_no_niche,
             reference_carousels=[],
             user_analysis=analysis,
             user_stats=user_stats,
@@ -457,7 +459,7 @@ def synthesize_diagnosis(
             content_format=content_format,
             niche_name=metadata.get("niche") or "",
             corpus_size=0,
-            niche_norms=_no_niche,
+            niche_meta=_no_niche,
             reference_videos=[],
             user_analysis=analysis,
             user_stats=user_stats,
@@ -555,7 +557,7 @@ def synthesize_diagnosis_v2(
     content_format: str,
     niche_name: str,
     corpus_size: int,
-    niche_norms: dict[str, Any],
+    niche_meta: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
@@ -578,7 +580,7 @@ def synthesize_diagnosis_v2(
         content_format=content_format,
         niche_name=niche_name,
         corpus_size=corpus_size,
-        niche_norms=niche_norms,
+        niche_meta=niche_meta,
         reference_videos=reference_videos,
         user_analysis=user_analysis,
         user_stats=user_stats,
@@ -649,7 +651,7 @@ def synthesize_diagnosis_carousel_v2(
     carousel_format: str,
     niche_name: str,
     corpus_size: int,
-    niche_norms: dict[str, Any],
+    niche_meta: dict[str, Any],
     reference_carousels: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
@@ -672,7 +674,7 @@ def synthesize_diagnosis_carousel_v2(
         carousel_format=carousel_format,
         niche_name=niche_name,
         corpus_size=corpus_size,
-        niche_norms=niche_norms,
+        niche_meta=niche_meta,
         reference_carousels=reference_carousels,
         user_analysis=user_analysis,
         user_stats=user_stats,

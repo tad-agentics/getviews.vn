@@ -464,7 +464,7 @@ def build_carousel_diagnosis_prompt_v2(
     carousel_format: str,
     niche_name: str,
     corpus_size: int,
-    niche_norms: dict[str, Any],
+    niche_meta: dict[str, Any],
     reference_carousels: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
@@ -489,7 +489,7 @@ def build_carousel_diagnosis_prompt_v2(
                             carousel_tutorial, carousel_story.
         niche_name:         Human-readable niche name.
         corpus_size:        Carousel count in corpus for this niche (last 30 days).
-        niche_norms:        Dict from niche_intelligence (carousel-filtered).
+        niche_meta:        Dict from niche_intelligence (carousel-filtered).
         reference_carousels: List of 3 top-performing carousel dicts with analysis + metadata.
         user_analysis:      Gemini carousel extraction result.
         user_stats:         User carousel stats (views, breakout_multiplier, etc.).
@@ -513,7 +513,7 @@ def build_carousel_diagnosis_prompt_v2(
         carousel_format=carousel_format,
         niche_name=niche_name,
         corpus_size=corpus_size,
-        niche_norms=niche_norms,
+        niche_meta=niche_meta,
         reference_carousels=reference_carousels,
         user_analysis=user_analysis,
         user_stats=user_stats,
@@ -935,7 +935,7 @@ def build_diagnosis_synthesis_prompt_v2(
     content_format: str,
     niche_name: str,
     corpus_size: int,
-    niche_norms: dict[str, Any],
+    niche_meta: dict[str, Any],
     reference_videos: list[dict[str, Any]],
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
@@ -958,7 +958,7 @@ def build_diagnosis_synthesis_prompt_v2(
         content_format:   Detected format string (e.g. "tutorial", "mukbang").
         niche_name:       Human-readable niche name (e.g. "skincare").
         corpus_size:      Number of videos in corpus for this niche (last 30 days).
-        niche_norms:      Dict from niche_intelligence materialized view.
+        niche_meta:      Dict from niche_intelligence materialized view.
         reference_videos: List of reference video dicts with analysis + metadata.
         user_analysis:    Gemini extraction result for the user's video.
         user_stats:       User video stats dict (views, breakout_multiplier, etc.).
@@ -977,7 +977,7 @@ def build_diagnosis_synthesis_prompt_v2(
         content_format=content_format,
         niche_name=niche_name,
         corpus_size=corpus_size,
-        niche_norms=niche_norms,
+        niche_meta=niche_meta,
         reference_videos=reference_videos,
         user_analysis=user_analysis,
         user_stats=user_stats,

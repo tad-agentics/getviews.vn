@@ -32,7 +32,9 @@ import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-ro
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import {
+  CacheHitBadge,
   LivePipelineStrip,
+  isCacheHitPattern,
   useResearchStage,
 } from "@/components/v2/answer/ResearchStrip";
 import { TimelineRail } from "@/components/v2/answer/TimelineRail";
@@ -143,6 +145,10 @@ export default function AnswerScreen() {
   const { stream, status: streamStatus, steps, heartbeatElapsedSec, preSynthesisData, channelContext, narrativeReady } = useSessionStream<ReportV1>({
     invalidateKeys: uid ? [answerSessionKeys.listsForUser(uid)] : [],
   });
+
+  // Phase 5.7.1 — detect cache-hit pattern (single step_process "Đang đọc...").
+  // When true: suppress LivePipelineStrip; show CacheHitBadge instead.
+  const isCacheHit = isCacheHitPattern(steps);
 
   const defaultProfileNicheId = useMemo(() => profileFirstNicheId(profile), [profile]);
 
@@ -585,17 +591,28 @@ export default function AnswerScreen() {
                 >
                   {heroQuestion}
                 </h1>
-                <LivePipelineStrip
-                  steps={steps}
-                  done={Boolean(!loading && lastPayload)}
-                  loading={loading}
-                  stage={researchStage}
-                  videoCount={surfaceStats?.sampleVideos}
-                  channelCount={
-                    surfaceStats && surfaceStats.channelRows > 0 ? surfaceStats.channelRows : null
-                  }
-                  heartbeatElapsedSec={heartbeatElapsedSec}
-                />
+                {/* Phase 5.7.1 — suppress full strip on cache hit; 5.7.2 — show badge */}
+                {isCacheHit ? (
+                  <CacheHitBadge
+                    computedAt={
+                      typeof (lastPayload as Record<string, unknown> | null)?.computed_at === "string"
+                        ? (lastPayload as Record<string, unknown>).computed_at as string
+                        : null
+                    }
+                  />
+                ) : (
+                  <LivePipelineStrip
+                    steps={steps}
+                    done={Boolean(!loading && lastPayload)}
+                    loading={loading}
+                    stage={researchStage}
+                    videoCount={surfaceStats?.sampleVideos}
+                    channelCount={
+                      surfaceStats && surfaceStats.channelRows > 0 ? surfaceStats.channelRows : null
+                    }
+                    heartbeatElapsedSec={heartbeatElapsedSec}
+                  />
+                )}
               </header>
             ) : (
               <header className="border-b border-[color:var(--gv-rule)] pb-8">

@@ -17,6 +17,7 @@ from typing import Any
 import aiofiles
 import httpx
 
+from getviews_pipeline.settings import settings as _settings
 from getviews_pipeline.config import (
     CAROUSEL_EXTRACT_MAX_SLIDES,
     CAROUSEL_MAX_IMAGE_BYTES,
@@ -328,9 +329,7 @@ async def get_cdn_client() -> httpx.AsyncClient:
     global _cdn_client
     async with _cdn_lock:
         if _cdn_client is None or _cdn_client.is_closed:
-            proxy_url = os.environ.get("RESIDENTIAL_PROXY_URL")
-            if proxy_url and not proxy_url.strip():
-                proxy_url = None
+            proxy_url = _settings.residential_proxy_url.strip() or None
             if proxy_url:
                 logger.info("CDN client using residential proxy: %s", proxy_url.split("@")[-1])
             _cdn_client = httpx.AsyncClient(
@@ -1028,7 +1027,7 @@ async def _download_one_slide_image(
                 "Slide %s downloaded: %d bytes via %s",
                 slide_index,
                 total,
-                "proxy" if os.environ.get("RESIDENTIAL_PROXY_URL") else "direct",
+                "proxy" if _settings.residential_proxy_url else "direct",
             )
             return path, mime
         except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.RequestError, ValueError) as e:
@@ -1120,7 +1119,7 @@ async def download_video(url_list: list[str]) -> Path:
                 logger.info(
                     "Video downloaded: %.1fMB via %s",
                     size_mb,
-                    "proxy" if os.environ.get("RESIDENTIAL_PROXY_URL") else "direct",
+                    "proxy" if _settings.residential_proxy_url else "direct",
                 )
                 return path
             except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.RequestError) as e:

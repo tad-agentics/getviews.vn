@@ -4,30 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from getviews_pipeline.settings import settings as _settings
 
-_DEFAULT_LOOKBACK = "7"
+logger = logging.getLogger(__name__)
 
 
 def _lookback_days() -> int:
-    raw = os.environ.get("CROSS_CREATOR_LOOKBACK_DAYS", _DEFAULT_LOOKBACK).strip()
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return int(_DEFAULT_LOOKBACK)
+    return max(1, _settings.cross_creator_lookback_days)
 
 
 def _insert_chunk_size() -> int:
-    raw = os.environ.get("CROSS_CREATOR_INSERT_CHUNK", "500").strip()
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 500
+    return max(1, _settings.cross_creator_insert_chunk)
 
 
 @dataclass

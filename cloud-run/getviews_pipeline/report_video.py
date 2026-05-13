@@ -23,7 +23,7 @@ import logging
 import re
 from typing import Any
 
-from getviews_pipeline.report_types import CreatorComparison, CreatorComparisonVideo
+from getviews_pipeline.report_types import CreatorComparison, CreatorComparisonFormatMatch, CreatorComparisonVideo
 from getviews_pipeline.url_patterns import TIKTOK_URL_RE
 from getviews_pipeline.video_analyze import (
     run_video_analyze_on_demand,
@@ -126,6 +126,7 @@ async def build_creator_comparison(
     target_video_id: str,
     target_views: int,
     *,
+    target_content_format: str | None = None,
     step_queue: asyncio.Queue | None = None,
 ) -> CreatorComparison | None:
     """Fetch creator recent posts; pick hit/flop vs median. Returns None on miss.
@@ -298,6 +299,51 @@ async def build_creator_comparison(
     hid = str(hit_post.get("aweme_id") or hit_post.get("id") or "")
     fid = str(flop_post.get("aweme_id") or flop_post.get("id") or "")
 
+    # Phase 4.2 — format_match: compare target's format vs the best format
+    # among the creator's recent posts (by avg views across all parsed posts).
+    format_match: CreatorComparisonFormatMatch | None = None
+    if target_content_format:
+        # Compute best format from parsed posts by average views.
+        fmt_groups: dict[str, list[int]] = {}
+        for views_val, post in parsed:
+            post_fmt = str(
+                post.get("content_format")
+                or post.get("video_type")
+                or ""
+            ).strip()
+            if post_fmt:
+                fmt_groups.setdefault(post_fmt, []).append(views_val)
+        if fmt_groups:
+            best_fmt_key = max(
+                fmt_groups,
+                key=lambda f: sum(fmt_groups[f]) / len(fmt_groups[f]),
+            )
+            matches = target_content_format.strip().lower() == best_fmt_key.lower()
+            if matches:
+                note_vi = (
+                    f"Video này dùng format '{target_content_format}' — "
+                    f"đây là format hoạt động tốt nhất của kênh."
+                )
+            else:
+                note_vi = (
+                    f"Video này dùng format '{target_content_format}' nhưng "
+                    f"kênh hoạt động tốt nhất với format '{best_fmt_key}'."
+                )
+            format_match = CreatorComparisonFormatMatch(
+                format_matches=matches,
+                analyzed_format=target_content_format,
+                best_format=best_fmt_key,
+                note_vi=note_vi,
+            )
+        else:
+            # No format data in EnsembleData posts — still emit the analyzed format.
+            format_match = CreatorComparisonFormatMatch(
+                format_matches=False,
+                analyzed_format=target_content_format,
+                best_format=None,
+                note_vi=None,
+            )
+
     return CreatorComparison(
         creator_handle=f"@{handle_clean}",
         total_posts_analyzed=len(parsed),
@@ -319,6 +365,7 @@ async def build_creator_comparison(
         delta=delta,
         target_vs_median=round(target_ratio, 1),
         target_percentile=percentile,
+        format_match=format_match,
     )
 
 
@@ -460,6 +507,7 @@ def build_video_report(
     )
     target_views = int(meta.get("views") or 0)
     target_video_id = str(out.get("video_id") or "")
+    target_content_format = str(meta.get("content_format") or "").strip() or None
 
     if step_queue is not None:
         from getviews_pipeline.step_events import (
@@ -492,6 +540,7 @@ def build_video_report(
                     creator_handle,
                     target_video_id,
                     target_views,
+                    target_content_format=target_content_format,
                     step_queue=step_queue,
                 )
             )

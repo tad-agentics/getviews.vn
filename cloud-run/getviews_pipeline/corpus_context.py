@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import threading
 from typing import Any
+
+from getviews_pipeline.settings import settings as _settings
 
 from getviews_pipeline.claim_tiers import (
     CLAIM_TIERS,
@@ -49,8 +50,8 @@ def _anon_client() -> Any:
         if _anon is None:
             from supabase import create_client  # type: ignore[import-untyped]
 
-            url = os.environ.get("SUPABASE_URL", "")
-            key = os.environ.get("SUPABASE_ANON_KEY", "")
+            url = _settings.supabase_url
+            key = _settings.supabase_anon_key
             if not url or not key:
                 raise RuntimeError("SUPABASE_URL and SUPABASE_ANON_KEY must be set")
             _anon = create_client(url, key)

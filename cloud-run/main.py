@@ -22,9 +22,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from getviews_pipeline.session_store import replay_buffer_sweeper
+from getviews_pipeline import telemetry
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
+
+# Initialise OTel as early as possible so all spans — including those from
+# FastAPI auto-instrumentation — are captured.
+telemetry.setup_telemetry(service_name="getviews-pipeline")
 
 
 @asynccontextmanager
@@ -45,6 +50,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="GetViews Pipeline", version="0.1.0", lifespan=lifespan)
+telemetry.instrument_fastapi(app)
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 # Use allow_origin_regex only — FastAPI CORSMiddleware does not support wildcard

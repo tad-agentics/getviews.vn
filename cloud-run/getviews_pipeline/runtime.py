@@ -8,8 +8,9 @@ Gemini calls per instance.
 from __future__ import annotations
 
 import asyncio
-import os
 from typing import Any, Callable
+
+from getviews_pipeline.settings import settings
 
 _ANALYSIS_SEMAPHORE: asyncio.Semaphore | None = None
 
@@ -28,6 +29,5 @@ def get_analysis_semaphore() -> asyncio.Semaphore:
     """
     global _ANALYSIS_SEMAPHORE
     if _ANALYSIS_SEMAPHORE is None:
-        limit = int(os.environ.get("GEMINI_CONCURRENCY", "4"))
-        _ANALYSIS_SEMAPHORE = asyncio.Semaphore(limit)
+        _ANALYSIS_SEMAPHORE = asyncio.Semaphore(settings.gemini_concurrency)
     return _ANALYSIS_SEMAPHORE

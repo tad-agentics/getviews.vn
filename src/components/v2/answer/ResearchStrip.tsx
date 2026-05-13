@@ -260,6 +260,56 @@ function StatusRow({ text, iteration }: { text: string; iteration: number }) {
   );
 }
 
+// ── Cache-hit detection ───────────────────────────────────────────────────────
+
+const CACHE_HIT_LABEL = "Đang đọc kết quả phân tích đã lưu...";
+
+/**
+ * Phase 5.7.1 — returns true when the step stream matches the single-step
+ * cache-hit pattern emitted by the BE (_try_on_demand_cache_hit).
+ *
+ * Pattern: exactly one step event, type=step_process, label matching the
+ * Vietnamese cache-hit string.  Any additional step events (e.g., a slow
+ * hint or error) disqualify the pattern — treat as a normal stream.
+ */
+export function isCacheHitPattern(steps: StepEvent[]): boolean {
+  if (steps.length !== 1) return false;
+  const only = steps[0];
+  return only.type === "step_process" && only.label === CACHE_HIT_LABEL;
+}
+
+/**
+ * Phase 5.7.2 — cache-hit badge shown instead of LivePipelineStrip.
+ *
+ * Shows "Đã phân tích trước" with a computed_at timestamp when present.
+ * Accepts an optional `computedAt` ISO string from the cached response
+ * payload (report.computed_at or meta.computed_at).
+ */
+export function CacheHitBadge({
+  computedAt,
+}: {
+  computedAt?: string | null;
+}) {
+  const timeStr = (() => {
+    if (!computedAt) return null;
+    try {
+      const d = new Date(computedAt);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return null;
+    }
+  })();
+
+  return (
+    <p className="mt-3 gv-mono inline-flex items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-1 text-[10px] text-[color:var(--gv-ink-3)]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--gv-pos)]" aria-hidden />
+      Đã phân tích trước
+      {timeStr ? <> · cập nhật lúc {timeStr}</> : null}
+    </p>
+  );
+}
+
 // ── LivePipelineStrip ─────────────────────────────────────────────────────────
 
 /**
@@ -273,6 +323,8 @@ function StatusRow({ text, iteration }: { text: string; iteration: number }) {
  *
  * Falls back to ResearchProcessBar when steps array is empty (legacy
  * builders not yet updated to emit step events).
+ *
+ * Phase 5.7.1 — short-circuits to null when cache-hit pattern detected.
  */
 export function LivePipelineStrip({
   steps,
@@ -332,6 +384,10 @@ export function LivePipelineStrip({
         ) : null}
       </>
     ) : null;
+
+  // Phase 5.7.1 — single-step cache-hit: suppress the 4-stage strip entirely.
+  // The CacheHitBadge is rendered by the caller (AnswerScreen) alongside the result.
+  if (isCacheHitPattern(steps)) return null;
 
   if (steps.length === 0 && loading) {
     return (

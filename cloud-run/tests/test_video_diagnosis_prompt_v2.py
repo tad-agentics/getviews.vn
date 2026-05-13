@@ -113,7 +113,7 @@ def test_diagnosis_narrative_prompt_json_spec_lessons_cite_mechanisms() -> None:
         content_format="tutorial",
         niche_name="test",
         corpus_size=100,
-        niche_norms={},
+        niche_meta={},
         reference_videos=[],
         user_analysis={},
         user_stats={},
