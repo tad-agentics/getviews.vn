@@ -964,7 +964,7 @@ def finalize_video_narrative_layer(
             content_format=content_format or "unknown",
             niche_name=niche_name or "unknown",
             corpus_size=corpus_size,
-            niche_norms=niche_meta,
+            niche_meta=niche_meta,
             reference_videos=_truncate_transcripts(synthesis_refs),
             user_analysis=analysis,
             user_stats=user_stats,
