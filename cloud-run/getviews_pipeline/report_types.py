@@ -541,7 +541,6 @@ class VideoPayload(BaseModel):
     hook_phases: list[dict[str, Any]] = Field(default_factory=list)
     errors: list[dict[str, Any]] = Field(default_factory=list)
     structural_errors: list[dict[str, Any]] | None = None
-    view_scenarios: list[dict[str, Any]] | None = None
     retention_curve: list[dict[str, float]] | None = None
     niche_benchmark_curve: list[dict[str, float]] | None = None
     niche_meta: VideoNicheMetaPayload | None = None

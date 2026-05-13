@@ -35,7 +35,6 @@ import type {
   VideoAnswerNarrativeReadyPayload,
   VideoAnswerPreSynthesisPayload,
   VideoFlopIssue,
-  ViewScenario,
 } from "@/lib/api-types";
 
 /**
@@ -542,11 +541,6 @@ function mergeNarrativeReady(
   if (Array.isArray(tokErrs) && tokErrs.length > 0) {
     errors = tokErrs as VideoFlopIssue[];
   }
-  const tokVs = token.view_scenarios;
-  let view_scenarios = prev?.view_scenarios;
-  if (Array.isArray(tokVs) && tokVs.length > 0) {
-    view_scenarios = tokVs as ViewScenario[];
-  }
   const tokBs = token.bright_spot_signal;
   let bright_spot_signal = prev?.bright_spot_signal;
   if (
@@ -557,7 +551,7 @@ function mergeNarrativeReady(
   ) {
     bright_spot_signal = tokBs as BrightSpotSignal;
   }
-  return { narrative_vi, format_cards, errors, view_scenarios, bright_spot_signal };
+  return { narrative_vi, format_cards, errors, bright_spot_signal };
 }
 
 /**

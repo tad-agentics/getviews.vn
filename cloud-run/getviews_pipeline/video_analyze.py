@@ -696,7 +696,6 @@ def finalize_video_narrative_layer(
     from getviews_pipeline.pipelines import (
         classify_performance_tier_corpus,
         compute_bright_spot_signal,
-        compute_view_scenarios,
         fetch_channel_context_sync,
         refine_performance_tier,
         _estimate_er_percentile_rank,
@@ -753,26 +752,6 @@ def finalize_video_narrative_layer(
     }
 
     errors: list[dict[str, Any]] = list(out.get("errors") or [])
-    _fa_raw = niche_meta.get("avg_views")
-    try:
-        _format_avg_hint = float(_fa_raw) if _fa_raw is not None else None
-    except (TypeError, ValueError):
-        _format_avg_hint = None
-    if _format_avg_hint is not None and _format_avg_hint <= 0:
-        _format_avg_hint = None
-    _nta_raw_vs = niche_meta.get("median_views") or niche_meta.get("organic_avg_views")
-    try:
-        _nta_vs = float(_nta_raw_vs) if _nta_raw_vs is not None else None
-    except (TypeError, ValueError):
-        _nta_vs = None
-    if _nta_vs is not None and _nta_vs <= 0:
-        _nta_vs = None
-    view_scenarios_computed = compute_view_scenarios(
-        views,
-        errors,
-        _format_avg_hint,
-        _nta_vs,
-    )
     user_er = float(meta.get("engagement_rate") or 0.0)
     raw_ae = niche_meta.get("avg_engagement_rate")
     raw_me = niche_meta.get("median_er")
@@ -832,7 +811,6 @@ def finalize_video_narrative_layer(
                 "narrative_vi": narrative_vi_out,
                 "format_cards": format_cards_out,
                 "errors": errors,
-                "view_scenarios": view_scenarios_computed,
                 **(
                     {"bright_spot_signal": bright_spot_computed}
                     if bright_spot_computed is not None
@@ -843,7 +821,6 @@ def finalize_video_narrative_layer(
 
     out["errors"] = errors
     out["structural_errors"] = errors
-    out["view_scenarios"] = view_scenarios_computed
     if bright_spot_computed is not None:
         out["bright_spot_signal"] = bright_spot_computed
     out["performance_tier"] = performance_tier

@@ -120,70 +120,6 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
     }
 
 
-def compute_view_scenarios(
-    current_views: int,
-    errors: list[dict[str, Any]],
-    format_avg: float | None,
-    niche_top_performer_avg: float | None,
-) -> list[dict[str, Any]]:
-    """2–4 projection rows: baseline, optional hook / hook+visual, full_rewrite last."""
-
-    scenarios: list[dict[str, Any]] = [
-        {
-            "scenario_id": "baseline",
-            "name_vi": "Giữ nguyên",
-            "projected_views": int(max(current_views, 0)),
-            "actions": [],
-        }
-    ]
-    hook_error = next((e for e in errors if str(e.get("sev")) == "high"), None)
-    visual_error = next(
-        (
-            e
-            for e in errors
-            if "visual" in str(e.get("error_id") or "").lower()
-            or "text_overlay" in str(e.get("error_id") or "").lower()
-        ),
-        None,
-    )
-    base_v = max(int(current_views), 1)
-    if hook_error:
-        scenarios.append(
-            {
-                "scenario_id": "hook_only",
-                "name_vi": "Chỉ đổi hook",
-                "projected_views": int(base_v * 2.2),
-                "actions": ["Viết lại câu mở đầu theo FIX gợi ý"],
-            }
-        )
-    if hook_error and visual_error:
-        scenarios.append(
-            {
-                "scenario_id": "hook_and_visual",
-                "name_vi": "Đổi hook + thêm text overlay",
-                "projected_views": int(base_v * 5.0),
-                "actions": ["Viết lại hook", "Thêm text overlay tại 0.5s"],
-            }
-        )
-    fa = float(format_avg) if format_avg and format_avg > 0 else None
-    nta = float(niche_top_performer_avg) if niche_top_performer_avg and niche_top_performer_avg > 0 else None
-    if fa:
-        full_rewrite_views = int(fa * 0.8)
-    elif nta:
-        full_rewrite_views = int(nta * 0.3)
-    else:
-        full_rewrite_views = None
-    scenarios.append(
-        {
-            "scenario_id": "full_rewrite",
-            "name_vi": "Rewrite theo format tốt nhất ngách",
-            "projected_views": full_rewrite_views,
-            "actions": ["Đổi toàn bộ format sang best-performing structure"],
-        }
-    )
-    return scenarios
-
-
 def compute_bright_spot_signal(
     er_percentile_rank: float | None,
     views_vs_avg_ratio: float | None,
@@ -1666,7 +1602,6 @@ async def run_video_diagnosis(
     refined_performance_tier_out: str | None = None
     diagnosis_errors_out: list[dict[str, Any]] | None = None
     diagnosis_kpi_out: dict[str, Any] | None = None
-    view_scenarios_out: list[dict[str, Any]] | None = None
     if include_diagnosis:
         if user_content_type == "carousel":
             # ch_task is not used by the carousel path — cancel immediately to avoid leak.
@@ -1803,17 +1738,6 @@ async def run_video_diagnosis(
             diagnosis_errors_out = errors
             diagnosis_kpi_out = kpi_dict
             bright_spot_out = bright_spot_signal
-            _nta_raw = niche_norms.get("median_views") or niche_norms.get("organic_avg_views")
-            try:
-                _nta_f = float(_nta_raw) if _nta_raw is not None else None
-            except (TypeError, ValueError):
-                _nta_f = None
-            view_scenarios_out = compute_view_scenarios(
-                curr_views,
-                errors,
-                float(format_avg) if format_avg else None,
-                _nta_f if _nta_f and _nta_f > 0 else None,
-            )
 
             ref_pairs: list[tuple[dict[str, Any], str]] = []
             for ref in references:
@@ -1885,8 +1809,6 @@ async def run_video_diagnosis(
                 "format_cards": format_cards_out,
                 "errors": diagnosis_errors_out,
             }
-            if view_scenarios_out is not None:
-                _nr_ev["view_scenarios"] = view_scenarios_out
             if bright_spot_out is not None:
                 _nr_ev["bright_spot_signal"] = bright_spot_out
             emit(step_queue, _nr_ev)
@@ -2018,8 +1940,6 @@ async def run_video_diagnosis(
         if diagnosis_errors_out is not None:
             out["errors"] = diagnosis_errors_out
             out["structural_errors"] = diagnosis_errors_out
-        if view_scenarios_out is not None:
-            out["view_scenarios"] = view_scenarios_out
         if diagnosis_kpi_out is not None:
             out["kpi"] = diagnosis_kpi_out
         if bright_spot_out is not None:

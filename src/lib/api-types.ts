@@ -204,8 +204,6 @@ export interface VideoAnalyzeResponse {
   /** Gemini enrichment (audience / pain points / promotion / style); null
    * when no signal was extracted (very short or low-energy videos). */
   enrichment?: VideoEnrichment | null;
-  /** 2–4 projection rows (baseline … full_rewrite). */
-  view_scenarios?: ViewScenario[];
 }
 
 export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";
@@ -1049,14 +1047,6 @@ export interface LoidChinhNarrativeItem {
   evidence_aweme_id: string | null;
 }
 
-/** Projection row from ``compute_view_scenarios`` (diagnosis stream + analyze API). */
-export interface ViewScenario {
-  scenario_id: string;
-  name_vi: string;
-  projected_views: number | null;
-  actions: string[];
-}
-
 export interface NarrativeVi {
   /** One-sentence headline (≤20 words) — replaces legacy analysis_headline. */
   headline_vi?: string;
@@ -1129,7 +1119,6 @@ export interface VideoAnswerNarrativeReadyPayload {
   narrative_vi?: NarrativeVi;
   format_cards?: FormatCard[];
   errors?: VideoFlopIssue[];
-  view_scenarios?: ViewScenario[];
   bright_spot_signal?: BrightSpotSignal;
 }
 

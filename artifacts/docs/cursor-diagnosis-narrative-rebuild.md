@@ -29,13 +29,6 @@ export interface BrightSpotSignal {
   message_vi: string;
 }
 
-export interface ViewScenario {
-  scenario_id: string;
-  name_vi: string;
-  projected_views: number | null;
-  actions: string[];
-}
-
 export interface FormatCard {
   format_name_vi: string;
   mechanism_vi: string;
@@ -69,14 +62,15 @@ export interface ChannelContext {
 // In the existing VideoDiagnosis response type, add:
 // narrative_vi: NarrativeVi
 // bright_spot_signal: BrightSpotSignal | null
-// view_scenarios: ViewScenario[]
 // format_cards: FormatCard[]
 // channel_context: ChannelContext
+//
+// Do NOT add speculative view projections (`view_scenarios` / predicted views if the user changes hook).
 ```
 
 ### Cloud Run: Pydantic response model
 
-Find the Pydantic model in `cloud-run/getviews_pipeline/` that defines the diagnosis SSE response shape (likely `DiagnosisResponse` or similar). Add the five new fields to match the TypeScript interfaces above. Use `Optional` with `None` defaults so existing sessions without these fields don't break.
+Find the Pydantic model in `cloud-run/getviews_pipeline/` that defines the diagnosis SSE response shape (likely `DiagnosisResponse` or similar). Add the fields above to match the TypeScript interfaces. Use `Optional` with `None` defaults so existing sessions without these fields don't break.
 
 ---
 
@@ -86,8 +80,8 @@ The pipeline streams tokens via SSE. The new structured fields are not token str
 
 - **`narrative_vi.ket_luan_nhanh`** — emit as a dedicated SSE event of type `ket_luan_nhanh` FIRST, before the main token stream begins. This is 2–3 sentences; the user should see the verdict immediately.
 - **`channel_context`** — emit as a dedicated SSE event of type `channel_context` as soon as the channel query completes (run this query in parallel with the main analysis pipeline, not sequentially).
-- **`view_scenarios`, `format_cards`, `bright_spot_signal`** — emit as fields inside the existing final `diagnosis_complete` SSE event that already closes the stream. Add them to that existing event payload; do not create new closing events.
-- **`narrative_vi.van_de_chinh` and `loi_chinh_narrative`** — emit as complete strings inside `diagnosis_complete`. Do NOT stream these token by token — partial prose renders badly.
+- **`format_cards`, `bright_spot_signal`** — emit on the `narrative_ready` SSE event (along with `narrative_vi` and structured `errors`) when synthesis finishes; do not stream these token-by-token.
+- **`narrative_vi` object (including `van_de_chinh` and `loi_chinh_narrative`)** — ship complete on `narrative_ready` (or equivalent closing payload). Do NOT stream these fields token-by-token — partial prose renders badly.
 
 ---
 
@@ -388,82 +382,12 @@ Pass the `channel_context` result to the Gemini synthesis prompt AND emit it as 
 
 ---
 
-## STEP 7 — View scenario projections (expand existing)
+## STEP 7 — View / hook-change projections (DO NOT IMPLEMENT)
 
-**FILE:** `cloud-run/getviews_pipeline/pipelines.py`
-**LOCATION:** Replace the single `predicted_views_if_optimized` with `view_scenarios`
+**Product rule:** GetViews must not show **predicted view counts** or “what happens if you change hook” ladders. That reads like guaranteed outcomes and is prohibited.
 
-`format_avg`: use the existing computed value that currently populates "Cùng format TB" in the response — find the variable in `run_video_diagnosis()` that holds this and pass it through.
-
-`niche_top_performer_avg`: query `video_corpus` for the 90th percentile view count within the current niche. If corpus has fewer than 10 videos for this niche, pass `None`.
-
-```python
-def compute_view_scenarios(
-    current_views: int,
-    errors: list[dict],
-    format_avg: int | None,
-    niche_top_performer_avg: int | None,
-) -> list[dict]:
-    """
-    Builds 2–4 scenarios depending on which errors are present.
-    Multipliers are initial estimates — calibrate against outcome data
-    once users begin re-submitting improved videos (target: 6 weeks of data).
-    
-    NOTE: scenarios are NOT guaranteed to be monotonically increasing.
-    If current_views is already high, hook_only may exceed full_rewrite.
-    That is correct — show reality, not an optimistic ladder.
-    """
-    scenarios = [
-        {
-            "scenario_id": "baseline",
-            "name_vi": "Giữ nguyên",
-            "projected_views": current_views,
-            "actions": [],
-        }
-    ]
-
-    hook_error = next(
-        (e for e in errors if e.get("severity") == "CAO"), None
-    )
-    visual_error = next(
-        (e for e in errors if "visual" in e.get("error_id", "")
-         or "text_overlay" in e.get("error_id", "")),
-        None,
-    )
-
-    if hook_error:
-        scenarios.append({
-            "scenario_id": "hook_only",
-            "name_vi": "Chỉ đổi hook",
-            "projected_views": int(current_views * 2.2),
-            "actions": ["Viết lại câu mở đầu theo FIX gợi ý"],
-        })
-
-    if hook_error and visual_error:
-        scenarios.append({
-            "scenario_id": "hook_and_visual",
-            "name_vi": "Đổi hook + thêm text overlay",
-            "projected_views": int(current_views * 5.0),
-            "actions": ["Viết lại hook", "Thêm text overlay tại 0.5s"],
-        })
-
-    # Full rewrite — always present
-    if format_avg and format_avg > 0:
-        full_rewrite_views = int(format_avg * 0.8)
-    elif niche_top_performer_avg and niche_top_performer_avg > 0:
-        full_rewrite_views = int(niche_top_performer_avg * 0.3)
-    else:
-        full_rewrite_views = None  # thin corpus — cannot project
-
-    scenarios.append({
-        "scenario_id": "full_rewrite",
-        "name_vi": "Rewrite theo format tốt nhất ngách",
-        "projected_views": full_rewrite_views,
-        "actions": ["Đổi toàn bộ format sang best-performing structure"],
-    })
-
-    return scenarios
-```
+- Do **not** add `view_scenarios`, `compute_view_scenarios`, or any UI table labeled “Kịch bản dự đoán” / projected views after fixes.
+- Actionable direction stays in **`narrative_vi`** (including `dinh_huong_chien_luoc`), **error FIX blocks**, **format_cards**, and existing **script / rewrite CTAs** elsewhere in the answer body — without numeric view forecasts.
 
 ---
 
@@ -519,9 +443,8 @@ Preserve all existing data queries and hooks. Only restructure rendering order a
 3. VẤN ĐỀ CHÍNH             ← NEW  (narrative_vi.van_de_chinh)
 4. LỖI CẤU TRÚC             ← EXISTING refactored (add narrative lead per error)
 5. NGỮ CẢNH KÊNH            ← NEW  (channel_context — only if available)
-6. KỊCH BẢN DỰ ĐOÁN        ← EXISTING expanded (view_scenarios table)
-7. ĐỊNH HƯỚNG CHIẾN LƯỢC   ← NEW  (format_cards)
-8. TÍN HIỆU LIÊN NGÁCH      ← EXISTING, moved to bottom (keep as-is)
+6. ĐỊNH HƯỚNG CHIẾN LƯỢC   ← NEW  (format_cards) + prose (`dinh_huong_chien_luoc`) where wired in VideoBody
+7. TÍN HIỆU LIÊN NGÁCH      ← EXISTING, moved to bottom (keep as-is)
 ```
 
 ---
@@ -654,47 +577,7 @@ Show the creator's top 2 hit videos alongside the current video in a comparison 
 
 ---
 
-### Section 6: KỊCH BẢN DỰ ĐOÁN (expand existing)
-
-Replace the single projection number with a scenario table. Row count is variable (2–4 rows depending on errors present). The `full_rewrite` row links to the script generator.
-
-```tsx
-<section className="mb-6">
-  <h3 className="...">Kịch bản dự đoán</h3>
-  <table className="w-full text-sm">
-    <thead>
-      <tr>
-        <th className="text-left">Kịch bản</th>
-        <th className="text-right">Dự đoán</th>
-        <th className="text-left pl-4">Việc cần làm</th>
-      </tr>
-    </thead>
-    <tbody>
-      {view_scenarios.map(scenario => (
-        <tr key={scenario.scenario_id}>
-          <td>{scenario.name_vi}</td>
-          <td className="text-right font-mono">
-            {scenario.projected_views != null
-              ? scenario.projected_views.toLocaleString('vi-VN')
-              : 'Chưa đủ dữ liệu ngách'}
-          </td>
-          <td className="pl-4 text-muted-foreground">
-            {scenario.actions.join(' · ')}
-            {/* Script generator CTA on full_rewrite row only */}
-            {scenario.scenario_id === 'full_rewrite' && (
-              <ScriptGeneratorCTA />  // reuse existing navigation — do not build a new path
-            )}
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</section>
-```
-
----
-
-### Section 7: ĐỊNH HƯỚNG CHIẾN LƯỢC (format cards — new section)
+### Section 6: ĐỊNH HƯỚNG CHIẾN LƯỢC (format cards — new section)
 
 ```tsx
 <section className="mb-6">
@@ -720,7 +603,7 @@ Replace the single projection number with a scenario table. Row count is variabl
 
 ---
 
-### Section 8: TÍN HIỆU LIÊN NGÁCH
+### Section 7: TÍN HIỆU LIÊN NGÁCH
 
 Keep the existing cross-niche hook table exactly as-is. Move it to the bottom of the layout. No other changes.
 
@@ -812,56 +695,6 @@ def test_low_retention_any_views():
     assert result["signal_type"] == "content_and_hook"
 ```
 
-### `cloud-run/tests/test_view_scenarios.py`
-
-```python
-from getviews_pipeline.pipelines import compute_view_scenarios
-
-MOCK_ERRORS_WITH_HOOK = [{"error_id": "lang_market_mismatch", "severity": "CAO"}]
-MOCK_ERRORS_WITH_HOOK_AND_VISUAL = [
-    {"error_id": "lang_market_mismatch", "severity": "CAO"},
-    {"error_id": "missing_text_overlay", "severity": "TB"},
-]
-MOCK_ERRORS_EMPTY = []
-
-def test_baseline_always_first():
-    scenarios = compute_view_scenarios(231, MOCK_ERRORS_WITH_HOOK, 2400, 50000)
-    assert scenarios[0]["scenario_id"] == "baseline"
-    assert scenarios[0]["projected_views"] == 231
-
-def test_full_rewrite_always_last():
-    scenarios = compute_view_scenarios(231, MOCK_ERRORS_WITH_HOOK, 2400, 50000)
-    assert scenarios[-1]["scenario_id"] == "full_rewrite"
-
-def test_hook_scenario_present_when_cao_error_exists():
-    scenarios = compute_view_scenarios(231, MOCK_ERRORS_WITH_HOOK, 2400, 50000)
-    ids = [s["scenario_id"] for s in scenarios]
-    assert "hook_only" in ids
-
-def test_no_hook_scenario_when_no_cao_error():
-    scenarios = compute_view_scenarios(231, MOCK_ERRORS_EMPTY, 2400, 50000)
-    ids = [s["scenario_id"] for s in scenarios]
-    assert "hook_only" not in ids
-
-def test_full_rewrite_is_none_when_no_corpus_data():
-    scenarios = compute_view_scenarios(231, MOCK_ERRORS_WITH_HOOK, None, None)
-    full_rewrite = next(s for s in scenarios if s["scenario_id"] == "full_rewrite")
-    assert full_rewrite["projected_views"] is None
-
-def test_all_projected_views_positive_when_data_available():
-    scenarios = compute_view_scenarios(231, MOCK_ERRORS_WITH_HOOK, 2400, 50000)
-    for s in scenarios:
-        if s["projected_views"] is not None:
-            assert s["projected_views"] > 0
-
-def test_minimum_two_scenarios_always():
-    # baseline + full_rewrite always present
-    scenarios = compute_view_scenarios(100, [], 0, None)
-    assert len(scenarios) >= 2
-```
-
----
-
 ## DO NOT CHANGE
 
 The following must remain untouched:
@@ -893,12 +726,11 @@ After all steps, submit this video and verify each item:
 [ ] no_human_presence error fires (no talking head in video)
 [ ] If channel_context returned data: creator's own ~23K videos shown
 [ ] If channel_context unavailable: section hidden, no fabrication
-[ ] view_scenarios has 2–4 rows, baseline first, full_rewrite last
-[ ] full_rewrite row has "Viết lại kịch bản" CTA linking to script generator
+[ ] No UI or API field projects views after hook/format changes (no `view_scenarios`)
 [ ] format_cards has exactly 3 entries with Vietnamese hooks under 15 words
 [ ] narrative prose renders as <p>, not lists, max-w-[680px] on desktop
 [ ] First CAO error collapsible is open by default; TB/THẤP are closed
 [ ] Existing TÍN HIỆU LIÊN NGÁCH section still present at bottom
 [ ] TypeScript build passes with no new errors
-[ ] All 3 new test files pass
+[ ] Cloud Run + frontend tests for narrative / bright spot / video body pass
 ```

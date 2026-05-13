@@ -50,7 +50,6 @@ import type {
   VideoFlopIssue,
   VideoLesson,
   VideoNicheMeta,
-  ViewScenario,
 } from "@/lib/api-types";
 
 // Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers.
@@ -454,10 +453,6 @@ export function VideoBody({
   const reportErrs = report.structural_errors ?? report.errors ?? [];
   const flopIssuesForNarrative: VideoFlopIssue[] =
     streamedErrs && streamedErrs.length > 0 ? streamedErrs : reportErrs;
-  const viewScenariosEffective: ViewScenario[] | undefined =
-    narrativeReady?.view_scenarios && narrativeReady.view_scenarios.length > 0
-      ? narrativeReady.view_scenarios
-      : report.view_scenarios;
   const winLessons: VideoLesson[] = (narrativeVi?.lessons ?? []).map((l) => ({
     title: l.title,
     body: l.body,
@@ -862,58 +857,6 @@ export function VideoBody({
             <p className="max-w-[680px] leading-relaxed text-foreground">
               {narrativeVi.dinh_huong_chien_luoc}
             </p>
-          </section>
-        ) : null}
-
-        {viewScenariosEffective && viewScenariosEffective.length > 0 ? (
-          <section className="mb-6" aria-label="Kịch bản dự đoán">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Kịch bản dự đoán
-            </h3>
-            <div className="overflow-x-auto rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
-              <table className="w-full min-w-[300px] text-left text-[13px] text-foreground">
-                <thead>
-                  <tr className="border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]">
-                    <th className="px-3 py-2.5 font-semibold">Kịch bản</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">
-                      Dự đoán
-                    </th>
-                    <th className="px-3 py-2.5 font-semibold">Việc cần làm</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewScenariosEffective.map((scenario) => (
-                    <tr
-                      key={scenario.scenario_id}
-                      className="border-b border-[color:var(--gv-rule)] last:border-b-0"
-                    >
-                      <td className="px-3 py-2.5 align-top text-[color:var(--gv-ink)]">
-                        {scenario.name_vi}
-                      </td>
-                      <td className="gv-mono px-3 py-2.5 align-top text-right text-[12px] text-[color:var(--gv-ink-2)]">
-                        {scenario.projected_views != null
-                          ? scenario.projected_views.toLocaleString("vi-VN")
-                          : "Chưa đủ dữ liệu ngách"}
-                      </td>
-                      <td className="px-3 py-2.5 align-top text-[color:var(--gv-ink-3)]">
-                        <span>{scenario.actions.filter(Boolean).join(" · ")}</span>
-                        {isFlop && scenario.scenario_id === "full_rewrite" ? (
-                          <span className="mt-1 block">
-                            <button
-                              type="button"
-                              onClick={goScript}
-                              className="text-[12px] font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline"
-                            >
-                              Mở kịch bản rewrite
-                            </button>
-                          </span>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </section>
         ) : null}
 
