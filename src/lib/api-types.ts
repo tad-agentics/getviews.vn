@@ -51,6 +51,9 @@ export interface VideoAnalyzeMeta {
   engagement_rate?: number;
   /** Legacy niche taxonomy id for corpus joins (format benchmarks, examples). */
   niche_id?: number;
+  /** Canonical content format slug (e.g. "talking_head", "voiceover_b_roll").
+   * Present on v5 responses; undefined on older corpus rows. */
+  content_format?: string | null;
 }
 
 export interface VideoKpi {
@@ -1144,6 +1147,10 @@ export interface ChannelContext {
   sample_size?: number;
   median_views?: number;
   performance_tier?: string;
+  /** v5 — per-format view aggregation from recent creator posts.
+   * Keys are content_format slugs; values carry avg/median/min/max/n.
+   * Null/absent when < 2 formats with n ≥ 3 each. */
+  per_format_views?: Record<string, unknown> | null;
 }
 
 export interface ReferenceVideoCard {

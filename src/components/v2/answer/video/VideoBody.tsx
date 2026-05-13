@@ -37,7 +37,7 @@ import {
   CreatorComparisonUnavailable,
 } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopIssueNarrativeRow } from "@/components/v2/answer/video/blocks/FlopIssueRow";
-import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
+import { FlopDiagnosisStrip, formatSaveRatePct } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { CrossFormatPanel } from "@/components/v2/answer/video/blocks/CrossFormatPanel";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -65,6 +65,12 @@ import type {
 // Utility for building flop script handoff prompt — local to VideoBody
 function formatViewsVi(n: number): string {
   return n.toLocaleString("vi-VN");
+}
+
+function atHandle(raw: string | null | undefined): string {
+  if (!raw) return "@—";
+  const handle = raw.startsWith("@") ? raw : `@${raw}`;
+  return handle;
 }
 
 function retentionEndPct(curve: { t: number; pct: number }[] | null | undefined): number | null {
@@ -110,7 +116,7 @@ export function VideoBody({
   const viewMode: VideoAnalyzeMode = report.mode ?? "win";
   const isFlop = viewMode === "flop";
   // Phase 4.4.6 — detect v5 BE response to opt into v5 layout paths.
-  const isV5 = isV5Report(report as Record<string, unknown>);
+  const isV5 = isV5Report(report as unknown as Record<string, unknown>);
   const preSynth = preSynthesisData ?? null;
   const narrativeVi: NarrativeVi | undefined =
     narrativeReady?.narrative_vi ?? report.narrative_vi;

@@ -6,7 +6,7 @@ function formatViewsVi(n: number): string {
   return n.toLocaleString("vi-VN");
 }
 
-function formatSaveRatePct(meta: VideoAnalyzeMeta): string {
+export function formatSaveRatePct(meta: VideoAnalyzeMeta): string {
   const r = meta.save_rate;
   if (r == null || Number.isNaN(r)) return "—";
   const pct = r <= 1 ? r * 100 : r;
