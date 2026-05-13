@@ -341,8 +341,20 @@ export function useSessionStream<TPayload = unknown>(
               persistProgress,
             );
             carriedPayload = outcome.payload;
-            if (outcome.streamId) resumeStreamId = outcome.streamId;
-            if (outcome.lastSeq > resumeSeq) resumeSeq = outcome.lastSeq;
+            // Keep stream_id + seq tied together. A cross-pod reconnect
+            // returns a fresh stream_id from seq=0; if we kept the old
+            // seq, a 2nd retry would ask the new pod's buffer for an
+            // offset it never produced — replay misses, Gemini re-runs.
+            // When the id changes, reset to whatever the new stream is
+            // at; when it stays the same, advance the high-water mark
+            // monotonically.
+            if (outcome.streamId && outcome.streamId !== resumeStreamId) {
+              resumeStreamId = outcome.streamId;
+              resumeSeq = outcome.lastSeq;
+            } else {
+              if (outcome.streamId) resumeStreamId = outcome.streamId;
+              if (outcome.lastSeq > resumeSeq) resumeSeq = outcome.lastSeq;
+            }
 
             if (outcome.ok) {
               // Server confirmed the turn landed — drop the pending entry
