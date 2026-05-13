@@ -959,6 +959,10 @@ def run_video_analyze_pipeline(
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
     extraction_mode: Literal["win", "flop"] = "win" if mode_resolved == "win" else "flop"
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_process
+
+        emit(step_queue, step_process("Đang trích xuất lỗi cấu trúc (Gemini)..."))
     raw_errs = extract_video_errors(
         extraction_mode=extraction_mode,
         video=video,
@@ -1143,6 +1147,13 @@ def run_video_analyze_on_demand(
     so the FE can show a subtle "phân tích trực tiếp, không lưu corpus"
     hint without re-architecting the response shape.
     """
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_process
+
+        emit(
+            step_queue,
+            step_process("Đang tải video TikTok và phân tích khung hình (Gemini)..."),
+        )
     aweme, analyze_result = asyncio.run(_fetch_and_analyze_async(tiktok_url))
 
     if "error" in analyze_result or "analysis" not in analyze_result:
@@ -1226,6 +1237,10 @@ def run_video_analyze_on_demand(
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
     extraction_mode_od: Literal["win", "flop"] = "win" if mode_resolved == "win" else "flop"
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_process
+
+        emit(step_queue, step_process("Đang trích xuất lỗi cấu trúc (Gemini)..."))
     raw_errs_od = extract_video_errors(
         extraction_mode=extraction_mode_od,
         video=video,

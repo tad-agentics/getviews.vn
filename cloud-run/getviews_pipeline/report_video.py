@@ -379,7 +379,8 @@ def build_video_report(
     or aweme_id (caller → 400) or when both corpus + on-demand paths
     miss in a way that can't be analysed (e.g. invalid URL shape).
 
-    ``step_queue`` — optional; live SSE step events (reserved).
+    ``step_queue`` — optional; forwarded to ``run_video_analyze_*`` for
+    mid-pipeline ``step_process`` SSE updates plus narrative finalization.
     """
     url = extract_tiktok_url(query)
     aweme_id = extract_aweme_id(query) if not url else None
@@ -416,6 +417,7 @@ def build_video_report(
             tiktok_url=url,
             force_refresh=False,
             mode=resolved_mode,  # type: ignore[arg-type]
+            step_queue=step_queue,
         )
     except ValueError as exc:
         msg = str(exc)
@@ -441,6 +443,7 @@ def build_video_report(
             user_sb,
             tiktok_url=url,
             mode=resolved_mode,  # type: ignore[arg-type]
+            step_queue=step_queue,
         )
 
     # Add the answer-shell common fields. ``sources`` empty because a
