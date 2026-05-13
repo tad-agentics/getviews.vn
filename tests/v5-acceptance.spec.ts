@@ -238,10 +238,13 @@ test.describe("Phase 4.5 — v5 acceptance protocol", () => {
     // ── C6: No ERR- codes or emoji in the analysis section ───────────
     // Reference video captions legitimately contain emoji (user content).
     // Only check the main analysis portion (before the reference video panel).
-    // Heuristic: split on "Dữ liệu tham khảo" or "Video tham khảo" header.
-    const analysisOnlyText = bodyText
-      .split(/dữ liệu tham khảo|video tham khảo|@\w+\s*·/i)[0]
-      .slice(0, 3500);
+    // Reference video cards start with "@handle · caption" where handle is
+    // 2+ alphanumeric chars (the submitted video shows "@— · Ns" which is 1 char).
+    const refVideoStart = (() => {
+      const m = bodyText.match(/@[\w.]{2,}\s*·/);
+      return m && (m.index ?? 0) > 500 ? m.index! : bodyText.length;
+    })();
+    const analysisOnlyText = bodyText.slice(0, Math.min(refVideoStart, 3200));
     const hasErrCode = /ERR-\d+/i.test(bodyText);
     const hasEmoji = /[\u{1F300}-\u{1FFFF}]/u.test(analysisOnlyText);
     criteria.push({
