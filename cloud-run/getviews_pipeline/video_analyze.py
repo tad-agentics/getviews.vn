@@ -13,7 +13,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
@@ -72,26 +72,25 @@ def _merge_sidecars_into_response(
     return out
 
 
-# ── Gemini output schemas (text-only, JSON) ───────────────────────────────
+# ── Gemini output schemas (Call 1 — structured errors only) ─────────────
+
+_SILENT_FORMAT_EXCEPTIONS_VIDEO = frozenset(
+    {
+        "product_display_silent",
+        "ambient_lifestyle",
+        "macro_closeup_product",
+        "aesthetic_broll",
+        "text_overlay_only",
+        "faceless",
+        "highlight",
+    }
+)
 
 
-class LessonSlot(BaseModel):
-    title: str = Field(max_length=120)
-    body: str = Field(max_length=800)
+class VideoErrorItemLLM(BaseModel):
+    """Matches frontend ``VideoFlopIssue`` (+ error_id)."""
 
-
-class WinAnalysisLLM(BaseModel):
-    analysis_headline: str = Field(max_length=200)
-    analysis_subtext: str = Field(max_length=700)
-    lessons: list[LessonSlot] = Field(min_length=3, max_length=3)
-    hook_bodies: list[str] = Field(
-        min_length=3,
-        max_length=3,
-        description="Vietnamese body copy for the 3 hook-phase cards, in time order.",
-    )
-
-
-class FlopIssueLLM(BaseModel):
+    error_id: str = Field(max_length=64, description="Stable slug e.g. ERR_hook_weak")
     sev: Literal["high", "mid", "low"]
     t: float = Field(ge=0.0, le=600.0)
     end: float = Field(ge=0.0, le=600.0)
@@ -100,28 +99,8 @@ class FlopIssueLLM(BaseModel):
     fix: str = Field(max_length=400)
 
 
-class FlopHeadline(BaseModel):
-    """Structured flop H1 segments; stored JSON-serialised in ``video_diagnostics.analysis_headline``."""
-
-    prefix: str = Field(max_length=120, description='e.g. "Video dừng ở"')
-    view_accent: str = Field(max_length=40, description='e.g. "8.4K view"')
-    middle: str = Field(max_length=200, description="Diagnosis clause between view and prediction.")
-    prediction_pos: str = Field(max_length=40, description='e.g. "~34K"')
-    suffix: str = Field(max_length=120, description="Closing punctuation or short tail.")
-
-    @model_validator(mode="after")
-    def _total_chars_le_400(self) -> FlopHeadline:
-        total = len(self.prefix) + len(self.view_accent) + len(self.middle) + len(self.prediction_pos) + len(
-            self.suffix
-        )
-        if total > 400:
-            raise ValueError(f"FlopHeadline total length {total} exceeds 400")
-        return self
-
-
-class FlopAnalysisLLM(BaseModel):
-    analysis_headline: FlopHeadline
-    flop_issues: list[FlopIssueLLM] = Field(min_length=1, max_length=8)
+class VideoErrorsExtractionLLM(BaseModel):
+    errors: list[VideoErrorItemLLM] = Field(default_factory=list, max_length=8)
 
 
 # ── Mode + KPI helpers ─────────────────────────────────────────────────────
@@ -195,21 +174,6 @@ def is_flop_mode(video: dict[str, Any], niche_row: dict[str, Any] | None) -> boo
     if median_er > 0 and er < median_er * 0.6:
         return True
     return False
-
-
-def projected_views_heuristic(
-    views: int,
-    niche_avg_views: int,
-    flop_issues: list[dict[str, Any]],
-) -> int:
-    high = sum(1 for x in flop_issues if str(x.get("sev")) == "high")
-    base = max(int(niche_avg_views * 0.35), int(views * 2.2))
-    boost = int(high * niche_avg_views * 0.06)
-    # No niche row / avg_views=0: skip niche-relative cap (otherwise cap=0 → min(0, …)=0).
-    if niche_avg_views <= 0:
-        return max(0, base + boost)
-    cap = max(niche_avg_views, int(niche_avg_views * 1.15))
-    return min(cap, base + boost)
 
 
 def _fmt_int_short(n: int) -> str:
@@ -311,34 +275,67 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
     return data
 
 
-def _coerce_analysis_headline_for_api(raw: Any, mode: Literal["win", "flop"]) -> Any:
-    """Win: plain string. Flop: parse JSON ``FlopHeadline`` from TEXT column; legacy plain string passthrough."""
-    if mode == "win":
-        if raw is None:
-            return None
-        return raw if isinstance(raw, str) else str(raw)
+def _diagnostics_legacy(diag: dict[str, Any]) -> bool:
+    """True if ``video_diagnostics`` row predates unified errors + narrative schema."""
 
-    if raw is None:
-        return None
-    if isinstance(raw, dict):
-        try:
-            return FlopHeadline.model_validate(raw).model_dump()
-        except Exception:
-            logger.warning("[video_analyze] flop headline dict failed FlopHeadline validation")
-            return str(raw)
+    if diag.get("analysis_headline"):
+        return True
+    les = diag.get("lessons") or []
+    if isinstance(les, list) and len(les) > 0:
+        return True
+    for fi in diag.get("flop_issues") or []:
+        if isinstance(fi, dict) and not str(fi.get("error_id") or "").strip():
+            return True
+    return False
 
-    if isinstance(raw, str):
-        s = raw.strip()
-        if s.startswith("{"):
-            try:
-                parsed = json.loads(s)
-                if isinstance(parsed, dict):
-                    return FlopHeadline.model_validate(parsed).model_dump()
-            except (json.JSONDecodeError, ValueError) as exc:
-                logger.warning("[video_analyze] flop headline JSON invalid: %s", exc)
-        return s
 
-    return str(raw)
+def apply_rule_based_video_errors(
+    errors: list[dict[str, Any]],
+    analysis: dict[str, Any],
+    content_format: str,
+) -> list[dict[str, Any]]:
+    """Augment Gemini error extraction with deterministic guards (language, presence)."""
+
+    from getviews_pipeline.analysis_core import detect_language_market_mismatch
+
+    out = list(errors)
+    ha0 = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else None
+    hook_phrase = (ha0 or {}).get("hook_phrase") if isinstance(ha0, dict) else ""
+    hook_text = str(hook_phrase or "").strip()
+    if hook_text:
+        lang_error = detect_language_market_mismatch(hook_text)
+        if lang_error:
+            le = dict(lang_error)
+            if le.get("end") is None:
+                le["end"] = 0.0
+            out.insert(0, le)
+
+    has_human = bool(analysis.get("has_human_speaking_to_camera"))
+    has_opinion = bool(analysis.get("has_expressed_opinion_or_question"))
+    if (
+        not has_human
+        and not has_opinion
+        and content_format not in _SILENT_FORMAT_EXCEPTIONS_VIDEO
+    ):
+        out.append(
+            {
+                "error_id": "no_human_presence",
+                "title": "Không có người nói chuyện với camera",
+                "detail": (
+                    "Video không có mặt người hoặc giọng nói trực tiếp. "
+                    "Format này hoạt động tốt hơn khi có người dẫn dắt, "
+                    "tạo kết nối cảm xúc với người xem."
+                ),
+                "fix": (
+                    "Thêm ít nhất 2-3 giây mặt người nói chuyện thẳng với camera "
+                    "tại hook hoặc giữa video."
+                ),
+                "sev": "mid",
+                "t": 0.0,
+                "end": 0.0,
+            }
+        )
+    return out
 
 
 def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
@@ -444,23 +441,11 @@ def _response_from_diagnostics_row(
         "kpis": build_kpis(video, niche_meta, mode=mode, retention_end_pct=ret_end),
         "segments": diag.get("segments") or [],
         "hook_phases": diag.get("hook_phases") or [],
-        "lessons": diag.get("lessons") or [],
-        "analysis_headline": _coerce_analysis_headline_for_api(diag.get("analysis_headline"), mode),
-        "analysis_subtext": diag.get("analysis_subtext"),
-        "flop_issues": diag.get("flop_issues"),
+        "errors": diag.get("flop_issues") or [],
         "retention_curve": ret_curve,
         "niche_benchmark_curve": bench_curve,
         "niche_meta": niche_meta,
-        # A.1 — cross-niche format insight (null when format is single-niche
-        # or sample is too thin; FE renders only when present).
         "cross_format_signal": cross_format_signal,
-        # Exposed so downstream callers (build_video_report narrative synthesis)
-        # can pass the raw frame analysis to synthesize_diagnosis_v2 without a
-        # second DB round-trip.  Not sent to the browser — stripped by
-        # _add_narrative_synthesis before the final turn payload is built.
-        "_analysis_json": analysis,
-        "_content_format": str(video.get("content_format") or ""),
-        "_niche_id": int(video.get("niche_id") or 0),
     }
 
 
@@ -474,19 +459,6 @@ _FORBIDDEN_PHRASES_VI = (
     '"tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", '
     '"hack não", "đừng bỏ qua", "xem ngay kẻo muộn", "triệu view", '
     '"bùng nổ", "công thức vàng", "chấn động"'
-)
-
-# Psychology mechanism vocabulary — same 7 from morning-ritual v2.
-# Win prompt cites these so "lessons" name a mechanism instead of generic
-# "tạo sự tò mò" boilerplate.
-_MECHANISM_VOCAB_VI = (
-    "- curiosity_gap: tạo khoảng trống thông tin viewer cần lấp\n"
-    "- social_proof: ai đã làm + kết quả gì\n"
-    "- identification: viewer thấy 'đó là mình' / 'đúng tình huống tôi'\n"
-    "- contrarian_take: đi ngược common belief\n"
-    "- before_after_promise: hứa transformation cụ thể đo được\n"
-    "- status_anchor: gắn với identity / class viewer muốn thuộc về\n"
-    "- fomo_loss: nguy cơ bỏ lỡ / thiệt hại nếu không hành động"
 )
 
 
@@ -551,81 +523,17 @@ def _summarise_niche_row(row: dict[str, Any] | None) -> str:
     return "Ngách norms: " + ", ".join(bits) if bits else "(thưa data)"
 
 
-def _call_win_gemini(
+def extract_video_errors(
     *,
-    video: dict[str, Any],
-    analysis: dict[str, Any],
-    niche_label: str,
-    retention_curve: list[dict[str, Any]] | None = None,
-) -> WinAnalysisLLM:
-    from google.genai import types
-
-    from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
-    from getviews_pipeline.gemini import (
-        _generate_content_models,
-        _normalize_response,
-        _response_text,
-    )
-
-    hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
-    retention_summary = _summarise_retention_curve(retention_curve)
-    prompt = f"""Bạn là biên tập TikTok tiếng Việt. Viết JSON theo schema cho màn "Vì sao video NỔ".
-
-Ngách: {niche_label}
-Video: creator @{video.get("creator_handle","")} | views ~{int(video.get("views") or 0)}
-Hook phrase: {hook.get("hook_phrase") or ""}
-Hook type: {hook.get("hook_type") or ""}
-{retention_summary}
-
-## Mechanism vocabulary (mỗi lesson PHẢI nêu tên 1 cơ chế từ list)
-
-{_MECHANISM_VOCAB_VI}
-
-## Quy tắc
-
-- Headline + subtext súc tích, không sáo rỗng. Headline ≤ 90 ký tự.
-- 3 lessons: title ngắn (≤ 50 ký tự) + body 1-2 câu. **Body PHẢI bắt đầu
-  bằng tên mechanism từ list trên** + câu giải thích cụ thể (vd:
-  "social_proof — số 47K view + creator @x đã chứng minh format này
-  work cho ngách"). KHÔNG generic ("tạo sự thu hút", "engaging viewer").
-- hook_bodies: đúng 3 đoạn cho 3 ô 0.0–0.8s / 0.8–1.8s / 1.8–3.0s.
-  Mỗi đoạn 2-4 câu mô tả CƠ CHẾ hook tại window đó:
-  - 0.0–0.8s = visual hook (frame mở đầu, body language, on-screen text)
-  - 0.8–1.8s = narrative hook (câu mở miệng, promise)
-  - 1.8–3.0s = retention hook (lý do viewer ở lại sau 3 giây)
-  KHÔNG copy-paste hook phrase nguyên văn — diễn giải mechanism.
-- TRÁNH TUYỆT ĐỐI cụm: {_FORBIDDEN_PHRASES_VI}.
-
-## Few-shot (ví dụ ĐÚNG cho 1 lesson)
-
-{{
-  "title": "Số liệu cụ thể chốt curiosity",
-  "body": "social_proof — '67% phụ nữ VN dùng SPF dưới 50' là social proof có data backing, viewer cần xem tiếp để biết mình thuộc nhóm nào."
-}}
-"""
-    config = types.GenerateContentConfig(
-        temperature=0.55,
-        response_mime_type="application/json",
-        response_json_schema=WinAnalysisLLM.model_json_schema(),
-    )
-    response = _generate_content_models(
-        [prompt],
-        primary_model=GEMINI_SYNTHESIS_MODEL,
-        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
-        config=config,
-    )
-    raw = _response_text(response)
-    return WinAnalysisLLM.model_validate_json(_normalize_response(raw))
-
-
-def _call_flop_gemini(
-    *,
+    extraction_mode: Literal["win", "flop"],
     video: dict[str, Any],
     analysis: dict[str, Any],
     niche_label: str,
     niche_row: dict[str, Any] | None,
     retention_curve: list[dict[str, Any]] | None = None,
-) -> FlopAnalysisLLM:
+) -> list[dict[str, Any]]:
+    """Call 1 — Gemini extracts ``VideoFlopIssue``-shaped errors (+ ``error_id``)."""
+
     from google.genai import types
 
     from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
@@ -638,62 +546,51 @@ def _call_flop_gemini(
     hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
     niche_summary = _summarise_niche_row(niche_row)
     retention_summary = _summarise_retention_curve(retention_curve)
-    prompt = f"""Bạn là chẩn đoán cấu trúc TikTok tiếng Việt. Video FLOP so với ngách.
+
+    if extraction_mode == "win":
+        mode_block = """## Chế độ WIN (video đang hoạt động tốt)
+
+- Trích xuất **0–3** vấn đề tiềm ẩn hoặc polish (sev chỉ **mid** hoặc **low**).
+- Nếu không có vấn đề đáng kể, trả `"errors": []`.
+- **Không** dùng sev **high** trừ khi có lỗi cấu trúc rõ ràng trong phân tích."""
+    else:
+        mode_block = """## Chế độ FLOP (video yếu so với ngách)
+
+- Trích xuất **ít nhất 1**, tối đa 8 mục ``errors``, xếp theo độ nghiêm trọng (high → low).
+- Mỗi mục PHẢI có ``error_id`` ổn định dạng ERR_* (vd ERR_hook_late_face)."""
+
+    prompt = f"""Bạn là chẩn đoán cấu trúc TikTok tiếng Việt.
+
+{mode_block}
 
 Ngách: {niche_label}
 {niche_summary}
-Video: @{video.get("creator_handle","")} | views {int(video.get("views") or 0)} | ER {float(video.get("engagement_rate") or 0):.4f}
+Video: @{video.get("creator_handle", "")} | views {int(video.get("views") or 0)} | ER {float(video.get("engagement_rate") or 0):.4f}
 Hook phrase: {hook.get("hook_phrase") or ""}
 {retention_summary}
 
-## Severity anchor cho flop_issues (rule of thumb)
+## Severity (chế độ flop)
 
-- high: retention drop >30% trong <2s, hoặc hook miss trong 0-3s, hoặc
-  CTA conflict gây save_rate gần 0. Issue phải fix mới có hy vọng.
-- mid: retention drop 15-30% trong cửa sổ 2-5s, hoặc structure issue
-  (scene 6-8 thiếu payoff). Issue đáng fix nhưng không catastrophic.
-- low: polish (text overlay legibility, sound mix, CTA wording).
+- high: retention drop >30% trong <2s, hook miss 0-3s, CTA conflict — phải fix mới hy vọng cải thiện.
+- mid: drop 15-30% 2-5s, structure issue — đáng fix.
+- low: polish (text, sound, CTA wording).
 
-## Fix vocabulary cho flop_issues.fix (mỗi fix PHẢI dùng 1 trong các action verb sau)
+## Fix vocabulary cho ``fix`` (action-driven, có placeholder cụ thể)
 
-- "Đổi hook sang [type]" — khi hook_type không match niche norms
-- "Cắt scene [N] / gộp [N] và [M]" — khi structure rời rạc
-- "Đẩy CTA xuống giây [X]" / "Bỏ CTA mở đầu" — khi CTA conflict
-- "Thay sound trending [genre]" — khi sound original không carry
-- "Thêm text overlay tại giây [X]" — khi visual hook yếu
-- "Compress hook về dưới [X]s" — khi hook stretch quá dài
+- "Đổi hook sang [type]" | "Cắt scene [N]" | "Đẩy CTA xuống giây [X]" | "Thay sound trending [genre]" | "Thêm text overlay tại giây [X]" | "Compress hook về dưới [X]s"
 
-## Schema
+## Schema JSON — trả về một object duy nhất
 
-- analysis_headline: object 5 trường:
-  - prefix: mở đầu ngắn (vd "Video dừng ở")
-  - view_accent: cụm view ngắn (vd "8.4K view") — số khớp views video
-  - middle: chẩn đoán flop (hook/scene…)
-  - prediction_pos: dự đoán có dấu ~ (vd "~34K") NẾU có dự báo cụ thể;
-    NẾU KHÔNG, TRẢ VỀ CHUỖI RỖNG "" — KHÔNG dùng "~0", "~—" placeholder.
-  - suffix: kết (vd "." hoặc " nếu áp fix.")
-  Tổng độ dài ≤ 400 ký tự.
-- flop_issues: 3-6 mục, sắp xếp theo ảnh hưởng (high → low).
-  - sev: 'high' | 'mid' | 'low' (theo rule trên).
-  - t/end: giây timestamp trên timeline video.
-  - detail: 1-2 câu chẩn đoán cụ thể.
-  - fix: action-driven, dùng vocabulary trên với placeholder cụ thể.
-- TRÁNH TUYỆT ĐỐI cụm: {_FORBIDDEN_PHRASES_VI}.
+`{{ "errors": [ {{ "error_id", "sev", "t", "end", "title", "detail", "fix" }} ] }}`
 
-## Few-shot (ví dụ ĐÚNG cho 1 issue)
-
-{{
-  "sev": "high",
-  "t": 0.2,
-  "end": 1.8,
-  "detail": "Hook 1.8s mới hiện face creator, viewer đã skip ở 0.6s vì frame mở đầu là logo + text English.",
-  "fix": "Đổi hook sang pov face-first: scene 1 = 0.0–0.6s face creator + caption 'Tôi đã sai 3 năm khi…'."
-}}
+- ``t`` / ``end``: giây trên timeline video.
+- TRÁNH: {_FORBIDDEN_PHRASES_VI}
 """
+
     config = types.GenerateContentConfig(
         temperature=0.45,
         response_mime_type="application/json",
-        response_json_schema=FlopAnalysisLLM.model_json_schema(),
+        response_json_schema=VideoErrorsExtractionLLM.model_json_schema(),
     )
     response = _generate_content_models(
         [prompt],
@@ -702,7 +599,23 @@ Hook phrase: {hook.get("hook_phrase") or ""}
         config=config,
     )
     raw = _response_text(response)
-    return FlopAnalysisLLM.model_validate_json(_normalize_response(raw))
+    parsed = VideoErrorsExtractionLLM.model_validate_json(_normalize_response(raw))
+    items = [e.model_dump() for e in parsed.errors]
+    if extraction_mode == "flop" and not items:
+        items = [
+            {
+                "error_id": "ERR_fallback_extraction",
+                "sev": "mid",
+                "t": 0.0,
+                "end": 3.0,
+                "title": "Cần xem lại hook và pacing mở đầu",
+                "detail": (
+                    "Không trích xuất được lỗi cụ thể từ model — xem lại 3 giây đầu và retention."
+                ),
+                "fix": "Compress hook về dưới 1.5s với payoff rõ trong frame đầu.",
+            }
+        ]
+    return items
 
 
 _CORPUS_ROW_UUID_RE = re.compile(
@@ -762,6 +675,125 @@ def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -
     return str(rows[0]["video_id"])
 
 
+def finalize_video_narrative_layer(
+    out: dict[str, Any],
+    *,
+    step_queue: Any | None = None,
+) -> None:
+    """Call 2 — narrative synthesis + SSE; mutates *out* in place.
+
+    Expects ``out`` to contain private keys ``__narrative_analysis`` and
+    ``__narrative_content_format`` (stripped before return to clients) set by
+    ``run_video_analyze_pipeline`` / ``run_video_analyze_on_demand``.
+    """
+
+    from getviews_pipeline.gemini import synthesize_diagnosis_v2
+    from getviews_pipeline.pipelines import (
+        classify_performance_tier_corpus,
+        fetch_channel_context_sync,
+        refine_performance_tier,
+    )
+    from getviews_pipeline.step_events import emit
+
+    analysis: dict[str, Any] = out.pop("__narrative_analysis", None) or {}
+    content_format: str = str(out.pop("__narrative_content_format", "") or "")
+    meta: dict[str, Any] = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+    niche_meta: dict[str, Any] = (
+        out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else {}
+    )
+
+    views = int(meta.get("views") or 0)
+    corpus_avg_views = float(niche_meta.get("avg_views") or 0.0)
+    performance_tier: str = classify_performance_tier_corpus(views, corpus_avg_views or None)
+
+    channel_context_payload: dict[str, Any] | None = None
+    creator_handle = str(meta.get("creator") or "").strip()
+    video_id = str(out.get("video_id") or "")
+    if creator_handle and video_id:
+        try:
+            raw_ctx = fetch_channel_context_sync(creator_handle, video_id)
+            if raw_ctx and raw_ctx.get("available"):
+                channel_context_payload = raw_ctx
+                performance_tier = refine_performance_tier(performance_tier, views, raw_ctx)
+        except Exception:
+            logger.debug("[video_narrative] channel context fetch failed")
+
+    if step_queue is not None:
+        emit(
+            step_queue,
+            {
+                "type": "pre_synthesis",
+                "performance_tier": performance_tier,
+                "reference_videos": out.get("reference_videos") or [],
+            },
+        )
+        if channel_context_payload:
+            emit(
+                step_queue,
+                {"type": "channel_context", "channel_context": channel_context_payload},
+            )
+
+    niche_name = str(meta.get("niche_label") or "")
+    corpus_size = int(niche_meta.get("sample_size") or niche_meta.get("corpus_size") or 0)
+    user_stats: dict[str, Any] = {
+        "views": views,
+        "likes": int(meta.get("likes") or 0),
+        "comments": int(meta.get("comments") or 0),
+        "shares": int(meta.get("shares") or 0),
+        "duration_sec": float(meta.get("duration_sec") or 0.0),
+        "save_rate": float(meta.get("save_rate") or 0.0),
+    }
+
+    errors: list[dict[str, Any]] = list(out.get("errors") or [])
+    errors_prompt = list(errors)
+    if performance_tier == "hit":
+        high_only = [e for e in errors_prompt if str(e.get("sev")) == "high"]
+        if high_only:
+            errors_prompt = high_only
+
+    diagnosis_md = ""
+    narrative_vi_out: dict[str, Any] | None = None
+    format_cards_out: list[dict[str, Any]] | None = None
+    try:
+        diagnosis_md, narrative_vi_out, format_cards_out = synthesize_diagnosis_v2(
+            content_format=content_format or "unknown",
+            niche_name=niche_name or "unknown",
+            corpus_size=corpus_size,
+            niche_norms=niche_meta,
+            reference_videos=out.get("reference_videos") or [],
+            user_analysis=analysis,
+            user_stats=user_stats,
+            performance_tier=performance_tier,
+            channel_context=channel_context_payload,
+            errors=errors_prompt or None,
+            reference_evidence_block="",
+        )
+    except Exception:
+        logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
+
+    if step_queue is not None and (narrative_vi_out is not None or format_cards_out is not None):
+        emit(
+            step_queue,
+            {
+                "type": "narrative_ready",
+                "narrative_vi": narrative_vi_out,
+                "format_cards": format_cards_out,
+                "errors": errors,
+            },
+        )
+
+    out["errors"] = errors
+    out["performance_tier"] = performance_tier
+    if channel_context_payload:
+        out["channel_context"] = channel_context_payload
+    if narrative_vi_out is not None:
+        out["narrative_vi"] = narrative_vi_out
+    if format_cards_out is not None:
+        out["format_cards"] = format_cards_out
+    if diagnosis_md:
+        out["diagnosis"] = diagnosis_md
+
+
 def run_video_analyze_pipeline(
     service_sb: Any,
     user_sb: Any,
@@ -770,6 +802,7 @@ def run_video_analyze_pipeline(
     tiktok_url: str | None,
     force_refresh: bool = False,
     mode: Literal["win", "flop"] | None = None,
+    step_queue: Any | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline: read cache, else compute + Gemini + upsert. Returns API dict.
 
@@ -876,7 +909,12 @@ def run_video_analyze_pipeline(
         n_points=20,
     )
 
-    if diag_row and _diagnostics_fresh(diag_row) and not bypass_cache:
+    if (
+        diag_row
+        and _diagnostics_fresh(diag_row)
+        and not bypass_cache
+        and not _diagnostics_legacy(diag_row)
+    ):
         age_min = _cache_age_minutes(diag_row)
         logger.info(
             "[video_analyze] cache hit: video_id=%s age_min=%d force_refresh=%s",
@@ -895,10 +933,18 @@ def run_video_analyze_pipeline(
             retention_source=retention_source,
             cross_format_signal=cross_format_signal,
         )
+        base["__narrative_analysis"] = analysis
+        base["__narrative_content_format"] = str(video.get("content_format") or "")
         return _merge_sidecars_into_response(
             base,
             video_id=vid,
             comment_count_hint=int(video.get("comments") or 0),
+        )
+
+    if diag_row and _diagnostics_fresh(diag_row) and not bypass_cache and _diagnostics_legacy(diag_row):
+        logger.info(
+            "[video_analyze] stale diagnostics schema — recomputing video_id=%s",
+            vid,
         )
 
     # Gemini prompt label: last-resort literal when taxonomy row is missing.
@@ -912,43 +958,29 @@ def run_video_analyze_pipeline(
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
-
-    if mode_resolved == "win":
-        llm = _call_win_gemini(
-            video=video, analysis=analysis, niche_label=gemini_niche_label,
-            retention_curve=retention_user,
-        )
-        for i, body in enumerate(llm.hook_bodies[:3]):
-            if i < len(hook_cards):
-                hook_cards[i]["body"] = body
-        lessons = [x.model_dump() for x in llm.lessons]
-        headline = llm.analysis_headline
-        subtext = llm.analysis_subtext
-        flop_issues = None
-        projected = None
-    else:
-        llm = _call_flop_gemini(
-            video=video, analysis=analysis, niche_label=gemini_niche_label,
-            niche_row=niche_intel, retention_curve=retention_user,
-        )
-        headline = llm.analysis_headline.model_dump_json()
-        subtext = None
-        lessons = []
-        flop_issues = [x.model_dump() for x in llm.flop_issues]
-        projected = projected_views_heuristic(
-            int(video.get("views") or 0),
-            int(niche_meta["avg_views"] or 0),
-            flop_issues,
-        )
+    extraction_mode: Literal["win", "flop"] = "win" if mode_resolved == "win" else "flop"
+    raw_errs = extract_video_errors(
+        extraction_mode=extraction_mode,
+        video=video,
+        analysis=analysis,
+        niche_label=gemini_niche_label,
+        niche_row=niche_intel,
+        retention_curve=retention_user,
+    )
+    content_format_str = str(video.get("content_format") or "")
+    errors = apply_rule_based_video_errors(raw_errs, analysis, content_format_str)
+    for _h in hook_cards:
+        if isinstance(_h, dict) and "body" in _h:
+            del _h["body"]
 
     upsert_payload = {
         "video_id": vid,
-        "analysis_headline": headline,
-        "analysis_subtext": subtext,
-        "lessons": lessons,
+        "analysis_headline": None,
+        "analysis_subtext": None,
+        "lessons": [],
         "hook_phases": hook_cards,
         "segments": segments,
-        "flop_issues": flop_issues,
+        "flop_issues": errors,
         "retention_curve": retention_user,
         "niche_benchmark_curve": niche_benchmark,
         "computed_at": datetime.now(UTC).isoformat(),
@@ -974,8 +1006,8 @@ def run_video_analyze_pipeline(
         retention_source=retention_source,
         cross_format_signal=cross_format_signal,
     )
-    if projected is not None:
-        out["projected_views"] = projected
+    out["__narrative_analysis"] = analysis
+    out["__narrative_content_format"] = content_format_str
     return _merge_sidecars_into_response(
         out,
         video_id=vid,
@@ -1091,6 +1123,7 @@ def run_video_analyze_on_demand(
     *,
     tiktok_url: str,
     mode: Literal["win", "flop"] | None = None,
+    step_queue: Any | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline for URLs not yet in ``video_corpus``.
 
@@ -1192,43 +1225,29 @@ def run_video_analyze_on_demand(
 
     segments = decompose_segments(analysis)
     hook_cards = extract_hook_phases(analysis)
-
-    if mode_resolved == "win":
-        llm = _call_win_gemini(
-            video=video, analysis=analysis, niche_label=gemini_niche_label,
-            retention_curve=retention_user,
-        )
-        for i, body in enumerate(llm.hook_bodies[:3]):
-            if i < len(hook_cards):
-                hook_cards[i]["body"] = body
-        lessons = [x.model_dump() for x in llm.lessons]
-        headline: Any = llm.analysis_headline
-        subtext = llm.analysis_subtext
-        flop_issues: list[dict[str, Any]] | None = None
-        projected: int | None = None
-    else:
-        llm_flop = _call_flop_gemini(
-            video=video, analysis=analysis, niche_label=gemini_niche_label,
-            niche_row=niche_intel, retention_curve=retention_user,
-        )
-        headline = llm_flop.analysis_headline.model_dump_json()
-        subtext = None
-        lessons = []
-        flop_issues = [x.model_dump() for x in llm_flop.flop_issues]
-        projected = projected_views_heuristic(
-            int(video.get("views") or 0),
-            int(niche_meta["avg_views"] or 0),
-            flop_issues,
-        )
+    extraction_mode_od: Literal["win", "flop"] = "win" if mode_resolved == "win" else "flop"
+    raw_errs_od = extract_video_errors(
+        extraction_mode=extraction_mode_od,
+        video=video,
+        analysis=analysis,
+        niche_label=gemini_niche_label,
+        niche_row=niche_intel,
+        retention_curve=retention_user,
+    )
+    content_format_str_od = str(video.get("content_format") or "")
+    errors_od = apply_rule_based_video_errors(raw_errs_od, analysis, content_format_str_od)
+    for _h in hook_cards:
+        if isinstance(_h, dict) and "body" in _h:
+            del _h["body"]
 
     diag_synth = {
         "video_id": vid,
-        "analysis_headline": headline,
-        "analysis_subtext": subtext,
-        "lessons": lessons,
+        "analysis_headline": None,
+        "analysis_subtext": None,
+        "lessons": [],
         "hook_phases": hook_cards,
         "segments": segments,
-        "flop_issues": flop_issues,
+        "flop_issues": errors_od,
         "retention_curve": retention_user,
         "niche_benchmark_curve": niche_benchmark,
         "computed_at": datetime.now(UTC).isoformat(),
@@ -1245,8 +1264,8 @@ def run_video_analyze_on_demand(
         retention_source=retention_source,
         cross_format_signal=cross_format_signal,
     )
-    if projected is not None:
-        out["projected_views"] = projected
+    out["__narrative_analysis"] = analysis
+    out["__narrative_content_format"] = content_format_str_od
     # Flag the response so the FE can render a subtle "phân tích trực tiếp"
     # badge — corpus rows don't set this, so the FE only highlights when
     # explicitly truthy.

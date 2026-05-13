@@ -36,6 +36,19 @@ from getviews_pipeline.report_video import (
 
 
 @pytest.fixture(autouse=True)
+def _stub_finalize_video_narrative_layer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Avoid real Gemini when ``build_video_report`` runs narrative finalize."""
+
+    def _noop(_out: object, *, step_queue: object | None = None) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "getviews_pipeline.video_analyze.finalize_video_narrative_layer",
+        _noop,
+    )
+
+
+@pytest.fixture(autouse=True)
 def _stub_creator_comparison_network(
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
@@ -213,9 +226,8 @@ def _video_response_fixture() -> dict[str, Any]:
             "niche_label": "Làm đẹp",
             "retention_source": "modeled",
         },
-        "kpis": [], "segments": [], "hook_phases": [], "lessons": [],
-        "analysis_headline": "Headline win", "analysis_subtext": "Subtext",
-        "flop_issues": None, "retention_curve": [], "niche_benchmark_curve": [],
+        "kpis": [], "segments": [], "hook_phases": [], "errors": [],
+        "retention_curve": [], "niche_benchmark_curve": [],
         "niche_meta": {"avg_views": 100_000, "avg_retention": 0.55,
                        "avg_ctr": 0.04, "sample_size": 200,
                        "winners_sample_size": 30},
@@ -659,15 +671,15 @@ async def test_build_creator_comparison_logs_target_views_zero(
 
 
 @pytest.mark.no_creator_stub
-def test_build_video_report_backfills_meta_from_creator_comparison() -> None:
+def test_build_video_report_backfills_meta_from_creator_comparison(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """On-demand path has no `creator_median_views` corpus column —
     but `build_creator_comparison` already fetched the creator's
     recent posts and computed a median. Use it to backfill
     `meta.creator_median_views` + `meta.target_vs_creator_median` so
-    the FE ContextStrip renders even on fresh URLs.
+    the FE ContextStrip renders even on     fresh URLs.
     """
-    from unittest.mock import AsyncMock
-
     from getviews_pipeline.report_types import (
         CreatorComparison,
         CreatorComparisonVideo,
@@ -691,15 +703,22 @@ def test_build_video_report_backfills_meta_from_creator_comparison() -> None:
         target_percentile="trên mức trung bình",
     )
 
-    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
-               MagicMock(return_value=expected)), \
-         patch("getviews_pipeline.report_video.build_creator_comparison",
-               AsyncMock(return_value=fake_comparison)):
-        out = build_video_report(
-            service_sb=MagicMock(),
-            user_sb=MagicMock(),
-            query="https://www.tiktok.com/@creatorx/video/1",
-        )
+    async def fake_bc(*_a: object, **_k: object):
+        return fake_comparison
+
+    monkeypatch.setattr(
+        "getviews_pipeline.report_video.run_video_analyze_pipeline",
+        MagicMock(return_value=expected),
+    )
+    monkeypatch.setattr(
+        "getviews_pipeline.report_video.build_creator_comparison",
+        fake_bc,
+    )
+    out = build_video_report(
+        service_sb=MagicMock(),
+        user_sb=MagicMock(),
+        query="https://www.tiktok.com/@creatorx/video/1",
+    )
 
     # Live median wins — even if the column was None, comparison fills.
     assert out["meta"]["creator_median_views"] == 100_000
@@ -709,25 +728,32 @@ def test_build_video_report_backfills_meta_from_creator_comparison() -> None:
 
 
 @pytest.mark.no_creator_stub
-def test_build_video_report_does_not_clobber_meta_when_comparison_missing() -> None:
+def test_build_video_report_does_not_clobber_meta_when_comparison_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """No comparison (e.g. < 2 posts with views) → leave meta as-is.
     Corpus rows ingested before 2026-05-08 have None for these fields
     and the FE just hides the ContextStrip — that's the intended path."""
-    from unittest.mock import AsyncMock
-
     expected = _video_response_fixture()
     expected["meta"]["creator_median_views"] = None
     expected["meta"]["target_vs_creator_median"] = None
 
-    with patch("getviews_pipeline.report_video.run_video_analyze_pipeline",
-               MagicMock(return_value=expected)), \
-         patch("getviews_pipeline.report_video.build_creator_comparison",
-               AsyncMock(return_value=None)):
-        out = build_video_report(
-            service_sb=MagicMock(),
-            user_sb=MagicMock(),
-            query="https://www.tiktok.com/@creatorx/video/1",
-        )
+    async def noop_bc(*_a: object, **_k: object):
+        return None
+
+    monkeypatch.setattr(
+        "getviews_pipeline.report_video.run_video_analyze_pipeline",
+        MagicMock(return_value=expected),
+    )
+    monkeypatch.setattr(
+        "getviews_pipeline.report_video.build_creator_comparison",
+        noop_bc,
+    )
+    out = build_video_report(
+        service_sb=MagicMock(),
+        user_sb=MagicMock(),
+        query="https://www.tiktok.com/@creatorx/video/1",
+    )
 
     assert out["meta"]["creator_median_views"] is None
     assert out["meta"]["target_vs_creator_median"] is None

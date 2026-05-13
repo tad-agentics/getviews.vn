@@ -81,6 +81,7 @@ async def video_analyze_endpoint(
     """
     from getviews_pipeline.supabase_client import get_service_client
     from getviews_pipeline.video_analyze import (
+        finalize_video_narrative_layer,
         run_video_analyze_on_demand,
         run_video_analyze_pipeline,
     )
@@ -92,7 +93,15 @@ async def video_analyze_endpoint(
 
     sb_user = user_supabase(user["access_token"])
     try:
-        out = await run_sync(run_video_analyze_pipeline, get_service_client(), sb_user, video_id=vid or None, tiktok_url=url or None, force_refresh=body.force_refresh, mode=body.mode)
+        out = await run_sync(
+            run_video_analyze_pipeline,
+            get_service_client(),
+            sb_user,
+            video_id=vid or None,
+            tiktok_url=url or None,
+            force_refresh=body.force_refresh,
+            mode=body.mode,
+        )
     except ValueError as exc:
         msg = str(exc)
         url_miss = (msg == "video not in corpus" and url) or "Không tìm thấy video trong corpus cho URL này" in msg
@@ -105,6 +114,7 @@ async def video_analyze_endpoint(
                     tiktok_url=url,
                     mode=body.mode,
                 )
+                await run_sync(finalize_video_narrative_layer, out)
                 return JSONResponse(out)
             except ValueError as ondemand_exc:
                 # Bad URL shape, missing aweme_id, etc. — caller's request
@@ -122,7 +132,10 @@ async def video_analyze_endpoint(
     except Exception as exc:
         logger.exception("[video/analyze] failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse(out)
+    else:
+        # Only runs when pipeline succeeded and ``out`` is defined — not after handlers that re-raise.
+        await run_sync(finalize_video_narrative_layer, out)
+        return JSONResponse(out)
 
 
 @router.get("/channel/analyze")

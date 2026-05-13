@@ -495,7 +495,6 @@ function mergePreSynthesis(
   token: Record<string, unknown>,
 ): VideoAnswerPreSynthesisPayload {
   const next: VideoAnswerPreSynthesisPayload = { ...(prev ?? {}) };
-  if (Array.isArray(token.errors)) next.errors = token.errors as VideoFlopIssue[];
   if (token.kpi != null && typeof token.kpi === "object" && !Array.isArray(token.kpi)) {
     next.kpi = token.kpi as Record<string, number>;
   }
@@ -537,7 +536,8 @@ function mergeNarrativeReady(
     (token.narrative_vi as NarrativeVi | undefined) ?? prev?.narrative_vi;
   const format_cards =
     (token.format_cards as FormatCard[] | undefined) ?? prev?.format_cards;
-  return { narrative_vi, format_cards };
+  const errors = (token.errors as VideoFlopIssue[] | undefined) ?? prev?.errors;
+  return { narrative_vi, format_cards, errors };
 }
 
 /**

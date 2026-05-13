@@ -85,14 +85,19 @@ function makeWinReport(overrides: Partial<VideoReportPayload> = {}): VideoReport
     kpis: [],
     segments: [],
     hook_phases: [{ t_range: "0–0.8s", label: "Hook đảo", body: "Câu hỏi đảo neo attention." }],
-    lessons: [
-      { title: "L1", body: "Body 1" },
-      { title: "L2", body: "Body 2" },
-      { title: "L3", body: "Body 3" },
-    ],
-    analysis_headline: "Headline win text",
-    analysis_subtext: "Subtext explaining why this video succeeded.",
-    flop_issues: null,
+    errors: [],
+    narrative_vi: {
+      headline_vi: "Headline win text",
+      ket_luan_nhanh: "Kết luận nhanh cho win.",
+      van_de_chinh: "",
+      loi_chinh_narrative: [],
+      dinh_huong_chien_luoc: "",
+      lessons: [
+        { title: "L1", body: "Body 1" },
+        { title: "L2", body: "Body 2" },
+        { title: "L3", body: "Body 3" },
+      ],
+    },
     retention_curve: [{ t: 0, pct: 100 }, { t: 1, pct: 65 }],
     niche_benchmark_curve: [{ t: 0, pct: 100 }, { t: 1, pct: 55 }],
     niche_meta: {
@@ -107,19 +112,21 @@ function makeWinReport(overrides: Partial<VideoReportPayload> = {}): VideoReport
 }
 
 function makeFlopReport(overrides: Partial<VideoReportPayload> = {}): VideoReportPayload {
+  const base = makeWinReport();
   return {
-    ...makeWinReport(),
+    ...base,
     mode: "flop",
-    analysis_headline: {
-      prefix: "Video chỉ đạt ",
-      view_accent: "8.4K",
-      middle: " view, dưới ngưỡng ngách. ",
-      prediction_pos: "~34K",
-      suffix: " sau khi sửa hook.",
+    narrative_vi: {
+      headline_vi: "Video chỉ đạt 8.4K view, dưới ngưỡng ngách — ~34K sau khi sửa hook.",
+      ket_luan_nhanh: "",
+      van_de_chinh: "Vấn đề chính flop",
+      loi_chinh_narrative: [],
+      dinh_huong_chien_luoc: "",
+      lessons: [],
     },
-    analysis_subtext: null,
-    flop_issues: [
+    errors: [
       {
+        error_id: "ERR_hook",
         sev: "high",
         t: 0,
         end: 2,
@@ -128,8 +135,6 @@ function makeFlopReport(overrides: Partial<VideoReportPayload> = {}): VideoRepor
         fix: "Thay bằng câu hỏi đảo",
       },
     ],
-    projected_views: 34_000,
-    lessons: [],
     ...overrides,
   };
 }
@@ -143,16 +148,14 @@ function renderInRouter(report: VideoReportPayload) {
 }
 
 describe("VideoBody render", () => {
-  it("renders the win headline as plain text", () => {
+  it("renders the win headline from narrative_vi.headline_vi", () => {
     renderInRouter(makeWinReport());
     expect(screen.getByText("Headline win text")).toBeTruthy();
   });
 
-  it("renders the win subtext under the headline", () => {
+  it("renders ket_luan_nhanh callout in win mode when present", () => {
     renderInRouter(makeWinReport());
-    expect(
-      screen.getByText("Subtext explaining why this video succeeded."),
-    ).toBeTruthy();
+    expect(screen.getByText("Kết luận nhanh cho win.")).toBeTruthy();
   });
 
   it("renders MỔ VIDEO VIRAL kicker + niche label in win mode", () => {
@@ -169,14 +172,13 @@ describe("VideoBody render", () => {
     expect(screen.getByText("L3")).toBeTruthy();
   });
 
-  it("renders structured flop headline segments with accents", () => {
+  it("renders flop headline from narrative_vi.headline_vi", () => {
     renderInRouter(makeFlopReport());
-    // Each segment lands as adjacent text — assert by partial matches
-    // since they're rendered in nested spans/em.
-    expect(screen.getByText(/Video chỉ đạt/)).toBeTruthy();
-    expect(screen.getByText("8.4K")).toBeTruthy();
-    expect(screen.getByText(/view, dưới ngưỡng ngách/)).toBeTruthy();
-    expect(screen.getByText("~34K")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Video chỉ đạt 8.4K view, dưới ngưỡng ngách — ~34K sau khi sửa hook.",
+      ),
+    ).toBeTruthy();
   });
 
   it("renders flop issues + technical detail trigger + script CTA (no projected views)", () => {

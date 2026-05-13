@@ -616,11 +616,13 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
 ```json
 {
   "narrative_vi": {
+    "headline_vi": "Một câu duy nhất (≤ 20 từ): flop → lỗi cụ thể nhất; hit → cơ chế hoạt động mạnh nhất. Tiếng Việt. Không số dự báo view. Không tuyệt đối hoá (từ như 'chắc chắn viral').",
     "ket_luan_nhanh": "2-3 câu. [điểm sáng từ metrics] → [vấn đề gốc cụ thể] → [fix duy nhất cần làm ngay]. Dùng số thực. Không dự báo view.",
     "van_de_chinh": "3-4 câu giải thích vấn đề lớn nhất. Dùng số thực. Nếu channel_context available, tham chiếu video hit của chính kênh này với tỷ lệ cụ thể.",
     "loi_chinh_narrative": [
       {"error_id": "MUST_MATCH_errors_array_exactly", "narrative": "2-3 câu về lỗi này với dữ liệu thực.", "evidence_aweme_id": "from_list_above_or_null"}
     ],
+    "lessons": [{"title": "string ≤120 ký tự", "body": "string ≤800 ký tự — 1-2 câu, có thể trích cơ chế (curiosity_gap, social_proof, …)"}],
     "dinh_huong_chien_luoc": "3-4 câu kết luận. Nói cụ thể creator cần làm gì khác cho video tiếp theo. Dựa trên dữ liệu thực. Không dự báo view."
   },
   "format_cards": [
@@ -649,7 +651,7 @@ Performance tier hiện tại: **__TIER__**
 - average: cân bằng 1 điểm mạnh + 1 khoảng trống; dinh_huong = "một thay đổi cụ thể để đẩy lên cao hơn"
 - unknown: xử lý như flop
 
-Cho tier hit: trong loi_chinh_narrative chỉ gồm lỗi sev "high" (bỏ qua "mid"/"low").
+Cho tier hit: trong loi_chinh_narrative chỉ gồm lỗi sev "high" (bỏ qua "mid"/"low"). **`lessons`**: đúng 3 phần tử, mỗi phần có title+body cụ thể (cơ chế tâm lý/hook). Tier flop/average/unknown: **`lessons` phải là mảng rỗng []**.
 
 Structured errors array (khớp error_id chính xác cho loi_chinh_narrative):
 

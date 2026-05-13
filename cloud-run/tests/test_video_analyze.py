@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Any
@@ -12,18 +11,11 @@ import pytest
 from postgrest.exceptions import APIError
 
 from getviews_pipeline.video_analyze import (
-    FlopAnalysisLLM,
-    FlopHeadline,
-    FlopIssueLLM,
-    LessonSlot,
-    WinAnalysisLLM,
-    _coerce_analysis_headline_for_api,
     _diagnostics_fresh,
     _fetch_corpus_row,
     _merge_sidecars_into_response,
     _response_from_diagnostics_row,
     is_flop_mode,
-    projected_views_heuristic,
     resolve_video_id,
     run_video_analyze_pipeline,
 )
@@ -49,52 +41,7 @@ def test_is_flop_mode_low_er() -> None:
     assert is_flop_mode(video, niche) is True
 
 
-def test_flop_headline_total_at_400_ok() -> None:
-    FlopHeadline(
-        prefix="a" * 120,
-        view_accent="b" * 40,
-        middle="c" * 200,
-        prediction_pos="d" * 39,
-        suffix="e",
-    )
-
-
-def test_flop_headline_rejects_over_400_chars() -> None:
-    with pytest.raises(ValueError, match="exceeds 400"):
-        FlopHeadline(
-            prefix="a" * 120,
-            view_accent="b" * 40,
-            middle="c" * 200,
-            prediction_pos="d" * 40,
-            suffix="e",
-        )
-
-
-def test_coerce_flop_headline_parses_json_string() -> None:
-    payload = {
-        "prefix": "Video dừng ở ",
-        "view_accent": "8.4K view",
-        "middle": " vì hook rơi muộn.",
-        "prediction_pos": "~34K",
-        "suffix": "",
-    }
-    raw = json.dumps(payload, ensure_ascii=False)
-    out = _coerce_analysis_headline_for_api(raw, "flop")
-    assert out == payload
-
-
-def test_coerce_flop_headline_legacy_plain_string() -> None:
-    assert _coerce_analysis_headline_for_api("Một headline cũ dạng text", "flop") == "Một headline cũ dạng text"
-
-
-def test_response_from_diagnostics_row_flop_structured_headline() -> None:
-    fh = {
-        "prefix": "P",
-        "view_accent": "V",
-        "middle": "M",
-        "prediction_pos": "~1K",
-        "suffix": ".",
-    }
+def test_response_from_diagnostics_row_maps_flop_issues_to_errors() -> None:
     video = {
         "video_id": "v1",
         "creator_handle": "u",
@@ -107,12 +54,14 @@ def test_response_from_diagnostics_row_flop_structured_headline() -> None:
         "analysis_json": {},
         "created_at": None,
     }
+    err = {"error_id": "ERR_1", "sev": "high", "t": 0, "end": 1, "title": "t", "detail": "d", "fix": "f"}
     diag = {
-        "analysis_headline": json.dumps(fh, ensure_ascii=False),
+        "analysis_headline": None,
+        "analysis_subtext": None,
         "segments": [],
         "hook_phases": [],
         "lessons": [],
-        "flop_issues": [{"sev": "high", "t": 0, "end": 1, "title": "t", "detail": "d", "fix": "f"}],
+        "flop_issues": [err],
     }
     out = _response_from_diagnostics_row(
         video,
@@ -124,7 +73,7 @@ def test_response_from_diagnostics_row_flop_structured_headline() -> None:
         niche_label="Tech",
         retention_source="modeled",
     )
-    assert out["analysis_headline"] == fh
+    assert out["errors"] == [err]
 
 
 def test_is_flop_mode_winning() -> None:
@@ -194,25 +143,6 @@ def test_diagnostics_stale_after_ttl() -> None:
     assert _diagnostics_fresh(row) is False
 
 
-def test_projected_views_heuristic_caps() -> None:
-    p = projected_views_heuristic(
-        views=10_000,
-        niche_avg_views=100_000,
-        flop_issues=[{"sev": "high"}, {"sev": "high"}],
-    )
-    assert p <= int(100_000 * 1.15)
-
-
-def test_projected_views_heuristic_zero_niche_avg_not_zero() -> None:
-    """When niche intelligence is missing, cap must not collapse to 0."""
-    p = projected_views_heuristic(
-        views=10_000,
-        niche_avg_views=0,
-        flop_issues=[{"sev": "high"}],
-    )
-    assert p == int(10_000 * 2.2)
-
-
 @pytest.mark.parametrize(
     "execute_side",
     ["maybe_single_none", "pgrst116"],
@@ -258,6 +188,8 @@ def test_response_from_diagnostics_row_prefers_cached_curves() -> None:
         "segments": [],
         "hook_phases": [],
         "lessons": [],
+        "analysis_headline": None,
+        "flop_issues": [],
     }
     out = _response_from_diagnostics_row(
         video,
@@ -290,7 +222,13 @@ def test_response_from_diagnostics_row_falls_back_when_curves_missing() -> None:
         "analysis_json": {},
         "created_at": None,
     }
-    diag: dict = {"segments": [], "hook_phases": [], "lessons": []}
+    diag: dict = {
+        "segments": [],
+        "hook_phases": [],
+        "lessons": [],
+        "analysis_headline": None,
+        "flop_issues": [],
+    }
     out = _response_from_diagnostics_row(
         video,
         diag,
@@ -389,12 +327,14 @@ def test_run_pipeline_cache_hit_skips_gemini() -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
     diag_row = {
         "computed_at": now_iso,
-        "analysis_headline": "from cache",
-        "analysis_subtext": "sub",
+        "analysis_headline": None,
+        "analysis_subtext": None,
         "lessons": [],
         "hook_phases": [],
         "segments": [],
-        "flop_issues": None,
+        "flop_issues": [
+            {"error_id": "cached", "sev": "high", "t": 0, "end": 1, "title": "t", "detail": "d", "fix": "f"},
+        ],
         "retention_curve": [{"t": 0.0, "pct": 55.0}],
         "niche_benchmark_curve": [{"t": 0.0, "pct": 44.0}],
     }
@@ -437,22 +377,18 @@ def test_run_pipeline_cache_hit_skips_gemini() -> None:
         return_value=(None, None),
     ):
         with patch(
-            "getviews_pipeline.video_analyze._call_win_gemini",
-            side_effect=AssertionError("Gemini must not run on cache hit"),
+            "getviews_pipeline.video_analyze.extract_video_errors",
+            side_effect=AssertionError("extract_video_errors must not run on cache hit"),
         ):
-            with patch(
-                "getviews_pipeline.video_analyze._call_flop_gemini",
-                side_effect=AssertionError("Flop Gemini must not run on cache hit"),
-            ):
-                out = run_video_analyze_pipeline(
-                    service_sb,
-                    user_sb,
-                    video_id="vid-cache",
-                    tiktok_url=None,
-                    force_refresh=False,
-                )
+            out = run_video_analyze_pipeline(
+                service_sb,
+                user_sb,
+                video_id="vid-cache",
+                tiktok_url=None,
+                force_refresh=False,
+            )
 
-    assert out["analysis_headline"] == "from cache"
+    assert out["errors"][0].get("error_id") == "cached"
     assert out["meta"]["niche_label"] == "Làm đẹp"
     assert out["meta"]["retention_source"] == "modeled"
     service_sb.table.assert_not_called()
@@ -505,27 +441,18 @@ def test_force_refresh_skips_cache_hit() -> None:
         niche_rows=niche_intel,
     )
 
-    llm_out = WinAnalysisLLM(
-        analysis_headline="fresh from mock",
-        analysis_subtext="new sub",
-        lessons=[
-            LessonSlot(title="L1", body="b1"),
-            LessonSlot(title="L2", body="b2"),
-            LessonSlot(title="L3", body="b3"),
-        ],
-        hook_bodies=["hb1", "hb2", "hb3"],
-    )
+    llm_out = [{"error_id": "fresh", "sev": "mid", "t": 0, "end": 1, "title": "fresh", "detail": "d", "fix": "f"}]
     gemini_called: list[str] = []
 
-    def fake_win(**kwargs: object) -> WinAnalysisLLM:
-        gemini_called.append("win")
+    def fake_extract(**kwargs: object) -> list:
+        gemini_called.append("extract")
         return llm_out
 
     with patch(
         "getviews_pipeline.video_analyze._fetch_sidecars_sync",
         return_value=(None, None),
     ):
-        with patch("getviews_pipeline.video_analyze._call_win_gemini", side_effect=fake_win):
+        with patch("getviews_pipeline.video_analyze.extract_video_errors", side_effect=fake_extract):
             out = run_video_analyze_pipeline(
                 service_sb,
                 user_sb,
@@ -534,8 +461,8 @@ def test_force_refresh_skips_cache_hit() -> None:
                 force_refresh=True,
             )
 
-    assert gemini_called == ["win"]
-    assert out["analysis_headline"] == "fresh from mock"
+    assert gemini_called == ["extract"]
+    assert any(e.get("title") == "fresh" for e in out["errors"])
     service_sb.table.assert_called_once_with("video_diagnostics")
 
 
@@ -575,46 +502,32 @@ def test_run_pipeline_respects_mode_override() -> None:
         video_row=video_row,
         niche_rows=niche_intel,
     )
-    llm_flop = FlopAnalysisLLM(
-        analysis_headline=FlopHeadline(
-            prefix="p",
-            view_accent="v",
-            middle="m",
-            prediction_pos="~1",
-            suffix=".",
-        ),
-        flop_issues=[FlopIssueLLM(sev="high", t=0, end=1, title="t", detail="d", fix="f")],
-    )
+    raw = [{"error_id": "ERR_test", "sev": "high", "t": 0, "end": 1, "title": "t", "detail": "d", "fix": "f"}]
     gemini_called: list[str] = []
 
-    def fake_flop(**kwargs: object) -> FlopAnalysisLLM:
-        gemini_called.append("flop")
-        return llm_flop
+    def fake_extract(**kwargs: object) -> list:
+        gemini_called.append("extract")
+        assert kwargs.get("extraction_mode") == "flop"
+        return raw
 
     with patch(
         "getviews_pipeline.video_analyze._fetch_sidecars_sync",
         return_value=(None, None),
     ):
-        with patch("getviews_pipeline.video_analyze._call_flop_gemini", side_effect=fake_flop):
-            with patch(
-                "getviews_pipeline.video_analyze._call_win_gemini",
-                side_effect=AssertionError("win Gemini must not run when mode=flop override"),
-            ):
-                out = run_video_analyze_pipeline(
-                    service_sb,
-                    user_sb,
-                    video_id="vid-mode-override",
-                    tiktok_url=None,
-                    mode="flop",
-                )
+        with patch("getviews_pipeline.video_analyze.extract_video_errors", side_effect=fake_extract):
+            out = run_video_analyze_pipeline(
+                service_sb,
+                user_sb,
+                video_id="vid-mode-override",
+                tiktok_url=None,
+                mode="flop",
+            )
 
-    assert gemini_called == ["flop"]
+    assert gemini_called == ["extract"]
     assert out["mode"] == "flop"
-    assert isinstance(out["flop_issues"], list)
-    assert len(out["flop_issues"]) >= 1
-    assert out["flop_issues"][0].get("title") == "t"
-    assert out["lessons"] == []
-    assert out["analysis_subtext"] is None
+    assert isinstance(out["errors"], list)
+    assert len(out["errors"]) >= 1
+    assert out["errors"][0].get("title") == "t"
     service_sb.table.assert_called_once_with("video_diagnostics")
 
 
@@ -730,11 +643,12 @@ def _video_for_response(**overrides: Any) -> dict[str, Any]:
 
 def _empty_diag() -> dict[str, Any]:
     return {
-        "analysis_headline": "h",
+        "analysis_headline": None,
+        "analysis_subtext": None,
         "segments": [],
         "hook_phases": [],
         "lessons": [],
-        "flop_issues": None,
+        "flop_issues": [],
     }
 
 

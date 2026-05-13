@@ -2,7 +2,7 @@
  * VideoBody — video diagnosis report rendered as an answer-session body.
  *
  * This is the structured Win/Flop report (KPI strip + retention curve +
- * niche overlay + hook phases + lessons + flop_issues + projected views)
+ * niche overlay + hook phases + errors + narrative_vi)
  * lifted from ``src/routes/_app/video/VideoScreen.tsx``'s
  * ``VideoAnalysisBodyInner``. Visual design and behaviour match the
  * dedicated screen 1:1 — same components, same copy, same handlers.
@@ -30,7 +30,6 @@ import { CommentRadarTile } from "@/routes/_app/components/CommentRadarTile";
 import { ThumbnailTile } from "@/routes/_app/components/ThumbnailTile";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EvidenceVideoEmbed } from "@/components/v2/answer/video/EvidenceVideoEmbed";
-import { sanitizePredictionPos } from "@/lib/sanitizePredictionPos";
 import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
@@ -38,21 +37,19 @@ import type {
   BrightSpotSignal,
   ChannelContext,
   CreatorComparison,
-  FlopHeadline,
   FormatCard,
   LoidChinhNarrativeItem,
   NarrativeVi,
   ReferenceVideoCard,
   VideoAnalyzeMeta,
   VideoAnalyzeMode,
-  VideoAnalyzeResponse,
+  VideoReportPayload,
   VideoAnswerNarrativeReadyPayload,
   VideoAnswerPreSynthesisPayload,
   VideoEnrichment,
   VideoFlopIssue,
   VideoLesson,
   VideoNicheMeta,
-  VideoReportPayload,
 } from "@/lib/api-types";
 
 // Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers.
@@ -60,16 +57,6 @@ const WINNERS_CLAIM_MIN = 10;
 
 function formatViewsVi(n: number): string {
   return n.toLocaleString("vi-VN");
-}
-
-function isFlopHeadline(v: string | FlopHeadline | null | undefined): v is FlopHeadline {
-  return v != null && typeof v === "object" && "prefix" in v && "view_accent" in v;
-}
-
-function stringifyAnalysisHeadline(h: string | FlopHeadline | null | undefined): string {
-  if (h == null) return "";
-  if (typeof h === "string") return h;
-  return `${h.prefix}${h.view_accent}${h.middle}${sanitizePredictionPos(h.prediction_pos)}${h.suffix}`;
 }
 
 /**
@@ -362,8 +349,8 @@ function retentionEndPct(curve: { t: number; pct: number }[] | null | undefined)
 }
 
 /** Research handoff — ``AnswerScreen`` reads ``location.state.initialPrompt``. */
-function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse, watchUrl: string | null): string {
-  const issues = d.flop_issues ?? [];
+function buildFlopScriptHandoffPrompt(d: VideoReportPayload, watchUrl: string | null): string {
+  const issues = d.errors ?? [];
   const lines = [
     `Corpus video_id: ${d.video_id}`,
     ...(watchUrl?.trim() ? [`Link TikTok đã soi: ${watchUrl.trim()}`] : []),
@@ -371,8 +358,8 @@ function buildFlopScriptHandoffPrompt(d: VideoAnalyzeResponse, watchUrl: string 
     "Mình vừa soi video flop trên Getviews — giúp mình lên shot-list / kịch bản, ưu tiên sửa các điểm sau:",
     ...issues.slice(0, 8).map((i) => `• ${i.title}\n  Fix gợi ý: ${i.fix}`),
   ];
-  if (d.analysis_headline)
-    lines.push("", `Chẩn đoán tổng: ${stringifyAnalysisHeadline(d.analysis_headline)}`);
+  const headline = d.narrative_vi?.headline_vi?.trim();
+  if (headline) lines.push("", `Chẩn đoán tổng: ${headline}`);
   return lines.join("\n");
 }
 
@@ -461,7 +448,11 @@ export function VideoBody({
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
   const flopIssuesForNarrative: VideoFlopIssue[] =
-    preSynth?.errors ?? report.flop_issues ?? [];
+    narrativeReady?.errors ?? report.errors ?? [];
+  const winLessons: VideoLesson[] = (narrativeVi?.lessons ?? []).map((l) => ({
+    title: l.title,
+    body: l.body,
+  }));
   const flopIssueCount = flopIssuesForNarrative.length;
   const firstHighIdx = flopIssuesForNarrative.findIndex((i) => i.sev === "high");
 
@@ -509,12 +500,12 @@ export function VideoBody({
     logUsage("video_to_script", { video_id: report.video_id, mode: "win" });
     const topic =
       meta.title?.trim() ||
-      stringifyAnalysisHeadline(report.analysis_headline).trim() ||
+      narrativeVi?.headline_vi?.trim() ||
       `Video từ @${meta.creator?.trim() || "creator"}`;
     const phases = report.hook_phases ?? [];
     const first = phases[0];
-    const hookFromPhase = first ? `${first.label}: ${first.body}` : null;
-    const headlineHook = stringifyAnalysisHeadline(report.analysis_headline).trim();
+    const hookFromPhase = first ? first.label : null;
+    const headlineHook = narrativeVi?.headline_vi?.trim() ?? "";
     navigate(
       scriptPrefillFromVideo({
         topic,
@@ -528,8 +519,8 @@ export function VideoBody({
     const phases = report.hook_phases ?? [];
     const first = phases[0];
     const text = first
-      ? `${first.t_range} · ${first.label}\n${first.body}`
-      : stringifyAnalysisHeadline(report.analysis_headline);
+      ? `${first.t_range} · ${first.label}`
+      : (narrativeVi?.headline_vi ?? "");
     if (!text.trim()) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -653,37 +644,8 @@ export function VideoBody({
                 : "gv-tight font-semibold leading-[1.05] tracking-tight"
             }`}
           >
-            {isFlop ? (
-              report.analysis_headline == null ? (
-                "—"
-              ) : isFlopHeadline(report.analysis_headline) ? (
-                <>
-                  {report.analysis_headline.prefix}
-                  {report.analysis_headline.view_accent ? (
-                    <em className="gv-serif-italic text-[color:var(--gv-accent)]">
-                      {report.analysis_headline.view_accent}
-                    </em>
-                  ) : null}
-                  {report.analysis_headline.middle}
-                  {report.analysis_headline.prediction_pos ? (
-                    <span className="text-[color:var(--gv-pos)]">
-                      {report.analysis_headline.prediction_pos}
-                    </span>
-                  ) : null}
-                  {report.analysis_headline.suffix}
-                </>
-              ) : (
-                (report.analysis_headline as string)
-              )
-            ) : (
-              (report.analysis_headline as string | null) ?? "—"
-            )}
+            {narrativeVi?.headline_vi?.trim() || "—"}
           </h1>
-          {!isFlop && report.analysis_subtext ? (
-            <p className="mt-2 max-w-[640px] text-[15px] text-[color:var(--gv-ink-3)]">
-              {report.analysis_subtext}
-            </p>
-          ) : null}
         </header>
 
         {isFlop ? (
@@ -724,7 +686,7 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {flopIssuesForNarrative.length > 0 && (viewMode === "flop" || (preSynth?.errors?.length ?? 0) > 0) ? (
+        {viewMode === "flop" && flopIssuesForNarrative.length > 0 ? (
           <section className="mb-6">
             <SectionMini kicker="Lỗi cấu trúc" title="Xếp theo ảnh hưởng" />
             <div className="flex flex-col gap-3">
@@ -924,11 +886,11 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {viewMode === "win" && report.lessons.length ? (
+        {viewMode === "win" && winLessons.length ? (
           <section>
             <SectionMini kicker="Bài học áp dụng" title="3 điều bạn có thể copy" />
             <ul className="flex list-none flex-col gap-2.5 p-0">
-              {report.lessons.map((lesson, i) => (
+              {winLessons.map((lesson, i) => (
                 <li
                   key={`${lesson.title}-${i}`}
                   className="grid grid-cols-1 items-center gap-3 rounded-lg border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5 sm:grid-cols-[40px_1fr_auto] sm:gap-4"

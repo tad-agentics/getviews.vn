@@ -32,11 +32,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from getviews_pipeline.video_analyze import (
-    FlopAnalysisLLM,
-    FlopHeadline,
-    FlopIssueLLM,
-    LessonSlot,
-    WinAnalysisLLM,
     _build_video_dict_from_aweme,
     run_video_analyze_on_demand,
 )
@@ -129,37 +124,32 @@ def _make_user_sb_mock(*, niche_taxonomy_row: dict | None = None) -> MagicMock:
     return sb
 
 
-def _win_llm() -> WinAnalysisLLM:
-    return WinAnalysisLLM(
-        analysis_headline="Headline win",
-        analysis_subtext="Subtext win",
-        lessons=[
-            LessonSlot(title=f"L{i}", body=f"Body {i}") for i in range(3)
-        ],
-        hook_bodies=["b0", "b1", "b2"],
-    )
+def _fake_extract_errors_flop(**_: object) -> list:
+    return [
+        {
+            "error_id": "f1",
+            "sev": "high",
+            "t": 0.0,
+            "end": 2.0,
+            "title": "Hook yếu",
+            "detail": "Hook không neo được attention",
+            "fix": "Thay bằng câu hỏi đảo",
+        },
+    ]
 
 
-def _flop_llm() -> FlopAnalysisLLM:
-    return FlopAnalysisLLM(
-        analysis_headline=FlopHeadline(
-            prefix="Video chỉ đạt ",
-            view_accent="50K",
-            middle=" view, dưới ngưỡng ngách. ",
-            prediction_pos="Sửa hook",
-            suffix=" để bật lên 200K.",
-        ),
-        flop_issues=[
-            FlopIssueLLM(
-                sev="high",
-                t=0.0,
-                end=2.0,
-                title="Hook yếu",
-                detail="Hook không neo được attention",
-                fix="Thay bằng câu hỏi đảo",
-            ),
-        ],
-    )
+def _fake_extract_errors_win(**_: object) -> list:
+    return [
+        {
+            "error_id": "w1",
+            "sev": "low",
+            "t": 0.0,
+            "end": 1.0,
+            "title": "win-note",
+            "detail": "d",
+            "fix": "f",
+        },
+    ]
 
 
 # ── 1. Builds corpus-shaped video dict from aweme + analysis ───────
@@ -226,11 +216,8 @@ def test_on_demand_returns_full_response_without_corpus_write() -> None:
         "getviews_pipeline.video_analyze._classify_niche_id_async",
         new=AsyncMock(return_value=3),
     ), patch(
-        "getviews_pipeline.video_analyze._call_win_gemini",
-        return_value=_win_llm(),
-    ), patch(
-        "getviews_pipeline.video_analyze._call_flop_gemini",
-        side_effect=AssertionError("win mode must not call flop synth"),
+        "getviews_pipeline.video_analyze.extract_video_errors",
+        side_effect=_fake_extract_errors_win,
     ), patch(
         "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
         return_value=None,
@@ -245,9 +232,8 @@ def test_on_demand_returns_full_response_without_corpus_write() -> None:
     assert out["meta"]["creator"] == "creatorx"
     assert out["meta"]["views"] == 50_000
     assert out["meta"]["niche_label"] == "Làm đẹp"
-    assert out["analysis_headline"] == "Headline win"
-    assert out["analysis_subtext"] == "Subtext win"
-    assert len(out["lessons"]) == 3
+    assert isinstance(out["errors"], list)
+    assert len(out["errors"]) >= 1
     # Distinguishing flag for the FE.
     assert out["source"] == "on_demand"
     # Sidecars must NOT be on the response — those are corpus-only.
@@ -285,11 +271,8 @@ def test_on_demand_picks_flop_when_below_niche_median() -> None:
         "getviews_pipeline.video_analyze._classify_niche_id_async",
         new=AsyncMock(return_value=3),
     ), patch(
-        "getviews_pipeline.video_analyze._call_flop_gemini",
-        return_value=_flop_llm(),
-    ), patch(
-        "getviews_pipeline.video_analyze._call_win_gemini",
-        side_effect=AssertionError("flop mode must not call win synth"),
+        "getviews_pipeline.video_analyze.extract_video_errors",
+        side_effect=_fake_extract_errors_flop,
     ), patch(
         "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
         return_value=niche_intel,
@@ -306,8 +289,7 @@ def test_on_demand_picks_flop_when_below_niche_median() -> None:
         )
 
     assert out["mode"] == "flop"
-    assert out["flop_issues"] is not None and len(out["flop_issues"]) == 1
-    assert out["projected_views"] is not None  # heuristic populated for flop
+    assert out["errors"] is not None and len(out["errors"]) >= 1
 
 
 # ── 4. Mode override forces win/flop regardless of heuristic ───────
@@ -336,11 +318,8 @@ def test_on_demand_respects_explicit_mode_override() -> None:
         "getviews_pipeline.video_analyze._classify_niche_id_async",
         new=AsyncMock(return_value=3),
     ), patch(
-        "getviews_pipeline.video_analyze._call_win_gemini",
-        return_value=_win_llm(),
-    ), patch(
-        "getviews_pipeline.video_analyze._call_flop_gemini",
-        side_effect=AssertionError("explicit win override must not call flop"),
+        "getviews_pipeline.video_analyze.extract_video_errors",
+        side_effect=_fake_extract_errors_win,
     ), patch(
         "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
         return_value=niche_intel,
@@ -382,8 +361,8 @@ def test_on_demand_handles_unknown_niche_gracefully() -> None:
         "getviews_pipeline.video_analyze._classify_niche_id_async",
         new=AsyncMock(return_value=0),
     ), patch(
-        "getviews_pipeline.video_analyze._call_win_gemini",
-        return_value=_win_llm(),
+        "getviews_pipeline.video_analyze.extract_video_errors",
+        side_effect=_fake_extract_errors_win,
     ), patch(
         "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
         return_value=None,

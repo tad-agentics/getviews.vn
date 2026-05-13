@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline import ensemble
-from getviews_pipeline.analysis_core import analyze_aweme, detect_language_market_mismatch
+from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
@@ -76,22 +76,11 @@ from getviews_pipeline.step_events import (
     step_start,
 )
 from getviews_pipeline.supabase_client import get_service_client
+from getviews_pipeline.video_analyze import apply_rule_based_video_errors, extract_video_errors
 
 logger = logging.getLogger(__name__)
 
 REF_N = 5
-
-SILENT_FORMAT_EXCEPTIONS = frozenset(
-    {
-        "product_display_silent",
-        "ambient_lifestyle",
-        "macro_closeup_product",
-        "aesthetic_broll",
-        "text_overlay_only",
-        "faceless",
-        "highlight",
-    }
-)
 
 
 def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str, Any]:
@@ -1713,38 +1702,24 @@ async def run_video_diagnosis(
             bright_spot_signal = compute_bright_spot_signal(er_percentile_rank, views_vs_avg_ratio)
             corpus_tier = classify_performance_tier_corpus(curr_views, format_avg)
 
-            errors: list[dict[str, Any]] = []
-            ha0 = user_analysis_dict.get("hook_analysis")
-            hook_phrase = (ha0 or {}).get("hook_phrase") if isinstance(ha0, dict) else ""
-            hook_text = f"{meta.description or ''} {hook_phrase or ''}".strip()
-            lang_error = detect_language_market_mismatch(hook_text)
-            if lang_error:
-                errors.insert(0, lang_error)
-            has_human = bool(user_analysis_dict.get("has_human_speaking_to_camera"))
-            has_opinion = bool(user_analysis_dict.get("has_expressed_opinion_or_question"))
-            if (
-                not has_human
-                and not has_opinion
-                and content_format not in SILENT_FORMAT_EXCEPTIONS
-            ):
-                errors.append(
-                    {
-                        "error_id": "no_human_presence",
-                        "title": "Không có người nói chuyện với camera",
-                        "detail": (
-                            "Video không có mặt người hoặc giọng nói trực tiếp. "
-                            "Format này hoạt động tốt hơn khi có người dẫn dắt, "
-                            "tạo kết nối cảm xúc với người xem."
-                        ),
-                        "fix": (
-                            "Thêm ít nhất 2-3 giây mặt người nói chuyện thẳng với camera "
-                            "tại hook hoặc giữa video."
-                        ),
-                        "sev": "mid",
-                        "t": 0.0,
-                        "end": None,
-                    }
-                )
+            extraction_mode_stream = "win" if corpus_tier == "hit" else "flop"
+            video_stub = {
+                "creator_handle": handle,
+                "views": curr_views,
+                "engagement_rate": user_er,
+            }
+            gemini_errs = await run_sync(
+                extract_video_errors,
+                extraction_mode=extraction_mode_stream,
+                video=video_stub,
+                analysis=user_analysis_dict,
+                niche_label=niche,
+                niche_row=niche_norms,
+                retention_curve=None,
+            )
+            errors = apply_rule_based_video_errors(
+                gemini_errs, user_analysis_dict, content_format,
+            )
 
             kpi_dict: dict[str, Any] = {
                 "views": curr_views,
@@ -1773,7 +1748,6 @@ async def run_video_diagnosis(
                 step_queue,
                 {
                     "type": "pre_synthesis",
-                    "errors": errors,
                     "kpi": kpi_dict,
                     "bright_spot_signal": bright_spot_signal,
                     "performance_tier": corpus_tier,
@@ -1831,6 +1805,7 @@ async def run_video_diagnosis(
                     "type": "narrative_ready",
                     "narrative_vi": narrative_vi_out,
                     "format_cards": format_cards_out,
+                    "errors": diagnosis_errors_out,
                 },
             )
             diagnosis = diagnosis_md

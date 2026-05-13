@@ -539,16 +539,10 @@ class VideoPayload(BaseModel):
     kpis: list[dict[str, Any]] = Field(default_factory=list)
     segments: list[dict[str, Any]] = Field(default_factory=list)
     hook_phases: list[dict[str, Any]] = Field(default_factory=list)
-    lessons: list[dict[str, Any]] = Field(default_factory=list)
-    # Win path: plain string. Flop path: structured FlopHeadline dict
-    # (or its JSON-serialised string from the legacy diagnostics column).
-    analysis_headline: str | dict[str, Any] | None = None
-    analysis_subtext: str | None = None
-    flop_issues: list[dict[str, Any]] | None = None
+    errors: list[dict[str, Any]] = Field(default_factory=list)
     retention_curve: list[dict[str, float]] | None = None
     niche_benchmark_curve: list[dict[str, float]] | None = None
     niche_meta: VideoNicheMetaPayload | None = None
-    projected_views: int | None = None
     thumbnail_analysis: dict[str, Any] | None = None
     comment_radar: dict[str, Any] | None = None
     # Flag set by run_video_analyze_on_demand so the FE can hint
@@ -563,13 +557,14 @@ class VideoPayload(BaseModel):
     related_questions: list[str] = Field(default_factory=list)
     creator_comparison: CreatorComparison | None = None
     enrichment: VideoEnrichmentPayload | None = None
-    # Narrative rebuild fields (2026-05-13)
+    # Narrative rebuild fields (2026-05-13) — headline_vi + lessons live inside narrative_vi
     narrative_vi: dict[str, Any] | None = None
     format_cards: list[dict[str, Any]] | None = None
-    errors: list[dict[str, Any]] | None = None
     performance_tier: str | None = None
     bright_spot_signal: dict[str, Any] | None = None
     channel_context: dict[str, Any] | None = None
+    reference_videos: list[dict[str, Any]] | None = None
+    diagnosis: str | None = None
 
     model_config = {"extra": "allow"}
 

@@ -13,7 +13,6 @@ export function HookPhaseCard({ phase, className = "" }: HookPhaseCardProps) {
     >
       <div className="gv-mono mb-1.5 text-[10px] text-[color:var(--gv-accent-deep)]">{phase.t_range}</div>
       <h4 className="gv-tight m-0 mb-1.5 text-base text-[color:var(--gv-ink)]">{phase.label}</h4>
-      <p className="m-0 text-xs leading-snug text-[color:var(--gv-ink-3)]">{phase.body || "—"}</p>
     </article>
   );
 }

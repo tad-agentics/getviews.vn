@@ -60,10 +60,7 @@ def _video_payload_fixture() -> dict[str, Any]:
         "hook_phases": [
             {"t_range": "0.0–0.8s", "label": "Hook đảo", "body": "Câu hỏi đảo neo attention."},
         ],
-        "lessons": [{"title": "L1", "body": "Body 1"}],
-        "analysis_headline": "Headline win",
-        "analysis_subtext": "Subtext explaining why this video succeeded.",
-        "flop_issues": None,
+        "errors": [],
         "retention_curve": [{"t": 0.0, "pct": 100.0}, {"t": 1.0, "pct": 65.0}],
         "niche_benchmark_curve": [{"t": 0.0, "pct": 100.0}, {"t": 1.0, "pct": 55.0}],
         "niche_meta": {
@@ -120,29 +117,23 @@ def test_video_payload_accepts_creator_comparison() -> None:
     assert out.creator_comparison.delta == 2000
 
 
-def test_video_payload_accepts_flop_with_structured_headline() -> None:
-    """Flop-mode response: ``analysis_headline`` is a structured dict
-    (FlopHeadline.model_dump()) instead of a plain string. Both shapes
-    are valid."""
+def test_video_payload_accepts_flop_with_errors() -> None:
     payload = _video_payload_fixture()
     payload["mode"] = "flop"
-    payload["analysis_headline"] = {
-        "prefix": "Video chỉ đạt ",
-        "view_accent": "8.4K",
-        "middle": " view, dưới ngưỡng ngách. ",
-        "prediction_pos": "~34K",
-        "suffix": " sau khi sửa hook.",
-    }
-    payload["analysis_subtext"] = None
-    payload["flop_issues"] = [
-        {"sev": "high", "t": 0.0, "end": 2.0, "title": "Hook yếu", "detail": "...", "fix": "..."},
+    payload["errors"] = [
+        {"error_id": "e1", "sev": "high", "t": 0.0, "end": 2.0, "title": "Hook yếu", "detail": "...", "fix": "..."},
     ]
-    payload["projected_views"] = 34_000
+    payload["narrative_vi"] = {
+        "headline_vi": "Một câu chẩn đoán flop.",
+        "ket_luan_nhanh": "",
+        "van_de_chinh": "",
+        "loi_chinh_narrative": [],
+        "dinh_huong_chien_luoc": "",
+        "lessons": [],
+    }
     out = VideoPayload.model_validate(payload)
     assert out.mode == "flop"
-    assert isinstance(out.analysis_headline, dict)
-    assert out.flop_issues is not None and len(out.flop_issues) == 1
-    assert out.projected_views == 34_000
+    assert isinstance(out.errors, list) and len(out.errors) == 1
 
 
 def test_video_payload_accepts_on_demand_source_flag() -> None:

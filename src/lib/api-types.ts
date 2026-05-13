@@ -60,7 +60,8 @@ export interface VideoSegment {
 export interface VideoHookPhase {
   t_range: string;
   label: string;
-  body: string;
+  /** Optional; server may omit after hook phases became structural-only. */
+  body?: string;
 }
 
 export interface VideoLesson {
@@ -69,15 +70,6 @@ export interface VideoLesson {
 }
 
 export type FlopIssueSeverity = "high" | "mid" | "low";
-
-/** Flop-mode ``analysis_headline`` — five segments for serif/accent layout (JSON in DB). */
-export interface FlopHeadline {
-  prefix: string;
-  view_accent: string;
-  middle: string;
-  prediction_pos: string;
-  suffix: string;
-}
 
 export interface VideoFlopIssue {
   /** Stable id for narrative join (`loi_chinh_narrative[].error_id`); optional on legacy rows. */
@@ -189,16 +181,11 @@ export interface VideoAnalyzeResponse {
   kpis: VideoKpi[];
   segments: VideoSegment[];
   hook_phases: VideoHookPhase[];
-  lessons: VideoLesson[];
-  /** Win: plain string. Flop: structured segments or legacy plain string. */
-  analysis_headline: string | FlopHeadline | null;
-  analysis_subtext: string | null;
-  flop_issues: VideoFlopIssue[] | null;
+  /** Structured error cards from Call 1 (`error_id` joins `narrative_vi.loi_chinh_narrative`). */
+  errors: VideoFlopIssue[];
   retention_curve: RetentionPoint[] | null;
   niche_benchmark_curve: RetentionPoint[] | null;
   niche_meta: VideoNicheMeta | null;
-  /** Flop summary bar; deterministic client may also recompute. */
-  projected_views?: number | null;
   /** Corpus thumbnail_analysis (Gemini on t=0 frame); null when unavailable. */
   thumbnail_analysis?: ThumbnailAnalysisData | null;
   /** Comment sentiment + purchase intent; null when sparse / fetch miss. */
@@ -1054,9 +1041,13 @@ export interface LoidChinhNarrativeItem {
 }
 
 export interface NarrativeVi {
+  /** One-sentence headline (≤20 words) — replaces legacy analysis_headline. */
+  headline_vi?: string;
   ket_luan_nhanh: string;
   van_de_chinh: string;
   loi_chinh_narrative: LoidChinhNarrativeItem[];
+  /** Win tier only (≤3). Empty for flop/average/unknown. */
+  lessons?: { title: string; body: string }[];
   dinh_huong_chien_luoc: string;
 }
 
@@ -1111,7 +1102,6 @@ export interface ReferenceVideoCard {
 
 /** Partial payload streamed before final Vietnamese synthesis lands on `ReportV1`. */
 export interface VideoAnswerPreSynthesisPayload {
-  errors?: VideoFlopIssue[];
   kpi?: Record<string, number>;
   bright_spot_signal?: BrightSpotSignal;
   performance_tier?: string;
@@ -1121,6 +1111,7 @@ export interface VideoAnswerPreSynthesisPayload {
 export interface VideoAnswerNarrativeReadyPayload {
   narrative_vi?: NarrativeVi;
   format_cards?: FormatCard[];
+  errors?: VideoFlopIssue[];
 }
 
 // ── Diagnostic template (2026-04-22) ──────────────────────────────────────

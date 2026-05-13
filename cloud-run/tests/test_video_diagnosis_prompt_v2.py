@@ -100,17 +100,28 @@ def test_niche_summary_falls_back_to_avg_views_field() -> None:
 # ── Prompt v2 contract ────────────────────────────────────────────────
 
 
-def test_win_prompt_v2_lists_seven_mechanisms() -> None:
+def test_diagnosis_narrative_prompt_json_spec_lessons_cite_mechanisms() -> None:
+    """Win-path mechanism vocabulary moved from Call 1 to diagnosis narrative JSON spec."""
     try:
-        from getviews_pipeline.video_analyze import _MECHANISM_VOCAB_VI
+        from getviews_pipeline.output_redesign import build_diagnosis_narrative_prompt
     except ModuleNotFoundError:
         pytest.skip("pydantic not installed in test env")
-    for mech in (
-        "curiosity_gap", "social_proof", "identification",
-        "contrarian_take", "before_after_promise",
-        "status_anchor", "fomo_loss",
-    ):
-        assert mech in _MECHANISM_VOCAB_VI
+    prompt = build_diagnosis_narrative_prompt(
+        voice_block="",
+        examples_block="",
+        anti_patterns="",
+        content_format="tutorial",
+        niche_name="test",
+        corpus_size=100,
+        niche_norms={},
+        reference_videos=[],
+        user_analysis={},
+        user_stats={},
+    )
+    assert "headline_vi" in prompt
+    assert "lessons" in prompt
+    assert "curiosity_gap" in prompt
+    assert "social_proof" in prompt
 
 
 def test_forbidden_phrases_list_includes_known_clichés() -> None:

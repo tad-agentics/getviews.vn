@@ -534,6 +534,23 @@ def _validate_narrative_citations(
     return narrative_vi, format_cards
 
 
+def _normalize_narrative_vi_dict(narrative_vi: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Ensure ``headline_vi`` and ``lessons`` exist for the unified video report schema."""
+    if not narrative_vi:
+        return narrative_vi
+    headline = str(narrative_vi.get("headline_vi") or "").strip()
+    if not headline:
+        fallback = str(narrative_vi.get("ket_luan_nhanh") or "").strip()
+        narrative_vi = {
+            **narrative_vi,
+            "headline_vi": (fallback[:400] if fallback else "—"),
+        }
+    lessons_raw = narrative_vi.get("lessons")
+    if lessons_raw is None or not isinstance(lessons_raw, list):
+        narrative_vi = {**narrative_vi, "lessons": []}
+    return narrative_vi
+
+
 def synthesize_diagnosis_v2(
     content_format: str,
     niche_name: str,
@@ -608,6 +625,7 @@ def synthesize_diagnosis_v2(
         narrative_vi, format_cards = _validate_narrative_citations(
             narrative_vi, format_cards, allowed
         )
+        narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
     body = remainder.strip()
 
     scan_target = body if raw_obj else text.strip()
