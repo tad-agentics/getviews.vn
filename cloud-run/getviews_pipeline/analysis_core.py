@@ -457,12 +457,20 @@ async def analyze_aweme(
     *,
     include_diagnosis: bool = False,
     full_analyses: dict[str, dict[str, Any]] | None = None,
+    skip_corpus_cache: bool = False,
 ) -> dict:
     """Analyze a raw aweme dict; reuse ``full_analyses[video_id]`` when present (§10 Rule 12).
 
     include_diagnosis defaults to False — pipeline callers always pass it explicitly and
     diagnosis adds significant latency + token cost. Use analyze_tiktok_url() (which
     defaults to True) for standalone single-URL analysis where diagnosis is expected.
+
+    skip_corpus_cache=True skips the get_cached_analysis() Supabase call. Use this when
+    calling from within asyncio.run() (a new event loop), because get_cached_analysis uses
+    the module-level _anon_client() which is bound to the main FastAPI event loop and will
+    raise "Event loop is closed" when used from a different event loop.
+    The on-demand path (_fetch_and_analyze_async) always sets skip_corpus_cache=True because
+    the video is already known to not be in the corpus.
     """
     vid = str(aweme.get("aweme_id", "") or "")
 
@@ -473,7 +481,9 @@ async def analyze_aweme(
 
     # 2. Corpus cache — video already analyzed by batch ingest or a previous user.
     #    Skip download + Gemini call entirely; use stored analysis_json.
-    if vid:
+    #    Skipped when skip_corpus_cache=True to avoid event-loop-closed errors when
+    #    called from within asyncio.run() (the on-demand path).
+    if vid and not skip_corpus_cache:
         corpus_hit = await get_cached_analysis(vid)
         if corpus_hit:
             metadata = ensemble.parse_metadata(aweme)

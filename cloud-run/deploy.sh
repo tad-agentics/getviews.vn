@@ -74,7 +74,7 @@ deploy_user() {
     --allow-unauthenticated \
     --memory 2Gi \
     --cpu 1 \
-    --timeout 300 \
+    --timeout 600 \
     --concurrency 20 \
     --min-instances 1 \
     --max-instances 5 \

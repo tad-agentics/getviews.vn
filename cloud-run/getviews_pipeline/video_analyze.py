@@ -1448,6 +1448,13 @@ async def _fetch_and_analyze_async(tiktok_url: str) -> tuple[dict[str, Any], dic
     singleton.  The singleton is bound to the main Cloud Run event loop; reusing
     it inside ``asyncio.run()`` (which creates a new event loop for the calling
     thread) raises ``RuntimeError: Event loop is closed`` in Python 3.12.
+
+    skip_corpus_cache=True avoids the get_cached_analysis() call which uses the
+    module-level _anon_client() Supabase client.  That client's httpx transport
+    is bound to the uvicorn event loop (L1); using it inside asyncio.run() (L2)
+    causes "RuntimeError: Event loop is closed".  The on-demand path already
+    knows the video is not in corpus — skipping this lookup is both correct and
+    required for event-loop isolation.
     """
     import httpx
 
@@ -1457,7 +1464,11 @@ async def _fetch_and_analyze_async(tiktok_url: str) -> tuple[dict[str, Any], dic
     async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=30.0, read=120.0)) as fresh_client:
         aweme = await ensemble.fetch_post_info(tiktok_url, _client=fresh_client)
 
-    analyze_result = await analyze_aweme(aweme, include_diagnosis=False)
+    analyze_result = await analyze_aweme(
+        aweme,
+        include_diagnosis=False,
+        skip_corpus_cache=True,  # avoids module-level Supabase client (event-loop-closed bug)
+    )
     return aweme, analyze_result
 
 
