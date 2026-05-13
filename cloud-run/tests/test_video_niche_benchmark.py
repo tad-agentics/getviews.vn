@@ -107,6 +107,20 @@ def test_niche_row_to_video_meta_falls_back_to_median_views_when_avg_missing() -
     assert meta["avg_views"] == 41000
 
 
+def test_avg_retention_varies_with_median_er_percent_scale() -> None:
+    # median_er is stored as percent. Previously the formula used it as
+    # a ratio so any niche with ≥ 0.14% ER saturated to retention
+    # ≈ 0.848 — i.e. every niche modeled to the same retention. After
+    # the percent→ratio conversion, different median_er values produce
+    # different retention values within the [0.28, 0.92] band.
+    lo = niche_row_to_video_meta({"median_er": 1.0, "sample_size": 10})  # 1%
+    mid = niche_row_to_video_meta({"median_er": 5.0, "sample_size": 10})  # 5%
+    hi = niche_row_to_video_meta({"median_er": 12.0, "sample_size": 10})  # 12%
+    assert lo["avg_retention"] < mid["avg_retention"] < hi["avg_retention"]
+    # Sanity: none clamp to the upper bound.
+    assert lo["avg_retention"] < 0.92
+
+
 def test_niche_row_to_video_meta_still_null_when_no_views_column_set() -> None:
     # Defence: row that genuinely has no positive view signal in any
     # known column still maps to None (FE renders "—").
