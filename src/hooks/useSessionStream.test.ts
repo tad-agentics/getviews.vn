@@ -202,6 +202,39 @@ describe("useSessionStream — SSE line buffer", () => {
     });
     expect(result.current.text).toBe("hi");
   });
+
+  it("aborts the in-flight fetch when the hook unmounts", async () => {
+    // Build a stream that never closes — the only way it ends is via abort.
+    let aborted = false;
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `data: {"stream_id":"abc","seq":1,"delta":"hi","done":false}\n\n`,
+          ),
+        );
+        // Intentionally do NOT close — simulates an SSE that's still in flight.
+      },
+    });
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      init?.signal?.addEventListener("abort", () => {
+        aborted = true;
+      });
+      return Promise.resolve(
+        new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result, unmount } = renderHook(() => useSessionStream(), { wrapper: wrapper(qc) });
+
+    result.current.stream(BASE_PARAMS);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    unmount();
+
+    // Cleanup runs synchronously inside React's effect-cleanup phase.
+    expect(aborted).toBe(true);
+  });
 });
 
 describe("useSessionStream — report payload delivery", () => {

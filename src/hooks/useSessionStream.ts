@@ -7,6 +7,7 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type Dispatch,
@@ -180,6 +181,17 @@ export function useSessionStream<TPayload = unknown>(
     channelContext: null,
     narrativeReady: null,
   });
+
+  // Abort the in-flight SSE on unmount so navigating away mid-stream
+  // doesn't leak the fetch until SSE_IDLE_TIMEOUT_MS and doesn't set
+  // state on an unmounted component. Credits (TD-1) are already
+  // deducted at request time — this only frees client + connection.
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+    },
+    [],
+  );
 
   const stream = useCallback(
     async (args: StreamArgs): Promise<StreamResult<TPayload>> => {
