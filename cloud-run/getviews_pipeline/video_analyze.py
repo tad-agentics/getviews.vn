@@ -257,7 +257,7 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
         "video_id,creator_handle,views,likes,comments,shares,saves,save_rate,"
         "engagement_rate,thumbnail_url,created_at,niche_id,content_class_id,"
         "content_format,analysis_json,breakout_multiplier,tiktok_url,"
-        "creator_median_views"
+        "creator_median_views,caption"
     )
     try:
         vres = user_sb.table("video_corpus").select(cols).eq("video_id", vid).maybe_single().execute()
@@ -293,6 +293,8 @@ def apply_rule_based_video_errors(
     errors: list[dict[str, Any]],
     analysis: dict[str, Any],
     content_format: str,
+    *,
+    caption_hint: str | None = None,
 ) -> list[dict[str, Any]]:
     """Augment Gemini error extraction with deterministic guards (language, presence)."""
 
@@ -301,7 +303,9 @@ def apply_rule_based_video_errors(
     out = list(errors)
     ha0 = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else None
     hook_phrase = (ha0 or {}).get("hook_phrase") if isinstance(ha0, dict) else ""
-    hook_text = str(hook_phrase or "").strip()
+    cap = str(caption_hint or "").strip()
+    phrase = str(hook_phrase or "").strip()
+    hook_text = f"{cap} {phrase}".strip()
     if hook_text:
         lang_error = detect_language_market_mismatch(hook_text)
         if lang_error:
@@ -432,6 +436,7 @@ def _response_from_diagnostics_row(
             if video.get("created_at")
             else None,
             "title": title_hint or None,
+            "engagement_rate": float(video.get("engagement_rate") or 0.0),
             "niche_label": niche_label or None,
             "retention_source": retention_source,
             "creator_median_views": creator_median_views,
@@ -690,8 +695,11 @@ def finalize_video_narrative_layer(
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
     from getviews_pipeline.pipelines import (
         classify_performance_tier_corpus,
+        compute_bright_spot_signal,
+        compute_view_scenarios,
         fetch_channel_context_sync,
         refine_performance_tier,
+        _estimate_er_percentile_rank,
     )
     from getviews_pipeline.step_events import emit
 
@@ -745,6 +753,51 @@ def finalize_video_narrative_layer(
     }
 
     errors: list[dict[str, Any]] = list(out.get("errors") or [])
+    _fa_raw = niche_meta.get("avg_views")
+    try:
+        _format_avg_hint = float(_fa_raw) if _fa_raw is not None else None
+    except (TypeError, ValueError):
+        _format_avg_hint = None
+    if _format_avg_hint is not None and _format_avg_hint <= 0:
+        _format_avg_hint = None
+    _nta_raw_vs = niche_meta.get("median_views") or niche_meta.get("organic_avg_views")
+    try:
+        _nta_vs = float(_nta_raw_vs) if _nta_raw_vs is not None else None
+    except (TypeError, ValueError):
+        _nta_vs = None
+    if _nta_vs is not None and _nta_vs <= 0:
+        _nta_vs = None
+    view_scenarios_computed = compute_view_scenarios(
+        views,
+        errors,
+        _format_avg_hint,
+        _nta_vs,
+    )
+    user_er = float(meta.get("engagement_rate") or 0.0)
+    raw_ae = niche_meta.get("avg_engagement_rate")
+    raw_me = niche_meta.get("median_er")
+    try:
+        niche_avg_er = float(raw_ae) if raw_ae is not None else None
+    except (TypeError, ValueError):
+        niche_avg_er = None
+    if niche_avg_er is None or niche_avg_er <= 0:
+        try:
+            niche_avg_er = float(raw_me) if raw_me is not None else None
+        except (TypeError, ValueError):
+            niche_avg_er = None
+    if niche_avg_er is not None and niche_avg_er <= 0:
+        niche_avg_er = None
+    er_percentile_rank = _estimate_er_percentile_rank(user_er, niche_avg_er)
+    try:
+        cohort_avg_views = float(niche_meta.get("avg_views") or 0) or None
+    except (TypeError, ValueError):
+        cohort_avg_views = None
+    if cohort_avg_views is not None and cohort_avg_views <= 0:
+        cohort_avg_views = None
+    views_vs_avg_ratio = (
+        float(views) / cohort_avg_views if cohort_avg_views and views >= 0 else None
+    )
+    bright_spot_computed = compute_bright_spot_signal(er_percentile_rank, views_vs_avg_ratio)
     errors_prompt = list(errors)
     if performance_tier == "hit":
         high_only = [e for e in errors_prompt if str(e.get("sev")) == "high"]
@@ -771,7 +824,7 @@ def finalize_video_narrative_layer(
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
 
-    if step_queue is not None and (narrative_vi_out is not None or format_cards_out is not None):
+    if step_queue is not None:
         emit(
             step_queue,
             {
@@ -779,10 +832,20 @@ def finalize_video_narrative_layer(
                 "narrative_vi": narrative_vi_out,
                 "format_cards": format_cards_out,
                 "errors": errors,
+                "view_scenarios": view_scenarios_computed,
+                **(
+                    {"bright_spot_signal": bright_spot_computed}
+                    if bright_spot_computed is not None
+                    else {}
+                ),
             },
         )
 
     out["errors"] = errors
+    out["structural_errors"] = errors
+    out["view_scenarios"] = view_scenarios_computed
+    if bright_spot_computed is not None:
+        out["bright_spot_signal"] = bright_spot_computed
     out["performance_tier"] = performance_tier
     if channel_context_payload:
         out["channel_context"] = channel_context_payload
@@ -972,7 +1035,12 @@ def run_video_analyze_pipeline(
         retention_curve=retention_user,
     )
     content_format_str = str(video.get("content_format") or "")
-    errors = apply_rule_based_video_errors(raw_errs, analysis, content_format_str)
+    errors = apply_rule_based_video_errors(
+        raw_errs,
+        analysis,
+        content_format_str,
+        caption_hint=(str(video.get("caption") or "").strip() or None),
+    )
     for _h in hook_cards:
         if isinstance(_h, dict) and "body" in _h:
             del _h["body"]
@@ -1063,6 +1131,8 @@ def _build_video_dict_from_aweme(
         "saves": saves,
         "save_rate": save_rate,
         "engagement_rate": float(metadata.engagement_rate or 0.0),
+        "caption": (metadata.description or str(aweme.get("desc") or "")).strip()
+        or None,
         "thumbnail_url": metadata.thumbnail_url,
         "created_at": created_iso,
         "niche_id": niche_id,
@@ -1250,7 +1320,13 @@ def run_video_analyze_on_demand(
         retention_curve=retention_user,
     )
     content_format_str_od = str(video.get("content_format") or "")
-    errors_od = apply_rule_based_video_errors(raw_errs_od, analysis, content_format_str_od)
+    _caption_od = str(video.get("caption") or "").strip()
+    errors_od = apply_rule_based_video_errors(
+        raw_errs_od,
+        analysis,
+        content_format_str_od,
+        caption_hint=_caption_od or None,
+    )
     for _h in hook_cards:
         if isinstance(_h, dict) and "body" in _h:
             del _h["body"]

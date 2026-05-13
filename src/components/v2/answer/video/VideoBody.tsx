@@ -50,6 +50,7 @@ import type {
   VideoFlopIssue,
   VideoLesson,
   VideoNicheMeta,
+  ViewScenario,
 } from "@/lib/api-types";
 
 // Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers.
@@ -444,11 +445,19 @@ export function VideoBody({
   const refVideos: ReferenceVideoCard[] =
     preSynth?.reference_videos ?? report.reference_videos ?? [];
   const brightEffective: BrightSpotSignal | undefined =
-    preSynth?.bright_spot_signal ?? report.bright_spot_signal;
+    narrativeReady?.bright_spot_signal ??
+    preSynth?.bright_spot_signal ??
+    report.bright_spot_signal;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
+  const streamedErrs = narrativeReady?.errors;
+  const reportErrs = report.structural_errors ?? report.errors ?? [];
   const flopIssuesForNarrative: VideoFlopIssue[] =
-    narrativeReady?.errors ?? report.errors ?? [];
+    streamedErrs && streamedErrs.length > 0 ? streamedErrs : reportErrs;
+  const viewScenariosEffective: ViewScenario[] | undefined =
+    narrativeReady?.view_scenarios && narrativeReady.view_scenarios.length > 0
+      ? narrativeReady.view_scenarios
+      : report.view_scenarios;
   const winLessons: VideoLesson[] = (narrativeVi?.lessons ?? []).map((l) => ({
     title: l.title,
     body: l.body,
@@ -657,21 +666,34 @@ export function VideoBody({
         ) : null}
 
         {narrativeVi?.ket_luan_nhanh ? (
-          <section className="mb-4 rounded-[12px] bg-primary/10 px-4 py-3">
-            <p className="max-w-[680px] leading-relaxed text-foreground">
-              {narrativeVi.ket_luan_nhanh}
+          <section className="mb-4" aria-label="Kết luận nhanh">
+            <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+              Kết luận nhanh
             </p>
+            <div className="rounded-[12px] bg-primary/10 px-4 py-3">
+              <p className="max-w-[680px] leading-relaxed text-foreground">
+                {narrativeVi.ket_luan_nhanh}
+              </p>
+            </div>
           </section>
         ) : null}
 
         <KpiGrid kpis={report.kpis} />
 
         {brightEffective ? (
-          <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-2.5">
-            <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[color:var(--gv-accent)]" />
-            <p className="text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
-              {brightEffective.message_vi}
+          <div
+            className="mb-4 rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-2.5"
+            aria-label="Điểm sáng tín hiệu"
+          >
+            <p className="gv-mono mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
+              Điểm sáng
             </p>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[color:var(--gv-accent)]" />
+              <p className="text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+                {brightEffective.message_vi}
+              </p>
+            </div>
           </div>
         ) : null}
 
@@ -840,6 +862,58 @@ export function VideoBody({
             <p className="max-w-[680px] leading-relaxed text-foreground">
               {narrativeVi.dinh_huong_chien_luoc}
             </p>
+          </section>
+        ) : null}
+
+        {viewScenariosEffective && viewScenariosEffective.length > 0 ? (
+          <section className="mb-6" aria-label="Kịch bản dự đoán">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Kịch bản dự đoán
+            </h3>
+            <div className="overflow-x-auto rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+              <table className="w-full min-w-[300px] text-left text-[13px] text-foreground">
+                <thead>
+                  <tr className="border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)]">
+                    <th className="px-3 py-2.5 font-semibold">Kịch bản</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">
+                      Dự đoán
+                    </th>
+                    <th className="px-3 py-2.5 font-semibold">Việc cần làm</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewScenariosEffective.map((scenario) => (
+                    <tr
+                      key={scenario.scenario_id}
+                      className="border-b border-[color:var(--gv-rule)] last:border-b-0"
+                    >
+                      <td className="px-3 py-2.5 align-top text-[color:var(--gv-ink)]">
+                        {scenario.name_vi}
+                      </td>
+                      <td className="gv-mono px-3 py-2.5 align-top text-right text-[12px] text-[color:var(--gv-ink-2)]">
+                        {scenario.projected_views != null
+                          ? scenario.projected_views.toLocaleString("vi-VN")
+                          : "Chưa đủ dữ liệu ngách"}
+                      </td>
+                      <td className="px-3 py-2.5 align-top text-[color:var(--gv-ink-3)]">
+                        <span>{scenario.actions.filter(Boolean).join(" · ")}</span>
+                        {isFlop && scenario.scenario_id === "full_rewrite" ? (
+                          <span className="mt-1 block">
+                            <button
+                              type="button"
+                              onClick={goScript}
+                              className="text-[12px] font-semibold text-[color:var(--gv-accent)] underline-offset-2 hover:underline"
+                            >
+                              Mở kịch bản rewrite
+                            </button>
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         ) : null}
 

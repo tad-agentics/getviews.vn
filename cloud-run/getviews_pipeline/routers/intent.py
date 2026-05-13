@@ -496,6 +496,8 @@ async def stream(
                     "channel_context",
                     "performance_tier",
                     "errors",
+                    "structural_errors",
+                    "view_scenarios",
                     "kpi",
                 )
                 structured: dict[str, Any] | None = {

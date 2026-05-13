@@ -35,6 +35,7 @@ import type {
   VideoAnswerNarrativeReadyPayload,
   VideoAnswerPreSynthesisPayload,
   VideoFlopIssue,
+  ViewScenario,
 } from "@/lib/api-types";
 
 /**
@@ -536,8 +537,27 @@ function mergeNarrativeReady(
     (token.narrative_vi as NarrativeVi | undefined) ?? prev?.narrative_vi;
   const format_cards =
     (token.format_cards as FormatCard[] | undefined) ?? prev?.format_cards;
-  const errors = (token.errors as VideoFlopIssue[] | undefined) ?? prev?.errors;
-  return { narrative_vi, format_cards, errors };
+  const tokErrs = token.errors;
+  let errors = prev?.errors;
+  if (Array.isArray(tokErrs) && tokErrs.length > 0) {
+    errors = tokErrs as VideoFlopIssue[];
+  }
+  const tokVs = token.view_scenarios;
+  let view_scenarios = prev?.view_scenarios;
+  if (Array.isArray(tokVs) && tokVs.length > 0) {
+    view_scenarios = tokVs as ViewScenario[];
+  }
+  const tokBs = token.bright_spot_signal;
+  let bright_spot_signal = prev?.bright_spot_signal;
+  if (
+    tokBs != null &&
+    typeof tokBs === "object" &&
+    !Array.isArray(tokBs) &&
+    typeof (tokBs as BrightSpotSignal).message_vi === "string"
+  ) {
+    bright_spot_signal = tokBs as BrightSpotSignal;
+  }
+  return { narrative_vi, format_cards, errors, view_scenarios, bright_spot_signal };
 }
 
 /**

@@ -41,6 +41,8 @@ export interface VideoAnalyzeMeta {
   /** ``views / creator_median_views`` rounded to 2dp. Pre-computed BE-side
    * so FE doesn't re-derive on every render. */
   target_vs_creator_median?: number | null;
+  /** Engagement rate from corpus / TikTok metadata — powers bright-spot signal. */
+  engagement_rate?: number;
 }
 
 export interface VideoKpi {
@@ -101,6 +103,9 @@ export interface VideoNicheMeta {
    * responses didn't carry this; default to ``"niche"`` semantics in the FE.
    */
   benchmark_axis?: "content_class" | "niche" | "none";
+  /** Niche / content-class MV — for server-side bright-spot ER percentile. */
+  median_er?: number;
+  avg_engagement_rate?: number;
 }
 
 /** GET `/video/niche-benchmark` (Cloud Run, JWT). */
@@ -183,6 +188,8 @@ export interface VideoAnalyzeResponse {
   hook_phases: VideoHookPhase[];
   /** Structured error cards from Call 1 (`error_id` joins `narrative_vi.loi_chinh_narrative`). */
   errors: VideoFlopIssue[];
+  /** Same as ``errors`` when both are present — avoids SSE empty-array shadowing. */
+  structural_errors?: VideoFlopIssue[];
   retention_curve: RetentionPoint[] | null;
   niche_benchmark_curve: RetentionPoint[] | null;
   niche_meta: VideoNicheMeta | null;
@@ -197,6 +204,8 @@ export interface VideoAnalyzeResponse {
   /** Gemini enrichment (audience / pain points / promotion / style); null
    * when no signal was extracted (very short or low-energy videos). */
   enrichment?: VideoEnrichment | null;
+  /** 2–4 projection rows (baseline … full_rewrite). */
+  view_scenarios?: ViewScenario[];
 }
 
 export type { CommentRadarData, ThumbnailAnalysisData } from "@/lib/types/corpus-sidecars";
@@ -1040,6 +1049,14 @@ export interface LoidChinhNarrativeItem {
   evidence_aweme_id: string | null;
 }
 
+/** Projection row from ``compute_view_scenarios`` (diagnosis stream + analyze API). */
+export interface ViewScenario {
+  scenario_id: string;
+  name_vi: string;
+  projected_views: number | null;
+  actions: string[];
+}
+
 export interface NarrativeVi {
   /** One-sentence headline (≤20 words) — replaces legacy analysis_headline. */
   headline_vi?: string;
@@ -1112,6 +1129,8 @@ export interface VideoAnswerNarrativeReadyPayload {
   narrative_vi?: NarrativeVi;
   format_cards?: FormatCard[];
   errors?: VideoFlopIssue[];
+  view_scenarios?: ViewScenario[];
+  bright_spot_signal?: BrightSpotSignal;
 }
 
 // ── Diagnostic template (2026-04-22) ──────────────────────────────────────

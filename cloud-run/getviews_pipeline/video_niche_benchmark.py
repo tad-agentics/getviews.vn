@@ -79,12 +79,17 @@ def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
     avg_ctr = min(0.14, max(0.006, median_er))
     sample_size = _to_int(row.get("sample_size"), 0)
 
-    return {
+    out_meta: dict[str, Any] = {
         "avg_views": avg_views,
         "avg_retention": round(avg_retention, 4),
         "avg_ctr": round(avg_ctr, 5),
         "sample_size": sample_size,
+        "median_er": round(median_er, 5),
     }
+    _ae = row.get("avg_engagement_rate")
+    if _ae is not None:
+        out_meta["avg_engagement_rate"] = round(_to_float(_ae), 5)
+    return out_meta
 
 
 def build_niche_benchmark_payload(
