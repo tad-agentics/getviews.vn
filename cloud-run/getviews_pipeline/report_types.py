@@ -563,6 +563,13 @@ class VideoPayload(BaseModel):
     related_questions: list[str] = Field(default_factory=list)
     creator_comparison: CreatorComparison | None = None
     enrichment: VideoEnrichmentPayload | None = None
+    # Narrative rebuild fields (2026-05-13)
+    narrative_vi: dict[str, Any] | None = None
+    format_cards: list[dict[str, Any]] | None = None
+    errors: list[dict[str, Any]] | None = None
+    performance_tier: str | None = None
+    bright_spot_signal: dict[str, Any] | None = None
+    channel_context: dict[str, Any] | None = None
 
     model_config = {"extra": "allow"}
 

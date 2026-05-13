@@ -541,6 +541,152 @@ def build_video_report(
             step_tool_start("Phân tích 6 frame video", 3, 0, tool="synthesis"),
         )
         emit(step_queue, step_tool_complete(3, 0, 0, [], tool="synthesis"))
-        emit(step_queue, step_done("Xong — đang hiển thị kết quả..."))
+        emit(step_queue, step_done("Xong — đang tổng hợp chẩn đoán..."))
+
+    _add_narrative_synthesis(out, step_queue)
 
     return out
+
+
+def _add_narrative_synthesis(
+    out: dict[str, Any],
+    step_queue: Any | None,
+) -> None:
+    """Run the narrative synthesis (synthesize_diagnosis_v2) and inject the results
+    into *out* in-place.  Also emits ``pre_synthesis``, ``channel_context``, and
+    ``narrative_ready`` SSE events when *step_queue* is provided.
+
+    This bridges the answer-turns path (build_video_report → run_video_analyze_pipeline)
+    to the same narrative rebuild that run_video_diagnosis uses.  The pipeline that
+    produces *out* exposes ``_analysis_json``, ``_content_format``, and ``_niche_id``
+    as internal transfer keys — stripped before return so they never reach the browser.
+    """
+    from getviews_pipeline.analysis_core import detect_language_market_mismatch
+    from getviews_pipeline.gemini import synthesize_diagnosis_v2
+    from getviews_pipeline.pipelines import (
+        classify_performance_tier_corpus,
+        fetch_channel_context_sync,
+        refine_performance_tier,
+    )
+    from getviews_pipeline.step_events import emit
+
+    # Pull and remove the internal transfer keys so they never leak.
+    analysis_json: dict[str, Any] = out.pop("_analysis_json", None) or {}
+    content_format: str = out.pop("_content_format", None) or ""
+    out.pop("_niche_id", None)  # reserved — not used yet
+
+    meta: dict[str, Any] = out.get("meta") or {}
+    niche_meta: dict[str, Any] = out.get("niche_meta") or {}
+
+    # ── Errors: start from flop_issues (old structured Gemini output) ─────────
+    raw_flop_issues: list[dict[str, Any]] = out.get("flop_issues") or []
+    sev_map = {"cao": "high", "tb": "mid", "thấp": "low", "low": "low", "mid": "mid", "high": "high"}
+    errors: list[dict[str, Any]] = []
+    for fi in raw_flop_issues:
+        # Map old FlopIssue fields → VideoFlopIssue contract (sev, t, end, title, detail, fix).
+        raw_sev = str(fi.get("severity") or fi.get("sev") or "mid").lower()
+        errors.append({
+            "error_id": str(fi.get("error_id") or ""),
+            "sev": sev_map.get(raw_sev, "mid"),
+            "t": float(fi.get("timestamp_start") or fi.get("t") or 0.0),
+            "end": float(fi.get("timestamp_end") or fi.get("end") or 0.0),
+            "title": str(fi.get("title_vi") or fi.get("title") or ""),
+            "detail": str(fi.get("description_vi") or fi.get("detail") or ""),
+            "fix": str(fi.get("fix_vi") or fi.get("fix") or ""),
+        })
+
+    # Language/market mismatch — extract hook text from analysis_json.
+    try:
+        ha0 = analysis_json.get("hook_analysis") if isinstance(analysis_json, dict) else None
+        hook_phrase = (ha0 or {}).get("hook_phrase") if isinstance(ha0, dict) else ""
+        hook_text = str(hook_phrase or "").strip()
+        if hook_text:
+            lang_error = detect_language_market_mismatch(hook_text)
+            if lang_error:
+                errors.insert(0, lang_error)
+    except Exception:
+        pass
+
+    # ── Performance tier ───────────────────────────────────────────────────────
+    views: int = int(meta.get("views") or 0)
+    corpus_avg_views: float = float(niche_meta.get("avg_views") or 0.0)
+    performance_tier: str = classify_performance_tier_corpus(views, corpus_avg_views or None)
+
+    # ── Channel context ────────────────────────────────────────────────────────
+    creator_handle: str = str(meta.get("creator") or "").strip()
+    video_id: str = str(out.get("video_id") or "")
+    channel_context_payload: dict[str, Any] | None = None
+    if creator_handle and video_id:
+        try:
+            raw_ctx = fetch_channel_context_sync(creator_handle, video_id)
+            if raw_ctx and raw_ctx.get("available"):
+                channel_context_payload = raw_ctx
+                performance_tier = refine_performance_tier(performance_tier, views, raw_ctx)
+        except Exception:
+            logger.debug("[narrative] channel context fetch failed, continuing without it")
+
+    # ── Emit pre_synthesis before the Gemini call ──────────────────────────────
+    if step_queue is not None:
+        emit(step_queue, {
+            "type": "pre_synthesis",
+            "errors": errors,
+            "performance_tier": performance_tier,
+            "reference_videos": out.get("reference_videos") or [],
+        })
+        if channel_context_payload:
+            emit(step_queue, {
+                "type": "channel_context",
+                "channel_context": channel_context_payload,
+            })
+
+    # ── Narrative Gemini synthesis ─────────────────────────────────────────────
+    niche_name: str = str(meta.get("niche_label") or "")
+    corpus_size: int = int(niche_meta.get("sample_size") or niche_meta.get("corpus_size") or 0)
+    user_stats: dict[str, Any] = {
+        "views": views,
+        "likes": int(meta.get("likes") or 0),
+        "comments": int(meta.get("comments") or 0),
+        "shares": int(meta.get("shares") or 0),
+        "duration_sec": float(meta.get("duration_sec") or 0.0),
+        "save_rate": float(meta.get("save_rate") or 0.0),
+    }
+
+    diagnosis_md: str = ""
+    narrative_vi_out: dict[str, Any] | None = None
+    format_cards_out: list[dict[str, Any]] | None = None
+    try:
+        diagnosis_md, narrative_vi_out, format_cards_out = synthesize_diagnosis_v2(
+            content_format=content_format or "unknown",
+            niche_name=niche_name or "unknown",
+            corpus_size=corpus_size,
+            niche_norms=niche_meta,
+            reference_videos=out.get("reference_videos") or [],
+            user_analysis=analysis_json,
+            user_stats=user_stats,
+            performance_tier=performance_tier,
+            channel_context=channel_context_payload,
+            errors=errors or None,
+            reference_evidence_block="",
+        )
+    except Exception:
+        logger.exception("[narrative] synthesize_diagnosis_v2 failed, skipping narrative")
+
+    # ── Emit narrative_ready ──────────────────────────────────────────────────
+    if step_queue is not None and (narrative_vi_out or format_cards_out):
+        emit(step_queue, {
+            "type": "narrative_ready",
+            "narrative_vi": narrative_vi_out,
+            "format_cards": format_cards_out,
+        })
+
+    # ── Inject new fields into out ────────────────────────────────────────────
+    out["errors"] = errors
+    out["performance_tier"] = performance_tier
+    if channel_context_payload:
+        out["channel_context"] = channel_context_payload
+    if narrative_vi_out is not None:
+        out["narrative_vi"] = narrative_vi_out
+    if format_cards_out is not None:
+        out["format_cards"] = format_cards_out
+    if diagnosis_md:
+        out["diagnosis"] = diagnosis_md

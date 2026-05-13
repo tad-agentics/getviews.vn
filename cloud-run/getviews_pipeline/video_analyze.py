@@ -454,6 +454,13 @@ def _response_from_diagnostics_row(
         # A.1 — cross-niche format insight (null when format is single-niche
         # or sample is too thin; FE renders only when present).
         "cross_format_signal": cross_format_signal,
+        # Exposed so downstream callers (build_video_report narrative synthesis)
+        # can pass the raw frame analysis to synthesize_diagnosis_v2 without a
+        # second DB round-trip.  Not sent to the browser — stripped by
+        # _add_narrative_synthesis before the final turn payload is built.
+        "_analysis_json": analysis,
+        "_content_format": str(video.get("content_format") or ""),
+        "_niche_id": int(video.get("niche_id") or 0),
     }
 
 
@@ -1129,6 +1136,8 @@ def run_video_analyze_on_demand(
     from getviews_pipeline.corpus_ingest import _content_class_for, classify_format
     _on_demand_format = classify_format(analysis, niche_id) if niche_id else None
     content_class_id = _content_class_for(niche_id, _on_demand_format) if niche_id else None
+    # Propagate so _response_from_diagnostics_row can expose it as _content_format.
+    video["content_format"] = _on_demand_format or ""
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
         user_sb, niche_id=niche_id, content_class_id=content_class_id,
     )
