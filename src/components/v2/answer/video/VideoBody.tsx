@@ -365,9 +365,6 @@ function FlopIssueNarrativeRow({
           />
         ) : null}
         <div className="mt-2 max-w-[640px]">
-          <h5 className="m-0 mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Chi tiết kỹ thuật và cách sửa
-          </h5>
           <div className="space-y-2">
             <p className="m-0 text-[13px] leading-relaxed text-[color:var(--gv-ink-3)]">
               {issue.detail}
@@ -765,7 +762,7 @@ export function VideoBody({
 
         {viewMode === "flop" && flopIssuesForNarrative.length > 0 ? (
           <section className="mb-6">
-            <SectionMini kicker="Lỗi cấu trúc" title="Xếp theo ảnh hưởng" />
+            <SectionMini kicker="" title="Lỗi cấu trúc · xếp theo ảnh hưởng" />
             <div className="flex flex-col gap-3">
               {flopIssuesForNarrative.map((issue, i) => {
                 const narrativeItem = narrativeVi?.loi_chinh_narrative?.find(

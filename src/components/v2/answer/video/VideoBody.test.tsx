@@ -184,11 +184,11 @@ describe("VideoBody render", () => {
     expect(screen.getByText(/3 giây đầu — nhịp mở dễ mất người xem/)).toBeTruthy();
   });
 
-  it("renders flop issues + technical detail heading + script CTA (no projected views)", () => {
+  it("renders flop issues + detail/fix + script CTA (no projected views)", () => {
     renderInRouter(makeFlopReport());
-    expect(screen.getByText(/CHẨN ĐOÁN VIDEO CỦA BẠN/)).toBeTruthy();
+    expect(screen.getByText(/CHẨN ĐOÁN/)).toBeTruthy();
     expect(screen.getByText("Hook yếu")).toBeTruthy();
-    expect(screen.getByText(/Chi tiết kỹ thuật và cách sửa/)).toBeTruthy();
+    expect(screen.getByText(/Hook không neo được attention/)).toBeTruthy();
     expect(screen.queryByText(/Dự đoán nếu áp fix chính/)).toBeNull();
     expect(screen.getByText(/Viết lại kịch bản/)).toBeTruthy();
   });
