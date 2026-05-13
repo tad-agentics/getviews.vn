@@ -247,7 +247,7 @@ test.describe("Phase 4.5 — v5 acceptance protocol", () => {
       return m && (m.index ?? 0) > 500 ? m.index! : bodyText.length;
     })();
     const analysisOnlyText = bodyText.slice(0, Math.min(refVideoStart, 3200));
-    const hasErrCode = /ERR-\d+/i.test(bodyText);
+    const hasErrCode = /ERR-\d+/i.test(analysisOnlyText);
     const hasEmoji = /[\u{1F300}-\u{1FFFF}]/u.test(analysisOnlyText);
     criteria.push({
       id: 6,
