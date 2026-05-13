@@ -222,12 +222,14 @@ test.describe("Phase 4.5 — v5 acceptance protocol", () => {
 
     // ── C5: 3 errors ────────────────────────────────────────────────────
     // FlopIssueNarrativeRow uses severity labels (Cao/TB/Thấp), not "1." "2." "3.".
-    // The kicker text contains "N ĐIỂM LỖI CẤU TRÚC" or "N ĐIỂM CẦN CHỈNH".
-    // Each rendered error also has an inline "Fix" label.
+    // The kicker text "N ĐIỂM LỖI CẤU TRÚC" is the backend-confirmed error count.
+    // Secondary: each rendered row has a "Fix" label immediately followed by Vietnamese
+    // text (no space), so `\bFix\b` finds no right word boundary — use /Fix/ directly.
     const errorKickerMatch = bodyText.match(/(\d+)\s*(?:điểm lỗi|điểm cần chỉnh)/i);
     const errorCountFromKicker = errorKickerMatch ? parseInt(errorKickerMatch[1], 10) : 0;
-    const fixLabelCount = (bodyText.match(/\bFix\b/g) ?? []).length;
-    const hasThreeErrors = errorCountFromKicker >= 1 || fixLabelCount >= 1;
+    const fixLabelCount = (bodyText.match(/Fix/gi) ?? []).length;
+    // Primary gate: kicker must report ≥3. Secondary: at least 1 Fix label confirms rows rendered.
+    const hasThreeErrors = errorCountFromKicker >= 3 && fixLabelCount >= 1;
     criteria.push({
       id: 5,
       label: "Exactly 3 numbered errors (severity-ranked)",
