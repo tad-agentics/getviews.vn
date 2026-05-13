@@ -27,7 +27,7 @@ const SEE_ALL_TRENDS = (
 
 
 /**
- * Khối "GỢI Ý HÔM NAY" — 3 tầng 01 QUAY NGAY · 02 PATTERN · 03 CẢM HỨNG.
+ * Khối "GỢI Ý HÔM NAY" — 3 tầng I QUAY NGAY · II PATTERN · III CẢM HỨNG.
  *
  * Tier copy ports verbatim from the design pack's HomeScreen
  * (home.jsx:136-180) — the actionability ladder reads as a single
@@ -70,7 +70,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
        * HomeMyChannelSection card (see scrollToTier.ts). */}
       <div className="mb-10 scroll-mt-20" data-tier="01">
         <TierHeader
-          num="01"
+          num="I"
           tag="HÔM NAY QUAY NGAY"
           tagTone="accent"
           title="3 video tiếp theo bạn nên làm"
@@ -81,7 +81,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
 
       <div className="mb-10 scroll-mt-20" data-tier="02">
         <TierHeader
-          num="02"
+          num="II"
           tag="CÔNG THỨC NỀN"
           tagTone="pos"
           title={tier02Title}
@@ -92,7 +92,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
 
       <div className="scroll-mt-20" data-tier="03">
         <TierHeader
-          num="03"
+          num="III"
           tag="CẢM HỨNG"
           tagTone="ink"
           title="3 video đang nổi lên ngoài kênh bạn"
