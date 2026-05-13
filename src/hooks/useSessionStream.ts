@@ -520,9 +520,9 @@ function mergePreSynthesis(
   token: Record<string, unknown>,
 ): VideoAnswerPreSynthesisPayload {
   const next: VideoAnswerPreSynthesisPayload = { ...(prev ?? {}) };
-  if (token.kpi != null && typeof token.kpi === "object" && !Array.isArray(token.kpi)) {
-    next.kpi = token.kpi as Record<string, number>;
-  }
+  // ``token.kpi`` was historically merged here but no FE surface ever read
+  // ``preSynth.kpi`` — VideoBody reads ``report.kpis`` directly. Dropped to
+  // avoid pretending the field is live.
   if (token.bright_spot_signal != null && typeof token.bright_spot_signal === "object") {
     next.bright_spot_signal = token.bright_spot_signal as BrightSpotSignal;
   }

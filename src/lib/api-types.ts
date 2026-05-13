@@ -1138,7 +1138,6 @@ export interface ReferenceVideoCard {
 
 /** Partial payload streamed before final Vietnamese synthesis lands on `ReportV1`. */
 export interface VideoAnswerPreSynthesisPayload {
-  kpi?: Record<string, number>;
   bright_spot_signal?: BrightSpotSignal;
   performance_tier?: string;
   reference_videos?: ReferenceVideoCard[];
