@@ -774,6 +774,17 @@ def _response_from_diagnostics_row(
         "niche_benchmark_curve": bench_curve,
         "niche_meta": niche_meta,
         "cross_format_signal": cross_format_signal,
+        # Cached narrative-layer fields from video_diagnostics
+        # (migration 20260513000003). When present, finalize_video_narrative_layer
+        # early-returns and skips the Gemini synthesis call.
+        "narrative_vi": diag.get("narrative_vi"),
+        "format_cards": diag.get("format_cards"),
+        "diagnosis": diag.get("diagnosis"),
+        "performance_tier": diag.get("performance_tier"),
+        "bright_spot_signal": diag.get("bright_spot_signal"),
+        "view_scenarios": diag.get("view_scenarios"),
+        "channel_context": diag.get("channel_context"),
+        "reference_videos": diag.get("reference_videos"),
     }
 
 
@@ -1154,7 +1165,23 @@ def finalize_video_narrative_layer(
     Expects ``out`` to contain private keys ``__narrative_analysis`` and
     ``__narrative_content_format`` (stripped before return to clients) set by
     ``run_video_analyze_pipeline`` / ``run_video_analyze_on_demand``.
+
+    Idempotent: when ``out`` already carries cached narrative fields
+    (set by ``_response_from_diagnostics_row`` on a video_diagnostics
+    cache hit), this function returns without re-firing the Gemini
+    synthesis call. The cache is populated below on the cache-miss path.
     """
+
+    # Cache hit short-circuit. narrative_vi is the anchor — when it
+    # exists, every dependent field (format_cards, performance_tier,
+    # bright_spot_signal, view_scenarios, channel_context,
+    # reference_videos, diagnosis) was written in the same upsert.
+    if out.get("narrative_vi"):
+        # Strip pipeline-private keys so the response shape stays clean
+        # for the caller (matches the post-synthesis branch below).
+        out.pop("__narrative_analysis", None)
+        out.pop("__narrative_content_format", None)
+        return
 
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
     from getviews_pipeline.pipelines import (
@@ -1367,6 +1394,36 @@ def finalize_video_narrative_layer(
     if diagnosis_md:
         out["diagnosis"] = diagnosis_md
 
+    # Persist the narrative layer alongside the deterministic one so
+    # the next request on the same video_id within the diagnostics TTL
+    # short-circuits at the top of this function. on_demand outputs
+    # don't have a corpus row (and aren't cached), so guard by
+    # presence of __cache_video_id which run_video_analyze_pipeline
+    # sets on the corpus path only.
+    cache_vid = out.pop("__cache_video_id", None)
+    if cache_vid and narrative_vi_out is not None:
+        try:
+            from getviews_pipeline.supabase_client import get_service_client
+
+            get_service_client().table("video_diagnostics").update(
+                {
+                    "narrative_vi": narrative_vi_out,
+                    "format_cards": format_cards_out,
+                    "diagnosis": diagnosis_md or None,
+                    "performance_tier": performance_tier,
+                    "bright_spot_signal": bright_spot_computed,
+                    "view_scenarios": view_scenarios_computed,
+                    "channel_context": channel_context_payload or None,
+                    "reference_videos": out.get("reference_videos"),
+                },
+            ).eq("video_id", cache_vid).execute()
+        except Exception as exc:
+            # Non-fatal — failing to cache only loses the cost saving,
+            # not the user-visible response. Bubble exception to logs.
+            logger.warning(
+                "[video_narrative] persist failed video_id=%s: %s", cache_vid, exc,
+            )
+
 
 def run_video_analyze_pipeline(
     service_sb: Any,
@@ -1512,6 +1569,9 @@ def run_video_analyze_pipeline(
         )
         base["__narrative_analysis"] = analysis
         base["__narrative_content_format"] = str(video.get("content_format") or "")
+        # Cache key for finalize_video_narrative_layer's persist step.
+        # Set only on the corpus path; on-demand outputs aren't cached.
+        base["__cache_video_id"] = vid
         return _merge_sidecars_into_response(
             base,
             video_id=vid,
@@ -1596,6 +1656,7 @@ def run_video_analyze_pipeline(
     )
     out["__narrative_analysis"] = analysis
     out["__narrative_content_format"] = content_format_str
+    out["__cache_video_id"] = vid
     return _merge_sidecars_into_response(
         out,
         video_id=vid,
