@@ -117,6 +117,23 @@ class VideoErrorsExtractionLLM(BaseModel):
 # ── Mode + KPI helpers ─────────────────────────────────────────────────────
 
 
+def _normalise_save_rate(video: dict[str, Any]) -> float:
+    """Return save_rate as a *ratio* (0–1).
+
+    Preferred source: corpus ``save_rate`` column (already stored as
+    ratio). Falls back to ``saves/views`` when the column is missing.
+    Defensive: if a legacy row leaked a percent value (>1.0), divide
+    by 100 to bring it back into ratio space.
+    """
+    sr = video.get("save_rate")
+    if sr is not None:
+        v = float(sr or 0.0)
+        return v / 100.0 if v > 1.0 else v
+    saves = int(video.get("saves") or 0)
+    views = max(int(video.get("views") or 1), 1)
+    return saves / views
+
+
 def _median_views_proxy(niche_row: dict[str, Any] | None) -> float:
     """Best view proxy from a benchmark row (niche or content_class MV).
 
@@ -725,9 +742,12 @@ def _response_from_diagnostics_row(
             "likes": int(video.get("likes") or 0),
             "comments": int(video.get("comments") or 0),
             "shares": int(video.get("shares") or 0),
-            "save_rate": float(video.get("save_rate") or 0.0)
-            if video.get("save_rate") is not None
-            else (int(video.get("saves") or 0) / max(int(video.get("views") or 1), 1)),
+            # save_rate is a *ratio* (0–1) — matches video_corpus.save_rate
+            # storage and the FE contract (api-types.ts VideoAnalyzeMeta).
+            # Some legacy corpus rows may have leaked percent values
+            # (>1.0); normalise before emitting so downstream consumers
+            # don't have to special-case.
+            "save_rate": _normalise_save_rate(video),
             "duration_sec": dur,
             "thumbnail_url": video.get("thumbnail_url"),
             "date_posted": (video.get("created_at") or "")[:10]
