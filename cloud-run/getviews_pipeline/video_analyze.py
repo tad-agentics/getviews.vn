@@ -1434,6 +1434,22 @@ def finalize_video_narrative_layer(
                 "[video_narrative] persist failed video_id=%s: %s", cache_vid, exc,
             )
 
+    # On-demand persist. Strip pipeline-private keys and write the full
+    # enriched response to ``cached_response`` so subsequent hits on the
+    # same TikTok URL bypass the entire Gemini pipeline.
+    on_demand_url = out.pop("__cache_on_demand_url", None)
+    on_demand_vid = out.pop("__cache_on_demand_vid", None)
+    if on_demand_url and on_demand_vid:
+        from getviews_pipeline.supabase_client import get_service_client
+
+        cacheable = {k: v for k, v in out.items() if not k.startswith("__")}
+        _persist_on_demand_cache(
+            get_service_client(),
+            tiktok_url=on_demand_url,
+            video_id=on_demand_vid,
+            response=cacheable,
+        )
+
 
 def run_video_analyze_pipeline(
     service_sb: Any,
@@ -1778,6 +1794,70 @@ async def _fetch_and_analyze_async(tiktok_url: str) -> tuple[dict[str, Any], dic
     return aweme, analyze_result
 
 
+def _try_on_demand_cache_hit(
+    service_sb: Any, tiktok_url: str, *, step_queue: Any | None = None,
+) -> dict[str, Any] | None:
+    """Return a previously-cached on-demand response if one is fresh.
+
+    Looks up ``video_diagnostics`` by ``tiktok_url`` (filtered to
+    ``source='on_demand'`` so corpus rows can't collide). Returns the
+    cached response dict on hit, ``None`` on miss / stale / error.
+    Avoids the EnsembleData URL → aweme fetch (~4s) and the entire
+    Gemini pipeline (~6 min) on hit.
+    """
+    if not tiktok_url:
+        return None
+    try:
+        res = (
+            service_sb.table("video_diagnostics")
+            .select("cached_response,computed_at")
+            .eq("tiktok_url", tiktok_url)
+            .eq("source", "on_demand")
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning("[video_analyze:on_demand] cache lookup failed url=%s: %s", tiktok_url, exc)
+        return None
+    rows = getattr(res, "data", None) or []
+    if not rows:
+        return None
+    row = rows[0]
+    if not _diagnostics_fresh(row):
+        return None
+    cached = row.get("cached_response")
+    if not isinstance(cached, dict) or not cached:
+        return None
+    if step_queue is not None:
+        from getviews_pipeline.step_events import emit, step_process
+
+        emit(step_queue, step_process("Đang đọc kết quả phân tích đã lưu..."))
+    return cached
+
+
+def _persist_on_demand_cache(
+    service_sb: Any, *, tiktok_url: str, video_id: str, response: dict[str, Any],
+) -> None:
+    """Cache an on-demand response so the next request on the same URL
+    can short-circuit. Non-fatal: any failure is logged and swallowed.
+    """
+    if not tiktok_url or not video_id or not response:
+        return
+    try:
+        service_sb.table("video_diagnostics").upsert(
+            {
+                "video_id": video_id,
+                "tiktok_url": tiktok_url,
+                "source": "on_demand",
+                "cached_response": response,
+                "computed_at": datetime.now(UTC).isoformat(),
+            },
+            on_conflict="video_id",
+        ).execute()
+    except Exception as exc:
+        logger.warning("[video_analyze:on_demand] cache write failed url=%s: %s", tiktok_url, exc)
+
+
 def run_video_analyze_on_demand(
     service_sb: Any,
     user_sb: Any,
@@ -1789,7 +1869,9 @@ def run_video_analyze_on_demand(
     """Sync pipeline for URLs not yet in ``video_corpus``.
 
     Mirrors the corpus-row branch of ``run_video_analyze_pipeline`` but:
-      • Never reads or writes ``video_corpus`` / ``video_diagnostics``.
+      • Never reads or writes ``video_corpus`` (does write to
+        ``video_diagnostics`` with ``source='on_demand'`` to cache
+        the response and skip Gemini on subsequent hits).
       • Skips sidecar fetches (``thumbnail_analysis`` + ``comment_radar``
         are corpus-only — no row to attach them to).
       • Best-effort niche resolution via hashtag classifier; when nothing
@@ -1804,6 +1886,12 @@ def run_video_analyze_on_demand(
     so the FE can show a subtle "phân tích trực tiếp, không lưu corpus"
     hint without re-architecting the response shape.
     """
+    # Cache hit: skip EnsembleData + Gemini entirely when we've already
+    # analysed this URL within the 1h diagnostics TTL.
+    cached = _try_on_demand_cache_hit(service_sb, tiktok_url, step_queue=step_queue)
+    if cached is not None:
+        return cached
+
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
@@ -1952,4 +2040,10 @@ def run_video_analyze_on_demand(
     # badge — corpus rows don't set this, so the FE only highlights when
     # explicitly truthy.
     out["source"] = "on_demand"
+    # Pipeline-private cache key — finalize_video_narrative_layer reads
+    # this AFTER it mutates ``out`` with narrative_vi / format_cards /
+    # performance_tier etc., then persists the full enriched response
+    # so the next hit on this URL skips the full Gemini pipeline.
+    out["__cache_on_demand_url"] = tiktok_url
+    out["__cache_on_demand_vid"] = vid
     return out

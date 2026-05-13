@@ -11,8 +11,9 @@ This module wires that fallback. Behaviour invariants under test:
 
   • Returns the same response shape as the corpus-row path so the FE
     renders identically — no special-case branch in the React tree.
-  • Never reads or writes ``video_corpus`` / ``video_diagnostics`` —
-    truly one-shot. Reruns re-charge ED + Gemini.
+  • Reads/writes ``video_diagnostics`` (``source='on_demand'``) so a
+    second paste of the same URL within the 1h TTL skips the full
+    6-min Gemini pipeline.
   • Skips the sidecar fetches (``thumbnail_analysis`` /
     ``comment_radar``) — those are corpus-only.
   • Best-effort niche resolution via ``classify_from_hashtags``;
@@ -414,3 +415,80 @@ def test_on_demand_rejects_aweme_with_no_id() -> None:
                 service_sb, user_sb,
                 tiktok_url="https://www.tiktok.com/@x/video/1",
             )
+
+
+# ── On-demand video_diagnostics cache (TD-7) ─────────────────────────
+
+
+def test_on_demand_cache_hit_returns_cached_response_without_running_gemini() -> None:
+    """A previously-cached on-demand response for the same TikTok URL
+    should short-circuit before EnsembleData + Gemini. Saves the full
+    ~6-minute pipeline cost for repeated pastes of the same URL."""
+    from datetime import UTC, datetime
+
+    cached = {
+        "video_id": "7639226884663823634",
+        "mode": "flop",
+        "meta": {"creator": "curnon.official", "views": 8_400},
+        "source": "on_demand",
+        "narrative_vi": {"headline_vi": "Cached headline"},
+    }
+    fresh_iso = datetime.now(UTC).isoformat()
+    service_sb = MagicMock()
+    select_chain = MagicMock()
+    select_chain.data = [{"cached_response": cached, "computed_at": fresh_iso}]
+    (
+        service_sb.table.return_value.select.return_value.eq.return_value.eq.return_value
+        .limit.return_value.execute.return_value
+    ) = select_chain
+    user_sb = MagicMock()
+
+    with patch(
+        "getviews_pipeline.video_analyze._fetch_and_analyze_async",
+        side_effect=AssertionError("must not run Gemini on cache hit"),
+    ):
+        out = run_video_analyze_on_demand(
+            service_sb,
+            user_sb,
+            tiktok_url="https://vt.tiktok.com/ZS9oHPvsY/",
+        )
+    assert out == cached
+    assert out["meta"]["creator"] == "curnon.official"
+
+
+def test_on_demand_cache_miss_falls_through_to_full_pipeline() -> None:
+    """Empty cache lookup returns None → run_video_analyze_on_demand
+    proceeds to EnsembleData + Gemini extraction as before."""
+    aweme = _aweme_fixture()
+    analyze_result = _analysis_result_fixture()
+    user_sb = _make_user_sb_mock(
+        niche_taxonomy_row={"name_vn": "Làm đẹp", "name_en": "Beauty"},
+    )
+    service_sb = MagicMock()
+    select_chain = MagicMock()
+    select_chain.data = []  # cache miss
+    (
+        service_sb.table.return_value.select.return_value.eq.return_value.eq.return_value
+        .limit.return_value.execute.return_value
+    ) = select_chain
+
+    with patch(
+        "getviews_pipeline.video_analyze._fetch_and_analyze_async",
+        new=AsyncMock(return_value=(aweme, analyze_result)),
+    ), patch(
+        "getviews_pipeline.video_analyze._classify_niche_id_async",
+        new=AsyncMock(return_value=3),
+    ), patch(
+        "getviews_pipeline.video_analyze.extract_video_errors",
+        side_effect=_fake_extract_errors_win,
+    ):
+        out = run_video_analyze_on_demand(
+            service_sb, user_sb,
+            tiktok_url="https://www.tiktok.com/@x/video/1",
+        )
+    # Real pipeline ran (cache lookup happened first, returned empty).
+    assert out["video_id"] == aweme["aweme_id"]
+    # Pipeline tagged the response so finalize_video_narrative_layer
+    # will persist the enriched payload back to the cache.
+    assert out["__cache_on_demand_url"] == "https://www.tiktok.com/@x/video/1"
+    assert out["__cache_on_demand_vid"] == aweme["aweme_id"]
