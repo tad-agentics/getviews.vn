@@ -750,6 +750,11 @@ def _response_from_diagnostics_row(
             "retention_source": retention_source,
             "creator_median_views": creator_median_views,
             "target_vs_creator_median": target_vs_creator_median,
+            # Declared on VideoMeta (report_types.py:469) but previously
+            # never set — typed FE consumers always read None. Populate
+            # from the corpus row's raw counts / classifiers.
+            "saves": int(video.get("saves") or 0) if video.get("saves") is not None else None,
+            "is_breakout": float(video.get("breakout_multiplier") or 0.0) >= 1.5,
         },
         "enrichment": enrichment,
         "kpis": build_kpis(
