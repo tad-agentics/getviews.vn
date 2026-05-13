@@ -114,7 +114,10 @@ def test_collapse_two_hook_high_without_lang_market() -> None:
     )
     highs = [e for e in out if str(e.get("sev")) == "high"]
     assert len(highs) == 1
-    assert "Gộp" in str(highs[0].get("fix") or "")
+    # Unified single-pass uses "Bổ sung:" universally; the legacy
+    # two-pass design used "Gộp:" when no lang_market_mismatch was
+    # present. The new label is consistent across both branches.
+    assert "Bổ sung" in str(highs[0].get("fix") or "")
 
 
 def test_no_human_skipped_when_product_first_frame() -> None:

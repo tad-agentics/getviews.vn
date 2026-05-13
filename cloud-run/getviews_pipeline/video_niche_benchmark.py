@@ -63,21 +63,53 @@ def count_winners_sample_in_niche_sync(sb: Any, niche_id: int, median_er: float)
 
 
 def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
-    """Map `niche_intelligence` MV row → `VideoNicheMeta` shape (api-types.ts)."""
+    """Map `niche_intelligence` or `content_class_intelligence` MV row →
+    `VideoNicheMeta` shape (api-types.ts).
+
+    The niche MV splits views into ``organic_avg_views`` /
+    ``commerce_avg_views``; the content_class MV exposes a single
+    ``avg_views`` (no organic/commerce split). Reading only the niche
+    columns made every content_class cohort collapse to
+    ``avg_views=None``, which cascaded into "—" KPI multiplier, null
+    bright-spot ratio, and ``performance_tier="unknown"`` → narrative
+    flop-tone for what should have been hit videos. Prefer the
+    organic+commerce blend when present; otherwise fall back to the
+    direct ``avg_views`` (or ``median_views`` as a final floor).
+    """
     organic = _to_float(row.get("organic_avg_views"))
     commerce = _to_float(row.get("commerce_avg_views"))
     if organic > 0 and commerce > 0:
         avg_views = int(round((organic + commerce) / 2.0))
     else:
         blended = max(organic, commerce, 0.0)
-        avg_views = int(round(blended)) if blended > 0 else None
+        if blended > 0:
+            avg_views = int(round(blended))
+        else:
+            direct = _to_float(row.get("avg_views"))
+            if direct > 0:
+                avg_views = int(round(direct))
+            else:
+                median = _to_float(row.get("median_views"))
+                avg_views = int(round(median)) if median > 0 else None
 
-    median_er = _to_float(row.get("median_er"), 0.04)
+    # ``median_er`` and ``avg_engagement_rate`` are stored in *percent*
+    # space (e.g. 4.0 = 4%) per ``corpus_ingest._safe_engagement_rate``.
+    # The avg_retention heuristic below was written assuming ratio
+    # space (0.04 = 4%), so for any niche with ER ≥ 0.14% (effectively
+    # all of them) `min(median_er, 0.14)` saturated at 0.14 and every
+    # niche modeled to retention ≈ 0.848 — the modeled curve no longer
+    # varied by niche and the "× ngách TB" delta became meaningless.
+    # Convert to ratio for the heuristic only; keep the emitted
+    # median_er in its native percent scale so cross-cohort consumers
+    # (e.g. _estimate_er_percentile_rank, which also reads
+    # ``meta.engagement_rate`` in percent) stay self-consistent.
+    median_er_pct = _to_float(row.get("median_er"), 4.0)  # percent default ≈ 4%
+    median_er_ratio = median_er_pct / 100.0
     # Heuristic until per-video retention telemetry exists: tighter ER → higher
     # assumed watch-through (bounded for UI).
-    avg_retention = min(0.92, max(0.28, 0.40 + min(median_er, 0.14) * 3.2))
+    avg_retention = min(0.92, max(0.28, 0.40 + min(median_er_ratio, 0.14) * 3.2))
     # `avg_ctr` in the plan is a compact scalar for cross-niche compare; reuse ER scale.
-    avg_ctr = min(0.14, max(0.006, median_er))
+    avg_ctr = min(0.14, max(0.006, median_er_ratio))
     sample_size = _to_int(row.get("sample_size"), 0)
 
     out_meta: dict[str, Any] = {
@@ -85,7 +117,10 @@ def niche_row_to_video_meta(row: dict[str, Any]) -> dict[str, Any]:
         "avg_retention": round(avg_retention, 4),
         "avg_ctr": round(avg_ctr, 5),
         "sample_size": sample_size,
-        "median_er": round(median_er, 5),
+        # Emit median_er in its native percent scale (matches what
+        # downstream code expects when comparing against meta.engagement_rate,
+        # which is also stored in percent).
+        "median_er": round(median_er_pct, 5),
     }
     _ae = row.get("avg_engagement_rate")
     if _ae is not None:
@@ -118,7 +153,9 @@ def build_niche_benchmark_payload(
         }
 
     meta = niche_row_to_video_meta(row)
-    median_er = _to_float(row.get("median_er"), 0.04)
+    # median_er is stored as percent (4.0 ≈ 4%); match
+    # video_corpus.engagement_rate scale.
+    median_er = _to_float(row.get("median_er"), 4.0)
     meta["winners_sample_size"] = count_winners_sample_in_niche_sync(user_sb, niche_id, median_er)
     curve = model_niche_benchmark_curve(
         dur,

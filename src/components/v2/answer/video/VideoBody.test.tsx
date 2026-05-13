@@ -161,6 +161,33 @@ describe("VideoBody render", () => {
     expect(screen.getByText("Làm đẹp")).toBeTruthy();
   });
 
+  it("renders the HIT performance tier chip when performance_tier='hit'", () => {
+    renderInRouter(makeWinReport({ performance_tier: "hit" }));
+    expect(screen.getByText("HIT")).toBeTruthy();
+  });
+
+  it("renders the FLOP performance tier chip when performance_tier='flop' (flop mode)", () => {
+    renderInRouter(makeFlopReport({ performance_tier: "flop" }));
+    expect(screen.getByText("FLOP")).toBeTruthy();
+  });
+
+  it("renders TRUNG BÌNH chip for performance_tier='average'", () => {
+    renderInRouter(makeWinReport({ performance_tier: "average" }));
+    expect(screen.getByText("TRUNG BÌNH")).toBeTruthy();
+  });
+
+  it("hides the performance tier chip when performance_tier='unknown'", () => {
+    renderInRouter(makeWinReport({ performance_tier: "unknown" }));
+    expect(screen.queryByText("HIT")).toBeNull();
+    expect(screen.queryByText("FLOP")).toBeNull();
+    expect(screen.queryByText("TRUNG BÌNH")).toBeNull();
+  });
+
+  it("hides the performance tier chip when performance_tier is missing", () => {
+    renderInRouter(makeWinReport());
+    expect(screen.queryByText("HIT")).toBeNull();
+  });
+
   it("renders the win-mode hook phase + lessons sections", () => {
     renderInRouter(makeWinReport());
     expect(screen.getByTestId("hook-phase-grid")).toBeTruthy();

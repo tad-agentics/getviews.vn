@@ -1,11 +1,13 @@
 /**
  * Resume-on-reload guard for the answer-turn SSE.
  *
- * Cloud Run's replay buffer has a 120s TTL; the client's
- * RESUME_MAX_AGE_MS cap sits 30s below that to absorb clock drift.
- * These tests lock in that margin — if someone bumps the constant
- * above the server TTL, a stale entry could trigger an auto-resume
- * that misses the buffer and re-bills the user's credits.
+ * Cloud Run's replay buffer has a 60s TTL
+ * (cloud-run/getviews_pipeline/session_store.py:40 _STREAM_REPLAY_TTL_SEC).
+ * The client's RESUME_MAX_AGE_MS cap sits 15s below that to absorb
+ * clock drift. These tests lock in that margin — if someone bumps
+ * the constant above the server TTL, a stale entry could trigger an
+ * auto-resume that misses the buffer and falls through to fresh
+ * Gemini.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -109,10 +111,11 @@ describe("sseResume", () => {
     expect(sessionStorage.getItem(PENDING_ANSWER_STREAM_KEY)).toBeNull();
   });
 
-  it("TTL margin stays safely under Cloud Run's 120s replay buffer", () => {
-    // Regression guard — the server-side buffer is 120s
-    // (cloud-run/main.py). Leaving 30s slack absorbs clock drift +
+  it("TTL margin stays safely under Cloud Run's 60s replay buffer", () => {
+    // Regression guard — the server-side buffer is 60s
+    // (cloud-run/getviews_pipeline/session_store.py:40
+    // _STREAM_REPLAY_TTL_SEC). Leaving ≥15s slack absorbs clock drift +
     // trip-time so the auto-resume path does not miss the buffer.
-    expect(PENDING_ANSWER_STREAM_MAX_AGE_MS).toBeLessThanOrEqual(120_000 - 30_000);
+    expect(PENDING_ANSWER_STREAM_MAX_AGE_MS).toBeLessThanOrEqual(60_000 - 15_000);
   });
 });

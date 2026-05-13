@@ -20,6 +20,12 @@ export interface VideoAnalyzeMeta {
   likes: number;
   comments: number;
   shares: number;
+  /** Ratio (0–1), matches ``video_corpus.save_rate`` storage. The KPI
+   * strip renders it as a percent (``build_kpis`` × 100); ``meta.save_rate``
+   * itself stays in ratio space so cross-cohort math
+   * (e.g. % vs niche.median) stays self-consistent. ``formatSaveRatePct``
+   * in VideoBody defends against legacy rows that may have leaked a
+   * percent value into this field. */
   save_rate: number;
   duration_sec: number;
   thumbnail_url: string | null;
@@ -1132,7 +1138,6 @@ export interface ReferenceVideoCard {
 
 /** Partial payload streamed before final Vietnamese synthesis lands on `ReportV1`. */
 export interface VideoAnswerPreSynthesisPayload {
-  kpi?: Record<string, number>;
   bright_spot_signal?: BrightSpotSignal;
   performance_tier?: string;
   reference_videos?: ReferenceVideoCard[];

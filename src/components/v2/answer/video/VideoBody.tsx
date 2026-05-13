@@ -56,6 +56,16 @@ import type {
 // Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers.
 const WINNERS_CLAIM_MIN = 10;
 
+/** Render a TikTok handle with exactly one leading "@".
+ *
+ * Corpus rows can store handles either as "creatorx" or already "@creatorx";
+ * naive `@{handle}` rendering produced "@@creatorx" in those cases. */
+function atHandle(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  if (!s) return "";
+  return s.startsWith("@") ? s : `@${s}`;
+}
+
 function pickFormatCorpusEvidence(card: FormatCard): FormatCardExample | null {
   const xs = card.format_examples;
   if (!xs?.length) return null;
@@ -177,7 +187,7 @@ function ContextStrip({
 }
 
 function CreatorComparisonUnavailable({ creator }: { creator: string }) {
-  const at = creator.startsWith("@") ? creator : `@${creator}`;
+  const at = atHandle(creator);
   return (
     <div className="mt-6 rounded-xl border border-dashed border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] p-4 text-[12.5px] text-[var(--gv-ink-3)]">
       <p className="gv-mono mb-1 text-[10px] uppercase tracking-wider text-[var(--gv-ink-3)]">
@@ -314,6 +324,45 @@ const FLOP_SEV_LABEL: Record<VideoFlopIssue["sev"], string> = {
   mid: "TB",
   low: "Thấp",
 };
+
+/** Performance tier chip rendered alongside the kicker so the user
+ * sees the verdict — hit / average / flop — before reading the report.
+ * BE values come from classify_performance_tier_corpus + refine_performance_tier
+ * (combines corpus benchmarks with channel context). Returns null when the BE
+ * couldn't benchmark (tier="unknown"), so we don't render a placeholder chip. */
+function PerformanceTierChip({ tier }: { tier: string | undefined }) {
+  if (!tier) return null;
+  const lc = tier.toLowerCase();
+  // hit → green, flop → accent (red-ish), average → muted, anything else → hide.
+  let label: string;
+  let tone: "hit" | "average" | "flop";
+  if (lc === "hit") {
+    label = "HIT";
+    tone = "hit";
+  } else if (lc === "flop") {
+    label = "FLOP";
+    tone = "flop";
+  } else if (lc === "average") {
+    label = "TRUNG BÌNH";
+    tone = "average";
+  } else {
+    return null;
+  }
+  const toneClass =
+    tone === "hit"
+      ? "bg-[color:var(--gv-pos)]/15 text-[color:var(--gv-pos)]"
+      : tone === "flop"
+        ? "bg-[color:var(--gv-accent)]/15 text-[color:var(--gv-accent)]"
+        : "bg-[color:var(--gv-ink-4)]/15 text-[color:var(--gv-ink-3)]";
+  return (
+    <span
+      className={`gv-mono rounded-[3px] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] ${toneClass}`}
+      aria-label={`Phân loại hiệu suất: ${label}`}
+    >
+      {label}
+    </span>
+  );
+}
 
 function FlopIssueNarrativeRow({
   issue,
@@ -490,6 +539,13 @@ export function VideoBody({
     narrativeReady?.view_scenarios ?? report.view_scenarios;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
+  // BE classifies each video into a refined tier (`hit | average | flop | unknown`)
+  // by combining corpus benchmarks with channel context. Streamed during the
+  // pre-synthesis SSE phase and persisted on the report; either source is
+  // authoritative. Hidden when "unknown" (BE couldn't benchmark — don't make
+  // up a verdict).
+  const performanceTier: string | undefined =
+    preSynth?.performance_tier ?? report.performance_tier;
   const streamedErrs = narrativeReady?.errors;
   const reportErrs = report.structural_errors ?? report.errors ?? [];
   const flopIssuesForNarrative: VideoFlopIssue[] =
@@ -598,8 +654,11 @@ export function VideoBody({
         {/*
           Sticky within the studio scrollport: follows the user down the report
           until the grid row ends (same height as the main column), then scrolls away.
+          Only stick once the grid is two-column (>=900px). Below that the aside
+          stacks above the body and a sticky 9/16 thumbnail pins a near-full-viewport
+          poster over the scrolling report at mobile width (360–640px).
         */}
-        <div className="sticky top-20 space-y-3 self-start lg:top-24">
+        <div className="space-y-3 self-start min-[900px]:sticky min-[900px]:top-20 lg:top-24">
           <div
             className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
             style={{
@@ -632,7 +691,7 @@ export function VideoBody({
             ) : null}
             <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
               <div className="gv-mono text-[11px] opacity-90">
-                @{meta.creator} · {Math.round(duration)}s
+                {atHandle(meta.creator)} · {Math.round(duration)}s
               </div>
               {meta.title ? (
                 <p className="gv-tight mt-1 text-lg leading-tight">{meta.title}</p>
@@ -659,30 +718,39 @@ export function VideoBody({
         ) : null}
         <header>
           {isFlop ? (
-            <div className="gv-mono mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
-              {brightEffective?.signal_type === "hook_only_problem" ||
-              (retEnd != null && retEnd >= 68)
-                ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
-                : `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`}
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="gv-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
+                {brightEffective?.signal_type === "hook_only_problem" ||
+                (retEnd != null && retEnd >= 68)
+                  ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
+                  : `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`}
+              </span>
+              <PerformanceTierChip tier={performanceTier} />
             </div>
           ) : report.carousel_subformat_label ? (
-            <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-              MỔ CAROUSEL VIRAL ·{" "}
-              <span className="normal-case text-[color:var(--gv-ink-3)]">
-                {report.carousel_subformat_label}
-                {report.carousel_slide_count ? ` · ${report.carousel_slide_count} slides` : ""}
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+                MỔ CAROUSEL VIRAL ·{" "}
+                <span className="normal-case text-[color:var(--gv-ink-3)]">
+                  {report.carousel_subformat_label}
+                  {report.carousel_slide_count ? ` · ${report.carousel_slide_count} slides` : ""}
+                </span>
+                {" "}·{" "}
+                <span className="normal-case text-[color:var(--gv-ink-3)]">
+                  {meta.niche_label ?? "—"}
+                </span>
               </span>
-              {" "}·{" "}
-              <span className="normal-case text-[color:var(--gv-ink-3)]">
-                {meta.niche_label ?? "—"}
-              </span>
+              <PerformanceTierChip tier={performanceTier} />
             </div>
           ) : (
-            <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-              MỔ VIDEO VIRAL ·{" "}
-              <span className="normal-case text-[color:var(--gv-ink-3)]">
-                {meta.niche_label ?? "—"}
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span className="gv-mono text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+                MỔ VIDEO VIRAL ·{" "}
+                <span className="normal-case text-[color:var(--gv-ink-3)]">
+                  {meta.niche_label ?? "—"}
+                </span>
               </span>
+              <PerformanceTierChip tier={performanceTier} />
             </div>
           )}
           <h1
@@ -959,7 +1027,7 @@ export function VideoBody({
                             className="flex items-center justify-between gap-2 text-[11px] text-[color:var(--gv-ink-2)] transition-colors hover:text-[color:var(--gv-accent)]"
                           >
                             <span className="min-w-0 truncate">
-                              @{ex.creator_handle} · {ex.desc || "(không có caption)"}
+                              {atHandle(ex.creator_handle)} · {ex.desc || "(không có caption)"}
                             </span>
                             <span className="gv-mono shrink-0 font-semibold tabular-nums text-[color:var(--gv-ink)]">
                               {ex.play_count.toLocaleString("vi-VN")}

@@ -117,14 +117,48 @@ class VideoErrorsExtractionLLM(BaseModel):
 # ── Mode + KPI helpers ─────────────────────────────────────────────────────
 
 
+def _normalise_save_rate(video: dict[str, Any]) -> float:
+    """Return save_rate as a *ratio* (0–1).
+
+    Preferred source: corpus ``save_rate`` column (already stored as
+    ratio). Falls back to ``saves/views`` when the column is missing.
+    Defensive: if a legacy row leaked a percent value (>1.0), divide
+    by 100 to bring it back into ratio space.
+    """
+    sr = video.get("save_rate")
+    if sr is not None:
+        v = float(sr or 0.0)
+        return v / 100.0 if v > 1.0 else v
+    saves = int(video.get("saves") or 0)
+    views = max(int(video.get("views") or 1), 1)
+    return saves / views
+
+
 def _median_views_proxy(niche_row: dict[str, Any] | None) -> float:
+    """Best view proxy from a benchmark row (niche or content_class MV).
+
+    The niche MV has organic/commerce split; the content_class MV
+    exposes ``avg_views``/``median_views`` directly. Reading only the
+    niche columns made content_class rows fall through to the 5000
+    floor and is_flop_mode silently classified every video against the
+    wrong baseline.
+    """
     if not niche_row:
         return 10_000.0
     o = float(niche_row.get("organic_avg_views") or 0)
     c = float(niche_row.get("commerce_avg_views") or 0)
     if o > 0 and c > 0:
         return (o + c) / 2.0
-    return max(o, c, 5_000.0)
+    blended = max(o, c, 0.0)
+    if blended > 0:
+        return blended
+    direct = float(niche_row.get("avg_views") or 0)
+    if direct > 0:
+        return direct
+    median = float(niche_row.get("median_views") or 0)
+    if median > 0:
+        return median
+    return 5_000.0
 
 
 # Niche-less flop thresholds — used when ``niche_row`` is None (no
@@ -454,10 +488,23 @@ def _is_hook_related_error(e: dict[str, Any]) -> bool:
     )
 
 
-def _collapse_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Merge multiple high-severity hook errors in the opening window — avoids double-penalty."""
-    hook_high: list[dict[str, Any]] = []
-    rest: list[dict[str, Any]] = []
+def _dedupe_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Single-pass dedupe of multiple high-severity hook errors in the 0–4s window.
+
+    Picks a primary (prefer ``lang_market_mismatch``, else the first
+    overlapping high-sev hook error), merges sibling ``fix`` texts
+    into the primary as "(Bổ sung: …)", and drops the siblings.
+    Preserves relative ordering of non-hook errors and of the primary
+    within the output list.
+
+    Replaces the previous two-pass chain
+    (``_dedupe_lang_market_hook_errors`` → ``_collapse_hook_window_high_errors``)
+    which worked correctly only by accident — pass 1 left exactly one
+    hook-high so pass 2 early-returned. Any future tweak that let two
+    survive pass 1 would have double-merged with "(Bổ sung: …)
+    (Gộp: …)".
+    """
+    overlapping: list[dict[str, Any]] = []
     for e in errors:
         if (
             str(e.get("sev") or "") == "high"
@@ -467,17 +514,16 @@ def _collapse_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict
                 float(e.get("end") or e.get("t") or 0.0),
             )
         ):
-            hook_high.append(e)
-        else:
-            rest.append(e)
-    if len(hook_high) <= 1:
+            overlapping.append(e)
+    if len(overlapping) <= 1:
         return errors
+
     primary = next(
-        (e for e in hook_high if str(e.get("error_id") or "") == "lang_market_mismatch"),
-        hook_high[0],
+        (e for e in overlapping if str(e.get("error_id") or "") == "lang_market_mismatch"),
+        overlapping[0],
     )
     merged_fixes: list[str] = []
-    for e in hook_high:
+    for e in overlapping:
         if e is primary:
             continue
         fx = str(e.get("fix") or "").strip()
@@ -487,8 +533,22 @@ def _collapse_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict
     if merged_fixes:
         base = str(out_primary.get("fix") or "").strip()
         extra = "; ".join(merged_fixes[:3])
-        out_primary["fix"] = f"{base} (Gộp: {extra})" if base else extra
-    return [out_primary] + rest
+        out_primary["fix"] = f"{base} (Bổ sung: {extra})" if base else extra
+
+    # Walk the original input once, dropping the siblings while
+    # preserving every other error's order.
+    siblings = {id(e) for e in overlapping if e is not primary}
+    out: list[dict[str, Any]] = []
+    for e in errors:
+        if id(e) in siblings:
+            continue
+        out.append(out_primary if e is primary else e)
+    return out
+
+
+# Legacy names kept so existing tests + callers still link. Both
+# delegate to the canonical single pass.
+_collapse_hook_window_high_errors = _dedupe_hook_window_high_errors
 
 
 def _product_led_silent_visual(analysis: dict[str, Any]) -> bool:
@@ -514,43 +574,7 @@ def _product_led_silent_visual(analysis: dict[str, Any]) -> bool:
     return False
 
 
-def _dedupe_lang_market_hook_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """When lang_market_mismatch is present, drop redundant high-sev hook cards overlapping 0–4s."""
-    if not any(str(e.get("error_id") or "") == "lang_market_mismatch" for e in errors):
-        return errors
-    lang_card = next(e for e in errors if str(e.get("error_id") or "") == "lang_market_mismatch")
-    merged_fixes: list[str] = []
-    kept: list[dict[str, Any]] = []
-    for e in errors:
-        eid = str(e.get("error_id") or "")
-        if eid == "lang_market_mismatch":
-            kept.append(e)
-            continue
-        if str(e.get("sev") or "") != "high":
-            kept.append(e)
-            continue
-        t = float(e.get("t") or 0.0)
-        end = float(e.get("end") or t)
-        hook_window = _overlaps_hook_lang_dedupe_window(t, end)
-        title_l = str(e.get("title") or "").lower()
-        eid_l = eid.lower()
-        hook_related = (
-            "hook" in eid_l
-            or eid_l.startswith("err_hook")
-            or "hook" in title_l
-            or "mở đầu" in title_l
-        )
-        if hook_window and hook_related:
-            fx = str(e.get("fix") or "").strip()
-            if fx and fx not in str(lang_card.get("fix") or ""):
-                merged_fixes.append(fx)
-            continue
-        kept.append(e)
-    if merged_fixes:
-        base = str(lang_card.get("fix") or "").strip()
-        extra = "; ".join(merged_fixes[:3])
-        lang_card["fix"] = f"{base} (Bổ sung: {extra})" if base else extra
-    return kept
+_dedupe_lang_market_hook_errors = _dedupe_hook_window_high_errors
 
 
 def apply_rule_based_video_errors(
@@ -620,7 +644,7 @@ def apply_rule_based_video_errors(
                 "end": end_ts,
             }
         )
-    merged = _collapse_hook_window_high_errors(_dedupe_lang_market_hook_errors(out))
+    merged = _dedupe_hook_window_high_errors(out)
     clamp_dur = float(dur) if dur > 0 else None
     return clamp_structural_error_timestamps(merged, clamp_dur)
 
@@ -718,9 +742,12 @@ def _response_from_diagnostics_row(
             "likes": int(video.get("likes") or 0),
             "comments": int(video.get("comments") or 0),
             "shares": int(video.get("shares") or 0),
-            "save_rate": float(video.get("save_rate") or 0.0)
-            if video.get("save_rate") is not None
-            else (int(video.get("saves") or 0) / max(int(video.get("views") or 1), 1)),
+            # save_rate is a *ratio* (0–1) — matches video_corpus.save_rate
+            # storage and the FE contract (api-types.ts VideoAnalyzeMeta).
+            # Some legacy corpus rows may have leaked percent values
+            # (>1.0); normalise before emitting so downstream consumers
+            # don't have to special-case.
+            "save_rate": _normalise_save_rate(video),
             "duration_sec": dur,
             "thumbnail_url": video.get("thumbnail_url"),
             "date_posted": (video.get("created_at") or "")[:10]
@@ -733,6 +760,11 @@ def _response_from_diagnostics_row(
             "retention_source": retention_source,
             "creator_median_views": creator_median_views,
             "target_vs_creator_median": target_vs_creator_median,
+            # Declared on VideoMeta (report_types.py:469) but previously
+            # never set — typed FE consumers always read None. Populate
+            # from the corpus row's raw counts / classifiers.
+            "saves": int(video.get("saves") or 0) if video.get("saves") is not None else None,
+            "is_breakout": float(video.get("breakout_multiplier") or 0.0) >= 1.5,
         },
         "enrichment": enrichment,
         "kpis": build_kpis(
@@ -752,6 +784,17 @@ def _response_from_diagnostics_row(
         "niche_benchmark_curve": bench_curve,
         "niche_meta": niche_meta,
         "cross_format_signal": cross_format_signal,
+        # Cached narrative-layer fields from video_diagnostics
+        # (migration 20260513000003). When present, finalize_video_narrative_layer
+        # early-returns and skips the Gemini synthesis call.
+        "narrative_vi": diag.get("narrative_vi"),
+        "format_cards": diag.get("format_cards"),
+        "diagnosis": diag.get("diagnosis"),
+        "performance_tier": diag.get("performance_tier"),
+        "bright_spot_signal": diag.get("bright_spot_signal"),
+        "view_scenarios": diag.get("view_scenarios"),
+        "channel_context": diag.get("channel_context"),
+        "reference_videos": diag.get("reference_videos"),
     }
 
 
@@ -1132,7 +1175,23 @@ def finalize_video_narrative_layer(
     Expects ``out`` to contain private keys ``__narrative_analysis`` and
     ``__narrative_content_format`` (stripped before return to clients) set by
     ``run_video_analyze_pipeline`` / ``run_video_analyze_on_demand``.
+
+    Idempotent: when ``out`` already carries cached narrative fields
+    (set by ``_response_from_diagnostics_row`` on a video_diagnostics
+    cache hit), this function returns without re-firing the Gemini
+    synthesis call. The cache is populated below on the cache-miss path.
     """
+
+    # Cache hit short-circuit. narrative_vi is the anchor — when it
+    # exists, every dependent field (format_cards, performance_tier,
+    # bright_spot_signal, view_scenarios, channel_context,
+    # reference_videos, diagnosis) was written in the same upsert.
+    if out.get("narrative_vi"):
+        # Strip pipeline-private keys so the response shape stays clean
+        # for the caller (matches the post-synthesis branch below).
+        out.pop("__narrative_analysis", None)
+        out.pop("__narrative_content_format", None)
+        return
 
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
     from getviews_pipeline.pipelines import (
@@ -1345,6 +1404,36 @@ def finalize_video_narrative_layer(
     if diagnosis_md:
         out["diagnosis"] = diagnosis_md
 
+    # Persist the narrative layer alongside the deterministic one so
+    # the next request on the same video_id within the diagnostics TTL
+    # short-circuits at the top of this function. on_demand outputs
+    # don't have a corpus row (and aren't cached), so guard by
+    # presence of __cache_video_id which run_video_analyze_pipeline
+    # sets on the corpus path only.
+    cache_vid = out.pop("__cache_video_id", None)
+    if cache_vid and narrative_vi_out is not None:
+        try:
+            from getviews_pipeline.supabase_client import get_service_client
+
+            get_service_client().table("video_diagnostics").update(
+                {
+                    "narrative_vi": narrative_vi_out,
+                    "format_cards": format_cards_out,
+                    "diagnosis": diagnosis_md or None,
+                    "performance_tier": performance_tier,
+                    "bright_spot_signal": bright_spot_computed,
+                    "view_scenarios": view_scenarios_computed,
+                    "channel_context": channel_context_payload or None,
+                    "reference_videos": out.get("reference_videos"),
+                },
+            ).eq("video_id", cache_vid).execute()
+        except Exception as exc:
+            # Non-fatal — failing to cache only loses the cost saving,
+            # not the user-visible response. Bubble exception to logs.
+            logger.warning(
+                "[video_narrative] persist failed video_id=%s: %s", cache_vid, exc,
+            )
+
 
 def run_video_analyze_pipeline(
     service_sb: Any,
@@ -1490,6 +1579,9 @@ def run_video_analyze_pipeline(
         )
         base["__narrative_analysis"] = analysis
         base["__narrative_content_format"] = str(video.get("content_format") or "")
+        # Cache key for finalize_video_narrative_layer's persist step.
+        # Set only on the corpus path; on-demand outputs aren't cached.
+        base["__cache_video_id"] = vid
         return _merge_sidecars_into_response(
             base,
             video_id=vid,
@@ -1574,6 +1666,7 @@ def run_video_analyze_pipeline(
     )
     out["__narrative_analysis"] = analysis
     out["__narrative_content_format"] = content_format_str
+    out["__cache_video_id"] = vid
     return _merge_sidecars_into_response(
         out,
         video_id=vid,
