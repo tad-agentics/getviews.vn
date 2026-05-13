@@ -319,6 +319,32 @@ def clamp_structural_error_timestamps(
     return out
 
 
+_AT_SECONDS_RE = re.compile(r"@(\d+(?:[.,]\d+)?)s", re.IGNORECASE)
+
+
+def strip_out_of_range_timestamps(text: str, ts_start: float, ts_end: float) -> str:
+    """Remove ``@Xs`` mentions where *X* falls outside ``[ts_start, ts_end]`` (inclusive).
+
+    Used for GIẢI MÃ HOOK cards so spoken-time callouts do not contradict the
+    card's time window (audit HOOK-TS v4).
+    """
+    if not text or not text.strip():
+        return text
+
+    def _repl(m: re.Match[str]) -> str:
+        try:
+            t = float(str(m.group(1)).replace(",", "."))
+        except ValueError:
+            return m.group(0)
+        return m.group(0) if ts_start <= t <= ts_end else ""
+
+    out = _AT_SECONDS_RE.sub(_repl, text)
+    out = re.sub(r"\s{2,}", " ", out)
+    out = re.sub(r"\s*·\s*$", "", out)
+    out = re.sub(r"^\s*·\s*", "", out)
+    return out.strip()
+
+
 # ---------------------------------------------------------------------------
 # Corpus cache staleness
 # ---------------------------------------------------------------------------
@@ -428,5 +454,6 @@ __all__ = [
     "clamp_timestamp",
     "is_cached_analysis_fresh",
     "scan_synthesis_for_fabricated_metrics",
+    "strip_out_of_range_timestamps",
     "validate_transcript",
 ]

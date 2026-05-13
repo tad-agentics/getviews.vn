@@ -87,11 +87,15 @@ def _resolve_format_axis_for_content_class(
 
 def _fetch_format_corpus(
     sb: Any, format_axis: str, since_iso: str,
+    *,
+    content_format: str | None = None,
 ) -> list[dict[str, Any]]:
     """Pull corpus rows whose content_class shares the same format_axis.
 
-    Window is 30 days by default. Filter on indexed_at + views > 0 to
-    match the existing niche_intelligence MV semantics.
+    When ``content_format`` is set (slug matching ``video_corpus.content_format``),
+    narrow to that structural format so cross-niche hooks match the user's
+    video (audit CROSS-NICHE-FORMAT v4). Caller returns None if the filtered
+    set fails gating — no fallback to unfiltered popularity.
     """
     try:
         # Step 1 — content_class ids in this format_axis (small set, ~5-10).
@@ -106,15 +110,18 @@ def _fetch_format_corpus(
         if not cc_ids:
             return []
         # Step 2 — corpus rows in those content_classes within the window.
-        res = (
+        q = (
             sb.table("video_corpus")
-            .select("video_id, niche_id, hook_type, views")
+            .select("video_id, niche_id, hook_type, views, content_format")
             .in_("content_class_id", cc_ids)
             .gt("views", 0)
             .gte("indexed_at", since_iso)
             .limit(2000)
-            .execute()
         )
+        cf = str(content_format or "").strip()
+        if cf:
+            q = q.eq("content_format", cf)
+        res = q.execute()
         return list(res.data or [])
     except Exception as exc:
         logger.warning(
@@ -128,6 +135,7 @@ def get_cross_format_signal(
     sb: Any,
     *,
     content_class_id: int | None,
+    content_format: str | None = None,
     days: int = WINDOW_DAYS,
 ) -> dict[str, Any] | None:
     """Build the cross-niche format insight for one user video.
@@ -148,7 +156,7 @@ def get_cross_format_signal(
         return None
 
     since = (datetime.now(timezone.utc) - timedelta(days=max(days, 1))).isoformat()
-    rows = _fetch_format_corpus(sb, format_axis, since)
+    rows = _fetch_format_corpus(sb, format_axis, since, content_format=content_format)
     if not rows:
         return None
 

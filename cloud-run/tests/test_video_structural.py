@@ -31,11 +31,18 @@ def test_decompose_segments_fallback_without_scenes() -> None:
 
 
 def test_decompose_segments_eight_parts_from_scenes() -> None:
-    # Ten short scenes → merged down then split to exactly 8 spans.
+    # Ten short scenes on a >20s timeline — below-20s clips with uniform 8-beat
+    # splits are suppressed (TIMELINE-NOISE v4).
     scenes = [{"start": i, "end": i + 1} for i in range(10)]
-    segs = decompose_segments({"duration_seconds": 10, "scenes": scenes})
+    segs = decompose_segments({"duration_seconds": 30, "scenes": scenes})
     assert len(segs) == 8
     assert sum(s["pct"] for s in segs) == 100
+
+
+def test_decompose_segments_suppresses_uniform_short_video() -> None:
+    """≤20s + 8 equal-ish beats → no misleading timeline strip."""
+    scenes = [{"start": i, "end": i + 1} for i in range(8)]
+    assert decompose_segments({"duration_seconds": 8, "scenes": scenes}) == []
 
 
 def test_extract_hook_phases_three_cards_empty_body() -> None:
@@ -58,12 +65,30 @@ def test_extract_hook_phases_three_cards_empty_body() -> None:
     assert cards[1]["t_range"] == "0.8–1.8s"
     assert cards[2]["t_range"] == "1.8–3.0s"
     assert all(c["body"] == "" for c in cards)
-    # Card 0 shows Vietnamese first-frame label, not the raw enum.
+    # Card 0: first-frame label + face + timeline at t=0.4 (same window).
     assert "Cận mặt" in cards[0]["label"]
     assert "face_with_text" not in cards[0]["label"]
-    # Card 1 shows the Vietnamese timeline event label (not "face_enter").
-    assert "Khuôn mặt xuất hiện" in cards[1]["label"]
+    assert "Khuôn mặt xuất hiện" in cards[0]["label"]
+    # Card 1: hook type + first speech at 1.1s (0.8–1.8s window).
+    assert "Tạo khoảng trống" in cards[1]["label"] or "Kiểu hook" in cards[1]["label"]
+    assert "Lời đầu @1.1s" in cards[1]["label"]
     assert "face_enter" not in cards[1]["label"]
+
+
+def test_extract_hook_phases_strip_at_s_outside_window() -> None:
+    """HOOK-TS v4: @Xs in a note is stripped when X is outside that card's window."""
+    analysis = {
+        "hook_analysis": {
+            "first_frame_type": "face",
+            "hook_type": "curiosity_gap",
+            "hook_timeline": [
+                {"t": 0.9, "event": "text_overlay", "note": "Lời đầu @0.5s"},
+            ],
+        }
+    }
+    cards = extract_hook_phases(analysis)
+    # 0.9s → card 1; @0.5s is outside [0.8, 1.8]... actually 0.5 is outside 0.8-1.8, stripped
+    assert "@0.5s" not in cards[1]["label"]
 
 
 def test_extract_hook_phases_never_leaks_raw_enum_into_label() -> None:
@@ -86,9 +111,10 @@ def test_extract_hook_phases_never_leaks_raw_enum_into_label() -> None:
     assert "face_with_text" not in label_a
     assert "face with text" not in label_a
     assert "how_to" not in label_b
-    # Vietnamese labels render instead.
     assert "Cận mặt + chữ" in label_a
+    assert "mặt lên @0.0s" in label_a
     assert "Hướng dẫn thực hành" in label_b
+    assert "Lời đầu @0.8s" in label_b
 
 
 def test_model_retention_curve_twenty_points_monotonic_tail() -> None:

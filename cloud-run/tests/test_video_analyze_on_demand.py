@@ -218,9 +218,6 @@ def test_on_demand_returns_full_response_without_corpus_write() -> None:
     ), patch(
         "getviews_pipeline.video_analyze.extract_video_errors",
         side_effect=_fake_extract_errors_win,
-    ), patch(
-        "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
-        return_value=None,
     ):
         out = run_video_analyze_on_demand(
             service_sb, user_sb, tiktok_url="https://www.tiktok.com/@x/video/1",
@@ -274,9 +271,6 @@ def test_on_demand_picks_flop_when_below_niche_median() -> None:
         "getviews_pipeline.video_analyze.extract_video_errors",
         side_effect=_fake_extract_errors_flop,
     ), patch(
-        "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
-        return_value=niche_intel,
-    ), patch(
         # A.2.3 — video_analyze now goes through the axis-orchestrator
         # which prefers content_class_intelligence then falls back. Patch
         # it to return the same legacy niche row so the test stays
@@ -321,9 +315,6 @@ def test_on_demand_respects_explicit_mode_override() -> None:
         "getviews_pipeline.video_analyze.extract_video_errors",
         side_effect=_fake_extract_errors_win,
     ), patch(
-        "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
-        return_value=niche_intel,
-    ), patch(
         # A.2.3 — video_analyze now goes through the axis-orchestrator
         # which prefers content_class_intelligence then falls back. Patch
         # it to return the same legacy niche row so the test stays
@@ -363,9 +354,6 @@ def test_on_demand_handles_unknown_niche_gracefully() -> None:
     ), patch(
         "getviews_pipeline.video_analyze.extract_video_errors",
         side_effect=_fake_extract_errors_win,
-    ), patch(
-        "getviews_pipeline.video_analyze.fetch_niche_intelligence_sync",
-        return_value=None,
     ):
         out = run_video_analyze_on_demand(
             service_sb, user_sb, tiktok_url="https://www.tiktok.com/@x/video/1",

@@ -42,6 +42,7 @@ class _Q:
         self._format_axis_filter: str | None = None
         self._content_class_filter: int | None = None
         self._cc_in_filter: list[int] | None = None
+        self._content_format_eq: str | None = None
 
     def select(self, *_: Any, **__: Any) -> "_Q":
         return self
@@ -51,6 +52,8 @@ class _Q:
             self._format_axis_filter = val
         elif col == "id":
             self._content_class_filter = int(val)
+        elif col == "content_format":
+            self._content_format_eq = str(val)
         return self
 
     def in_(self, col: str, vals: Any) -> "_Q":
@@ -77,7 +80,11 @@ class _Q:
             if self._format_axis_filter is not None:
                 return _Exec(self._dispatcher.get(("cc_by_format", self._format_axis_filter), []))
         if self._table == "video_corpus":
-            return _Exec(self._dispatcher.get(("corpus", tuple(self._cc_in_filter or [])), []))
+            raw = list(self._dispatcher.get(("corpus", tuple(self._cc_in_filter or [])), []))
+            if self._content_format_eq:
+                cf = self._content_format_eq
+                raw = [r for r in raw if str(r.get("content_format") or "") == cf]
+            return _Exec(raw)
         return _Exec(None)
 
 
@@ -169,9 +176,47 @@ def test_returns_signal_when_thresholds_met() -> None:
     assert out["top_hooks"][0]["hook_type"] in ("pov", "story_open")
 
 
+def test_returns_none_when_content_format_filter_removes_all_rows() -> None:
+    fn, *_ = _imports()
+    rows = [
+        {"video_id": f"v{i}", "niche_id": (i % 5) + 1, "hook_type": "pov", "views": 50_000, "content_format": "format_a"}
+        for i in range(30)
+    ]
+    dispatcher = {
+        ("cc_by_id", 6): {"format_axis": "pov_storytelling"},
+        ("cc_by_format", "pov_storytelling"): [{"id": 6}],
+        ("corpus", (6,)): rows,
+    }
+    sb = _Client(dispatcher)
+    assert fn(sb, content_class_id=6, content_format="other_format") is None
+
+
+def test_returns_signal_with_content_format_subset() -> None:
+    fn, *_ = _imports()
+    fmt = "product_showcase"
+    rows = []
+    for niche in range(1, 6):
+        for r in range(6):
+            rows.append({
+                "video_id": f"v{niche}-{r}",
+                "niche_id": niche,
+                "hook_type": "pov" if r < 4 else "story_open",
+                "views": 100_000 + niche * 10_000 + r * 100,
+                "content_format": fmt,
+            })
+    dispatcher = {
+        ("cc_by_id", 6): {"format_axis": "pov_storytelling"},
+        ("cc_by_format", "pov_storytelling"): [{"id": 6}],
+        ("corpus", (6,)): rows,
+    }
+    sb = _Client(dispatcher)
+    out = fn(sb, content_class_id=6, content_format=fmt)
+    assert out is not None
+    assert out["niches_with_format"] == 5
+
+
 def test_top_hooks_skip_single_row_buckets() -> None:
     fn, *_ = _imports()
-    # 5 niches × 4 rows of 'pov' + 1 single-row 'one_off' that should be filtered.
     rows = [
         {"video_id": f"p{i}", "niche_id": (i % 5) + 1, "hook_type": "pov", "views": 50000}
         for i in range(20)

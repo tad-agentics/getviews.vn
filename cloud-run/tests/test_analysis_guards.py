@@ -15,6 +15,7 @@ from getviews_pipeline.analysis_guards import (
     clamp_timestamp,
     is_cached_analysis_fresh,
     scan_synthesis_for_fabricated_metrics,
+    strip_out_of_range_timestamps,
     validate_transcript,
 )
 
@@ -275,6 +276,22 @@ def test_scan_reports_multiple_violations() -> None:
     )
     scan = scan_synthesis_for_fabricated_metrics(text)
     assert len(scan.flags) == 2
+
+
+def test_strip_out_of_range_timestamps_keeps_in_band() -> None:
+    s = strip_out_of_range_timestamps("Lời @1.0s và @2.5s", 0.8, 1.8)
+    assert "@1.0s" in s
+    assert "@2.5s" not in s
+
+
+def test_strip_out_of_range_timestamps_removes_all_out_of_band() -> None:
+    s = strip_out_of_range_timestamps("X @0.5s", 0.8, 1.8)
+    assert "@0.5s" not in s
+
+
+def test_strip_out_of_range_timestamps_accepts_comma_decimal() -> None:
+    s = strip_out_of_range_timestamps("Tại @1,2s", 0.8, 1.8)
+    assert "@1,2s" in s
 
 
 # ── clamp_structural_error_timestamps ─────────────────────────────────────

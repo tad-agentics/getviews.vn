@@ -999,6 +999,7 @@ export function VideoBody({
           <CreatorComparisonUnavailable creator={report.meta.creator} />
         ) : null}
 
+        {report.segments && report.segments.length > 0 ? (
         <section>
           <SectionMini kicker="Dòng thời gian" title={`Cấu trúc ${Math.round(duration)} giây`} />
           <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
@@ -1008,6 +1009,7 @@ export function VideoBody({
           </p>
           <Timeline segments={report.segments} durationSec={duration} />
         </section>
+        ) : null}
 
         {showCommentRadarTile || showThumbnailTile ? (
           <section aria-label="Thumbnail và bình luận">

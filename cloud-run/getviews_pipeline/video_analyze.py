@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -17,7 +18,6 @@ from pydantic import BaseModel, Field
 
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
-    fetch_niche_intelligence_sync,
     fetch_video_benchmark_with_axis,
 )
 from getviews_pipeline.video_structural import (
@@ -89,6 +89,13 @@ _SILENT_FORMAT_EXCEPTIONS_VIDEO = frozenset(
         "luxury_broll",
     }
 )
+
+# Formats where a talking head is not expected — skip no_human_presence (v4 FORMAT-CONTRADICT).
+PRESENTER_NOT_REQUIRED_FORMATS = frozenset({
+    "product_showcase",
+    "flat_lay",
+    "unboxing_silent",
+})
 
 
 class VideoErrorItemLLM(BaseModel):
@@ -188,12 +195,115 @@ def _fmt_int_short(n: int) -> str:
     return str(n)
 
 
+_KPI_QUANT_CACHE_TTL_S = 300.0
+_KPI_QUANT_CACHE: dict[
+    int,
+    tuple[float, tuple[tuple[float | None, float | None], tuple[float | None, float | None]]],
+] = {}
+
+
+def fetch_niche_save_share_pct_quantiles_sync(
+    sb: Any,
+    niche_id: int,
+    *,
+    min_samples: int = 5,
+    limit: int = 200,
+) -> tuple[tuple[float | None, float | None], tuple[float | None, float | None]]:
+    """``((save_p25, save_p75), (share_p25, share_p75))`` on 0–100% scale for KPI labels.
+
+    Save cohort uses ``100*saves/views`` per row (same definition as the KPI value), not
+    ``save_rate``, so tertiles stay comparable when ``save_rate`` is sparsely populated.
+    Results are cached per process (~5 min) to avoid hammering PostgREST on repeat reads.
+    """
+    if not niche_id or sb is None:
+        return (None, None), (None, None)
+
+    now = time.monotonic()
+    cached = _KPI_QUANT_CACHE.get(niche_id)
+    if cached is not None and now - cached[0] < _KPI_QUANT_CACHE_TTL_S:
+        return cached[1]
+
+    try:
+        since = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+        res = (
+            sb.table("video_corpus")
+            .select("views, shares, saves")
+            .eq("niche_id", niche_id)
+            .gt("views", 0)
+            .gte("indexed_at", since)
+            .limit(limit)
+            .execute()
+        )
+        rows = list(res.data or [])
+    except Exception as exc:
+        logger.debug("[video_analyze] kpi cohort quantiles failed niche=%s: %s", niche_id, exc)
+        return (None, None), (None, None)
+
+    save_pcts: list[float] = []
+    share_pcts: list[float] = []
+    for r in rows:
+        v = int(r.get("views") or 0)
+        if v <= 0:
+            continue
+        sv = int(r.get("saves") or 0)
+        save_pcts.append(100.0 * sv / float(v))
+        sh = int(r.get("shares") or 0)
+        share_pcts.append(100.0 * sh / float(v))
+
+    def _qpct(vals: list[float]) -> tuple[float | None, float | None]:
+        if len(vals) < min_samples:
+            return None, None
+        vals_sorted = sorted(vals)
+        n = len(vals_sorted)
+        p25 = vals_sorted[max(0, (n * 25) // 100)]
+        p75 = vals_sorted[min(n - 1, (n * 75) // 100)]
+        if p75 <= p25:
+            return None, None
+        return float(p25), float(p75)
+
+    out = _qpct(save_pcts), _qpct(share_pcts)
+    _KPI_QUANT_CACHE[niche_id] = (now, out)
+    return out
+
+
+def classify_kpi_tertile_label(
+    value: float,
+    p25: float | None,
+    p75: float | None,
+    *,
+    metric: str = "",
+) -> str:
+    """``thấp`` / ``TB`` / ``cao`` / ``''`` when cohort band missing (audit SAVE-LABEL v4)."""
+    if p25 is None or p75 is None or p75 <= p25:
+        return ""
+    if value < p25:
+        label = "thấp"
+    elif value > p75:
+        label = "cao"
+    else:
+        label = "TB"
+    if metric:
+        logger.debug(
+            "[metric_label] metric=%s value=%s p25=%s p75=%s → label=%s",
+            metric,
+            value,
+            p25,
+            p75,
+            label,
+        )
+    return label
+
+
 def build_kpis(
     video: dict[str, Any],
     niche_meta: dict[str, Any],
     *,
     mode: Literal["win", "flop"],
     retention_end_pct: float,
+    cohort_save_p25_pct: float | None = None,
+    cohort_save_p75_pct: float | None = None,
+    cohort_share_p25_pct: float | None = None,
+    cohort_share_p75_pct: float | None = None,
 ) -> list[dict[str, str]]:
     views = int(video.get("views") or 0)
     shares = int(video.get("shares") or 0)
@@ -215,12 +325,41 @@ def build_kpis(
     ret_pct = f"{retention_end_pct:.0f}%"
     ret_delta = "top 5%" if retention_end_pct >= 70 else "ngách TB"
     save_rate = (saves / views * 100.0) if views else 0.0
-    sr_delta = "rất cao" if save_rate > 2.0 else "TB"
+    sr_l = classify_kpi_tertile_label(
+        save_rate,
+        cohort_save_p25_pct,
+        cohort_save_p75_pct,
+        metric="save_rate",
+    )
+    band_ok = (
+        cohort_save_p25_pct is not None
+        and cohort_save_p75_pct is not None
+        and cohort_save_p75_pct > cohort_save_p25_pct
+    )
+    if save_rate > 2.0 and (not band_ok or save_rate > cohort_save_p75_pct):
+        sr_delta = "rất cao"
+    elif sr_l:
+        sr_delta = sr_l
+    else:
+        sr_delta = ""
+
+    share_rate = (shares / views * 100.0) if views else 0.0
+    sh_l = classify_kpi_tertile_label(
+        share_rate,
+        cohort_share_p25_pct,
+        cohort_share_p75_pct,
+        metric="share_rate",
+    )
+    if sh_l:
+        share_delta = sh_l
+    else:
+        share_delta = "lan toả" if shares > 0 else "—"
+
     return [
         {"label": "VIEW", "value": _fmt_int_short(views), "delta": delta_views},
         {"label": "GIỮ CHÂN", "value": ret_pct, "delta": ret_delta},
         {"label": "SAVE RATE", "value": f"{save_rate:.1f}%", "delta": sr_delta},
-        {"label": "SHARE", "value": _fmt_int_short(shares), "delta": "lan toả"},
+        {"label": "SHARE", "value": _fmt_int_short(shares), "delta": share_delta},
     ]
 
 
@@ -455,6 +594,7 @@ def apply_rule_based_video_errors(
     end_ts = float(dur) if dur > 0 else 11.0
     skip_no_human = (
         content_format in _SILENT_FORMAT_EXCEPTIONS_VIDEO
+        or content_format in PRESENTER_NOT_REQUIRED_FORMATS
         or _product_led_silent_visual(analysis)
     )
     if (
@@ -514,6 +654,7 @@ def _response_from_diagnostics_row(
     niche_label: str,
     retention_source: Literal["real", "modeled"] = "modeled",
     cross_format_signal: dict[str, Any] | None = None,
+    user_sb: Any | None = None,
 ) -> dict[str, Any]:
     analysis = video.get("analysis_json") or {}
     if isinstance(analysis, str):
@@ -561,6 +702,13 @@ def _response_from_diagnostics_row(
             "style_tags": style_tags,
         }
 
+    nid_kpi = int(video.get("niche_id") or 0)
+    (save_p25, save_p75), (share_p25, share_p75) = (
+        fetch_niche_save_share_pct_quantiles_sync(user_sb, nid_kpi)
+        if user_sb is not None and nid_kpi
+        else ((None, None), (None, None))
+    )
+
     return {
         "video_id": video["video_id"],
         "mode": mode,
@@ -587,7 +735,16 @@ def _response_from_diagnostics_row(
             "target_vs_creator_median": target_vs_creator_median,
         },
         "enrichment": enrichment,
-        "kpis": build_kpis(video, niche_meta, mode=mode, retention_end_pct=ret_end),
+        "kpis": build_kpis(
+            video,
+            niche_meta,
+            mode=mode,
+            retention_end_pct=ret_end,
+            cohort_save_p25_pct=save_p25,
+            cohort_save_p75_pct=save_p75,
+            cohort_share_p25_pct=share_p25,
+            cohort_share_p75_pct=share_p75,
+        ),
         "segments": diag.get("segments") or [],
         "hook_phases": diag.get("hook_phases") or [],
         "errors": diag.get("flop_issues") or [],
@@ -928,6 +1085,8 @@ async def _live_search_references_for_finalize(
 def _select_corpus_references_for_finalize(
     niche_name: str,
     target_video_id: str,
+    *,
+    preferred_content_format: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Corpus refs when pool ≥ REF_N; otherwise Ensemble live search + on-demand analysis."""
     from getviews_pipeline.corpus_context import fetch_corpus_reference_pool_sync
@@ -938,8 +1097,17 @@ def _select_corpus_references_for_finalize(
     pool = fetch_corpus_reference_pool_sync(
         niche_name, days=30, limit=40, exclude_video_id=target_video_id
     )
+    pref = str(preferred_content_format or "").strip().lower()
+    if pref:
+        pool.sort(
+            key=lambda v: (
+                0 if str(v.get("_corpus_content_format") or "").strip().lower() == pref else 1,
+                -float(v.get("_corpus_er") or 0.0),
+            ),
+        )
+    else:
+        pool.sort(key=lambda v: -float(v.get("_corpus_er") or 0.0))
     if len(pool) >= REF_N:
-        pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
         skip = {target_video_id}
         picks = [v for v in pool if v.get("aweme_id") not in skip][:REF_N]
         if len(picks) >= REF_N:
@@ -988,7 +1156,11 @@ def finalize_video_narrative_layer(
 
     niche_name = str(meta.get("niche_label") or "")
     video_id = str(out.get("video_id") or "")
-    synthesis_refs, slim_refs = _select_corpus_references_for_finalize(niche_name, video_id)
+    synthesis_refs, slim_refs = _select_corpus_references_for_finalize(
+        niche_name,
+        video_id,
+        preferred_content_format=content_format or None,
+    )
     out["reference_videos"] = slim_refs
 
     views = int(meta.get("views") or 0)
@@ -1107,6 +1279,27 @@ def finalize_video_narrative_layer(
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
 
+    if narrative_vi_out is not None:
+        dur_note = float(meta.get("duration_sec") or user_stats.get("duration_sec") or 0.0)
+        # er_percentile_rank here is a ratio-derived score (~5–95), not a literal corpus
+        # percentile — treat as a low-engagement proxy vs retention on short clips.
+        if (
+            dur_note > 0
+            and dur_note <= 15.0
+            and retention_end_pct is not None
+            and retention_end_pct >= 75.0
+            and er_percentile_rank is not None
+            and er_percentile_rank < 40.0
+        ):
+            note = (
+                "Lưu ý: với video ngắn dưới 15 giây, tỷ lệ giữ chân cao thường "
+                "phản ánh độ dài clip chứ không phải mức độ quan tâm thực sự — "
+                "chỉ số quyết định phân phối vẫn là ER và tỷ lệ lưu."
+            )
+            vd0 = str(narrative_vi_out.get("van_de_chinh") or "").strip()
+            if note not in vd0:
+                narrative_vi_out["van_de_chinh"] = f"{vd0} {note}".strip() if vd0 else note
+
     niche_id_finalize = int(meta.get("niche_id") or 0)
     if format_cards_out and niche_id_finalize:
         format_cards_out = enrich_format_cards_from_corpus(
@@ -1209,7 +1402,9 @@ def run_video_analyze_pipeline(
     # only when meaningful.
     from getviews_pipeline.cross_format import get_cross_format_signal
     cross_format_signal = get_cross_format_signal(
-        user_sb, content_class_id=content_class_id,
+        user_sb,
+        content_class_id=content_class_id,
+        content_format=str(video.get("content_format") or "").strip() or None,
     )
     default_niche_meta = {
         "avg_views": None,
@@ -1291,6 +1486,7 @@ def run_video_analyze_pipeline(
             niche_label=niche_label_resolved,
             retention_source=retention_source,
             cross_format_signal=cross_format_signal,
+            user_sb=user_sb,
         )
         base["__narrative_analysis"] = analysis
         base["__narrative_content_format"] = str(video.get("content_format") or "")
@@ -1374,6 +1570,7 @@ def run_video_analyze_pipeline(
         niche_label=niche_label_resolved,
         retention_source=retention_source,
         cross_format_signal=cross_format_signal,
+        user_sb=user_sb,
     )
     out["__narrative_analysis"] = analysis
     out["__narrative_content_format"] = content_format_str
@@ -1557,7 +1754,9 @@ def run_video_analyze_on_demand(
     # only when meaningful.
     from getviews_pipeline.cross_format import get_cross_format_signal
     cross_format_signal = get_cross_format_signal(
-        user_sb, content_class_id=content_class_id,
+        user_sb,
+        content_class_id=content_class_id,
+        content_format=str(video.get("content_format") or "").strip() or None,
     )
     default_niche_meta = {
         "avg_views": None,
@@ -1652,6 +1851,7 @@ def run_video_analyze_on_demand(
         niche_label=niche_label_resolved,
         retention_source=retention_source,
         cross_format_signal=cross_format_signal,
+        user_sb=user_sb,
     )
     out["__narrative_analysis"] = analysis
     out["__narrative_content_format"] = content_format_str_od

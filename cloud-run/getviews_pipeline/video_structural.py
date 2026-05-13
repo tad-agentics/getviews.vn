@@ -6,10 +6,36 @@ LLM fills bounded copy elsewhere; this module stays pure JSON in → JSON out.
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Final
 
 # Reference layout: `artifacts/uiux-reference/screens/video.jsx` Timeline().
 # Percentages sum to 100; used when scenes are missing or unusable.
+# Hook decode strip — three cards, half-open partition of 0–3s (v4 HOOK-TS).
+HOOK_PHASE_WINDOWS: Final[tuple[tuple[float, float], ...]] = (
+    (0.0, 0.8),
+    (0.8, 1.8),
+    (1.8, 3.0),
+)
+
+
+def _hook_phase_slot(ts: float | None) -> int | None:
+    """Return card index 0..2 for timestamps in the hook window; None if outside 0–3s."""
+    if ts is None:
+        return None
+    try:
+        t = float(ts)
+    except (TypeError, ValueError):
+        return None
+    if t < 0.0 or t > 3.0:
+        return None
+    if t < 0.8:
+        return 0
+    if t < 1.8:
+        return 1
+    return 2
+
+
 _FALLBACK_SEGMENT_PCTS: Final[tuple[tuple[str, int, str], ...]] = (
     ("HOOK", 5, "accent"),
     ("PROMISE", 8, "ink-2"),
@@ -131,11 +157,21 @@ def decompose_segments(analysis: dict[str, Any]) -> list[dict[str, Any]]:
         name = names[i] if i < len(names) else f"SEG {i + 1}"
         ck = colors[i] if i < len(colors) else "ink-3"
         out.append({"name": name, "pct": pct, "color_key": ck})
+
+    pcts_only = [seg["pct"] for seg in out]
+    # Short clips: 8 near-equal beats = no real structure (audit TIMELINE-NOISE v4).
+    if (
+        duration <= 20.0
+        and len(pcts_only) >= 8
+        and max(pcts_only) - min(pcts_only) < 5
+    ):
+        return []
+
     return out
 
 
 def extract_hook_phases(analysis: dict[str, Any]) -> list[dict[str, str]]:
-    """Three hook window cards: deterministic ``t_range`` + ``label``; ``body`` is LLM-only (empty here).
+    """Three hook window cards: fixed ``t_range`` + assembled ``label``; ``body`` is empty.
 
     All enum values (``first_frame_type``, hook-timeline ``event``) are routed
     through ``enum_labels_vi`` before concatenation so the QA audit's BUG-02
@@ -144,6 +180,7 @@ def extract_hook_phases(analysis: dict[str, Any]) -> list[dict[str, str]]:
     / metadata for admin/debug surfaces — only the user-visible ``label``
     gets translated.
     """
+    from getviews_pipeline.analysis_guards import strip_out_of_range_timestamps
     from getviews_pipeline.enum_labels_vi import (
         first_frame_vi,
         hook_timeline_event_vi,
@@ -162,29 +199,54 @@ def extract_hook_phases(analysis: dict[str, Any]) -> list[dict[str, str]]:
     if speech_at is not None and str(speech_at).strip() != "":
         speech_s = _floatish(speech_at)
 
-    label_a = f"Mở: {first_frame_vi(first_frame, default='Khác')}"
+    parts: list[list[str]] = [[], [], []]
+    parts[0].append(f"Mở: {first_frame_vi(first_frame, default='Khác')}")
+    parts[1].append(f"Kiểu hook: {hook_type_vi(hook_type, default='Khác')}")
+    parts[2].append("Cam kết / payoff trong 3s đầu")
+
     if face_s is not None:
-        label_a = f"{label_a} · mặt lên @{face_s:.1f}s"
+        fi = _hook_phase_slot(face_s)
+        if fi is not None:
+            parts[fi].append(f"mặt lên @{face_s:.1f}s")
 
-    label_b = f"Kiểu hook: {hook_type_vi(hook_type, default='Khác')}"
-    timeline = ha.get("hook_timeline") or []
-    if isinstance(timeline, list) and timeline:
-        first_ev = timeline[0] if isinstance(timeline[0], dict) else {}
-        ev_raw = str(first_ev.get("event") or "")
-        note = str(first_ev.get("note") or "").strip()
-        ev_vi = hook_timeline_event_vi(ev_raw, default="")
-        if ev_vi or note:
-            label_b = f"{ev_vi}{(': ' + note) if note else ''}".strip(" :")
-
-    label_c = "Cam kết / payoff trong 3s đầu"
     if speech_s is not None:
-        label_c = f"Lời đầu @{speech_s:.1f}s"
+        si = _hook_phase_slot(speech_s)
+        if si is not None:
+            if si == 2:
+                parts[2] = [x for x in parts[2] if x != "Cam kết / payoff trong 3s đầu"]
+            parts[si].append(f"Lời đầu @{speech_s:.1f}s")
 
-    return [
-        {"t_range": "0.0–0.8s", "label": label_a[:120], "body": ""},
-        {"t_range": "0.8–1.8s", "label": label_b[:120], "body": ""},
-        {"t_range": "1.8–3.0s", "label": label_c[:120], "body": ""},
-    ]
+    timeline = ha.get("hook_timeline") or []
+    if isinstance(timeline, list):
+        for ev in timeline:
+            if not isinstance(ev, dict):
+                continue
+            t_ev = ev.get("t")
+            if t_ev is None:
+                continue
+            wi = _hook_phase_slot(_floatish(t_ev))
+            if wi is None:
+                continue
+            ev_raw = str(ev.get("event") or "")
+            note = str(ev.get("note") or "").strip()
+            ev_vi = hook_timeline_event_vi(ev_raw, default="")
+            lo, hi = HOOK_PHASE_WINDOWS[wi]
+            note = strip_out_of_range_timestamps(note, lo, hi)
+            line = f"{ev_vi}{(': ' + note) if note else ''}".strip(" :")
+            if line:
+                parts[wi].append(line)
+
+    cards: list[dict[str, str]] = []
+    for i, (lo, hi) in enumerate(HOOK_PHASE_WINDOWS):
+        label = " · ".join(s for s in parts[i] if s).strip()
+        label = strip_out_of_range_timestamps(label, lo, hi)
+        label = re.sub(r"\s*·\s*·+\s*", " · ", label)
+        label = re.sub(r"\s{2,}", " ", label).strip(" ·")
+        if i == 2 and not label:
+            label = "Cam kết / payoff trong 3s đầu"
+        cards.append({"t_range": f"{lo:.1f}–{hi:.1f}s", "label": label[:120], "body": ""})
+
+    return cards
 
 
 def model_retention_curve(

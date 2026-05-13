@@ -21,6 +21,14 @@ from getviews_pipeline.video_analyze import (
 )
 
 
+@pytest.fixture
+def sample_rows_for_quantiles() -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for s in (100, 200, 300, 400, 500, 600, 700, 800, 900, 1000):
+        rows.append({"views": 10_000, "shares": 0, "saves": s})
+    return rows
+
+
 def test_is_flop_mode_low_views_vs_niche() -> None:
     niche = {
         "organic_avg_views": 100_000,
@@ -39,6 +47,76 @@ def test_is_flop_mode_low_er() -> None:
     }
     video = {"views": 80_000, "engagement_rate": 0.02}
     assert is_flop_mode(video, niche) is True
+
+
+def test_build_kpis_save_rate_thap_when_below_cohort_p25() -> None:
+    from getviews_pipeline.video_analyze import build_kpis
+
+    out = build_kpis(
+        {"views": 10_000, "shares": 100, "saves": 0},
+        {"avg_views": 50_000},
+        mode="flop",
+        retention_end_pct=60,
+        cohort_save_p25_pct=0.05,
+        cohort_save_p75_pct=1.5,
+    )
+    save_kpi = next(k for k in out if k["label"] == "SAVE RATE")
+    assert save_kpi["delta"] == "thấp"
+
+
+def test_build_kpis_save_rate_empty_delta_when_no_cohort_band() -> None:
+    from getviews_pipeline.video_analyze import build_kpis
+
+    out = build_kpis(
+        {"views": 10_000, "shares": 0, "saves": 0},
+        {"avg_views": 50_000},
+        mode="flop",
+        retention_end_pct=60,
+    )
+    save_kpi = next(k for k in out if k["label"] == "SAVE RATE")
+    assert save_kpi["delta"] == ""
+
+
+def test_build_kpis_rat_cao_when_no_cohort_and_save_high() -> None:
+    from getviews_pipeline.video_analyze import build_kpis
+
+    out = build_kpis(
+        {"views": 10_000, "shares": 0, "saves": 400},
+        {"avg_views": 50_000},
+        mode="flop",
+        retention_end_pct=60,
+    )
+    save_kpi = next(k for k in out if k["label"] == "SAVE RATE")
+    assert save_kpi["delta"] == "rất cao"
+
+
+def test_build_kpis_tertile_when_absolute_high_but_below_cohort_p75() -> None:
+    """Above 2% absolute but below niche p75 → không dùng ``rất cao``."""
+    from getviews_pipeline.video_analyze import build_kpis
+
+    out = build_kpis(
+        {"views": 10_000, "shares": 0, "saves": 500},
+        {"avg_views": 50_000},
+        mode="flop",
+        retention_end_pct=60,
+        cohort_save_p25_pct=2.5,
+        cohort_save_p75_pct=8.0,
+    )
+    save_kpi = next(k for k in out if k["label"] == "SAVE RATE")
+    assert save_kpi["delta"] == "TB"
+
+
+def test_fetch_niche_quantiles_use_saves_over_views(sample_rows_for_quantiles: list[dict[str, Any]]) -> None:
+    import getviews_pipeline.video_analyze as va
+
+    va._KPI_QUANT_CACHE.clear()
+    mock_res = MagicMock()
+    mock_res.data = sample_rows_for_quantiles
+    sb = MagicMock()
+    sb.table.return_value.select.return_value.eq.return_value.gt.return_value.gte.return_value.limit.return_value.execute.return_value = mock_res
+
+    (s25, s75), _sh = va.fetch_niche_save_share_pct_quantiles_sync(sb, 4242, min_samples=5, limit=200)
+    assert s25 == 3.0 and s75 == 8.0
 
 
 def test_response_from_diagnostics_row_maps_flop_issues_to_errors() -> None:

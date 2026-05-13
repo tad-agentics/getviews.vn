@@ -127,6 +127,16 @@ def test_no_human_skipped_when_product_first_frame() -> None:
     assert not any(e.get("error_id") == "no_human_presence" for e in out)
 
 
+def test_no_human_skipped_for_product_showcase_format_v4() -> None:
+    analysis = {
+        "has_human_speaking_to_camera": False,
+        "has_expressed_opinion_or_question": False,
+        "hook_analysis": {"first_frame_type": "face"},
+    }
+    out = apply_rule_based_video_errors([], analysis, "product_showcase", duration_sec=10.0)
+    assert not any(e.get("error_id") == "no_human_presence" for e in out)
+
+
 def test_dedupe_keeps_hook_high_outside_hook_window() -> None:
     errs = [
         {
