@@ -8,6 +8,22 @@ from getviews_pipeline.pipelines import enrich_format_cards_from_corpus
 
 
 @patch("getviews_pipeline.pipelines.fetch_format_corpus_enrichment_sync")
+def test_enrich_overwrites_llm_stats_when_corpus_cannot_benchmark(mock_fetch):
+    mock_fetch.return_value = (None, None, [])
+    cards = [
+        {
+            "content_format": "haul",
+            "view_range": "1 – 9",
+            "engagement_rate": "9,99%",
+        },
+    ]
+    out = enrich_format_cards_from_corpus(cards, 2, analyzed_content_format=None)
+    mock_fetch.assert_called_once()
+    assert "mẫu corpus" in out[0]["view_range"].lower()
+    assert out[0]["engagement_rate"] == "—"
+
+
+@patch("getviews_pipeline.pipelines.fetch_format_corpus_enrichment_sync")
 def test_enrich_distinct_corpus_slug_per_card(mock_fetch):
     def _fetch(fmt, nid, example_limit=3):
         return f"vr-{fmt}", f"er-{fmt}", [{"aweme_id": f"x-{fmt}"}]

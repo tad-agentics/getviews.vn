@@ -564,6 +564,7 @@ class VideoPayload(BaseModel):
     format_cards: list[dict[str, Any]] | None = None
     performance_tier: str | None = None
     bright_spot_signal: dict[str, Any] | None = None
+    view_scenarios: list[dict[str, Any]] | None = None
     channel_context: dict[str, Any] | None = None
     reference_videos: list[dict[str, Any]] | None = None
     diagnosis: str | None = None

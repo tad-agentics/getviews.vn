@@ -1,4 +1,32 @@
-from getviews_pipeline.pipelines import compute_bright_spot_signal
+from getviews_pipeline.pipelines import compute_bright_spot_signal, compute_view_scenarios
+
+
+def test_retention_and_channel_low_triggers_bright_spot():
+    result = compute_bright_spot_signal(
+        None,
+        None,
+        retention_end_pct=82.0,
+        channel_views_ratio=0.02,
+    )
+    assert result is not None
+    assert result["signal_type"] == "hook_only_problem"
+    assert "0.02" in result["message_vi"]
+
+
+def test_view_scenarios_flop_only():
+    assert compute_view_scenarios(
+        performance_tier="flop",
+        views_vs_avg_ratio=0.3,
+        channel_views_ratio=None,
+    )
+    assert (
+        compute_view_scenarios(
+            performance_tier="hit",
+            views_vs_avg_ratio=0.3,
+            channel_views_ratio=None,
+        )
+        is None
+    )
 
 
 def test_hook_only_problem():

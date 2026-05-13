@@ -493,6 +493,7 @@ async def stream(
                     "narrative_vi",
                     "format_cards",
                     "bright_spot_signal",
+                    "view_scenarios",
                     "channel_context",
                     "performance_tier",
                     "errors",

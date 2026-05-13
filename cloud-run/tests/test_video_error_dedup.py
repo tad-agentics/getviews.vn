@@ -80,6 +80,53 @@ def test_dedupe_hook_high_overlaps_hook_window_even_if_end_past_4s() -> None:
     assert "Nói rõ lợi ích" in str(out[0].get("fix") or "")
 
 
+def test_collapse_two_hook_high_without_lang_market() -> None:
+    analysis = {
+        "has_human_speaking_to_camera": True,
+        "has_expressed_opinion_or_question": True,
+    }
+    raw = [
+        {
+            "error_id": "ERR_hook_open",
+            "sev": "high",
+            "t": 0.0,
+            "end": 2.0,
+            "title": "Hook một",
+            "detail": "",
+            "fix": "Fix A",
+        },
+        {
+            "error_id": "ERR_hook_second",
+            "sev": "high",
+            "t": 0.0,
+            "end": 3.0,
+            "title": "Hook hai",
+            "detail": "",
+            "fix": "Fix B",
+        },
+    ]
+    out = apply_rule_based_video_errors(
+        raw,
+        analysis,
+        "tutorial",
+        caption_hint="",
+        duration_sec=30.0,
+    )
+    highs = [e for e in out if str(e.get("sev")) == "high"]
+    assert len(highs) == 1
+    assert "Gộp" in str(highs[0].get("fix") or "")
+
+
+def test_no_human_skipped_when_product_first_frame() -> None:
+    analysis = {
+        "has_human_speaking_to_camera": False,
+        "has_expressed_opinion_or_question": False,
+        "hook_analysis": {"first_frame_type": "product"},
+    }
+    out = apply_rule_based_video_errors([], analysis, "tutorial", duration_sec=10.0)
+    assert not any(e.get("error_id") == "no_human_presence" for e in out)
+
+
 def test_dedupe_keeps_hook_high_outside_hook_window() -> None:
     errs = [
         {

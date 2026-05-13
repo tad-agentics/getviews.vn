@@ -50,6 +50,7 @@ import type {
   VideoFlopIssue,
   VideoLesson,
   VideoNicheMeta,
+  ViewScenario,
 } from "@/lib/api-types";
 
 // Matches CLAIM_TIERS.pattern_spread — UI only, do not import tiers.
@@ -485,6 +486,8 @@ export function VideoBody({
     narrativeReady?.bright_spot_signal ??
     preSynth?.bright_spot_signal ??
     report.bright_spot_signal;
+  const viewScenariosEffective: ViewScenario[] | undefined =
+    narrativeReady?.view_scenarios ?? report.view_scenarios;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
   const streamedErrs = narrativeReady?.errors;
@@ -657,7 +660,10 @@ export function VideoBody({
         <header>
           {isFlop ? (
             <div className="gv-mono mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
-              CHẨN ĐOÁN VIDEO CỦA BẠN · {flopIssueCount} ĐIỂM LỖI CẤU TRÚC
+              {brightEffective?.signal_type === "hook_only_problem" ||
+              (retEnd != null && retEnd >= 68)
+                ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
+                : `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`}
             </div>
           ) : report.carousel_subformat_label ? (
             <div className="gv-mono mb-1 text-[9.5px] tracking-[0.18em] text-[color:var(--gv-ink-4)]">
@@ -708,6 +714,22 @@ export function VideoBody({
                 {narrativeVi.ket_luan_nhanh}
               </p>
             </div>
+          </section>
+        ) : null}
+
+        {isFlop && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
+          <section className="mb-4" aria-label="Mức độ cải thiện có thể kỳ vọng">
+            <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+              Mức cải thiện lượt xem (ước lượng thận trọng)
+            </p>
+            <ol className="m-0 list-decimal space-y-2 pl-4 text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
+              {viewScenariosEffective.map((row, idx) => (
+                <li key={`${idx}-${row.focus_vi.slice(0, 24)}`}>
+                  <span className="font-medium text-foreground">{row.focus_vi}</span>
+                  <span className="text-[color:var(--gv-ink-3)]"> — {row.outcome_vi}</span>
+                </li>
+              ))}
+            </ol>
           </section>
         ) : null}
 

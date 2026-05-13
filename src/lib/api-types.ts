@@ -1070,6 +1070,12 @@ export interface BrightSpotSignal {
   message_vi: string;
 }
 
+/** Qualitative view upside ladder (flop diagnoses) — ranges only, no predicted view counts. */
+export interface ViewScenario {
+  focus_vi: string;
+  outcome_vi: string;
+}
+
 export interface FormatCardExample {
   aweme_id: string;
   desc: string;
@@ -1136,6 +1142,7 @@ export interface VideoAnswerNarrativeReadyPayload {
   format_cards?: FormatCard[];
   errors?: VideoFlopIssue[];
   bright_spot_signal?: BrightSpotSignal;
+  view_scenarios?: ViewScenario[];
 }
 
 // ── Diagnostic template (2026-04-22) ──────────────────────────────────────
@@ -1212,6 +1219,8 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   carousel_slide_count?: number;
   narrative_vi?: NarrativeVi;
   bright_spot_signal?: BrightSpotSignal;
+  /** Flop-only qualitative upside ladder (hook → format rewrite). */
+  view_scenarios?: ViewScenario[];
   format_cards?: FormatCard[];
   channel_context?: ChannelContext;
   reference_videos?: ReferenceVideoCard[];

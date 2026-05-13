@@ -206,8 +206,52 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
 def compute_bright_spot_signal(
     er_percentile_rank: float | None,
     views_vs_avg_ratio: float | None,
+    *,
+    retention_end_pct: float | None = None,
+    channel_views_ratio: float | None = None,
 ) -> dict[str, Any] | None:
-    """er_percentile_rank is an engagement-rate proxy (50 = at niche avg); not raw retention."""
+    """Bright spot / contradiction framing.
+
+    ``er_percentile_rank`` is an ER proxy (50 = format average), not TikTok retention.
+    ``retention_end_pct`` is the modeled/numeric retention-at-end when available.
+    """
+    low_views_corpus = views_vs_avg_ratio is not None and views_vs_avg_ratio < 1.0
+    low_views_channel = channel_views_ratio is not None and channel_views_ratio < 0.5
+    low_distribution = low_views_corpus or low_views_channel
+
+    strong_retention = retention_end_pct is not None and retention_end_pct >= 68.0
+    strong_er = er_percentile_rank is not None and er_percentile_rank >= 70.0
+
+    if low_distribution and (strong_retention or strong_er):
+        clauses: list[str] = []
+        if strong_retention and retention_end_pct is not None:
+            clauses.append(
+                f"Đường cong giữ chân cuối ~{retention_end_pct:.0f}% — bạn đang giữ người xem "
+                "tốt hơn đa số clip cùng format."
+            )
+        if strong_er:
+            clauses.append(
+                "Engagement rate (tương tác/view) cũng nghiêng về nhóm trên trung bình format."
+            )
+        if low_views_corpus and views_vs_avg_ratio is not None:
+            clauses.append(
+                f"Lượt xem chỉ ~{views_vs_avg_ratio:.2f}× TB format — phần gap chính nằm ở hook "
+                "và lượt vào đầu, không phải ở chỗ “giữ chân”."
+            )
+        elif low_views_channel and channel_views_ratio is not None:
+            clauses.append(
+                f"So với trung vị kênh, clip ~{channel_views_ratio:.2f}× — đa phần là bài toán "
+                "phân phối / hook, không phải “video dở” theo nghĩa giữ người xem."
+            )
+        tail = (
+            " Các ý “lỗi cấu trúc” bên dưới là **đòn bẩy để mở thêm view**, "
+            "không phủ nhận tín hiệu giữ chân đang mạnh."
+        )
+        return {
+            "signal_type": "hook_only_problem",
+            "message_vi": (" ".join(clauses).strip() + tail).strip(),
+        }
+
     if er_percentile_rank is None or views_vs_avg_ratio is None:
         return None
 
@@ -218,18 +262,18 @@ def compute_bright_spot_signal(
         return {
             "signal_type": "hook_only_problem",
             "message_vi": (
-                "Engagement rate cao hơn trung bình niche — nội dung tạo được tương tác tốt. "
+                "Engagement rate cao hơn trung bình format — nội dung tạo được tương tác tốt. "
                 "Vấn đề là lượt xem vẫn thấp, nghĩa là hook chưa đủ mạnh để kéo đủ người vào xem."
             ),
         }
-    elif high_er and high_views:
+    if high_er and high_views:
         return {
             "signal_type": "performing_well",
             "message_vi": (
                 "Video đang hoạt động tốt — cả engagement rate lẫn lượt xem đều vượt mức trung bình format."
             ),
         }
-    elif not high_er and not high_views:
+    if not high_er and not high_views:
         if er_percentile_rank < 30:
             return {
                 "signal_type": "content_and_hook",
@@ -246,6 +290,39 @@ def compute_bright_spot_signal(
             ),
         }
     return None
+
+
+def compute_view_scenarios(
+    *,
+    performance_tier: str,
+    views_vs_avg_ratio: float | None,
+    channel_views_ratio: float | None,
+) -> list[dict[str, str]] | None:
+    """Qualitative ROI ladder for flop diagnoses — ranges only, no fabricated view counts."""
+    if performance_tier != "flop":
+        return None
+    if views_vs_avg_ratio is None and channel_views_ratio is None:
+        return None
+    return [
+        {
+            "focus_vi": "Ưu tiên hook + CTA rõ trong ~3s đầu",
+            "outcome_vi": (
+                "Thực tế hay gặp: ~1,5–2,5× lượt xem so với clip hiện tại khi format vẫn hợp ngách."
+            ),
+        },
+        {
+            "focus_vi": "Hook + khung hình đầu clip (cắt, sản phẩm, text)",
+            "outcome_vi": (
+                "Biên độ thường ~3–5× khi bám benchmark format đang chạy trên kho."
+            ),
+        },
+        {
+            "focus_vi": "Viết lại cấu trúc theo benchmark kênh / format",
+            "outcome_vi": (
+                "Mục tiêu thực tế: tiến gần TB lượt xem kênh và TB format — không có shortcut đảm bảo viral."
+            ),
+        },
+    ]
 
 
 def classify_performance_tier_corpus(views: int, format_avg: float | None) -> str:
@@ -503,8 +580,12 @@ def enrich_format_cards_from_corpus(
         view_r, er_r, examples = cache[slug]
         if view_r:
             cc["view_range"] = view_r
+        else:
+            cc["view_range"] = "Chưa đủ mẫu corpus (≥5 video/30 ngày) để chốt dải view."
         if er_r:
             cc["engagement_rate"] = er_r
+        else:
+            cc["engagement_rate"] = "—"
         if examples:
             cc["format_examples"] = examples
         else:
@@ -1807,6 +1888,7 @@ async def run_video_diagnosis(
     narrative_vi_out: dict[str, Any] | None = None
     format_cards_out: list[dict[str, Any]] | None = None
     bright_spot_out: dict[str, Any] | None = None
+    view_scenarios_out: list[dict[str, str]] | None = None
     channel_context_out: dict[str, Any] | None = None
     refined_performance_tier_out: str | None = None
     diagnosis_errors_out: list[dict[str, Any]] | None = None
@@ -1908,7 +1990,12 @@ async def run_video_diagnosis(
             views_vs_avg_ratio = (
                 curr_views / float(format_avg) if format_avg else None
             )
-            bright_spot_signal = compute_bright_spot_signal(er_percentile_rank, views_vs_avg_ratio)
+            bright_spot_pre = compute_bright_spot_signal(
+                er_percentile_rank,
+                views_vs_avg_ratio,
+                retention_end_pct=None,
+                channel_views_ratio=None,
+            )
             corpus_tier = classify_performance_tier_corpus(curr_views, format_avg)
 
             extraction_mode_stream = "win" if corpus_tier == "hit" else "flop"
@@ -1947,7 +2034,6 @@ async def run_video_diagnosis(
             }
             diagnosis_errors_out = errors
             diagnosis_kpi_out = kpi_dict
-            bright_spot_out = bright_spot_signal
 
             ref_pairs: list[tuple[dict[str, Any], str]] = []
             for ref in references:
@@ -1963,7 +2049,7 @@ async def run_video_diagnosis(
                 {
                     "type": "pre_synthesis",
                     "kpi": kpi_dict,
-                    "bright_spot_signal": bright_spot_signal,
+                    "bright_spot_signal": bright_spot_pre,
                     "performance_tier": corpus_tier,
                     "reference_videos": [_slim_reference_video(r, s) for r, s in ref_pairs],
                 },
@@ -1983,6 +2069,28 @@ async def run_video_diagnosis(
             channel_context_out = channel_context_payload
             refined_performance_tier_out = refined_tier
             emit(step_queue, {"type": "channel_context", **channel_context_payload})
+
+            ch_ratio: float | None = None
+            if channel_context_payload.get("available"):
+                med_v = channel_context_payload.get("median_views")
+                try:
+                    med_f = float(med_v) if med_v is not None else 0.0
+                except (TypeError, ValueError):
+                    med_f = 0.0
+                if med_f > 0:
+                    ch_ratio = curr_views / med_f
+            bright_spot_signal = compute_bright_spot_signal(
+                er_percentile_rank,
+                views_vs_avg_ratio,
+                retention_end_pct=None,
+                channel_views_ratio=ch_ratio,
+            )
+            bright_spot_out = bright_spot_signal
+            view_scenarios_out = compute_view_scenarios(
+                performance_tier=refined_tier,
+                views_vs_avg_ratio=views_vs_avg_ratio,
+                channel_views_ratio=ch_ratio,
+            )
 
             errors_prompt = list(errors)
             if refined_tier == "hit":
@@ -2027,6 +2135,8 @@ async def run_video_diagnosis(
             }
             if bright_spot_out is not None:
                 _nr_ev["bright_spot_signal"] = bright_spot_out
+            if view_scenarios_out is not None:
+                _nr_ev["view_scenarios"] = view_scenarios_out
             emit(step_queue, _nr_ev)
             diagnosis = diagnosis_md
         # Server-side guarantee: ensure all reference videos appear as video_ref
@@ -2160,6 +2270,8 @@ async def run_video_diagnosis(
             out["kpi"] = diagnosis_kpi_out
         if bright_spot_out is not None:
             out["bright_spot_signal"] = bright_spot_out
+        if view_scenarios_out is not None:
+            out["view_scenarios"] = view_scenarios_out
         if channel_context_out is not None:
             out["channel_context"] = channel_context_out
         if refined_performance_tier_out is not None:

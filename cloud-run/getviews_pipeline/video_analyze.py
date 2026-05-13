@@ -83,6 +83,10 @@ _SILENT_FORMAT_EXCEPTIONS_VIDEO = frozenset(
         "text_overlay_only",
         "faceless",
         "highlight",
+        "product_showcase",
+        "jewelry",
+        "watch_flex",
+        "luxury_broll",
     }
 )
 
@@ -299,6 +303,78 @@ def _overlaps_hook_lang_dedupe_window(t: float, end: float) -> bool:
     return err_lo <= _HOOK_LANG_DEDUPE_WINDOW_END_SEC and err_hi >= 0.0
 
 
+def _is_hook_related_error(e: dict[str, Any]) -> bool:
+    eid = str(e.get("error_id") or "").lower()
+    title_l = str(e.get("title") or "").lower()
+    return (
+        "hook" in eid
+        or eid.startswith("err_hook")
+        or "hook" in title_l
+        or "mở đầu" in title_l
+        or title_l.startswith("mở ")
+    )
+
+
+def _collapse_hook_window_high_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Merge multiple high-severity hook errors in the opening window — avoids double-penalty."""
+    hook_high: list[dict[str, Any]] = []
+    rest: list[dict[str, Any]] = []
+    for e in errors:
+        if (
+            str(e.get("sev") or "") == "high"
+            and _is_hook_related_error(e)
+            and _overlaps_hook_lang_dedupe_window(
+                float(e.get("t") or 0.0),
+                float(e.get("end") or e.get("t") or 0.0),
+            )
+        ):
+            hook_high.append(e)
+        else:
+            rest.append(e)
+    if len(hook_high) <= 1:
+        return errors
+    primary = next(
+        (e for e in hook_high if str(e.get("error_id") or "") == "lang_market_mismatch"),
+        hook_high[0],
+    )
+    merged_fixes: list[str] = []
+    for e in hook_high:
+        if e is primary:
+            continue
+        fx = str(e.get("fix") or "").strip()
+        if fx and fx not in str(primary.get("fix") or ""):
+            merged_fixes.append(fx)
+    out_primary = dict(primary)
+    if merged_fixes:
+        base = str(out_primary.get("fix") or "").strip()
+        extra = "; ".join(merged_fixes[:3])
+        out_primary["fix"] = f"{base} (Gộp: {extra})" if base else extra
+    return [out_primary] + rest
+
+
+def _product_led_silent_visual(analysis: dict[str, Any]) -> bool:
+    """True when the opening is intentionally product-forward (no talking head expected)."""
+    ha = analysis.get("hook_analysis") if isinstance(analysis.get("hook_analysis"), dict) else None
+    if isinstance(ha, dict):
+        fft = str(ha.get("first_frame_type") or "").strip().lower()
+        if fft == "product":
+            return True
+    scenes = analysis.get("scenes") or []
+    if not isinstance(scenes, list):
+        return False
+    for s in scenes[:4]:
+        if not isinstance(s, dict):
+            continue
+        start = float(s.get("start") or 0.0)
+        if start > 4.0:
+            break
+        stype = str(s.get("type") or "")
+        subj = str(s.get("subject") or "")
+        if stype == "product_shot" or subj == "product":
+            return True
+    return False
+
+
 def _dedupe_lang_market_hook_errors(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """When lang_market_mismatch is present, drop redundant high-sev hook cards overlapping 0–4s."""
     if not any(str(e.get("error_id") or "") == "lang_market_mismatch" for e in errors):
@@ -369,11 +445,21 @@ def apply_rule_based_video_errors(
     dur = float(duration_sec or 0.0)
     if dur <= 0:
         dur = float((analysis.get("duration_sec") or analysis.get("video_duration_sec") or 0) or 0.0)
-    end_ts = float(dur) if dur > 0 else 0.0
+    if dur <= 0:
+        scenes = analysis.get("scenes") or []
+        if isinstance(scenes, list) and scenes:
+            last = scenes[-1]
+            if isinstance(last, dict):
+                dur = float(last.get("end") or 0.0)
+    end_ts = float(dur) if dur > 0 else 11.0
+    skip_no_human = (
+        content_format in _SILENT_FORMAT_EXCEPTIONS_VIDEO
+        or _product_led_silent_visual(analysis)
+    )
     if (
         not has_human
         and not has_opinion
-        and content_format not in _SILENT_FORMAT_EXCEPTIONS_VIDEO
+        and not skip_no_human
     ):
         out.append(
             {
@@ -393,7 +479,7 @@ def apply_rule_based_video_errors(
                 "end": end_ts,
             }
         )
-    return _dedupe_lang_market_hook_errors(out)
+    return _collapse_hook_window_high_errors(_dedupe_lang_market_hook_errors(out))
 
 
 def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
@@ -883,6 +969,7 @@ def finalize_video_narrative_layer(
         _truncate_transcripts,
         classify_performance_tier_corpus,
         compute_bright_spot_signal,
+        compute_view_scenarios,
         enrich_format_cards_from_corpus,
         fetch_channel_context_sync,
         refine_performance_tier,
@@ -966,7 +1053,31 @@ def finalize_video_narrative_layer(
     views_vs_avg_ratio = (
         float(views) / cohort_avg_views if cohort_avg_views and views >= 0 else None
     )
-    bright_spot_computed = compute_bright_spot_signal(er_percentile_rank, views_vs_avg_ratio)
+    curve_raw = out.get("retention_curve")
+    retention_end_pct: float | None = None
+    if isinstance(curve_raw, list) and curve_raw:
+        last_pt = curve_raw[-1]
+        if isinstance(last_pt, dict) and last_pt.get("pct") is not None:
+            try:
+                retention_end_pct = float(last_pt["pct"])
+            except (TypeError, ValueError):
+                retention_end_pct = None
+    ch_ratio_hint = meta.get("target_vs_creator_median")
+    try:
+        ch_ratio_f = float(ch_ratio_hint) if ch_ratio_hint is not None else None
+    except (TypeError, ValueError):
+        ch_ratio_f = None
+    bright_spot_computed = compute_bright_spot_signal(
+        er_percentile_rank,
+        views_vs_avg_ratio,
+        retention_end_pct=retention_end_pct,
+        channel_views_ratio=ch_ratio_f,
+    )
+    view_scenarios_computed = compute_view_scenarios(
+        performance_tier=performance_tier,
+        views_vs_avg_ratio=views_vs_avg_ratio,
+        channel_views_ratio=ch_ratio_f,
+    )
     errors_prompt = list(errors)
     if performance_tier == "hit":
         high_only = [e for e in errors_prompt if str(e.get("sev")) == "high"]
@@ -1014,6 +1125,11 @@ def finalize_video_narrative_layer(
                     if bright_spot_computed is not None
                     else {}
                 ),
+                **(
+                    {"view_scenarios": view_scenarios_computed}
+                    if view_scenarios_computed is not None
+                    else {}
+                ),
             },
         )
 
@@ -1021,6 +1137,8 @@ def finalize_video_narrative_layer(
     out["structural_errors"] = errors
     if bright_spot_computed is not None:
         out["bright_spot_signal"] = bright_spot_computed
+    if view_scenarios_computed is not None:
+        out["view_scenarios"] = view_scenarios_computed
     out["performance_tier"] = performance_tier
     if channel_context_payload:
         out["channel_context"] = channel_context_payload
