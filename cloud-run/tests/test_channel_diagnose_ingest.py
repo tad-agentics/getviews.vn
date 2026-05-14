@@ -491,8 +491,13 @@ async def test_select_niche_peer_videos_returns_empty_on_thin_corpus():
 async def test_select_niche_peer_videos_returns_tiles():
     from getviews_pipeline.channel_diagnose import select_niche_peer_videos
     mock_sb = MagicMock()
+    # Fixture uses the real column name from video_corpus (``views``, not
+    # ``views_count``). The select() argument is asserted below to lock in
+    # the right column — earlier code shipped with ``views_count`` and
+    # PostgREST silently 4xx'd on the unknown column, returning empty
+    # tiles in production.
     mock_sb.table.return_value.select.return_value.eq.return_value.neq.return_value.order.return_value.limit.return_value.execute.return_value.data = [
-        {"video_id": f"v{i}", "thumbnail_url": f"https://x.com/{i}.jpg", "views_count": 10_000 * (10 - i),
+        {"video_id": f"v{i}", "thumbnail_url": f"https://x.com/{i}.jpg", "views": 10_000 * (10 - i),
          "content_format": "product_closeup", "title": f"title {i}", "video_url": f"https://t.com/{i}",
          "creator_handle": f"peer{i}"}
         for i in range(6)
@@ -500,3 +505,9 @@ async def test_select_niche_peer_videos_returns_tiles():
     result = await select_niche_peer_videos(mock_sb, niche_id=1, exclude_handle="me", limit=4)
     assert len(result) == 4
     assert all("video_id" in t for t in result)
+    # Regression guard: the column rename must reach the .select() string.
+    select_args = mock_sb.table.return_value.select.call_args[0][0]
+    assert "views" in select_args.split(",")
+    assert "views_count" not in select_args
+    # Tile must surface the int from the ``views`` field.
+    assert result[0]["views"] == 100_000

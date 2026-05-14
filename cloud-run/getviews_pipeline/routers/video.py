@@ -413,7 +413,7 @@ async def _run_channel_diagnose(
             # Try corpus first
             vid_res = (
                 sb_user.table("video_corpus")
-                .select("views_count,content_format")
+                .select("views,content_format")
                 .eq("video_url", video_url)
                 .maybe_single()
                 .execute()
@@ -422,7 +422,7 @@ async def _run_channel_diagnose(
             if vrow:
                 creator_match = compute_creator_match(
                     str(vrow.get("content_format") or "product_closeup"),
-                    int(vrow.get("views_count") or 0),
+                    int(vrow.get("views") or 0),
                     channel_pattern,
                 )
         except Exception as exc:
