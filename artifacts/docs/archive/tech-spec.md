@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-05-14** — Pre-build specification. Superseded by `artifacts/docs/system-design.md` (current architecture) and `CLAUDE.md` (AI operating instructions). Keep for historical reference only — do not treat as authoritative.
+
 # Tech Spec — GetViews.vn
 **Version:** 1.0
 **Last updated:** 2026-04-09

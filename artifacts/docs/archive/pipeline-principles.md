@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-05-14** — Pipeline principles have been consolidated into `artifacts/docs/system-design.md` §12. The binding rules still apply — refer to `system-design.md` as the authoritative source going forward.
+
 # GetViews Pipeline Architecture Principles
 
 *Established 2026-05-13. Binding for all pipeline work. These principles govern `cloud-run/getviews_pipeline/`.*

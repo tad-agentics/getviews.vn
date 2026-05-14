@@ -48,83 +48,24 @@ GCP_PROJECT_ID=... ./deploy.sh                 # build + deploy to Cloud Run (as
 
 **Supabase Edge Functions:** Deno modules in `supabase/functions/`. Deploy via `supabase functions deploy [name]`. Migrations in `supabase/migrations/` — both Supabase MCP (remote apply) and local SQL file must be written; they must never drift. Regen types with `supabase gen types typescript --project-id <ref> > src/lib/database.types.ts` after schema changes.
 
-## Architecture (three-surface split)
+## Architecture
 
-This is not a single-codebase app. AI inference is split across three runtimes for latency and cost reasons — **understand which surface a feature belongs to before editing.**
+> Full system design, component map, data flows, caching, billing, background jobs, and critical invariants:
+> **`artifacts/docs/system-design.md`** — the single source of truth. Update it in the same commit as any architectural change.
 
-1. **React SPA (this repo root)** — Vite + React Router v7 in SPA mode (`ssr: false`). Only `/` is prerendered for SEO; everything else is client-rendered behind an auth guard. Hosted on Vercel. Source of truth for all UI.
+Quick reference for AI operating constraints:
 
-2. **Vercel Edge Functions (`api/`)** — `/api/chat` (text intents ⑤⑥⑦ + follow-ups). Streams Gemini SSE. Auth = user's Supabase JWT in `Authorization: Bearer`. Used for the fast/cheap path.
-
-3. **Cloud Run Python service (`cloud-run/`)** — FastAPI + `google-genai`. Owns video intents ①③④ and batch corpus ingest. SSE `/stream` endpoint called directly from the browser; JWT validated via Supabase JWKS (asymmetric, stateless). **Two services share one image** (selected via `SERVICE_ROLE` env) so live SSE traffic and 30-min cron batches don't share quota:
-   - `getviews-pipeline-user` (min:1, 2Gi, 300s) — `/intent`, `/video`, `/script`, `/home`, `/answer`, `/douyin`, plus a thin `batch_proxy` forwarder for `morning-ritual` + `scene-intelligence`.
-   - `getviews-pipeline-batch` (min:0, 4Gi, 3600s) — `/batch/*` + **`/admin/*`**.
-
-   This split is required because Vercel's 60s timeout cannot complete a video analysis, and because admin / cron workloads need different scaling and timeout caps than user-facing SSE.
-
-4. **Supabase** — DB + Auth + RLS + Storage + Edge Functions (Deno). **RLS is the only authorization boundary** — every table has RLS; JWT in the Supabase client scopes every query. Edge Functions (`supabase/functions/`) handle webhooks (PayOS), cron (expiry, free-query reset, prune, stale processing guard), and Resend email. No custom Node backend exists.
-
-### Intent routing
-
-`src/routes/_app/intent-router.ts` (frontend tier-1 router) decides per user message whether to hit `/api/chat` (Vercel Edge) or the Cloud Run SSE endpoint. URL/handle = structural (high confidence) → Cloud Run or `/app/channel` shortcut; explicit keyword → specialized pipeline; everything else → `follow_up` (free) on Vercel Edge. Don't reinvent routing inside screens — extend `detectIntent` + its tests (`intent-router.test.ts`).
-
-### Data flow / state
-
-- TanStack React Query = **all** server state. `useState` = local UI only. React Context = low-frequency shared state (auth). **No Zustand/Redux/Jotai.**
-- Query hooks live in `src/hooks/use*.ts` using keys from `src/lib/query-keys.ts`.
-- Supabase client is a **single instance** in `src/lib/supabase.ts`, built from `env` in `src/lib/env.ts` (Zod-validated at import). Never import `@supabase/supabase-js` directly from routes/components/Edge Functions outside this file.
-- Typed entity interfaces: `src/lib/api-types.ts` (hand-written) + `src/lib/database.types.ts` (generated). api-types re-exports / extends generated.
-
-### Auth
-
-- Supabase Auth only. `AuthProvider` (`src/lib/auth.tsx`) wraps the app in `src/root.tsx`; `useAuth()` exposes `user`, `session`, `loading`. Provider subscribes to `onAuthStateChange` for refresh/sign-out.
-- Auth guard = layout route `src/routes/_app/layout.tsx`. OAuth callback = `src/routes/_auth/callback/route.tsx`.
-- **Facebook OAuth is non-negotiable for the Vietnamese market** — don't remove it.
-
-### LLM boundary
-
-- All AI API keys are **server-only**. `GEMINI_API_KEY` lives in Cloud Run env + Vercel Edge env. **Never** `VITE_`-prefix an LLM key — it would ship in the client bundle.
-- Components and hooks never call Gemini directly. They go through Supabase Edge Functions, `/api/chat` (Vercel Edge), or Cloud Run SSE.
-- Frontend AI wrappers live in `src/lib/` (e.g. `src/lib/niche-resolver.ts`).
-- Models: **Gemini 3.x only.** Never reference Gemini 2.5 (EOL June 2026) or 2.0 (EOL March 2026) — `flash-lite-preview` for extraction/classification, `flash-preview` for Vietnamese synthesis. Cost ceiling ~$70/mo across all Gemini usage.
-
-### Critical invariants (TD-1 through TD-5)
-
-When touching billing, payments, or streaming, preserve these — they are the documented tech-debt guards:
-
-- **TD-1 — Atomic credit deduction:** use the Supabase RPC `decrement_credit()` which has a `WHERE credits > 0` guard. Never deduct via two-step read-then-write from the client.
-- **TD-2 — PayOS webhook idempotency:** `processed_webhook_events` UNIQUE constraint. Check before writes; retries must be safe.
-- **TD-3 — Concurrent request guard:** `profiles.is_processing` boolean for the analyze pipeline (TikTok-URL video work). Cron (`cron-reset-processing`) clears flags older than 5 min. The user-facing ritual regen (`POST /home/regenerate-ritual`) uses a separate in-memory in-flight set so a regen never blocks a credit-spending analysis.
-- **TD-4 — SSE reconnection:** Cloud Run emits `stream_id` + `seq` per token and replays from a 60s in-memory buffer on reconnect.
-- **TD-5 — Credits granted upfront at PAID webhook.** PayOS is **one-time**, not a subscription. There is no monthly top-up cron.
-
-Other hard rules: `video_corpus` INSERT is batch-only via service_role (client writes blocked by RLS); `chat_messages` are immutable (no UPDATE); soft-delete removed — sessions are hard-deleted via RPC (see migrations `_034`, `_035`, `_036`).
-
-### Niche model — two-axis (since 2026-05-13)
-
-The 2026-05-10 → 2026-05-13 two-axis refactor split the conflated `niche_taxonomy` into two independent concerns:
-
-- **`creator_niches`** (16 buckets) — UX-facing. Drives onboarding picker, Settings → Ngách, Trends pills, profile self-id (`profiles.creator_niche_id INTEGER FK`). Coarse, friendly Vietnamese labels matching how creators describe themselves ("tôi làm content beauty"). Cognitive load < 1s. Display order matches the seeded order in `20260510000004_two_axis_niche_pr1_schema.sql` plus `20260630000003_creator_niches_16_music_real_estate.sql` (music + real estate). **Single niche per user.**
-- **`content_classifications`** (74 categories) — analysis-facing. Sharp `(topic × format)` boundaries on `video_corpus.content_class_id`. Drives benchmark grouping + pattern thesis sample selection. `format_axis` denormalised for cheap cross-niche format queries.
-- **`creator_niche_content_classes`** — M:N junction. Most rows are 1:1 but some content_classes legitimately span (`travel_food_tour ∈ {Travel, Food}`). `is_primary` flags the canonical home for benchmarks.
-
-Onboarding is a single radio pick. Settings → Ngách offers a confirm-modal change that fires `POST /home/regenerate-ritual` so the user gets fresh Home content without waiting for the nightly cron.
-
-`profiles.primary_niche` was dropped in PR6 (2026-05-13). Cloud Run profile reads (`deps.py`, `morning_ritual.py`, `channel_analyze.py`, `routers/video.py`) read `creator_niche_id` and resolve to the representative legacy `niche_taxonomy.id` via `profile_niches.legacy_niche_id_for_creator_niche()` so downstream queries (`video_corpus.niche_id` filters in `compute_pulse` / pattern thesis / `daily_ritual`) keep working unchanged. The mirror FE helper is `legacyNicheIdForCreatorNiche()` in `src/lib/profileNiches.ts` — both must stay in sync. **Cutover order:** apply PR1–PR3, deploy PR5-capable Cloud Run + FE, then apply PR6 — see `artifacts/docs/two-axis-niche-cutover-runbook.md`.
-
-`niche_taxonomy` table + `video_corpus.niche_id` column are intentionally kept (downstream analysis still queries them). Future work: pivot pattern thesis / hook efficacy queries from `niche_id` filters to `content_class_id` joins through the junction — sharper benchmarks once corpus scales. PR2 backfilled `video_corpus.content_class_id` from `(niche_id × content_format)` so the column is ready.
-
-FE legacy-niche helpers in `src/lib/profileNiches.ts`: `RETIRED_NICHE_TAXONOMY_IDS` (filter out of legacy pickers — used by `useNicheTaxonomy()` for label lookups), `NICHE_TAXONOMY_ALIASES` (resolve legacy ids when video_corpus.niche_id references a retired niche). Always update both when a migration retires or merges a legacy niche.
-
-The `morning-ritual` cron generates **one 3-script bundle per user** (was per-niche-up-to-3 before the 2026-05-05 single-niche refactor). Scope simplification cut Gemini cost ~3×.
-
-### Route structure
-
-`src/routes.ts` declares the routes explicitly (not pure file-based). Landing at `/` (prerendered), `/login`, `/signup`, `/auth/callback`, then `layout("routes/_app/layout.tsx", …)` guards all `/app/*` routes: `answer`, `onboarding`, `history`, `history/chat/:sessionId` (read-only legacy transcript viewer), `trends`, `douyin`, `compare`, `channel`, `script`, `script/shoot/:draftId`, `settings`, `learn-more`, `pricing`, `checkout`, `payment-success`, `admin`. The former `/app/chat` and `/app/video` surfaces were removed: chat → archived in Phase C; video paste → folded into `/app/answer` as a video-template session in the video-as-template migration. `/app/admin` is gated client-side by `useIsAdmin` (`profiles.is_admin = true`) and server-side by `require_admin` on the batch pod.
-
-Every `/app/*` leaf route **must** be code-split with `React.lazy` + `Suspense` in its `route.tsx`; the real screen lives alongside (e.g. `AnswerScreen.tsx`). Keep the landing page, auth routes, and layout modules eager — they run on every navigation.
-
-Do **not** use React Router v7 `clientLoader` for data. TanStack Query is the single source of truth.
+- **Three runtimes:** React SPA (Vercel) · Vercel Edge (`api/`) · Cloud Run Python (`cloud-run/`). Understand which surface owns a feature before editing.
+- **Gemini API keys are server-only.** `VITE_` prefix on a Gemini key ships it to the client bundle — forbidden.
+- **RLS is the only auth boundary** for DB access. No middleware layer.
+- **TanStack Query = all server state.** `useState` = local UI. No Zustand/Redux/Jotai.
+- **Supabase client is a single instance** (`src/lib/supabase.ts`). Never import `@supabase/supabase-js` elsewhere.
+- **`video_corpus` INSERT is batch-only** (service role). `chat_messages` are immutable (no UPDATE).
+- **Gemini 3.x only.** `flash-lite-preview` for extraction/classification, `flash-preview` for Vietnamese synthesis. Cost ceiling ~$70/mo.
+- **Facebook OAuth is non-negotiable** for the Vietnamese market.
+- **Intent routing:** extend `detectIntent()` in `src/routes/_app/intent-router.ts` — never reinvent routing inside screens.
+- **Every `/app/*` leaf route** must be code-split with `React.lazy` + `Suspense`. Do not use `clientLoader`.
+- **Critical invariants TD-1–TD-5** (credit deduction, webhook idempotency, processing guard, SSE reconnection, upfront credits) — see `system-design.md` §10.
 
 ## Design system
 
@@ -164,7 +105,8 @@ This repo is developed by a multi-agent team orchestrated via Cursor slash comma
 For operational context while working, read:
 - `agent-workspace/ACTIVE_CONTEXT.md` — current focus + active workstreams (gitignored)
 - `agent-workspace/memory/YYYY-MM-DD.md` — daily append-only log (gitignored)
-- `artifacts/docs/tech-spec.md`, `artifacts/plans/build-plan.md`, `artifacts/docs/changelog.md` — tracked specs
+- `artifacts/docs/system-design.md` — architecture, flows, invariants (primary reference)
+- `artifacts/plans/build-plan.md`, `artifacts/docs/changelog.md` — feature tracker + deviations
 - `artifacts/qa-reports/` — per-feature baselines
 
 Commit convention (bisect-friendly, one logical change per commit):
