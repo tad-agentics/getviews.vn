@@ -86,7 +86,7 @@ AI inference location:
 - Facebook OAuth is non-negotiable for the Vietnamese market — do not remove or deprioritize
 - Vietnamese language throughout all UI copy — no English strings in user-facing UI
 - Mobile-first viewport: 360–393px baseline, 44×44px minimum touch targets
-- R2 buckets (`getviews-frames`, `getviews-videos`) are public — no signed URLs needed (public TikTok content thumbnails/clips)
+- R2 single bucket (`getviews-media`, default — set via `R2_BUCKET_NAME`) is public — no signed URLs needed (public TikTok content thumbnails/clips). Five key namespaces: `frames/`, `thumbnails/`, `videos/`, `video_shots/`. Dedup invariant: at most one extension per video_id under `thumbnails/`. Janitor cron runs Sundays 18:00 UTC (`cron-batch-r2-janitor`). Full architecture in `artifacts/docs/system-design.md §15`.
 - Chat messages are immutable — no UPDATE on `chat_messages`; use soft-delete on sessions via `deleted_at`
 - `video_corpus` INSERT is batch-only (service role via Cloud Run) — RLS blocks client writes
 - ZaloPay in Figma Make PricingScreen — confirm PayOS integration supports it before launching

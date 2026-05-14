@@ -48,18 +48,21 @@
 │  Postgres (RLS on every table)                                     │
 │  Auth (Google OAuth + Facebook OAuth — FB non-negotiable for VN)   │
 │  Edge Functions (Deno) — webhooks + cron                           │
-│  Storage — not used for video (R2 handles frames/videos)           │
+│  Storage — not used (R2 handles frames/thumbnails/videos/shots)    │
 │  pg_cron — schedules HTTP calls to Cloud Run batch pod             │
 └────────────────────────────────────────────────────────────────────┘
                  │
                  ▼
-        ┌─────────────────┐
-        │  Cloudflare R2  │
-        │  getviews-frames│
-        │  getviews-videos│
-        │  Public buckets │
-        │  (no signed URL)│
-        └─────────────────┘
+        ┌──────────────────────────────────────┐
+        │  Cloudflare R2 — single public bucket │
+        │  getviews-media (R2_BUCKET_NAME)      │
+        │  Namespaces:                          │
+        │   frames/{id}/{0,1,2}.png             │
+        │   thumbnails/{id}.png or .jpg         │
+        │   videos/{id}.mp4                     │
+        │   video_shots/{id}/{n}.jpg            │
+        │  No signed URLs — all public CDN      │
+        └──────────────────────────────────────┘
 ```
 
 **Key boundaries:**
@@ -526,6 +529,75 @@ Returns today's morning ritual for the caller's niche. 404 with `"ritual_no_row"
 | `POST /admin/trigger/morning_ritual` | User JWT + `is_admin` | same | Admin panel trigger |
 
 Response includes: `generated`, `skipped_thin` (< 10 grounding videos), `failed_schema`, `failed_gemini`, `users_no_niche`.
+
+---
+
+## §15 R2 Storage
+
+### Bucket topology
+
+Single bucket (`getviews-media`, default) configured via `R2_BUCKET_NAME` env var. All objects are public — no signed URLs. Two CDN domain env vars are supported (optional custom domains; falls back to the Cloudflare `pub-*.r2.dev` URL pattern when unset):
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `R2_PUBLIC_URL` | (r2.dev URL) | Frames + thumbnails CDN origin |
+| `R2_VIDEO_PUBLIC_URL` | (falls back to R2_PUBLIC_URL) | Video clip CDN origin |
+
+### Key namespaces
+
+| Namespace | Pattern | Written by | Consumers |
+|---|---|---|---|
+| `frames/` | `frames/{video_id}/{0,1,2}.png` | `extract_and_upload()` during corpus ingest | Gemini vision analysis |
+| `thumbnails/` | `thumbnails/{video_id}.png` or `.jpg` | `copy_first_frame_to_thumbnail()` (.png) or `upload_thumbnail_bytes()` (.jpg) or `download_and_upload_thumbnail()` (.jpg) | `video_corpus.thumbnail_url` → FE card screens |
+| `videos/` | `videos/{video_id}.mp4` | `download_and_upload_video()` | Trends / Pattern cards in FE |
+| `video_shots/` | `video_shots/{video_id}/{n}.jpg` | `extract_and_upload_scene_frames()` | Script screen scene reference |
+
+### Thumbnail derivation rules
+
+**For video posts:**
+1. Primary (preferred): `copy_first_frame_to_thumbnail()` — R2 server-side copy from `frames/{id}/0.png` → `thumbnails/{id}.png`. Zero CDN bytes, one R2 op. Only available when frame extraction succeeded.
+2. Fallback: `download_and_upload_thumbnail(cdn_url, video_id)` — download from TikTok CDN, write `thumbnails/{id}.jpg`.
+
+**For carousel posts:**
+1. Primary: `upload_thumbnail_bytes(video_id, slide_bytes[0], mime)` — called from `_analyze_carousel()` immediately after Gemini analysis while slide images are still in memory. Writes `thumbnails/{id}.jpg`.
+2. Lazy backfill: `refresh_stale_thumbnails()` — fetches fresh slide URL via EnsembleData multi-info, calls `download_and_upload_thumbnail()` on-read. Triggered any time a carousel row is cited in an answer session.
+3. Corpus ingest fallback: if R2 not configured, `_build_corpus_row()` stores the first TikTok CDN slide URL as `thumbnail_url` (expires; temporary).
+
+**Dedup invariant:** at most one extension per `video_id` under `thumbnails/`. Both write helpers (`copy_first_frame_to_thumbnail` and `upload_thumbnail_bytes`) delete the opposite-extension key after a successful write via `_delete_thumbnail_other_ext()`. Failure is non-fatal (logged at debug).
+
+### `_is_r2_url()` — stale-URL detection
+
+```python
+def _is_r2_url(url) -> bool:
+    # Check configured custom domains first (R2_PUBLIC_URL + R2_VIDEO_PUBLIC_URL)
+    # then fall back to the default https://pub-*.r2.dev prefix.
+```
+
+Used by `refresh_stale_thumbnails()` to decide whether to skip (already R2) or repair (still TikTok CDN). A URL is R2 if it starts with `R2_PUBLIC_URL + "/"`, `R2_VIDEO_PUBLIC_URL + "/"`, or `"https://pub-"`. The `+ "/"` suffix prevents subdomain prefix collision (e.g. `media.getviews.vn.evil.com`).
+
+### R2 Janitor
+
+`r2_janitor.py` reconciles R2 objects against `video_corpus.video_id`. Objects whose video_id is not in the live corpus are considered orphaned and deleted in batches (S3 DeleteObjects, 1000-key cap).
+
+**Schedule:** pg_cron `cron-batch-r2-janitor` fires Sundays 18:00 UTC (01:00 ICT Monday). Uses `vault.cloud_run_api_url` (must point to batch pod) + `vault.cloud_run_batch_secret`.
+
+**Before applying migration or enabling schedule:** run a dry-run first:
+```bash
+curl -s -X POST "$BATCH_URL/batch/r2-janitor?dry_run=true" \
+  -H "X-Batch-Secret: $BATCH_SECRET" | jq .per_prefix
+```
+If any prefix shows unexpectedly high orphan ratio (>20%), investigate key-pattern drift before enabling the destructive pass.
+
+**Rollback:**
+```sql
+SELECT cron.unschedule('cron-batch-r2-janitor');
+```
+
+### Thumbnail failure observability
+
+`VideoThumbnail.tsx` fires `navigator.sendBeacon` to the `track-thumbnail-failure` Edge Function on every image load error. De-duplicated per `video_id` per page load (module-level `Set<string>`). Failures are persisted to the `thumbnail_failures` table (service_role insert via Edge Function).
+
+Admin panel tile (`/app/admin`) shows 7-day failure count + top-10 video_ids. Spike in count = potential R2 outage or bulk CDN expiry in corpus.
 
 ---
 
