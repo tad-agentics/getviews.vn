@@ -39,12 +39,19 @@ def test_custom_domain_recognised_via_R2_PUBLIC_URL() -> None:
     ) is True
 
 
-def test_custom_video_domain_recognised_via_R2_VIDEO_PUBLIC_URL() -> None:
-    """Custom video domain set as R2_VIDEO_PUBLIC_URL must be recognised."""
+def test_r2_video_public_url_not_used_for_thumbnail_check() -> None:
+    """R2_VIDEO_PUBLIC_URL must NOT be used to classify thumbnail URLs as permanent.
+
+    Thumbnail write helpers always use R2_PUBLIC_URL; R2_VIDEO_PUBLIC_URL is for
+    video clips only. A thumbnail_url starting with the video CDN domain would be
+    a 404 or corrupted data — returning True here would silently skip its repair
+    in refresh_stale_thumbnails.
+    """
     assert _call(
-        "https://video.getviews.vn/videos/vid1.mp4",
+        "https://video.getviews.vn/thumbnails/vid1.png",
+        public_url="https://media.getviews.vn",
         video_public_url="https://video.getviews.vn",
-    ) is True
+    ) is False
 
 
 def test_tiktok_cdn_url_not_r2() -> None:

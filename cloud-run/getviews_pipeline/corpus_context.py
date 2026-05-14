@@ -805,17 +805,27 @@ async def get_signal_grades_for_niche(
 def _is_r2_url(url: str | None) -> bool:
     """Return True if the URL points to R2 (permanent) rather than TikTok CDN (signed/expiring).
 
-    Checks against the configured R2_PUBLIC_URL and R2_VIDEO_PUBLIC_URL prefixes first
-    so custom domains (e.g. https://media.getviews.vn) are correctly recognised as stable.
-    Falls back to the default Cloudflare R2 dev-URL prefix (https://pub-) for deployments
-    that haven't configured R2_PUBLIC_URL or use the raw r2.dev URL.
+    Checks against R2_PUBLIC_URL only — intentionally excludes R2_VIDEO_PUBLIC_URL.
+
+    Rationale: this function is called exclusively on ``thumbnail_url`` values from
+    ``video_corpus``. All three thumbnail write helpers (``copy_first_frame_to_thumbnail``,
+    ``upload_thumbnail_bytes``, ``download_and_upload_thumbnail``) construct the public
+    URL using ``R2_PUBLIC_URL``. Video clips are the only assets written via
+    ``R2_VIDEO_PUBLIC_URL``, and video clip URLs never appear in ``thumbnail_url``.
+
+    Including R2_VIDEO_PUBLIC_URL in this check would cause ``refresh_stale_thumbnails``
+    to skip repair for any thumbnail_url that happens to start with the video CDN domain
+    (e.g. due to data corruption or future code path mistakes), silently leaving those
+    rows with a broken thumbnail URL.
+
+    Falls back to the default Cloudflare ``pub-*.r2.dev`` URL pattern for deployments
+    that use the raw r2.dev URL (R2_PUBLIC_URL is unset or unchanged from default).
     """
     if not url:
         return False
-    from getviews_pipeline.config import R2_PUBLIC_URL, R2_VIDEO_PUBLIC_URL
-    for base in (R2_PUBLIC_URL, R2_VIDEO_PUBLIC_URL):
-        if base and (url.startswith(base + "/") or url == base):
-            return True
+    from getviews_pipeline.config import R2_PUBLIC_URL
+    if R2_PUBLIC_URL and (url.startswith(R2_PUBLIC_URL + "/") or url == R2_PUBLIC_URL):
+        return True
     # Fallback: default Cloudflare R2 public URL pattern
     return url.startswith("https://pub-")
 
