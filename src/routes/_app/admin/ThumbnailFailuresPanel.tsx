@@ -7,7 +7,7 @@
  * before they become user-facing problems.
  */
 import { useQuery } from "@tanstack/react-query";
-import { useSupabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 type FailureRow = {
   video_id: string;
@@ -21,7 +21,6 @@ type PanelData = {
 };
 
 function useThumbnailFailures() {
-  const supabase = useSupabase();
   return useQuery<PanelData>({
     queryKey: ["admin", "thumbnail-failures"],
     queryFn: async () => {

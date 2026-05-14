@@ -649,10 +649,10 @@ async def select_niche_peer_videos(
     try:
         res = (
             user_sb.table("video_corpus")
-            .select("video_id,thumbnail_url,views_count,content_format,title,video_url,creator_handle")
+            .select("video_id,thumbnail_url,views,content_format,title,video_url,creator_handle")
             .eq("niche_id", niche_id)
             .neq("creator_handle", exclude_handle)
-            .order("views_count", desc=True)
+            .order("views", desc=True)
             .limit(limit * 3)
             .execute()
         )
@@ -669,7 +669,7 @@ async def select_niche_peer_videos(
             tiles.append(PerformerTile(
                 video_id=str(row.get("video_id") or ""),
                 thumbnail_url=row.get("thumbnail_url"),
-                views=int(row.get("views_count") or 0),
+                views=int(row.get("views") or 0),
                 format_label=str(row.get("content_format") or "product_closeup"),
                 caption_snippet=str(row.get("title") or "")[:80],
                 video_url=str(row.get("video_url") or ""),

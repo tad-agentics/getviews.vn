@@ -34,7 +34,7 @@ function CreatorTile({ creator }: CreatorTileProps) {
       className="flex-shrink-0 w-32 min-[393px]:w-36 block"
       aria-label={`Xem kênh @${creator.handle}`}
     >
-      <div className="rounded-xl overflow-hidden bg-[color:var(--gv-canvas-2)] border border-[color:var(--gv-border)]">
+      <div className="rounded-xl overflow-hidden bg-[color:var(--gv-canvas-2)] border border-[color:var(--border)]">
         {/* Thumbnail from sample video */}
         <div className="relative pb-[100%]">
           <VideoThumbnail
@@ -52,14 +52,14 @@ function CreatorTile({ creator }: CreatorTileProps) {
         </div>
         {/* Creator info */}
         <div className="px-2 py-1.5">
-          <p className="text-[11px] font-semibold text-[color:var(--gv-foreground)] truncate">
+          <p className="text-[11px] font-semibold text-[color:var(--foreground)] truncate">
             @{creator.handle}
           </p>
-          <p className="text-[10px] text-[color:var(--gv-muted)] mt-0.5">
+          <p className="text-[10px] text-[color:var(--muted)] mt-0.5">
             {formatFollowers(creator.followers)} followers
           </p>
           {creator.avg_views > 0 && (
-            <p className="text-[10px] text-[color:var(--gv-muted)]">
+            <p className="text-[10px] text-[color:var(--muted)]">
               avg {formatViews(creator.avg_views)} views
             </p>
           )}
@@ -82,7 +82,7 @@ export function CreatorTileRow({ creators, label }: CreatorTileRowProps) {
   return (
     <div className="mt-3 mb-1">
       {label && (
-        <p className="text-[11px] font-medium text-[color:var(--gv-muted)] uppercase tracking-wide mb-2">
+        <p className="text-[11px] font-medium text-[color:var(--muted)] uppercase tracking-wide mb-2">
           {label}
         </p>
       )}

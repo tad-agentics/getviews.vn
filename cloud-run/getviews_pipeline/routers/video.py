@@ -28,7 +28,10 @@ router = APIRouter()
 # Channel diagnose in-flight guard (TD-3 mirror from routers/home.py)
 # Key: f"{user_id}:{handle}:{video_url}"
 # ---------------------------------------------------------------------------
-_DIAGNOSE_INFLIGHT: set[str] = set()
+# /channel/diagnose now uses the DB-side ``begin_processing`` RPC for the
+# TD-3 atomic single-flight lock (mirrors routers/intent.py) so cross-pod
+# requests can't double-deduct credits. The previous module-level
+# ``_DIAGNOSE_INFLIGHT`` set was per-instance and TOCTOU-racy.
 
 _NICHE_BENCH_CACHE: dict[tuple[int, int], tuple[float, dict[str, Any]]] = {}
 _NICHE_BENCH_TTL_SEC = 3600.0
@@ -413,7 +416,7 @@ async def _run_channel_diagnose(
             # Try corpus first
             vid_res = (
                 sb_user.table("video_corpus")
-                .select("views_count,content_format")
+                .select("views,content_format")
                 .eq("video_url", video_url)
                 .maybe_single()
                 .execute()
@@ -422,7 +425,7 @@ async def _run_channel_diagnose(
             if vrow:
                 creator_match = compute_creator_match(
                     str(vrow.get("content_format") or "product_closeup"),
-                    int(vrow.get("views_count") or 0),
+                    int(vrow.get("views") or 0),
                     channel_pattern,
                 )
         except Exception as exc:
@@ -616,11 +619,7 @@ async def channel_diagnose_endpoint(
     access_token = str(user["access_token"])
     handle_norm = normalize_handle(handle)
 
-    inflight_key = f"{user_id}:{handle_norm}:{video_url}"
-
     async def event_generator() -> AsyncIterator[bytes]:
-        nonlocal inflight_key
-
         stream_id = resume_stream_id or str(uuid.uuid4())
         seq = 0
 
@@ -640,11 +639,6 @@ async def channel_diagnose_endpoint(
                     )
                     await asyncio.sleep(0.005)
                 return
-
-        # --- In-flight guard (TD-3) ---
-        if inflight_key in _DIAGNOSE_INFLIGHT:
-            yield _sse({"stream_id": stream_id, "seq": 0, "done": True, "status": "already_in_flight"})
-            return
 
         # --- Hello frame ---
         yield _sse({"stream_id": stream_id, "seq": 0, "hello": True, "done": False})
@@ -722,21 +716,54 @@ async def channel_diagnose_endpoint(
             yield _sse({"stream_id": stream_id, "seq": seq, "done": True})
             return
 
-        # --- Cache miss: deduct credit, then run ---
+        # --- Cache miss path: TD-3 atomic lock BEFORE credit deduction ---
+        # Mirrors routers/intent.py:284. ``begin_processing`` flips
+        # ``profiles.is_processing`` atomically and returns the prior
+        # value; True means the lock was already held (concurrent tab,
+        # double-click). Acquire BEFORE decrement_credit so two parallel
+        # requests can't both pass the pre-check and both charge a
+        # credit — the previous in-process set guard (``_DIAGNOSE_INFLIGHT``)
+        # was per-instance and TOCTOU-racy.
         sb_user = user_supabase(access_token)
+        try:
+            lock_resp = await run_sync(
+                lambda: sb_user.rpc("begin_processing", {"p_user_id": user_id}).execute(),
+            )
+        except Exception as exc:
+            logger.warning("[channel_diagnose] begin_processing failed user=%s: %s", user_id, exc)
+            seq += 1
+            yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "error": "stream_failed"})
+            return
+        if lock_resp.data is True:
+            # Lock was already held — concurrent request from this user.
+            seq += 1
+            yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "status": "already_in_flight"})
+            return
+
+        # From here on we MUST release the lock on every exit path,
+        # including credit-failure returns.
+        async def _release_lock() -> None:
+            try:
+                await run_sync(
+                    lambda: sb_user.rpc("end_processing", {"p_user_id": user_id}).execute(),
+                )
+            except Exception as exc:
+                logger.warning("[channel_diagnose] end_processing failed user=%s: %s", user_id, exc)
+
         try:
             await run_sync(_decrement_credit_or_raise, sb_user, user_id=user_id)
         except InsufficientCreditsError:
+            await _release_lock()
             seq += 1
             yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "error": "insufficient_credits"})
             return
         except Exception as exc:
+            await _release_lock()
             logger.error("[channel_diagnose] credit deduction failed user=%s: %s", user_id, exc)
             seq += 1
             yield _sse({"stream_id": stream_id, "seq": seq, "done": True, "error": "stream_failed"})
             return
 
-        _DIAGNOSE_INFLIGHT.add(inflight_key)
         step_queue: asyncio.Queue = asyncio.Queue()
         stream_cache: list[dict[str, Any]] = []
 
@@ -797,7 +824,7 @@ async def channel_diagnose_endpoint(
             yield _sse({"stream_id": stream_id, **done_item})
 
         finally:
-            _DIAGNOSE_INFLIGHT.discard(inflight_key)
+            await _release_lock()
 
     return StreamingResponse(
         event_generator(),

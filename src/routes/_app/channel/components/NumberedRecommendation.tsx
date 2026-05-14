@@ -12,24 +12,24 @@ interface NumberedRecommendationProps {
 
 export function NumberedRecommendation({ recommendation }: NumberedRecommendationProps) {
   return (
-    <div className="flex gap-3 items-start py-3 border-b border-[color:var(--gv-border)] last:border-0">
+    <div className="flex gap-3 items-start py-3 border-b border-[color:var(--border)] last:border-0">
       {/* Index badge */}
       <span
         className={
           "flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center " +
-          "text-[11px] font-bold font-mono bg-[color:var(--gv-primary)] " +
-          "text-[color:var(--gv-primary-foreground)]"
+          "text-[11px] font-bold font-mono bg-[color:var(--primary)] " +
+          "text-[color:var(--primary-foreground)]"
         }
         aria-hidden
       >
         {recommendation.index}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-[color:var(--gv-foreground)] leading-snug">
+        <p className="text-sm font-semibold text-[color:var(--foreground)] leading-snug">
           {recommendation.title}
         </p>
         {recommendation.body && (
-          <p className="text-sm text-[color:var(--gv-muted)] mt-1 leading-relaxed">
+          <p className="text-sm text-[color:var(--muted)] mt-1 leading-relaxed">
             {recommendation.body}
           </p>
         )}

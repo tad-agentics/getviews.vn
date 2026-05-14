@@ -887,3 +887,64 @@ def test_response_enrichment_normalizes_unknown_promotion_type() -> None:
         retention_source="modeled",
     )
     assert out["enrichment"]["promotion_type"] == "organic"
+
+
+# ── Narrative cache update — partial-synth NULL overwrite guard ────────
+
+
+def test_narrative_cache_update_omits_keys_when_synth_returns_none() -> None:
+    """Regression for the c69d0cd family of bug — a partial-success synth
+    must NOT NULL-out a valid cached row. Only keys whose computed value
+    is present should appear in the UPDATE payload."""
+    from getviews_pipeline.video_analyze import _build_narrative_cache_update
+
+    payload = _build_narrative_cache_update(
+        narrative_vi={"van_de_chinh": "ok"},
+        format_cards=None,
+        diagnosis_md=None,
+        performance_tier=None,
+        bright_spot=None,
+        view_scenarios=None,
+        channel_context=None,
+        reference_videos=None,
+    )
+    # narrative_vi is the anchor — always written.
+    assert "narrative_vi" in payload
+    # Everything else missing → omitted, preserving any prior cached value.
+    for k in (
+        "format_cards",
+        "diagnosis",
+        "performance_tier",
+        "bright_spot_signal",
+        "view_scenarios",
+        "channel_context",
+        "reference_videos",
+    ):
+        assert k not in payload, f"{k} would have NULL-overwritten the cache"
+
+
+def test_narrative_cache_update_includes_all_keys_when_all_present() -> None:
+    """Happy path — full synth output writes everything."""
+    from getviews_pipeline.video_analyze import _build_narrative_cache_update
+
+    payload = _build_narrative_cache_update(
+        narrative_vi={"van_de_chinh": "ok"},
+        format_cards=[{"format_name_vi": "x"}],
+        diagnosis_md="md",
+        performance_tier="hit",
+        bright_spot={"signal_type": "performing_well"},
+        view_scenarios=[{"focus_vi": "a"}],
+        channel_context={"available": True},
+        reference_videos=[{"aweme_id": "x"}],
+    )
+    for k in (
+        "narrative_vi",
+        "format_cards",
+        "diagnosis",
+        "performance_tier",
+        "bright_spot_signal",
+        "view_scenarios",
+        "channel_context",
+        "reference_videos",
+    ):
+        assert k in payload
