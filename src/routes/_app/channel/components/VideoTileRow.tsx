@@ -38,7 +38,7 @@ function VideoTile({ tile }: VideoTileProps) {
       {/* Caption snippet */}
       {tile.caption_snippet && (
         <div className="px-1.5 py-1">
-          <p className="text-[10px] text-[color:var(--gv-muted)] line-clamp-2 leading-tight">
+          <p className="text-[10px] text-[color:var(--muted)] line-clamp-2 leading-tight">
             {tile.caption_snippet}
           </p>
         </div>
@@ -77,7 +77,7 @@ export function VideoTileRow({ tiles, label }: VideoTileRowProps) {
   return (
     <div className="mt-3 mb-1">
       {label && (
-        <p className="text-[11px] font-medium text-[color:var(--gv-muted)] uppercase tracking-wide mb-2">
+        <p className="text-[11px] font-medium text-[color:var(--muted)] uppercase tracking-wide mb-2">
           {label}
         </p>
       )}

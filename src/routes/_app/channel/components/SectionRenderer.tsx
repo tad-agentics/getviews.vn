@@ -20,7 +20,7 @@ function renderParagraphs(text: string) {
       {paragraphs.map((para, i) => (
         <p
           key={i}
-          className="text-sm text-[color:var(--gv-foreground)] leading-relaxed"
+          className="text-sm text-[color:var(--foreground)] leading-relaxed"
         >
           {para}
         </p>
@@ -46,7 +46,7 @@ export function SectionRenderer({
   if (section_id === "recommendations") {
     return (
       <div className="mb-6">
-        <h2 className="text-base font-bold text-[color:var(--gv-foreground)] leading-snug">
+        <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">
           {title}
         </h2>
         {recommendations.length > 0 ? (
@@ -61,7 +61,7 @@ export function SectionRenderer({
   return (
     <div className="mb-6">
       {/* Section heading */}
-      <h2 className="text-base font-bold text-[color:var(--gv-foreground)] leading-snug">
+      <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">
         {title}
       </h2>
 
@@ -70,7 +70,7 @@ export function SectionRenderer({
         {renderParagraphs(text)}
         {streaming && text && (
           <span
-            className="inline-block w-0.5 h-4 bg-[color:var(--gv-primary)] animate-pulse ml-0.5 align-text-bottom"
+            className="inline-block w-0.5 h-4 bg-[color:var(--primary)] animate-pulse ml-0.5 align-text-bottom"
             aria-hidden
           />
         )}
