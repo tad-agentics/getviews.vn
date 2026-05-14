@@ -117,16 +117,26 @@ export default function ChannelScreen() {
     [setSearchParams],
   );
 
-  // Auto-start diagnosis when handle + nicheId are available, deduplicated by handle key.
+  // Auto-start diagnosis when handle + nicheId are available, deduplicated by
+  // (handle, niche). The previous dedupe key was handleKey alone, so switching
+  // the "Ngách so sánh" dropdown after the first run silently left the report
+  // stale: the URL param flipped, the niche pill re-rendered, but the effect
+  // short-circuited and never re-fetched against the new niche.
+  //
+  // Also gate on hasCredits: a deep link ?handle=foo with an out-of-credits
+  // user would otherwise fire start(), watch the BE reject with
+  // insufficient_credits, and flash a "streaming" state at the user for one
+  // frame. With the gate the upsell copy ("Cần N credit") renders straight away.
   const nicheId = creatorNicheParam ?? profile?.creator_niche_id ?? creatorNiches[0]?.id ?? 0;
+  const diagnoseKey = handleKey ? `${handleKey}::${nicheId}` : "";
   useEffect(() => {
-    if (!handleKey || !nicheId || !cloudConfigured) return;
-    if (lastDiagnoseHandleRef.current === handleKey) return;
-    lastDiagnoseHandleRef.current = handleKey;
+    if (!handleKey || !nicheId || !cloudConfigured || !hasCredits) return;
+    if (lastDiagnoseHandleRef.current === diagnoseKey) return;
+    lastDiagnoseHandleRef.current = diagnoseKey;
     void diagnose.start(handleKey, nicheId, videoUrlInput || undefined);
     // diagnose.start identity is stable (useCallback[qc])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleKey, nicheId, cloudConfigured]);
+  }, [diagnoseKey, cloudConfigured, hasCredits]);
 
   const emptyParams = !handleKey;
 
@@ -337,7 +347,7 @@ export default function ChannelScreen() {
                         "gv-mono rounded-full px-2.5 py-0.5 text-[10px] font-semibold " +
                         (hasCredits
                           ? "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]"
-                          : "bg-[color:var(--gv-neg-pale)] text-[color:var(--gv-neg-deep)]")
+                          : "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]")
                       }
                     >
                       {hasCredits ? `${CREDIT_COST} credit / lần` : `Cần ${CREDIT_COST} credit · còn ${credits}`}
@@ -388,7 +398,7 @@ export default function ChannelScreen() {
               onRestart={() => {
                 lastDiagnoseHandleRef.current = null;
                 void diagnose.start(handleKey ?? "", nicheId, videoUrlInput || undefined);
-                lastDiagnoseHandleRef.current = handleKey;
+                lastDiagnoseHandleRef.current = diagnoseKey;
               }}
               onChangeHandle={openHandle}
             />
@@ -559,7 +569,10 @@ function ChannelDiagnosisBody({
               recommendations={
                 section.section_id === "recommendations" ? diagnose.recommendations : []
               }
-              streaming={isStreaming}
+              // Cursor scopes to the currently-active section only.
+              // section_done clears activeSectionId so completed sections
+              // stop showing the blinking caret.
+              streaming={isStreaming && diagnose.activeSectionId === section.section_id}
             />
           ))}
 

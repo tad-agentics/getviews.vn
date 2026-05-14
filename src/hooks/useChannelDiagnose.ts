@@ -66,6 +66,11 @@ export interface ChannelDiagnoseState {
   activeStepIndex: number;
   /** Label of the current step. */
   activeStepLabel: string;
+  /** Section currently being filled by text_chunk events. ``null`` between
+   * sections (after section_done, before the next section_start). Lets
+   * the SectionRenderer scope the streaming cursor to the active row
+   * instead of every row visible. */
+  activeSectionId: string | null;
 }
 
 const INITIAL_STATE: ChannelDiagnoseState = {
@@ -80,6 +85,7 @@ const INITIAL_STATE: ChannelDiagnoseState = {
   lastSeq: 0,
   activeStepIndex: -1,
   activeStepLabel: "",
+  activeSectionId: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -204,10 +210,14 @@ export function useChannelDiagnose() {
 
         if (outcome.ok) {
           // Invalidate credits + profile so the credit chip refreshes.
+          // TanStack invalidate uses prefix-match by default, so
+          // ``["profile"]`` matches the keyed ``["profile", userId]``
+          // query that useProfile.ts registers. Same for credits.
           void qc.invalidateQueries({ queryKey: ["profile"] });
           void qc.invalidateQueries({ queryKey: ["credits"] });
-          // Invalidate channel-diagnose so stale cache keys show as dirty.
-          void qc.invalidateQueries({ queryKey: ["channel-diagnose", handle] });
+          // (No useQuery registers ``["channel-diagnose", handle]`` —
+          // diagnose state is imperative SSE plumbing held in this hook.
+          // The previous invalidation here was a no-op.)
           return;
         }
 
@@ -276,6 +286,11 @@ async function consumeDiagnoseSse(
         ...s.sections.filter((sec) => sec.section_id !== section.section_id),
         section,
       ],
+      // Clearing activeSectionId tells SectionRenderer the cursor
+      // should no longer render on this section. The next
+      // section_start re-sets it before any text_chunk arrives.
+      activeSectionId:
+        s.activeSectionId === section.section_id ? null : s.activeSectionId,
     }));
     activeSection = null;
   };
@@ -354,12 +369,15 @@ async function consumeDiagnoseSse(
         }
         activeSection = newSection;
         // Eagerly add stub to state so UI can show the header immediately.
+        // Also mark this section as the active streaming target so the
+        // SectionRenderer cursor scopes to it instead of every section.
         setState((s) => ({
           ...s,
           sections: [
             ...s.sections.filter((sec) => sec.section_id !== newSection.section_id),
             { ...newSection },
           ],
+          activeSectionId: newSection.section_id,
         }));
         continue;
       }

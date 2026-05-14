@@ -39,15 +39,19 @@ class InsufficientCreditsError(Exception):
 
 
 def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
-    try:
-        rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-        if rpc_resp.data is None:
-            raise InsufficientCreditsError()
-    except InsufficientCreditsError:
-        raise
-    except Exception as exc:
-        logger.warning("[channel_diagnose] decrement_credit failed: %s", exc)
-        raise InsufficientCreditsError() from exc
+    """Decrement one credit; distinguish "out of credits" from "infra failed".
+
+    On NULL response (the RPC's signal for "no credits remain") raise
+    ``InsufficientCreditsError`` so the caller can surface
+    ``insufficient_credits`` to the user. Transport / 5xx errors bubble
+    up untouched so the caller's generic ``except Exception`` branch
+    can map them to ``stream_failed`` — the previous behaviour
+    rewrapped every error as ``InsufficientCreditsError`` and told the
+    user "Hết credit" for what was actually a Supabase outage.
+    """
+    rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
+    if rpc_resp.data is None:
+        raise InsufficientCreditsError()
 
 
 def _fetch_niche_benchmarks(user_sb: Any, *, niche_id: int) -> dict[str, Any]:
