@@ -439,7 +439,7 @@ def _diagnostics_legacy(diag: dict[str, Any]) -> bool:
     return False
 
 
-# Functions above moved to services/extraction.py — re-exported at top of this file.
+# ── Niche-label resolver + UUID guard ────────────────────────────────
 
 
 def _resolve_niche_label(user_sb: Any, niche_id: int) -> str:
@@ -591,7 +591,7 @@ def _response_from_diagnostics_row(
     }
 
 
-# ── D2 helpers moved to services/extraction.py — re-exported at top of file ──
+# ── Corpus row helpers (UUID guard for video_id collisions) ──────────
 
 
 _CORPUS_ROW_UUID_RE = re.compile(
