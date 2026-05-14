@@ -122,16 +122,21 @@ export default function ChannelScreen() {
   // the "Ngách so sánh" dropdown after the first run silently left the report
   // stale: the URL param flipped, the niche pill re-rendered, but the effect
   // short-circuited and never re-fetched against the new niche.
+  //
+  // Also gate on hasCredits: a deep link ?handle=foo with an out-of-credits
+  // user would otherwise fire start(), watch the BE reject with
+  // insufficient_credits, and flash a "streaming" state at the user for one
+  // frame. With the gate the upsell copy ("Cần N credit") renders straight away.
   const nicheId = creatorNicheParam ?? profile?.creator_niche_id ?? creatorNiches[0]?.id ?? 0;
   const diagnoseKey = handleKey ? `${handleKey}::${nicheId}` : "";
   useEffect(() => {
-    if (!handleKey || !nicheId || !cloudConfigured) return;
+    if (!handleKey || !nicheId || !cloudConfigured || !hasCredits) return;
     if (lastDiagnoseHandleRef.current === diagnoseKey) return;
     lastDiagnoseHandleRef.current = diagnoseKey;
     void diagnose.start(handleKey, nicheId, videoUrlInput || undefined);
     // diagnose.start identity is stable (useCallback[qc])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagnoseKey, cloudConfigured]);
+  }, [diagnoseKey, cloudConfigured, hasCredits]);
 
   const emptyParams = !handleKey;
 
