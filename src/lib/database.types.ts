@@ -3060,7 +3060,7 @@ export type Database = {
       thumbnail_failures_top10: {
         Args: { cutoff_ts: string }
         Returns: {
-          count: number
+          fail_count: number
           video_id: string
         }[]
       }
