@@ -56,6 +56,16 @@ export function isV5Report(report: AnyRecord): boolean {
   // 4. Last-resort heuristic for sessions cached before the _schema_version marker.
   //    Requires both minimum length (rules out v4 one-liners / short exclamatory
   //    strings) AND ≥2 punctuation clusters (rules out single-sentence text).
+  //
+  //    SUNSET PLAN: this branch exists only for ``answer_sessions`` rows + the
+  //    1h ``video_diagnostics`` cache entries created before Phase 4.4.6
+  //    landed the ``_schema_version`` marker. Once the nightly batch
+  //    (cron-batch-pattern-decks / cron-batch-morning-ritual) has cycled
+  //    through every cached row twice (2× the longest TTL — ~2h for
+  //    video_diagnostics, ~14d for channel_diagnoses) every cache hit will
+  //    carry the marker. Remove this branch in the same PR that drops the
+  //    ``van_de_chinh.length >= 100`` test from v5-compat.test.ts.
+  //    Tracking date: 2026-05-15 + 14d = 2026-05-29 earliest safe removal.
   const narrativeVi = report.narrative_vi as AnyRecord | null | undefined;
   const vanDeChinhText = narrativeVi?.van_de_chinh as string | null | undefined;
   if (
