@@ -174,7 +174,11 @@ describe("ChannelScreen", () => {
     });
     renderScreen("?handle=sammie.tech");
     expect(screen.getByText(/Kết luận/)).toBeTruthy();
-    expect(screen.getByText(/Kênh đang trì trệ/)).toBeTruthy();
+    // Two elements share this substring — the trajectory chip header
+    // ("Kênh đang trì trệ", no dot) and the section body text
+    // ("Kênh đang trì trệ.", with dot). Disambiguate by anchoring on
+    // the section punctuation.
+    expect(screen.getByText(/^Kênh đang trì trệ\.$/)).toBeTruthy();
   });
 
   it("renders error message on insufficient_credits", () => {
