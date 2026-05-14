@@ -610,9 +610,10 @@ Admin panel tile (`/app/admin`) shows 7-day failure count + top-10 video_ids. Sp
 | Source | Usage |
 |---|---|
 | EnsembleData | Live fetch of the 30 most-recent videos for the handle (`fetch_user_posts`) |
-| EnsembleData | UGC creator scouting via 4-query hybrid (related posts + hashtag + search + similar) |
-| `video_corpus` | Niche benchmarks via `niche_channel_benchmarks` RPC |
-| Gemini | Vietnamese narrative synthesis (synthesis model, ~`gemini-3-flash-preview`) |
+| `video_corpus` | **Corpus-first peer creators** (`select_niche_peer_creators`) — content_class → niche_only → thin; follower enrichment via EnsembleData (never surface `0` as real count). |
+| `video_corpus` + `map_legacy_corpus_to_content_class` | **Channel persona** — dominant content class + label (`derive_channel_persona`). |
+| `niche_channel_benchmarks` RPC | Percentile band (P25/P50/P75) + median posts/week for score card + prompts |
+| Gemini | Vietnamese narrative only (synthesis model, ~`gemini-3-flash-preview`). Structured blocks (score card, hashtags, peer table, next-video skeleton) are **template-generated**. |
 
 ### Trajectory classification
 
@@ -629,26 +630,32 @@ Backend classifies the channel into one of 6 `TrajectoryShape` values before LLM
 
 ### SSE event shape
 
-Emitted in order:
-1. `trajectory` — `{ trajectory: TrajectoryShape }`
-2. `step_start` / `step_done` — pipeline step progress (1–5)
-3. `section_start` — `{ section_id, title, embedded_tiles?, embedded_creators? }`
-4. `text_chunk` — `{ content: string }` — streaming prose chunks
-5. `section_done` — `{ section_id }`
-6. `recommendation_item` — `{ index, title, body }` — only in `recommendations` section
-7. `payload` — full `ChannelDiagnosisPayload` JSON
-8. `done: true` — terminal frame
+Emitted in order (cache replay must mirror the same fields):
+1. `hello` — handshake
+2. `cache_hit` — only on 7-day cache replay (no re-billing)
+3. `trajectory` — `{ trajectory: TrajectoryShape }`
+4. `score_card` — `{ data: metrics, captions?: Record<string,string> }` — deterministic TLDR + educative captions (template)
+5. `step_start` / `step_done` — pipeline step progress
+6. `section_start` — `{ section_id, title, embedded_tiles?, embedded_creators?, hashtag_insights?, next_video? }`
+7. `text_chunk` — `{ content: string }` — streaming prose chunks
+8. `section_done` — `{ section_id }`
+9. `recommendation_item` — `{ index, title, body, kind?: "hero"|"regular"|"anti" }`
+10. `payload` — full `ChannelDiagnosisPayload` JSON (v2 fields on fresh + replay)
+11. `done: true` — terminal frame
 
-Mandatory sections (verdict + recommendations) — fallback to raw prose if LLM omits them.
+Mandatory LLM sections: **verdict** + **recommendations** — fallback to raw prose if LLM omits them. `next_video` may be injected from a deterministic seed. `hashtag_insights` is synthetic (not from Gemini).
 
 ### Cache contract
 
 - **Table**: `channel_diagnoses` PK `(handle, video_url, niche_id)`. `video_url` = empty string when no target video.
 - **TTL**: 7 days (application-enforced via `computed_at >= now() - 7 days` filter).
 - **Writes**: service_role only (RLS blocks authenticated writes).
-- **Cache hit**: emits `cache_hit` event + replays stored sections without re-billing.
+- **V2 columns**: `score_card`, `verdict_tiles`, `hashtag_insights`, `next_video`, `channel_persona`, `peer_source` (`NULL` = legacy row — do not label as “thin”).
+- **Cache hit**: emits `cache_hit` + `trajectory` + **`score_card`** + sections with **`verdict_tiles` / `hashtag_insights` / `next_video`** on `section_start`, then **`payload`** parity with fresh runs.
 
 ### Tile selection (trajectory-aware)
+
+**Verdict evidence** — `verdict_tiles`: peak + 2 most recent public videos, deduped by `video_id`.
 
 | Trajectory | Top tiles | Bottom tiles |
 |---|---|---|
@@ -657,13 +664,13 @@ Mandatory sections (verdict + recommendations) — fallback to raw prose if LLM 
 | `decline_from_peak` / `stagnant` / `bursty` | Top-2 per top-2 format archetypes | Worst recent performers |
 | `steady_growth` | Top-2 per format | Latest quarter top videos |
 
-UGC creators (competitive landscape): hybrid 4-query EnsembleData scout, deduped against the target handle.
+**Peer creators** (competitive landscape): **`select_niche_peer_creators`** (`video_corpus`). **Hashtags**: `compute_hashtag_insights` + captions. **Next video**: `derive_next_video_concept` + optional Gemini narrative in `next_video` section.
 
 ### Frontend
 
-- **Hook**: `useChannelDiagnose` (`src/hooks/useChannelDiagnose.ts`) — imperative `start(handle, nicheId, videoUrl?)` API, SSE reader with 45s idle timeout + 1 TD-4 retry.
-- **Components**: `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation`, `StepProgress`, `ProvenanceLine` in `src/routes/_app/channel/components/`.
-- **Screen**: `ChannelScreen.tsx` renders `ChannelDiagnosisBody` when a handle is active. Old `ChannelBody` (backed by `useChannelAnalyze`) is kept until Phase 2 cleanup (≥7 days post-cutover, separate PR).
+- **Hook**: `useChannelDiagnose` — handles `score_card` SSE; exposes `scoreCard`, `channelPersona`, `peerSource`; merges terminal `payload` for replay completeness.
+- **Components**: `ScoreCard`, `HashtagInsightsBlock`, `NextVideoCard`, `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation` (hero / anti grouping), `StepProgress`, `ProvenanceLine` under `src/routes/_app/channel/components/`.
+- **Screen**: `ChannelScreen.tsx` — score card skeleton until `score_card` arrives; thin-corpus disclaimer when `peer_source === "thin"` (or legacy `niche_thin` in old payloads).
 
 ### Phase 2 cleanup (deferred)
 

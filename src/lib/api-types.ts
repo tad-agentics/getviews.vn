@@ -1393,16 +1393,19 @@ export interface ChannelPerformerTile {
   video_url: string;
   thumbnail_url: string;
   views: number;
-  /** One of the 6 classify_format buckets */
-  content_format: string;
+  /** One of the 6 classify_format buckets (Cloud Run may send `format_label` instead). */
+  content_format?: string;
   caption_snippet: string;
   /** ISO date string */
   posted_at: string;
+  /** From Cloud Run `_make_tile` / corpus selectors */
+  format_label?: string;
 }
 
 export interface ChannelUGCCreator {
   handle: string;
-  followers: number;
+  /** Null when enrichment missed; never show as 0. */
+  followers: number | null;
   avg_views: number;
   thumbnail_url: string;
   niche_slug: string;
@@ -1414,6 +1417,62 @@ export interface ChannelRecommendation {
   index: number;
   title: string;
   body: string;
+  kind?: "hero" | "regular" | "anti";
+}
+
+/** Deterministic metrics + educative captions (template-generated). */
+export interface ChannelScoreCardData {
+  trajectory_shape: TrajectoryShape;
+  trajectory_delta_pct: number;
+  percentile_in_niche: number;
+  niche_p25: number;
+  niche_p50: number;
+  niche_p75: number;
+  category_label: string;
+  peak_views: number;
+  peak_date_iso: string | null;
+  peak_age_months: number | null;
+  recent_avg_views: number;
+  posts_per_week: number;
+  peer_median_posts_per_week: number;
+  best_hour_range: string;
+  best_hour_avg_views: number;
+  worst_hour: number | null;
+  worst_hour_avg_views: number;
+  best_hour_ratio: number;
+  sample_size_videos: number;
+}
+
+export interface ChannelScoreCard extends ChannelScoreCardData {
+  captions?: Record<string, string>;
+}
+
+export interface ChannelHashtagInsight {
+  tag: string;
+  count: number;
+  avg_views: number;
+  multiplier: number;
+  caption?: string;
+}
+
+export interface ChannelNextVideoConcept {
+  format: string;
+  format_label: string;
+  duration_sec: number;
+  rationale_struct: string;
+  sample_peer_handle: string;
+  sample_video_url: string;
+  sample_thumbnail_url?: string | null;
+  peer_avg_views: number;
+  channel_share_pct: number;
+  /** Gemini narrative from `next_video` section when present */
+  narrative?: string;
+}
+
+export interface ChannelPersona {
+  dominant_format?: string;
+  dominant_content_class_id?: number | null;
+  content_class_label?: string;
 }
 
 /** One narrative section emitted by the server. */
@@ -1424,6 +1483,8 @@ export interface ChannelSection {
     | "what_falling"
     | "video_vs_channel"
     | "competitive_landscape"
+    | "hashtag_insights"
+    | "next_video"
     | "recommendations"
     | "fallback"
     | (string & Record<never, never>);
@@ -1434,6 +1495,10 @@ export interface ChannelSection {
   embedded_tiles?: ChannelPerformerTile[];
   /** Creator tiles (competitive_landscape only). */
   embedded_creators?: ChannelUGCCreator[];
+  /** Hashtag table payload (hashtag_insights section). */
+  hashtag_insights?: ChannelHashtagInsight[];
+  /** Next-video concept (next_video section). */
+  next_video?: ChannelNextVideoConcept;
 }
 
 /** Final payload from the `payload` event after streaming completes. */
@@ -1453,7 +1518,16 @@ export interface ChannelDiagnosisPayload {
   creator_match: Record<string, unknown> | null;
   video_count: number;
   provenance: string;
-  niche_thin: boolean;
   cache_hit: boolean;
+  /** Legacy payloads only — prefer peer_source / score card. */
+  niche_thin?: boolean;
   dominant_format?: string;
+  score_card?: ChannelScoreCardData;
+  score_card_captions?: Record<string, string>;
+  verdict_tiles?: ChannelPerformerTile[];
+  hashtag_insights?: ChannelHashtagInsight[];
+  next_video?: ChannelNextVideoConcept | null;
+  channel_persona?: ChannelPersona;
+  /** corpus tier: content_class | niche_only | thin — null for pre-v2 cache rows */
+  peer_source?: "content_class" | "niche_only" | "thin" | null;
 }

@@ -15,6 +15,7 @@ import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
 import { SectionRenderer } from "./components/SectionRenderer";
+import { ScoreCard, ScoreCardSkeleton } from "./components/ScoreCard";
 import { StepProgress, TRAJECTORY_LABELS } from "./components/StepProgress";
 import { ProvenanceLine } from "./components/ProvenanceLine";
 
@@ -460,7 +461,7 @@ function ChannelDiagnosisBody({
   const scriptHref = useMemo(() => {
     const fp = diagnose.finalPayload;
     if (!fp) return null;
-    const fmt = fp.dominant_format ?? "";
+    const fmt = fp.channel_persona?.dominant_format ?? fp.dominant_format ?? "";
     if (!fmt || !handle) return null;
     const params = new URLSearchParams({
       prefill_handle: handle,
@@ -562,6 +563,8 @@ function ChannelDiagnosisBody({
       {/* Narrative sections */}
       {diagnose.sections.length > 0 && (
         <div className="rounded-[14px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 sm:px-7">
+          {isStreaming && !diagnose.scoreCard ? <ScoreCardSkeleton /> : null}
+          {diagnose.scoreCard ? <ScoreCard card={diagnose.scoreCard} /> : null}
           {diagnose.sections.map((section) => (
             <SectionRenderer
               key={section.section_id}
@@ -585,7 +588,7 @@ function ChannelDiagnosisBody({
           )}
 
           {/* Niche thin disclaimer */}
-          {isDone && diagnose.finalPayload?.niche_thin && (
+          {isDone && (diagnose.peerSource === "thin" || diagnose.finalPayload?.niche_thin) && (
             <p className="mt-2 text-xs text-[color:var(--gv-ink-3)] italic">
               Kho dữ liệu ngách này chưa đủ để benchmark chính xác — kết quả mang tính tham khảo.
             </p>

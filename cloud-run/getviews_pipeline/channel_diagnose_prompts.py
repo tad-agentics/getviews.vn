@@ -25,6 +25,10 @@ viết một bản phân tích dạng memo tư vấn — thẳng thắn, dựa t
 bằng tiếng Việt tự nhiên như đang nói chuyện với creator. KHÔNG phải báo cáo \
 kiểm toán, KHÔNG phải bảng đánh giá theo tiêu chí.
 
+=== QUY TẮC BẮT BUỘC: DỮ LIỆU + DIỄN GIẢI ===
+Mọi số liệu (view, P%, tỉ lệ format…) phải có ngay câu giải thích ý nghĩa cho creator \
+(không để số trần). Mỗi đoạn: nêu số → giải thích → hàm ý hành động (ngắn).
+
 === QUY TẮC VIẾT ===
 
 Phong cách:
@@ -33,6 +37,7 @@ khái niệm cơ bản.
 - Dùng số liệu cụ thể từ context: số view, số video, tên format, khoảng thời gian.
 - Số lượt xem viết trong ngoặc đơn: (202K views), (1.6M views). KHÔNG dùng \
 [[cite:...]] hay [[creator:...]].
+- Trích dẫn video bằng format + view + tháng/năm từ <<<TOP PERFORMERS>>> khi nói đỉnh.
 - KHÔNG dùng: "Chào bạn", "Tuyệt vời", "Wow", "bí mật", "công thức vàng", \
 "triệu view", "bùng nổ", "viral chóng mặt", "nội dung chất lượng".
 - KHÔNG dùng nhãn thời gian: [TUẦN NÀY], [2 TUẦN TỚI], [THÁNG TỚI].
@@ -42,35 +47,63 @@ Mỗi section mở đầu bằng marker ổn định + dòng TITLE:
 
 === verdict ===
 TITLE: BỨC TRANH TỔNG THỂ
-<2 đoạn phân tích tổng quan với số liệu cụ thể>
+Cấu trúc 3 phần trong 2–4 đoạn ngắn:
+(1) Dữ liệu + diễn giải: trích 1 video cụ thể từ <<<TOP PERFORMERS>>> (view + format + thời điểm) \
+và giải thích ý nghĩa số đó.
+(2) Nếu có <<<INFLECTION POINT>>> với before/after format mix: nêu thời điểm, tỉ lệ format trước/sau, \
+và hệ quả lên before_avg vs after_avg.
+(3) Một câu chốt trajectory + hàm ý 30 ngày tới.
 
 === what_worked ===
 TITLE: <trajectory-specific title — xem bảng bên dưới>
-<2-3 đoạn nêu 2-4 format/archetype thắng với số view cụ thể>
+ĐIỂM MẠNH: đúng 3 gạch đầu dòng. Mỗi gạch = <format>: <số liệu> — <vì sao work> — <hàm ý hành động>.
+Kết: 1 câu chốt lợi thế cấu trúc.
 
 === what_falling ===    [BỎ QUA khi trajectory là breakout hoặc new_account]
 TITLE: <trajectory-specific title>
-<2-3 đoạn phân tích pattern thất bại với dữ liệu inflection>
+ĐIỂM YẾU: đúng 3 gạch đầu dòng. Mỗi gạch = <điểm yếu>: <số liệu so sánh> — <nguyên nhân> — <cách sửa>.
+Kết: 1 câu chốt nguyên nhân lớn nhất + 1 hành động tuần này.
 
 === video_vs_channel ===    [CHỈ emit khi context có THIS VIDEO]
 TITLE: VIDEO NÀY SO VỚI KÊNH
 <1-2 đoạn so sánh video target với baseline kênh cùng format>
 
 === competitive_landscape ===
-TITLE: ĐỐI THỦ ĐANG LÀM GÌ
-<2-3 đoạn mô tả creators đang outperform, với số liệu cụ thể>
-Nếu không có UGC data: viết một đoạn ngắn "Chưa tìm thấy creator nào đang \
-nổi bật hơn kênh trong ngách này với data hiện tại."
+TITLE: ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ
+Với MỖI peer trong <<<KÊNH CÙNG NGÁCH>>>, 1 câu riêng: họ mạnh/yếu ở điểm gì (format, tần suất, hook) \
+và insight cho kênh đang phân tích.
+Cuối section: 1 câu GAP — bạn ĐANG THIẾU gì so với peer mạnh nhất (format share, cadence, hoặc góc nội dung).
+Nếu peer_source=thin: nêu rõ corpus ngách mỏng, chỉ có N peer để so.
+
+=== next_video ===
+TITLE: VIDEO TIẾP THEO NÊN QUAY
+Dựa <<<NEXT VIDEO CONCEPT>>>:
+- HOOK (1 dòng, ≤12 từ, cụ thể tiếng Việt)
+- PREMISE (1 dòng kịch bản ~18–25s)
+- FORMAT + thời lượng từ concept
+- LÝ DO: 2 phần — bằng chứng peer + gap kênh (dùng số từ concept)
+- KỲ VỌNG (1 dòng optional): dải view dự kiến nếu execute tốt
 
 === recommendations ===
 TITLE: KẾ HOẠCH HÀNH ĐỘNG
-1. **<Câu lead ngắn gọn, nêu action cụ thể>**
-<2-4 câu giải thích why, trích dẫn số liệu cụ thể từ context>
+Sau phần khuyến nghị chính, BẮT BUỘC có delimiter riêng một dòng:
+--- NGỪNG LÀM ---
+Cấu trúc:
+1. **ƯU TIÊN — <hành động cụ thể>**
+Thân đoạn gồm:
+BẰNG CHỨNG: <số liệu từ context>
+KỲ VỌNG: <impact 30 ngày, conservative>
 
-2. **<Câu lead>**
-<Giải thích>
+2. **<Hành động>**
+<1 câu + bằng chứng số liệu>
 
-... (tối đa 7 mục)
+3–4. tương tự (mỗi mục có 1 dòng bằng chứng số liệu).
+
+--- NGỪNG LÀM ---
+- <Việc cần ngừng> — <bằng chứng số>
+  Thay vào: <cách thay thế cụ thể>
+- <Mục 2> — <bằng chứng>
+  Thay vào: <cách thay thể>
 
 === QUY TẮC TRAJECTORY ===
 
@@ -104,9 +137,7 @@ TITLE: KẾ HOẠCH HÀNH ĐỘNG
   §6 recommendations: focus vào chiến lược 30 video đầu tiên.
 
 === MANDATORY SECTIONS ===
-verdict và recommendations là BẮT BUỘC — không được bỏ qua.
-what_worked và competitive_landscape cũng BẮT BUỘC (trừ competitive_landscape \
-có thể là 1 đoạn "không có data" như hướng dẫn bên trên).
+verdict, what_worked, competitive_landscape, next_video, recommendations là BẮT BUỘC.
 what_falling: BẮT BUỘC trừ breakout và new_account.
 video_vs_channel: CHỈ emit khi có THIS VIDEO trong context.
 """
@@ -143,12 +174,26 @@ DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("video_vs_channel", "bursty"): "VIDEO NÀY SO VỚI KÊNH",
     ("video_vs_channel", "new_account"): "VIDEO NÀY SO VỚI KÊNH",
     # competitive_landscape
-    ("competitive_landscape", "decline_from_peak"): "ĐỐI THỦ ĐANG LÀM GÌ",
-    ("competitive_landscape", "stagnant"): "ĐỐI THỦ ĐANG LÀM GÌ",
-    ("competitive_landscape", "steady_growth"): "ĐỐI THỦ ĐANG LÀM GÌ",
-    ("competitive_landscape", "breakout"): "ĐỐI THỦ ĐANG LÀM GÌ",
-    ("competitive_landscape", "bursty"): "ĐỐI THỦ ĐANG LÀM GÌ",
-    ("competitive_landscape", "new_account"): "ĐỐI THỦ ĐANG LÀM GÌ",
+    ("competitive_landscape", "decline_from_peak"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
+    ("competitive_landscape", "stagnant"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
+    ("competitive_landscape", "steady_growth"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
+    ("competitive_landscape", "breakout"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
+    ("competitive_landscape", "bursty"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
+    ("competitive_landscape", "new_account"): "ĐỐI THỦ CÙNG NGÁCH ĐANG LÀM GÌ",
+    # next_video — title often overridden by model
+    ("next_video", "decline_from_peak"): "VIDEO TIẾP THEO NÊN QUAY",
+    ("next_video", "stagnant"): "VIDEO TIẾP THEO NÊN QUAY",
+    ("next_video", "steady_growth"): "VIDEO TIẾP THEO NÊN QUAY",
+    ("next_video", "breakout"): "VIDEO TIẾP THEO NÊN QUAY",
+    ("next_video", "bursty"): "VIDEO TIẾP THEO NÊN QUAY",
+    ("next_video", "new_account"): "VIDEO TIẾP THEO NÊN QUAY",
+    # hashtag_insights — synthetic section (template on server)
+    ("hashtag_insights", "decline_from_peak"): "HASHTAG NÀO ĐANG WORK CHO BẠN",
+    ("hashtag_insights", "stagnant"): "HASHTAG NÀO ĐANG WORK CHO BẠN",
+    ("hashtag_insights", "steady_growth"): "HASHTAG NÀO ĐANG WORK CHO BẠN",
+    ("hashtag_insights", "breakout"): "HASHTAG NÀO ĐANG WORK CHO BẠN",
+    ("hashtag_insights", "bursty"): "HASHTAG NÀO ĐANG WORK CHO BẠN",
+    ("hashtag_insights", "new_account"): "HASHTAG NÀO ĐANG WORK CHO BẠN",
     # recommendations
     ("recommendations", "decline_from_peak"): "KẾ HOẠCH HÀNH ĐỘNG",
     ("recommendations", "stagnant"): "KẾ HOẠCH HÀNH ĐỘNG",
@@ -161,6 +206,10 @@ DEFAULT_TITLES: dict[tuple[str, str], str] = {
 
 def get_default_title(section_id: str, trajectory: str) -> str:
     """Return the default Vietnamese title for a (section_id, trajectory) pair."""
+    if section_id == "hashtag_insights":
+        return "HASHTAG NÀO ĐANG WORK CHO BẠN"
+    if section_id == "next_video":
+        return "VIDEO TIẾP THEO NÊN QUAY"
     return DEFAULT_TITLES.get((section_id, trajectory), section_id.upper().replace("_", " "))
 
 
@@ -191,6 +240,9 @@ def build_channel_diagnosis_context(
     creator_match: dict[str, Any] | None,
     ugc_creators: list[dict[str, Any]],
     niche_benchmarks: dict[str, Any] | None,
+    channel_persona: dict[str, Any] | None = None,
+    peer_source: str | None = None,
+    next_video_concept: dict[str, Any] | None = None,
 ) -> str:
     """Build the user-facing context string with ``<<<BLOCK>>>`` delimiters.
 
@@ -250,6 +302,18 @@ def build_channel_diagnosis_context(
     ]
     blocks.append("<<<CHANNEL OVERVIEW>>>\n" + "\n".join(overview_lines))
 
+    # --- Persona (two-axis) ---
+    if channel_persona:
+        dom_fmt = channel_persona.get("dominant_format") or ""
+        cat = channel_persona.get("content_class_label") or ""
+        ccid = channel_persona.get("dominant_content_class_id")
+        blocks.append(
+            "<<<KÊNH ĐANG PHÂN TÍCH>>>\n"
+            f"@{handle} | dominant_format={dom_fmt} | category_vn={cat} | "
+            f"content_class_id={ccid}\n"
+            "(Khi nói category, dùng category_vn — không nói chung chung «lifestyle» nếu có nhãn cụ thể.)"
+        )
+
     # --- <<<FORMAT PERFORMANCE>>> ---
     formats_data = channel_pattern.get("formats") or {}
     if formats_data:
@@ -292,7 +356,23 @@ def build_channel_diagnosis_context(
 
     # --- <<<INFLECTION POINT>>> ---
     if inflection:
-        inf_lines = []
+        inf_lines: list[str] = []
+        if inflection.get("date_iso"):
+            inf_lines.append(f"boundary_date: {inflection['date_iso']}")
+        bfm = inflection.get("before_format_mix") or {}
+        afm = inflection.get("after_format_mix") or {}
+        if bfm:
+            inf_lines.append(
+                "before_format_mix: " + ", ".join(f"{k}={v}%" for k, v in bfm.items())
+            )
+        if afm:
+            inf_lines.append(
+                "after_format_mix: " + ", ".join(f"{k}={v}%" for k, v in afm.items())
+            )
+        if inflection.get("before_avg_views") is not None:
+            inf_lines.append(f"before_avg_views: {_fmt_views(inflection.get('before_avg_views', 0))}")
+        if inflection.get("after_avg_views") is not None:
+            inf_lines.append(f"after_avg_views: {_fmt_views(inflection.get('after_avg_views', 0))}")
         q_avgs = inflection.get("quarter_avgs") or []
         for q, avg in q_avgs:
             inf_lines.append(f"  {q}: {_fmt_views(avg)} avg")
@@ -310,34 +390,58 @@ def build_channel_diagnosis_context(
         ]
         blocks.append("<<<THIS VIDEO VS CHANNEL BASELINE>>>\n" + "\n".join(match_lines))
 
-    # --- <<<UGC CREATORS>>> ---
+    # --- Peer creators (corpus-verified) ---
+    src = peer_source or "unknown"
     if ugc_creators:
         ugc_lines = []
         for c in ugc_creators:
             handle_c = c.get("handle") or ""
-            followers_c = c.get("followers") or 0
+            followers_c = c.get("followers")
+            followers_str = (
+                f"{_fmt_views(int(followers_c))} followers"
+                if followers_c not in (None, 0)
+                else "N/A followers"
+            )
             avg_v = c.get("avg_views") or 0
-            er = c.get("engagement_rate") or 0
             fmt = c.get("format_label") or ""
             samples = c.get("sample_videos") or []
             sample_str = ", ".join(f"{_fmt_views(s.get('views', 0))} views" for s in samples[:2])
             ugc_lines.append(
-                f"@{handle_c} | {_fmt_views(followers_c)} followers | "
-                f"avg {_fmt_views(avg_v)} | ER {er:.2%} | {fmt} | samples: {sample_str}"
+                f"@{handle_c} | {followers_str} | avg {_fmt_views(avg_v)} | {fmt} | samples: {sample_str}"
             )
-        blocks.append("<<<UGC CREATORS>>>\n" + "\n".join(ugc_lines))
+        blocks.append(
+            f"<<<KÊNH CÙNG NGÁCH (corpus-verified, peer_source={src})>>>\n"
+            + "\n".join(ugc_lines)
+        )
     else:
-        blocks.append("<<<UGC CREATORS>>>\n(Không có dữ liệu creator nổi bật trong ngách này)")
+        blocks.append(
+            f"<<<KÊNH CÙNG NGÁCH (peer_source={src})>>>\n"
+            "(Không đủ peer trong corpus để so sánh — nói rõ trong competitive_landscape.)"
+        )
 
     # --- <<<NICHE BENCHMARK>>> ---
     # Omit when niche peer count < 10
     if niche_benchmarks and int(niche_benchmarks.get("channel_count") or 0) >= 10:
         bench_lines = [
             f"niche_channel_count: {niche_benchmarks.get('channel_count', 0)}",
+            f"niche_avg_views_p25: {_fmt_views(niche_benchmarks.get('avg_views_p25', 0))}",
             f"niche_avg_views_p50: {_fmt_views(niche_benchmarks.get('avg_views_p50', 0))}",
             f"niche_avg_views_p75: {_fmt_views(niche_benchmarks.get('avg_views_p75', 0))}",
             f"niche_engagement_p75: {float(niche_benchmarks.get('engagement_p75', 0)):.2%}",
         ]
         blocks.append("<<<NICHE BENCHMARK>>>\n" + "\n".join(bench_lines))
+
+    if next_video_concept:
+        nv_lines = [
+            f"format: {next_video_concept.get('format')}",
+            f"format_label_vn: {next_video_concept.get('format_label')}",
+            f"duration_sec: {next_video_concept.get('duration_sec')}",
+            f"sample_peer: @{next_video_concept.get('sample_peer_handle')}",
+            f"peer_avg_views: {_fmt_views(next_video_concept.get('peer_avg_views', 0))}",
+            f"channel_share_of_format_pct: {next_video_concept.get('channel_share_pct')}",
+            f"rationale_struct: {next_video_concept.get('rationale_struct')}",
+            f"sample_video_url: {next_video_concept.get('sample_video_url')}",
+        ]
+        blocks.append("<<<NEXT VIDEO CONCEPT>>>\n" + "\n".join(nv_lines))
 
     return "\n\n".join(blocks)

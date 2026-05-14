@@ -75,7 +75,8 @@ vi.mock("@/lib/auth", () => ({
   }),
 }));
 
-const ChannelScreen = (await import("./ChannelScreen")).default;
+import ChannelScreen from "./ChannelScreen";
+import type { ChannelDiagnoseState } from "@/hooks/useChannelDiagnose";
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,9 @@ describe("ChannelScreen", () => {
     trajectoryShape: null,
     sections: [],
     recommendations: [],
+    scoreCard: null,
+    channelPersona: null,
+    peerSource: null as ChannelDiagnoseState["peerSource"],
     finalPayload: null,
     error: null,
     heartbeatCount: 0,
@@ -105,6 +109,7 @@ describe("ChannelScreen", () => {
     lastSeq: 0,
     activeStepIndex: -1,
     activeStepLabel: "",
+    activeSectionId: null,
     start: vi.fn(),
     abort: vi.fn(),
     reset: vi.fn(),
@@ -131,6 +136,7 @@ describe("ChannelScreen", () => {
       activeStepLabel: "Tải dữ liệu kênh",
       trajectoryShape: null,
       sections: [],
+      activeSectionId: null,
     });
     const { container } = renderScreen("?handle=sammie.tech");
     expect(container).toBeTruthy();
@@ -141,6 +147,7 @@ describe("ChannelScreen", () => {
       ...mockDiagnoseIdle,
       status: "streaming" as const,
       sections: [],
+      activeSectionId: null,
     });
     renderScreen("?handle=sammie.tech");
     // Handle appears in ChannelDiagnosisBody heading area.
@@ -168,7 +175,6 @@ describe("ChannelScreen", () => {
         creator_match: null,
         video_count: 15,
         provenance: "Phân tích dựa trên 15 videos",
-        niche_thin: false,
         cache_hit: false,
       },
     });

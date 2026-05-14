@@ -223,7 +223,7 @@ async def channel_refresh_mine_endpoint(
 # Section markers the server parses from Gemini output
 _SECTION_HEADER_RE = re.compile(
     r"^=== (verdict|what_worked|what_falling|video_vs_channel"
-    r"|competitive_landscape|recommendations) ===$",
+    r"|competitive_landscape|next_video|recommendations) ===$",
     re.MULTILINE,
 )
 _TITLE_RE = re.compile(r"^TITLE:\s*(.+)$", re.MULTILINE)
@@ -232,6 +232,7 @@ _REC_RE = re.compile(
     r"^\s*(\d+)\.\s+\*\*(.+?)\*\*\s*\n(.*?)(?=\n\s*\d+\.|\Z)",
     re.DOTALL | re.MULTILINE,
 )
+_REC_STOP_SPLIT = re.compile(r"\n---\s*NGỪNG LÀM\s*---\s*\n", re.IGNORECASE | re.MULTILINE)
 
 
 def _sse(payload: dict[str, Any]) -> bytes:
@@ -264,13 +265,21 @@ def _parse_sections_from_narrative(
 
 
 def _parse_recommendations(rec_body: str) -> list[dict[str, Any]]:
-    """Parse numbered markdown bold recommendations from a section body."""
-    items = []
-    for m in _REC_RE.finditer(rec_body):
+    """Parse recommendations + optional --- NGỪNG LÀM --- anti-block."""
+    parts = _REC_STOP_SPLIT.split(rec_body, maxsplit=1)
+    main = parts[0].strip()
+    anti_raw = parts[1].strip() if len(parts) > 1 else ""
+    items: list[dict[str, Any]] = []
+    for m in _REC_RE.finditer(main):
         idx = int(m.group(1))
         title = m.group(2).strip()
         body = m.group(3).strip()
-        items.append({"index": idx, "title": title, "body": body})
+        kind = "hero" if idx == 1 else "regular"
+        if "ƯU TIÊN" in title.upper():
+            kind = "hero"
+        items.append({"index": idx, "title": title, "body": body, "kind": kind})
+    if anti_raw:
+        items.append({"index": 99, "title": "Ngừng làm", "body": anti_raw, "kind": "anti"})
     return items
 
 
@@ -315,7 +324,18 @@ def _persist_channel_diagnoses(
     inflection: dict[str, Any] | None,
     creator_match: dict[str, Any] | None,
     video_count: int,
+    *,
+    score_card: dict[str, Any] | None = None,
+    score_card_captions: dict[str, str] | None = None,
+    verdict_tiles: list[dict[str, Any]] | None = None,
+    hashtag_insights: list[dict[str, Any]] | None = None,
+    next_video: dict[str, Any] | None = None,
+    channel_persona: dict[str, Any] | None = None,
+    peer_source: str | None = None,
 ) -> None:
+    payload_card = dict(score_card or {})
+    if score_card_captions:
+        payload_card["captions"] = score_card_captions
     try:
         sb_service.table("channel_diagnoses").upsert({
             "handle": handle,
@@ -331,6 +351,12 @@ def _persist_channel_diagnoses(
             "inflection": inflection,
             "creator_match": creator_match,
             "video_count": video_count,
+            "score_card": payload_card,
+            "verdict_tiles": verdict_tiles or [],
+            "hashtag_insights": hashtag_insights or [],
+            "next_video": next_video,
+            "channel_persona": channel_persona or {},
+            "peer_source": peer_source,
             "computed_at": datetime.now(tz=UTC).isoformat(),
         }).execute()
     except Exception as exc:
@@ -346,6 +372,7 @@ async def _run_channel_diagnose(
     step_queue: asyncio.Queue,
 ) -> dict[str, Any]:
     """Orchestrator: runs the full channel diagnosis pipeline in a thread pool."""
+    from getviews_pipeline.profile_niches import legacy_niche_id_for_creator_niche
     from getviews_pipeline.channel_diagnose import (
         _fetch_niche_benchmarks,
         normalize_handle,
@@ -354,14 +381,21 @@ async def _run_channel_diagnose(
         build_channel_pattern,
         classify_trajectory,
         compute_creator_match,
+        compute_hashtag_insights,
         compute_inflection_point,
         compute_recent_window_stats,
-        extract_dominant_format,
+        compute_score_card,
+        derive_channel_persona,
+        derive_next_video_concept,
         fetch_channel_videos_live,
-        fetch_ugc_creators,
+        hashtag_caption_for_insight,
+        normalize_peer_creator_for_fe,
+        render_score_card_captions,
+        select_niche_peer_creators,
         select_niche_peer_videos,
         select_quarterly_breakout_videos,
         select_top_performers,
+        select_verdict_tiles,
         select_worst_performers,
     )
     from getviews_pipeline.channel_diagnose_prompts import (
@@ -371,6 +405,7 @@ async def _run_channel_diagnose(
     )
 
     handle = normalize_handle(handle)
+    legacy_nid = legacy_niche_id_for_creator_niche(niche_id) or niche_id
 
     # --- Step 1: Load channel videos ---
     await step_queue.put({"type": "step_start", "index": 1, "label": "Tải dữ liệu kênh"})
@@ -392,9 +427,8 @@ async def _run_channel_diagnose(
     await step_queue.put({"type": "trajectory", "trajectory": trajectory})
     await step_queue.put({"type": "step_done", "index": 3})
 
-    # --- Step 4: UGC creators ---
-    await step_queue.put({"type": "step_start", "index": 4, "label": "Tìm UGC creators"})
-    # Resolve niche slug for hashtag scouting
+    # --- Step 4: Persona, corpus peers, benchmarks, score card ---
+    await step_queue.put({"type": "step_start", "index": 4, "label": "So sánh ngách & peer"})
     sb_user = user_supabase(access_token)
     sb_svc = get_service_client()
     niche_slug = ""
@@ -404,16 +438,52 @@ async def _run_channel_diagnose(
     except Exception:
         pass
 
-    channel_avg = channel_pattern.get("global_avg_views", 0)
-    ugc_creators = await fetch_ugc_creators(handle, niche_slug, videos, channel_avg)
-    niche_benchmarks = await run_sync(_fetch_niche_benchmarks, sb_user, niche_id=niche_id)
+    channel_avg = float(channel_pattern.get("global_avg_views") or 0)
+    persona = await derive_channel_persona(sb_user, handle, legacy_nid, channel_pattern)
+    peer_creators_raw, peer_source = await select_niche_peer_creators(
+        sb_user,
+        legacy_nid,
+        persona.get("dominant_content_class_id"),
+        handle,
+        channel_avg,
+        limit=3,
+    )
+    ugc_creators = [
+        normalize_peer_creator_for_fe(dict(u), niche_slug=niche_slug)
+        for u in peer_creators_raw
+    ]
+    niche_benchmarks = await run_sync(_fetch_niche_benchmarks, sb_user, niche_id=legacy_nid)
+
+    score_card = compute_score_card(
+        videos,
+        channel_pattern,
+        recent_window,
+        inflection,
+        niche_benchmarks,
+        persona,
+        trajectory,
+    )
+    score_captions = render_score_card_captions(score_card)
+    await step_queue.put({
+        "type": "score_card",
+        "data": score_card,
+        "captions": score_captions,
+    })
+    ch_avg_float = float(channel_pattern.get("global_avg_views") or 1)
+    hashtag_insights_raw = compute_hashtag_insights(videos)
+    hashtag_payload = [
+        {**h, "caption": hashtag_caption_for_insight(h, ch_avg_float)}
+        for h in hashtag_insights_raw
+    ]
+    verdict_tiles = [dict(t) for t in select_verdict_tiles(videos)]
+    next_video_seed = derive_next_video_concept(peer_creators_raw, channel_pattern, videos)
+
     await step_queue.put({"type": "step_done", "index": 4, "count": len(ugc_creators)})
 
-    # --- Tile selection (trajectory-aware) ---
+    # --- creator_match + trajectory-aware performer tiles ---
     creator_match: dict[str, Any] | None = None
     if video_url:
         try:
-            # Try corpus first
             vid_res = (
                 sb_user.table("video_corpus")
                 .select("views,content_format")
@@ -437,17 +507,19 @@ async def _run_channel_diagnose(
     if trajectory == "breakout":
         top_performers = [dict(t) for t in select_quarterly_breakout_videos(videos)]
     elif trajectory == "new_account":
-        peer_tiles = await select_niche_peer_videos(sb_user, niche_id, handle)
+        peer_tiles = await select_niche_peer_videos(sb_user, legacy_nid, handle)
         top_performers = [dict(t) for t in peer_tiles]
     else:
         top_performers = [dict(t) for t in select_top_performers(videos, channel_pattern)]
         if trajectory in ("decline_from_peak", "stagnant", "bursty"):
             worst_performers = [dict(t) for t in select_worst_performers(videos)]
         elif trajectory == "steady_growth":
-            # §3 = top from latest quarter
             from getviews_pipeline.channel_diagnose import _now, _quarter_key
             now_q = _quarter_key(_now())
-            q_vids = [v for v in videos if v.get("posted_at") and _quarter_key(v["posted_at"]) == now_q]
+            q_vids = [
+                v for v in videos
+                if v.get("posted_at") and _quarter_key(v["posted_at"]) == now_q
+            ]
             if q_vids:
                 worst_performers = [
                     dict(t) for t in select_top_performers(q_vids, channel_pattern, limit=4)
@@ -466,12 +538,14 @@ async def _run_channel_diagnose(
         top_performers=top_performers,
         worst_performers=worst_performers,
         creator_match=creator_match,
-        ugc_creators=[dict(u) for u in ugc_creators],
+        ugc_creators=peer_creators_raw,
         niche_benchmarks=niche_benchmarks,
+        channel_persona=persona,
+        peer_source=peer_source,
+        next_video_concept=next_video_seed,
     )
 
     from google.genai import types as genai_types
-
     from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
     from getviews_pipeline.gemini import _generate_content_models
 
@@ -493,75 +567,124 @@ async def _run_channel_diagnose(
         logger.error("[channel_diagnose] Gemini failed user=%s: %s", user_id, exc)
         return {"error": "stream_failed"}
 
-    # --- Parse sections ---
-    sections = _parse_sections_from_narrative(narrative, trajectory)
-    section_ids = {s["section_id"] for s in sections}
+    sections_raw = _parse_sections_from_narrative(narrative, trajectory)
+    section_ids = {s["section_id"] for s in sections_raw}
 
     mandatory = {"verdict", "recommendations"}
     if not mandatory.issubset(section_ids):
-        # Hard fallback: emit raw narrative as a single fallback section
         logger.warning(
             "[channel_diagnose] mandatory section missing section_ids=%s trajectory=%s",
-            section_ids, trajectory,
+            section_ids,
+            trajectory,
         )
-        sections = [{
+        sections_raw = [{
             "section_id": "fallback",
             "title": get_default_title("verdict", trajectory),
             "text": narrative,
         }]
 
-    # Emit sections
-    tile_map = {
+    if "fallback" not in {s["section_id"] for s in sections_raw}:
+        if "next_video" not in {s["section_id"] for s in sections_raw} and next_video_seed:
+            sections_raw.append({
+                "section_id": "next_video",
+                "title": get_default_title("next_video", trajectory),
+                "text": str(next_video_seed.get("rationale_struct") or ""),
+            })
+
+    parsed_map = {s["section_id"]: s for s in sections_raw}
+
+    order = [
+        "verdict", "what_worked", "what_falling", "video_vs_channel",
+        "competitive_landscape", "hashtag_insights", "next_video", "recommendations",
+    ]
+
+    tile_map: dict[str, list[dict[str, Any]]] = {
+        "verdict": verdict_tiles,
         "what_worked": top_performers,
-        "competitive_landscape": [dict(u) for u in ugc_creators],
+        "competitive_landscape": [],
         "video_vs_channel": [],
     }
     if trajectory not in ("breakout", "new_account"):
         tile_map["what_falling"] = worst_performers
 
     recommendations: list[dict[str, Any]] = []
-    for section in sections:
+    sections_ordered: list[dict[str, Any]] = []
+
+    async def _emit_one(section: dict[str, Any]) -> None:
         sid = section["section_id"]
         tiles = tile_map.get(sid, [])
-        is_ugc = sid == "competitive_landscape"
-        section_start_payload: dict[str, Any] = {
+        is_landscape = sid == "competitive_landscape"
+        start: dict[str, Any] = {
             "type": "section_start",
             "section_id": sid,
             "title": section["title"],
         }
-        if tiles and not is_ugc:
-            section_start_payload["embedded_tiles"] = tiles
-        if is_ugc and ugc_creators:
-            section_start_payload["embedded_creators"] = [dict(u) for u in ugc_creators]
-
-        await step_queue.put(section_start_payload)
-
+        if sid == "verdict" and verdict_tiles:
+            start["embedded_tiles"] = verdict_tiles
+        elif tiles and not is_landscape:
+            start["embedded_tiles"] = tiles
+        if is_landscape and ugc_creators:
+            start["embedded_creators"] = ugc_creators
+        if sid == "next_video" and next_video_seed:
+            start["next_video"] = next_video_seed
+        await step_queue.put(start)
         if sid == "recommendations":
             rec_items = _parse_recommendations(section["text"])
-            if len(rec_items) < 3:
-                # Fallback: emit raw text chunks
+            non_anti = [r for r in rec_items if r.get("kind") != "anti"]
+            if len(non_anti) < 2:
                 for chunk in _chunk_text(section["text"]):
                     await step_queue.put({"type": "text_chunk", "content": chunk})
             else:
-                recommendations = rec_items
+                recommendations = list(rec_items)
                 for item in rec_items:
                     await step_queue.put({"type": "recommendation_item", **item})
         else:
             for chunk in _chunk_text(section["text"]):
                 await step_queue.put({"type": "text_chunk", "content": chunk})
-
         await step_queue.put({"type": "section_done", "section_id": sid})
 
-    # --- Persist ---
-    niche_peer_count = int((niche_benchmarks or {}).get("channel_count") or 0)
-    niche_thin = niche_peer_count < 10
+    if sections_raw and sections_raw[0].get("section_id") == "fallback":
+        sections_ordered = list(sections_raw)
+        for section in sections_ordered:
+            await _emit_one(section)
+    else:
+        for sid in order:
+            if sid == "what_falling" and trajectory in ("breakout", "new_account"):
+                continue
+            if sid == "video_vs_channel" and not video_url:
+                continue
+            if sid == "hashtag_insights":
+                sec_title = get_default_title("hashtag_insights", trajectory)
+                hint = f"Dựa trên {len(videos)} video đã phân tích (caption public)."
+                sections_ordered.append({"section_id": sid, "title": sec_title, "text": hint})
+                await step_queue.put({
+                    "type": "section_start",
+                    "section_id": sid,
+                    "title": sec_title,
+                    "hashtag_insights": hashtag_payload,
+                })
+                for chunk in _chunk_text(hint):
+                    await step_queue.put({"type": "text_chunk", "content": chunk})
+                await step_queue.put({"type": "section_done", "section_id": sid})
+                continue
+
+            sec = parsed_map.get(sid)
+            if not sec:
+                continue
+            sections_ordered.append(sec)
+            await _emit_one(sec)
 
     now_str = datetime.now(tz=UTC).strftime("%H:%M %d/%m/%Y")
     provenance = (
         f"Phân tích dựa trên {len(videos)} videos · scraped {now_str} · TikTok public data"
     )
 
-    dominant_fmt = extract_dominant_format(channel_pattern)
+    nv_sec = parsed_map.get("next_video")
+    next_video_out: dict[str, Any] | None = None
+    if next_video_seed:
+        next_video_out = dict(next_video_seed)
+        if nv_sec:
+            next_video_out["narrative"] = nv_sec.get("text") or ""
 
     await run_sync(
         _persist_channel_diagnoses,
@@ -570,32 +693,44 @@ async def _run_channel_diagnose(
         video_url,
         niche_id,
         trajectory,
-        sections,
+        sections_ordered,
         recommendations,
         top_performers,
         worst_performers,
-        [dict(u) for u in ugc_creators],
+        ugc_creators,
         channel_pattern,
         inflection,
         creator_match,
         len(videos),
+        score_card=score_card,
+        score_card_captions=score_captions,
+        verdict_tiles=verdict_tiles,
+        hashtag_insights=hashtag_payload,
+        next_video=next_video_out,
+        channel_persona=persona,
+        peer_source=peer_source,
     )
 
     return {
-        "sections": sections,
+        "sections": sections_ordered,
         "recommendations": recommendations,
         "top_performers": top_performers,
         "worst_performers": worst_performers,
-        "ugc_creators": [dict(u) for u in ugc_creators],
+        "ugc_creators": ugc_creators,
         "channel_pattern": channel_pattern,
         "inflection": inflection,
         "creator_match": creator_match,
         "trajectory_shape": trajectory,
         "video_count": len(videos),
         "provenance": provenance,
-        "niche_thin": niche_thin,
         "cache_hit": False,
-        "dominant_format": dominant_fmt,
+        "score_card": score_card,
+        "score_card_captions": score_captions,
+        "verdict_tiles": verdict_tiles,
+        "hashtag_insights": hashtag_payload,
+        "next_video": next_video_out,
+        "channel_persona": persona,
+        "peer_source": peer_source,
     }
 
 
@@ -666,6 +801,29 @@ async def channel_diagnose_endpoint(
             top_performers = cached_row.get("top_performers") or []
             worst_performers = cached_row.get("worst_performers") or []
             recommendations = cached_row.get("recommendations") or []
+            verdict_tiles = cached_row.get("verdict_tiles") or []
+            hashtag_insights_row = cached_row.get("hashtag_insights") or []
+            next_video_row = cached_row.get("next_video")
+            channel_persona_row = cached_row.get("channel_persona") or {}
+            peer_source_row = cached_row.get("peer_source")
+
+            score_all = dict(cached_row.get("score_card") or {})
+            score_captions_replay: dict[str, str] | None = None
+            captions_raw = score_all.pop("captions", None)
+            if isinstance(captions_raw, dict):
+                score_captions_replay = {str(k): str(v) for k, v in captions_raw.items()}
+            if score_all:
+                seq += 1
+                sc_evt: dict[str, Any] = {
+                    "stream_id": stream_id,
+                    "seq": seq,
+                    "type": "score_card",
+                    "data": score_all,
+                    "done": False,
+                }
+                if score_captions_replay:
+                    sc_evt["captions"] = score_captions_replay
+                yield _sse(sc_evt)
 
             for section in sections:
                 sid = section.get("section_id", "")
@@ -675,12 +833,18 @@ async def channel_diagnose_endpoint(
                     "section_id": sid, "title": section.get("title", ""),
                     "done": False,
                 }
-                if sid == "what_worked":
+                if sid == "verdict" and verdict_tiles:
+                    sec_evt["embedded_tiles"] = verdict_tiles
+                elif sid == "what_worked":
                     sec_evt["embedded_tiles"] = top_performers
                 elif sid == "what_falling":
                     sec_evt["embedded_tiles"] = worst_performers
                 elif sid == "competitive_landscape" and ugc_creators:
                     sec_evt["embedded_creators"] = ugc_creators
+                elif sid == "hashtag_insights":
+                    sec_evt["hashtag_insights"] = hashtag_insights_row
+                elif sid == "next_video" and next_video_row:
+                    sec_evt["next_video"] = next_video_row
                 yield _sse(sec_evt)
 
                 if sid == "recommendations":
@@ -702,7 +866,6 @@ async def channel_diagnose_endpoint(
 
             # Terminal payload + done
             computed_at = str(cached_row.get("computed_at") or "")
-            niche_thin = int((cached_row.get("channel_pattern") or {}).get("total_videos") or 0) == 0
             seq += 1
             yield _sse({"stream_id": stream_id, "seq": seq, "payload": {
                 "trajectory_shape": trajectory,
@@ -716,8 +879,14 @@ async def channel_diagnose_endpoint(
                 "creator_match": cached_row.get("creator_match"),
                 "video_count": cached_row.get("video_count") or 0,
                 "provenance": f"Phân tích cập nhật: {computed_at[:16]}",
-                "niche_thin": niche_thin,
                 "cache_hit": True,
+                "score_card": score_all,
+                "score_card_captions": score_captions_replay or {},
+                "verdict_tiles": verdict_tiles,
+                "hashtag_insights": hashtag_insights_row,
+                "next_video": next_video_row,
+                "channel_persona": channel_persona_row,
+                "peer_source": peer_source_row,
             }, "done": False})
             seq += 1
             yield _sse({"stream_id": stream_id, "seq": seq, "done": True})

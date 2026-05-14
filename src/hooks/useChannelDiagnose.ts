@@ -8,6 +8,7 @@
  *
  * Event types from the server:
  *   trajectory      { trajectory: TrajectoryShape }
+ *   score_card      { data: ChannelScoreCardData, captions?: Record<string, string> }
  *   step_start      { index, label }
  *   step_done       { index, count? }
  *   section_start   { section_id, title, embedded_tiles?, embedded_creators? }
@@ -27,8 +28,12 @@ import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 import type {
   ChannelDiagnosisPayload,
+  ChannelHashtagInsight,
+  ChannelNextVideoConcept,
   ChannelPerformerTile,
+  ChannelPersona,
   ChannelRecommendation,
+  ChannelScoreCard,
   ChannelSection,
   ChannelUGCCreator,
   TrajectoryShape,
@@ -55,6 +60,10 @@ export interface ChannelDiagnoseState {
   /** Sections accumulated during streaming. Text grows as text_chunk events arrive. */
   sections: ChannelSection[];
   recommendations: ChannelRecommendation[];
+  /** Template + captions merged once `score_card` SSE arrives. */
+  scoreCard: ChannelScoreCard | null;
+  channelPersona: ChannelPersona | null;
+  peerSource: ChannelDiagnosisPayload["peer_source"];
   /** Final payload once `done: true` arrives (contains all sections + tiles). */
   finalPayload: ChannelDiagnosisPayload | null;
   error: string | null;
@@ -78,6 +87,9 @@ const INITIAL_STATE: ChannelDiagnoseState = {
   trajectoryShape: null,
   sections: [],
   recommendations: [],
+  scoreCard: null,
+  channelPersona: null,
+  peerSource: null,
   finalPayload: null,
   error: null,
   heartbeatCount: 0,
@@ -87,6 +99,16 @@ const INITIAL_STATE: ChannelDiagnoseState = {
   activeStepLabel: "",
   activeSectionId: null,
 };
+
+function mergeScoreCardFromPayload(p: ChannelDiagnosisPayload): ChannelScoreCard | null {
+  const data = p.score_card;
+  if (!data || typeof data !== "object") return null;
+  const cap = p.score_card_captions;
+  return {
+    ...data,
+    ...(cap && typeof cap === "object" ? { captions: cap } : {}),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -339,6 +361,18 @@ async function consumeDiagnoseSse(
         continue;
       }
 
+      if (eventType === "score_card") {
+        const data = token.data as ChannelScoreCard | undefined;
+        const captions = token.captions as Record<string, string> | undefined;
+        if (data && typeof data === "object") {
+          setState((s) => ({
+            ...s,
+            scoreCard: { ...data, ...(captions ? { captions } : {}) },
+          }));
+        }
+        continue;
+      }
+
       // --- Steps ---
       if (eventType === "step_start") {
         setState((s) => ({
@@ -366,6 +400,12 @@ async function consumeDiagnoseSse(
         }
         if (Array.isArray(token.embedded_creators) && token.embedded_creators.length > 0) {
           newSection.embedded_creators = token.embedded_creators as ChannelUGCCreator[];
+        }
+        if (Array.isArray(token.hashtag_insights)) {
+          newSection.hashtag_insights = token.hashtag_insights as ChannelHashtagInsight[];
+        }
+        if (token.next_video && typeof token.next_video === "object") {
+          newSection.next_video = token.next_video as ChannelNextVideoConcept;
         }
         activeSection = newSection;
         // Eagerly add stub to state so UI can show the header immediately.
@@ -400,10 +440,16 @@ async function consumeDiagnoseSse(
 
       // --- Recommendation item ---
       if (eventType === "recommendation_item") {
+        const kindRaw = token.kind as string | undefined;
+        const kind: ChannelRecommendation["kind"] =
+          kindRaw === "hero" || kindRaw === "regular" || kindRaw === "anti"
+            ? kindRaw
+            : undefined;
         const rec: ChannelRecommendation = {
           index: token.index as number,
           title: (token.title as string) ?? "",
           body: (token.body as string) ?? "",
+          ...(kind ? { kind } : {}),
         };
         setState((s) => ({
           ...s,
@@ -428,9 +474,16 @@ async function consumeDiagnoseSse(
       }
 
       // --- Final payload (before done) ---
-      if (token.payload !== undefined) {
-        payload = token.payload as ChannelDiagnosisPayload;
-        setState((s) => ({ ...s, finalPayload: payload }));
+      if (token.payload !== undefined && token.payload !== null) {
+        const pl = token.payload as ChannelDiagnosisPayload;
+        payload = pl;
+        setState((s) => ({
+          ...s,
+          finalPayload: pl,
+          scoreCard: s.scoreCard ?? mergeScoreCardFromPayload(pl),
+          channelPersona: pl.channel_persona ?? s.channelPersona,
+          peerSource: pl.peer_source ?? s.peerSource,
+        }));
         continue;
       }
 
@@ -442,12 +495,18 @@ async function consumeDiagnoseSse(
           setState((s) => ({ ...s, status: "error", error: err }));
           return { ok: false, error: err, streamId: lastStreamId, lastSeq, payload };
         }
-        setState((s) => ({
-          ...s,
-          status: "done",
-          finalPayload: payload ?? s.finalPayload,
-          error: null,
-        }));
+        setState((s) => {
+          const fp = payload ?? s.finalPayload;
+          return {
+            ...s,
+            status: "done",
+            finalPayload: fp,
+            scoreCard: s.scoreCard ?? (fp ? mergeScoreCardFromPayload(fp) : null),
+            channelPersona: fp?.channel_persona ?? s.channelPersona,
+            peerSource: fp?.peer_source ?? s.peerSource,
+            error: null,
+          };
+        });
         return { ok: true, streamId: lastStreamId, lastSeq, payload };
       }
     }

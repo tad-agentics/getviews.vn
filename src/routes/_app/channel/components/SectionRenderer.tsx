@@ -11,6 +11,8 @@ import type { ChannelSection, ChannelRecommendation } from "@/lib/api-types";
 import { VideoTileRow } from "./VideoTileRow";
 import { CreatorTileRow } from "./CreatorTileRow";
 import { RecommendationList } from "./NumberedRecommendation";
+import { HashtagInsightsBlock } from "./HashtagInsightsBlock";
+import { NextVideoCard, NextVideoCardEmpty } from "./NextVideoCard";
 
 function renderParagraphs(text: string) {
   if (!text) return null;
@@ -44,7 +46,7 @@ export function SectionRenderer({
   recommendations = [],
   streaming = false,
 }: SectionRendererProps) {
-  const { section_id, title, text, embedded_tiles, embedded_creators } = section;
+  const { section_id, title, text, embedded_tiles, embedded_creators, hashtag_insights, next_video } = section;
 
   if (section_id === "recommendations") {
     return (
@@ -56,6 +58,37 @@ export function SectionRenderer({
           <RecommendationList recommendations={recommendations} />
         ) : (
           renderParagraphs(text)
+        )}
+      </div>
+    );
+  }
+
+  if (section_id === "hashtag_insights") {
+    return (
+      <div className="mb-6">
+        <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h2>
+        <HashtagInsightsBlock insights={hashtag_insights ?? []} />
+        <div className="relative mt-2">
+          {renderParagraphs(text)}
+          {streaming && text && (
+            <span
+              className="inline-block w-0.5 h-4 bg-[color:var(--primary)] animate-pulse ml-0.5 align-text-bottom"
+              aria-hidden
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (section_id === "next_video") {
+    return (
+      <div className="mb-6">
+        <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h2>
+        {next_video ? (
+          <NextVideoCard concept={next_video} streaming={streaming} />
+        ) : (
+          <NextVideoCardEmpty streaming={streaming} />
         )}
       </div>
     );

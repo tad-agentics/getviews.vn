@@ -601,3 +601,86 @@ def test_classify_trajectory_quiet_when_timestamps_mostly_present(caplog):
     assert not any(
         "missing posted_at" in r.message for r in caplog.records
     ), "Should not warn when timestamps are present"
+
+
+# ── v2 channel diagnosis helpers ───────────────────────────────────────
+
+
+def test_compute_inflection_includes_format_mix():
+    from datetime import UTC, datetime, timedelta
+    from getviews_pipeline.channel_diagnose import compute_inflection_point
+
+    base = datetime(2025, 1, 15, tzinfo=UTC)
+    videos = []
+    # Q1-ish and Q2-ish buckets with enough per quarter (≥2 videos)
+    for i in range(4):
+        videos.append({
+            "video_id": f"a{i}",
+            "views": 100_000,
+            "content_format": "unboxing_process",
+            "posted_at": base + timedelta(days=i * 5),
+        })
+    for i in range(4):
+        videos.append({
+            "video_id": f"b{i}",
+            "views": 20_000,
+            "content_format": "photo_carousel",
+            "posted_at": base + timedelta(days=100 + i * 5),
+        })
+    inf = compute_inflection_point(videos)
+    assert inf is not None
+    assert "before_format_mix" in inf and "after_format_mix" in inf
+    assert "before_avg_views" in inf and "after_avg_views" in inf
+
+
+def test_render_score_card_captions_has_five_keys():
+    from getviews_pipeline.channel_diagnose import render_score_card_captions
+
+    card = {
+        "trajectory_shape": "stagnant",
+        "percentile_in_niche": 40,
+        "niche_p25": 1000,
+        "niche_p50": 5000,
+        "niche_p75": 12000,
+        "peer_median_posts_per_week": 3.0,
+        "posts_per_week": 2.0,
+        "best_hour_range": "18–21h",
+        "best_hour_ratio": 1.8,
+        "worst_hour": 9,
+        "worst_hour_avg_views": 1000,
+        "peak_views": 50000,
+        "recent_avg_views": 30000,
+        "peak_age_months": 4,
+    }
+    caps = render_score_card_captions(card)
+    for k in ("trajectory", "percentile", "cadence", "best_hour", "peak_recent"):
+        assert k in caps and len(caps[k]) > 10
+
+
+def test_select_verdict_tiles_dedupes_by_video_id():
+    from datetime import UTC, datetime
+    from getviews_pipeline.channel_diagnose import select_verdict_tiles
+
+    t0 = datetime(2026, 3, 1, tzinfo=UTC)
+    peak = {
+        "video_id": "p1",
+        "video_url": "https://tiktok.com/@x/video/1",
+        "thumbnail_url": "t1",
+        "views": 1_000_000,
+        "caption": "peak",
+        "posted_at": t0,
+        "content_format": "unboxing_process",
+    }
+    r2 = {
+        "video_id": "r2",
+        "video_url": "https://tiktok.com/@x/video/2",
+        "thumbnail_url": "t2",
+        "views": 10_000,
+        "caption": "recent2",
+        "posted_at": datetime(2026, 4, 1, tzinfo=UTC),
+        "content_format": "photo_carousel",
+    }
+    tiles = select_verdict_tiles([peak, r2])
+    assert len(tiles) == 2
+    ids = [tiles[0]["video_id"], tiles[1]["video_id"]]
+    assert "p1" in ids and "r2" in ids

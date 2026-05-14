@@ -58,6 +58,7 @@ def _fetch_niche_benchmarks(user_sb: Any, *, niche_id: int) -> dict[str, Any]:
     """Per-niche channel-level percentiles from ``niche_channel_benchmarks`` RPC."""
     fallback: dict[str, Any] = {
         "channel_count": 0,
+        "avg_views_p25": 0,
         "avg_views_p50": 0,
         "avg_views_p75": 0,
         "engagement_p50": 0.0,
@@ -73,6 +74,7 @@ def _fetch_niche_benchmarks(user_sb: Any, *, niche_id: int) -> dict[str, Any]:
         if isinstance(data, dict):
             return {
                 "channel_count":      int(data.get("channel_count") or 0),
+                "avg_views_p25":      int(data.get("avg_views_p25") or 0),
                 "avg_views_p50":      int(data.get("avg_views_p50") or 0),
                 "avg_views_p75":      int(data.get("avg_views_p75") or 0),
                 "engagement_p50":     float(data.get("engagement_p50") or 0),
@@ -105,6 +107,7 @@ class PerformerTile(TypedDict, total=False):
     format_label: str
     caption_snippet: str
     video_url: str
+    posted_at: str
 
 
 class SampleVideo(TypedDict):
@@ -113,9 +116,9 @@ class SampleVideo(TypedDict):
     video_url: str
 
 
-class UGCCreator(TypedDict):
+class UGCCreator(TypedDict, total=False):
     handle: str
-    followers: int
+    followers: int | None
     avg_views: float
     engagement_rate: float
     format_label: str
@@ -389,11 +392,35 @@ def _quarter_key(dt: datetime) -> str:
     return f"{dt.year}Q{q}"
 
 
+def _quarter_start_dt(qkey: str) -> datetime | None:
+    """First day of calendar quarter from ``2026Q1``-style key."""
+    try:
+        year = int(qkey[:4])
+        qnum = int(qkey[-1])
+        month = {1: 1, 2: 4, 3: 7, 4: 10}[qnum]
+        return datetime(year, month, 1, tzinfo=UTC)
+    except (KeyError, ValueError, IndexError):
+        return None
+
+
+def _format_share_mix(videos: list[dict[str, Any]]) -> dict[str, int]:
+    """Top content_format shares as integer percents (sum ≈ 100 for top-3)."""
+    if not videos:
+        return {}
+    counts = Counter(
+        str(v.get("content_format") or classify_format(v)) for v in videos
+    )
+    total = len(videos)
+    top3 = counts.most_common(3)
+    return {fmt: round(100 * c / total) for fmt, c in top3}
+
+
 def compute_inflection_point(videos: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Find the biggest sequential quarter-over-quarter drop in average views.
 
     Requires ≥ 2 quarters with ≥ 2 videos each.
-    Returns ``{peak_quarter, current_quarter, drop_pct, quarters}`` or ``None``.
+    Returns peak/current quarter stats plus format mixes split at the boundary
+    between quarters (for verdict narrative).
     """
     by_quarter: dict[str, list[int]] = {}
     for v in videos:
@@ -420,12 +447,36 @@ def compute_inflection_point(videos: list[dict[str, Any]]) -> dict[str, Any] | N
         if prev_avg > 0:
             drop_pct = (prev_avg - curr_avg) / prev_avg * 100
             if drop_pct > 0 and (best is None or drop_pct > best["drop_pct"]):
+                boundary = _quarter_start_dt(curr_q)
+                before_vids = [
+                    v for v in videos
+                    if v.get("posted_at") and isinstance(v["posted_at"], datetime)
+                    and boundary is not None and v["posted_at"] < boundary
+                ]
+                after_vids = [
+                    v for v in videos
+                    if v.get("posted_at") and isinstance(v["posted_at"], datetime)
+                    and boundary is not None and v["posted_at"] >= boundary
+                ]
+                before_avg_v = (
+                    sum(v.get("views", 0) for v in before_vids) / len(before_vids)
+                    if before_vids else 0.0
+                )
+                after_avg_v = (
+                    sum(v.get("views", 0) for v in after_vids) / len(after_vids)
+                    if after_vids else 0.0
+                )
                 best = {
                     "peak_quarter": prev_q,
                     "current_quarter": curr_q,
                     "peak_avg": int(prev_avg),
                     "current_avg": int(curr_avg),
                     "drop_pct": round(drop_pct, 1),
+                    "date_iso":              boundary.isoformat() if boundary else "",
+                    "before_format_mix":    _format_share_mix(before_vids),
+                    "after_format_mix":     _format_share_mix(after_vids),
+                    "before_avg_views":     round(before_avg_v),
+                    "after_avg_views":      round(after_avg_v),
                 }
 
     # Also compute monotonic growth info (used in steady_growth classification)
@@ -572,6 +623,8 @@ def classify_trajectory(
 def _make_tile(v: dict[str, Any]) -> PerformerTile:
     caption = str(v.get("caption") or "")
     snippet = caption[:80] + ("…" if len(caption) > 80 else "")
+    pa = v.get("posted_at")
+    posted_iso = pa.isoformat() if isinstance(pa, datetime) else ""
     return PerformerTile(
         video_id=str(v.get("video_id") or ""),
         thumbnail_url=v.get("thumbnail_url"),
@@ -579,6 +632,7 @@ def _make_tile(v: dict[str, Any]) -> PerformerTile:
         format_label=str(v.get("content_format") or "product_closeup"),
         caption_snippet=snippet,
         video_url=str(v.get("video_url") or ""),
+        posted_at=posted_iso,
     )
 
 
@@ -776,10 +830,613 @@ def extract_dominant_format(channel_pattern: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Caption hashtag mining
+# Channel persona (two-axis) + score card + cadence + hashtags + peers (v2)
 # ---------------------------------------------------------------------------
 
+PeerSource = Literal["content_class", "niche_only", "thin"]
+
+
+FORMAT_LABEL_VI: dict[str, str] = {
+    "livestream_clip": "Live / cắt sóng",
+    "unboxing_process": "Unbox / quy trình",
+    "list_ranking": "Top / ranking",
+    "lifestyle_model": "Lifestyle / Model",
+    "photo_carousel": "Ảnh / slideshow",
+    "product_closeup": "Cận sản phẩm",
+}
+
+
+def format_label_vi(fmt: str) -> str:
+    return FORMAT_LABEL_VI.get(fmt, fmt.replace("_", " "))
+
+
+async def derive_channel_persona(
+    user_sb: Any,
+    handle: str,
+    legacy_niche_id: int,
+    channel_pattern: dict[str, Any],
+) -> dict[str, Any]:
+    """Dominant format + corpus-backed (or mapped) content class for the handle."""
+    dominant_format = extract_dominant_format(channel_pattern)
+    dom_cc: int | None = None
+    label_vn = "—"
+
+    try:
+        res = (
+            user_sb.table("video_corpus")
+            .select("content_class_id")
+            .eq("niche_id", legacy_niche_id)
+            .eq("creator_handle", handle.lower())
+            .not_.is_("content_class_id", "null")
+            .limit(200)
+            .execute()
+        )
+        rows = res.data or []
+        if rows:
+            cc_counts: Counter[int] = Counter()
+            for r in rows:
+                cid = r.get("content_class_id")
+                if cid is not None:
+                    cc_counts[int(cid)] += 1
+            if cc_counts:
+                dom_cc = cc_counts.most_common(1)[0][0]
+    except Exception as exc:
+        logger.debug("[channel_diagnose] persona corpus query failed: %s", exc)
+
+    if dom_cc is None and dominant_format:
+        try:
+            rpc = user_sb.rpc(
+                "map_legacy_corpus_to_content_class",
+                {
+                    "p_niche_id": legacy_niche_id,
+                    "p_content_format": dominant_format,
+                },
+            ).execute()
+            raw = rpc.data
+            if raw is not None:
+                if isinstance(raw, list) and raw:
+                    first = raw[0]
+                    dom_cc = int(first) if not isinstance(first, dict) else int(first.get("map_legacy_corpus_to_content_class") or 0)  # noqa: E501
+                else:
+                    dom_cc = int(raw)
+                if dom_cc == 0:
+                    dom_cc = None
+        except Exception as exc:
+            logger.debug("[channel_diagnose] map_legacy RPC failed: %s", exc)
+
+    if dom_cc is not None:
+        try:
+            cr = (
+                user_sb.table("content_classifications")
+                .select("name_vn")
+                .eq("id", dom_cc)
+                .maybe_single()
+                .execute()
+            )
+            rowd = cr.data
+            if isinstance(rowd, dict) and rowd.get("name_vn"):
+                label_vn = str(rowd["name_vn"])
+        except Exception as exc:
+            logger.debug("[channel_diagnose] content_class label failed: %s", exc)
+
+    return {
+        "dominant_format": dominant_format,
+        "dominant_content_class_id": dom_cc,
+        "content_class_label": label_vn,
+    }
+
+
+def compute_posting_cadence(videos: list[dict[str, Any]]) -> dict[str, Any]:
+    """Posts/week (30d), best posting hour from recent videos, worst hour contrast."""
+    now = _now()
+    cutoff = now - timedelta(days=30)
+    recent = [
+        v for v in videos
+        if (v.get("posted_at") or datetime.min.replace(tzinfo=UTC)) >= cutoff
+    ]
+    weeks = 30 / 7.0
+    posts_per_week = len(recent) / weeks if weeks > 0 else 0.0
+
+    hour_views: dict[int, list[int]] = {}
+    for v in recent:
+        dt = v.get("posted_at")
+        if not isinstance(dt, datetime):
+            continue
+        hour_views.setdefault(dt.hour, []).append(int(v.get("views") or 0))
+
+    if not hour_views:
+        return {
+            "posts_per_week": round(posts_per_week, 2),
+            "best_hour_range": "—",
+            "best_hour_avg_views": 0,
+            "worst_hour": 0,
+            "worst_hour_avg_views": 0,
+            "best_hour_ratio": 1.0,
+        }
+
+    hour_avgs = {h: sum(vals) / len(vals) for h, vals in hour_views.items()}
+    best_h = max(hour_avgs, key=lambda k: hour_avgs[k])
+    worst_h = min(hour_avgs, key=lambda k: hour_avgs[k])
+    best_avg = int(hour_avgs[best_h])
+    worst_avg = max(int(hour_avgs[worst_h]), 1)
+    ratio = best_avg / worst_avg
+    end_h = min(best_h + 2, 23)
+    best_hour_range = f"{best_h}h–{end_h}h"
+
+    return {
+        "posts_per_week": round(posts_per_week, 2),
+        "best_hour_range": best_hour_range,
+        "best_hour_avg_views": best_avg,
+        "worst_hour": worst_h,
+        "worst_hour_avg_views": int(hour_avgs[worst_h]),
+        "best_hour_ratio": round(ratio, 2),
+    }
+
+
+def compute_score_card(
+    videos: list[dict[str, Any]],
+    channel_pattern: dict[str, Any],
+    recent_window_30d: dict[str, Any],
+    _inflection: dict[str, Any] | None,
+    niche_benchmarks: dict[str, Any],
+    persona: dict[str, Any],
+    trajectory: TrajectoryShape,
+) -> dict[str, Any]:
+    """Structured TLDR metrics for the score card (no Gemini)."""
+    max_v = int(channel_pattern.get("max_views") or 0)
+    recent_avg = int(recent_window_30d.get("avg_views") or 0)
+    trajectory_delta_pct = 0
+    if max_v > 0:
+        trajectory_delta_pct = int(round(-100.0 * (max_v - recent_avg) / max_v))
+
+    peak_video = max(videos, key=lambda v: int(v.get("views") or 0), default=None)
+    peak_date_iso: str | None = None
+    peak_age_months: int | None = None
+    if peak_video and peak_video.get("posted_at"):
+        pd = peak_video["posted_at"]
+        if isinstance(pd, datetime):
+            peak_date_iso = pd.date().isoformat()
+            peak_age_months = max((_now() - pd).days // 30, 0)
+
+    p25 = int(niche_benchmarks.get("avg_views_p25") or 0)
+    p50 = int(niche_benchmarks.get("avg_views_p50") or 0)
+    p75 = int(niche_benchmarks.get("avg_views_p75") or 0)
+    recent_f = float(recent_avg)
+    if p50 <= 0 and p25 <= 0:
+        pct = 50
+    elif recent_f < p25 and p25 > 0:
+        pct = 15
+    elif recent_f < p50 and p50 > 0:
+        pct = 38
+    elif recent_f < p75 and p75 > 0:
+        pct = 62
+    else:
+        pct = 88
+
+    cadence = compute_posting_cadence(videos)
+    peer_median_posts = float(niche_benchmarks.get("posts_per_week_p50") or 0)
+
+    return {
+        "trajectory_shape": trajectory,
+        "trajectory_delta_pct": trajectory_delta_pct,
+        "percentile_in_niche": pct,
+        "niche_p25": p25,
+        "niche_p50": p50,
+        "niche_p75": p75,
+        "category_label": str(persona.get("content_class_label") or "—"),
+        "peak_views": max_v,
+        "peak_date_iso": peak_date_iso,
+        "peak_age_months": peak_age_months,
+        "recent_avg_views": recent_avg,
+        "posts_per_week": cadence["posts_per_week"],
+        "peer_median_posts_per_week": peer_median_posts,
+        "best_hour_range": cadence["best_hour_range"],
+        "best_hour_avg_views": cadence["best_hour_avg_views"],
+        "worst_hour": cadence["worst_hour"],
+        "worst_hour_avg_views": cadence["worst_hour_avg_views"],
+        "best_hour_ratio": cadence["best_hour_ratio"],
+        "sample_size_videos": len(videos),
+    }
+
+
+def _fmt_views_short(n: int | float) -> str:
+    n = int(n)
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n // 1_000}K"
+    return str(n)
+
+
+def render_score_card_captions(card: dict[str, Any]) -> dict[str, str]:
+    """Vietnamese interpretations for score-card rows (template, deterministic)."""
+    captions: dict[str, str] = {}
+
+    traj = str(card.get("trajectory_shape") or "stagnant")
+    pam = card.get("peak_age_months")
+    peak_age = int(pam) if pam is not None else 0
+
+    if traj == "decline_from_peak":
+        captions["trajectory"] = (
+            f"Đỉnh từ khoảng {peak_age} tháng trước, hiện chững lại. "
+            "Cần khôi phục pattern cũ hoặc thử format mới — thuật toán đã giảm "
+            "đề xuất nếu retention theo batch video liên tiếp không ổn định."
+        )
+    elif traj == "stagnant":
+        captions["trajectory"] = (
+            "Trì trệ — không có tăng/giảm rõ. Nguy cơ reach bị giữ ở baseline; "
+            "cần thử góc mới hoặc hook mạnh hơn để thoát plateau."
+        )
+    elif traj == "steady_growth":
+        captions["trajectory"] = (
+            "Tăng trưởng đều — momentum tốt. Giữ cadence, tiếp tục scale format "
+            "thắng và test 1 biến thể/tuần để tránh bão hoà audience."
+        )
+    elif traj == "breakout":
+        captions["trajectory"] = (
+            "Breakout gần đây — cửa sổ cold-start rộng. Đăng dày 5–7 video/tuần "
+            "để tối đa momentum trước khi baseline hạ."
+        )
+    elif traj == "bursty":
+        captions["trajectory"] = (
+            "Biến động mạnh — vài video nổ, phần lớn flat. Reverse-engineer video "
+            "nổ để tìm pattern chung rồi lặp lại có kiểm soát."
+        )
+    else:  # new_account
+        captions["trajectory"] = (
+            "Kênh mới — chưa đủ dữ liệu cho pattern ổn định. Test 3–5 format khác "
+            "nhau trong 30 ngày, đo view/format, rồi chốt 1–2 trụ cột."
+        )
+
+    pct = int(card.get("percentile_in_niche") or 50)
+    p50 = int(card.get("niche_p50") or 0)
+    p75 = int(card.get("niche_p75") or 0)
+    recent = float(card.get("recent_avg_views") or 1)
+
+    if pct <= 25 and p50 > 0:
+        captions["percentile"] = (
+            f"Dưới trung vị ngách (P50 ~ {_fmt_views_short(p50)} view/video). "
+            f"Top 25% ngách cần ~{_fmt_views_short(p75)} — gap ~{p75 / recent:.1f}x so với bạn. "
+            "Ưu tiên 1–2 format mạnh nhất thay vì rải đều."
+        )
+    elif pct <= 50 and p50 > 0:
+        captions["percentile"] = (
+            f"Sát dưới trung vị (P50 ~ {_fmt_views_short(p50)}). "
+            f"Khoảng cách lên top 25% ~{max(p75 - recent, 0) / recent * 100:.0f}% nếu giữ hook tốt. "
+            "Tập trung double-down format đang cho recent_avg cao nhất."
+        )
+    elif pct <= 75 and p50 > 0:
+        captions["percentile"] = (
+            f"Trên trung vị ngách (P50 ~ {_fmt_views_short(p50)}). "
+            f"Top 25% ~{_fmt_views_short(p75)} — còn room ~{max(p75 - recent, 0) / max(recent, 1) * 100:.0f}%. "
+            "Scale format thắng; chỉ test mới với rủi ro có giới hạn."
+        )
+    else:
+        captions["percentile"] = (
+            "Bạn đang ở nhóm trên cao của ngách benchmark. "
+            "Duy trì pattern cốt lõi; mở rộng biến thể nhẹ để không làm loãng retention."
+        )
+
+    median = float(card.get("peer_median_posts_per_week") or 0)
+    ppw = float(card.get("posts_per_week") or 0)
+    if median > 0:
+        delta_pct = (ppw - median) / median
+        if delta_pct < -0.20:
+            captions["cadence"] = (
+                f"Ít hơn median ngách ({median:.1f} video/tuần) khoảng {abs(delta_pct) * 100:.0f}%. "
+                "TikTok thưởng velocity ổn định — khoảng trống đăng dài có thể làm giảm cold-start. "
+                "Thử nhịp 4–5 video/tuần nếu team kịp sản xuất."
+            )
+        elif delta_pct > 0.20:
+            captions["cadence"] = (
+                f"Đăng nhiều hơn median ngách ({median:.1f}) ~{delta_pct * 100:.0f}%. "
+                "Volume cao chỉ hiệu quả nếu mỗi video vẫn giữ hook; nếu avg đang giảm, cân nhắc giảm sang median."
+            )
+        else:
+            captions["cadence"] = (
+                f"Sát median đăng tải ({median:.1f} video/tuần). Cadence ổn — ưu tiên chất lượng hook và retention."
+            )
+    else:
+        captions["cadence"] = (
+            f"{ppw:.1f} video/tuần (30 ngày gần nhất). "
+            "Chưa có benchmark đăng tải ngách — soi tay đối thủ cùng category trong bảng dưới."
+        )
+
+    ratio = float(card.get("best_hour_ratio") or 1.0)
+    worst_h = int(card.get("worst_hour") or 0)
+    wh_avg = int(card.get("worst_hour_avg_views") or 0)
+    bhr = str(card.get("best_hour_range") or "—")
+    captions["best_hour"] = (
+        f"Khung mạnh ~{bhr}: hiệu suất ~{ratio:.1f}x so với giờ yếu ({worst_h}h, {_fmt_views_short(wh_avg)}). "
+        "Đăng khi audience của bạn hay online giúp cold-start tốt hơn trong 60–120 phút đầu."
+    )
+
+    max_v = int(card.get("peak_views") or 0)
+    ravg = int(card.get("recent_avg_views") or 0)
+    if max_v > 0:
+        drop = int(round(100 * (max_v - ravg) / max_v)) if ravg <= max_v else 0
+        captions["peak_recent"] = (
+            f"Đỉnh {_fmt_views_short(max_v)} vs gần đây ~{_fmt_views_short(ravg)} "
+            f"(chênh ~{drop}% so với đỉnh). "
+            "Nếu gap lớn, thường do đổi format hoặc hook yếu ở batch gần đây."
+        )
+    else:
+        captions["peak_recent"] = "Chưa đủ view để so đỉnh vs hiện tại."
+
+    return captions
+
+
 _HASHTAG_RE = re.compile(r"#([^\s#]+)")
+
+
+def compute_hashtag_insights(videos: list[dict[str, Any]], top: int = 5) -> list[dict[str, Any]]:
+    """Top hashtags by usage with avg views and multiplier vs channel mean."""
+    tag_views: dict[str, list[int]] = {}
+    tag_counts: dict[str, int] = {}
+    for v in videos:
+        caption = str(v.get("caption") or "")
+        views = int(v.get("views") or 0)
+        seen_tag: set[str] = set()
+        for m in _HASHTAG_RE.finditer(caption):
+            t = m.group(1).lower()
+            if t in seen_tag:
+                continue
+            seen_tag.add(t)
+            tag_counts[t] = tag_counts.get(t, 0) + 1
+            tag_views.setdefault(t, []).append(views)
+    if not tag_counts:
+        return []
+    top_tags = sorted(tag_counts.items(), key=lambda x: (-x[1], -sum(tag_views[x[0]]) / len(tag_views[x[0]])))[:top]
+    channel_avg = sum(v.get("views", 0) for v in videos) / max(len(videos), 1)
+    out: list[dict[str, Any]] = []
+    for tag, count in top_tags:
+        avgs = tag_views[tag]
+        avg_v = sum(avgs) / len(avgs)
+        mult = (avg_v / channel_avg) if channel_avg > 0 else 1.0
+        out.append({
+            "tag": f"#{tag}",
+            "count": count,
+            "avg_views": int(avg_v),
+            "multiplier": round(mult, 2),
+        })
+    return out
+
+
+def hashtag_caption_for_insight(insight: dict[str, Any], channel_avg: float) -> str:
+    """Two-line Vietnamese hint per hashtag row."""
+    m = float(insight.get("multiplier") or 1.0)
+    count = int(insight.get("count") or 0)
+    if m >= 2.0 and count <= 5:
+        return (
+            f"Outperform {m:.1f}x trung bình kênh nhưng chỉ dùng {count} lần. "
+            "Ưu tiên ghim vào caption các video cùng chủ đề."
+        )
+    if m >= 1.5:
+        return f"Trên trung bình ({m:.1f}x). Giữ hashtag này ở các video liên quan."
+    if m <= 0.5:
+        return (
+            f"Hút view thấp ({m:.1f}x). Có thể quá hẹp hoặc không khớp nội dung — "
+            "thử mix thêm hashtag ngách rộng hơn."
+        )
+    if m < 1.0:
+        return f"Hơi dưới trung bình ({m:.1f}x). Cân nhắc thay bằng hashtag có avg cao hơn trong list."
+    return f"Trung tính ({m:.1f}x). Không kéo view mạnh nhưng không gây hại."
+
+
+def select_verdict_tiles(videos: list[dict[str, Any]]) -> list[PerformerTile]:
+    """Peak video + 2 most recent (deduped) for forensic context in §1."""
+    if not videos:
+        return []
+    peak = max(videos, key=lambda v: int(v.get("views") or 0))
+    tiles: list[PerformerTile] = [_make_tile(peak)]
+    recent_2 = sorted(
+        [v for v in videos if v.get("posted_at")],
+        key=lambda v: v["posted_at"],  # type: ignore[index]
+        reverse=True,
+    )[:2]
+    seen = {str(peak.get("video_id") or "")}
+    for v in recent_2:
+        vid = str(v.get("video_id") or "")
+        if vid and vid not in seen:
+            seen.add(vid)
+            tiles.append(_make_tile(v))
+    return tiles[:3]
+
+
+def normalize_peer_creator_for_fe(
+    creator: dict[str, Any],
+    *,
+    niche_slug: str = "",
+) -> dict[str, Any]:
+    """Shape UGC/peer rows for the SPA (thumbnail + followers guard)."""
+    samples = creator.get("sample_videos") or []
+    thumb = None
+    svurl = ""
+    if samples and isinstance(samples[0], dict):
+        thumb = samples[0].get("thumbnail_url")
+        svurl = str(samples[0].get("video_url") or "")
+    raw_followers = creator.get("followers")
+    if raw_followers is None:
+        followers: int | None = None
+    else:
+        fc = int(raw_followers)
+        followers = fc if fc > 0 else None
+    return {
+        "handle": str(creator.get("handle") or ""),
+        "followers": followers,
+        "avg_views": float(creator.get("avg_views") or 0),
+        "thumbnail_url": thumb or "",
+        "niche_slug": niche_slug,
+        "sample_video_url": svurl,
+        "format_label": str(creator.get("format_label") or ""),
+    }
+
+
+def _run_peer_corpus_query(
+    user_sb: Any,
+    legacy_niche_id: int,
+    exclude_handle: str,
+    content_class_id: int | None,
+) -> list[dict[str, Any]]:
+    ex = exclude_handle.lower().strip()
+    q = (
+        user_sb.table("video_corpus")
+        .select("creator_handle,views,content_format,thumbnail_url,video_url,video_id,title")
+        .eq("niche_id", legacy_niche_id)
+        .neq("creator_handle", ex)
+    )
+    if content_class_id is not None:
+        q = q.eq("content_class_id", content_class_id)
+    res = q.order("views", desc=True).limit(160).execute()
+    return res.data or []
+
+
+async def select_niche_peer_creators(
+    user_sb: Any,
+    legacy_niche_id: int,
+    content_class_id: int | None,
+    exclude_handle: str,
+    channel_avg: float,
+    limit: int = 3,
+) -> tuple[list[dict[str, Any]], PeerSource]:
+    """Corpus-first peers (content_class → niche fallback) + follower enrichment."""
+    if channel_avg <= 0:
+        return [], "thin"
+
+    tier_rows: list[dict[str, Any]] = []
+    source: PeerSource = "thin"
+
+    if content_class_id is not None:
+        tier_rows = _run_peer_corpus_query(
+            user_sb, legacy_niche_id, exclude_handle, content_class_id
+        )
+        n_handles = len({str(r.get("creator_handle") or "").lower() for r in tier_rows if r.get("creator_handle")})
+        if n_handles >= 4:
+            source = "content_class"
+
+    if not tier_rows or source != "content_class":
+        tier_rows = _run_peer_corpus_query(user_sb, legacy_niche_id, exclude_handle, None)
+        n_handles2 = len({str(r.get("creator_handle") or "").lower() for r in tier_rows if r.get("creator_handle")})
+        if n_handles2 >= 4:
+            source = "niche_only"
+        elif n_handles2 > 0:
+            source = "thin"
+        else:
+            return [], "thin"
+
+    by_h: dict[str, list[dict[str, Any]]] = {}
+    for r in tier_rows:
+        h = str(r.get("creator_handle") or "").strip().lower()
+        if not h:
+            continue
+        by_h.setdefault(h, []).append(r)
+
+    scored: list[tuple[str, float, list[dict[str, Any]]]] = []
+    for h, rs in by_h.items():
+        views = [int(x.get("views") or 0) for x in rs]
+        avg_v = sum(views) / len(views) if views else 0.0
+        scored.append((h, avg_v, rs))
+    scored.sort(key=lambda t: t[1], reverse=True)
+
+    handles_for_enrich: list[tuple[str, float, list[dict[str, Any]]]] = []
+    for item in scored:
+        if len(handles_for_enrich) >= limit * 3:
+            break
+        handles_for_enrich.append(item)
+
+    async def _followers(h: str) -> int | None:
+        try:
+            users, _ = await ensemble.fetch_user_search(h)
+            for u in users:
+                uid = str(u.get("unique_id") or u.get("uniqueId") or "").strip().lower()
+                if uid == h.lower():
+                    fc = int(u.get("follower_count") or u.get("followerCount") or 0)
+                    return fc if fc > 0 else None
+        except Exception:
+            pass
+        return None
+
+    f_followers = await asyncio.gather(*[_followers(h) for h, _, _ in handles_for_enrich])
+
+    creators: list[dict[str, Any]] = []
+    for idx, (h, avg_v, rs) in enumerate(handles_for_enrich):
+        if not rs:
+            continue
+        fol = f_followers[idx] if idx < len(f_followers) else None
+        rs_sorted = sorted(rs, key=lambda x: int(x.get("views") or 0), reverse=True)
+        top2 = rs_sorted[:2]
+        fmt_counter = Counter(str(x.get("content_format") or "product_closeup") for x in rs)
+        dom_fmt = fmt_counter.most_common(1)[0][0]
+        sample_videos: list[SampleVideo] = []
+        for x in top2:
+            sample_videos.append(SampleVideo(
+                thumbnail_url=x.get("thumbnail_url"),
+                views=int(x.get("views") or 0),
+                video_url=str(x.get("video_url") or ""),
+            ))
+        creators.append({
+            "handle": h,
+            "followers": fol,
+            "avg_views": avg_v,
+            "engagement_rate": 0.0,
+            "format_label": dom_fmt,
+            "sample_videos": sample_videos,
+        })
+
+    creators.sort(key=lambda c: c["avg_views"], reverse=True)
+    return creators[:limit], source
+
+
+def derive_next_video_concept(
+    peer_creators: list[dict[str, Any]],
+    channel_pattern: dict[str, Any],
+    videos: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Deterministic next-video skeleton from top peer format gap."""
+    if not peer_creators or not videos:
+        return None
+    top = max(peer_creators, key=lambda c: float(c.get("avg_views") or 0))
+    peer_fmt = str(top.get("format_label") or "product_closeup")
+    total = len(videos)
+    if total == 0:
+        return None
+    chan_count = sum(
+        1 for v in videos
+        if str(v.get("content_format") or classify_format(v)) == peer_fmt
+    )
+    share = chan_count / total
+    if share >= 0.45:
+        return None
+    samples = top.get("sample_videos") or []
+    sample0: dict[str, Any] = samples[0] if samples and isinstance(samples[0], dict) else {}
+    sample_url = str(sample0.get("video_url") or "")
+    thumb = sample0.get("thumbnail_url")
+    dur = 18.0
+    for v in videos:
+        if str(v.get("content_format") or "") == peer_fmt:
+            dur = float(v.get("duration_sec") or 18)
+            break
+    peer_avg = float(top.get("avg_views") or 0)
+    rationale = (
+        f"@{top.get('handle')} trung bình ~{_fmt_views_short(int(peer_avg))} với format "
+        f"{format_label_vi(peer_fmt)}; bạn chỉ có {chan_count}/{total} video cùng format (~{share*100:.0f}%)."
+    )
+    return {
+        "format": peer_fmt,
+        "format_label": format_label_vi(peer_fmt),
+        "duration_sec": int(dur),
+        "rationale_struct": rationale,
+        "sample_peer_handle": str(top.get("handle") or ""),
+        "sample_video_url": sample_url,
+        "sample_thumbnail_url": thumb,
+        "peer_avg_views": int(peer_avg),
+        "channel_share_pct": round(share * 100, 1),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Caption hashtag mining (continued)
+# ---------------------------------------------------------------------------
 
 
 def mine_caption_hashtags(
@@ -884,8 +1541,9 @@ async def fetch_ugc_creators(
             int((aw.get("statistics") or {}).get("digg_count") or 0)
             for aw in awemes
         )
-        followers = int(author.get("follower_count") or author.get("followerCount") or 0)
-        er = (likes_sum / (followers * len(awemes))) if followers > 0 and awemes else 0.0
+        raw_fc = int(author.get("follower_count") or author.get("followerCount") or 0)
+        followers = raw_fc if raw_fc > 0 else None
+        er = (likes_sum / (raw_fc * len(awemes))) if raw_fc > 0 and awemes else 0.0
 
         sample_videos: list[SampleVideo] = []
         top_awemes = sorted(

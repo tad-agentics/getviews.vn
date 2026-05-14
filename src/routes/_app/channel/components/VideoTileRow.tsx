@@ -53,7 +53,7 @@ function VideoTile({ tile }: VideoTileProps) {
         target="_blank"
         rel="noopener noreferrer"
         className="block"
-        aria-label={`Xem video: ${tile.caption_snippet || tile.content_format}`}
+        aria-label={`Xem video: ${tile.caption_snippet || tile.content_format || tile.format_label || ""}`}
       >
         {inner}
       </a>

@@ -64,6 +64,7 @@ Quick reference for AI operating constraints:
 - **Gemini 3.x only.** `flash-lite-preview` for extraction/classification, `flash-preview` for Vietnamese synthesis. Cost ceiling ~$70/mo.
 - **Facebook OAuth is non-negotiable** for the Vietnamese market.
 - **Intent routing:** extend `detectIntent()` in `src/routes/_app/intent-router.ts` — never reinvent routing inside screens.
+- **Channel diagnosis (`POST /channel/diagnose`, Cloud Run):** corpus-first peers + two-axis persona + deterministic `score_card` / hashtag / next-video templates; SSE `score_card` event; `channel_diagnoses` v2 JSONB columns; cache replay must re-emit all v2 fields. See `system-design.md` §16.
 - **Every `/app/*` leaf route** must be code-split with `React.lazy` + `Suspense`. Do not use `clientLoader`.
 - **Critical invariants TD-1–TD-5** (credit deduction, webhook idempotency, processing guard, SSE reconnection, upfront credits) — see `system-design.md` §10.
 

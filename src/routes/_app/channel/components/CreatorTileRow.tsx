@@ -6,7 +6,8 @@
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { ChannelUGCCreator } from "@/lib/api-types";
 
-function formatFollowers(n: number): string {
+function formatFollowers(n: number | null): string {
+  if (n == null) return "N/A";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
   return String(n);

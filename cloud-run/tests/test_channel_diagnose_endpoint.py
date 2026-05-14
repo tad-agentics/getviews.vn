@@ -239,14 +239,17 @@ def _run_diagnose(
         "days": 30,
     }
     fake_inflection = None
-    fake_ugc_creators = [
+    fake_peer_raw = [
         {
             "handle": "competitor1",
             "followers": 50_000,
             "avg_views": 80_000,
-            "thumbnail_url": "https://r2.example.com/c1.jpg",
-            "niche_slug": "beauty",
-        }
+            "format_label": "unboxing_process",
+            "sample_videos": [{
+                "thumbnail_url": "https://r2.example.com/c1.jpg",
+                "video_url": "https://tiktok.com/@competitor1/video/1",
+            }],
+        },
     ]
 
     mock_response = MagicMock()
@@ -269,13 +272,29 @@ def _run_diagnose(
             return_value=fake_videos,
         ),
         patch(
-            "getviews_pipeline.channel_diagnose.fetch_ugc_creators",
+            "getviews_pipeline.channel_diagnose.select_niche_peer_creators",
             new_callable=AsyncMock,
-            return_value=fake_ugc_creators,
+            return_value=(fake_peer_raw, "niche_only"),
+        ),
+        patch(
+            "getviews_pipeline.channel_diagnose.derive_channel_persona",
+            new_callable=AsyncMock,
+            return_value={
+                "dominant_format": "beauty_tutorial",
+                "dominant_content_class_id": 1,
+                "content_class_label": "Làm đẹp",
+            },
         ),
         patch(
             "getviews_pipeline.channel_diagnose._fetch_niche_benchmarks",
-            return_value={"channel_count": 25, "avg_views": 70_000},
+            return_value={
+                "channel_count": 25,
+                "avg_views": 70_000,
+                "avg_views_p25": 30_000,
+                "avg_views_p50": 50_000,
+                "avg_views_p75": 90_000,
+                "posts_per_week_p50": 3.5,
+            },
         ),
         patch(
             "getviews_pipeline.channel_diagnose.build_channel_pattern",
@@ -352,6 +371,19 @@ class TestChannelDiagnoseSSEEnvelope:
         assert traj_idx is not None, "No trajectory event emitted"
         if sec_idx is not None:
             assert traj_idx < sec_idx, "trajectory event must precede section_start"
+
+    def test_score_card_event_emitted(self, app_with_mocks, fake_videos, fake_channel_pattern):
+        events = _run_diagnose(app_with_mocks, fake_videos, fake_channel_pattern, "stagnant")
+        assert any(e.get("type") == "score_card" for e in events), "score_card SSE missing"
+
+    def test_score_card_between_trajectory_and_sections(self, app_with_mocks, fake_videos, fake_channel_pattern):
+        events = _run_diagnose(app_with_mocks, fake_videos, fake_channel_pattern, "stagnant")
+        types_ordered = [e.get("type") for e in events if "type" in e]
+        traj_idx = next((i for i, t in enumerate(types_ordered) if t == "trajectory"), None)
+        sc_idx = next((i for i, t in enumerate(types_ordered) if t == "score_card"), None)
+        sec_idx = next((i for i, t in enumerate(types_ordered) if t == "section_start"), None)
+        assert traj_idx is not None and sc_idx is not None and sec_idx is not None
+        assert traj_idx < sc_idx < sec_idx
 
     def test_trajectory_event_value(self, app_with_mocks, fake_videos, fake_channel_pattern):
         events = _run_diagnose(app_with_mocks, fake_videos, fake_channel_pattern, "breakout",
@@ -489,6 +521,13 @@ class TestChannelDiagnoseCacheHit:
             "creator_match": None,
             "video_count": 15,
             "computed_at": datetime.now(tz=UTC).isoformat(),
+            "score_card": {"trajectory_shape": "steady_growth", "percentile_in_niche": 40,
+                           "captions": {"percentile": "caption test"}},
+            "verdict_tiles": [],
+            "hashtag_insights": [],
+            "next_video": None,
+            "channel_persona": {},
+            "peer_source": None,
         }
         events = _run_diagnose(
             app_with_mocks, fake_videos, fake_channel_pattern,
@@ -497,6 +536,9 @@ class TestChannelDiagnoseCacheHit:
         payload_evt = next((e for e in events if "payload" in e), None)
         assert payload_evt is not None
         assert payload_evt["payload"].get("cache_hit") is True
+        assert payload_evt["payload"].get("score_card", {}).get("percentile_in_niche") == 40
+        assert payload_evt["payload"].get("score_card_captions", {}).get("percentile") == "caption test"
+        assert any(e.get("type") == "score_card" for e in events)
 
 
 # ---------------------------------------------------------------------------

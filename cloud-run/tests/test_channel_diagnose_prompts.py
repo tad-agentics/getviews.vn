@@ -190,8 +190,8 @@ def test_context_niche_benchmark_included_when_enough_peers():
 
 def test_context_ugc_empty_placeholder():
     ctx = _build_context("stagnant")
-    assert "<<<UGC CREATORS>>>" in ctx
-    assert "Không có dữ liệu" in ctx
+    assert "<<<KÊNH CÙNG NGÁCH" in ctx
+    assert "Không đủ peer trong corpus" in ctx
 
 
 # ---------------------------------------------------------------------------
