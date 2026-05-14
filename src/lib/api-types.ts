@@ -321,18 +321,6 @@ export interface VideoDiagnosticsRow {
 // B.3 — GET /channel/analyze
 // ---------------------------------------------------------------------------
 
-export type ChannelFormulaGate = "thin_corpus" | null;
-
-export interface ChannelFormulaStep {
-  step: string;
-  detail: string;
-  pct: number;
-}
-
-export interface ChannelLesson {
-  title: string;
-  body: string;
-}
 
 
 // ---------------------------------------------------------------------------
