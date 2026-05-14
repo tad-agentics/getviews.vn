@@ -208,7 +208,9 @@ describe("VideoBody render", () => {
   it("renders hook phase grid in flop mode when hook_phases are present", () => {
     renderInRouter(makeFlopReport());
     expect(screen.getByTestId("hook-phase-grid")).toBeTruthy();
-    expect(screen.getByText(/3 giây đầu — nhịp mở dễ mất người xem/)).toBeTruthy();
+    // Copy was tightened: "3 giây đầu — nhịp mở dễ mất người xem" →
+    // "3 giây đầu dễ mất người xem". Test asserts the current form.
+    expect(screen.getByText(/3 giây đầu dễ mất người xem/)).toBeTruthy();
   });
 
   it("renders flop issues + detail/fix + script CTA (no projected views)", () => {
@@ -388,12 +390,12 @@ describe("VideoBody render", () => {
     expect(screen.getByText("Caption flop")).toBeTruthy();
   });
 
-  it("renders soft fallback when creator_comparison is null but creator is known", () => {
-    renderInRouter(makeFlopReport({ creator_comparison: null }));
-    // Header still appears via the unavailable card.
-    expect(screen.getByText(/SO SÁNH TRONG KÊNH/)).toBeTruthy();
-    expect(screen.getByText(/Chưa đủ video gần nhất của creator/)).toBeTruthy();
-  });
+  // Note: the "renders soft fallback when creator_comparison is null
+  // but creator is known" test was removed because commit 767cc4c
+  // ("hide CreatorComparisonUnavailable empty state — ChannelProofBlock
+  // already covers channel data") deliberately removed that render
+  // path. The unavailable card export is no longer mounted; the next
+  // test below asserts the new behaviour.
 
   it("omits any creator-comparison block when both comparison and creator are missing", () => {
     const withoutCreator = makeFlopReport({

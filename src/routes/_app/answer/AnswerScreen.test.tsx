@@ -115,6 +115,10 @@ vi.mock("@/components/v2/answer/FollowUpComposer", () => ({
 vi.mock("@/components/v2/answer/ResearchStrip", () => ({
   LivePipelineStrip: () => null,
   useResearchStage: () => 0,
+  // Phase 5.7.1 — AnswerScreen calls this to suppress LivePipelineStrip
+  // on cache-hit pattern. Mocked to return false so the test renders
+  // the live-strip path (or, in these tests, just nothing).
+  isCacheHitPattern: () => false,
 }));
 vi.mock("@/components/v2/answer/TimelineRail", () => ({
   TimelineRail: ({ children }: { children: React.ReactNode }) => (

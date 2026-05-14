@@ -66,19 +66,3 @@ export function isV5Report(report: AnyRecord): boolean {
 
   return false;
 }
-
-/**
- * Returns the effective errors list for the FE.
- * - v5: already capped at 3 by BE; returned as-is.
- * - v4: cap at 3 on the FE side (Phase 4.4.2 slice already handles this).
- *
- * This helper exists so tests and higher-level components have a single
- * source of truth rather than duplicating the cap logic.
- */
-export function resolveDisplayErrors(
-  errors: AnyRecord[],
-  isV5: boolean,
-): AnyRecord[] {
-  if (isV5) return errors; // BE already capped
-  return errors.slice(0, 3);  // FE cap for v4 responses
-}

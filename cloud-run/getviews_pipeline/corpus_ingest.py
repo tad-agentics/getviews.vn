@@ -2093,10 +2093,15 @@ def _existing_video_ids_sync(client: Any, niche_id: int) -> set[str]:
 
 
 def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
-    """Phase 6.2 — always include ingest_source='batch_nightly' + provenance timestamps.
+    """Phase 6.2 — provenance-safe batch upsert via the RPC.
 
-    The Postgres function ``upsert_video_corpus_batch`` (migration 20260713000001)
-    uses COALESCE so this value never overwrites an existing 'user_diagnosis' row.
+    Routes through the ``upsert_video_corpus_batch`` Postgres function
+    (migration 20260713000001), which COALESCEs ``ingest_source``,
+    ``quality_tier``, and ``first_seen_at`` so the nightly batch never
+    overwrites a row that a user diagnosis added. Falls back to the
+    plain PostgREST upsert if the RPC isn't available (e.g. a fresh
+    Supabase project still propagating the migration) so corpus ingest
+    keeps making progress.
     """
     from datetime import UTC, datetime as _dt
 
@@ -2109,14 +2114,21 @@ def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
         r.setdefault("first_seen_at", now_iso)
         r["last_refreshed_at"] = now_iso
         enriched.append(r)
-    # Use the provenance-safe RPC when available; fall back to direct upsert.
-    # Once migration 20260713000001 is applied, switch callers to:
-    #   client.rpc("upsert_video_corpus_batch", {"p_rows": enriched}).execute()
-    # For now, direct upsert is still safe because EXCLUDED.ingest_source will
-    # be 'batch_nightly' — the DB COALESCE in the RPC would have preserved
-    # 'user_diagnosis'. The Python-side fix is: update only non-provenance fields
-    # when the row already exists (done below via the pre-filter in Phase 6.3).
-    client.table("video_corpus").upsert(enriched, on_conflict="video_id").execute()
+
+    try:
+        client.rpc("upsert_video_corpus_batch", {"p_rows": enriched}).execute()
+        return
+    except Exception as exc:
+        # Surface once at WARNING then fall back. Production should
+        # already have the RPC; this branch covers fresh-project
+        # migration order or a temporary remove.
+        logger.warning(
+            "[corpus_ingest] upsert_video_corpus_batch RPC failed (%s); "
+            "falling back to direct upsert — provenance may regress if "
+            "the row is owned by 'user_diagnosis'.",
+            exc,
+        )
+        client.table("video_corpus").upsert(enriched, on_conflict="video_id").execute()
 
 
 # ── Materialized view refresh ────────────────────────────────────────────────────

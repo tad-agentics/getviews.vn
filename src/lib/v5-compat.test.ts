@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isV5Report, resolveDisplayErrors } from "./v5-compat";
+import { isV5Report } from "./v5-compat";
 
 // ── isV5Report ──────────────────────────────────────────────────────────────
 
@@ -94,24 +94,5 @@ describe("isV5Report", () => {
   // 5. Priority: _schema_version wins before checking structural fields
   it("returns true via _schema_version even when structural fields are absent", () => {
     expect(isV5Report({ _schema_version: "v5", channel_context: null })).toBe(true);
-  });
-});
-
-// ── resolveDisplayErrors ────────────────────────────────────────────────────
-
-describe("resolveDisplayErrors", () => {
-  const fiveErrors = [1, 2, 3, 4, 5].map((i) => ({ id: i }));
-
-  it("returns as-is for v5 (BE already capped)", () => {
-    expect(resolveDisplayErrors(fiveErrors, true)).toHaveLength(5);
-  });
-
-  it("caps to 3 for v4", () => {
-    expect(resolveDisplayErrors(fiveErrors, false)).toHaveLength(3);
-  });
-
-  it("handles empty errors list", () => {
-    expect(resolveDisplayErrors([], true)).toHaveLength(0);
-    expect(resolveDisplayErrors([], false)).toHaveLength(0);
   });
 });

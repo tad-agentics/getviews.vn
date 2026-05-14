@@ -1,27 +1,5 @@
 import type { CreatorComparison, CreatorComparisonVideo } from "@/lib/api-types";
 
-function atHandle(raw: string | null | undefined): string {
-  const s = (raw ?? "").trim();
-  if (!s) return "";
-  return s.startsWith("@") ? s : `@${s}`;
-}
-
-export function CreatorComparisonUnavailable({ creator }: { creator: string }) {
-  const at = atHandle(creator);
-  return (
-    <div className="mt-6 rounded-xl border border-dashed border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] p-4 text-[12.5px] text-[var(--gv-ink-3)]">
-      <p className="gv-mono mb-1 text-[10px] uppercase tracking-wider text-[var(--gv-ink-3)]">
-        SO SÁNH TRONG KÊNH · {at}
-      </p>
-      <p className="m-0 leading-relaxed">
-        Chưa đủ video gần nhất của creator để so sánh hit/flop.
-        {" "}Cần tối thiểu 2 video có lượng view rõ ràng để dựng được
-        cặp đối chiếu.
-      </p>
-    </div>
-  );
-}
-
 function fmtViews(v: number): string {
   return v >= 1_000_000
     ? `${(v / 1_000_000).toFixed(1)}M`
