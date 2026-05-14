@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 
 type FailureRow = {
   video_id: string;
-  count: number;
+  fail_count: number;
 };
 
 type PanelData = {
@@ -55,7 +55,7 @@ function FailureRow({ row }: { row: FailureRow }) {
         {row.video_id}
       </td>
       <td className="py-2.5 gv-mono text-[12px] tabular-nums text-[color:var(--gv-danger)]">
-        {row.count}
+        {row.fail_count}
       </td>
     </tr>
   );

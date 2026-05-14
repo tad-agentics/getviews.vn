@@ -473,6 +473,26 @@ def classify_trajectory(
     """
     total_videos = len(videos)
 
+    # Coverage check: if a non-trivial slice of the channel's videos
+    # lack ``posted_at`` (EnsembleData payload missing ``create_time`` /
+    # ``createTime``), every downstream heuristic that bins by date —
+    # _compute_quarter_avgs, compute_inflection_point, the breakout
+    # baseline (older_videos filter), oldest_age_days — silently skips
+    # those rows. The classification can flip ``decline_from_peak`` →
+    # ``stagnant`` (or vice versa) without any visible signal. Log so we
+    # can spot the pattern in production logs instead of hunting a
+    # mystery mis-classification.
+    if total_videos > 0:
+        missing_timestamp = sum(1 for v in videos if not v.get("posted_at"))
+        if missing_timestamp / total_videos >= 0.20:
+            logger.warning(
+                "[channel_diagnose] trajectory classify: %d/%d videos (%.0f%%) "
+                "missing posted_at — trajectory classification may be unreliable.",
+                missing_timestamp,
+                total_videos,
+                100.0 * missing_timestamp / total_videos,
+            )
+
     # Oldest video age
     oldest_dt = None
     for v in videos:

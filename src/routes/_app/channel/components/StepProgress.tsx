@@ -27,7 +27,11 @@ export function StepProgress({
   heartbeatCount,
   trajectoryShape,
 }: StepProgressProps) {
-  const totalSteps = 5;
+  // The BE currently emits 5 step events (Tải dữ liệu → Phân loại format →
+  // Inflection → UGC creators → Soạn báo cáo). If a future step is added,
+  // showing "6/5" would be wrong; clamp the denominator to the highest
+  // index actually observed so the bar always reads "N/N or smaller".
+  const totalSteps = Math.max(5, activeStepIndex);
   const elapsed = heartbeatCount * 10;
 
   return (
