@@ -184,6 +184,7 @@ export type Database = {
           intent_type: string
           niche_id: number | null
           title: string
+          turn_context: Json | null
           updated_at: string
           user_id: string
         }
@@ -196,6 +197,7 @@ export type Database = {
           intent_type: string
           niche_id?: number | null
           title: string
+          turn_context?: Json | null
           updated_at?: string
           user_id: string
         }
@@ -208,6 +210,7 @@ export type Database = {
           intent_type?: string
           niche_id?: number | null
           title?: string
+          turn_context?: Json | null
           updated_at?: string
           user_id?: string
         }
@@ -301,6 +304,24 @@ export type Database = {
         }
         Relationships: []
       }
+      batch_http_log: {
+        Row: {
+          enqueued_at: string
+          request_id: number
+          url: string
+        }
+        Insert: {
+          enqueued_at?: string
+          request_id: number
+          url: string
+        }
+        Update: {
+          enqueued_at?: string
+          request_id?: number
+          url?: string
+        }
+        Relationships: []
+      }
       batch_job_runs: {
         Row: {
           duration_ms: number | null
@@ -334,67 +355,56 @@ export type Database = {
         }
         Relationships: []
       }
-      channel_formulas: {
+      channel_diagnoses: {
         Row: {
-          avg_views: number | null
-          bio: string
+          channel_pattern: Json
           computed_at: string
-          engagement_pct: number | null
-          formula: Json
+          creator_match: Json | null
           handle: string
-          lessons: Json
+          inflection: Json | null
           niche_id: number
-          optimal_length: string
-          posting_cadence: string
-          posting_time: string
-          strengths: Json
-          top_hook: string
-          total_videos: number
-          weaknesses: Json
+          recommendations: Json
+          sections: Json
+          top_performers: Json
+          trajectory_shape: string
+          ugc_creators: Json
+          video_count: number
+          video_url: string
+          worst_performers: Json
         }
         Insert: {
-          avg_views?: number | null
-          bio?: string
+          channel_pattern?: Json
           computed_at?: string
-          engagement_pct?: number | null
-          formula?: Json
+          creator_match?: Json | null
           handle: string
-          lessons?: Json
+          inflection?: Json | null
           niche_id: number
-          optimal_length?: string
-          posting_cadence?: string
-          posting_time?: string
-          strengths?: Json
-          top_hook?: string
-          total_videos?: number
-          weaknesses?: Json
+          recommendations?: Json
+          sections?: Json
+          top_performers?: Json
+          trajectory_shape: string
+          ugc_creators?: Json
+          video_count?: number
+          video_url?: string
+          worst_performers?: Json
         }
         Update: {
-          avg_views?: number | null
-          bio?: string
+          channel_pattern?: Json
           computed_at?: string
-          engagement_pct?: number | null
-          formula?: Json
+          creator_match?: Json | null
           handle?: string
-          lessons?: Json
+          inflection?: Json | null
           niche_id?: number
-          optimal_length?: string
-          posting_cadence?: string
-          posting_time?: string
-          strengths?: Json
-          top_hook?: string
-          total_videos?: number
-          weaknesses?: Json
+          recommendations?: Json
+          sections?: Json
+          top_performers?: Json
+          trajectory_shape?: string
+          ugc_creators?: Json
+          video_count?: number
+          video_url?: string
+          worst_performers?: Json
         }
-        Relationships: [
-          {
-            foreignKeyName: "channel_formulas_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
-            referencedRelation: "niche_taxonomy"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       chat_archival_audit: {
         Row: {
@@ -2136,6 +2146,30 @@ export type Database = {
         }
         Relationships: []
       }
+      thumbnail_failures: {
+        Row: {
+          failed_at: string
+          failed_url: string | null
+          id: number
+          user_agent: string | null
+          video_id: string
+        }
+        Insert: {
+          failed_at?: string
+          failed_url?: string | null
+          id?: number
+          user_agent?: string | null
+          video_id: string
+        }
+        Update: {
+          failed_at?: string
+          failed_url?: string | null
+          id?: number
+          user_agent?: string | null
+          video_id?: string
+        }
+        Relationships: []
+      }
       trend_velocity: {
         Row: {
           created_at: string
@@ -2329,6 +2363,7 @@ export type Database = {
           engagement_rate: number
           face_appears_at: number | null
           first_frame_type: string | null
+          first_seen_at: string | null
           frame_urls: string[]
           has_caption_text: boolean | null
           has_vietnamese_hashtags: boolean | null
@@ -2338,12 +2373,14 @@ export type Database = {
           hook_type: string | null
           id: string
           indexed_at: string
+          ingest_source: string | null
           is_commerce: boolean | null
           is_duet: boolean | null
           is_original_sound: boolean | null
           is_stitch: boolean | null
           language: string | null
           last_refetched_at: string | null
+          last_refreshed_at: string | null
           likes: number
           niche_id: number
           pain_points: Json | null
@@ -2351,6 +2388,7 @@ export type Database = {
           posted_at: string | null
           posting_hour: number | null
           promotion_type: string | null
+          quality_tier: string | null
           save_rate: number | null
           saves: number | null
           scene_count: number | null
@@ -2395,6 +2433,7 @@ export type Database = {
           engagement_rate?: number
           face_appears_at?: number | null
           first_frame_type?: string | null
+          first_seen_at?: string | null
           frame_urls?: string[]
           has_caption_text?: boolean | null
           has_vietnamese_hashtags?: boolean | null
@@ -2404,12 +2443,14 @@ export type Database = {
           hook_type?: string | null
           id?: string
           indexed_at?: string
+          ingest_source?: string | null
           is_commerce?: boolean | null
           is_duet?: boolean | null
           is_original_sound?: boolean | null
           is_stitch?: boolean | null
           language?: string | null
           last_refetched_at?: string | null
+          last_refreshed_at?: string | null
           likes?: number
           niche_id: number
           pain_points?: Json | null
@@ -2417,6 +2458,7 @@ export type Database = {
           posted_at?: string | null
           posting_hour?: number | null
           promotion_type?: string | null
+          quality_tier?: string | null
           save_rate?: number | null
           saves?: number | null
           scene_count?: number | null
@@ -2461,6 +2503,7 @@ export type Database = {
           engagement_rate?: number
           face_appears_at?: number | null
           first_frame_type?: string | null
+          first_seen_at?: string | null
           frame_urls?: string[]
           has_caption_text?: boolean | null
           has_vietnamese_hashtags?: boolean | null
@@ -2470,12 +2513,14 @@ export type Database = {
           hook_type?: string | null
           id?: string
           indexed_at?: string
+          ingest_source?: string | null
           is_commerce?: boolean | null
           is_duet?: boolean | null
           is_original_sound?: boolean | null
           is_stitch?: boolean | null
           language?: string | null
           last_refetched_at?: string | null
+          last_refreshed_at?: string | null
           likes?: number
           niche_id?: number
           pain_points?: Json | null
@@ -2483,6 +2528,7 @@ export type Database = {
           posted_at?: string | null
           posting_hour?: number | null
           promotion_type?: string | null
+          quality_tier?: string | null
           save_rate?: number | null
           saves?: number | null
           scene_count?: number | null
@@ -2564,48 +2610,73 @@ export type Database = {
         Row: {
           analysis_headline: string | null
           analysis_subtext: string | null
+          bright_spot_signal: Json | null
+          cached_response: Json | null
+          channel_context: Json | null
           computed_at: string
+          diagnosis: string | null
           flop_issues: Json | null
+          format_cards: Json | null
           hook_phases: Json
           lessons: Json
+          narrative_vi: Json | null
           niche_benchmark_curve: Json | null
+          performance_tier: string | null
+          reference_videos: Json | null
           retention_curve: Json | null
           segments: Json
+          source: string
+          tiktok_url: string | null
           video_id: string
+          view_scenarios: Json | null
         }
         Insert: {
           analysis_headline?: string | null
           analysis_subtext?: string | null
+          bright_spot_signal?: Json | null
+          cached_response?: Json | null
+          channel_context?: Json | null
           computed_at?: string
+          diagnosis?: string | null
           flop_issues?: Json | null
+          format_cards?: Json | null
           hook_phases?: Json
           lessons?: Json
+          narrative_vi?: Json | null
           niche_benchmark_curve?: Json | null
+          performance_tier?: string | null
+          reference_videos?: Json | null
           retention_curve?: Json | null
           segments?: Json
+          source?: string
+          tiktok_url?: string | null
           video_id: string
+          view_scenarios?: Json | null
         }
         Update: {
           analysis_headline?: string | null
           analysis_subtext?: string | null
+          bright_spot_signal?: Json | null
+          cached_response?: Json | null
+          channel_context?: Json | null
           computed_at?: string
+          diagnosis?: string | null
           flop_issues?: Json | null
+          format_cards?: Json | null
           hook_phases?: Json
           lessons?: Json
+          narrative_vi?: Json | null
           niche_benchmark_curve?: Json | null
+          performance_tier?: string | null
+          reference_videos?: Json | null
           retention_curve?: Json | null
           segments?: Json
+          source?: string
+          tiktok_url?: string | null
           video_id?: string
+          view_scenarios?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "video_diagnostics_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: true
-            referencedRelation: "video_corpus"
-            referencedColumns: ["video_id"]
-          },
-        ]
+        Relationships: []
       }
       video_patterns: {
         Row: {
@@ -2828,6 +2899,11 @@ export type Database = {
       }
     }
     Functions: {
+      _prune_batch_http_log: { Args: never; Returns: undefined }
+      admin_flush_video_diagnostics_cache: {
+        Args: { p_tiktok_url: string }
+        Returns: Json
+      }
       admin_pg_net_batch_http_4xx_events: {
         Args: { p_hours?: number }
         Returns: {
@@ -2842,10 +2918,6 @@ export type Database = {
         Returns: string
       }
       begin_processing: { Args: { p_user_id: string }; Returns: boolean }
-      channel_corpus_stats: {
-        Args: { p_handle: string; p_niche: number }
-        Returns: Json
-      }
       corpus_hashtag_yields_14d: {
         Args: never
         Returns: {
@@ -2981,6 +3053,17 @@ export type Database = {
           out_seeded: number
         }[]
       }
+      thumbnail_failures_count_7d: {
+        Args: { cutoff_ts: string }
+        Returns: number
+      }
+      thumbnail_failures_top10: {
+        Args: { cutoff_ts: string }
+        Returns: {
+          count: number
+          video_id: string
+        }[]
+      }
       timing_top_window_streak: {
         Args: { p_day: number; p_hour_bucket: number; p_niche_id: number }
         Returns: number
@@ -2988,6 +3071,13 @@ export type Database = {
       toggle_reference_channel: {
         Args: { p_handle: string }
         Returns: undefined
+      }
+      upsert_video_corpus_batch: {
+        Args: { p_rows: Json }
+        Returns: {
+          action: string
+          video_id: string
+        }[]
       }
     }
     Enums: {
@@ -3121,4 +3211,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
