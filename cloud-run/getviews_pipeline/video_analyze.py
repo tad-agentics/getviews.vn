@@ -792,6 +792,47 @@ def _select_corpus_references_for_finalize(
         return [], []
 
 
+def _build_narrative_cache_update(
+    *,
+    narrative_vi: dict[str, Any],
+    format_cards: list[dict[str, Any]] | None,
+    diagnosis_md: str | None,
+    performance_tier: str | None,
+    bright_spot: dict[str, Any] | None,
+    view_scenarios: list[dict[str, Any]] | None,
+    channel_context: dict[str, Any] | None,
+    reference_videos: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Build the conditional UPDATE payload for the narrative cache row.
+
+    Only includes keys whose synth output is actually present. Otherwise a
+    partial-success synth (Gemini returned narrative_vi but, say,
+    format_cards came back None) would blank a previously-valid cached
+    value via UPDATE … SET col = NULL. The next request would
+    short-circuit on van_de_chinh and serve the degraded payload with no
+    error surface.
+
+    Same family as c69d0cd's narrative_vi gate, generalised to every
+    cached field.
+    """
+    payload: dict[str, Any] = {"narrative_vi": narrative_vi}
+    if format_cards is not None:
+        payload["format_cards"] = format_cards
+    if diagnosis_md:
+        payload["diagnosis"] = diagnosis_md
+    if performance_tier is not None:
+        payload["performance_tier"] = performance_tier
+    if bright_spot is not None:
+        payload["bright_spot_signal"] = bright_spot
+    if view_scenarios is not None:
+        payload["view_scenarios"] = view_scenarios
+    if channel_context:
+        payload["channel_context"] = channel_context
+    if reference_videos:
+        payload["reference_videos"] = reference_videos
+    return payload
+
+
 def finalize_video_narrative_layer(
     out: dict[str, Any],
     *,
@@ -1060,20 +1101,21 @@ def finalize_video_narrative_layer(
     # sets on the corpus path only.
     cache_vid = out.pop("__cache_video_id", None)
     if cache_vid and narrative_vi_out is not None:
+        update_payload = _build_narrative_cache_update(
+            narrative_vi=narrative_vi_out,
+            format_cards=format_cards_out,
+            diagnosis_md=diagnosis_md,
+            performance_tier=performance_tier,
+            bright_spot=bright_spot_computed,
+            view_scenarios=view_scenarios_computed,
+            channel_context=channel_context_payload,
+            reference_videos=out.get("reference_videos"),
+        )
         try:
             from getviews_pipeline.supabase_client import get_service_client
 
             get_service_client().table("video_diagnostics").update(
-                {
-                    "narrative_vi": narrative_vi_out,
-                    "format_cards": format_cards_out,
-                    "diagnosis": diagnosis_md or None,
-                    "performance_tier": performance_tier,
-                    "bright_spot_signal": bright_spot_computed,
-                    "view_scenarios": view_scenarios_computed,
-                    "channel_context": channel_context_payload or None,
-                    "reference_videos": out.get("reference_videos"),
-                },
+                update_payload,
             ).eq("video_id", cache_vid).execute()
         except Exception as exc:
             # Non-fatal — failing to cache only loses the cost saving,
