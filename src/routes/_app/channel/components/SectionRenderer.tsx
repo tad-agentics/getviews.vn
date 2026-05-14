@@ -71,6 +71,17 @@ export function SectionRenderer({
       {/* Prose body */}
       <div className="relative">
         {renderParagraphs(text)}
+        {streaming && !text && (
+          // Active-section, no text_chunk yet — bridge the gap so the
+          // section card isn't a bare heading for the second or two
+          // between section_start and the first text_chunk landing.
+          <p
+            className="text-sm italic text-[color:var(--muted)] mt-2"
+            aria-live="polite"
+          >
+            Đang viết phân tích…
+          </p>
+        )}
         {streaming && text && (
           <span
             className="inline-block w-0.5 h-4 bg-[color:var(--primary)] animate-pulse ml-0.5 align-text-bottom"
