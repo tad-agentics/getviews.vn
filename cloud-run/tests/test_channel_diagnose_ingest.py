@@ -511,3 +511,41 @@ async def test_select_niche_peer_videos_returns_tiles():
     assert "views_count" not in select_args
     # Tile must surface the int from the ``views`` field.
     assert result[0]["views"] == 100_000
+
+
+# ── _decrement_credit_or_raise — transport-vs-insufficient_credits ─────
+
+
+def test_decrement_credit_raises_insufficient_only_when_data_is_none():
+    from getviews_pipeline.channel_diagnose import (
+        InsufficientCreditsError,
+        _decrement_credit_or_raise,
+    )
+
+    sb = MagicMock()
+    sb.rpc.return_value.execute.return_value = MagicMock(data=None)
+    with pytest.raises(InsufficientCreditsError):
+        _decrement_credit_or_raise(sb, user_id="u-1")
+
+
+def test_decrement_credit_lets_transport_errors_bubble():
+    """Transport / 5xx exceptions must NOT be re-wrapped as
+    InsufficientCreditsError — that would tell users "Hết credit" when
+    the real failure is infra. Caller maps the raw exception to
+    stream_failed."""
+    from getviews_pipeline.channel_diagnose import (
+        InsufficientCreditsError,
+        _decrement_credit_or_raise,
+    )
+
+    sb = MagicMock()
+    sb.rpc.return_value.execute.side_effect = RuntimeError("502 Bad Gateway")
+    with pytest.raises(RuntimeError, match="502"):
+        _decrement_credit_or_raise(sb, user_id="u-1")
+    # And specifically NOT InsufficientCreditsError.
+    sb.rpc.return_value.execute.side_effect = TimeoutError("supabase 30s")
+    with pytest.raises(TimeoutError):
+        _decrement_credit_or_raise(sb, user_id="u-1")
+    # Sanity: InsufficientCreditsError didn't get raised on those paths.
+    # (pytest.raises above would have failed if it did.)
+    _ = InsufficientCreditsError  # silence unused
