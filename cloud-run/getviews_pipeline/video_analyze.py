@@ -720,8 +720,21 @@ async def _live_search_references_for_finalize(
     async def _one(aweme: dict[str, Any]) -> dict[str, Any]:
         try:
             async with sem:
+                # skip_corpus_cache=True avoids get_cached_analysis() which
+                # pulls a module-level Supabase httpx transport pinned to
+                # whichever event loop first created it. This function runs
+                # inside ``asyncio.run(...)`` at video_analyze.py:789 — a
+                # fresh loop each invocation — so reusing the prior loop's
+                # client raises RuntimeError("Event loop is closed") on
+                # the second on-demand request. d4ce4da fixed this for
+                # _fetch_and_analyze_async; this analogous site was missed.
                 return await asyncio.wait_for(
-                    analyze_aweme(aweme, include_diagnosis=False, full_analyses=None),
+                    analyze_aweme(
+                        aweme,
+                        include_diagnosis=False,
+                        full_analyses=None,
+                        skip_corpus_cache=True,
+                    ),
                     timeout=120.0,
                 )
         except (TimeoutError, Exception) as exc:
