@@ -27,19 +27,20 @@ function useThumbnailFailures() {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      const [totalRes, topRes] = await Promise.all([
-        supabase
-          .from("thumbnail_failures")
-          .select("*", { count: "exact", head: true })
-          .gte("failed_at", cutoff),
+      // Both queries use SECURITY DEFINER RPCs — the thumbnail_failures table
+      // has RLS enabled with no SELECT policies, so direct table queries from
+      // user JWTs are always denied. The RPCs run as the function owner and
+      // bypass RLS at the function level.
+      const [countRes, topRes] = await Promise.all([
+        supabase.rpc("thumbnail_failures_count_7d", { cutoff_ts: cutoff }),
         supabase.rpc("thumbnail_failures_top10", { cutoff_ts: cutoff }),
       ]);
 
-      if (totalRes.error) throw totalRes.error;
+      if (countRes.error) throw countRes.error;
       if (topRes.error) throw topRes.error;
 
       return {
-        total_7d: totalRes.count ?? 0,
+        total_7d: (countRes.data as number) ?? 0,
         top_failures: (topRes.data ?? []) as FailureRow[],
         as_of: new Date().toISOString(),
       };

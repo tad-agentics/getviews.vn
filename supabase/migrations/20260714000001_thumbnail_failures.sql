@@ -27,17 +27,33 @@ CREATE INDEX thumbnail_failures_video_id_idx  ON thumbnail_failures (video_id);
 
 ALTER TABLE thumbnail_failures ENABLE ROW LEVEL SECURITY;
 
--- No direct client reads or writes allowed.
--- The Edge Function inserts using the service_role key.
--- Admin queries bypass RLS via service_role on the Supabase dashboard.
+-- No RLS policies are defined — no direct client reads or writes allowed.
+-- INSERT: Edge Function uses service_role key (bypasses RLS).
+-- SELECT: admin panel uses SECURITY DEFINER RPCs below (bypass RLS at the
+--         function level). Direct table queries from user JWTs are always denied.
+-- Dashboard access: Supabase dashboard uses service_role and bypasses RLS natively.
 
--- RPC for the admin panel: top-10 most-failed video_ids in a time window.
--- Called with service_role from the admin hook — no auth policy needed here
--- because the panel bypasses RLS via the service_role client.
+-- RPC: total failure count in a time window.
+-- SECURITY DEFINER runs as the function owner (service_role equivalent) — bypasses RLS.
+-- set search_path guards against search_path injection attacks.
+CREATE OR REPLACE FUNCTION thumbnail_failures_count_7d(cutoff_ts TIMESTAMPTZ)
+RETURNS BIGINT
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COUNT(*)
+  FROM thumbnail_failures
+  WHERE failed_at >= cutoff_ts;
+$$;
+
+-- RPC: top-10 most-failed video_ids in a time window.
+-- SECURITY DEFINER runs as the function owner — bypasses RLS.
 CREATE OR REPLACE FUNCTION thumbnail_failures_top10(cutoff_ts TIMESTAMPTZ)
 RETURNS TABLE(video_id TEXT, count BIGINT)
 LANGUAGE SQL
 SECURITY DEFINER
+SET search_path = public
 AS $$
   SELECT
     video_id,
