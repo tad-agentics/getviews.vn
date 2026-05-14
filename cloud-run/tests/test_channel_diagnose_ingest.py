@@ -549,3 +549,55 @@ def test_decrement_credit_lets_transport_errors_bubble():
     # Sanity: InsufficientCreditsError didn't get raised on those paths.
     # (pytest.raises above would have failed if it did.)
     _ = InsufficientCreditsError  # silence unused
+
+
+# ── Trajectory classifier observability ────────────────────────────────
+
+
+def test_classify_trajectory_warns_when_many_videos_lack_posted_at(caplog):
+    """Regression for audit B8 — when ≥20% of videos lack posted_at,
+    quarter binning + inflection drop those rows silently and the
+    trajectory class can flip without warning. Log so prod can spot
+    the pattern in Cloud Run logs."""
+    from getviews_pipeline.channel_diagnose import classify_trajectory
+
+    videos = []
+    # 2 out of 5 (40%) missing posted_at → must warn.
+    for i in range(3):
+        videos.append({"video_id": f"v{i}", "views": 1000, "posted_at": None})
+    for i in range(2):
+        videos.append({"video_id": f"w{i}", "views": 1000, "posted_at": None})
+
+    with caplog.at_level("WARNING"):
+        classify_trajectory(
+            channel_pattern={"max_views": 1000, "global_avg_views": 1000},
+            recent_window_30d={"avg_views": 1000, "video_count": 5},
+            inflection=None,
+            videos=videos,
+        )
+    assert any(
+        "missing posted_at" in r.message for r in caplog.records
+    ), "Expected a warning log about missing posted_at coverage"
+
+
+def test_classify_trajectory_quiet_when_timestamps_mostly_present(caplog):
+    """Healthy channel — no spurious warning."""
+    from datetime import UTC, datetime, timedelta
+    from getviews_pipeline.channel_diagnose import classify_trajectory
+
+    base = datetime.now(UTC) - timedelta(days=60)
+    videos = [
+        {"video_id": f"v{i}", "views": 1000, "posted_at": base + timedelta(days=i)}
+        for i in range(10)
+    ]
+
+    with caplog.at_level("WARNING"):
+        classify_trajectory(
+            channel_pattern={"max_views": 1000, "global_avg_views": 1000},
+            recent_window_30d={"avg_views": 1000, "video_count": 5},
+            inflection=None,
+            videos=videos,
+        )
+    assert not any(
+        "missing posted_at" in r.message for r in caplog.records
+    ), "Should not warn when timestamps are present"
