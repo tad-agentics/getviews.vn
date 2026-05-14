@@ -618,6 +618,13 @@ async def channel_diagnose_endpoint(
     user_id = str(user["user_id"])
     access_token = str(user["access_token"])
     handle_norm = normalize_handle(handle)
+    # Canonicalise the URL before it touches the (handle, video_url,
+    # niche_id) cache key. Without this, share-sheet pastes with
+    # trailing slashes / ``?_r=1`` / http vs https / www-vs-bare miss
+    # the cache and re-charge a credit — same bug normalize_tiktok_url
+    # was added to prevent on /video/analyze.
+    from getviews_pipeline.video_analyze import normalize_tiktok_url
+    video_url = normalize_tiktok_url(video_url) if video_url else video_url
 
     async def event_generator() -> AsyncIterator[bytes]:
         stream_id = resume_stream_id or str(uuid.uuid4())
