@@ -190,4 +190,26 @@ describe("ChannelScreen", () => {
     renderScreen("?handle=sammie.tech");
     expect(screen.getByText(/Không đủ credit/)).toBeTruthy();
   });
+
+  it("re-fires diagnose.start when the niche dropdown changes", () => {
+    // Regression for R1 — the dedupe key used handleKey only, so a
+    // niche switch silently left the report stale. Composite key
+    // (handle, niche) means the second render triggers a fresh call.
+    const startSpy = vi.fn();
+    mockUseChannelDiagnose.mockReturnValue({
+      ...mockDiagnoseIdle,
+      start: startSpy,
+    });
+
+    // First render: nicheId=2 from query → start called with 2.
+    const first = renderScreen("?handle=sammie.tech&creator_niche_id=2");
+    expect(startSpy).toHaveBeenCalledTimes(1);
+    expect(startSpy.mock.calls[0][1]).toBe(2);
+    first.unmount();
+
+    // Second render with a different niche → start called again with 5.
+    renderScreen("?handle=sammie.tech&creator_niche_id=5");
+    expect(startSpy).toHaveBeenCalledTimes(2);
+    expect(startSpy.mock.calls[1][1]).toBe(5);
+  });
 });

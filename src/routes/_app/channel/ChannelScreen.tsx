@@ -117,16 +117,21 @@ export default function ChannelScreen() {
     [setSearchParams],
   );
 
-  // Auto-start diagnosis when handle + nicheId are available, deduplicated by handle key.
+  // Auto-start diagnosis when handle + nicheId are available, deduplicated by
+  // (handle, niche). The previous dedupe key was handleKey alone, so switching
+  // the "Ngách so sánh" dropdown after the first run silently left the report
+  // stale: the URL param flipped, the niche pill re-rendered, but the effect
+  // short-circuited and never re-fetched against the new niche.
   const nicheId = creatorNicheParam ?? profile?.creator_niche_id ?? creatorNiches[0]?.id ?? 0;
+  const diagnoseKey = handleKey ? `${handleKey}::${nicheId}` : "";
   useEffect(() => {
     if (!handleKey || !nicheId || !cloudConfigured) return;
-    if (lastDiagnoseHandleRef.current === handleKey) return;
-    lastDiagnoseHandleRef.current = handleKey;
+    if (lastDiagnoseHandleRef.current === diagnoseKey) return;
+    lastDiagnoseHandleRef.current = diagnoseKey;
     void diagnose.start(handleKey, nicheId, videoUrlInput || undefined);
     // diagnose.start identity is stable (useCallback[qc])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleKey, nicheId, cloudConfigured]);
+  }, [diagnoseKey, cloudConfigured]);
 
   const emptyParams = !handleKey;
 
@@ -388,7 +393,7 @@ export default function ChannelScreen() {
               onRestart={() => {
                 lastDiagnoseHandleRef.current = null;
                 void diagnose.start(handleKey ?? "", nicheId, videoUrlInput || undefined);
-                lastDiagnoseHandleRef.current = handleKey;
+                lastDiagnoseHandleRef.current = diagnoseKey;
               }}
               onChangeHandle={openHandle}
             />
