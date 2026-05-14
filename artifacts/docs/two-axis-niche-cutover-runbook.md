@@ -1,5 +1,7 @@
 # Two-axis niche cutover (PR1 → PR6)
 
+> **STATUS: COMPLETED — 2026-05-13.** All four migrations applied. Cloud Run and FE deployed with `creator_niche_id`. `primary_niche` column dropped. Retain this doc until 2026-06-13 (30-day window per `legacy_niche_id_for_creator_niche` retention rule).
+
 ## Verified migration chain (2026-05-10 — 2026-05-13)
 
 | Step | File | Date (UTC prefix) |
