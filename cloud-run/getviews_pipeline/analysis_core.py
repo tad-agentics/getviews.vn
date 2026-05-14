@@ -383,12 +383,41 @@ async def _analyze_carousel(
         if total_slides > analyzed_count:
             meta_diag["carousel_slides_total"] = total_slides
 
-        return await _finish_analysis(
+        result = await _finish_analysis(
             metadata=metadata_out,
             analysis_obj=analysis,
             metadata_for_diagnosis=meta_diag,
             include_diagnosis=include_diagnosis,
         )
+
+        # Upload slide[0] as the permanent thumbnail.
+        # Carousels have no video to extract frame[0] from, so the slide images
+        # that are already in memory here are the only zero-extra-cost source.
+        # The resulting R2 URL is injected into the result dict so corpus_ingest
+        # can write it to video_corpus.thumbnail_url without an extra CDN fetch.
+        if vid and slide_bytes:
+            try:
+                from getviews_pipeline.r2 import r2_configured, upload_thumbnail_bytes
+                if r2_configured():
+                    first_bytes, first_mime = slide_bytes[0]
+                    thumb_content_type = first_mime or "image/jpeg"
+                    thumb_loop = asyncio.get_event_loop()
+                    r2_thumb = await thumb_loop.run_in_executor(
+                        None, upload_thumbnail_bytes, vid, first_bytes, thumb_content_type,
+                    )
+                    if r2_thumb:
+                        result["r2_thumbnail_url"] = r2_thumb
+                        logger.info(
+                            "[carousel] video_id=%s — slide[0] uploaded as thumbnail: %s",
+                            vid, r2_thumb,
+                        )
+            except Exception as exc:
+                logger.warning(
+                    "[carousel] video_id=%s — slide[0] thumbnail upload failed (non-fatal): %s",
+                    vid, exc,
+                )
+
+        return result
     finally:
         for p in carousel_temp_paths:
             if p.exists():

@@ -30,6 +30,7 @@ from getviews_pipeline.config import (
     ADAPTIVE_HASHTAG_MIN_FETCH,
     CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
     HASHTAG_YIELD_THRESHOLD,
+    R2_PUBLIC_URL,
 )
 from getviews_pipeline.ed_budget import theoretical_ed_pool_requests
 from getviews_pipeline.hashtag_niche_map import learn_hashtag_mappings
@@ -1231,11 +1232,23 @@ def _build_corpus_row(
         or f"https://www.tiktok.com/@{handle}/video/{video_id}"
     )
 
-    # Thumbnail: first CDN URL from display cover if available
+    # Thumbnail: first CDN URL from display cover if available.
+    # For carousels, aweme.video is absent — fall back to the first slide CDN URL
+    # from image_post_info (signed, expiring, but better than NULL). This is then
+    # overwritten with a permanent R2 URL by _analyze_carousel (analysis["r2_thumbnail_url"])
+    # if R2 is configured, so the expiring URL never reaches the DB in practice.
     video_obj = aweme.get("video") or {}
     cover = video_obj.get("origin_cover") or video_obj.get("cover") or {}
     cover_urls: list[str] = cover.get("url_list") or []
+    if not cover_urls and content_type == "carousel":
+        image_lists = ensemble.extract_image_url_lists(aweme)
+        if image_lists and image_lists[0]:
+            cover_urls = [image_lists[0][0]]
     thumbnail_url = cover_urls[0] if cover_urls else None
+    # Prefer the permanent R2 URL set by _analyze_carousel, if available.
+    r2_thumb = analysis.get("r2_thumbnail_url")
+    if r2_thumb:
+        thumbnail_url = r2_thumb
 
     # Video play URL (first H264 URL)
     video_urls = ensemble.extract_video_urls(aweme)
@@ -1721,13 +1734,27 @@ async def _ingest_candidate_awemes(
 
         async def _row_thumbnail(row: dict[str, Any]) -> str | None:
             vid = row["video_id"]
+            existing_thumb = row.get("thumbnail_url") or ""
+            # Carousel rows may already have a permanent R2 URL written by
+            # _analyze_carousel (commit 2). Detect it by checking against the
+            # configured R2_PUBLIC_URL prefix or the default pub-*.r2.dev pattern.
+            _r2_prefix = R2_PUBLIC_URL.rstrip("/") if R2_PUBLIC_URL else ""
+            _is_already_r2 = (
+                (_r2_prefix and (
+                    existing_thumb.startswith(_r2_prefix + "/")
+                    or existing_thumb == _r2_prefix
+                ))
+                or existing_thumb.startswith("https://pub-")
+            )
+            if _is_already_r2:
+                return existing_thumb
             has_frame = bool((frame_urls_by_video_id.get(vid) or []))
             if has_frame:
                 return await loop.run_in_executor(
                     None, copy_first_frame_to_thumbnail, vid,
                 )
             return await download_and_upload_thumbnail(
-                row.get("thumbnail_url") or "", vid,
+                existing_thumb, vid,
             )
 
         thumb_tasks = [_row_thumbnail(row) for row in rows]
