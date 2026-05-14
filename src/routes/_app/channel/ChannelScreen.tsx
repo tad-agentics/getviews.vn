@@ -569,7 +569,10 @@ function ChannelDiagnosisBody({
               recommendations={
                 section.section_id === "recommendations" ? diagnose.recommendations : []
               }
-              streaming={isStreaming}
+              // Cursor scopes to the currently-active section only.
+              // section_done clears activeSectionId so completed sections
+              // stop showing the blinking caret.
+              streaming={isStreaming && diagnose.activeSectionId === section.section_id}
             />
           ))}
 

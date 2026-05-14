@@ -32,7 +32,10 @@ function renderParagraphs(text: string) {
 interface SectionRendererProps {
   section: ChannelSection;
   recommendations?: ChannelRecommendation[];
-  /** Whether text is still streaming in (shows trailing cursor). */
+  /** Whether text is still streaming in (shows trailing cursor on the
+   * active section only — not every visible section). True iff the
+   * stream is in flight AND this section is the currently-active one
+   * (section_start fired, section_done has not). */
   streaming?: boolean;
 }
 
