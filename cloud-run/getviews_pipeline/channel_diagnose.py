@@ -501,8 +501,11 @@ def classify_trajectory(
             oldest_dt = dt
     oldest_age_days = (_now() - oldest_dt).days if oldest_dt else 0
 
-    # 1. new_account
-    if total_videos < 30 or oldest_age_days < 90:
+    # 1. new_account — tightened from (< 30 OR < 90d) to (< 15 OR < 60d).
+    # Rationale: a channel with 20 videos and a 202K→15K drop is a declining
+    # brand, not a new account; the old OR gate (< 30 videos) blocked
+    # decline_from_peak from ever being evaluated for mid-size channels.
+    if total_videos < 15 or oldest_age_days < 60:
         return "new_account"
 
     max_views = channel_pattern.get("max_views", 0)
