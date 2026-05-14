@@ -31,7 +31,7 @@ function InlineThumbnail({ video }: { video: EvidenceCardPayloadData }) {
     >
       <div
         className="h-12 w-9 shrink-0 overflow-hidden rounded"
-        style={{ background: video.bg_color || "var(--gv-canvas-3)" }}
+        style={{ background: video.bg_color || "var(--gv-canvas-2)" }}
       >
         {video.thumbnail_url ? (
           <img

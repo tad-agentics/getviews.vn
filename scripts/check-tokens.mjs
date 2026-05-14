@@ -122,6 +122,68 @@ for (const path of walk(SRC)) {
   }
 }
 
+// ── Undefined CSS-variable detector ────────────────────────────────────────
+//
+// Catches typos like ``var(--gv-foreground)`` where ``--gv-foreground`` is
+// not declared in app.css (the right name is ``--foreground``; the
+// ``--gv-*`` namespace is the raw palette like ``--gv-ink``). Without
+// this guard, the property silently inherits from currentColor /
+// browser defaults and the UI renders invisible elements (numbered
+// badges with no glyph, missing borders).
+//
+// Strategy: parse every ``--name:`` declaration we can find in app.css,
+// then any ``var(--name)`` reference in src/ that's NOT in that set is
+// flagged. A tight allowlist covers tokens declared outside the scan
+// (e.g. browser/Tailwind internals like ``--tw-*``).
+
+const APP_CSS = join(SRC, "app.css");
+const declaredTokens = new Set();
+const cssText = readFileSync(APP_CSS, "utf8");
+for (const m of cssText.matchAll(/--[a-z0-9-]+(?=:)/gi)) {
+  declaredTokens.add(m[0]);
+}
+
+// Allowlist for vars declared outside src/app.css. Keep tight; only add
+// when the var is genuinely declared elsewhere (Tailwind v4 builtin,
+// inline ``style={{...}}`` on the same component, third-party).
+const TOKEN_ALLOWLIST = new Set([
+  // Tailwind v4 spacing helper — set inside @theme by the framework.
+  "--spacing",
+  // Declared inline in src/components/ui/sidebar.tsx via style={{}}
+  // for the expand/collapse width calc — component-local, never global.
+  "--sidebar-width",
+  "--sidebar-width-icon",
+]);
+const TOKEN_ALLOWLIST_PREFIXES = ["--tw-", "--vh", "--vw", "--radix-"];
+
+function isAllowedToken(name) {
+  if (declaredTokens.has(name)) return true;
+  if (TOKEN_ALLOWLIST.has(name)) return true;
+  return TOKEN_ALLOWLIST_PREFIXES.some((p) => name.startsWith(p));
+}
+
+for (const path of walk(SRC)) {
+  const rel = relative(ROOT, path).split("\\").join("/");
+  if (ALLOWLIST.has(rel)) continue;
+  // app.css declares the tokens — don't scan it for "undefined references"
+  // (it's the source of truth).
+  if (rel === "src/app.css") continue;
+  const text = readFileSync(path, "utf8");
+  for (const m of text.matchAll(/var\((--[a-z0-9-]+)\)/gi)) {
+    const name = m[1];
+    if (isAllowedToken(name)) continue;
+    // Find line number.
+    const upto = text.slice(0, m.index ?? 0);
+    const line = upto.split("\n").length;
+    violations.push({
+      rel,
+      line,
+      id: `undefined-css-var:${name}`,
+      content: name,
+    });
+  }
+}
+
 if (violations.length === 0) {
   console.log("check-tokens: 0 legacy-token violations across src/ ✓");
   process.exit(0);

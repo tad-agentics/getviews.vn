@@ -347,7 +347,7 @@ export default function ChannelScreen() {
                         "gv-mono rounded-full px-2.5 py-0.5 text-[10px] font-semibold " +
                         (hasCredits
                           ? "bg-[color:var(--gv-canvas-2)] text-[color:var(--gv-ink-3)]"
-                          : "bg-[color:var(--gv-neg-pale)] text-[color:var(--gv-neg-deep)]")
+                          : "bg-[color:var(--gv-neg-soft)] text-[color:var(--gv-neg-deep)]")
                       }
                     >
                       {hasCredits ? `${CREDIT_COST} credit / lần` : `Cần ${CREDIT_COST} credit · còn ${credits}`}
