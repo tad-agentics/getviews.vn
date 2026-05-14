@@ -86,3 +86,39 @@ def test_destination_key_uses_frame_extension_constant() -> None:
         url = r2.copy_first_frame_to_thumbnail("v")
     assert url is not None
     assert url.endswith(r2._FRAME_EXT)
+
+
+def test_successful_copy_deletes_opposite_jpg_extension() -> None:
+    """After writing thumbnails/{id}.png, the .jpg sibling must be deleted to
+    prevent dual-extension orphans accumulating in R2."""
+    fake_client = MagicMock()
+    with patch.object(r2, "_get_r2_client", return_value=fake_client):
+        r2.copy_first_frame_to_thumbnail("vid-123")
+    # delete_object must be called for the .jpg key
+    fake_client.delete_object.assert_called_once_with(
+        Bucket="test-bucket", Key="thumbnails/vid-123.jpg"
+    )
+
+
+def test_delete_opposite_ext_failure_does_not_abort_copy() -> None:
+    """If delete_object raises (e.g. permission error), the copy still returns
+    the URL — cleanup is non-fatal."""
+    fake_client = MagicMock()
+    fake_client.delete_object.side_effect = ClientError(
+        {"Error": {"Code": "AccessDenied", "Message": "forbidden"}}, "DeleteObject",
+    )
+    with patch.object(r2, "_get_r2_client", return_value=fake_client):
+        url = r2.copy_first_frame_to_thumbnail("vid-123")
+    assert url == "https://r2.test/thumbnails/vid-123.png"
+
+
+def test_upload_thumbnail_bytes_deletes_opposite_png_extension() -> None:
+    """After writing thumbnails/{id}.jpg via upload_thumbnail_bytes, the .png
+    sibling must be deleted."""
+    fake_client = MagicMock()
+    with patch.object(r2, "_get_r2_client", return_value=fake_client):
+        url = r2.upload_thumbnail_bytes("vid-abc", b"\xff\xd8\xff", "image/jpeg")
+    assert url == "https://r2.test/thumbnails/vid-abc.jpg"
+    fake_client.delete_object.assert_called_once_with(
+        Bucket="test-bucket", Key="thumbnails/vid-abc.png"
+    )

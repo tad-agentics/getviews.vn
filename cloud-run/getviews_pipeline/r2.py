@@ -282,6 +282,33 @@ def _cleanup_frames(frame_paths: list[Path]) -> None:
             pass
 
 
+def _delete_thumbnail_other_ext(video_id: str, written_ext: str) -> None:
+    """Delete the complementary thumbnail extension for ``video_id``.
+
+    When we write ``thumbnails/{id}.png`` via the frame-copy path and
+    ``thumbnails/{id}.jpg`` via the CDN-mirror path, both objects can
+    coexist in R2. The janitor counts the live video_id as "kept" for
+    both, so duplicates accumulate silently. This helper erases the
+    opposite extension immediately after every successful write so the
+    invariant "at most one extension per video_id under thumbnails/"
+    is enforced at write time.
+
+    Non-fatal — a failure just logs and returns.
+    """
+    opposite_ext = ".jpg" if written_ext == ".png" else ".png"
+    other_key = f"thumbnails/{video_id}{opposite_ext}"
+    try:
+        client = _get_r2_client()
+        client.delete_object(Bucket=R2_BUCKET_NAME, Key=other_key)
+        logger.debug("[r2] deleted stale opposite thumbnail %s", other_key)
+    except (BotoCoreError, ClientError) as exc:
+        # 404 (NoSuchKey) is expected and fine — nothing to clean up.
+        # Log at debug to avoid noise in the common case.
+        logger.debug("[r2] delete opposite thumbnail %s: %s", other_key, exc)
+    except Exception as exc:
+        logger.warning("[r2] unexpected error deleting opposite thumbnail %s: %s", other_key, exc)
+
+
 def copy_first_frame_to_thumbnail(video_id: str) -> str | None:
     """Copy the already-uploaded frame[0] PNG to the thumbnail key
     via an R2 server-side ``copy_object`` call. No local file read,
@@ -343,6 +370,8 @@ def copy_first_frame_to_thumbnail(video_id: str) -> str | None:
         return None
     url = f"{R2_PUBLIC_URL.rstrip('/')}/{dst_key}"
     logger.info("[r2] thumbnail derived from frame[0] for %s → %s", video_id, url)
+    # Ensure at most one extension under thumbnails/ — delete the CDN-mirror .jpg if it exists.
+    _delete_thumbnail_other_ext(video_id, _FRAME_EXT)
     return url
 
 
@@ -605,6 +634,8 @@ def upload_thumbnail_bytes(video_id: str, image_bytes: bytes, content_type: str 
         )
         url = f"{R2_PUBLIC_URL.rstrip('/')}/{key}"
         logger.info("[r2] uploaded thumbnail %s → %s (%dKB)", video_id, url, len(image_bytes) // 1024)
+        # Ensure at most one extension under thumbnails/ — delete the complementary extension.
+        _delete_thumbnail_other_ext(video_id, f".{ext}")
         return url
     except (BotoCoreError, ClientError) as exc:
         logger.error("[r2] thumbnail upload failed for %s: %s", video_id, exc)
