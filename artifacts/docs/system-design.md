@@ -310,13 +310,136 @@ These are production guards. Breaking any of them silently loses money or data.
 
 ## 12. Cloud Run Pipeline Architecture
 
-See `pipeline-principles.md` for the full binding rules. Summary:
+*These principles came out of the 2026-05-13 tactical refactor. They are binding for all pipeline work in `cloud-run/getviews_pipeline/`.*
 
-- **Service layer is mandatory:** all business logic in `services/`. `pipelines.py` and `video_analyze.py` are thin orchestrators only.
-- **Two cores:** `run_extraction_core` (static, immutable, 1 Gemini call) and `run_video_diagnosis_core` (cohort-comparative, user-facing only). Batch never calls `run_video_diagnosis_core`.
-- **v4 hardening guards** (`apply_timestamp_guards`, `validate_transcript`, `score_entry_cost`, `apply_rule_based_video_errors`) apply to every extraction path. Enforced by `test_v4_hardening_uniform.py`.
-- **Schema contract CI:** Pydantic models ↔ TypeScript interfaces auto-diffed in `test_schema_contract.py`. Any FE/BE boundary model must have a matching TS interface.
-- **No per-instance state** except `services/channel.py` in-process cache (explicitly documented, bounded, acceptable).
+### Service layer (mandatory)
+
+All business logic lives in `services/`. `pipelines.py` and `video_analyze.py` are **thin orchestrators** — they sequence calls; they contain no logic of their own.
+
+| Module | Owns |
+|--------|------|
+| `services/extraction.py` | `run_extraction_core`, `async_run_extraction_core`, Gemini frame analysis |
+| `services/diagnosis.py` | `run_video_diagnosis_core`, error extraction, retention modeling |
+| `services/synthesis.py` | `synthesize_core`, narrative generation, format cards |
+| `services/channel.py` | `fetch_channel_context_sync` (24h in-process cache), creator comparison |
+| `services/performance.py` | Performance tier classification, KPI enrichment |
+| `services/references.py` | Corpus reference video selection |
+| `services/corpus_quality.py` | `promote_on_demand_to_corpus`, `quality_tier`, cohort eligibility |
+
+### Two cores — one extraction, one diagnosis
+
+```
+run_extraction_core(video_path) -> ExtractionResult
+  • Download video (R2 / temp)
+  • Gemini vision (gemini-3.1-flash-lite-preview) — 1 Gemini call
+  • apply_timestamp_guards  ← v4 hardening
+  • validate_transcript      ← v4 hardening
+  • score_entry_cost         ← v4 hardening
+  Returns: ExtractionResult (Pydantic + matching TS interface)
+
+run_video_diagnosis_core(DiagnosisInput) -> DiagnosisResult
+  • extract_video_errors (Gemini) — 1 Gemini call
+  • apply_rule_based_video_errors ← v4 hardening
+  • structural parsing (retention curve, hook phases, segments)
+  Returns: DiagnosisResult (Pydantic)
+```
+
+**Invariants (enforced by CI):**
+- **Batch never calls `run_video_diagnosis_core`.** Batch (`corpus_ingest`, `douyin_ingest`) calls `async_run_extraction_core` only. Diagnosis is user-facing SSE only.
+- **`finalize_video_narrative_layer` is never called from batch.** It owns the 2-Gemini-call synthesis + narrative.
+- At 20K corpus videos/day: 1 Gemini call/video = ~$3/day. Diagnosis layer would cost ~$9/day — wrong order of magnitude.
+
+CI enforcement: `tests/test_two_core_audit.py`.
+
+### v4 hardening — non-negotiable
+
+These four guards apply to **every extraction path** without exception:
+
+1. `apply_timestamp_guards` — strips impossible timestamps from error events
+2. `validate_transcript` — discards hallucinated transcripts
+3. `score_entry_cost` — scores entry cost based on hook timing
+4. `apply_rule_based_video_errors` — adds rule-based structural errors
+
+They live in `run_extraction_core` so all callers (batch + on-demand) receive them. Adding a new extraction path that doesn't route through `run_extraction_core` silently skips all four. CI check: `test_v4_hardening_uniform.py`.
+
+### Schema contract CI
+
+`tests/test_schema_contract.py` auto-generates JSON Schema from Pydantic models and compares against TypeScript interfaces in `src/lib/api-types.ts`.
+
+**Rule:** any new Pydantic model that crosses the FE/BE boundary must have a matching TypeScript interface AND pass the schema contract test before merging.
+
+Models covered (input + output): `ExtractionResult`, `VideoDiagnosisV5`, `VideoErrorsExtractionInput`, `DiagnosisSynthesisInput`.
+
+### Gemini call contract — HYBRID pattern
+
+Every Gemini call uses a typed Pydantic model for its structured data input. The prompt is assembled as:
+
+```
+[Vietnamese rubric — natural-language system instructions]
+[JSON block — typed structured data: json.dumps(input_model, ensure_ascii=False)]
+[Vietnamese format/output spec]
+```
+
+**No hand-built f-string prompts for structured data.** The data block is always `model.model_dump_json(indent=2)` wrapped in a `json` code fence. This makes regressions detectable without running Gemini: if the prompt changes a field name, the schema contract CI fails before the change ships.
+
+- **Tier B (small structured inputs):** pure JSON block — `VideoErrorsExtractionInput`
+- **Tier C (narrative synthesis):** HYBRID — Vietnamese instructions + JSON sub-block for arrays — `DiagnosisSynthesisInput`
+
+### Pydantic Settings — no `os.environ.get` in logic
+
+All env vars are read once at import time via `getviews_pipeline/settings.py` (`pydantic.BaseSettings`). Business logic modules import from `settings`, never from `os.environ`. Fails fast at boot on misconfiguration.
+
+### No per-instance state
+
+Cloud Run can run multiple replicas. No mutable module-level state is allowed **except:**
+
+- `services/channel.py` in-process cache (`_channel_cache`): **explicitly acceptable** because `min-instances=1` keeps a warm instance, cache is bounded (500 entries, 24h TTL), and the worst case on cache miss is a redundant Supabase query, not a crash.
+
+Everything else must be stateless and safe to reconstruct on each request.
+
+### COALESCE provenance on UPSERT
+
+`video_corpus.ingest_source` records how a row was first created: `batch_nightly`, `user_diagnosis`, or `douyin_batch`. This column is **write-once** — the first writer sets it; subsequent UPSERTs must not overwrite it.
+
+Mechanism: `upsert_video_corpus_batch` uses:
+```sql
+ON CONFLICT (video_id) DO UPDATE SET
+  ingest_source = COALESCE(video_corpus.ingest_source, EXCLUDED.ingest_source)
+```
+
+Without this clause, the most-frequent writer (usually a cron) silently overwrites user-discovered provenance — breaking the `corpus_growth_via_users` metric.
+
+### Structured logging + OTel
+
+Every critical event emits a structured JSON log via `observability.py`. Every external I/O boundary is wrapped in a `telemetry.span()`:
+
+- Gemini API calls
+- HTTP calls to EnsembleData, R2
+- Supabase queries (diagnosis cache hit/miss)
+
+OTel exports to Cloud Trace via OTLP gRPC. Set `OTEL_DISABLED=true` in test environments (`tests/conftest.py`).
+
+Key metrics emitted:
+
+| Metric | Event field | Emitted by |
+|--------|-------------|------------|
+| Cache hit rate | `cache_hit` / `cache_write` | `log_cache_event` in `video_analyze.py` |
+| Gemini cost saved | `gemini_cost_saved_usd` | `log_diagnosis_event` in `pipelines.py` |
+| Corpus growth via users | `corpus_growth` | `log_corpus_growth_event` in `corpus_quality.py` |
+| Channel cache hit | `channel_cache_hit` / `channel_cache_miss` | `log_channel_cache_event` in `services/channel.py` |
+| URL normalize collision | `url_normalize` | `log_url_normalize_event` in `video_analyze.py` |
+
+### Adding a new pipeline
+
+When adding a new pipeline (e.g., `instagram_ingest.py`):
+
+1. Call `async_run_extraction_core` or `run_extraction_core`. Never call `gemini.analyze_video` directly.
+2. Write to a separate corpus table unless the data is TikTok and belongs in `video_corpus`.
+3. Add a `services/your_service.py` for any significant logic.
+4. Add new env vars to `settings.py`, not `os.environ.get`.
+5. Wrap every external I/O call in an OTel span.
+6. Add a matching TS interface for any FE-bound Pydantic model and extend the schema contract test.
+7. Add an audit test to `test_two_core_audit.py` confirming the new module doesn't import diagnosis-layer symbols.
 
 ---
 
