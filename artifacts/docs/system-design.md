@@ -443,6 +443,92 @@ When adding a new pipeline (e.g., `instagram_ingest.py`):
 
 ---
 
+## 13. Answer Sessions
+
+### Tables
+
+| Table | Purpose |
+|-------|---------|
+| `answer_sessions` | One row per research session. `format ∈ 'pattern' | 'ideas' | 'timing' | 'generic' | 'video_diagnosis'` |
+| `answer_turns` | Append-only. `payload` is a validated `ReportV1` JSON inserted with service role (bypasses RLS). Authenticated users SELECT only. |
+
+### Credit rules
+
+- **Primary turn** (`kind = 'primary'`): 1 credit via `decrement_credit()` RPC **before** SSE stream starts. Insufficient balance → 402, no `answer_turns` row written.
+- **Follow-up turns** (`timing`, `creators`, `script`): 0 credits — session already paid.
+- **Generic fallback**: 0 credits.
+
+### SSE replay
+
+Same `stream_id` + `seq` buffer as video analysis. TTL: **60s** (`session_store.py:_STREAM_REPLAY_TTL_SEC`). Client resumes with `?resume_from_seq=<n>`. Buffer is per-instance — reconnect to a different Cloud Run pod may miss replay (acceptable; replays are best-effort).
+
+### Idempotency
+
+`POST /answer/sessions` accepts `Idempotency-Key: <uuid>`. Server caches 120s on `(user_id, key)` — replays return the same `session_id`.
+
+---
+
+## 14. Home Screen Endpoints
+
+All JWT-gated via `require_user`. Niche resolved from `profiles.creator_niche_id`. If the user hasn't completed onboarding, returns 404 with `"chưa chọn ngách"` — frontend should route to onboarding.
+
+Implementations: `cloud-run/getviews_pipeline/routers/home.py`, `pulse.py`, `ticker.py`, `morning_ritual.py`.
+
+### `GET /home/pulse`
+
+Feeds the PulseCard (big views stat + delta + supporting stats). Key response fields:
+
+| Field | Description |
+|-------|-------------|
+| `views_this_week` / `views_last_week` | Sum of `video_corpus.views` for 7-day window |
+| `views_delta_pct` | Float, 1dp. `0.0` when `views_last_week == 0` — UI renders "—" |
+| `viral_count_this_week` | Videos with `breakout_multiplier ≥ 3.0` |
+| `top_hook_name` | Pattern with highest `weekly_instance_count` in niche |
+| `adequacy` | Claim tier: `none \| reference_pool \| basic_citation \| niche_norms \| hook_effectiveness \| trend_delta`. Drives soft state when corpus is thin. |
+
+When `adequacy == "none"`, hide deltas and show empty-corpus state.
+
+### `GET /home/ticker`
+
+Feeds the marquee ticker. Five buckets, ≤2 items each, 7-day window, round-robin-interleaved:
+
+| Bucket key | Label | Source |
+|------------|-------|--------|
+| `breakout` | BREAKOUT | Top 2 `video_corpus` rows by `breakout_multiplier ≥ 2.0` |
+| `hook_mới` | HOOK MỚI | Top 2 `video_patterns` that entered the niche this week |
+| `cảnh_báo` | CẢNH BÁO | Patterns where `weekly_instance_count` dropped ≥40% vs prev week |
+| `kol_nổi` | KOL NỔI | Creators with in-niche `breakout_multiplier ≥ 2.0` this week |
+| `âm_thanh` | ÂM THANH | Top 2 `trending_sounds` from most recent `week_of` in niche |
+
+**Fail-open contract:** each bucket runs in an isolated executor task. An exception in one leaves the other four intact. Worst case: empty `items` array — UI hides the ticker when `items.length < 3`.
+
+`target_kind` maps to routes: `video` → video-diagnosis, `creator` → channel analysis, `pattern` → Explore patterns, `sound` → trending-sounds view.
+
+### `GET /home/starter-creators`
+
+Feeds onboarding step 2 — 10 reference creators per niche, ranked by follower count. Seeded by `seed_starter_creators()` RPC from `video_corpus`; rows flagged `is_curated = TRUE` are never overwritten by re-seeding.
+
+User writes back directly via Supabase client update to `profiles.reference_channel_handles TEXT[]` (CHECK: length ≤ 3, GIN-indexed).
+
+### `GET /home/daily-ritual`
+
+Returns today's morning ritual for the caller's niche. 404 with `"ritual_no_row"` or `"ritual_niche_stale"` when missing.
+
+**Schema:** `daily_ritual (user_id, generated_for_date DATE, niche_id, scripts JSONB, adequacy, grounded_video_ids, generated_at)` — PK is `(user_id, generated_for_date, niche_id)`.
+
+**Generation:** one 3-script bundle per user per niche (single niche per user since two-axis migration 2026-05-13 — the old multi-niche-up-to-3 model is retired). Triggered by `POST /batch/morning-ritual` (pg_cron, daily 15:00 UTC / 22:00 ICT). Gemini call: one synthesis per user.
+
+**Batch endpoints:**
+
+| Endpoint | Auth | Body | Use |
+|----------|------|------|-----|
+| `POST /batch/morning-ritual` | `X-Batch-Secret` | `{}` or `{"user_ids": ["<uuid>"]}` | pg_cron / manual |
+| `POST /admin/trigger/morning_ritual` | User JWT + `is_admin` | same | Admin panel trigger |
+
+Response includes: `generated`, `skipped_thin` (< 10 grounding videos), `failed_schema`, `failed_gemini`, `users_no_niche`.
+
+---
+
 ## Update Protocol
 
 When any of the following changes, update this file in the same commit:

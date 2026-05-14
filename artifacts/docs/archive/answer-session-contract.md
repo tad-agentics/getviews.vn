@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-05-14** — Unique content (format enum, idempotency, credit rules) consolidated into `artifacts/docs/system-design.md` §13. Note: TTL stated as 120s in this doc is wrong — actual is 60s (`session_store.py:_STREAM_REPLAY_TTL_SEC`).
+
 # Answer session contract (Phase C.0.5)
 
 ## Tables

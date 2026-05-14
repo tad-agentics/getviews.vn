@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-05-14** — Endpoint list, ticker buckets, and fail-open contract consolidated into `artifacts/docs/system-design.md` §14. Note: `profiles.niche_id` references in this doc are stale — correct field is `profiles.creator_niche_id` after the 2026-05-13 two-axis niche migration.
+
 # Home API
 
 The three read-only endpoints that feed the redesigned Home screen (Phase A · A1).

@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-05-14** — Endpoints and operator fields consolidated into `artifacts/docs/system-design.md` §14. **Significantly stale:** this doc describes the old multi-niche model (`profiles.niche_ids`, up to 3 niches per user). Since the 2026-05-13 two-axis migration, it is one 3-script bundle per user (single niche, `profiles.creator_niche_id`). `profiles.niche_ids` and `primary_niche` were both dropped.
+
 # Morning Ritual
 
 Three ready-to-shoot TikTok scripts per **followed niche** (up to three niches per
