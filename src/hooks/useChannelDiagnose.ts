@@ -204,10 +204,14 @@ export function useChannelDiagnose() {
 
         if (outcome.ok) {
           // Invalidate credits + profile so the credit chip refreshes.
+          // TanStack invalidate uses prefix-match by default, so
+          // ``["profile"]`` matches the keyed ``["profile", userId]``
+          // query that useProfile.ts registers. Same for credits.
           void qc.invalidateQueries({ queryKey: ["profile"] });
           void qc.invalidateQueries({ queryKey: ["credits"] });
-          // Invalidate channel-diagnose so stale cache keys show as dirty.
-          void qc.invalidateQueries({ queryKey: ["channel-diagnose", handle] });
+          // (No useQuery registers ``["channel-diagnose", handle]`` —
+          // diagnose state is imperative SSE plumbing held in this hook.
+          // The previous invalidation here was a no-op.)
           return;
         }
 
