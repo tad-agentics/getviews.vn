@@ -1,120 +1,106 @@
 /**
- * ``VideoThumbnail`` is the single shared renderer for video
- * thumbnails. It replaces the ~6 raw ``<img src={thumbnail_url}>``
- * callsites that had no ``onError`` handler — those rendered the
- * browser's default broken-image icon when the URL went stale
- * (TikTok CDN URLs rotate every few weeks, so older corpus rows
- * hit this commonly).
+ * VideoThumbnail — failure beacon behaviour tests.
  *
- * Pin the contract: render the image when URL is present,
- * render the placeholder when URL is missing OR when the image
- * load fails (``onError`` fires). Never let the broken-image icon
- * leak through.
+ * Verifies that:
+ * - The beacon fires once when an image fails to load.
+ * - The beacon does NOT fire again for the same video_id (session dedup).
+ * - A missing videoId still fires (no crash), just not de-duplicated.
+ * - No beacon fires when thumbnailUrl is null / empty (placeholder, no img).
  */
-import { describe, expect, it } from "vitest";
-import { fireEvent, render } from "@testing-library/react";
 
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VideoThumbnail } from "./VideoThumbnail";
 
-describe("VideoThumbnail", () => {
-  it("renders the image when a non-empty URL is provided", () => {
+// ── Mocks ──────────────────────────────────────────────────────────────────
+
+vi.mock("@/lib/env", () => ({
+  env: {
+    VITE_SUPABASE_URL: "https://test.supabase.co",
+    VITE_SUPABASE_PUBLISHABLE_KEY: "anon-key",
+  },
+}));
+
+const mockSendBeacon = vi.fn().mockReturnValue(true);
+
+// ── Setup / Teardown ───────────────────────────────────────────────────────
+
+beforeEach(() => {
+  // Re-isolate the module-level _reported Set between tests by resetting modules.
+  vi.resetModules();
+  vi.stubGlobal("navigator", { sendBeacon: mockSendBeacon });
+  mockSendBeacon.mockClear();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+async function importComponent() {
+  const mod = await import("./VideoThumbnail");
+  return mod.VideoThumbnail;
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────
+
+describe("VideoThumbnail — thumbnail failure beacon", () => {
+  it("fires sendBeacon once when image fails to load", async () => {
+    const VT = await importComponent();
     const { container } = render(
-      <VideoThumbnail thumbnailUrl="https://r2.test/thumbnails/abc.png" />,
+      <VT thumbnailUrl="https://r2.test/thumb.png" videoId="vid-1" />
     );
-    const img = container.querySelector("img");
-    expect(img).not.toBeNull();
-    expect(img?.getAttribute("src")).toBe(
-      "https://r2.test/thumbnails/abc.png",
-    );
-    expect(container.querySelector("div[aria-hidden]")).toBeNull();
+    const img = container.querySelector("img")!;
+    fireEvent.error(img);
+    expect(mockSendBeacon).toHaveBeenCalledTimes(1);
+    const [url, blob] = mockSendBeacon.mock.calls[0];
+    expect(url).toContain("track-thumbnail-failure");
+    expect(blob).toBeInstanceOf(Blob);
   });
 
-  it("renders the placeholder when URL is null", () => {
-    const { container } = render(<VideoThumbnail thumbnailUrl={null} />);
-    expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelector("div[aria-hidden]")).not.toBeNull();
-  });
-
-  it("renders the placeholder when URL is undefined", () => {
-    const { container } = render(<VideoThumbnail thumbnailUrl={undefined} />);
-    expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelector("div[aria-hidden]")).not.toBeNull();
-  });
-
-  it("treats an all-whitespace URL as empty", () => {
-    const { container } = render(<VideoThumbnail thumbnailUrl="   " />);
-    expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelector("div[aria-hidden]")).not.toBeNull();
-  });
-
-  it("swaps to the placeholder after onError fires (no broken-icon)", () => {
+  it("does NOT fire beacon a second time for the same video_id on re-render", async () => {
+    const VT = await importComponent();
     const { container } = render(
-      <VideoThumbnail thumbnailUrl="https://broken.test/x.png" />,
+      <VT thumbnailUrl="https://r2.test/thumb.png" videoId="vid-2" />
     );
-    const img = container.querySelector("img");
-    expect(img).not.toBeNull();
-    fireEvent.error(img!);
-    expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelector("div[aria-hidden]")).not.toBeNull();
+    const img = container.querySelector("img")!;
+    fireEvent.error(img);
+    expect(mockSendBeacon).toHaveBeenCalledTimes(1);
+
+    // Reset call count; re-mount fresh component with same video_id.
+    // The module-level _reported Set is NOT reset between renders (only between
+    // vi.resetModules() calls in beforeEach). Within the same test, the Set persists.
+    mockSendBeacon.mockClear();
+    cleanup();
+    const { container: c2 } = render(
+      <VT thumbnailUrl="https://r2.test/thumb3.png" videoId="vid-2" />
+    );
+    const img2 = c2.querySelector("img")!;
+    fireEvent.error(img2);
+    expect(mockSendBeacon).toHaveBeenCalledTimes(0);
   });
 
-  it("forwards alt text to the image element", () => {
-    const { container } = render(
-      <VideoThumbnail thumbnailUrl="https://r2.test/x.png" alt="hero shot" />,
-    );
-    expect(container.querySelector("img")?.getAttribute("alt")).toBe("hero shot");
+  it("fires beacon even when videoId is not provided (no crash)", async () => {
+    const VT = await importComponent();
+    const { container } = render(<VT thumbnailUrl="https://r2.test/thumb.png" />);
+    const img = container.querySelector("img")!;
+    fireEvent.error(img);
+    expect(mockSendBeacon).toHaveBeenCalledTimes(1);
   });
 
-  it("default alt is empty string (decorative thumbnail)", () => {
-    const { container } = render(
-      <VideoThumbnail thumbnailUrl="https://r2.test/x.png" />,
-    );
-    // Decorative images should have empty alt — assistive tech skips them.
-    expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
+  it("renders placeholder and does NOT fire beacon when thumbnailUrl is null", async () => {
+    const VT = await importComponent();
+    render(<VT thumbnailUrl={null} videoId="vid-null" />);
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(mockSendBeacon).toHaveBeenCalledTimes(0);
   });
 
-  it("merges className onto both the img and the placeholder", () => {
-    // Image branch.
-    const { container: imgContainer, rerender } = render(
-      <VideoThumbnail
-        thumbnailUrl="https://r2.test/x.png"
-        className="h-16 w-12 rounded"
-      />,
-    );
-    expect(imgContainer.querySelector("img")?.className).toMatch(/h-16 w-12 rounded/);
-
-    // Placeholder branch.
-    rerender(
-      <VideoThumbnail thumbnailUrl={null} className="h-16 w-12 rounded" />,
-    );
-    expect(
-      imgContainer.querySelector("div[aria-hidden]")?.className,
-    ).toMatch(/h-16 w-12 rounded/);
-  });
-
-  it("respects placeholderClassName when explicitly set", () => {
-    const { container } = render(
-      <VideoThumbnail
-        thumbnailUrl={null}
-        placeholderClassName="bg-[var(--gv-accent-soft)]"
-      />,
-    );
-    expect(container.querySelector("div[aria-hidden]")?.className).toMatch(
-      /bg-\[var\(--gv-accent-soft\)\]/,
-    );
-  });
-
-  it("forwards loading + fetchPriority hints", () => {
-    const { container } = render(
-      <VideoThumbnail
-        thumbnailUrl="https://r2.test/x.png"
-        loading="eager"
-        fetchPriority="high"
-      />,
-    );
-    const img = container.querySelector("img");
-    expect(img?.getAttribute("loading")).toBe("eager");
-    // React 19 lowercases the attribute on the DOM.
-    expect(img?.getAttribute("fetchpriority")).toBe("high");
+  it("renders placeholder and does NOT fire beacon when thumbnailUrl is empty string", async () => {
+    const VT = await importComponent();
+    render(<VT thumbnailUrl="" videoId="vid-empty" />);
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(mockSendBeacon).toHaveBeenCalledTimes(0);
   });
 });

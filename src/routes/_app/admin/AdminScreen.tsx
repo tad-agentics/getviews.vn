@@ -24,6 +24,7 @@ import { EnsembleCreditsPanel } from "./EnsembleCreditsPanel";
 import { FunnelPanel } from "./FunnelPanel";
 import { Layer0Panel } from "./Layer0Panel";
 import { LogsPanel } from "./LogsPanel";
+import { ThumbnailFailuresPanel } from "./ThumbnailFailuresPanel";
 import { TriggersPanel } from "./TriggersPanel";
 
 export default function AdminScreen() {
@@ -78,6 +79,17 @@ export default function AdminScreen() {
               caption="Theo từng dòng niche_taxonomy (kho video đa ngách). Người dùng chỉ chọn một creator_niche_id; tier claim vẫn tính trên lượng video 30d của từng niche_id trong corpus."
             />
             <CorpusHealthPanel />
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
+
+          <section className="gv-fade-up">
+            <SectionHeader
+              kicker="R2 · THUMBNAIL OBSERVABILITY"
+              title="Lỗi tải thumbnail"
+              caption="Đếm số lần ảnh thumbnail không tải được ở phía trình duyệt (7 ngày). Số cao bất thường có thể là dấu hiệu R2 outage hoặc hàng loạt video_corpus vẫn dùng CDN URL hết hạn."
+            />
+            <ThumbnailFailuresPanel />
           </section>
 
           <hr className="my-9 border-0 border-t border-[color:var(--gv-rule)]" />
