@@ -877,9 +877,23 @@ async def refresh_stale_thumbnails(awemes: list[dict[str, Any]]) -> None:
             detail = fresh_by_id.get(vid_id)
             if not detail:
                 continue
+            # Video path: aweme.video.cover.url_list[0]
             cover = detail.get("video", {}).get("cover") or {}
             cover_urls = cover.get("url_list") or []
             fresh_url = cover_urls[0] if cover_urls else ""
+            # Carousel path: image_post_info.images[0].display_image.url_list[0]
+            # Carousels have no aweme.video — fall back to the first slide CDN URL.
+            if not fresh_url:
+                try:
+                    from getviews_pipeline import ensemble as _ensemble
+                    image_lists = _ensemble.extract_image_url_lists(detail)
+                    if image_lists and image_lists[0]:
+                        fresh_url = image_lists[0][0]
+                except Exception as _exc:
+                    logger.debug(
+                        "[corpus_context] carousel slide URL extraction failed for %s: %s",
+                        vid_id, _exc,
+                    )
             if not fresh_url:
                 continue
             repair_tasks.append(_refresh_thumbnail_async(vid_id, fresh_url))
