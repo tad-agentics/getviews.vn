@@ -1,6 +1,9 @@
 -- Add 25th percentile for avg_views to niche_channel_benchmarks (channel diagnosis score card).
+-- Postgres cannot change RETURNS TABLE shape with CREATE OR REPLACE — drop first.
 
-CREATE OR REPLACE FUNCTION public.niche_channel_benchmarks(p_niche_id integer)
+DROP FUNCTION IF EXISTS public.niche_channel_benchmarks(integer);
+
+CREATE FUNCTION public.niche_channel_benchmarks(p_niche_id integer)
 RETURNS TABLE (
   channel_count       integer,
   avg_views_p25       integer,
