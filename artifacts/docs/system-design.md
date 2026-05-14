@@ -601,6 +601,81 @@ Admin panel tile (`/app/admin`) shows 7-day failure count + top-10 video_ids. Sp
 
 ---
 
+## §16 Channel Diagnosis (Lightreel Narrative)
+
+`POST /channel/diagnose` — Cloud Run user pod. Accepts `handle`, `niche_id`, and optional `video_url`. Returns Server-Sent Events in the TD-4 envelope (`stream_id + seq + done`). Costs **3 credits** on cache miss; cache hit replays the stored result for free.
+
+### Data sources
+
+| Source | Usage |
+|---|---|
+| EnsembleData | Live fetch of the 30 most-recent videos for the handle (`fetch_user_posts`) |
+| EnsembleData | UGC creator scouting via 4-query hybrid (related posts + hashtag + search + similar) |
+| `video_corpus` | Niche benchmarks via `niche_channel_benchmarks` RPC |
+| Gemini | Vietnamese narrative synthesis (synthesis model, ~`gemini-3-flash-preview`) |
+
+### Trajectory classification
+
+Backend classifies the channel into one of 6 `TrajectoryShape` values before LLM synthesis:
+
+| Shape | Heuristic |
+|---|---|
+| `new_account` | < 5 videos posted |
+| `breakout` | recent 30-day avg > 3× baseline (excluding recent window) |
+| `decline_from_peak` | peak-30-day avg > 2× current, inflection point detected |
+| `steady_growth` | ≥4 consecutive quarters with ≥1.2× growth |
+| `bursty` | stdev/mean views > 1.5 |
+| `stagnant` | default fallback |
+
+### SSE event shape
+
+Emitted in order:
+1. `trajectory` — `{ trajectory: TrajectoryShape }`
+2. `step_start` / `step_done` — pipeline step progress (1–5)
+3. `section_start` — `{ section_id, title, embedded_tiles?, embedded_creators? }`
+4. `text_chunk` — `{ content: string }` — streaming prose chunks
+5. `section_done` — `{ section_id }`
+6. `recommendation_item` — `{ index, title, body }` — only in `recommendations` section
+7. `payload` — full `ChannelDiagnosisPayload` JSON
+8. `done: true` — terminal frame
+
+Mandatory sections (verdict + recommendations) — fallback to raw prose if LLM omits them.
+
+### Cache contract
+
+- **Table**: `channel_diagnoses` PK `(handle, video_url, niche_id)`. `video_url` = empty string when no target video.
+- **TTL**: 7 days (application-enforced via `computed_at >= now() - 7 days` filter).
+- **Writes**: service_role only (RLS blocks authenticated writes).
+- **Cache hit**: emits `cache_hit` event + replays stored sections without re-billing.
+
+### Tile selection (trajectory-aware)
+
+| Trajectory | Top tiles | Bottom tiles |
+|---|---|---|
+| `breakout` | Quarterly breakout videos | — |
+| `new_account` | Niche peer videos from corpus | — |
+| `decline_from_peak` / `stagnant` / `bursty` | Top-2 per top-2 format archetypes | Worst recent performers |
+| `steady_growth` | Top-2 per format | Latest quarter top videos |
+
+UGC creators (competitive landscape): hybrid 4-query EnsembleData scout, deduped against the target handle.
+
+### Frontend
+
+- **Hook**: `useChannelDiagnose` (`src/hooks/useChannelDiagnose.ts`) — imperative `start(handle, nicheId, videoUrl?)` API, SSE reader with 45s idle timeout + 1 TD-4 retry.
+- **Components**: `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation`, `StepProgress`, `ProvenanceLine` in `src/routes/_app/channel/components/`.
+- **Screen**: `ChannelScreen.tsx` renders `ChannelDiagnosisBody` when a handle is active. Old `ChannelBody` (backed by `useChannelAnalyze`) is kept until Phase 2 cleanup (≥7 days post-cutover, separate PR).
+
+### Phase 2 cleanup (deferred)
+
+When `channel_diagnose` is stable (≥7 days), a separate PR deletes:
+- `channel_analyze.py` + `/channel/analyze` Cloud Run route
+- `useChannelAnalyze.ts` + `ChannelAnalyzeResponse` type
+- `ConnectChannelCard.tsx` + 5 home `Channel*Block` components
+- `DROP TABLE channel_formulas` + `DROP FUNCTION channel_corpus_stats`
+- (KEEP `niche_channel_benchmarks` — still used by `channel_diagnose`)
+
+---
+
 ## Update Protocol
 
 When any of the following changes, update this file in the same commit:

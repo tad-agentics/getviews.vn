@@ -5,7 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
  *
  * - **Queries:** ``retry: 1`` keeps cheap reads resilient against
  *   transient network blips. Credit-burning queries
- *   (``useVideoAnalysis``, ``useChannelAnalyze``, ``useScriptGenerate``)
+ *   (``useVideoAnalysis``, ``useScriptGenerate``)
  *   already override with ``retry: false`` per-hook.
  *
  * - **Mutations:** ``retry: 0`` is explicit because TanStack v5's

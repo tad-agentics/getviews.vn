@@ -1,0 +1,69 @@
+{
+  "date": "2026-05-13T17:29:15.322Z",
+  "testUrl": "https://www.tiktok.com/@curnon.official/video/7638856358812634375",
+  "verdict": "PASS",
+  "score": "10/10",
+  "criteria": [
+    {
+      "id": 1,
+      "label": "Header — 4 metric slots (views, retention, ER, save)",
+      "pass": true,
+      "detail": "views=true retention=true ER=true save=true"
+    },
+    {
+      "id": 2,
+      "label": "Vấn đề chính section — visible with ≥2 sentence clusters",
+      "pass": true,
+      "detail": "sectionInText=true punctuationClusters=57"
+    },
+    {
+      "id": 3,
+      "label": "Channel data block (Dữ liệu kênh @curnon.official) renders",
+      "pass": true,
+      "detail": "channelBlock=true channelInText=false"
+    },
+    {
+      "id": 4,
+      "label": "Pattern note or comparison text below channel block",
+      "pass": true,
+      "detail": "comparison text found"
+    },
+    {
+      "id": 5,
+      "label": "Exactly 3 numbered errors (severity-ranked)",
+      "pass": true,
+      "detail": "errorCountFromKicker=3 fixLabelCount=3"
+    },
+    {
+      "id": 6,
+      "label": "No ERR- codes and no emoji in error titles",
+      "pass": true,
+      "detail": "hasErrCode=false hasEmoji=false"
+    },
+    {
+      "id": 7,
+      "label": "Cross-format signal section (Tín hiệu liên ngách) renders",
+      "pass": true,
+      "detail": "section found"
+    },
+    {
+      "id": 8,
+      "label": "Next-steps or action section present",
+      "pass": true,
+      "detail": "section found"
+    },
+    {
+      "id": 9,
+      "label": "≥2 collapsibles present and collapsed by default",
+      "pass": true,
+      "detail": "collapsedElements=5"
+    },
+    {
+      "id": 10,
+      "label": "No forbidden phrases from copy-rules",
+      "pass": true,
+      "detail": "clean"
+    }
+  ],
+  "bodyExcerpt": "@— · 12s\n\nHey look at this\n\nĐĂNG 2026-05-13 · 8.652 VIEW · SAVE 0.0%\n\nCHẨN ĐOÁN VIDEO CỦA BẠN · 3 ĐIỂM LỖI CẤU TRÚC\nFLOP\nFlop do hook tiếng Anh và thiếu text overlay — video đang chạy thấp hơn 32x so với trung bình ngách phụ kiện.\n8.652 view · 45% giữ chân · save 0.0%\n/\nCùng format TB: 278.800 · 49% ret cùng format\n/\nSo sánh với 98 video cùng format\n\nKẾT LUẬN NHANH\n\nER 0,09% là tín hiệu cực yếu khiến thuật toán ngừng phân phối ngay sau sóng seed pool. Vấn đề gốc nằm ở hook tiếng Anh không chạm được tệp người xem nội địa và thiếu chữ trên màn hình để giữ chân. Cần Việt hoá toàn bộ nội dung và thêm text overlay dừng lướt ngay giây đầu nha.\n\nMỨC CẢI THIỆN LƯỢT XEM (ƯỚC LƯỢNG THẬN TRỌNG)\n\nƯu tiên hook + CTA rõ trong ~3s đầu — Thực tế hay gặp: ~1,5–2,5× lượt xem so với clip hiện tại khi format vẫn hợp ngách.\nHook + khung hình đầu clip (cắt, sản phẩm, text) — Biên độ thường ~3–5× khi bám benchmark format đang chạy trên kho.\nViết lại cấu trúc theo benchmark kênh / format — Mục tiêu thực tế: tiến gần TB lượt xem kênh và TB format — không có shortcut đảm bảo viral.\nVIEW\n8.7K\n—\nGIỮ CHÂN\n45%\nngách TB\nSAVE RATE\n0.0%\nthấp\nSHARE\n0\nthấp\n\nTÍN HIỆU\n\nCả engagement rate lẫn lượt xem đều dưới mức format trung bình — cần xem lại cả hook lẫn nội dung chính.\n\nVẤN ĐỀ CHÍNH\n\nVideo đạt 8.652 view, khoảng cách quá lớn so với mức trung bình 278.800 của ngách Thời trang Phụ kiện. Lỗi nặng nhất là dùng hook tiếng Anh 'Hey look at this' khiến người xem lướt qua trong 0,5 giây đầu vì không thấy sự liên quan. Với format lifestyle b-roll, việc thiếu chữ trên màn hình làm video trôi tuột, không tạo được điểm dừng cho mắt người xem.\n\nLỗi cấu trúc · xếp theo ảnh hưởng\n0s – 3s\nCAO\nHook dùng ngôn ngữ không phù hợp (EN)\n\nHook dùng tiếng Anh lạc quẻ hoàn toàn với tệp khán giả Việt Nam, làm mất đi cơ hội dừng lướt trong 'cửa sổ vàng' 1,5 giây đầu.\n\nHook video dùng tiếng EN thay vì tiếng Việt. Tệp người xem Việt Nam scroll qua nội dung không đọc được trong 0.5 giây đầu.\n\nFIXViết lại hook bằng tiếng Việt với góc nhìn cụ thể về nhu cầu tệp. Thay generic call-out bằng POV hoặc câu hỏi gây tò mò. (Bổ sung: Đổi hook sang dạng visual showcase sản phẩm hoặc đặt câu hỏi về cách phối đồ.)\n3s – 10s\nTB\nNhịp độ thiếu lôi cuốn\n\nTỷ lệ giữ chân sụt giảm 87% tại giây thứ 10 do nhịp cắt và nội dung thiếu các điểm ngắt nhịp (pattern interrupt) để duy trì sự tò mò.\n\nLượng người xem tiếp tục rời bỏ video nhanh chóng với mức giảm 87.18% tại giây thứ 10. Cấu trúc nội dung sau hook không đủ mạnh để giữ chân người xem ở lại lâu hơn so với mức trung bình của ngách.\n\nFIXCompress hook về dưới 2s và thêm text overlay tại giây 3 để giữ nhịp.\n0s – 1s\nTHẤP\nTiếp cận chưa đạt chuẩn\n\nLượt xem hiện tại chỉ bằng 3% so với mức chuẩn của ngách do các chỉ số tương tác ban đầu (like, comment) gần như bằng không.\n\nLượt xem hiện tại (8,652) thấp hơn rất nhiều so với trung bình ngách (278,799). Thuật toán ngừng phân phối do tín hiệu tương tác và giữ chân ban đầu quá kém so với các đối thủ cùng phân khúc.\n\nFIXThay sound trending lofi hoặc upbeat phù hợp với phong cách phụ kiện.\nViết lại kịch bản\nFORMAT ĐANG HOẠT ĐỘNG TRONG NGÁCH NÀY\nShowcase sản phẩm lifestyle\n\nDùng b-roll thẩm mỹ kết hợp với sản phẩm trong bối cảnh thực tế để tạo nhu cầu sở hữu.\n\n27.439 – 165.755\n5,72%\n\n“Món phụ kiện nâng tầm outfit chỉ với [giá]”\n\nMINH CHỨNG TRONG KHO\n\n@cachuadey\n17.839 lượt xem\nMở TikTok\n\nVÍ DỤ THỰC TẾ\n\n@thuy.official24 · #thuyofficial #thoitrangnu #depxinhmoingay #outfitnu #xuhuongtiktok\n734.402\n@ann.dpa · Giấy ghi chú thời trang 😎 Trộn: Tui 🐰 #annd #fashion #CORTIS #giayghichutamnguye\n370.889\n@thu.anh.sketches · Mẹ Miranda ơi, con làm vầy đúng chưa? #thuanhsketches #sinhvien #thoitrang\n183.424\nTÍN HIỆU LIÊN NGÁCH\nFormat POV / Storytelling đang lan toả 8 ngách\n\nTrong 30 ngày qua, 295 video cùng format này đang chạy ở 8 ngách khác nhau — tín hiệu format hot ngoài ngách của bạn.\n\nMở đầu bằng câu chuyện\n975.006 view · 7 ngách\nKhác\n406.053 view · 2 ngách\nChạm nỗi đau\n257.939 view · 5 ngách\nKhác\n246.575 view · 3 ngách\nĐặt câu h"
+}

@@ -334,196 +334,6 @@ export interface ChannelLesson {
   body: string;
 }
 
-/**
- * PR-3 Studio Home — typed cadence shape backing the design's NHỊP ĐĂNG block.
- *
- * Source of truth:
- * ``cloud-run/getviews_pipeline/channel_analyze.py::_compute_cadence_struct``.
- */
-export interface ChannelCadence {
-  /**
-   * Exactly 14 entries; ``[0]`` = today − 13, ``[13]`` = today.
-   * Each cell is whether the kênh posted at least once on that day.
-   */
-  posts_14d: boolean[];
-  /** Posts in the trailing 7 days. */
-  weekly_actual: number;
-  /** Cap-7 target derived from rolling 30-day unique-days-with-post; always ≥ ``weekly_actual``. */
-  weekly_target: number;
-  /** "20:00–22:00" 2-hour window centred on the peak hour; "" if unknown. */
-  best_hour: string;
-  /** Vietnamese short labels comma-separated, e.g. "T7, CN". "" if unknown. */
-  best_days: string;
-}
-
-/**
- * PR-2 Studio Home — diagnostic items.
- *
- * The design pack's MyChannelCard §C/§D restructures the kênh's lessons
- * into typed strengths (TẬN DỤNG) + weaknesses (CÁCH SỬA). Each item
- * carries a metric line for quantified evidence and an optional bridge
- * pointing to a tier in the design's "GỢI Ý HÔM NAY" stack:
- *   • "01" — Quay ngay (script + kịch bản)
- *   • "02" — Pattern dễ remix
- *
- * Source of truth:
- * ``cloud-run/getviews_pipeline/channel_analyze.py::ChannelStrengthLLM``.
- */
-export interface ChannelDiagnosticItem {
-  title: string;
-  metric: string;
-  why: string;
-  action: string;
-  /** ``null`` when no clean tier to bridge to (e.g. legacy cached row). */
-  bridge_to: "01" | "02" | null;
-}
-
-export interface ChannelTopVideo {
-  video_id: string;
-  title: string;
-  views: number;
-  thumbnail_url: string | null;
-  bg_color?: string | null;
-}
-
-export interface ChannelKpiCell {
-  label: string;
-  value: string;
-  delta: string;
-}
-
-/**
- * Per-niche channel-level percentiles powering the HomeMyChannelSection
- * benchmark layer. Source: SQL RPC ``niche_channel_benchmarks(p_niche_id)``
- * (migration ``20260528000000``) called from
- * ``cloud-run/getviews_pipeline/channel_analyze.py`` and folded into the
- * ``/channel/analyze`` response.
- *
- * ``channel_count`` is the sample size — per-creator aggregates over the
- * 30d corpus window with HAVING COUNT(*) >= 3 (excludes one-shot
- * creators whose single virality wave would skew the medians). When
- * ``channel_count = 0`` the FE should suppress the benchmark layer
- * entirely; the percentile fields are zeroed via SQL COALESCE in that
- * case so they remain numeric.
- *
- * ``engagement_*`` is on the same scale as ``ChannelAnalyzeResponse.
- * engagement_pct`` from the same niche slice — i.e. percent-form
- * (0..100) per how ``video_corpus.engagement_rate`` is stored.
- */
-export interface NicheChannelBenchmarks {
-  channel_count: number;
-  avg_views_p50: number;
-  avg_views_p75: number;
-  engagement_p50: number;
-  engagement_p75: number;
-  posts_per_week_p50: number;
-  posts_per_week_p75: number;
-}
-
-/**
- * Studio Home pulse hero (PR-1) — streak chip + serif headline.
- *
- * Mirrors ``_compute_pulse`` in
- * ``cloud-run/getviews_pipeline/channel_analyze.py``. Headline is a
- * deterministically-templated Vietnamese sentence (no Gemini), so it's
- * present on cache-hit responses too.
- */
-export interface ChannelPulse {
-  streak_days: number;
-  /** Window cap (always 14 today; reserved for future tuning). */
-  streak_window: number;
-  headline: string;
-  headline_kind: "win" | "concern" | "neutral";
-  /** Pre-formatted MoM delta string (e.g. "↑ 18% MoM" or "—"). */
-  mom_delta: string;
-  /** Channel average views — referenced when the FE shows a sub-line under the streak. */
-  avg_views: number;
-}
-
-/** Studio Home recent-7d ranked verdict list (PR-1). */
-export interface ChannelRecent7dEntry {
-  video_id: string;
-  title: string;
-  thumbnail_url: string | null;
-  /** Empty / null when ``video_corpus.hook_type`` was missing. */
-  hook_category: string | null;
-  /** ISO timestamp from ``video_corpus.posted_at`` (or ``created_at`` fallback). */
-  posted_at: string | null;
-  /** Vietnamese short form: "3 giờ trước" / "2 ngày trước" / "5 tuần trước". */
-  age_label: string;
-  views: number;
-  /** Rounded ratio: ``views / max(channel_avg_views, 1)``. Float, 1.0 = on average. */
-  vs_median: number;
-  verdict: "WIN" | "AVG" | "UNDER";
-  /** Heuristic Vietnamese template; no Gemini. */
-  verdict_note: string;
-}
-
-export interface ChannelAnalyzeResponse {
-  handle: string;
-  niche_id: number;
-  name: string;
-  bio: string | null;
-  followers: number;
-  total_videos: number;
-  avg_views: number;
-  engagement_pct: number;
-  posting_cadence: string | null;
-  posting_time: string | null;
-  top_hook: string | null;
-  formula: ChannelFormulaStep[] | null;
-  formula_gate: ChannelFormulaGate;
-  lessons: ChannelLesson[];
-  top_videos: ChannelTopVideo[];
-  niche_label: string | null;
-  kpis: ChannelKpiCell[];
-  optimal_length?: string | null;
-  /** ISO timestamp of cached row (``channel_formulas.computed_at``) or fresh run. */
-  computed_at?: string | null;
-  /** True when served from fresh ``channel_formulas`` row (< 7d) without Gemini. */
-  cache_hit?: boolean;
-  /**
-   * D.1.4 — 7×8 video-count matrix keyed by (weekday=Mon..Sun, hour-bucket).
-   * Empty array signals "insufficient temporal data" — hide the panel.
-   */
-  posting_heatmap?: number[][];
-  /**
-   * Per-niche channel-level percentiles for HomeMyChannelSection bars +
-   * "Ngách: …" / "Top 25%: …" labels. Optional so older /channel/analyze
-   * responses pre-RPC remain decodable.
-   */
-  niche_benchmarks?: NicheChannelBenchmarks;
-  /**
-   * Studio Home pulse hero (PR-1) — streak chip + headline. Optional
-   * because pre-PR-1 cached responses won't carry it; FE hides the
-   * block in that case.
-   */
-  pulse?: ChannelPulse;
-  /**
-   * Studio Home recent-7d ranked verdict list (PR-1). Empty array when
-   * the kênh has no posts in the last 7 days; FE shows a thin "no
-   * recent posts" stub instead of the rows.
-   */
-  recent_7d?: ChannelRecent7dEntry[];
-  /**
-   * PR-2 — diagnostic strengths block (TẬN DỤNG, ▲ ĐANG TỐT).
-   * Empty array when the cached row predates PR-2 schema; FE hides the
-   * strengths section in that case until the row's TTL expires and a
-   * fresh Gemini run repopulates it.
-   */
-  strengths?: ChannelDiagnosticItem[];
-  /**
-   * PR-2 — diagnostic weaknesses block (CÁCH SỬA, ✕ CẦN CẢI THIỆN).
-   * Same legacy-empty fallback as ``strengths``.
-   */
-  weaknesses?: ChannelDiagnosticItem[];
-  /**
-   * PR-3 — typed cadence (NHỊP ĐĂNG block).
-   * ``null`` when the BE didn't have enough temporal data; FE hides
-   * the cadence section in that case.
-   */
-  cadence?: ChannelCadence | null;
-}
 
 // ---------------------------------------------------------------------------
 // B.4 — POST /script/generate, GET hook-patterns, GET scene-intelligence
@@ -1577,4 +1387,85 @@ export interface VideoDiagnosisV5 {
     script_structure: { label: string; payload: Record<string, unknown> };
     full_context: { label: string; payload: Record<string, unknown> };
   };
+}
+
+// ---------------------------------------------------------------------------
+// Channel Diagnosis — Lightreel-style narrative types (Layer 4a)
+// ---------------------------------------------------------------------------
+
+export type TrajectoryShape =
+  | "decline_from_peak"
+  | "stagnant"
+  | "steady_growth"
+  | "breakout"
+  | "bursty"
+  | "new_account";
+
+export interface ChannelPerformerTile {
+  video_url: string;
+  thumbnail_url: string;
+  views: number;
+  /** One of the 6 classify_format buckets */
+  content_format: string;
+  caption_snippet: string;
+  /** ISO date string */
+  posted_at: string;
+}
+
+export interface ChannelUGCCreator {
+  handle: string;
+  followers: number;
+  avg_views: number;
+  thumbnail_url: string;
+  niche_slug: string;
+  /** Representative video URL for the tile (may be empty) */
+  sample_video_url?: string;
+}
+
+export interface ChannelRecommendation {
+  index: number;
+  title: string;
+  body: string;
+}
+
+/** One narrative section emitted by the server. */
+export interface ChannelSection {
+  section_id:
+    | "verdict"
+    | "what_worked"
+    | "what_falling"
+    | "video_vs_channel"
+    | "competitive_landscape"
+    | "recommendations"
+    | "fallback"
+    | (string & Record<never, never>);
+  title: string;
+  /** Accumulated text content for this section. */
+  text: string;
+  /** Video tiles embedded at section_start (what_worked / what_falling). */
+  embedded_tiles?: ChannelPerformerTile[];
+  /** Creator tiles (competitive_landscape only). */
+  embedded_creators?: ChannelUGCCreator[];
+}
+
+/** Final payload from the `payload` event after streaming completes. */
+export interface ChannelDiagnosisPayload {
+  trajectory_shape: TrajectoryShape;
+  sections: ChannelSection[];
+  recommendations: ChannelRecommendation[];
+  top_performers: ChannelPerformerTile[];
+  worst_performers: ChannelPerformerTile[];
+  ugc_creators: ChannelUGCCreator[];
+  channel_pattern: {
+    global_avg_views: number;
+    total_videos: number;
+    formats: Record<string, { count: number; avg_views: number; total_views: number }>;
+  };
+  inflection: Record<string, unknown> | null;
+  creator_match: Record<string, unknown> | null;
+  video_count: number;
+  provenance: string;
+  niche_thin: boolean;
+  cache_hit: boolean;
+  dominant_format?: string;
 }

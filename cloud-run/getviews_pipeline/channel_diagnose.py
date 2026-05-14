@@ -2,6 +2,10 @@
 
 Pure functions + one async fetch. No DB writes — the SSE endpoint owns persistence.
 All I/O goes through ensemble.*; Supabase reads are passed in from the caller.
+
+Also re-exports shared credit/handle utilities that were previously in
+``channel_analyze.py`` (now deleted) so ``routers/video.py`` has a single
+import point for all channel-diagnosis concerns.
 """
 
 from __future__ import annotations
@@ -17,6 +21,64 @@ from typing import Any, Literal, TypedDict
 from getviews_pipeline import ensemble
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Shared utilities (migrated from channel_analyze.py)
+# ---------------------------------------------------------------------------
+
+
+def normalize_handle(raw: str | None) -> str:
+    """Strip ``@`` and lowercase a TikTok handle."""
+    if not raw:
+        return ""
+    return str(raw).strip().removeprefix("@").lower()
+
+
+class InsufficientCreditsError(Exception):
+    """``decrement_credit`` returned NULL (no credits to spend) or raised."""
+
+
+def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
+    try:
+        rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
+        if rpc_resp.data is None:
+            raise InsufficientCreditsError()
+    except InsufficientCreditsError:
+        raise
+    except Exception as exc:
+        logger.warning("[channel_diagnose] decrement_credit failed: %s", exc)
+        raise InsufficientCreditsError() from exc
+
+
+def _fetch_niche_benchmarks(user_sb: Any, *, niche_id: int) -> dict[str, Any]:
+    """Per-niche channel-level percentiles from ``niche_channel_benchmarks`` RPC."""
+    fallback: dict[str, Any] = {
+        "channel_count": 0,
+        "avg_views_p50": 0,
+        "avg_views_p75": 0,
+        "engagement_p50": 0.0,
+        "engagement_p75": 0.0,
+        "posts_per_week_p50": 0.0,
+        "posts_per_week_p75": 0.0,
+    }
+    try:
+        res = user_sb.rpc("niche_channel_benchmarks", {"p_niche_id": niche_id}).execute()
+        data = res.data
+        if isinstance(data, list) and data and isinstance(data[0], dict):
+            data = data[0]
+        if isinstance(data, dict):
+            return {
+                "channel_count":      int(data.get("channel_count") or 0),
+                "avg_views_p50":      int(data.get("avg_views_p50") or 0),
+                "avg_views_p75":      int(data.get("avg_views_p75") or 0),
+                "engagement_p50":     float(data.get("engagement_p50") or 0),
+                "engagement_p75":     float(data.get("engagement_p75") or 0),
+                "posts_per_week_p50": float(data.get("posts_per_week_p50") or 0),
+                "posts_per_week_p75": float(data.get("posts_per_week_p75") or 0),
+            }
+    except Exception as exc:
+        logger.warning("[channel_diagnose] niche_channel_benchmarks RPC failed: %s", exc)
+    return fallback
 
 # ---------------------------------------------------------------------------
 # Type aliases

@@ -81,3 +81,21 @@ def test_both_public_urls_unconfigured_falls_back_to_pub_prefix() -> None:
     """When neither env var is set, only the https://pub- prefix is trusted."""
     assert _call("https://pub-xyz.r2.dev/frames/vid1/0.png") is True
     assert _call("https://other.example.com/frames/vid1/0.png") is False
+
+
+def test_trailing_slash_in_R2_PUBLIC_URL_does_not_create_double_slash() -> None:
+    """R2_PUBLIC_URL configured with a trailing slash must not produce //
+    in the prefix check, which would cause valid R2 URLs to be misclassified
+    as non-R2 and trigger unnecessary re-uploads (regression for the double-slash bug)."""
+    assert _call(
+        "https://media.getviews.vn/thumbnails/vid1.png",
+        public_url="https://media.getviews.vn/",  # trailing slash
+    ) is True
+
+
+def test_exact_base_url_match_with_trailing_slash_configured() -> None:
+    """url == R2_PUBLIC_URL (with trailing slash stripped) should still match."""
+    assert _call(
+        "https://media.getviews.vn",
+        public_url="https://media.getviews.vn/",
+    ) is True

@@ -35,7 +35,7 @@ export type RefreshMyChannelResponse =
  * return ``status: "cached"`` without burning ED units.
  *
  * On refreshed-with-new-rows, the caller invalidates
- * ``["channel-analyze", handle]`` so the dashboard re-fetches the
+ * ``["channel-diagnose"]`` so the dashboard re-fetches the
  * now-fresh response.
  */
 export function useRefreshMyChannel() {
@@ -76,12 +76,10 @@ export function useRefreshMyChannel() {
       return (await res.json()) as RefreshMyChannelResponse;
     },
     onSuccess: (data) => {
-      // Only invalidate the channel-analyze query when fresh rows
-      // actually landed. ``cached`` and zero-count refreshes leave the
-      // existing response unchanged, so re-fetching would just burn a
-      // round trip without changing anything visible.
+      // Only invalidate when fresh rows actually landed — cached / zero-count
+      // refreshes leave the existing response unchanged.
       if (data.status === "refreshed" && data.count > 0) {
-        queryClient.invalidateQueries({ queryKey: ["channel-analyze"] });
+        queryClient.invalidateQueries({ queryKey: ["channel-diagnose"] });
       }
     },
   });

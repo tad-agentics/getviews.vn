@@ -1,11 +1,12 @@
 /**
- * ChannelScreen smoke tests (Phase D.1.6 — C.8.6 backfill).
+ * ChannelScreen smoke tests (Phase 2 cleanup — legacy ChannelAnalyze removed).
  *
- * Not a full integration test — mocks the two data hooks + `AppLayout` +
- * auth so the render is deterministic. Covers three surface contracts:
+ * Not a full integration test — mocks data hooks + `AppLayout` + auth so
+ * the render is deterministic. Covers:
  *   1. Empty state when `handle` query param is absent.
- *   2. Loading + skeleton when `useChannelAnalyze` is pending.
- *   3. Renders the FormulaBar + KpiGrid sections on a populated payload.
+ *   2. Streaming state while `useChannelDiagnose` is in progress.
+ *   3. Narrative sections rendered from `useChannelDiagnose` payload.
+ *   4. Error message on `insufficient_credits`.
  *
  * Follows the HomeScreen.test.tsx mock pattern — every hook that touches
  * Supabase / network / env is stubbed so no real fetches leave jsdom.
@@ -16,8 +17,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
-
-import type { ChannelAnalyzeResponse } from "@/lib/api-types";
 
 // ── Module mocks ───────────────────────────────────────────────────────────
 
@@ -32,15 +31,13 @@ vi.mock("@/lib/env", () => ({
 
 vi.mock("@/lib/logUsage", () => ({ logUsage: vi.fn() }));
 
-const mockUseChannelAnalyze = vi.fn();
 const mockUseHomePulse = vi.fn();
+const mockUseChannelDiagnose = vi.fn();
 
-vi.mock("@/hooks/useChannelAnalyze", () => ({
-  channelAnalyzeHandleKey: (h: string | null | undefined) =>
-    h ? h.replace(/^@/, "").trim() || null : null,
-  useChannelAnalyze: (opts: unknown) => mockUseChannelAnalyze(opts),
-}));
 vi.mock("@/hooks/useHomePulse", () => ({ useHomePulse: () => mockUseHomePulse() }));
+vi.mock("@/hooks/useChannelDiagnose", () => ({
+  useChannelDiagnose: () => mockUseChannelDiagnose(),
+}));
 
 vi.mock("@/hooks/useProfile", () => ({
   useProfile: () => ({
@@ -82,29 +79,6 @@ const ChannelScreen = (await import("./ChannelScreen")).default;
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
-function makePayload(overrides: Partial<ChannelAnalyzeResponse> = {}): ChannelAnalyzeResponse {
-  return {
-    handle: "@sammie.tech",
-    niche_id: 4,
-    name: "Sammie Tech",
-    bio: null,
-    followers: 412_000,
-    total_videos: 24,
-    avg_views: 89_000,
-    engagement_pct: 6.8,
-    posting_cadence: "3 lần/tuần",
-    posting_time: "tối thứ 4–6",
-    top_hook: null,
-    formula: null,
-    formula_gate: null,
-    lessons: [],
-    top_videos: [],
-    niche_label: "Tech",
-    kpis: [],
-    ...overrides,
-  } as ChannelAnalyzeResponse;
-}
-
 function renderScreen(searchParams = "") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -119,72 +93,97 @@ function renderScreen(searchParams = "") {
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe("ChannelScreen", () => {
+  const mockDiagnoseIdle = {
+    status: "idle" as const,
+    trajectoryShape: null,
+    sections: [],
+    recommendations: [],
+    finalPayload: null,
+    error: null,
+    heartbeatCount: 0,
+    streamId: null,
+    lastSeq: 0,
+    activeStepIndex: -1,
+    activeStepLabel: "",
+    start: vi.fn(),
+    abort: vi.fn(),
+    reset: vi.fn(),
+  };
+
   beforeEach(() => {
-    mockUseChannelAnalyze.mockReset();
     mockUseHomePulse.mockReset();
+    mockUseChannelDiagnose.mockReset();
     mockUseHomePulse.mockReturnValue({ data: null, isPending: false });
-    mockUseChannelAnalyze.mockImplementation(() => ({
-      data: undefined,
-      isPending: false,
-      isFetching: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    }));
+    mockUseChannelDiagnose.mockReturnValue(mockDiagnoseIdle);
   });
   afterEach(cleanup);
 
   it("renders empty state when no handle is provided", () => {
-    mockUseChannelAnalyze.mockReturnValue({
-      data: undefined,
-      isPending: false,
-      isFetching: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    });
     renderScreen();
     expect(screen.getByText(/Khám bất kỳ kênh TikTok nào/)).toBeTruthy();
   });
 
-  it("renders loading indicator while useChannelAnalyze is pending", () => {
-    mockUseChannelAnalyze.mockReturnValue({
-      data: undefined,
-      isPending: true,
-      isFetching: true,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+  it("renders streaming state while diagnosis is in progress", () => {
+    mockUseChannelDiagnose.mockReturnValue({
+      ...mockDiagnoseIdle,
+      status: "streaming" as const,
+      activeStepIndex: 1,
+      activeStepLabel: "Tải dữ liệu kênh",
+      trajectoryShape: null,
+      sections: [],
     });
     const { container } = renderScreen("?handle=sammie.tech");
     expect(container).toBeTruthy();
   });
 
-  it("renders handle + niche label when payload is present", () => {
-    mockUseChannelAnalyze.mockReturnValue({
-      data: makePayload({ handle: "@sammie.tech", niche_label: "Tech" }),
-      isPending: false,
-      isFetching: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+  it("renders handle heading when diagnosis is active", () => {
+    mockUseChannelDiagnose.mockReturnValue({
+      ...mockDiagnoseIdle,
+      status: "streaming" as const,
+      sections: [],
     });
     renderScreen("?handle=sammie.tech");
-    // Handle appears in title / crumb area.
+    // Handle appears in ChannelDiagnosisBody heading area.
     expect(screen.getAllByText(/@?sammie\.tech/i).length).toBeGreaterThan(0);
   });
 
-  it("renders the posting cadence chip when cadence + time are populated", () => {
-    mockUseChannelAnalyze.mockReturnValue({
-      data: makePayload({ posting_cadence: "3 lần/tuần", posting_time: "tối thứ 4–6" }),
-      isPending: false,
-      isFetching: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
+  it("renders narrative sections when diagnosis has sections", () => {
+    mockUseChannelDiagnose.mockReturnValue({
+      ...mockDiagnoseIdle,
+      status: "done" as const,
+      trajectoryShape: "stagnant" as const,
+      sections: [
+        { section_id: "verdict", title: "Kết luận", text: "Kênh đang trì trệ." },
+      ],
+      recommendations: [],
+      finalPayload: {
+        trajectory_shape: "stagnant",
+        sections: [],
+        recommendations: [],
+        top_performers: [],
+        worst_performers: [],
+        ugc_creators: [],
+        channel_pattern: { global_avg_views: 50000, total_videos: 15, formats: {} },
+        inflection: null,
+        creator_match: null,
+        video_count: 15,
+        provenance: "Phân tích dựa trên 15 videos",
+        niche_thin: false,
+        cache_hit: false,
+      },
     });
     renderScreen("?handle=sammie.tech");
-    // `postingCadenceChipText` joins the two with " · ".
-    expect(screen.getByText(/3 lần\/tuần · tối thứ 4–6/)).toBeTruthy();
+    expect(screen.getByText(/Kết luận/)).toBeTruthy();
+    expect(screen.getByText(/Kênh đang trì trệ/)).toBeTruthy();
+  });
+
+  it("renders error message on insufficient_credits", () => {
+    mockUseChannelDiagnose.mockReturnValue({
+      ...mockDiagnoseIdle,
+      status: "error" as const,
+      error: "insufficient_credits",
+    });
+    renderScreen("?handle=sammie.tech");
+    expect(screen.getByText(/Không đủ credit/)).toBeTruthy();
   });
 });

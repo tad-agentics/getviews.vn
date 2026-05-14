@@ -824,8 +824,10 @@ def _is_r2_url(url: str | None) -> bool:
     if not url:
         return False
     from getviews_pipeline.config import R2_PUBLIC_URL
-    if R2_PUBLIC_URL and (url.startswith(R2_PUBLIC_URL + "/") or url == R2_PUBLIC_URL):
-        return True
+    if R2_PUBLIC_URL:
+        base = R2_PUBLIC_URL.rstrip("/")
+        if url.startswith(base + "/") or url == base:
+            return True
     # Fallback: default Cloudflare R2 public URL pattern
     return url.startswith("https://pub-")
 

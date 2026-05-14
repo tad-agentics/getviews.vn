@@ -36,9 +36,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-# Decks regenerate when older than this — same 7-day cadence as
-# channel_formulas (``CHANNEL_FORMULA_STALE_AFTER`` in
-# channel_analyze.py). Tracking aligns the editorial freshness story.
+# Decks regenerate when older than 7 days — same cadence as channel_diagnoses.
 DECK_STALE_AFTER = timedelta(days=7)
 
 # Per-batch synth cap — keeps the nightly Gemini bill predictable.

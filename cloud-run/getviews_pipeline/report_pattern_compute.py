@@ -25,7 +25,7 @@ from getviews_pipeline.script_data import HOOK_TYPE_PATTERN_VI, latest_hook_effe
 
 logger = logging.getLogger(__name__)
 
-# Evidence tile colors — aligned with channel_analyze.TOP_VIDEO_TILE_COLORS + extras for 6 tiles.
+# Evidence tile colors — 4 primary tile slots + extras for up to 6 tiles.
 _TILE_COLORS = ("#D9EB9A", "#E8E4DC", "#C5F0E8", "#F5E6C8", "#1F2A3B", "#2A2438")
 
 
