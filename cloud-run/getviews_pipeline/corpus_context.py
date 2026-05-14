@@ -803,8 +803,21 @@ async def get_signal_grades_for_niche(
 
 
 def _is_r2_url(url: str | None) -> bool:
-    """Return True if the URL points to R2 (permanent) rather than TikTok CDN (signed/expiring)."""
-    return bool(url and url.startswith("https://pub-"))
+    """Return True if the URL points to R2 (permanent) rather than TikTok CDN (signed/expiring).
+
+    Checks against the configured R2_PUBLIC_URL and R2_VIDEO_PUBLIC_URL prefixes first
+    so custom domains (e.g. https://media.getviews.vn) are correctly recognised as stable.
+    Falls back to the default Cloudflare R2 dev-URL prefix (https://pub-) for deployments
+    that haven't configured R2_PUBLIC_URL or use the raw r2.dev URL.
+    """
+    if not url:
+        return False
+    from getviews_pipeline.config import R2_PUBLIC_URL, R2_VIDEO_PUBLIC_URL
+    for base in (R2_PUBLIC_URL, R2_VIDEO_PUBLIC_URL):
+        if base and (url.startswith(base + "/") or url == base):
+            return True
+    # Fallback: default Cloudflare R2 public URL pattern
+    return url.startswith("https://pub-")
 
 
 async def _refresh_thumbnail_async(video_id: str, fresh_cdn_url: str) -> str | None:
