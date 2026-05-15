@@ -370,24 +370,6 @@ export default function ChannelScreen() {
           </p>
         ) : (
           <>
-            {creatorNiches.length > 0 ? (
-              <div className="mb-6 flex max-w-md flex-col gap-1.5">
-                <span className="gv-mono text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
-                  Ngách so sánh
-                </span>
-                <select
-                  value={nicheSelectValue}
-                  onChange={onNicheChange}
-                  className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-[16px] text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)] sm:text-sm"
-                >
-                  {creatorNiches.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
             <ChannelDiagnosisBody
               handle={handleKey ?? ""}
               nicheId={nicheId}
