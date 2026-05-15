@@ -752,7 +752,7 @@ async def select_niche_peer_videos(
                 thumbnail_url=row.get("thumbnail_url"),
                 views=int(row.get("views") or 0),
                 format_label=str(row.get("content_format") or "product_closeup"),
-                caption_snippet=str(row.get("title") or "")[:80],
+                caption_snippet=str(row.get("caption") or "")[:80],
                 video_url=str(row.get("video_url") or ""),
             ))
             if len(tiles) >= limit:
@@ -1281,7 +1281,7 @@ def _run_peer_corpus_query(
     ex = exclude_handle.lower().strip()
     q = (
         user_sb.table("video_corpus")
-        .select("creator_handle,views,content_format,thumbnail_url,video_url,video_id,title")
+        .select("creator_handle,views,content_format,thumbnail_url,video_url,video_id,caption")
         .eq("niche_id", legacy_niche_id)
         .neq("creator_handle", ex)
     )
