@@ -55,7 +55,7 @@ class _PipelineSettings(BaseSettings):
 
     # ── Gemini ─────────────────────────────────────────────────────────────
     gemini_api_key: str = Field(default="", description="Gemini API key — required for all video analysis and synthesis")
-    gemini_model: str = Field(default="gemini-3-flash-preview", description="Default Gemini model slug")
+    gemini_model: str = Field(default="gemini-3.1-flash-lite-preview", description="Default Gemini model slug")
     gemini_extraction_model: str = Field(default="", description="Model for frame extraction; defaults to gemini_model")
     gemini_synthesis_model: str = Field(default="", description="Model for Vietnamese narrative synthesis; defaults to gemini_model")
     gemini_knowledge_model: str = Field(default="", description="Model for knowledge Q&A; defaults to gemini_extraction_model")
