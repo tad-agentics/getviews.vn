@@ -56,36 +56,39 @@ class TestPriceForModel:
         assert p.tokens_out_per_mtok == 0.0
 
     def test_31_flash_lite_ga_resolves_to_lite_tier_price(self) -> None:
-        # GA steady-state default. Must hit the table directly, not fall
+        # GA stable default (GA 2026-05-07). Must hit the table directly, not fall
         # through to UNKNOWN_MODEL_PRICE — a $0 price would silently
         # mask spend from the daily-USD budget guard.
+        # Official pricing: $0.25/M in, $1.50/M out (text/image/video).
         p = price_for_model("gemini-3.1-flash-lite")
-        assert p.tokens_in_per_mtok == 0.075
-        assert p.tokens_out_per_mtok == 0.30
+        assert p.tokens_in_per_mtok == 0.25
+        assert p.tokens_out_per_mtok == 1.50
 
     def test_31_flash_lite_preview_still_priced(self) -> None:
         # In-flight rows from before the GA cutover must still cost-
         # attribute (Google is sunsetting the alias, but we may see
         # straggler entries in ``gemini_calls`` until rotation completes).
         p = price_for_model("gemini-3.1-flash-lite-preview")
-        assert p.tokens_in_per_mtok == 0.075
-        assert p.tokens_out_per_mtok == 0.30
+        assert p.tokens_in_per_mtok == 0.25
+        assert p.tokens_out_per_mtok == 1.50
 
     def test_31_flash_ga_resolves_to_full_flash_price(self) -> None:
+        # Official pricing: $0.50/M in, $3.00/M out.
         p = price_for_model("gemini-3.1-flash")
-        assert p.tokens_in_per_mtok == 0.30
-        assert p.tokens_out_per_mtok == 2.50
+        assert p.tokens_in_per_mtok == 0.50
+        assert p.tokens_out_per_mtok == 3.00
 
 
 class TestEstimateCost:
     def test_flash_lite_math_matches_published_rates(self) -> None:
-        # 1M in + 1M out on flash-lite: $0.075 + $0.30 = $0.375.
+        # 1M in + 1M out on flash-lite: $0.25 + $1.50 = $1.75.
+        # Official pricing (GA 2026-05-07): $0.25/M in, $1.50/M out.
         cost = estimate_cost(
             model_name="gemini-3-flash-lite-preview",
             tokens_in=1_000_000,
             tokens_out=1_000_000,
         )
-        assert cost == pytest.approx(0.375, rel=1e-9)
+        assert cost == pytest.approx(1.75, rel=1e-9)
 
     def test_unknown_model_costs_nothing_but_does_not_raise(self) -> None:
         cost = estimate_cost(
@@ -180,9 +183,10 @@ class TestLogGeminiCall:
         assert captured["duration_ms"] == 450
         assert captured["session_id"] == "sess-xyz"
         # Cost is computed consistently with estimate_cost (1k in + 2k out
-        # on flash-preview = $0.0003 + $0.0050 = $0.0053).
-        assert captured["cost_usd"] == pytest.approx(0.0053, rel=1e-9)
-        assert cost == pytest.approx(0.0053, rel=1e-9)
+        # on gemini-3-flash-preview = $0.0005 + $0.0060 = $0.0065).
+        # Official pricing: $0.50/M in, $3.00/M out.
+        assert captured["cost_usd"] == pytest.approx(0.0065, rel=1e-9)
+        assert cost == pytest.approx(0.0065, rel=1e-9)
 
     def test_accepts_null_user_id_and_session_id(self) -> None:
         # Batch/cron callers (corpus ingest, niche intelligence) fire with

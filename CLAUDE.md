@@ -61,7 +61,7 @@ Quick reference for AI operating constraints:
 - **TanStack Query = all server state.** `useState` = local UI. No Zustand/Redux/Jotai.
 - **Supabase client is a single instance** (`src/lib/supabase.ts`). Never import `@supabase/supabase-js` elsewhere.
 - **`video_corpus` INSERT is batch-only** (service role). `chat_messages` are immutable (no UPDATE).
-- **Gemini 3.x only.** `flash-lite-preview` for extraction/classification, `flash-preview` for Vietnamese synthesis. Cost ceiling ~$70/mo.
+- **Gemini 3.x only.** `gemini-3.1-flash-lite` (GA stable, $0.25/$1.50 per 1M) is the universal default — extraction, classification, synthesis, intent. Cost ceiling ~$70/mo.
 - **Facebook OAuth is non-negotiable** for the Vietnamese market.
 - **Intent routing:** extend `detectIntent()` in `src/routes/_app/intent-router.ts` — never reinvent routing inside screens.
 - **Channel diagnosis (`POST /channel/diagnose`, Cloud Run):** corpus-first peers + two-axis persona + deterministic `score_card` / hashtag / next-video templates; SSE `score_card` event; `channel_diagnoses` v2 JSONB columns; cache replay must re-emit all v2 fields. See `system-design.md` §16.

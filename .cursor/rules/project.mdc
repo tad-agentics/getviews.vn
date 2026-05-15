@@ -52,10 +52,8 @@ Primary user: Minh (24, Shopee affiliate creator) who needs to know why his vide
 ## LLM rules
 
 LLM features are used. Models:
-- `gemini-3.1-flash-lite-preview` — video frame extraction + knowledge answers + batch indexing (Cloud Run Python)
-- `gemini-3-flash-preview` — Vietnamese synthesis output (Cloud Run Python)
-- `gemini-3.1-flash-lite-preview` — intent classification fallback (Vercel Edge Runtime, < 5% of queries)
-- `gemini-3.1-flash-lite-preview` — follow-up text responses (Vercel Edge Runtime)
+- `gemini-3.1-flash-lite` — **universal default** for all pipeline paths: video frame extraction, knowledge answers, batch indexing, Vietnamese synthesis, intent classification, follow-up text responses (Cloud Run Python + Vercel Edge Runtime). GA stable as of 2026-05-07. Pricing: $0.25/M in, $1.50/M out.
+- `gemini-3.1-flash` — optional upgrade for synthesis quality; set via `GEMINI_SYNTHESIS_MODEL` env override. Pricing: $0.50/M in, $3.00/M out.
 
 Cost ceiling: $70/month across all Gemini usage (batch + user queries).
 

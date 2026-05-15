@@ -18,14 +18,14 @@ const SUPABASE_ANON_KEY =
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 // Gemini 3.x only (CLAUDE.md): 2.5 EOL Jun 2026, 2.0 EOL Mar 2026.
-// gemini-3-flash-preview matches Cloud Run's GEMINI_MODEL default.
+// gemini-3.1-flash-lite is the GA stable default (preview retired May 2026).
 // Override via GEMINI_SYNTHESIS_MODEL env var; failure to set in
 // production logs a warning so we notice unintentional defaults.
 const GEMINI_MODEL =
-  process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-3-flash-preview";
+  process.env.GEMINI_SYNTHESIS_MODEL ?? "gemini-3.1-flash-lite";
 if (!process.env.GEMINI_SYNTHESIS_MODEL) {
   console.warn(
-    "[api/chat] GEMINI_SYNTHESIS_MODEL unset — falling back to gemini-3-flash-preview",
+    "[api/chat] GEMINI_SYNTHESIS_MODEL unset — falling back to gemini-3.1-flash-lite",
   );
 }
 

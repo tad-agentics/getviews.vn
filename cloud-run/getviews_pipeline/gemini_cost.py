@@ -144,41 +144,38 @@ class ModelPrice:
 # not in this table falls through to UNKNOWN_MODEL_PRICE (zero cost, but
 # still records the row — undercount is preferred over a noisy log).
 MODEL_PRICING_USD_PER_MTOK: dict[str, ModelPrice] = {
-    # Flash-Lite — steady-state default for extraction / classification /
-    # intent routing / synthesis. ``gemini-3.1-flash-lite`` is GA; the
-    # ``-preview`` aliases are kept so any in-flight rows from before the
-    # 3.1 GA cutover still cost-attribute correctly (otherwise they fall
-    # through to UNKNOWN_MODEL_PRICE and silently log $0, hiding spend
-    # from the budget guard). 3.0 alias retained for the same reason.
+    # Flash-Lite stable (GA 2026-05-07) — steady-state default for extraction,
+    # classification, intent routing, and synthesis.
+    # Official pricing: $0.25/M in, $1.50/M out (text/image/video).
+    # Source: https://ai.google.dev/gemini-api/docs/pricing#gemini-3.1-flash-lite
     "gemini-3.1-flash-lite": ModelPrice(
-        tokens_in_per_mtok=0.075,
-        tokens_out_per_mtok=0.30,
+        tokens_in_per_mtok=0.25,
+        tokens_out_per_mtok=1.50,
     ),
+    # Preview aliases kept for historical cost-attribution of rows logged
+    # before the GA cutover — same price tier as stable.
     "gemini-3.1-flash-lite-preview": ModelPrice(
-        tokens_in_per_mtok=0.075,
-        tokens_out_per_mtok=0.30,
+        tokens_in_per_mtok=0.25,
+        tokens_out_per_mtok=1.50,
     ),
     "gemini-3-flash-lite-preview": ModelPrice(
-        tokens_in_per_mtok=0.075,
-        tokens_out_per_mtok=0.30,
+        tokens_in_per_mtok=0.25,
+        tokens_out_per_mtok=1.50,
     ),
-    # Flash — Vietnamese synthesis / diagnosis / creative writing.
-    # Output price aligns with Google's published Gemini 3 Flash rate
-    # ($2.50/M out). The previous $1.20/M figure undercounted by ~2×,
-    # which is half of why ``gemini_calls.cost_usd`` sums lagged the
-    # Tier-1 console bill by ~10× (other half: thinking tokens not
-    # counted — see ``extract_usage``).
+    # Flash — kept for any residual synthesis calls during migration.
+    # Official pricing: $0.50/M in, $3.00/M out.
+    # Source: https://ai.google.dev/gemini-api/docs/pricing#gemini-3-flash-preview
     "gemini-3.1-flash": ModelPrice(
-        tokens_in_per_mtok=0.30,
-        tokens_out_per_mtok=2.50,
+        tokens_in_per_mtok=0.50,
+        tokens_out_per_mtok=3.00,
     ),
     "gemini-3.1-flash-preview": ModelPrice(
-        tokens_in_per_mtok=0.30,
-        tokens_out_per_mtok=2.50,
+        tokens_in_per_mtok=0.50,
+        tokens_out_per_mtok=3.00,
     ),
     "gemini-3-flash-preview": ModelPrice(
-        tokens_in_per_mtok=0.30,
-        tokens_out_per_mtok=2.50,
+        tokens_in_per_mtok=0.50,
+        tokens_out_per_mtok=3.00,
     ),
     # Pro — reserved for eval-only rungs (not used in steady-state prod).
     "gemini-3-pro-preview": ModelPrice(

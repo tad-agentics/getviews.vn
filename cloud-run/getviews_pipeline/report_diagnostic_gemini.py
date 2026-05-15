@@ -154,7 +154,7 @@ def validate_diagnostic_narrative(
 ) -> dict:
     """AQ-8 validation gate: detect hallucinated specifics in narrative findings.
 
-    Uses gemini-3.1-flash-lite-preview (low cost, < 50 tokens output) to check
+    Uses gemini-3.1-flash-lite (low cost, < 50 tokens output) to check
     whether any finding contains metrics the model could not have known without
     seeing the video.
 
