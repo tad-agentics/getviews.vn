@@ -141,24 +141,6 @@ export default function ChannelScreen() {
 
   const emptyParams = !handleKey;
 
-  const nicheSelectValue = String(
-    creatorNicheParam ?? profile?.creator_niche_id ?? creatorNiches[0]?.id ?? "",
-  );
-
-  const onNicheChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const id = parseInt(e.target.value, 10);
-      if (!Number.isFinite(id)) return;
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        if (id === profile?.creator_niche_id) next.delete("creator_niche_id");
-        else next.set("creator_niche_id", String(id));
-        return next;
-      }, { replace: true });
-    },
-    [profile?.creator_niche_id, setSearchParams],
-  );
-
   return (
     <AppLayout active="channel" enableMobileSidebar>
       <TopBar
@@ -193,25 +175,6 @@ export default function ChannelScreen() {
                 video hiệu quả nhất, video kéo điểm, so sánh với kênh cùng ngách và 3–5 đề xuất hành động cụ thể.
               </p>
             </header>
-
-            {creatorNiches.length > 0 ? (
-              <label className="flex max-w-md flex-col gap-1.5">
-                <span className="gv-mono text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
-                  Ngách so sánh
-                </span>
-                <select
-                  value={nicheSelectValue}
-                  onChange={onNicheChange}
-                  className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-[16px] text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)] sm:text-sm"
-                >
-                  {creatorNiches.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
 
             {!cloudConfigured ? (
               <div className="rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-6 text-[13px] text-[color:var(--gv-ink-3)]">
