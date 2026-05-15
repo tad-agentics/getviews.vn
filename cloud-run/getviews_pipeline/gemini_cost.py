@@ -150,9 +150,14 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, ModelPrice] = {
         tokens_out_per_mtok=0.30,
     ),
     # Flash — Vietnamese synthesis / diagnosis / creative writing.
+    # Output price aligns with Google's published Gemini 3 Flash rate
+    # ($2.50/M out). The previous $1.20/M figure undercounted by ~2×,
+    # which is half of why ``gemini_calls.cost_usd`` sums lagged the
+    # Tier-1 console bill by ~10× (other half: thinking tokens not
+    # counted — see ``extract_usage``).
     "gemini-3-flash-preview": ModelPrice(
         tokens_in_per_mtok=0.30,
-        tokens_out_per_mtok=1.20,
+        tokens_out_per_mtok=2.50,
     ),
     # Pro — reserved for eval-only rungs (not used in steady-state prod).
     "gemini-3-pro-preview": ModelPrice(
@@ -203,13 +208,20 @@ def extract_usage(response: Any) -> tuple[int, int]:
     The shape is ``response.usage_metadata.prompt_token_count`` and
     ``candidates_token_count``. Either can be missing on error responses
     or fallback models that don't populate usage — defaults to zero.
+
+    ``thoughts_token_count`` is Gemini 3's reasoning-token counter; those
+    tokens bill at the full output rate but the SDK reports them in a
+    separate field. Fold them into ``tokens_out`` so ``cost_usd`` matches
+    what Google actually bills. (Skipping these is the other half of the
+    ~10× undercount in ``gemini_calls.cost_usd`` vs. the Tier-1 console.)
     """
     meta = getattr(response, "usage_metadata", None)
     if meta is None:
         return (0, 0)
     tokens_in = int(getattr(meta, "prompt_token_count", 0) or 0)
     tokens_out = int(getattr(meta, "candidates_token_count", 0) or 0)
-    return (tokens_in, tokens_out)
+    tokens_thoughts = int(getattr(meta, "thoughts_token_count", 0) or 0)
+    return (tokens_in, tokens_out + tokens_thoughts)
 
 
 # ── Async log writer ─────────────────────────────────────────────────────────
