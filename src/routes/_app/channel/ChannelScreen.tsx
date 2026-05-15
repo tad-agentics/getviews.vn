@@ -12,6 +12,8 @@ import { useProfile } from "@/hooks/useProfile";
 import { extractChannelHandleFromMessage, normalizeChannelHandleInput, parseChannelExploreHandle } from "@/lib/channelHandle";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
+import { pushChannelHistory } from "@/lib/channelHistory";
+import { useAuth } from "@/lib/auth";
 import { SectionRenderer } from "./components/SectionRenderer";
 import { ScoreCard, ScoreCardSkeleton } from "./components/ScoreCard";
 import { StepProgress, TRAJECTORY_LABELS } from "./components/StepProgress";
@@ -29,6 +31,7 @@ export default function ChannelScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: profile } = useProfile();
   const { data: creatorNiches = [] } = useCreatorNiches();
   const rawHandle = searchParams.get("handle");
@@ -118,6 +121,7 @@ export default function ChannelScreen() {
     if (!handleKey || !nicheId || !cloudConfigured || !hasCredits) return;
     if (lastDiagnoseHandleRef.current === diagnoseKey) return;
     lastDiagnoseHandleRef.current = diagnoseKey;
+    if (user?.id) pushChannelHistory(user.id, handleKey);
     void diagnose.start(handleKey, nicheId, videoUrlInput || undefined);
     // diagnose.start identity is stable (useCallback[qc])
     // eslint-disable-next-line react-hooks/exhaustive-deps

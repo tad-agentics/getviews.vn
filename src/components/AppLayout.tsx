@@ -34,6 +34,7 @@ import {
 } from "@/hooks/useAnswerSessionQueries";
 import { chatKeys } from "@/hooks/useChatSession";
 import { env } from "@/lib/env";
+import { readChannelHistory } from "@/lib/channelHistory";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,7 +46,7 @@ type Session = {
   first_message: string | null;
   title?: string | null;
   label?: string;
-  source: "chat" | "answer";
+  source: "chat" | "answer" | "channel";
 };
 
 /**
@@ -313,9 +314,9 @@ function SessionRow({
   /** Current ``/app/answer?session=`` row — matches shell “you are here”. */
   isActive?: boolean;
   onNavigate: () => void;
-  onPin: () => void;
-  onDelete: () => void;
-  onRename: (newLabel: string) => void;
+  onPin?: () => void;
+  onDelete?: () => void;
+  onRename?: (newLabel: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -330,7 +331,7 @@ function SessionRow({
 
   const commitRename = () => {
     const trimmed = draft.trim();
-    if (trimmed) onRename(trimmed);
+    if (trimmed) onRename?.(trimmed);
     else setDraft(session.label ?? session.title ?? session.first_message ?? "");
     setRenaming(false);
   };
@@ -416,26 +417,28 @@ function SessionRow({
             <span className="min-w-0 truncate">{displayLabel}</span>
           </button>
 
-          <button
-            ref={moreRef}
-            onClick={openMenu}
-            aria-label={session.source === "answer" ? "Tuỳ chọn phiên nghiên cứu" : "Tuỳ chọn phiên chat"}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
-              isActive && session.source === "answer"
-                ? "text-[color:var(--gv-canvas)] hover:bg-[color:rgba(255,255,255,0.12)]"
-                : `hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] ${
-                    menuOpen ? "lg:opacity-100 text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-4)]"
-                  }`
-            }`}
-          >
-            <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
-          </button>
+          {onPin && (
+            <button
+              ref={moreRef}
+              onClick={openMenu}
+              aria-label={session.source === "answer" ? "Tuỳ chọn phiên nghiên cứu" : "Tuỳ chọn phiên chat"}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
+                isActive && session.source === "answer"
+                  ? "text-[color:var(--gv-canvas)] hover:bg-[color:rgba(255,255,255,0.12)]"
+                  : `hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] ${
+                      menuOpen ? "lg:opacity-100 text-[color:var(--gv-ink-2)]" : "text-[color:var(--gv-ink-4)]"
+                    }`
+              }`}
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
+            </button>
+          )}
         </div>
       )}
 
       {/* Context menu rendered at fixed screen position — never clipped by scroll */}
       <AnimatePresence>
-        {menuOpen && (
+        {menuOpen && onPin && onDelete && (
           <ContextMenu
             isPinned={isPinned}
             top={menuPos.top}
@@ -484,15 +487,16 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
-    source: "chat" | "answer";
+    source: "chat" | "answer" | "channel";
   } | null>(null);
 
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   // Merge legacy ``chat_sessions`` + Phase C ``answer_sessions`` (Cloud Run
-  // list) so Studio sidebar matches what users see under /app/answer.
+  // list) + client-side channel history so the sidebar shows all session types.
   const sessions: Session[] = useMemo(() => {
     const chatRows = sessionsData ?? [];
     const answerRows = answerListQuery.data?.sessions ?? [];
+    const channelRows = user?.id ? readChannelHistory(user.id) : [];
     type Row = { session: Session; sortMs: number };
     const merged: Row[] = [];
 
@@ -526,9 +530,21 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
         sortMs: Number.isFinite(ts) ? ts : 0,
       });
     }
+    for (const c of channelRows) {
+      const ts = new Date(c.visitedAt).getTime();
+      merged.push({
+        session: {
+          id: `channel::${c.handle}`,
+          first_message: c.handle,
+          title: null,
+          source: "channel",
+        },
+        sortMs: Number.isFinite(ts) ? ts : 0,
+      });
+    }
     merged.sort((a, b) => b.sortMs - a.sortMs);
     return merged.map((r) => r.session).slice(0, 60);
-  }, [sessionsData, answerListQuery.data?.sessions]);
+  }, [sessionsData, answerListQuery.data?.sessions, user?.id]);
 
   const sidebarSessionsLoading =
     chatSessionsPending || (Boolean(cloudUrl) && answerListQuery.isPending);
@@ -787,16 +803,19 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                     isPinned={false}
                     isActive={session.source === "answer" && activeAnswerSessionId === session.id}
                     onNavigate={() => {
-                      if (session.source === "answer") {
+                      if (session.source === "channel") {
+                        const handle = session.first_message ?? "";
+                        navigate(`/app/channel?handle=${encodeURIComponent(handle)}`);
+                      } else if (session.source === "answer") {
                         navigate(`/app/answer?session=${encodeURIComponent(session.id)}`);
                       } else {
                         navigate(`/app/history/chat/${session.id}`);
                       }
                       onClose?.();
                     }}
-                    onPin={() => handlePin(session.id)}
-                    onDelete={() => handleDelete(session.id, session.source)}
-                    onRename={(label) => handleRename(session.id, label, session.source)}
+                    onPin={session.source === "channel" ? undefined : () => handlePin(session.id)}
+                    onDelete={session.source === "channel" ? undefined : () => handleDelete(session.id, session.source)}
+                    onRename={session.source === "channel" ? undefined : (label) => handleRename(session.id, label, session.source)}
                   />
                 ))}
               </div>
@@ -907,7 +926,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
       <AnimatePresence>
         {deleteTarget && (
           <DeleteConfirmDialog
-            variant={deleteTarget.source}
+            variant={deleteTarget.source === "channel" ? "chat" : deleteTarget.source}
             onConfirm={confirmDelete}
             onCancel={() => setDeleteTarget(null)}
           />
