@@ -166,9 +166,9 @@ export default function ChannelScreen() {
               </div>
             ) : (
               <>
-                <div className="overflow-hidden rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
+                <div className="flex flex-col gap-3">
                   <div
-                    className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-[color:var(--gv-ink)] bg-[color:var(--gv-canvas)] m-6 mt-0"
+                    className="flex items-stretch overflow-hidden rounded-[14px] border-[1.5px] border-[color:var(--gv-ink)] bg-[color:var(--gv-paper)]"
                     style={{ boxShadow: "3px 3px 0 var(--gv-ink)" }}
                   >
                     <span
@@ -218,7 +218,7 @@ export default function ChannelScreen() {
                     </form>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-[11px] text-[color:var(--gv-ink-3)] sm:px-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-[color:var(--gv-ink-4)]">
                     <div className="flex items-center gap-1.5">
                       <Shield className="h-3 w-3 shrink-0" strokeWidth={1.6} aria-hidden />
                       <span>Chỉ đọc dữ liệu công khai. Không cần đăng nhập TikTok.</span>
