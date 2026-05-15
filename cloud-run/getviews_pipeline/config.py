@@ -32,12 +32,12 @@ SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
 
 ENSEMBLEDATA_API_TOKEN = os.environ.get("ENSEMBLE_DATA_API_KEY") or os.environ.get("ENSEMBLEDATA_API_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-# Default migrated 2026-05-15 from gemini-3-flash-preview to the 3.1
-# Flash-Lite preview: the 3.0 preview is being deprecated by Google, and
-# the Lite variant is the steady-state target for cost (~4-8× cheaper).
-# Synthesis paths that need full Flash quality can override with
-# GEMINI_SYNTHESIS_MODEL=gemini-3.1-flash-preview.
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
+# Default migrated 2026-05-15 to the GA 3.1 Flash-Lite (no ``-preview``
+# suffix): Google is sunsetting ``gemini-3.1-flash-lite-preview``. Same
+# tier price as the preview was, ~4-8× cheaper than full Flash. Synthesis
+# paths that need full Flash quality can override with
+# GEMINI_SYNTHESIS_MODEL=gemini-3.1-flash.
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 # §11 hybrid: extraction (Flash-Lite) vs synthesis (Flash) vs knowledge (Flash-Lite).
 GEMINI_EXTRACTION_MODEL = os.environ.get("GEMINI_EXTRACTION_MODEL", "").strip() or GEMINI_MODEL
 GEMINI_SYNTHESIS_MODEL = os.environ.get("GEMINI_SYNTHESIS_MODEL", "").strip() or GEMINI_MODEL

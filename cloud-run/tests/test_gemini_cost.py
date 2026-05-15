@@ -55,17 +55,24 @@ class TestPriceForModel:
         assert p.tokens_in_per_mtok == 0.0
         assert p.tokens_out_per_mtok == 0.0
 
-    def test_31_flash_lite_resolves_to_lite_tier_price(self) -> None:
-        # Steady-state default — must hit the table directly, not fall
-        # through to UNKNOWN_MODEL_PRICE. Twenty pre-migration calls to
-        # ``gemini-3.1-flash-lite-preview`` logged ``cost_usd=$0`` because
-        # only the 3.0 alias was registered, silently masking spend.
+    def test_31_flash_lite_ga_resolves_to_lite_tier_price(self) -> None:
+        # GA steady-state default. Must hit the table directly, not fall
+        # through to UNKNOWN_MODEL_PRICE — a $0 price would silently
+        # mask spend from the daily-USD budget guard.
+        p = price_for_model("gemini-3.1-flash-lite")
+        assert p.tokens_in_per_mtok == 0.075
+        assert p.tokens_out_per_mtok == 0.30
+
+    def test_31_flash_lite_preview_still_priced(self) -> None:
+        # In-flight rows from before the GA cutover must still cost-
+        # attribute (Google is sunsetting the alias, but we may see
+        # straggler entries in ``gemini_calls`` until rotation completes).
         p = price_for_model("gemini-3.1-flash-lite-preview")
         assert p.tokens_in_per_mtok == 0.075
         assert p.tokens_out_per_mtok == 0.30
 
-    def test_31_flash_resolves_to_full_flash_price(self) -> None:
-        p = price_for_model("gemini-3.1-flash-preview")
+    def test_31_flash_ga_resolves_to_full_flash_price(self) -> None:
+        p = price_for_model("gemini-3.1-flash")
         assert p.tokens_in_per_mtok == 0.30
         assert p.tokens_out_per_mtok == 2.50
 
