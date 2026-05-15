@@ -55,6 +55,20 @@ class TestPriceForModel:
         assert p.tokens_in_per_mtok == 0.0
         assert p.tokens_out_per_mtok == 0.0
 
+    def test_31_flash_lite_resolves_to_lite_tier_price(self) -> None:
+        # Steady-state default — must hit the table directly, not fall
+        # through to UNKNOWN_MODEL_PRICE. Twenty pre-migration calls to
+        # ``gemini-3.1-flash-lite-preview`` logged ``cost_usd=$0`` because
+        # only the 3.0 alias was registered, silently masking spend.
+        p = price_for_model("gemini-3.1-flash-lite-preview")
+        assert p.tokens_in_per_mtok == 0.075
+        assert p.tokens_out_per_mtok == 0.30
+
+    def test_31_flash_resolves_to_full_flash_price(self) -> None:
+        p = price_for_model("gemini-3.1-flash-preview")
+        assert p.tokens_in_per_mtok == 0.30
+        assert p.tokens_out_per_mtok == 2.50
+
 
 class TestEstimateCost:
     def test_flash_lite_math_matches_published_rates(self) -> None:

@@ -144,8 +144,17 @@ class ModelPrice:
 # not in this table falls through to UNKNOWN_MODEL_PRICE (zero cost, but
 # still records the row — undercount is preferred over a noisy log).
 MODEL_PRICING_USD_PER_MTOK: dict[str, ModelPrice] = {
-    # Flash-lite — extraction / classification / intent routing.
+    # Flash-Lite — steady-state default for extraction / classification /
+    # intent routing / synthesis. Same prices for the 3.0 and 3.1 previews
+    # (Google did not change the Lite tier rate between minor versions).
+    # Both keys are populated so ``price_for_model`` resolves either alias
+    # without falling through to UNKNOWN_MODEL_PRICE (which would silently
+    # log ``cost_usd = $0`` and re-break the budget guard).
     "gemini-3-flash-lite-preview": ModelPrice(
+        tokens_in_per_mtok=0.075,
+        tokens_out_per_mtok=0.30,
+    ),
+    "gemini-3.1-flash-lite-preview": ModelPrice(
         tokens_in_per_mtok=0.075,
         tokens_out_per_mtok=0.30,
     ),
@@ -156,6 +165,10 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, ModelPrice] = {
     # Tier-1 console bill by ~10× (other half: thinking tokens not
     # counted — see ``extract_usage``).
     "gemini-3-flash-preview": ModelPrice(
+        tokens_in_per_mtok=0.30,
+        tokens_out_per_mtok=2.50,
+    ),
+    "gemini-3.1-flash-preview": ModelPrice(
         tokens_in_per_mtok=0.30,
         tokens_out_per_mtok=2.50,
     ),
