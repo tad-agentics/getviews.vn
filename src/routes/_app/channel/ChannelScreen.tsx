@@ -7,11 +7,9 @@ import { TopBar } from "@/components/v2/TopBar";
 import { DataFreshnessPill } from "@/components/v2/DataFreshnessPill";
 import { useHomePulse } from "@/hooks/useHomePulse";
 import { useChannelDiagnose } from "@/hooks/useChannelDiagnose";
-import { useChannelUserSearch } from "@/hooks/useChannelUserSearch";
 import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { useProfile } from "@/hooks/useProfile";
 import { extractChannelHandleFromMessage, normalizeChannelHandleInput, parseChannelExploreHandle } from "@/lib/channelHandle";
-import { analysisErrorCopy } from "@/lib/errorMessages";
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
 import { SectionRenderer } from "./components/SectionRenderer";
@@ -70,20 +68,6 @@ export default function ChannelScreen() {
 
   const [draftHandle, setDraftHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
-  const [userSearchDraft, setUserSearchDraft] = useState("");
-  const [debouncedUserSearch, setDebouncedUserSearch] = useState("");
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedUserSearch(userSearchDraft.trim()), 350);
-    return () => window.clearTimeout(t);
-  }, [userSearchDraft]);
-
-  const {
-    data: userSearchData,
-    isFetching: userSearchLoading,
-    isError: userSearchIsError,
-    error: userSearchError,
-  } = useChannelUserSearch(debouncedUserSearch);
 
   const credits = (profile as { deep_credits_remaining?: number } | null | undefined)?.deep_credits_remaining ?? 0;
   const hasCredits = credits >= CREDIT_COST;
@@ -183,73 +167,6 @@ export default function ChannelScreen() {
             ) : (
               <>
                 <div className="overflow-hidden rounded-[18px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]">
-                  <div
-                    className="border-b border-[color:var(--gv-rule)] px-6 py-6 sm:px-7 sm:py-7"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, color-mix(in srgb, var(--gv-accent) 4%, transparent) 0%, color-mix(in srgb, var(--gv-accent-2) 4%, transparent) 100%)",
-                    }}
-                  >
-                    <label className="gv-mono mb-2 block text-[10px] uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
-                      Tìm kênh trên TikTok
-                    </label>
-                    <input
-                      type="search"
-                      value={userSearchDraft}
-                      onChange={(e) => setUserSearchDraft(e.target.value)}
-                      placeholder="Gõ tên hoặc @handle để gợi ý"
-                      autoComplete="off"
-                      className="mb-3 w-full rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2.5 text-[16px] text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)] sm:text-sm"
-                    />
-                    {debouncedUserSearch.length >= 2 ? (
-                      <ul
-                        className="max-h-48 overflow-y-auto rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)]"
-                        role="listbox"
-                        aria-label="Kết quả tìm kênh"
-                      >
-                        {userSearchLoading ? (
-                          <li className="px-3 py-2 text-sm text-[color:var(--gv-ink-3)]">Đang tìm…</li>
-                        ) : userSearchIsError ? (
-                          <li className="px-3 py-2 text-sm text-[color:var(--gv-neg-deep)]">
-                            {analysisErrorCopy(userSearchError)}
-                          </li>
-                        ) : userSearchData?.users?.length ? (
-                          userSearchData.users.map((u) => (
-                            <li key={u.unique_id}>
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-[color:var(--gv-canvas-2)]"
-                                onClick={() => {
-                                  setDraftHandle(`@${u.unique_id}`);
-                                  setUserSearchDraft("");
-                                  setDebouncedUserSearch("");
-                                }}
-                              >
-                                {u.avatar_url ? (
-                                  <img src={u.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-                                ) : (
-                                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-rule)] text-xs text-[color:var(--gv-ink-3)]">
-                                    @
-                                  </span>
-                                )}
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate font-medium text-[color:var(--gv-ink)]">
-                                    @{u.unique_id}
-                                  </span>
-                                  <span className="block truncate text-xs text-[color:var(--gv-ink-3)]">
-                                    {u.nickname || "—"} · {u.follower_count.toLocaleString("vi-VN")} follow
-                                  </span>
-                                </span>
-                              </button>
-                            </li>
-                          ))
-                        ) : (
-                          <li className="px-3 py-2 text-sm text-[color:var(--gv-ink-3)]">Không có kết quả.</li>
-                        )}
-                      </ul>
-                    ) : null}
-                  </div>
-
                   <div
                     className="flex items-stretch overflow-hidden rounded-[12px] border-[1.5px] border-[color:var(--gv-ink)] bg-[color:var(--gv-canvas)] m-6 mt-0"
                     style={{ boxShadow: "3px 3px 0 var(--gv-ink)" }}
