@@ -109,6 +109,21 @@ class TestExtractUsage:
         )
         assert extract_usage(response) == (0, 0)
 
+    def test_thoughts_tokens_fold_into_output(self) -> None:
+        # Gemini 3 reports reasoning tokens in `thoughts_token_count`,
+        # billed at the full output rate. Folding them into the returned
+        # tokens_out is what makes ``gemini_calls.cost_usd`` match the
+        # Tier-1 console — a previous omission caused ~6× undercount on
+        # synthesis-heavy days.
+        response = SimpleNamespace(
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=1000,
+                candidates_token_count=200,
+                thoughts_token_count=800,
+            )
+        )
+        assert extract_usage(response) == (1000, 1000)
+
 
 class TestLogGeminiCall:
     def test_inserts_row_matching_migration_columns(self) -> None:
@@ -144,9 +159,9 @@ class TestLogGeminiCall:
         assert captured["duration_ms"] == 450
         assert captured["session_id"] == "sess-xyz"
         # Cost is computed consistently with estimate_cost (1k in + 2k out
-        # on flash-preview = $0.0003 + $0.0024 = $0.0027).
-        assert captured["cost_usd"] == pytest.approx(0.0027, rel=1e-9)
-        assert cost == pytest.approx(0.0027, rel=1e-9)
+        # on flash-preview = $0.0003 + $0.0050 = $0.0053).
+        assert captured["cost_usd"] == pytest.approx(0.0053, rel=1e-9)
+        assert cost == pytest.approx(0.0053, rel=1e-9)
 
     def test_accepts_null_user_id_and_session_id(self) -> None:
         # Batch/cron callers (corpus ingest, niche intelligence) fire with

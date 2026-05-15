@@ -115,12 +115,19 @@ def _extraction_json_config(schema: dict[str, Any]) -> types.GenerateContentConf
     Uses GEMINI_EXTRACTION_TEMPERATURE (default 0.2) — low temperature is
     critical for deterministic transcription and scene detection. The synthesis
     temperature (0.8) is intentionally not used here.
+
+    ``thinking_budget=0`` disables reasoning on Gemini 3 — extraction is a
+    deterministic JSON-schema fill, not a reasoning task. Thinking tokens
+    bill at full output rate, so leaving the default on silently triples
+    the per-call output cost (observed: ~6× output-token inflation on
+    extraction days). See ``MODEL_PRICING_USD_PER_MTOK``.
     """
     base = _video_analysis_config()
     updates: dict[str, Any] = {
         "temperature": GEMINI_EXTRACTION_TEMPERATURE,
         "response_mime_type": "application/json",
         "response_json_schema": schema,
+        "thinking_config": types.ThinkingConfig(thinking_budget=0),
     }
     if base is not None:
         return base.model_copy(update=updates)
@@ -131,9 +138,16 @@ _RETRY_DELAYS = (1, 2, 4)  # seconds — §13 mandate: 3 retries at 1s/2s/4s
 
 
 def _is_transient_gemini_error(exc: Exception) -> bool:
-    """Return True for 503 / 429 / rate-limit errors that are safe to retry."""
+    """Return True for 503 / overloaded errors that are safe to retry.
+
+    Does NOT retry on 429 / quota / rate limit / resource exhausted: those
+    mean Google is already throttling us, and Google bills the input tokens
+    on every failed attempt. Retrying a 429 sleeps 1s/2s/4s then bills the
+    same input 4× — observed amplifying ~330 daily 429s into a multi-dollar
+    spike on the Tier-1 dashboard.
+    """
     msg = str(exc).lower()
-    return any(kw in msg for kw in ("503", "429", "rate limit", "quota", "overloaded", "resource exhausted"))
+    return any(kw in msg for kw in ("503", "overloaded"))
 
 
 # Vietnamese creator content includes everyday-life topics (drinking, dating
