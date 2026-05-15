@@ -18,6 +18,7 @@ import asyncio
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -188,6 +189,11 @@ class BatchSummary:
     # default). One entry per niche: niche_id, niche_name, current_count,
     # multiplier, allocated_vpn.
     thin_niche_allocations: list[dict[str, Any]] = field(default_factory=list)
+    # Wall-clock budget guard — set to True when the run stopped early to
+    # avoid the Cloud Run request timeout. niches_remaining is the number
+    # of niches that were not processed before the budget expired.
+    aborted_early: bool = False
+    niches_remaining: int = 0
 
 
 # ── Thin-niche prioritization (Wave 5+ Phase 2) ────────────────────────────────
@@ -2398,6 +2404,7 @@ async def run_batch_ingest(
     niche_ids: list[int] | None = None,
     *,
     deep_pool: bool = False,
+    wall_clock_budget_s: int = 3000,
 ) -> BatchSummary:
     """Run full batch ingest. Optionally restrict to specific niche_ids.
 
@@ -2405,9 +2412,13 @@ async def run_batch_ingest(
         niche_ids: If provided, only ingest these niche IDs. Otherwise all niches.
         deep_pool: When True, widen keyword pagination and per-niche caps so a follow-up
             run can overlap more of a prior candidate set (e.g. after a model outage).
+        wall_clock_budget_s: Stop processing niches after this many seconds (default 3000s
+            = 50 min). A 2-minute safety buffer is applied so the function returns before
+            the Cloud Run request timeout (3600s). Set to 0 to disable the guard.
 
     Returns:
         BatchSummary with per-niche counts and materialized view status.
+        summary.aborted_early=True when the budget was exhausted mid-run.
     """
     summary = BatchSummary()
     client = _service_client()
@@ -2509,7 +2520,11 @@ async def run_batch_ingest(
         )
         summary.thin_niche_allocations = niche_allocation_log
 
-    logger.info("[corpus] Starting batch ingest for %d niches", len(niches))
+    logger.info(
+        "[corpus] Starting batch ingest for %d niches (wall_clock_budget=%ds)",
+        len(niches),
+        wall_clock_budget_s,
+    )
 
     eff_kw_pages = kw if kw is not None else BATCH_KEYWORD_PAGES
     ht_for_theory = BATCH_HASHTAG_FETCH_LIMIT
@@ -2529,9 +2544,32 @@ async def run_batch_ingest(
         None, lambda: _load_hashtag_yields_all_sync(client)
     )
 
+    # Wall-clock deadline: stop between niche batches, never mid-niche.
+    # A 2-minute safety buffer ensures we return before Cloud Run kills the container.
+    _BUDGET_SAFETY_BUFFER_S = 120
+    t0 = time.monotonic()
+
     with ensemble.ed_batch_metering() as batch_id, ensemble.ed_call_site("corpus_ingest.batch"):
         # Process niches in batches of BATCH_CONCURRENCY to avoid overwhelming APIs
         for i in range(0, len(niches), BATCH_CONCURRENCY):
+            # Wall-clock guard — stop between batches so record_job_run can write
+            if wall_clock_budget_s > 0:
+                elapsed = time.monotonic() - t0
+                remaining = wall_clock_budget_s - _BUDGET_SAFETY_BUFFER_S - elapsed
+                if remaining <= 0:
+                    niches_left = len(niches) - i
+                    summary.aborted_early = True
+                    summary.niches_remaining = niches_left
+                    logger.warning(
+                        "[corpus] Wall-clock budget exhausted after %.0fs — stopping before "
+                        "niche batch %d/%d (%d niches remaining). "
+                        "Increase wall_clock_budget_s or reduce BATCH_VIDEOS_PER_NICHE.",
+                        elapsed,
+                        i // BATCH_CONCURRENCY + 1,
+                        -(-len(niches) // BATCH_CONCURRENCY),
+                        niches_left,
+                    )
+                    break
             batch = niches[i : i + BATCH_CONCURRENCY]
             results = await asyncio.gather(
                 *[
@@ -2572,48 +2610,60 @@ async def run_batch_ingest(
                     "errors": res.errors,
                 })
 
-        # Refresh materialized view once all niches are done
-        summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
-
-        # Daily: refresh Video Đáng Học rankings
-        try:
-            from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
-
-            vdh_result = await run_video_dang_hoc(client)
-            logger.info(
-                "[video_dang_hoc] bung_no=%d dang_hot=%d errors=%s",
-                vdh_result.bung_no_count,
-                vdh_result.dang_hot_count,
-                vdh_result.errors or "none",
+        if summary.aborted_early:
+            logger.warning(
+                "[corpus] Skipping post-processing (mv refresh, video_dang_hoc, "
+                "sound insights, weekly analytics) due to wall-clock budget."
             )
-        except Exception as exc:
-            logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
+        else:
+            # Refresh materialized view once all niches are done
+            summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
 
-        # Daily: Layer 0B — emerging sound insights
-        try:
-            from getviews_pipeline.layer0_sound import run_sound_insights
+        # Daily: refresh Video Đáng Học rankings — skip if aborted early
+        if not summary.aborted_early:
+            try:
+                from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
 
-            l0b_result = await run_sound_insights(client)
-            logger.info("[layer0b] sounds_analyzed=%d", l0b_result.get("analyzed", 0))
-        except Exception as exc:
-            logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
+                vdh_result = await run_video_dang_hoc(client)
+                logger.info(
+                    "[video_dang_hoc] bung_no=%d dang_hot=%d errors=%s",
+                    vdh_result.bung_no_count,
+                    vdh_result.dang_hot_count,
+                    vdh_result.errors or "none",
+                )
+            except Exception as exc:
+                logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
 
-        # Weekly analytics (Sunday only — day 6 in Python's weekday())
+        # Daily: Layer 0B — emerging sound insights — skip if aborted early
+        if not summary.aborted_early:
+            try:
+                from getviews_pipeline.layer0_sound import run_sound_insights
+
+                l0b_result = await run_sound_insights(client)
+                logger.info("[layer0b] sounds_analyzed=%d", l0b_result.get("analyzed", 0))
+            except Exception as exc:
+                logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
+
+        # Weekly analytics (Sunday only — day 6 in Python's weekday()) — skip if aborted
         today = date.today()
         is_sunday = today.weekday() == 6
-        if is_sunday:
+        if is_sunday and not summary.aborted_early:
             logger.info(
                 "[corpus] Sunday — running weekly analytics (trend_velocity + P1-7 + P1-8)..."
             )
             await _run_weekly_analytics(client)
 
         logger.info(
-            "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d mv_refreshed=%s",
+            "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d "
+            "mv_refreshed=%s aborted_early=%s niches_remaining=%d elapsed=%.0fs",
             summary.total_inserted,
             summary.total_skipped,
             summary.total_failed,
             summary.niches_processed,
             summary.materialized_view_refreshed,
+            summary.aborted_early,
+            summary.niches_remaining,
+            time.monotonic() - t0,
         )
         logger.info(
             ensemble.format_ed_meter_summary(

@@ -43,6 +43,16 @@ class BatchIngestRequest(StrictBody):
             "a prior candidate pool after outages (e.g. Gemini model 404s)."
         ),
     )
+    wall_clock_budget_s: int = Field(
+        default=3000,
+        ge=0,
+        description=(
+            "Stop processing niches after this many seconds to avoid the Cloud Run "
+            "request timeout (3600s). A 120s safety buffer is applied internally so "
+            "the function always returns before the container is killed. "
+            "Set to 0 to disable (manual ops only — never for scheduled cron)."
+        ),
+    )
 
 
 class BatchReingestVideosRequest(StrictBody):
@@ -98,15 +108,21 @@ async def batch_ingest(
     from getviews_pipeline.supabase_client import get_service_client
 
     logger.info(
-        "POST /batch/ingest triggered — niche_ids=%s deep_pool=%s",
+        "POST /batch/ingest triggered — niche_ids=%s deep_pool=%s wall_clock_budget_s=%d",
         body.niche_ids,
         body.deep_pool,
+        body.wall_clock_budget_s,
     )
     async with record_job_run(get_service_client(), "batch/ingest") as obs_summary:
         obs_summary["niche_ids"] = body.niche_ids
         obs_summary["deep_pool"] = body.deep_pool
+        obs_summary["wall_clock_budget_s"] = body.wall_clock_budget_s
         try:
-            summary = await run_batch_ingest(niche_ids=body.niche_ids, deep_pool=body.deep_pool)
+            summary = await run_batch_ingest(
+                niche_ids=body.niche_ids,
+                deep_pool=body.deep_pool,
+                wall_clock_budget_s=body.wall_clock_budget_s,
+            )
         except EnsembleDailyBudgetExceeded as exc:
             logger.error("Batch ingest aborted (ED daily budget): %s", exc)
             raise HTTPException(
@@ -123,6 +139,8 @@ async def batch_ingest(
             "total_failed": summary.total_failed,
             "niches_processed": summary.niches_processed,
             "materialized_view_refreshed": summary.materialized_view_refreshed,
+            "aborted_early": summary.aborted_early,
+            "niches_remaining": summary.niches_remaining,
         })
 
     return JSONResponse({
@@ -132,6 +150,8 @@ async def batch_ingest(
         "total_failed": summary.total_failed,
         "niches_processed": summary.niches_processed,
         "materialized_view_refreshed": summary.materialized_view_refreshed,
+        "aborted_early": summary.aborted_early,
+        "niches_remaining": summary.niches_remaining,
         "niche_results": summary.niche_results,
     })
 
