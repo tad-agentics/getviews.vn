@@ -90,8 +90,8 @@ todos:
     content: "ME-16 (was ME-11): Split post-processing (MV refresh, video_dang_hoc, layer0_sound) into separate cron at 23:30 UTC"
     status: completed
   - id: me17
-    content: "ME-17 (NEW): Backfill admin endpoint to re-classify the 46K existing video_corpus rows (text-only Gemini call passing existing analysis JSON) at controlled rate over ~14 nights; populates content_context + niche_classification on legacy rows so corpus is not bimodal. **Shipped:** `classification_backfill.py`, `/admin/backfill-classification`, `/batch/backfill-classification`, pg_cron migration `20260720000000_cron_batch_backfill_classification.sql`. **Ops:** `COUNT(*) WHERE niche_resolution_source IS NULL` → 0 over ~14 nights."
-    status: completed
+    content: "ME-17: Legacy `video_corpus` rows — text-only Gemini on stored `analysis_json`; fills `content_context` + `niche_classification` + shadow columns. **Dev on main:** `classification_backfill.py`, `/admin/backfill-classification`, `/batch/backfill-classification`, migration `20260720000000_cron_batch_backfill_classification.sql` (cron `cron-backfill-classification`). **Gantt:** starts after **HI-11 flip** (`hi11flip`), ~**14d** nightly drain. **Todo `pending` until:** flip applied per deploy gate + ops proof — `SELECT COUNT(*) FROM video_corpus WHERE niche_resolution_source IS NULL` → ~0 (stable), not merely “endpoint deployed.”"
+    status: pending
   - id: doc1
     content: "DOC-1 (NEW): Documentation sweep — update artifacts/docs/system-design.md (post-HI-11 architecture diagram + two-axis Gemini-driven flow), CLAUDE.md (state of niche model section), .cursor/rules/project.mdc (key constraints, LLM rules), artifacts/docs/changelog.md (per-item entries), artifacts/docs/two-axis-niche-cutover-runbook.md (HI-11 shadow→flip procedure), artifacts/plans/project-plan.md (phase tracker). Runs at end of each Sprint as a checkpoint, plus one final consolidation after HI-11 routing flip."
     status: pending
