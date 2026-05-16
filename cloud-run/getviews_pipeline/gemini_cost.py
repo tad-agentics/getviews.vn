@@ -187,6 +187,11 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, ModelPrice] = {
 
 UNKNOWN_MODEL_PRICE = ModelPrice(0.0, 0.0)
 
+# Context-cached prompt tokens bill at a fraction of standard input price
+# (Gemini 3.x developer pricing table — verify periodically).
+# Billable input tokens equivalent: (tokens_in - cached) + cached * this fraction.
+GEMINI_CACHED_PROMPT_COST_FRACTION = 0.25
+
 
 def price_for_model(model_name: str, *, batch: bool = False) -> ModelPrice:
     """Strip version/date qualifiers and look up the base model price.
@@ -225,35 +230,45 @@ def estimate_cost(
     tokens_in: int,
     tokens_out: int,
     batch: bool = False,
+    cached_prompt_tokens: int = 0,
 ) -> float:
-    """USD cost for a single ``generate_content`` or batch-line response."""
+    """USD cost for a single ``generate_content`` or batch-line response.
+
+    When ``cached_prompt_tokens > 0`` (subset of ``tokens`` billed at context-cache
+    rate), input cost uses ``GEMINI_CACHED_PROMPT_COST_FRACTION`` for that slice.
+    """
     price = price_for_model(model_name, batch=batch)
+    c = max(0, min(int(cached_prompt_tokens), int(tokens_in)))
+    frac = GEMINI_CACHED_PROMPT_COST_FRACTION
+    billable_in_tokens = float(tokens_in - c) + float(c) * frac
     return (
-        tokens_in * price.tokens_in_per_mtok / 1_000_000
+        billable_in_tokens * price.tokens_in_per_mtok / 1_000_000
         + tokens_out * price.tokens_out_per_mtok / 1_000_000
     )
 
 
-def extract_usage(response: Any) -> tuple[int, int]:
-    """Pull ``(tokens_in, tokens_out)`` from a genai response.
+def extract_usage_detail(response: Any) -> tuple[int, int, int]:
+    """``(tokens_in, tokens_out, cached_content_token_count)`` from a genai response.
 
-    The shape is ``response.usage_metadata.prompt_token_count`` and
-    ``candidates_token_count``. Either can be missing on error responses
-    or fallback models that don't populate usage — defaults to zero.
+    ``cached_content_token_count`` comes from ``cached_content_token_count`` on
+    usage metadata (HI-8 explicit cache verification). Defaults to 0 when absent.
 
-    ``thoughts_token_count`` is Gemini 3's reasoning-token counter; those
-    tokens bill at the full output rate but the SDK reports them in a
-    separate field. Fold them into ``tokens_out`` so ``cost_usd`` matches
-    what Google actually bills. (Skipping these is the other half of the
-    ~10× undercount in ``gemini_calls.cost_usd`` vs. the Tier-1 console.)
+    ``thoughts_token_count`` is folded into ``tokens_out`` (output rate).
     """
     meta = getattr(response, "usage_metadata", None)
     if meta is None:
-        return (0, 0)
+        return (0, 0, 0)
     tokens_in = int(getattr(meta, "prompt_token_count", 0) or 0)
     tokens_out = int(getattr(meta, "candidates_token_count", 0) or 0)
     tokens_thoughts = int(getattr(meta, "thoughts_token_count", 0) or 0)
-    return (tokens_in, tokens_out + tokens_thoughts)
+    tcached = int(getattr(meta, "cached_content_token_count", 0) or 0)
+    return (tokens_in, tokens_out + tokens_thoughts, tcached)
+
+
+def extract_usage(response: Any) -> tuple[int, int]:
+    """Backward-compatible ``(tokens_in, tokens_out)`` — ignores cache token split."""
+    tin, tout, _ = extract_usage_detail(response)
+    return (tin, tout)
 
 
 # ── Async log writer ─────────────────────────────────────────────────────────
@@ -314,6 +329,7 @@ def log_gemini_call(
     success: bool = True,
     error_code: str | None = None,
     used_context_cache: bool | None = None,
+    cached_content_token_count: int = 0,
     gcp_stt_cost_usd: float | None = None,
     is_batch: bool = False,
 ) -> float:
@@ -326,12 +342,20 @@ def log_gemini_call(
     name) and typically have ``tokens_in=tokens_out=0, duration_ms=<retry
     time>, cost_usd=0``. See ``log_gemini_failure`` for the convenience
     wrapper used by ``gemini.py``'s exhausted-retry path.
+
+    ``cached_content_token_count`` — subset of ``tokens_in`` billed at the
+    context-cache rate (HI-8); forwarded to ``estimate_cost`` and
+    ``gemini_calls.cached_content_token_count``.
     """
+    c_cache = max(0, int(cached_content_token_count))
+    if c_cache > 0:
+        used_context_cache = True
     cost_usd = round(estimate_cost(
         model_name=model_name,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
         batch=is_batch,
+        cached_prompt_tokens=c_cache,
     ), 6)
 
     # Structured log — queryable in Cloud Logging.
@@ -344,6 +368,7 @@ def log_gemini_call(
         "model_name": model_name,
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
+        "cached_content_token_count": c_cache,
         "cost_usd": cost_usd,
         "duration_ms": duration_ms,
         "session_id": session_id,
@@ -371,6 +396,7 @@ def log_gemini_call(
         "success": success,
         "error_code": error_code,
         "is_batch": is_batch,
+        "cached_content_token_count": c_cache,
     }
     if gcp_stt_cost_usd is not None:
         row["gcp_stt_cost_usd"] = gcp_stt_cost_usd

@@ -7,15 +7,11 @@ Three invariants locked:
    model names (e.g. `gemini-3-flash-preview-04-2026`) still resolve to
    the right base price.
 
-2. `extract_usage` — a real genai response's `usage_metadata` yields
-   the correct `(tokens_in, tokens_out)` tuple, and a response without
-   the metadata attribute (error paths, mocked fallback models) yields
-   zeros without throwing.
+2. `extract_usage` / `extract_usage_detail` — usage_metadata yields correct
+   tuples; missing metadata yields zeros.
 
-3. `log_gemini_call` — builds the row payload the migration expects
-   (matching column names + types) and computes cost consistently with
-   `estimate_cost` in isolation. The Supabase insert is mocked so the
-   test stays offline.
+3. `log_gemini_call` — row includes ``cached_content_token_count`` and cost
+   uses ``estimate_cost(..., cached_prompt_tokens=...)`` when set.
 """
 
 from __future__ import annotations
@@ -32,6 +28,7 @@ from getviews_pipeline.gemini_cost import (
     UNKNOWN_MODEL_PRICE,
     estimate_cost,
     extract_usage,
+    extract_usage_detail,
     log_gemini_call,
     log_gemini_failure,
     price_for_model,
@@ -111,6 +108,32 @@ class TestEstimateCost:
         )
         assert cost_batch == pytest.approx(cost_sync * 0.5, rel=1e-9)
 
+    def test_cached_prompt_tokens_reduce_billable_input_flash(self) -> None:
+        # 1000 in, 500 cached @ 0.25 of input rate ⇒ billable in-equivalent 625.
+        # flash: $0.50/M in, $3/M out → 625/1e6*0.5 + 200/1e6*3
+        cost = estimate_cost(
+            model_name="gemini-3.1-flash",
+            tokens_in=1000,
+            tokens_out=200,
+            cached_prompt_tokens=500,
+        )
+        expected = (500 + 500 * 0.25) / 1_000_000 * 0.50 + 200 / 1_000_000 * 3.00
+        assert cost == pytest.approx(expected, rel=1e-9)
+
+    def test_cached_prompt_tokens_with_batch_flag(self) -> None:
+        cost = estimate_cost(
+            model_name="gemini-3.1-flash-lite",
+            tokens_in=1_000_000,
+            tokens_out=100_000,
+            batch=True,
+            cached_prompt_tokens=400_000,
+        )
+        # Batch halves per-mtok; billable in = 600k + 400k*0.25 = 700k
+        p_in = 0.125
+        p_out = 0.75
+        expected = 700_000 / 1_000_000 * p_in + 100_000 / 1_000_000 * p_out
+        assert cost == pytest.approx(expected, rel=1e-9)
+
     def test_unknown_model_costs_nothing_but_does_not_raise(self) -> None:
         cost = estimate_cost(
             model_name="made-up-model",
@@ -169,6 +192,16 @@ class TestExtractUsage:
         )
         assert extract_usage(response) == (1000, 1000)
 
+    def test_extract_usage_detail_includes_cached_content_tokens(self) -> None:
+        response = SimpleNamespace(
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=2000,
+                candidates_token_count=100,
+                cached_content_token_count=800,
+            )
+        )
+        assert extract_usage_detail(response) == (2000, 100, 800)
+
 
 class TestLogGeminiCall:
     def test_inserts_row_matching_migration_columns(self) -> None:
@@ -204,11 +237,46 @@ class TestLogGeminiCall:
         assert captured["duration_ms"] == 450
         assert captured["session_id"] == "sess-xyz"
         assert captured.get("is_batch") is False
+        assert captured.get("cached_content_token_count") == 0
         # Cost is computed consistently with estimate_cost (1k in + 2k out
         # on gemini-3-flash-preview = $0.0005 + $0.0060 = $0.0065).
         # Official pricing: $0.50/M in, $3.00/M out.
         assert captured["cost_usd"] == pytest.approx(0.0065, rel=1e-9)
         assert cost == pytest.approx(0.0065, rel=1e-9)
+
+    def test_cached_content_token_count_row_and_cost(self) -> None:
+        captured: dict[str, Any] = {}
+        with patch(
+            "getviews_pipeline.gemini_cost._insert_row",
+            side_effect=lambda row: captured.update(row),
+        ):
+            log_gemini_call(
+                user_id=None,
+                call_site="video_extraction_batch",
+                model_name="gemini-3.1-flash-lite",
+                tokens_in=1000,
+                tokens_out=100,
+                duration_ms=0,
+                cached_content_token_count=400,
+                is_batch=True,
+            )
+            for _ in range(50):
+                if "call_site" in captured:
+                    break
+                time.sleep(0.01)
+        assert captured["cached_content_token_count"] == 400
+        # billable in = 600 + 400*0.25 = 700 @ batch in 0.125/M
+        expected = round(
+            estimate_cost(
+                model_name="gemini-3.1-flash-lite",
+                tokens_in=1000,
+                tokens_out=100,
+                batch=True,
+                cached_prompt_tokens=400,
+            ),
+            6,
+        )
+        assert captured["cost_usd"] == pytest.approx(expected, rel=1e-9)
 
     def test_inserts_gcp_stt_cost_when_provided(self) -> None:
         captured: dict[str, Any] = {}

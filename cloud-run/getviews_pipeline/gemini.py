@@ -208,11 +208,26 @@ def _extraction_json_config(schema: dict[str, Any]) -> types.GenerateContentConf
     return types.GenerateContentConfig(**updates)
 
 
-_EXTRACTION_CONTEXT_CACHE_SLOT: dict[str, dict[str, str | None]] = {
-    "video": {"sig": None, "name": None},
-    "carousel": {"sig": None, "name": None},
+_EXTRACTION_CONTEXT_CACHE_SLOT: dict[str, dict[str, Any]] = {
+    "video": {"sig": None, "name": None, "created_monotonic": None},
+    "carousel": {"sig": None, "name": None, "created_monotonic": None},
 }
 _EXTRACTION_CONTEXT_CACHE_LOCK = threading.Lock()
+
+
+def _extraction_context_cache_max_age_sec() -> float:
+    """Age after ``caches.create`` when we force refresh (HI-8 batch runway).
+
+    Google measures TTL from cache creation. Batch poll-max (40m) plus prep/queue
+    can exceed a naive reuse of an hour-old slot — recreate with a 600s margin
+    before nominal expiry. If ``GEMINI_CONTEXT_CACHE_TTL_SEC`` is too small for
+    that margin, fall back to half the TTL.
+    """
+    ttl_s = max(1, int(GEMINI_CONTEXT_CACHE_TTL_SEC))
+    raw = float(ttl_s) - 600.0
+    if raw <= 0:
+        return max(1.0, float(ttl_s) * 0.5)
+    return raw
 
 
 def _extraction_context_cache_signature(kind: str, system_text: str) -> str:
@@ -230,17 +245,28 @@ def _get_extraction_cached_content_name(client: Any, kind: str, system_text: str
     if not GEMINI_EXTRACTION_CONTEXT_CACHE or not GEMINI_API_KEY:
         return None
     sig = _extraction_context_cache_signature(kind, system_text)
+    max_age = _extraction_context_cache_max_age_sec()
     with _EXTRACTION_CONTEXT_CACHE_LOCK:
         slot = _EXTRACTION_CONTEXT_CACHE_SLOT[kind]
-        if slot["name"] and slot["sig"] == sig:
+        created = slot.get("created_monotonic")
+        if (
+            slot.get("name")
+            and slot.get("sig") == sig
+            and created is not None
+            and (time.monotonic() - float(created)) < max_age
+        ):
             return str(slot["name"])
+        slot["name"] = None
+        slot["sig"] = None
+        slot["created_monotonic"] = None
+    ttl_s = max(1, int(GEMINI_CONTEXT_CACHE_TTL_SEC))
     try:
         cc = client.caches.create(
             model=GEMINI_EXTRACTION_MODEL,
             config=types.CreateCachedContentConfig(
                 display_name=f"gv-extract-{kind}-hi8",
                 system_instruction=system_text,
-                ttl="3600s",
+                ttl=f"{ttl_s}s",
             ),
         )
         name = cc.name
@@ -250,6 +276,7 @@ def _get_extraction_cached_content_name(client: Any, kind: str, system_text: str
             slot = _EXTRACTION_CONTEXT_CACHE_SLOT[kind]
             slot["sig"] = sig
             slot["name"] = name
+            slot["created_monotonic"] = time.monotonic()
         logger.info("[gemini] explicit context cache created name=%s kind=%s", name, kind)
         return name
     except Exception as exc:  # noqa: BLE001
@@ -437,7 +464,7 @@ def _generate_content_models(
     """
     from getviews_pipeline.gemini_cost import (
         check_gemini_daily_budget,
-        extract_usage,
+        extract_usage_detail,
         log_gemini_call,
         log_gemini_failure,
     )
@@ -520,10 +547,8 @@ def _generate_content_models(
                 ):
                     response = client.models.generate_content(**kwargs)
                 duration_ms = int((time.monotonic() - started) * 1000)
-                tokens_in, tokens_out = extract_usage(response)
-                used_ctx_cache: bool | None = None
-                if apply_synthesis_static_system:
-                    used_ctx_cache = bool(getattr(effective_config, "cached_content", None))
+                tokens_in, tokens_out, tcached = extract_usage_detail(response)
+                used_ctx_cache = bool(getattr(effective_config, "cached_content", None))
                 log_gemini_call(
                     user_id=user_id,
                     call_site=call_site,
@@ -533,6 +558,7 @@ def _generate_content_models(
                     duration_ms=duration_ms,
                     session_id=session_id,
                     used_context_cache=used_ctx_cache,
+                    cached_content_token_count=tcached,
                     gcp_stt_cost_usd=gcp_stt_cost_usd,
                 )
                 return response
@@ -1578,10 +1604,10 @@ def build_video_corpus_batch_jsonl_record(
     return {"key": video_id, "request": request_body}
 
 
-def _usage_from_batch_response_dict(resp: dict[str, Any]) -> tuple[int, int]:
+def _usage_from_batch_response_dict(resp: dict[str, Any]) -> tuple[int, int, int]:
     um = resp.get("usageMetadata") or resp.get("usage_metadata") or {}
     if not isinstance(um, dict):
-        return (0, 0)
+        return (0, 0, 0)
     tin = int(um.get("promptTokenCount") or um.get("prompt_token_count") or 0)
     tout = int(
         um.get("candidatesTokenCount") or um.get("candidates_token_count") or 0
@@ -1589,7 +1615,10 @@ def _usage_from_batch_response_dict(resp: dict[str, Any]) -> tuple[int, int]:
     tthought = int(
         um.get("thoughtsTokenCount") or um.get("thoughts_token_count") or 0
     )
-    return (tin, tout + tthought)
+    tcached = int(
+        um.get("cachedContentTokenCount") or um.get("cached_content_token_count") or 0
+    )
+    return (tin, tout + tthought, tcached)
 
 
 def _text_from_batch_response_dict(resp: dict[str, Any]) -> str:
@@ -1610,21 +1639,21 @@ def _text_from_batch_response_dict(resp: dict[str, Any]) -> str:
 
 def _parse_batch_output_jsonl_line(
     line_obj: dict[str, Any],
-) -> tuple[str | None, str | None, str | None, int, int]:
-    """``(video_id, text, error, tokens_in, tokens_out)`` for one results line."""
+) -> tuple[str | None, str | None, str | None, int, int, int]:
+    """``(..., tokens_in, tokens_out, cached_content_token_count)`` per results line."""
     raw_key = line_obj.get("key")
     key = str(raw_key) if raw_key is not None else None
     err = line_obj.get("error")
     if err is not None:
-        return key, None, str(err), 0, 0
+        return key, None, str(err), 0, 0, 0
     resp = line_obj.get("response")
     if not isinstance(resp, dict):
-        return key, None, "missing_response", 0, 0
-    tin, tout = _usage_from_batch_response_dict(resp)
+        return key, None, "missing_response", 0, 0, 0
+    tin, tout, tcached = _usage_from_batch_response_dict(resp)
     text = _text_from_batch_response_dict(resp)
     if not text.strip():
-        return key, None, "empty_response_text", tin, tout
-    return key, text, None, tin, tout
+        return key, None, "empty_response_text", tin, tout, tcached
+    return key, text, None, tin, tout, tcached
 
 
 def run_corpus_extraction_batch_file_job(
@@ -1673,6 +1702,23 @@ def run_corpus_extraction_batch_file_job(
             model=GEMINI_EXTRACTION_MODEL,
             src=uploaded_jsonl.name,
             config={"display_name": display_name},
+        )
+        req0 = records[0].get("request") if records else None
+        cfg0 = (req0 or {}).get("config") if isinstance(req0, dict) else None
+        cc_ref = None
+        if isinstance(cfg0, dict):
+            cc_ref = cfg0.get("cached_content") or cfg0.get("cachedContent")
+        logger.info(
+            "[gemini] corpus extraction batch submitted",
+            extra={
+                "event": "gemini_batch_submit",
+                "display_name": display_name,
+                "batch_job_name": getattr(batch_job, "name", None),
+                "model_name": GEMINI_EXTRACTION_MODEL,
+                "n_records": len(records),
+                "used_context_cache": bool(cc_ref),
+                "context_cache_name": cc_ref,
+            },
         )
         job_name = batch_job.name
         if not job_name:
@@ -1741,7 +1787,7 @@ def run_corpus_extraction_batch_file_job(
                 continue
             if not isinstance(obj, dict):
                 continue
-            vid_k, resp_text, err_k, tin, tout = _parse_batch_output_jsonl_line(obj)
+            vid_k, resp_text, err_k, tin, tout, tcached = _parse_batch_output_jsonl_line(obj)
             if not vid_k:
                 continue
             if err_k or not resp_text:
@@ -1750,6 +1796,7 @@ def run_corpus_extraction_batch_file_job(
                     "error": err_k or "no_text",
                     "tokens_in": tin,
                     "tokens_out": tout,
+                    "cached_content_token_count": tcached,
                 }
                 continue
             by_video_id[vid_k] = {
@@ -1757,6 +1804,7 @@ def run_corpus_extraction_batch_file_job(
                 "text": resp_text,
                 "tokens_in": tin,
                 "tokens_out": tout,
+                "cached_content_token_count": tcached,
             }
             stt_usd = stt_map.get(vid_k)
             log_gemini_call(
@@ -1766,6 +1814,8 @@ def run_corpus_extraction_batch_file_job(
                 tokens_in=tin,
                 tokens_out=tout,
                 duration_ms=0,
+                used_context_cache=bool(cc_ref) or tcached > 0,
+                cached_content_token_count=tcached,
                 gcp_stt_cost_usd=stt_usd,
                 is_batch=True,
             )

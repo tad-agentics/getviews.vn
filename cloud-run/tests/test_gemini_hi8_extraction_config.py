@@ -37,3 +37,17 @@ def test_extraction_config_uses_cached_content_when_available() -> None:
             system_text="x",
         )
     assert cfg.cached_content == "cachedContents/abc123"
+
+
+def test_batch_response_usage_includes_cached_content_tokens() -> None:
+    from getviews_pipeline.gemini import _usage_from_batch_response_dict
+
+    resp = {
+        "usageMetadata": {
+            "promptTokenCount": 900,
+            "candidatesTokenCount": 50,
+            "cachedContentTokenCount": 200,
+            "thoughtsTokenCount": 25,
+        }
+    }
+    assert _usage_from_batch_response_dict(resp) == (900, 75, 200)
