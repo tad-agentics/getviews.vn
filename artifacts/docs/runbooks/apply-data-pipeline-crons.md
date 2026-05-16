@@ -207,7 +207,7 @@ SELECT cron.schedule(
       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
     ),
     body := '{}'::jsonb,
-    timeout_milliseconds := 300000
+    timeout_milliseconds := 3120000
   );
   $cmd$
 );

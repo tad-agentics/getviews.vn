@@ -77,7 +77,7 @@
 --       'X-Batch-Secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cloud_run_batch_secret')
 --     ),
 --     body := '{}'::jsonb,
---     timeout_milliseconds := 300000  -- 5 min; ingest can be slow under EnsembleData rate limits
+--     timeout_milliseconds := 3120000  -- 52 min; match /batch/ingest wall-clock budget (was 5 min; see CR-2 migration)
 --   );
 --   $cmd$
 -- );

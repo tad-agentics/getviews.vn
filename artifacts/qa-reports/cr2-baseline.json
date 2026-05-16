@@ -1,0 +1,43 @@
+{
+  "feature": "CR-2",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "passResults": {
+    "pgNetTimeout52Min": "PASS",
+    "migrationIdempotentNoJob": "PASS",
+    "runbookSnippetSync": "PASS",
+    "rootMigrationCommentSync": "PASS",
+    "npmTypecheck": "PASS",
+    "cloudRunPytest": "PASS"
+  },
+  "findings": [],
+  "categoryScores": {
+    "correctness": 100,
+    "operability": 100,
+    "testCoverage": 100
+  },
+  "evidence": {
+    "implementation": [
+      "20260516150000_cr2_cron_batch_ingest_http_timeout.sql: net.http_post(..., timeout_milliseconds := 3120000) inside cron.alter_job; FROM cron.job j WHERE j.jobname = 'cron-batch-ingest' (zero rows = no-op)",
+      "20260509000001_pg_cron_data_pipeline.sql: commented cron-batch-ingest snippet documents timeout_milliseconds := 3120000 (52 min) and CR-2 reference"
+    ],
+    "docs": [
+      "artifacts/docs/runbooks/apply-data-pipeline-crons.md Step 4 cron-batch-ingest block: timeout_milliseconds := 3120000"
+    ],
+    "tests": [
+      "npm run typecheck: exit 0",
+      "cloud-run pytest: 1918 passed, 2 skipped"
+    ],
+    "postDeploy": [
+      "Operators should run: SELECT jobname, schedule, command FROM cron.job WHERE jobname = 'cron-batch-ingest'; command must contain 3120000 (documented in new migration header)"
+    ]
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}

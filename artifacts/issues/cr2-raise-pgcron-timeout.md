@@ -1,6 +1,6 @@
 # CR-2 — Raise pg_cron cron-batch-ingest HTTP timeout
 
-- **Status:** Pending
+- **Status:** Done (2026-05-16)
 - **Severity:** (see plan body)
 - **Sprint:** Sprint 1 — CRITICAL
 - **Discovered:** 2026-05-16 — deep pipeline audit + conflict review
