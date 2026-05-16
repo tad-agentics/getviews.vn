@@ -4,28 +4,28 @@ overview: Remediate 30 quality + cost items from the deep audit (14 surviving or
 todos:
   - id: create-issue-files
     content: Create artifacts/issues/ directory + 28 issue tracking files (one per CR/HI/ME/EXP/research/DOC finding) using standard template
-    status: pending
+    status: completed
   - id: cr1
     content: "CR-1: Paginate _existing_video_ids_sync via .range() and lift to single snapshot per run_batch_ingest"
-    status: pending
+    status: completed
   - id: cr2
     content: "CR-2: Raise pg_cron cron-batch-ingest timeout to 3120000ms via Supabase MCP + write migration"
-    status: pending
+    status: completed
   - id: cr3
     content: "CR-3: Replace mid-loop niche_id mutation with effective_niche_id local at corpus_ingest.py:1929 and 2002"
-    status: pending
+    status: completed
   - id: cr4
     content: "CR-4: Add atexit drain hook for daemon-thread loggers in gemini_cost.py and ensemble.py"
-    status: pending
+    status: completed
   - id: hi5
     content: "HI-5: Switch extract_video_errors to GEMINI_EXTRACTION_MODEL + thinking_budget=0 + call_site label"
-    status: pending
+    status: completed
   - id: hi6
     content: "HI-6: Add call_site= label to all 19 unlabeled Gemini call sites"
-    status: pending
+    status: completed
   - id: hi7
     content: "HI-7: Fix gemini_text_only kwarg crash in report_generic_gemini.py:104 + add unit test"
-    status: pending
+    status: completed
   - id: hi8
     content: "HI-8: Move _DOMAIN_KNOWLEDGE + voice block + channel diagnosis prompt to system_instruction; add Gemini context caching"
     status: completed
@@ -40,10 +40,10 @@ todos:
     status: pending
   - id: hi12
     content: "HI-12 (NEW, blocker for HI-11): Fix wellness creator_niche=10 BE/FE mapping mismatch (Python maps 10→26, TS returns null at profileNiches.ts:102) + add creator_niche_id_for_legacy_niche() inverse helper in Python and TS. Must land before HI-11 routing flip."
-    status: pending
+    status: completed
   - id: research-batch-api
     content: "RESEARCH (gate for HI-13): Verify Gemini Batch API supports our extraction shape — google-genai SDK batch endpoint, Files API video uploads in batch mode, response_json_schema in batch, thinking_budget=0 + system_instruction passthrough, per-video failure semantics, actual measured latency (must complete within nightly ingest window), confirmed 50% pricing on video frame tokens. Output: artifacts/integrations/gemini-batch-api.md with go/no-go recommendation."
-    status: pending
+    status: completed
   - id: hi13
     content: "HI-13 (TENTATIVE — conditional on research-batch-api): Route batch corpus ingest through Gemini Batch API for 50% input+output discount. Live SSE keeps real-time Files API path. Implementation: use_batch_api flag on analyze_video; corpus_ingest.py polls + retrieves results; per-video failure handling preserves retry/backoff at job level. Skip if research surfaces blockers (latency overrun, schema gap, or pricing exclusions)."
     status: pending
@@ -61,7 +61,7 @@ todos:
     status: pending
   - id: hi18
     content: "HI-18 (NEW, makes HI-9 valuable): Wire HI-9 enrichment into downstream consumers — (a) update output_redesign.build_diagnosis_narrative_prompt to cite content_context + niche_classification in instructions; (b) extend services/extraction.extract_video_errors VideoErrorsExtractionInput with content_context.subject_matter + niche_classification.creator_niche_slug for niche-aware error detection; (c) inject content_context.subject_matter into morning_ritual._build_prompt + pattern_deck_synth._build_prompt few-shot. pattern_fingerprint hash change deferred to EXP-2."
-    status: pending
+    status: completed
   - id: me18
     content: "ME-18 (NEW): Audit carousel ingestion ratio — query video_corpus for current carousel:video ratio per niche; cross-check against EnsembleData trending feeds for real-world prevalence; tune BATCH_CAROUSELS_PER_NICHE per niche (currently uniform 3) so high-carousel niches like beauty/fashion/lifestyle get proportional sampling."
     status: pending
@@ -79,16 +79,16 @@ todos:
     status: pending
   - id: me12
     content: "ME-12: Replace O(N^2) carousel dedup at corpus_ingest.py:1984 with set-based check"
-    status: pending
+    status: completed
   - id: me14
     content: "ME-14: Implement niche-aware dynamic few-shot in morning_ritual.py:200"
-    status: pending
+    status: completed
   - id: me15
     content: "ME-15: Log failed Gemini retry attempts as zero-token rows tagged with attempt=N in _generate_content_models"
-    status: pending
+    status: completed
   - id: me16
     content: "ME-16 (was ME-11): Split post-processing (MV refresh, video_dang_hoc, layer0_sound) into separate cron at 23:30 UTC"
-    status: pending
+    status: completed
   - id: me17
     content: "ME-17 (NEW): Backfill admin endpoint to re-classify the 46K existing video_corpus rows (text-only Gemini call passing existing analysis JSON) at controlled rate over ~14 nights; populates content_context + niche_classification on legacy rows so corpus is not bimodal."
     status: pending
