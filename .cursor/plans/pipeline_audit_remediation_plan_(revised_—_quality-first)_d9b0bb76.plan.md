@@ -45,8 +45,8 @@ todos:
     content: "RESEARCH (gate for HI-13): Verify Gemini Batch API supports our extraction shape — google-genai SDK batch endpoint, Files API video uploads in batch mode, response_json_schema in batch, thinking_budget=0 + system_instruction passthrough, per-video failure semantics, actual measured latency (must complete within nightly ingest window), confirmed 50% pricing on video frame tokens. Output: artifacts/integrations/gemini-batch-api.md with go/no-go recommendation."
     status: completed
   - id: hi13
-    content: "HI-13 (TENTATIVE — conditional on research-batch-api): Route batch corpus ingest through Gemini Batch API for 50% input+output discount. Live SSE keeps real-time Files API path. **Deferred / NO-GO** — `artifacts/integrations/gemini-batch-api.md` checklist not PASS; no batch-ingest implementation on main. Re-open only after research GO."
-    status: pending
+    content: "HI-13 (TENTATIVE — conditional on research-batch-api): Batch corpus ingest via Gemini Batch API (~50% discount); live SSE unchanged. **Outcome: CANCELLED** — research **NO-GO** (`artifacts/integrations/gemini-batch-api.md` checklist not PASS); no implementation on main. **Not queued:** does not mean “blocked pending code” — means closed unless research is re-run and documents **GO** (then add a new tracked item or flip this todo back to `pending`)."
+    status: cancelled
   - id: hi14
     content: "HI-14 (NEW, accuracy lift): Add Google Cloud Speech-to-Text vi-VN supplemental ASR pass before Gemini extraction. Whisper-style transcript injected as prompt context (NOT replacement for video audio). Apply to BOTH batch and live SSE paths. Cache transcript per video_id so multiple Gemini calls reuse one ASR pass. ~$3-8/mo cost, material accuracy lift on audio_transcript + hook_phrase for music-heavy videos."
     status: completed
