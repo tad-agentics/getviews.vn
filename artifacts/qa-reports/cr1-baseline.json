@@ -1,0 +1,41 @@
+{
+  "feature": "CR-1",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "passResults": {
+    "paginatedGlobalLoad": "PASS",
+    "syncDelegate": "PASS",
+    "asyncExecutorPath": "PASS",
+    "ingestNicheSnapshotBranch": "PASS",
+    "runBatchIngestSingleLoad": "PASS",
+    "unitTests": "PASS"
+  },
+  "findings": [],
+  "categoryScores": {
+    "correctness": 100,
+    "performance": 100,
+    "testCoverage": 100
+  },
+  "evidence": {
+    "implementation": [
+      "_load_all_existing_video_ids_sync: paginated loop with .range(offset, offset+page_size-1), page_size=1000, until len(rows)<page_size",
+      "_existing_video_ids_sync delegates to _load_all_existing_video_ids_sync(client)",
+      "_existing_video_ids uses run_in_executor + _load_all_existing_video_ids_sync(client)",
+      "ingest_niche(..., existing_video_ids=) uses snapshot when not None; else legacy one-shot load",
+      "run_batch_ingest: one executor call to _load_all_existing_video_ids_sync before niche batches; passes existing_snapshot to every ingest_niche"
+    ],
+    "tests": [
+      "cloud-run/tests/test_global_dedup_audit.py::test_load_all_existing_video_ids_sync_paginates asserts 1002 ids and range(0,999)/(1000,1999)",
+      "test_global_dedup_audit.py 7 passed (includes global loader source assertions)"
+    ],
+    "callers": "ingest_niche only invoked from run_batch_ingest in repo; all batch paths receive existing_video_ids"
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}

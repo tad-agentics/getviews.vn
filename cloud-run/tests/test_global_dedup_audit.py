@@ -22,6 +22,41 @@ def test_sync_existing_video_ids_is_global():
     )
 
 
+def test_load_all_existing_video_ids_sync_paginates():
+    """CR-1: paginate past PostgREST's default row cap; merge all pages."""
+    from unittest.mock import MagicMock, call
+    from getviews_pipeline.corpus_ingest import _load_all_existing_video_ids_sync
+
+    page = {"i": 0}
+
+    def _execute() -> MagicMock:
+        page["i"] += 1
+        if page["i"] == 1:
+            return MagicMock(data=[{"video_id": str(i)} for i in range(1000)])
+        return MagicMock(data=[{"video_id": "1000"}, {"video_id": "1001"}])
+
+    chain = MagicMock()
+    chain.select.return_value = chain
+    chain.range.return_value = chain
+    chain.execute.side_effect = _execute
+    client = MagicMock()
+    client.table.return_value = chain
+
+    out = _load_all_existing_video_ids_sync(client, page_size=1000)
+    assert len(out) == 1002
+    assert chain.range.call_args_list == [call(0, 999), call(1000, 1999)]
+
+
+def test_load_all_existing_video_ids_sync_is_global():
+    """Loader must not filter by niche_id."""
+    from getviews_pipeline.corpus_ingest import _load_all_existing_video_ids_sync
+
+    source = inspect.getsource(_load_all_existing_video_ids_sync)
+    assert '.eq("niche_id"' not in source, (
+        "_load_all_existing_video_ids_sync must stay global (no per-niche filter)."
+    )
+
+
 def test_upsert_rows_sync_adds_provenance():
     """_upsert_rows_sync must enrich rows with ingest_source + quality_tier before upsert."""
     from getviews_pipeline.corpus_ingest import _upsert_rows_sync

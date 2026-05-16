@@ -359,15 +359,11 @@ async def _existing_video_ids(client: Any, niche_id: int) -> set[str]:
     compatibility but the query is intentionally global. A video can migrate
     between niches during re-indexing; a per-niche check would miss it and
     trigger a redundant Gemini analysis. Global dedup is the correct scope.
-    See ``_existing_video_ids_sync`` for the sync counterpart.
+    See ``_existing_video_ids_sync`` and ``_load_all_existing_video_ids_sync``.
     """
     _ = niche_id  # intentionally global — see docstring
-    result = (
-        client.table("video_corpus")
-        .select("video_id")
-        .execute()
-    )
-    return {row["video_id"] for row in (result.data or [])}
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: _load_all_existing_video_ids_sync(client))
 
 
 # ── Post pool fetch ─────────────────────────────────────────────────────────────
@@ -1849,6 +1845,7 @@ async def ingest_niche(
     carousels_per_niche_override: int | None = None,
     hashtag_yields_for_niche: dict[str, int] | None = None,
     niche_signal_hashtags_by_id: dict[int, list[str]] | None = None,
+    existing_video_ids: set[str] | None = None,
 ) -> IngestResult:
     niche_id: int = niche["id"]
     niche_name: str = niche.get("name_en") or niche.get("name_vn") or str(niche_id)
@@ -1868,9 +1865,12 @@ async def ingest_niche(
         result.failed += 1
         return result
 
-    existing_ids = await asyncio.get_event_loop().run_in_executor(
-        None, lambda: _existing_video_ids_sync(client, niche_id)
-    )
+    if existing_video_ids is not None:
+        existing_ids = existing_video_ids
+    else:
+        existing_ids = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _existing_video_ids_sync(client, niche_id)
+        )
 
     if CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH:
         carousel_pool = await _fetch_carousel_pool(
@@ -2079,6 +2079,37 @@ async def ingest_niche(
     return result
 
 
+def _load_all_existing_video_ids_sync(
+    client: Any,
+    *,
+    page_size: int = 1000,
+) -> set[str]:
+    """Return every ``video_id`` in ``video_corpus`` via paginated ``.range()`` queries.
+
+    PostgREST / Supabase caps ``select`` responses (default 1000 rows). A bare
+    ``.execute()`` without pagination silently truncated dedup (CR-1) so rows
+    beyond the first page were invisible and re-ingested nightly.
+    """
+    out: set[str] = set()
+    offset = 0
+    while True:
+        result = (
+            client.table("video_corpus")
+            .select("video_id")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        rows = result.data or []
+        for row in rows:
+            vid = row.get("video_id")
+            if vid:
+                out.add(str(vid))
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return out
+
+
 def _existing_video_ids_sync(client: Any, niche_id: int) -> set[str]:
     """Return every ``video_id`` already in ``video_corpus`` (any niche).
 
@@ -2094,8 +2125,7 @@ def _existing_video_ids_sync(client: Any, niche_id: int) -> set[str]:
     isolation must understand the wider scope.
     """
     _ = niche_id  # kept on the signature; rows are deduped globally now
-    result = client.table("video_corpus").select("video_id").execute()
-    return {row["video_id"] for row in (result.data or [])}
+    return _load_all_existing_video_ids_sync(client)
 
 
 def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
@@ -2544,6 +2574,16 @@ async def run_batch_ingest(
         None, lambda: _load_hashtag_yields_all_sync(client)
     )
 
+    # CR-1 — single paginated snapshot for the whole run (avoids N parallel
+    # fetches per niche and fixes the silent 1000-row PostgREST cap).
+    existing_snapshot = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: _load_all_existing_video_ids_sync(client),
+    )
+    logger.info(
+        "[corpus] dedup snapshot: %d existing video_ids (paginated global load)",
+        len(existing_snapshot),
+    )
+
     # Wall-clock deadline: stop between niche batches, never mid-niche.
     # A 2-minute safety buffer ensures we return before Cloud Run kills the container.
     _BUDGET_SAFETY_BUFFER_S = 120
@@ -2587,6 +2627,7 @@ async def run_batch_ingest(
                         carousels_per_niche_override=cpn,
                         hashtag_yields_for_niche=hashtag_yields_all.get(int(n["id"]), {}),
                         niche_signal_hashtags_by_id=niche_signal_map,
+                        existing_video_ids=existing_snapshot,
                     )
                     for n in batch
                 ],
