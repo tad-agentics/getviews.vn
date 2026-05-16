@@ -378,18 +378,22 @@ def extract_video_errors(
 ) -> list[dict[str, Any]]:
     """Call 1 — Gemini extracts ``VideoFlopIssue``-shaped errors (+ ``error_id``)."""
 
+    import json as _json
+
     from google.genai import types
 
-    from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
+    from getviews_pipeline.config import (
+        GEMINI_EXTRACTION_FALLBACKS,
+        GEMINI_EXTRACTION_MODEL,
+    )
     from getviews_pipeline.gemini import (
         _generate_content_models,
         _normalize_response,
         _response_text,
     )
 
-    import json as _json
-
-    hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
+    _ha = analysis.get("hook_analysis")
+    hook = _ha if isinstance(_ha, dict) else {}
     niche_summary = _summarise_niche_row(niche_row)
     retention_summary = _summarise_retention_curve(retention_curve)
 
@@ -474,6 +478,7 @@ Ví dụ SAI: "Thêm text overlay" (không có vị trí + không có ví dụ)
         temperature=0.45,
         response_mime_type="application/json",
         response_json_schema=VideoErrorsExtractionLLM.model_json_schema(),
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
     )
     from getviews_pipeline import telemetry
     with telemetry.span(
@@ -483,9 +488,10 @@ Ví dụ SAI: "Thêm text overlay" (không có vị trí + không có ví dụ)
     ):
         response = _generate_content_models(
             [prompt],
-            primary_model=GEMINI_SYNTHESIS_MODEL,
-            fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+            primary_model=GEMINI_EXTRACTION_MODEL,
+            fallbacks=GEMINI_EXTRACTION_FALLBACKS,
             config=config,
+            call_site="extract_video_errors",
         )
     raw = _response_text(response)
     parsed = VideoErrorsExtractionLLM.model_validate_json(_normalize_response(raw))

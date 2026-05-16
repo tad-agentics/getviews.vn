@@ -1,6 +1,6 @@
 # HI-5 — extract_video_errors uses extraction model + thinking_budget=0
 
-- **Status:** Pending
+- **Status:** Done (2026-05-16)
 - **Severity:** (see plan body)
 - **Sprint:** Sprint 2 — HIGH
 - **Discovered:** 2026-05-16 — deep pipeline audit + conflict review

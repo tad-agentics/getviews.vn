@@ -12,6 +12,7 @@
 
 | Feature | What changed | Blocking? | Fixed? | Commit |
 |---|---|---|---|---|
+| Pipeline audit remediation | **HI-5** — `extract_video_errors`: `GEMINI_EXTRACTION_MODEL` + `GEMINI_EXTRACTION_FALLBACKS`, `ThinkingConfig(thinking_budget=0)`, `call_site="extract_video_errors"` (stops synthesis-tier + thinking-token inflation on diagnosis). | NO | Yes | — |
 | Pipeline audit remediation | **CR-4** — `gemini_cost` + `ensemble`: track daemon insert threads, `atexit` drain with **8s** join budget (Cloud Run SIGTERM telemetry loss). | NO | Yes | — |
 | Pipeline audit remediation | **CR-3** — Per-aweme `_ingest_niche_id` stash + pop in `_ingest_candidate_awemes`; removed mid-loop `niche_id` mutation (video + carousel gates). | NO | Yes | — |
 | Pipeline audit remediation | **CR-2** — `cron-batch-ingest`: `net.http_post` `timeout_milliseconds` **300000 → 3120000** (52 min) via migration `cron.alter_job` on `cron.job`; sync docs-only migration comment + data-pipeline runbook Step 4. No-op if job absent (local). | NO | Yes | — |

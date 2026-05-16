@@ -1,0 +1,38 @@
+{
+  "feature": "HI-5",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "passResults": {
+    "extractVideoErrorsUsesExtractionTier": "PASS",
+    "thinkingBudgetZeroOnGenerateContentConfig": "PASS",
+    "callSiteExtractVideoErrors": "PASS",
+    "regressionTestHi5": "PASS",
+    "npmTypecheck": "PASS",
+    "cloudRunPytest": "PASS"
+  },
+  "findings": [],
+  "categoryScores": {
+    "correctness": 100,
+    "operability": 100,
+    "testCoverage": 100
+  },
+  "evidence": {
+    "implementation": [
+      "extraction.py extract_video_errors: imports GEMINI_EXTRACTION_MODEL, GEMINI_EXTRACTION_FALLBACKS; types.GenerateContentConfig(..., thinking_config=types.ThinkingConfig(thinking_budget=0)); _generate_content_models(..., primary_model=GEMINI_EXTRACTION_MODEL, fallbacks=GEMINI_EXTRACTION_FALLBACKS, call_site=\"extract_video_errors\")"
+    ],
+    "tests": [
+      "test_extract_video_errors_hi5.py: asserts primary_model, fallbacks, call_site, config.thinking_config.thinking_budget == 0 — 1 passed",
+      "cloud-run pytest (full): 1920 passed, 2 skipped",
+      "npm run typecheck: exit 0"
+    ],
+    "postDeploy": []
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}
