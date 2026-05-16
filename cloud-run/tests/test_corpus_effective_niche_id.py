@@ -54,6 +54,7 @@ async def test_ingest_candidate_awemes_uses_per_aweme_stashed_niche(
         aweme: dict,
         analysis: dict,
         niche_id: int,
+        **kwargs: object,
     ) -> dict | None:
         captured.append(niche_id)
         return {

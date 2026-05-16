@@ -1274,10 +1274,103 @@ def _niche_resolution_shadow_fields(
     }
 
 
+def _route_niche_and_class_override(
+    analysis: dict[str, Any],
+    hashtag_resolved_nid: int,
+    *,
+    video_id: str,
+) -> tuple[int, int | None]:
+    """HI-11 routing — optional Gemini-primary niche + junction ``content_class_id``.
+
+    When ``NICHE_RESOLVER_MODE=route`` and Gemini two-axis classification clears
+    confidence + junction checks, returns representative legacy ``niche_id`` and
+    junction-derived ``content_class_id``. Otherwise returns
+    ``(hashtag_resolved_nid, None)`` so ``_build_corpus_row`` keeps the ladder.
+    """
+    from getviews_pipeline.config import NICHE_RESOLVER_MODE
+    from getviews_pipeline.junction_content_class import (
+        content_class_id_for_creator_niche_format,
+    )
+    from getviews_pipeline.profile_niches import (
+        CREATOR_NICHE_SLUG_TO_ID,
+        legacy_niche_id_for_creator_niche,
+    )
+    from getviews_pipeline.two_axis_taxonomy import junction_has_pair
+
+    if NICHE_RESOLVER_MODE != "route":
+        return hashtag_resolved_nid, None
+
+    analysis_json = analysis.get("analysis") or {}
+    content_type = analysis.get("content_type", "video")
+    is_carousel = content_type == "carousel"
+    nc = analysis_json.get("niche_classification")
+    if not isinstance(nc, dict):
+        return hashtag_resolved_nid, None
+
+    try:
+        conf = float(nc.get("confidence") or 0.0)
+    except (TypeError, ValueError):
+        conf = 0.0
+
+    slug_raw = nc.get("creator_niche_slug")
+    slug = str(slug_raw).strip() if slug_raw is not None else ""
+    inferred: int | None = CREATOR_NICHE_SLUG_TO_ID.get(slug)
+    if conf < _GEMINI_NICHE_CONFIDENCE_FLOOR or inferred is None:
+        return hashtag_resolved_nid, None
+
+    if is_carousel:
+        fmt_raw = nc.get("carousel_format_axis") or nc.get("format_axis")
+    else:
+        fmt_raw = nc.get("format_axis")
+    fmt_axis = str(fmt_raw).strip() if fmt_raw is not None else ""
+    if not fmt_axis or not junction_has_pair(slug, fmt_axis):
+        logger.warning(
+            "[corpus] hi11 route skip video_id=%s junction_miss_or_empty "
+            "niche_slug=%s format_axis=%s",
+            video_id or "?",
+            slug,
+            fmt_axis,
+        )
+        return hashtag_resolved_nid, None
+
+    cc_id = content_class_id_for_creator_niche_format(inferred, fmt_axis)
+    if cc_id is None:
+        logger.warning(
+            "[corpus] hi11 route skip video_id=%s no_cc_row creator_niche_id=%s "
+            "format_axis=%s",
+            video_id or "?",
+            inferred,
+            fmt_axis,
+        )
+        return hashtag_resolved_nid, None
+
+    leg = legacy_niche_id_for_creator_niche(inferred)
+    if leg is None:
+        logger.warning(
+            "[corpus] hi11 route skip video_id=%s no_legacy_niche creator_niche_id=%s",
+            video_id or "?",
+            inferred,
+        )
+        return hashtag_resolved_nid, None
+
+    logger.info(
+        "[corpus] hi11 route gemini_two_axis video_id=%s legacy_niche=%s "
+        "content_class_id=%s hashtag_baseline=%s",
+        video_id or "?",
+        leg,
+        cc_id,
+        hashtag_resolved_nid,
+    )
+    return leg, cc_id
+
+
 def _build_corpus_row(
     aweme: dict[str, Any],
     analysis: dict[str, Any],
     niche_id: int,
+    *,
+    content_class_id_override: int | None = None,
+    shadow_resolver_niche_id: int | None = None,
 ) -> dict[str, Any] | None:
     """Map aweme + analysis result to a video_corpus row dict. Returns None on error."""
     if "error" in analysis or "analysis" not in analysis:
@@ -1436,13 +1529,18 @@ def _build_corpus_row(
         )
 
     _format = classify_format(analysis_json, niche_id)
+    _shadow_nid = (
+        shadow_resolver_niche_id if shadow_resolver_niche_id is not None else niche_id
+    )
 
     return {
         # ── Core columns (existing 17) ──
         "video_id": video_id,
         "content_type": content_type,
         "niche_id": niche_id,
-        **_niche_resolution_shadow_fields(analysis_json, niche_id, video_id=video_id),
+        **_niche_resolution_shadow_fields(
+            analysis_json, _shadow_nid, video_id=video_id,
+        ),
         "creator_handle": handle,
         "tiktok_url": tiktok_url,
         "thumbnail_url": thumbnail_url,
@@ -1482,7 +1580,12 @@ def _build_corpus_row(
         # Two-axis niche refactor PR2 — sharp (topic × format) classification
         # for analysis. Mirrors map_legacy_corpus_to_content_class() in
         # supabase/migrations/20260511000000_two_axis_niche_pr2_corpus.sql.
-        "content_class_id": _content_class_for(niche_id, _format),
+        # HI-11 route mode: junction-derived id bypasses legacy ladder.
+        "content_class_id": (
+            content_class_id_override
+            if content_class_id_override is not None
+            else _content_class_for(niche_id, _format)
+        ),
         "cta_type": _classify_cta(analysis_json.get("cta")),
         "is_commerce": _detect_commerce(analysis_json),
         "dialect": _detect_dialect(transcript),
@@ -1754,7 +1857,18 @@ async def _ingest_candidate_awemes(
                 resolved_nid,
                 per_niche_hits.get(resolved_nid, 0),
             )
-        row = _build_corpus_row(aweme, analysis, resolved_nid)
+        route_nid, cc_override = _route_niche_and_class_override(
+            analysis,
+            resolved_nid,
+            video_id=vid,
+        )
+        row = _build_corpus_row(
+            aweme,
+            analysis,
+            route_nid,
+            content_class_id_override=cc_override,
+            shadow_resolver_niche_id=resolved_nid,
+        )
         if row is None:
             result.skipped += 1
             err = analysis.get("error")
@@ -1772,7 +1886,7 @@ async def _ingest_candidate_awemes(
                 )
 
                 pattern_id = await compute_and_upsert_pattern(
-                    client, analysis.get("analysis") or {}, resolved_nid,
+                    client, analysis.get("analysis") or {}, route_nid,
                 )
                 if pattern_id:
                     row["pattern_id"] = pattern_id

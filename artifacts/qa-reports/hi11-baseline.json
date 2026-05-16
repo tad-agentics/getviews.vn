@@ -1,0 +1,56 @@
+{
+  "feature": "hi11-two-axis-niche-resolver-route-path",
+  "taskId": "HI-11",
+  "date": "2026-05-16",
+  "verdict": "PASS_WITH_CONCERNS",
+  "healthScore": 91,
+  "passResults": {
+    "configFlag": "PASS",
+    "junctionLookup": "PASS",
+    "shadowVsRoute": "PASS",
+    "shadowTelemetryBaseline": "PASS",
+    "patternFingerprintRouteNid": "PASS",
+    "testSuite": "PASS"
+  },
+  "evidence": [
+    "config.py: NICHE_RESOLVER_MODE shadow|route, invalid values fall back to shadow with warning",
+    "junction_content_class.py: PR1+PR6+HI-16 migration parse → primary_content_class_id_by_niche_and_format; duplicate format_axis tie-break is_primary then min cc_id",
+    "corpus_ingest._route_niche_and_class_override: route only when conf ≥ _GEMINI_NICHE_CONFIDENCE_FLOOR (0.6), junction_has_pair, content_class_id_for_creator_niche_format hit, legacy_niche_id_for_creator_niche non-null; carousel prefers carousel_format_axis",
+    "_build_corpus_row: content_class_id_override bypasses _content_class_for; shadow_resolver_niche_id feeds _niche_resolution_shadow_fields for hashtag baseline telemetry",
+    "ingest call site: pattern fingerprint compute_and_upsert_pattern uses route_nid",
+    "pytest cloud-run: 1986 passed, 1 skipped (post carousel route test, 2026-05-16)",
+    "test_hi11_route_niche_resolution: carousel route uses carousel_format_axis over format_axis (legacy nid 2, cc_id 75)"
+  ],
+  "findings": [
+    {
+      "id": "HI11-INFO-001",
+      "severity": "info",
+      "title": "Partial land vs canonical HI-11 plan",
+      "status": "accepted",
+      "detail": "Routing path + unit tests only; full plan still lists DB integration insert test, carousel ingest parity smoke, and post-flip MV/hook recompute gates."
+    },
+    {
+      "id": "HI11-LOW-002",
+      "severity": "low",
+      "title": "Carousel route branch unit test",
+      "status": "fixed",
+      "detail": "test_route_mode_carousel_prefers_carousel_format_axis added in test_hi11_route_niche_resolution.py"
+    },
+    {
+      "id": "HI11-MED-003",
+      "severity": "medium",
+      "title": "Dual junction sources",
+      "status": "monitor",
+      "detail": "junction_has_pair (two_axis_taxonomy) vs junction edges parsed from SQL must stay aligned; drift would cause route skips or mismatched content_class_id."
+    }
+  ],
+  "categoryScores": {
+    "implementation": 93,
+    "testCoverage": 86,
+    "security": 100,
+    "integrationPaths": 86,
+    "build": 100,
+    "documentationEnv": 94
+  },
+  "recommendation": "Keep NICHE_RESOLVER_MODE=shadow in production batch/user Cloud Run until the plan’s 100-row manual agreement audit and sign-off; then flip to route with deploy gate (MV refresh + hook_effectiveness per plan). Calendar shadow observation remains appropriate."
+}

@@ -183,6 +183,20 @@ GEMINI_HOOK_WINDOW_END_SEC = _float_env("GEMINI_HOOK_WINDOW_END_SEC", "3.0")
 GCP_STT_VI_ENABLED = _bool_env("GCP_STT_VI_ENABLED", True)
 GCP_STT_VI_PRICE_PER_MIN_USD = _float_env("GCP_STT_VI_PRICE_PER_MIN_USD", "0.024")
 
+# ── HI-11 — two-axis niche resolution (batch corpus ingest) ──────────────────
+# shadow (default): hashtag resolver sets niche_id + ladder ``content_class_id``;
+#                   Gemini classification copied into ``niche_resolution_*`` only.
+# route:            when ``niche_classification.confidence`` ≥ floor and junction
+#                   hit, legacy niche_id + junction ``content_class_id`` win.
+_niche_resolver_mode = (os.environ.get("NICHE_RESOLVER_MODE") or "shadow").strip().lower()
+if _niche_resolver_mode not in ("shadow", "route"):
+    logger.warning(
+        "[config] invalid NICHE_RESOLVER_MODE=%r — using shadow",
+        _niche_resolver_mode,
+    )
+    _niche_resolver_mode = "shadow"
+NICHE_RESOLVER_MODE: str = _niche_resolver_mode
+
 # ── EnsembleData metering & unit estimates ([ed-meter] logs) ─────────────────
 # Override per endpoint after calibrating vs ED dashboard
 # (artifacts/docs/ed-pricing-map.md).
