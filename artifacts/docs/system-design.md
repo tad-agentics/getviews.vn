@@ -274,6 +274,7 @@ No Cloud Run involved. Fast path (~2–5s). Free for `follow_up` intents.
 | `chat_messages` | Supabase | Cloud Run only | Immutable — no UPDATE ever |
 | `processed_webhook_events` | Supabase | Edge Function | UNIQUE constraint for PayOS idempotency |
 | `niche_intelligence` | Supabase | Cloud Run batch | Materialized niche stats for TrendScreen |
+| `vietnamese_asr_cache` | Supabase | Cloud Run (service role) | **HI-14:** Deduped GCP Speech-to-Text `vi-VN` segments per `video_id`; video paths only (carousels skip STT — HI-17) |
 
 ### Niche model (two-axis, since 2026-05-13)
 
@@ -296,6 +297,8 @@ These are production guards. Breaking any of them silently loses money or data.
 | **TD-3** | Concurrent analysis guard: `profiles.is_processing` boolean — `cron-reset-processing` clears stale flags after 5min | Supabase + cron |
 | **TD-4** | SSE reconnection: Cloud Run emits `stream_id` + `seq` per token, replays from 60s in-memory buffer | Cloud Run |
 | **TD-5** | Credits granted upfront at PAID webhook — no subscription, no monthly top-up | Edge Function |
+| **TD-6** | **Junction parity for `route` mode:** When `NICHE_RESOLVER_MODE=route`, a promoted `content_class_id` may only be written when junction lookup succeeds (`junction_has_pair` / `content_class_id_for_creator_niche_format`). Otherwise ingest falls back to the hashtag ladder. Seed data (`JUNCTION_NICHE_FORMAT_PAIRS` + migrations) must stay aligned — CI pins `test_hi9_junction_seed.py`. | `corpus_ingest.py` + taxonomy migrations |
+| **TD-7** | **Extraction parity (live vs batch):** On-demand SSE and batch corpus ingest must share the same Vietnamese extraction prompts and HI-9 `niche_classification` contract so shadow telemetry, corpus rows, and user diagnoses stay comparable. Do not fork prompt/schema between pods without an explicit parity audit. | `extraction.py`, `corpus_ingest.py`, `prompts.py` |
 
 ---
 
@@ -331,13 +334,20 @@ All business logic lives in `services/`. `pipelines.py` and `video_analyze.py` a
 | `services/performance.py` | Performance tier classification, KPI enrichment |
 | `services/references.py` | Corpus reference video selection |
 | `services/corpus_quality.py` | `promote_on_demand_to_corpus`, `quality_tier`, cohort eligibility |
+| `services/asr_vietnamese.py` | **HI-14:** `sync_prepare_vietnamese_asr_supplement` — GCP STT `vi-VN`, reads/writes `vietnamese_asr_cache` (**video file paths only**; carousels skip) |
+
+### Supplemental ASR and hook-window video sampling (HI-14, HI-15)
+
+- **HI-14:** Before the main Gemini vision pass on **videos**, the pipeline may fetch a short Vietnamese transcript via Google Cloud Speech-to-Text (`vi-VN`), formatted into the extraction user turn. Results are cached per `video_id` in `vietnamese_asr_cache` so later calls reuse one ASR pass. **Carousels do not invoke this path** (image-only `analyze_carousel`).
+- **HI-15:** `analyze_video` may send **two** `Part` payloads: full clip at `GEMINI_VIDEO_BASE_FPS` and the first `GEMINI_HOOK_WINDOW_END_SEC` at clamped `GEMINI_HOOK_WINDOW_FPS` (3–5), so hook timing sees sharper frames without raising cost on the whole file. `GEMINI_HOOK_WINDOW_DUAL_PART=false` restores single-Part behaviour.
 
 ### Two cores — one extraction, one diagnosis
 
 ```
 run_extraction_core(video_path) -> ExtractionResult
   • Download video (R2 / temp)
-  • Gemini vision (gemini-3.1-flash-lite-preview) — 1 Gemini call
+  • Optional HI-14 ASR supplement (video only) → cached transcript hint
+  • Gemini vision (e.g. `gemini-3.1-flash-lite`) — frame / video Parts per HI-15
   • apply_timestamp_guards  ← v4 hardening
   • validate_transcript      ← v4 hardening
   • score_entry_cost         ← v4 hardening

@@ -55,6 +55,8 @@ Keep this mapping for at least **30 days after PR6** (stability window). Longer 
 
 ## Part B — HI-11: Two-axis niche resolver (shadow → `route`)
 
+> **Plan cross-ref:** In the pipeline audit remediation plan, this work is also called **Phase 7 — Gemini-driven classification (HI-9 + HI-11)**.
+
 **Scope:** Batch corpus ingest (`corpus_ingest.py`) chooses how `video_corpus.niche_id` and `content_class_id` are written when Gemini HI-9 `niche_classification` is present. This is **independent** of the PR1–PR6 column cutover above; migrations `20260516120000_video_corpus_niche_resolution_shadow.sql` and RPC `20260719000001_upsert_corpus_niche_resolution_shadow.sql` add shadow/telemetry columns.
 
 ### Code reference (single source of truth)

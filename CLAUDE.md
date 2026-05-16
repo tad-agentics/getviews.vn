@@ -61,12 +61,19 @@ Quick reference for AI operating constraints:
 - **TanStack Query = all server state.** `useState` = local UI. No Zustand/Redux/Jotai.
 - **Supabase client is a single instance** (`src/lib/supabase.ts`). Never import `@supabase/supabase-js` elsewhere.
 - **`video_corpus` INSERT is batch-only** (service role). `chat_messages` are immutable (no UPDATE).
-- **Gemini 3.x only.** `gemini-3.1-flash-lite` (GA stable, $0.25/$1.50 per 1M) is the universal default — extraction, classification, synthesis, intent. Cost ceiling ~$70/mo.
+- **Gemini 3.x only.** `gemini-3.1-flash-lite` (GA stable, $0.25/$1.50 per 1M) is the universal default — extraction, classification, synthesis, intent. **Cost ceiling ~$80–90/mo** across Gemini + optional **HI-14** GCP Speech-to-Text (`vi-VN` on **video** paths only; carousels skip STT). Optional **HI-13** Batch API discount on nightly video shards offsets part of ASR add when enabled.
 - **Facebook OAuth is non-negotiable** for the Vietnamese market.
 - **Intent routing:** extend `detectIntent()` in `src/routes/_app/intent-router.ts` — never reinvent routing inside screens.
 - **Channel diagnosis (`POST /channel/diagnose`, Cloud Run):** corpus-first peers + two-axis persona + deterministic `score_card` / hashtag / next-video templates; SSE `score_card` event; `channel_diagnoses` v2 JSONB columns; cache replay must re-emit all v2 fields. See `system-design.md` §16.
 - **Every `/app/*` leaf route** must be code-split with `React.lazy` + `Suspense`. Do not use `clientLoader`.
-- **Critical invariants TD-1–TD-5** (credit deduction, webhook idempotency, processing guard, SSE reconnection, upfront credits) — see `system-design.md` §10.
+- **Critical invariants TD-1–TD-7** (credit deduction, webhook idempotency, processing guard, SSE reconnection, upfront credits, junction parity for `route`, live/batch extraction parity) — see `system-design.md` §10.
+
+### Niche model (two-axis; batch routing HI-11)
+
+- **Axes:** `creator_niches` (16 UX buckets) and `content_classifications` (74) linked by `creator_niche_content_classes` (M:N, `is_primary`).
+- **Legacy bridge:** `video_corpus.niche_id` remains for corpus filtering; Python `legacy_niche_id_for_creator_niche()` and TypeScript `legacyNicheIdForCreatorNiche()` **must stay identical**.
+- **Batch ingest resolver:** `NICHE_RESOLVER_MODE` = `shadow` (default) or `route`. In **shadow**, hashtag + ladder stay canonical for `niche_id` / `content_class_id`; `niche_resolution_source`, `niche_resolution_confidence`, and `inferred_creator_niche_id` capture Gemini two-axis telemetry. In **route**, high-confidence HI-9 output + junction can override niche and set `content_class_id`. **Production:** shadow observation → 100-row audit → flip → MV refresh (see `artifacts/docs/two-axis-niche-cutover-runbook.md` Part B — plan “Phase 7”).
+- **Provenance:** Shadow and route paths populate `niche_resolution_source` etc.; ME-17 backfill targets rows with `niche_resolution_source IS NULL` after flip.
 
 ## Design system
 

@@ -63,3 +63,17 @@ QA report: `artifacts/qa-reports/wave3-baseline.json` (health score 88/100 → ~
 
 See `artifacts/issues/`
 BLOCKING: 0 | NON-BLOCKING: 14
+
+## Pipeline audit remediation (quality-first)
+
+Canonical task list and sequencing: `.cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md`.
+
+| Area | Status (2026-05-16) | Notes |
+|------|---------------------|-------|
+| Code CR/HI/ME items | Mostly **shipped** | See `artifacts/docs/changelog.md` Active table |
+| **HI-11** prod flip | **Open (human)** | Shadow + 100-row audit → `NICHE_RESOLVER_MODE=route` → MV refresh; runbook Part B |
+| **ME-17** backfill | **In progress** | After flip; `niche_resolution_source IS NULL` → ~0 over scheduled nights |
+| **HI-13** Batch API | **Off by default** | Set `CORPUS_INGEST_USE_GEMINI_BATCH=true` on batch pod after pilot |
+| **EXP-1 / EXP-2** | **Pending** | Thinking budget + pattern fingerprint experiments — decision gates |
+| **DOC-1** | **Rolling** | Sprint checkpoints in plan; Sprint 2 doc checkpoint landed in changelog |
+| **`verify`** | **Pending** | 7-day telemetry pass per plan |
