@@ -14,6 +14,10 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from getviews_pipeline.corpus_context import (
+    format_creator_format_history_for_diagnosis,
+    get_creator_format_history_sync,
+)
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
     fetch_video_benchmark_with_axis,
@@ -1012,11 +1016,6 @@ def finalize_video_narrative_layer(
 
     creator_format_history_block = ""
     if creator_handle:
-        from getviews_pipeline.corpus_context import (
-            format_creator_format_history_for_diagnosis,
-            get_creator_format_history_sync,
-        )
-
         _hist = get_creator_format_history_sync(creator_handle, 10)
         creator_format_history_block = format_creator_format_history_for_diagnosis(
             creator_handle,
