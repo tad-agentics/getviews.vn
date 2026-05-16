@@ -12,6 +12,7 @@
 
 | Feature | What changed | Blocking? | Fixed? | Commit |
 |---|---|---|---|---|
+| Pipeline audit remediation | **HI-6 / HI-7 / HI-8 (Phase A)** — `call_site` labels across pipeline Gemini callers; `report_generic_gemini` routes through `_generate_content_models` + regression test; voice/domain + knowledge Q&A on `system_instruction` (diagnosis v1/v2, carousel v2, `gemini_text_only`, `synthesize_intent_markdown`); carousel/video v2 builders no longer embed `layer0_context` / creator history (caller prefixes). **HI-8 Phase B** (Gemini `cachedContent`) not implemented — deferred pending per-model cache strategy with fallbacks. | NO | Partial (A yes, B no) | 695c922 |
 | Pipeline audit remediation | **HI-5** — `extract_video_errors`: `GEMINI_EXTRACTION_MODEL` + `GEMINI_EXTRACTION_FALLBACKS`, `ThinkingConfig(thinking_budget=0)`, `call_site="extract_video_errors"` (stops synthesis-tier + thinking-token inflation on diagnosis). | NO | Yes | — |
 | Pipeline audit remediation | **CR-4** — `gemini_cost` + `ensemble`: track daemon insert threads, `atexit` drain with **8s** join budget (Cloud Run SIGTERM telemetry loss). | NO | Yes | — |
 | Pipeline audit remediation | **CR-3** — Per-aweme `_ingest_niche_id` stash + pop in `_ingest_candidate_awemes`; removed mid-loop `niche_id` mutation (video + carousel gates). | NO | Yes | — |
