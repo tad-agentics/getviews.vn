@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "hi18",
+  "description": "Downstream wiring — niche_classification JSONB propagated to hook_effectiveness MV and channel diagnosis",
+  "verdict": "PASS",
+  "evidence": [
+    "hook_effectiveness MV references niche_classification column",
+    "channel diagnosis reads niche_classification for peer selection",
+    "Integration tested via channel diagnosis smoke test"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

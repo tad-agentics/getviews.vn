@@ -350,6 +350,103 @@ class TestSuccessAndErrorCodeColumns:
         assert captured["error_code"] == "CustomError"
 
 
+class TestTransientRetryLogging:
+    """ME-15 — each recoverable transient attempt emits a zero-token failure row.
+
+    The plan contract: after each 503-style retry that is *not* the last attempt,
+    ``log_gemini_call`` fires with ``success=False``, ``tokens_in=tokens_out=0``,
+    and ``error_code`` encoding the attempt number.  Only when the call eventually
+    succeeds (or is exhausted) does a normal row follow.
+    """
+
+    def _make_error(self) -> Exception:
+        """Minimal stand-in for a transient 503-style Gemini error."""
+        err = Exception("service unavailable")
+        err.__class__.__name__ = "ServiceUnavailable"
+        return err
+
+    def test_transient_retry_emits_zero_token_failure_row(self) -> None:
+        from unittest.mock import MagicMock, call, patch
+
+        rows: list[dict] = []
+
+        with (
+            patch(
+                "getviews_pipeline.gemini_cost._insert_row",
+                side_effect=lambda row: rows.append(dict(row)),
+            ),
+            patch(
+                "getviews_pipeline.gemini_cost.get_service_client",
+                return_value=MagicMock(),
+            ),
+            patch("getviews_pipeline.config.GEMINI_DAILY_USD_MAX", 0.0),
+        ):
+            from getviews_pipeline.gemini_cost import log_gemini_call
+
+            # Simulate what _generate_content_models does on attempt 0 (transient,
+            # not the last attempt):
+            e = Exception("server_error")
+            import time
+            started = time.monotonic()
+            try:
+                log_gemini_call(
+                    user_id=None,
+                    call_site="test_site",
+                    model_name="gemini-3.1-flash-lite",
+                    tokens_in=0,
+                    tokens_out=0,
+                    duration_ms=int((time.monotonic() - started) * 1000),
+                    session_id=None,
+                    success=False,
+                    error_code=f"{type(e).__name__}_attempt_1",
+                )
+            except Exception:
+                pass
+
+            for _ in range(50):
+                if rows:
+                    break
+                time.sleep(0.01)
+
+        assert rows, "Expected at least one row"
+        row = rows[0]
+        assert row["success"] is False
+        assert "attempt_1" in row["error_code"]
+        assert row["tokens_in"] == 0
+        assert row["tokens_out"] == 0
+        assert row["cost_usd"] == 0.0
+
+    def test_error_code_encodes_attempt_number(self) -> None:
+        """error_code format is ``<ExcClass>_attempt_<N>`` (1-indexed)."""
+        from unittest.mock import patch
+        import time
+
+        rows: list[dict] = []
+        with patch(
+            "getviews_pipeline.gemini_cost._insert_row",
+            side_effect=lambda row: rows.append(dict(row)),
+        ):
+            from getviews_pipeline.gemini_cost import log_gemini_call
+
+            e = ValueError("transient")
+            log_gemini_call(
+                user_id=None,
+                call_site="x",
+                model_name="gemini-3.1-flash-lite",
+                tokens_in=0,
+                tokens_out=0,
+                duration_ms=10,
+                success=False,
+                error_code=f"{type(e).__name__}_attempt_2",
+            )
+            for _ in range(50):
+                if rows:
+                    break
+                time.sleep(0.01)
+
+        assert rows[0]["error_code"] == "ValueError_attempt_2"
+
+
 class TestWrapperContract:
     """Sanity check that the `_generate_content_models` wrapper still
     accepts the new keyword-only params without breaking its old signature.

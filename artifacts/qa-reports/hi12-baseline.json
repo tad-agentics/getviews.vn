@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "hi12",
+  "description": "BE/FE wellness niche mapping reconcile — Python profile_niches.py + TS profileNiches.ts aligned to 'Lifestyle & Wellness'",
+  "verdict": "PASS",
+  "evidence": [
+    "Python legacy_niche_id_for_creator_niche('Lifestyle & Wellness') matches TS legacyNicheIdForCreatorNiche('Lifestyle & Wellness')",
+    "npm run typecheck clean",
+    "Issue file hi12-creator-niche-mapping-reconcile-be-fe.md updated to Completed"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

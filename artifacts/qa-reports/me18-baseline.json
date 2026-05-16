@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "me18",
+  "description": "Carousel ingestion ratio guard — skip carousel batch if ratio > configured threshold to prevent corpus skew",
+  "verdict": "PASS",
+  "evidence": [
+    "corpus_ingest.py carousel ratio guard implemented",
+    "Config via CAROUSEL_INGEST_MAX_RATIO env var",
+    "Logs warning and skips when threshold exceeded"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

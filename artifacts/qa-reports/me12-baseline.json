@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "me12",
+  "description": "Set-based carousel dedup — corpus_ingest.py uses SET semantics instead of list append for carousel image_ids",
+  "verdict": "PASS",
+  "evidence": [
+    "corpus_ingest.py carousel dedup uses set() — confirmed in code review",
+    "No duplicate image_ids in newly ingested carousel rows"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

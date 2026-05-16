@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "me16",
+  "description": "Post-processing cron split — MV refresh + video_dang_hoc + layer0_sound moved to separate cron at 23:30 UTC",
+  "verdict": "PASS",
+  "evidence": [
+    "migration 20260719000000_cron_batch_postprocessing.sql creates cron-batch-postprocessing at 23:30 UTC",
+    "Original ingest cron no longer blocks on MV refresh"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

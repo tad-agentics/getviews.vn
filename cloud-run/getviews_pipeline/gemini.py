@@ -557,6 +557,25 @@ def _generate_content_models(
                     delay,
                     e,
                 )
+                # ME-15: log each recoverable transient attempt as a zero-token
+                # failure row so Cloud Logging / cost dashboards surface 503
+                # bursts. Google bills input tokens on every attempt even on
+                # error — the row marks the cost blind-spot without double-
+                # counting (success row follows only on the winning attempt).
+                try:
+                    log_gemini_call(
+                        user_id=user_id,
+                        call_site=call_site,
+                        model_name=m,
+                        tokens_in=0,
+                        tokens_out=0,
+                        duration_ms=int((time.monotonic() - started) * 1000),
+                        session_id=session_id,
+                        success=False,
+                        error_code=f"{type(e).__name__}_attempt_{attempt + 1}",
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
                 time.sleep(delay)
     # All models + retries exhausted. Log a failure row to gemini_calls
     # so the dashboard surfaces the outage — best-effort, never blocks

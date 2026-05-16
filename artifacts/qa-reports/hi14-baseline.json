@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "hi14",
+  "description": "GCP Speech-to-Text vi-VN supplemental ASR before Gemini extraction for video paths (carousels skip)",
+  "verdict": "PASS",
+  "evidence": [
+    "services/asr_vietnamese.py implemented; caches per video_id in vietnamese_asr_cache",
+    "extraction.py calls ASR for video paths only (carousel guard in place)",
+    "gcp_stt_cost_usd propagated through log_gemini_call",
+    "system-design.md updated with vietnamese_asr_cache table and HI-14 notes"
+  ],
+  "concerns": [
+    "HI-17 carousel skip guard must stay aligned if carousel detection logic changes."
+  ],
+  "recommendation": "No action needed. Monitor GCP STT cost via gemini_calls.gcp_stt_cost_usd."
+}

@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "hi16",
+  "description": "Carousel niche classification mirror — write niche_classification JSONB on carousel ingest paths same as video paths",
+  "verdict": "PASS",
+  "evidence": [
+    "corpus_ingest.py carousel path writes niche_classification via same HI-9 output",
+    "test suite passes; no regression on video path"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

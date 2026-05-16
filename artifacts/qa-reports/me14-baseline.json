@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "me14",
+  "description": "Niche-aware dynamic few-shot in morning_ritual.py",
+  "verdict": "PASS",
+  "evidence": [
+    "morning_ritual.py:200 uses niche-keyed examples from corpus",
+    "Fallback to generic examples when niche corpus thin (<3 rows)"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

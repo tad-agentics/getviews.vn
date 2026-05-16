@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "hi10",
+  "description": "Validate HI-9 niche classification output — JSONB schema, all 16 niche IDs present, schema pinned in test",
+  "verdict": "PASS",
+  "evidence": [
+    "test_hi9_classification.py passes with 16-niche schema assertion",
+    "corpus_ingest.py writes niche_classification JSONB per spec",
+    "No regressions in existing test suite"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

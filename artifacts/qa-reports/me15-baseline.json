@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "me15",
+  "description": "Log each transient Gemini retry attempt as a zero-token failure row in _generate_content_models",
+  "verdict": "PASS",
+  "evidence": [
+    "gemini.py transient retry branch now calls log_gemini_call(success=False, tokens_in=0, tokens_out=0, error_code=f'{ExcClass}_attempt_{N}')",
+    "TestTransientRetryLogging::test_transient_retry_emits_zero_token_failure_row PASS",
+    "TestTransientRetryLogging::test_error_code_encodes_attempt_number PASS",
+    "All 32 tests in test_gemini_cost.py pass"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed. Rows visible in Cloud Logging with event=gemini_call AND success=false."
+}

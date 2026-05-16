@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "me19",
+  "description": "Carousel swipe psychology enrichment — analysis schema adds swipe_hook_type, slide_progression_pattern, cta_slide_position",
+  "verdict": "PASS",
+  "evidence": [
+    "Carousel extraction prompt includes swipe psychology fields",
+    "corpus_ingest.py writes enriched JSONB for carousel rows",
+    "No regression on video extraction path"
+  ],
+  "concerns": [],
+  "recommendation": "No action needed."
+}

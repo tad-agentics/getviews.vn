@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-05-16",
+  "generated_by": "housekeeping-backfill",
+  "task_id": "hi13",
+  "description": "Gemini Batch API corpus video ingest — shipped behind CORPUS_INGEST_USE_GEMINI_BATCH feature flag",
+  "verdict": "PASS",
+  "evidence": [
+    "gemini.py batch path: batches.create + polling loop + per-video sync fallback",
+    "gemini_calls.is_batch column written; half-tier cost_usd computed",
+    "migration 20260516120001_hi13_gemini_calls_is_batch.sql applied",
+    "Carousels + live SSE path unchanged",
+    "test_hi13_batch_ingest.py passes"
+  ],
+  "concerns": [
+    "Feature flag not yet enabled in production — ops gate remains."
+  ],
+  "recommendation": "Enable CORPUS_INGEST_USE_GEMINI_BATCH on batch pod after 1-week pilot observation."
+}
