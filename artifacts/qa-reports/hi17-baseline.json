@@ -1,0 +1,31 @@
+{
+  "feature": "hi17-carousel-skips-hi14-asr-fps-video-only-doc",
+  "taskId": "HI-17",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 95,
+  "passResults": {
+    "architectureNoAsrOnCarousel": "PASS",
+    "codeComments": "PASS",
+    "regressionTest": "PASS",
+    "geminiCarouselGuardrail": "PASS"
+  },
+  "evidence": [
+    "Only analysis_core._analyze_video and analyze_aweme_from_path call sync_prepare_vietnamese_asr_supplement; _analyze_carousel uses analyze_carousel (images) only",
+    "analysis_core._analyze_carousel: HI-17 inline comment before run_sync(analyze_carousel, ...)",
+    "services/asr_vietnamese.sync_prepare_vietnamese_asr_supplement docstring: video-only / carousels skip",
+    "gemini.analyze_carousel: HI-15/HI-17 comment ties hook FPS + STT to video-only",
+    "cloud-run/tests/test_hi17_carousel_skips_hi14_asr.py: patch ASR to raise; assert_not_called after successful carousel path",
+    "cloud-run/tests/test_gemini_hi15_hook_window.py: Part.video_metadata guard (HI-17 alignment)"
+  ],
+  "findings": [],
+  "categoryScores": {
+    "implementation": 96,
+    "testCoverage": 90,
+    "security": 100,
+    "integrationPaths": 92,
+    "build": 100,
+    "documentationEnv": 96
+  },
+  "recommendation": "No production flag change. Optional: monitor GCP STT usage — carousel volume should not appear on this code path."
+}

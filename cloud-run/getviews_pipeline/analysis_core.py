@@ -373,6 +373,8 @@ async def _analyze_carousel(
         try:
             source_indices = [i for i, _, _ in downloaded]
             slide_bytes = [(p.read_bytes(), m) for _, p, m in downloaded]
+            # HI-17: carousels never call HI-14 GCP STT — image-only Gemini extraction;
+            # ``sync_prepare_vietnamese_asr_supplement`` runs only on video file paths.
             analysis = await run_sync(
                 analyze_carousel,
                 slide_bytes,

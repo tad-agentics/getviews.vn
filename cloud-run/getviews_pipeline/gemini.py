@@ -735,7 +735,8 @@ def analyze_carousel(
         *[types.Part.from_bytes(data=data, mime_type=mime) for data, mime in slides],
         user_text,
     ]
-    # HI-15 / HI-17: hook FPS lives only on video Parts — carousels are static images.
+    # HI-15 / HI-17: hook FPS + HI-14 STT supplement are video-only — carousels use
+    # image Parts only (no ``video_metadata``, no spoken-audio ASR prefix).
     for p in parts:
         if isinstance(p, types.Part) and p.video_metadata is not None:
             raise AssertionError(

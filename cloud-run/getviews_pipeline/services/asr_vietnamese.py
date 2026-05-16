@@ -198,6 +198,9 @@ def sync_prepare_vietnamese_asr_supplement(
 ) -> tuple[str, float | None]:
     """Return ``(user_turn_prefix, gcp_stt_cost_usd)`` for ``analyze_video``.
 
+    HI-17: intended for **video** analysis paths only — carousel posts use
+    ``analyze_carousel`` (no spoken-audio supplement).
+
     - Prefix is empty when STT is disabled, ``video_id`` is blank, audio
       extract fails, STT fails, or no speech is detected.
     - ``gcp_stt_cost_usd`` is ``None`` on cache hit, failures, or when no

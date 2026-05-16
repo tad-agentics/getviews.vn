@@ -1210,8 +1210,14 @@ def _niche_resolution_shadow_fields(
     resolver_niche_id: int,
     *,
     video_id: str = "",
+    content_type: str = "video",
 ) -> dict[str, Any]:
-    """HI-11 shadow telemetry — does not affect ``niche_id`` (hashtag resolver stays canonical)."""
+    """HI-11 shadow telemetry — does not affect ``niche_id`` (hashtag resolver stays canonical).
+
+    Junction-miss logging uses the same format axis as ``_route_niche_and_class_override``:
+    carousels prefer ``carousel_format_axis`` (fallback ``format_axis``); videos use
+    ``format_axis`` only so stray carousel keys do not skew shadow telemetry.
+    """
     from getviews_pipeline.profile_niches import (
         CREATOR_NICHE_SLUG_TO_ID,
         legacy_niche_id_for_creator_niche,
@@ -1239,7 +1245,11 @@ def _niche_resolution_shadow_fields(
     # pair not seeded in ``creator_niche_content_classes``. HI-11 routing will
     # downgrade rather than write NULL content_class_id; the WARN is the signal
     # to grow the junction via migration.
-    fmt_raw = nc.get("carousel_format_axis") or nc.get("format_axis")
+    is_carousel = content_type == "carousel"
+    if is_carousel:
+        fmt_raw = nc.get("carousel_format_axis") or nc.get("format_axis")
+    else:
+        fmt_raw = nc.get("format_axis")
     fmt_axis = str(fmt_raw).strip() if fmt_raw is not None else ""
     if slug and fmt_axis and not junction_has_pair(slug, fmt_axis):
         logger.warning(
@@ -1539,7 +1549,10 @@ def _build_corpus_row(
         "content_type": content_type,
         "niche_id": niche_id,
         **_niche_resolution_shadow_fields(
-            analysis_json, _shadow_nid, video_id=video_id,
+            analysis_json,
+            _shadow_nid,
+            video_id=video_id,
+            content_type=content_type,
         ),
         "creator_handle": handle,
         "tiktok_url": tiktok_url,
