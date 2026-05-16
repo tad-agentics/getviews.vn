@@ -1,0 +1,31 @@
+{
+  "task_id": "create-issue-files",
+  "plan": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "verdict": "PASS",
+  "verified_at": "2026-05-16",
+  "verified_by": "qa-agent",
+  "passResults": {
+    "plan_mirrored": "PASS",
+    "tracking_files_complete": "PASS",
+    "research_and_verify_stubs": "PASS",
+    "template_fields": "PASS",
+    "changelog_row": "PASS"
+  },
+  "counts": {
+    "artifacts_issues_md": 31,
+    "plan_tracking_list": 29,
+    "extra_stubs": ["research-batch-api.md", "verify-pipeline-remediation.md"]
+  },
+  "evidence": [
+    "Canonical plan present at repo path matching /implement-plan (unicode dash in filename)",
+    "artifacts/issues/*.md: 31 files = §Tracking tree (29) + research-batch-api + verify todo stub",
+    "Grep: **Status:**, **$ impact:**, **Verification:** each appear in 31/31 files; spot-check me14, research-batch-api, verify-pipeline-remediation: all 11 labeled fields present (Status through Verification)",
+    "changelog.md row documents Pipeline audit remediation scaffold (31 files, plan mirrored)",
+    "Template uses `- **Field:**` bullets (not `## Field` H2); satisfies plan §Tracking field list"
+  ],
+  "concerns": [
+    "verify todo maps to verify-pipeline-remediation.md (not literally verify.md) — acceptable stub",
+    "Bodies are pointers to plan; no implementation detail yet"
+  ],
+  "recommendation": "Mark create-issue-files done; proceed per plan Sequencing to CR-1 unless blocked."
+}

@@ -1,0 +1,79 @@
+---
+description: QA-gated, one-task-at-a-time implementation discipline for executing plan files. Auto-loads for all agents on every turn.
+alwaysApply: true
+---
+
+## When this applies
+
+Whenever you are executing a multi-task plan from `.cursor/plans/*.plan.md` (typically dispatched via `/implement-plan`).
+
+## The contract
+
+1. **One task at a time.** Pick the next pending todo from the plan's frontmatter `todos:` list, in the order defined by the plan's Sequencing section. Do NOT batch tasks. Do NOT skip ahead.
+2. **No task is "done" until QA signs off.** Dev work + QA pass + commit + changelog entry are one atomic unit. Move to the next task only after all four land.
+3. **Respect the dependency graph.** If the plan body says "Task X must land before Task Y," obey it even if Task Y looks easier.
+4. **Calendar waits are mandatory pauses.** When a plan task says "shadow mode for 3-7 days" or "backfill runs over 14 nights," STOP at the deploy step, write a clear handoff in `agent-workspace/ACTIVE_CONTEXT.md`, and tell the human "Resume me after Day N+5 with [evidence required]." Do NOT loop.
+5. **Conditional outcomes require human approval.** Research tasks, A/B experiments, and "tentative" plan items are decision gates. Run them, report results, ASK before promoting to default behavior.
+
+## Per-task workflow
+
+1. Read the task's full body section in the plan (not just the frontmatter line) — it has line numbers, code snippets, acceptance criteria
+2. Read every file the task touches at the cited line numbers
+3. Implement the minimum change satisfying the acceptance criteria
+4. Add/update tests as the acceptance criteria demand
+5. Run typecheck + tests; both must pass clean
+6. Dispatch QA agent (template below). Wait for verdict.
+7. Act on verdict:
+   - **PASS** → commit + changelog + advance
+   - **PASS_WITH_CONCERNS** → document in `artifacts/issues/<task-id>.md`. If concerns are low-risk and reversible, accept + note in commit message. If high-risk, ask the human.
+   - **FAIL** → loop back to step 3. After 3 failed attempts, STOP and escalate.
+8. Commit atomically with proper message (see "Commit conventions" section below)
+9. Append entry to `artifacts/docs/changelog.md` in the SAME commit
+10. Update `agent-workspace/ACTIVE_CONTEXT.md` and today's `agent-workspace/memory/YYYY-MM-DD.md`
+11. Mark the todo `completed` via TodoWrite
+
+## QA dispatch template
+
+Use the `Task` tool with `subagent_type: "qa-agent"`. Always include in the prompt:
+- Path to the canonical plan file
+- Task ID and full body section copied from the plan
+- List of files changed (`git diff HEAD~1`)
+- Acceptance criteria copied bullet-by-bullet
+- Required output: `VERDICT: PASS | FAIL | PASS_WITH_CONCERNS` + evidence + concerns + recommendation
+- Required artifact: `artifacts/qa-reports/<task-id>-baseline.json`
+
+## Commit conventions (per AGENTS.md)
+
+- Per-task: `feat(<area>): <TASK-ID> — <one-line>` (or `fix(<area>):` for bug fixes)
+- QA fix loops: `fix(qa): <task-id>-ISSUE-NNN — <description>`
+- Sprint gate: `feat(<area>): sprint-<N> complete — <summary>`
+- Doc-only sprint checkpoints: `docs(sprint<N>): <summary>`
+- Atomic — one logical change per commit. Renames separate from behavior changes. Tests separate from test infrastructure.
+
+## Stop signals (escalate immediately, not at end of session)
+
+Per `artifacts/docs/ETHOS.md` escalation rule, STOP and escalate when:
+- 3 failed attempts on the same task
+- Security-sensitive change you're not 100% confident in (auth, RLS, secrets, payments, webhooks)
+- Plan contradicts reality (file moved, fix infeasible, new conflict surfaced)
+- Calendar wait reached (per rule 4)
+- Conditional outcome requires human decision (per rule 5)
+- Cost or quality regression observed post-deploy → roll back the offending commit before escalating
+
+Format:
+
+```
+STATUS: BLOCKED | NEEDS_CONTEXT
+TASK: <task-id>
+REASON: <1-2 sentences>
+ATTEMPTED: <what you tried>
+RECOMMENDATION: <what the human should do next>
+```
+
+## Hard nos
+
+- Do not modify the canonical plan file unless the human explicitly approves an amendment
+- Do not push to main without explicit human approval
+- Do not run deployment commands (`supabase db push`, Vercel promote, Cloud Run deploy) — those belong to `devops-agent`, gated by `verify` PASS + human ship-it
+- Do not ignore a QA FAIL verdict
+- Do not self-grade: when in doubt, ask
