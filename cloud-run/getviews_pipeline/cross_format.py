@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.enum_labels_vi import HOOK_TYPE_VI
@@ -28,14 +28,14 @@ logger = logging.getLogger(__name__)
 
 
 # Display labels for the 12 stable format_axis values seeded in
-# ``20260510000000_two_axis_niche_pr1_schema.sql``. Vietnamese-first per
-# CLAUDE.md copy rules; English loanword in slot 2 when widely used.
+# ``20260510000004_two_axis_niche_pr1_schema.sql`` (+ PR6). Destination /
+# travel-face vlogs use ``vlog_daily`` in DB — there is no separate
+# ``vlog_destination`` axis (HI-9 alignment).
 _FORMAT_AXIS_LABEL_VI: dict[str, str] = {
     "pov_storytelling":     "POV / Storytelling",
     "talking_head_advice":  "Talking head · Lời khuyên",
     "tutorial":             "Tutorial · Hướng dẫn",
     "vlog_daily":           "Vlog hằng ngày",
-    "vlog_destination":     "Vlog điểm đến",
     "montage_highlights":   "Montage · Highlight",
     "skit_scripted":        "Hài skit",
     "react_commentary":     "React / Commentary",
@@ -155,7 +155,7 @@ def get_cross_format_signal(
     if not format_axis:
         return None
 
-    since = (datetime.now(timezone.utc) - timedelta(days=max(days, 1))).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=max(days, 1))).isoformat()
     rows = _fetch_format_corpus(sb, format_axis, since, content_format=content_format)
     if not rows:
         return None

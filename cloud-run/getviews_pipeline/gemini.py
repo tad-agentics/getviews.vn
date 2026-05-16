@@ -397,14 +397,19 @@ def _generate_content_models(
         )
         synthesis_cache_system_text = None
 
-    use_synth_cache = bool(
+    # Merge static synthesis system text when call sites pass
+    # ``synthesis_cache_kind`` + ``synthesis_cache_system_text``.
+    # This runs regardless of ``GEMINI_SYNTHESIS_CONTEXT_CACHE``; that flag
+    # only toggles ``cached_content`` vs ``system_instruction`` inside
+    # ``_apply_synthesis_context_for_model`` (HI-8 Phase B optional).
+    apply_synthesis_static_system = bool(
         synthesis_cache_kind
         and synthesis_cache_system_text
         and str(synthesis_cache_system_text).strip()
     )
     client = _get_client()
 
-    if use_synth_cache:
+    if apply_synthesis_static_system:
         safe_cfg = _ensure_safety_settings(config)
         base_template = safe_cfg.model_copy(
             update={"system_instruction": None, "cached_content": None}
@@ -425,7 +430,7 @@ def _generate_content_models(
         for attempt, delay in enumerate(_RETRY_DELAYS):
             try:
                 started = time.monotonic()
-                if use_synth_cache:
+                if apply_synthesis_static_system:
                     effective_config = _apply_synthesis_context_for_model(
                         client,
                         base_template,
@@ -451,7 +456,7 @@ def _generate_content_models(
                 duration_ms = int((time.monotonic() - started) * 1000)
                 tokens_in, tokens_out = extract_usage(response)
                 used_ctx_cache: bool | None = None
-                if use_synth_cache:
+                if apply_synthesis_static_system:
                     used_ctx_cache = bool(getattr(effective_config, "cached_content", None))
                 log_gemini_call(
                     user_id=user_id,

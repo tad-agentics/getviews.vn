@@ -162,6 +162,7 @@ def test_carousel_analysis_hi9_optional_like_video() -> None:
 def test_extraction_prompts_include_glossary_and_hi9() -> None:
     assert "content_context" in VIDEO_EXTRACTION_PROMPT
     assert "niche_classification" in VIDEO_EXTRACTION_PROMPT
+    assert "Ví dụ 1" in VIDEO_EXTRACTION_PROMPT
     assert '"beauty"' in VIDEO_EXTRACTION_PROMPT or "beauty" in VIDEO_EXTRACTION_PROMPT
     assert "review_unboxing" in VIDEO_EXTRACTION_PROMPT
     assert "content_context" in CAROUSEL_EXTRACTION_PROMPT

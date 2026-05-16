@@ -1,0 +1,63 @@
+{
+  "feature": "HI-9",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 95,
+  "passResults": {
+    "pydanticContentContextNicheClassification": "PASS",
+    "videoCarouselOptionalDiscipline": "PASS",
+    "taxonomyValidators": "PASS",
+    "vietnameseExtractionPromptsGlossary": "PASS",
+    "fewShotExamplesInPrompt": "PASS",
+    "junctionSeedSyncTests": "PASS",
+    "crossFormatFormatAxisLabels": "PASS",
+    "extractionThinkingBudget0": "PASS",
+    "cloudRunPytest": "PASS"
+  },
+  "findings": [
+    {
+      "pass": "scope",
+      "severity": "low",
+      "title": "Full Cartesian (creator_niche_slug × format_axis) is not fully covered by junction seed",
+      "status": "mitigated",
+      "note": "55 distinct (niche×format) pairs in PR1+PR6 vs 192 full grid. Runtime now emits '[corpus] junction miss …' WARN in corpus_ingest._niche_resolution_shadow_fields whenever Gemini hits an uncovered pair (constant JUNCTION_NICHE_FORMAT_PAIRS in two_axis_taxonomy.py, pinned to migrations by test_hi9_junction_constant_matches_migration_parse). HI-11 routing can now downgrade deterministically and operations gets a signal to grow the junction without silent NULL content_class_id."
+    },
+    {
+      "pass": "paired",
+      "severity": "info",
+      "title": "HI-18 wires enrichment into downstream consumers — separate plan item",
+      "status": "landed",
+      "note": "Changelog lists HI-18 commit c99df15; extraction must populate fields first."
+    }
+  ],
+  "categoryScores": {
+    "correctness": 96,
+    "operability": 94,
+    "testCoverage": 94
+  },
+  "evidence": {
+    "implementation": [
+      "models.ContentContext, NicheClassification — Optional fields; VideoAnalysis + CarouselAnalysis",
+      "two_axis_taxonomy — CREATOR_NICHE_SLUGS, FORMAT_AXIS_SLUGS, build_extraction_niche_glossary_block",
+      "prompts — _HI9_ENRICHMENT_* + _HI9_VIDEO_FEW_SHOT_VI; build_*_extraction_system_instruction",
+      "gemini.analyze_video / _analyze_carousel — VideoAnalysis.model_json_schema() / CarouselAnalysis",
+      "cross_format — _FORMAT_AXIS_LABEL_VI aligned to 12 seeded axes (removed vlog_destination orphan)"
+    ],
+    "tests": [
+      "tests/test_hi9_extraction_models.py — legacy row, round-trip, invalid slug/axis, carousel, prompts, extract_subject_matter",
+      "tests/test_hi9_junction_seed.py — niche slug set == 16; format_axis union == 12; |covered_pairs| == 55",
+      "pytest cloud-run: 1945 passed, 2 skipped"
+    ],
+    "postDeploy": [
+      "Spot-check batch + live extraction JSON for non-null content_context.subject_matter + niche_classification after deploy",
+      "Monitor HI-11 shadow metrics — agreement vs legacy niche resolver"
+    ]
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}

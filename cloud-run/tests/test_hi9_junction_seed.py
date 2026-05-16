@@ -1,0 +1,111 @@
+"""HI-9 — junction seed sanity vs Gemini enum (no live DB)."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+import pytest
+
+from getviews_pipeline.two_axis_taxonomy import (
+    CREATOR_NICHE_SLUGS,
+    FORMAT_AXIS_SLUGS,
+    JUNCTION_NICHE_FORMAT_PAIRS,
+    junction_has_pair,
+)
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_covered_niche_format_pairs() -> set[tuple[str, str]]:
+    """Parse PR1 + PR6 migrations: (creator_niche.slug, content_class.format_axis)."""
+    root = _repo_root()
+    sql = (root / "supabase/migrations/20260510000004_two_axis_niche_pr1_schema.sql").read_text(
+        encoding="utf-8",
+    )
+    m = re.search(r"INSERT INTO content_classifications[^;]+;", sql, re.DOTALL)
+    assert m is not None, "content_classifications INSERT not found"
+    block = m.group(0)
+    rows = re.findall(
+        r"\(\s*(\d+)\s*,\s*'([^']+)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,"
+        r"\s*'([^']+)'\s*,\s*'([^']+)'",
+        block,
+    )
+    cc_fmt = {int(r[0]): r[4] for r in rows}
+
+    nblock = re.search(r"INSERT INTO creator_niches[^;]+;", sql, re.DOTALL)
+    assert nblock is not None
+    niche_slug = {
+        int(a): b
+        for a, b in re.findall(r"\(\s*(\d+)\s*,\s*'([^']+)'\s*,", nblock.group(0))
+    }
+
+    pr6 = root / (
+        "supabase/migrations/20260630000003_creator_niches_16_music_real_estate.sql"
+    )
+    t3 = pr6.read_text(encoding="utf-8")
+    for ma, sl in re.findall(
+        r"\(\s*(\d+)\s*,\s*'([^']+)'\s*,\s*'[^']+'\s*,\s*'[^']+'",
+        t3,
+    ):
+        niche_slug[int(ma)] = sl
+
+    jstart = sql.find(
+        "INSERT INTO creator_niche_content_classes "
+        "(creator_niche_id, content_class_id, is_primary) VALUES",
+    )
+    assert jstart != -1
+    jchunk = sql[jstart : jstart + 8000]
+    pairs = re.findall(r"\(\s*(\d+)\s*,\s*(\d+)\s*,", jchunk)
+    junc = {(int(a), int(b)) for a, b in pairs}
+    for a, b in re.findall(r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*TRUE\s*\)", t3):
+        junc.add((int(a), int(b)))
+
+    covered: set[tuple[str, str]] = set()
+    for nid, cid in junc:
+        slug = niche_slug.get(nid)
+        fmt = cc_fmt.get(cid)
+        if slug and fmt:
+            covered.add((slug, fmt))
+    return covered
+
+
+@pytest.fixture(scope="module")
+def covered_pairs() -> set[tuple[str, str]]:
+    return _load_covered_niche_format_pairs()
+
+
+def test_hi9_junction_seed_maps_every_creator_niche_slug(
+    covered_pairs: set[tuple[str, str]],
+) -> None:
+    slugs_in_junction = {p[0] for p in covered_pairs}
+    assert slugs_in_junction == set(CREATOR_NICHE_SLUGS)
+
+
+def test_hi9_each_format_axis_used_in_at_least_one_niche_row(
+    covered_pairs: set[tuple[str, str]],
+) -> None:
+    axes_seen = {p[1] for p in covered_pairs}
+    assert axes_seen == set(FORMAT_AXIS_SLUGS)
+
+
+def test_hi9_junction_tuple_count_stable(covered_pairs: set[tuple[str, str]]) -> None:
+    """PR1+PR6 junction + cc join — regression guard if migration edits drop rows."""
+    assert len(covered_pairs) == 55
+
+
+def test_hi9_junction_constant_matches_migration_parse(
+    covered_pairs: set[tuple[str, str]],
+) -> None:
+    """``JUNCTION_NICHE_FORMAT_PAIRS`` must stay synced with seed migrations."""
+    assert JUNCTION_NICHE_FORMAT_PAIRS == frozenset(covered_pairs)
+
+
+def test_junction_has_pair_helper() -> None:
+    assert junction_has_pair("beauty", "review_unboxing") is True
+    assert junction_has_pair("beauty", "live_commerce") is False  # not seeded
+    assert junction_has_pair(None, "tutorial") is False
+    assert junction_has_pair("beauty", None) is False
+    assert junction_has_pair("", "") is False

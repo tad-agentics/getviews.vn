@@ -1216,6 +1216,7 @@ def _niche_resolution_shadow_fields(
         CREATOR_NICHE_SLUG_TO_ID,
         legacy_niche_id_for_creator_niche,
     )
+    from getviews_pipeline.two_axis_taxonomy import junction_has_pair
 
     nc = analysis_json.get("niche_classification")
     if not isinstance(nc, dict):
@@ -1233,6 +1234,22 @@ def _niche_resolution_shadow_fields(
     slug_raw = nc.get("creator_niche_slug")
     slug = str(slug_raw).strip() if slug_raw is not None else ""
     inferred: int | None = CREATOR_NICHE_SLUG_TO_ID.get(slug)
+
+    # HI-9 acceptance: explicit warning when Gemini emits a (niche × format_axis)
+    # pair not seeded in ``creator_niche_content_classes``. HI-11 routing will
+    # downgrade rather than write NULL content_class_id; the WARN is the signal
+    # to grow the junction via migration.
+    fmt_raw = nc.get("format_axis")
+    fmt_axis = str(fmt_raw).strip() if fmt_raw is not None else ""
+    if slug and fmt_axis and not junction_has_pair(slug, fmt_axis):
+        logger.warning(
+            "[corpus] junction miss video_id=%s niche=%s format_axis=%s conf=%.2f "
+            "— HI-11 will downgrade until junction row added",
+            video_id or "?",
+            slug,
+            fmt_axis,
+            conf,
+        )
 
     if conf >= _GEMINI_NICHE_CONFIDENCE_FLOOR and inferred is not None:
         gem_legacy = legacy_niche_id_for_creator_niche(inferred)

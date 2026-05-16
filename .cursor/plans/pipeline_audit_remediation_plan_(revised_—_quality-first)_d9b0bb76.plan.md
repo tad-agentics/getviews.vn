@@ -31,10 +31,10 @@ todos:
     status: completed
   - id: hi9
     content: "HI-9 (REVISED, two-axis): Rewrite VIDEO_EXTRACTION_PROMPT — pure Vietnamese + content_context semantic block + niche_classification {creator_niche_slug (16 enum), format_axis (~12 enum), confidence, rationale, alternative_creator_niche_slug}; extend Pydantic VideoAnalysis with Optional sub-models; mirror in CAROUSEL_EXTRACTION_PROMPT; thinking_budget stays 0"
-    status: pending
+    status: completed
   - id: hi10
     content: "HI-10: Add voice_lint.build_forbidden_phrases_prompt_block() and inject in 8 prompt files"
-    status: pending
+    status: completed
   - id: hi11
     content: "HI-11 (NEW, two-axis): Two-axis niche resolver — SHADOW MODE 3-7 days first (populate new fields, log would-have-routed, keep legacy resolver canonical), then flip routing after manual 100-row agreement audit. Bypass _content_class_for ladder when source=gemini_two_axis. Add video_corpus.niche_resolution_source + niche_resolution_confidence (+ optional creator_niche_id denorm) columns. Mirror in CAROUSEL ingest path."
     status: pending

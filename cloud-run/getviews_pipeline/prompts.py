@@ -74,11 +74,40 @@ _HI9_ENRICHMENT_VIDEO = """
   - alternative_creator_niche_slug: niche thứ hai từ glossary nếu confidence < 0.8; nếu confidence ≥ 0.8 thì null.
 """
 
+_HI9_VIDEO_FEW_SHOT_VI = """
+=== Ví dụ minh hoạ (chỉ là MẪU CẤU TRÚC — bám video thật của bạn, không copy) ===
+Ví dụ 1 — Làm đẹp + review_unboxing:
+  content_context.subject_matter: "Review serum vitamin C giá học sinh cho da dầu mụn."
+  niche_classification.creator_niche_slug: "beauty"
+  niche_classification.format_axis: "review_unboxing"
+  niche_classification.confidence: 0.91
+  niche_classification.rationale: "Cận mặt swatch và so sánh sản phẩm — rõ định dạng review mỹ phẩm trong ngách làm đẹp."
+  niche_classification.alternative_creator_niche_slug: null
+
+Ví dụ 2 — Ẩm thực + vlog_daily:
+  content_context.subject_matter: "Đi ăn street food đêm ở chợ Hồ Thị Kỷ, quay POV ăn thử."
+  niche_classification.creator_niche_slug: "food"
+  niche_classification.format_axis: "vlog_daily"
+  niche_classification.confidence: 0.88
+  niche_classification.rationale: "Đi dạo quay cảnh ăn uống, không công thức từng bước — đúng vlog ẩm thực."
+  niche_classification.alternative_creator_niche_slug: "travel"
+
+Ví dụ 3 — Hài + skit_scripted:
+  content_context.subject_matter: "Skit chơi lại trend 'khi mẹ hỏi con đi đâu' với twist cuối."
+  niche_classification.creator_niche_slug: "comedy"
+  niche_classification.format_axis: "skit_scripted"
+  niche_classification.confidence: 0.93
+  niche_classification.rationale: "Nhiều vai, thoại kịch bản, cài twist — không phải talking head tư vấn."
+  niche_classification.alternative_creator_niche_slug: null
+"""
+
+
 def build_video_extraction_system_instruction() -> str:
     """Static extraction instructions + niche glossary → ``system_instruction`` (HI-8)."""
     return (
         _VIDEO_EXTRACTION_CORE_VI
         + _HI9_ENRICHMENT_VIDEO
+        + _HI9_VIDEO_FEW_SHOT_VI
         + "\n\n"
         + build_extraction_niche_glossary_block()
     )
@@ -115,6 +144,7 @@ _HI9_ENRICHMENT_CAROUSEL = """
 === Nội dung ngữ nghĩa + phân loại hai trục (carousel — cùng schema video; HI-9) ===
 - content_context: subject_matter mô tả TOÀN BỘ carousel (vuốt qua các slide); các trường khác như video (sản phẩm, setting, mục đích…), lấy từ tổng thể các slide.
 - niche_classification: creator_niche_slug + format_axis CHỈ từ glossary phía dưới; rationale bằng tiếng Việt; confidence + alternative_creator_niche_slug theo cùng quy tắc video.
+- Áp dụng cùng kiểu ví dụ như video (beauty review carousel → review_unboxing; food tour slide → vlog_daily; skit meme nhiều slide → skit_scripted) — luôn chọn đúng cặp slug+axis trong glossary.
 """
 
 def build_carousel_extraction_system_instruction() -> str:

@@ -112,6 +112,83 @@ FormatAxisSlug = Literal[
 ]
 
 
+# Junction coverage frozen from migrations PR1 + PR6:
+#   ``20260510000004_two_axis_niche_pr1_schema.sql`` +
+#   ``20260630000003_creator_niches_16_music_real_estate.sql``.
+# 55 distinct ``(creator_niche.slug, content_classifications.format_axis)`` pairs.
+# A regression test (``tests/test_hi9_junction_seed.py``) re-parses the SQL and
+# asserts this set matches — if a migration adds/removes rows without updating
+# this constant, CI fails so the runtime WARN below cannot silently rot.
+JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset({
+    ("auto", "review_unboxing"),
+    ("auto", "talking_head_advice"),
+    ("auto", "tutorial"),
+    ("auto", "vlog_daily"),
+    ("beauty", "pov_storytelling"),
+    ("beauty", "review_unboxing"),
+    ("beauty", "tutorial"),
+    ("business", "live_commerce"),
+    ("business", "pov_storytelling"),
+    ("business", "review_unboxing"),
+    ("business", "talking_head_advice"),
+    ("business", "vlog_daily"),
+    ("comedy", "dance_choreography"),
+    ("comedy", "music_performance"),
+    ("comedy", "pov_storytelling"),
+    ("comedy", "react_commentary"),
+    ("comedy", "skit_scripted"),
+    ("education", "talking_head_advice"),
+    ("education", "tutorial"),
+    ("family", "comedy_observational"),
+    ("family", "talking_head_advice"),
+    ("family", "vlog_daily"),
+    ("fashion", "montage_highlights"),
+    ("fashion", "pov_storytelling"),
+    ("fashion", "review_unboxing"),
+    ("fashion", "vlog_daily"),
+    ("food", "pov_storytelling"),
+    ("food", "react_commentary"),
+    ("food", "review_unboxing"),
+    ("food", "tutorial"),
+    ("food", "vlog_daily"),
+    ("gym_fitness", "tutorial"),
+    ("gym_fitness", "vlog_daily"),
+    ("lifestyle", "montage_highlights"),
+    ("lifestyle", "pov_storytelling"),
+    ("lifestyle", "talking_head_advice"),
+    ("lifestyle", "tutorial"),
+    ("lifestyle", "vlog_daily"),
+    ("music_dance", "dance_choreography"),
+    ("music_dance", "music_performance"),
+    ("pets_home", "montage_highlights"),
+    ("pets_home", "pov_storytelling"),
+    ("pets_home", "talking_head_advice"),
+    ("pets_home", "tutorial"),
+    ("real_estate", "vlog_daily"),
+    ("tech_gaming", "montage_highlights"),
+    ("tech_gaming", "review_unboxing"),
+    ("tech_gaming", "talking_head_advice"),
+    ("tech_gaming", "tutorial"),
+    ("travel", "montage_highlights"),
+    ("travel", "talking_head_advice"),
+    ("travel", "vlog_daily"),
+    ("wellness", "talking_head_advice"),
+    ("wellness", "tutorial"),
+    ("wellness", "vlog_daily"),
+})
+
+
+def junction_has_pair(creator_niche_slug: str | None, format_axis: str | None) -> bool:
+    """True iff (slug, format_axis) is seeded in ``creator_niche_content_classes``.
+
+    Caller should WARN — not fail — when False so HI-11 routing can downgrade
+    deterministically instead of silently writing a NULL ``content_class_id``.
+    """
+    if not creator_niche_slug or not format_axis:
+        return False
+    return (creator_niche_slug, format_axis) in JUNCTION_NICHE_FORMAT_PAIRS
+
+
 def build_extraction_niche_glossary_block() -> str:
     """Vietnamese glossary of allowed enum values for the extraction prompt."""
     lines: list[str] = [
