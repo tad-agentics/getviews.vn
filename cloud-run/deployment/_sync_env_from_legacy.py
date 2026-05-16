@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""One-off: read getviews-pipeline env, write gv-user.env and gv-batch.env (gitignored)."""
+"""Read split Cloud Run env → write gv-user.env and gv-batch.env (gitignored).
+
+Legacy single service ``getviews-pipeline`` is retired; this script pulls
+``getviews-pipeline-user`` and ``getviews-pipeline-batch`` separately and
+ensures the user file includes ``BATCH_SERVICE_BASE_URL`` when missing.
+"""
 import json
 import subprocess
 import sys
@@ -10,28 +15,60 @@ REGION = "asia-southeast1"
 DEPLOYMENT_DIR = Path(__file__).resolve().parent
 
 
-def gcloud_json(args: list[str]) -> dict:
+def gcloud_json(service: str) -> dict:
     out = subprocess.check_output(
-        ["gcloud", *args, f"--project={ROOT}", f"--region={REGION}", "--format=json"],
+        [
+            "gcloud",
+            "run",
+            "services",
+            "describe",
+            service,
+            f"--project={ROOT}",
+            f"--region={REGION}",
+            "--format=json",
+        ],
         text=True,
     )
     return json.loads(out)
 
 
-def gcloud_value(args: list[str]) -> str:
+def gcloud_url(service: str) -> str:
     return subprocess.check_output(
-        ["gcloud", *args, f"--project={ROOT}", f"--region={REGION}", "--format=value(status.url)"],
+        [
+            "gcloud",
+            "run",
+            "services",
+            "describe",
+            service,
+            f"--project={ROOT}",
+            f"--region={REGION}",
+            "--format=value(status.url)",
+        ],
         text=True,
     ).strip()
 
 
-def write_env_file(path: str, env: dict[str, str]) -> None:
-    lines = [f"# generated from getviews-pipeline + split roles — {path.rsplit('/', 1)[-1]}"]
+def env_from_desc(d: dict) -> dict[str, str]:
+    c = d["spec"]["template"]["spec"]["containers"][0]
+    raw: dict[str, str] = {}
+    for e in c.get("env", []):
+        n = e.get("name")
+        v = e.get("value")
+        if n and v is not None:
+            raw[n] = v
+        sk = (e.get("valueFrom") or {}).get("secretKeyRef")
+        if n and sk:
+            print("ERROR: secret ref not supported in this script:", n, file=sys.stderr)
+            raise SystemExit(1)
+    return raw
+
+
+def write_env_file(path: str, env: dict[str, str], *, header: str) -> None:
+    lines = [f"# {header} — {path.rsplit('/', 1)[-1]}"]
     for k in sorted(env.keys()):
         v = env[k]
         if v is None or v == "":
             continue
-        # Cloud Run .env: avoid unescaped newlines
         v = v.replace("\r", " ").replace("\n", " ")
         if any(c in v for c in " \n\t#='\"") or v != v.strip():
             v = v.replace("\\", "\\\\").replace('"', '\\"')
@@ -43,30 +80,18 @@ def write_env_file(path: str, env: dict[str, str]) -> None:
 
 
 def main() -> int:
-    d = gcloud_json(["run", "services", "describe", "getviews-pipeline"])
-    c = d["spec"]["template"]["spec"]["containers"][0]
-    raw: dict[str, str] = {}
-    for e in c.get("env", []):
-        n = e.get("name")
-        v = e.get("value")
-        if n and v is not None:
-            raw[n] = v
-        sk = (e.get("valueFrom") or {}).get("secretKeyRef")
-        if n and sk:
-            print("ERROR: secret ref not supported in this script:", n, file=sys.stderr)
-            return 1
+    d_user = gcloud_json("getviews-pipeline-user")
+    d_batch = gcloud_json("getviews-pipeline-batch")
 
-    for k in list(raw.keys()):
-        if k == "SERVICE_ROLE":
-            del raw[k]
+    u = env_from_desc(d_user)
+    b = env_from_desc(d_batch)
 
-    batch_url = gcloud_value(["run", "services", "describe", "getviews-pipeline-batch"]).rstrip("/")
+    batch_url = gcloud_url("getviews-pipeline-batch").rstrip("/")
+    if not u.get("BATCH_SERVICE_BASE_URL"):
+        u["BATCH_SERVICE_BASE_URL"] = batch_url
 
-    u = dict(raw)
-    b = dict(raw)
     u["SERVICE_ROLE"] = "user"
     b["SERVICE_ROLE"] = "batch"
-    u["BATCH_SERVICE_BASE_URL"] = batch_url
 
     if "R2_BUCKET" in u and "R2_BUCKET_NAME" not in u:
         u["R2_BUCKET_NAME"] = u["R2_BUCKET"]
@@ -75,11 +100,11 @@ def main() -> int:
 
     out_u = str(DEPLOYMENT_DIR / "gv-user.env")
     out_b = str(DEPLOYMENT_DIR / "gv-batch.env")
-    write_env_file(out_u, u)
-    write_env_file(out_b, b)
+    write_env_file(out_u, u, header="from gcloud describe getviews-pipeline-user")
+    write_env_file(out_b, b, header="from gcloud describe getviews-pipeline-batch")
     print("wrote", out_u, "keys", len(u))
     print("wrote", out_b, "keys", len(b))
-    print("BATCH_SERVICE_BASE_URL", batch_url)
+    print("BATCH_SERVICE_BASE_URL", u.get("BATCH_SERVICE_BASE_URL", ""))
     return 0
 
 

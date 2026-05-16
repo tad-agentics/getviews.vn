@@ -1,14 +1,18 @@
-"""Proxy a small set of ``POST /batch/*`` calls from the user service to the batch service.
+"""Proxy selected ``POST /batch/*`` calls from the user service to the batch service.
 
 ``SERVICE_ROLE=user`` does not mount the full ``batch`` router (see ``main.py``). Supabase
 pg_cron and Cloud Scheduler often store a single ``cloud_run_api_url`` which historically
-pointed at one Cloud Run service. If that URL is the **user** service, ``POST
-/batch/morning-ritual`` would 404 and ``daily_ritual`` would never populate.
+pointed at one Cloud Run service. If that URL is the **user** service, unproxied batch
+routes would 404.
 
 This module registers thin forwarders (same auth as real batch: ``require_batch_caller``) so
 operators can keep ``cloud_run_api_url`` = user URL while setting
 ``BATCH_SERVICE_BASE_URL`` to the **batch** service origin; cron then succeeds without
 re-pointing every secret.
+
+**Proxied routes:** morning-ritual, scene-intelligence, post-processing (ME-16),
+backfill-classification (ME-17). Other ``/batch/*`` paths still require Vault to point at
+the batch origin (see ``20260704000000_pg_net_batch_http_4xx_audit.sql`` comments).
 """
 
 from __future__ import annotations
@@ -29,6 +33,10 @@ router = APIRouter()
 
 _TIMEOUT_MORNING_S = 25.0 * 60.0
 _TIMEOUT_SCENE_S = 45.0 * 60.0
+# ME-16 — MV / analytics tail; can run tens of minutes on large corpus.
+_TIMEOUT_POST_PROCESSING_S = 95.0 * 60.0
+# ME-17 — text-only backfill; ``max_runtime_s`` default 3300s on batch handler.
+_TIMEOUT_BACKFILL_CLASSIFICATION_S = 120.0 * 60.0
 
 
 def _batch_base() -> str:
@@ -93,3 +101,25 @@ async def proxy_scene_intelligence(
     _caller: dict | None = Depends(require_batch_caller),
 ) -> JSONResponse:
     return await _forward_batch_post(request, "/batch/scene-intelligence", _TIMEOUT_SCENE_S)
+
+
+@router.post("/batch/post-processing")
+async def proxy_post_processing(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Forward ME-16 cron when Vault URL targets the user pod."""
+    return await _forward_batch_post(
+        request, "/batch/post-processing", _TIMEOUT_POST_PROCESSING_S
+    )
+
+
+@router.post("/batch/backfill-classification")
+async def proxy_backfill_classification(
+    request: Request,
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Forward ME-17 cron when Vault URL targets the user pod."""
+    return await _forward_batch_post(
+        request, "/batch/backfill-classification", _TIMEOUT_BACKFILL_CLASSIFICATION_S
+    )

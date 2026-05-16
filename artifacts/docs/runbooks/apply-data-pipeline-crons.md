@@ -66,29 +66,36 @@ The value of `BATCH_SECRET` in the Cloud Run service's env vars. Used
 as the `X-Batch-Secret` header by the cron HTTP POST.
 
 ```bash
-# Read from the live service.
-gcloud run services describe getviews-pipeline \
+# Read from the **batch** service (split deploy: /batch/* lives here).
+gcloud run services describe getviews-pipeline-batch \
   --region asia-southeast1 \
   --format='value(spec.template.spec.containers[0].env)' \
   | grep -oP 'BATCH_SECRET[^,]+'
 ```
 
-If `BATCH_SECRET` is not set on the Cloud Run service, pick a strong
-random value (`openssl rand -hex 32`) and set it on both sides:
+If `BATCH_SECRET` is not set on the batch service, pick a strong
+random value (`openssl rand -hex 32`) and set it on **batch** and
+match it on **user** (for proxy forwarders):
 
 ```bash
-gcloud run services update getviews-pipeline \
+gcloud run services update getviews-pipeline-batch \
   --region asia-southeast1 \
   --update-env-vars BATCH_SECRET=<hex-value>
+gcloud run services update getviews-pipeline-user \
+  --region asia-southeast1 \
+  --update-env-vars BATCH_SECRET=<same-hex-value>
 ```
 
 ### 1b. Cloud Run API base URL
 
+Vault `cloud_run_api_url` should target the service that serves **`POST /batch/*`**
+(usually **`getviews-pipeline-batch`**):
+
 ```bash
-gcloud run services describe getviews-pipeline \
+gcloud run services describe getviews-pipeline-batch \
   --region asia-southeast1 \
   --format='value(status.url)'
-# Example: https://getviews-pipeline-aabbccdd-as.a.run.app
+# Example: https://getviews-pipeline-batch-xxxxx.asia-southeast1.run.app
 ```
 
 Save both values. Do **not** commit them anywhere.

@@ -28,7 +28,7 @@
 
 ## Scheduler mapping
 
-**Region:** `asia-southeast1` (prod Cloud Scheduler + Cloud Run `getviews-pipeline`).
+**Region:** `asia-southeast1` (prod Cloud Scheduler + Cloud Run `getviews-pipeline-batch` / `getviews-pipeline-user`).
 
 | Job | Target | Schedule | Auth |
 |-----|--------|----------|------|

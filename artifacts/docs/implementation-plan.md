@@ -159,7 +159,7 @@ Each wave's detailed breakdown follows in its own section below.
 - **Exit branch:** if accuracy ≥ 0.85 → Wave 2 unblocked. If < 0.85 → Wave 1.5 prompt-engineering PR on `hook_type` extraction in `gemini.py` before Wave 2 starts.
 
 #### `phase1-corpus-growth` · ~0.5d · Axis 1
-- **Env flip:** `gcloud run services update getviews-pipeline --region asia-southeast1 --update-env-vars BATCH_VIDEOS_PER_NICHE=25`
+- **Env flip:** `gcloud run services update getviews-pipeline-batch --region asia-southeast1 --update-env-vars BATCH_VIDEOS_PER_NICHE=25`
 - **Hashtag expansion** — 4 undersized niches (live-DB numbers as of 2026-05-09):
   - Tài chính / Đầu tư: 21 → 70 hashtags
   - Chị đẹp: 23 → 70
