@@ -31,6 +31,7 @@ from getviews_pipeline.corpus_ingest import (
     THIN_NICHE_MAX_MULTIPLIER,
     _fetch_niche_counts_sync,
     _hashtag_fetch_limit_for_niche,
+    _parse_carousels_by_niche,
     _parse_csv_niche_ids,
     _parse_hashtag_fetch_by_niche,
     apply_thin_niche_multiplier,
@@ -215,3 +216,21 @@ def test_hashtag_fetch_limit_respects_per_niche_map() -> None:
     """With empty BATCH_HASHTAG_FETCH_BY_NICHE (test env), every niche uses global default."""
     assert not BATCH_HASHTAG_FETCH_BY_NICHE
     assert _hashtag_fetch_limit_for_niche(3) == BATCH_HASHTAG_FETCH_LIMIT
+
+
+# ── ME-18 — per-niche carousel caps ─────────────────────────────────────
+
+
+def test_parse_carousels_by_niche() -> None:
+    assert _parse_carousels_by_niche("") == {}
+    assert _parse_carousels_by_niche("2:8, 5:0") == {2: 8, 5: 0}
+
+
+def test_carousels_per_night_for_niche(monkeypatch: pytest.MonkeyPatch) -> None:
+    import getviews_pipeline.corpus_ingest as ci
+
+    monkeypatch.setattr(ci, "BATCH_CAROUSELS_BY_NICHE", {2: 8, 15: 1})
+    monkeypatch.setattr(ci, "BATCH_CAROUSELS_PER_NICHE", 3)
+    assert ci._carousels_per_night_for_niche(2) == 8
+    assert ci._carousels_per_night_for_niche(15) == 1
+    assert ci._carousels_per_night_for_niche(99) == 3

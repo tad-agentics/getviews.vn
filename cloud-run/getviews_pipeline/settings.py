@@ -114,6 +114,13 @@ class _PipelineSettings(BaseSettings):
     batch_min_er: float = Field(default=1.0, ge=0.0)
     batch_keyword_pages: int = Field(default=2, ge=1)
     batch_carousels_per_niche: int = Field(default=3, ge=0)
+    batch_carousels_by_niche: str = Field(
+        default="",
+        description=(
+            "ME-18 optional: per legacy niche_id carousel cap, e.g. 2:8,3:6 — "
+            "empty = use batch_carousels_per_niche for all; 0 disables carousels for that niche"
+        ),
+    )
     batch_carousel_min_likes: int = Field(default=500, ge=0)
     batch_hashtag_fetch_limit: int = Field(default=15, ge=1)
     batch_hashtag_fetch_by_niche: str = Field(default="")

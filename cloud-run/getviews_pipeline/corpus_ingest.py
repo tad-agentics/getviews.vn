@@ -96,6 +96,26 @@ def _parse_hashtag_fetch_by_niche(raw: str) -> dict[int, int]:
     return out
 
 
+def _parse_carousels_by_niche(raw: str) -> dict[int, int]:
+    """``BATCH_CAROUSELS_BY_NICHE`` — ``2:8,15:1`` = legacy niche 2 takes 8 carousels/night."""
+    out: dict[int, int] = {}
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if not part or ":" not in part:
+            continue
+        left, _, right = part.partition(":")
+        try:
+            nid, lim = int(left.strip(), 10), int(right.strip(), 10)
+        except ValueError:
+            logger.warning(
+                "[corpus] invalid BATCH_CAROUSELS_BY_NICHE segment, skipping: %r", part
+            )
+            continue
+        if nid > 0 and lim >= 0:
+            out[nid] = lim
+    return out
+
+
 # ── Config — sourced from settings.py (pydantic-validated at startup) ──────────
 
 from getviews_pipeline.settings import settings as _settings  # noqa: E402
@@ -120,9 +140,15 @@ BATCH_MIN_VIEWS = _settings.batch_min_views
 BATCH_MIN_ER = _settings.batch_min_er
 BATCH_KEYWORD_PAGES = _settings.batch_keyword_pages
 BATCH_CAROUSELS_PER_NICHE = _settings.batch_carousels_per_niche
+BATCH_CAROUSELS_BY_NICHE = _parse_carousels_by_niche(_settings.batch_carousels_by_niche)
 BATCH_CAROUSEL_MIN_LIKES = _settings.batch_carousel_min_likes
 BATCH_HASHTAG_FETCH_LIMIT = _settings.batch_hashtag_fetch_limit
 BATCH_HASHTAG_FETCH_BY_NICHE = _parse_hashtag_fetch_by_niche(_settings.batch_hashtag_fetch_by_niche)
+
+
+def _carousels_per_night_for_niche(niche_id: int) -> int:
+    """Carousel slots per batch night — ME-18 per-niche map or uniform default."""
+    return BATCH_CAROUSELS_BY_NICHE.get(niche_id, BATCH_CAROUSELS_PER_NICHE)
 
 
 def _hashtag_fetch_limit_for_niche(niche_id: int) -> int:
@@ -2240,8 +2266,11 @@ async def ingest_niche(
         key=lambda a: int((a.get("statistics") or {}).get("digg_count", 0) or 0),
         reverse=True,
     )
-    cpn = carousels_per_niche_override if carousels_per_niche_override is not None else BATCH_CAROUSELS_PER_NICHE
-    carousel_candidates = carousel_candidates[:cpn]
+    if carousels_per_niche_override is not None:
+        cpn = carousels_per_niche_override
+    else:
+        cpn = _carousels_per_night_for_niche(niche_id)
+    carousel_candidates = carousel_candidates[: max(0, cpn)]
 
     if carousel_candidates:
         logger.info(
@@ -2741,16 +2770,14 @@ async def run_batch_ingest(
 
     kw: int | None = None
     vpn: int | None = None
-    cpn: int | None = None
     if deep_pool:
         kw = min(BATCH_KEYWORD_PAGES * 3, 8)
         vpn = min(BATCH_VIDEOS_PER_NICHE * 2, 100)
-        cpn = min(BATCH_CAROUSELS_PER_NICHE * 2, 12)
         logger.info(
-            "[corpus] deep_pool ingest: keyword_pages=%d videos_per_niche=%d carousels=%d",
+            "[corpus] deep_pool ingest: keyword_pages=%d videos_per_niche=%d "
+            "carousels=min(per_niche_base*2,12)",
             kw,
             vpn,
-            cpn,
         )
 
     # Wave 5+ Phase 2 — per-niche quota prioritization. When ``vpn`` is
@@ -2898,7 +2925,11 @@ async def run_batch_ingest(
                             vpn if vpn is not None
                             else per_niche_vpn.get(int(n["id"]))
                         ),
-                        carousels_per_niche_override=cpn,
+                        carousels_per_niche_override=(
+                            min(_carousels_per_night_for_niche(int(n["id"])) * 2, 12)
+                            if deep_pool
+                            else None
+                        ),
                         hashtag_yields_for_niche=hashtag_yields_all.get(int(n["id"]), {}),
                         niche_signal_hashtags_by_id=niche_signal_map,
                         existing_video_ids=existing_snapshot,
