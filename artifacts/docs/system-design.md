@@ -279,6 +279,7 @@ No Cloud Run involved. Fast path (~2–5s). Free for `follow_up` intents.
 - **`content_classifications`** (74 categories) — analysis-facing. `video_corpus.content_class_id`.
 - **`creator_niche_content_classes`** — M:N junction with `is_primary` flag.
 - `niche_taxonomy` + `video_corpus.niche_id` are kept for backward compatibility. Downstream queries bridge via `legacy_niche_id_for_creator_niche()` (Python) / `legacyNicheIdForCreatorNiche()` (TypeScript) — both must stay in sync.
+- **HI-11 (batch ingest resolver):** Cloud Run env `NICHE_RESOLVER_MODE` is **`shadow`** (default) or **`route`**. In **shadow**, the legacy hashtag resolver remains canonical for `video_corpus.niche_id` / `content_class_id`; `niche_resolution_source`, `niche_resolution_confidence`, and `inferred_creator_niche_id` record Gemini two-axis telemetry. In **route**, high-confidence HI-9 `niche_classification` + `creator_niche_content_classes` junction can override niche and set `content_class_id` directly (ladder bypassed for that row). Operational sequence: shadow observation → 100-row manual audit → flip to `route` → MV refresh + hook stats (see `artifacts/docs/two-axis-niche-cutover-runbook.md` Part B).
 
 ---
 

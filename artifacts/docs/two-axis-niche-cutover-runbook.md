@@ -50,3 +50,87 @@ Keep this mapping for at least **30 days after PR6** (stability window). Longer 
 ## Related cleanup (not part of the four-migration chain)
 
 - `supabase/migrations/20260630000002_drop_primary_niche_sync_trigger_pr6.sql` — removes stray `primary_niche` sync trigger/function if still present.
+
+---
+
+## Part B — HI-11: Two-axis niche resolver (shadow → `route`)
+
+**Scope:** Batch corpus ingest (`corpus_ingest.py`) chooses how `video_corpus.niche_id` and `content_class_id` are written when Gemini HI-9 `niche_classification` is present. This is **independent** of the PR1–PR6 column cutover above; migrations `20260516120000_video_corpus_niche_resolution_shadow.sql` and RPC `20260719000001_upsert_corpus_niche_resolution_shadow.sql` add shadow/telemetry columns.
+
+### Code reference (single source of truth)
+
+| Piece | Location |
+|-------|-----------|
+| Env flag | `NICHE_RESOLVER_MODE=shadow\|route` (default **shadow** if unset/invalid) — `cloud-run/getviews_pipeline/config.py` |
+| Shadow telemetry | `_niche_resolution_shadow_fields` — `corpus_ingest.py` |
+| Route override | `_route_niche_and_class_override` + `content_class_id_override` in `_build_corpus_row` — `corpus_ingest.py` |
+| Junction lookup | `junction_content_class.content_class_id_for_creator_niche_format` |
+| Confidence floor | `_GEMINI_NICHE_CONFIDENCE_FLOOR = 0.6` |
+
+- **`shadow`:** Hashtag resolver stays canonical for `niche_id` / ladder-filled `content_class_id`. Rows still get `niche_resolution_source`, `niche_resolution_confidence`, `inferred_creator_niche_id` for observability. Cloud Logging: `niche shadow disagree` when Gemini’s legacy niche would differ from the hashtag pick.
+- **`route`:** If confidence ≥ 0.6, slug maps to a creator niche, `junction_has_pair` passes, and junction returns a row → write **representative legacy** `niche_id` and **junction** `content_class_id` (ladder bypassed for that row). Otherwise same as hashtag path.
+
+### Phase 1 — Shadow observation (calendar: 3–7 days)
+
+1. Confirm **batch** Cloud Run has `NICHE_RESOLVER_MODE=shadow` (or unset). User pod only matters if it ever batch-writes `video_corpus` with the same path — keep aligned with batch.
+2. Run daily SQL in Supabase (SQL editor or admin):
+
+**Ingest volume by resolution source (rolling 24h):**
+
+```sql
+SELECT
+  niche_resolution_source,
+  COUNT(*) AS n,
+  ROUND(AVG(niche_resolution_confidence)::numeric, 3) AS avg_conf
+FROM video_corpus
+WHERE indexed_at > now() - interval '24 hours'
+GROUP BY 1
+ORDER BY n DESC;
+```
+
+**Recent Gemini-tagged rows (spot-check sample):**
+
+```sql
+SELECT
+  video_id,
+  niche_id,
+  content_class_id,
+  niche_resolution_source,
+  niche_resolution_confidence,
+  inferred_creator_niche_id,
+  indexed_at
+FROM video_corpus
+WHERE niche_resolution_source = 'gemini_two_axis'
+ORDER BY indexed_at DESC
+LIMIT 50;
+```
+
+3. In **GCP Cloud Logging** (batch service), watch for:
+   - `[corpus] niche shadow disagree` — expected occasionally; high burst ⇒ review hashtag map vs Gemini.
+   - `[corpus] junction miss` — junction seed out of sync with `two_axis_taxonomy.JUNCTION_NICHE_FORMAT_PAIRS`; add migration rows before flipping to `route`.
+
+### Phase 2 — Manual 100-row audit (human gate)
+
+Before `route` in production:
+
+1. Draw a stratified sample of **100** recent rows (mix of `gemini_two_axis` and `hashtag` / `default` as available).
+2. For each row, label against TikTok caption + hook + known content: **`agree`** | **`gemini_better`** | **`legacy_better`** | **`both_wrong`**.
+3. **Sign-off threshold (plan):** `(agree + gemini_better) / 100 ≥ 0.8`.
+
+If the gate fails, do **not** flip; tune junction, prompts, or threshold in code only via a reviewed change (today: `_GEMINI_NICHE_CONFIDENCE_FLOOR` in `corpus_ingest.py`).
+
+### Phase 3 — Routing flip + post-flip hygiene
+
+1. Set **`NICHE_RESOLVER_MODE=route`** on **batch** Cloud Run (and user pod if it shares ingest). Deploy.
+2. **Revert:** set `shadow`, redeploy — no migration required.
+3. **Immediately after flip (plan deploy gate):**
+   - `SELECT public.refresh_niche_intelligence();`
+   - `SELECT public.refresh_content_class_intelligence();`
+4. Ensure **`hook_effectiveness_compute`** runs once after MV refresh (or wait for the next batch job that invokes it).
+5. **ME-17:** Enable legacy-row classification backfill per `artifacts/issues/me17-backfill-legacy-corpus-classification.md` (plan: start the night after flip).
+
+### QA / tests
+
+- `cloud-run/tests/test_hi11_route_niche_resolution.py`
+- `cloud-run/tests/test_corpus_ingest_junction_warn.py`
+- Baseline: `artifacts/qa-reports/hi11-baseline.json` (**PASS_WITH_CONCERNS** — full plan still expects extended calendar + flip executed in prod).

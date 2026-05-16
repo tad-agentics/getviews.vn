@@ -11,5 +11,7 @@
   - QA: `artifacts/qa-reports/hi11-baseline.json` (**PASS_WITH_CONCERNS**)
 - **Symptom:** (plan) Hashtag-only resolver disagrees with Gemini two-axis classification.
 - **Verification:** `cd cloud-run && uv sync --extra dev && .venv/bin/python -m pytest -q` — green; keep **shadow** in prod until audit.
+- **Runbook (ops):** `artifacts/docs/two-axis-niche-cutover-runbook.md` — **Part B — HI-11** (daily SQL, 100-row gate, flip checklist, ME-17 handoff).
+- **Architecture note:** `artifacts/docs/system-design.md` § “Niche model” — HI-11 bullet.
 
 **Canonical plan:** `.cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md`
