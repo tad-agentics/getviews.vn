@@ -26,11 +26,12 @@ adjusts per-mtok pricing — the function signature never needs to change.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from getviews_pipeline.supabase_client import get_service_client
@@ -55,7 +56,7 @@ _DAILY_USD_FETCHED_AT: dict[str, float] = {}  # utc_date_iso → monotonic secon
 
 
 def _today_utc_iso() -> str:
-    return datetime.now(timezone.utc).date().isoformat()
+    return datetime.now(UTC).date().isoformat()
 
 
 def _fetch_today_cost_usd(today_iso: str) -> float:
@@ -244,15 +245,48 @@ def extract_usage(response: Any) -> tuple[int, int]:
 
 # ── Async log writer ─────────────────────────────────────────────────────────
 # Fire-and-forget so a transient Supabase blip never blocks the Gemini call.
-# Thread-per-insert is pragmatic (no asyncio loop on every caller); the
-# writer lives longer than the HTTP response but the Cloud Run container
-# drains in-flight threads on shutdown.
+# Track daemon threads so atexit can join briefly under Cloud Run SIGTERM
+# (10s grace) — CR-4.
+
+_PENDING_GEMINI_CALL_THREADS: set[threading.Thread] = set()
+_PENDING_GEMINI_CALL_THREADS_LOCK = threading.Lock()
+
+
+def _drain_gemini_cost_log_threads() -> None:
+    """Best-effort join of pending ``gemini_calls`` insert threads (~8s budget)."""
+    deadline = time.monotonic() + 8.0
+    while time.monotonic() < deadline:
+        with _PENDING_GEMINI_CALL_THREADS_LOCK:
+            alive = [t for t in _PENDING_GEMINI_CALL_THREADS if t.is_alive()]
+        if not alive:
+            return
+        for t in alive:
+            t.join(timeout=0.25)
+    with _PENDING_GEMINI_CALL_THREADS_LOCK:
+        still = sum(1 for t in _PENDING_GEMINI_CALL_THREADS if t.is_alive())
+    if still:
+        logger.warning(
+            "[gemini_cost] atexit drain: %d insert thread(s) still alive after 8s",
+            still,
+        )
+
+
+atexit.register(_drain_gemini_cost_log_threads)
+
 
 def _insert_row(row: dict[str, Any]) -> None:
     try:
         get_service_client().table("gemini_calls").insert(row).execute()
     except Exception as exc:  # noqa: BLE001
         logger.warning("[gemini_cost] gemini_calls insert failed: %s", exc)
+
+
+def _gemini_cost_insert_task(row: dict[str, Any]) -> None:
+    try:
+        _insert_row(row)
+    finally:
+        with _PENDING_GEMINI_CALL_THREADS_LOCK:
+            _PENDING_GEMINI_CALL_THREADS.discard(threading.current_thread())
 
 
 def log_gemini_call(
@@ -317,11 +351,13 @@ def log_gemini_call(
     }
 
     thread = threading.Thread(
-        target=_insert_row,
+        target=_gemini_cost_insert_task,
         args=(row,),
         daemon=True,
         name=f"gemini-cost-{call_site}",
     )
+    with _PENDING_GEMINI_CALL_THREADS_LOCK:
+        _PENDING_GEMINI_CALL_THREADS.add(thread)
     thread.start()
 
     return cost_usd

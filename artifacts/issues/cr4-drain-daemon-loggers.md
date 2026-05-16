@@ -1,6 +1,6 @@
 # CR-4 — atexit drain for Gemini cost log daemon threads
 
-- **Status:** Pending
+- **Status:** Done (2026-05-16)
 - **Severity:** (see plan body)
 - **Sprint:** Sprint 1 — CRITICAL
 - **Discovered:** 2026-05-16 — deep pipeline audit + conflict review

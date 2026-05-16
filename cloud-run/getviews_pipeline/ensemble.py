@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import contextlib
 import contextvars
 import logging
-import os
 import threading
 import time
 import uuid
@@ -17,7 +17,6 @@ from typing import Any
 import aiofiles
 import httpx
 
-from getviews_pipeline.settings import settings as _settings
 from getviews_pipeline.config import (
     CAROUSEL_EXTRACT_MAX_SLIDES,
     CAROUSEL_MAX_IMAGE_BYTES,
@@ -37,12 +36,38 @@ from getviews_pipeline.config import (
 )
 from getviews_pipeline.ed_budget import endpoint_key_from_url, estimate_units_from_counts
 from getviews_pipeline.models import Author, ContentType, Metrics, Music, VideoMetadata
+from getviews_pipeline.settings import settings as _settings
 
 # EnsembleData echoes TikTok's mobile API. Photo carousels use aweme_type == 2; slide
 # URLs live under image_post_info.images[].display_image.url_list[].
 AWEME_TYPE_PHOTO_CAROUSEL = 2
 
 logger = logging.getLogger(__name__)
+
+_PENDING_ENSEMBLE_CALL_THREADS: set[threading.Thread] = set()
+_PENDING_ENSEMBLE_CALL_THREADS_LOCK = threading.Lock()
+
+
+def _drain_ensemble_call_log_threads() -> None:
+    """Best-effort join of pending ``ensemble_calls`` insert threads (~8s)."""
+    deadline = time.monotonic() + 8.0
+    while time.monotonic() < deadline:
+        with _PENDING_ENSEMBLE_CALL_THREADS_LOCK:
+            alive = [t for t in _PENDING_ENSEMBLE_CALL_THREADS if t.is_alive()]
+        if not alive:
+            return
+        for t in alive:
+            t.join(timeout=0.25)
+    with _PENDING_ENSEMBLE_CALL_THREADS_LOCK:
+        still = sum(1 for t in _PENDING_ENSEMBLE_CALL_THREADS if t.is_alive())
+    if still:
+        logger.warning(
+            "[ensemble] atexit drain: %d ensemble_calls insert thread(s) still alive after 8s",
+            still,
+        )
+
+
+atexit.register(_drain_ensemble_call_log_threads)
 
 
 class EnsembleDailyBudgetExceeded(ValueError):
@@ -253,12 +278,18 @@ def _record_ensemble_call(endpoint: str, duration_ms: int | None) -> None:
             }).execute()
         except Exception as exc:  # noqa: BLE001
             logger.warning("[ensemble_calls] insert failed: %s", exc)
+        finally:
+            with _PENDING_ENSEMBLE_CALL_THREADS_LOCK:
+                _PENDING_ENSEMBLE_CALL_THREADS.discard(threading.current_thread())
 
-    threading.Thread(
+    thread = threading.Thread(
         target=_do,
         daemon=True,
         name=f"ed-attr-{endpoint.replace('/', '-')}",
-    ).start()
+    )
+    with _PENDING_ENSEMBLE_CALL_THREADS_LOCK:
+        _PENDING_ENSEMBLE_CALL_THREADS.add(thread)
+    thread.start()
 
 
 class _TTLStrCache:
@@ -396,7 +427,7 @@ def _ensembledata_error_message(code: int) -> str | None:
 async def fetch_post_info(
     url: str,
     *,
-    _client: "httpx.AsyncClient | None" = None,
+    _client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     """Fetch TikTok post info; return aweme_detail dict.
 

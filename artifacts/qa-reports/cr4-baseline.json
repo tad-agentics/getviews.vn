@@ -1,0 +1,42 @@
+{
+  "feature": "CR-4",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "passResults": {
+    "geminiCostThreadDrain": "PASS",
+    "ensembleThreadDrain": "PASS",
+    "atexitRegistration": "PASS",
+    "eightSecondBudget": "PASS",
+    "ruffTouchedFiles": "PASS",
+    "cloudRunPytest": "PASS",
+    "npmTypecheck": "PASS"
+  },
+  "findings": [],
+  "categoryScores": {
+    "correctness": 100,
+    "operability": 100,
+    "testCoverage": 100
+  },
+  "evidence": {
+    "implementation": [
+      "cloud-run/getviews_pipeline/gemini_cost.py: _PENDING_GEMINI_CALL_THREADS + lock; _drain_gemini_cost_log_threads (monotonic deadline +8s, join 0.25s slices); atexit.register; log_gemini_call adds Thread before start; _gemini_cost_insert_task finally discard(current_thread)",
+      "cloud-run/getviews_pipeline/ensemble.py: _PENDING_ENSEMBLE_CALL_THREADS + lock; _drain_ensemble_call_log_threads (same 8s pattern); atexit.register; _record_ensemble_call adds thread before start; inner _do finally discard(current_thread)"
+    ],
+    "tests": [
+      "ruff check getviews_pipeline/gemini_cost.py getviews_pipeline/ensemble.py: All checks passed",
+      "cloud-run pytest: 1919 passed, 2 skipped",
+      "npm run typecheck: exit 0"
+    ],
+    "limits": [
+      "atexit drain aligns with interpreter teardown after graceful SIGTERM handling; threads remain daemon=True — drain is best-effort within ~8s Cloud Run grace window"
+    ]
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}
