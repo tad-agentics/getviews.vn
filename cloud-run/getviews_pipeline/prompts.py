@@ -209,6 +209,11 @@ QUY TẮC BẮT BUỘC:
 - cta_slide: CHỈ slide cuối. has_cta true nếu có kêu gọi (follow, save, comment, link, mua). cta_type: save | follow | comment | link_bio | shop_cart | null. cta_text nguyên văn hoặc null.
 - has_numbered_hook: true nếu slide 1 có số tạo completion bias ("7 cách…", "3 lỗi…").
 - swipe_trigger_type: list_momentum | curiosity_chain | narrative_tension | none.
+- slides[].swipe_anchor (ME-19): tại sao khán giả vuốt sang slide tiếp? cliffhanger_image | incomplete_text | numbered_progression | curiosity_question | none — một giá trị/slide; none nếu không rõ.
+- slides[].layout (ME-19): single_image | split_screen | text_only | photo_with_caption | infographic | meme_format.
+- audio_track_role (ME-19, cấp carousel): trending_sound | original_music | silent | spoken_overlay — nhạc nền viral vs nhạc gốc vs tắt vs lời đè.
+- dominant_color_palette (ME-19): một cụm ngắn tiếng Việt mô tả tông màu chủ đạo (vd. "pastel hồng + nude"); null nếu không rõ.
+- slide_pacing_score (ME-19): số 0.0–1.0 — độ đều phân bổ chữ giữa các slide; pacing đều ~0.8–1.0; lệch nặng ~0.3–0.5; null nếu không đủ cơ sở.
 - Map slides đúng batch index được cung cấp."""
 
 _HI9_ENRICHMENT_CAROUSEL = """

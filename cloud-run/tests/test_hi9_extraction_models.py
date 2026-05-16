@@ -233,6 +233,8 @@ def test_extraction_prompts_include_glossary_and_hi9() -> None:
     assert "review_unboxing" in VIDEO_EXTRACTION_PROMPT
     assert "carousel_format_axis" in CAROUSEL_EXTRACTION_PROMPT
     assert "tutorial_carousel" in CAROUSEL_EXTRACTION_PROMPT
+    assert "swipe_anchor" in CAROUSEL_EXTRACTION_PROMPT
+    assert "slide_pacing_score" in CAROUSEL_EXTRACTION_PROMPT
     assert "=== glossary — format_axis" not in CAROUSEL_EXTRACTION_PROMPT
 
 

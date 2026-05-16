@@ -111,6 +111,31 @@ SlideVisualType = Literal[
     "other",
 ]
 
+# ME-19 — per-slide swipe psychology + carousel-level audio/color/pacing (all Optional on rows).
+SwipeAnchorType = Literal[
+    "cliffhanger_image",
+    "incomplete_text",
+    "numbered_progression",
+    "curiosity_question",
+    "none",
+]
+
+SlideLayoutType = Literal[
+    "single_image",
+    "split_screen",
+    "text_only",
+    "photo_with_caption",
+    "infographic",
+    "meme_format",
+]
+
+AudioTrackRoleType = Literal[
+    "trending_sound",
+    "original_music",
+    "silent",
+    "spoken_overlay",
+]
+
 EnergyLevel = Literal["low", "medium", "high"]
 
 ToneType = Literal[
@@ -470,6 +495,11 @@ class SlideAnalysis(BaseModel):
     word_count: int | None = None
     """Approximate number of words of text visible on this slide."""
 
+    swipe_anchor: SwipeAnchorType | None = None
+    """ME-19: what on this slide pushes the viewer to swipe to the next."""
+    layout: SlideLayoutType | None = None
+    """ME-19: dominant layout pattern for this slide."""
+
 
 class CTASlide(BaseModel):
     """CTA presence on the final slide of a carousel."""
@@ -525,6 +555,13 @@ class CarouselAnalysis(BaseModel):
     """True if slide 1 shows a number (e.g. '7 cách…') triggering completion bias."""
     swipe_trigger_type: str | None = None
     """Swipe mechanic: list_momentum, curiosity_chain, narrative_tension, or none."""
+
+    audio_track_role: AudioTrackRoleType | None = None
+    """ME-19: trending_sound | original_music | silent | spoken_overlay."""
+    dominant_color_palette: str | None = None
+    """ME-19: short Vietnamese color story (e.g. pastel hồng + nude)."""
+    slide_pacing_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    """ME-19: 0–1 evenness of text across slides; high = balanced density."""
 
     content_context: ContentContext | None = None
     niche_classification: CarouselNicheClassification | None = None

@@ -27,6 +27,13 @@ def test_carousel_analysis_uses_slides_not_story_arc() -> None:
     assert "content_context" in props
     assert "niche_classification" in props
     defs = schema.get("$defs", {})
+    slide = defs.get("SlideAnalysis", {})
+    slide_props = slide.get("properties") or {}
+    assert "swipe_anchor" in slide_props
+    assert "layout" in slide_props
+    assert "audio_track_role" in props
+    assert "dominant_color_palette" in props
+    assert "slide_pacing_score" in props
     nc = defs.get("CarouselNicheClassification", {})
     assert "carousel_format_axis" in (nc.get("properties") or {})
 
