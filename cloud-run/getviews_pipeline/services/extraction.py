@@ -414,7 +414,7 @@ def extract_video_errors(
     _fmt_axis: str | None = None
     if isinstance(_nc, dict):
         _ns = _nc.get("creator_niche_slug")
-        _fa = _nc.get("format_axis")
+        _fa = _nc.get("carousel_format_axis") or _nc.get("format_axis")
         if _ns is not None and str(_ns).strip():
             _niche_slug = str(_ns).strip()[:48]
         if _fa is not None and str(_fa).strip():

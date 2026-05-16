@@ -301,6 +301,7 @@ def log_gemini_call(
     success: bool = True,
     error_code: str | None = None,
     used_context_cache: bool | None = None,
+    gcp_stt_cost_usd: float | None = None,
 ) -> float:
     """Insert a ``gemini_calls`` row asynchronously. Returns the computed cost.
 
@@ -336,6 +337,8 @@ def log_gemini_call(
     }
     if used_context_cache is not None:
         log_extra["used_context_cache"] = used_context_cache
+    if gcp_stt_cost_usd is not None:
+        log_extra["gcp_stt_cost_usd"] = gcp_stt_cost_usd
     logger.info(
         "gemini_call",
         extra=log_extra,
@@ -353,6 +356,8 @@ def log_gemini_call(
         "success": success,
         "error_code": error_code,
     }
+    if gcp_stt_cost_usd is not None:
+        row["gcp_stt_cost_usd"] = gcp_stt_cost_usd
 
     thread = threading.Thread(
         target=_gemini_cost_insert_task,
@@ -375,6 +380,7 @@ def log_gemini_failure(
     exc: BaseException,
     duration_ms: int,
     session_id: str | None = None,
+    gcp_stt_cost_usd: float | None = None,
 ) -> None:
     """Log a ``gemini_calls`` row for an exhausted-retry failure.
 
@@ -398,4 +404,5 @@ def log_gemini_failure(
         session_id=session_id,
         success=False,
         error_code=type(exc).__name__,
+        gcp_stt_cost_usd=gcp_stt_cost_usd,
     )

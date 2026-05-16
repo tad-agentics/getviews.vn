@@ -178,6 +178,11 @@ GEMINI_VIDEO_BASE_FPS = _float_env("GEMINI_VIDEO_BASE_FPS", "1.0")
 GEMINI_HOOK_WINDOW_FPS = _float_env("GEMINI_HOOK_WINDOW_FPS", "4.0")
 GEMINI_HOOK_WINDOW_END_SEC = _float_env("GEMINI_HOOK_WINDOW_END_SEC", "3.0")
 
+# ── HI-14 — GCP Speech-to-Text vi-VN supplemental ASR (video extraction) ─────
+# Disabling skips the pre-Gemini STT pass (graceful degradation everywhere).
+GCP_STT_VI_ENABLED = _bool_env("GCP_STT_VI_ENABLED", True)
+GCP_STT_VI_PRICE_PER_MIN_USD = _float_env("GCP_STT_VI_PRICE_PER_MIN_USD", "0.024")
+
 # ── EnsembleData metering & unit estimates ([ed-meter] logs) ─────────────────
 # Override per endpoint after calibrating vs ED dashboard
 # (artifacts/docs/ed-pricing-map.md).

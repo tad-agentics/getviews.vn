@@ -1,4 +1,4 @@
-"""HI-9 — junction seed sanity vs Gemini enum (no live DB)."""
+"""HI-9 + HI-16 — junction seed sanity vs Gemini enum (no live DB)."""
 
 from __future__ import annotations
 
@@ -8,9 +8,12 @@ from pathlib import Path
 import pytest
 
 from getviews_pipeline.two_axis_taxonomy import (
+    CAROUSEL_FORMAT_AXIS_SLUGS,
+    CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS,
     CREATOR_NICHE_SLUGS,
     FORMAT_AXIS_SLUGS,
     JUNCTION_NICHE_FORMAT_PAIRS,
+    VIDEO_JUNCTION_NICHE_FORMAT_PAIRS,
     junction_has_pair,
 )
 
@@ -84,7 +87,7 @@ def test_hi9_junction_seed_maps_every_creator_niche_slug(
     assert slugs_in_junction == set(CREATOR_NICHE_SLUGS)
 
 
-def test_hi9_each_format_axis_used_in_at_least_one_niche_row(
+def test_hi9_each_video_format_axis_used_in_at_least_one_niche_row(
     covered_pairs: set[tuple[str, str]],
 ) -> None:
     axes_seen = {p[1] for p in covered_pairs}
@@ -96,16 +99,36 @@ def test_hi9_junction_tuple_count_stable(covered_pairs: set[tuple[str, str]]) ->
     assert len(covered_pairs) == 55
 
 
-def test_hi9_junction_constant_matches_migration_parse(
+def test_hi9_video_junction_constant_matches_migration_parse(
     covered_pairs: set[tuple[str, str]],
 ) -> None:
-    """``JUNCTION_NICHE_FORMAT_PAIRS`` must stay synced with seed migrations."""
-    assert JUNCTION_NICHE_FORMAT_PAIRS == frozenset(covered_pairs)
+    assert VIDEO_JUNCTION_NICHE_FORMAT_PAIRS == frozenset(covered_pairs)
+
+
+def test_hi16_carousel_junction_is_full_niche_times_axis_grid() -> None:
+    assert len(CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS) == len(CREATOR_NICHE_SLUGS) * len(
+        CAROUSEL_FORMAT_AXIS_SLUGS
+    )
+    for slug in CREATOR_NICHE_SLUGS:
+        for fmt in CAROUSEL_FORMAT_AXIS_SLUGS:
+            assert (slug, fmt) in CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS
+
+
+def test_video_and_carousel_format_axes_are_disjoint() -> None:
+    assert set(FORMAT_AXIS_SLUGS).isdisjoint(set(CAROUSEL_FORMAT_AXIS_SLUGS))
+
+
+def test_junction_union_equals_video_plus_carousel() -> None:
+    assert JUNCTION_NICHE_FORMAT_PAIRS == (
+        VIDEO_JUNCTION_NICHE_FORMAT_PAIRS | CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS
+    )
+    assert len(JUNCTION_NICHE_FORMAT_PAIRS) == 55 + 80
 
 
 def test_junction_has_pair_helper() -> None:
     assert junction_has_pair("beauty", "review_unboxing") is True
     assert junction_has_pair("beauty", "live_commerce") is False  # not seeded
+    assert junction_has_pair("beauty", "tutorial_carousel") is True
     assert junction_has_pair(None, "tutorial") is False
     assert junction_has_pair("beauty", None) is False
     assert junction_has_pair("", "") is False

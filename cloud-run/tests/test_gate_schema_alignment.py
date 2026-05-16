@@ -26,6 +26,9 @@ def test_carousel_analysis_uses_slides_not_story_arc() -> None:
     assert "swipe_incentive" not in props
     assert "content_context" in props
     assert "niche_classification" in props
+    defs = schema.get("$defs", {})
+    nc = defs.get("CarouselNicheClassification", {})
+    assert "carousel_format_axis" in (nc.get("properties") or {})
 
 
 def test_reference_count_default_three_helpers() -> None:

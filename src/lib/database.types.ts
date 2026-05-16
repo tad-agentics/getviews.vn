@@ -358,48 +358,66 @@ export type Database = {
       channel_diagnoses: {
         Row: {
           channel_pattern: Json
+          channel_persona: Json
           computed_at: string
           creator_match: Json | null
           handle: string
+          hashtag_insights: Json
           inflection: Json | null
+          next_video: Json | null
           niche_id: number
+          peer_source: string | null
           recommendations: Json
+          score_card: Json
           sections: Json
           top_performers: Json
           trajectory_shape: string
           ugc_creators: Json
+          verdict_tiles: Json
           video_count: number
           video_url: string
           worst_performers: Json
         }
         Insert: {
           channel_pattern?: Json
+          channel_persona?: Json
           computed_at?: string
           creator_match?: Json | null
           handle: string
+          hashtag_insights?: Json
           inflection?: Json | null
+          next_video?: Json | null
           niche_id: number
+          peer_source?: string | null
           recommendations?: Json
+          score_card?: Json
           sections?: Json
           top_performers?: Json
           trajectory_shape: string
           ugc_creators?: Json
+          verdict_tiles?: Json
           video_count?: number
           video_url?: string
           worst_performers?: Json
         }
         Update: {
           channel_pattern?: Json
+          channel_persona?: Json
           computed_at?: string
           creator_match?: Json | null
           handle?: string
+          hashtag_insights?: Json
           inflection?: Json | null
+          next_video?: Json | null
           niche_id?: number
+          peer_source?: string | null
           recommendations?: Json
+          score_card?: Json
           sections?: Json
           top_performers?: Json
           trajectory_shape?: string
           ugc_creators?: Json
+          verdict_tiles?: Json
           video_count?: number
           video_url?: string
           worst_performers?: Json
@@ -1417,6 +1435,7 @@ export type Database = {
           created_at: string
           duration_ms: number
           error_code: string | null
+          gcp_stt_cost_usd: number | null
           id: string
           model_name: string
           session_id: string | null
@@ -1431,6 +1450,7 @@ export type Database = {
           created_at?: string
           duration_ms: number
           error_code?: string | null
+          gcp_stt_cost_usd?: number | null
           id?: string
           model_name: string
           session_id?: string | null
@@ -1445,6 +1465,7 @@ export type Database = {
           created_at?: string
           duration_ms?: number
           error_code?: string | null
+          gcp_stt_cost_usd?: number | null
           id?: string
           model_name?: string
           session_id?: string | null
@@ -2373,6 +2394,7 @@ export type Database = {
           hook_type: string | null
           id: string
           indexed_at: string
+          inferred_creator_niche_id: number | null
           ingest_source: string | null
           is_commerce: boolean | null
           is_duet: boolean | null
@@ -2383,6 +2405,8 @@ export type Database = {
           last_refreshed_at: string | null
           likes: number
           niche_id: number
+          niche_resolution_confidence: number | null
+          niche_resolution_source: string | null
           pain_points: Json | null
           pattern_id: string | null
           posted_at: string | null
@@ -2443,6 +2467,7 @@ export type Database = {
           hook_type?: string | null
           id?: string
           indexed_at?: string
+          inferred_creator_niche_id?: number | null
           ingest_source?: string | null
           is_commerce?: boolean | null
           is_duet?: boolean | null
@@ -2453,6 +2478,8 @@ export type Database = {
           last_refreshed_at?: string | null
           likes?: number
           niche_id: number
+          niche_resolution_confidence?: number | null
+          niche_resolution_source?: string | null
           pain_points?: Json | null
           pattern_id?: string | null
           posted_at?: string | null
@@ -2513,6 +2540,7 @@ export type Database = {
           hook_type?: string | null
           id?: string
           indexed_at?: string
+          inferred_creator_niche_id?: number | null
           ingest_source?: string | null
           is_commerce?: boolean | null
           is_duet?: boolean | null
@@ -2523,6 +2551,8 @@ export type Database = {
           last_refreshed_at?: string | null
           likes?: number
           niche_id?: number
+          niche_resolution_confidence?: number | null
+          niche_resolution_source?: string | null
           pain_points?: Json | null
           pattern_id?: string | null
           posted_at?: string | null
@@ -2558,6 +2588,13 @@ export type Database = {
             columns: ["content_class_id"]
             isOneToOne: false
             referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_corpus_inferred_creator_niche_id_fkey"
+            columns: ["inferred_creator_niche_id"]
+            isOneToOne: false
+            referencedRelation: "creator_niches"
             referencedColumns: ["id"]
           },
           {
@@ -2815,6 +2852,30 @@ export type Database = {
           },
         ]
       }
+      vietnamese_asr_cache: {
+        Row: {
+          audio_duration_sec: number | null
+          created_at: string
+          stt_cost_usd: number
+          transcript: Json
+          video_id: string
+        }
+        Insert: {
+          audio_duration_sec?: number | null
+          created_at?: string
+          stt_cost_usd?: number
+          transcript: Json
+          video_id: string
+        }
+        Update: {
+          audio_duration_sec?: number | null
+          created_at?: string
+          stt_cost_usd?: number
+          transcript?: Json
+          video_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       content_class_intelligence: {
@@ -2991,6 +3052,7 @@ export type Database = {
       niche_channel_benchmarks: {
         Args: { p_niche_id: number }
         Returns: {
+          avg_views_p25: number
           avg_views_p50: number
           avg_views_p75: number
           channel_count: number

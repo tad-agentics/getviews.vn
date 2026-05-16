@@ -31,6 +31,7 @@ from getviews_pipeline.models import (
     VideoMetadata,
 )
 from getviews_pipeline.runtime import run_sync
+from getviews_pipeline.services.asr_vietnamese import sync_prepare_vietnamese_asr_supplement
 
 logger = logging.getLogger(__name__)
 
@@ -187,8 +188,25 @@ async def _analyze_video(
         except Exception as e:
             return {"error": str(e), "metadata": metadata.model_dump()}
         try:
+            loop = asyncio.get_event_loop()
+            try:
+                asr_prefix, stt_usd = await loop.run_in_executor(
+                    None,
+                    sync_prepare_vietnamese_asr_supplement,
+                    video_path,
+                    metadata.video_id,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[hi14] asr supplement prep failed: %s", exc)
+                asr_prefix, stt_usd = "", None
+
             analysis = await asyncio.wait_for(
-                run_sync(analyze_video, video_path),
+                run_sync(
+                    analyze_video,
+                    video_path,
+                    supplemental_user_prefix=asr_prefix or None,
+                    gcp_stt_cost_usd=stt_usd,
+                ),
                 timeout=GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
             )
         except TimeoutError:
@@ -457,8 +475,25 @@ async def analyze_aweme_from_path(
 
     metadata = ensemble.parse_metadata(aweme)
     try:
+        loop = asyncio.get_event_loop()
+        try:
+            asr_prefix, stt_usd = await loop.run_in_executor(
+                None,
+                sync_prepare_vietnamese_asr_supplement,
+                video_path,
+                metadata.video_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[hi14] asr supplement prep failed (from_path): %s", exc)
+            asr_prefix, stt_usd = "", None
+
         analysis = await asyncio.wait_for(
-            run_sync(analyze_video, video_path),
+            run_sync(
+                analyze_video,
+                video_path,
+                supplemental_user_prefix=asr_prefix or None,
+                gcp_stt_cost_usd=stt_usd,
+            ),
             timeout=GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
         )
     except TimeoutError:

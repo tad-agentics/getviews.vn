@@ -20,11 +20,12 @@ from typing import Any
 from getviews_pipeline.claim_tiers import CLAIM_TIERS, should_cite_niche_norms
 
 _HI9_SYNTHESIS_HINT = """---
-## Tín hiệu HI-9 trong JSON phân tích (content_context / niche_classification)
+## Tín hiệu HI-9 / HI-16 trong JSON phân tích (content_context / niche_classification)
 
 Nếu khối phân tích có `content_context` hoặc `niche_classification` không null:
 - Neo chủ đề bằng `content_context.subject_matter` (một câu) để tránh lạc đề sang hạng mục phụ.
-- Dùng `niche_classification.creator_niche_slug`, `format_axis`, và `rationale` để đồng bộ ngôn ngữ phân loại với ngách UX và trục định dạng — **không** thay thế số benchmark; chỉ làm rõ khung giải thích.
+- Video: dùng `niche_classification.format_axis`. Carousel ảnh: dùng `niche_classification.carousel_format_axis` (KHÔNG dùng trục format video).
+- Kết hợp `creator_niche_slug` + trục định dạng + `rationale` để đồng bộ ngôn ngữ với ngách UX — **không** thay thế số benchmark; chỉ làm rõ khung giải thích.
 - Nếu tên ngách benchmark (`niche_name` / norms) lệch rõ so với `creator_niche_slug`, ghi nhận mâu thuẫn có thể có và giải thích bằng bằng chứng hình ảnh + metrics thật.
 """
 

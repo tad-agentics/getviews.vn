@@ -18,7 +18,10 @@ from getviews_pipeline.output_redesign import (
     build_carousel_diagnosis_narrative_prompt,
     build_diagnosis_narrative_prompt,
 )
-from getviews_pipeline.two_axis_taxonomy import build_extraction_niche_glossary_block
+from getviews_pipeline.two_axis_taxonomy import (
+    build_carousel_extraction_niche_glossary_block,
+    build_extraction_niche_glossary_block,
+)
 from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 
 # ---------------------------------------------------------------------------
@@ -153,6 +156,40 @@ def build_video_extraction_user_turn_vi(
         "Chỉ trả về JSON khớp schema — không markdown, không lời dẫn."
     )
 
+
+def format_vietnamese_asr_supplement_for_video_extraction_vi(
+    segments: list[dict[str, Any]],
+) -> str:
+    """HI-14 — human-readable Vietnamese block from STT segments (user turn prefix).
+
+    Empty segments → empty string (caller skips injection).
+    """
+    lines: list[str] = []
+    for seg in segments:
+        text = str(seg.get("text") or "").strip()
+        if not text:
+            continue
+        start = seg.get("start_sec")
+        end = seg.get("end_sec")
+        if start is not None and end is not None:
+            try:
+                t0 = float(start)
+                t1 = float(end)
+                lines.append(f"[{t0:.1f}s–{t1:.1f}s] {text}")
+                continue
+            except (TypeError, ValueError):
+                pass
+        lines.append(text)
+    if not lines:
+        return ""
+    body = "\n".join(lines)
+    return (
+        "Bản ghi tham chiếu (Google STT vi-VN; mốc thời gian gần đúng):\n"
+        f"{body}\n"
+        "Dùng để bổ trợ trường audio_transcript / lời nói; ưu tiên khớp hình nếu lệch."
+    )
+
+
 # Back-compat + tests: full static block (same text as system_instruction path).
 VIDEO_EXTRACTION_PROMPT = build_video_extraction_system_instruction()
 
@@ -175,19 +212,39 @@ QUY TẮC BẮT BUỘC:
 - Map slides đúng batch index được cung cấp."""
 
 _HI9_ENRICHMENT_CAROUSEL = """
-=== Nội dung ngữ nghĩa + phân loại hai trục (carousel — cùng schema video; HI-9) ===
-- content_context: subject_matter mô tả TOÀN BỘ carousel (vuốt qua các slide); các trường khác như video (sản phẩm, setting, mục đích…), lấy từ tổng thể các slide.
-- niche_classification: creator_niche_slug + format_axis CHỈ từ glossary phía dưới; rationale bằng tiếng Việt; confidence + alternative_creator_niche_slug theo cùng quy tắc video.
-- Áp dụng cùng kiểu ví dụ như video (beauty review carousel → review_unboxing; food tour slide → vlog_daily; skit meme nhiều slide → skit_scripted) — luôn chọn đúng cặp slug+axis trong glossary.
+=== Nội dung ngữ nghĩa + phân loại hai trục (carousel — HI-16; KHÔNG dùng format_axis của video) ===
+- content_context: giống video — subject_matter là MỘT câu tiếng Việt tóm cả carousel (vuốt qua slide); các trường khác lấy tổng thể slide.
+- niche_classification: điền creator_niche_slug + **carousel_format_axis** (CHỈ 5 giá trị trong glossary carousel_format_axis); rationale tiếng Việt; confidence 0–1; alternative_creator_niche_slug khi lệch ngách.
+- Khớp carousel_format_axis với kiểu vuốt (không chọn talking_head_advice / vlog_daily vì đó là trục video):
+  • tutorial_carousel — từng bước, checklist, recipe slides, số thứ tự hướng dẫn.
+  • listicle_carousel — "7 điều", "5 lỗi", nhiều bullet ngắn, tips xếp lớp.
+  • story_carousel — kể chuyện, POV, twist, tiến triển cảm xúc qua slide.
+  • comparison_carousel — before/after, A vs B, bảng so sánh hai phía.
+  • gallery_carousel — chủ yếu ảnh/moodboard, ít chữ, aesthetic/lookbook.
+
+Ví dụ JSON (carousel):
+  content_context.subject_matter: "Carousel 4 bước chọn serum cho da dầu."
+  niche_classification.creator_niche_slug: "beauty"
+  niche_classification.carousel_format_axis: "tutorial_carousel"
+  niche_classification.confidence: 0.9
+  niche_classification.rationale: "Mỗi slide một bước rõ ràng — đúng carousel hướng dẫn trong ngách làm đẹp."
+  niche_classification.alternative_creator_niche_slug: null
+
+  content_context.subject_matter: "So sánh iphone cũ vs android tầm trung qua 6 slide."
+  niche_classification.creator_niche_slug: "tech_gaming"
+  niche_classification.carousel_format_axis: "comparison_carousel"
+  niche_classification.confidence: 0.88
+  niche_classification.rationale: "Luân phiên hai phía và kết luận ưu nhược — định dạng so sánh."
+  niche_classification.alternative_creator_niche_slug: null
 """
 
 def build_carousel_extraction_system_instruction() -> str:
-    """Carousel static instructions + glossary → ``system_instruction`` (HI-8)."""
+    """Carousel static instructions + carousel two-axis glossary (HI-8 + HI-16)."""
     return (
         _CAROUSEL_EXTRACTION_CORE_VI
         + _HI9_ENRICHMENT_CAROUSEL
         + "\n\n"
-        + build_extraction_niche_glossary_block()
+        + build_carousel_extraction_niche_glossary_block()
     )
 
 

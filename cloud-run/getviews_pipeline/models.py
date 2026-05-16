@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from getviews_pipeline.two_axis_taxonomy import CreatorNicheSlug, FormatAxisSlug
+from getviews_pipeline.two_axis_taxonomy import (
+    CarouselFormatAxisSlug,
+    CreatorNicheSlug,
+    FormatAxisSlug,
+)
 
 # Post format (video vs photo carousel) — used on VideoMetadata and analyze payloads.
 ContentType = Literal["video", "carousel"]
@@ -358,6 +362,60 @@ class NicheClassification(BaseModel):
     """Second-best creator niche when confidence < 0.8; else null."""
 
 
+class CarouselNicheClassification(BaseModel):
+    """HI-16 — carousel uses ``carousel_format_axis``, not video ``format_axis``."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    creator_niche_slug: CreatorNicheSlug | None = None
+    carousel_format_axis: CarouselFormatAxisSlug | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    rationale: str | None = None
+    alternative_creator_niche_slug: CreatorNicheSlug | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_keys(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if "carousel_format_axis" not in out and "format_axis" in out:
+            out["carousel_format_axis"] = out.get("format_axis")
+        return out
+
+    @field_validator("carousel_format_axis", mode="before")
+    @classmethod
+    def _coerce_video_axes_for_legacy_rows(cls, v: object) -> object:
+        """Map pre-HI-16 video slugs onto the 5-value carousel set."""
+        if v is None:
+            return v
+        s = str(v).strip()
+        allowed: set[str] = {
+            "tutorial_carousel",
+            "listicle_carousel",
+            "story_carousel",
+            "comparison_carousel",
+            "gallery_carousel",
+        }
+        if s in allowed:
+            return s
+        legacy: dict[str, str] = {
+            "tutorial": "tutorial_carousel",
+            "review_unboxing": "comparison_carousel",
+            "pov_storytelling": "story_carousel",
+            "montage_highlights": "gallery_carousel",
+            "vlog_daily": "story_carousel",
+            "talking_head_advice": "listicle_carousel",
+            "skit_scripted": "story_carousel",
+            "react_commentary": "listicle_carousel",
+            "dance_choreography": "gallery_carousel",
+            "music_performance": "gallery_carousel",
+            "live_commerce": "comparison_carousel",
+            "comedy_observational": "story_carousel",
+        }
+        return legacy.get(s, "gallery_carousel")
+
+
 class VideoAnalysis(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -469,7 +527,7 @@ class CarouselAnalysis(BaseModel):
     """Swipe mechanic: list_momentum, curiosity_chain, narrative_tension, or none."""
 
     content_context: ContentContext | None = None
-    niche_classification: NicheClassification | None = None
+    niche_classification: CarouselNicheClassification | None = None
 
 
 class Metrics(BaseModel):

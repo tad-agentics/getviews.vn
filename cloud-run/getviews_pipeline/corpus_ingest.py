@@ -1239,7 +1239,7 @@ def _niche_resolution_shadow_fields(
     # pair not seeded in ``creator_niche_content_classes``. HI-11 routing will
     # downgrade rather than write NULL content_class_id; the WARN is the signal
     # to grow the junction via migration.
-    fmt_raw = nc.get("format_axis")
+    fmt_raw = nc.get("carousel_format_axis") or nc.get("format_axis")
     fmt_axis = str(fmt_raw).strip() if fmt_raw is not None else ""
     if slug and fmt_axis and not junction_has_pair(slug, fmt_axis):
         logger.warning(

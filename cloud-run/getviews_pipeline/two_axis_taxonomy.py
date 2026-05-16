@@ -111,15 +111,39 @@ FormatAxisSlug = Literal[
     "vlog_daily",
 ]
 
+# HI-16 — carousel extraction only (distinct from video ``format_axis``).
+CAROUSEL_FORMAT_AXIS_SLUGS: Final[tuple[str, ...]] = (
+    "tutorial_carousel",
+    "listicle_carousel",
+    "story_carousel",
+    "comparison_carousel",
+    "gallery_carousel",
+)
 
-# Junction coverage frozen from migrations PR1 + PR6:
-#   ``20260510000004_two_axis_niche_pr1_schema.sql`` +
-#   ``20260630000003_creator_niches_16_music_real_estate.sql``.
-# 55 distinct ``(creator_niche.slug, content_classifications.format_axis)`` pairs.
-# A regression test (``tests/test_hi9_junction_seed.py``) re-parses the SQL and
-# asserts this set matches — if a migration adds/removes rows without updating
-# this constant, CI fails so the runtime WARN below cannot silently rot.
-JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset({
+CarouselFormatAxisSlug = Literal[
+    "tutorial_carousel",
+    "listicle_carousel",
+    "story_carousel",
+    "comparison_carousel",
+    "gallery_carousel",
+]
+
+CAROUSEL_FORMAT_AXIS_VI: Final[dict[str, str]] = {
+    "tutorial_carousel": (
+        "Carousel hướng dẫn từng bước (recipe, checklist, công thức slide-by-slide)"
+    ),
+    "listicle_carousel": "Carousel list / tips (số thứ tự, nhiều ý ngắn trên nhiều slide)",
+    "story_carousel": "Carousel kể chuyện (narrative, twist, POV vuốt qua slide)",
+    "comparison_carousel": "Carousel so sánh / before-after / A vs B rõ hai phía",
+    "gallery_carousel": "Carousel gallery / moodboard (nhấn ảnh, ít chữ, aesthetic vuốt)",
+}
+
+
+# Junction: ``VIDEO_JUNCTION_NICHE_FORMAT_PAIRS`` = 55 from PR1+PR6 SQL parse;
+# ``CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS`` = 80 (16 niches × 5 carousel axes, HI-16
+# migration ``20260516190000_hi16_carousel_format_axis_junction.sql``).
+# Union = ``JUNCTION_NICHE_FORMAT_PAIRS`` (135). Tests: ``tests/test_hi9_junction_seed.py``.
+VIDEO_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset({
     ("auto", "review_unboxing"),
     ("auto", "talking_head_advice"),
     ("auto", "tutorial"),
@@ -177,6 +201,14 @@ JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset({
     ("wellness", "vlog_daily"),
 })
 
+CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset(
+    (niche, fmt) for niche in CREATOR_NICHE_SLUGS for fmt in CAROUSEL_FORMAT_AXIS_SLUGS
+)
+
+JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = (
+    VIDEO_JUNCTION_NICHE_FORMAT_PAIRS | CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS
+)
+
 
 def junction_has_pair(creator_niche_slug: str | None, format_axis: str | None) -> bool:
     """True iff (slug, format_axis) is seeded in ``creator_niche_content_classes``.
@@ -189,8 +221,22 @@ def junction_has_pair(creator_niche_slug: str | None, format_axis: str | None) -
     return (creator_niche_slug, format_axis) in JUNCTION_NICHE_FORMAT_PAIRS
 
 
+def build_carousel_extraction_niche_glossary_block() -> str:
+    """Glossary for carousel extraction — creator niches + carousel_format_axis only (HI-16)."""
+    lines: list[str] = [
+        "=== glossary — creator_niche_slug (CHỌN ĐÚNG MỘT giá trị snake_case) ===",
+    ]
+    for slug in CREATOR_NICHE_SLUGS:
+        lines.append(f'- "{slug}" — {CREATOR_NICHE_VI[slug]}')
+    lines.append("")
+    lines.append("=== glossary — carousel_format_axis (CHỌN ĐÚNG MỘT — CHỈ cho carousel) ===")
+    for axis in CAROUSEL_FORMAT_AXIS_SLUGS:
+        lines.append(f'- "{axis}" — {CAROUSEL_FORMAT_AXIS_VI[axis]}')
+    return "\n".join(lines)
+
+
 def build_extraction_niche_glossary_block() -> str:
-    """Vietnamese glossary of allowed enum values for the extraction prompt."""
+    """Vietnamese glossary of allowed enum values for the **video** extraction prompt."""
     lines: list[str] = [
         "=== glossary — creator_niche_slug (CHỌN ĐÚNG MỘT giá trị snake_case) ===",
     ]

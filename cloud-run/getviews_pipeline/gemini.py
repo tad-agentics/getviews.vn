@@ -408,6 +408,7 @@ def _generate_content_models(
     session_id: str | None = None,
     synthesis_cache_kind: str | None = None,
     synthesis_cache_system_text: str | None = None,
+    gcp_stt_cost_usd: float | None = None,
 ) -> Any:
     """Dispatch a ``generate_content`` call through the primary → fallback
     chain, logging token usage + cost per successful response.
@@ -523,6 +524,7 @@ def _generate_content_models(
                     duration_ms=duration_ms,
                     session_id=session_id,
                     used_context_cache=used_ctx_cache,
+                    gcp_stt_cost_usd=gcp_stt_cost_usd,
                 )
                 return response
             except Exception as e:
@@ -560,6 +562,7 @@ def _generate_content_models(
                 exc=last_err,
                 duration_ms=overall_ms,
                 session_id=session_id,
+                gcp_stt_cost_usd=gcp_stt_cost_usd,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("[gemini] log_gemini_failure crashed: %s", exc)
@@ -567,8 +570,18 @@ def _generate_content_models(
     raise RuntimeError("No Gemini models available")
 
 
-def analyze_video(video_path: Path) -> VideoAnalysis:
-    """Run full forensic analysis on a local video file (sync)."""
+def analyze_video(
+    video_path: Path,
+    *,
+    supplemental_user_prefix: str | None = None,
+    gcp_stt_cost_usd: float | None = None,
+) -> VideoAnalysis:
+    """Run full forensic analysis on a local video file (sync).
+
+    ``supplemental_user_prefix`` — optional Vietnamese text (e.g. HI-14 STT block)
+    prepended to the extraction user turn. ``gcp_stt_cost_usd`` is recorded on
+    the ``gemini_calls`` row for this extraction when set (fresh STT charge).
+    """
     path = video_path.resolve()
     size = path.stat().st_size
     client = _get_client()
@@ -587,6 +600,9 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
         ),
         base_fps_display=max(0.1, min(24.0, float(GEMINI_VIDEO_BASE_FPS))),
     )
+    prefix = (supplemental_user_prefix or "").strip()
+    if prefix:
+        user_turn = prefix + "\n\n" + user_turn
 
     if size <= MAX_INLINE_SIZE_BYTES:
         data = path.read_bytes()
@@ -601,6 +617,7 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
             fallbacks=GEMINI_EXTRACTION_FALLBACKS,
             config=json_cfg,
             call_site="video_extraction",
+            gcp_stt_cost_usd=gcp_stt_cost_usd,
         )
     else:
         uploaded = client.files.upload(file=str(path))
@@ -640,6 +657,7 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
                 fallbacks=GEMINI_EXTRACTION_FALLBACKS,
                 config=json_cfg,
                 call_site="video_extraction_filesapi",
+                gcp_stt_cost_usd=gcp_stt_cost_usd,
             )
         finally:
             try:

@@ -148,15 +148,81 @@ def test_carousel_analysis_hi9_optional_like_video() -> None:
         },
         "niche_classification": {
             "creator_niche_slug": "beauty",
-            "format_axis": "tutorial",
+            "carousel_format_axis": "listicle_carousel",
             "confidence": 0.78,
-            "rationale": "Nhiều slide chữ + bước — carousel hướng dẫn trong ngách làm đẹp.",
+            "rationale": "Nhiều slide chữ + bước — carousel dạng list trong ngách làm đẹp.",
             "alternative_creator_niche_slug": "wellness",
         },
     }
     m = CarouselAnalysis.model_validate(d)
     assert m.niche_classification is not None
+    assert m.niche_classification.carousel_format_axis == "listicle_carousel"
     assert m.niche_classification.alternative_creator_niche_slug == "wellness"
+
+
+def test_carousel_analysis_maps_legacy_video_format_axis() -> None:
+    """Pre-HI-16 rows used ``format_axis: tutorial`` — coerces to tutorial_carousel."""
+    d = {
+        "hook_analysis": {
+            "first_frame_type": "text_only",
+            "hook_phrase": "Bước 1",
+            "hook_type": "how_to",
+            "hook_notes": "",
+            "hook_timeline": [],
+        },
+        "slides": [{"index": 0, "visual_type": "text_card", "text_on_slide": ["Bước 1"]}],
+        "transitions_per_second": 0.0,
+        "energy_level": "medium",
+        "key_timestamps": [],
+        "audio_transcript": "",
+        "tone": "educational",
+        "topics": [],
+        "key_messages": [],
+        "cta": None,
+        "content_direction": {"what_works": "x", "suggested_angles": []},
+        "niche_classification": {
+            "creator_niche_slug": "food",
+            "format_axis": "tutorial",
+            "confidence": 0.8,
+            "rationale": "legacy",
+            "alternative_creator_niche_slug": None,
+        },
+    }
+    m = CarouselAnalysis.model_validate(d)
+    assert m.niche_classification is not None
+    assert m.niche_classification.carousel_format_axis == "tutorial_carousel"
+
+
+def test_carousel_analysis_rejects_unknown_carousel_axis_after_coercion() -> None:
+    d = {
+        "hook_analysis": {
+            "first_frame_type": "text_only",
+            "hook_phrase": "x",
+            "hook_type": "how_to",
+            "hook_notes": "",
+            "hook_timeline": [],
+        },
+        "slides": [{"index": 0, "visual_type": "text_card", "text_on_slide": []}],
+        "transitions_per_second": 0.0,
+        "energy_level": "medium",
+        "key_timestamps": [],
+        "audio_transcript": "",
+        "tone": "educational",
+        "topics": [],
+        "key_messages": [],
+        "cta": None,
+        "content_direction": {"what_works": "x", "suggested_angles": []},
+        "niche_classification": {
+            "creator_niche_slug": "beauty",
+            "carousel_format_axis": "not_a_carousel_axis",
+            "confidence": 0.9,
+            "rationale": "test",
+            "alternative_creator_niche_slug": None,
+        },
+    }
+    m = CarouselAnalysis.model_validate(d)
+    assert m.niche_classification is not None
+    assert m.niche_classification.carousel_format_axis == "gallery_carousel"
 
 
 def test_extraction_prompts_include_glossary_and_hi9() -> None:
@@ -165,8 +231,9 @@ def test_extraction_prompts_include_glossary_and_hi9() -> None:
     assert "Ví dụ 1" in VIDEO_EXTRACTION_PROMPT
     assert '"beauty"' in VIDEO_EXTRACTION_PROMPT or "beauty" in VIDEO_EXTRACTION_PROMPT
     assert "review_unboxing" in VIDEO_EXTRACTION_PROMPT
-    assert "content_context" in CAROUSEL_EXTRACTION_PROMPT
-    assert "real_estate" in VIDEO_EXTRACTION_PROMPT
+    assert "carousel_format_axis" in CAROUSEL_EXTRACTION_PROMPT
+    assert "tutorial_carousel" in CAROUSEL_EXTRACTION_PROMPT
+    assert "=== glossary — format_axis" not in CAROUSEL_EXTRACTION_PROMPT
 
 
 def test_extract_subject_matter_helper() -> None:

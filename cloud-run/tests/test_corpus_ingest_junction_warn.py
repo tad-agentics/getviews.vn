@@ -43,6 +43,41 @@ def test_junction_hit_no_warn(caplog) -> None:
     assert not any("junction miss" in rec.message for rec in caplog.records), caplog.text
 
 
+def test_junction_hit_carousel_axis_no_warn(caplog) -> None:
+    caplog.set_level(logging.WARNING, logger="getviews_pipeline.corpus_ingest")
+    _niche_resolution_shadow_fields(
+        {
+            "niche_classification": {
+                "creator_niche_slug": "beauty",
+                "carousel_format_axis": "tutorial_carousel",
+                "confidence": 0.92,
+            }
+        },
+        resolver_niche_id=2,
+        video_id="vid_carousel_junction_hit",
+    )
+    assert not any("junction miss" in rec.message for rec in caplog.records), caplog.text
+
+
+def test_junction_miss_carousel_axis_emits_warn(caplog) -> None:
+    caplog.set_level(logging.WARNING, logger="getviews_pipeline.corpus_ingest")
+    _niche_resolution_shadow_fields(
+        {
+            "niche_classification": {
+                "creator_niche_slug": "beauty",
+                "carousel_format_axis": "not_a_valid_carousel_axis",
+                "confidence": 0.92,
+            }
+        },
+        resolver_niche_id=2,
+        video_id="vid_carousel_junction_miss",
+    )
+    assert any(
+        "junction miss" in rec.message and "vid_carousel_junction_miss" in rec.message
+        for rec in caplog.records
+    ), caplog.text
+
+
 def test_no_niche_classification_no_warn(caplog) -> None:
     caplog.set_level(logging.WARNING, logger="getviews_pipeline.corpus_ingest")
     out = _niche_resolution_shadow_fields(

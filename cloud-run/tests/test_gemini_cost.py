@@ -188,6 +188,27 @@ class TestLogGeminiCall:
         assert captured["cost_usd"] == pytest.approx(0.0065, rel=1e-9)
         assert cost == pytest.approx(0.0065, rel=1e-9)
 
+    def test_inserts_gcp_stt_cost_when_provided(self) -> None:
+        captured: dict[str, Any] = {}
+        with patch(
+            "getviews_pipeline.gemini_cost._insert_row",
+            side_effect=lambda row: captured.update(row),
+        ):
+            log_gemini_call(
+                user_id=None,
+                call_site="video_extraction",
+                model_name="gemini-3.1-flash-lite",
+                tokens_in=100,
+                tokens_out=50,
+                duration_ms=200,
+                gcp_stt_cost_usd=0.001234,
+            )
+            for _ in range(50):
+                if "call_site" in captured:
+                    break
+                time.sleep(0.01)
+        assert captured["gcp_stt_cost_usd"] == pytest.approx(0.001234, rel=1e-9)
+
     def test_accepts_null_user_id_and_session_id(self) -> None:
         # Batch/cron callers (corpus ingest, niche intelligence) fire with
         # no user context — the row must still persist for aggregate cost.
@@ -330,6 +351,8 @@ class TestWrapperContract:
         assert "synthesis_cache_kind" in params
         assert "synthesis_cache_system_text" in params
         assert params["synthesis_cache_kind"].default is None
+        assert "gcp_stt_cost_usd" in params
+        assert params["gcp_stt_cost_usd"].default is None
 
 
 class TestDailyUsdCeiling:
