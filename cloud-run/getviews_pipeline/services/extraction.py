@@ -76,6 +76,10 @@ class VideoErrorsExtractionInput(BaseModel):
     """Percentage of viewers remaining at 3s (0.0–1.0). None = modeled/unknown."""
     retention_drop_pct_10s: float | None = None
     """Percentage of viewers remaining at 10s."""
+    # HI-18 — flattened from HI-9 `analysis` for niche-aware error detection
+    content_context_subject_matter: str | None = Field(default=None, max_length=500)
+    niche_classification_creator_niche_slug: str | None = Field(default=None, max_length=48)
+    niche_classification_format_axis: str | None = Field(default=None, max_length=48)
 
 
 # ── Format / presence guards ────────────────────────────────────────────────
@@ -403,6 +407,21 @@ def extract_video_errors(
     _retention_pts = retention_curve or []
     _r3 = next((pt.get("pct") for pt in _retention_pts if pt.get("t", 999) <= 3), None)
     _r10 = next((pt.get("pct") for pt in _retention_pts if 3 < (pt.get("t") or 999) <= 10), None)
+    _cc = analysis.get("content_context")
+    _nc = analysis.get("niche_classification")
+    _subject: str | None = None
+    if isinstance(_cc, dict):
+        _sm = str(_cc.get("subject_matter") or "").strip()
+        _subject = _sm[:500] if _sm else None
+    _niche_slug: str | None = None
+    _fmt_axis: str | None = None
+    if isinstance(_nc, dict):
+        _ns = _nc.get("creator_niche_slug")
+        _fa = _nc.get("format_axis")
+        if _ns is not None and str(_ns).strip():
+            _niche_slug = str(_ns).strip()[:48]
+        if _fa is not None and str(_fa).strip():
+            _fmt_axis = str(_fa).strip()[:48]
     input_model = VideoErrorsExtractionInput(
         extraction_mode=extraction_mode,
         niche_label=niche_label or "unknown",
@@ -417,6 +436,9 @@ def extract_video_errors(
         duration_sec=None,  # unknown at this call site
         retention_drop_pct_3s=float(_r3) if _r3 is not None else None,
         retention_drop_pct_10s=float(_r10) if _r10 is not None else None,
+        content_context_subject_matter=_subject,
+        niche_classification_creator_niche_slug=_niche_slug,
+        niche_classification_format_axis=_fmt_axis,
     )
     input_json = _json.dumps(input_model.model_dump(exclude_none=True), ensure_ascii=False)
 
@@ -449,6 +471,12 @@ def extract_video_errors(
 
 {niche_summary}
 {retention_summary}
+
+## Tín hiệu HI-9 (có thể null trong JSON trên)
+
+Nếu `content_context_subject_matter` hoặc `niche_classification_*` không null:
+- Dùng subject_matter để phát hiện lệch lời hứa hook ↔ chủ đề thân bài (promise-content mismatch) khi có bằng chứng từ phân tích khung hình.
+- Dùng creator_niche_slug + format_axis để tránh gán lỗi "tone ngách" mù: nếu slug khớp `niche_label` benchmark thì ưu tiên lỗi cấu trúc/cắt hình; nếu lệch rõ, có thể gợi ý **một** lỗi phân phối/định vị (sev mid/low) kèm rationale cụ thể, không phóng đại.
 
 ## Severity (chế độ flop)
 

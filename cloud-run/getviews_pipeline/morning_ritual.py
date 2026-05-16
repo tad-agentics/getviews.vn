@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 
 from getviews_pipeline.claim_tiers import CLAIM_TIERS, flags_for_count
 from getviews_pipeline.output_redesign import HOOK_TYPE_VI
+from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +204,8 @@ Tạo 3 kịch bản video ĐỘC LẬP, mỗi cái dùng **một hook_type_en k
 
 ## Grounding ({grounding_count} video nổi bật trong ngách 7 ngày qua)
 
+Mỗi video có thể kèm `subject_matter` (một dòng tóm tắt chủ đề từ phân tích HI-9) — dùng để neo noun cụ thể trong title_vi khi có.
+
 {grounding_json}
 
 **Median của top winning videos**: {median_shot_count} shot, {median_length_sec} giây — dùng làm anchor cho shot_count + length_sec.
@@ -281,8 +284,9 @@ def _build_prompt(
 ) -> str:
     # Trim the grounding payload so the prompt doesn't balloon — Gemini
     # only needs hook + hook_type + views + counts per row to pattern-match.
-    trimmed = [
-        {
+    trimmed = []
+    for v in videos:
+        row = {
             "video_id": v.get("video_id"),
             "creator": v.get("creator_handle"),
             "views":   v.get("views"),
@@ -292,8 +296,10 @@ def _build_prompt(
             "length_sec": v.get("video_duration"),
             "engagement_rate": v.get("engagement_rate"),
         }
-        for v in videos
-    ]
+        sm = extract_subject_matter_from_analysis_json(v.get("analysis_json"))
+        if sm:
+            row["subject_matter"] = sm
+        trimmed.append(row)
 
     # Median anchors for shot_count + length_sec — tells Gemini what
     # "realistic" looks like in this specific niche's winning videos

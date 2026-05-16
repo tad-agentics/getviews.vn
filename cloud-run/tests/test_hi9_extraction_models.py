@@ -166,3 +166,18 @@ def test_extraction_prompts_include_glossary_and_hi9() -> None:
     assert "review_unboxing" in VIDEO_EXTRACTION_PROMPT
     assert "content_context" in CAROUSEL_EXTRACTION_PROMPT
     assert "real_estate" in VIDEO_EXTRACTION_PROMPT
+
+
+def test_extract_subject_matter_helper() -> None:
+    from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
+
+    assert extract_subject_matter_from_analysis_json(None) is None
+    assert extract_subject_matter_from_analysis_json({}) is None
+    assert extract_subject_matter_from_analysis_json({"content_context": {}}) is None
+    assert (
+        extract_subject_matter_from_analysis_json(
+            {"content_context": {"subject_matter": "  a b  "}},
+            max_len=3,
+        )
+        == "a b"
+    )

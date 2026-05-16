@@ -5,7 +5,7 @@ Source: ``20260510000004_two_axis_niche_pr1_schema.sql`` + ``20260630000003`` (1
 
 from __future__ import annotations
 
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 # UX-facing creator niches — must match ``creator_niches.slug`` (active rows).
 CREATOR_NICHE_SLUGS: Final[tuple[str, ...]] = (
@@ -124,3 +124,20 @@ def build_extraction_niche_glossary_block() -> str:
     for axis in FORMAT_AXIS_SLUGS:
         lines.append(f'- "{axis}" — {FORMAT_AXIS_VI[axis]}')
     return "\n".join(lines)
+
+
+def extract_subject_matter_from_analysis_json(
+    analysis_json: Any,
+    *,
+    max_len: int = 200,
+) -> str | None:
+    """Best-effort `content_context.subject_matter` for downstream prompts (HI-18)."""
+    if not isinstance(analysis_json, dict):
+        return None
+    cc = analysis_json.get("content_context")
+    if not isinstance(cc, dict):
+        return None
+    sm = str(cc.get("subject_matter") or "").strip()
+    if not sm:
+        return None
+    return sm[:max_len]

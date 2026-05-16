@@ -19,6 +19,15 @@ from typing import Any
 
 from getviews_pipeline.claim_tiers import CLAIM_TIERS, should_cite_niche_norms
 
+_HI9_SYNTHESIS_HINT = """---
+## Tín hiệu HI-9 trong JSON phân tích (content_context / niche_classification)
+
+Nếu khối phân tích có `content_context` hoặc `niche_classification` không null:
+- Neo chủ đề bằng `content_context.subject_matter` (một câu) để tránh lạc đề sang hạng mục phụ.
+- Dùng `niche_classification.creator_niche_slug`, `format_axis`, và `rationale` để đồng bộ ngôn ngữ phân loại với ngách UX và trục định dạng — **không** thay thế số benchmark; chỉ làm rõ khung giải thích.
+- Nếu tên ngách benchmark (`niche_name` / norms) lệch rõ so với `creator_niche_slug`, ghi nhận mâu thuẫn có thể có và giải thích bằng bằng chứng hình ảnh + metrics thật.
+"""
+
 
 def _niche_norms_adequacy_block(corpus_size: int) -> str:
     """Warning block when corpus is too thin to cite niche_norms percentages.
@@ -606,6 +615,7 @@ Không lặp lại định dạng đã được chẩn đoán ở phần trên �
         )
 
     tier_label = performance_tier
+    _hi9_hint = _HI9_SYNTHESIS_HINT
     narrative_json_spec = """
 ---
 
@@ -712,6 +722,8 @@ Format được phát hiện: **{content_format}**
 
 **User video analysis (Gemini extraction):**
 {user_analysis_json}
+
+{_hi9_hint}
 
 **User video stats:**
 {user_stats_json}
@@ -946,6 +958,7 @@ Kèm gợi ý hashtag tiếng Việt ngách cụ thể + caption mẫu ≥200 k�
     citation_section = f"\n{corpus_citation}\n" if corpus_citation else ""
     persona_section = f"\n{persona_block}\n" if persona_block else ""
 
+    _hi9_hint = _HI9_SYNTHESIS_HINT
     voice_lead = ""
     vb = (voice_block or "").strip()
     if vb:
@@ -983,6 +996,8 @@ Format được phát hiện: **{carousel_format}**
 
 **Carousel người dùng — Gemini extraction:**
 {user_analysis_json}
+
+{_hi9_hint}
 
 **Stats carousel người dùng:**
 {user_stats_json}

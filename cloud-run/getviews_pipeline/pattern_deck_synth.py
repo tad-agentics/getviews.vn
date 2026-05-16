@@ -34,6 +34,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
+
 logger = logging.getLogger(__name__)
 
 # Decks regenerate when older than 7 days — same cadence as channel_diagnoses.
@@ -165,7 +167,7 @@ def _fetch_pattern_grounding(client: Any, pattern_id: str) -> list[dict[str, Any
     try:
         res = (
             client.table("video_corpus")
-            .select("video_id, creator_handle, views, hook_phrase, hook_type")
+            .select("video_id, creator_handle, views, hook_phrase, hook_type, analysis_json")
             .eq("pattern_id", pattern_id)
             .order("views", desc=True)
             .limit(GROUNDING_CAP)
@@ -227,7 +229,7 @@ _PROMPT_TEMPLATE = """Bạn là biên tập TikTok tiếng Việt. {niche_clause
 
 PATTERN: {pattern_name}
 
-Grounding (top {n} video thực tế tagged với pattern này, sắp theo view):
+Grounding (top {n} video thực tế tagged với pattern này, sắp theo view). Mỗi video có thể có `subject_matter` (tóm tắt chủ đề HI-9) — dùng để viết why/structure cụ thể hơn khi có:
 {grounding_json}
 
 Trả về JSON theo schema:
@@ -272,16 +274,19 @@ def _build_prompt(
     was rendering food-flavored copy on a Beauty creator's screen.
     Single-niche patterns keep the existing niche-specific phrasing.
     """
-    trimmed = [
-        {
+    trimmed = []
+    for v in videos[:GROUNDING_CAP]:
+        row = {
             "video_id":   v.get("video_id"),
             "creator":    v.get("creator_handle"),
             "views":      v.get("views"),
             "hook_type":  v.get("hook_type"),
             "hook_phrase": (str(v.get("hook_phrase") or ""))[:160],
         }
-        for v in videos[:GROUNDING_CAP]
-    ]
+        sm = extract_subject_matter_from_analysis_json(v.get("analysis_json"))
+        if sm:
+            row["subject_matter"] = sm
+        trimmed.append(row)
     is_cross_niche = bool(niche_labels and len(niche_labels) >= 2)
     if is_cross_niche:
         # Quote each niche label so Gemini doesn't free-associate.

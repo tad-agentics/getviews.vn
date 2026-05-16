@@ -222,6 +222,9 @@ class TestVideoErrorsExtractionInputContract:
     OPTIONAL_FIELDS = [
         "niche_avg_views", "niche_avg_retention", "niche_sample_size",
         "duration_sec", "retention_drop_pct_3s", "retention_drop_pct_10s",
+        "content_context_subject_matter",
+        "niche_classification_creator_niche_slug",
+        "niche_classification_format_axis",
     ]
 
     def test_required_fields_in_pydantic(self) -> None:

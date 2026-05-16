@@ -122,6 +122,8 @@ def test_diagnosis_narrative_prompt_json_spec_lessons_cite_mechanisms() -> None:
     assert "lessons" in prompt
     assert "curiosity_gap" in prompt
     assert "social_proof" in prompt
+    assert "HI-9" in prompt
+    assert "niche_classification" in prompt
 
 
 def test_forbidden_phrases_list_includes_known_clichés() -> None:

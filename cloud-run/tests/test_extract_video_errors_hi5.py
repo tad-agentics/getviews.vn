@@ -59,3 +59,55 @@ def test_extract_video_errors_hi5_model_fallbacks_call_site_thinking(
     tc = getattr(cfg, "thinking_config", None)
     assert tc is not None
     assert getattr(tc, "thinking_budget", object()) == 0
+
+
+def test_extract_video_errors_flattens_hi9_into_input_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_generate(
+        contents: object,
+        *,
+        primary_model: str,
+        fallbacks: list[str],
+        config: object,
+        call_site: str = "unknown",
+        user_id: str | None = None,
+        session_id: str | None = None,
+    ) -> MagicMock:
+        captured["prompt"] = contents[0] if isinstance(contents, list) else contents
+        out = MagicMock()
+        out.text = '{"errors": []}'
+        return out
+
+    monkeypatch.setattr(
+        "getviews_pipeline.gemini._generate_content_models",
+        fake_generate,
+    )
+
+    extract_video_errors(
+        extraction_mode="flop",
+        video={
+            "creator_handle": "x",
+            "views": 1000,
+            "engagement_rate": 0.05,
+            "content_format": "talk",
+        },
+        analysis={
+            "hook_analysis": {"hook_phrase": "hai"},
+            "content_context": {"subject_matter": "Review kem chống nắng cho da dầu."},
+            "niche_classification": {
+                "creator_niche_slug": "beauty",
+                "format_axis": "review_unboxing",
+            },
+        },
+        niche_label="Beauty",
+        niche_row=None,
+        retention_curve=None,
+    )
+    prompt = str(captured["prompt"])
+    assert "Review kem chống nắng" in prompt
+    assert "beauty" in prompt
+    assert "review_unboxing" in prompt
+    assert "Tín hiệu HI-9" in prompt
