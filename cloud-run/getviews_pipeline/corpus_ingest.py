@@ -1513,6 +1513,15 @@ async def _ingest_candidate_awemes(
     if not candidates:
         return result
 
+    # Per-aweme niche (CR-3): ingest_niche stashes creator overrides on each
+    # dict; pop here so Ensemble/Gemini paths never see the internal key.
+    per_aweme_niche_ids: list[int] = []
+    for a in candidates:
+        stashed = a.pop("_ingest_niche_id", None)
+        per_aweme_niche_ids.append(
+            int(stashed) if stashed is not None else niche_id
+        )
+
     logger.info("[corpus] niche=%s — analyzing %d candidates", niche_name, len(candidates))
 
     sem = get_analysis_semaphore()
@@ -1627,14 +1636,15 @@ async def _ingest_candidate_awemes(
     frame_urls_by_video_id: dict[str, list[str]] = {}
     scene_frame_urls_by_video_id: dict[str, dict[int, str]] = {}
 
-    for aweme, gather_result in zip(candidates, gather_results):
+    for aweme, gather_result, loop_nid in zip(
+        candidates, gather_results, per_aweme_niche_ids
+    ):
         if isinstance(gather_result, Exception):
             logger.warning("[corpus] analyze error: %s", gather_result)
             result.failed += 1
             result.errors.append(str(gather_result))
             continue
         analysis, frame_urls, scene_frame_pairs = gather_result
-        loop_nid = niche_id
         desc_raw = str(aweme.get("desc") or "")
         challenge_titles = [
             str(c.get("title") or "")
@@ -1921,12 +1931,15 @@ async def ingest_niche(
         # mislabeled by the visual classifier (e.g., business coaches whose
         # talking-head format matches Skincare). Override before row build.
         _niche_override = niche_override_for_handle(author_handle)
+        effective_niche_id = (
+            _niche_override if _niche_override is not None else niche_id
+        )
         if _niche_override is not None and _niche_override != niche_id:
             logger.info(
                 "[corpus] niche override @%s: %d → %d",
                 author_handle, niche_id, _niche_override,
             )
-            niche_id = _niche_override
+        a["_ingest_niche_id"] = effective_niche_id
 
         stats = a.get("statistics") or {}
         play_count = int(stats.get("play_count") or stats.get("playCount") or 0)
@@ -1994,12 +2007,15 @@ async def ingest_niche(
             continue
 
         _niche_override = niche_override_for_handle(author_handle)
+        effective_niche_id = (
+            _niche_override if _niche_override is not None else niche_id
+        )
         if _niche_override is not None and _niche_override != niche_id:
             logger.info(
                 "[corpus] niche override (carousel) @%s: %d → %d",
                 author_handle, niche_id, _niche_override,
             )
-            niche_id = _niche_override
+        a["_ingest_niche_id"] = effective_niche_id
 
         stats = a.get("statistics") or {}
         likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)

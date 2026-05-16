@@ -12,6 +12,7 @@
 
 | Feature | What changed | Blocking? | Fixed? | Commit |
 |---|---|---|---|---|
+| Pipeline audit remediation | **CR-3** — Per-aweme `_ingest_niche_id` stash + pop in `_ingest_candidate_awemes`; removed mid-loop `niche_id` mutation (video + carousel gates). | NO | Yes | — |
 | Pipeline audit remediation | **CR-2** — `cron-batch-ingest`: `net.http_post` `timeout_milliseconds` **300000 → 3120000** (52 min) via migration `cron.alter_job` on `cron.job`; sync docs-only migration comment + data-pipeline runbook Step 4. No-op if job absent (local). | NO | Yes | — |
 | Pipeline audit remediation | **CR-1** — Paginated `_load_all_existing_video_ids_sync` (`.range` 1000-row pages); one dedup snapshot per `run_batch_ingest`; `ingest_niche(..., existing_video_ids=)`. Fixes PostgREST 1000-row silent cap + per-niche refetch. | NO | Yes | — |
 | Pipeline audit remediation | **Plan execution started** (`/implement-plan`): canonical plan mirrored to `.cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md`; **31** scaffold issue files under `artifacts/issues/` (CR/HI/ME/EXP/research/DOC/verify) per plan Tracking section; `agent-workspace/ACTIVE_CONTEXT.md` seeded. | NO — planning scaffold only | Partial (scaffold only) | f74f622 |

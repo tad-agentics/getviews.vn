@@ -1,0 +1,43 @@
+{
+  "feature": "CR-3",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "passResults": {
+    "noEnclosingNicheMutation": "PASS",
+    "stashEffectiveNicheOnAweme": "PASS",
+    "ingestPopPerAwemeZipGather": "PASS",
+    "resolverReceivesLoopNid": "PASS",
+    "regressionTestPerAwemeNiches": "PASS",
+    "cloudRunPytest": "PASS",
+    "npmTypecheck": "PASS"
+  },
+  "findings": [],
+  "categoryScores": {
+    "correctness": 100,
+    "maintainability": 100,
+    "testCoverage": 100
+  },
+  "evidence": {
+    "implementation": [
+      "ingest_niche video loop (~1930–1942): effective_niche_id from niche_override_for_handle else pool niche_id; log on override; a['_ingest_niche_id']=effective_niche_id; no niche_id = _niche_override",
+      "ingest_niche carousel loop (~2009–2018): same pattern",
+      "_ingest_candidate_awemes: pop _ingest_niche_id into per_aweme_niche_ids (fallback int(stashed) if set else pool niche_id); zip(candidates, gather_results, per_aweme_niche_ids); _resolve_actual_niche_from_content(..., loop_nid); _build_corpus_row(..., resolved_nid)"
+    ],
+    "tests": [
+      "cloud-run/tests/test_corpus_effective_niche_id.py::test_ingest_candidate_awemes_uses_per_aweme_stashed_niche asserts captured niche_ids [5, 2] for override then pool",
+      "cloud-run pytest: 1919 passed, 2 skipped",
+      "npm run typecheck: exit 0"
+    ],
+    "staticChecks": [
+      "corpus_ingest.py: no matches for niche_id = _niche_override or niche_id = effective_niche_id (enclosing scope mutation)"
+    ]
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}
