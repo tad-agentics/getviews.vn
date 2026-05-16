@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -18,13 +19,15 @@ from getviews_pipeline.config import (
     FILES_API_POLL_INITIAL_SEC,
     FILES_API_POLL_MAX_SEC,
     FILES_API_POLL_TIMEOUT_SEC,
+    GEMINI_API_KEY,
     GEMINI_DIAGNOSIS_MODEL,
+    GEMINI_EXTRACTION_CONTEXT_CACHE,
     GEMINI_EXTRACTION_FALLBACKS,
     GEMINI_EXTRACTION_MODEL,
+    GEMINI_EXTRACTION_TEMPERATURE,
     GEMINI_INTENT_MODEL,
     GEMINI_KNOWLEDGE_FALLBACKS,
     GEMINI_KNOWLEDGE_MODEL,
-    GEMINI_EXTRACTION_TEMPERATURE,
     GEMINI_SYNTHESIS_FALLBACKS,
     GEMINI_SYNTHESIS_MODEL,
     GEMINI_TEMPERATURE,
@@ -38,14 +41,16 @@ from getviews_pipeline.ensemble import (
 )
 from getviews_pipeline.models import BatchSummary, CarouselAnalysis, ContentType, VideoAnalysis
 from getviews_pipeline.prompts import (
-    CAROUSEL_EXTRACTION_PROMPT,
-    VIDEO_EXTRACTION_PROMPT,
+    CAROUSEL_EXTRACTION_USER_PREFIX_VI,
+    VIDEO_EXTRACTION_USER_TURN_VI,
     build_carousel_diagnosis_prompt_v2,
+    build_carousel_extraction_system_instruction,
     build_diagnosis_synthesis_prompt_v2,
     build_knowledge_system_instruction,
     build_knowledge_user_prompt,
     build_summary_prompt,
     build_synthesis_prompt,
+    build_video_extraction_system_instruction,
     build_voice_domain_system_instruction,
 )
 
@@ -142,6 +147,72 @@ def _extraction_json_config(schema: dict[str, Any]) -> types.GenerateContentConf
     if base is not None:
         return base.model_copy(update=updates)
     return types.GenerateContentConfig(**updates)
+
+
+_EXTRACTION_CONTEXT_CACHE_SLOT: dict[str, dict[str, str | None]] = {
+    "video": {"sig": None, "name": None},
+    "carousel": {"sig": None, "name": None},
+}
+_EXTRACTION_CONTEXT_CACHE_LOCK = threading.Lock()
+
+
+def _extraction_context_cache_signature(kind: str, system_text: str) -> str:
+    h = hashlib.sha256()
+    h.update(kind.encode("utf-8"))
+    h.update(b"\n")
+    h.update(GEMINI_EXTRACTION_MODEL.encode("utf-8"))
+    h.update(b"\n")
+    h.update(system_text.encode("utf-8"))
+    return h.hexdigest()[:32]
+
+
+def _get_extraction_cached_content_name(client: Any, kind: str, system_text: str) -> str | None:
+    """HI-8 Phase B — optional explicit context cache; falls back to system_instruction."""
+    if not GEMINI_EXTRACTION_CONTEXT_CACHE or not GEMINI_API_KEY:
+        return None
+    sig = _extraction_context_cache_signature(kind, system_text)
+    with _EXTRACTION_CONTEXT_CACHE_LOCK:
+        slot = _EXTRACTION_CONTEXT_CACHE_SLOT[kind]
+        if slot["name"] and slot["sig"] == sig:
+            return str(slot["name"])
+    try:
+        cc = client.caches.create(
+            model=GEMINI_EXTRACTION_MODEL,
+            config=types.CreateCachedContentConfig(
+                display_name=f"gv-extract-{kind}-hi8",
+                system_instruction=system_text,
+                ttl="3600s",
+            ),
+        )
+        name = cc.name
+        if not name:
+            return None
+        with _EXTRACTION_CONTEXT_CACHE_LOCK:
+            slot = _EXTRACTION_CONTEXT_CACHE_SLOT[kind]
+            slot["sig"] = sig
+            slot["name"] = name
+        logger.info("[gemini] explicit context cache created name=%s kind=%s", name, kind)
+        return name
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "[gemini] extraction context cache create failed (%s) — using system_instruction",
+            exc,
+        )
+        return None
+
+
+def _configure_extraction_generate_config(
+    client: Any,
+    schema: dict[str, Any],
+    *,
+    kind: str,
+    system_text: str,
+) -> types.GenerateContentConfig:
+    base = _extraction_json_config(schema)
+    cached = _get_extraction_cached_content_name(client, kind, system_text)
+    if cached:
+        return base.model_copy(update={"cached_content": cached})
+    return base.model_copy(update={"system_instruction": system_text})
 
 
 _RETRY_DELAYS = (1, 2, 4)  # seconds — §13 mandate: 3 retries at 1s/2s/4s
@@ -293,20 +364,26 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
     """Run full forensic analysis on a local video file (sync)."""
     path = video_path.resolve()
     size = path.stat().st_size
-    json_cfg = _extraction_json_config(VideoAnalysis.model_json_schema())
+    client = _get_client()
+    sys_inst = build_video_extraction_system_instruction()
+    json_cfg = _configure_extraction_generate_config(
+        client,
+        VideoAnalysis.model_json_schema(),
+        kind="video",
+        system_text=sys_inst,
+    )
 
     if size <= MAX_INLINE_SIZE_BYTES:
         data = path.read_bytes()
         video_part = types.Part.from_bytes(data=data, mime_type="video/mp4")
         response = _generate_content_models(
-            [video_part, VIDEO_EXTRACTION_PROMPT],
+            [video_part, VIDEO_EXTRACTION_USER_TURN_VI],
             primary_model=GEMINI_EXTRACTION_MODEL,
             fallbacks=GEMINI_EXTRACTION_FALLBACKS,
             config=json_cfg,
             call_site="video_extraction",
         )
     else:
-        client = _get_client()
         uploaded = client.files.upload(file=str(path))
         name = uploaded.name
         try:
@@ -332,7 +409,7 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
                 delay = min(delay * 1.5, FILES_API_POLL_MAX_SEC)
 
             response = _generate_content_models(
-                [info, VIDEO_EXTRACTION_PROMPT],
+                [info, VIDEO_EXTRACTION_USER_TURN_VI],
                 primary_model=GEMINI_EXTRACTION_MODEL,
                 fallbacks=GEMINI_EXTRACTION_FALLBACKS,
                 config=json_cfg,
@@ -401,10 +478,18 @@ def analyze_carousel(
     if supplemental_prompt.strip():
         tail += f"\n\n{supplemental_prompt.strip()}"
 
-    json_cfg = _extraction_json_config(CarouselAnalysis.model_json_schema())
+    client = _get_client()
+    sys_car = build_carousel_extraction_system_instruction()
+    json_cfg = _configure_extraction_generate_config(
+        client,
+        CarouselAnalysis.model_json_schema(),
+        kind="carousel",
+        system_text=sys_car,
+    )
+    user_text = CAROUSEL_EXTRACTION_USER_PREFIX_VI + tail
     parts: list[Any] = [
         *[types.Part.from_bytes(data=data, mime_type=mime) for data, mime in slides],
-        CAROUSEL_EXTRACTION_PROMPT + tail,
+        user_text,
     ]
 
     response = _generate_content_models(

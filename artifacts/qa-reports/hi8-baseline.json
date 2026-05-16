@@ -1,0 +1,59 @@
+{
+  "feature": "HI-8",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS_WITH_CONCERNS",
+  "healthScore": 94,
+  "passResults": {
+    "phaseASystemInstructionExtraction": "PASS",
+    "phaseBExplicitContextCacheExtraction": "PASS",
+    "configGeminiExtractionContextCache": "PASS",
+    "unitTestsHi8": "PASS",
+    "cloudRunPytest": "PASS",
+    "npmTypecheck": "PASS"
+  },
+  "findings": [
+    {
+      "pass": "scope",
+      "severity": "low",
+      "title": "Plan §HI-8 header lists synthesis sources (_DOMAIN_KNOWLEDGE, voice, channel diagnosis); this change set implements HI-8 for video + carousel extraction only.",
+      "status": "informational",
+      "note": "Knowledge/diagnosis call sites in gemini.py already use GenerateContentConfig(system_instruction=build_knowledge_system_instruction / build_voice_domain_system_instruction). Explicit client.caches.create (Phase B) is implemented only for extraction; extending cache to those paths is separate follow-up if cost warrants it."
+    },
+    {
+      "pass": "tests",
+      "severity": "low",
+      "title": "VIDEO_EXTRACTION_PROMPT / CAROUSEL_EXTRACTION_PROMPT are aliases of the system-instruction builders (not system+user concatenation).",
+      "status": "accepted",
+      "note": "Runtime paths use short user turns (VIDEO_EXTRACTION_USER_TURN_VI, CAROUSEL_EXTRACTION_USER_PREFIX_VI + dynamic tail). Only test_hi9_extraction_models imports the *_PROMPT symbols; substring assertions remain valid."
+    }
+  ],
+  "categoryScores": {
+    "correctness": 98,
+    "operability": 92,
+    "testCoverage": 90
+  },
+  "evidence": {
+    "implementation": [
+      "config.GEMINI_EXTRACTION_CONTEXT_CACHE — default on; disabled by 0/false/no/off/empty",
+      "gemini._configure_extraction_generate_config — merges schema/temperature/thinking_config; uses cached_content when _get_extraction_cached_content_name succeeds else system_instruction",
+      "gemini._get_extraction_cached_content_name — client.caches.create with system_instruction, TTL 3600s, in-process slot keyed by sha256(kind|model|system_text)",
+      "analyze_video / analyze_carousel — build_*_extraction_system_instruction + user text parts only",
+      "prompts.build_video_extraction_system_instruction / build_carousel_extraction_system_instruction — static cores + HI-9 blocks + niche glossary"
+    ],
+    "tests": [
+      "tests/test_gemini_hi8_extraction_config.py — cache off (system_instruction set) vs cache on (cached_content set)",
+      "Parent evidence: pytest -q cloud-run 1940 passed, 2 skipped; npm run typecheck exit 0"
+    ],
+    "postDeploy": [
+      "Watch first-bin cold start: caches.create adds one round-trip per process per kind until slot warm; confirm logs [gemini] explicit context cache created vs warning fallback",
+      "Optional: measure input token delta on batch ingest after deploy vs previous revision (expect drop on repeated extraction once cache hits)"
+    ]
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}

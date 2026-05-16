@@ -12,9 +12,10 @@
 
 | Feature | What changed | Blocking? | Fixed? | Commit |
 |---|---|---|---|---|
+| Pipeline audit remediation | **HI-8** — Video + carousel **extraction**: static instructions via `build_*_extraction_system_instruction` on `GenerateContentConfig` (`system_instruction` or explicit `cached_content` from `client.caches.create` when `GEMINI_EXTRACTION_CONTEXT_CACHE` is on); short user turns (`VIDEO_EXTRACTION_USER_TURN_VI`, `CAROUSEL_EXTRACTION_USER_PREFIX_VI` + tail). QA **PASS_WITH_CONCERNS** (synthesis explicit cache optional). | NO | Yes | — |
 | Pipeline audit remediation | **HI-18** — Downstream use of HI-9: `_HI9_SYNTHESIS_HINT` in video + carousel diagnosis narrative prompts; `VideoErrorsExtractionInput` + `extract_video_errors` prompt use flattened `content_context_subject_matter` + `niche_classification_*`; morning ritual + pattern deck grounding JSON includes `subject_matter` when `analysis_json` has it (`extract_subject_matter_from_analysis_json`). | NO | Yes | c99df15 |
 | Pipeline audit remediation | **HI-9** — `ContentContext` / `NicheClassification` on `VideoAnalysis` + `CarouselAnalysis`; `two_axis_taxonomy` glossary; Vietnamese `VIDEO_EXTRACTION_PROMPT` / `CAROUSEL_EXTRACTION_PROMPT`; tests + schema contract. | NO | Yes | cb29567 |
-| Pipeline audit remediation | **HI-6 / HI-7 / HI-8 (Phase A)** — `call_site` labels; `report_generic_gemini` → `_generate_content_models`; voice/domain on `system_instruction`; **HI-8 Phase B** (`cachedContent`) deferred (per-model cache vs fallbacks). | NO | Partial (A yes, B no) | 695c922 |
+| Pipeline audit remediation | **HI-6 / HI-7** — `call_site` labels; `report_generic_gemini` → `_generate_content_models`. | NO | Yes | 695c922 |
 | Pipeline audit remediation | **HI-5** — `extract_video_errors`: `GEMINI_EXTRACTION_MODEL` + `GEMINI_EXTRACTION_FALLBACKS`, `ThinkingConfig(thinking_budget=0)`, `call_site="extract_video_errors"` (stops synthesis-tier + thinking-token inflation on diagnosis). | NO | Yes | — |
 | Pipeline audit remediation | **CR-4** — `gemini_cost` + `ensemble`: track daemon insert threads, `atexit` drain with **8s** join budget (Cloud Run SIGTERM telemetry loss). | NO | Yes | — |
 | Pipeline audit remediation | **CR-3** — Per-aweme `_ingest_niche_id` stash + pop in `_ingest_candidate_awemes`; removed mid-loop `niche_id` mutation (video + carousel gates). | NO | Yes | — |

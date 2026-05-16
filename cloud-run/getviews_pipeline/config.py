@@ -82,6 +82,14 @@ GEMINI_TEMPERATURE = GEMINI_SYNTHESIS_TEMPERATURE
 GEMINI_VIDEO_MEDIA_RESOLUTION = (
     os.environ.get("GEMINI_VIDEO_MEDIA_RESOLUTION", "").strip().lower()
 )
+# HI-8 — try ``client.caches.create`` for extraction system_instruction (discount on replay).
+# Set false in dev if cache API errors; falls back to plain system_instruction.
+_GEMINI_EXTRACTION_CONTEXT_CACHE_RAW = (
+    os.environ.get("GEMINI_EXTRACTION_CONTEXT_CACHE", "true").strip().lower()
+)
+GEMINI_EXTRACTION_CONTEXT_CACHE = _GEMINI_EXTRACTION_CONTEXT_CACHE_RAW not in (
+    "0", "false", "no", "off", "",
+)
 
 ENSEMBLEDATA_BASE = "https://ensembledata.com/apis"
 ENSEMBLEDATA_POST_INFO_URL = f"{ENSEMBLEDATA_BASE}/tt/post/info"

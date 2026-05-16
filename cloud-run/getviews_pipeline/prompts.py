@@ -74,12 +74,24 @@ _HI9_ENRICHMENT_VIDEO = """
   - alternative_creator_niche_slug: niche thứ hai từ glossary nếu confidence < 0.8; nếu confidence ≥ 0.8 thì null.
 """
 
-VIDEO_EXTRACTION_PROMPT = (
-    _VIDEO_EXTRACTION_CORE_VI
-    + _HI9_ENRICHMENT_VIDEO
-    + "\n\n"
-    + build_extraction_niche_glossary_block()
+def build_video_extraction_system_instruction() -> str:
+    """Static extraction instructions + niche glossary → ``system_instruction`` (HI-8)."""
+    return (
+        _VIDEO_EXTRACTION_CORE_VI
+        + _HI9_ENRICHMENT_VIDEO
+        + "\n\n"
+        + build_extraction_niche_glossary_block()
+    )
+
+
+# User turn only — static rules live in ``build_video_extraction_system_instruction``.
+VIDEO_EXTRACTION_USER_TURN_VI = (
+    "Phân tích video đính kèm (khung hình + âm thanh). "
+    "Chỉ trả về JSON khớp schema — không markdown, không lời dẫn."
 )
+
+# Back-compat + tests: full static block (same text as system_instruction path).
+VIDEO_EXTRACTION_PROMPT = build_video_extraction_system_instruction()
 
 
 _CAROUSEL_EXTRACTION_CORE_VI = """Phân tích carousel ảnh TikTok (các phần ảnh nằm TRƯỚC đoạn text này). Chỉ trả về JSON khớp schema — không markdown, không lời dẫn.
@@ -105,12 +117,22 @@ _HI9_ENRICHMENT_CAROUSEL = """
 - niche_classification: creator_niche_slug + format_axis CHỈ từ glossary phía dưới; rationale bằng tiếng Việt; confidence + alternative_creator_niche_slug theo cùng quy tắc video.
 """
 
-CAROUSEL_EXTRACTION_PROMPT = (
-    _CAROUSEL_EXTRACTION_CORE_VI
-    + _HI9_ENRICHMENT_CAROUSEL
-    + "\n\n"
-    + build_extraction_niche_glossary_block()
+def build_carousel_extraction_system_instruction() -> str:
+    """Carousel static instructions + glossary → ``system_instruction`` (HI-8)."""
+    return (
+        _CAROUSEL_EXTRACTION_CORE_VI
+        + _HI9_ENRICHMENT_CAROUSEL
+        + "\n\n"
+        + build_extraction_niche_glossary_block()
+    )
+
+
+CAROUSEL_EXTRACTION_USER_PREFIX_VI = (
+    "Phân tích các slide ảnh đính kèm theo quy tắc hệ thống. "
+    "Chỉ trả về JSON khớp schema — không markdown, không lời dẫn."
 )
+
+CAROUSEL_EXTRACTION_PROMPT = build_carousel_extraction_system_instruction()
 
 
 # ---------------------------------------------------------------------------
