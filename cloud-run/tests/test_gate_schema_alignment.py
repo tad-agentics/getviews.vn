@@ -14,6 +14,8 @@ def test_video_analysis_has_hook_analysis_not_hook_slide() -> None:
     assert "pain_points" in props
     assert "promotion_type" in props
     assert "style_tags" in props
+    assert "content_context" in props
+    assert "niche_classification" in props
 
 
 def test_carousel_analysis_uses_slides_not_story_arc() -> None:
@@ -22,6 +24,8 @@ def test_carousel_analysis_uses_slides_not_story_arc() -> None:
     assert "slides" in props
     assert "story_arc" not in props
     assert "swipe_incentive" not in props
+    assert "content_context" in props
+    assert "niche_classification" in props
 
 
 def test_reference_count_default_three_helpers() -> None:

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from getviews_pipeline.two_axis_taxonomy import CreatorNicheSlug, FormatAxisSlug
 
 # Post format (video vs photo carousel) — used on VideoMetadata and analyze payloads.
 ContentType = Literal["video", "carousel"]
@@ -290,7 +292,75 @@ class ChannelContext(BaseModel):
     median_views: float | None = None
 
 
+ContentCreatorRole = Literal[
+    "expert",
+    "user_reviewer",
+    "storyteller",
+    "performer",
+    "tutorial_host",
+]
+
+ContentPurpose = Literal[
+    "educate",
+    "entertain",
+    "sell",
+    "inspire",
+    "review",
+    "react",
+]
+
+LanguageRegister = Literal[
+    "casual",
+    "formal",
+    "youth_slang",
+    "expert_jargon",
+]
+
+
+class ProductMention(BaseModel):
+    """Named product/brand in frame or speech — optional enrichment (HI-9)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str
+    brand: str | None = None
+    category: str | None = None
+
+
+class ContentContext(BaseModel):
+    """Semantic scene understanding — optional; old corpus rows have null."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    subject_matter: str | None = None
+    """ONE Vietnamese sentence summarising what the content is about."""
+    primary_subjects: list[str] | None = None
+    setting: str | None = None
+    products_mentioned: list[ProductMention] | None = None
+    creator_role: ContentCreatorRole | None = None
+    dominant_actions: list[str] | None = None
+    content_purpose: ContentPurpose | None = None
+    language_register: LanguageRegister | None = None
+    topical_hashtags_implied: list[str] | None = None
+
+
+class NicheClassification(BaseModel):
+    """Two-axis niche × format classification — optional for legacy rows."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    creator_niche_slug: CreatorNicheSlug | None = None
+    format_axis: FormatAxisSlug | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    rationale: str | None = None
+    """ONE Vietnamese sentence justifying both axes."""
+    alternative_creator_niche_slug: CreatorNicheSlug | None = None
+    """Second-best creator niche when confidence < 0.8; else null."""
+
+
 class VideoAnalysis(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     hook_analysis: HookAnalysis
     has_human_speaking_to_camera: bool = False
     has_expressed_opinion_or_question: bool = False
@@ -309,6 +379,9 @@ class VideoAnalysis(BaseModel):
     pain_points: list[str] = Field(default_factory=list)
     promotion_type: PromotionType = "organic"
     style_tags: list[str] = Field(default_factory=list)
+
+    content_context: ContentContext | None = None
+    niche_classification: NicheClassification | None = None
 
     @field_validator("promotion_type", mode="before")
     @classmethod
@@ -366,6 +439,8 @@ class CarouselAnalysis(BaseModel):
     (~2 schema tokens per carousel call). Not worth the churn — leave them in place.
     """
 
+    model_config = ConfigDict(extra="ignore")
+
     hook_analysis: HookAnalysis
     slides: list[SlideAnalysis]
     transitions_per_second: float
@@ -391,7 +466,10 @@ class CarouselAnalysis(BaseModel):
     has_numbered_hook: bool | None = None
     """True if slide 1 shows a number (e.g. '7 cách…') triggering completion bias."""
     swipe_trigger_type: str | None = None
-    """Dominant swipe mechanic: 'list_momentum', 'curiosity_chain', 'narrative_tension', or 'none'."""
+    """Swipe mechanic: list_momentum, curiosity_chain, narrative_tension, or none."""
+
+    content_context: ContentContext | None = None
+    niche_classification: NicheClassification | None = None
 
 
 class Metrics(BaseModel):
@@ -592,7 +670,7 @@ class DiagnosisInput(BaseModel):
     All reads happen in the caller before this model is constructed.
     """
 
-    extraction: "ExtractionResult"
+    extraction: ExtractionResult
     """Typed output from run_extraction_core — must have ok=True."""
     video_row: dict[str, object]
     """Aweme-derived dict consumed by extract_video_errors / build_niche_benchmark."""
@@ -650,7 +728,7 @@ class ExtractionResult(BaseModel):
     metadata: VideoMetadata
     analysis: VideoAnalysis | None = None
     """Frame-by-frame Gemini analysis; None for carousel or on error."""
-    carousel_analysis: "CarouselAnalysis | None" = None
+    carousel_analysis: CarouselAnalysis | None = None
     """Carousel Gemini analysis; None for videos."""
     transcript_quality: dict[str, object] | None = None
     """validate_transcript verdict dict attached by _finish_analysis."""
@@ -662,7 +740,9 @@ class ExtractionResult(BaseModel):
     @property
     def ok(self) -> bool:
         """True when the extraction succeeded and analysis is usable."""
-        return self.error is None and (self.analysis is not None or self.carousel_analysis is not None)
+        return self.error is None and (
+            self.analysis is not None or self.carousel_analysis is not None
+        )
 
 
 # ── Thumbnail / frame-0 analysis ───────────────────────────────────────────

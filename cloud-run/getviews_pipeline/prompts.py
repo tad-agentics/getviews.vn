@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from getviews_pipeline.carousel_knowledge import build_carousel_context
 from getviews_pipeline.domain_knowledge import build_domain_knowledge_block
 from getviews_pipeline.knowledge_base import (
     build_commerce_structure_block,
@@ -17,7 +18,7 @@ from getviews_pipeline.output_redesign import (
     build_carousel_diagnosis_narrative_prompt,
     build_diagnosis_narrative_prompt,
 )
-from getviews_pipeline.carousel_knowledge import build_carousel_context
+from getviews_pipeline.two_axis_taxonomy import build_extraction_niche_glossary_block
 from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 
 # ---------------------------------------------------------------------------
@@ -25,61 +26,91 @@ from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 # ---------------------------------------------------------------------------
 
 # §14 — extraction prompt (full schema enforced via response_json_schema).
-# Keep instructions field-specific — generic "be precise" is ignored by Gemini.
-VIDEO_EXTRACTION_PROMPT = """Analyze this TikTok video. Return ONLY JSON matching the schema — no markdown.
+# Vietnamese instructions for transcription / hook quality (HI-9).
 
-CRITICAL RULES:
-- audio_transcript: Transcribe EXACTLY in the original language (mostly Vietnamese). Do NOT translate to English. Preserve Vietnamese diacritics (ă, â, đ, ê, ô, ơ, ư, etc.). If words are unclear, write "[không rõ]".
-- hook_phrase: The EXACT opening spoken words in Vietnamese — verbatim, not paraphrased, not translated. If no speech in the first 3s, use the first visible text overlay instead.
-- hook_timeline: 2-5 events that happen inside the hook window (0.0–3.0s). Ordered by t (ascending). Each event is one of: "face_enter" (first human face prominently visible), "first_word" (first spoken word), "text_overlay" (text appears on screen), "sound_drop" (music/audio sharply starts or drops), "cut" (first visual cut), "product_enter" (product first visible), "reveal" (punchline frame). Include t in seconds with 0.1s precision. Omit events that don't occur in the first 3 seconds. This is the creator's micro-choreography map — skip entries with weak signal.
-- QUAN TRỌNG (GIẢI MÃ HOOK): Mỗi cửa sổ 0.0–0.8s / 0.8–1.8s / 1.8–3.0s chỉ được mô tả những gì xảy ra trong cửa sổ đó theo timestamp. Trong hook_timeline[].note: không viết "ngay đầu video", "khung hình đầu tiên", "cuối clip" trừ khi nội dung đó khớp đúng hook_timeline[].t (ví dụ t≈0 cho "đầu video"). Không gắn thời điểm lời nói @X vào note của sự kiện nếu X không khớp gần t của sự kiện đó — dùng first_speech_at cho lời mở.
-- scenes: Mark a new scene at EVERY visual cut, camera angle change, or significant subject change. Err toward more scenes rather than fewer. A 15s video typically has 3–8 scenes; a 30s video has 5–15. For EACH scene, also classify the enrichment dimensions below. If you cannot decide confidently, leave the field null — do NOT guess.
-- scenes[].framing: one of close_up (subject fills most of frame), medium (subject from waist up), wide (full body / landscape), extreme_close_up (eye / lip / texture).
-- scenes[].pace: one of static (no cuts, locked shot), slow (~1 cut / 3+ sec), medium (~1 cut / 1–3 sec), fast (~2–3 cuts / sec), cut_heavy (3+ cuts / sec montage).
-- scenes[].overlay_style: one of none, bold_center (large centered TikTok-style headline), sub_caption (subtitle-style at bottom), chyron (lower-third banner / ticker), sticker (emoji/sticker decorative overlay).
-- scenes[].subject: one of face (human face dominant), product (cosmetic/food/electronics/apparel dominant), text (text-driven frame), action (motion-driven: dance/sport/gesture), ambient (environment / B-roll / establishing), mixed (two or more equally weighted).
-- scenes[].motion: one of static (locked camera), handheld (organic camera movement), slow_mo, time_lapse, match_cut (graphic/motion match).
-- scenes[].description: ONE Vietnamese sentence, 12–24 words, describing what the shot literally shows. E.g. "Cận mặt creator nói to câu mở, text nổi vàng ở trên." or "B-roll sản phẩm kem xoay trên bàn, ánh sáng dịu." Not a judgement — just the visible content.
-- transitions_per_second: Count total scene boundaries ÷ video duration in seconds.
-- face_appears_at: The FIRST timestamp (in seconds) where a human face is prominently visible. Set to null if no face appears in the entire video.
-- cta: The EXACT verbatim call-to-action text in Vietnamese — spoken in the last ~5 seconds OR shown as a text overlay at the end. Examples: "Lưu lại để áp dụng nha", "Theo dõi mình để xem phần 2", "Comment 'có' nếu bạn muốn", "Link mua ở bio", "Mua ngay tại Shopee Mall". Include the trigger verb. Do NOT paraphrase, do NOT summarize, do NOT translate to English. If no CTA is present (the video ends without any explicit ask), set to null. A product mention without an action verb is NOT a CTA. A bare URL or @ handle without a verb is NOT a CTA.
-- content_direction.what_works: Name the specific STRUCTURAL element making this video effective — e.g. "face in first frame + question hook + 3s scene cuts". NOT generic praise like "good visuals" or "engaging content".
-- target_audience: ONE concise Vietnamese phrase describing who this video is made for.
-  Examples: "nam giới quan tâm đến tập gym", "mẹ bỉm sữa 25-35 tuổi", "creator beauty mới bắt đầu".
-  Do NOT use generic terms like "mọi người" or "TikTok users". Be specific.
-- pain_points: List of 1-3 psychological triggers this video exploits. Each is a short
-  Vietnamese noun phrase. Examples: ["lo lắng về da mặt", "muốn tiết kiệm chi phí", "sợ bỏ lỡ xu hướng"].
-  Empty list [] if the video has no clear pain-point hook.
-- promotion_type: One of "organic" (no brand deal, creator's own content),
-  "brand_deal" (paid partnership — look for #ad, #sponsored, brand watermark, product CTA),
-  "affiliate" (product link in bio/caption with commission angle),
-  "self_promotion" (creator promoting their own product/course/service).
-  Default to "organic" when unclear.
-- style_tags: List of 2-5 production style descriptors. Choose from:
-  "text_overlay_heavy", "talking_head", "voiceover_only", "b_roll_heavy",
-  "fast_cuts", "slow_reveal", "meme_format", "before_after", "reaction",
-  "duet_stitch", "green_screen", "product_showcase", "lifestyle_b_roll",
-  "educational_slides", "trending_audio".
-  Pick only tags that are clearly visible. Do NOT guess.
-- has_human_speaking_to_camera: true if a human face is visible and the person appears to be speaking/talking toward the audience (camera-aware or conversational to viewer), directly or indirectly; false only if purely faceless, product-only ASMR overlay, montage-without-talking-head delivery, etc.
-- has_expressed_opinion_or_question: true if the video contains a spoken line, text overlay, or caption that states a clear opinion, asks a question, or uses an explicit personal POV ("mình", "theo mình"); false only if purely descriptive/neutral narration with no viewpoint."""
+_VIDEO_EXTRACTION_CORE_VI = """Phân tích video TikTok này. Chỉ trả về JSON khớp schema — không markdown, không lời dẫn.
 
-CAROUSEL_EXTRACTION_PROMPT = """Analyze this TikTok photo carousel (image parts before this text). Return ONLY JSON matching the schema — no markdown.
+QUY TẮC BẮT BUỘC:
+- audio_transcript: Phiên âm ĐÚNG ngôn ngữ gốc (chủ yếu tiếng Việt). KHÔNG dịch sang tiếng Anh. Giữ dấu đầy đủ (ă â đ ê ô ơ ư …). Chỗ không nghe rõ → ghi "[không rõ]".
+- hook_phrase: ĐÚNG nguyên văn lời mở đầu (thường tiếng Việt) — không diễn giải, không dịch. Nếu 3s đầu không có lời, dùng chữ overlay đầu tiên thấy rõ.
+- hook_timeline: 2–5 sự kiện trong cửa sổ hook 0.0–3.0s; sắp xếp t tăng dần. Mỗi event thuộc một trong: face_enter, first_word, text_overlay, sound_drop, cut, product_enter, reveal. t tính bằng giây, chính xác 0.1s. Bỏ sự kiện không xảy ra trong 3s đầu. Bỏ qua nếu tín hiệu yếu.
+- QUAN TRỌNG (GIẢI MÃ HOOK): Mỗi cửa sổ 0.0–0.8s / 0.8–1.8s / 1.8–3.0s chỉ mô tả việc xảy ra trong cửa sổ đó. Trong hook_timeline[].note: không viết "ngay đầu video", "khung hình đầu tiên", "cuối clip" trừ khi khớp hook_timeline[].t (vd t≈0 cho đầu video). Không gắn lời nói @X vào note nếu X không khớp gần t của sự kiện — dùng first_speech_at cho lời mở.
+- scenes: Mỗi lần cắt hình, đổi góc máy, hoặc đổi chủ thể rõ → scene mới. Video 15s thường 3–8 scene; 30s có thể 5–15. Mỗi scene điền các chiều phong phú dưới; không chắc → null, không đoán bừa.
+- scenes[].framing: close_up | medium | wide | extreme_close_up — khớp định nghĩa schema.
+- scenes[].pace: static | slow | medium | fast | cut_heavy — khớp định nghĩa schema.
+- scenes[].overlay_style: none | bold_center | sub_caption | chyron | sticker.
+- scenes[].subject: face | product | text | action | ambient | mixed.
+- scenes[].motion: static | handheld | slow_mo | time_lapse | match_cut.
+- scenes[].description: MỘT câu tiếng Việt 12–24 từ, mô tả khung hình thấy được (không phán xét). VD: "Cận mặt creator nói to câu mở, chữ nổi vàng phía trên."
+- transitions_per_second: tổng ranh giới scene chia cho độ dài video (giây).
+- face_appears_at: timestamp đầu tiên (giây) mặt người nổi bật; không có mặt → null.
+- cta: Nguyên văn CTA tiếng Việt ở ~5s cuối hoặc chữ overlay cuối. Có động từ kêu gọi. Không diễn giải / không dịch. Không có lời kêu gọi rõ → null. Chỉ nhắc sản phẩm không động từ → không phải CTA. Chỉ URL/@ không động từ → không phải CTA.
+- content_direction.what_works: Yếu tố CẤU TRÚC cụ thể khiến video hiệu quả — vd "mặt khung đầu + hook câu hỏi + cắt 3s/scene". Không khen chung chung.
+- target_audience: MỘT cụm tiếng Việt ngắn — video dành cho ai. Cụ thể; tránh "mọi người", "TikTok users".
+- pain_points: 0–3 cụm danh từ tiếng Việt — kích thích tâm lý. Không có hook đau → [].
+- promotion_type: organic | brand_deal | affiliate | self_promotion — theo watermark, #ad, CTA, link hoa hồng. Mơ hồ → organic.
+- style_tags: 2–5 tag trong danh sách schema: text_overlay_heavy, talking_head, voiceover_only, b_roll_heavy, fast_cuts, slow_reveal, meme_format, before_after, reaction, duet_stitch, green_screen, product_showcase, lifestyle_b_roll, educational_slides, trending_audio. Chỉ tag thấy rõ; không đoán.
+- has_human_speaking_to_camera: true nếu có mặt và người đó nói hướng khán giả (hoặc đối thoại với viewer); false nếu faceless hoàn toàn, chỉ ASMR sản phẩm, montage không talking head.
+- has_expressed_opinion_or_question: true nếu lời nói / overlay / caption có ý kiến, câu hỏi, hoặc POV cá nhân ("mình", "theo mình"); false nếu thuần mô tả trung tính."""
 
-CRITICAL RULES:
-- hook_analysis.hook_phrase: The EXACT text visible on slide 1 (first image) — verbatim, not paraphrased. If no text on slide 1, describe the dominant visual element in Vietnamese.
-- slides[].text_on_slide: List ALL readable text strings visible on this slide — titles, captions, labels, prices, watermarks, hashtags burned into the image. Even 1-2 words count. Use an empty list [] ONLY if the slide has absolutely zero text of any kind.
-- slides[].text_density: Classify text amount per slide as exactly one of: 'none' (no text — text_on_slide must also be []), 'low' (1-2 short words/phrases), 'medium' (3-5 lines), 'high' (6+ lines or dense text block). MUST be consistent with text_on_slide: if text_on_slide is non-empty, text_density CANNOT be 'none'.
-- slides[].has_face: true if a human face is PROMINENTLY visible (not just background), false otherwise.
-- slides[].has_product: true if a physical product (clothing, food, cosmetic, electronics, etc.) is the main subject, false otherwise.
-- slides[].word_count: Count the total number of words of visible text on this slide. 0 if no text.
-- content_arc: How content flows across ALL slides — exactly one of: 'list' (numbered items), 'story' (narrative progression), 'before_after' (contrast pair), 'comparison' (side-by-side options), 'tutorial_steps' (how-to sequence), 'gallery' (independent items with no arc).
-- visual_consistency: Design coherence across slides — 'consistent' (same palette/font/style), 'mixed' (mostly consistent with 1-2 outliers), 'inconsistent' (different styles per slide).
-- estimated_read_time_seconds: Realistic total time to read/swipe the full carousel. Base: 2s per text-heavy slide, 1s per image/product slide.
-- cta_slide: Analyze the LAST slide only. Set has_cta=true if it contains a call-to-action (follow, save, comment, link, buy). Set cta_type to one of: 'save', 'follow', 'comment', 'link_bio', 'shop_cart', or null. Set cta_text to the exact CTA text or null.
-- has_numbered_hook: true if slide 1 visibly shows a number (e.g. "7 cách…", "3 lỗi…", "5 outfit…") that creates completion bias, false otherwise.
-- swipe_trigger_type: The dominant psychological mechanism driving swipes — exactly one of: 'list_momentum' (numbered list, people swipe to complete the count), 'curiosity_chain' (each slide withholds something, creating information gap), 'narrative_tension' (story arc with unresolved outcome), 'none' (no clear swipe trigger).
-- Map slides to the provided batch indices precisely."""
+_HI9_ENRICHMENT_VIDEO = """
+=== Nội dung ngữ nghĩa + phân loại hai trục (bắt buộc điền đầy đủ — HI-9) ===
+- content_context (object):
+  - subject_matter: MỘT câu tiếng Việt — video nói về điều gì (vd: "Review serum vitamin C cho da dầu tại nhà").
+  - primary_subjects: 2–6 cụm khóa (sản phẩm, người, bối cảnh).
+  - setting: một cụm mô tả bối cảnh quay (phòng ngủ, studio đèn ring, quán cà phê…); không rõ → null.
+  - products_mentioned: mảng {name, brand?, category?}; có thể [] nếu không có sản phẩm đặt tên.
+  - creator_role: expert | user_reviewer | storyteller | performer | tutorial_host
+  - dominant_actions: hành động thấy rõ trong video (cụm tiếng Việt ngắn).
+  - content_purpose: educate | entertain | sell | inspire | review | react
+  - language_register: casual | formal | youth_slang | expert_jargon
+  - topical_hashtags_implied: 3–8 hashtag phù hợp nội dung (có thể không xuất hiện trên caption).
+
+- niche_classification (object) — creator_niche_slug và format_axis CHỈ được chọn từ glossary ngay sau đây (đúng chuỗi snake_case):
+  - creator_niche_slug: một giá trị trong glossary creator niches.
+  - format_axis: một giá trị trong glossary format_axis — mô tả ĐỊNH DẠNG dựng video, không nhầm với chủ đề sản phẩm.
+  - confidence: số 0.0–1.0 — mức tự tin chung cho cặp (niche + format).
+  - rationale: MỘT câu tiếng Việt giải thích vì sao chọn đôi slug+axis này.
+  - alternative_creator_niche_slug: niche thứ hai từ glossary nếu confidence < 0.8; nếu confidence ≥ 0.8 thì null.
+"""
+
+VIDEO_EXTRACTION_PROMPT = (
+    _VIDEO_EXTRACTION_CORE_VI
+    + _HI9_ENRICHMENT_VIDEO
+    + "\n\n"
+    + build_extraction_niche_glossary_block()
+)
+
+
+_CAROUSEL_EXTRACTION_CORE_VI = """Phân tích carousel ảnh TikTok (các phần ảnh nằm TRƯỚC đoạn text này). Chỉ trả về JSON khớp schema — không markdown, không lời dẫn.
+
+QUY TẮC BẮT BUỘC:
+- hook_analysis.hook_phrase: Nguyên văn chữ thấy trên slide 1; không diễn giải. Không chữ → mô tả yếu tố hình ảnh chủ đạo bằng tiếng Việt.
+- slides[].text_on_slide: Liệt kê MỌI chữ đọc được trên slide (tiêu đề, giá, watermark, hashtag in trong ảnh). Chỉ dùng [] nếu hoàn toàn không có chữ.
+- slides[].text_density: none | low | medium | high — khớp text_on_slide; text_on_slide khác rỗng thì không được none.
+- slides[].has_face: true nếu mặt người NỔI BẬT; ngược lại false.
+- slides[].has_product: true nếu sản phẩm vật lý là chủ thể chính.
+- slides[].word_count: số từ chữ trên slide; không chữ → 0.
+- content_arc: list | story | before_after | comparison | tutorial_steps | gallery.
+- visual_consistency: consistent | mixed | inconsistent.
+- estimated_read_time_seconds: ước lượng thời gian đọc/vuốt hết; ~2s/slide nhiều chữ, ~1s/slide chủ yếu ảnh.
+- cta_slide: CHỈ slide cuối. has_cta true nếu có kêu gọi (follow, save, comment, link, mua). cta_type: save | follow | comment | link_bio | shop_cart | null. cta_text nguyên văn hoặc null.
+- has_numbered_hook: true nếu slide 1 có số tạo completion bias ("7 cách…", "3 lỗi…").
+- swipe_trigger_type: list_momentum | curiosity_chain | narrative_tension | none.
+- Map slides đúng batch index được cung cấp."""
+
+_HI9_ENRICHMENT_CAROUSEL = """
+=== Nội dung ngữ nghĩa + phân loại hai trục (carousel — cùng schema video; HI-9) ===
+- content_context: subject_matter mô tả TOÀN BỘ carousel (vuốt qua các slide); các trường khác như video (sản phẩm, setting, mục đích…), lấy từ tổng thể các slide.
+- niche_classification: creator_niche_slug + format_axis CHỈ từ glossary phía dưới; rationale bằng tiếng Việt; confidence + alternative_creator_niche_slug theo cùng quy tắc video.
+"""
+
+CAROUSEL_EXTRACTION_PROMPT = (
+    _CAROUSEL_EXTRACTION_CORE_VI
+    + _HI9_ENRICHMENT_CAROUSEL
+    + "\n\n"
+    + build_extraction_niche_glossary_block()
+)
 
 
 # ---------------------------------------------------------------------------
