@@ -1,6 +1,6 @@
 ---
 name: Pipeline Audit Remediation Plan (revised — quality-first)
-overview: Remediate 30 quality + cost items from the deep audit (14 surviving original findings — ME-13 dropped — + 15 follow-on items + 1 docs sweep). Sprint 1 stops cost bleed (CR-1..CR-4). Sprint 2 fixes silent quality bugs, upgrades extraction to two-axis Gemini-driven classification (HI-9 extraction + HI-18 downstream wiring, HI-11 resolver, HI-12 mapping reconcile, HI-16 carousel mirror), adds Vietnamese ASR supplement (HI-14), bumps hook-window FPS (HI-15), and conditionally routes batch through Gemini Batch API (HI-13 if research green-lights). Sprint 3 is pre-launch polish + carousel-specific items (ME-18..ME-20) + ME-17 backfill cron + DOC-1 documentation sweep + EXP-2 pattern_fingerprint A/B. ME-13 (lower media_resolution) removed per user — quality must not regress.
+overview: Remediate 30 quality + cost items from the deep audit (14 surviving original findings — ME-13 dropped — + 15 follow-on items + 1 docs sweep). Sprint 1 stops cost bleed (CR-1..CR-4). Sprint 2 fixes silent quality bugs, upgrades extraction to two-axis Gemini-driven classification (HI-9 extraction + HI-18 downstream wiring, HI-11 resolver, HI-12 mapping reconcile, HI-16 carousel mirror), adds Vietnamese ASR supplement (HI-14), bumps hook-window FPS (HI-15), and ships optional batch corpus path via Gemini Batch API (HI-13, env-gated). Sprint 3 is pre-launch polish + carousel-specific items (ME-18..ME-20) + ME-17 backfill cron + DOC-1 documentation sweep + EXP-2 pattern_fingerprint A/B. ME-13 (lower media_resolution) removed per user — quality must not regress.
 todos:
   - id: create-issue-files
     content: Create artifacts/issues/ directory + 28 issue tracking files (one per CR/HI/ME/EXP/research/DOC finding) using standard template
@@ -45,8 +45,8 @@ todos:
     content: "RESEARCH (gate for HI-13): Verify Gemini Batch API supports our extraction shape — google-genai SDK batch endpoint, Files API video uploads in batch mode, response_json_schema in batch, thinking_budget=0 + system_instruction passthrough, per-video failure semantics, actual measured latency (must complete within nightly ingest window), confirmed 50% pricing on video frame tokens. Output: artifacts/integrations/gemini-batch-api.md with go/no-go recommendation."
     status: completed
   - id: hi13
-    content: "HI-13 (TENTATIVE — conditional on research-batch-api): Batch corpus ingest via Gemini Batch API (~50% discount); live SSE unchanged. **Outcome: CANCELLED** — research **NO-GO** (`artifacts/integrations/gemini-batch-api.md` checklist not PASS); no implementation on main. **Not queued:** does not mean “blocked pending code” — means closed unless research is re-run and documents **GO** (then add a new tracked item or flip this todo back to `pending`)."
-    status: cancelled
+    content: "HI-13: Gemini Batch API corpus video ingest — **shipped** (feature-flag). JSONL file `batches.create`, `CORPUS_INGEST_USE_GEMINI_BATCH` + `CORPUS_BATCH_POLL_*`, per-video sync fallback, `gemini_calls.is_batch` + half-tier `cost_usd`, migration `20260516120001_hi13_gemini_calls_is_batch.sql`. Carousels + live SSE unchanged. **Ops:** enable flag on batch pod after pilot; monitor Batch API SLO/incidents."
+    status: completed
   - id: hi14
     content: "HI-14 (NEW, accuracy lift): Add Google Cloud Speech-to-Text vi-VN supplemental ASR pass before Gemini extraction. Whisper-style transcript injected as prompt context (NOT replacement for video audio). Apply to BOTH batch and live SSE paths. Cache transcript per video_id so multiple Gemini calls reuse one ASR pass. ~$3-8/mo cost, material accuracy lift on audio_transcript + hook_phrase for music-heavy videos."
     status: completed
@@ -543,11 +543,9 @@ Abort criteria (any one is a no-go):
 
 If research lands "no-go," document the specific blocker and remove HI-13 from the plan. If "go," proceed with HI-13 below.
 
-### HI-13 (TENTATIVE): Route batch corpus ingest through Gemini Batch API
+### HI-13: Route batch corpus ingest through Gemini Batch API (**shipped, feature-flag**)
 
-[cloud-run/getviews_pipeline/gemini.py](cloud-run/getviews_pipeline/gemini.py) `analyze_video` + [cloud-run/getviews_pipeline/corpus_ingest.py](cloud-run/getviews_pipeline/corpus_ingest.py) ingest loop
-
-**Conditional on research-batch-api landing "go".**
+[cloud-run/getviews_pipeline/gemini.py](cloud-run/getviews_pipeline/gemini.py) batch helpers + [cloud-run/getviews_pipeline/corpus_ingest.py](cloud-run/getviews_pipeline/corpus_ingest.py) ingest loop. Enable with `CORPUS_INGEST_USE_GEMINI_BATCH=true` on the batch pod. Research + integration note: [artifacts/integrations/gemini-batch-api.md](artifacts/integrations/gemini-batch-api.md).
 
 The Gemini Batch API offers 50% off input + output tokens for async workloads. Our nightly batch ingest is async by design (no user is waiting for a row to land). Live `/stream` cold-cache video diagnosis stays on the real-time path.
 
