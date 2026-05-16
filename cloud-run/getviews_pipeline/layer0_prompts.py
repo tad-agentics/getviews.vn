@@ -10,6 +10,8 @@ from enum import Enum
 
 from pydantic import BaseModel
 
+from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
+
 # ---------------------------------------------------------------------------
 # Pydantic schemas (used to build LAYER0_RESPONSE_SCHEMA via .model_json_schema())
 # ---------------------------------------------------------------------------
@@ -64,7 +66,9 @@ Quy tắc:
 - Cite cụ thể: timestamps, visual details, số liệu từ JSON data
 - Viết tiếng Việt, giọng chuyên gia nói chuyện với creator — không phải giáo trình
 - Dùng "Chạy vì:" không dùng "Tại sao hiệu quả:"
-- KHÔNG bịa mechanism. Nếu data không đủ → nói "Không đủ data để kết luận causal"."""
+- KHÔNG bịa mechanism. Nếu data không đủ → nói "Không đủ data để kết luận causal".
+
+""" + build_forbidden_phrases_prompt_block()
 
 NICHE_INSIGHT_FEW_SHOT_EXAMPLES = """## VÍ DỤ MẪU 1 — Ngách skincare, combo: Cảnh Báo + Before/After
 

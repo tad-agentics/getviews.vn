@@ -374,10 +374,11 @@ def log_gemini_failure(
 ) -> None:
     """Log a ``gemini_calls`` row for an exhausted-retry failure.
 
-    Called from ``gemini.py`` *only* when all retries + fallback models
-    have been exhausted and the caller is about to re-raise. Transient
-    hiccups that recover on retry are NOT logged here — they'd make
-    the failure-rate panel noisy.
+    Called from ``gemini.py`` when all retries + fallback models have been
+    exhausted and the caller is about to re-raise. Transient errors that
+    recover on a later attempt are logged separately (ME-15) as
+    ``success=False`` rows with ``error_code`` like ``..._attempt_N`` and
+    zero tokens — only the final exhaustion uses this helper.
 
     Writes ``tokens_in=tokens_out=cost_usd=0``, ``duration_ms`` = total
     elapsed time across retries for this model (caller-provided),

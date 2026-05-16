@@ -156,6 +156,40 @@ async def batch_ingest(
     })
 
 
+@router.post("/batch/post-processing")
+async def batch_post_processing(
+    request: Request,
+    weekly_if_sunday: bool = Query(
+        default=True,
+        description="When false, skip the Sunday-only weekly analytics block (MV + VDH + Layer0B still run).",
+    ),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """ME-16 — heal MV / Video Đáng Học / sound insights after an aborted ingest or ops rerun.
+
+    Daily pg_cron ``cron-batch-post-processing`` (23:30 UTC) complements
+    ``/batch/ingest`` so wall-clock aborts do not leave aggregates stale overnight.
+    """
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.corpus_ingest import run_ingest_post_processing
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info("POST /batch/post-processing — weekly_if_sunday=%s", weekly_if_sunday)
+    client = get_service_client()
+    async with record_job_run(client, "batch/post-processing") as obs_summary:
+        try:
+            result = await run_ingest_post_processing(
+                client,
+                run_weekly_analytics_if_sunday=weekly_if_sunday,
+            )
+        except Exception as exc:
+            logger.exception("Batch post-processing failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 class BatchDouyinIngestRequest(StrictBody):
     """D2d (2026-06-03) — body for ``POST /batch/douyin-ingest``.
 

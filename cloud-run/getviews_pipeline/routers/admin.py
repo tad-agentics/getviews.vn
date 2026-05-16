@@ -1149,6 +1149,12 @@ async def admin_list_triggers(
         "jobs": [
             {"id": "ingest", "label": "Corpus ingest (/batch/ingest)", "body_schema": {"niche_ids": "int[] | null", "deep_pool": "bool"}, "heavy": True},
             {
+                "id": "post_processing",
+                "label": "Post-ingest aggregates (/batch/post-processing) — MV, VĐH, Layer0B, Sunday weekly",
+                "body_schema": {"weekly_if_sunday": "bool — query param, default true"},
+                "heavy": True,
+            },
+            {
                 "id": "refresh",
                 "label": "Corpus freshness refresh (/batch/refresh)",
                 "body_schema": {

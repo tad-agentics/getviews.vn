@@ -12,6 +12,7 @@ from __future__ import annotations
 import pytest
 
 from getviews_pipeline.profile_niches import (
+    creator_niche_id_for_legacy_niche,
     legacy_niche_id_for_creator_niche,
     resolve_legacy_niche_from_profile_row,
 )
@@ -45,6 +46,13 @@ def test_legacy_niche_id_for_creator_niche(creator_niche_id: int, expected: int)
 def test_legacy_niche_id_unknown() -> None:
     assert legacy_niche_id_for_creator_niche(999) is None
     assert legacy_niche_id_for_creator_niche(None) is None
+
+
+def test_creator_niche_id_for_legacy_niche_tie_break() -> None:
+    assert creator_niche_id_for_legacy_niche(26) == 10
+    assert creator_niche_id_for_legacy_niche(13) == 4  # lowest among 4,5,15 → 13
+    assert creator_niche_id_for_legacy_niche(999) is None
+    assert creator_niche_id_for_legacy_niche(None) is None
 
 
 def test_resolve_uses_creator_niche_id() -> None:

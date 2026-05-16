@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canonicalNicheTaxonomyId,
+  creatorNicheIdForLegacyNiche,
   legacyNicheIdForCreatorNiche,
   profileCreatorNicheId,
   profileFirstNicheId,
@@ -36,15 +37,20 @@ describe("profileNiches (two-axis model since PR6)", () => {
   });
 
   it("legacyNicheIdForCreatorNiche covers all 16 creator_niches", () => {
-    // id=10 Wellness — intentionally null until corpus indexes wellness content_classes.
     const expected: Record<number, number | null> = {
       1: 2, 2: 3, 3: 4, 4: 13, 5: 13, 6: 7, 7: 11, 8: 9, 9: 5,
-      10: null, 11: 16, 12: 14, 13: 19, 14: 8, 15: 13, 16: 10,
+      10: 26, 11: 16, 12: 14, 13: 19, 14: 8, 15: 13, 16: 10,
     };
     for (const [cni, legacy] of Object.entries(expected)) {
       expect(legacyNicheIdForCreatorNiche(Number(cni))).toBe(legacy);
     }
     expect(legacyNicheIdForCreatorNiche(999)).toBeNull();
+  });
+
+  it("creatorNicheIdForLegacyNiche picks lowest id on ties (mirror Python)", () => {
+    expect(creatorNicheIdForLegacyNiche(26)).toBe(10);
+    expect(creatorNicheIdForLegacyNiche(13)).toBe(4); // comedy, lifestyle, music → min id 4
+    expect(creatorNicheIdForLegacyNiche(999)).toBeNull();
   });
 
   it("canonicalNicheTaxonomyId maps retired ids and is a no-op for current ones", () => {

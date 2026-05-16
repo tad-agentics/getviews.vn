@@ -33,8 +33,11 @@ from pydantic import BaseModel, Field
 from getviews_pipeline.claim_tiers import CLAIM_TIERS, flags_for_count
 from getviews_pipeline.output_redesign import HOOK_TYPE_VI
 from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
+from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
 
 logger = logging.getLogger(__name__)
+
+_MORNING_RITUAL_FORBIDDEN_BLOCK = build_forbidden_phrases_prompt_block()
 
 # PostgREST ``select=`` for batch ritual profile reads (PR6 — no ``primary_niche``).
 # Exposed on ``/health`` so ops can ``curl`` the batch URL and confirm the
@@ -236,22 +239,18 @@ why_works phải giải thích MECHANISM = [tên cơ chế] HOẠT ĐỘNG NHƯ 
 - `shot_count`: integer 2-8. Bám median grounding ± 1.
 - `length_sec`: integer 15-90. Bám median grounding ± 5.
 
-## Few-shot (ví dụ ĐÚNG cho ngách Beauty)
+## Few-shot (ví dụ neo từ video nổi bật trong grounding)
 
-{{
-  "hook_type_en": "before_after",
-  "title_vi": "\\"30 ngày dùng tretinoin 0.025% — đây là khuôn mặt tôi mỗi tuần\\"",
-  "why_works": "before_after_promise — promise transformation đo được theo tuần buộc viewer xem hết để thấy kết quả tuần 4.",
-  "retention_est_pct": 62,
-  "shot_count": 5,
-  "length_sec": 30
-}}
+{few_shot_json}
 
 ## Quy tắc cứng
 
 - Title PHẢI tiếng Việt tự nhiên — không dịch Anh-Việt cứng (sai: "Đừng bỏ lỡ điều này"; đúng: "Tôi đã sai 3 năm").
 - 3 kịch bản PHẢI đa dạng hook_type_en (không 3 pov, không 3 shock_stat).
-- TRÁNH TUYỆT ĐỐI: "tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", "hack não", "đừng bỏ qua", "xem ngay kẻo muộn", "triệu view", "bùng nổ", "công thức vàng". Thay bằng chi tiết cụ thể từ grounding (số liệu, tên brand, tên creator, địa danh).
+- Tuân thủ khối Copy-rules sau cho `title_vi` và `why_works`.
+- Thay cụm cấm bằng chi tiết từ grounding (số liệu, brand, creator, địa danh).
+
+{forbidden_copy_block}
 - KHÔNG lặp lại y nguyên hook video trong grounding — chỉ rút pattern.
 {reference_note}"""
 
@@ -274,6 +273,73 @@ _ADEQUACY_NOTES: dict[str, str] = {
     "basic_citation": "grounding tốt, retention 55-72% nếu pattern lặp ≥3 video.",
     "niche_norms": "grounding mạnh + đủ sample, retention 60-75% cho pattern hot.",
 }
+
+
+def _dynamic_few_shot_json(videos: list[dict[str, Any]], niche_name: str) -> str:
+    """ME-14 — one JSON example from the top-view grounding row (not hard-coded Beauty)."""
+    if not videos:
+        return json.dumps(
+            {
+                "hook_type_en": "before_after",
+                "title_vi": '"30 ngày dùng tretinoin 0.025% — đây là khuôn mặt tôi mỗi tuần"',
+                "why_works": "before_after_promise — promise transformation đo được theo tuần buộc viewer xem hết để thấy kết quả tuần 4.",
+                "retention_est_pct": 62,
+                "shot_count": 5,
+                "length_sec": 30,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    top = max(videos, key=lambda v: int(v.get("views") or 0))
+    hook_type_en = str(top.get("hook_type") or "before_after")
+    raw_phrase = str(top.get("hook_phrase") or "").strip()
+    if not raw_phrase:
+        sm = extract_subject_matter_from_analysis_json(top.get("analysis_json"))
+        raw_phrase = (sm or "").strip()
+    if not raw_phrase:
+        raw_phrase = f"Neo cụ thể từ ngách {niche_name} — không copy nguyên hook."
+    if len(raw_phrase) > 88:
+        raw_phrase = raw_phrase[:85] + "…"
+
+    try:
+        er = float(top.get("engagement_rate") or 0)
+    except (TypeError, ValueError):
+        er = 0.0
+    retention_est_pct = int(max(40, min(75, round(52 + min(23, er * 400)))))
+
+    shots = top.get("scene_count")
+    try:
+        shot_count = int(shots) if shots is not None else 4
+    except (TypeError, ValueError):
+        shot_count = 4
+    shot_count = max(2, min(8, shot_count))
+
+    vd = top.get("video_duration")
+    try:
+        length_sec = int(vd) if vd is not None else 30
+    except (TypeError, ValueError):
+        length_sec = 30
+    length_sec = max(15, min(90, length_sec))
+
+    views = int(top.get("views") or 0)
+    vid = str(top.get("video_id") or "")
+    why = (
+        f"curiosity_gap — neo theo hook đã chứng minh {views:,} views trong grounding "
+        f"(video_id={vid}); giữ mechanism khớp hook_type_en={hook_type_en}."
+    )
+    if len(why) > 200:
+        why = why[:197] + "…"
+
+    example = {
+        "hook_type_en": hook_type_en,
+        "title_vi": f'"{raw_phrase}"',
+        "why_works": why,
+        "retention_est_pct": retention_est_pct,
+        "shot_count": shot_count,
+        "length_sec": length_sec,
+    }
+    return json.dumps(example, ensure_ascii=False, indent=2)
 
 
 def _build_prompt(
@@ -322,11 +388,13 @@ def _build_prompt(
         niche_name=niche_name,
         grounding_count=len(videos),
         grounding_json=json.dumps(trimmed, ensure_ascii=False, indent=2),
+        few_shot_json=_dynamic_few_shot_json(videos, niche_name),
         median_shot_count=median_shot_count,
         median_length_sec=median_length_sec,
         adequacy_tier=adequacy,
         adequacy_note=adequacy_note,
         reference_note=reference_note,
+        forbidden_copy_block=_MORNING_RITUAL_FORBIDDEN_BLOCK,
     )
 
 

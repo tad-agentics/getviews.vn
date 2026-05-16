@@ -217,16 +217,28 @@ def test_prompt_v2_adequacy_note_changes_with_tier() -> None:
 
 
 def test_prompt_v2_includes_few_shot_example() -> None:
-    """At least one concrete schema example must be embedded — measurably
-    lifts quality vs zero-shot instructional prompts."""
+    """ME-14 — few-shot is derived from top-view grounding row (not static Beauty copy)."""
     try:
         from getviews_pipeline.morning_ritual import _build_prompt
     except ModuleNotFoundError:
         import pytest
         pytest.skip("pydantic not installed in test env")
-    prompt = _build_prompt("Beauty", [{"video_id": "v1"}], [])
-    assert "Few-shot" in prompt or "ví dụ ĐÚNG" in prompt
-    assert "tretinoin" in prompt  # the seeded example anchor
+    videos = [
+        {"video_id": "v_low", "views": 100, "hook_phrase": "low views"},
+        {
+            "video_id": "v_top",
+            "views": 9_999_999,
+            "hook_type": "shock_stat",
+            "hook_phrase": "Glycolic 7% trong 21 ngày — đây là làn da tôi",
+            "scene_count": 6,
+            "video_duration": 40,
+            "engagement_rate": 0.11,
+        },
+    ]
+    prompt = _build_prompt("Beauty", videos, [])
+    assert "neo từ video nổi bật" in prompt or "Few-shot" in prompt
+    assert "Glycolic 7%" in prompt
+    assert "shock_stat" in prompt
 
 
 def test_prompt_v2_grounding_carries_engagement_and_scene_fields() -> None:

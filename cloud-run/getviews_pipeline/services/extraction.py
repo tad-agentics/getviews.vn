@@ -21,9 +21,11 @@ import logging
 from pathlib import Path
 from typing import Any, Literal
 
-logger = logging.getLogger(__name__)
-
 from pydantic import BaseModel, Field
+
+from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
+
+logger = logging.getLogger(__name__)
 
 # ── Pydantic output schemas for Gemini Call 1 ──────────────────────────────
 
@@ -107,13 +109,8 @@ PRESENTER_NOT_REQUIRED_FORMATS = frozenset({
     "unboxing_silent",
 })
 
-# Forbidden phrases injected into the extraction prompt to steer Gemini away from
-# banned copy patterns (matches .cursor/rules/copy-rules.mdc).
-_FORBIDDEN_PHRASES_VI = (
-    '"tính năng ẩn", "bí mật không ai nói", "sự thật shock", "chỉ 1%", '
-    '"hack não", "đừng bỏ qua", "xem ngay kẻo muộn", "triệu view", '
-    '"bùng nổ", "công thức vàng", "chấn động"'
-)
+# Back-compat: tests + video_analyze re-export assert clichés appear in prompt text.
+_FORBIDDEN_PHRASES_VI: str = build_forbidden_phrases_prompt_block()
 
 # Closed [0, _HOOK_LANG_DEDUPE_WINDOW_END_SEC] — overlap with error [t, end] dedupes vs lang_market.
 _HOOK_LANG_DEDUPE_WINDOW_END_SEC = 4.0
@@ -494,12 +491,14 @@ Ví dụ ĐÚNG:
 - "Thêm câu hỏi qua text tại giây 10 — ví dụ 'Bạn chọn màu đen hay màu trắng?'"
 Ví dụ SAI: "Thêm text overlay" (không có vị trí + không có ví dụ)
 
+{_FORBIDDEN_PHRASES_VI}
+
 ## Schema JSON — trả về một object duy nhất
 
 `{{ "errors": [ {{ "error_id", "sev", "t", "end", "title", "detail", "fix" }} ] }}`
 
 - ``t`` / ``end``: giây trên timeline video.
-- TRÁNH: {_FORBIDDEN_PHRASES_VI}
+- Áp dụng khối Copy-rules ở trên cho mọi ``title``, ``detail``, ``fix``.
 """
 
     config = types.GenerateContentConfig(

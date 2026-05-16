@@ -27,8 +27,20 @@ from getviews_pipeline.voice_lint import (
     FORBIDDEN_WORDS,
     CopyViolation,
     assert_copy_clean,
+    build_forbidden_phrases_prompt_block,
     lint_forbidden_copy,
 )
+
+
+def test_build_forbidden_phrases_prompt_block_covers_canonical_and_extras() -> None:
+    block = build_forbidden_phrases_prompt_block()
+    for opener in FORBIDDEN_OPENERS:
+        assert opener in block
+    for word in FORBIDDEN_WORDS:
+        assert word in block
+    assert "tính năng ẩn" in block
+    assert "viral chóng mặt" in block
+
 
 # ── Positive detection — one test per opener / word ────────────────
 

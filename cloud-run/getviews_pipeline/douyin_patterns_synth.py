@@ -52,7 +52,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
+
 logger = logging.getLogger(__name__)
+
+_DOUYIN_PATTERNS_COPY_RULES = build_forbidden_phrases_prompt_block()
 
 
 # ── Pydantic schema (enforced by Gemini's response_json_schema) ─────
@@ -327,7 +331,7 @@ Cho mỗi entry:
 6. ``sample_video_ids`` (2-5 entry) — danh sách video_id từ CORPUS làm anchor cho pattern. BẮT BUỘC nằm trong corpus đầu vào — không tự bịa id.
 
 QUY TẮC COPY:
-- Tự nhiên, đời thường tiếng Việt. Tránh "bí mật", "công thức vàng", "triệu view", "bùng nổ", "đột phá".
+{_DOUYIN_PATTERNS_COPY_RULES}
 - Không mở "Đây là", "Pattern này".
 - 3 pattern PHẢI khác biệt — không 2 card cùng hook + format.
 - Nếu corpus quá đồng nhất để tách 3 pattern khác biệt, vẫn cố tách theo bối cảnh / props / nhịp khác nhau.

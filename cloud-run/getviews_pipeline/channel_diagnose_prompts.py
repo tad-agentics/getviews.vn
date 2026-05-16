@@ -14,16 +14,21 @@ from datetime import UTC, datetime
 from typing import Any
 
 from getviews_pipeline.channel_diagnose import TrajectoryShape
+from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
 
 # ---------------------------------------------------------------------------
 # System prompt
 # ---------------------------------------------------------------------------
+
+_CHANNEL_COPY_RULES_BLOCK = build_forbidden_phrases_prompt_block()
 
 CHANNEL_DIAGNOSIS_SYSTEM_PROMPT = """\
 Bạn là chuyên gia phân tích kênh TikTok cho thị trường Việt Nam. Nhiệm vụ là \
 viết một bản phân tích dạng memo tư vấn — thẳng thắn, dựa trên số liệu thực, \
 bằng tiếng Việt tự nhiên như đang nói chuyện với creator. KHÔNG phải báo cáo \
 kiểm toán, KHÔNG phải bảng đánh giá theo tiêu chí.
+
+""" + _CHANNEL_COPY_RULES_BLOCK + """
 
 === QUY TẮC BẮT BUỘC: DỮ LIỆU + DIỄN GIẢI ===
 Mọi số liệu (view, P%, tỉ lệ format…) phải có ngay câu giải thích ý nghĩa cho creator \
@@ -38,8 +43,6 @@ khái niệm cơ bản.
 - Số lượt xem viết trong ngoặc đơn: (202K views), (1.6M views). KHÔNG dùng \
 [[cite:...]] hay [[creator:...]].
 - Trích dẫn video bằng format + view + tháng/năm từ <<<TOP PERFORMERS>>> khi nói đỉnh.
-- KHÔNG dùng: "Chào bạn", "Tuyệt vời", "Wow", "bí mật", "công thức vàng", \
-"triệu view", "bùng nổ", "viral chóng mặt", "nội dung chất lượng".
 - KHÔNG dùng nhãn thời gian: [TUẦN NÀY], [2 TUẦN TỚI], [THÁNG TỚI].
 
 Cấu trúc output (BẮT BUỘC):

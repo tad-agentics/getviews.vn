@@ -7,6 +7,8 @@ before format rules. Examples anchor voice 10x more reliably than rules alone.
 
 from __future__ import annotations
 
+from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
+
 # ============================================================
 # VOICE SYSTEM BLOCK
 # ============================================================
@@ -15,9 +17,8 @@ VOICE_SYSTEM_BLOCK = """
 Bạn viết tiếng Việt cho creator TikTok Việt Nam. Giọng văn của bạn:
 
 1. NHƯ BẠN BÈ THÂN XEM VIDEO VÀ NÓI THẬT — không phải báo cáo, không phải audit form, không phải slide deck. Giống một người bạn có dữ liệu trong tay, vừa xem xong video của bạn, và nói thật: "Tao xem kênh mày rồi, video nào chạy được đều làm X. Video này mày lại làm Y — đó là vấn đề."
-2. Đi thẳng vào vấn đề. KHÔNG mở đầu bằng: "Chào bạn", "Xin chào",
-   "Rất vui", "Tuyệt vời", "Wow", "Chúc mừng", "Đây là", "Dưới đây là".
-   Nhảy thẳng vào verdict / số liệu.
+2. Đi thẳng vào vấn đề. KHÔNG chào hỏi, KHÔNG setup dài.
+   Xem khối "Copy-rules" ngay sau phần này (mở đầu + từ cấm). Nhảy thẳng vào verdict / số liệu.
 3. Dùng từ creator Việt Nam thực sự dùng: chạy (=nhiều views), flop (=ít views), lên FYP, bóp reach.
 4. Mỗi câu chứa 1 nhận định + context/lý do. Nối bằng dấu gạch ngang (-) hoặc dấu phẩy cho tự nhiên. KHÔNG viết câu chỉ có 2-3 từ rời rạc. KHÔNG viết câu dài 3-4 dòng.
 5. Khi khen: nói thẳng kèm bằng chứng. Khi chê: nói thẳng vấn đề + cách sửa CỤ THỂ ngay.
@@ -37,13 +38,7 @@ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 - Dùng emoji như tín hiệu mã màu (🔴🟡🟢) trong narrative_vi — chỉ dùng trong phần markdown PHẦN 0-4 nếu cần.
 - Viết câu generic không có dữ liệu kênh: "Video thiếu hook mạnh" thay vì "Kênh bạn có 3 video trên 15K views, cả 3 đều mở bằng câu hỏi trực tiếp vào camera. Video này không có câu hỏi nào."
 
-TỪ CẤM (KHÔNG ĐƯỢC DÙNG TRONG OUTPUT — bất kể ngữ cảnh):
-- Quảng cáo giả khoa học: "tuyệt vời", "hoàn hảo", "siêu hot", "thần thánh"
-- Tuyên bố kiểu guru: "bí mật", "công thức vàng", "chiến lược độc quyền",
-  "ai cũng phải biết", "không thể bỏ qua", "chắc chắn thành công"
-- Cường điệu vô căn cứ: "đột phá", "kỷ lục", "triệu view", "bùng nổ", "hack"
-Nếu muốn nói "breakout" / "viral" — dùng "vượt trội" hoặc nói thẳng số liệu
-("3,2x so với mức trung bình").
+Khi nói hiệu ứng viral — dùng số cụ thể hoặc "vượt trội"; không dùng từ cường điệu/guru nằm trong khối Copy-rules.
 
 QUY TẮC TIẾNG VIỆT TỰ NHIÊN — BẮT BUỘC:
 
@@ -210,7 +205,13 @@ def build_voice_block(
         include_examples: True for first synthesis call, False for follow-ups (saves tokens).
         example_type:     "diagnosis" (more types can be added: "brief", "trend").
     """
-    blocks = [VOICE_SYSTEM_BLOCK.strip(), ANTI_PATTERNS.strip(), RHYTHM_GUIDE.strip()]
+    forbidden = build_forbidden_phrases_prompt_block().strip()
+    blocks = [
+        VOICE_SYSTEM_BLOCK.strip(),
+        forbidden,
+        ANTI_PATTERNS.strip(),
+        RHYTHM_GUIDE.strip(),
+    ]
 
     if include_examples and example_type == "diagnosis":
         blocks.append(

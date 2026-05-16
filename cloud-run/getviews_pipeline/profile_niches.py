@@ -23,6 +23,27 @@ from __future__ import annotations
 # Keep for ≥30 days after PR6 and until analysis pivots off
 # ``video_corpus.niche_id`` / this representative mapping (see
 # ``artifacts/docs/two-axis-niche-cutover-runbook.md``).
+
+# Slug → creator_niches.id — mirrors seed; used by HI-11 shadow ingest + Gemini mapping.
+CREATOR_NICHE_SLUG_TO_ID: dict[str, int] = {
+    "beauty": 1,
+    "fashion": 2,
+    "food": 3,
+    "lifestyle": 4,
+    "comedy": 5,
+    "family": 6,
+    "education": 7,
+    "tech_gaming": 8,
+    "business": 9,
+    "wellness": 10,
+    "travel": 11,
+    "auto": 12,
+    "pets_home": 13,
+    "gym_fitness": 14,
+    "music_dance": 15,
+    "real_estate": 16,
+}
+
 _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     1:  2,   # Beauty → Skincare
     2:  3,   # Fashion → Thời trang Phụ kiện
@@ -41,6 +62,24 @@ _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     15: 13,  # Music & Dance → Hài / Giải trí (corpus entertainment bucket)
     16: 10,  # Real Estate → Bất động sản (niche_taxonomy)
 }
+
+
+def creator_niche_id_for_legacy_niche(legacy_niche_id: int | None) -> int | None:
+    """Inverse of ``legacy_niche_id_for_creator_niche`` — pick one creator niche per legacy id.
+
+    When multiple creator niches map to the same legacy representative (e.g. comedy,
+    lifestyle, music → 13), returns the **lowest** creator_niche_id for a stable tie-break.
+    Returns ``None`` when ``legacy_niche_id`` is unknown.
+    """
+    if legacy_niche_id is None:
+        return None
+    matches = [
+        cnid for cnid, lid in _LEGACY_NICHE_FOR_CREATOR_NICHE.items()
+        if lid == int(legacy_niche_id)
+    ]
+    if not matches:
+        return None
+    return min(matches)
 
 
 def legacy_niche_id_for_creator_niche(creator_niche_id: int | None) -> int | None:

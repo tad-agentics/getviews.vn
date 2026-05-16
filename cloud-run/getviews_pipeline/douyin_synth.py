@@ -47,7 +47,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
+
 logger = logging.getLogger(__name__)
+
+_DOUYIN_ADAPT_COPY_RULES = build_forbidden_phrases_prompt_block()
 
 
 # ── Pydantic schema (enforced by Gemini's response_json_schema) ─────
@@ -267,7 +271,7 @@ Trả về JSON với 6 trường:
    Mỗi note ≤ 240 ký tự, cụ thể. Tránh "có thể adapt", "tuỳ creator".
 
 Quy tắc copy:
-- Tự nhiên, đời thường. Tránh "bí mật", "công thức vàng", "triệu view", "bùng nổ".
+{_DOUYIN_ADAPT_COPY_RULES}
 - Không mở bằng "Đây là", "Video về" — bắt vào nội dung ngay.
 - Tiếng Việt natural, không dịch máy.
 """

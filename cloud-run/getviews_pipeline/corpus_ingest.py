@@ -1202,6 +1202,61 @@ def _resolve_actual_niche_from_content(
     return default_niche_id, counts
 
 
+_GEMINI_NICHE_CONFIDENCE_FLOOR = 0.6
+
+
+def _niche_resolution_shadow_fields(
+    analysis_json: dict[str, Any],
+    resolver_niche_id: int,
+    *,
+    video_id: str = "",
+) -> dict[str, Any]:
+    """HI-11 shadow telemetry — does not affect ``niche_id`` (hashtag resolver stays canonical)."""
+    from getviews_pipeline.profile_niches import (
+        CREATOR_NICHE_SLUG_TO_ID,
+        legacy_niche_id_for_creator_niche,
+    )
+
+    nc = analysis_json.get("niche_classification")
+    if not isinstance(nc, dict):
+        return {
+            "niche_resolution_source": "hashtag",
+            "niche_resolution_confidence": None,
+            "inferred_creator_niche_id": None,
+        }
+
+    try:
+        conf = float(nc.get("confidence") or 0.0)
+    except (TypeError, ValueError):
+        conf = 0.0
+
+    slug_raw = nc.get("creator_niche_slug")
+    slug = str(slug_raw).strip() if slug_raw is not None else ""
+    inferred: int | None = CREATOR_NICHE_SLUG_TO_ID.get(slug)
+
+    if conf >= _GEMINI_NICHE_CONFIDENCE_FLOOR and inferred is not None:
+        gem_legacy = legacy_niche_id_for_creator_niche(inferred)
+        if gem_legacy is not None and gem_legacy != resolver_niche_id:
+            logger.info(
+                "[corpus] niche shadow disagree video_id=%s gemini_legacy=%s resolver_niche=%s conf=%.2f",
+                video_id or "?",
+                gem_legacy,
+                resolver_niche_id,
+                conf,
+            )
+        return {
+            "niche_resolution_source": "gemini_two_axis",
+            "niche_resolution_confidence": conf,
+            "inferred_creator_niche_id": inferred,
+        }
+
+    return {
+        "niche_resolution_source": "hashtag",
+        "niche_resolution_confidence": conf if conf > 0 else None,
+        "inferred_creator_niche_id": None,
+    }
+
+
 def _build_corpus_row(
     aweme: dict[str, Any],
     analysis: dict[str, Any],
@@ -1370,6 +1425,7 @@ def _build_corpus_row(
         "video_id": video_id,
         "content_type": content_type,
         "niche_id": niche_id,
+        **_niche_resolution_shadow_fields(analysis_json, niche_id, video_id=video_id),
         "creator_handle": handle,
         "tiktok_url": tiktok_url,
         "thumbnail_url": thumbnail_url,
@@ -1982,6 +2038,10 @@ async def ingest_niche(
     )
     vpn = videos_per_niche_override if videos_per_niche_override is not None else BATCH_VIDEOS_PER_NICHE
     candidates = candidates[:vpn]
+    video_candidate_aweme_ids = {
+        str(c.get("aweme_id", "") or "") for c in candidates
+    }
+    video_candidate_aweme_ids.discard("")
 
     # ── Carousel candidates ──────────────────────────────────────────────────────
     # Carousel quality gates differ from video:
@@ -1993,8 +2053,8 @@ async def ingest_niche(
         vid = str(a.get("aweme_id", "") or "")
         if vid in existing_ids:
             continue
-        # Skip carousels already picked as video candidates (de-dup)
-        if any(str(c.get("aweme_id", "")) == vid for c in candidates):
+        # Skip carousels already picked as video candidates (de-dup) — O(1) set lookup
+        if vid in video_candidate_aweme_ids:
             continue
 
         # Gate 0: news/aggregator blocklist — same rule as videos. Sprint 8.5.
@@ -2444,6 +2504,60 @@ async def run_reingest_video_items(
     return summary
 
 
+async def run_ingest_post_processing(
+    client: Any,
+    *,
+    run_weekly_analytics_if_sunday: bool = True,
+) -> dict[str, Any]:
+    """ME-16 — MV refresh, Video Đáng Học, Layer 0B sound, optional Sunday weekly analytics.
+
+    Callable from a successful ``/batch/ingest`` or standalone ``/batch/post-processing``
+    (e.g. after a wall-clock-aborted ingest).
+    """
+    out: dict[str, Any] = {
+        "materialized_view_refreshed": False,
+        "video_dang_hoc_error": None,
+        "layer0b_error": None,
+        "weekly_analytics_run": False,
+    }
+
+    out["materialized_view_refreshed"] = await _refresh_niche_intelligence(client)
+
+    try:
+        from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
+
+        vdh_result = await run_video_dang_hoc(client)
+        logger.info(
+            "[video_dang_hoc] bung_no=%d dang_hot=%d errors=%s",
+            vdh_result.bung_no_count,
+            vdh_result.dang_hot_count,
+            vdh_result.errors or "none",
+        )
+    except Exception as exc:
+        out["video_dang_hoc_error"] = str(exc)
+        logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.layer0_sound import run_sound_insights
+
+        l0b_result = await run_sound_insights(client)
+        logger.info("[layer0b] sounds_analyzed=%d", l0b_result.get("analyzed", 0))
+    except Exception as exc:
+        out["layer0b_error"] = str(exc)
+        logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
+
+    today = date.today()
+    is_sunday = today.weekday() == 6
+    if is_sunday and run_weekly_analytics_if_sunday:
+        logger.info(
+            "[corpus] Sunday — running weekly analytics (trend_velocity + P1-7 + P1-8)..."
+        )
+        await _run_weekly_analytics(client)
+        out["weekly_analytics_run"] = True
+
+    return out
+
+
 # ── Main batch entry point ───────────────────────────────────────────────────────
 
 async def run_batch_ingest(
@@ -2673,42 +2787,10 @@ async def run_batch_ingest(
                 "sound insights, weekly analytics) due to wall-clock budget."
             )
         else:
-            # Refresh materialized view once all niches are done
-            summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
-
-        # Daily: refresh Video Đáng Học rankings — skip if aborted early
-        if not summary.aborted_early:
-            try:
-                from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
-
-                vdh_result = await run_video_dang_hoc(client)
-                logger.info(
-                    "[video_dang_hoc] bung_no=%d dang_hot=%d errors=%s",
-                    vdh_result.bung_no_count,
-                    vdh_result.dang_hot_count,
-                    vdh_result.errors or "none",
-                )
-            except Exception as exc:
-                logger.error("[video_dang_hoc] Video Đáng Học refresh failed (non-fatal): %s", exc)
-
-        # Daily: Layer 0B — emerging sound insights — skip if aborted early
-        if not summary.aborted_early:
-            try:
-                from getviews_pipeline.layer0_sound import run_sound_insights
-
-                l0b_result = await run_sound_insights(client)
-                logger.info("[layer0b] sounds_analyzed=%d", l0b_result.get("analyzed", 0))
-            except Exception as exc:
-                logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
-
-        # Weekly analytics (Sunday only — day 6 in Python's weekday()) — skip if aborted
-        today = date.today()
-        is_sunday = today.weekday() == 6
-        if is_sunday and not summary.aborted_early:
-            logger.info(
-                "[corpus] Sunday — running weekly analytics (trend_velocity + P1-7 + P1-8)..."
+            pp = await run_ingest_post_processing(
+                client, run_weekly_analytics_if_sunday=True,
             )
-            await _run_weekly_analytics(client)
+            summary.materialized_view_refreshed = bool(pp.get("materialized_view_refreshed"))
 
         logger.info(
             "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d "

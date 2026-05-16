@@ -56,6 +56,46 @@ FORBIDDEN_WORDS: tuple[str, ...] = (
     "chắc chắn thành công",
 )
 
+# Extra hook / guru clichés for Gemini prompts only — not wired into
+# ``lint_forbidden_copy`` (FE copy-rules.mdc is narrower). Keep in sync with
+# historical extraction + channel-diagnosis prompt steering.
+FORBIDDEN_PROMPT_EXTRAS: tuple[str, ...] = (
+    "tính năng ẩn",
+    "bí mật không ai nói",
+    "sự thật shock",
+    "chỉ 1%",
+    "hack não",
+    "đừng bỏ qua",
+    "xem ngay kẻo muộn",
+    "chấn động",
+    "viral chóng mặt",
+    "nội dung chất lượng",
+)
+
+
+def build_forbidden_phrases_prompt_block(
+    *,
+    include_prompt_extras: bool = True,
+    heading: str = "## Copy-rules — cấm mở đầu và từ ngữ",
+) -> str:
+    """Return a Vietnamese block to paste into Gemini system/user prompts.
+
+    Single injectable surface for HI-10 — built from ``FORBIDDEN_*`` +
+    optional ``FORBIDDEN_PROMPT_EXTRAS``.
+    """
+    opener_q = ", ".join(f"\"{o}\"" for o in FORBIDDEN_OPENERS)
+    words_seq: tuple[str, ...] = (
+        FORBIDDEN_WORDS + FORBIDDEN_PROMPT_EXTRAS
+        if include_prompt_extras
+        else FORBIDDEN_WORDS
+    )
+    word_q = ", ".join(f"\"{w}\"" for w in words_seq)
+    return (
+        f"{heading}\n\n"
+        f"- **Không mở đầu bất kỳ đoạn nào bằng:** {opener_q}\n"
+        f"- **Không dùng trong toàn bộ output:** {word_q}\n"
+    )
+
 
 @dataclass(frozen=True)
 class CopyViolation:

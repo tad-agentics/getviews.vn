@@ -99,7 +99,7 @@ export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | n
     case 7:  return 11; // Education → EduTok VN
     case 8:  return 9;  // Tech & Gaming → Công nghệ (representative; Gaming = legacy 17)
     case 9:  return 5;  // Business & Finance → Kinh doanh online
-    case 10: return null; // Wellness — no legacy corpus bucket; content_class_ids 52-55 not yet indexed
+    case 10: return 26; // Wellness → Sức khoẻ / Wellness (mirrors Cloud Run profile_niches.py)
     case 11: return 16; // Travel & Outdoor Sports → Travel (representative; Sports = legacy 21)
     case 12: return 14; // Auto & Moto → Ô tô / Xe máy
     case 13: return 19; // Pets & Home → Pets (representative; Home = legacy 20)
@@ -108,4 +108,21 @@ export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | n
     case 16: return 10; // Real Estate → Bất động sản (niche_taxonomy)
     default: return null;
   }
+}
+
+/**
+ * Pick one ``creator_niches.id`` for a representative legacy ``niche_taxonomy.id``.
+ * When several creator niches map to the same legacy id (e.g. 4, 5, 15 → 13),
+ * returns the **lowest** id for a stable tie-break. Mirror of
+ * ``creator_niche_id_for_legacy_niche()`` in ``profile_niches.py``.
+ */
+export function creatorNicheIdForLegacyNiche(legacyNicheId: number | null | undefined): number | null {
+  if (legacyNicheId == null) return null;
+  const matches: number[] = [];
+  for (let cni = 1; cni <= 16; cni += 1) {
+    const leg = legacyNicheIdForCreatorNiche(cni);
+    if (leg === legacyNicheId) matches.push(cni);
+  }
+  if (matches.length === 0) return null;
+  return Math.min(...matches);
 }
