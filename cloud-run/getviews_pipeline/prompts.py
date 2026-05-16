@@ -119,6 +119,40 @@ VIDEO_EXTRACTION_USER_TURN_VI = (
     "Chỉ trả về JSON khớp schema — không markdown, không lời dẫn."
 )
 
+
+def build_video_extraction_user_turn_vi(
+    *,
+    dual_hook_window: bool,
+    hook_window_seconds: float,
+    base_fps_display: float | None = None,
+) -> str:
+    """User turn for ``analyze_video``: single Part vs HI-15 dual-window Parts.
+
+    ``hook_window_seconds`` should match the **clamped** value used on
+    ``VideoMetadata.end_offset`` so prompt text cannot disagree with the API.
+    ``base_fps_display`` mirrors ``GEMINI_VIDEO_BASE_FPS`` (post-clamp) for copy.
+    """
+    if not dual_hook_window:
+        return VIDEO_EXTRACTION_USER_TURN_VI
+    sec = float(hook_window_seconds)
+    if sec == int(sec):
+        sec_label = str(int(sec))
+    else:
+        sec_label = str(sec).rstrip("0").rstrip(".")
+    bf = float(base_fps_display) if base_fps_display is not None else 1.0
+    if bf == int(bf):
+        bf_label = str(int(bf))
+    else:
+        bf_label = str(bf).rstrip("0").rstrip(".")
+    return (
+        "Hai đoạn video liên tiếp là cùng một clip: "
+        f"(1) toàn bộ ở ~{bf_label} FPS cho bối cảnh và chuyển động tổng thể; "
+        f"(2) {sec_label} giây đầu ở FPS cao để bắt text overlay / phụ đề cực ngắn "
+        "trên hook. "
+        "Phân tích khung hình + âm thanh. "
+        "Chỉ trả về JSON khớp schema — không markdown, không lời dẫn."
+    )
+
 # Back-compat + tests: full static block (same text as system_instruction path).
 VIDEO_EXTRACTION_PROMPT = build_video_extraction_system_instruction()
 

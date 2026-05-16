@@ -1,0 +1,42 @@
+{
+  "feature": "hi15-gemini-hook-window-dual-part",
+  "taskId": "HI-15",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 98,
+  "passResults": {
+    "dualWindowParts": "PASS",
+    "clamping": "PASS",
+    "disableFlagParity": "PASS",
+    "carouselGuard": "PASS",
+    "vietnameseUserTurn": "PASS",
+    "promptAlignedWithClamps": "PASS",
+    "testSuite": "PASS"
+  },
+  "evidence": [
+    "config.py: GEMINI_HOOK_WINDOW_DUAL_PART (default true), GEMINI_VIDEO_BASE_FPS, GEMINI_HOOK_WINDOW_FPS, GEMINI_HOOK_WINDOW_END_SEC",
+    "gemini._build_video_extraction_content_parts: dual inline/file Parts with VideoMetadata; hook fps clamped [3,5]; end_sec clamped [0.5,10]; dual off → single Part (legacy parity)",
+    "analyze_video: clamped hook_window_seconds + base_fps_display passed to build_video_extraction_user_turn_vi so user text matches Part metadata",
+    "analyze_carousel: AssertionError if any Part.video_metadata is set (HI-15 video-only)",
+    "prompts.build_video_extraction_user_turn_vi: Vietnamese dual turn with ~{base_fps} FPS segment (1)",
+    "pytest cloud-run: 1961 passed, 2 skipped"
+  ],
+  "findings": [
+    {
+      "id": "HI15-INFO-001",
+      "severity": "info",
+      "title": "Operational acceptance (30 hook-heavy videos) deferred to staging",
+      "status": "deferred",
+      "detail": "Plan §HI-15 asks manual sampling for hook_timeline event density; CI covers construction + clamps only."
+    }
+  ],
+  "categoryScores": {
+    "implementation": 98,
+    "testCoverage": 96,
+    "security": 100,
+    "integrationPaths": 100,
+    "build": 100,
+    "documentationEnv": 96
+  },
+  "recommendation": "Ship to staging; spot-check hook_timeline density + gemini_calls cost row delta vs pre-HI-15."
+}

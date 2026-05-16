@@ -170,6 +170,14 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return v.strip().lower() in ("1", "true", "yes", "on")
 
 
+# ── HI-15 — dual video Part + VideoMetadata (hook window FPS bump, video-only)
+# Full clip @ GEMINI_VIDEO_BASE_FPS + first GEMINI_HOOK_WINDOW_END_SEC @
+# GEMINI_HOOK_WINDOW_FPS (clamped 3–5). Batch + live SSE via ``analyze_video``.
+GEMINI_HOOK_WINDOW_DUAL_PART = _bool_env("GEMINI_HOOK_WINDOW_DUAL_PART", True)
+GEMINI_VIDEO_BASE_FPS = _float_env("GEMINI_VIDEO_BASE_FPS", "1.0")
+GEMINI_HOOK_WINDOW_FPS = _float_env("GEMINI_HOOK_WINDOW_FPS", "4.0")
+GEMINI_HOOK_WINDOW_END_SEC = _float_env("GEMINI_HOOK_WINDOW_END_SEC", "3.0")
+
 # ── EnsembleData metering & unit estimates ([ed-meter] logs) ─────────────────
 # Override per endpoint after calibrating vs ED dashboard
 # (artifacts/docs/ed-pricing-map.md).

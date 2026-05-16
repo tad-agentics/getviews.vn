@@ -26,6 +26,9 @@ from getviews_pipeline.config import (
     GEMINI_EXTRACTION_FALLBACKS,
     GEMINI_EXTRACTION_MODEL,
     GEMINI_EXTRACTION_TEMPERATURE,
+    GEMINI_HOOK_WINDOW_DUAL_PART,
+    GEMINI_HOOK_WINDOW_END_SEC,
+    GEMINI_HOOK_WINDOW_FPS,
     GEMINI_INTENT_MODEL,
     GEMINI_KNOWLEDGE_FALLBACKS,
     GEMINI_KNOWLEDGE_MODEL,
@@ -33,6 +36,7 @@ from getviews_pipeline.config import (
     GEMINI_SYNTHESIS_FALLBACKS,
     GEMINI_SYNTHESIS_MODEL,
     GEMINI_TEMPERATURE,
+    GEMINI_VIDEO_BASE_FPS,
     GEMINI_VIDEO_MEDIA_RESOLUTION,
     MAX_INLINE_SIZE_BYTES,
     require_gemini_api_key,
@@ -44,7 +48,6 @@ from getviews_pipeline.ensemble import (
 from getviews_pipeline.models import BatchSummary, CarouselAnalysis, ContentType, VideoAnalysis
 from getviews_pipeline.prompts import (
     CAROUSEL_EXTRACTION_USER_PREFIX_VI,
-    VIDEO_EXTRACTION_USER_TURN_VI,
     build_carousel_diagnosis_prompt_v2,
     build_carousel_extraction_system_instruction,
     build_diagnosis_synthesis_prompt_v2,
@@ -53,6 +56,7 @@ from getviews_pipeline.prompts import (
     build_summary_prompt,
     build_synthesis_prompt,
     build_video_extraction_system_instruction,
+    build_video_extraction_user_turn_vi,
     build_voice_domain_system_instruction,
 )
 
@@ -107,7 +111,12 @@ def _parse_json_object(text: str) -> dict[str, Any]:
 
 
 def _video_analysis_config() -> types.GenerateContentConfig | None:
-    """Lower media_resolution speeds up Gemini video understanding (opt-in via env)."""
+    """Optional ``media_resolution`` on the API config (not hook FPS).
+
+    HI-15 hook-window sampling uses **per-Part** ``video_metadata`` on the
+    inline / Files API video Parts in ``_build_video_extraction_content_parts``,
+    not this top-level field.
+    """
     raw = GEMINI_VIDEO_MEDIA_RESOLUTION
     if not raw or raw == "unspecified":
         return None
@@ -124,6 +133,53 @@ def _video_analysis_config() -> types.GenerateContentConfig | None:
         )
         return None
     return types.GenerateContentConfig(media_resolution=res)
+
+
+def _build_video_extraction_content_parts(
+    *,
+    video_bytes: bytes | None,
+    mime_type: str,
+    file_resource: Any | None,
+) -> list[Any]:
+    """Build one or two video Parts — HI-15 dual-window high FPS on the hook (0–N s).
+
+    When ``GEMINI_HOOK_WINDOW_DUAL_PART`` is false, behaviour matches pre-HI-15
+    (single Part, API default ~1 FPS). Carousel / image-only paths must never
+    call this — ``video_metadata`` applies to video bytes only.
+    """
+    if (video_bytes is None) == (file_resource is None):
+        raise ValueError("Exactly one of video_bytes or file_resource must be set")
+
+    if not GEMINI_HOOK_WINDOW_DUAL_PART:
+        if video_bytes is not None:
+            return [types.Part.from_bytes(data=video_bytes, mime_type=mime_type)]
+        return [file_resource]
+
+    base_fps = max(0.1, min(24.0, float(GEMINI_VIDEO_BASE_FPS)))
+    hook_fps = max(3.0, min(5.0, float(GEMINI_HOOK_WINDOW_FPS)))
+    end_sec = max(0.5, min(10.0, float(GEMINI_HOOK_WINDOW_END_SEC)))
+    end_offset = f"{end_sec:g}s"
+    vm_full = types.VideoMetadata(fps=base_fps)
+    vm_hook = types.VideoMetadata(
+        fps=hook_fps,
+        start_offset="0s",
+        end_offset=end_offset,
+    )
+    if video_bytes is not None:
+        blob = types.Blob(data=video_bytes, mime_type=mime_type)
+        return [
+            types.Part(inline_data=blob, video_metadata=vm_full),
+            types.Part(inline_data=blob, video_metadata=vm_hook),
+        ]
+    uri = getattr(file_resource, "uri", None)
+    if not uri:
+        raise RuntimeError("Files API file missing uri — cannot build video Parts")
+    mime = getattr(file_resource, "mime_type", None) or mime_type
+    fd = types.FileData(file_uri=uri, mime_type=mime)
+    return [
+        types.Part(file_data=fd, video_metadata=vm_full),
+        types.Part(file_data=fd, video_metadata=vm_hook),
+    ]
 
 
 def _extraction_json_config(schema: dict[str, Any]) -> types.GenerateContentConfig | None:
@@ -523,12 +579,24 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
         kind="video",
         system_text=sys_inst,
     )
+    user_turn = build_video_extraction_user_turn_vi(
+        dual_hook_window=GEMINI_HOOK_WINDOW_DUAL_PART,
+        hook_window_seconds=max(
+            0.5,
+            min(10.0, float(GEMINI_HOOK_WINDOW_END_SEC)),
+        ),
+        base_fps_display=max(0.1, min(24.0, float(GEMINI_VIDEO_BASE_FPS))),
+    )
 
     if size <= MAX_INLINE_SIZE_BYTES:
         data = path.read_bytes()
-        video_part = types.Part.from_bytes(data=data, mime_type="video/mp4")
+        video_parts = _build_video_extraction_content_parts(
+            video_bytes=data,
+            mime_type="video/mp4",
+            file_resource=None,
+        )
         response = _generate_content_models(
-            [video_part, VIDEO_EXTRACTION_USER_TURN_VI],
+            [*video_parts, user_turn],
             primary_model=GEMINI_EXTRACTION_MODEL,
             fallbacks=GEMINI_EXTRACTION_FALLBACKS,
             config=json_cfg,
@@ -560,7 +628,14 @@ def analyze_video(video_path: Path) -> VideoAnalysis:
                 delay = min(delay * 1.5, FILES_API_POLL_MAX_SEC)
 
             response = _generate_content_models(
-                [info, VIDEO_EXTRACTION_USER_TURN_VI],
+                [
+                    *_build_video_extraction_content_parts(
+                        video_bytes=None,
+                        mime_type=getattr(info, "mime_type", None) or "video/mp4",
+                        file_resource=info,
+                    ),
+                    user_turn,
+                ],
                 primary_model=GEMINI_EXTRACTION_MODEL,
                 fallbacks=GEMINI_EXTRACTION_FALLBACKS,
                 config=json_cfg,
@@ -642,6 +717,12 @@ def analyze_carousel(
         *[types.Part.from_bytes(data=data, mime_type=mime) for data, mime in slides],
         user_text,
     ]
+    # HI-15 / HI-17: hook FPS lives only on video Parts — carousels are static images.
+    for p in parts:
+        if isinstance(p, types.Part) and p.video_metadata is not None:
+            raise AssertionError(
+                "carousel extraction must not set Part.video_metadata (HI-15 is video-only)"
+            )
 
     response = _generate_content_models(
         parts,
