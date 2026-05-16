@@ -674,12 +674,12 @@ __CHAN__
 __EVIDENCE__
 """.replace("__TIER__", str(tier_label)).replace("__ERR__", errors_json).replace("__CHAN__", channel_json).replace("__EVIDENCE__", evidence_section)
 
+    voice_lead = ""
+    vb = (voice_block or "").strip()
+    if vb:
+        voice_lead = f"{vb}\n\n---\n\n"
 
-    return f"""{voice_block}
-
----
-
-{HOOK_TYPE_NAMES_CONSTRAINT}
+    return f"""{voice_lead}{HOOK_TYPE_NAMES_CONSTRAINT}
 {citation_section}
 {persona_section}
 {narrative_json_spec}
@@ -946,11 +946,12 @@ Kèm gợi ý hashtag tiếng Việt ngách cụ thể + caption mẫu ≥200 k�
     citation_section = f"\n{corpus_citation}\n" if corpus_citation else ""
     persona_section = f"\n{persona_block}\n" if persona_block else ""
 
-    return f"""{voice_block}
+    voice_lead = ""
+    vb = (voice_block or "").strip()
+    if vb:
+        voice_lead = f"{vb}\n\n---\n\n"
 
----
-
-{carousel_synthesis_framing}
+    return f"""{voice_lead}{carousel_synthesis_framing}
 {citation_section}
 {persona_section}
 ---

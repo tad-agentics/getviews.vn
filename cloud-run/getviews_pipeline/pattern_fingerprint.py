@@ -283,6 +283,7 @@ def _generate_gemini_pattern_name(
             primary_model=GEMINI_KNOWLEDGE_MODEL,
             fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
             config=cfg,
+            call_site="pattern_fingerprint_name",
         )
         cleaned = _clean_generated_name(_response_text(response) or "")
         return cleaned or None

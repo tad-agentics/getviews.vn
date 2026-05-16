@@ -148,6 +148,7 @@ async def run_cross_niche_migration(client: Any | None = None) -> dict[str, Any]
                 primary_model=GEMINI_SYNTHESIS_MODEL,
                 fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
                 config=cfg,
+                call_site="layer0_cross_niche_migration",
             ),
         )
         text = _response_text(response)

@@ -525,6 +525,7 @@ def generate_ritual_for_user(
             primary_model=GEMINI_SYNTHESIS_MODEL,
             fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
             config=config,
+            call_site="morning_ritual",
         )
     except Exception as exc:
         logger.exception("[ritual] Gemini call failed user=%s: %s", user_id, exc)

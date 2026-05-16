@@ -74,6 +74,7 @@ def analyze_thumbnail(frame_url: str) -> dict[str, Any] | None:
             primary_model=GEMINI_EXTRACTION_MODEL,
             fallbacks=GEMINI_EXTRACTION_FALLBACKS,
             config=cfg,
+            call_site="thumbnail_analysis",
         )
         text = _response_text(response)
         if not text.strip():

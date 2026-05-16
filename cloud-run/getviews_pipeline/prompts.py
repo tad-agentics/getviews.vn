@@ -197,6 +197,21 @@ _DOMAIN_KNOWLEDGE = _DOMAIN_KNOWLEDGE_TEMPLATE.format(
 )
 
 
+def build_voice_domain_system_instruction(
+    *,
+    include_diagnosis_examples: bool = False,
+) -> str:
+    """Static voice + domain block for ``GenerateContentConfig(system_instruction=…)``.
+
+    Per-request strings (layer0_context, creator_format_history) stay in the user
+    message so the system slice stays cache-friendly (HI-8 Phase B).
+    """
+    voice = build_voice_block(
+        include_examples=include_diagnosis_examples,
+        example_type="diagnosis",
+    )
+    return f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
+
 
 # ---------------------------------------------------------------------------
 # Diagnosis prompt — Gemini call 2
@@ -469,10 +484,8 @@ def build_carousel_diagnosis_prompt_v2(
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
     wants_directions: bool = False,
-    layer0_context: str = "",
     corpus_citation: str = "",
     persona_block: str = "",
-    creator_format_history_block: str = "",
 ) -> str:
     """V2 carousel diagnosis prompt — 2-layer narrative, corpus-aware.
 
@@ -481,6 +494,10 @@ def build_carousel_diagnosis_prompt_v2(
     - carousel-specific FORMAT_ANALYSIS_WEIGHTS
     - carousel_knowledge.build_carousel_context() for swipe psychology
     - reference_carousels instead of reference_videos
+
+    Static voice + domain ship in ``system_instruction`` (gemini.py). Optional
+    ``layer0_context`` / ``creator_format_history_block`` are prefixed to the
+    user message by the caller.
 
     Called by gemini.py:synthesize_diagnosis_carousel_v2().
 
@@ -494,20 +511,11 @@ def build_carousel_diagnosis_prompt_v2(
         user_analysis:      Gemini carousel extraction result.
         user_stats:         User carousel stats (views, breakout_multiplier, etc.).
         wants_directions:   If True, appends 4-5 content direction suggestions.
-        layer0_context:     Pre-computed Layer 0 mechanism insight for this niche (optional).
-        creator_format_history_block: Pre-formatted context about the creator's own carousel vs
-                            video performance from the corpus (OQ-1 + OQ-2). Empty = omit.
     """
-    voice = build_voice_block(include_examples=False)
-    voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
-    if layer0_context:
-        voice = f"{voice}\n\n{layer0_context}"
-    if creator_format_history_block:
-        voice = f"{voice}\n\n{creator_format_history_block}"
     carousel_context = build_carousel_context()
 
     return build_carousel_diagnosis_narrative_prompt(
-        voice_block=voice,
+        voice_block="",
         carousel_knowledge_block=carousel_context,
         carousel_synthesis_framing=_CAROUSEL_SYNTHESIS_FRAMING,
         carousel_format=carousel_format,
@@ -611,8 +619,47 @@ Phân tích video (JSON):
 """
 
 
-def build_knowledge_prompt(message: str, session_context: dict[str, Any]) -> str:
-    """§3a Rule A — text-only knowledge with optional session summary."""
+def build_knowledge_system_instruction(message: str) -> str:
+    """Voice + optional domain block for knowledge Q&A (``system_instruction``)."""
+    voice = build_voice_block(include_examples=False)
+
+    _domain_kws = (
+        "thuật toán",
+        "algorithm",
+        "fyp",
+        "reach",
+        "viral",
+        "trending",
+        "flop",
+        "chạy",
+        "bóp",
+        "shadowban",
+        "lên xu hướng",
+        "views",
+        "lượt xem",
+        "watch time",
+        "completion",
+        "tương tác",
+        "save",
+        "share",
+        "comment",
+        "hook",
+        "đăng",
+        "posting",
+        "thời gian",
+        "sound",
+        "shopee",
+        "affiliate",
+        "kiếm tiền",
+        "commission",
+    )
+    msg_lower = message.lower()
+    domain_block = f"\n{_DOMAIN_KNOWLEDGE}\n" if any(kw in msg_lower for kw in _domain_kws) else ""
+    return (f"{voice}\n\n---\n\n{domain_block}").rstrip() + "\n"
+
+
+def build_knowledge_user_prompt(message: str, session_context: dict[str, Any]) -> str:
+    """Session + question + reply rules (user turn)."""
     prior_context_block = ""
     completed = session_context.get("completed_intents", [])
     if completed:
@@ -622,38 +669,22 @@ Ngữ cảnh phiên trước — tham chiếu nếu liên quan đến câu hỏi
 {json.dumps(summary, indent=2, ensure_ascii=False)}
 """
 
-    # include_examples=False: knowledge Q&A doesn't need diagnosis examples
-    voice = build_voice_block(include_examples=False)
-
-    # Inject domain knowledge only when the question is about platform mechanics.
-    # Casual questions ("cho tôi xem lại video", "bạn là ai?") don't benefit from
-    # 1,500 tokens of algorithm/psychology/market context — skip it to save budget.
-    _domain_kws = (
-        # Platform mechanics / distribution
-        "thuật toán", "algorithm", "fyp", "reach", "viral", "trending",
-        "flop", "chạy", "bóp", "shadowban", "lên xu hướng",
-        # Engagement metrics (EN + VI)
-        "views", "lượt xem", "watch time", "completion", "tương tác",
-        "save", "share", "comment", "hook",
-        # Posting / content strategy
-        "đăng", "posting", "thời gian", "sound",
-        # Monetisation
-        "shopee", "affiliate", "kiếm tiền", "commission",
-    )
-    msg_lower = message.lower()
-    domain_block = f"\n{_DOMAIN_KNOWLEDGE}\n" if any(kw in msg_lower for kw in _domain_kws) else ""
-
-    return f"""{voice}
-
----
-{domain_block}
-{prior_context_block}
+    return f"""{prior_context_block}
 Câu hỏi người dùng: {message}
 
 Trả lời thẳng thắn và cụ thể — không né tránh câu trả lời.
 Tham chiếu ngữ cảnh phiên trên nếu liên quan.
 Không dùng bảng field/value. Không dùng bullet point trừ khi câu hỏi bản chất là danh sách.
 """
+
+
+def build_knowledge_prompt(message: str, session_context: dict[str, Any]) -> str:
+    """§3a Rule A — full prompt string (legacy compose).
+
+    Prefer ``build_knowledge_system_instruction`` +
+    ``build_knowledge_user_prompt`` with ``system_instruction`` on the API call.
+    """
+    return f"{build_knowledge_system_instruction(message)}\n{build_knowledge_user_prompt(message, session_context)}"
 
 
 # ---------------------------------------------------------------------------
@@ -898,7 +929,6 @@ def build_synthesis_prompt(
         if niche_key:
             knowledge_block = "\n" + build_niche_hook_block(niche_key)
 
-    voice = build_voice_block(include_examples=False)
     few_shot = _SYNTHESIS_FEW_SHOTS.get(intent_key, "")
     few_shot_block = ""
     if few_shot:
@@ -910,12 +940,7 @@ Viết phân tích giống ví dụ dưới — học giọng, cấu trúc, đ�
 === PHÂN TÍCH DỮ LIỆU MỚI ===
 """
 
-    return f"""{voice}
-
----
-
-{_DOMAIN_KNOWLEDGE}
-{knowledge_block}
+    return f"""{knowledge_block}
 {citation_block}
 {persona_context}
 {framing}
@@ -940,7 +965,6 @@ def build_diagnosis_synthesis_prompt_v2(
     user_analysis: dict[str, Any],
     user_stats: dict[str, Any],
     wants_directions: bool = False,
-    layer0_context: str = "",
     corpus_citation: str = "",
     persona_block: str = "",
     *,
@@ -954,6 +978,9 @@ def build_diagnosis_synthesis_prompt_v2(
     Replaces checklist-style output for Intent ① (video_diagnosis).
     Called by gemini.py:synthesize_diagnosis_v2().
 
+    Static voice + domain ship in ``system_instruction`` (gemini.py).
+    Optional ``layer0_context`` is prefixed to the user message by the caller.
+
     Args:
         content_format:   Detected format string (e.g. "tutorial", "mukbang").
         niche_name:       Human-readable niche name (e.g. "skincare").
@@ -963,16 +990,10 @@ def build_diagnosis_synthesis_prompt_v2(
         user_analysis:    Gemini extraction result for the user's video.
         user_stats:       User video stats dict (views, breakout_multiplier, etc.).
         wants_directions: If True, appends 4-5 content direction suggestions after diagnosis.
-        layer0_context:   Pre-computed Layer 0 mechanism insight for this niche (optional).
     """
-    voice = build_voice_block(include_examples=True, example_type="diagnosis")
-    voice = f"{voice}\n\n---\n\n{_DOMAIN_KNOWLEDGE}"
-    if layer0_context:
-        voice = f"{voice}\n\n{layer0_context}"
-
     return build_diagnosis_narrative_prompt(
-        voice_block=voice,
-        examples_block="",  # already included in voice_block when include_examples=True
+        voice_block="",
+        examples_block="",
         anti_patterns=ANTI_PATTERNS,
         content_format=content_format,
         niche_name=niche_name,

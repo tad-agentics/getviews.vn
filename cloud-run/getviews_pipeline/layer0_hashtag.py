@@ -291,6 +291,7 @@ def _classify_hashtags(candidates: list[dict], niches: list[dict]) -> list[dict]
         primary_model=GEMINI_EXTRACTION_MODEL,
         fallbacks=GEMINI_EXTRACTION_FALLBACKS,
         config=cfg,
+        call_site="layer0_hashtag_classify",
     )
     text = _response_text(response)
     if not text.strip():

@@ -60,7 +60,14 @@ def fill_generic_narrative(
     surface how often Generic turns ran deterministic vs hedged.
     """
     try:
-        from getviews_pipeline.gemini import gemini_text_only  # type: ignore[attr-defined]
+        from google.genai import types
+
+        from getviews_pipeline.config import (
+            GEMINI_KNOWLEDGE_FALLBACKS,
+            GEMINI_KNOWLEDGE_MODEL,
+            GEMINI_TEMPERATURE,
+        )
+        from getviews_pipeline.gemini import _generate_content_models, _response_text
     except Exception as exc:
         logger.info("[generic-gemini] SDK not available: %s", exc)
         return []
@@ -101,7 +108,18 @@ def fill_generic_narrative(
         "Viết tiếng Việt tự nhiên, không có emoji, không dùng 'Chào bạn'."
     )
     try:
-        raw = gemini_text_only(prompt=prompt, max_output_tokens=320)
+        cfg = types.GenerateContentConfig(
+            temperature=GEMINI_TEMPERATURE,
+            max_output_tokens=320,
+        )
+        response = _generate_content_models(
+            [prompt],
+            primary_model=GEMINI_KNOWLEDGE_MODEL,
+            fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
+            config=cfg,
+            call_site="generic_narrative",
+        )
+        raw = _response_text(response)
     except Exception as exc:
         logger.info("[generic-gemini] call failed: %s", exc)
         return []

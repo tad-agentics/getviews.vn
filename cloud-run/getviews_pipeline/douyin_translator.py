@@ -185,6 +185,7 @@ Quy tắc:
         primary_model=GEMINI_EXTRACTION_MODEL,
         fallbacks=GEMINI_EXTRACTION_FALLBACKS,
         config=config,
+        call_site="douyin_caption_translation",
     )
     raw = _response_text(response)
     return CaptionTranslation.model_validate_json(raw)

@@ -1,0 +1,39 @@
+{
+  "feature": "HI-7",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "passResults": {
+    "noInvalidGeminiTextOnlyKwargs": "PASS",
+    "genericNarrativeUsesGenerateContentModels": "PASS",
+    "callSiteGenericNarrative": "PASS",
+    "maxOutputTokens320": "PASS",
+    "regressionTestsUpdated": "PASS",
+    "cloudRunPytest": "PASS",
+    "npmTypecheck": "PASS"
+  },
+  "findings": [],
+  "categoryScores": {
+    "correctness": 100,
+    "operability": 100,
+    "testCoverage": 100
+  },
+  "evidence": {
+    "implementation": [
+      "report_generic_gemini.fill_generic_narrative: replaced gemini_text_only(prompt=..., max_output_tokens=...) (TypeError at runtime) with google.genai GenerateContentConfig(max_output_tokens=320) + _generate_content_models([prompt], ..., call_site=\"generic_narrative\") + _response_text — matches gemini_text_only model/temperature/fallbacks"
+    ],
+    "tests": [
+      "test_report_generic_gemini.py: budget + consume tests now mock _generate_content_models / _response_text; new test_hi7_generic_narrative_uses_generate_content_models_contract",
+      "cloud-run pytest -q: 1921 passed, 2 skipped",
+      "npm run typecheck: exit 0"
+    ],
+    "postDeploy": []
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}

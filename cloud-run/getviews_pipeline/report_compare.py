@@ -262,6 +262,7 @@ def _call_delta_gemini(prompt: str) -> str | None:
             primary_model=GEMINI_SYNTHESIS_MODEL,
             fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
             config=config,
+            call_site="report_compare_delta",
         )
         raw = _response_text(response)
         parsed = CompareDeltaCopyLLM.model_validate_json(_normalize_response(raw))

@@ -101,6 +101,7 @@ Quy tắc:
             primary_model=GEMINI_KNOWLEDGE_MODEL,
             fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
             config=cfg,
+            call_site="timing_narrative",
         )
         raw = _response_text(resp)
         try:

@@ -282,6 +282,7 @@ Quy tắc copy:
         primary_model=GEMINI_SYNTHESIS_MODEL,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=config,
+        call_site="douyin_adapt_synth",
     )
     raw = _response_text(response)
     return DouyinAdaptSynth.model_validate_json(_normalize_response(raw))

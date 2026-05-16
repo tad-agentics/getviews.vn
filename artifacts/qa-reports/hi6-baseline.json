@@ -1,0 +1,39 @@
+{
+  "feature": "HI-6",
+  "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
+  "date": "2026-05-16",
+  "verdict": "PASS",
+  "healthScore": 100,
+  "passResults": {
+    "explicitCallSiteOnBatchReportNarratives": "PASS",
+    "explicitCallSiteOnPipelinesKolPaths": "PASS",
+    "explicitCallSiteOnLayer0Batch": "PASS",
+    "explicitCallSiteOnDouyinThumbnailScriptPatternDeck": "PASS",
+    "noRemainingUnknownDefaultInTouchedHelpers": "PASS",
+    "cloudRunPytest": "PASS",
+    "npmTypecheck": "PASS"
+  },
+  "findings": [],
+  "categoryScores": {
+    "correctness": 100,
+    "operability": 100,
+    "testCoverage": 100
+  },
+  "evidence": {
+    "implementation": [
+      "Added call_site= to _generate_content_models in: script_generate.py (script_generate), morning_ritual.py (morning_ritual), pattern_deck_synth.py (pattern_deck_synth), pattern_fingerprint.py (pattern_fingerprint_name), report_compare.py (report_compare_delta), report_diagnostic_gemini.py (diagnostic_narrative; diagnostic_validation unchanged), report_ideas_gemini.py (ideas_narrative), report_lifecycle_gemini.py (lifecycle_narrative), report_pattern_gemini.py (pattern_narrative), report_timing_gemini.py (timing_narrative), pipelines.py (kol_target_niche_extraction, kol_creator_fit_reason), layer0_hashtag.py (layer0_hashtag_classify), layer0_migration.py (layer0_cross_niche_migration), thumbnail_analysis.py (thumbnail_analysis), douyin_translator.py (douyin_caption_translation), douyin_synth.py (douyin_adapt_synth), douyin_patterns_synth.py (douyin_patterns_synth)",
+      "Pre-labeled paths left unchanged: report_script.py (script_query_extract), services/extraction.py (extract_video_errors), services/synthesis.py (caller-supplied), routers/video.py (channel_diagnose), gemini.py internal wrappers"
+    ],
+    "tests": [
+      "cloud-run pytest -q: 1920 passed, 2 skipped",
+      "npm run typecheck: exit 0"
+    ],
+    "postDeploy": []
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 0
+  }
+}

@@ -755,6 +755,7 @@ def _extract_kol_target_niche(questions: list[str], session_niche: str | None) -
             primary_model=GEMINI_KNOWLEDGE_MODEL,
             fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
             config=cfg,
+            call_site="kol_target_niche_extraction",
         )
         extracted = _response_text(response).strip().strip('"').strip("'")
         if extracted:
@@ -2539,6 +2540,7 @@ async def _enrich_creator_card(
             primary_model=GEMINI_KNOWLEDGE_MODEL,
             fallbacks=GEMINI_KNOWLEDGE_FALLBACKS,
             config=cfg,
+            call_site="kol_creator_fit_reason",
         )
         reason_text = _response_text(resp).strip()
     except Exception as exc:

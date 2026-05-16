@@ -343,6 +343,7 @@ QUY TẮC COPY:
         primary_model=GEMINI_SYNTHESIS_MODEL,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=config,
+        call_site="douyin_patterns_synth",
     )
     raw = _response_text(response)
     return DouyinPatternsSynth.model_validate_json(_normalize_response(raw))

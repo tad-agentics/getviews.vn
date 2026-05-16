@@ -514,6 +514,7 @@ Quy tắc copy:
         primary_model=GEMINI_SYNTHESIS_MODEL,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=config,
+        call_site="script_generate",
     )
     raw = _response_text(response)
     return ScriptGenerateLLM.model_validate_json(_normalize_response(raw))

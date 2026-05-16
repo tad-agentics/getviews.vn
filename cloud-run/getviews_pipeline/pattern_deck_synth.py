@@ -331,6 +331,7 @@ def _call_pattern_gemini(prompt: str) -> PatternDeckLLM:
         primary_model=GEMINI_SYNTHESIS_MODEL,
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=config,
+        call_site="pattern_deck_synth",
     )
     raw = _response_text(response)
     return PatternDeckLLM.model_validate_json(_normalize_response(raw))

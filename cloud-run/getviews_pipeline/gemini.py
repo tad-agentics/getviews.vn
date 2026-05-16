@@ -42,15 +42,25 @@ from getviews_pipeline.prompts import (
     VIDEO_EXTRACTION_PROMPT,
     build_carousel_diagnosis_prompt_v2,
     build_diagnosis_synthesis_prompt_v2,
-    build_knowledge_prompt,
+    build_knowledge_system_instruction,
+    build_knowledge_user_prompt,
     build_summary_prompt,
     build_synthesis_prompt,
+    build_voice_domain_system_instruction,
 )
 
 logger = logging.getLogger(__name__)
 
 _client: genai.Client | None = None
 _client_lock = threading.Lock()
+
+
+def _prefix_user_sections(prefixes: list[str], body: str) -> str:
+    """Join optional dynamic context blocks before the main user prompt."""
+    parts = [p.strip() for p in prefixes if p and str(p).strip()]
+    if not parts:
+        return body
+    return "\n\n---\n\n".join(parts) + "\n\n---\n\n" + body
 
 
 class SummaryInsights(BaseModel):
@@ -478,7 +488,14 @@ def synthesize_diagnosis(
             user_analysis=analysis,
             user_stats=user_stats,
         )
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=3072)
+    sys_inst = build_voice_domain_system_instruction(
+        include_diagnosis_examples=content_type != "carousel",
+    )
+    cfg = types.GenerateContentConfig(
+        temperature=GEMINI_TEMPERATURE,
+        max_output_tokens=3072,
+        system_instruction=sys_inst,
+    )
 
     response = _generate_content_models(
         [prompt],
@@ -622,6 +639,7 @@ def synthesize_diagnosis_v2(
 
     allowed = _allowed_aweme_ids(reference_videos)
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
+    sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=True)
     prompt = build_diagnosis_synthesis_prompt_v2(
         content_format=content_format,
         niche_name=niche_name,
@@ -631,7 +649,6 @@ def synthesize_diagnosis_v2(
         user_analysis=user_analysis,
         user_stats=user_stats,
         wants_directions=wants_directions,
-        layer0_context=layer0_context,
         corpus_citation=corpus_citation,
         persona_block=persona_block,
         performance_tier=performance_tier,
@@ -639,6 +656,7 @@ def synthesize_diagnosis_v2(
         errors=errors,
         reference_evidence_block=reference_evidence_block,
     )
+    prompt = _prefix_user_sections([layer0_context or ""], prompt)
     if collapsed_questions:
         question_block = (
             "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"
@@ -650,6 +668,7 @@ def synthesize_diagnosis_v2(
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=max_tokens,
+        system_instruction=sys_inst,
     )
     response = _generate_content_models(
         [prompt],
@@ -716,6 +735,7 @@ def synthesize_diagnosis_carousel_v2(
     max_output_tokens set to 3072 to match video v2 — narrative structure needs room.
     """
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
+    sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=False)
     prompt = build_carousel_diagnosis_prompt_v2(
         carousel_format=carousel_format,
         niche_name=niche_name,
@@ -725,10 +745,12 @@ def synthesize_diagnosis_carousel_v2(
         user_analysis=user_analysis,
         user_stats=user_stats,
         wants_directions=wants_directions,
-        layer0_context=layer0_context,
         corpus_citation=corpus_citation,
         persona_block=persona_block,
-        creator_format_history_block=creator_format_history_block,
+    )
+    prompt = _prefix_user_sections(
+        [layer0_context or "", creator_format_history_block or ""],
+        prompt,
     )
     if collapsed_questions:
         question_block = (
@@ -742,6 +764,7 @@ def synthesize_diagnosis_carousel_v2(
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=max_tokens,
+        system_instruction=sys_inst,
     )
     response = _generate_content_models(
         [prompt],
@@ -938,8 +961,13 @@ def classify_intent_gemini(
 
 def gemini_text_only(message: str, session_context: dict[str, Any]) -> str:
     """§3a Rule A / follow-up — knowledge or session-grounded text."""
-    prompt = build_knowledge_prompt(message, session_context)
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=1024)
+    sys_inst = build_knowledge_system_instruction(message)
+    prompt = build_knowledge_user_prompt(message, session_context)
+    cfg = types.GenerateContentConfig(
+        temperature=GEMINI_TEMPERATURE,
+        max_output_tokens=1024,
+        system_instruction=sys_inst,
+    )
     response = _generate_content_models(
         [prompt],
         primary_model=GEMINI_KNOWLEDGE_MODEL,
@@ -984,7 +1012,12 @@ def synthesize_intent_markdown(
         corpus_citation=corpus_citation,
         persona_block=persona_block,
     )
-    cfg = types.GenerateContentConfig(temperature=GEMINI_TEMPERATURE, max_output_tokens=4096)
+    sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=False)
+    cfg = types.GenerateContentConfig(
+        temperature=GEMINI_TEMPERATURE,
+        max_output_tokens=4096,
+        system_instruction=sys_inst,
+    )
     response = _generate_content_models(
         [prompt],
         primary_model=GEMINI_SYNTHESIS_MODEL,
