@@ -52,7 +52,9 @@ Single commit: code + tests + `artifacts/docs/changelog.md` entry + `artifacts/q
 TodoWrite mark complete. Update ACTIVE_CONTEXT (pop current, push next). Append memory log block.
 
 ### 2h. Sprint boundary checkpoint
-At the last task in each Sprint (e.g. CR-4 ends Sprint 1, HI-11 routing flip + DOC-1 sprint-2 commit ends Sprint 2, ME-17 deploy + DOC-1 final commit ends Sprint 3), pause for human review. Write a clear "Sprint N complete — please review before I proceed to Sprint N+1" message and stop the loop.
+After the **last executable task listed under each `section …` block** in the plan’s **Sequencing** Mermaid Gantt (not the cross-cutting **Docs** section), pause for human review. Write a clear “Sprint N complete — please review before I proceed to Sprint N+1” message and stop the loop.
+
+**Aligned with the pipeline audit remediation Gantt** (canonical plan under `.cursor/plans/`): **Sprint 1** ends after **CR-4**; **Sprint 2** ends after **EXP-1** (last row in `section Sprint 2 HIGH`); **Sprint 3** ends after **EXP-2** (last row in `section Sprint 3 MEDIUM`). **DOC-1** checkpoints live in **`section Docs (cross-cutting)`** with their own dependencies (`doc1a` after CR-4, `doc1b` after HI-11 routing flip, `doc1c` after ME-17) — complete them when the Gantt says so; do **not** treat `doc1b`/`doc1c` as the Sprint 2 / Sprint 3 **section** boundary. Other plans: read their Gantt section order verbatim.
 
 ## Step 3 — Post-flight (after all todos except `verify` are complete)
 
