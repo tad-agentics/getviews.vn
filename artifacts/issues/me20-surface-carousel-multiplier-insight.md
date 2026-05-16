@@ -10,6 +10,6 @@
 - **Proposed fix:** Shared markdown helper with 1.5 / 0.7 gates; pass the same block into video `synthesize_diagnosis_v2` and narrative finalize.
 - **Verification:** `pytest tests/test_me20_format_history_diagnosis.py`; full cloud-run suite green. Changelog row in `artifacts/docs/changelog.md`.
 - **QA:** PASS_WITH_CONCERNS (`artifacts/qa-reports/me20-baseline.json`). **Concern:** unit tests do not replace plan’s optional “sample 10” live diagnosis spot-checks for LLM copy fidelity.
-- **Commit:** _(filled after commit)_
+- **Commit:** `31fd063`
 
 **Canonical plan:** `.cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md` — ME-20.
