@@ -2,58 +2,67 @@
   "feature": "HI-8",
   "planRef": ".cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md",
   "date": "2026-05-16",
-  "verdict": "PASS_WITH_CONCERNS",
-  "healthScore": 94,
+  "verdict": "PASS",
+  "healthScore": 96,
   "passResults": {
     "phaseASystemInstructionExtraction": "PASS",
+    "phaseASystemInstructionSynthesis": "PASS",
     "phaseBExplicitContextCacheExtraction": "PASS",
-    "configGeminiExtractionContextCache": "PASS",
+    "phaseBExplicitContextCacheSynthesis": "PASS",
+    "perFallbackModelCacheBinding": "PASS",
+    "knowledgePathExcludedFromCache": "PASS",
+    "configEnvFlags": "PASS",
     "unitTestsHi8": "PASS",
-    "cloudRunPytest": "PASS",
-    "npmTypecheck": "PASS"
+    "cloudRunPytest": "PASS"
   },
   "findings": [
     {
       "pass": "scope",
       "severity": "low",
-      "title": "Plan §HI-8 header lists synthesis sources (_DOMAIN_KNOWLEDGE, voice, channel diagnosis); this change set implements HI-8 for video + carousel extraction only.",
-      "status": "informational",
-      "note": "Knowledge/diagnosis call sites in gemini.py already use GenerateContentConfig(system_instruction=build_knowledge_system_instruction / build_voice_domain_system_instruction). Explicit client.caches.create (Phase B) is implemented only for extraction; extending cache to those paths is separate follow-up if cost warrants it."
+      "title": "Extraction context cache is bound to GEMINI_EXTRACTION_MODEL only and does not rebuild per fallback model.",
+      "status": "deferred",
+      "note": "Dormant today because GEMINI_EXTRACTION_FALLBACKS defaults to []. Must mirror synthesis per-model rebuild before any extraction fallback model is configured. Tracked in artifacts/issues/hi8-system-instruction-context-cache.md."
     },
     {
-      "pass": "tests",
+      "pass": "operability",
       "severity": "low",
-      "title": "VIDEO_EXTRACTION_PROMPT / CAROUSEL_EXTRACTION_PROMPT are aliases of the system-instruction builders (not system+user concatenation).",
+      "title": "Synthesis cache create has a small race on cold (kind, model) slot",
       "status": "accepted",
-      "note": "Runtime paths use short user turns (VIDEO_EXTRACTION_USER_TURN_VI, CAROUSEL_EXTRACTION_USER_PREFIX_VI + dynamic tail). Only test_hi9_extraction_models imports the *_PROMPT symbols; substring assertions remain valid."
+      "note": "Two threads can both call client.caches.create on first warm-up; the loser cache lives until TTL. Same pattern as extraction; cost negligible."
     }
   ],
   "categoryScores": {
     "correctness": 98,
-    "operability": 92,
-    "testCoverage": 90
+    "operability": 95,
+    "testCoverage": 95
   },
   "evidence": {
     "implementation": [
-      "config.GEMINI_EXTRACTION_CONTEXT_CACHE — default on; disabled by 0/false/no/off/empty",
-      "gemini._configure_extraction_generate_config — merges schema/temperature/thinking_config; uses cached_content when _get_extraction_cached_content_name succeeds else system_instruction",
-      "gemini._get_extraction_cached_content_name — client.caches.create with system_instruction, TTL 3600s, in-process slot keyed by sha256(kind|model|system_text)",
-      "analyze_video / analyze_carousel — build_*_extraction_system_instruction + user text parts only",
-      "prompts.build_video_extraction_system_instruction / build_carousel_extraction_system_instruction — static cores + HI-9 blocks + niche glossary"
+      "config.GEMINI_SYNTHESIS_CONTEXT_CACHE — default off; opt-in via 1/true/yes/on",
+      "config.GEMINI_CONTEXT_CACHE_TTL_SEC — default 3600s, min 60s",
+      "gemini._get_synthesis_cached_content_name — client.caches.create with system_instruction; in-process slot keyed by sha256(kind|model|system_text); per-(kind, model)",
+      "gemini._apply_synthesis_context_for_model — sets cached_content (clearing system_instruction) when cache resolved, else system_instruction (clearing cached_content)",
+      "gemini._generate_content_models — new kwargs synthesis_cache_kind + synthesis_cache_system_text; per-fallback-model rebuild of effective_config",
+      "gemini.synthesize_diagnosis / synthesize_diagnosis_v2 / synthesize_diagnosis_carousel_v2 / synthesize_intent_markdown — wired to synthesis cache helper via build_voice_domain_system_instruction",
+      "routers/video.py _run_channel_diagnose — wired to synthesis cache helper via CHANNEL_DIAGNOSIS_SYSTEM_PROMPT",
+      "gemini_text_only — left on system_instruction (build_knowledge_system_instruction is per-message, not cacheable)",
+      "gemini_cost.log_gemini_call — accepts used_context_cache and emits in structured log"
     ],
     "tests": [
-      "tests/test_gemini_hi8_extraction_config.py — cache off (system_instruction set) vs cache on (cached_content set)",
-      "Parent evidence: pytest -q cloud-run 1940 passed, 2 skipped; npm run typecheck exit 0"
+      "tests/test_gemini_hi8_synthesis_cache.py — cache disabled (system_instruction set) vs cache resolved (cached_content set)",
+      "tests/test_gemini_cost.py::TestWrapperContract::test_signature_accepts_new_kwargs — new kwargs default None",
+      "Parent evidence: cloud-run pytest 1942 passed, 2 skipped"
     ],
     "postDeploy": [
-      "Watch first-bin cold start: caches.create adds one round-trip per process per kind until slot warm; confirm logs [gemini] explicit context cache created vs warning fallback",
-      "Optional: measure input token delta on batch ingest after deploy vs previous revision (expect drop on repeated extraction once cache hits)"
+      "Set GEMINI_SYNTHESIS_CONTEXT_CACHE=true on staging; confirm Cloud Logging entries '[gemini] synthesis context cache CREATED' and gemini_call rows with used_context_cache=true after warmup",
+      "Compare 24h input-token totals for call_site in {diag_v1, diag_v2, intent_markdown, channel_diagnose} vs prior revision — expect drop once cache hits land",
+      "Roll forward to prod after a clean staging soak"
     ]
   },
   "fixesApplied": {
     "verified": 0,
     "bestEffort": 0,
     "reverted": 0,
-    "deferred": 0
+    "deferred": 1
   }
 }

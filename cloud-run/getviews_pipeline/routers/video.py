@@ -372,12 +372,8 @@ async def _run_channel_diagnose(
     step_queue: asyncio.Queue,
 ) -> dict[str, Any]:
     """Orchestrator: runs the full channel diagnosis pipeline in a thread pool."""
-    from getviews_pipeline.profile_niches import legacy_niche_id_for_creator_niche
     from getviews_pipeline.channel_diagnose import (
         _fetch_niche_benchmarks,
-        normalize_handle,
-    )
-    from getviews_pipeline.channel_diagnose import (
         build_channel_pattern,
         classify_trajectory,
         compute_creator_match,
@@ -389,6 +385,7 @@ async def _run_channel_diagnose(
         derive_next_video_concept,
         fetch_channel_videos_live,
         hashtag_caption_for_insight,
+        normalize_handle,
         normalize_peer_creator_for_fe,
         render_score_card_captions,
         select_niche_peer_creators,
@@ -403,6 +400,7 @@ async def _run_channel_diagnose(
         build_channel_diagnosis_context,
         get_default_title,
     )
+    from getviews_pipeline.profile_niches import legacy_niche_id_for_creator_niche
 
     handle = normalize_handle(handle)
     legacy_nid = legacy_niche_id_for_creator_niche(niche_id) or niche_id
@@ -546,6 +544,7 @@ async def _run_channel_diagnose(
     )
 
     from google.genai import types as genai_types
+
     from getviews_pipeline.config import GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL
     from getviews_pipeline.gemini import _generate_content_models
 
@@ -556,11 +555,12 @@ async def _run_channel_diagnose(
             primary_model=GEMINI_SYNTHESIS_MODEL,
             fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
             config=genai_types.GenerateContentConfig(
-                system_instruction=CHANNEL_DIAGNOSIS_SYSTEM_PROMPT,
                 temperature=0.7,
             ),
             call_site="channel_diagnose",
             user_id=user_id,
+            synthesis_cache_kind="channel_diagnose",
+            synthesis_cache_system_text=CHANNEL_DIAGNOSIS_SYSTEM_PROMPT,
         )
         narrative = response.text or ""
     except Exception as exc:
@@ -635,7 +635,6 @@ async def _run_channel_diagnose(
                 for chunk in _chunk_text(section["text"]):
                     await step_queue.put({"type": "text_chunk", "content": chunk})
             else:
-                recommendations = list(rec_items)
                 for item in rec_items:
                     await step_queue.put({"type": "recommendation_item", **item})
         else:

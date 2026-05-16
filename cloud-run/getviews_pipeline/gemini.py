@@ -20,6 +20,7 @@ from getviews_pipeline.config import (
     FILES_API_POLL_MAX_SEC,
     FILES_API_POLL_TIMEOUT_SEC,
     GEMINI_API_KEY,
+    GEMINI_CONTEXT_CACHE_TTL_SEC,
     GEMINI_DIAGNOSIS_MODEL,
     GEMINI_EXTRACTION_CONTEXT_CACHE,
     GEMINI_EXTRACTION_FALLBACKS,
@@ -28,6 +29,7 @@ from getviews_pipeline.config import (
     GEMINI_INTENT_MODEL,
     GEMINI_KNOWLEDGE_FALLBACKS,
     GEMINI_KNOWLEDGE_MODEL,
+    GEMINI_SYNTHESIS_CONTEXT_CACHE,
     GEMINI_SYNTHESIS_FALLBACKS,
     GEMINI_SYNTHESIS_MODEL,
     GEMINI_TEMPERATURE,
@@ -215,6 +217,85 @@ def _configure_extraction_generate_config(
     return base.model_copy(update={"system_instruction": system_text})
 
 
+_SYNTHESIS_CONTEXT_CACHE_SLOT: dict[str, dict[str, str | None]] = {}
+_SYNTHESIS_CONTEXT_CACHE_LOCK = threading.Lock()
+
+
+def _synthesis_cache_slot_key(kind: str, model: str) -> str:
+    return f"{kind}\x00{model}"
+
+
+def _synthesis_context_cache_signature(kind: str, model: str, system_text: str) -> str:
+    h = hashlib.sha256()
+    h.update(kind.encode("utf-8"))
+    h.update(b"\n")
+    h.update(model.encode("utf-8"))
+    h.update(b"\n")
+    h.update(system_text.encode("utf-8"))
+    return h.hexdigest()[:32]
+
+
+def _get_synthesis_cached_content_name(
+    client: Any,
+    kind: str,
+    model: str,
+    system_text: str,
+) -> str | None:
+    """HI-8 — optional explicit context cache for synthesis; falls back to system_instruction."""
+    if not GEMINI_SYNTHESIS_CONTEXT_CACHE or not GEMINI_API_KEY:
+        return None
+    slot_key = _synthesis_cache_slot_key(kind, model)
+    sig = _synthesis_context_cache_signature(kind, model, system_text)
+    with _SYNTHESIS_CONTEXT_CACHE_LOCK:
+        slot = _SYNTHESIS_CONTEXT_CACHE_SLOT.get(slot_key)
+        if slot and slot.get("name") and slot.get("sig") == sig:
+            logger.debug("[gemini] synthesis context cache HIT kind=%s model=%s", kind, model)
+            return str(slot["name"])
+    ttl_s = GEMINI_CONTEXT_CACHE_TTL_SEC
+    try:
+        cc = client.caches.create(
+            model=model,
+            config=types.CreateCachedContentConfig(
+                display_name=f"gv-synth-{kind}-hi8",
+                system_instruction=system_text,
+                ttl=f"{ttl_s}s",
+            ),
+        )
+        name = cc.name
+        if not name:
+            return None
+        with _SYNTHESIS_CONTEXT_CACHE_LOCK:
+            _SYNTHESIS_CONTEXT_CACHE_SLOT[slot_key] = {"sig": sig, "name": name}
+        logger.info(
+            "[gemini] synthesis context cache CREATED name=%s kind=%s model=%s",
+            name,
+            kind,
+            model,
+        )
+        return name
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "[gemini] synthesis context cache create failed (%s) — using system_instruction",
+            exc,
+        )
+        return None
+
+
+def _apply_synthesis_context_for_model(
+    client: Any,
+    base: types.GenerateContentConfig,
+    *,
+    kind: str,
+    model: str,
+    system_text: str,
+) -> types.GenerateContentConfig:
+    """Attach static system text via ``cached_content`` or ``system_instruction``."""
+    cached = _get_synthesis_cached_content_name(client, kind, model, system_text)
+    if cached:
+        return base.model_copy(update={"cached_content": cached, "system_instruction": None})
+    return base.model_copy(update={"system_instruction": system_text, "cached_content": None})
+
+
 _RETRY_DELAYS = (1, 2, 4)  # seconds — §13 mandate: 3 retries at 1s/2s/4s
 
 
@@ -269,6 +350,8 @@ def _generate_content_models(
     call_site: str = "unknown",
     user_id: str | None = None,
     session_id: str | None = None,
+    synthesis_cache_kind: str | None = None,
+    synthesis_cache_system_text: str | None = None,
 ) -> Any:
     """Dispatch a ``generate_content`` call through the primary → fallback
     chain, logging token usage + cost per successful response.
@@ -279,6 +362,12 @@ def _generate_content_models(
     ``"unknown"`` default only exists so older helpers keep compiling
     while migrations land, and shows up as its own column on the
     dashboard so regressions surface immediately.
+
+    When ``synthesis_cache_kind`` and ``synthesis_cache_system_text`` are
+    set, ``config`` must not carry ``system_instruction`` / ``cached_content``
+    — those are merged per fallback ``model`` so each model gets a valid
+    cache name (HI-8). Dynamic per-request system text (e.g. knowledge)
+    should omit these args and set ``system_instruction`` on ``config``.
     """
     from getviews_pipeline.gemini_cost import (
         check_gemini_daily_budget,
@@ -295,9 +384,34 @@ def _generate_content_models(
     # M2: pin explicit safety_settings so we don't inherit the SDK default
     # (BLOCK_MEDIUM_AND_ABOVE), which silently refuses benign Vietnamese
     # creator content. The helper preserves caller-supplied settings.
-    effective_config = _ensure_safety_settings(config)
+    if synthesis_cache_kind is not None and synthesis_cache_system_text is None:
+        logger.warning(
+            "[gemini] synthesis_cache_kind without synthesis_cache_system_text — "
+            "ignoring cache path",
+        )
+        synthesis_cache_kind = None
+    if synthesis_cache_system_text is not None and synthesis_cache_kind is None:
+        logger.warning(
+            "[gemini] synthesis_cache_system_text without synthesis_cache_kind — "
+            "ignoring cache path",
+        )
+        synthesis_cache_system_text = None
 
+    use_synth_cache = bool(
+        synthesis_cache_kind
+        and synthesis_cache_system_text
+        and str(synthesis_cache_system_text).strip()
+    )
     client = _get_client()
+
+    if use_synth_cache:
+        safe_cfg = _ensure_safety_settings(config)
+        base_template = safe_cfg.model_copy(
+            update={"system_instruction": None, "cached_content": None}
+        )
+    else:
+        shared_config = _ensure_safety_settings(config)
+
     chain = [primary_model, *fallbacks]
     seen: set[str] = set()
     last_err: Exception | None = None
@@ -311,16 +425,34 @@ def _generate_content_models(
         for attempt, delay in enumerate(_RETRY_DELAYS):
             try:
                 started = time.monotonic()
+                if use_synth_cache:
+                    effective_config = _apply_synthesis_context_for_model(
+                        client,
+                        base_template,
+                        kind=synthesis_cache_kind or "",
+                        model=m,
+                        system_text=synthesis_cache_system_text or "",
+                    )
+                else:
+                    effective_config = shared_config
                 kwargs: dict[str, Any] = {
                     "model": m,
                     "contents": contents,
                     "config": effective_config,
                 }
                 from getviews_pipeline import telemetry as _tel
-                with _tel.span("gemini.generate_content", model=m, call_site=call_site, attempt=attempt):
+                with _tel.span(
+                    "gemini.generate_content",
+                    model=m,
+                    call_site=call_site,
+                    attempt=attempt,
+                ):
                     response = client.models.generate_content(**kwargs)
                 duration_ms = int((time.monotonic() - started) * 1000)
                 tokens_in, tokens_out = extract_usage(response)
+                used_ctx_cache: bool | None = None
+                if use_synth_cache:
+                    used_ctx_cache = bool(getattr(effective_config, "cached_content", None))
                 log_gemini_call(
                     user_id=user_id,
                     call_site=call_site,
@@ -329,6 +461,7 @@ def _generate_content_models(
                     tokens_out=tokens_out,
                     duration_ms=duration_ms,
                     session_id=session_id,
+                    used_context_cache=used_ctx_cache,
                 )
                 return response
             except Exception as e:
@@ -336,9 +469,22 @@ def _generate_content_models(
                 is_last_attempt = attempt == len(_RETRY_DELAYS) - 1
                 if not is_transient or is_last_attempt:
                     last_err = e
-                    logger.warning("Gemini model %s attempt %d/%d failed: %s", m, attempt + 1, len(_RETRY_DELAYS), e)
+                    logger.warning(
+                        "Gemini model %s attempt %d/%d failed: %s",
+                        m,
+                        attempt + 1,
+                        len(_RETRY_DELAYS),
+                        e,
+                    )
                     break
-                logger.info("Gemini model %s transient error (attempt %d/%d), retrying in %ds: %s", m, attempt + 1, len(_RETRY_DELAYS), delay, e)
+                logger.info(
+                    "Gemini model %s transient error (attempt %d/%d), retrying in %ds: %s",
+                    m,
+                    attempt + 1,
+                    len(_RETRY_DELAYS),
+                    delay,
+                    e,
+                )
                 time.sleep(delay)
     # All models + retries exhausted. Log a failure row to gemini_calls
     # so the dashboard surfaces the outage — best-effort, never blocks
@@ -579,7 +725,6 @@ def synthesize_diagnosis(
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=3072,
-        system_instruction=sys_inst,
     )
 
     response = _generate_content_models(
@@ -588,6 +733,8 @@ def synthesize_diagnosis(
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
         call_site="diagnosis_synthesis_v1",
+        synthesis_cache_kind="diag_v1",
+        synthesis_cache_system_text=sys_inst,
     )
     text = _response_text(response)
     if not text.strip():
@@ -753,7 +900,6 @@ def synthesize_diagnosis_v2(
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=max_tokens,
-        system_instruction=sys_inst,
     )
     response = _generate_content_models(
         [prompt],
@@ -761,6 +907,8 @@ def synthesize_diagnosis_v2(
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
         call_site="diagnosis_synthesis_v2",
+        synthesis_cache_kind="diag_v2",
+        synthesis_cache_system_text=sys_inst,
     )
     text = _response_text(response)
     if not text.strip():
@@ -849,7 +997,6 @@ def synthesize_diagnosis_carousel_v2(
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=max_tokens,
-        system_instruction=sys_inst,
     )
     response = _generate_content_models(
         [prompt],
@@ -857,6 +1004,8 @@ def synthesize_diagnosis_carousel_v2(
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
         call_site="carousel_diagnosis_v2",
+        synthesis_cache_kind="diag_carousel_v2",
+        synthesis_cache_system_text=sys_inst,
     )
     text = _response_text(response)
     if not text.strip():
@@ -1101,7 +1250,6 @@ def synthesize_intent_markdown(
     cfg = types.GenerateContentConfig(
         temperature=GEMINI_TEMPERATURE,
         max_output_tokens=4096,
-        system_instruction=sys_inst,
     )
     response = _generate_content_models(
         [prompt],
@@ -1109,6 +1257,8 @@ def synthesize_intent_markdown(
         fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
         config=cfg,
         call_site="intent_markdown",
+        synthesis_cache_kind="intent_markdown",
+        synthesis_cache_system_text=sys_inst,
     )
     text = _response_text(response)
     if not text.strip():

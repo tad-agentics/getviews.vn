@@ -28,7 +28,7 @@ todos:
     status: pending
   - id: hi8
     content: "HI-8: Move _DOMAIN_KNOWLEDGE + voice block + channel diagnosis prompt to system_instruction; add Gemini context caching"
-    status: pending
+    status: completed
   - id: hi9
     content: "HI-9 (REVISED, two-axis): Rewrite VIDEO_EXTRACTION_PROMPT — pure Vietnamese + content_context semantic block + niche_classification {creator_niche_slug (16 enum), format_axis (~12 enum), confidence, rationale, alternative_creator_niche_slug}; extend Pydantic VideoAnalysis with Optional sub-models; mirror in CAROUSEL_EXTRACTION_PROMPT; thinking_budget stays 0"
     status: pending

@@ -300,6 +300,7 @@ def log_gemini_call(
     session_id: str | None = None,
     success: bool = True,
     error_code: str | None = None,
+    used_context_cache: bool | None = None,
 ) -> float:
     """Insert a ``gemini_calls`` row asynchronously. Returns the computed cost.
 
@@ -321,20 +322,23 @@ def log_gemini_call(
     # Build a Cloud Logging dashboard with:
     #   jsonPayload.event="gemini_call" AND jsonPayload.success=true
     # to chart sum(jsonPayload.cost_usd) by jsonPayload.model_name.
+    log_extra: dict[str, Any] = {
+        "event": "gemini_call",
+        "call_site": call_site,
+        "model_name": model_name,
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "cost_usd": cost_usd,
+        "duration_ms": duration_ms,
+        "session_id": session_id,
+        "success": success,
+        "error_code": error_code,
+    }
+    if used_context_cache is not None:
+        log_extra["used_context_cache"] = used_context_cache
     logger.info(
         "gemini_call",
-        extra={
-            "event": "gemini_call",
-            "call_site": call_site,
-            "model_name": model_name,
-            "tokens_in": tokens_in,
-            "tokens_out": tokens_out,
-            "cost_usd": cost_usd,
-            "duration_ms": duration_ms,
-            "session_id": session_id,
-            "success": success,
-            "error_code": error_code,
-        },
+        extra=log_extra,
     )
 
     row = {

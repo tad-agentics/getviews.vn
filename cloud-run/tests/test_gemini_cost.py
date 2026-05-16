@@ -327,6 +327,9 @@ class TestWrapperContract:
         assert params["call_site"].default == "unknown"
         assert "user_id" in params
         assert "session_id" in params
+        assert "synthesis_cache_kind" in params
+        assert "synthesis_cache_system_text" in params
+        assert params["synthesis_cache_kind"].default is None
 
 
 class TestDailyUsdCeiling:

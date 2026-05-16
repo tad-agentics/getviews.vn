@@ -90,6 +90,24 @@ _GEMINI_EXTRACTION_CONTEXT_CACHE_RAW = (
 GEMINI_EXTRACTION_CONTEXT_CACHE = _GEMINI_EXTRACTION_CONTEXT_CACHE_RAW not in (
     "0", "false", "no", "off", "",
 )
+# HI-8 Phase B — synthesis/diagnosis/intent: optional ``client.caches.create`` per
+# (kind, model). Default off — opt in in staging/prod after extraction cache validates.
+_GEMINI_SYNTHESIS_CONTEXT_CACHE_RAW = (
+    os.environ.get("GEMINI_SYNTHESIS_CONTEXT_CACHE", "false").strip().lower()
+)
+GEMINI_SYNTHESIS_CONTEXT_CACHE = _GEMINI_SYNTHESIS_CONTEXT_CACHE_RAW in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+try:
+    GEMINI_CONTEXT_CACHE_TTL_SEC = int(
+        os.environ.get("GEMINI_CONTEXT_CACHE_TTL_SEC", "3600") or "3600"
+    )
+except (TypeError, ValueError):
+    GEMINI_CONTEXT_CACHE_TTL_SEC = 3600
+GEMINI_CONTEXT_CACHE_TTL_SEC = max(60, GEMINI_CONTEXT_CACHE_TTL_SEC)
 
 ENSEMBLEDATA_BASE = "https://ensembledata.com/apis"
 ENSEMBLEDATA_POST_INFO_URL = f"{ENSEMBLEDATA_BASE}/tt/post/info"
