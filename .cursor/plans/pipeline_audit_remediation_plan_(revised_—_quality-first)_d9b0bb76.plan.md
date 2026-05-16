@@ -36,8 +36,8 @@ todos:
     content: "HI-10: Add voice_lint.build_forbidden_phrases_prompt_block() and inject in 8 prompt files"
     status: completed
   - id: hi11
-    content: "HI-11 (NEW, two-axis): Two-axis niche resolver — SHADOW MODE 3-7 days first (populate new fields, log would-have-routed, keep legacy resolver canonical), then flip routing after manual 100-row agreement audit. Bypass _content_class_for ladder when source=gemini_two_axis. Add video_corpus.niche_resolution_source + niche_resolution_confidence (+ optional creator_niche_id denorm) columns. Mirror in CAROUSEL ingest path."
-    status: pending
+    content: "HI-11 (NEW, two-axis): Two-axis niche resolver — SHADOW MODE 3-7 days first (populate new fields, log would-have-routed, keep legacy resolver canonical), then flip routing after manual 100-row agreement audit. Bypass _content_class_for ladder when source=gemini_two_axis. Add video_corpus.niche_resolution_source + niche_resolution_confidence (+ optional creator_niche_id denorm) columns. Mirror in CAROUSEL ingest path. **Shipped on main** (`NICHE_RESOLVER_MODE`, junction lookup, runbook Part B). **Still ops:** shadow observation + 100-row gate before `NICHE_RESOLVER_MODE=route` in prod batch."
+    status: completed
   - id: hi12
     content: "HI-12 (NEW, blocker for HI-11): Fix wellness creator_niche=10 BE/FE mapping mismatch (Python maps 10→26, TS returns null at profileNiches.ts:102) + add creator_niche_id_for_legacy_niche() inverse helper in Python and TS. Must land before HI-11 routing flip."
     status: completed
@@ -45,32 +45,32 @@ todos:
     content: "RESEARCH (gate for HI-13): Verify Gemini Batch API supports our extraction shape — google-genai SDK batch endpoint, Files API video uploads in batch mode, response_json_schema in batch, thinking_budget=0 + system_instruction passthrough, per-video failure semantics, actual measured latency (must complete within nightly ingest window), confirmed 50% pricing on video frame tokens. Output: artifacts/integrations/gemini-batch-api.md with go/no-go recommendation."
     status: completed
   - id: hi13
-    content: "HI-13 (TENTATIVE — conditional on research-batch-api): Route batch corpus ingest through Gemini Batch API for 50% input+output discount. Live SSE keeps real-time Files API path. Implementation: use_batch_api flag on analyze_video; corpus_ingest.py polls + retrieves results; per-video failure handling preserves retry/backoff at job level. Skip if research surfaces blockers (latency overrun, schema gap, or pricing exclusions)."
+    content: "HI-13 (TENTATIVE — conditional on research-batch-api): Route batch corpus ingest through Gemini Batch API for 50% input+output discount. Live SSE keeps real-time Files API path. **Deferred / NO-GO** — `artifacts/integrations/gemini-batch-api.md` checklist not PASS; no batch-ingest implementation on main. Re-open only after research GO."
     status: pending
   - id: hi14
     content: "HI-14 (NEW, accuracy lift): Add Google Cloud Speech-to-Text vi-VN supplemental ASR pass before Gemini extraction. Whisper-style transcript injected as prompt context (NOT replacement for video audio). Apply to BOTH batch and live SSE paths. Cache transcript per video_id so multiple Gemini calls reuse one ASR pass. ~$3-8/mo cost, material accuracy lift on audio_transcript + hook_phrase for music-heavy videos."
-    status: pending
+    status: completed
   - id: hi15
     content: "HI-15 (NEW, accuracy lift): Configure Gemini video_metadata to bump effective FPS to 3-5 in the hook window (0-3s) only. Default 1 FPS for the rest. Catches sub-second text overlay hooks. Apply to BOTH batch and live SSE; cache aggressively so a video is processed at high FPS once. ~30 min implementation. Negligible cost. VIDEO-ONLY (carousels are static images)."
-    status: pending
+    status: completed
   - id: hi16
     content: "HI-16 (NEW, carousel two-axis): Mirror HI-9 in CAROUSEL_EXTRACTION_PROMPT — add content_context block + niche_classification with carousel-specific format_axis enum (tutorial_carousel | listicle_carousel | story_carousel | comparison_carousel | gallery_carousel). Verify creator_niche_content_classes M:N junction covers all (creator_niche × carousel_format) combinations. Extend Pydantic CarouselAnalysis sub-models with same Optional discipline as VideoAnalysis."
-    status: pending
+    status: completed
   - id: hi17
     content: "HI-17 (NEW, free): Skip HI-14 Whisper supplemental ASR pass when content_type=carousel (no spoken audio to transcribe; saves ~$0.012/carousel). Document HI-15 FPS bump as video-only in code comment + acceptance test."
-    status: pending
+    status: completed
   - id: hi18
     content: "HI-18 (NEW, makes HI-9 valuable): Wire HI-9 enrichment into downstream consumers — (a) update output_redesign.build_diagnosis_narrative_prompt to cite content_context + niche_classification in instructions; (b) extend services/extraction.extract_video_errors VideoErrorsExtractionInput with content_context.subject_matter + niche_classification.creator_niche_slug for niche-aware error detection; (c) inject content_context.subject_matter into morning_ritual._build_prompt + pattern_deck_synth._build_prompt few-shot. pattern_fingerprint hash change deferred to EXP-2."
     status: completed
   - id: me18
-    content: "ME-18 (NEW): Audit carousel ingestion ratio — query video_corpus for current carousel:video ratio per niche; cross-check against EnsembleData trending feeds for real-world prevalence; tune BATCH_CAROUSELS_PER_NICHE per niche (currently uniform 3) so high-carousel niches like beauty/fashion/lifestyle get proportional sampling."
-    status: pending
+    content: "ME-18 (NEW): Audit carousel ingestion ratio — query video_corpus for current carousel:video ratio per niche; cross-check against EnsembleData trending feeds for real-world prevalence; tune BATCH_CAROUSELS_PER_NICHE per niche (currently uniform 3) so high-carousel niches like beauty/fashion/lifestyle get proportional sampling. **Shipped:** `BATCH_CAROUSELS_BY_NICHE` + `_carousels_per_night_for_niche`; investigation SQL in runbook ME-18 appendix. **Ops:** periodic ratio audit + tune env."
+    status: completed
   - id: me19
     content: "ME-19 (NEW, carousel schema enrichment): Extend CarouselAnalysis schema with swipe psychology fields — slides[].swipe_anchor enum, slides[].layout enum, audio_track_role enum, dominant_color_palette summary, slide_pacing_score (0-1). Update CAROUSEL_EXTRACTION_PROMPT to extract these. Captures WHY swipes happen, not just slide contents."
-    status: pending
+    status: completed
   - id: me20
     content: "ME-20 (NEW, surface existing insight): Verify carousel_avg_views/video_recent_avg multiplier from corpus_context.py:485 is surfaced in user-facing diagnosis prompts (channel_diagnose, report_diagnostic, output_redesign). If absent, inject as 'your carousels get N× the views of your videos' insight in carousel diagnoses."
-    status: pending
+    status: completed
   - id: exp1
     content: "EXP-1 (post-HI-9, post-HI-14, post-HI-15): A/B test thinking_budget=0 vs thinking_budget=low on niche_classification accuracy. Sample 100 videos; manual ground truth labels; measure agreement lift. Promote to HI item only if measurable lift (>5%). Decision-gate experiment, not a default change."
     status: pending
@@ -90,8 +90,8 @@ todos:
     content: "ME-16 (was ME-11): Split post-processing (MV refresh, video_dang_hoc, layer0_sound) into separate cron at 23:30 UTC"
     status: completed
   - id: me17
-    content: "ME-17 (NEW): Backfill admin endpoint to re-classify the 46K existing video_corpus rows (text-only Gemini call passing existing analysis JSON) at controlled rate over ~14 nights; populates content_context + niche_classification on legacy rows so corpus is not bimodal."
-    status: pending
+    content: "ME-17 (NEW): Backfill admin endpoint to re-classify the 46K existing video_corpus rows (text-only Gemini call passing existing analysis JSON) at controlled rate over ~14 nights; populates content_context + niche_classification on legacy rows so corpus is not bimodal. **Shipped:** `classification_backfill.py`, `/admin/backfill-classification`, `/batch/backfill-classification`, pg_cron migration `20260720000000_cron_batch_backfill_classification.sql`. **Ops:** `COUNT(*) WHERE niche_resolution_source IS NULL` → 0 over ~14 nights."
+    status: completed
   - id: doc1
     content: "DOC-1 (NEW): Documentation sweep — update artifacts/docs/system-design.md (post-HI-11 architecture diagram + two-axis Gemini-driven flow), CLAUDE.md (state of niche model section), .cursor/rules/project.mdc (key constraints, LLM rules), artifacts/docs/changelog.md (per-item entries), artifacts/docs/two-axis-niche-cutover-runbook.md (HI-11 shadow→flip procedure), artifacts/plans/project-plan.md (phase tracker). Runs at end of each Sprint as a checkpoint, plus one final consolidation after HI-11 routing flip."
     status: pending
