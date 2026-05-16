@@ -36,8 +36,8 @@ todos:
     content: "HI-10: Add voice_lint.build_forbidden_phrases_prompt_block() and inject in 8 prompt files"
     status: completed
   - id: hi11
-    content: "HI-11 (NEW, two-axis): Two-axis niche resolver — SHADOW MODE 3-7 days first (populate new fields, log would-have-routed, keep legacy resolver canonical), then flip routing after manual 100-row agreement audit. Bypass _content_class_for ladder when source=gemini_two_axis. Add video_corpus.niche_resolution_source + niche_resolution_confidence (+ optional creator_niche_id denorm) columns. Mirror in CAROUSEL ingest path. **Shipped on main** (`NICHE_RESOLVER_MODE`, junction lookup, runbook Part B). **Still ops:** shadow observation + 100-row gate before `NICHE_RESOLVER_MODE=route` in prod batch."
-    status: completed
+    content: "HI-11 (NEW, two-axis): Two-axis niche resolver — deploy gate (plan § deploy gate): shadow 3–7d + manual 100-row audit + approved `NICHE_RESOLVER_MODE=route` on batch (+ user if needed), then MV refresh + hook_effectiveness. **Dev on main:** shadow/route code, columns, junction, runbook Part B. **Todo remains until:** flip applied in prod and post-flip hygiene done (not a post-deploy tidy — audit blocks route)."
+    status: pending
   - id: hi12
     content: "HI-12 (NEW, blocker for HI-11): Fix wellness creator_niche=10 BE/FE mapping mismatch (Python maps 10→26, TS returns null at profileNiches.ts:102) + add creator_niche_id_for_legacy_niche() inverse helper in Python and TS. Must land before HI-11 routing flip."
     status: completed
