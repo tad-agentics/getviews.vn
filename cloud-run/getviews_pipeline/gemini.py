@@ -971,6 +971,7 @@ def synthesize_diagnosis_v2(
     channel_context: dict[str, Any] | None = None,
     errors: list[dict[str, Any]] | None = None,
     reference_evidence_block: str = "",
+    creator_format_history_block: str = "",
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
@@ -993,7 +994,10 @@ def synthesize_diagnosis_v2(
         errors=errors,
         reference_evidence_block=reference_evidence_block,
     )
-    prompt = _prefix_user_sections([layer0_context or ""], prompt)
+    prompt = _prefix_user_sections(
+        [layer0_context or "", creator_format_history_block or ""],
+        prompt,
+    )
     if collapsed_questions:
         question_block = (
             "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"

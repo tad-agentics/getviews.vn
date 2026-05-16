@@ -435,6 +435,123 @@ def _fetch_creator_format_history_sync(
     return result.data or []
 
 
+def aggregate_creator_format_history_from_rows(
+    rows: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Build format-split stats from ``video_corpus`` rows (top-by-views slice)."""
+    if not rows:
+        return None
+    carousels = [r for r in rows if (r.get("content_type") or "video") == "carousel"]
+    videos = [r for r in rows if (r.get("content_type") or "video") != "carousel"]
+
+    carousel_views = [int(r.get("views") or 0) for r in carousels if r.get("views")]
+
+    carousel_avg = int(sum(carousel_views) / len(carousel_views)) if carousel_views else None
+    recent_video_rows = sorted(
+        videos, key=lambda r: r.get("indexed_at") or "", reverse=True,
+    )[:5]
+    recent_video_views = [
+        int(r.get("views") or 0) for r in recent_video_rows if r.get("views")
+    ]
+    video_recent_avg = (
+        int(sum(recent_video_views) / len(recent_video_views))
+        if recent_video_views
+        else None
+    )
+
+    multiplier: float | None = None
+    if carousel_avg and video_recent_avg and video_recent_avg > 0:
+        multiplier = round(carousel_avg / video_recent_avg, 1)
+
+    return {
+        "total_posts": len(rows),
+        "carousel_count": len(carousels),
+        "video_count": len(videos),
+        "carousel_avg_views": carousel_avg,
+        "video_recent_avg": video_recent_avg,
+        "top_carousel_views": max(carousel_views) if carousel_views else None,
+        "multiplier": multiplier,
+    }
+
+
+def format_creator_format_history_for_diagnosis(
+    handle: str,
+    creator_history: dict[str, Any] | None,
+) -> str:
+    """ME-20 — markdown block for video/carousel diagnosis prompts (corpus-backed only).
+
+    Surfaces carousel vs recent-video view ratio only when signal is clear:
+    ``multiplier`` ≥ 1.5 (carousel stronger) or ≤ 0.7 (video stronger). Between
+    those, keeps baseline stats without a verdict line (reduces noisy copy).
+    """
+    _h = (handle or "").strip().lstrip("@")
+    if not _h or not creator_history:
+        return ""
+    cc = int(creator_history.get("carousel_count") or 0)
+    if cc <= 0:
+        return ""
+
+    vc = int(creator_history.get("video_count") or 0)
+    total = int(creator_history.get("total_posts") or 0)
+    cavg = creator_history.get("carousel_avg_views")
+    vavg = creator_history.get("video_recent_avg")
+    mult_raw = creator_history.get("multiplier")
+    top_cv = creator_history.get("top_carousel_views")
+
+    lines = [
+        "## LỊCH SỬ FORMAT KÊNH (từ kho phân tích)",
+        f"Trong {total} bài top của @{_h} trong kho dữ liệu: "
+        f"{cc} carousel / {vc} video.",
+    ]
+    if cavg is not None:
+        lines.append(f"Trung bình views carousel: {int(cavg):,}.")
+    if vavg is not None:
+        lines.append(f"Trung bình views video gần đây (5 bài): {int(vavg):,}.")
+
+    if mult_raw is not None and cavg is not None and vavg is not None:
+        try:
+            m = float(mult_raw)
+        except (TypeError, ValueError):
+            m = 0.0
+        if m >= 1.5:
+            lines.append(
+                f"Carousel của kênh đạt trung bình {m:.1f}× view so với video gần đây "
+                f"— ưu tiên carousel khi chiến lược hợp ngách."
+            )
+        elif m <= 0.7 and m > 0:
+            inv = round(1.0 / m, 1)
+            lines.append(
+                f"Video gần đây đạt khoảng {inv:.1f}× view so với carousel trung bình "
+                f"— carousel chưa phải thế mạnh; cân nhắc nâng carousel hoặc tập trung video."
+            )
+
+    if top_cv is not None:
+        lines.append(f"Carousel top nhất của kênh: {int(top_cv):,} views.")
+    lines.append(
+        "Dùng dữ liệu này để đưa ra nhận xét cụ thể về xu hướng format của kênh. "
+        "KHÔNG bịa đặt số liệu ngoài những con số trên."
+    )
+    return "\n".join(lines)
+
+
+def get_creator_format_history_sync(
+    handle: str,
+    limit: int = 10,
+) -> dict[str, Any] | None:
+    """Sync variant for non-async callers (e.g. video narrative finalize)."""
+    if not handle:
+        return None
+    try:
+        client = _anon_client()
+        rows = _fetch_creator_format_history_sync(client, handle, limit)
+        return aggregate_creator_format_history_from_rows(rows)
+    except Exception as exc:
+        logger.warning(
+            "[corpus_context] get_creator_format_history_sync @%s failed: %s", handle, exc,
+        )
+        return None
+
+
 async def fetch_creator_format_history(
     handle: str,
     limit: int = 10,
@@ -459,41 +576,7 @@ async def fetch_creator_format_history(
         client = _anon_client()
         from getviews_pipeline.runtime import run_sync  # avoid circular at module level
         rows = await run_sync(_fetch_creator_format_history_sync, client, handle, limit)
-        if not rows:
-            return None
-
-        carousels = [r for r in rows if (r.get("content_type") or "video") == "carousel"]
-        videos = [r for r in rows if (r.get("content_type") or "video") != "carousel"]
-
-        carousel_views = [int(r.get("views") or 0) for r in carousels if r.get("views")]
-
-        carousel_avg = int(sum(carousel_views) / len(carousel_views)) if carousel_views else None
-        # "Recent average" = last 5 non-carousel by indexed_at desc
-        recent_video_rows = sorted(
-            videos, key=lambda r: r.get("indexed_at") or "", reverse=True
-        )[:5]
-        recent_video_views = [
-            int(r.get("views") or 0) for r in recent_video_rows if r.get("views")
-        ]
-        video_recent_avg = (
-            int(sum(recent_video_views) / len(recent_video_views))
-            if recent_video_views
-            else None
-        )
-
-        multiplier: float | None = None
-        if carousel_avg and video_recent_avg and video_recent_avg > 0:
-            multiplier = round(carousel_avg / video_recent_avg, 1)
-
-        return {
-            "total_posts": len(rows),
-            "carousel_count": len(carousels),
-            "video_count": len(videos),
-            "carousel_avg_views": carousel_avg,
-            "video_recent_avg": video_recent_avg,
-            "top_carousel_views": max(carousel_views) if carousel_views else None,
-            "multiplier": multiplier,
-        }
+        return aggregate_creator_format_history_from_rows(rows)
     except Exception as exc:
         logger.warning("[corpus_context] fetch_creator_format_history @%s failed: %s", handle, exc)
         return None

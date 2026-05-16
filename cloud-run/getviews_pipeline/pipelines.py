@@ -19,6 +19,7 @@ from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
     fetch_corpus_reference_pool,
     fetch_creator_format_history,
+    format_creator_format_history_for_diagnosis,
     get_corpus_count_cached,
     get_niche_intelligence,
     get_signal_grades_for_niche,
@@ -1969,36 +1970,10 @@ async def run_video_diagnosis(
             # Fail-open: None = creator not in corpus → omit section entirely.
             _author_handle = (user_metadata_dict.get("author") or {}).get("username") or ""
             creator_history = await fetch_creator_format_history(_author_handle)
-            creator_format_history_block = ""
-            if creator_history and creator_history["carousel_count"] > 0:
-                _cc = creator_history["carousel_count"]
-                _vc = creator_history["video_count"]
-                _total = creator_history["total_posts"]
-                _cavg = creator_history.get("carousel_avg_views")
-                _vavg = creator_history.get("video_recent_avg")
-                _mult = creator_history.get("multiplier")
-                _top_cv = creator_history.get("top_carousel_views")
-                lines = [
-                    "## LỊCH SỬ FORMAT KÊNH (từ kho phân tích)",
-                    f"Trong {_total} bài top của @{_author_handle} trong kho dữ liệu: "
-                    f"{_cc} carousel / {_vc} video.",
-                ]
-                if _cavg:
-                    lines.append(f"Trung bình views carousel: {_cavg:,}.")
-                if _vavg:
-                    lines.append(f"Trung bình views video gần đây (5 bài): {_vavg:,}.")
-                if _mult and _mult > 1.0:
-                    lines.append(
-                        f"Carousel của kênh này đạt trung bình {_mult}× so với video gần đây "
-                        f"— dữ liệu thực, không ước lượng."
-                    )
-                if _top_cv:
-                    lines.append(f"Carousel top nhất của kênh: {_top_cv:,} views.")
-                lines.append(
-                    "Dùng dữ liệu này để đưa ra nhận xét cụ thể về xu hướng format của kênh. "
-                    "KHÔNG bịa đặt số liệu ngoài những con số trên."
-                )
-                creator_format_history_block = "\n".join(lines)
+            creator_format_history_block = format_creator_format_history_for_diagnosis(
+                _author_handle,
+                creator_history,
+            )
             logger.info(
                 "[carousel] routing to synthesize_diagnosis_carousel_v2 "
                 "format=%s carousel_refs=%d wants_directions=%s creator_history=%s",
@@ -2149,6 +2124,15 @@ async def run_video_diagnosis(
 
             evidence_block = _reference_evidence_lines(references, corpus_source)
 
+            _author_handle_v = (user_metadata_dict.get("author") or {}).get("username") or ""
+            creator_format_history_block_v = ""
+            if _author_handle_v:
+                _ch_v = await fetch_creator_format_history(_author_handle_v)
+                creator_format_history_block_v = format_creator_format_history_for_diagnosis(
+                    _author_handle_v,
+                    _ch_v,
+                )
+
             diagnosis_md, narrative_vi_out, format_cards_out = await run_sync(
                 synthesize_diagnosis_v2,
                 content_format=content_format,
@@ -2167,6 +2151,7 @@ async def run_video_diagnosis(
                 channel_context=channel_context_payload,
                 errors=errors_prompt,
                 reference_evidence_block=evidence_block,
+                creator_format_history_block=creator_format_history_block_v,
             )
             if format_cards_out and niche_id:
                 format_cards_out = enrich_format_cards_from_corpus(

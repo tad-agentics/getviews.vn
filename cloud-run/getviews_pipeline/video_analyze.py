@@ -1010,6 +1010,19 @@ def finalize_video_narrative_layer(
         if high_only:
             errors_prompt = high_only
 
+    creator_format_history_block = ""
+    if creator_handle:
+        from getviews_pipeline.corpus_context import (
+            format_creator_format_history_for_diagnosis,
+            get_creator_format_history_sync,
+        )
+
+        _hist = get_creator_format_history_sync(creator_handle, 10)
+        creator_format_history_block = format_creator_format_history_for_diagnosis(
+            creator_handle,
+            _hist,
+        )
+
     diagnosis_md = ""
     narrative_vi_out: dict[str, Any] | None = None
     format_cards_out: list[dict[str, Any]] | None = None
@@ -1026,6 +1039,7 @@ def finalize_video_narrative_layer(
             channel_context=channel_context_payload,
             errors=errors_prompt or None,
             reference_evidence_block="",
+            creator_format_history_block=creator_format_history_block,
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")

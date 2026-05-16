@@ -1,0 +1,37 @@
+{
+  "feature": "me20-surface-carousel-multiplier-diagnosis-prompts",
+  "taskId": "ME-20",
+  "date": "2026-05-16",
+  "verdict": "PASS_WITH_CONCERNS",
+  "healthScore": 88,
+  "passResults": {
+    "aggregationAndFormatHelper": "PASS",
+    "gatingThresholds15And07": "PASS",
+    "videoCarouselParityInPipelines": "PASS",
+    "synthesizeDiagnosisV2Prefix": "PASS",
+    "finalizeVideoNarrativeLayerSyncPath": "PASS",
+    "nonBreakingDefaultKwarg": "PASS",
+    "regressionTestsMe20": "PASS",
+    "manualSample10Diagnoses": "DEFERRED"
+  },
+  "evidence": [
+    "corpus_context: aggregate_creator_format_history_from_rows + format_creator_format_history_for_diagnosis (1.5 / 0.7 gates)",
+    "pipelines.run_video_diagnosis: carousel uses helper; video path fetches + passes creator_format_history_block to synthesize_diagnosis_v2",
+    "video_analyze.finalize_video_narrative_layer: get_creator_format_history_sync + helper → synthesize_diagnosis_v2",
+    "gemini.synthesize_diagnosis_v2: creator_format_history_block default ''; _prefix_user_sections([layer0_context, block])",
+    "cloud-run/tests/test_me20_format_history_diagnosis.py — 5 cases (empty, no carousel, strong carousel, strong video, ambiguous)",
+    "Corpus reads via _anon_client / existing sync fetch — no new secrets"
+  ],
+  "findings": [
+    "Unit tests cover aggregation + markdown gating, not full live LLM diagnosis output; plan’s “sample 10” manual checks remain optional confidence layer"
+  ],
+  "categoryScores": {
+    "implementation": 90,
+    "testCoverage": 82,
+    "security": 98,
+    "integrationPaths": 88,
+    "build": 100,
+    "documentationEnv": 92
+  },
+  "recommendation": "Ship ME-20; optional smoke on a few production diagnoses if you want LLM copy fidelity confirmation beyond tests."
+}
