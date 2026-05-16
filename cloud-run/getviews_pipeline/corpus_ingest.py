@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -25,15 +24,28 @@ from pathlib import Path
 from typing import Any
 
 from getviews_pipeline import ensemble
-from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
-from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
+from getviews_pipeline.analysis_core import (
+    _finish_analysis,
+    analyze_aweme,
+)
 from getviews_pipeline.config import (
     ADAPTIVE_HASHTAG_MIN_FETCH,
+    CORPUS_BATCH_POLL_INTERVAL_SEC,
+    CORPUS_BATCH_POLL_MAX_SEC,
+    CORPUS_INGEST_USE_GEMINI_BATCH,
     CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH,
+    GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
     HASHTAG_YIELD_THRESHOLD,
     R2_PUBLIC_URL,
 )
+from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
 from getviews_pipeline.ed_budget import theoretical_ed_pool_requests
+from getviews_pipeline.gemini import (
+    analyze_video,
+    build_video_corpus_batch_jsonl_record,
+    run_corpus_extraction_batch_file_job,
+    upload_local_video_file_active,
+)
 from getviews_pipeline.hashtag_niche_map import learn_hashtag_mappings
 from getviews_pipeline.helpers import (
     DISTRIBUTION_GENERIC_HASHTAGS,
@@ -1715,6 +1727,243 @@ def _video_pool_gate_diagnostics(
     return d
 
 
+async def _analyze_videos_gemini_batch_for_corpus(
+    niche_name: str,
+    video_awemes: list[dict[str, Any]],
+) -> list[Any]:
+    """HI-13: one JSONL Batch job (file source) per niche shard, sync fallback.
+
+    Returns one entry per ``video_awemes`` (tuple result, or Exception) matching
+    ``_analyze_one`` video success shape: ``(analysis_dict, hook_frame_urls,
+    scene_frame_pairs)``.
+    """
+    from getviews_pipeline.models import VideoAnalysis
+    from getviews_pipeline.services.asr_vietnamese import (
+        sync_prepare_vietnamese_asr_supplement,
+    )
+
+    n = len(video_awemes)
+    if n == 0:
+        return []
+
+    sem = get_analysis_semaphore()
+    loop = asyncio.get_event_loop()
+
+    @dataclass
+    class _P:
+        idx: int
+        aweme: dict[str, Any]
+        video_path: Path
+        video_id: str
+        file_resource: Any
+        gemini_upload_name: str
+        frame_urls: list[str]
+        asr_prefix: str
+        stt_usd: float | None
+
+    async def prep_one(i: int, aweme: dict[str, Any]) -> tuple[int, Any]:
+        async with sem:
+            try:
+                vid = str(aweme.get("aweme_id", "") or "")
+                video_urls = ensemble.extract_video_urls(aweme)
+                if not video_urls:
+                    return i, RuntimeError("No video URLs in aweme")
+                try:
+                    video_path = await ensemble.download_video(video_urls)
+                except Exception as e:
+                    return i, e
+                metadata = ensemble.parse_metadata(aweme)
+                try:
+                    asr_prefix, stt_usd = await loop.run_in_executor(
+                        None,
+                        sync_prepare_vietnamese_asr_supplement,
+                        video_path,
+                        metadata.video_id,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("[hi14] batch path asr prep failed: %s", exc)
+                    asr_prefix, stt_usd = "", None
+
+                async def _noop_frames() -> list[str]:
+                    return []
+
+                frame_coro = (
+                    extract_and_upload(video_path, vid)
+                    if r2_configured()
+                    else _noop_frames()
+                )
+                file_resource, frame_urls = await asyncio.gather(
+                    loop.run_in_executor(
+                        None,
+                        upload_local_video_file_active,
+                        video_path,
+                    ),
+                    frame_coro,
+                )
+                gname = getattr(file_resource, "name", None) or ""
+                return i, _P(
+                    idx=i,
+                    aweme=aweme,
+                    video_path=video_path,
+                    video_id=vid,
+                    file_resource=file_resource,
+                    gemini_upload_name=gname,
+                    frame_urls=frame_urls if isinstance(frame_urls, list) else [],
+                    asr_prefix=asr_prefix or "",
+                    stt_usd=stt_usd,
+                )
+            except Exception as e:  # noqa: BLE001
+                return i, e
+
+    prep_pairs = await asyncio.gather(
+        *[prep_one(k, video_awemes[k]) for k in range(n)]
+    )
+    preps: list[Any] = [None] * n
+    for idx, item in prep_pairs:
+        preps[idx] = item
+
+    records: list[dict[str, Any]] = []
+    gemini_names: list[str] = []
+    stt_map: dict[str, float | None] = {}
+    for i in range(n):
+        entry = preps[i]
+        if not isinstance(entry, _P):
+            continue
+        stt_map[entry.video_id] = entry.stt_usd
+        records.append(
+            build_video_corpus_batch_jsonl_record(
+                entry.video_id,
+                entry.file_resource,
+                supplemental_user_prefix=entry.asr_prefix or None,
+            )
+        )
+        gemini_names.append(entry.gemini_upload_name)
+
+    batch_map: dict[str, dict[str, Any]] = {}
+    if records:
+        safe = re.sub(r"[^\w\-]+", "_", niche_name)[:40]
+        display_name = f"corpus-{safe}-{int(time.time())}"
+        batch_out = await loop.run_in_executor(
+            None,
+            lambda: run_corpus_extraction_batch_file_job(
+                records=records,
+                display_name=display_name,
+                poll_interval_s=CORPUS_BATCH_POLL_INTERVAL_SEC,
+                poll_max_s=CORPUS_BATCH_POLL_MAX_SEC,
+                gemini_file_names=gemini_names,
+                gcp_stt_cost_by_video_id=stt_map,
+            ),
+        )
+        if batch_out.get("ok") and isinstance(batch_out.get("by_video_id"), dict):
+            batch_map = batch_out["by_video_id"]
+        else:
+            logger.warning(
+                "[corpus] batch job failed niche=%s state=%s err=%s",
+                niche_name,
+                batch_out.get("state"),
+                batch_out.get("job_error"),
+            )
+
+    results: list[Any] = []
+    for i in range(n):
+        entry = preps[i]
+        if isinstance(entry, Exception):
+            results.append(entry)
+            continue
+        if not isinstance(entry, _P):
+            results.append(
+                TypeError(f"batch prep unexpected {type(entry).__name__}")
+            )
+            continue
+        p = entry
+        vid = p.video_id
+        aweme = p.aweme
+        video_path = p.video_path
+        frame_urls = p.frame_urls
+
+        br = batch_map.get(vid)
+        analysis_obj: VideoAnalysis | None = None
+        if br and br.get("ok") and br.get("text"):
+            try:
+                analysis_obj = VideoAnalysis.model_validate_json(str(br["text"]))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "[corpus] batch JSON validate failed video_id=%s: %s",
+                    vid,
+                    exc,
+                )
+                analysis_obj = None
+
+        if analysis_obj is None:
+            try:
+                analysis_obj = await asyncio.wait_for(
+                    loop.run_in_executor(
+                        None,
+                        lambda path=video_path, pre=p.asr_prefix, usd=p.stt_usd: analyze_video(
+                            path,
+                            supplemental_user_prefix=(pre or None),
+                            gcp_stt_cost_usd=usd,
+                        ),
+                    ),
+                    timeout=GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
+                )
+            except Exception as exc:  # noqa: BLE001
+                results.append(exc)
+                try:
+                    video_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                continue
+
+        metadata = ensemble.parse_metadata(aweme)
+        try:
+            finished = await _finish_analysis(
+                metadata=metadata,
+                analysis_obj=analysis_obj,
+                metadata_for_diagnosis=metadata.model_dump(),
+                include_diagnosis=False,
+            )
+        except Exception as exc:  # noqa: BLE001
+            results.append(exc)
+            try:
+                video_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            continue
+
+        scene_frame_pairs: list[tuple[int, str]] = []
+        if r2_configured():
+            scenes = (finished.get("analysis") or {}).get("scenes") or []
+            if scenes:
+                try:
+                    scene_frame_pairs = await extract_and_upload_scene_frames(
+                        video_path,
+                        vid,
+                        scenes,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "[corpus] scene frame extraction (batch path) %s: %s",
+                        vid,
+                        exc,
+                    )
+
+        try:
+            video_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+        results.append(
+            (
+                finished,
+                frame_urls if isinstance(frame_urls, list) else [],
+                scene_frame_pairs,
+            )
+        )
+
+    return results
+
+
 async def _ingest_candidate_awemes(
     client: Any,
     niche_id: int,
@@ -1843,9 +2092,43 @@ async def _ingest_candidate_awemes(
                 if video_path is not None:
                     video_path.unlink(missing_ok=True)
 
-    gather_results = await asyncio.gather(
-        *[_analyze_one(a) for a in candidates], return_exceptions=True
-    )
+    carousel_indices = [
+        i
+        for i, a in enumerate(candidates)
+        if ensemble.detect_content_type(a) == "carousel"
+    ]
+    video_indices = [
+        i
+        for i, a in enumerate(candidates)
+        if ensemble.detect_content_type(a) != "carousel"
+    ]
+
+    gather_results: list[Any] = [None] * len(candidates)
+
+    if carousel_indices:
+        cres = await asyncio.gather(
+            *[_analyze_one(candidates[i]) for i in carousel_indices],
+            return_exceptions=True,
+        )
+        for idx, r in zip(carousel_indices, cres, strict=True):
+            gather_results[idx] = r
+
+    if video_indices:
+        vlist = [candidates[i] for i in video_indices]
+        if CORPUS_INGEST_USE_GEMINI_BATCH:
+            logger.info(
+                "[corpus] niche=%s — HI-13 Batch API for %d videos",
+                niche_name,
+                len(vlist),
+            )
+            vres = await _analyze_videos_gemini_batch_for_corpus(niche_name, vlist)
+        else:
+            vres = await asyncio.gather(
+                *[_analyze_one(candidates[i]) for i in video_indices],
+                return_exceptions=True,
+            )
+        for idx, r in zip(video_indices, vres, strict=True):
+            gather_results[idx] = r
 
     rows: list[dict[str, Any]] = []
     frame_urls_by_video_id: dict[str, list[str]] = {}
@@ -1986,7 +2269,7 @@ async def _ingest_candidate_awemes(
             )
             if _is_already_r2:
                 return existing_thumb
-            has_frame = bool((frame_urls_by_video_id.get(vid) or []))
+            has_frame = bool(frame_urls_by_video_id.get(vid) or [])
             if has_frame:
                 return await loop.run_in_executor(
                     None, copy_first_frame_to_thumbnail, vid,
@@ -2388,7 +2671,8 @@ def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
     Supabase project still propagating the migration) so corpus ingest
     keeps making progress.
     """
-    from datetime import UTC, datetime as _dt
+    from datetime import UTC
+    from datetime import datetime as _dt
 
     now_iso = _dt.now(UTC).isoformat()
     enriched = []

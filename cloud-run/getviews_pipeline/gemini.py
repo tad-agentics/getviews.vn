@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import re
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -353,6 +354,14 @@ def _apply_synthesis_context_for_model(
 
 
 _RETRY_DELAYS = (1, 2, 4)  # seconds — §13 mandate: 3 retries at 1s/2s/4s
+
+# ── HI-13 — Gemini Batch API (JSONL file source) for corpus extraction ───────
+_BATCH_TERMINAL_STATES = frozenset({
+    "JOB_STATE_SUCCEEDED",
+    "JOB_STATE_FAILED",
+    "JOB_STATE_CANCELLED",
+    "JOB_STATE_EXPIRED",
+})
 
 
 def _is_transient_gemini_error(exc: Exception) -> bool:
@@ -1476,3 +1485,287 @@ def generate_niche_insight(
     if not text.strip():
         raise ValueError(f"generate_niche_insight: empty response for niche={niche_name}")
     return json.loads(_normalize_response(text))
+
+
+def upload_local_video_file_active(video_path: Path) -> Any:
+    """Upload a local video to the Files API and block until ACTIVE.
+
+    Caller deletes the remote object with ``client.files.delete`` when done.
+    """
+    client = _get_client()
+    uploaded = client.files.upload(file=str(video_path.resolve()))
+    name = uploaded.name
+    info = uploaded
+    deadline = time.monotonic() + FILES_API_POLL_TIMEOUT_SEC
+    delay = FILES_API_POLL_INITIAL_SEC
+    while True:
+        info = client.files.get(name=name)
+        state = getattr(info.state, "name", None) or str(info.state)
+        if state == "ACTIVE":
+            return info
+        if state == "FAILED":
+            raise RuntimeError(f"Gemini file processing failed: {name}")
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"Gemini file never became ACTIVE within "
+                f"{FILES_API_POLL_TIMEOUT_SEC:.0f}s (last state={state})"
+            )
+        time.sleep(delay)
+        delay = min(delay * 1.5, FILES_API_POLL_MAX_SEC)
+
+
+def build_video_corpus_batch_jsonl_record(
+    video_id: str,
+    file_resource: Any,
+    *,
+    supplemental_user_prefix: str | None = None,
+) -> dict[str, Any]:
+    """One Batch API JSONL object: ``{\"key\", \"request\"}`` (file source)."""
+    client = _get_client()
+    sys_inst = build_video_extraction_system_instruction()
+    json_cfg = _configure_extraction_generate_config(
+        client,
+        VideoAnalysis.model_json_schema(),
+        kind="video",
+        system_text=sys_inst,
+    )
+    json_cfg = _ensure_safety_settings(json_cfg)
+    config_dict = json_cfg.model_dump(mode="json", exclude_none=True)
+
+    mime = getattr(file_resource, "mime_type", None) or "video/mp4"
+    video_parts = _build_video_extraction_content_parts(
+        video_bytes=None,
+        mime_type=mime,
+        file_resource=file_resource,
+    )
+    user_turn = build_video_extraction_user_turn_vi(
+        dual_hook_window=GEMINI_HOOK_WINDOW_DUAL_PART,
+        hook_window_seconds=max(
+            0.5,
+            min(10.0, float(GEMINI_HOOK_WINDOW_END_SEC)),
+        ),
+        base_fps_display=max(0.1, min(24.0, float(GEMINI_VIDEO_BASE_FPS))),
+    )
+    prefix = (supplemental_user_prefix or "").strip()
+    if prefix:
+        user_turn = prefix + "\n\n" + user_turn
+
+    part_dicts = [p.model_dump(mode="json", exclude_none=True) for p in video_parts]
+    part_dicts.append({"text": user_turn})
+    request_body: dict[str, Any] = {
+        "contents": [{"role": "user", "parts": part_dicts}],
+        "config": config_dict,
+    }
+    return {"key": video_id, "request": request_body}
+
+
+def _usage_from_batch_response_dict(resp: dict[str, Any]) -> tuple[int, int]:
+    um = resp.get("usageMetadata") or resp.get("usage_metadata") or {}
+    if not isinstance(um, dict):
+        return (0, 0)
+    tin = int(um.get("promptTokenCount") or um.get("prompt_token_count") or 0)
+    tout = int(
+        um.get("candidatesTokenCount") or um.get("candidates_token_count") or 0
+    )
+    tthought = int(
+        um.get("thoughtsTokenCount") or um.get("thoughts_token_count") or 0
+    )
+    return (tin, tout + tthought)
+
+
+def _text_from_batch_response_dict(resp: dict[str, Any]) -> str:
+    cands = resp.get("candidates") or []
+    if not cands:
+        return ""
+    content = (cands[0] or {}).get("content") or {}
+    parts = content.get("parts") or []
+    texts: list[str] = []
+    for p in parts:
+        if not isinstance(p, dict):
+            continue
+        t = p.get("text")
+        if t:
+            texts.append(str(t))
+    return "\n".join(texts)
+
+
+def _parse_batch_output_jsonl_line(
+    line_obj: dict[str, Any],
+) -> tuple[str | None, str | None, str | None, int, int]:
+    """``(video_id, text, error, tokens_in, tokens_out)`` for one results line."""
+    raw_key = line_obj.get("key")
+    key = str(raw_key) if raw_key is not None else None
+    err = line_obj.get("error")
+    if err is not None:
+        return key, None, str(err), 0, 0
+    resp = line_obj.get("response")
+    if not isinstance(resp, dict):
+        return key, None, "missing_response", 0, 0
+    tin, tout = _usage_from_batch_response_dict(resp)
+    text = _text_from_batch_response_dict(resp)
+    if not text.strip():
+        return key, None, "empty_response_text", tin, tout
+    return key, text, None, tin, tout
+
+
+def run_corpus_extraction_batch_file_job(
+    *,
+    records: list[dict[str, Any]],
+    display_name: str,
+    poll_interval_s: float,
+    poll_max_s: float,
+    gemini_file_names: list[str],
+    gcp_stt_cost_by_video_id: dict[str, float | None] | None = None,
+) -> dict[str, Any]:
+    """Submit JSONL (File API), poll, map per-key results, log ``gemini_calls``.
+
+    Deletes ``gemini_file_names`` (uploaded video Files) and the JSONL input
+    file best-effort after the job reaches a terminal state.
+    """
+    from getviews_pipeline.gemini_cost import log_gemini_call
+
+    if not records:
+        return {"ok": True, "state": "JOB_STATE_SUCCEEDED", "by_video_id": {}}
+
+    client = _get_client()
+    stt_map = gcp_stt_cost_by_video_id or {}
+    uploaded_jsonl = None
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".jsonl",
+        prefix="gv-corpus-batch-",
+        delete=False,
+        encoding="utf-8",
+    )
+    tmp_path = Path(tmp.name)
+    try:
+        for rec in records:
+            tmp.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        tmp.close()
+
+        uploaded_jsonl = client.files.upload(
+            file=str(tmp_path),
+            config=types.UploadFileConfig(
+                display_name=f"{display_name}-requests",
+                mime_type="jsonl",
+            ),
+        )
+        batch_job = client.batches.create(
+            model=GEMINI_EXTRACTION_MODEL,
+            src=uploaded_jsonl.name,
+            config={"display_name": display_name},
+        )
+        job_name = batch_job.name
+        if not job_name:
+            return {
+                "ok": False,
+                "state": "JOB_STATE_FAILED",
+                "by_video_id": {},
+                "job_error": "batch job missing name",
+            }
+
+        deadline = time.monotonic() + poll_max_s
+        job = batch_job
+        state_name = ""
+        while time.monotonic() < deadline:
+            job = client.batches.get(name=job_name)
+            st = job.state
+            state_name = getattr(st, "name", None) or str(st)
+            if state_name in _BATCH_TERMINAL_STATES:
+                break
+            time.sleep(max(1.0, poll_interval_s))
+        else:
+            job = client.batches.get(name=job_name)
+            st = job.state
+            state_name = getattr(st, "name", None) or str(st)
+
+        by_video_id: dict[str, dict[str, Any]] = {}
+
+        if state_name not in _BATCH_TERMINAL_STATES:
+            return {
+                "ok": False,
+                "state": state_name,
+                "by_video_id": by_video_id,
+                "job_error": "poll_timeout_or_stuck",
+            }
+
+        if state_name != "JOB_STATE_SUCCEEDED":
+            err_msg = None
+            if hasattr(job, "error") and job.error:
+                err_msg = str(job.error)
+            return {
+                "ok": False,
+                "state": state_name,
+                "by_video_id": by_video_id,
+                "job_error": err_msg or state_name,
+            }
+
+        dest = job.dest
+        result_file = getattr(dest, "file_name", None) if dest else None
+        if not result_file:
+            return {
+                "ok": False,
+                "state": state_name,
+                "by_video_id": {},
+                "job_error": "batch succeeded but no result file",
+            }
+
+        raw_bytes = client.files.download(file=result_file)
+        body = raw_bytes.decode("utf-8")
+        for line in body.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            vid_k, resp_text, err_k, tin, tout = _parse_batch_output_jsonl_line(obj)
+            if not vid_k:
+                continue
+            if err_k or not resp_text:
+                by_video_id[vid_k] = {
+                    "ok": False,
+                    "error": err_k or "no_text",
+                    "tokens_in": tin,
+                    "tokens_out": tout,
+                }
+                continue
+            by_video_id[vid_k] = {
+                "ok": True,
+                "text": resp_text,
+                "tokens_in": tin,
+                "tokens_out": tout,
+            }
+            stt_usd = stt_map.get(vid_k)
+            log_gemini_call(
+                user_id=None,
+                call_site="video_extraction_batch",
+                model_name=GEMINI_EXTRACTION_MODEL,
+                tokens_in=tin,
+                tokens_out=tout,
+                duration_ms=0,
+                gcp_stt_cost_usd=stt_usd,
+                is_batch=True,
+            )
+
+        return {"ok": True, "state": state_name, "by_video_id": by_video_id}
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        for fname in gemini_file_names:
+            if not fname:
+                continue
+            try:
+                client.files.delete(name=fname)
+            except Exception:
+                pass
+        if uploaded_jsonl is not None:
+            try:
+                client.files.delete(name=uploaded_jsonl.name)
+            except Exception:
+                pass

@@ -255,6 +255,8 @@ No Cloud Run involved. Fast path (~2–5s). Free for `follow_up` intents.
 | `cron-batch-trend-velocity` | Weekly Monday 22:30 | Tue 05:30 | Trend velocity refresh |
 | `cron-pg-net-batch-http-4xx-watch` | Hourly | — | Monitors for 4xx responses to batch pod (Vault misconfiguration alert) |
 
+**HI-13 (optional):** When `CORPUS_INGEST_USE_GEMINI_BATCH=true` on the batch pod, corpus **video** extraction is submitted as one Gemini **Batch API** job per niche shard using a **JSONL file** input ([batch file docs](https://ai.google.dev/gemini-api/docs/batch-api)). Carousel posts stay on the synchronous path. Failed or missing batch lines fall back to the existing `analyze_video` sync flow. `gemini_calls.is_batch` tags batch-tier cost (~50% standard for the same model, per pricing page).
+
 **Vault dependency:** `cloud_run_api_url` and `cloud_run_batch_secret` in Supabase Vault must be kept in sync with the batch pod's actual URL and `BATCH_SECRET`. Rotation without updating both breaks all pg_cron jobs silently.
 
 ---

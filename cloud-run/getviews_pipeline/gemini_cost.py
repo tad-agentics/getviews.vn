@@ -188,23 +188,35 @@ MODEL_PRICING_USD_PER_MTOK: dict[str, ModelPrice] = {
 UNKNOWN_MODEL_PRICE = ModelPrice(0.0, 0.0)
 
 
-def price_for_model(model_name: str) -> ModelPrice:
+def price_for_model(model_name: str, *, batch: bool = False) -> ModelPrice:
     """Strip version/date qualifiers and look up the base model price.
 
     ``gemini-3-flash-lite-preview-04-2026`` → ``gemini-3-flash-lite-preview``.
     Google occasionally pins dates; stripping them keeps the pricing table
     readable without chasing every minor alias.
+
+    ``batch=True`` applies the published ~50% Batch API multiplier to the
+    resolved tier (flash-lite standard $0.25/$1.50 → batch $0.125/$0.75).
     """
     if model_name in MODEL_PRICING_USD_PER_MTOK:
-        return MODEL_PRICING_USD_PER_MTOK[model_name]
-    # Strip trailing date/version suffix after a fourth hyphen.
-    parts = model_name.split("-")
-    for cutoff in range(len(parts), 2, -1):
-        base = "-".join(parts[:cutoff])
-        if base in MODEL_PRICING_USD_PER_MTOK:
-            return MODEL_PRICING_USD_PER_MTOK[base]
-    logger.info("[gemini_cost] unknown model %s — recording zero cost", model_name)
-    return UNKNOWN_MODEL_PRICE
+        p = MODEL_PRICING_USD_PER_MTOK[model_name]
+    else:
+        p = None
+        parts = model_name.split("-")
+        for cutoff in range(len(parts), 2, -1):
+            base = "-".join(parts[:cutoff])
+            if base in MODEL_PRICING_USD_PER_MTOK:
+                p = MODEL_PRICING_USD_PER_MTOK[base]
+                break
+        if p is None:
+            logger.info("[gemini_cost] unknown model %s — recording zero cost", model_name)
+            p = UNKNOWN_MODEL_PRICE
+    if not batch:
+        return p
+    return ModelPrice(
+        tokens_in_per_mtok=p.tokens_in_per_mtok * 0.5,
+        tokens_out_per_mtok=p.tokens_out_per_mtok * 0.5,
+    )
 
 
 def estimate_cost(
@@ -212,9 +224,10 @@ def estimate_cost(
     model_name: str,
     tokens_in: int,
     tokens_out: int,
+    batch: bool = False,
 ) -> float:
-    """USD cost for a single ``generate_content`` response."""
-    price = price_for_model(model_name)
+    """USD cost for a single ``generate_content`` or batch-line response."""
+    price = price_for_model(model_name, batch=batch)
     return (
         tokens_in * price.tokens_in_per_mtok / 1_000_000
         + tokens_out * price.tokens_out_per_mtok / 1_000_000
@@ -302,6 +315,7 @@ def log_gemini_call(
     error_code: str | None = None,
     used_context_cache: bool | None = None,
     gcp_stt_cost_usd: float | None = None,
+    is_batch: bool = False,
 ) -> float:
     """Insert a ``gemini_calls`` row asynchronously. Returns the computed cost.
 
@@ -317,6 +331,7 @@ def log_gemini_call(
         model_name=model_name,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
+        batch=is_batch,
     ), 6)
 
     # Structured log — queryable in Cloud Logging.
@@ -355,6 +370,7 @@ def log_gemini_call(
         "session_id": session_id,
         "success": success,
         "error_code": error_code,
+        "is_batch": is_batch,
     }
     if gcp_stt_cost_usd is not None:
         row["gcp_stt_cost_usd"] = gcp_stt_cost_usd
@@ -381,6 +397,7 @@ def log_gemini_failure(
     duration_ms: int,
     session_id: str | None = None,
     gcp_stt_cost_usd: float | None = None,
+    is_batch: bool = False,
 ) -> None:
     """Log a ``gemini_calls`` row for an exhausted-retry failure.
 
@@ -405,4 +422,5 @@ def log_gemini_failure(
         success=False,
         error_code=type(exc).__name__,
         gcp_stt_cost_usd=gcp_stt_cost_usd,
+        is_batch=is_batch,
     )

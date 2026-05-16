@@ -183,6 +183,23 @@ GEMINI_HOOK_WINDOW_END_SEC = _float_env("GEMINI_HOOK_WINDOW_END_SEC", "3.0")
 GCP_STT_VI_ENABLED = _bool_env("GCP_STT_VI_ENABLED", True)
 GCP_STT_VI_PRICE_PER_MIN_USD = _float_env("GCP_STT_VI_PRICE_PER_MIN_USD", "0.024")
 
+# ── HI-13 — Gemini Batch API (JSONL file source) for corpus video extraction ─
+# https://ai.google.dev/gemini-api/docs/batch-api — async ~50% vs standard.
+# Default off: enable with CORPUS_INGEST_USE_GEMINI_BATCH=true on the batch pod.
+CORPUS_INGEST_USE_GEMINI_BATCH = _bool_env("CORPUS_INGEST_USE_GEMINI_BATCH", False)
+try:
+    CORPUS_BATCH_POLL_INTERVAL_SEC = float(
+        os.environ.get("CORPUS_BATCH_POLL_INTERVAL_SEC", "30") or "30"
+    )
+except (TypeError, ValueError):
+    CORPUS_BATCH_POLL_INTERVAL_SEC = 30.0
+try:
+    CORPUS_BATCH_POLL_MAX_SEC = float(
+        os.environ.get("CORPUS_BATCH_POLL_MAX_SEC", "2400") or "2400"
+    )
+except (TypeError, ValueError):
+    CORPUS_BATCH_POLL_MAX_SEC = 2400.0
+
 # ── HI-11 — two-axis niche resolution (batch corpus ingest) ──────────────────
 # shadow (default): hashtag resolver sets niche_id + ladder ``content_class_id``;
 #                   Gemini classification copied into ``niche_resolution_*`` only.

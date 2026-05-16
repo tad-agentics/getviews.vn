@@ -78,6 +78,12 @@ class TestPriceForModel:
         assert p.tokens_in_per_mtok == 0.50
         assert p.tokens_out_per_mtok == 3.00
 
+    def test_batch_flag_halves_published_flash_lite_tier(self) -> None:
+        p_std = price_for_model("gemini-3.1-flash-lite", batch=False)
+        p_bat = price_for_model("gemini-3.1-flash-lite", batch=True)
+        assert p_bat.tokens_in_per_mtok == pytest.approx(p_std.tokens_in_per_mtok * 0.5)
+        assert p_bat.tokens_out_per_mtok == pytest.approx(p_std.tokens_out_per_mtok * 0.5)
+
 
 class TestEstimateCost:
     def test_flash_lite_math_matches_published_rates(self) -> None:
@@ -89,6 +95,21 @@ class TestEstimateCost:
             tokens_out=1_000_000,
         )
         assert cost == pytest.approx(1.75, rel=1e-9)
+
+    def test_batch_estimate_halves_vs_standard(self) -> None:
+        cost_sync = estimate_cost(
+            model_name="gemini-3.1-flash-lite",
+            tokens_in=2_000_000,
+            tokens_out=500_000,
+            batch=False,
+        )
+        cost_batch = estimate_cost(
+            model_name="gemini-3.1-flash-lite",
+            tokens_in=2_000_000,
+            tokens_out=500_000,
+            batch=True,
+        )
+        assert cost_batch == pytest.approx(cost_sync * 0.5, rel=1e-9)
 
     def test_unknown_model_costs_nothing_but_does_not_raise(self) -> None:
         cost = estimate_cost(
@@ -182,6 +203,7 @@ class TestLogGeminiCall:
         assert captured["tokens_out"] == 2000
         assert captured["duration_ms"] == 450
         assert captured["session_id"] == "sess-xyz"
+        assert captured.get("is_batch") is False
         # Cost is computed consistently with estimate_cost (1k in + 2k out
         # on gemini-3-flash-preview = $0.0005 + $0.0060 = $0.0065).
         # Official pricing: $0.50/M in, $3.00/M out.

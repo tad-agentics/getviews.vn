@@ -1,13 +1,6 @@
-# HI-13 — Batch API corpus ingest (tentative)
+# HI-13 — Batch API corpus ingest
 
-- **Status:** **Cancelled — research NO-GO** (2026-05-16). Not in active backlog until `artifacts/integrations/gemini-batch-api.md` records a **GO** with evidence.
-- **Severity:** MEDIUM (cost / throughput) — only if revived
+- **Status:** **Implemented** (feature-flagged). Code: `corpus_ingest.py` + `gemini.py` batch helpers; migration `20260516120001_hi13_gemini_calls_is_batch.sql`.
+- **Enable:** `CORPUS_INGEST_USE_GEMINI_BATCH=true` (+ optional `CORPUS_BATCH_POLL_*`) on batch pod. See `artifacts/integrations/gemini-batch-api.md`.
 - **Sprint:** Sprint 2 — HIGH
-- **Discovered:** 2026-05-16 — deep pipeline audit + conflict review
-- **Location:** (none on main — would be `corpus_ingest.py` + `gemini.py` if implemented)
-- **Symptom:** N/A — path not built.
-- **Root cause:** Batch API checklist incomplete / blockers per research doc.
-- **Proposed fix:** Per plan HI-13 body — only if research GO.
-- **Verification:** Integration doc checklist PASS + design review; then pytest + cost audit.
-
-**Canonical plan:** `.cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md` — plan frontmatter marks **hi13** **`cancelled`**.
+- **Canonical plan:** `.cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md` — frontmatter may still list **hi13** as cancelled; treat as superseded by this shipped flag until plan YAML is amended.
