@@ -9,6 +9,6 @@
   - `cloud-run/.env.example`
   - Tests: `cloud-run/tests/test_thin_niche_prioritization.py`
 - **Symptom:** Uniform carousel cap under-samples carousel-heavy verticals.
-- **Verification:** `cd cloud-run && .venv/bin/python -m pytest -q tests/test_thin_niche_prioritization.py`
+- **Verification:** `cd cloud-run && .venv/bin/python -m pytest -q tests/test_thin_niche_prioritization.py`. **Corpus vs trending ratio SQL + operator notes:** `artifacts/docs/two-axis-niche-cutover-runbook.md` § ME-18 appendix.
 
 **Canonical plan:** `.cursor/plans/pipeline_audit_remediation_plan_(revised_—_quality-first)_d9b0bb76.plan.md`

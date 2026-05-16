@@ -457,6 +457,14 @@ class AdminTriggerThumbnailBackfillBody(StrictBody):
     dry_run: bool = False
 
 
+class AdminBackfillClassificationBody(StrictBody):
+    """ME-17 — text-only Gemini backfill for ``content_context`` + ``niche_classification``."""
+
+    batch_size: int = Field(default=500, ge=1, le=10_000)
+    max_runtime_s: int = Field(default=3300, ge=30, le=7200)
+    dry_run: bool = False
+
+
 class AdminTriggerRefreshBody(StrictBody):
     """Corpus freshness refresh — metadata-only re-pull from EnsembleData."""
     limit: int | None = None         # defaults to REFRESH_BATCH_LIMIT (200)
@@ -567,6 +575,19 @@ async def _admin_run_thumbnail_backfill(body: AdminTriggerThumbnailBackfillBody)
     from backfill_thumbnails import run_thumbnail_backfill  # type: ignore[import-not-found]
 
     return await run_thumbnail_backfill(batch_size=body.batch_size, limit=body.limit, dry_run=body.dry_run)
+
+
+async def _admin_run_backfill_classification(body: AdminBackfillClassificationBody) -> dict[str, Any]:
+    from getviews_pipeline.classification_backfill import run_classification_backfill
+    from getviews_pipeline.supabase_client import get_service_client
+
+    return await run_sync(
+        run_classification_backfill,
+        client=get_service_client(),
+        batch_size=body.batch_size,
+        max_runtime_s=float(body.max_runtime_s),
+        dry_run=body.dry_run,
+    )
 
 
 async def _admin_run_enrich_shots_top500(
@@ -1181,6 +1202,16 @@ async def admin_list_triggers(
             {"id": "scene_intelligence", "label": "Scene intelligence refresh (/batch/scene-intelligence)", "body_schema": {}, "heavy": True},
             {"id": "thumbnail_backfill", "label": "Thumbnail backfill — rehost TikTok CDN → R2", "body_schema": {}, "heavy": True},
             {
+                "id": "backfill_classification",
+                "label": "ME-17 — Legacy classification backfill (POST /admin/backfill-classification)",
+                "body_schema": {
+                    "batch_size": "int — default 500",
+                    "max_runtime_s": "int — default 3300 (Cloud Run safety)",
+                    "dry_run": "bool",
+                },
+                "heavy": True,
+            },
+            {
                 "id": "r2_janitor",
                 "label": "R2 storage janitor (/batch/r2-janitor) — reconcile orphans",
                 "body_schema": {"dry_run": "bool"},
@@ -1258,6 +1289,49 @@ async def admin_trigger_thumbnail_backfill(
         user_id=admin["user_id"], action="trigger.thumbnail_backfill",
         params={"batch_size": body.batch_size, "limit": body.limit, "dry_run": body.dry_run},
         runner=lambda: _admin_run_thumbnail_backfill(body),
+    )
+
+
+@router.post(
+    "/admin/backfill-classification",
+    summary="ME-17 — Backfill legacy content_context + niche_classification",
+    description=(
+        "Rows where ``niche_resolution_source`` IS NULL: text-only Gemini over "
+        "stored ``analysis_json``. Idempotent — sets ``niche_resolution_source`` "
+        "to ``gemini_two_axis``. Same job as POST /admin/trigger/backfill_classification."
+    ),
+)
+async def admin_backfill_classification(
+    body: AdminBackfillClassificationBody = AdminBackfillClassificationBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="backfill.classification",
+        params={
+            "batch_size": body.batch_size,
+            "max_runtime_s": body.max_runtime_s,
+            "dry_run": body.dry_run,
+        },
+        runner=lambda: _admin_run_backfill_classification(body),
+    )
+
+
+@router.post("/admin/trigger/backfill_classification")
+async def admin_trigger_backfill_classification(
+    body: AdminBackfillClassificationBody = AdminBackfillClassificationBody(),
+    admin: dict[str, Any] = Depends(require_admin),
+) -> JSONResponse:
+    """Alias for ``POST /admin/backfill-classification`` (admin UI trigger id)."""
+    return await _run_trigger_with_audit(
+        user_id=admin["user_id"],
+        action="backfill.classification",
+        params={
+            "batch_size": body.batch_size,
+            "max_runtime_s": body.max_runtime_s,
+            "dry_run": body.dry_run,
+        },
+        runner=lambda: _admin_run_backfill_classification(body),
     )
 
 

@@ -370,6 +370,50 @@ async def batch_reclassify_format(
     return JSONResponse({"ok": True, **result})
 
 
+class BatchClassificationBackfillRequest(StrictBody):
+    """ME-17 — nightly (or manual) Gemini text backfill for legacy corpus rows."""
+
+    batch_size: int = Field(default=3500, ge=1, le=10_000)
+    max_runtime_s: int = Field(default=3300, ge=60, le=7200)
+    dry_run: bool = Field(default=False)
+
+
+@router.post("/batch/backfill-classification")
+async def batch_backfill_classification(
+    body: BatchClassificationBackfillRequest = BatchClassificationBackfillRequest(),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Protected by ``require_batch_caller`` — intended for pg_cron on the batch URL."""
+    from getviews_pipeline.batch_observability import record_job_run
+    from getviews_pipeline.classification_backfill import run_classification_backfill
+    from getviews_pipeline.runtime import run_sync
+    from getviews_pipeline.supabase_client import get_service_client
+
+    logger.info(
+        "POST /batch/backfill-classification batch_size=%d max_runtime_s=%d dry_run=%s",
+        body.batch_size,
+        body.max_runtime_s,
+        body.dry_run,
+    )
+    client = get_service_client()
+
+    async with record_job_run(client, "batch/backfill-classification") as obs_summary:
+        try:
+            result = await run_sync(
+                run_classification_backfill,
+                client=client,
+                batch_size=body.batch_size,
+                max_runtime_s=float(body.max_runtime_s),
+                dry_run=body.dry_run,
+            )
+        except Exception as exc:
+            logger.exception("Batch backfill-classification failed: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        obs_summary.update(result)
+
+    return JSONResponse({"ok": True, **result})
+
+
 @router.post("/batch/sound-aggregate")
 async def batch_sound_aggregate(
     request: Request,

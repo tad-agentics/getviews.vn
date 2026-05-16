@@ -127,10 +127,38 @@ If the gate fails, do **not** flip; tune junction, prompts, or threshold in code
    - `SELECT public.refresh_niche_intelligence();`
    - `SELECT public.refresh_content_class_intelligence();`
 4. Ensure **`hook_effectiveness_compute`** runs once after MV refresh (or wait for the next batch job that invokes it).
-5. **ME-17:** Enable legacy-row classification backfill per `artifacts/issues/me17-backfill-legacy-corpus-classification.md` (plan: start the night after flip).
+5. **ME-17:** Enable legacy-row classification backfill — ``POST /admin/backfill-classification`` (JWT) or ``POST /batch/backfill-classification`` (cron, `X-Batch-Secret`); pg_cron ``cron-backfill-classification`` at 04:00 UTC (`20260720000000_cron_batch_backfill_classification.sql`). See `getviews_pipeline/classification_backfill.py`.
 
 ### QA / tests
 
 - `cloud-run/tests/test_hi11_route_niche_resolution.py`
 - `cloud-run/tests/test_corpus_ingest_junction_warn.py`
 - Baseline: `artifacts/qa-reports/hi11-baseline.json` (**PASS_WITH_CONCERNS** — full plan still expects extended calendar + flip executed in prod).
+
+---
+
+## ME-18 appendix — Carousel share vs trending (investigation SQL)
+
+Use this after HI-16 / per-niche carousel caps land to see whether the **corpus** mix matches **real** carousel prevalence. Under-sampling shows up as corpus `carousel_pct` materially below trending `carousel_pct` for the same niche bucket.
+
+### 1) Corpus: carousel share per legacy niche (last 14 days)
+
+```sql
+SELECT
+  n.name_vn,
+  COUNT(*) FILTER (WHERE vc.content_type = 'carousel') AS carousels,
+  COUNT(*) FILTER (WHERE vc.content_type = 'video') AS videos,
+  ROUND(
+    COUNT(*) FILTER (WHERE vc.content_type = 'carousel') * 100.0 / NULLIF(COUNT(*), 0),
+    2
+  ) AS carousel_pct
+FROM video_corpus vc
+JOIN niche_taxonomy n ON vc.niche_id = n.id
+WHERE vc.indexed_at > now() - interval '14 days'
+GROUP BY n.name_vn
+ORDER BY carousel_pct DESC;
+```
+
+### 2) EnsembleData / trending (manual operator step)
+
+The plan cross-check is **not** a SQL report: pull a **sample** of trending posts for each niche (e.g. top 100 by momentum from your ingest keyword / trending source), classify each item as **carousel vs video** from post metadata (image-post / photo album vs short video), and compute `carousel_pct` of that sample. Compare to §1: where corpus `carousel_pct` is **several points lower** than trending `carousel_pct`, raise `BATCH_CAROUSELS_BY_NICHE` for that niche (see `settings.batch_carousels_by_niche` + `corpus_ingest._carousels_per_night_for_niche`). Re-run after 14 days until corpus and trending are within the plan tolerance (±3pp).
