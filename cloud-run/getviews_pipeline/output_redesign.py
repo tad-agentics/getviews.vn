@@ -5,7 +5,7 @@ Exports:
     NARRATIVE_OUTPUT_STRUCTURE         — 4-part narrative structure spec (video)
     CAROUSEL_NARRATIVE_OUTPUT_STRUCTURE — 2-layer + 4-part narrative structure spec (carousel)
     PATTERN_EXTRACTION_PROMPT          — instruction block for scene-level pattern analysis
-    HOOK_TYPE_NAMES_CONSTRAINT         — enforces 15-name fixed hook type taxonomy
+    HOOK_TYPE_NAMES_CONSTRAINT         — Vietnamese hook display taxonomy + JSON enum discipline
     get_analysis_focus()               — returns format-specific analysis focus string (video)
     get_carousel_analysis_focus()      — returns carousel sub-format focus string
     build_diagnosis_narrative_prompt() — video diagnosis prompt builder
