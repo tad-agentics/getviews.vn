@@ -3000,7 +3000,8 @@ async def run_ingest_post_processing(
     *,
     run_weekly_analytics_if_sunday: bool = True,
 ) -> dict[str, Any]:
-    """ME-16 — MV refresh, Video Đáng Học, Layer 0B sound, optional Sunday weekly analytics.
+    """ME-16 — MV refresh, Video Đáng Học, Layer 0B sound, Layer 0D hashtag
+    discovery, plus optional Sunday weekly analytics.
 
     Callable from a successful ``/batch/ingest`` or standalone ``/batch/post-processing``
     (e.g. after a wall-clock-aborted ingest).
@@ -3009,6 +3010,7 @@ async def run_ingest_post_processing(
         "materialized_view_refreshed": False,
         "video_dang_hoc_error": None,
         "layer0b_error": None,
+        "layer0d_error": None,
         "weekly_analytics_run": False,
     }
 
@@ -3036,6 +3038,30 @@ async def run_ingest_post_processing(
     except Exception as exc:
         out["layer0b_error"] = str(exc)
         logger.error("[layer0b] Sound insight failed (non-fatal): %s", exc)
+
+    # Layer 0D — Trending Hashtag Discovery. Was Sunday-only inside
+    # _run_weekly_analytics; promoted to daily on 2026-05-17 so new
+    # high-performing hashtags surfacing in the corpus flow into
+    # niche_taxonomy.signal_hashtags within ≤24h instead of ≤7 days.
+    # Cost is bounded by layer0_hashtag.MAX_CANDIDATES_PER_RUN=60 — most
+    # days the candidate scan returns 0 (steady-state corpus), so the
+    # Gemini classifier doesn't fire. Worst-case ~7× weekly cost = ~$0.70/wk.
+    try:
+        from getviews_pipeline.layer0_hashtag import run_hashtag_discovery
+        l0d_result = await run_hashtag_discovery(client)
+        logger.info(
+            "[layer0d] candidates=%d added=%d map_written=%d candidates_saved=%d stale=%d skipped=%d errors=%s",
+            l0d_result.get("candidates_found", 0),
+            l0d_result.get("added", 0),
+            l0d_result.get("map_written", 0),
+            l0d_result.get("candidates_saved", 0),
+            l0d_result.get("stale_signals", 0),
+            l0d_result.get("skipped", 0),
+            l0d_result.get("errors") or "none",
+        )
+    except Exception as exc:
+        out["layer0d_error"] = str(exc)
+        logger.error("[layer0d] Hashtag discovery failed (non-fatal): %s", exc)
 
     today = date.today()
     is_sunday = today.weekday() == 6
@@ -3379,23 +3405,10 @@ async def _run_weekly_analytics(client: Any) -> None:
     # --- Layer 0: Intelligence Extraction (the brain) ---
     # Runs LAST — reads from video_corpus + signal_grades + trending_sounds
     # Non-fatal: if Layer 0 fails, dashboard still shows statistics (without mechanism)
-
-    # Layer 0D — Trending Hashtag Discovery (runs first so new tags feed 0A)
-    try:
-        from getviews_pipeline.layer0_hashtag import run_hashtag_discovery
-        l0d_result = await run_hashtag_discovery(client)
-        logger.info(
-            "[layer0d] candidates=%d added=%d map_written=%d candidates_saved=%d stale=%d skipped=%d errors=%s",
-            l0d_result.get("candidates_found", 0),
-            l0d_result.get("added", 0),
-            l0d_result.get("map_written", 0),
-            l0d_result.get("candidates_saved", 0),
-            l0d_result.get("stale_signals", 0),
-            l0d_result.get("skipped", 0),
-            l0d_result.get("errors") or "none",
-        )
-    except Exception as exc:
-        logger.error("[layer0d] Hashtag discovery failed (non-fatal): %s", exc)
+    #
+    # Layer 0D (hashtag discovery) ran here Sundays-only until 2026-05-17;
+    # promoted to daily inside run_ingest_post_processing for ≤24h discovery
+    # latency on new high-performing hashtags.
 
     try:
         from getviews_pipeline.layer0_niche import run_niche_insights
