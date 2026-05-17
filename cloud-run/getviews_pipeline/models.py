@@ -662,6 +662,20 @@ class VideoAnalysis(BaseModel):
     persona_consistency_signals: PersonaConsistencySignals | None = None
     slang_terms_used: list[str] = Field(default_factory=list)
     slang_freshness_score: SlangFreshnessTier | None = None
+    loop_architecture_score: float | None = Field(default=None, ge=0.0, le=1.0)
+
+    @field_validator("loop_architecture_score", mode="before")
+    @classmethod
+    def _coerce_loop_architecture_score(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            return None
+        if x < 0.0 or x > 1.0:
+            return None
+        return x
 
     @field_validator("creator_persona", mode="before")
     @classmethod

@@ -1,0 +1,33 @@
+{
+  "task_id": "sprint5-engagement-context",
+  "verdict": "PASS",
+  "test_summary": {
+    "targeted_pytest": "PASS — tests/test_golden_hours.py (4) + tests/test_engagement_context_sprint5.py (5)",
+    "full_pytest": "PASS — cd cloud-run && .venv/bin/python -m pytest -q -> 2071 passed, 1 skipped",
+    "frontend_typecheck": "PASS — npm run typecheck",
+    "coverage_notes": [
+      "golden_hours.py — ICT bands §2 (06–09, 11:30–13:30, 18–20, 22–24, Thu 19–21).",
+      "signals/engagement.py — pinned_comment_text vs VO; loop_architecture_score ≥0.72 positive (distribution).",
+      "signals/context_signals.py — golden hour miss (posted_at clock required); tuong_tac_cheo ER ≥5× median + weak retention OR views_vs_avg_ratio.",
+      "registry — extract_engagement_signals + extract_context_signals after distribution.",
+      "VideoAnalysis.loop_architecture_score + prompts extraction line; video_analyze user_stats posted_at, views_vs_avg_ratio; corpus meta.created_at passthrough."
+    ]
+  },
+  "files_reviewed": [
+    "cloud-run/getviews_pipeline/golden_hours.py",
+    "cloud-run/getviews_pipeline/signals/engagement.py",
+    "cloud-run/getviews_pipeline/signals/context_signals.py",
+    "cloud-run/getviews_pipeline/signals/registry.py",
+    "cloud-run/getviews_pipeline/models.py",
+    "cloud-run/getviews_pipeline/prompts.py",
+    "cloud-run/getviews_pipeline/video_analyze.py",
+    "cloud-run/tests/test_golden_hours.py",
+    "cloud-run/tests/test_engagement_context_sprint5.py"
+  ],
+  "concerns": [
+    "pinned_comment_text is not auto-fetched from EnsembleData in this PR — populate user_stats when product wires ED comment API.",
+    "tuong_tac_cheo and compliance_shadowban_cheo_signature can both fire on skewed performance — different proxies; synthesis may cluster."
+  ],
+  "recommendation": "Optional: fill pinned_comment_text from post multi-info in video_analyze on-demand path when API exposes pinned line.",
+  "timestamp": "2026-05-17T14:30:00Z"
+}

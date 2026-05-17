@@ -539,6 +539,7 @@ def _response_from_diagnostics_row(
             "date_posted": (video.get("created_at") or "")[:10]
             if video.get("created_at")
             else None,
+            "created_at": video.get("created_at") or None,
             "title": title_hint or None,
             "engagement_rate": float(video.get("engagement_rate") or 0.0),
             "niche_label": niche_label or None,
@@ -998,6 +999,11 @@ def finalize_video_narrative_layer(
             user_stats["target_vs_creator_median"] = float(tvr_raw)
         except (TypeError, ValueError):
             pass
+    if views_vs_avg_ratio is not None:
+        user_stats["views_vs_avg_ratio"] = float(views_vs_avg_ratio)
+    ts_posted = meta.get("created_at") or meta.get("posted_at")
+    if ts_posted:
+        user_stats["posted_at"] = str(ts_posted)
     ch_ratio_hint = meta.get("target_vs_creator_median")
     try:
         ch_ratio_f = float(ch_ratio_hint) if ch_ratio_hint is not None else None

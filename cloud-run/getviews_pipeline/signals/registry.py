@@ -6,7 +6,9 @@ from getviews_pipeline.signals.base import Evidence, Signal
 from getviews_pipeline.signals.channel import extract_channel_signals
 from getviews_pipeline.signals.commerce import extract_commerce_signals
 from getviews_pipeline.signals.compliance import extract_compliance_signals
+from getviews_pipeline.signals.context_signals import extract_context_signals
 from getviews_pipeline.signals.distribution import extract_distribution_signals
+from getviews_pipeline.signals.engagement import extract_engagement_signals
 from getviews_pipeline.signals.hook import extract_hook_signals
 from getviews_pipeline.signals.persona import extract_persona_signals
 from getviews_pipeline.signals.reference import extract_reference_signals
@@ -15,6 +17,8 @@ from getviews_pipeline.signals.salience import MAX_SIGNALS_PER_SECTION_IN_PROMPT
 _EXTRACTORS = (
     extract_compliance_signals,
     extract_distribution_signals,
+    extract_engagement_signals,
+    extract_context_signals,
     extract_hook_signals,
     extract_reference_signals,
     extract_channel_signals,

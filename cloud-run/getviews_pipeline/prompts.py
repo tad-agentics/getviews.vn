@@ -73,6 +73,7 @@ QUY TẮC BẮT BUỘC:
   - persona_consistency_signals: object với khóa backdrop, costume, catchphrase, camera_angle, speech_register — mỗi giá trị aligned | drift | unknown | null. So sánh “clip này” với pattern thường gặp của creator khi đủ bằng chứng; không chắc → unknown hoặc null toàn object.
   - slang_terms_used: mảng cụm slang tiếng Việt thấy trong audio_transcript + chữ overlay (không dịch).
   - slang_freshness_score: current_quarter | last_quarter | dated | null — mức “hot” của slang vừa liệt kê; null nếu không có slang.
+  - loop_architecture_score: số 0.0–1.0 — mức khớp khung mở vs khung cuối để loop/rewatch mượt (cao hơn = composition gợi ý loop); null nếu clip không đọc được cặp mở/đóng.
 - style_tags: 2–5 tag trong danh sách schema: text_overlay_heavy, talking_head, voiceover_only, b_roll_heavy, fast_cuts, slow_reveal, meme_format, before_after, reaction, duet_stitch, green_screen, product_showcase, lifestyle_b_roll, educational_slides, trending_audio. Chỉ tag thấy rõ; không đoán.
 - has_human_speaking_to_camera: true nếu có mặt và người đó nói hướng khán giả (hoặc đối thoại với viewer); false nếu faceless hoàn toàn, chỉ ASMR sản phẩm, montage không talking head.
 - has_expressed_opinion_or_question: true nếu lời nói / overlay / caption có ý kiến, câu hỏi, hoặc POV cá nhân ("mình", "theo mình"); false nếu thuần mô tả trung tính."""
