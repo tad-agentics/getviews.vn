@@ -13,8 +13,24 @@
 -- constraint on those two columns. Original table migration was
 -- missing it.
 
-ALTER TABLE public.trend_velocity
-  ADD CONSTRAINT trend_velocity_niche_week_unique UNIQUE (niche_id, week_start);
+-- Idempotent: the constraint was applied out-of-band via apply_migration on
+-- 2026-05-17 (commit 468eab6) before this file was registered in
+-- supabase_migrations.schema_migrations, so ``supabase db push`` will replay
+-- this file against a DB that already has the constraint. ``ALTER TABLE ...
+-- ADD CONSTRAINT`` has no ``IF NOT EXISTS`` clause in Postgres, hence the
+-- DO block with a duplicate_object catch.
+DO $$
+BEGIN
+  ALTER TABLE public.trend_velocity
+    ADD CONSTRAINT trend_velocity_niche_week_unique UNIQUE (niche_id, week_start);
+EXCEPTION
+  WHEN duplicate_object THEN
+    RAISE NOTICE 'trend_velocity_niche_week_unique already exists — skipping';
+  WHEN duplicate_table THEN
+    -- Some Postgres versions raise duplicate_table for constraint conflicts.
+    RAISE NOTICE 'trend_velocity_niche_week_unique already exists — skipping';
+END
+$$;
 
 -- Rollback:
 --   ALTER TABLE public.trend_velocity DROP CONSTRAINT trend_velocity_niche_week_unique;
