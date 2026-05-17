@@ -696,6 +696,34 @@ When `channel_diagnose` is stable (≥7 days), a separate PR deletes:
 
 ---
 
+## §17 Cost Budget & Guardrails
+
+### Monthly target
+
+| Service | Monthly ceiling | Notes |
+|---|---|---|
+| Gemini API (all models) | **~$80–90** | `gemini-3.1-flash-lite` at $0.25/$1.50 per 1M. Includes batch ingest + live diagnoses + text intents. |
+| GCP Speech-to-Text (HI-14) | ~$5–10 | `vi-VN` on video paths only; carousels skip |
+| EnsembleData API | per plan | Monitor via `ensemble_calls` table |
+
+### Gemini daily hard ceiling
+
+A **$15/day** cap is enforced on the **batch pod** via `GEMINI_DAILY_USD_MAX=15` + `GEMINI_DAILY_USD_ENFORCE=true` (set 2026-05-17). At the current run rate (~$1.50/day ingest + live traffic) this is a 10× safety margin. If the cap is hit, `check_gemini_daily_budget()` raises `GeminiDailyBudgetExceeded` and the call site logs + skips.
+
+The **user-facing pod** does not enforce `GEMINI_DAILY_USD_MAX` — it serves live SSE requests and a hard stop mid-stream would break the UX. Rate-limiting is instead handled at the credit-deduction layer (TD-1).
+
+### Monitoring
+
+- Daily cost by `call_site`: `SELECT call_site, sum(cost_usd) FROM gemini_calls WHERE created_at >= current_date GROUP BY 1 ORDER BY 2 DESC`
+- MTD projection: `SELECT round(sum(cost_usd)/extract(day FROM now())*30, 2) AS projected_30d FROM gemini_calls WHERE created_at >= date_trunc('month', now())`
+- EnsembleData calls: `SELECT endpoint, count(*) FROM ensemble_calls WHERE created_at >= current_date GROUP BY 1`
+
+### HI-13 status (Gemini Batch API)
+
+Disabled as of 2026-05-17 (`CORPUS_INGEST_USE_GEMINI_BATCH=false` on batch pod). `gemini-3.1-flash-lite` returns HTTP 400 on `batchGenerateContent` — model does not currently support the JSONL Batch API. Re-enable when confirmed supported; expected ~50% cost reduction on nightly extraction.
+
+---
+
 ## Update Protocol
 
 When any of the following changes, update this file in the same commit:
