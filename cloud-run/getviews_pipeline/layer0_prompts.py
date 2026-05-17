@@ -1,7 +1,7 @@
 """Layer 0 — prompt content, Pydantic schemas, response schemas, few-shot examples.
 
 Single source of truth for everything sent to Gemini in Layer 0.
-Imported by layer0_niche.py, layer0_sound.py, and layer0_migration.py.
+Imported by layer0_niche.py and layer0_sound.py.
 """
 
 from __future__ import annotations
@@ -177,54 +177,6 @@ Câu hỏi: TẠI SAO sound này đang được dùng?
 - Lifecycle: đang ở ngày mấy? Còn bao lâu trước khi saturated?
 
 1 đoạn ngắn tiếng Việt. Cụ thể."""
-
-# ---------------------------------------------------------------------------
-# Module 0C — Cross-Niche Migration prompts + schema
-# ---------------------------------------------------------------------------
-
-
-class CrossNicheMigration(BaseModel):
-    source_niche: str      # tên ngách nguồn
-    target_niche: str      # tên ngách đích
-    hook_type: str
-    content_format: str
-    why_transfers: str     # cơ chế universal 1-2 câu
-    adaptation_tip: str    # điều chỉnh cụ thể cho ngách đích
-
-
-class CrossNicheMigrationList(BaseModel):
-    migrations: list[CrossNicheMigration]
-
-
-LAYER0_MIGRATION_RESPONSE_SCHEMA: dict = CrossNicheMigrationList.model_json_schema()
-
-CROSS_NICHE_PROMPT_TEMPLATE = """Dữ liệu phân bổ hook+format các ngách TikTok Việt Nam, 2 tuần:
-{distributions_json}
-
-Tìm "format migration" — combo đang phổ biến ở ngách A nhưng MỚI xuất hiện ở ngách B:
-- Phổ biến = ≥5 video/tuần trong ≥2 tuần ở ngách A
-- Mới xuất hiện = 0-1 tuần trước → 3+ tuần này ở ngách B
-
-Cho mỗi migration phát hiện được:
-1. Ngách nguồn → ngách đích, combo (hook_type + content_format)
-2. Tại sao combo này có thể transfer được? (cơ chế universal)
-3. Creator ngách B nên điều chỉnh gì khi áp dụng?
-
-Trả về JSON object với key "migrations" chứa array. Nếu không phát hiện migration → {{"migrations": []}}
-
-Schema:
-{{
-  "migrations": [
-    {{
-      "source_niche": "<tên ngách nguồn>",
-      "target_niche": "<tên ngách đích>",
-      "hook_type": "<hook type>",
-      "content_format": "<content format>",
-      "why_transfers": "<cơ chế universal 1-2 câu>",
-      "adaptation_tip": "<điều chỉnh cụ thể cho ngách đích>"
-    }}
-  ]
-}}"""
 
 # ---------------------------------------------------------------------------
 # Module 0D — Trending Hashtag Discovery prompts + schema

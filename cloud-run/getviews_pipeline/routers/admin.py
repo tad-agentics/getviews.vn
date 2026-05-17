@@ -692,10 +692,9 @@ async def _admin_run_r2_janitor(*, dry_run: bool = True) -> dict[str, Any]:
 
 
 async def _admin_run_layer0() -> dict[str, Any]:
-    """Manual kick of /batch/layer0 — niche insights + sound insights +
-    cross-niche migration. Each layer is independent; per-layer
-    exceptions are captured, not re-raised."""
-    from getviews_pipeline.layer0_migration import run_cross_niche_migration
+    """Manual kick of /batch/layer0 — niche insights + sound insights.
+    Each layer is independent; per-layer exceptions are captured, not
+    re-raised."""
     from getviews_pipeline.layer0_niche import run_niche_insights
     from getviews_pipeline.layer0_sound import run_sound_insights
     from getviews_pipeline.supabase_client import get_service_client
@@ -720,13 +719,6 @@ async def _admin_run_layer0() -> dict[str, Any]:
     except Exception as exc:
         logger.exception("[admin/trigger/layer0] sound insights failed: %s", exc)
         result["layer0b_sound"] = {"error": str(exc)}
-
-    try:
-        l0c = await run_cross_niche_migration(client)
-        result["layer0c_migration"] = {"migrations_found": l0c.get("migrations_found", 0)}
-    except Exception as exc:
-        logger.exception("[admin/trigger/layer0] migration failed: %s", exc)
-        result["layer0c_migration"] = {"error": str(exc)}
 
     return result
 

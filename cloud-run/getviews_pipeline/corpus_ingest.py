@@ -729,7 +729,6 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
                                build_carousel_diagnosis_narrative_prompt()
         layer0_niche.py      → queries content_format for formula detection
                                (top formula = best hook_type × content_format pair)
-        layer0_migration.py  → groups migration signals by content_format per week
         niche_intelligence   → format_distribution JSONB aggregated from content_format;
                                used in diagnosis framing and Layer 0A synthesis
         prompts.py           → format_distribution injected into corpus citation blocks
@@ -3409,14 +3408,6 @@ async def _run_weekly_analytics(client: Any) -> None:
         )
     except Exception as exc:
         logger.error("[layer0a] Niche insight generation failed (non-fatal): %s", exc)
-
-    try:
-        from getviews_pipeline.layer0_migration import run_cross_niche_migration
-        l0c_result = await run_cross_niche_migration(client)
-        logger.info("[layer0c] migrations=%d", l0c_result.get("migrations_found", 0))
-    except Exception as exc:
-        logger.error("[layer0c] Cross-niche migration failed (non-fatal): %s", exc)
-
 
 def _fetch_niches_sync(client: Any) -> list[dict[str, Any]]:
     result = (

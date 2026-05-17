@@ -922,7 +922,6 @@ async def batch_layer0(
     Protected by require_batch_caller. Safe to re-run — upserts on conflict.
     """
     from getviews_pipeline.batch_observability import record_job_run
-    from getviews_pipeline.layer0_migration import run_cross_niche_migration
     from getviews_pipeline.layer0_niche import run_niche_insights
     from getviews_pipeline.layer0_sound import run_sound_insights
     from getviews_pipeline.supabase_client import get_service_client
@@ -954,13 +953,6 @@ async def batch_layer0(
         except Exception as exc:
             logger.exception("[layer0b] failed: %s", exc)
             result["layer0b_sound"] = {"error": str(exc)}
-
-        try:
-            l0c = await run_cross_niche_migration(client)
-            result["layer0c_migration"] = {"migrations_found": l0c.get("migrations_found", 0)}
-        except Exception as exc:
-            logger.exception("[layer0c] failed: %s", exc)
-            result["layer0c_migration"] = {"error": str(exc)}
 
         # ``batch/layer0`` swallows per-layer exceptions so the endpoint
         # always returns 200. That means ``record_job_run`` would always

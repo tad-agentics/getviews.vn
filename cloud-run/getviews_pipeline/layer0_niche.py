@@ -245,7 +245,6 @@ async def run_niche_insights(client: Any | None = None) -> NicheInsightResult:
                 "top_formula_format": formula["content_format"],
                 "insight_text": insight_raw.get("insight_text"),
                 "mechanisms": insight_raw.get("mechanisms"),
-                "cross_niche_signals": None,  # filled by Module 0C separately
                 "execution_tip": insight_raw.get("execution_tip"),
                 "staleness_risk": insight_raw.get("staleness_risk"),
                 "quality_flag": quality_flag,
