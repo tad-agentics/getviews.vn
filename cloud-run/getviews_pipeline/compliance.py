@@ -21,7 +21,10 @@ RESTRICTED_VI_PHRASES: tuple[tuple[str, str, str], ...] = (
 )
 
 _K_AMOUNT_RE = re.compile(
-    r"(\d{1,3}(?:[.,]\d{3})*)\s*k\b",
+    # Prefer Vietnamese thousand separators (1.000k); else plain digits (1000k).
+    # The old \d{1,3}(?:[.,]\d{3})* allowed zero separator groups, so "1000k"
+    # matched "000k" → 0 and dropped the real amount.
+    r"(?:(\d{1,3}(?:[.,]\d{3})+)|(\d+))\s*k\b",
     re.IGNORECASE | re.UNICODE,
 )
 
@@ -84,7 +87,7 @@ def _k_values_vnd(normalized_blob: str) -> list[int]:
     """Extract `Nk` style amounts → integer VND (×1000)."""
     vals: list[int] = []
     for m in _K_AMOUNT_RE.finditer(normalized_blob):
-        raw = m.group(1).replace(".", "").replace(",", "")
+        raw = (m.group(1) or m.group(2) or "").replace(".", "").replace(",", "")
         try:
             k = int(raw)
         except ValueError:

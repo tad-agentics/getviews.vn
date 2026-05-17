@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from getviews_pipeline.compliance import collect_compliance_flags
+from getviews_pipeline.compliance import (
+    _k_values_vnd,
+    _normalize_text,
+    collect_compliance_flags,
+)
 from getviews_pipeline.signals.compliance import extract_compliance_signals
 from getviews_pipeline.signals.registry import build_diagnosis_ctx
 
@@ -85,6 +89,27 @@ def test_inflated_price_anchor_numeric() -> None:
     ua = {
         "promotion_type": "organic",
         "audio_transcript": "Giá gốc 500k hôm nay chỉ 99k thôi",
+        "text_overlays": [],
+    }
+    ctx = _ctx(ua=ua)
+    assert any(s.id == "compliance_price_anchor_inflated" for s in extract_compliance_signals(ctx))
+
+
+def test_k_values_vnd_plain_1000k_not_trailing_zeros() -> None:
+    """Regression: old regex matched '000k' inside '1000k' and dropped the amount."""
+    n = _normalize_text("Giá gốc 1000k hôm nay chỉ 100k")
+    assert sorted(_k_values_vnd(n)) == [100_000, 1_000_000]
+
+
+def test_k_values_vnd_dot_thousands() -> None:
+    n = _normalize_text("Neo 1.000k sale 100k")
+    assert sorted(_k_values_vnd(n)) == [100_000, 1_000_000]
+
+
+def test_inflated_price_anchor_unformatted_1000k_vs_100k() -> None:
+    ua = {
+        "promotion_type": "organic",
+        "audio_transcript": "Giá gốc 1000k hôm nay chỉ 100k",
         "text_overlays": [],
     }
     ctx = _ctx(ua=ua)
