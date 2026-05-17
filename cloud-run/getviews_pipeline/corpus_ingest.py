@@ -841,9 +841,12 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
         transcript.strip()[:100],
     )
 
-    if re.search(r"mukbang|ăn.*cùng|mời.*ăn|eating|asmr", combined): return "mukbang"
-    if niche_id == 4 and len(scenes) >= 10 and tone == "entertaining": return "mukbang"
-    if re.search(r"grwm|get ready|makeup routine|morning routine|buổi sáng", combined): return "grwm"
+    if re.search(r"mukbang|ăn.*cùng|mời.*ăn|eating|asmr", combined):
+        return "mukbang"
+    if niche_id == 4 and len(scenes) >= 10 and tone == "entertaining":
+        return "mukbang"
+    if re.search(r"grwm|get ready|makeup routine|morning routine|buổi sáng", combined):
+        return "grwm"
     # Wave 5+ taxonomy expansion — gameplay (position 3). Niche 17 is a
     # strong prior; the topic regex catches gaming content in other
     # niches (e.g. phone-review niche 9 covering a game launch). Lands
@@ -857,7 +860,8 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
         combined,
     ):
         return "recipe"
-    if re.search(r"haul|đập hộp|unbox|mở hộp|mua.*về|đặt.*gửi", combined): return "haul"
+    if re.search(r"haul|đập hộp|unbox|mở hộp|mua.*về|đặt.*gửi", combined):
+        return "haul"
     if re.search(
         r"review|chấm điểm|đánh giá|dùng thử|trải nghiệm|"
         r"ăn đứt|đỉnh hơn|đẳng cấp|phần trình diễn|màn trình diễn",
@@ -917,16 +921,20 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
         combined,
     ):
         return "storytelling"
-    if re.search(r"trước.*sau|before.*after|biến đổi|thay đổi.*ngày|glow.?up", combined): return "before_after"
-    if re.match(r"pov[: ]", combined.lstrip()): return "pov"
-    if re.search(r"outfit|ootd|biến hình|transition|mix đồ|phối đồ", combined): return "outfit_transition"
+    if re.search(r"trước.*sau|before.*after|biến đổi|thay đổi.*ngày|glow.?up", combined):
+        return "before_after"
+    if re.match(r"pov[: ]", combined.lstrip()):
+        return "pov"
+    if re.search(r"outfit|ootd|biến hình|transition|mix đồ|phối đồ", combined):
+        return "outfit_transition"
     if re.search(
         r"vlog|daily|thường ngày|một ngày|hôm nay mình|ngày của|"
         r"sau khi tốt nghiệp|sau khi đi làm|dựng sạp|mở quán|khởi nghiệp",
         combined,
     ):
         return "vlog"
-    if scenes and all(s.get("type") == "action" for s in scenes) and not transcript: return "dance"
+    if scenes and all(s.get("type") == "action" for s in scenes) and not transcript:
+        return "dance"
     product_types = {"product_shot", "demo", "action"}
     if (scenes and all(s.get("type") in product_types for s in scenes)
             and len(transcript) > 50
@@ -971,110 +979,163 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
 
     # ── Beauty (legacy 2)
     if niche_id == 2:
-        if cf in ("review", "comparison"): return 3
-        if cf == "haul":                   return 4
-        if cf == "tutorial":               return 1
-        if cf == "grwm":                   return 2
-        if cf in ("before_after", "storytelling", "pov"): return 5
+        if cf in ("review", "comparison"):
+            return 3
+        if cf == "haul":
+            return 4
+        if cf == "tutorial":
+            return 1
+        if cf == "grwm":
+            return 2
+        if cf in ("before_after", "storytelling", "pov"):
+            return 5
         return 1
     # ── Fashion (legacy 3)
     if niche_id == 3:
-        if cf == "haul":                                   return 7
-        if cf in ("review", "comparison"):                 return 8
-        if cf in ("outfit_transition", "highlight", "dance"): return 9
-        if cf in ("vlog", "storytelling", "pov"):          return 10
+        if cf == "haul":
+            return 7
+        if cf in ("review", "comparison"):
+            return 8
+        if cf in ("outfit_transition", "highlight", "dance"):
+            return 9
+        if cf in ("vlog", "storytelling", "pov"):
+            return 10
         return 6
     # ── Food (legacy 4)
     if niche_id == 4:
-        if cf == "recipe":                          return 13
-        if cf == "mukbang":                         return 14
-        if cf in ("review", "comparison"):          return 11
-        if cf in ("vlog", "storytelling", "pov"):   return 12
+        if cf == "recipe":
+            return 13
+        if cf == "mukbang":
+            return 14
+        if cf in ("review", "comparison"):
+            return 11
+        if cf in ("vlog", "storytelling", "pov"):
+            return 12
         return 11
     # ── Business / Finance / Real estate
     if niche_id == 5:
-        if cf in ("haul", "review", "comparison"): return 49
-        if cf == "tutorial":                       return 48
-        if cf == "storytelling":                   return 47
+        if cf in ("haul", "review", "comparison"):
+            return 49
+        if cf == "tutorial":
+            return 48
+        if cf == "storytelling":
+            return 47
         return 48
-    if niche_id == 10:                             return 51
+    if niche_id == 10:
+        return 51
     if niche_id == 15:
-        if cf == "storytelling":                   return 47
-        if cf == "comparison":                     return 46
+        if cf == "storytelling":
+            return 47
+        if cf == "comparison":
+            return 46
         return 45
     # ── Family / Parenting (legacy 7)
     if niche_id == 7:
-        if cf == "comedy_skit":                    return 31
-        if cf in ("vlog", "storytelling", "pov"):  return 30
-        if cf in ("lesson", "tutorial"):           return 33
+        if cf == "comedy_skit":
+            return 31
+        if cf in ("vlog", "storytelling", "pov"):
+            return 30
+        if cf in ("lesson", "tutorial"):
+            return 33
         return 33
     # ── Education (legacy 11, 23)
     if niche_id in (11, 23):
-        if cf == "lesson":                         return 36
-        if cf in ("tutorial", "comparison"):       return 37
-        if cf == "storytelling":                   return 38
+        if cf == "lesson":
+            return 36
+        if cf in ("tutorial", "comparison"):
+            return 37
+        if cf == "storytelling":
+            return 38
         return 35
     # ── Tech (legacy 9)
     if niche_id == 9:
-        if cf in ("haul", "review", "comparison"): return 40
-        if cf == "tutorial":                       return 41
+        if cf in ("haul", "review", "comparison"):
+            return 40
+        if cf == "tutorial":
+            return 41
         return 40
     # ── Gaming (legacy 17)
     if niche_id == 17:
-        if cf == "gameplay":                       return 42
-        if cf in ("review", "comparison"):         return 43
+        if cf == "gameplay":
+            return 42
+        if cf in ("review", "comparison"):
+            return 43
         return 42
     # ── Comedy (legacy 13)
     if niche_id == 13:
-        if cf == "comedy_skit":                    return 24
-        if cf == "dance":                          return 29
-        if cf in ("storytelling", "pov"):          return 26
+        if cf == "comedy_skit":
+            return 24
+        if cf == "dance":
+            return 29
+        if cf in ("storytelling", "pov"):
+            return 26
         return 24
     # ── Music (legacy 22 retired, kept for backfill)
     if niche_id == 22:
-        if cf == "dance":                          return 29
+        if cf == "dance":
+            return 29
         return 28
     # ── Auto (legacy 14, 25)
     if niche_id in (14, 25):
-        if cf in ("review", "comparison"):         return 65
-        if cf == "tutorial":                       return 67
-        if cf in ("vlog", "storytelling"):         return 66
+        if cf in ("review", "comparison"):
+            return 65
+        if cf == "tutorial":
+            return 67
+        if cf in ("vlog", "storytelling"):
+            return 66
         return 65
     # ── Travel & Sports (legacy 16, 21)
     if niche_id == 16:
-        if cf == "lesson":                                  return 62
-        if cf in ("highlight", "outfit_transition"):        return 63
+        if cf == "lesson":
+            return 62
+        if cf in ("highlight", "outfit_transition"):
+            return 63
         return 60
     if niche_id == 21:
-        if cf == "highlight": return 64
-        if cf == "vlog":      return 63
+        if cf == "highlight":
+            return 64
+        if cf == "vlog":
+            return 63
         return 64
     # ── Gym / Fitness (legacy 8)
     if niche_id == 8:
-        if cf in ("vlog", "storytelling"):         return 59
+        if cf in ("vlog", "storytelling"):
+            return 59
         return 56
     # ── Wellness (legacy 26)
     if niche_id == 26:
-        if cf in ("vlog", "storytelling"):         return 55
-        if cf == "lesson":                         return 53
+        if cf in ("vlog", "storytelling"):
+            return 55
+        if cf == "lesson":
+            return 53
         return 52
     # ── Pets (legacy 19)
     if niche_id == 19:
-        if cf == "tutorial":                                   return 71
-        if cf == "lesson":                                     return 70
-        if cf in ("storytelling", "pov", "comedy_skit"):       return 72
+        if cf == "tutorial":
+            return 71
+        if cf == "lesson":
+            return 70
+        if cf in ("storytelling", "pov", "comedy_skit"):
+            return 72
         return 69
     # ── Home (legacy 20)
     if niche_id == 20:
-        if cf == "tutorial":                       return 74
-        if cf in ("haul", "review"):               return 73
+        if cf == "tutorial":
+            return 74
+        if cf in ("haul", "review"):
+            return 73
         return 73
     # ── Retired niches with no special format mapping
-    if niche_id == 1:  return 49   # Shopee review
-    if niche_id == 6:  return 23   # Chị đẹp → lifestyle_aesthetic
-    if niche_id == 12: return 50   # Livestream
-    if niche_id == 18: return 13   # Nấu ăn
-    if niche_id == 24: return 46   # Crypto
+    if niche_id == 1:
+        return 49   # Shopee review
+    if niche_id == 6:
+        return 23   # Chị đẹp → lifestyle_aesthetic
+    if niche_id == 12:
+        return 50   # Livestream
+    if niche_id == 18:
+        return 13   # Nấu ăn
+    if niche_id == 24:
+        return 46   # Crypto
     return None
 
 
@@ -1093,7 +1154,8 @@ def _classify_cta(cta: str | None) -> str | None:
     if not cta:
         return None
     c = cta.lower()
-    if re.search(r"lưu lại|lưu ngay|save|lưu về", c): return "save"
+    if re.search(r"lưu lại|lưu ngay|save|lưu về", c):
+        return "save"
     if re.search(
         r"theo dõi|follow|đăng ký|subscribe|"
         r"lên kênh|kênh yt|channel",
@@ -1112,7 +1174,8 @@ def _classify_cta(cta: str | None) -> str | None:
         c,
     ):
         return "shop_cart"
-    if re.search(r"link.*bio|bio.*link|link.*comment|link.*mô tả", c): return "link_bio"
+    if re.search(r"link.*bio|bio.*link|link.*comment|link.*mô tả", c):
+        return "link_bio"
     if re.search(
         r"còn tiếp|phần 2|part 2|tiếp tục|tập sau|"
         r"video sau|clip sau|kỳ sau|phần tiếp",
@@ -1135,13 +1198,19 @@ def _detect_commerce(analysis_json: dict[str, Any]) -> bool:
         for t in (analysis_json.get("text_overlays") or [])
     )
     combined = f"{transcript} {overlays}"
-    if re.search(r"\d+k\b|\d+đ\b|\d+\.\d+đ|giá.*\d|giảm.*\d+%", combined): return True
-    if re.search(r"shopee|tiktok shop|lazada|link.*bio|giỏ hàng|mã giảm|voucher|freeship|affiliate", combined): return True
-    if re.search(r"mua ngay|chốt đơn|đặt hàng|mua.*ở đâu|link.*mua|bán hàng|ra đơn", combined): return True
-    if re.search(r"flash sale|sale|giảm sốc|giảm giá|khuyến mãi|ưu đãi|hết.*là.*hết", combined): return True
-    if re.search(r"giá gốc|giá sale|rẻ hơn|đáng tiền|tiết kiệm", combined): return True
+    if re.search(r"\d+k\b|\d+đ\b|\d+\.\d+đ|giá.*\d|giảm.*\d+%", combined):
+        return True
+    if re.search(r"shopee|tiktok shop|lazada|link.*bio|giỏ hàng|mã giảm|voucher|freeship|affiliate", combined):
+        return True
+    if re.search(r"mua ngay|chốt đơn|đặt hàng|mua.*ở đâu|link.*mua|bán hàng|ra đơn", combined):
+        return True
+    if re.search(r"flash sale|sale|giảm sốc|giảm giá|khuyến mãi|ưu đãi|hết.*là.*hết", combined):
+        return True
+    if re.search(r"giá gốc|giá sale|rẻ hơn|đáng tiền|tiết kiệm", combined):
+        return True
     cta = (analysis_json.get("cta") or "").lower()
-    if cta and re.search(r"mua|chốt|giỏ hàng|shop|link", cta): return True
+    if cta and re.search(r"mua|chốt|giỏ hàng|shop|link", cta):
+        return True
     return False
 
 
@@ -1169,10 +1238,14 @@ def _detect_dialect(transcript: str) -> str | None:
 def _classify_creator_tier(followers: int | None) -> str | None:
     if not followers or followers < 0:
         return None
-    if followers < 1_000: return "nano"
-    if followers < 10_000: return "micro"
-    if followers < 100_000: return "mid"
-    if followers < 1_000_000: return "macro"
+    if followers < 1_000:
+        return "nano"
+    if followers < 10_000:
+        return "micro"
+    if followers < 100_000:
+        return "mid"
+    if followers < 1_000_000:
+        return "macro"
     return "mega"
 
 

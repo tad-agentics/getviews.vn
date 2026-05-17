@@ -179,7 +179,11 @@ def validate_diagnostic_narrative(
 
     # Gemini confirmation call — only runs when regex flags a candidate.
     try:
-        from getviews_pipeline.config import GEMINI_API_KEY, GEMINI_INTENT_MODEL, GEMINI_KNOWLEDGE_FALLBACKS
+        from getviews_pipeline.config import (
+            GEMINI_API_KEY,
+            GEMINI_INTENT_MODEL,
+            GEMINI_KNOWLEDGE_FALLBACKS,
+        )
 
         if not GEMINI_API_KEY:
             return {"is_valid": True}

@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from getviews_pipeline.session_store import (
     build_session_context_from_db,
     fresh_session_context,

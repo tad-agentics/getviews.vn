@@ -7,9 +7,7 @@ shaping, batch-summary counting.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from typing import Any
-
 
 # ── Fake Supabase ─────────────────────────────────────────────────────────
 
@@ -32,26 +30,26 @@ class _Query:
         self._path: list[str] = []
         self._calls_log = calls_log
 
-    def select(self, *_: Any, **__: Any) -> "_Query":
+    def select(self, *_: Any, **__: Any) -> _Query:
         return self
 
-    def eq(self, col: str, val: Any) -> "_Query":
+    def eq(self, col: str, val: Any) -> _Query:
         self._path.append(f"eq:{col}={val}")
         return self
 
-    def gte(self, col: str, val: Any) -> "_Query":
+    def gte(self, col: str, val: Any) -> _Query:
         # truncate timestamp to just the day span for predictable test keys
         self._path.append(f"gte:{col}")
         return self
 
-    def in_(self, col: str, vals: Any) -> "_Query":
+    def in_(self, col: str, vals: Any) -> _Query:
         self._path.append(f"in:{col}={','.join(map(str, vals))}")
         return self
 
-    def order(self, *_: Any, **__: Any) -> "_Query":
+    def order(self, *_: Any, **__: Any) -> _Query:
         return self
 
-    def limit(self, *_: Any, **__: Any) -> "_Query":
+    def limit(self, *_: Any, **__: Any) -> _Query:
         return self
 
     def execute(self) -> _Exec:
@@ -296,6 +294,7 @@ def test_batch_summary_fields_default_zero() -> None:
 def test_upsert_skips_errored_results() -> None:
     try:
         from datetime import date
+
         from getviews_pipeline.morning_ritual import RitualResult, upsert_ritual
     except ModuleNotFoundError:
         import pytest

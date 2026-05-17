@@ -138,6 +138,7 @@ class _FakeSupabase:
 @pytest.fixture
 def client_with_user() -> TestClient:
     from cloud_run_main import app  # type: ignore  # noqa: F401
+
     from getviews_pipeline.deps import require_user
 
     async def _fake_user() -> dict[str, Any]:

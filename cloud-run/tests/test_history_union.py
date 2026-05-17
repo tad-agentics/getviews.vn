@@ -21,9 +21,8 @@ Scope:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
-
 
 # ── Filter enum ────────────────────────────────────────────────────────────
 
@@ -75,7 +74,7 @@ def _mock_rows(now: datetime) -> list[dict[str, Any]]:
 def test_rows_order_by_updated_at_desc() -> None:
     """RPC spec: ``ORDER BY u.updated_at DESC``. Verify our mock fixture
     mirrors that contract — tests downstream of the RPC rely on the order."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = _mock_rows(now)
     ts = [datetime.fromisoformat(r["updated_at"]) for r in rows]
     assert ts == sorted(ts, reverse=True)
@@ -88,7 +87,7 @@ def test_cursor_filter_drops_rows_at_or_after_cursor() -> None:
     as ``p_cursor`` for the next page. Replicate the SQL filter here to
     verify the handoff contract stays tight.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = _mock_rows(now)
     cursor = rows[0]["updated_at"]  # The "tail of page 1" — strictly older.
     filtered = [
@@ -107,7 +106,7 @@ def test_cursor_filter_drops_rows_at_or_after_cursor() -> None:
 def test_chat_rows_carry_null_format_and_niche_id() -> None:
     """RPC spec: chat branch emits ``NULL::text`` for format + ``NULL::int`` for
     niche_id. HistoryRow must render without crashing on these nulls."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = _mock_rows(now)
     chat_rows = [r for r in rows if r["type"] == "chat"]
     assert len(chat_rows) == 1
@@ -118,7 +117,7 @@ def test_chat_rows_carry_null_format_and_niche_id() -> None:
 def test_answer_rows_carry_non_null_format() -> None:
     """Answer sessions always have a format (pattern / ideas / timing /
     generic). Downstream format sub-pill renders directly from this field."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = _mock_rows(now)
     answer_rows = [r for r in rows if r["type"] == "answer"]
     for r in answer_rows:
@@ -141,13 +140,13 @@ def _apply_filter(rows: list[dict[str, Any]], p_filter: str) -> list[dict[str, A
 
 
 def test_filter_all_returns_everything() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = _mock_rows(now)
     assert len(_apply_filter(rows, "all")) == 3
 
 
 def test_filter_answer_drops_chat_rows() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = _mock_rows(now)
     out = _apply_filter(rows, "answer")
     assert {r["id"] for r in out} == {"a1", "a2"}
@@ -155,7 +154,7 @@ def test_filter_answer_drops_chat_rows() -> None:
 
 
 def test_filter_chat_drops_answer_rows() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = _mock_rows(now)
     out = _apply_filter(rows, "chat")
     assert {r["id"] for r in out} == {"c1"}

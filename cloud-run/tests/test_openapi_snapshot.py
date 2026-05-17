@@ -10,8 +10,6 @@ is fast and does not require an actual HTTP server.
 
 from __future__ import annotations
 
-import importlib
-
 import pytest
 
 

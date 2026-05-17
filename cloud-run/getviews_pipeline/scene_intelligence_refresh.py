@@ -11,7 +11,7 @@ import logging
 import time
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -129,7 +129,7 @@ def aggregate_scene_intelligence(
         key = (int(e["niche_id"]), str(e["scene_type"]))
         key_events[key].append(e)
 
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
     rows_out: list[dict[str, Any]] = []
 
     for (nid, stype), evs in key_events.items():
@@ -258,7 +258,7 @@ def _fetch_all_events_sync(client: Any, cutoff_iso: str) -> list[dict[str, Any]]
 
 def refresh_scene_intelligence_sync(client: Any) -> dict[str, Any]:
     """Recompute all rows (service_role). Deletes per niche before insert."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(days=LOOKBACK_DAYS)).isoformat()
     events = _fetch_all_events_sync(client, cutoff)
     aggregated = aggregate_scene_intelligence(events)
 

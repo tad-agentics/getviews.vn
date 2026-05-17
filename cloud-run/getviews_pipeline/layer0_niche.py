@@ -14,7 +14,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -160,9 +160,9 @@ async def _fetch_top_and_baseline(
 
 async def run_niche_insights(client: Any | None = None) -> NicheInsightResult:
     """Module 0A entry point. Called from _run_weekly_analytics in corpus_ingest.py."""
-    from getviews_pipeline.supabase_client import get_service_client
     from getviews_pipeline.gemini import generate_niche_insight
     from getviews_pipeline.layer0_prompts import validate_niche_insight
+    from getviews_pipeline.supabase_client import get_service_client
 
     if client is None:
         client = get_service_client()
@@ -172,9 +172,9 @@ async def run_niche_insights(client: Any | None = None) -> NicheInsightResult:
 
     week_of = _week_start_monday(date.today())
     week_of_str = week_of.isoformat()
-    since_dt = datetime.now(timezone.utc) - timedelta(days=7)
+    since_dt = datetime.now(UTC) - timedelta(days=7)
     since_iso = since_dt.isoformat()
-    computed_at = datetime.now(timezone.utc).isoformat()
+    computed_at = datetime.now(UTC).isoformat()
 
     def _fetch_niches() -> list[dict]:
         return (

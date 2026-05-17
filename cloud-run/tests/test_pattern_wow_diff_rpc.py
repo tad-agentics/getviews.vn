@@ -37,7 +37,7 @@ def _fetch_with(rows: list[dict[str, object]], monkeypatch) -> list[dict[str, ob
         "getviews_pipeline.supabase_client.get_service_client",
         lambda: sb,
     )
-    return fetch_pattern_wow_diff_rows(p_niche_id := 4) if False else fetch_pattern_wow_diff_rows(4)
+    return fetch_pattern_wow_diff_rows(4)
 
 
 # ── Scenario: NEW ─────────────────────────────────────────────────────────

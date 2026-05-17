@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC
 from typing import Any
 
 from getviews_pipeline.report_types import (
@@ -439,7 +440,13 @@ def build_lifecycle_report(
     def _emit_fixture_tail(*, second_card_found: int = 0) -> None:
         if step_queue is None:
             return
-        from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+        from getviews_pipeline.step_events import (
+            emit,
+            step_done,
+            step_status,
+            step_tool_complete,
+            step_tool_start,
+        )
 
         thin_thumbs = [u for r in corpus[:5] if (u := r.get("thumbnail_url") or r.get("thumbnail") or "")]
         emit(step_queue, step_tool_complete(1, 1, second_card_found, thin_thumbs, tool="corpus"))
@@ -498,7 +505,13 @@ def build_lifecycle_report(
     from getviews_pipeline.report_lifecycle_gemini import fill_lifecycle_narrative
 
     if step_queue is not None:
-        from getviews_pipeline.step_events import INTENT_STEP_LABELS, emit, step_process, step_status, step_tool_start
+        from getviews_pipeline.step_events import (
+            INTENT_STEP_LABELS,
+            emit,
+            step_process,
+            step_status,
+            step_tool_start,
+        )
 
         emit(step_queue, step_status(2, "Đang tổng hợp insight lifecycle..."))
         emit(step_queue, step_tool_start("Gemini lifecycle", 2, 0, tool="synthesis"))
@@ -685,7 +698,7 @@ def _freshness_from_corpus(corpus: list[dict[str, Any]]) -> int:
     """Hours since the most recent indexed_at in the slice. Mirrors the
     same helper in ``report_timing`` — kept local so this module has no
     circular dependency on timing."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     best: datetime | None = None
     for row in corpus:
@@ -700,5 +713,5 @@ def _freshness_from_corpus(corpus: list[dict[str, Any]]) -> int:
             best = d
     if best is None:
         return 24
-    delta = datetime.now(timezone.utc) - best.astimezone(timezone.utc)
+    delta = datetime.now(UTC) - best.astimezone(UTC)
     return max(1, int(delta.total_seconds() // 3600))

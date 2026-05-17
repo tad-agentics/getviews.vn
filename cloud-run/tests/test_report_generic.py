@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from getviews_pipeline.report_generic import (
     build_fixture_generic_report,
     build_generic_report,
@@ -33,7 +31,6 @@ from getviews_pipeline.report_generic_compute import (
     pick_broad_evidence,
 )
 from getviews_pipeline.report_types import GenericPayload, validate_and_store_report
-
 
 # ── Fixture / envelope ─────────────────────────────────────────────────────
 

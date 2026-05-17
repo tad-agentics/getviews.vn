@@ -17,7 +17,6 @@ from unittest.mock import MagicMock, patch
 
 from getviews_pipeline.r2_janitor import _extract_video_id, run_r2_janitor
 
-
 # ── pure functions ───────────────────────────────────────────────────
 
 

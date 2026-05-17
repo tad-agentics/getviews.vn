@@ -26,7 +26,7 @@ follow-ups.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def _parse_ts(raw: Any) -> datetime | None:
     if not raw:
         return None
     try:
-        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(timezone.utc)
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(UTC)
     except Exception:
         return None
 
@@ -145,7 +145,7 @@ def compute_format_cells(
     Returns a list ordered by health_score DESC so the first cell is the
     "dẫn đầu" one the subject line quotes.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     window_start = now - timedelta(days=window_days)
     split_at = now - timedelta(days=max(window_days // 2, 7))
 
@@ -243,7 +243,7 @@ def load_lifecycle_inputs(
         label = str(row.get("name_vn") or row.get("name_en") or f"Niche {niche_id}")
 
         cutoff = (
-            datetime.now(timezone.utc) - timedelta(days=max(window_days, 14))
+            datetime.now(UTC) - timedelta(days=max(window_days, 14))
         ).isoformat()
         cres = (
             sb.table("video_corpus")

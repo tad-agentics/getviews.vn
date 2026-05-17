@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any, Literal
 
-import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import Field
 
 from getviews_pipeline.api_models import StrictBody
-
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.session_store import get_stream_chunks, put_stream_chunks
@@ -25,7 +24,7 @@ router = APIRouter()
 
 
 def _sse_line(payload: dict[str, Any]) -> bytes:
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode()
 
 
 class AnswerSessionCreateBody(StrictBody):

@@ -7,7 +7,7 @@ Gemini-bounded narrative is optional and lives in ``report_ideas_gemini.py``.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.report_types import (
@@ -321,7 +321,7 @@ def static_ideas_action_cards(
 
 def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500) -> list[dict[str, Any]]:
     try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         res = (
             sb.table("video_corpus")
             .select(

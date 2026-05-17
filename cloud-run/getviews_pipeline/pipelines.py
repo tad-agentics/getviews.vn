@@ -63,6 +63,10 @@ from getviews_pipeline.pattern_fingerprint import (
 )
 from getviews_pipeline.persona import build_persona_block, extract_persona_slots
 from getviews_pipeline.runtime import get_analysis_semaphore, run_sync
+from getviews_pipeline.services.extraction import (
+    apply_rule_based_video_errors,
+    extract_video_errors,
+)
 from getviews_pipeline.step_events import (
     emit,
     emit_pipeline_error,
@@ -77,7 +81,6 @@ from getviews_pipeline.step_events import (
     step_start,
 )
 from getviews_pipeline.supabase_client import get_service_client
-from getviews_pipeline.services.extraction import apply_rule_based_video_errors, extract_video_errors
 
 logger = logging.getLogger(__name__)
 
@@ -2316,8 +2319,9 @@ async def run_video_diagnosis(
         # without brittle sentence-count heuristics on van_de_chinh.
         out["_schema_version"] = "v5"
 
-    from getviews_pipeline.observability import log_diagnosis_event
     import time as _time_end
+
+    from getviews_pipeline.observability import log_diagnosis_event
     log_diagnosis_event(
         request_id=session.get("session_id"),
         video_id=str((user_res.get("metadata") or {}).get("video_id") or ""),

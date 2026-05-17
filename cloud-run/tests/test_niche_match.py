@@ -15,7 +15,6 @@ from typing import Any
 
 from getviews_pipeline import niche_match
 
-
 # ---------------------------------------------------------------------------
 # Fake Supabase client — returns a canned niche_taxonomy table.
 # ---------------------------------------------------------------------------
@@ -38,7 +37,7 @@ class _FakeTable:
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self._rows = rows
 
-    def select(self, *_a: Any, **_k: Any) -> "_FakeTable":
+    def select(self, *_a: Any, **_k: Any) -> _FakeTable:
         return self
 
     def execute(self) -> _FakeResult:

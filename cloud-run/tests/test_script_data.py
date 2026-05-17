@@ -7,7 +7,10 @@ from unittest.mock import MagicMock
 from getviews_pipeline.script_data import (
     _fmt_delta_pct,
     _pattern_label,
+    _resolve_hook_type,
+    _score_idea_reference,
     fetch_hook_patterns_for_niche,
+    fetch_idea_references_for_niche,
     latest_hook_effectiveness_rows,
 )
 
@@ -147,12 +150,6 @@ def test_fetch_hook_patterns_returns_empty_when_both_sources_empty() -> None:
 
 
 # ── /script/idea-references — IdeaRefStrip data source ─────────────────
-
-from getviews_pipeline.script_data import (
-    _resolve_hook_type,
-    _score_idea_reference,
-    fetch_idea_references_for_niche,
-)
 
 
 def test_resolve_hook_type_accepts_raw_enum() -> None:

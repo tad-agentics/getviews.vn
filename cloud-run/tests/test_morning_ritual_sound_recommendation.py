@@ -19,7 +19,6 @@ from getviews_pipeline.morning_ritual import (
     _urgency_band_for,
 )
 
-
 # ── _urgency_band_for ────────────────────────────────────────────────────
 
 

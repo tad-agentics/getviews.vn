@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 _FAKE_AWEME = {
     "aweme_id": "vid_hi17",
     "image_post_info": {

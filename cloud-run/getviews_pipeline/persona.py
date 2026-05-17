@@ -13,7 +13,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-
 # Age range in Vietnamese: "18-25 tuổi", "18–25 tuổi", "từ 18 đến 25"
 _AGE_RANGE_RE = re.compile(
     r"\b(?P<a>\d{1,2})\s*[-–to/\s]+\s*(?P<b>\d{1,2})\s*tuổi",

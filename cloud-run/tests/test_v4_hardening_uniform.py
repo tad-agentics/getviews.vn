@@ -14,8 +14,6 @@ guards using fixture data.
 from __future__ import annotations
 
 from typing import Any
-import pytest
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -77,8 +75,8 @@ class TestExtractionLayerHardening:
         assert 9999.0 not in analysis.get("key_timestamps", [])
 
     def test_validate_transcript_replaces_non_vietnamese(self) -> None:
-        from getviews_pipeline.analysis_guards import validate_transcript
         from getviews_pipeline.analysis_core import TRANSCRIPT_UNAVAILABLE_MARKER
+        from getviews_pipeline.analysis_guards import validate_transcript
 
         verdict = validate_transcript("hello world this is entirely english content here")
         if not verdict.ok:
@@ -86,7 +84,7 @@ class TestExtractionLayerHardening:
             assert TRANSCRIPT_UNAVAILABLE_MARKER  # non-empty string
 
     def test_score_entry_cost_returns_valid_tier(self) -> None:
-        from getviews_pipeline.entry_cost import score_entry_cost, EntryCost
+        from getviews_pipeline.entry_cost import score_entry_cost
 
         tier, reasons = score_entry_cost(MINIMAL_ANALYSIS)
         assert tier in ("easy", "medium", "hard"), f"Unexpected tier: {tier}"

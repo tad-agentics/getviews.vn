@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.settings import settings as _settings
@@ -92,7 +92,7 @@ async def run_cross_creator_detection(client: Any | None = None) -> CrossCreator
             result.errors.append(f"aggregate: {exc}")
             return result
 
-        computed_at = datetime.now(timezone.utc).isoformat()
+        computed_at = datetime.now(UTC).isoformat()
         payloads: list[dict[str, Any]] = []
         niche_ids: set[int] = set()
 

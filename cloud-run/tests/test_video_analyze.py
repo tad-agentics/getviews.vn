@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -210,13 +210,13 @@ def test_is_flop_mode_niche_less_zero_views_no_signal() -> None:
 
 
 def test_diagnostics_fresh_within_ttl() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = {"computed_at": now.isoformat()}
     assert _diagnostics_fresh(row) is True
 
 
 def test_diagnostics_stale_after_ttl() -> None:
-    old = datetime.now(timezone.utc) - timedelta(hours=2)
+    old = datetime.now(UTC) - timedelta(hours=2)
     row = {"computed_at": old.isoformat()}
     assert _diagnostics_fresh(row) is False
 
@@ -329,7 +329,6 @@ def _make_analyze_mocks(
     niche_rows: list | None,
 ) -> tuple[MagicMock, MagicMock]:
     """User-scoped client + service client for ``run_video_analyze_pipeline``."""
-    now_iso = datetime.now(timezone.utc).isoformat()
     diag_list = [diag_row] if diag_row is not None else []
 
     def user_table(name: str) -> MagicMock:
@@ -402,7 +401,7 @@ def test_merge_sidecars_swallows_fetch_errors() -> None:
 
 
 def test_run_pipeline_cache_hit_skips_gemini() -> None:
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
     diag_row = {
         "computed_at": now_iso,
         "analysis_headline": None,
@@ -473,7 +472,7 @@ def test_run_pipeline_cache_hit_skips_gemini() -> None:
 
 
 def test_force_refresh_skips_cache_hit() -> None:
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
     diag_row = {
         "computed_at": now_iso,
         "analysis_headline": "stale cache headline",
@@ -546,7 +545,7 @@ def test_force_refresh_skips_cache_hit() -> None:
 
 def test_run_pipeline_respects_mode_override() -> None:
     """Heuristic would choose win; ``mode='flop'`` must run flop Gemini, not win."""
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
     video_row = {
         "video_id": "vid-mode-override",
         "creator_handle": "creator",

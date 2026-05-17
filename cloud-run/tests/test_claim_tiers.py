@@ -10,7 +10,6 @@ from getviews_pipeline.claim_tiers import (
     should_cite_pattern_spread,
 )
 
-
 # ── flags_for_count ────────────────────────────────────────────────────────
 
 

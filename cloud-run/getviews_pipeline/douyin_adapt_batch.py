@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.douyin_synth import synth_douyin_adapt
@@ -84,7 +84,7 @@ def _fetch_stale_corpus_rows(
     join). Only fetches what's needed to keep the payload small —
     ``analysis_json`` is intentionally NOT pulled.
     """
-    cutoff = (datetime.now(timezone.utc) - SYNTH_STALE_AFTER).isoformat()
+    cutoff = (datetime.now(UTC) - SYNTH_STALE_AFTER).isoformat()
     try:
         res = (
             client.table("douyin_video_corpus")
@@ -163,7 +163,7 @@ def _upsert_synth_result(
             # Overwriting the translator's earlier value is intentional.
             "sub_vi": synth.sub_vi,
             "translator_notes": [n.model_dump() for n in synth.translator_notes],
-            "synth_computed_at": datetime.now(timezone.utc).isoformat(),
+            "synth_computed_at": datetime.now(UTC).isoformat(),
         }).eq("video_id", video_id).execute()
         return True
     except Exception as exc:
@@ -237,7 +237,7 @@ def run_douyin_adapt_batch(
             # day — the corpus row literally has nothing to grade.
             try:
                 sb.table("douyin_video_corpus").update({
-                    "synth_computed_at": datetime.now(timezone.utc).isoformat(),
+                    "synth_computed_at": datetime.now(UTC).isoformat(),
                 }).eq("video_id", vid).execute()
             except Exception:
                 pass

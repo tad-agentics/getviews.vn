@@ -20,9 +20,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Annotated
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)

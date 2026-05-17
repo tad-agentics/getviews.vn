@@ -25,7 +25,6 @@ from getviews_pipeline.pattern_deck_synth import (
     upsert_deck,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
 

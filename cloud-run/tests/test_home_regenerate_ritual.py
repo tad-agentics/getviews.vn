@@ -39,14 +39,14 @@ class _Query:
         self._store = store
         self._eq_filter: tuple[str, Any] | None = None
 
-    def select(self, *_: Any, **__: Any) -> "_Query":
+    def select(self, *_: Any, **__: Any) -> _Query:
         return self
 
-    def eq(self, col: str, val: Any) -> "_Query":
+    def eq(self, col: str, val: Any) -> _Query:
         self._eq_filter = (col, val)
         return self
 
-    def single(self) -> "_Query":
+    def single(self) -> _Query:
         return self
 
     def execute(self) -> _Exec:
@@ -76,8 +76,8 @@ def fresh_inflight() -> Any:
 
 @pytest.fixture
 def client_with_user() -> TestClient:
-    from main import app  # type: ignore[import-not-found]
     from getviews_pipeline.deps import require_user
+    from main import app  # type: ignore[import-not-found]
 
     async def _fake_user() -> dict[str, Any]:
         return {

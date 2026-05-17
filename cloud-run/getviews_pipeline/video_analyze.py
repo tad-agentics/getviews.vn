@@ -78,24 +78,13 @@ def _merge_sidecars_into_response(
 
 # Moved to services/extraction.py — re-exported here for backward compatibility.
 from getviews_pipeline.services.extraction import (  # noqa: E402
-    PRESENTER_NOT_REQUIRED_FORMATS,
-    VideoErrorItemLLM,
-    VideoErrorsExtractionLLM,
-    _FORBIDDEN_PHRASES_VI,
-    _HOOK_LANG_DEDUPE_WINDOW_END_SEC,
-    _SILENT_FORMAT_EXCEPTIONS_VIDEO,
-    _collapse_hook_window_high_errors,
-    _dedupe_hook_window_high_errors,
-    _dedupe_lang_market_hook_errors,
-    _is_hook_related_error,
-    _overlaps_hook_lang_dedupe_window,
-    _product_led_silent_visual,
-    _summarise_niche_row,
-    _summarise_retention_curve,
+    _FORBIDDEN_PHRASES_VI,  # noqa: F401 — public re-export for tests
+    _dedupe_lang_market_hook_errors,  # noqa: F401 — public re-export for tests / callers
+    _summarise_niche_row,  # noqa: F401 — public re-export for tests
+    _summarise_retention_curve,  # noqa: F401 — public re-export for tests
     apply_rule_based_video_errors,
     extract_video_errors,
 )
-
 
 # ── Mode + KPI helpers ─────────────────────────────────────────────────────
 
@@ -898,6 +887,7 @@ def finalize_video_narrative_layer(
         enrich_format_cards_from_corpus,
         refine_performance_tier,
     )
+
     # Phase 5.5 — use the cached wrapper; same API as pipelines version.
     from getviews_pipeline.services.channel import fetch_channel_context_sync
     from getviews_pipeline.step_events import emit
@@ -1156,8 +1146,8 @@ def finalize_video_narrative_layer(
     on_demand_url = out.pop("__cache_on_demand_url", None)
     on_demand_vid = out.pop("__cache_on_demand_vid", None)
     if on_demand_url and on_demand_vid:
-        from getviews_pipeline.supabase_client import get_service_client
         from getviews_pipeline.observability import log_cache_event
+        from getviews_pipeline.supabase_client import get_service_client
 
         service_client = get_service_client()
         cacheable = {k: v for k, v in out.items() if not k.startswith("__")}

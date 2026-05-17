@@ -12,7 +12,7 @@ import asyncio
 import logging
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.report_diagnostic import build_diagnostic_report
@@ -327,8 +327,8 @@ def clean_expired_idempotency_rows(sb: Any | None = None) -> int:
     if sb is None:
         sb = get_service_client()
     try:
-        from datetime import datetime, timedelta, timezone
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        from datetime import datetime, timedelta
+        cutoff = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
         res = (
             sb.table("answer_session_idempotency")
             .delete()
@@ -640,7 +640,7 @@ def append_turn(
     # AQ-9 — After primary turn: extract top hook names and evidence video IDs
     # from the payload and write turn_context to the session row so follow-up
     # builder dispatch can surface them without an extra DB query.
-    session_update: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    session_update: dict = {"updated_at": datetime.now(UTC).isoformat()}
     if kind == "primary" and isinstance(payload_dict, dict):
         try:
             top_hook_types = [
@@ -695,7 +695,7 @@ def list_sessions(
     if not include_archived:
         q = q.is_("archived_at", "null")
     if scope == "30d":
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=30)).isoformat()
         q = q.gte("updated_at", cutoff)
     if cursor:
         q = q.lt("updated_at", cursor)

@@ -1,5 +1,6 @@
 """Phase 5.1.1 — unit tests for normalize_tiktok_url."""
 import pytest
+
 from getviews_pipeline.video_analyze import normalize_tiktok_url
 
 

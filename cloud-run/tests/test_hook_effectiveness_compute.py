@@ -11,7 +11,7 @@ Ideas reports.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -245,7 +245,7 @@ def _mock_client_with_rows(
 def test_run_end_to_end_upserts_buckets() -> None:
     """Happy path: enough rows in current window → upsert fires with
     the right shape + on_conflict key."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current = [_video() for _ in range(3)]
     prior = [_video(views=800) for _ in range(3)]
     # Tag with indexed_at so the date filter doesn't blow up (the mock
@@ -280,7 +280,7 @@ def test_run_with_zero_current_buckets_is_noop() -> None:
 
 def test_run_rising_trend_when_current_higher() -> None:
     """End-to-end: current avg_views 2000, prior 1000 → rising."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current = [_video(views=2000) for _ in range(3)]
     prior = [_video(views=1000) for _ in range(3)]
     for r in current:

@@ -16,9 +16,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+from datetime import UTC
 from typing import Any
-
-from getviews_pipeline.settings import settings as _settings
 
 from getviews_pipeline.claim_tiers import (
     CLAIM_TIERS,
@@ -27,6 +26,7 @@ from getviews_pipeline.claim_tiers import (
 )
 from getviews_pipeline.formatters import citation_vi, timeframe_vi
 from getviews_pipeline.postgrest_time import indexed_at_cutoff_iso
+from getviews_pipeline.settings import settings as _settings
 
 logger = logging.getLogger(__name__)
 
@@ -675,7 +675,7 @@ def _build_reference_awemes_from_rows(
 ) -> list[dict[str, Any]]:
     """Map ``video_corpus`` PostgREST rows → aweme-shaped dicts for ref selection."""
     import math
-    from datetime import datetime, timezone as _tz
+    from datetime import datetime
 
     awemes: list[dict[str, Any]] = []
     for row in rows:
@@ -700,7 +700,7 @@ def _build_reference_awemes_from_rows(
             indexed_dt = datetime.fromisoformat(indexed_at_str.replace("Z", "+00:00"))
             days_ago = max(
                 0,
-                math.floor((datetime.now(_tz.utc) - indexed_dt).total_seconds() / 86400),
+                math.floor((datetime.now(UTC) - indexed_dt).total_seconds() / 86400),
             )
             create_time = int(indexed_dt.timestamp())
         except Exception:

@@ -6,7 +6,7 @@ guards shipped to close the video-frame-analysis audit P0/P1 findings.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from getviews_pipeline.analysis_guards import (
     apply_timestamp_guards,
@@ -18,7 +18,6 @@ from getviews_pipeline.analysis_guards import (
     strip_out_of_range_timestamps,
     validate_transcript,
 )
-
 
 # ── validate_transcript ────────────────────────────────────────────────────
 
@@ -195,17 +194,17 @@ def _iso(dt: datetime) -> str:
 
 
 def test_fresh_recent() -> None:
-    recent = datetime.now(tz=timezone.utc) - timedelta(days=3)
+    recent = datetime.now(tz=UTC) - timedelta(days=3)
     assert is_cached_analysis_fresh(_iso(recent)) is True
 
 
 def test_stale_past_ttl() -> None:
-    stale = datetime.now(tz=timezone.utc) - timedelta(days=30)
+    stale = datetime.now(tz=UTC) - timedelta(days=30)
     assert is_cached_analysis_fresh(_iso(stale)) is False
 
 
 def test_custom_ttl() -> None:
-    age = datetime.now(tz=timezone.utc) - timedelta(days=10)
+    age = datetime.now(tz=UTC) - timedelta(days=10)
     assert is_cached_analysis_fresh(_iso(age), ttl_days=7) is False
     assert is_cached_analysis_fresh(_iso(age), ttl_days=30) is True
 
@@ -222,7 +221,7 @@ def test_none_is_not_fresh() -> None:
 
 def test_accepts_datetime_directly() -> None:
     assert is_cached_analysis_fresh(
-        datetime.now(tz=timezone.utc) - timedelta(hours=1)
+        datetime.now(tz=UTC) - timedelta(hours=1)
     ) is True
 
 

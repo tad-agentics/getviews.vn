@@ -27,7 +27,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import OrderedDict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -75,8 +75,8 @@ def _is_fresh(fetched_at: str | None) -> bool:
     except ValueError:
         return False
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return datetime.now(tz=timezone.utc) - dt <= timedelta(days=CACHE_TTL_DAYS)
+        dt = dt.replace(tzinfo=UTC)
+    return datetime.now(tz=UTC) - dt <= timedelta(days=CACHE_TTL_DAYS)
 
 
 def _read_cached_sync(client: Any, video_id: str) -> tuple[dict[str, Any] | None, bool]:
@@ -108,7 +108,7 @@ def _write_cached_sync(video_id: str, radar: dict[str, Any]) -> None:
     try:
         from getviews_pipeline.supabase_client import get_service_client
 
-        now_iso = datetime.now(tz=timezone.utc).isoformat()
+        now_iso = datetime.now(tz=UTC).isoformat()
         get_service_client().table("video_corpus").update(
             {
                 "comment_radar": radar,

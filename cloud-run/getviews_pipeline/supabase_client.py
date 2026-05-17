@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from supabase import ClientOptions, Client, create_client
+from supabase import Client, ClientOptions, create_client
 
 
 def _require(name: str) -> str:

@@ -6,7 +6,7 @@ Imported by layer0_niche.py and layer0_sound.py.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -17,13 +17,13 @@ from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
 # ---------------------------------------------------------------------------
 
 
-class Confidence(str, Enum):
+class Confidence(StrEnum):
     CAUSAL = "CAUSAL"
     LIKELY_CAUSAL = "LIKELY_CAUSAL"
     CORRELATIONAL = "CORRELATIONAL"
 
 
-class StalenessRisk(str, Enum):
+class StalenessRisk(StrEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"

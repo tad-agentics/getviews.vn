@@ -13,10 +13,8 @@ Coverage:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from getviews_pipeline.report_timing import (
     build_fatigued_timing_report,
@@ -33,7 +31,6 @@ from getviews_pipeline.report_timing_compute import (
     static_timing_action_cards,
 )
 from getviews_pipeline.report_types import TimingPayload, validate_and_store_report
-
 
 # ── Fixture / thin / fatigued envelope validation ──────────────────────────
 
@@ -111,7 +108,7 @@ def test_build_timing_report_sets_contrarian_when_variance_sparse(
     mock_var: MagicMock,
     _streak: MagicMock,
 ) -> None:
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)
     rows = [
         {"video_id": f"s{i}", "views": 10_000, "posted_at": base.isoformat()}
         for i in range(100)
@@ -137,7 +134,7 @@ def test_build_timing_report_full_corpus_returns_strong_variance(
     mock_load: MagicMock, mock_streak: MagicMock
 ) -> None:
     # Synthesise 100 rows concentrated on Saturday 18–20 (day_idx=5, hour_idx=4).
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=timezone.utc)  # Saturday 19:00 UTC
+    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)  # Saturday 19:00 UTC
     rows: list[dict[str, object]] = []
     # Strong cell: 60 rows, 20000 views each.
     for i in range(60):
@@ -171,7 +168,7 @@ def test_build_timing_report_full_corpus_returns_strong_variance(
 def test_build_timing_report_populates_fatigue_when_streak_geq_4(
     mock_load: MagicMock, _streak: MagicMock
 ) -> None:
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)
     rows: list[dict[str, object]] = []
     for i in range(100):
         off = timedelta(minutes=i * 7)
@@ -205,7 +202,7 @@ def test_bucket_for_hour_wraps_3_to_6_into_sleep_slot() -> None:
 
 
 def test_build_heatmap_grid_normalises_to_0_10() -> None:
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)
     rows = [
         {"views": 10_000, "posted_at": base.isoformat()},
         {"views": 10_000, "posted_at": base.isoformat()},

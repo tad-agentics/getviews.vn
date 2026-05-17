@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class VideoDangHocResult:
 
 
 def _now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _fetch_bung_no_sync(client: Any) -> list[dict[str, Any]]:
@@ -50,7 +50,7 @@ def _velocity_for_row(row: dict[str, Any], now: datetime) -> float:
     else:
         indexed = indexed_raw
     if indexed.tzinfo is None:
-        indexed = indexed.replace(tzinfo=timezone.utc)
+        indexed = indexed.replace(tzinfo=UTC)
     hours = max((now - indexed).total_seconds() / 3600.0, 1.0)
     return views / hours
 

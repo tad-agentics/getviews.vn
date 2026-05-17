@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from getviews_pipeline import ensemble
-from getviews_pipeline.analysis_core import analyze_aweme, analyze_aweme_from_path
+from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.douyin_metadata import build_douyin_corpus_row
 from getviews_pipeline.douyin_translator import translate_douyin_caption
 from getviews_pipeline.r2 import (

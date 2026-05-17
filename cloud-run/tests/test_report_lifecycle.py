@@ -15,8 +15,6 @@ import pytest
 
 from getviews_pipeline.report_lifecycle import (
     ANSWER_FIXTURE_LIFECYCLE_FORMAT,
-    ANSWER_FIXTURE_LIFECYCLE_HOOK_FATIGUE,
-    ANSWER_FIXTURE_LIFECYCLE_SUBNICHE,
     build_fixture_lifecycle_report,
     build_lifecycle_report,
 )
@@ -28,7 +26,6 @@ from getviews_pipeline.report_types import (
     ReportV1,
     SourceRow,
 )
-
 
 # ── Fixtures validate in all three modes ────────────────────────────────────
 

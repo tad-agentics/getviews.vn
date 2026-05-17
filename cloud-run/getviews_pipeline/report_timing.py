@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from getviews_pipeline.report_types import (
@@ -264,7 +264,13 @@ def build_timing_report(
 
     if niche_id <= 0 or sample_n < 80:
         if step_queue is not None:
-            from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+            from getviews_pipeline.step_events import (
+                emit,
+                step_done,
+                step_status,
+                step_tool_complete,
+                step_tool_start,
+            )
 
             emit(step_queue, step_status(2, "Đang tính khung giờ vàng..."))
             emit(step_queue, step_tool_start("Tổng hợp heatmap", 2, 0, tool="corpus"))
@@ -529,5 +535,5 @@ def _freshness_from_corpus(corpus: list[dict[str, Any]]) -> int:
             best = d
     if best is None:
         return 24
-    delta = datetime.now(timezone.utc) - best.astimezone(timezone.utc)
+    delta = datetime.now(UTC) - best.astimezone(UTC)
     return max(1, int(delta.total_seconds() // 3600))

@@ -28,7 +28,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def _compute_creator_velocity_sync(client: Any) -> list[dict[str, Any]]:
     180-day window. This prevents unbounded full-table scans as the corpus grows
     and produces more accurate baselines by excluding stale historical outliers.
     """
-    since = (datetime.now(timezone.utc) - timedelta(days=_VELOCITY_WINDOW_DAYS)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=_VELOCITY_WINDOW_DAYS)).isoformat()
     rows = (
         client.table("video_corpus")
         .select("creator_handle, niche_id, views")
@@ -121,7 +121,7 @@ def _upsert_creator_velocity_sync(client: Any, velocities: list[dict[str, Any]])
     if not velocities:
         return 0
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     rows = [
         {
             "creator_handle": v["creator_handle"],
@@ -181,7 +181,7 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
         logger.info("[analytics] No creator velocity data — skipping breakout computation")
         return 0
 
-    since = (datetime.now(timezone.utc) - timedelta(days=_VELOCITY_WINDOW_DAYS)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=_VELOCITY_WINDOW_DAYS)).isoformat()
 
     # Fetch corpus videos for creators we have velocity for (with niche_id for correct lookup)
     handles = list({handle for handle, _ in velocity_map})
@@ -231,7 +231,7 @@ def _parse_ts(raw: Any) -> datetime | None:
     if raw is None:
         return None
     if isinstance(raw, datetime):
-        return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+        return raw if raw.tzinfo else raw.replace(tzinfo=UTC)
     try:
         s = str(raw).strip()
         if not s:
@@ -239,7 +239,7 @@ def _parse_ts(raw: Any) -> datetime | None:
         if s.endswith("Z"):
             s = s[:-1] + "+00:00"
         dt = datetime.fromisoformat(s)
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
     except Exception:
         return None
 
@@ -256,7 +256,7 @@ def _compute_view_velocity_sync(client: Any) -> list[dict[str, Any]]:
     recent window. Requires ``>= _VIEW_VELOCITY_MIN_VIDEOS_PER_WINDOW``
     videos in each window; others are skipped (column stays NULL).
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     t_recent_start = now - timedelta(days=_VIEW_VELOCITY_WINDOW_DAYS)
     t_prior_start = now - timedelta(days=2 * _VIEW_VELOCITY_WINDOW_DAYS)
 
@@ -318,7 +318,7 @@ def _update_view_velocity_sync(client: Any, rows: list[dict[str, Any]]) -> int:
     """
     if not rows:
         return 0
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
     updated = 0
     for r in rows:
         try:

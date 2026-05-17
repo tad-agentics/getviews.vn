@@ -28,7 +28,9 @@ def _load_normalised(name: str) -> list[dict[str, Any]]:
 
 def _build_context(trajectory: str, videos: list[dict[str, Any]] | None = None) -> str:
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, compute_inflection_point, compute_recent_window_stats,
+        build_channel_pattern,
+        compute_inflection_point,
+        compute_recent_window_stats,
     )
     from getviews_pipeline.channel_diagnose_prompts import build_channel_diagnosis_context
 
@@ -129,7 +131,9 @@ def test_context_worst_performers_omitted_for_new_account():
 def test_context_worst_performers_present_for_stagnant():
     videos = _load_normalised("stagnant")
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, compute_inflection_point, compute_recent_window_stats,
+        build_channel_pattern,
+        compute_inflection_point,
+        compute_recent_window_stats,
         select_worst_performers,
     )
     from getviews_pipeline.channel_diagnose_prompts import build_channel_diagnosis_context
@@ -164,7 +168,9 @@ def test_context_niche_benchmark_omitted_when_thin():
 def test_context_niche_benchmark_included_when_enough_peers():
     videos = _load_normalised("stagnant")
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, compute_inflection_point, compute_recent_window_stats,
+        build_channel_pattern,
+        compute_inflection_point,
+        compute_recent_window_stats,
     )
     from getviews_pipeline.channel_diagnose_prompts import build_channel_diagnosis_context
 

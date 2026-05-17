@@ -16,7 +16,7 @@ contract ("follow-ups don't collide") still holds.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -30,7 +30,7 @@ def _corpus_row(
     views: int,
     days_ago: int,
 ) -> dict[str, Any]:
-    ts = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    ts = datetime.now(UTC) - timedelta(days=days_ago)
     return {
         "video_id": f"v{views}-{days_ago}-{content_format}",
         "views": views,

@@ -516,6 +516,7 @@ def test_voline_pydantic_validates_required_fields() -> None:
     """``VoLine.t`` and ``VoLine.text`` are required; ``cue`` defaults None."""
     import pytest
     from pydantic import ValidationError
+
     from getviews_pipeline.script_generate import VoLine
 
     line = VoLine(t="0:14", text="Hello *bold* world")

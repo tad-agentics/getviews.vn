@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC
 from typing import Any
 
 from getviews_pipeline.report_types import (
@@ -264,7 +265,13 @@ def build_ideas_report(
 
     if niche_id <= 0 or sample_n < 60 or len(ranked) < 3:
         if step_queue is not None:
-            from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+            from getviews_pipeline.step_events import (
+                emit,
+                step_done,
+                step_status,
+                step_tool_complete,
+                step_tool_start,
+            )
 
             emit(step_queue, step_status(2, "Đang tạo ý tưởng dựa trên corpus..."))
             emit(step_queue, step_tool_start("Gemini tổng hợp ý tưởng", 2, 0, tool="synthesis"))
@@ -327,7 +334,13 @@ def build_ideas_report(
         live_context = format_live_awemes_for_prompt(live_awemes[:20])
 
     if step_queue is not None:
-        from getviews_pipeline.step_events import INTENT_STEP_LABELS, emit, step_process, step_status, step_tool_start
+        from getviews_pipeline.step_events import (
+            INTENT_STEP_LABELS,
+            emit,
+            step_process,
+            step_status,
+            step_tool_start,
+        )
 
         emit(step_queue, step_status(3, "Đang tạo ý tưởng dựa trên corpus..."))
         emit(step_queue, step_tool_start("Gemini tổng hợp ý tưởng", 3, 0, tool="synthesis"))
@@ -390,7 +403,7 @@ def build_ideas_report(
 
 
 def _freshness_from_corpus(corpus: list[dict[str, Any]]) -> int:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     best: datetime | None = None
     for row in corpus:
@@ -405,5 +418,5 @@ def _freshness_from_corpus(corpus: list[dict[str, Any]]) -> int:
             best = d
     if best is None:
         return 24
-    delta = datetime.now(timezone.utc) - best.astimezone(timezone.utc)
+    delta = datetime.now(UTC) - best.astimezone(UTC)
     return max(1, int(delta.total_seconds() // 3600))

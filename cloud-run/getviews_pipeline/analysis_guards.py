@@ -26,7 +26,7 @@ import logging
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -373,8 +373,8 @@ def is_cached_analysis_fresh(
             logger.warning("[analysis_guards] unparseable indexed_at=%r — treating as fresh", indexed_at)
             return True
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    current = now or datetime.now(tz=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    current = now or datetime.now(tz=UTC)
     age = current - dt
     return age <= timedelta(days=ttl_days)
 

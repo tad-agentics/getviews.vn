@@ -25,7 +25,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -136,7 +136,7 @@ def _grade_niche_sync(
         indexed_at_str = row.get("indexed_at", "")
         try:
             indexed_at = datetime.fromisoformat(indexed_at_str.replace("Z", "+00:00"))
-            days_ago = (datetime.now(timezone.utc) - indexed_at).days
+            days_ago = (datetime.now(UTC) - indexed_at).days
         except Exception:
             days_ago = 14
 
@@ -172,7 +172,7 @@ def _grade_niche_sync(
     # 3. Build grade rows
     grade_rows = []
     week_str = week_start.isoformat()
-    now_str = datetime.now(timezone.utc).isoformat()
+    now_str = datetime.now(UTC).isoformat()
 
     for hook_type, stats in hook_stats.items():
         creator_count = len(stats["creators"])

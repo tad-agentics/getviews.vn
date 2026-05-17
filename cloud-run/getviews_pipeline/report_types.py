@@ -429,7 +429,7 @@ class DiagnosticPayload(BaseModel):
     niche_execution_tip: str | None = Field(default=None, max_length=240)
 
     @model_validator(mode="after")
-    def _no_probably_fine_with_fix(self) -> "DiagnosticPayload":
+    def _no_probably_fine_with_fix(self) -> DiagnosticPayload:
         for c in self.categories:
             if c.verdict == "probably_fine" and c.fix_preview:
                 raise ValueError(

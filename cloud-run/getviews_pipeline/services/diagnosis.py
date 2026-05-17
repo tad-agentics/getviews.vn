@@ -18,13 +18,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from getviews_pipeline.video_analyze import (  # noqa: F401
     finalize_video_narrative_layer,
     run_video_analyze_on_demand,
     run_video_analyze_pipeline,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "run_video_analyze_pipeline",
@@ -34,7 +34,7 @@ __all__ = [
 ]
 
 
-def run_video_diagnosis_core(inp: "DiagnosisInput") -> "DiagnosisResult":  # noqa: F821
+def run_video_diagnosis_core(inp: DiagnosisInput) -> DiagnosisResult:  # noqa: F821
     """Shared diagnosis core — from ExtractionResult to DiagnosisResult.
 
     Accepts a fully-populated DiagnosisInput and runs:
@@ -51,6 +51,7 @@ def run_video_diagnosis_core(inp: "DiagnosisInput") -> "DiagnosisResult":  # noq
 
     Phase 3.3 will wire the 4 existing callers to this core.
     """
+    from getviews_pipeline import telemetry
     from getviews_pipeline.models import DiagnosisInput, DiagnosisResult
     from getviews_pipeline.services.extraction import (
         apply_rule_based_video_errors,
@@ -60,7 +61,6 @@ def run_video_diagnosis_core(inp: "DiagnosisInput") -> "DiagnosisResult":  # noq
         decompose_segments,
         extract_hook_phases,
     )
-    from getviews_pipeline import telemetry
 
     assert isinstance(inp, DiagnosisInput), f"Expected DiagnosisInput, got {type(inp)}"
 

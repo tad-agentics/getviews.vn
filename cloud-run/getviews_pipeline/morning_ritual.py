@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -151,7 +151,7 @@ def _fetch_grounding_videos(
     Returns (videos, adequacy). `videos` is empty when no source yields a
     usable pool; the caller then returns a 'thin' RitualResult.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     since_7d = (now - timedelta(days=7)).isoformat()
     since_30d = (now - timedelta(days=30)).isoformat()
 
@@ -586,13 +586,19 @@ def generate_ritual_for_user(
     for_date: date | None = None,
 ) -> RitualResult:
     """Generate today's 3 scripts for one user. Sync — called from the batch loop."""
-    from getviews_pipeline.gemini import _generate_content_models, _response_text, _normalize_response
-    from getviews_pipeline.config import (
-        GEMINI_SYNTHESIS_MODEL, GEMINI_SYNTHESIS_FALLBACKS,
-    )
     from google.genai import types  # type: ignore[import-untyped]
 
-    target_date = for_date or datetime.now(timezone.utc).date()
+    from getviews_pipeline.config import (
+        GEMINI_SYNTHESIS_FALLBACKS,
+        GEMINI_SYNTHESIS_MODEL,
+    )
+    from getviews_pipeline.gemini import (
+        _generate_content_models,
+        _normalize_response,
+        _response_text,
+    )
+
+    target_date = for_date or datetime.now(UTC).date()
 
     videos, adequacy = _fetch_grounding_videos(client, niche_id, reference_handles)
     if len(videos) < MIN_GROUNDING_VIDEOS:
@@ -722,7 +728,7 @@ def upsert_ritual(client: Any, result: RitualResult) -> bool:
         "scripts":            result.scripts,
         "adequacy":           result.adequacy,
         "grounded_video_ids": result.grounded_video_ids,
-        "generated_at":       datetime.now(timezone.utc).isoformat(),
+        "generated_at":       datetime.now(UTC).isoformat(),
     }
     try:
         client.table("daily_ritual").upsert(

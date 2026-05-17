@@ -47,14 +47,46 @@ logs = [
 packages = ["getviews_pipeline"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
+# Long embedded Gemini prompts, Vietnamese regex, and log-format strings.
 "getviews_pipeline/prompts.py" = ["E501"]
+"getviews_pipeline/output_redesign.py" = ["E501"]
+"getviews_pipeline/layer0_prompts.py" = ["E501"]
+"getviews_pipeline/voice_guide.py" = ["E501"]
+"getviews_pipeline/knowledge_base.py" = ["E501"]
+"getviews_pipeline/morning_ritual.py" = ["E501"]
+"getviews_pipeline/settings.py" = ["E501"]
+"getviews_pipeline/gemini.py" = ["E501"]
+"getviews_pipeline/pipelines.py" = ["E501"]
+"getviews_pipeline/script_generate.py" = ["E501"]
+"getviews_pipeline/pattern_deck_synth.py" = ["E501"]
+"getviews_pipeline/diagnose_prompts.py" = ["E501"]
+"getviews_pipeline/douyin_patterns_synth.py" = ["E501"]
+"getviews_pipeline/douyin_synth.py" = ["E501"]
+"getviews_pipeline/douyin_translator.py" = ["E501"]
+"getviews_pipeline/report_diagnostic_gemini.py" = ["E501"]
+"getviews_pipeline/report_ideas.py" = ["E501"]
+"getviews_pipeline/report_ideas_gemini.py" = ["E501"]
+"getviews_pipeline/report_lifecycle_gemini.py" = ["E501"]
+"getviews_pipeline/report_pattern.py" = ["E501"]
+"getviews_pipeline/report_pattern_gemini.py" = ["E501"]
+"getviews_pipeline/report_timing_gemini.py" = ["E501"]
+"getviews_pipeline/routers/admin.py" = ["E501"]
+"getviews_pipeline/routers/answer.py" = ["E501"]
+"getviews_pipeline/routers/home.py" = ["E501"]
+"getviews_pipeline/routers/intent.py" = ["E501"]
+"getviews_pipeline/routers/script.py" = ["E501"]
+"getviews_pipeline/routers/video.py" = ["E501"]
+"getviews_pipeline/services/extraction.py" = ["E501"]
+"getviews_pipeline/signals/distribution.py" = ["E501"]
+# Test fixtures mirror production payloads; keep line-length checks off.
+"tests/**" = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

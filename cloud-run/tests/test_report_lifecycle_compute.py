@@ -8,7 +8,7 @@ silently regress the stage classification.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.report_lifecycle_compute import (
@@ -24,7 +24,7 @@ def _row(
     views: int,
     days_ago: int,
 ) -> dict[str, Any]:
-    ts = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    ts = datetime.now(UTC) - timedelta(days=days_ago)
     return {
         "content_format": content_format,
         "views": views,
@@ -164,7 +164,7 @@ def test_max_12_cells_when_taxonomy_saturated() -> None:
 
 def test_missing_content_format_falls_through_to_other() -> None:
     # Rows with no content_format key should still aggregate (as "other").
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows: list[dict[str, Any]] = []
     for i in range(6):
         ts = (now - timedelta(days=2 + i)).isoformat()

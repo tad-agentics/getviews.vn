@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def _fmt_views(views: int) -> str:
 async def compute_ticker(client: Any, niche_id: int) -> list[TickerItem]:
     """Run all five bucket queries in parallel; interleave into one list."""
     loop = asyncio.get_running_loop()
-    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=7)).isoformat()
 
     tasks = [
         loop.run_in_executor(None, _breakout_items,   client, niche_id, since),

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 from getviews_pipeline.pattern_fingerprint import (
@@ -14,7 +14,6 @@ from getviews_pipeline.pattern_fingerprint import (
     compute_signature,
     signature_hash,
 )
-
 
 # ── Bucket edges ───────────────────────────────────────────────────────────
 
@@ -289,5 +288,5 @@ def test_recompute_weekly_counts_uses_iso_cutoff() -> None:
     parsed = datetime.fromisoformat(val)
     assert parsed.tzinfo is not None
     # Cutoff should be ~14 days in the past, within a generous window.
-    age = datetime.now(tz=timezone.utc) - parsed
+    age = datetime.now(tz=UTC) - parsed
     assert timedelta(days=13, hours=23) <= age <= timedelta(days=14, hours=1)

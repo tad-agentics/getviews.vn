@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,6 @@ def span(name: str, **attrs: Any) -> Generator[Any, None, None]:
         yield None
         return
 
-    from opentelemetry import trace
     from opentelemetry.trace import StatusCode
 
     with _tracer.start_as_current_span(name) as s:

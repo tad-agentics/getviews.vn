@@ -23,7 +23,11 @@ import logging
 import re
 from typing import Any
 
-from getviews_pipeline.report_types import CreatorComparison, CreatorComparisonFormatMatch, CreatorComparisonVideo
+from getviews_pipeline.report_types import (
+    CreatorComparison,
+    CreatorComparisonFormatMatch,
+    CreatorComparisonVideo,
+)
 from getviews_pipeline.url_patterns import TIKTOK_URL_RE
 from getviews_pipeline.video_analyze import (
     run_video_analyze_on_demand,
@@ -572,8 +576,8 @@ def build_video_report(
             emit,
             step_done,
             step_status,
-            step_tool_start,
             step_tool_complete,
+            step_tool_start,
         )
 
         emit(

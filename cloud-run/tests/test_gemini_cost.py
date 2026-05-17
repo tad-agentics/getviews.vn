@@ -434,7 +434,7 @@ class TestTransientRetryLogging:
         return err
 
     def test_transient_retry_emits_zero_token_failure_row(self) -> None:
-        from unittest.mock import MagicMock, call, patch
+        from unittest.mock import MagicMock, patch
 
         rows: list[dict] = []
 
@@ -486,8 +486,8 @@ class TestTransientRetryLogging:
 
     def test_error_code_encodes_attempt_number(self) -> None:
         """error_code format is ``<ExcClass>_attempt_<N>`` (1-indexed)."""
-        from unittest.mock import patch
         import time
+        from unittest.mock import patch
 
         rows: list[dict] = []
         with patch(

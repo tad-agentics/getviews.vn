@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from getviews_pipeline.hashtag_niche_map import score_niche_match
 
-
 # Canned hashtag → niche map. Each test passes this explicitly so it doesn't
 # touch the module-level cache.
 _HMAP = {

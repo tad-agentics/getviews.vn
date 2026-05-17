@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
+from datetime import UTC
 from typing import Any
 
 from getviews_pipeline.report_pattern_compute import (
@@ -299,7 +300,7 @@ def build_thin_corpus_pattern_report(
 
 
 def _freshness_hours_from_corpus(corpus: list[dict[str, Any]]) -> int:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     best: datetime | None = None
     for row in corpus:
@@ -314,7 +315,7 @@ def _freshness_hours_from_corpus(corpus: list[dict[str, Any]]) -> int:
             best = d
     if best is None:
         return 24
-    delta = datetime.now(timezone.utc) - best.astimezone(timezone.utc)
+    delta = datetime.now(UTC) - best.astimezone(UTC)
     return max(1, int(delta.total_seconds() // 3600))
 
 
@@ -362,7 +363,13 @@ def build_pattern_report(
         return data
 
     if step_queue is not None:
-        from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+        from getviews_pipeline.step_events import (
+            emit,
+            step_done,
+            step_status,
+            step_tool_complete,
+            step_tool_start,
+        )
 
         emit(step_queue, step_status(1, "Đang quét corpus TikTok Việt Nam..."))
         emit(
@@ -412,7 +419,13 @@ def build_pattern_report(
 
     if niche_id <= 0 or sample_n < 30 or len(ranked) < 3:
         if step_queue is not None:
-            from getviews_pipeline.step_events import emit, step_done, step_status, step_tool_complete, step_tool_start
+            from getviews_pipeline.step_events import (
+                emit,
+                step_done,
+                step_status,
+                step_tool_complete,
+                step_tool_start,
+            )
 
             emit(step_queue, step_status(2, "Đang tổng hợp pattern nổi bật..."))
             emit(step_queue, step_tool_start("Viết báo cáo pattern", 2, 0, tool="synthesis"))
@@ -502,7 +515,13 @@ def build_pattern_report(
         live_context = format_live_awemes_for_prompt(live_awemes[:20])
 
     if step_queue is not None:
-        from getviews_pipeline.step_events import INTENT_STEP_LABELS, emit, step_process, step_status, step_tool_start
+        from getviews_pipeline.step_events import (
+            INTENT_STEP_LABELS,
+            emit,
+            step_process,
+            step_status,
+            step_tool_start,
+        )
 
         emit(step_queue, step_status(3, "Đang tổng hợp pattern nổi bật..."))
         emit(step_queue, step_tool_start("Viết báo cáo pattern", 3, 0, tool="synthesis"))

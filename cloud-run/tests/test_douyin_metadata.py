@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from getviews_pipeline.douyin_metadata import (
     _normalize_handle,
     _safe_engagement_rate,
@@ -21,7 +19,6 @@ from getviews_pipeline.douyin_metadata import (
     parse_douyin_metadata,
 )
 from getviews_pipeline.douyin_translator import CaptionTranslation
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 

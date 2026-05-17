@@ -8,11 +8,10 @@ end-to-end.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.ticker import (
-    TickerItem,
     _breakout_items,
     _caution_items,
     _new_hook_items,
@@ -20,7 +19,6 @@ from getviews_pipeline.ticker import (
     _sound_items,
     compute_ticker,
 )
-
 
 # ── Fake Supabase ──────────────────────────────────────────────────────────
 
@@ -33,10 +31,10 @@ class _Exec:
 class _NotModifier:
     """Mimics supabase-py's `.not_.is_(col, 'null')` fluent call."""
 
-    def __init__(self, parent: "_Query") -> None:
+    def __init__(self, parent: _Query) -> None:
         self._parent = parent
 
-    def is_(self, *_: Any) -> "_Query":
+    def is_(self, *_: Any) -> _Query:
         return self._parent
 
 
@@ -44,11 +42,11 @@ class _Query:
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self._rows = rows
 
-    def select(self, *_: Any, **__: Any) -> "_Query":    return self
-    def eq(self, *_: Any, **__: Any) -> "_Query":        return self
-    def gte(self, *_: Any, **__: Any) -> "_Query":       return self
-    def order(self, *_: Any, **__: Any) -> "_Query":     return self
-    def limit(self, *_: Any, **__: Any) -> "_Query":     return self
+    def select(self, *_: Any, **__: Any) -> _Query:    return self
+    def eq(self, *_: Any, **__: Any) -> _Query:        return self
+    def gte(self, *_: Any, **__: Any) -> _Query:       return self
+    def order(self, *_: Any, **__: Any) -> _Query:     return self
+    def limit(self, *_: Any, **__: Any) -> _Query:     return self
 
     @property
     def not_(self) -> _NotModifier:
@@ -66,7 +64,7 @@ class _Client:
         return _Query(self._tables.get(name, []))
 
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 SINCE = (NOW - timedelta(days=7)).isoformat()
 NICHE = 3
 

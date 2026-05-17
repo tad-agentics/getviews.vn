@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from getviews_pipeline.creator_enrich import (
     CommerceSignal,
-    ContactInfo,
     RateBallpark,
     default_actions,
     derive_red_flags,
@@ -14,7 +13,6 @@ from getviews_pipeline.creator_enrich import (
     rate_ballpark_for_tier,
     tier_from_followers,
 )
-
 
 # ── Tier ────────────────────────────────────────────────────────────────────
 

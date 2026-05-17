@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from getviews_pipeline.corpus_ingest import _classify_cta
 
-
 # ── shop_cart: additional VN shop-pressure variants ──────────────────
 
 def test_chot_ngay_routes_to_shop_cart() -> None:

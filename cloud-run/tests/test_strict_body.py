@@ -12,10 +12,10 @@ import pytest
 from pydantic import ValidationError
 
 from getviews_pipeline.api_models import StrictBody
-from getviews_pipeline.routers.intent import StreamRequest
-from getviews_pipeline.routers.batch import BatchIngestRequest
-from getviews_pipeline.routers.answer import AnswerSessionCreateBody
 from getviews_pipeline.routers.admin import AdminTriggerRefreshBody
+from getviews_pipeline.routers.answer import AnswerSessionCreateBody
+from getviews_pipeline.routers.batch import BatchIngestRequest
+from getviews_pipeline.routers.intent import StreamRequest
 
 
 def test_strict_body_base_rejects_extras() -> None:

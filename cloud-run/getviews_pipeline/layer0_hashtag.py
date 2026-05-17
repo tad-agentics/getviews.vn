@@ -264,13 +264,18 @@ def _fetch_candidate_hashtags(client: Any, existing_tags: frozenset[str]) -> lis
 
 def _classify_hashtags(candidates: list[dict], niches: list[dict]) -> list[dict]:
     """Call Gemini to classify candidates into niches. Returns list of classification dicts."""
-    from getviews_pipeline.gemini import _generate_content_models, _normalize_response, _response_text
-    from getviews_pipeline.config import GEMINI_EXTRACTION_MODEL, GEMINI_EXTRACTION_FALLBACKS
+    from google.genai import types
+
+    from getviews_pipeline.config import GEMINI_EXTRACTION_FALLBACKS, GEMINI_EXTRACTION_MODEL
+    from getviews_pipeline.gemini import (
+        _generate_content_models,
+        _normalize_response,
+        _response_text,
+    )
     from getviews_pipeline.layer0_prompts import (
         HASHTAG_DISCOVERY_PROMPT_TEMPLATE,
         LAYER0_HASHTAG_RESPONSE_SCHEMA,
     )
-    from google.genai import types
 
     niches_summary = [
         {"id": n["id"], "name_vn": n.get("name_vn", ""), "name_en": n.get("name_en", "")}

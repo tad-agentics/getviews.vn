@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import date, timedelta
+from datetime import UTC, date, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -133,9 +133,9 @@ async def _fetch_niche_name(client: Any, loop: asyncio.AbstractEventLoop, niche_
 
 async def run_sound_insights(client: Any | None = None) -> dict[str, int]:
     """Module 0B entry point. Called from daily batch in corpus_ingest.py."""
-    from getviews_pipeline.supabase_client import get_service_client
     from getviews_pipeline.gemini import gemini_text_only
     from getviews_pipeline.layer0_prompts import SOUND_INSIGHT_PROMPT_TEMPLATE
+    from getviews_pipeline.supabase_client import get_service_client
 
     if client is None:
         client = get_service_client()
@@ -144,8 +144,8 @@ async def run_sound_insights(client: Any | None = None) -> dict[str, int]:
     analyzed = 0
     errors = 0
 
-    from datetime import datetime, timezone, timedelta
-    since_iso = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    from datetime import datetime, timedelta
+    since_iso = (datetime.now(UTC) - timedelta(days=7)).isoformat()
 
     emerging_sounds = await _find_emerging_sounds(client, loop)
     if not emerging_sounds:

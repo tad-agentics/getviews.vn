@@ -34,7 +34,6 @@ from getviews_pipeline.report_ideas_compute import (
 )
 from getviews_pipeline.report_types import IdeasPayload, validate_and_store_report
 
-
 # ── Fixture / thin / variant payload validation ──────────────────────────────
 
 

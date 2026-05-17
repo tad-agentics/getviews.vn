@@ -8,21 +8,17 @@ the no-title skip path.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from getviews_pipeline.douyin_adapt_batch import (
-    DouyinAdaptBatchSummary,
     SYNTH_STALE_AFTER,
     _fetch_niche_labels,
     _fetch_stale_corpus_rows,
     run_douyin_adapt_batch,
 )
 from getviews_pipeline.douyin_synth import DouyinAdaptSynth, TranslatorNote
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 
@@ -76,7 +72,7 @@ def test_stale_fetch_filters_by_synth_computed_at_freshness() -> None:
     # Cutoff should be ~SYNTH_STALE_AFTER ago.
     cutoff_iso = or_clause.split("synth_computed_at.lt.")[1]
     cutoff_ts = datetime.fromisoformat(cutoff_iso)
-    expected = datetime.now(timezone.utc) - SYNTH_STALE_AFTER
+    expected = datetime.now(UTC) - SYNTH_STALE_AFTER
     assert abs((cutoff_ts - expected).total_seconds()) < 5
 
 

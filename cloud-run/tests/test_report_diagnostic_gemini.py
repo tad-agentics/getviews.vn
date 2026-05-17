@@ -21,9 +21,7 @@ from getviews_pipeline.report_diagnostic_gemini import (
 )
 from getviews_pipeline.report_types import (
     ConfidenceStrip,
-    DiagnosticCategory,
     DiagnosticPayload,
-    DiagnosticPrescription,
     SourceRow,
 )
 
@@ -305,16 +303,15 @@ def test_two_different_queries_produce_different_framings(
 
     def response_text(*_args: Any, **_kwargs: Any) -> str:
         call_count["n"] += 1
-        framing = "stub framing %d" % call_count["n"]
+        framing = f"stub framing {call_count['n']}"
         return (
-            '{"framing": "%s", '
+            f'{{"framing": "{framing}", '
             '"categories": [{"name": "Hook (0\\u20133s)", "verdict": "unclear", "finding": "stub", "fix_preview": ""},'
             '{"name": "Pacing (3\\u201320s)", "verdict": "unclear", "finding": "stub", "fix_preview": ""},'
             '{"name": "CTA", "verdict": "unclear", "finding": "stub", "fix_preview": ""},'
             '{"name": "Sound", "verdict": "unclear", "finding": "stub", "fix_preview": ""},'
             '{"name": "Caption & Hashtag", "verdict": "unclear", "finding": "stub", "fix_preview": ""}],'
             '"prescriptions": [{"priority": "P1", "action": "x", "impact": "y", "effort": "low"}]}'
-            % framing
         )
 
     mock_response_text.side_effect = response_text

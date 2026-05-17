@@ -15,7 +15,6 @@ the read boundary instead of rewriting every query.
 
 from __future__ import annotations
 
-
 # Reverse map: creator_niches.id → most-representative niche_taxonomy.id.
 # Mirror of ``legacyNicheIdForCreatorNiche()`` in
 # ``src/lib/profileNiches.ts``. Both files must stay in sync.

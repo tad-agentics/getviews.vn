@@ -138,7 +138,7 @@ class DouyinAdaptSynth(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _check_eta_range_ordered(self) -> "DouyinAdaptSynth":
+    def _check_eta_range_ordered(self) -> DouyinAdaptSynth:
         if self.eta_weeks_max < self.eta_weeks_min:
             raise ValueError(
                 f"eta_weeks_max ({self.eta_weeks_max}) < "

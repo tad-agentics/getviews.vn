@@ -25,7 +25,6 @@ from getviews_pipeline.report_types import (
     SourceRow,
 )
 
-
 # ── Fixture validates cleanly ───────────────────────────────────────────────
 
 

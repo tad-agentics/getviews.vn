@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.claim_tiers import flags_for_count
@@ -57,7 +57,7 @@ async def compute_pulse(client: Any, niche_id: int) -> PulseStats:
 
 
 def _compute_pulse_sync(client: Any, niche_id: int) -> PulseStats:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     this_week_start = now - timedelta(days=7)
     last_week_start = now - timedelta(days=14)
 

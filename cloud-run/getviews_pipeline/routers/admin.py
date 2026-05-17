@@ -9,7 +9,7 @@ import threading
 import time
 import urllib.parse as _urlparse
 import urllib.request as _urlrequest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -167,7 +167,7 @@ def _record_alert_fire(*, rule_key: str, severity: str, message: str, context: d
         get_service_client().table("admin_alert_fires").insert({
             "rule_key": rule_key, "severity": severity, "message": message,
             "context_json": context, "phase": phase,
-            "delivered_at": datetime.now(timezone.utc).isoformat() if delivered else None,
+            "delivered_at": datetime.now(UTC).isoformat() if delivered else None,
         }).execute()
     except Exception as exc:
         logger.exception("[alerts] _record_alert_fire(%s) failed: %s", rule_key, exc)
@@ -177,7 +177,7 @@ def _evaluate_ensemble_runway_low(rule: dict[str, Any]) -> tuple[bool, str, dict
     runway_days_max = int(rule.get("threshold_json", {}).get("runway_days_max", 7))
     if _ENSEMBLE_MONTHLY_BUDGET <= 0:
         return (False, "ED_MONTHLY_UNIT_BUDGET unset — rule skipped", {"reason": "no_budget"})
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     total_used = last7_sum = last7_days = 0
     for i in range(30):
         day = (now - timedelta(days=i)).date().isoformat()
@@ -227,7 +227,7 @@ def _evaluate_corpus_stale(rule: dict[str, Any]) -> tuple[bool, str, dict[str, A
         last = datetime.fromisoformat(last_iso.replace("Z", "+00:00"))
     except ValueError:
         return (False, "created_at parse failed", {"reason": "parse_error"})
-    age_h = (datetime.now(timezone.utc) - last).total_seconds() / 3600
+    age_h = (datetime.now(UTC) - last).total_seconds() / 3600
     context = {"hours_since_last_ingest": round(age_h, 1), "threshold_hours": hours}
     breached = age_h >= hours
     msg = (
@@ -280,7 +280,7 @@ def _evaluate_cron_batch_failures(rule: dict[str, Any]) -> tuple[bool, str, dict
     failures_max = int(rule.get("threshold_json", {}).get("failures_max", 0))
     from getviews_pipeline.supabase_client import get_service_client
 
-    since_iso = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+    since_iso = (datetime.now(UTC) - timedelta(days=window_days)).isoformat()
     try:
         resp = (
             get_service_client()
@@ -777,7 +777,7 @@ async def admin_corpus_health(
     from getviews_pipeline.supabase_client import get_service_client
 
     client = get_service_client()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff_7d = now - timedelta(days=7)
     cutoff_30d = now - timedelta(days=30)
     cutoff_90d = now - timedelta(days=90)
@@ -863,7 +863,7 @@ async def admin_ensemble_credits(
     _admin: dict[str, Any] = Depends(require_admin),
     days: int = Query(14, ge=1, le=60),
 ) -> JSONResponse:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     results: list[dict[str, Any]] = []
     for i in range(days):
         day = (now - timedelta(days=i)).date().isoformat()
@@ -884,7 +884,7 @@ async def admin_ensemble_call_sites(
 ) -> JSONResponse:
     from getviews_pipeline.supabase_client import get_service_client
 
-    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=days)).isoformat()
     try:
         resp = get_service_client().table("ensemble_calls").select("endpoint, call_site, request_class").gte("created_at", since).execute()
         rows = resp.data or []
@@ -902,7 +902,7 @@ async def admin_ensemble_call_sites(
         out.sort(key=lambda r: (-r["count"], r["key"]))
         return out
 
-    return JSONResponse({"ok": True, "as_of": datetime.now(timezone.utc).isoformat(), "total": total, "days": days, "by_call_site": _group("call_site"), "by_endpoint": _group("endpoint"), "by_request_class": _group("request_class")})
+    return JSONResponse({"ok": True, "as_of": datetime.now(UTC).isoformat(), "total": total, "days": days, "by_call_site": _group("call_site"), "by_endpoint": _group("endpoint"), "by_request_class": _group("request_class")})
 
 
 @router.get("/admin/ensemble-history")
@@ -935,7 +935,7 @@ async def admin_ensemble_history(
             "units": item.get("units") or item.get("units_used") or item.get("cost") or 0,
             "count": item.get("count") or item.get("calls") or item.get("requests"),
         })
-    return JSONResponse({"ok": True, "as_of": datetime.now(timezone.utc).isoformat(), "days": days, "entries": entries, "raw": raw})
+    return JSONResponse({"ok": True, "as_of": datetime.now(UTC).isoformat(), "days": days, "entries": entries, "raw": raw})
 
 
 @router.post("/admin/evaluate-alerts")
@@ -977,7 +977,7 @@ async def admin_evaluate_alerts(
         else:
             evaluations.append({"rule_key": rule_key, "breached": breached, "action": "no_change", "message": message})
 
-    return JSONResponse({"ok": True, "as_of": datetime.now(timezone.utc).isoformat(), "slack_configured": bool(_SLACK_ADMIN_WEBHOOK_URL), "evaluations": evaluations})
+    return JSONResponse({"ok": True, "as_of": datetime.now(UTC).isoformat(), "slack_configured": bool(_SLACK_ADMIN_WEBHOOK_URL), "evaluations": evaluations})
 
 
 @router.get("/admin/alert-fires")
@@ -1014,7 +1014,7 @@ async def admin_logs(
         client = gcloud_logging.Client(project=_GCP_PROJECT_ID_FOR_LOGS)
     except Exception as exc:
         return JSONResponse({"ok": True, "enabled": False, "reason": "credentials_error", "hint": f"google-cloud-logging Client init failed: {exc}."})
-    since = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    since = datetime.now(UTC) - timedelta(minutes=minutes)
     filters = ['resource.type = "cloud_run_revision"', f'timestamp >= "{since.isoformat()}"', f'severity >= {severity}']
     if _CLOUD_RUN_SERVICE_NAME:
         filters.append(f'resource.labels.service_name = "{_CLOUD_RUN_SERVICE_NAME}"')
@@ -1071,7 +1071,7 @@ async def admin_funnel(
     """
     from getviews_pipeline.supabase_client import get_service_client
 
-    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    since = (datetime.now(UTC) - timedelta(days=days)).isoformat()
     sb = get_service_client()
     try:
         resp = (
@@ -1127,7 +1127,7 @@ async def admin_funnel(
 
     return JSONResponse({
         "ok": True,
-        "as_of": datetime.now(timezone.utc).isoformat(),
+        "as_of": datetime.now(UTC).isoformat(),
         "days": days,
         "totals": totals,
         "unique_users": unique_users,
@@ -1418,7 +1418,7 @@ async def admin_diagnostics(
       - models: active Gemini model names from config
       - as_of: ISO timestamp
     """
-    from getviews_pipeline.config import GEMINI_MODEL_PRIMARY, GEMINI_MODEL_FALLBACK
+    from getviews_pipeline.config import GEMINI_MODEL_FALLBACK, GEMINI_MODEL_PRIMARY
     from getviews_pipeline.deps import _BATCH_SECRET
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -1433,7 +1433,7 @@ async def admin_diagnostics(
 
     return JSONResponse({
         "ok": True,
-        "as_of": datetime.now(timezone.utc).isoformat(),
+        "as_of": datetime.now(UTC).isoformat(),
         "instance_id": instance_id,
         "batch_secret_configured": bool(_BATCH_SECRET),
         "batch_secret_migration_status": (
@@ -1475,7 +1475,7 @@ async def admin_layer0_health(
     from getviews_pipeline.supabase_client import get_service_client
 
     client = get_service_client()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     runs: list[dict[str, Any]] = []
     try:

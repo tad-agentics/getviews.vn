@@ -11,9 +11,8 @@ Verifies:
    services.extraction.
 5. run_video_diagnosis_core is importable from services.diagnosis.
 """
-import importlib
 import ast
-import inspect
+import importlib
 from pathlib import Path
 
 CLOUD_RUN_ROOT = Path(__file__).parents[1]

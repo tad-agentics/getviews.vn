@@ -19,11 +19,11 @@ from getviews_pipeline.api_models import StrictBody
 from getviews_pipeline.config import TIKTOK_ALLOWED_HOSTS
 from getviews_pipeline.deps import require_user
 from getviews_pipeline.gemini import classify_intent_gemini, gemini_text_only
+from getviews_pipeline.helpers import infer_niche_from_hashtags
 from getviews_pipeline.intents import (
     extract_urls_and_handles,
     split_into_questions,
 )
-from getviews_pipeline.helpers import infer_niche_from_hashtags
 from getviews_pipeline.pipelines import (
     run_brief_generation,
     run_competitor_profile,
@@ -193,7 +193,7 @@ def _chunk_text(text: str, size: int = 20) -> list[str]:
 
 
 def _sse_line(payload: dict[str, Any]) -> bytes:
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n".encode()
 
 
 def _classify_stream_error(exc: BaseException) -> str:
@@ -451,7 +451,7 @@ async def stream(
             while True:
                 try:
                     event = await asyncio.wait_for(step_q.get(), timeout=0.25)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if pipeline_task.done():
                         while not step_q.empty():
                             event = step_q.get_nowait()

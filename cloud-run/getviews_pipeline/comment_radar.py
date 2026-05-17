@@ -25,8 +25,9 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,7 @@ class CommentRadar:
         }
 
     @classmethod
-    def empty(cls, total_available: int = 0) -> "CommentRadar":
+    def empty(cls, total_available: int = 0) -> CommentRadar:
         return cls(
             sampled=0,
             total_available=total_available,

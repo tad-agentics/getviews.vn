@@ -2,7 +2,6 @@
 from unittest.mock import patch
 
 from getviews_pipeline.services.channel import (
-    CHANNEL_SNAPSHOT_TTL_SECONDS,
     _channel_cache,
     _normalize_handle,
     clear_channel_cache,

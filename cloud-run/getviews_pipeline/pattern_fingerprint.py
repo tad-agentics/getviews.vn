@@ -23,7 +23,7 @@ import hashlib
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -206,8 +206,8 @@ def _name_prompt(signature: dict[str, Any], analysis: dict[str, Any] | None) -> 
     hook_phrase = ""
     what_works = ""
     if isinstance(analysis, dict):
-        hook_phrase = str(((analysis.get("hook_analysis") or {}).get("hook_phrase") or "")).strip()[:160]
-        what_works = str(((analysis.get("content_direction") or {}).get("what_works") or "")).strip()[:200]
+        hook_phrase = str((analysis.get("hook_analysis") or {}).get("hook_phrase") or "").strip()[:160]
+        what_works = str((analysis.get("content_direction") or {}).get("what_works") or "").strip()[:200]
 
     example_block = ""
     if hook_phrase or what_works:
@@ -393,7 +393,7 @@ async def compute_and_upsert_pattern(
 
     sig = compute_signature(analysis)
     sig_hash = signature_hash(sig)
-    now_iso = datetime.now(tz=timezone.utc).isoformat()
+    now_iso = datetime.now(tz=UTC).isoformat()
     return await run_sync(
         _upsert_pattern_sync, client, sig, sig_hash, niche_id, now_iso, analysis,
     )
@@ -506,9 +506,10 @@ def _recompute_weekly_counts_sync(client: Any, now_iso: str | None = None) -> in
     # rows and left ``weekly_instance_count`` at 0 for all 303 rows —
     # Studio's "LƯỢT DÙNG" column was thus always 0. Fix: compute the ISO
     # cutoff in Python before issuing the filter.
-    from datetime import datetime as _dt, timedelta, timezone as _tz
+    from datetime import datetime as _dt
+    from datetime import timedelta
 
-    cutoff_iso = (_dt.now(tz=_tz.utc) - timedelta(days=14)).isoformat()
+    cutoff_iso = (_dt.now(tz=UTC) - timedelta(days=14)).isoformat()
     try:
         # One round-trip: fetch all pattern_ids with corpus rows in last 14 days.
         cur = (
@@ -526,7 +527,7 @@ def _recompute_weekly_counts_sync(client: Any, now_iso: str | None = None) -> in
 
     from collections import Counter
 
-    now = _dt.now(tz=_tz.utc)
+    now = _dt.now(tz=UTC)
     week_ago = now - timedelta(days=7)
 
     cur_week: Counter[str] = Counter()

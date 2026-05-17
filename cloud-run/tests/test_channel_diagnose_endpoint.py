@@ -186,8 +186,9 @@ def fake_channel_pattern(fake_videos: list[dict[str, Any]]) -> dict[str, Any]:
 def app_with_mocks(fake_videos, fake_channel_pattern):
     """Create a FastAPI test app with all external dependencies mocked."""
     from fastapi import FastAPI
-    from getviews_pipeline.routers.video import router
+
     from getviews_pipeline.deps import require_user
+    from getviews_pipeline.routers.video import router
 
     test_app = FastAPI()
     test_app.include_router(router)

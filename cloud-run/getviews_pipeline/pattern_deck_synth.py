@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -320,10 +320,13 @@ def _call_pattern_gemini(prompt: str) -> PatternDeckLLM:
     from google.genai import types  # type: ignore[import-untyped]
 
     from getviews_pipeline.config import (
-        GEMINI_SYNTHESIS_FALLBACKS, GEMINI_SYNTHESIS_MODEL,
+        GEMINI_SYNTHESIS_FALLBACKS,
+        GEMINI_SYNTHESIS_MODEL,
     )
     from getviews_pipeline.gemini import (
-        _generate_content_models, _normalize_response, _response_text,
+        _generate_content_models,
+        _normalize_response,
+        _response_text,
     )
 
     config = types.GenerateContentConfig(
@@ -415,7 +418,7 @@ def upsert_deck(client: Any, result: PatternDeckResult) -> bool:
         return False
     payload = {
         **result.deck,
-        "deck_computed_at": datetime.now(timezone.utc).isoformat(),
+        "deck_computed_at": datetime.now(UTC).isoformat(),
     }
     try:
         (
@@ -440,7 +443,7 @@ def _fetch_stale_pattern_ids(client: Any, *, cap: int) -> list[str]:
     """Active patterns ordered by deck staleness — uses the partial
     index ``video_patterns_deck_stale_idx``. Returns the rows whose
     ``deck_computed_at`` is null OR older than ``DECK_STALE_AFTER``."""
-    cutoff = (datetime.now(timezone.utc) - DECK_STALE_AFTER).isoformat()
+    cutoff = (datetime.now(UTC) - DECK_STALE_AFTER).isoformat()
     try:
         res = (
             client.table("video_patterns")

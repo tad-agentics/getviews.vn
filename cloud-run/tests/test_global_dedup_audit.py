@@ -1,5 +1,6 @@
 """Phase 6.3 — verify _existing_video_ids is global (not per-niche)."""
 import inspect
+
 from getviews_pipeline.corpus_ingest import _existing_video_ids, _existing_video_ids_sync
 
 
@@ -25,6 +26,7 @@ def test_sync_existing_video_ids_is_global():
 def test_load_all_existing_video_ids_sync_paginates():
     """CR-1: paginate past PostgREST's default row cap; merge all pages."""
     from unittest.mock import MagicMock, call
+
     from getviews_pipeline.corpus_ingest import _load_all_existing_video_ids_sync
 
     page = {"i": 0}
@@ -73,6 +75,7 @@ def test_upsert_rows_sync_routes_through_rpc():
     propagated yet. Regression for "RPC shipped but uncalled" — Phase
     6.2 was defeated until this wiring landed."""
     from unittest.mock import MagicMock
+
     from getviews_pipeline.corpus_ingest import _upsert_rows_sync
 
     client = MagicMock()
@@ -97,6 +100,7 @@ def test_upsert_rows_sync_falls_back_when_rpc_unavailable():
     """If the RPC throws (migration not yet propagated), the plain
     upsert path runs so corpus ingest keeps making progress."""
     from unittest.mock import MagicMock
+
     from getviews_pipeline.corpus_ingest import _upsert_rows_sync
 
     client = MagicMock()

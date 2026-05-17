@@ -10,7 +10,9 @@ from fastapi.responses import JSONResponse, Response
 
 from getviews_pipeline.deps import _resolve_caller_niche_id, require_user
 from getviews_pipeline.runtime import run_sync
-from getviews_pipeline.script_generate import InsufficientCreditsError as ScriptInsufficientCreditsError
+from getviews_pipeline.script_generate import (
+    InsufficientCreditsError as ScriptInsufficientCreditsError,
+)
 from getviews_pipeline.script_generate import ScriptGenerateBody
 from getviews_pipeline.script_save import DraftCreateBody, DraftExportBody
 from getviews_pipeline.supabase_client import user_supabase

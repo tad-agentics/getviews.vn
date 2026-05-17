@@ -29,6 +29,8 @@ from typing import Any
 
 from getviews_pipeline.pipelines import (  # noqa: F401
     fetch_channel_context_sync as _fetch_channel_context_sync,
+)
+from getviews_pipeline.pipelines import (
     refine_performance_tier,
 )
 

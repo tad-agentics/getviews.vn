@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
 
     week_of = _week_start_monday(date.today())
     week_of_str = week_of.isoformat()
-    since_dt = datetime.now(timezone.utc) - timedelta(days=7)
+    since_dt = datetime.now(UTC) - timedelta(days=7)
     since_iso = since_dt.isoformat()
 
     loop = asyncio.get_event_loop()

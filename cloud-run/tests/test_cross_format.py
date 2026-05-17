@@ -44,10 +44,10 @@ class _Q:
         self._cc_in_filter: list[int] | None = None
         self._content_format_eq: str | None = None
 
-    def select(self, *_: Any, **__: Any) -> "_Q":
+    def select(self, *_: Any, **__: Any) -> _Q:
         return self
 
-    def eq(self, col: str, val: Any) -> "_Q":
+    def eq(self, col: str, val: Any) -> _Q:
         if col == "format_axis":
             self._format_axis_filter = val
         elif col == "id":
@@ -56,21 +56,21 @@ class _Q:
             self._content_format_eq = str(val)
         return self
 
-    def in_(self, col: str, vals: Any) -> "_Q":
+    def in_(self, col: str, vals: Any) -> _Q:
         if col == "content_class_id":
             self._cc_in_filter = list(vals)
         return self
 
-    def gt(self, *_: Any, **__: Any) -> "_Q":
+    def gt(self, *_: Any, **__: Any) -> _Q:
         return self
 
-    def gte(self, *_: Any, **__: Any) -> "_Q":
+    def gte(self, *_: Any, **__: Any) -> _Q:
         return self
 
-    def limit(self, *_: Any, **__: Any) -> "_Q":
+    def limit(self, *_: Any, **__: Any) -> _Q:
         return self
 
-    def maybe_single(self) -> "_Q":
+    def maybe_single(self) -> _Q:
         return self
 
     def execute(self) -> _Exec:

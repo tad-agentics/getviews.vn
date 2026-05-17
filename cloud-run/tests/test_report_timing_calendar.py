@@ -21,8 +21,8 @@ from typing import Any
 import pytest
 
 from getviews_pipeline.report_timing import (
-    _build_calendar_slots,
     _CALENDAR_MIN_LIFT,
+    _build_calendar_slots,
     _should_build_calendar,
     _slot_time_from_hours,
 )

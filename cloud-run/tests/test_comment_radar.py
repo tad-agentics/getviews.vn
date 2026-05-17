@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from getviews_pipeline.comment_radar import CommentRadar, score_comments
 
-
 # ── Empty / edge input ─────────────────────────────────────────────────────
 
 

@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ def run_hook_effectiveness(client: Any | None = None) -> dict[str, Any]:
     if client is None:
         client = get_service_client()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current_since = now - timedelta(days=WINDOW_DAYS)
     prior_since = now - timedelta(days=WINDOW_DAYS * 2)
     prior_until = current_since

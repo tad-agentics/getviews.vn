@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.report_generic_compute import (
@@ -31,6 +31,7 @@ from getviews_pipeline.report_generic_compute import (
     cap_paragraphs,
     pick_broad_evidence,
 )
+from getviews_pipeline.report_pattern_compute import _evidence_card_extras
 from getviews_pipeline.report_types import (
     ConfidenceStrip,
     EvidenceCardPayload,
@@ -38,7 +39,6 @@ from getviews_pipeline.report_types import (
     SourceRow,
     validate_and_store_report,
 )
-from getviews_pipeline.report_pattern_compute import _evidence_card_extras
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +244,7 @@ def _load_broad_corpus(sb: Any, niche_id: int | None, window_days: int) -> list[
     is provided, otherwise cross-niche (respects RLS — service client only
     sees niches the caller is authorised for via the outer endpoint)."""
     try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=max(window_days, 14))).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=max(window_days, 14))).isoformat()
         q = (
             sb.table("video_corpus")
             .select(
@@ -330,5 +330,5 @@ def _freshness_hours(corpus: list[dict[str, Any]]) -> int:
             best = d
     if best is None:
         return 24
-    delta = datetime.now(timezone.utc) - best.astimezone(timezone.utc)
+    delta = datetime.now(UTC) - best.astimezone(UTC)
     return max(1, int(delta.total_seconds() // 3600))

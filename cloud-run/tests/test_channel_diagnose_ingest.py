@@ -7,7 +7,6 @@ they normalise fixture JSON via _normalise_aweme and exercise every public funct
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -38,8 +37,8 @@ def _normalise_all(awemes: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def test_parse_timestamp_int():
+
     from getviews_pipeline.channel_diagnose import _parse_timestamp
-    import datetime
     ts = 1_700_000_000
     dt = _parse_timestamp(ts)
     assert dt is not None
@@ -181,7 +180,9 @@ def test_compute_inflection_point_returns_none_for_new_account():
 
 def test_trajectory_decline_from_peak():
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, classify_trajectory, compute_inflection_point,
+        build_channel_pattern,
+        classify_trajectory,
+        compute_inflection_point,
         compute_recent_window_stats,
     )
     videos = _normalise_all(_load_fixture("decline_from_peak"))
@@ -194,7 +195,9 @@ def test_trajectory_decline_from_peak():
 
 def test_trajectory_stagnant():
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, classify_trajectory, compute_inflection_point,
+        build_channel_pattern,
+        classify_trajectory,
+        compute_inflection_point,
         compute_recent_window_stats,
     )
     videos = _normalise_all(_load_fixture("stagnant"))
@@ -207,7 +210,9 @@ def test_trajectory_stagnant():
 
 def test_trajectory_steady_growth():
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, classify_trajectory, compute_inflection_point,
+        build_channel_pattern,
+        classify_trajectory,
+        compute_inflection_point,
         compute_recent_window_stats,
     )
     videos = _normalise_all(_load_fixture("steady_growth"))
@@ -220,7 +225,9 @@ def test_trajectory_steady_growth():
 
 def test_trajectory_breakout():
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, classify_trajectory, compute_inflection_point,
+        build_channel_pattern,
+        classify_trajectory,
+        compute_inflection_point,
         compute_recent_window_stats,
     )
     videos = _normalise_all(_load_fixture("breakout"))
@@ -233,7 +240,9 @@ def test_trajectory_breakout():
 
 def test_trajectory_bursty():
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, classify_trajectory, compute_inflection_point,
+        build_channel_pattern,
+        classify_trajectory,
+        compute_inflection_point,
         compute_recent_window_stats,
     )
     videos = _normalise_all(_load_fixture("bursty"))
@@ -246,7 +255,9 @@ def test_trajectory_bursty():
 
 def test_trajectory_new_account():
     from getviews_pipeline.channel_diagnose import (
-        build_channel_pattern, classify_trajectory, compute_inflection_point,
+        build_channel_pattern,
+        classify_trajectory,
+        compute_inflection_point,
         compute_recent_window_stats,
     )
     videos = _normalise_all(_load_fixture("new_account"))
@@ -583,6 +594,7 @@ def test_classify_trajectory_warns_when_many_videos_lack_posted_at(caplog):
 def test_classify_trajectory_quiet_when_timestamps_mostly_present(caplog):
     """Healthy channel — no spurious warning."""
     from datetime import UTC, datetime, timedelta
+
     from getviews_pipeline.channel_diagnose import classify_trajectory
 
     base = datetime.now(UTC) - timedelta(days=60)
@@ -608,6 +620,7 @@ def test_classify_trajectory_quiet_when_timestamps_mostly_present(caplog):
 
 def test_compute_inflection_includes_format_mix():
     from datetime import UTC, datetime, timedelta
+
     from getviews_pipeline.channel_diagnose import compute_inflection_point
 
     base = datetime(2025, 1, 15, tzinfo=UTC)
@@ -659,6 +672,7 @@ def test_render_score_card_captions_has_five_keys():
 
 def test_select_verdict_tiles_dedupes_by_video_id():
     from datetime import UTC, datetime
+
     from getviews_pipeline.channel_diagnose import select_verdict_tiles
 
     t0 = datetime(2026, 3, 1, tzinfo=UTC)

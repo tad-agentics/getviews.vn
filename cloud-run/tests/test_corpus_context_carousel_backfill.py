@@ -6,10 +6,9 @@ processes them on-read.
 """
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
 
 _CAROUSEL_AWEME = {
     "aweme_id": "carousel_42",

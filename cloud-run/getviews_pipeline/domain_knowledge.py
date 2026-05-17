@@ -13,7 +13,6 @@ signal → distribution outcome.
 
 from __future__ import annotations
 
-
 DISTRIBUTION_ALGORITHM = """
 THUẬT TOÁN PHÂN PHỐI TIKTOK — cách TikTok quyết định ai xem video:
 

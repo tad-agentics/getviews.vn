@@ -20,7 +20,6 @@ from getviews_pipeline.answer_session import (
     select_builder_for_turn,
 )
 
-
 # -----------------------------------------------------------------------------
 # Pure dispatch — select_builder_for_turn
 # -----------------------------------------------------------------------------

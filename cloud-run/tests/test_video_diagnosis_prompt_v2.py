@@ -17,8 +17,8 @@ def _imports():
     """Lazy import so pydantic isn't loaded at collection time."""
     try:
         from getviews_pipeline.video_analyze import (
-            _summarise_retention_curve,
             _summarise_niche_row,
+            _summarise_retention_curve,
         )
         return _summarise_retention_curve, _summarise_niche_row
     except ModuleNotFoundError:

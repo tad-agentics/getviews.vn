@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 
 from getviews_pipeline.report_types import (
@@ -48,8 +48,8 @@ def _evidence_card_extras(row: dict[str, Any]) -> tuple[float | None, int | None
         try:
             d = datetime.fromisoformat(str(raw_ts).replace("Z", "+00:00"))
             if d.tzinfo is None:
-                d = d.replace(tzinfo=timezone.utc)
-            delta = datetime.now(timezone.utc) - d.astimezone(timezone.utc)
+                d = d.replace(tzinfo=UTC)
+            delta = datetime.now(UTC) - d.astimezone(UTC)
             days_ago = max(0, delta.days)
         except Exception:
             days_ago = None
@@ -161,7 +161,7 @@ def build_top_performers_context(
     top_n: int = 3,
 ) -> str:
     """Format top-N corpus videos per hook_type as a citation-ready string."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     lines: list[str] = []
     for hook_type in hook_types:
         matching = sorted(
@@ -189,8 +189,8 @@ def build_top_performers_context(
                 try:
                     dt = datetime.fromisoformat(str(raw_ts).replace("Z", "+00:00"))
                     if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    days = (now - dt.astimezone(timezone.utc)).days
+                        dt = dt.replace(tzinfo=UTC)
+                    days = (now - dt.astimezone(UTC)).days
                     recency = (
                         ", đăng hôm nay"
                         if days == 0
@@ -210,7 +210,7 @@ def find_ab_pair(
     min_delta: int = 5,
 ) -> PatternABPair | None:
     """Same-creator hit (top_hook_type) vs flop (other hook), min hit/flop view ratio."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     by_creator: dict[str, list[dict[str, Any]]] = {}
     for r in corpus_rows:
@@ -232,8 +232,8 @@ def find_ab_pair(
         try:
             dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return max(0, (now - dt.astimezone(timezone.utc)).days)
+                dt = dt.replace(tzinfo=UTC)
+            return max(0, (now - dt.astimezone(UTC)).days)
         except Exception:
             return None
 
@@ -310,7 +310,7 @@ def fetch_outlier_story(
     window_days: int,
 ) -> OutlierStory | None:
     """Highest-breakout corpus row in the window (requires ``breakout_ratio`` populated)."""
-    since = datetime.now(timezone.utc) - timedelta(days=window_days)
+    since = datetime.now(UTC) - timedelta(days=window_days)
     since_iso = since.isoformat()
     try:
         resp = (
@@ -345,8 +345,8 @@ def fetch_outlier_story(
         try:
             dt = datetime.fromisoformat(str(raw_idx).replace("Z", "+00:00"))
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            days_ago = (datetime.now(timezone.utc) - dt.astimezone(timezone.utc)).days
+                dt = dt.replace(tzinfo=UTC)
+            days_ago = (datetime.now(UTC) - dt.astimezone(UTC)).days
         except Exception:
             pass
 
@@ -852,7 +852,7 @@ def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500)
     skewing pattern thesis sample sets.
     """
     try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         res = (
             sb.table("video_corpus")
             .select(

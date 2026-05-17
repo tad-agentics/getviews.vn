@@ -8,9 +8,7 @@ calls so the second call bypasses L1 and hits L2).
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch, call
-
-import pytest
+from unittest.mock import MagicMock, call, patch
 
 from getviews_pipeline.answer_session import (
     _idem_db_get,
@@ -18,7 +16,6 @@ from getviews_pipeline.answer_session import (
     clean_expired_idempotency_rows,
     create_session,
 )
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -151,11 +148,6 @@ def test_create_session_uses_l2_when_l1_cold(mock_get: MagicMock) -> None:
     )
 
     assert out["id"] == sid
-    # INSERT must NOT have been called — we replayed from L2
-    insert_called = any(
-        c == call("answer_sessions") for c in [mock_sb.table.call_args]
-        if mock_sb.table.call_args is not None
-    )
     # Verify only one table("answer_sessions") call happened (the SELECT, not INSERT)
     answer_sessions_calls = [
         c for c in mock_sb.table.call_args_list if c == call("answer_sessions")

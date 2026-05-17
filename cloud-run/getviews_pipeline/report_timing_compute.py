@@ -18,16 +18,16 @@ Contracts:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from getviews_pipeline.report_types import ActionCardPayload
 from getviews_pipeline.report_timing import (  # noqa: F401 — circular-safe (runtime only)
     DAY_LABELS_VN,  # unused here but re-exported for callers
     HOUR_BUCKETS_VN,
     _day_vn,
     _hours_vn,
 )
+from getviews_pipeline.report_types import ActionCardPayload
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def _parse_posted_at(row: dict[str, Any]) -> datetime | None:
     if not raw:
         return None
     try:
-        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(timezone.utc)
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(UTC)
     except Exception:
         return None
 
@@ -290,7 +290,7 @@ def load_timing_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, An
         row = nt.data or {}
         label = str(row.get("name_vn") or row.get("name_en") or f"Niche {niche_id}")
 
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=max(window_days, 14))).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=max(window_days, 14))).isoformat()
         cres = (
             sb.table("video_corpus")
             .select("video_id, views, posted_at, indexed_at, created_at")

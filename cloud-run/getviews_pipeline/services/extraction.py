@@ -23,6 +23,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from getviews_pipeline.models import ExtractionResult
 from getviews_pipeline.voice_lint import build_forbidden_phrases_prompt_block
 
 logger = logging.getLogger(__name__)
@@ -547,7 +548,7 @@ def run_extraction_core(
     video_path: Path | None = None,
     *,
     corpus_hit: dict[str, Any] | None = None,
-) -> "ExtractionResult":  # noqa: F821 – imported below to avoid circular at module level
+) -> ExtractionResult:
     """Canonical extraction core — returns a typed ExtractionResult.
 
     This is the single entry point for all callers that need frame-level
@@ -564,23 +565,20 @@ def run_extraction_core(
     Returns an ExtractionResult with ``error`` set on failure; callers must
     check ``.ok`` before using ``.analysis``.
     """
-    from getviews_pipeline.models import ExtractionResult
     from getviews_pipeline import ensemble, telemetry
 
     vid = str(aweme.get("aweme_id", "") or "")
     metadata_obj = ensemble.parse_metadata(aweme)
-    metadata_dict = metadata_obj.model_dump()
     content_type: Literal["video", "carousel"] = (
         "carousel" if ensemble.detect_content_type(aweme) == "carousel" else "video"
     )
 
     # ── Layer 1: corpus cache hit ─────────────────────────────────────────────
     if corpus_hit is not None:
-        from getviews_pipeline.models import VideoAnalysis
         from getviews_pipeline.analysis_core import TRANSCRIPT_UNAVAILABLE_MARKER
-        from getviews_pipeline.analysis_guards import validate_transcript
-        from getviews_pipeline.analysis_guards import apply_timestamp_guards
+        from getviews_pipeline.analysis_guards import apply_timestamp_guards, validate_transcript
         from getviews_pipeline.entry_cost import score_entry_cost
+        from getviews_pipeline.models import VideoAnalysis
 
         analysis_dict: dict[str, Any] = dict(corpus_hit)
         try:
@@ -621,6 +619,7 @@ def run_extraction_core(
 
     # ── Layer 2: call Gemini ──────────────────────────────────────────────────
     import asyncio
+
     from getviews_pipeline.analysis_core import (
         analyze_aweme,
         analyze_aweme_from_path,
@@ -672,10 +671,10 @@ def run_extraction_core(
 
 async def async_run_extraction_core(
     aweme: dict[str, Any],
-    video_path: "Path | None" = None,
+    video_path: Path | None = None,
     *,
     corpus_hit: dict[str, Any] | None = None,
-) -> "ExtractionResult":
+) -> ExtractionResult:
     """Async wrapper for run_extraction_core — for use inside async callers.
 
     corpus_ingest and douyin_ingest call this instead of analyze_aweme_from_path
@@ -683,9 +682,6 @@ async def async_run_extraction_core(
     the executor; video analysis is wrapped in asyncio.get_event_loop.run_in_executor
     inside analyze_aweme_from_path so this wrapper stays safe.
     """
-    import asyncio
-    from getviews_pipeline.models import ExtractionResult as ER
-
     # Corpus hit is pure Python — no I/O, can run inline.
     if corpus_hit is not None:
         return run_extraction_core(aweme, video_path, corpus_hit=corpus_hit)
@@ -709,7 +705,7 @@ async def async_run_extraction_core(
         result_dict = await analyze_aweme(aweme, include_diagnosis=False)
 
     if "error" in result_dict:
-        return ER(
+        return ExtractionResult(
             video_id=vid,
             content_type=content_type,
             metadata=metadata_obj,
@@ -722,14 +718,14 @@ async def async_run_extraction_core(
     try:
         analysis_model = VideoAnalysis.model_validate(analysis_raw)
     except Exception as exc:
-        return ER(
+        return ExtractionResult(
             video_id=vid,
             content_type=content_type,
             metadata=metadata_obj,
             error=f"VideoAnalysis validation failed: {exc}",
         )
 
-    return ER(
+    return ExtractionResult(
         video_id=vid,
         content_type=content_type,
         metadata=metadata_obj,

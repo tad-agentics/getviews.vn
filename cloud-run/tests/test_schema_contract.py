@@ -20,9 +20,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-import pytest
-
-
 # ── Pydantic → JSON schema ───────────────────────────────────────────────────
 
 def _pydantic_schema(model_class: Any) -> dict[str, Any]:

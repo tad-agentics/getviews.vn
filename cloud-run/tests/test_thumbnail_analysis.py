@@ -7,11 +7,10 @@ ship without network dependencies.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from getviews_pipeline.thumbnail_analysis import _truncate_text
 from getviews_pipeline.thumbnail_analysis_cache import CACHE_TTL_DAYS, _is_fresh
-
 
 # ── _truncate_text ─────────────────────────────────────────────────────────
 
@@ -55,17 +54,17 @@ def _iso(dt: datetime) -> str:
 
 
 def test_is_fresh_recent_ok() -> None:
-    recent = datetime.now(tz=timezone.utc) - timedelta(days=3)
+    recent = datetime.now(tz=UTC) - timedelta(days=3)
     assert _is_fresh(_iso(recent)) is True
 
 
 def test_is_fresh_exactly_at_ttl_still_ok() -> None:
-    edge = datetime.now(tz=timezone.utc) - timedelta(days=CACHE_TTL_DAYS - 1)
+    edge = datetime.now(tz=UTC) - timedelta(days=CACHE_TTL_DAYS - 1)
     assert _is_fresh(_iso(edge)) is True
 
 
 def test_is_fresh_past_ttl_rejected() -> None:
-    stale = datetime.now(tz=timezone.utc) - timedelta(days=CACHE_TTL_DAYS + 5)
+    stale = datetime.now(tz=UTC) - timedelta(days=CACHE_TTL_DAYS + 5)
     assert _is_fresh(_iso(stale)) is False
 
 
@@ -82,7 +81,7 @@ def test_is_fresh_malformed_rejected() -> None:
 
 
 def test_is_fresh_accepts_z_suffix() -> None:
-    recent = datetime.now(tz=timezone.utc) - timedelta(hours=2)
+    recent = datetime.now(tz=UTC) - timedelta(hours=2)
     s = recent.isoformat().replace("+00:00", "Z")
     assert _is_fresh(s) is True
 
@@ -93,7 +92,7 @@ def test_is_fresh_naive_timestamp_treated_as_utc() -> None:
 
 
 def test_is_fresh_custom_ttl() -> None:
-    age = datetime.now(tz=timezone.utc) - timedelta(days=10)
+    age = datetime.now(tz=UTC) - timedelta(days=10)
     assert _is_fresh(_iso(age), ttl_days=7) is False
     assert _is_fresh(_iso(age), ttl_days=30) is True
 
@@ -119,8 +118,9 @@ def test_model_validates_minimum_fields() -> None:
 
 
 def test_model_rejects_out_of_range_score() -> None:
-    from getviews_pipeline.models import ThumbnailAnalysis  # type: ignore
     from pydantic import ValidationError
+
+    from getviews_pipeline.models import ThumbnailAnalysis  # type: ignore
 
     try:
         ThumbnailAnalysis.model_validate(

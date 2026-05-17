@@ -26,7 +26,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import UTC, date, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -179,13 +179,13 @@ def _compute_sound_trends_for_niche(
             out.append(r)
         return out
 
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     return {
         "accelerating": _trim(accelerating),
         "peaking":      _trim(peaking),
         "cooling":      _trim(cooling),
-        "computed_at":  datetime.now(timezone.utc).isoformat(),
+        "computed_at":  datetime.now(UTC).isoformat(),
     }
 
 

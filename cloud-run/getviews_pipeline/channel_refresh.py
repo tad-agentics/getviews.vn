@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline import ensemble
@@ -70,7 +70,7 @@ def _last_ingest_at_sync(client: Any, *, handle: str, niche_id: int) -> datetime
     try:
         s = str(raw).replace("Z", "+00:00")
         d = datetime.fromisoformat(s)
-        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+        return d if d.tzinfo else d.replace(tzinfo=UTC)
     except ValueError:
         return None
 
@@ -114,7 +114,7 @@ async def refresh_channel_corpus(
         return {"status": "error", "reason": "empty_handle"}
 
     last = _last_ingest_at_sync(client, handle=norm, niche_id=niche_id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if not force and last is not None and (now - last) < timedelta(hours=STALE_AFTER_HOURS):
         return {

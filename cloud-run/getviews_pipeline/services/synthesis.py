@@ -17,12 +17,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from getviews_pipeline.gemini import (  # noqa: F401
     synthesize_diagnosis_carousel_v2,
     synthesize_diagnosis_v2,
 )
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "synthesize_diagnosis_v2",
@@ -54,18 +54,18 @@ def synthesize_core(
     """
     from google.genai import types
 
+    from getviews_pipeline import telemetry
     from getviews_pipeline.gemini import (
         GEMINI_DIAGNOSIS_MODEL,
         GEMINI_SYNTHESIS_FALLBACKS,
         GEMINI_SYNTHESIS_MODEL,
         GEMINI_TEMPERATURE,
         _generate_content_models,
+        _normalize_narrative_vi_dict,
         _response_text,
         _split_diagnosis_leading_json,
         _validate_narrative_citations,
-        _normalize_narrative_vi_dict,
     )
-    from getviews_pipeline import telemetry
 
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     cfg = types.GenerateContentConfig(

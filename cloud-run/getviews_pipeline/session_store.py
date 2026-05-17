@@ -137,7 +137,7 @@ def fresh_session_context() -> dict[str, Any]:
 
 def build_session_context_from_db(
     session_id: str,
-    supabase: "Client",
+    supabase: Client,
     *,
     lookback: int = 10,
 ) -> dict[str, Any]:

@@ -7,11 +7,10 @@ needed — the aggregate sync path is exercised directly.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from getviews_pipeline.pulse import VIRAL_BREAKOUT_THRESHOLD, _compute_pulse_sync
-
 
 # ── Fake Supabase client ───────────────────────────────────────────────────
 
@@ -25,11 +24,11 @@ class _FakeQuery:
     def __init__(self, rows: list[dict[str, Any]]) -> None:
         self._rows = rows
 
-    def select(self, *_: Any, **__: Any) -> "_FakeQuery": return self
-    def eq(self, *_: Any, **__: Any) -> "_FakeQuery":     return self
-    def gte(self, *_: Any, **__: Any) -> "_FakeQuery":    return self
-    def order(self, *_: Any, **__: Any) -> "_FakeQuery":  return self
-    def limit(self, *_: Any, **__: Any) -> "_FakeQuery":  return self
+    def select(self, *_: Any, **__: Any) -> _FakeQuery: return self
+    def eq(self, *_: Any, **__: Any) -> _FakeQuery:     return self
+    def gte(self, *_: Any, **__: Any) -> _FakeQuery:    return self
+    def order(self, *_: Any, **__: Any) -> _FakeQuery:  return self
+    def limit(self, *_: Any, **__: Any) -> _FakeQuery:  return self
     def execute(self) -> _FakeExec:                        return _FakeExec(self._rows)
 
 
@@ -46,7 +45,7 @@ def _iso(dt: datetime) -> str:
 
 
 NICHE = 7
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 THIS_WEEK = NOW - timedelta(days=3)
 LAST_WEEK = NOW - timedelta(days=10)
 

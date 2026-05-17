@@ -26,7 +26,6 @@ from getviews_pipeline.intent_router import detect_pattern_subreports
 from getviews_pipeline.report_pattern import build_pattern_report
 from getviews_pipeline.report_types import PatternPayload
 
-
 # ── §A.4 case 3 — detection ───────────────────────────────────────────────
 
 
