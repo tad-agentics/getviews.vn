@@ -1144,6 +1144,7 @@ def _synthesize_diagnosis_v6_section_pool(
     creator_format_history_block: str,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
+    from getviews_pipeline.compliance import collect_compliance_flags
     from getviews_pipeline.diagnose_prompts import build_diagnosis_v6_user_prompt
     from getviews_pipeline.diagnose_sections import select_sections_to_emit
     from getviews_pipeline.diagnosis_quality import score_diagnosis_output_v6
@@ -1161,7 +1162,7 @@ def _synthesize_diagnosis_v6_section_pool(
         channel_context=channel_context,
         performance_tier=performance_tier,
         niche_meta=niche_meta,
-        compliance_flags=None,
+        compliance_flags=collect_compliance_flags(user_analysis, user_stats),
         content_format=content_format,
         niche_name=niche_name,
         corpus_size=corpus_size,

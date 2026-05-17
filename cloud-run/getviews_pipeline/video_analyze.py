@@ -946,6 +946,7 @@ def finalize_video_narrative_layer(
         "shares": int(meta.get("shares") or 0),
         "duration_sec": float(meta.get("duration_sec") or 0.0),
         "save_rate": float(meta.get("save_rate") or 0.0),
+        "caption": str(meta.get("title") or meta.get("caption") or ""),
     }
 
     errors: list[dict[str, Any]] = list(out.get("errors") or [])
@@ -982,6 +983,21 @@ def finalize_video_narrative_layer(
                 retention_end_pct = float(last_pt["pct"])
             except (TypeError, ValueError):
                 retention_end_pct = None
+    user_stats["engagement_rate"] = float(user_er)
+    if retention_end_pct is not None:
+        user_stats["retention_end_pct"] = retention_end_pct
+    cmv_raw = meta.get("creator_median_views")
+    if cmv_raw is not None:
+        try:
+            user_stats["creator_median_views"] = int(cmv_raw)
+        except (TypeError, ValueError):
+            pass
+    tvr_raw = meta.get("target_vs_creator_median")
+    if tvr_raw is not None:
+        try:
+            user_stats["target_vs_creator_median"] = float(tvr_raw)
+        except (TypeError, ValueError):
+            pass
     ch_ratio_hint = meta.get("target_vs_creator_median")
     try:
         ch_ratio_f = float(ch_ratio_hint) if ch_ratio_hint is not None else None

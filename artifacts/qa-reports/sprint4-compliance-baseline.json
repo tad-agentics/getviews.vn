@@ -1,0 +1,28 @@
+{
+  "task_id": "sprint4-compliance",
+  "verdict": "PASS",
+  "test_summary": {
+    "targeted_pytest": "PASS — tests/test_compliance_signals_sprint4.py (6 tests)",
+    "full_pytest": "PASS — cd cloud-run && .venv/bin/python -m pytest -q -> 2059 passed, 1 skipped",
+    "frontend_typecheck": "PASS — npm run typecheck",
+    "coverage_notes": [
+      "getviews_pipeline/compliance.py: RESTRICTED_VI_PHRASES scan (transcript, overlays, caption) + k-suffix price inflation (≥5×, floors 20k/50k).",
+      "signals/compliance.py: restricted phrase (high 1.0 / medium-only 0.82), price anchor 0.85, Ad Law disclosure 0.9 on compliance section, shadowban/cheo heuristic 0.7, legacy compliance_hit.",
+      "gemini.py v6 ctx: collect_compliance_flags(user_analysis, user_stats).",
+      "video_analyze.py: user_stats caption + engagement_rate, retention_end_pct, creator_median_views, target_vs_creator_median for extractors."
+    ]
+  },
+  "files_reviewed": [
+    "cloud-run/getviews_pipeline/compliance.py",
+    "cloud-run/getviews_pipeline/signals/compliance.py",
+    "cloud-run/getviews_pipeline/gemini.py",
+    "cloud-run/getviews_pipeline/video_analyze.py",
+    "cloud-run/tests/test_compliance_signals_sprint4.py"
+  ],
+  "concerns": [
+    "Commerce section still emits commerce_disclosure_missing; compliance section now adds compliance_ad_law_disclosure_missing — intentional dual surfacing per plan.",
+    "Shadowban signal is heuristic only (no TikTok Studio traffic split); tune with production telemetry later."
+  ],
+  "recommendation": "Optional: widen RESTRICTED_VI_PHRASES from legal/corp comms review; optional live-caption pass if meta.title lacks full TikTok caption.",
+  "timestamp": "2026-05-17T12:00:00Z"
+}

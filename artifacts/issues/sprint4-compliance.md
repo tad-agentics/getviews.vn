@@ -1,6 +1,6 @@
 # sprint4-compliance
 
 **Plan:** diagnosis-first plan — full 12-section taxonomy coverage  
-**Status:** pending  
-**Scope:** Sprint 4 — §10 compliance (`compliance.py`, restricted phrases, price anchor, Ad Law disclosure, shadowban heuristics, `signals/compliance.py`).  
-**Acceptance:** Plan § Sprint 4 — 5 compliance fixtures; salience 1.0 for high-sev.
+**Status:** complete (2026-05-17)  
+**Scope:** Sprint 4 — §10 `compliance.py` (restricted VI phrases + numeric price-anchor scan), expanded `signals/compliance.py` (restricted / price / Ad Law disclosure / shadowban heuristic), v6 ctx wiring in `gemini.py`, enriched `user_stats` in `video_analyze.py`.  
+**Acceptance:** Five fixture classes covered in `test_compliance_signals_sprint4.py` + shadowban; high-salience restricted phrase 1.0; QA `artifacts/qa-reports/sprint4-compliance-baseline.json`.
