@@ -496,6 +496,9 @@ async def _fetch_niche_pool(
     return filter_recency(merged, BATCH_RECENCY_DAYS)
 
 
+_CAROUSEL_MULTI_INFO_CHUNK = 50  # max IDs per tt/post/multi-info call
+
+
 async def _fetch_carousel_pool(
     niche: dict[str, Any],
     *,
@@ -510,6 +513,12 @@ async def _fetch_carousel_pool(
     Quality proxy: uses digg_count (likes) instead of play_count because TikTok
     does not report play_count reliably for carousels in feed API responses —
     the field is often 0 even for high-reach carousels.
+
+    Root-cause fix: TikTok's mobile API omits ``image_post_info.images`` from
+    feed/list responses (hashtag, keyword). ``detect_content_type`` therefore
+    always returns "video" on raw feed objects. When the first-pass filter finds
+    0 carousels we call ``fetch_post_multi_info`` on the pool IDs (in chunks) to
+    get full detail objects that include ``image_post_info``, then re-filter.
     """
     hashtags: list[str] = niche.get("signal_hashtags") or []
     if not hashtags:
@@ -532,16 +541,42 @@ async def _fetch_carousel_pool(
         awemes, _ = res if isinstance(res, tuple) else (res, None)
         all_awemes.extend(awemes or [])
 
-    # Filter to carousels only — aweme_type=2 or image_post_info.images present
-    carousels = [
-        a for a in all_awemes
-        if ensemble.detect_content_type(a) == "carousel"
-    ]
+    # First-pass filter using lightweight feed objects
+    carousels = [a for a in all_awemes if ensemble.detect_content_type(a) == "carousel"]
 
-    logger.info(
-        "[corpus] carousel pool for niche '%s': %d carousels from %d total hashtag posts",
-        niche.get("name_en", "?"), len(carousels), len(all_awemes),
-    )
+    if not carousels and all_awemes:
+        # Feed objects lack image_post_info — enrich via multi-info to get full detail.
+        aweme_ids = [str(a.get("aweme_id", "") or "") for a in all_awemes]
+        aweme_ids = [aid for aid in aweme_ids if aid]
+        chunks = [
+            aweme_ids[i : i + _CAROUSEL_MULTI_INFO_CHUNK]
+            for i in range(0, len(aweme_ids), _CAROUSEL_MULTI_INFO_CHUNK)
+        ]
+        enriched: list[dict[str, Any]] = []
+        for chunk in chunks:
+            try:
+                enriched.extend(await ensemble.fetch_post_multi_info(chunk))
+            except Exception as exc:
+                logger.warning("[corpus] carousel multi-info enrichment error: %s", exc)
+        if enriched:
+            carousels = [a for a in enriched if ensemble.detect_content_type(a) == "carousel"]
+            logger.info(
+                "[corpus] carousel pool for niche '%s': %d carousels from %d enriched posts"
+                " (multi-info pass)",
+                niche.get("name_en", "?"), len(carousels), len(enriched),
+            )
+        else:
+            logger.info(
+                "[corpus] carousel pool for niche '%s': 0 carousels — multi-info enrichment"
+                " returned no data for %d feed posts",
+                niche.get("name_en", "?"), len(all_awemes),
+            )
+    else:
+        logger.info(
+            "[corpus] carousel pool for niche '%s': %d carousels from %d total hashtag posts",
+            niche.get("name_en", "?"), len(carousels), len(all_awemes),
+        )
+
     return filter_recency(carousels, BATCH_RECENCY_DAYS)
 
 
