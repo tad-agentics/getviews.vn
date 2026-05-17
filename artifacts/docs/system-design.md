@@ -722,6 +722,10 @@ The **user-facing pod** does not enforce `GEMINI_DAILY_USD_MAX` — it serves li
 
 Disabled as of 2026-05-17 (`CORPUS_INGEST_USE_GEMINI_BATCH=false` on batch pod). `gemini-3.1-flash-lite` returns HTTP 400 on `batchGenerateContent` — model does not currently support the JSONL Batch API. Re-enable when confirmed supported; expected ~50% cost reduction on nightly extraction.
 
+### HI-14 status (GCP Speech-to-Text)
+
+Disabled as of 2026-05-17 (`GCP_STT_VI_ENABLED=false` on both batch + user pods). Two blockers: (1) API returned 403 `SERVICE_DISABLED` initially; (2) after enabling, returned 400 `Inline audio exceeds duration limit` — the current code sends audio inline rather than via a GCS URI, which is required for clips over ~60s. Re-enable requires implementing a GCS upload step before the STT call. Guard: `GCP_STT_VI_ENABLED=false` skips the entire ASR path gracefully.
+
 ---
 
 ## Update Protocol
