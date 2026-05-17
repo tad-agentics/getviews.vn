@@ -369,7 +369,7 @@ RESIDENTIAL_PROXY_URL = os.environ.get("RESIDENTIAL_PROXY_URL")
 R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
 R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
 R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
-R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "getviews-media")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "getviews-frames")
 R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
 # If R2_VIDEO_PUBLIC_URL is not set, falls back to R2_PUBLIC_URL.
 R2_VIDEO_PUBLIC_URL = os.environ.get("R2_VIDEO_PUBLIC_URL", "").rstrip("/")

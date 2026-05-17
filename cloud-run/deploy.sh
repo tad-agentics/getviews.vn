@@ -83,7 +83,7 @@ deploy_user() {
 
 deploy_batch() {
   # Batch pod: cold-starts are fine (Cloud Scheduler tolerates startup
-  # latency). 4Gi to fit parallel TikTok MP4 downloads + Gemini fan-out.
+  # latency). 8Gi — HI-13 Batch JSONL + parallel MP4 prep exceeded 4Gi in prod (OOM ~4.1Gi).
   # 3600s timeout because all-niche ingest can run 10–30+ minutes.
   # Same ``--update-env-vars`` rationale as deploy_user — see comment above.
   echo ""
@@ -94,7 +94,7 @@ deploy_batch() {
     --region "$REGION" \
     --platform managed \
     --allow-unauthenticated \
-    --memory 4Gi \
+    --memory 8Gi \
     --cpu 2 \
     --timeout 3600 \
     --concurrency 5 \
