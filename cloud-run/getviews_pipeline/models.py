@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from getviews_pipeline.two_axis_taxonomy import (
     CarouselFormatAxisSlug,
@@ -385,6 +385,57 @@ class CommerceIntent(BaseModel):
         return s if s in _COMMERCE_DISCLOSURE_FORMS else "none"
 
 
+# §11 — Vietnamese on-camera persona (diagnosis-first Sprint 3). Slugs only in JSON.
+CreatorPersonaSlug = Literal[
+    "chuyen_gia",
+    "ban_than",
+    "nguoi_trai_nghiem_that",
+    "hai_huoc_vung_mien",
+    "chu_shop_kos",
+    "anh_chi_mentor",
+]
+
+SlangFreshnessTier = Literal["current_quarter", "last_quarter", "dated"]
+
+PersonaAxisAssessment = Literal["aligned", "drift", "unknown"]
+
+_CREATOR_PERSONA_SLUGS = frozenset(get_args(CreatorPersonaSlug))
+_SLANG_FRESHNESS_TIERS = frozenset(get_args(SlangFreshnessTier))
+_PERSONA_AXIS = frozenset(get_args(PersonaAxisAssessment))
+
+
+class PersonaConsistencySignals(BaseModel):
+    """Per-axis alignment vs usual on-camera pattern (single-video + role inference)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    backdrop: PersonaAxisAssessment | None = None
+    costume: PersonaAxisAssessment | None = None
+    catchphrase: PersonaAxisAssessment | None = None
+    camera_angle: PersonaAxisAssessment | None = None
+    speech_register: PersonaAxisAssessment | None = Field(
+        default=None,
+        validation_alias=AliasChoices("speech_register", "register"),
+    )
+
+    @field_validator(
+        "backdrop",
+        "costume",
+        "catchphrase",
+        "camera_angle",
+        "speech_register",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_axis(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        if s in _PERSONA_AXIS:
+            return s
+        return None
+
+
 class NarrativeViItem(BaseModel):
     error_id: str
     narrative: str
@@ -606,6 +657,47 @@ class VideoAnalysis(BaseModel):
     content_context: ContentContext | None = None
     niche_classification: NicheClassification | None = None
     commerce_intent: CommerceIntent | None = None
+
+    creator_persona: CreatorPersonaSlug | None = None
+    persona_consistency_signals: PersonaConsistencySignals | None = None
+    slang_terms_used: list[str] = Field(default_factory=list)
+    slang_freshness_score: SlangFreshnessTier | None = None
+
+    @field_validator("creator_persona", mode="before")
+    @classmethod
+    def _normalize_creator_persona_slug(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        # tolerate rare Gemini variants
+        aliases = {
+            "chuyên_gia": "chuyen_gia",
+            "ban_than": "ban_than",
+            "bạn_thân": "ban_than",
+            "người_trải_nghiệm_thật": "nguoi_trai_nghiem_that",
+            "nguoi_tra_nghiem_that": "nguoi_trai_nghiem_that",
+            "hài_hước_vùng_miền": "hai_huoc_vung_mien",
+            "hai_huoc_mien": "hai_huoc_vung_mien",
+            "chủ_shop_kos": "chu_shop_kos",
+            "chu_shop": "chu_shop_kos",
+            "anh_chị_mentor": "anh_chi_mentor",
+        }
+        s = aliases.get(s, s)
+        return s if s in _CREATOR_PERSONA_SLUGS else None
+
+    @field_validator("slang_freshness_score", mode="before")
+    @classmethod
+    def _normalize_slang_freshness(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        if s in ("current", "hot", "mới"):
+            return "current_quarter"
+        if s in ("last", "gần_đây"):
+            return "last_quarter"
+        if s in ("dated", "cũ", "lỗi_thời"):
+            return "dated"
+        return s if s in _SLANG_FRESHNESS_TIERS else None
 
     @field_validator("promotion_type", mode="before")
     @classmethod

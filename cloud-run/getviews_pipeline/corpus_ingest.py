@@ -15,6 +15,7 @@ Designed to run as a Cloud Scheduler cron or via POST /batch/ingest.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import time
@@ -66,6 +67,7 @@ from getviews_pipeline.video_shots_writer import (
     build_video_shot_rows,
     upsert_video_shots_sync,
 )
+from getviews_pipeline.vietnamese_slang import merge_lexicon_slang_into_video_analysis_dict
 
 logger = logging.getLogger(__name__)
 
@@ -2001,7 +2003,10 @@ async def _analyze_videos_gemini_batch_for_corpus(
         analysis_obj: VideoAnalysis | None = None
         if br and br.get("ok") and br.get("text"):
             try:
-                analysis_obj = VideoAnalysis.model_validate_json(str(br["text"]))
+                raw = json.loads(str(br["text"]))
+                if isinstance(raw, dict):
+                    merge_lexicon_slang_into_video_analysis_dict(raw)
+                analysis_obj = VideoAnalysis.model_validate(raw)
             except Exception as exc:  # noqa: BLE001
                 logger.warning(
                     "[corpus] batch JSON validate failed video_id=%s: %s",

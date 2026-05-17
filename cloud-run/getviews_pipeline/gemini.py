@@ -61,6 +61,7 @@ from getviews_pipeline.prompts import (
     build_video_extraction_user_turn_vi,
     build_voice_domain_system_instruction,
 )
+from getviews_pipeline.vietnamese_slang import merge_lexicon_slang_into_video_analysis_dict
 
 logger = logging.getLogger(__name__)
 
@@ -724,6 +725,8 @@ def analyze_video(
     if not text.strip():
         raise ValueError("Gemini returned empty response text")
     parsed = _parse_json_object(text)
+    if isinstance(parsed, dict):
+        merge_lexicon_slang_into_video_analysis_dict(parsed)
     return VideoAnalysis.model_validate(parsed)
 
 

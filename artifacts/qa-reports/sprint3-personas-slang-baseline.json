@@ -1,0 +1,30 @@
+{
+  "task_id": "sprint3-personas-slang",
+  "verdict": "PASS",
+  "test_summary": {
+    "targeted_pytest": "PASS — tests/test_persona_signals_sprint3.py (7 tests)",
+    "full_pytest": "PASS — cd cloud-run && .venv/bin/python -m pytest -q -> 2053 passed, 1 skipped",
+    "frontend_typecheck": "PASS — npm run typecheck",
+    "coverage_notes": [
+      "VideoAnalysis: CreatorPersonaSlug, PersonaConsistencySignals (speech_register + alias register), slang tiers + merge from transcript/overlays.",
+      "signals/persona.py: persona_channel_baseline_mismatch, persona_authenticity_weak_negative_markers, persona_slang_dated, persona_dialect_expert_tension (section_id persona).",
+      "diagnose_sections: VideoSectionId.persona, pool order 65, PERSONA_SECTION_MIN_SALIENCE 0.55.",
+      "pipelines: dominant_creator_persona from corpus analysis_json when sample_size >= 2 and mode >= 2 agreeing."
+    ]
+  },
+  "files_reviewed": [
+    "cloud-run/getviews_pipeline/models.py",
+    "cloud-run/getviews_pipeline/vietnamese_slang.py",
+    "cloud-run/getviews_pipeline/signals/persona.py",
+    "cloud-run/getviews_pipeline/diagnose_sections.py",
+    "cloud-run/getviews_pipeline/signals/registry.py",
+    "cloud-run/getviews_pipeline/gemini.py",
+    "cloud-run/getviews_pipeline/pipelines.py",
+    "cloud-run/getviews_pipeline/corpus_ingest.py",
+    "cloud-run/getviews_pipeline/prompts.py",
+    "cloud-run/tests/test_persona_signals_sprint3.py"
+  ],
+  "concerns": [],
+  "recommendation": "Optional: offline fixture pack (six persona slugs × short synthetic extraction dicts) mirroring hook sprint2 acceptance file; live staging replay deferred.",
+  "timestamp": "2026-05-17T23:30:00+07:00"
+}

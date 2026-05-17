@@ -11,6 +11,9 @@ from getviews_pipeline.signals.salience import SECTION_EMIT_THRESHOLD
 # signal in that section meets this bar (plan: type mismatch / contract / layering).
 HOOK_ANALYSIS_SECTION_MIN_SALIENCE = 0.7
 
+# §11 — emit ``persona`` when a persona-section signal reaches this bar.
+PERSONA_SECTION_MIN_SALIENCE = 0.55
+
 
 class VideoSectionId(StrEnum):
     diagnosis = "diagnosis"
@@ -20,6 +23,7 @@ class VideoSectionId(StrEnum):
     niche_pattern = "niche_pattern"
     channel_pattern = "channel_pattern"
     commerce = "commerce"
+    persona = "persona"
     next_video = "next_video"
 
 
@@ -67,6 +71,13 @@ def _applies_commerce(ctx: dict, _manifest: Manifest) -> bool:
     return promo not in ("organic", "")
 
 
+def _applies_persona(_ctx: dict, manifest: Manifest) -> bool:
+    return any(
+        s.salience >= PERSONA_SECTION_MIN_SALIENCE
+        for s in manifest.get("persona", [])
+    )
+
+
 def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
     return any(
         s.salience >= HOOK_ANALYSIS_SECTION_MIN_SALIENCE
@@ -82,6 +93,7 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.niche_pattern, 40, False, _applies_niche_pattern),
     SectionSpec(VideoSectionId.channel_pattern, 50, False, _applies_channel_pattern),
     SectionSpec(VideoSectionId.commerce, 60, False, _applies_commerce),
+    SectionSpec(VideoSectionId.persona, 65, False, _applies_persona),
     SectionSpec(VideoSectionId.next_video, 90, True, lambda _c, _m: True),
 )
 
@@ -115,6 +127,10 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("commerce", "average"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
     ("commerce", "flop"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
     ("commerce", "unknown"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
+    ("persona", "hit"): "PHONG CÁCH VÀ NHÂN VẬT",
+    ("persona", "average"): "PHONG CÁCH VÀ NHÂN VẬT",
+    ("persona", "flop"): "PHONG CÁCH VÀ NHÂN VẬT",
+    ("persona", "unknown"): "PHONG CÁCH VÀ NHÂN VẬT",
     ("next_video", "hit"): "VIDEO TIẾP THEO NÊN QUAY",
     ("next_video", "average"): "VIDEO TIẾP THEO NÊN QUAY",
     ("next_video", "flop"): "VIDEO TIẾP THEO NÊN QUAY",

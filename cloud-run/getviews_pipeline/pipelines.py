@@ -357,6 +357,37 @@ def refine_performance_tier(corpus_tier: str, views: int, channel_context: dict[
     return account_tier
 
 
+def _dominant_creator_persona_from_corpus(
+    client: Any, handle: str, exclude_video_id: str
+) -> str | None:
+    """Mode of ``creator_persona`` from recent corpus rows; needs ≥2 agreeing rows."""
+    try:
+        res = (
+            client.table("video_corpus")
+            .select("analysis_json")
+            .eq("creator_handle", handle)
+            .neq("video_id", exclude_video_id)
+            .limit(24)
+            .execute()
+        )
+    except Exception:
+        return None
+    counts: Counter[str] = Counter()
+    for row in res.data or []:
+        aj = row.get("analysis_json")
+        if not isinstance(aj, dict):
+            continue
+        cp = str(aj.get("creator_persona") or "").strip().lower().replace("-", "_")
+        if cp and cp not in ("null", "none", "other", ""):
+            counts[cp] += 1
+    if not counts:
+        return None
+    top, n = counts.most_common(1)[0]
+    if n < 2:
+        return None
+    return top
+
+
 def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> dict[str, Any]:
     handle = creator_handle.lstrip("@").strip()
     vid = str(current_video_id or "").strip()
@@ -419,7 +450,7 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
                     "max_views": sorted_vws[-1],
                 }
 
-        return {
+        out_ctx: dict[str, Any] = {
             "available": True,
             "top_videos": [
                 {
@@ -446,6 +477,10 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
             "median_views": median_views,
             "per_format_views": per_format_views,
         }
+        dom_p = _dominant_creator_persona_from_corpus(client, handle, vid)
+        if dom_p:
+            out_ctx["dominant_creator_persona"] = dom_p
+        return out_ctx
     except Exception as exc:
         msg = str(exc)[:80]
         return {"available": False, "reason": f"Lỗi truy vấn kênh: {msg}"}
