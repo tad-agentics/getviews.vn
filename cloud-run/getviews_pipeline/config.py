@@ -415,6 +415,11 @@ GEMINI_VIDEO_DIAGNOSIS_HARD_TIMEOUT_SEC = _float_env(
     "120",
 )
 
+# Section-pool + signal-manifest diagnosis (JSON ``diagnosis_vi``, schema v6). Off by default.
+GETVIEWS_DIAGNOSIS_SECTION_MODE = (
+    (os.environ.get("GETVIEWS_DIAGNOSIS_SECTION_MODE") or "").strip() == "1"
+)
+
 # Backward-compat aliases — keep older callers working.
 FILES_API_POLL_INTERVAL_SEC = FILES_API_POLL_INITIAL_SEC
 FILES_API_POLL_MAX_ATTEMPTS = int(FILES_API_POLL_TIMEOUT_SEC / FILES_API_POLL_INITIAL_SEC)

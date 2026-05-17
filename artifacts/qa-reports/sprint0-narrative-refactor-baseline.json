@@ -1,0 +1,44 @@
+{
+  "feature": "sprint0-narrative-refactor",
+  "taskId": "sprint0-narrative-refactor",
+  "date": "2026-05-17",
+  "verdict": "PASS_WITH_CONCERNS",
+  "healthScore": 91,
+  "passResults": {
+    "signalsRegistryManifestGroupedBySection": "PASS",
+    "sectionPoolSelectSectionsToEmit": "PASS",
+    "geminiSectionModeEnvGate": "PASS",
+    "leadingJsonSplitAndV6NarrativeShim": "PASS",
+    "diagnosePromptsAndParseHelpersPresent": "PASS",
+    "diagnosisQualityScoringFootprint": "PASS",
+    "unitTestsDiagnosisV6Helpers": "PASS",
+    "fullPytestCloudRun": "PASS",
+    "sseSectionStreamWire": "OUT_OF_SCOPE_SLICE",
+    "feSectionRendererV6Shape": "OUT_OF_SCOPE_SLICE",
+    "twentyFixtureEvalHarness": "OUT_OF_SCOPE_SLICE",
+    "carouselPathDeletion": "OUT_OF_SCOPE_SLICE"
+  },
+  "evidence": [
+    "signals/registry.py: extractor pipeline + build_signal_manifest(ctx) grouped by section_id + manifest_for_prompt top-N trimming + ensure_diagnosis_signals baseline",
+    "diagnose_sections.py: VideoSectionId, SECTION_POOL, VIDEO_SECTION_DEFAULT_TITLES, select_sections_to_emit (compliance immediately after diagnosis when both emit)",
+    "config.py: GETVIEWS_DIAGNOSIS_SECTION_MODE only true when env is exactly \"1\" (production default unchanged)",
+    "gemini.py: synthesize_diagnosis_v2 delegates to _synthesize_diagnosis_v6_section_pool when flag on; _split_diagnosis_leading_json (fence + plain JSON); _v6_section_body_and_narrative emits _schema_version v6 + van_de_chinh + loi_chinh_narrative + nested diagnosis_vi; citation validation path reused",
+    "diagnose_prompts.py + diagnose_parse.py: v6 JSON instruction + markdown section marker parser scaffold for downstream FE/SSE parity",
+    "cloud-run/tests/test_diagnosis_v6_helpers.py — select_sections minimal ctx, narrative shim, score_diagnosis_output_v6 discipline",
+    "pytest (cloud-run): 2012 passed, 2 skipped (exit 0)"
+  ],
+  "findings": [
+    "Plan Sprint 0 lists SectionSpec.tile_type — not modeled on SectionSpec dataclass yet (defer or add when tile routing is exercised).",
+    "Unit tests stop at helpers; no direct tests for _split_diagnosis_leading_json edge cases / mocked full _synthesize_diagnosis_v6_section_pool — Gemini output shape when flag=1 still needs staged smoke.",
+    "diagnosis_quality logs debug footprint only; evaluator thresholds vs product bar uncalibrated outside this slice (eval harness deferred)."
+  ],
+  "categoryScores": {
+    "implementation": 94,
+    "testCoverage": 80,
+    "security": 99,
+    "integrationPaths": 90,
+    "build": 100,
+    "documentationEnv": 91
+  },
+  "recommendation": "Merge backend slice with flag staying off in production until a short canary validates real Gemini fenced JSON + citation guards; optionally add targeted tests for _split_diagnosis_leading_json before flipping GETVIEWS_DIAGNOSIS_SECTION_MODE."
+}

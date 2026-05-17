@@ -39,6 +39,7 @@ from getviews_pipeline.config import (
     GEMINI_TEMPERATURE,
     GEMINI_VIDEO_BASE_FPS,
     GEMINI_VIDEO_MEDIA_RESOLUTION,
+    GETVIEWS_DIAGNOSIS_SECTION_MODE,
     MAX_INLINE_SIZE_BYTES,
     require_gemini_api_key,
 )
@@ -1007,6 +1008,205 @@ def _normalize_narrative_vi_dict(narrative_vi: dict[str, Any] | None) -> dict[st
     return narrative_vi
 
 
+def _v6_section_body_and_narrative(
+    diag_vi: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
+    """Build streaming markdown body + legacy narrative_vi fields from v6 ``diagnosis_vi``."""
+
+    def _sec_txt(s: dict[str, Any]) -> str:
+        return str(s.get("text_vi") or s.get("text") or "").strip()
+
+    def _sec_tit(s: dict[str, Any]) -> str:
+        return str(s.get("title_vi") or s.get("title") or "").strip()
+
+    headline = str(diag_vi.get("headline_vi") or "").strip()
+    sections = diag_vi.get("sections") or []
+    body_parts: list[str] = []
+    first_para = ""
+    if isinstance(sections, list):
+        for s in sections:
+            if not isinstance(s, dict):
+                continue
+            sid = str(s.get("section_id") or "")
+            tit = _sec_tit(s)
+            txt = _sec_txt(s)
+            if txt:
+                if not first_para:
+                    chunk = txt.split("\n\n")[0].strip()
+                    first_para = chunk[:800]
+                body_parts.append(f"### {tit or sid}\n\n{txt}")
+    body_md = "\n\n".join(body_parts).strip()
+    van_de = (first_para or headline or body_md)[:1200]
+    ket_luan = headline if headline else (van_de[:280] if van_de else "—")
+    if not ket_luan:
+        ket_luan = "—"
+    loi_narr: list[dict[str, Any]] = []
+    if headline:
+        loi_narr.append(
+            {
+                "error_id": "v6_summary",
+                "narrative": headline,
+                "evidence_aweme_id": None,
+            }
+        )
+    narrative_vi: dict[str, Any] = {
+        "_schema_version": "v6",
+        "headline_vi": headline or ket_luan,
+        "ket_luan_nhanh": ket_luan,
+        "van_de_chinh": van_de or ket_luan,
+        "loi_chinh_narrative": loi_narr,
+        "diagnosis_vi": diag_vi,
+        "dinh_huong_chien_luoc": "",
+    }
+    return body_md, narrative_vi
+
+
+def _synthesize_diagnosis_v6_section_pool(
+    content_format: str,
+    niche_name: str,
+    corpus_size: int,
+    niche_meta: dict[str, Any],
+    reference_videos: list[dict[str, Any]],
+    user_analysis: dict[str, Any],
+    user_stats: dict[str, Any],
+    collapsed_questions: list[str] | None,
+    wants_directions: bool,
+    layer0_context: str,
+    corpus_citation: str,
+    persona_block: str,
+    *,
+    performance_tier: str,
+    channel_context: dict[str, Any] | None,
+    errors: list[dict[str, Any]] | None,
+    reference_evidence_block: str,
+    creator_format_history_block: str,
+) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
+    """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
+    from getviews_pipeline.diagnose_prompts import build_diagnosis_v6_user_prompt
+    from getviews_pipeline.diagnose_sections import select_sections_to_emit
+    from getviews_pipeline.diagnosis_quality import score_diagnosis_output_v6
+    from getviews_pipeline.signals.registry import (
+        build_diagnosis_ctx,
+        build_signal_manifest,
+        manifest_for_prompt,
+    )
+
+    allowed = _allowed_aweme_ids(reference_videos)
+    ctx_dict = build_diagnosis_ctx(
+        user_analysis=user_analysis,
+        user_stats=user_stats,
+        reference_videos=reference_videos,
+        channel_context=channel_context,
+        performance_tier=performance_tier,
+        niche_meta=niche_meta,
+        compliance_flags=None,
+        content_format=content_format,
+        niche_name=niche_name,
+        corpus_size=corpus_size,
+    )
+    manifest = build_signal_manifest(ctx_dict)
+    sections_ordered = select_sections_to_emit(manifest, ctx_dict)
+    manifest_trim = manifest_for_prompt(manifest)
+
+    model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
+    sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=True)
+    user_prompt = build_diagnosis_v6_user_prompt(
+        sections_to_emit=sections_ordered,
+        manifest_for_llm=manifest_trim,
+        ctx=ctx_dict,
+        content_format=content_format,
+        niche_name=niche_name,
+        corpus_size=corpus_size,
+        reference_videos=reference_videos,
+        user_analysis=user_analysis,
+        user_stats=user_stats,
+        performance_tier=performance_tier,
+        channel_context=channel_context,
+        errors=errors,
+        wants_directions=wants_directions,
+        corpus_citation=corpus_citation,
+        persona_block=persona_block,
+        reference_evidence_block=reference_evidence_block,
+        collapsed_questions=collapsed_questions,
+    )
+    prompt = _prefix_user_sections(
+        [layer0_context or "", creator_format_history_block or ""],
+        user_prompt,
+    )
+
+    max_tokens = 8192 if wants_directions else 6000
+    cfg = types.GenerateContentConfig(
+        temperature=GEMINI_TEMPERATURE,
+        max_output_tokens=max_tokens,
+    )
+    response = _generate_content_models(
+        [prompt],
+        primary_model=model,
+        fallbacks=GEMINI_SYNTHESIS_FALLBACKS,
+        config=cfg,
+        call_site="diagnosis_synthesis_v6_section_pool",
+        synthesis_cache_kind="diag_v6",
+        synthesis_cache_system_text=sys_inst,
+    )
+    text = _response_text(response)
+    if not text.strip():
+        raise ValueError("synthesize_diagnosis_v6_section_pool returned empty response")
+
+    raw_obj, remainder = _split_diagnosis_leading_json(text)
+    narrative_vi: dict[str, Any] | None = None
+    format_cards: list[dict[str, Any]] | None = None
+    body = ""
+
+    if raw_obj:
+        diag_vi = raw_obj.get("diagnosis_vi")
+        if isinstance(diag_vi, dict):
+            body, narrative_vi = _v6_section_body_and_narrative(diag_vi)
+            fc = raw_obj.get("format_cards")
+            format_cards = fc if isinstance(fc, list) else None
+            narrative_vi, format_cards = _validate_narrative_citations(
+                narrative_vi, format_cards, allowed
+            )
+            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
+            q = score_diagnosis_output_v6(
+                diag_vi, section_ids_expected=sections_ordered
+            )
+            logger.debug(
+                "[diagnosis_v6] quality footprint sections=%s scores=%s",
+                sections_ordered,
+                q,
+            )
+            if not body.strip():
+                body = remainder.strip()
+        else:
+            nv = raw_obj.get("narrative_vi")
+            fc = raw_obj.get("format_cards")
+            narrative_vi = nv if isinstance(nv, dict) else None
+            format_cards = fc if isinstance(fc, list) else None
+            narrative_vi, format_cards = _validate_narrative_citations(
+                narrative_vi, format_cards, allowed
+            )
+            narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
+            body = remainder.strip()
+    else:
+        body = text.strip()
+
+    scan_target = body if raw_obj else text.strip()
+    try:
+        from getviews_pipeline.analysis_guards import (
+            scan_synthesis_for_fabricated_metrics,
+        )
+
+        scan = scan_synthesis_for_fabricated_metrics(scan_target)
+        if not scan.clean:
+            logger.warning(
+                "[synthesis_guard] possible fabricated metric(s) in diagnosis_v6 output: %s",
+                scan.flags,
+            )
+    except Exception as exc:  # pragma: no cover — pure helper
+        logger.warning("[synthesis_guard] scan failed: %s", exc)
+    return body, narrative_vi, format_cards
+
+
 def synthesize_diagnosis_v2(
     content_format: str,
     niche_name: str,
@@ -1028,6 +1228,27 @@ def synthesize_diagnosis_v2(
     creator_format_history_block: str = "",
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
+
+    if GETVIEWS_DIAGNOSIS_SECTION_MODE:
+        return _synthesize_diagnosis_v6_section_pool(
+            content_format,
+            niche_name,
+            corpus_size,
+            niche_meta,
+            reference_videos,
+            user_analysis,
+            user_stats,
+            collapsed_questions,
+            wants_directions,
+            layer0_context,
+            corpus_citation,
+            persona_block,
+            performance_tier=performance_tier,
+            channel_context=channel_context,
+            errors=errors,
+            reference_evidence_block=reference_evidence_block,
+            creator_format_history_block=creator_format_history_block,
+        )
 
     allowed = _allowed_aweme_ids(reference_videos)
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
