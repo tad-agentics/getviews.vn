@@ -7,7 +7,11 @@
 ## QA
 
 - **Verdict:** PASS_WITH_CONCERNS — `artifacts/qa-reports/sprint1-commerce-intent-baseline.json`
-- **Follow-up:** Five labeled commerce TikToks through full extract → diagnose + evaluator on objective/CTA/disclosure copy; optional salience literal alignment to plan.
+- **Follow-up:** Five labeled commerce TikToks through full extract → diagnose + evaluator on objective/CTA/disclosure copy.
+
+## Taxonomy source
+
+- **Tracked:** `artifacts/docs/short-form-video-taxonomy-vietnam.md` (§0 = `commerce_intent` semantics). Code refs: `prompts.py` comment above `_VIDEO_EXTRACTION_CORE_VI`, `CommerceIntent` docstring in `models.py`.
 
 ## Acceptance notes
 

@@ -46,7 +46,7 @@ def extract_conversion_objective_signal(ctx: dict) -> list[Signal]:
             id="commerce_conversion_objective",
             section_id="commerce",
             taxonomy_ref="§0",
-            salience=0.62,
+            salience=0.6,
             claim=f"Mục tiêu chuyển đổi: {obj} — cần CTA và tiết lộ rõ khi có quan hệ thương mại.",
             evidence=[
                 Evidence(
@@ -196,7 +196,7 @@ def extract_creator_type_consistency_signal(ctx: dict) -> list[Signal]:
             id="commerce_creator_type_inconsistent",
             section_id="commerce",
             taxonomy_ref="§0",
-            salience=0.52,
+            salience=0.5,
             claim="Vai người lên hình (commerce_intent) lệch với vai nội dung (content_context).",
             evidence=[
                 Evidence(
@@ -227,7 +227,7 @@ def extract_legacy_promotion_signal(ctx: dict) -> list[Signal]:
             id="commerce_promotion_detected",
             section_id="commerce",
             taxonomy_ref="§0",
-            salience=0.62,
+            salience=0.6,
             claim=f"Video mang tính thương mại (promotion_type={promo}) — cần chấm CTA và tiết lộ.",
             evidence=[
                 Evidence(

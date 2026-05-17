@@ -3,13 +3,13 @@
   "taskId": "sprint1-commerce-intent",
   "date": "2026-05-17",
   "verdict": "PASS_WITH_CONCERNS",
-  "healthScore": 88,
+  "healthScore": 90,
   "passResults": {
     "commerceIntentSchemaOnVideoAnalysis": "PASS",
     "extractionPromptCommerceIntentBlock": "PASS",
     "fiveExtractorsPlusLegacyPromotionPath": "PASS",
-    "salienceMatchesPlanLiterals": "PARTIAL",
-    "taxonomyDocDecisionTreeInPrompt": "PARTIAL",
+    "salienceMatchesPlanLiterals": "PASS",
+    "taxonomyDocDecisionTreeInPrompt": "PASS",
     "fiveCommerceFixtureDiagnosisAcceptance": "PARTIAL",
     "voiceRuleCommerceIntentConversionObjectiveAnchor": "PARTIAL",
     "unitTestsCommerceSignalsAndHi9RoundTrip": "PASS",
@@ -17,17 +17,17 @@
     "securityRlsForSlice": "N/A"
   },
   "evidence": [
-    "models.py — CommerceIntent (conversion_objective, product_price_tier, creator_type, verbal_cta_present/quote, disclosure_present/form) + field validators; VideoAnalysis.commerce_intent optional",
+    "models.py — CommerceIntent (conversion_objective, product_price_tier, creator_type, verbal_cta_present/quote, disclosure_present/form) + field validators; VideoAnalysis.commerce_intent optional; docstring → taxonomy §0",
     "prompts.py — _VIDEO_EXTRACTION_CORE_VI includes commerce_intent §0 object with enum slugs and semantics (lines ~55–62 per grep)",
     "commerce.py — extract_conversion_objective_signal, extract_verbal_cta_signal, extract_price_tier_hook_mismatch_signal (under_150k + authority hook set), extract_disclosure_signal (structured + legacy promotion_type), extract_creator_type_consistency_signal; extract_legacy_promotion_signal; extract_commerce_signals merges all",
     "test_commerce_signals_sprint1.py — organic empty; commercial emits conversion+verbal+disclosure; price/hook mismatch; creator mismatch; legacy affiliate + brand_deal branches",
     "test_hi9_extraction_models.py::test_video_analysis_commerce_intent_round_trip — schema round-trip; test_extraction_prompts_include_glossary_and_hi9 asserts commerce_intent in VIDEO_EXTRACTION_PROMPT",
+    "artifacts/docs/short-form-video-taxonomy-vietnam.md — full §0–§12 taxonomy tracked; test_short_form_video_taxonomy_vietnam_section0_tracked",
+    "prompts.py — comment above _VIDEO_EXTRACTION_CORE_VI cross-references taxonomy §0 + models CommerceIntent",
     "Verification (reported): pytest cloud-run 2022 passed, 2 skipped; ruff commerce.py; npm run typecheck PASS"
   ],
   "findings": [
     "Acceptance “5 commerce fixtures … each diagnosis names conversion objective and grades CTA + disclosure” is only covered at signal/unit level — no TikTok fixture IDs, no diagnosis_quality / narrative assertions for those five archetypes.",
-    "Plan salience constants are 0.6 / 0.5 vs implementation 0.62 / 0.52 (minor drift).",
-    "Prompt embeds §0 instructions inline; explicit “decision tree” lift from artifacts/docs/short-form-video-taxonomy-vietnam.md is not verified as file-synced (risk: doc drift vs prompt).",
     "Voice/citation rule: Evidence.location uses commerce_intent subfields appropriately per signal; not all commerce signals anchor solely on conversion_objective (semantically correct; strict “one anchor field” interpretation not met)."
   ],
   "categoryScores": {
@@ -36,7 +36,7 @@
     "security": 100,
     "integrationPaths": 80,
     "build": 100,
-    "documentationEnv": 86
+    "documentationEnv": 93
   },
-  "recommendation": "Ship the pipeline slice; schedule a thin follow-up: five labeled TikTok fixtures (affiliate/KOC/brand/livestream/KOS) through extract → diagnose path with evaluator checks on conversion_objective mention + CTA/disclosure grading in copy; optionally align salience literals to plan or document intentional deltas."
+  "recommendation": "Ship the pipeline slice; schedule a thin follow-up: five labeled TikTok fixtures (affiliate/KOC/brand/livestream/KOS) through extract → diagnose path with evaluator checks on conversion_objective mention + CTA/disclosure grading in copy. When editing §0 enums, update taxonomy doc, CommerceIntent validators, and _VIDEO_EXTRACTION_CORE_VI together."
 }

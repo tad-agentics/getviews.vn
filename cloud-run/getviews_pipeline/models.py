@@ -273,7 +273,11 @@ _COMMERCE_DISCLOSURE_FORMS = frozenset(
 
 
 class CommerceIntent(BaseModel):
-    """Gemini §0 block — optional on legacy rows; back-filled on new extractions."""
+    """Gemini §0 block — optional on legacy rows; back-filled on new extractions.
+
+    Semantics mirror ``artifacts/docs/short-form-video-taxonomy-vietnam.md`` §0
+    (conversion framing, price tiers, creator roles, CTA/disclosure).
+    """
 
     model_config = ConfigDict(extra="ignore")
 

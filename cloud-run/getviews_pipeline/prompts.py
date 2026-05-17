@@ -30,6 +30,9 @@ from getviews_pipeline.voice_guide import ANTI_PATTERNS, build_voice_block
 
 # §14 — extraction prompt (full schema enforced via response_json_schema).
 # Vietnamese instructions for transcription / hook quality (HI-9).
+# §0 commerce_intent: normative semantics + decision framing live in
+# artifacts/docs/short-form-video-taxonomy-vietnam.md (§0); keep slug enums aligned
+# with CommerceIntent in models.py.
 
 _VIDEO_EXTRACTION_CORE_VI = """Phân tích video TikTok này. Chỉ trả về JSON khớp schema — không markdown, không lời dẫn.
 

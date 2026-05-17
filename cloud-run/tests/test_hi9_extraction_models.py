@@ -244,6 +244,17 @@ def test_carousel_analysis_rejects_unknown_carousel_axis_after_coercion() -> Non
     assert m.niche_classification.carousel_format_axis == "gallery_carousel"
 
 
+def test_short_form_video_taxonomy_vietnam_section0_tracked() -> None:
+    """Plan + prompts reference this artifact; guard against accidental deletion."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    path = root / "artifacts" / "docs" / "short-form-video-taxonomy-vietnam.md"
+    assert path.is_file()
+    text = path.read_text(encoding="utf-8")
+    assert "## §0. Commerce Intent Layer" in text
+
+
 def test_extraction_prompts_include_glossary_and_hi9() -> None:
     assert "content_context" in VIDEO_EXTRACTION_PROMPT
     assert "niche_classification" in VIDEO_EXTRACTION_PROMPT
