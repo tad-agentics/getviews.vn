@@ -80,6 +80,25 @@ def test_video_analysis_hi9_fields_round_trip() -> None:
     assert m.niche_classification.format_axis == "review_unboxing"
 
 
+def test_video_analysis_commerce_intent_round_trip() -> None:
+    d = _minimal_video_analysis_dict()
+    d["commerce_intent"] = {
+        "conversion_objective": "affiliate_shopee",
+        "product_price_tier": "under_150k",
+        "creator_type": "koc",
+        "verbal_cta_present": True,
+        "verbal_cta_quote": "Mua trong live",
+        "disclosure_present": True,
+        "disclosure_form": "voice",
+    }
+    m = VideoAnalysis.model_validate(d)
+    assert m.commerce_intent is not None
+    assert m.commerce_intent.conversion_objective == "affiliate_shopee"
+    assert m.commerce_intent.product_price_tier == "under_150k"
+    assert m.commerce_intent.creator_type == "koc"
+    assert m.commerce_intent.verbal_cta_quote == "Mua trong live"
+
+
 def test_video_analysis_rejects_invalid_creator_niche_slug() -> None:
     d = _minimal_video_analysis_dict()
     d["niche_classification"] = {
@@ -231,6 +250,7 @@ def test_extraction_prompts_include_glossary_and_hi9() -> None:
     assert "Ví dụ 1" in VIDEO_EXTRACTION_PROMPT
     assert '"beauty"' in VIDEO_EXTRACTION_PROMPT or "beauty" in VIDEO_EXTRACTION_PROMPT
     assert "review_unboxing" in VIDEO_EXTRACTION_PROMPT
+    assert "commerce_intent" in VIDEO_EXTRACTION_PROMPT
     assert "carousel_format_axis" in CAROUSEL_EXTRACTION_PROMPT
     assert "tutorial_carousel" in CAROUSEL_EXTRACTION_PROMPT
     assert "swipe_anchor" in CAROUSEL_EXTRACTION_PROMPT

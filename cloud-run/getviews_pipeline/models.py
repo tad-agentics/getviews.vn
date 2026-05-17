@@ -244,6 +244,74 @@ class ContentDirection(BaseModel):
 
 PromotionType = Literal["organic", "brand_deal", "affiliate", "self_promotion"]
 
+# §0 Commerce intent — Sprint 1 diagnosis signals (extraction + manifest).
+_COMMERCE_OBJECTIVES = frozenset(
+    {
+        "shop_direct",
+        "affiliate_shopee",
+        "livestream_funnel",
+        "brand_deal",
+        "koc_growth",
+        "entertainment_first",
+    }
+)
+_COMMERCE_PRICE_TIERS = frozenset(
+    {"under_150k", "150k_500k", "over_500k", "not_commerce"}
+)
+_COMMERCE_CREATOR_TYPES = frozenset(
+    {
+        "koc",
+        "kos_seller",
+        "brand_partner",
+        "entertainment",
+        "livestream_host",
+    }
+)
+_COMMERCE_DISCLOSURE_FORMS = frozenset(
+    {"hashtag", "voice", "text_overlay", "none"}
+)
+
+
+class CommerceIntent(BaseModel):
+    """Gemini §0 block — optional on legacy rows; back-filled on new extractions."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    conversion_objective: str = "entertainment_first"
+    product_price_tier: str = "not_commerce"
+    creator_type: str = "entertainment"
+    verbal_cta_present: bool = False
+    verbal_cta_quote: str | None = None
+    disclosure_present: bool = False
+    disclosure_form: str = "none"
+
+    @field_validator("conversion_objective", mode="before")
+    @classmethod
+    def _normalize_conversion_objective(cls, v: object) -> str:
+        s = str(v or "entertainment_first").strip().lower().replace("-", "_")
+        return s if s in _COMMERCE_OBJECTIVES else "entertainment_first"
+
+    @field_validator("product_price_tier", mode="before")
+    @classmethod
+    def _normalize_price_tier(cls, v: object) -> str:
+        s = str(v or "not_commerce").strip().lower().replace("-", "_")
+        # tolerate "150k-500k" style
+        if s in ("150k_500k", "150k-500k", "mid"):
+            return "150k_500k"
+        return s if s in _COMMERCE_PRICE_TIERS else "not_commerce"
+
+    @field_validator("creator_type", mode="before")
+    @classmethod
+    def _normalize_creator_type(cls, v: object) -> str:
+        s = str(v or "entertainment").strip().lower().replace("-", "_")
+        return s if s in _COMMERCE_CREATOR_TYPES else "entertainment"
+
+    @field_validator("disclosure_form", mode="before")
+    @classmethod
+    def _normalize_disclosure_form(cls, v: object) -> str:
+        s = str(v or "none").strip().lower().replace("-", "_")
+        return s if s in _COMMERCE_DISCLOSURE_FORMS else "none"
+
 
 class NarrativeViItem(BaseModel):
     error_id: str
@@ -465,6 +533,7 @@ class VideoAnalysis(BaseModel):
 
     content_context: ContentContext | None = None
     niche_classification: NicheClassification | None = None
+    commerce_intent: CommerceIntent | None = None
 
     @field_validator("promotion_type", mode="before")
     @classmethod

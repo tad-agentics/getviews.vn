@@ -52,6 +52,14 @@ QUY TẮC BẮT BUỘC:
 - target_audience: MỘT cụm tiếng Việt ngắn — video dành cho ai. Cụ thể; tránh "mọi người", "TikTok users".
 - pain_points: 0–3 cụm danh từ tiếng Việt — kích thích tâm lý. Không có hook đau → [].
 - promotion_type: organic | brand_deal | affiliate | self_promotion — theo watermark, #ad, CTA, link hoa hồng. Mơ hồ → organic.
+- commerce_intent (object §0 — luôn điền, kể cả organic):
+  - conversion_objective: shop_direct | affiliate_shopee | livestream_funnel | brand_deal | koc_growth | entertainment_first — mục tiêu chuyển đổi chính của clip. Chỉ giải trí / không bán / không dẫn Shop → entertainment_first.
+  - product_price_tier: under_150k | 150k_500k | over_500k | not_commerce — giá SP/dịch vụ chính (ước lượng từ lời/overlay); clip không thương mại → not_commerce.
+  - creator_type: koc | kos_seller | brand_partner | entertainment | livestream_host — vai người lên hình (KOC review, chủ shop/KOS, brand, host live…).
+  - verbal_cta_present: true nếu có lời nói trực tiếp kêu hành động mua/lưu/comment/inbox/vào giỏ rõ ràng; false nếu chỉ nhạc/ngầm.
+  - verbal_cta_quote: nguyên văn câu CTA tiếng Việt từ lời (hoặc null).
+  - disclosure_present: true nếu có tiết lộ quan hệ thương mại (#qc, tiết lộ giọng, chữ overlay “quảng cáo/tài trợ”…); false nếu không.
+  - disclosure_form: hashtag | voice | text_overlay | none — hình thức tiết lộ chính; none nếu disclosure_present=false.
 - style_tags: 2–5 tag trong danh sách schema: text_overlay_heavy, talking_head, voiceover_only, b_roll_heavy, fast_cuts, slow_reveal, meme_format, before_after, reaction, duet_stitch, green_screen, product_showcase, lifestyle_b_roll, educational_slides, trending_audio. Chỉ tag thấy rõ; không đoán.
 - has_human_speaking_to_camera: true nếu có mặt và người đó nói hướng khán giả (hoặc đối thoại với viewer); false nếu faceless hoàn toàn, chỉ ASMR sản phẩm, montage không talking head.
 - has_expressed_opinion_or_question: true nếu lời nói / overlay / caption có ý kiến, câu hỏi, hoặc POV cá nhân ("mình", "theo mình"); false nếu thuần mô tả trung tính."""
