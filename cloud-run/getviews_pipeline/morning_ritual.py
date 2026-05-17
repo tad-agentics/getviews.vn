@@ -49,10 +49,30 @@ PROFILE_SELECT_RITUAL_BATCH = "id,creator_niche_id,reference_channel_handles"
 # Gemini must pick one of these 15 literals; we derive the Vietnamese
 # display name post-hoc so the model can't drift from the fixed taxonomy.
 HookTypeEn = Literal[
-    "warning", "price_shock", "shock_stat", "reaction", "comparison",
-    "expose", "controversy", "how_to", "story_open", "pov",
-    "social_proof", "curiosity_gap", "bold_claim", "challenge",
-    "question", "pain_point", "trend_hijack", "insider", "secret",
+    "warning",
+    "price_shock",
+    "gia_soc",
+    "shock_stat",
+    "reaction",
+    "comparison",
+    "expose",
+    "vach_tran",
+    "controversy",
+    "how_to",
+    "tips_value",
+    "story_open",
+    "pov",
+    "social_proof",
+    "curiosity_gap",
+    "bold_claim",
+    "challenge",
+    "question",
+    "pain_point",
+    "trend_hijack",
+    "fomo_urgency",
+    "dialect_identity",
+    "insider",
+    "secret",
 ]
 
 

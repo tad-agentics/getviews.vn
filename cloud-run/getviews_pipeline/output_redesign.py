@@ -342,17 +342,19 @@ Tra bảng hook_type → template bên dưới. Điền [placeholder] bằng n�
 - curiosity_gap: "Tôi [hành động cụ thể] được [X ngày/tuần] và đây là điều xảy ra..."
 - pain_point: "Nếu bạn đang [tình huống đau thực tế], đây là lý do thực sự..."
 - warning: "Đừng [hành động phổ biến trong ngách] trước khi bạn xem video này"
-- price_shock: "[Sản phẩm/dịch vụ] này chỉ [giá cụ thể] — và nó [kết quả bất ngờ]"
+- shock_stat: "[Con số % / chỉ số cụ thể] về [chủ đề ngách] — và nó đảo lộn nhận định thường gặp"
+- gia_soc / price_shock: "[Sản phẩm/dịch vụ] này chỉ [giá cụ thể] — và nó [kết quả bất ngờ]"
 - reaction: "Tôi thử [hành động viral/trend] và đây là phản ứng của tôi..."
 - comparison: "[A] vs [B] — [tiêu chí bất ngờ] quyết định tất cả"
-- controversy / expose: "Sự thật về [chủ đề/brand] mà không ai dám nói"
-- how_to: "Cách [kết quả cụ thể] trong [thời gian ngắn bất ngờ] — không cần [rào cản phổ biến]"
+- controversy / expose / vach_tran: "Sự thật về [chủ đề/brand] mà không ai dám nói"
+- how_to / tips_value: "Cách [kết quả cụ thể] trong [thời gian ngắn bất ngờ] — không cần [rào cản phổ biến]"
 - story_open: "[Thời điểm cụ thể], tôi [tình huống] — và mọi thứ thay đổi từ đó"
 - pov: "POV: bạn là [nhân vật/tình huống] và [điều bất ngờ xảy ra]"
 - social_proof / testimonial: "[X người/creator] đã thử cách này — đây là kết quả thực tế"
 - question: "[Câu hỏi gây tranh luận về chủ đề ngách]?"
-- trend_hijack: "[Trend/âm thanh viral] + [nội dung của bạn] = [kết quả bất ngờ]"
+- trend_hijack / fomo_urgency: "[Trend/âm thanh viral] + [nội dung của bạn] = [kết quả]; chỉ còn [khung thời gian ngắn] để [hành động]"
 - insider / secret: "Điều mà [người trong ngành] biết nhưng không bao giờ nói công khai về [chủ đề]"
+- dialect_identity: "Người [vùng miền cụ thể] thường làm [thói quen/sai lầm] này với [chủ đề ngách] — và đây là hậu quả"
 
 Nếu hook_type không rõ hoặc là "none"/"other": dùng template curiosity_gap.
 Xuất template ĐÚNG 1 dòng. KHÔNG thêm giải thích hay biến thể khác sau template.
@@ -376,42 +378,50 @@ Nếu không có scenes data: bỏ qua, phân tích dựa trên hook_analysis v�
 """
 
 # ---------------------------------------------------------------------------
-# Hook type names — fixed taxonomy (14 names)
+# Hook type names — fixed taxonomy (Vietnamese display ↔ English enum slugs)
 # ---------------------------------------------------------------------------
 
 HOOK_TYPE_NAMES_CONSTRAINT = """
 Tên loại hook PHẢI dùng đúng tên trong danh sách sau. KHÔNG tự đặt tên mới:
-Cảnh Báo, Giá Sốc, Phản Ứng, So Sánh, Bóc Phốt, Hướng Dẫn, Kể Chuyện,
-POV, Bằng Chứng, Tò Mò / Gợi Mở, Tuyên Bố Mạnh, Câu Hỏi, Nỗi Đau, Đu Trend, Bí Mật / Nội Bộ.
+Cảnh Báo, Giá Sốc, Thống Kê Gây Sốc, Phản Ứng, So Sánh, Bóc Phốt / Vạch Trần, Hướng Dẫn, Kể Chuyện,
+POV, Bằng Chứng, Tò Mò / Gợi Mở, Tuyên Bố Mạnh, Thử Thách, Câu Hỏi, Nỗi Đau, Đu Trend / FOMO,
+Tips / Giá Trị Nhanh, Giọng Miền, Bí Mật / Nội Bộ.
+
+Giá trị trong JSON (hook_type) vẫn là snake_case tiếng Anh theo schema — bảng này chỉ cho phần nhãn người đọc.
 
 ✅ "Hook: Tuyên Bố Mạnh"      ❌ "Hook: Khẳng Định Mạnh Mẽ"
 ✅ "Hook: Đu Trend"            ❌ "Hook: Theo Trend"
 ✅ "Hook: Tò Mò / Gợi Mở"     ❌ "Hook: Gây Tò Mò"
-✅ "Hook: Bí Mật / Nội Bộ"    ❌ "Hook: Insider" hoặc "Hook: Bí Mật"
+✅ "Hook: Bí Mật / Nội Bộ"    ❌ "Hook: Insider" hoặc "Hook: Bí Mật" (nhãn tiếng Anh thô)
 """
 
-# Canonical English hook type enum → Vietnamese display name (14-name fixed list).
+# Canonical English hook type enum → Vietnamese display name.
 # Keyed by all values that can appear in analysis_json.hook_analysis.hook_type.
 HOOK_TYPE_VI: dict[str, str] = {
     "warning": "Cảnh Báo",
     "price_shock": "Giá Sốc",
+    "gia_soc": "Giá Sốc",
     "shock_stat": "Thống Kê Gây Sốc",
     "reaction": "Phản Ứng",
     "comparison": "So Sánh",
     "expose": "Bóc Phốt",
-    "controversy": "Bóc Phốt",      # controversy ≈ expose in Vietnamese creator vocab
+    "vach_tran": "Vạch Trần",
+    "controversy": "Bóc Phốt",
     "how_to": "Hướng Dẫn",
+    "tips_value": "Tips / Giá Trị Nhanh",
     "story_open": "Kể Chuyện",
     "pov": "POV",
     "social_proof": "Bằng Chứng",
     "curiosity_gap": "Tò Mò / Gợi Mở",
     "bold_claim": "Tuyên Bố Mạnh",
-    "challenge": "Tuyên Bố Mạnh",   # challenge often functions as bold claim
+    "challenge": "Thử Thách",
     "question": "Câu Hỏi",
     "pain_point": "Nỗi Đau",
     "trend_hijack": "Đu Trend",
+    "fomo_urgency": "FOMO / Gấp",
+    "dialect_identity": "Giọng Miền",
     "insider": "Bí Mật / Nội Bộ",
-    "secret": "Bí Mật / Nội Bộ",    # "secret" ≈ insider in Vietnamese creator vocab
+    "secret": "Bí Mật / Nội Bộ",
     "none": "",
     "other": "",
 }
@@ -423,7 +433,10 @@ def hook_type_vi(hook_type: str) -> str:
     Returns an empty string for unknown or absent hook types so callers can
     decide whether to omit the field rather than showing a raw English enum.
     """
-    return HOOK_TYPE_VI.get((hook_type or "").lower(), "")
+    key = (hook_type or "").strip().lower().replace("-", "_")
+    if key == "price_shock":
+        key = "gia_soc"
+    return HOOK_TYPE_VI.get(key, "")
 
 
 # ---------------------------------------------------------------------------
@@ -839,18 +852,20 @@ Kết thúc bắt buộc bằng dòng "**Hook slide 1:**" rồi ngay sau là tem
 - bold_claim / challenge: "[Con số cụ thể] [kết quả bất ngờ] mà không ai nói với bạn về [chủ đề ngách]"
 - curiosity_gap: "Tôi [hành động cụ thể] được [X ngày/tuần] và đây là điều xảy ra..."
 - pain_point: "Nếu bạn đang [tình huống đau thực tế], đây là lý do thực sự..."
-- warning: "Đừng [hành động phổ biến trong ngách] trước khi bạn xem video này"
-- price_shock: "[Sản phẩm] chỉ [giá cụ thể] — và nó [kết quả bất ngờ]"
+- warning: "Đừng [hành động phổ biến trong ngách] trước khi bạn xem slide này"
+- shock_stat: "[Con số % / chỉ số cụ thể] về [chủ đề ngách] — và nó đảo lộn nhận định thường gặp"
+- gia_soc / price_shock: "[Sản phẩm] chỉ [giá cụ thể] — và nó [kết quả bất ngờ]"
 - reaction: "Tôi thử [hành động viral/trend] và đây là phản ứng của tôi..."
 - comparison: "[A] vs [B] — [tiêu chí bất ngờ] quyết định tất cả"
-- controversy / expose: "Sự thật về [chủ đề/brand] mà không ai dám nói"
-- how_to: "Cách [kết quả cụ thể] trong [thời gian ngắn] — không cần [rào cản phổ biến]"
+- controversy / expose / vach_tran: "Sự thật về [chủ đề/brand] mà không ai dám nói"
+- how_to / tips_value: "Cách [kết quả cụ thể] trong [thời gian ngắn] — không cần [rào cản phổ biến]"
 - story_open: "[Thời điểm cụ thể], tôi [tình huống] — và mọi thứ thay đổi từ đó"
 - pov: "POV: bạn là [nhân vật/tình huống] và [điều bất ngờ xảy ra]"
 - social_proof / testimonial: "[X người/creator] đã thử cách này — đây là kết quả thực tế"
 - question: "[Câu hỏi gây tranh luận về chủ đề ngách]?"
-- trend_hijack: "[Trend/âm thanh viral] + [nội dung của bạn] = [kết quả bất ngờ]"
+- trend_hijack / fomo_urgency: "[Trend/âm thanh viral] + [nội dung của bạn] = [kết quả]; chỉ còn [khung thời gian ngắn] để [hành động]"
 - insider / secret: "Điều mà [người trong ngành] biết nhưng không bao giờ nói công khai về [chủ đề]"
+- dialect_identity: "Người [vùng miền cụ thể] thường làm [thói quen/sai lầm] này với [chủ đề ngách] — và đây là hậu quả"
 
 Nếu hook_type không rõ: dùng template curiosity_gap. Xuất template ĐÚNG 1 dòng.
 """

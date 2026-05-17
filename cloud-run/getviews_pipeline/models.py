@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -27,9 +27,29 @@ HookType = Literal[
     "curiosity_gap",
     "pain_point",
     "trend_hijack",
+    "warning",
+    "reaction",
+    "comparison",
+    "expose",
+    "insider",
+    "secret",
+    "pov",
+    # §3 Vietnam-specific (diagnosis-first Sprint 2) — slug output, not English prose
+    "vach_tran",
+    "gia_soc",
+    "dialect_identity",
+    "fomo_urgency",
+    "tips_value",
     "none",
     "other",
 ]
+
+HookLayering = Literal["single", "dual", "triple"]
+
+DialectDetected = Literal["hue", "quang_nam", "southern", "northern", "none"]
+
+_HOOK_TYPE_ALLOWED = frozenset(get_args(HookType))
+_HOOK_LAYERING_ALLOWED = frozenset(get_args(HookLayering))
 
 FirstFrameType = Literal[
     "face",
@@ -152,7 +172,7 @@ ToneType = Literal[
 
 # Maps known Gemini near-miss values → canonical HookType.
 _HOOK_TYPE_ALIASES: dict[str, str] = {
-    "pov": "story_open",
+    "pov": "pov",
     "statistic": "shock_stat",
     "stat": "shock_stat",
     "question_hook": "question",
@@ -165,10 +185,17 @@ _HOOK_TYPE_ALIASES: dict[str, str] = {
     "curiosity": "curiosity_gap",
     "pain point": "pain_point",
     "trend hijack": "trend_hijack",
-    # "insider" / "secret" knowledge-base types → closest canonical HookType
-    "insider": "social_proof",
-    "secret": "social_proof",
-    "bi_mat": "social_proof",
+    "price_shock": "gia_soc",
+    "gia_soc": "gia_soc",
+    "vach_tran": "vach_tran",
+    "expose": "expose",
+    "dialect_identity": "dialect_identity",
+    "fomo_urgency": "fomo_urgency",
+    "fomo": "fomo_urgency",
+    "tips_value": "tips_value",
+    "insider": "insider",
+    "secret": "secret",
+    "bi_mat": "secret",
 }
 
 
@@ -196,6 +223,9 @@ class HookTimelineEvent(BaseModel):
     note: str = ""  # optional 1-3 word descriptor, e.g. "zoom-in" / "sản phẩm"
 
 
+_DIALECT_ALLOWED = frozenset(get_args(DialectDetected))
+
+
 class HookAnalysis(BaseModel):
     first_frame_type: FirstFrameType
     face_appears_at: float | None = None
@@ -204,6 +234,20 @@ class HookAnalysis(BaseModel):
     hook_type: HookType
     hook_notes: str
     hook_timeline: list[HookTimelineEvent] = Field(default_factory=list)
+    hook_layering: HookLayering | None = None
+    hook_body_contract: bool | None = None
+    dialect_detected: DialectDetected | None = None
+    price_anchor_manipulation_suspected: bool | None = None
+
+    @field_validator("hook_layering", mode="before")
+    @classmethod
+    def normalize_hook_layering(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower()
+        if s in _HOOK_LAYERING_ALLOWED:
+            return s
+        return None
 
     @field_validator("hook_type", mode="before")
     @classmethod
@@ -211,7 +255,31 @@ class HookAnalysis(BaseModel):
         if not isinstance(v, str):
             return v
         normalized = v.strip().lower().replace("-", "_")
-        return _HOOK_TYPE_ALIASES.get(normalized, normalized)
+        normalized = _HOOK_TYPE_ALIASES.get(normalized, normalized)
+        if normalized not in _HOOK_TYPE_ALLOWED:
+            return "other"
+        return normalized
+
+    @field_validator("dialect_detected", mode="before")
+    @classmethod
+    def normalize_dialect_detected(cls, v: object) -> object:
+        if v is None:
+            return v
+        s = str(v).strip().lower().replace("-", "_")
+        # tolerate Vietnamese labels / typos
+        if s in ("huế", "hue", "huet"):
+            return "hue"
+        if s in ("quảng_nam", "quang_nam", "quangnam"):
+            return "quang_nam"
+        if s in ("southern", "nam", "mien_nam", "miền_nam"):
+            return "southern"
+        if s in ("northern", "bac", "miền_bắc", "mien_bac"):
+            return "northern"
+        if s in ("none", "không", "khong", "neutral", "unknown", ""):
+            return "none"
+        if s not in _DIALECT_ALLOWED:
+            return "none"
+        return s
 
 
 class TextOverlay(BaseModel):

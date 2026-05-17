@@ -5,7 +5,18 @@ from typing import Any
 from getviews_pipeline.signals.base import Evidence, Signal
 
 _AUTHORITY_HOOK_TYPES = frozenset(
-    {"bold_claim", "shock_stat", "social_proof", "controversy"}
+    {
+        "bold_claim",
+        "shock_stat",
+        "social_proof",
+        "controversy",
+        "expose",
+        "vach_tran",
+        "comparison",
+        "insider",
+        "secret",
+        "tips_value",
+    }
 )
 
 

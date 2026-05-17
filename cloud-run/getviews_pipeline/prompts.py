@@ -41,6 +41,11 @@ QUY TẮC BẮT BUỘC:
 - hook_phrase: ĐÚNG nguyên văn lời mở đầu (thường tiếng Việt) — không diễn giải, không dịch. Nếu 3s đầu không có lời, dùng chữ overlay đầu tiên thấy rõ.
 - hook_timeline: 2–5 sự kiện trong cửa sổ hook 0.0–3.0s; sắp xếp t tăng dần. Mỗi event thuộc một trong: face_enter, first_word, text_overlay, sound_drop, cut, product_enter, reveal. t tính bằng giây, chính xác 0.1s. Bỏ sự kiện không xảy ra trong 3s đầu. Bỏ qua nếu tín hiệu yếu.
 - QUAN TRỌNG (GIẢI MÃ HOOK): Mỗi cửa sổ 0.0–0.8s / 0.8–1.8s / 1.8–3.0s chỉ mô tả việc xảy ra trong cửa sổ đó. Trong hook_timeline[].note: không viết "ngay đầu video", "khung hình đầu tiên", "cuối clip" trừ khi khớp hook_timeline[].t (vd t≈0 cho đầu video). Không gắn lời nói @X vào note nếu X không khớp gần t của sự kiện — dùng first_speech_at cho lời mở.
+- hook_analysis.hook_type: CHỈ chọn một literal snake_case từ schema (vd: question, bold_claim, shock_stat, story_open, controversy, challenge, how_to, social_proof, curiosity_gap, pain_point, trend_hijack, warning, reaction, comparison, expose, insider, secret, pov, vach_tran, gia_soc, dialect_identity, fomo_urgency, tips_value, none, other) — không dùng tiếng Anh tự do, không dùng nhãn tiếng Việt làm giá trị.
+- hook_analysis.hook_layering: single | dual | triple | null — số lớp tín hiệu đồng thời (hình + chữ + beat âm) trong 0–3s; null nếu không chắc.
+- hook_analysis.hook_body_contract: true nếu phần thân (khoảng 4–15s) trả lời đúng lời hứa hook; false nếu hook hứa một đằng nội dung một nẻo; null nếu không đủ căn cứ.
+- hook_analysis.dialect_detected: hue | quang_nam | southern | northern | none | null — chỉ khi giọng/từ vựng địa phương lộ rõ trong hook; không ép.
+- hook_analysis.price_anchor_manipulation_suspected: true nếu neo giá gạch / % giảm gây hiểu nhầm (rủi ro comply TikTok Shop VN); false nếu không áp dụng; null nếu clip không gắn giá/thương mại.
 - scenes: Mỗi lần cắt hình, đổi góc máy, hoặc đổi chủ thể rõ → scene mới. Video 15s thường 3–8 scene; 30s có thể 5–15. Mỗi scene điền các chiều phong phú dưới; không chắc → null, không đoán bừa.
 - scenes[].framing: close_up | medium | wide | extreme_close_up — khớp định nghĩa schema.
 - scenes[].pace: static | slow | medium | fast | cut_heavy — khớp định nghĩa schema.
