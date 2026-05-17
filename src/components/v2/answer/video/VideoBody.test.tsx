@@ -145,6 +145,35 @@ function renderInRouter(report: VideoReportPayload) {
 }
 
 describe("VideoBody render", () => {
+  it("renders diagnosis_v6 sections and omits duplicate van_de_chinh body", () => {
+    renderInRouter(
+      makeWinReport({
+        narrative_vi: {
+          headline_vi: "H",
+          ket_luan_nhanh: "Kết luận nhanh cho win.",
+          van_de_chinh: "KHÔNG HIỂN THỊ KHI V6",
+          loi_chinh_narrative: [],
+          dinh_huong_chien_luoc: "",
+          lessons: [],
+          _schema_version: "v6",
+          diagnosis_vi: {
+            headline_vi: "H",
+            sections: [
+              {
+                section_id: "diagnosis",
+                title: "Phần chẩn đoán",
+                text: "Nội dung chi tiết ở đây.",
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(screen.getByText("Phần chẩn đoán")).toBeTruthy();
+    expect(screen.getByText("Nội dung chi tiết ở đây.")).toBeTruthy();
+    expect(screen.queryByText("KHÔNG HIỂN THỊ KHI V6")).toBeNull();
+  });
+
   it("renders the win headline from narrative_vi.headline_vi", () => {
     renderInRouter(makeWinReport());
     expect(screen.getByText("Headline win text")).toBeTruthy();

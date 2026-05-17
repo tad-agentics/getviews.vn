@@ -7,29 +7,13 @@
  * - fallback: renders raw text.
  */
 
+import { SectionProseBlocks } from "@/components/SectionProseBlocks";
 import type { ChannelSection, ChannelRecommendation } from "@/lib/api-types";
 import { VideoTileRow } from "./VideoTileRow";
 import { CreatorTileRow } from "./CreatorTileRow";
 import { RecommendationList } from "./NumberedRecommendation";
 import { HashtagInsightsBlock } from "./HashtagInsightsBlock";
 import { NextVideoCard, NextVideoCardEmpty } from "./NextVideoCard";
-
-function renderParagraphs(text: string) {
-  if (!text) return null;
-  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  return (
-    <div className="space-y-2 mt-2">
-      {paragraphs.map((para, i) => (
-        <p
-          key={i}
-          className="text-sm text-[color:var(--foreground)] leading-relaxed"
-        >
-          {para}
-        </p>
-      ))}
-    </div>
-  );
-}
 
 interface SectionRendererProps {
   section: ChannelSection;
@@ -57,7 +41,7 @@ export function SectionRenderer({
         {recommendations.length > 0 ? (
           <RecommendationList recommendations={recommendations} />
         ) : (
-          renderParagraphs(text)
+          <SectionProseBlocks text={text} />
         )}
       </div>
     );
@@ -69,7 +53,7 @@ export function SectionRenderer({
         <h2 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h2>
         <HashtagInsightsBlock insights={hashtag_insights ?? []} />
         <div className="relative mt-2">
-          {renderParagraphs(text)}
+          <SectionProseBlocks text={text} />
           {streaming && text && (
             <span
               className="inline-block w-0.5 h-4 bg-[color:var(--primary)] animate-pulse ml-0.5 align-text-bottom"
@@ -103,7 +87,7 @@ export function SectionRenderer({
 
       {/* Prose body */}
       <div className="relative">
-        {renderParagraphs(text)}
+        <SectionProseBlocks text={text} />
         {streaming && !text && (
           // Active-section, no text_chunk yet — bridge the gap so the
           // section card isn't a bare heading for the second or two

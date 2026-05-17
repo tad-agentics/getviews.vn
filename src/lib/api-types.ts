@@ -867,6 +867,46 @@ export interface NarrativeVi {
   /** Win tier only (≤3). Empty for flop/average/unknown. */
   lessons?: { title: string; body: string }[];
   dinh_huong_chien_luoc: string;
+  /** When diagnosis synthesis uses the section-pool JSON path (`GETVIEWS_DIAGNOSIS_SECTION_MODE=1`). */
+  _schema_version?: "v5" | "v6" | string;
+  /** Structured sections + anchors from Cloud Run v6 envelope. */
+  diagnosis_vi?: DiagnosisViV6;
+}
+
+/** Stable video-diagnosis section ids (Sprint 0 pool; grows with sprints). */
+export type VideoDiagnosisSectionId =
+  | "diagnosis"
+  | "compliance"
+  | "distribution"
+  | "niche_pattern"
+  | "channel_pattern"
+  | "commerce"
+  | "next_video";
+
+/** One section inside `diagnosis_vi.sections` — mirrors channel `ChannelSection` shape loosely for LLM JSON. */
+export interface DiagnosisSectionVi {
+  section_id: VideoDiagnosisSectionId | string;
+  title?: string;
+  title_vi?: string;
+  text?: string;
+  text_vi?: string;
+  embedded_tiles?: unknown[];
+  next_video?: Record<string, unknown> | null;
+}
+
+export interface DiagnosisEvidenceAnchorVi {
+  signal_id?: string;
+  section_id?: string;
+  type?: string;
+  quote?: string;
+  location?: string | null;
+}
+
+/** v6 diagnosis JSON envelope nested under `narrative_vi`. */
+export interface DiagnosisViV6 {
+  headline_vi: string;
+  sections: DiagnosisSectionVi[];
+  evidence_anchors?: DiagnosisEvidenceAnchorVi[];
 }
 
 /**

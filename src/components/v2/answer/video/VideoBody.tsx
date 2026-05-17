@@ -32,6 +32,7 @@ import { scriptPrefillFromVideo } from "@/lib/scriptPrefill";
 import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
 import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
+import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectionRenderer";
 import {
   CreatorComparisonCard,
 } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
@@ -220,6 +221,9 @@ export function VideoBody({
       source: report.source ?? "corpus",
     });
   }, [viewMode, report.video_id, report.source]);
+
+  const v6Sections = narrativeVi?.diagnosis_vi?.sections;
+  const showV6SectionBody = Array.isArray(v6Sections) && v6Sections.length > 0;
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
@@ -467,7 +471,19 @@ export function VideoBody({
           </div>
         ) : null}
 
-        {narrativeVi?.van_de_chinh ? (
+        {showV6SectionBody ? (
+          <div className="mb-6" aria-label="Chẩn đoán theo mục">
+            {v6Sections!.map((sec, idx) => (
+              <DiagnosisSectionRenderer
+                key={`${String(sec.section_id)}-${idx}`}
+                section={sec}
+                referenceVideos={refVideos}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {!showV6SectionBody && narrativeVi?.van_de_chinh ? (
           <section className="mb-6">
             <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
               Vấn đề cốt lõi
