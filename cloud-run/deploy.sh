@@ -50,20 +50,28 @@ else
   echo "SKIP_BUILD=1 — reusing existing image $IMAGE"
 fi
 
+# IMPORTANT — env-var preservation across image-rebuild deploys.
+#
+# Prior versions of this script passed ``--update-env-vars SERVICE_ROLE=…``
+# to ``gcloud run deploy --image …`` and asserted in the comments that
+# this preserved the other env vars on the service. In practice it does
+# NOT — ``gcloud run deploy --image`` + any env-mutation flag emits a
+# fresh revision whose env block contains only the listed vars + the
+# service-default SERVICE_ROLE. On 2026-05-17 this silently wiped the
+# batch pod from 20 env vars down to 1 (BATCH_SECRET, SUPABASE_*,
+# GEMINI_API_KEY, R2_*, etc. all gone). The next nightly batch ingest
+# would have hard-failed.
+#
+# Fix: do the deploy WITHOUT any env-mutation flag (so gcloud keeps the
+# existing env block intact), then issue a follow-up
+# ``gcloud run services update --update-env-vars SERVICE_ROLE=…`` to
+# pin the role. ``services update --update-env-vars`` is genuinely
+# additive — it merges with the existing env block.
 deploy_user() {
   # User-facing pod: needs 1 warm instance for snappy first-token SSE.
   # 300s timeout is plenty for the longest video analysis (Gemini caps
   # at ~120s end-to-end). Smaller memory than batch since one request
   # streams one video, not a corpus wave.
-  #
-  # ``--update-env-vars`` (NOT ``--set-env-vars``): we only want to
-  # ensure SERVICE_ROLE is set, NOT to wipe every other env var on the
-  # service. ``--set-env-vars`` REPLACES the entire env block, which
-  # would nuke SUPABASE_URL / GEMINI_API_KEY / ENSEMBLE_DATA_API_KEY /
-  # SUPABASE_JWT_SECRET on every deploy and break JWT verification
-  # (``jwks_url_unset`` 500 on every authenticated route). The other
-  # env vars must be set out-of-band via ``gcloud run services update
-  # --update-env-vars`` — see the printed instructions below.
   echo ""
   echo "Deploying getviews-pipeline-user..."
   gcloud run deploy getviews-pipeline-user \
@@ -77,7 +85,11 @@ deploy_user() {
     --timeout 600 \
     --concurrency 20 \
     --min-instances 1 \
-    --max-instances 5 \
+    --max-instances 5
+  echo "Pinning SERVICE_ROLE=user (additive update, preserves all other env vars)..."
+  gcloud run services update getviews-pipeline-user \
+    --project "$PROJECT_ID" \
+    --region "$REGION" \
     --update-env-vars "SERVICE_ROLE=user"
 }
 
@@ -85,7 +97,6 @@ deploy_batch() {
   # Batch pod: cold-starts are fine (Cloud Scheduler tolerates startup
   # latency). 8Gi — HI-13 Batch JSONL + parallel MP4 prep exceeded 4Gi in prod (OOM ~4.1Gi).
   # 3600s timeout because all-niche ingest can run 10–30+ minutes.
-  # Same ``--update-env-vars`` rationale as deploy_user — see comment above.
   echo ""
   echo "Deploying getviews-pipeline-batch..."
   gcloud run deploy getviews-pipeline-batch \
@@ -99,7 +110,11 @@ deploy_batch() {
     --timeout 3600 \
     --concurrency 5 \
     --min-instances 0 \
-    --max-instances 3 \
+    --max-instances 3
+  echo "Pinning SERVICE_ROLE=batch (additive update, preserves all other env vars)..."
+  gcloud run services update getviews-pipeline-batch \
+    --project "$PROJECT_ID" \
+    --region "$REGION" \
     --update-env-vars "SERVICE_ROLE=batch"
 }
 

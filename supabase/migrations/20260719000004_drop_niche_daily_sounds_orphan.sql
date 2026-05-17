@@ -1,0 +1,39 @@
+-- Drop niche_daily_sounds — verified orphan.
+--
+-- Created in 20260504000000_adopt_orphan_tables.sql ("adopt orphan tables")
+-- and granted RLS in 20260504000001_phase1_rls_critical.sql, but:
+--
+-- 1. No writer anywhere in the codebase (cloud-run/, supabase/functions/,
+--    api/, src/) — confirmed via `rg 'niche_daily_sounds'` 2026-05-17.
+--    pg_stat_user_tables shows n_tup_ins = 0 lifetime.
+-- 2. No reader — same rg sweep. The sound logic in
+--    cloud-run/getviews_pipeline/layer0_sound.py:33 explicitly
+--    documents "No niche_daily_sounds needed" because the rewrite uses
+--    a self-join on trending_sounds.week_of instead.
+-- 3. The cron audit on 2026-05-17 confirmed cron-batch-sound-aggregate
+--    writes to trending_sounds (866 live rows) and never touches this
+--    table.
+--
+-- Conclusion: pure dead schema. Dropping removes the table + its RLS
+-- policy + idx_niche_daily_sounds_niche_date index in one shot.
+
+DROP TABLE IF EXISTS public.niche_daily_sounds CASCADE;
+
+-- Rollback (recreates the empty shell + RLS policy + index — same as
+-- the original two migrations). Use only if a writer is added later:
+--
+--   CREATE TABLE public.niche_daily_sounds (
+--     id               uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
+--     niche_id         integer NOT NULL REFERENCES public.niche_taxonomy(id),
+--     computed_date    date    NOT NULL,
+--     sound_id         text    NOT NULL,
+--     sound_name       text,
+--     usage_count      integer DEFAULT 0,
+--     is_original_sound boolean DEFAULT false,
+--     created_at       timestamptz DEFAULT now()
+--   );
+--   ALTER TABLE public.niche_daily_sounds ENABLE ROW LEVEL SECURITY;
+--   CREATE POLICY "niche_daily_sounds_read"
+--     ON public.niche_daily_sounds FOR SELECT TO authenticated USING (true);
+--   CREATE INDEX idx_niche_daily_sounds_niche_date
+--     ON public.niche_daily_sounds (niche_id, computed_date DESC);
