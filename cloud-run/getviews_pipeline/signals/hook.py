@@ -28,7 +28,7 @@ def extract_hook_first_frame_product_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="hook_first_frame_non_product",
-            section_id="diagnosis",
+            section_id="hook_analysis",
             taxonomy_ref="§3",
             salience=0.74,
             claim="Khung mở đầu chưa lộ rõ sản phẩm / kết quả so với pattern review trong nhiều ngách.",
@@ -79,7 +79,7 @@ def extract_hook_type_niche_mismatch_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="hook_type_niche_mismatch",
-            section_id="diagnosis",
+            section_id="hook_analysis",
             taxonomy_ref="§3",
             salience=0.75,
             claim=(
@@ -108,7 +108,7 @@ def extract_hook_layering_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="hook_layering_single",
-            section_id="diagnosis",
+            section_id="hook_analysis",
             taxonomy_ref="§3",
             salience=0.7,
             claim="Hook đơn lớp — thiếu xếp chồng hình + chữ + âm thanh (chuẩn VN 2025+).",
@@ -133,7 +133,7 @@ def extract_hook_body_contract_signal(ctx: dict) -> list[Signal]:
     return [
         Signal(
             id="hook_body_contract_violated",
-            section_id="diagnosis",
+            section_id="hook_analysis",
             taxonomy_ref="§3",
             salience=0.9,
             claim="Thân video không trả lời lời hứa hook — rủi ro rớt retention giữa chừng.",

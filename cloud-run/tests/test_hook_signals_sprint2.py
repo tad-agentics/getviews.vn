@@ -61,14 +61,20 @@ def test_extract_price_shock_alias_compliance_signal() -> None:
 
 def test_extract_hook_layering_single() -> None:
     ctx = _minimal_ua_hook(hook_layering="single")
-    ids = [s.id for s in extract_hook_signals(ctx)]
+    sigs = extract_hook_signals(ctx)
+    ids = [s.id for s in sigs]
     assert "hook_layering_single" in ids
+    layering = [s for s in sigs if s.id == "hook_layering_single"]
+    assert layering and layering[0].section_id == "hook_analysis"
 
 
 def test_extract_hook_body_contract_violated() -> None:
     ctx = _minimal_ua_hook(hook_body_contract=False)
-    ids = [s.id for s in extract_hook_signals(ctx)]
+    sigs = extract_hook_signals(ctx)
+    ids = [s.id for s in sigs]
     assert "hook_body_contract_violated" in ids
+    row = [s for s in sigs if s.id == "hook_body_contract_violated"][0]
+    assert row.section_id == "hook_analysis"
 
 
 def test_extract_dialect_identity_without_markers() -> None:

@@ -1,0 +1,31 @@
+{
+  "task_id": "sprint2-vietnamese-hooks",
+  "verdict": "PASS_WITH_CONCERNS",
+  "test_summary": {
+    "targeted_pytest": "PASS — cd cloud-run && .venv/bin/python -m pytest tests/test_diagnosis_v6_helpers.py tests/test_hook_signals_sprint2.py -q -> 16 passed in 1.13s",
+    "reported_full_pytest": "PASS — cd cloud-run && .venv/bin/python -m pytest -q -> 2039 passed, 1 skipped",
+    "reported_typecheck": "PASS — npm run typecheck passed earlier in session",
+    "coverage_notes": [
+      "select_sections_to_emit includes hook_analysis after compliance when a hook_analysis signal reaches salience >= 0.7.",
+      "select_sections_to_emit omits hook_analysis when only low-salience dialect hook signals are present.",
+      "hook_layering_single and hook_body_contract_violated now route to section_id=hook_analysis.",
+      "dialect signals remain in diagnosis at salience 0.6, and gia_soc price-anchor risk remains in compliance."
+    ]
+  },
+  "files_reviewed": [
+    "cloud-run/getviews_pipeline/diagnose_sections.py",
+    "cloud-run/getviews_pipeline/signals/hook.py",
+    "cloud-run/getviews_pipeline/signals/registry.py",
+    "cloud-run/getviews_pipeline/models.py",
+    "cloud-run/getviews_pipeline/prompts.py",
+    "cloud-run/getviews_pipeline/output_redesign.py",
+    "cloud-run/tests/test_diagnosis_v6_helpers.py",
+    "cloud-run/tests/test_hook_signals_sprint2.py",
+    "Diagnosis-first plan (Sprint 2 §3) — see `.cursor/plans/diagnosis-first_plan_*` in Cursor plans"
+  ],
+  "concerns": [
+    "Sprint 2 plan acceptance for 6 hook fixtures remains deferred at fixture/narrative level; this QA run validates schema, signal routing, and section-pool behavior rather than six real TikTok fixture diagnoses."
+  ],
+  "recommendation": "Proceed with this section-pool closeout. Keep a follow-up for six labeled TikTok hook fixtures that exercise the full extract -> signal -> diagnose narrative path for the five new hook types plus one mixed case.",
+  "timestamp": "2026-05-17T20:50:00+07:00"
+}

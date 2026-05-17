@@ -7,10 +7,15 @@ from enum import StrEnum
 from getviews_pipeline.signals.base import Signal
 from getviews_pipeline.signals.salience import SECTION_EMIT_THRESHOLD
 
+# Diagnosis-first Sprint 2 §3: emit ``hook_analysis`` only when at least one hook
+# signal in that section meets this bar (plan: type mismatch / contract / layering).
+HOOK_ANALYSIS_SECTION_MIN_SALIENCE = 0.7
+
 
 class VideoSectionId(StrEnum):
     diagnosis = "diagnosis"
     compliance = "compliance"
+    hook_analysis = "hook_analysis"
     distribution = "distribution"
     niche_pattern = "niche_pattern"
     channel_pattern = "channel_pattern"
@@ -62,9 +67,17 @@ def _applies_commerce(ctx: dict, _manifest: Manifest) -> bool:
     return promo not in ("organic", "")
 
 
+def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
+    return any(
+        s.salience >= HOOK_ANALYSIS_SECTION_MIN_SALIENCE
+        for s in manifest.get("hook_analysis", [])
+    )
+
+
 SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.diagnosis, 10, True, lambda _c, _m: True),
     SectionSpec(VideoSectionId.compliance, 15, False, _applies_compliance),
+    SectionSpec(VideoSectionId.hook_analysis, 20, False, _applies_hook_analysis),
     SectionSpec(VideoSectionId.distribution, 30, False, _applies_distribution),
     SectionSpec(VideoSectionId.niche_pattern, 40, False, _applies_niche_pattern),
     SectionSpec(VideoSectionId.channel_pattern, 50, False, _applies_channel_pattern),
@@ -82,6 +95,10 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("compliance", "average"): "RỦI RO PHÁP LÝ",
     ("compliance", "flop"): "RỦI RO PHÁP LÝ",
     ("compliance", "unknown"): "RỦI RO PHÁP LÝ",
+    ("hook_analysis", "hit"): "PHÂN TÍCH HOOK",
+    ("hook_analysis", "average"): "PHÂN TÍCH HOOK",
+    ("hook_analysis", "flop"): "PHÂN TÍCH HOOK",
+    ("hook_analysis", "unknown"): "PHÂN TÍCH HOOK",
     ("distribution", "hit"): "PHÂN PHỐI VÀ KHÁM PHÁ",
     ("distribution", "average"): "PHÂN PHỐI VÀ KHÁM PHÁ",
     ("distribution", "flop"): "PHÂN PHỐI VÀ KHÁM PHÁ",

@@ -23,6 +23,55 @@ def test_select_sections_minimal_ctx() -> None:
     assert out.index("diagnosis") < out.index("next_video")
 
 
+def test_select_sections_includes_hook_analysis_after_compliance_when_salient() -> None:
+    ctx = build_diagnosis_ctx(
+        user_analysis={
+            "promotion_type": "affiliate_shopee",
+            "hook_analysis": {
+                "first_frame_type": "face",
+                "hook_phrase": "x",
+                "hook_type": "question",
+                "hook_notes": "",
+                "hook_timeline": [],
+                "hook_layering": "single",
+            },
+        },
+        user_stats={"caption": "hi", "views": 1},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="average",
+    )
+    manifest = build_signal_manifest(ctx)
+    out = select_sections_to_emit(manifest, ctx)
+    assert "hook_analysis" in out
+    assert out.index("diagnosis") < out.index("hook_analysis")
+    assert "commerce" in out
+    assert out.index("hook_analysis") < out.index("commerce")
+
+
+def test_select_sections_omits_hook_analysis_when_only_low_salience_hook_signal() -> None:
+    ctx = build_diagnosis_ctx(
+        user_analysis={
+            "promotion_type": "organic",
+            "hook_analysis": {
+                "first_frame_type": "face",
+                "hook_phrase": "x",
+                "hook_type": "dialect_identity",
+                "hook_notes": "",
+                "hook_timeline": [],
+                "dialect_detected": "none",
+            },
+        },
+        user_stats={"caption": "hi", "views": 1},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="flop",
+    )
+    manifest = build_signal_manifest(ctx)
+    out = select_sections_to_emit(manifest, ctx)
+    assert "hook_analysis" not in out
+
+
 def test_v6_section_body_and_narrative() -> None:
     diag = {
         "headline_vi": "Hook yếu so với mẫu.",
