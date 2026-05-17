@@ -59,3 +59,59 @@ def test_score_diagnosis_output_v6_ok() -> None:
     scored = score_diagnosis_output_v6(diag, section_ids_expected=["diagnosis"])
     assert scored["valid"] is True
     assert scored["section_discipline"] == 1.0
+
+
+def test_validate_diagnosis_vi_citations_strips_unallowed_aweme() -> None:
+    from getviews_pipeline.gemini import _validate_diagnosis_vi_citations
+
+    bad = "9999999999999999999"
+    diag: dict = {
+        "headline_vi": "x",
+        "sections": [
+            {
+                "section_id": "niche_pattern",
+                "embedded_tiles": [{"aweme_id": bad}],
+            }
+        ],
+        "evidence_anchors": [
+            {"type": "aweme_id", "quote": bad, "location": bad},
+            {"type": "user_analysis_field", "quote": "retention_ok", "location": None},
+        ],
+    }
+    good = "1111111111111111111"
+    _validate_diagnosis_vi_citations(diag, {good})
+    assert diag["evidence_anchors"][0]["quote"] is None
+    assert diag["evidence_anchors"][0]["location"] is None
+    assert diag["evidence_anchors"][1]["quote"] == "retention_ok"
+    assert diag["sections"][0]["embedded_tiles"][0]["aweme_id"] is None
+
+
+def test_validate_diagnosis_vi_citations_keeps_allowed_pool() -> None:
+    from getviews_pipeline.gemini import _validate_diagnosis_vi_citations
+
+    aid = "1111111111111111111"
+    diag: dict = {
+        "headline_vi": "x",
+        "sections": [{"embedded_tiles": [{"aweme_id": aid}]}],
+        "evidence_anchors": [{"type": "aweme_id", "quote": aid, "location": aid}],
+    }
+    _validate_diagnosis_vi_citations(diag, {aid})
+    assert diag["evidence_anchors"][0]["quote"] == aid
+    assert diag["evidence_anchors"][0]["location"] == aid
+    assert diag["sections"][0]["embedded_tiles"][0]["aweme_id"] == aid
+
+
+def test_validate_narrative_citations_invokes_diagnosis_vi_guard() -> None:
+    from getviews_pipeline.gemini import _validate_narrative_citations
+
+    bad = "9999999999999999999"
+    nv: dict = {
+        "diagnosis_vi": {
+            "headline_vi": "h",
+            "sections": [],
+            "evidence_anchors": [{"type": "aweme_id", "quote": bad, "location": None}],
+        },
+        "loi_chinh_narrative": [],
+    }
+    _validate_narrative_citations(nv, None, set())
+    assert nv["diagnosis_vi"]["evidence_anchors"][0]["quote"] is None

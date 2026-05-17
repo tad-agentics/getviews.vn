@@ -969,12 +969,71 @@ def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None
     return obj if isinstance(obj, dict) else None, rest
 
 
+def _validate_diagnosis_vi_citations(
+    diagnosis_vi: dict[str, Any],
+    allowed_aweme: set[str],
+) -> None:
+    """Mutate v6 ``diagnosis_vi`` in place: drop aweme citations outside ``allowed_aweme``.
+
+    Mirrors ``_validate_narrative_citations`` for nested ``evidence_anchors`` and
+    ``sections[].embedded_tiles`` — Gemini may invent ``aweme_id`` values in
+    anchors (``type=aweme_id`` / numeric ``location``) or tile payloads.
+    """
+    anchors = diagnosis_vi.get("evidence_anchors")
+    if isinstance(anchors, list):
+        for a in anchors:
+            if not isinstance(a, dict):
+                continue
+            typ = str(a.get("type") or "").lower().replace("-", "_")
+            quote_raw = a.get("quote")
+            quote_s = str(quote_raw).strip() if quote_raw is not None else ""
+            loc_raw = a.get("location")
+            loc_s = str(loc_raw).strip() if loc_raw is not None else ""
+
+            def _strip_aweme_value(s: str) -> bool:
+                """True if *s* looks like a bare aweme id and is not allowed."""
+                if not s or not s.isdigit():
+                    return False
+                return s not in allowed_aweme
+
+            if typ == "aweme_id":
+                if _strip_aweme_value(quote_s):
+                    a["quote"] = None
+                if _strip_aweme_value(loc_s):
+                    a["location"] = None
+            else:
+                # Model may still place a numeric aweme id in ``location``.
+                if _strip_aweme_value(loc_s):
+                    a["location"] = None
+                if quote_s.isdigit() and len(quote_s) >= 12 and _strip_aweme_value(quote_s):
+                    a["quote"] = None
+
+    sections = diagnosis_vi.get("sections")
+    if isinstance(sections, list):
+        for sec in sections:
+            if not isinstance(sec, dict):
+                continue
+            tiles = sec.get("embedded_tiles")
+            if not isinstance(tiles, list):
+                continue
+            for t in tiles:
+                if not isinstance(t, dict):
+                    continue
+                for key in ("aweme_id", "video_id"):
+                    v = t.get(key)
+                    if v is not None and str(v) not in allowed_aweme:
+                        t[key] = None
+
+
 def _validate_narrative_citations(
     narrative_vi: dict[str, Any] | None,
     format_cards: list[dict[str, Any]] | None,
     allowed_aweme: set[str],
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]] | None]:
     if narrative_vi:
+        diag = narrative_vi.get("diagnosis_vi")
+        if isinstance(diag, dict):
+            _validate_diagnosis_vi_citations(diag, allowed_aweme)
         for item in narrative_vi.get("loi_chinh_narrative") or []:
             if not isinstance(item, dict):
                 continue
