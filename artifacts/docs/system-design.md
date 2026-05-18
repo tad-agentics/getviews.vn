@@ -1,6 +1,6 @@
 # System Design — GetViews.vn
 
-**Last updated:** 2026-05-14  
+**Last updated:** 2026-05-17  
 **Status:** Living document. Update in the same commit as any architectural change.
 
 ---
@@ -364,6 +364,7 @@ run_video_diagnosis_core(DiagnosisInput) -> DiagnosisResult
 - **Batch never calls `run_video_diagnosis_core`.** Batch (`corpus_ingest`, `douyin_ingest`) calls `async_run_extraction_core` only. Diagnosis is user-facing SSE only.
 - **`finalize_video_narrative_layer` is never called from batch.** It owns the 2-Gemini-call synthesis + narrative.
 - At 20K corpus videos/day: 1 Gemini call/video = ~$3/day. Diagnosis layer would cost ~$9/day — wrong order of magnitude.
+- **Diagnosis-first v6 (flagged):** When `GETVIEWS_DIAGNOSIS_SECTION_MODE=1`, synthesis runs `build_signal_manifest` + `select_sections_to_emit` (`diagnose_sections.py`). The pool includes `metadata` (§1 safe zone, business/V-pop heuristic) and `editing` (§5 color grade + overlay readability) among others; matching fields on `VideoAnalysis` are extracted in `prompts.py` / Gemini JSON. Default env keeps legacy monolithic path until cutover.
 
 CI enforcement: `tests/test_two_core_audit.py`.
 
