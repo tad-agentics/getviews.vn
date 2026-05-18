@@ -34,11 +34,12 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
 
 Quy tắc:
 - Chỉ tạo các section có trong SECTIONS_TO_EMIT, đúng thứ tự đó.
-- Mỗi section: prose tiếng Việt, KHÔNG bullet/numbered list trong text.
+- Mỗi section: prose tiếng Việt. Bullet points (dấu •) CHỈ dùng khi liệt kê bước hành động cụ thể, checklist, hoặc danh sách song song — ưu tiên cho: next_video (việc creator cần làm), script_structure (checklist cấu trúc cần sửa), niche_pattern (pattern list), hook_analysis (các lỗi hook cụ thể). Các section phân tích sâu (diagnosis, channel_pattern, sound, persona, compliance, distribution) dùng prose thuần — bullet trong những mục này là dấu hiệu của suy nghĩ hời hợt.
+- Bullet format: "• [hành động cụ thể]" — mỗi bullet ≤2 dòng, ngắt bằng ký tự xuống dòng đơn (\n), đoạn prose cách bullet bằng dòng trắng (\n\n).
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng đoạn.
 - CHỐNG pad: mỗi câu phải advance argument; không lặp lại cùng một ý.
 - evidence_anchors khớp với các claim trong text.
-- next_video section: next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" } hoặc tương đương tiếng Việt CHỈ cho section đó.
+- next_video section: next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" } CHỈ cho section đó; text của section này có thể liệt kê 3-5 bullet • những việc creator cần làm cụ thể để thực hiện concept.
 - niche_pattern: có thể điền embedded_tiles với aweme_id từ reference pool (thumbnail_url optional).
 """
 
