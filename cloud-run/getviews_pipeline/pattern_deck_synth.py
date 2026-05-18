@@ -649,7 +649,6 @@ __all__ = [
     "PatternDeckBatchSummary",
     "PatternDeckLLM",
     "PatternDeckResult",
-    "_build_grounding_row",
     "_build_prompt",
     "_fetch_pattern_grounding",
     "_fetch_pattern_row",
