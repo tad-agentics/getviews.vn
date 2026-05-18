@@ -1067,6 +1067,7 @@ def finalize_video_narrative_layer(
             errors=errors_prompt or None,
             reference_evidence_block="",
             creator_format_history_block=creator_format_history_block,
+            cross_format_signal=out.get("cross_format_signal") if isinstance(out.get("cross_format_signal"), dict) else None,
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")

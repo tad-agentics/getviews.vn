@@ -1142,6 +1142,7 @@ def _synthesize_diagnosis_v6_section_pool(
     errors: list[dict[str, Any]] | None,
     reference_evidence_block: str,
     creator_format_history_block: str,
+    cross_format_signal: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
     from getviews_pipeline.compliance import collect_compliance_flags
@@ -1191,6 +1192,7 @@ def _synthesize_diagnosis_v6_section_pool(
         persona_block=persona_block,
         reference_evidence_block=reference_evidence_block,
         collapsed_questions=collapsed_questions,
+        cross_format_signal=cross_format_signal,
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],
@@ -1289,6 +1291,7 @@ def synthesize_diagnosis_v2(
     errors: list[dict[str, Any]] | None = None,
     reference_evidence_block: str = "",
     creator_format_history_block: str = "",
+    cross_format_signal: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
@@ -1311,6 +1314,7 @@ def synthesize_diagnosis_v2(
             errors=errors,
             reference_evidence_block=reference_evidence_block,
             creator_format_history_block=creator_format_history_block,
+            cross_format_signal=cross_format_signal,
         )
 
     allowed = _allowed_aweme_ids(reference_videos)

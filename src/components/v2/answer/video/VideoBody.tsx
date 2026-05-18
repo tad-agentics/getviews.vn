@@ -227,6 +227,10 @@ export function VideoBody({
   const v6SectionIds = new Set(v6Sections?.map((s) => String(s.section_id)) ?? []);
   const hasV6ChannelPattern = v6SectionIds.has("channel_pattern");
   const hasV6HookAnalysis = v6SectionIds.has("hook_analysis");
+  // CrossFormatPanel is a v5 standalone block. In v6 the cross-format signal
+  // is passed into the Gemini prompt so niche_pattern/distribution narrate it
+  // directly — suppress the standalone card to avoid duplication.
+  const showCrossFormatPanel = !showV6SectionBody && Boolean(report.cross_format_signal);
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
@@ -586,8 +590,8 @@ export function VideoBody({
           <FormatCardsGrid cards={formatCardsEffective} referenceVideos={refVideos} />
         ) : null}
 
-        {report.cross_format_signal ? (
-          <CrossFormatPanel signal={report.cross_format_signal} />
+        {showCrossFormatPanel ? (
+          <CrossFormatPanel signal={report.cross_format_signal!} />
         ) : null}
 
         {narrativeVi?.dinh_huong_chien_luoc ? (
