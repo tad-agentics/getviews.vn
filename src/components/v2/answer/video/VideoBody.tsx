@@ -659,20 +659,22 @@ export function VideoBody({
           </Collapsible>
         ) : null}
 
-        <Collapsible defaultOpen={false}>
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
-            >
-              <span>Bối cảnh phân tích</span>
-              <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <ContextStrip meta={meta} enrichment={report.enrichment} />
-          </CollapsibleContent>
-        </Collapsible>
+        {!showV6SectionBody ? (
+          <Collapsible defaultOpen={false}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
+              >
+                <span>Bối cảnh phân tích</span>
+                <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <ContextStrip meta={meta} enrichment={report.enrichment} />
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
 
         {viewMode === "win" && winLessons.length ? (
           <section>
