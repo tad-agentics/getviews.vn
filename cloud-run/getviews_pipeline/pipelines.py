@@ -52,6 +52,9 @@ from getviews_pipeline.hashtag_niche_map import (
     score_niche_match,
 )
 from getviews_pipeline.helpers import (
+    _author_key,
+    _aweme_id,
+    _engagement_rate,
     filter_recency,
     infer_niche_from_hashtags,
     merge_aweme_lists,
@@ -69,6 +72,7 @@ from getviews_pipeline.services.extraction import (
     apply_rule_based_video_errors,
     extract_video_errors,
 )
+from getviews_pipeline.settings import settings as pipeline_settings
 from getviews_pipeline.step_events import (
     emit,
     emit_pipeline_error,
@@ -829,18 +833,249 @@ def _augment_user_stats_for_sound_diagnosis(
         )
 
 
+def _content_proximity_score(
+    ref: dict[str, Any],
+    video_desc: str,
+    video_hashtags: list[str],
+) -> int:
+    """Keyword/hashtag overlap between reference text and the user video."""
+    ref_meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
+    analysis = ref.get("analysis") if isinstance(ref.get("analysis"), dict) else {}
+    ref_text = (
+        str(ref.get("desc") or "")
+        or str(ref_meta.get("description") or "")
+        or str(analysis.get("audio_transcript") or "")[:200]
+    ).lower()
+    score = 0
+    for tag in video_hashtags:
+        t = str(tag or "").lower().lstrip("#")
+        if len(t) > 1 and t in ref_text:
+            score += 2
+    words = [w for w in str(video_desc or "").lower().split() if len(w) > 3]
+    for w in words[:10]:
+        if w in ref_text:
+            score += 1
+    return score
+
+
+def _ref_rank_er(ref: dict[str, Any]) -> float:
+    if ref.get("_from_corpus"):
+        return float(ref.get("_corpus_er") or 0.0)
+    return _engagement_rate(ref)
+
+
+def _select_by_proximity_then_er(
+    search_results: list[dict[str, Any]],
+    *,
+    video_desc: str,
+    video_hashtags: list[str],
+    cached_ids: set[str],
+    n: int,
+    recency_days: int = 30,
+) -> list[dict[str, Any]]:
+    """Like select_reference_videos but primary sort is content proximity."""
+    t = time.time()
+    cutoff = t - (recency_days * 86400)
+    skip = cached_ids
+    candidates = [
+        v
+        for v in search_results
+        if _aweme_id(v) and _aweme_id(v) not in skip
+    ]
+    candidates = [
+        v
+        for v in candidates
+        if int(v.get("create_time") or 0) >= int(cutoff)
+    ]
+    candidates.sort(
+        key=lambda v: (
+            _content_proximity_score(v, video_desc, video_hashtags),
+            _ref_rank_er(v),
+        ),
+        reverse=True,
+    )
+    seen_authors: set[str] = set()
+    selected: list[dict[str, Any]] = []
+    for v in candidates:
+        ak = _author_key(v) or _aweme_id(v)
+        if ak in seen_authors:
+            continue
+        seen_authors.add(ak)
+        selected.append(v)
+        if len(selected) >= n:
+            break
+    return selected
+
+
+async def _maybe_merge_content_targeted_refs_async(
+    pool: list[dict[str, Any]],
+    picks: list[dict[str, Any]],
+    *,
+    video_desc: str,
+    video_hashtags: list[str],
+    niche: str,
+    cached_ids: set[str],
+    n: int,
+    recency_days: int = 30,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """If all top picks have zero proximity, supplement pool from ED (user-video keywords)."""
+    if not picks or not (video_desc.strip() or video_hashtags):
+        return pool, picks
+    topn = picks[: min(3, len(picks))]
+    scores = [_content_proximity_score(p, video_desc, video_hashtags) for p in topn]
+    if any(s > 0 for s in scores):
+        return pool, picks
+    from getviews_pipeline.live_search import fetch_content_targeted_refs
+
+    extra = await fetch_content_targeted_refs(video_desc, video_hashtags, niche, n=8)
+    if not extra:
+        return pool, picks
+    seen = {str(p.get("aweme_id")) for p in pool}
+    for a in extra:
+        aid = str(a.get("aweme_id") or "")
+        if aid and aid not in seen and aid not in cached_ids:
+            a.setdefault("niche_label", niche)
+            pool.append(a)
+            seen.add(aid)
+    new_picks = _select_by_proximity_then_er(
+        pool,
+        video_desc=video_desc,
+        video_hashtags=video_hashtags,
+        cached_ids=cached_ids,
+        n=n,
+        recency_days=recency_days,
+    )
+    return pool, new_picks
+
+
+def _get_ref_thumbnail_urls_from_aweme(ref: dict[str, Any]) -> list[str]:
+    video = ref.get("video") if isinstance(ref.get("video"), dict) else {}
+    cover = video.get("cover") if isinstance(video.get("cover"), dict) else {}
+    urls = [u for u in (cover.get("url_list") or []) if isinstance(u, str) and u.strip()]
+    if urls:
+        return urls
+    u = ref.get("thumbnail_url")
+    return [str(u).strip()] if u else []
+
+
+async def _mirror_queue_thumbnails_for_rows(
+    *,
+    client: Any,
+    rows_payload: list[tuple[str, dict[str, Any]]],
+) -> None:
+    """Best-effort R2 mirror for queued reference thumbnails (CDN URLs expire)."""
+    from getviews_pipeline.r2 import download_and_upload_thumbnail
+
+    for aid, raw_ref in rows_payload:
+        if not aid:
+            continue
+        r2_url: str | None = None
+        for thumb_url in _get_ref_thumbnail_urls_from_aweme(raw_ref)[:3]:
+            r2_url = await download_and_upload_thumbnail(thumb_url, aid)
+            if r2_url:
+                break
+        if not r2_url:
+            continue
+        try:
+            client.table("corpus_ingest_queue").update({
+                "thumbnail_r2_url": r2_url,
+                "thumbnail_url": r2_url,
+            }).eq("aweme_id", aid).execute()
+        except Exception as exc:
+            logger.warning("[corpus_queue] thumbnail mirror update failed aweme_id=%s: %s", aid, exc)
+
+
+async def _reference_ingest_enqueue_and_mirror(
+    live_raw_refs: list[dict[str, Any]],
+    *,
+    niche_id: int,
+    niche_label: str,
+) -> None:
+    """Upsert high-views live references to corpus_ingest_queue + optional R2 thumbnails."""
+    min_views = int(pipeline_settings.reference_ingest_min_views)
+    rows: list[dict[str, Any]] = []
+    mirror_pairs: list[tuple[str, dict[str, Any]]] = []
+    for ref in live_raw_refs:
+        if ref.get("_from_corpus"):
+            continue
+        stats = ref.get("statistics") or {}
+        vc = int(stats.get("play_count") or 0)
+        if vc < min_views:
+            continue
+        aid = str(ref.get("aweme_id") or "")
+        if not aid:
+            continue
+        thumb_cdn = _get_ref_thumbnail_urls_from_aweme(ref)[0:1]
+        thumb0 = thumb_cdn[0] if thumb_cdn else str(ref.get("thumbnail_url") or "")
+        rows.append({
+            "aweme_id": aid,
+            "aweme_url": f"https://www.tiktok.com/video/{aid}",
+            "niche_id": niche_id,
+            "niche_label": niche_label,
+            "views": vc,
+            "desc_snippet": str(ref.get("desc") or "")[:200],
+            "thumbnail_url": thumb0,
+            "ingest_reason": "reference_live_search",
+        })
+        mirror_pairs.append((aid, ref))
+    if not rows:
+        return
+    try:
+        client = get_service_client()
+        client.table("corpus_ingest_queue").upsert(
+            rows,
+            on_conflict="aweme_id",
+        ).execute()
+        logger.info("[corpus_queue] enqueued %d reference videos", len(rows))
+    except Exception as exc:
+        logger.warning("[corpus_queue] enqueue failed: %s", exc)
+        return
+    await _mirror_queue_thumbnails_for_rows(client=client, rows_payload=mirror_pairs)
+
+
+def _reference_evidence_project(ref: dict[str, Any]) -> dict[str, str | int]:
+    meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
+    analysis = ref.get("analysis") if isinstance(ref.get("analysis"), dict) else {}
+    aid = str(ref.get("aweme_id") or meta.get("video_id") or "")
+    stats = ref.get("statistics") or {}
+    m_metrics = meta.get("metrics") if isinstance(meta.get("metrics"), dict) else {}
+    vc = int(stats.get("play_count") or m_metrics.get("views") or 0)
+    dsc = (
+        ref.get("desc")
+        or meta.get("description")
+        or (analysis.get("audio_transcript") or "")[:120]
+        or ""
+    )
+    dsc = str(dsc)[:80]
+    fmt = (
+        ref.get("content_format")
+        or analysis.get("content_format")
+        or ref.get("format_label")
+        or ""
+    )
+    niche = str(ref.get("niche_label") or ref.get("niche") or meta.get("niche_label") or "")
+    return {"aid": aid, "vc": vc, "dsc": dsc, "fmt": str(fmt), "niche": niche}
+
+
 def _reference_evidence_lines(
     refs: list[dict[str, Any]],
     corpus_source: str,
 ) -> str:
+    del corpus_source  # per-ref provenance only (flags on ref dict)
     lines: list[str] = []
     for ref in refs:
-        aid = ref.get("aweme_id") or ""
-        stats = ref.get("statistics") or {}
-        vc = int(stats.get("play_count") or 0)
-        dsc = (ref.get("desc") or "")[:60]
-        src = corpus_source if ref.get("_from_corpus") else "live_search"
-        lines.append(f"- aweme_id: {aid} | desc: {dsc} | views: {vc} | source: {src}")
+        p = _reference_evidence_project(ref)
+        if not p["aid"]:
+            continue
+        src = (
+            "corpus"
+            if (ref.get("_from_corpus") or ref.get("_from_corpus_cache"))
+            else "live_search"
+        )
+        lines.append(
+            f"- aweme_id: {p['aid']} | desc: {p['dsc']} | views: {p['vc']} | "
+            f"format: {p['fmt']} | niche: {p['niche']} | source: {src}"
+        )
     return "\n".join(lines)
 
 # audio_transcript character limit before synthesis — full transcripts can be
@@ -1922,17 +2157,31 @@ async def run_video_diagnosis(
     if channel_handle_norm and uid:
         ch_task = asyncio.create_task(_run_channel_context(channel_handle_norm, uid))
 
+    video_desc = str(user_aweme.get("desc") or "")
+    video_hashtags = [
+        str(t.get("hashtag_name") or t.get("title") or "").lstrip("#")
+        for t in (user_aweme.get("text_extra") or [])
+        if t.get("hashtag_name") or t.get("title")
+    ]
+
     # Prefer curated corpus (niche-tagged, ≥20k views) over live search to
     # ensure reference videos are actually in the same niche as the user's video.
     corpus_pool = await fetch_corpus_reference_pool(
         niche, days=30, limit=40, exclude_video_id=uid or None
     )
+    for v in corpus_pool:
+        v["niche_label"] = niche
     corpus_source = "corpus"
     if len(corpus_pool) >= REF_N:
-        # Corpus has enough — sort by pre-computed engagement_rate (most accurate)
-        corpus_pool.sort(key=lambda v: float(v.get("_corpus_er") or 0.0), reverse=True)
-        picks = [v for v in corpus_pool if v.get("aweme_id") not in cached_ids][:REF_N]
         pool = corpus_pool
+        picks = _select_by_proximity_then_er(
+            corpus_pool,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            cached_ids=cached_ids,
+            n=REF_N,
+            recency_days=30,
+        )
         logger.info(
             "[ref_source] niche=%s corpus_hit=true corpus_size=%d",
             niche,
@@ -1953,9 +2202,27 @@ async def run_video_diagnosis(
             corpus_source,
         )
         pool = await _niche_aweme_pool(niche, period=30)
-        picks = select_reference_videos(
-            pool, recency_days=30, n=REF_N, cached_ids=cached_ids, rank_by="er"
+        for v in pool:
+            v.setdefault("niche_label", niche)
+        picks = _select_by_proximity_then_er(
+            pool,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            cached_ids=cached_ids,
+            n=REF_N,
+            recency_days=30,
         )
+
+    pool, picks = await _maybe_merge_content_targeted_refs_async(
+        pool,
+        picks,
+        video_desc=video_desc,
+        video_hashtags=video_hashtags,
+        niche=niche,
+        cached_ids=cached_ids,
+        n=REF_N,
+        recency_days=30,
+    )
 
     emit(step_queue, step_count(len(pool)))
 
@@ -1977,6 +2244,8 @@ async def run_video_diagnosis(
             raw_hook_type = (corpus_analysis.get("hook_analysis") or {}).get("hook_type") or ""
             return {
                 "aweme_id": aweme["aweme_id"],
+                "_from_corpus": True,
+                "niche_label": niche,
                 "analysis": corpus_analysis,
                 "metadata": {
                     "video_id": aweme["aweme_id"],
@@ -1988,6 +2257,7 @@ async def run_video_diagnosis(
                     "breakout": aweme.get("_corpus_breakout", 0.0),
                     "hook_type": raw_hook_type,
                     "hook_type_vi": hook_type_vi(raw_hook_type),
+                    "niche_label": niche,
                     # content_type from video_corpus table — not present in analysis_json.
                     # Required for carousel reference filtering in run_video_diagnosis().
                     "content_type": aweme.get("_corpus_content_type", "video"),
@@ -2010,6 +2280,12 @@ async def run_video_diagnosis(
     user_res = await user_task
     ref_results = await asyncio.gather(*ref_tasks)
     references = [r for r in ref_results if "analysis" in r and not r.get("_skipped")]
+    for r in references:
+        r.setdefault("niche_label", niche)
+        if not r.get("aweme_id") and isinstance(r.get("metadata"), dict):
+            vid_m = r["metadata"].get("video_id")
+            if vid_m:
+                r["aweme_id"] = vid_m
 
     # Graceful degradation — any carousel error dict from _analyze_carousel()
     # must be caught here before downstream code assumes "analysis" key exists.
@@ -2033,6 +2309,19 @@ async def run_video_diagnosis(
         return
 
     niche_id = await resolve_niche_id_cached(session, niche)
+    try:
+        _nid_q = int(niche_id) if niche_id is not None else 0
+        if _nid_q > 0:
+            asyncio.create_task(
+                _reference_ingest_enqueue_and_mirror(
+                    list(picks),
+                    niche_id=_nid_q,
+                    niche_label=niche,
+                ),
+            )
+    except (TypeError, ValueError) as exc:
+        logger.debug("[corpus_queue] skip enqueue niche_id=%r: %s", niche_id, exc)
+
     count, niche_name = await get_corpus_count_cached(
         session, niche_id=niche_id, days=30, niche_name=niche
     )

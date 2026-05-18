@@ -26,6 +26,10 @@ from getviews_pipeline.step_events import (
 
 logger = logging.getLogger(__name__)
 
+_CONTENT_TARGETED_STOPWORDS: frozenset[str] = frozenset({
+    "và", "hay", "của", "cho", "với", "này", "các", "những", "tôi", "bạn",
+})
+
 THIN_CORPUS_THRESHOLD = 50
 MAX_LIVE_SEARCHES = 3
 
@@ -95,6 +99,53 @@ def format_live_awemes_for_prompt(awemes: list[dict[str, Any]]) -> str:
         "không bịa số liệu aggregate ngoài corpus.)",
     )
     return "\n".join(lines)
+
+
+async def fetch_content_targeted_refs(
+    video_desc: str,
+    hashtags: list[str],
+    niche_label: str,
+    n: int = 8,
+) -> list[dict[str, Any]]:
+    """EnsembleData keyword search from the *user video* text — not generic niche terms."""
+    words = [
+        w
+        for w in (video_desc or "").split()
+        if len(w) > 3 and w.lower() not in _CONTENT_TARGETED_STOPWORDS
+    ]
+    top_kw = " ".join(words[:3])
+    top_tag = (hashtags[0] or "").lstrip("#") if hashtags else ""
+    niche_l = (niche_label or "tiktok").strip()
+    terms = [
+        f"{top_kw} {niche_l}".strip(),
+        top_tag or f"{niche_l} viral",
+    ]
+    # Drop empty / whitespace-only terms
+    terms = [t for t in terms if t and t != niche_l]
+    if not terms:
+        terms = [f"{niche_l} viral"]
+    results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for term in terms[:2]:
+        try:
+            awemes, _ = await fetch_keyword_search(term, period=7, sorting=1, country="vn")
+        except Exception as exc:
+            logger.warning("[content_targeted_refs] ED search failed term=%r: %s", term, exc)
+            continue
+        awemes = [
+            a
+            for a in awemes
+            if not is_blocklisted_handle(
+                str((a.get("author") or {}).get("unique_id") or "")
+            )
+        ]
+        for a in awemes:
+            aid = str(a.get("aweme_id") or "")
+            if aid and aid not in seen:
+                seen.add(aid)
+                a["_from_corpus"] = False
+                results.append(a)
+    return results[:n]
 
 
 async def fetch_live_supplement(

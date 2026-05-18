@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -306,6 +307,69 @@ async def batch_reingest_videos(
         "niches_processed": summary.niches_processed,
         "materialized_view_refreshed": summary.materialized_view_refreshed,
         "niche_results": summary.niche_results,
+    })
+
+
+@router.post("/batch/process-ingest-queue")
+async def batch_process_ingest_queue(
+    limit: int = Query(50, ge=1, le=200),
+    _caller: dict | None = Depends(require_batch_caller),
+) -> JSONResponse:
+    """Drain corpus_ingest_queue into full corpus ingest (Gemini + video_corpus upsert)."""
+    from getviews_pipeline.corpus_ingest import run_reingest_video_items
+    from getviews_pipeline.supabase_client import get_service_client
+
+    client = get_service_client()
+    res = (
+        client.table("corpus_ingest_queue")
+        .select("aweme_id, niche_id")
+        .is_("processed_at", "null")
+        .order("queued_at")
+        .limit(limit)
+        .execute()
+    )
+    rows: list[dict[str, Any]] = res.data or []
+    items: list[dict[str, Any]] = []
+    for r in rows:
+        aid = r.get("aweme_id")
+        nid = r.get("niche_id")
+        if not aid or nid is None:
+            continue
+        try:
+            items.append({"video_id": str(aid), "niche_id": int(nid)})
+        except (TypeError, ValueError):
+            continue
+    if not items:
+        return JSONResponse({"ok": True, "queue_rows": 0, "message": "queue empty"})
+
+    try:
+        summary = await run_reingest_video_items(items, refresh_mv=True)
+    except Exception as exc:
+        logger.exception("POST /batch/process-ingest-queue reingest failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    now_iso = datetime.now(UTC).isoformat()
+    for r in rows:
+        aid = r.get("aweme_id")
+        if not aid:
+            continue
+        try:
+            client.table("corpus_ingest_queue").update({"processed_at": now_iso}).eq(
+                "aweme_id", str(aid)
+            ).execute()
+        except Exception as exc:
+            logger.warning(
+                "[corpus_ingest_queue] mark processed failed aweme_id=%s: %s",
+                aid,
+                exc,
+            )
+
+    return JSONResponse({
+        "ok": True,
+        "queue_rows": len(rows),
+        "total_inserted": summary.total_inserted,
+        "total_skipped": summary.total_skipped,
+        "total_failed": summary.total_failed,
     })
 
 

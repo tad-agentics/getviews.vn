@@ -433,7 +433,9 @@ Everything else must be stateless and safe to reconstruct on each request.
 
 ### COALESCE provenance on UPSERT
 
-`video_corpus.ingest_source` records how a row was first created: `batch_nightly`, `user_diagnosis`, or `douyin_batch`. This column is **write-once** — the first writer sets it; subsequent UPSERTs must not overwrite it.
+`video_corpus.ingest_source` records how a row was first created: `batch_nightly`, `user_diagnosis`, `douyin_batch`, or **`reference_live_search`** (high-view refs enqueued from live diagnosis and drained by the batch pod). This column is **write-once** — the first writer sets it; subsequent UPSERTs must not overwrite it.
+
+**`corpus_ingest_queue`** — lightweight Supabase table: user pod upserts aweme IDs + metadata after live reference discovery; **`POST /batch/process-ingest-queue`** pulls pending rows and runs `run_reingest_video_items` (full analysis + `video_corpus` upsert). Thumbnails are mirrored to R2 best-effort on enqueue (`download_and_upload_thumbnail`, multiple CDN URLs).
 
 Mechanism: `upsert_video_corpus_batch` uses:
 ```sql

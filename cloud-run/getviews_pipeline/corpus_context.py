@@ -788,8 +788,18 @@ def _build_reference_awemes_from_rows(
 
         breakout = float(row.get("breakout_multiplier") or 0.0)
 
+        desc_bits: list[str] = []
+        at = str(corpus_analysis.get("audio_transcript") or "").strip()
+        if at:
+            desc_bits.append(at[:160])
+        topics = corpus_analysis.get("topics") or []
+        if isinstance(topics, list) and topics:
+            desc_bits.append(" ".join(str(t) for t in topics[:6]))
+        ref_desc = " ".join(desc_bits).strip()
+
         awemes.append({
             "aweme_id": vid,
+            "desc": ref_desc,
             "author": {"unique_id": handle},
             "tiktok_url": tiktok_url,
             "thumbnail_url": row.get("thumbnail_url"),

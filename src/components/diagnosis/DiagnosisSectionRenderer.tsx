@@ -174,7 +174,11 @@ export function DiagnosisSectionRenderer({ section, referenceVideos }: Diagnosis
           paragraphClassName="text-[15px] leading-relaxed text-[color:var(--foreground)]"
         />
       </div>
-      {tiles.length > 0 ? <VideoTileRow tiles={tiles} /> : null}
+      {tiles.length > 0 ? (
+        <div className="mt-4 border-t border-[color:var(--gv-rule)] pt-4">
+          <VideoTileRow tiles={tiles} />
+        </div>
+      ) : null}
       {findings.length > 0 ? (
         <div className="mt-4 flex flex-col gap-3">
           {findings.map((f, i) => (

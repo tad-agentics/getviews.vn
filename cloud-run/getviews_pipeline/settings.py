@@ -110,6 +110,11 @@ class _PipelineSettings(BaseSettings):
     batch_max_failures: int = Field(default=3, ge=0)
     batch_concurrency: int = Field(default=4, ge=1, le=32)
     batch_min_views: int = Field(default=10000, ge=0)
+    reference_ingest_min_views: int = Field(
+        default=50_000,
+        ge=0,
+        description="Min play_count to enqueue live reference videos into corpus_ingest_queue",
+    )
     batch_min_er: float = Field(default=1.0, ge=0.0)
     batch_keyword_pages: int = Field(default=2, ge=1)
     batch_carousels_per_niche: int = Field(default=3, ge=0)
