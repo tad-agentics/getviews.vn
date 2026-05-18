@@ -37,7 +37,7 @@ import {
   CreatorComparisonCard,
 } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopIssueNarrativeRow } from "@/components/v2/answer/video/blocks/FlopIssueRow";
-import { FlopDiagnosisStrip, formatSaveRatePct } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
+import { formatSaveRatePct } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { CrossFormatPanel } from "@/components/v2/answer/video/blocks/CrossFormatPanel";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -421,14 +421,6 @@ export function VideoBody({
             {narrativeVi?.headline_vi?.trim() || "—"}
           </h1>
         </header>
-
-        {isFlop ? (
-          <FlopDiagnosisStrip
-            meta={meta}
-            nicheMeta={report.niche_meta}
-            retentionEnd={retEnd}
-          />
-        ) : null}
 
         {narrativeVi?.ket_luan_nhanh ? (
           <section className="mb-4" aria-label="Kết luận nhanh">
