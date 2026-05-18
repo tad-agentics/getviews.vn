@@ -44,6 +44,7 @@ Quy tắc:
 - Mỗi section: prose tiếng Việt. Bullet points (dấu •) CHỈ dùng khi liệt kê bước hành động cụ thể, checklist, hoặc danh sách song song — ưu tiên cho: next_video (việc creator cần làm), script_structure (checklist cấu trúc cần sửa), niche_pattern (pattern list), hook_analysis (các lỗi hook cụ thể). Các section phân tích sâu (diagnosis, channel_pattern, sound, persona, compliance, distribution) dùng prose thuần — bullet trong những mục này là dấu hiệu của suy nghĩ hời hợt.
 - Bullet format: "• [hành động cụ thể]" — mỗi bullet ≤2 dòng, ngắt bằng ký tự xuống dòng đơn (\n), đoạn prose cách bullet bằng dòng trắng (\n\n).
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng đoạn.
+- channel_pattern section: dùng channel_context trong DIAGNOSTIC_CONTEXT_JSON — trích dẫn số liệu cụ thể (top video X views, bottom video Y views, format tốt nhất, median kênh). Đặt câu hỏi: tại sao video này lại ở mức đó so với median kênh? Format nào đang chiếm lợi thế? Creator nên nhân đôi cái gì?
 - CHỐNG pad: mỗi câu phải advance argument; không lặp lại cùng một ý.
 - evidence_anchors khớp với các claim trong text.
 - findings: mỗi section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure) phải có 1–3 findings là điểm cụ thể nhất trong section — mỗi finding: title_vi (≤12 từ, dạng "Vấn đề — hậu quả"), body_vi (1-2 câu + số liệu), fix_vi (hành động creator làm ngay). Sections không phải issue-based (next_video, niche_pattern, channel_pattern, distribution, douyin_origin, persona): để findings: [].
@@ -71,6 +72,50 @@ def _signal_payload(manifest_trim: dict[str, list[Signal]]) -> list[dict[str, An
                 }
             )
     return rows
+
+
+def _trim_channel_context(cc: dict[str, Any] | None) -> dict[str, Any]:
+    """Return a compact channel_context payload safe to embed in the Gemini prompt.
+
+    Includes only the fields Gemini needs to write a meaningful channel_pattern
+    narrative: top/bottom video views + format, median_views, best_performing_format,
+    per_format_views summary, and sample_size.  Strips large blobs (tiktok_url,
+    aweme_id, raw desc beyond a short snippet) to keep token cost low.
+    """
+    if not cc or not cc.get("available"):
+        return {"available": False}
+
+    def _trim_video(v: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "views": v.get("views"),
+            "content_format": v.get("content_format"),
+            "desc_snippet": str(v.get("desc") or "")[:80],
+        }
+
+    out: dict[str, Any] = {
+        "available": True,
+        "sample_size": cc.get("sample_size"),
+        "median_views": cc.get("median_views"),
+        "best_performing_format": cc.get("best_performing_format"),
+        "performance_tier": cc.get("performance_tier"),
+    }
+    top = cc.get("top_videos") or []
+    bottom = cc.get("bottom_videos") or []
+    if top:
+        out["top_videos"] = [_trim_video(v) for v in top[:2]]
+    if bottom:
+        out["bottom_videos"] = [_trim_video(v) for v in bottom[:2]]
+    pf = cc.get("per_format_views")
+    if isinstance(pf, dict):
+        # Summarise per-format: just avg_views + count, sorted by avg_views desc
+        pf_trim = {
+            fmt: {"avg_views": vals.get("avg_views"), "n": vals.get("n") or vals.get("count")}
+            for fmt, vals in pf.items()
+            if isinstance(vals, dict)
+        }
+        if pf_trim:
+            out["per_format_views"] = pf_trim
+    return out
 
 
 def build_diagnosis_v6_user_prompt(
@@ -116,7 +161,7 @@ def build_diagnosis_v6_user_prompt(
             str(r.get("aweme_id") or r.get("video_id") or "")
             for r in (reference_videos or [])[:8]
         ],
-        "channel_context_available": bool(channel_context and channel_context.get("available")),
+        "channel_context": _trim_channel_context(channel_context),
         "errors_head": (errors or [])[:3],
     }
     blocks = [
