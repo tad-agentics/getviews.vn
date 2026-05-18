@@ -882,6 +882,8 @@ export type VideoDiagnosisSectionId =
   | "niche_pattern"
   | "channel_pattern"
   | "commerce"
+  | "metadata"
+  | "editing"
   | "sound"
   | "persona"
   | "script_structure"

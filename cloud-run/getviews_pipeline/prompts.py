@@ -78,6 +78,14 @@ QUY TẮC BẮT BUỘC:
   - audio_track_role: trending_sound | original_music | silent | spoken_overlay — vai track chính (nhạc trending vs nhạc gốc vs tắt vs lời đè).
   - sound_dialect_audio: hue | quang_nam | southern | northern | none | null — giọng vùng miền trong nhạc nền / vocal sample (khác dialect lời thoại; không ép).
   - sound_layering: thin | balanced | rich | null — thin = hầu như chỉ một lane (vd chỉ BGM hoặc chỉ VO); rich = BGM + lời rõ + hiệu ứng/ASMR tách lớp; balanced = ở giữa.
+- §1 metadata / vùng an toàn (object — luôn điền safe_zone_status + tiktok_account_type_heuristic; trending_vpop_sound null nếu không chắc):
+  - safe_zone_status: ok | bottom_overlay_risk | unknown — ok = chữ kêu gọi/giá/CTA quan trọng không nằm vùng ~35% dưới khung (tránh đè nút Shop/giỏ); bottom_overlay_risk = có chữ quan trọng (giá, mua, lưu, link) sát mép dưới trong vùng rủi ro; unknown = không đủ bằng chứng.
+  - tiktok_account_type_heuristic: business | personal | unknown — business nếu thấy UI/badge tài khoản doanh nghiệp, cửa hàng, TikTok Shop rõ; personal nếu profile creator thường; unknown nếu không thấy UI đó.
+  - trending_vpop_sound: true | false | null — true nếu nhạc nền rõ là V-pop/ballad remix trending Việt Nam đang viral; false nếu trend quốc tế/beat khác; null nếu silent hoặc không chắc.
+- §5 hậu kỳ / chữ trên hình (object — null field khi không chắc):
+  - color_grading_style: native_capcut | high_key_beauty | desaturated_serious | over_processed | neutral | unknown | null — tông màu tổng thể.
+  - text_overlay_font_size_tier: large | medium | small | none | unknown | null — cỡ chữ overlay chính (đọc trên mobile).
+  - text_overlay_color_emphasis: true nếu có từ khóa/số tô màu nổi (giá, %, CTA) khác nền; false nếu chữ đơn sắc hoặc không có overlay chữ; null nếu không áp dụng.
 - §7 hành vi chia sẻ / lưu (khi có — không ép; none nếu không rõ):
   - share_trigger_type: none | utility_reference | emotion_relief | identity_belonging | social_currency_pack | humor_meme | other — lý do chính khiến người xem bấm chia sẻ (tiện ích, cảm xúc, bộc lộ identity, có thể gửi nhóm, hài…).
   - save_trigger_type: none | how_to_checklist | product_deal_sheet | recipe_steps | quote_stat_card | tutorial_bookmark | other — lý do bấm lưu (checklist, deal, công thức…).

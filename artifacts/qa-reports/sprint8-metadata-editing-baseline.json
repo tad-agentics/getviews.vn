@@ -1,0 +1,15 @@
+{
+  "task_id": "sprint8-metadata-editing",
+  "plan": "Diagnosis-first plan — full 12-section taxonomy (Sprint 8 §1 + §5)",
+  "verdict": "PASS",
+  "health_score": 90,
+  "evidence": [
+    "pytest cloud-run/tests/test_sprint8_metadata_editing.py — all tests pass",
+    "ruff clean on new/edited Python modules",
+    "npm run typecheck — VideoDiagnosisSectionId extended"
+  ],
+  "concerns": [
+    "§1/§5 fields are Gemini heuristics — offline fixture eval vs real TikTok UI deferred."
+  ],
+  "recommendation": "Canary GETVIEWS_DIAGNOSIS_SECTION_MODE on sample traffic; watch metadata/editing emit rates."
+}

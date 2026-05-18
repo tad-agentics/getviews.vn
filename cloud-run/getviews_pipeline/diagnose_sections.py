@@ -15,6 +15,10 @@ HOOK_ANALYSIS_SECTION_MIN_SALIENCE = 0.7
 PERSONA_SECTION_MIN_SALIENCE = 0.55
 
 
+# §5 — emit ``editing`` when a signal meets this bar (plan salience down to 0.4).
+EDITING_SECTION_MIN_SALIENCE = 0.4
+
+
 class VideoSectionId(StrEnum):
     diagnosis = "diagnosis"
     compliance = "compliance"
@@ -23,6 +27,8 @@ class VideoSectionId(StrEnum):
     niche_pattern = "niche_pattern"
     channel_pattern = "channel_pattern"
     commerce = "commerce"
+    metadata = "metadata"
+    editing = "editing"
     sound = "sound"
     persona = "persona"
     script_structure = "script_structure"
@@ -73,6 +79,17 @@ def _applies_commerce(ctx: dict, _manifest: Manifest) -> bool:
     return promo not in ("organic", "")
 
 
+def _applies_metadata(_ctx: dict, manifest: Manifest) -> bool:
+    return _has_gate(manifest, "metadata")
+
+
+def _applies_editing(_ctx: dict, manifest: Manifest) -> bool:
+    return any(
+        s.salience >= EDITING_SECTION_MIN_SALIENCE
+        for s in manifest.get("editing", [])
+    )
+
+
 def _applies_persona(_ctx: dict, manifest: Manifest) -> bool:
     return any(
         s.salience >= PERSONA_SECTION_MIN_SALIENCE
@@ -120,6 +137,8 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.niche_pattern, 40, False, _applies_niche_pattern),
     SectionSpec(VideoSectionId.channel_pattern, 50, False, _applies_channel_pattern),
     SectionSpec(VideoSectionId.commerce, 60, False, _applies_commerce),
+    SectionSpec(VideoSectionId.metadata, 58, False, _applies_metadata),
+    SectionSpec(VideoSectionId.editing, 59, False, _applies_editing),
     SectionSpec(VideoSectionId.sound, 62, False, _applies_sound),
     SectionSpec(VideoSectionId.persona, 65, False, _applies_persona),
     SectionSpec(VideoSectionId.script_structure, 68, False, _applies_script_structure),
@@ -156,6 +175,14 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("commerce", "average"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
     ("commerce", "flop"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
     ("commerce", "unknown"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
+    ("metadata", "hit"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
+    ("metadata", "average"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
+    ("metadata", "flop"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
+    ("metadata", "unknown"): "KHUNG AN TOÀN VÀ LOẠI TÀI KHOẢN",
+    ("editing", "hit"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
+    ("editing", "average"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
+    ("editing", "flop"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
+    ("editing", "unknown"): "MÀU SẮC VÀ CHỮ TRÊN HÌNH",
     ("sound", "hit"): "ÂM THANH VÀ NHỊP ĐIỆU",
     ("sound", "average"): "ÂM THANH VÀ NHỊP ĐIỆU",
     ("sound", "flop"): "ÂM THANH VÀ NHỊP ĐIỆU",

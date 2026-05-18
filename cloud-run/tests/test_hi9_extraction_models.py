@@ -125,6 +125,20 @@ def test_video_analysis_rejects_invalid_format_axis() -> None:
         VideoAnalysis.model_validate(d)
 
 
+def test_video_analysis_sprint8_metadata_editing_round_trip() -> None:
+    d = _minimal_video_analysis_dict()
+    d["safe_zone_status"] = "ok"
+    d["tiktok_account_type_heuristic"] = "personal"
+    d["trending_vpop_sound"] = False
+    d["color_grading_style"] = "high_key_beauty"
+    d["text_overlay_font_size_tier"] = "large"
+    d["text_overlay_color_emphasis"] = True
+    m = VideoAnalysis.model_validate(d)
+    assert m.safe_zone_status == "ok"
+    assert m.color_grading_style == "high_key_beauty"
+    assert m.text_overlay_color_emphasis is True
+
+
 def test_carousel_analysis_hi9_optional_like_video() -> None:
     d = {
         "hook_analysis": {

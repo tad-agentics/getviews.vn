@@ -415,6 +415,24 @@ _LIVESTREAM_DEMO_BALANCE = frozenset(get_args(LivestreamFunnelDemoBalance))
 _SHARE_TRIGGER = frozenset(get_args(ShareTriggerType))
 _SAVE_TRIGGER = frozenset(get_args(SaveTriggerType))
 
+# §1 / §5 — Safe zone + account heuristic + grading / overlay (diagnosis-first Sprint 8).
+SafeZoneStatusType = Literal["ok", "bottom_overlay_risk", "unknown"]
+TikTokAccountTypeHeuristicType = Literal["business", "personal", "unknown"]
+ColorGradingStyleType = Literal[
+    "native_capcut",
+    "high_key_beauty",
+    "desaturated_serious",
+    "over_processed",
+    "neutral",
+    "unknown",
+]
+TextOverlayFontSizeTierType = Literal["large", "medium", "small", "none", "unknown"]
+
+_SAFE_ZONE_STATUS = frozenset(get_args(SafeZoneStatusType))
+_TIKTOK_ACCOUNT_HEURISTIC = frozenset(get_args(TikTokAccountTypeHeuristicType))
+_COLOR_GRADING_STYLE_ALLOWED = frozenset(get_args(ColorGradingStyleType))
+_TEXT_OVERLAY_FONT_TIER = frozenset(get_args(TextOverlayFontSizeTierType))
+
 
 class AffiliateScriptPhases(BaseModel):
     """Five-phase Shopee/TikTok Shop short video spine (§4). Optional per-phase booleans."""
@@ -721,6 +739,19 @@ class VideoAnalysis(BaseModel):
     share_trigger_type: ShareTriggerType | None = None
     save_trigger_type: SaveTriggerType | None = None
 
+    safe_zone_status: SafeZoneStatusType | None = None
+    """§1 — TikTok safe zone vs lower-third Shop chrome (extraction heuristic)."""
+    tiktok_account_type_heuristic: TikTokAccountTypeHeuristicType | None = None
+    """§1 — Business vs personal from visible UI cues; unknown when not readable."""
+    trending_vpop_sound: bool | None = None
+    """§1 — True when BGM matches obvious Vietnamese pop trend (CML/business risk context)."""
+    color_grading_style: ColorGradingStyleType | None = None
+    """§5 — Overall color grade read."""
+    text_overlay_font_size_tier: TextOverlayFontSizeTierType | None = None
+    """§5 — Primary on-screen text size for mobile readability."""
+    text_overlay_color_emphasis: bool | None = None
+    """§5 — Color-highlighted keywords (price, %, CTA) vs flat text."""
+
     @field_validator("loop_architecture_score", mode="before")
     @classmethod
     def _coerce_loop_architecture_score(cls, v: object) -> object:
@@ -851,6 +882,91 @@ class VideoAnalysis(BaseModel):
         if s in ("không", "khong", "null", "no"):
             return "none"
         return s if s in _SAVE_TRIGGER else "other"
+
+    @field_validator("safe_zone_status", mode="before")
+    @classmethod
+    def _normalize_safe_zone_status(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {
+            "good": "ok",
+            "fine": "ok",
+            "risk": "bottom_overlay_risk",
+            "bottom_risk": "bottom_overlay_risk",
+            "shop_overlap": "bottom_overlay_risk",
+        }
+        s = aliases.get(s, s)
+        return s if s in _SAFE_ZONE_STATUS else None
+
+    @field_validator("tiktok_account_type_heuristic", mode="before")
+    @classmethod
+    def _normalize_tiktok_account_type(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        if s in ("biz", "shop", "business_account"):
+            return "business"
+        if s in ("creator", "individual", "cá_nhân", "ca_nhan"):
+            return "personal"
+        return s if s in _TIKTOK_ACCOUNT_HEURISTIC else None
+
+    @field_validator("trending_vpop_sound", mode="before")
+    @classmethod
+    def _coerce_trending_vpop_sound(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if isinstance(v, bool):
+            return v
+        s = str(v).strip().lower()
+        if s in ("true", "1", "yes", "có", "co"):
+            return True
+        if s in ("false", "0", "no", "không", "khong"):
+            return False
+        return None
+
+    @field_validator("color_grading_style", mode="before")
+    @classmethod
+    def _normalize_color_grading_style(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {
+            "capcut": "native_capcut",
+            "cap_cut": "native_capcut",
+            "beauty_glow": "high_key_beauty",
+            "high_key": "high_key_beauty",
+            "muted": "desaturated_serious",
+            "desat": "desaturated_serious",
+            "overprocess": "over_processed",
+            "plastic": "over_processed",
+        }
+        s = aliases.get(s, s)
+        return s if s in _COLOR_GRADING_STYLE_ALLOWED else None
+
+    @field_validator("text_overlay_font_size_tier", mode="before")
+    @classmethod
+    def _normalize_overlay_font_tier(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {"big": "large", "xl": "large", "tiny": "small", "s": "small", "m": "medium", "l": "large"}
+        s = aliases.get(s, s)
+        return s if s in _TEXT_OVERLAY_FONT_TIER else None
+
+    @field_validator("text_overlay_color_emphasis", mode="before")
+    @classmethod
+    def _coerce_text_overlay_color_emphasis(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if isinstance(v, bool):
+            return v
+        s = str(v).strip().lower()
+        if s in ("true", "1", "yes", "có", "co"):
+            return True
+        if s in ("false", "0", "no", "không", "khong"):
+            return False
+        return None
 
     @field_validator("slang_freshness_score", mode="before")
     @classmethod

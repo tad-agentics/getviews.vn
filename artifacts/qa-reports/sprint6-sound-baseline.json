@@ -11,7 +11,6 @@
   ],
   "concerns": [
     "CML strip-risk mostly dormant while aggregator sets commercial_music_library_eligible=true for non-original until TikTok/API wiring.",
-    "Lifecycle signal skips phase=peak (no salience in _LIFECYCLE_SALIENCE) — intentional neutral.",
     "parody lifecycle not inferred by infer_sound_lifecycle_phase."
   ],
   "recommendation": "Apply migration 20260720000000_trending_sounds_sprint6_sound_intel.sql to remote before prod; when CML ground truth exists, stop defaulting eligible true."
