@@ -5,6 +5,7 @@ import { SectionProseBlocks } from "@/components/SectionProseBlocks";
 import type {
   ChannelNextVideoConcept,
   ChannelPerformerTile,
+  DiagnosisFinding,
   DiagnosisSectionVi,
   ReferenceVideoCard,
 } from "@/lib/api-types";
@@ -80,6 +81,45 @@ function looseNextVideoConcept(
   };
 }
 
+/** Numbered finding card — summary + "Sửa:" at the close of each issue-type section. */
+function SectionFindingCard({
+  rank,
+  finding,
+}: {
+  rank: number;
+  finding: DiagnosisFinding;
+}) {
+  const { title_vi, body_vi, fix_vi } = finding;
+  if (!title_vi && !body_vi && !fix_vi) return null;
+  return (
+    <div className="flex items-start gap-4 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3.5">
+      <div className="gv-mono mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--gv-canvas-2)] text-[13px] font-bold text-[color:var(--gv-ink)]">
+        {rank}
+      </div>
+      <div className="min-w-0 flex-1">
+        {title_vi ? (
+          <h4 className="gv-serif m-0 text-[17px] font-medium leading-[1.3] text-[color:var(--gv-ink)]">
+            {title_vi}
+          </h4>
+        ) : null}
+        {body_vi ? (
+          <p className="mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-foreground">
+            {body_vi}
+          </p>
+        ) : null}
+        {fix_vi ? (
+          <p className="mt-1.5 max-w-[640px] text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">
+            <span className="gv-mono mr-1.5 font-semibold text-[color:var(--gv-accent)]">
+              Sửa:
+            </span>
+            {fix_vi}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 interface DiagnosisSectionRendererProps {
   section: DiagnosisSectionVi;
   referenceVideos: ReferenceVideoCard[];
@@ -115,6 +155,10 @@ export function DiagnosisSectionRenderer({ section, referenceVideos }: Diagnosis
     );
   }
 
+  const findings = (section.findings ?? []).filter(
+    (f) => f.title_vi || f.body_vi || f.fix_vi,
+  );
+
   return (
     <div className="mb-6">
       <h3 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h3>
@@ -126,6 +170,13 @@ export function DiagnosisSectionRenderer({ section, referenceVideos }: Diagnosis
         />
       </div>
       {tiles.length > 0 ? <VideoTileRow tiles={tiles} /> : null}
+      {findings.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-3">
+          {findings.map((f, i) => (
+            <SectionFindingCard key={i} rank={i + 1} finding={f} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

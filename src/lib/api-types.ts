@@ -890,6 +890,13 @@ export type VideoDiagnosisSectionId =
   | "script_structure"
   | "next_video";
 
+/** One closing finding card inside a v6 section. */
+export interface DiagnosisFinding {
+  title_vi?: string;
+  body_vi?: string;
+  fix_vi?: string;
+}
+
 /** One section inside `diagnosis_vi.sections` — mirrors channel `ChannelSection` shape loosely for LLM JSON. */
 export interface DiagnosisSectionVi {
   section_id: VideoDiagnosisSectionId | string;
@@ -897,6 +904,7 @@ export interface DiagnosisSectionVi {
   title_vi?: string;
   text?: string;
   text_vi?: string;
+  findings?: DiagnosisFinding[];
   embedded_tiles?: unknown[];
   next_video?: Record<string, unknown> | null;
 }

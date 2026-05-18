@@ -20,6 +20,13 @@ Output BẮT BUỘC — đúng một khối fence đầu tiên:
         "section_id": "<id>",
         "title": "tiêu đề tiếng Việt",
         "text": "2-3 đoạn văn, mỗi đoạn cách nhau bằng \\n\\n, tối thiểu ~200 từ mỗi section khi có đủ evidence",
+        "findings": [
+          {
+            "title_vi": "Tên vấn đề — mô tả ngắn ≤12 từ",
+            "body_vi": "Giải thích 1-2 câu với số liệu cụ thể (X views, Y% mẫu)",
+            "fix_vi": "Hành động sửa cụ thể creator cần làm"
+          }
+        ],
         "embedded_tiles": [],
         "next_video": null
       }
@@ -39,8 +46,9 @@ Quy tắc:
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng đoạn.
 - CHỐNG pad: mỗi câu phải advance argument; không lặp lại cùng một ý.
 - evidence_anchors khớp với các claim trong text.
-- next_video section: next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" } CHỈ cho section đó; text của section này có thể liệt kê 3-5 bullet • những việc creator cần làm cụ thể để thực hiện concept.
-- niche_pattern: có thể điền embedded_tiles với aweme_id từ reference pool (thumbnail_url optional).
+- findings: mỗi section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure) phải có 1–3 findings là điểm cụ thể nhất trong section — mỗi finding: title_vi (≤12 từ, dạng "Vấn đề — hậu quả"), body_vi (1-2 câu + số liệu), fix_vi (hành động creator làm ngay). Sections không phải issue-based (next_video, niche_pattern, channel_pattern, distribution, douyin_origin, persona): để findings: [].
+- next_video section: next_video là object { "hook_vi", "premise_vi", "format", "reason_vi", "expected_views_range" } CHỈ cho section đó; text của section này có thể liệt kê 3-5 bullet • những việc creator cần làm cụ thể để thực hiện concept; findings: [].
+- niche_pattern: có thể điền embedded_tiles với aweme_id từ reference pool (thumbnail_url optional); findings: [].
 """
 
 
