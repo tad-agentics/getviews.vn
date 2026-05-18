@@ -86,6 +86,10 @@ QUY TẮC BẮT BUỘC:
   - color_grading_style: native_capcut | high_key_beauty | desaturated_serious | over_processed | neutral | unknown | null — tông màu tổng thể.
   - text_overlay_font_size_tier: large | medium | small | none | unknown | null — cỡ chữ overlay chính (đọc trên mobile).
   - text_overlay_color_emphasis: true nếu có từ khóa/số tô màu nổi (giá, %, CTA) khác nền; false nếu chữ đơn sắc hoặc không có overlay chữ; null nếu không áp dụng.
+- §8 Douyin / nguồn gốc format (object — trong bước extract: luôn để null; server merge sau khi khớp ``douyin_video_corpus``):
+  - douyin_origin: null
+  - vietnam_adoption_stage: null
+  - migration_fit_assessment: null
 - §7 hành vi chia sẻ / lưu (khi có — không ép; none nếu không rõ):
   - share_trigger_type: none | utility_reference | emotion_relief | identity_belonging | social_currency_pack | humor_meme | other — lý do chính khiến người xem bấm chia sẻ (tiện ích, cảm xúc, bộc lộ identity, có thể gửi nhóm, hài…).
   - save_trigger_type: none | how_to_checklist | product_deal_sheet | recipe_steps | quote_stat_card | tutorial_bookmark | other — lý do bấm lưu (checklist, deal, công thức…).

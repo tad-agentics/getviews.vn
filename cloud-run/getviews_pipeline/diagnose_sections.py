@@ -18,6 +18,9 @@ PERSONA_SECTION_MIN_SALIENCE = 0.55
 # §5 — emit ``editing`` when a signal meets this bar (plan salience down to 0.4).
 EDITING_SECTION_MIN_SALIENCE = 0.4
 
+# §8 — Douyin section includes 0.45 salience (trailing) — below default section gate.
+DOUYIN_SECTION_MIN_SALIENCE = 0.45
+
 
 class VideoSectionId(StrEnum):
     diagnosis = "diagnosis"
@@ -25,6 +28,7 @@ class VideoSectionId(StrEnum):
     hook_analysis = "hook_analysis"
     distribution = "distribution"
     niche_pattern = "niche_pattern"
+    douyin_origin = "douyin_origin"
     channel_pattern = "channel_pattern"
     commerce = "commerce"
     metadata = "metadata"
@@ -64,6 +68,13 @@ def _applies_distribution(_ctx: dict, manifest: Manifest) -> bool:
 def _applies_niche_pattern(ctx: dict, _manifest: Manifest) -> bool:
     refs = ctx.get("reference_videos") or []
     return isinstance(refs, list) and len(refs) > 0
+
+
+def _applies_douyin_origin(_ctx: dict, manifest: Manifest) -> bool:
+    return any(
+        s.salience >= DOUYIN_SECTION_MIN_SALIENCE
+        for s in manifest.get("douyin_origin", [])
+    )
 
 
 def _applies_channel_pattern(ctx: dict, _manifest: Manifest) -> bool:
@@ -135,6 +146,7 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.hook_analysis, 20, False, _applies_hook_analysis),
     SectionSpec(VideoSectionId.distribution, 30, False, _applies_distribution),
     SectionSpec(VideoSectionId.niche_pattern, 40, False, _applies_niche_pattern),
+    SectionSpec(VideoSectionId.douyin_origin, 45, False, _applies_douyin_origin),
     SectionSpec(VideoSectionId.channel_pattern, 50, False, _applies_channel_pattern),
     SectionSpec(VideoSectionId.commerce, 60, False, _applies_commerce),
     SectionSpec(VideoSectionId.metadata, 58, False, _applies_metadata),
@@ -167,6 +179,10 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("niche_pattern", "average"): "CÔNG THỨC ĐANG CHẠY TRONG NGÁCH",
     ("niche_pattern", "flop"): "CÔNG THỨC ĐANG CHẠY TRONG NGÁCH",
     ("niche_pattern", "unknown"): "CÔNG THỨC ĐANG CHẠY TRONG NGÁCH",
+    ("douyin_origin", "hit"): "NGUỒN GỐC DOUYIN",
+    ("douyin_origin", "average"): "NGUỒN GỐC DOUYIN",
+    ("douyin_origin", "flop"): "NGUỒN GỐC DOUYIN",
+    ("douyin_origin", "unknown"): "NGUỒN GỐC DOUYIN",
     ("channel_pattern", "hit"): "VIDEO NÀY SO VỚI KÊNH BẠN",
     ("channel_pattern", "average"): "VIDEO NÀY SO VỚI KÊNH BẠN",
     ("channel_pattern", "flop"): "VIDEO NÀY SO VỚI KÊNH BẠN",

@@ -139,6 +139,22 @@ def test_video_analysis_sprint8_metadata_editing_round_trip() -> None:
     assert m.text_overlay_color_emphasis is True
 
 
+def test_video_analysis_sprint9_douyin_round_trip() -> None:
+    d = _minimal_video_analysis_dict()
+    d["douyin_origin"] = {
+        "douyin_aweme_id": "123",
+        "first_seen_douyin": "2026-05-01",
+        "first_seen_vietnam": "2026-05-10",
+        "lag_days": 9,
+    }
+    d["vietnam_adoption_stage"] = "mid_curve"
+    d["migration_fit_assessment"] = "needs_localization"
+    m = VideoAnalysis.model_validate(d)
+    assert m.douyin_origin is not None
+    assert m.douyin_origin.douyin_aweme_id == "123"
+    assert m.vietnam_adoption_stage == "mid_curve"
+
+
 def test_carousel_analysis_hi9_optional_like_video() -> None:
     d = {
         "hook_analysis": {

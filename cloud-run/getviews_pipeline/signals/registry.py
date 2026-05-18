@@ -8,6 +8,7 @@ from getviews_pipeline.signals.commerce import extract_commerce_signals
 from getviews_pipeline.signals.compliance import extract_compliance_signals
 from getviews_pipeline.signals.context_signals import extract_context_signals
 from getviews_pipeline.signals.distribution import extract_distribution_signals
+from getviews_pipeline.signals.douyin import extract_douyin_signals
 from getviews_pipeline.signals.editing import extract_editing_signals
 from getviews_pipeline.signals.engagement import extract_engagement_signals
 from getviews_pipeline.signals.hook import extract_hook_signals
@@ -30,6 +31,7 @@ _EXTRACTORS = (
     extract_commerce_signals,
     extract_metadata_signals,
     extract_editing_signals,
+    extract_douyin_signals,
     extract_sound_signals,
     extract_persona_signals,
     extract_script_signals,

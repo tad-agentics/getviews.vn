@@ -1,0 +1,16 @@
+{
+  "task_id": "sprint9-douyin",
+  "plan": "Diagnosis-first plan — Sprint 9 §8 Douyin origin",
+  "verdict": "PASS_WITH_CONCERNS",
+  "health_score": 82,
+  "evidence": [
+    "pytest tests/test_sprint9_douyin.py tests/test_hi9_extraction_models.py (sprint9 cases) — pass",
+    "ruff clean on touched Python",
+    "npm run typecheck — douyin_origin in VideoDiagnosisSectionId"
+  ],
+  "concerns": [
+    "Daily Douyin ingest cron + TikHub cost quant remains a human/DevOps gate — matcher only reads existing corpus rows.",
+    "Match heuristic is hook_type + coarse niche map — expect false positives; fingerprint/sound parity is a follow-up."
+  ],
+  "recommendation": "After corpus has volume, audit match precision on 50 diagnoses; enable cron only after cost sign-off."
+}

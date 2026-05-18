@@ -880,6 +880,7 @@ export type VideoDiagnosisSectionId =
   | "hook_analysis"
   | "distribution"
   | "niche_pattern"
+  | "douyin_origin"
   | "channel_pattern"
   | "commerce"
   | "metadata"

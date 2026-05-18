@@ -693,6 +693,25 @@ class CarouselNicheClassification(BaseModel):
         return legacy.get(s, "gallery_carousel")
 
 
+# §8 — Douyin origin linkage (diagnosis-first Sprint 9).
+VietnamAdoptionStageType = Literal["leading_edge", "mid_curve", "trailing"]
+MigrationFitAssessmentType = Literal["clean_adapt", "needs_localization", "poor_fit", "unknown"]
+
+_VIETNAM_ADOPTION_STAGES = frozenset(get_args(VietnamAdoptionStageType))
+_MIGRATION_FIT_ALLOWED = frozenset(get_args(MigrationFitAssessmentType))
+
+
+class DouyinOriginBlock(BaseModel):
+    """Douyin corpus peer anchor when heuristic matcher fires (§8)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    douyin_aweme_id: str
+    first_seen_douyin: str | None = None
+    first_seen_vietnam: str | None = None
+    lag_days: int | None = Field(default=None, ge=-366, le=3660)
+
+
 class VideoAnalysis(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -751,6 +770,11 @@ class VideoAnalysis(BaseModel):
     """§5 — Primary on-screen text size for mobile readability."""
     text_overlay_color_emphasis: bool | None = None
     """§5 — Color-highlighted keywords (price, %, CTA) vs flat text."""
+
+    douyin_origin: DouyinOriginBlock | None = None
+    """§8 — Server-filled via ``douyin_match`` when a Douyin corpus peer exists."""
+    vietnam_adoption_stage: VietnamAdoptionStageType | None = None
+    migration_fit_assessment: MigrationFitAssessmentType | None = None
 
     @field_validator("loop_architecture_score", mode="before")
     @classmethod
@@ -967,6 +991,47 @@ class VideoAnalysis(BaseModel):
         if s in ("false", "0", "no", "không", "khong"):
             return False
         return None
+
+    @field_validator("douyin_origin", mode="before")
+    @classmethod
+    def _coerce_douyin_origin(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if isinstance(v, DouyinOriginBlock):
+            return v
+        if isinstance(v, dict):
+            if str(v.get("douyin_aweme_id") or "").strip():
+                return v
+        return None
+
+    @field_validator("vietnam_adoption_stage", mode="before")
+    @classmethod
+    def _normalize_vietnam_adoption_stage(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {
+            "leading": "leading_edge",
+            "early": "leading_edge",
+            "mid": "mid_curve",
+            "late": "trailing",
+        }
+        s = aliases.get(s, s)
+        return s if s in _VIETNAM_ADOPTION_STAGES else None
+
+    @field_validator("migration_fit_assessment", mode="before")
+    @classmethod
+    def _normalize_migration_fit_assessment(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {
+            "green": "clean_adapt",
+            "yellow": "needs_localization",
+            "red": "poor_fit",
+        }
+        s = aliases.get(s, s)
+        return s if s in _MIGRATION_FIT_ALLOWED else None
 
     @field_validator("slang_freshness_score", mode="before")
     @classmethod

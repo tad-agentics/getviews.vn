@@ -1034,6 +1034,14 @@ def finalize_video_narrative_layer(
             _hist,
         )
 
+    try:
+        from getviews_pipeline.douyin_match import enrich_analysis_with_douyin_match
+        from getviews_pipeline.supabase_client import get_service_client
+
+        enrich_analysis_with_douyin_match(analysis, user_stats, get_service_client())
+    except Exception:
+        logger.debug("[video_narrative] douyin_match enrich skipped", exc_info=True)
+
     diagnosis_md = ""
     narrative_vi_out: dict[str, Any] | None = None
     format_cards_out: list[dict[str, Any]] | None = None
