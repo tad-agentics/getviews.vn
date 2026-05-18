@@ -81,7 +81,8 @@ def _applies_channel_pattern(ctx: dict, _manifest: Manifest) -> bool:
     ch = ctx.get("channel_context") or {}
     if not isinstance(ch, dict) or not ch.get("available"):
         return False
-    return int(ch.get("sample_size") or 0) >= 3
+    # 2+ channel videos gives a meaningful top/bottom comparison for narrative.
+    return int(ch.get("sample_size") or 0) >= 2
 
 
 def _applies_commerce(ctx: dict, manifest: Manifest) -> bool:

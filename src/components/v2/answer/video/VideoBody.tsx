@@ -553,21 +553,33 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {/* Standalone channel block: only when v6 channel_pattern section did not embed it */}
+        {/* Standalone channel block: shown when channel data is available but
+            channel_pattern didn't emit as a v6 section (sample_size < 2).
+            Add a brief intro so the cards aren't orphaned without context. */}
         {channelEffective?.available && !hasV6ChannelPattern ? (
-          isV5 ? (
-            <ChannelProofBlock
-              channelContext={channelEffective}
-              analyzedFormat={meta.content_format ?? null}
-              creatorHandle={meta.creator ?? null}
-            />
-          ) : (
-            <ChannelContextLegacy
-              channelContext={channelEffective}
-              metaTitle={meta.title}
-              metaViews={meta.views}
-            />
-          )
+          <div className="mb-6">
+            <h3 className="text-base font-bold text-[color:var(--foreground)] leading-snug mb-2">
+              SO SÁNH TRONG KÊNH
+            </h3>
+            <p className="mb-3 max-w-[680px] text-[14px] leading-relaxed text-[color:var(--gv-ink-2)]">
+              Video này so với các video khác trên cùng kênh — video có lượt xem cao nhất cho thấy
+              format và hook đang hoạt động tốt; video thấp nhất chỉ ra điểm yếu lặp lại. Đặt hai
+              đầu lại với nhau để thấy khoảng cách và nguyên nhân.
+            </p>
+            {isV5 ? (
+              <ChannelProofBlock
+                channelContext={channelEffective}
+                analyzedFormat={meta.content_format ?? null}
+                creatorHandle={meta.creator ?? null}
+              />
+            ) : (
+              <ChannelContextLegacy
+                channelContext={channelEffective}
+                metaTitle={meta.title}
+                metaViews={meta.views}
+              />
+            )}
+          </div>
         ) : null}
 
         {formatCardsEffective && formatCardsEffective.length > 0 ? (

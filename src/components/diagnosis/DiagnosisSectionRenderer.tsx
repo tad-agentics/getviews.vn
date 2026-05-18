@@ -140,17 +140,22 @@ export function DiagnosisSectionRenderer({ section, referenceVideos }: Diagnosis
     return (
       <div className="mb-6">
         <h3 className="text-base font-bold text-[color:var(--foreground)] leading-snug">{title}</h3>
-        {concept ? (
-          <NextVideoCard concept={concept} />
-        ) : text ? (
+        {/* Prose + bullets always first — narrative-first principle */}
+        {text ? (
           <SectionProseBlocks
             text={text}
             wrapperClassName="space-y-2 mt-2"
             paragraphClassName="text-[15px] leading-relaxed text-[color:var(--foreground)]"
           />
-        ) : (
+        ) : null}
+        {/* Structured concept card is secondary — summary of the prose above */}
+        {concept ? (
+          <div className="mt-4">
+            <NextVideoCard concept={concept} />
+          </div>
+        ) : !text ? (
           <NextVideoCardEmpty />
-        )}
+        ) : null}
       </div>
     );
   }
