@@ -13,6 +13,8 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
+from getviews_pipeline.hook_type_normalize import normalize_hook_type
+
 logger = logging.getLogger(__name__)
 
 # Map CreatorNicheSlug (HI-9) → ``douyin_niche_taxonomy.id`` (approximate cultural peers).
@@ -100,7 +102,7 @@ def migration_fit_from_adapt_level(level: str | None) -> str:
 def fetch_douyin_peer_row(sb: Any, *, niche_id: int, hook_type: str) -> dict[str, Any] | None:
     """Return one corpus row: same Douyin niche + hook_type, highest views."""
 
-    ht = str(hook_type).strip().lower().replace("-", "_")
+    ht = normalize_hook_type(hook_type)
     try:
         res = (
             sb.table("douyin_video_corpus")
@@ -135,8 +137,8 @@ def enrich_analysis_with_douyin_match(
     hook = analysis.get("hook_analysis")
     if not isinstance(hook, dict):
         return
-    hook_type = str(hook.get("hook_type") or "").strip().lower()
-    if not hook_type or hook_type in ("none", "other"):
+    hook_type = normalize_hook_type(hook.get("hook_type"))
+    if hook_type in ("none", "other"):
         return
 
     nc = analysis.get("niche_classification")

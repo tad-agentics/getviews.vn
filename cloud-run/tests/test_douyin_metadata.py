@@ -253,6 +253,18 @@ def test_row_carries_hook_type_and_phrase() -> None:
     assert row["hook_phrase"] == "睡前3件事 改变人生"
 
 
+def test_row_normalizes_hook_type_alias_like_tiktok_corpus() -> None:
+    analysis = _analysis(
+        analysis={
+            "scenes": _analysis()["analysis"]["scenes"],
+            "hook_analysis": {"hook_type": "tutorial", "hook_phrase": "x"},
+        },
+    )
+    row = build_douyin_corpus_row(_aweme(), analysis, niche_id=1)
+    assert row is not None
+    assert row["hook_type"] == "how_to"
+
+
 def test_row_carries_chinese_caption_and_hashtags() -> None:
     row = build_douyin_corpus_row(_aweme(), _analysis(), niche_id=1)
     assert row is not None
@@ -327,7 +339,7 @@ def test_row_handles_minimal_aweme_without_optional_fields() -> None:
     assert row["video_id"] == "1"
     assert row["creator_followers"] is None
     assert row["video_duration"] is None
-    assert row["hook_type"] is None
+    assert row["hook_type"] == "other"
     assert row["hook_phrase"] is None
     assert row["thumbnail_url"] is None
     assert row["hashtags_zh"] == []

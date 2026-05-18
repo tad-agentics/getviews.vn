@@ -50,6 +50,7 @@ from typing import Any
 from getviews_pipeline import ensemble
 from getviews_pipeline.douyin_translator import CaptionTranslation
 from getviews_pipeline.ensemble import VideoMetadata, parse_metadata
+from getviews_pipeline.hook_type_normalize import normalize_hook_type
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +210,7 @@ def build_douyin_corpus_row(
 
     # ── Hook (Gemini analysis) ───────────────────────────────────
     hook_info: dict[str, Any] = analysis_json.get("hook_analysis") or {}
-    hook_type = (hook_info.get("hook_type") or "").strip().lower() or None
+    hook_type = normalize_hook_type(hook_info.get("hook_type"))
     hook_phrase = hook_info.get("hook_phrase") or None
 
     # ── Caption + Chinese hashtags ───────────────────────────────

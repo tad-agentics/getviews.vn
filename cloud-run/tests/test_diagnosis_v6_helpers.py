@@ -23,6 +23,38 @@ def test_select_sections_minimal_ctx() -> None:
     assert out.index("diagnosis") < out.index("next_video")
 
 
+def test_select_sections_includes_commerce_when_organic_but_commercial_intent_signals() -> None:
+    """Regression: organic promo + shop_direct intent yields commerce signals — section must emit."""
+    ctx = build_diagnosis_ctx(
+        user_analysis={
+            "promotion_type": "organic",
+            "commerce_intent": {
+                "conversion_objective": "shop_direct",
+                "product_price_tier": "not_commerce",
+                "creator_type": "kos_seller",
+                "verbal_cta_present": True,
+                "disclosure_present": True,
+                "disclosure_form": "voice",
+            },
+            "hook_analysis": {
+                "first_frame_type": "face",
+                "hook_phrase": "x",
+                "hook_type": "question",
+                "hook_notes": "",
+                "hook_timeline": [],
+            },
+        },
+        user_stats={"caption": "hi", "views": 50_000, "commerce_conversion": {"order_count": 80}},
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="average",
+    )
+    manifest = build_signal_manifest(ctx)
+    assert manifest.get("commerce"), "expected commerce signals (intent + optional §12 override)"
+    out = select_sections_to_emit(manifest, ctx)
+    assert "commerce" in out
+
+
 def test_select_sections_includes_hook_analysis_after_compliance_when_salient() -> None:
     ctx = build_diagnosis_ctx(
         user_analysis={

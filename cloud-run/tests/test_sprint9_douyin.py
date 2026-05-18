@@ -43,6 +43,38 @@ class _MockSb:
         return _Query(self._row)
 
 
+class _CapturingSb:
+    def __init__(self, row: dict[str, Any] | None) -> None:
+        self._row = row
+        self.eq_calls: list[tuple[str, Any]] = []
+
+    def table(self, _name: str) -> _CapturingQuery:
+        return _CapturingQuery(self, self._row)
+
+
+class _CapturingQuery:
+    def __init__(self, parent: _CapturingSb, row: dict[str, Any] | None) -> None:
+        self._parent = parent
+        self._row = row
+
+    def select(self, *_a: Any, **_k: Any) -> _CapturingQuery:
+        return self
+
+    def eq(self, col: str, val: Any) -> _CapturingQuery:
+        self._parent.eq_calls.append((col, val))
+        return self
+
+    def order(self, *_a: Any, **_k: Any) -> _CapturingQuery:
+        return self
+
+    def limit(self, *_a: Any, **_k: Any) -> _CapturingQuery:
+        return self
+
+    def execute(self) -> Any:
+        data = [self._row] if self._row else []
+        return type("R", (), {"data": data})()
+
+
 def test_adoption_stage_lag() -> None:
     assert adoption_stage_from_lag(3) == "leading_edge"
     assert adoption_stage_from_lag(14) == "mid_curve"
@@ -132,3 +164,25 @@ def test_enrich_skips_when_disabled(monkeypatch: Any) -> None:
     }
     enrich_analysis_with_douyin_match(analysis, {}, _MockSb({"video_id": "1"}))
     assert "douyin_origin" not in analysis
+
+
+def test_enrich_queries_douyin_with_normalized_hook_type(monkeypatch: Any) -> None:
+    """Gemini may emit ``tutorial``; DB stores ``how_to`` — matcher must align."""
+    monkeypatch.setenv("GETVIEWS_DOUYIN_ORIGIN_MATCH", "1")
+    row = {
+        "video_id": "888",
+        "posted_at": "2026-05-01T00:00:00+00:00",
+        "adapt_level": "green",
+        "views": 50_000,
+    }
+    sb = _CapturingSb(row)
+    analysis: dict[str, Any] = {
+        "hook_analysis": {
+            "hook_type": "tutorial",
+            "hook_phrase": "x",
+        },
+        "niche_classification": {"creator_niche_slug": "beauty"},
+    }
+    enrich_analysis_with_douyin_match(analysis, {"posted_at": "2026-05-10T00:00:00+00:00"}, sb)
+    assert ("hook_type", "how_to") in sb.eq_calls
+    assert analysis["douyin_origin"]["douyin_aweme_id"] == "888"

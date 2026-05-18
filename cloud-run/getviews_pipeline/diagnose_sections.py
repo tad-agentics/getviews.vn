@@ -84,7 +84,14 @@ def _applies_channel_pattern(ctx: dict, _manifest: Manifest) -> bool:
     return int(ch.get("sample_size") or 0) >= 3
 
 
-def _applies_commerce(ctx: dict, _manifest: Manifest) -> bool:
+def _applies_commerce(ctx: dict, manifest: Manifest) -> bool:
+    """Emit commerce when extractors produced commerce signals OR legacy promo is non-organic.
+
+    Organic + ``commerce_intent`` (e.g. shop_direct) still yields §0/§12 signals; the section
+    must open whenever ``manifest[\"commerce\"]`` is non-empty, otherwise v6 drops the manifest.
+    """
+    if manifest.get("commerce"):
+        return True
     ua = ctx.get("user_analysis") or {}
     promo = str(ua.get("promotion_type") or "organic").lower()
     return promo not in ("organic", "")

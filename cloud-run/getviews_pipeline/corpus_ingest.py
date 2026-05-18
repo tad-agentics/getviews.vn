@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any, get_args
+from typing import Any
 
 from getviews_pipeline import ensemble
 from getviews_pipeline.analysis_core import (
@@ -53,7 +53,7 @@ from getviews_pipeline.helpers import (
     filter_recency,
     merge_aweme_lists,
 )
-from getviews_pipeline.models import HookType
+from getviews_pipeline.hook_type_normalize import normalize_hook_type
 from getviews_pipeline.r2 import (
     copy_first_frame_to_thumbnail,
     download_and_upload_thumbnail,
@@ -658,29 +658,6 @@ _VN_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-_HOOK_TYPE_ALIASES: dict[str, str] = {
-    # Canonical values — pass through
-    "question": "question", "bold_claim": "bold_claim", "shock_stat": "shock_stat",
-    "story_open": "story_open", "controversy": "controversy", "challenge": "challenge",
-    "how_to": "how_to", "social_proof": "social_proof", "curiosity_gap": "curiosity_gap",
-    "pain_point": "pain_point", "trend_hijack": "trend_hijack", "none": "none", "other": "other",
-    "warning": "warning", "reaction": "reaction", "comparison": "comparison", "expose": "expose",
-    "insider": "insider", "secret": "secret", "pov": "pov",
-    "vach_tran": "vach_tran", "gia_soc": "gia_soc", "dialect_identity": "dialect_identity",
-    "fomo_urgency": "fomo_urgency", "tips_value": "tips_value",
-    "price_shock": "gia_soc",
-    # Vietnamese-language aliases (knowledge_base / Gemini)
-    "canh_bao": "warning", "phan_ung": "reaction", "so_sanh": "comparison",
-    "boc_phot": "expose", "huong_dan": "how_to", "ke_chuyen": "story_open",
-    "bang_chung": "social_proof",
-    # English synonyms Gemini might use
-    "tutorial": "how_to", "story": "story_open", "storytelling": "story_open",
-    "shock": "bold_claim", "tips": "tips_value", "fear": "fomo_urgency",
-    "curiosity": "curiosity_gap",
-}
-
-_HOOK_TYPE_CANONICAL = frozenset(get_args(HookType))
-
 _SOUTHERN = [
     r"\btui\b", r"\bmấy bà\b", r"\bnè\b", r"\bnha\b", r"\bhông\b",
     r"\bquá trời\b", r"\bdzậy\b", r"\bvầy\b", r"\bbiết hông\b",
@@ -713,16 +690,6 @@ def _normalize_str_list(raw: Any, *, max_items: int, max_len: int) -> list[str]:
         if t:
             out.append(t)
     return out
-
-
-def _normalize_hook_type(raw: str) -> str:
-    s = str(raw or "").strip().lower().replace("-", "_")
-    if not s:
-        return "other"
-    mapped = _HOOK_TYPE_ALIASES.get(s, s)
-    if mapped in _HOOK_TYPE_CANONICAL:
-        return mapped
-    return "other"
 
 
 def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
@@ -1729,7 +1696,7 @@ def _build_corpus_row(
         ),
 
         # ── Group A: Gemini analysis extraction (11 columns) ──
-        "hook_type": _normalize_hook_type(hook_info.get("hook_type") or "other"),
+        "hook_type": normalize_hook_type(hook_info.get("hook_type") or "other"),
         "hook_phrase": hook_info.get("hook_phrase"),
         "face_appears_at": hook_info.get("face_appears_at"),
         "first_frame_type": hook_info.get("first_frame_type") or "other",
