@@ -16,7 +16,7 @@
  * doesn't render in production yet. PR-3 flips routing so the
  * ``video_diagnosis`` intent lands here and ``/app/video`` is removed.
  */
-import { useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { ArrowRight, Copy, Play } from "lucide-react";
 
@@ -224,6 +224,9 @@ export function VideoBody({
 
   const v6Sections = narrativeVi?.diagnosis_vi?.sections;
   const showV6SectionBody = Array.isArray(v6Sections) && v6Sections.length > 0;
+  const v6SectionIds = new Set(v6Sections?.map((s) => String(s.section_id)) ?? []);
+  const hasV6ChannelPattern = v6SectionIds.has("channel_pattern");
+  const hasV6HookAnalysis = v6SectionIds.has("hook_analysis");
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
@@ -473,13 +476,42 @@ export function VideoBody({
 
         {showV6SectionBody ? (
           <div className="mb-6" aria-label="Chẩn đoán theo mục">
-            {v6Sections!.map((sec, idx) => (
-              <DiagnosisSectionRenderer
-                key={`${String(sec.section_id)}-${idx}`}
-                section={sec}
-                referenceVideos={refVideos}
-              />
-            ))}
+            {v6Sections!.map((sec, idx) => {
+              const sid = String(sec.section_id);
+              return (
+                <Fragment key={`${sid}-${idx}`}>
+                  <DiagnosisSectionRenderer
+                    section={sec}
+                    referenceVideos={refVideos}
+                  />
+                  {/* Channel data cards embedded immediately after channel_pattern prose */}
+                  {sid === "channel_pattern" && channelEffective?.available ? (
+                    isV5 ? (
+                      <ChannelProofBlock
+                        channelContext={channelEffective}
+                        analyzedFormat={meta.content_format ?? null}
+                        creatorHandle={meta.creator ?? null}
+                      />
+                    ) : (
+                      <ChannelContextLegacy
+                        channelContext={channelEffective}
+                        metaTitle={meta.title}
+                        metaViews={meta.views}
+                      />
+                    )
+                  ) : null}
+                  {/* Hook phase cards embedded immediately after hook_analysis prose */}
+                  {sid === "hook_analysis" && report.hook_phases?.length ? (
+                    <div className="mb-6">
+                      <p className="mb-3 max-w-[680px] text-[12px] leading-relaxed text-[color:var(--gv-ink-2)]">
+                        Ba thẻ theo cửa sổ 0–3s: hình mở, kiểu hook, chỗ lời/kết nối sớm — tóm tắt từ cùng luồng phân tích hình.
+                      </p>
+                      <HookPhaseGrid phases={report.hook_phases} />
+                    </div>
+                  ) : null}
+                </Fragment>
+              );
+            })}
           </div>
         ) : null}
 
@@ -521,7 +553,8 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {channelEffective?.available ? (
+        {/* Standalone channel block: only when v6 channel_pattern section did not embed it */}
+        {channelEffective?.available && !hasV6ChannelPattern ? (
           isV5 ? (
             <ChannelProofBlock
               channelContext={channelEffective}
@@ -593,7 +626,8 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {report.hook_phases?.length ? (
+        {/* Hook phases collapsible: only when v6 hook_analysis section did not embed it */}
+        {report.hook_phases?.length && !hasV6HookAnalysis ? (
           <Collapsible defaultOpen={false}>
             <CollapsibleTrigger asChild>
               <button
