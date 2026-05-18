@@ -365,8 +365,12 @@ export function VideoBody({
               <span className="gv-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-accent)]">
                 {brightEffective?.signal_type === "hook_only_problem" ||
                 (retEnd != null && retEnd >= 68)
-                  ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
-                  : `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`}
+                  ? flopIssueCount > 0
+                    ? `CHẨN ĐOÁN · ${flopIssueCount} ĐIỂM CẦN CHỈNH · GIỮ CHÂN ĐANG TỐT`
+                    : "CHẨN ĐOÁN · GIỮ CHÂN ĐANG TỐT"
+                  : flopIssueCount > 0
+                    ? `CHẨN ĐOÁN VIDEO CỦA BẠN · ${flopIssueCount} ĐIỂM LỖI CẤU TRÚC`
+                    : "CHẨN ĐOÁN VIDEO CỦA BẠN"}
               </span>
               <PerformanceTierChip tier={performanceTier} />
               {meta.content_format ? (
