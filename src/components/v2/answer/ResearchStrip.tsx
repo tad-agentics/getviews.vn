@@ -202,7 +202,7 @@ function SourceBadge({ tool }: { tool: string }) {
           : "border border-[var(--gv-rule)] bg-[var(--gv-canvas-2)] text-[var(--gv-ink-3)]"
       }`}
     >
-      {isTiktok ? "TikTok Live" : tool === "corpus" ? "Kho video" : tool === "synthesis" ? "AI" : tool}
+      {isTiktok ? "TikTok Live" : tool === "corpus" ? "Kho video" : tool === "synthesis" ? "Phân tích" : tool === "creator_posts" ? "TikTok" : tool}
     </span>
   );
 }

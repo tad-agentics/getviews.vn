@@ -1406,7 +1406,7 @@ def run_video_analyze_pipeline(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
-        emit(step_queue, step_process("Đang trích xuất lỗi cấu trúc (Gemini)..."))
+        emit(step_queue, step_process("Đang kiểm tra cấu trúc video..."))
     raw_errs = extract_video_errors(
         extraction_mode=extraction_mode,
         video=video,
@@ -1670,7 +1670,7 @@ def _try_on_demand_cache_hit(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
-        emit(step_queue, step_process("Đang đọc kết quả phân tích đã lưu..."))
+        emit(step_queue, step_process("Đang tải kết quả..."))
     from getviews_pipeline.observability import log_cache_event
     log_cache_event(event="cache_hit", cache_source="on_demand_cache", video_id=None)
     return cached
@@ -1742,7 +1742,7 @@ def run_video_analyze_on_demand(
 
         emit(
             step_queue,
-            step_process("Đang tải video TikTok và phân tích khung hình (Gemini)..."),
+            step_process("Đang phân tích video..."),
         )
     aweme, analyze_result = asyncio.run(_fetch_and_analyze_async(tiktok_url))
 
@@ -1832,7 +1832,7 @@ def run_video_analyze_on_demand(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
-        emit(step_queue, step_process("Đang trích xuất lỗi cấu trúc (Gemini)..."))
+        emit(step_queue, step_process("Đang kiểm tra cấu trúc video..."))
     raw_errs_od = extract_video_errors(
         extraction_mode=extraction_mode_od,
         video=video,

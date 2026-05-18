@@ -211,7 +211,7 @@ INTENT_STEP_LABELS: dict[str, list[str]] = {
         "Đang viết 5 phiên bản hook…",
     ],
     "lifecycle": [
-        "Đang quét corpus lifecycle ngách…",
+        "Đang quét video theo vòng đời ngách…",
         "Đang phân tích format theo giai đoạn vòng đời…",
         "Đang tổng hợp insight lifecycle…",
     ],

@@ -457,8 +457,8 @@ def build_video_report(
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_status, step_tool_start
 
-        emit(step_queue, step_status(1, "Đang tải video và tìm trong corpus..."))
-        emit(step_queue, step_tool_start("Tra cứu corpus", 1, 0, tool="corpus"))
+        emit(step_queue, step_status(1, "Đang tìm video..."))
+        emit(step_queue, step_tool_start("Tìm trong kho", 1, 0, tool="corpus"))
 
     try:
         out = run_video_analyze_pipeline(
@@ -530,7 +530,7 @@ def build_video_report(
         if creator_handle and target_views > 0:
             emit(
                 step_queue,
-                step_status(2, "Đang so sánh với video khác của creator..."),
+                step_status(2, "Đang xem các video khác của creator..."),
             )
 
     comparison: CreatorComparison | None = None
@@ -582,11 +582,11 @@ def build_video_report(
 
         emit(
             step_queue,
-            step_status(3, "Đang tổng hợp chẩn đoán narrative..."),
+            step_status(3, "Đang viết chẩn đoán..."),
         )
         emit(
             step_queue,
-            step_tool_start("Tổng hợp narrative Gemini", 3, 0, tool="synthesis"),
+            step_tool_start("Phân tích & viết báo cáo", 3, 0, tool="synthesis"),
         )
 
     from getviews_pipeline.video_analyze import finalize_video_narrative_layer
