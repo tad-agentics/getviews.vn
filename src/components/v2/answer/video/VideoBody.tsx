@@ -341,9 +341,6 @@ export function VideoBody({
               ) : null}
             </div>
           </div>
-          <p className="gv-mono text-center text-[11px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-            {thumbStats}
-          </p>
         </div>
       </aside>
 
