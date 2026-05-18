@@ -42,10 +42,12 @@ export function buildCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin");
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": ALLOWED_HEADERS,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
     Vary: "Origin",
   };
   if (origin && isAllowedOrigin(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
+    headers["Access-Control-Allow-Credentials"] = "true";
   }
   return headers;
 }
