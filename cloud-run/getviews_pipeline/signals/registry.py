@@ -12,8 +12,10 @@ from getviews_pipeline.signals.engagement import extract_engagement_signals
 from getviews_pipeline.signals.hook import extract_hook_signals
 from getviews_pipeline.signals.persona import extract_persona_signals
 from getviews_pipeline.signals.reference import extract_reference_signals
-from getviews_pipeline.signals.sound import extract_sound_signals
 from getviews_pipeline.signals.salience import MAX_SIGNALS_PER_SECTION_IN_PROMPT
+from getviews_pipeline.signals.script import extract_script_signals
+from getviews_pipeline.signals.sound import extract_sound_signals
+from getviews_pipeline.signals.triggers import extract_trigger_signals
 
 _EXTRACTORS = (
     extract_compliance_signals,
@@ -26,6 +28,8 @@ _EXTRACTORS = (
     extract_commerce_signals,
     extract_sound_signals,
     extract_persona_signals,
+    extract_script_signals,
+    extract_trigger_signals,
 )
 
 

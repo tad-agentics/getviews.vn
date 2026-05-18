@@ -78,6 +78,12 @@ QUY TẮC BẮT BUỘC:
   - audio_track_role: trending_sound | original_music | silent | spoken_overlay — vai track chính (nhạc trending vs nhạc gốc vs tắt vs lời đè).
   - sound_dialect_audio: hue | quang_nam | southern | northern | none | null — giọng vùng miền trong nhạc nền / vocal sample (khác dialect lời thoại; không ép).
   - sound_layering: thin | balanced | rich | null — thin = hầu như chỉ một lane (vd chỉ BGM hoặc chỉ VO); rich = BGM + lời rõ + hiệu ứng/ASMR tách lớp; balanced = ở giữa.
+- §7 hành vi chia sẻ / lưu (khi có — không ép; none nếu không rõ):
+  - share_trigger_type: none | utility_reference | emotion_relief | identity_belonging | social_currency_pack | humor_meme | other — lý do chính khiến người xem bấm chia sẻ (tiện ích, cảm xúc, bộc lộ identity, có thể gửi nhóm, hài…).
+  - save_trigger_type: none | how_to_checklist | product_deal_sheet | recipe_steps | quote_stat_card | tutorial_bookmark | other — lý do bấm lưu (checklist, deal, công thức…).
+- §4 cấu trúc script affiliate + livestream (chỉ điền khi conversion_objective khớp; null nếu không áp dụng):
+  - affiliate_script_phases (object): hook_attention, product_showcase, usage_demo, social_proof, closing_cta — mỗi field true | false | null; true = có đủ căn cứ trong clip; false = thiếu hoặc chỉ lướt; null = không đủ frame để chấm.
+  - livestream_funnel_demo: teaser_open_loop | balanced | over_complete | null — chỉ khi conversion_objective=livestream_funnel: teaser_open_loop = cố tình mở vòng để kéo vào live; over_complete = demo đủ chi tiết vô tình làm khán giả không cần vào live; balanced = vừa đủ.
 - style_tags: 2–5 tag trong danh sách schema: text_overlay_heavy, talking_head, voiceover_only, b_roll_heavy, fast_cuts, slow_reveal, meme_format, before_after, reaction, duet_stitch, green_screen, product_showcase, lifestyle_b_roll, educational_slides, trending_audio. Chỉ tag thấy rõ; không đoán.
 - has_human_speaking_to_camera: true nếu có mặt và người đó nói hướng khán giả (hoặc đối thoại với viewer); false nếu faceless hoàn toàn, chỉ ASMR sản phẩm, montage không talking head.
 - has_expressed_opinion_or_question: true nếu lời nói / overlay / caption có ý kiến, câu hỏi, hoặc POV cá nhân ("mình", "theo mình"); false nếu thuần mô tả trung tính."""

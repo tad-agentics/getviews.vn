@@ -1,0 +1,16 @@
+{
+  "task_id": "sprint7-triggers-script",
+  "plan": "Diagnosis-first plan — Sprint 7 §7 triggers + §4 script",
+  "verdict": "PASS",
+  "evidence": [
+    "cloud-run pytest: 2089 passed, 1 skipped",
+    "tests/test_sprint7_triggers_script.py: 7 cases",
+    "npm run typecheck: PASS",
+    "ruff: clean on touched modules"
+  ],
+  "concerns": [
+    "su_that_tran_trui uses regex heuristics — possible false positives/negatives vs Gemini classifier.",
+    "affiliate five-phase depends on Gemini-filled affiliate_script_phases; sparse/null phases skip signal."
+  ],
+  "recommendation": "Monitor trigger_script signal inclusion_rate after v6 flag; tune patterns from corpus samples if needed."
+}

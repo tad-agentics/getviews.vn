@@ -388,6 +388,46 @@ class CommerceIntent(BaseModel):
         return s if s in _COMMERCE_DISCLOSURE_FORMS else "none"
 
 
+# §4 / §7 — Affiliate script structure + behavioral triggers (diagnosis-first Sprint 7).
+LivestreamFunnelDemoBalance = Literal["teaser_open_loop", "balanced", "over_complete"]
+
+ShareTriggerType = Literal[
+    "none",
+    "utility_reference",
+    "emotion_relief",
+    "identity_belonging",
+    "social_currency_pack",
+    "humor_meme",
+    "other",
+]
+
+SaveTriggerType = Literal[
+    "none",
+    "how_to_checklist",
+    "product_deal_sheet",
+    "recipe_steps",
+    "quote_stat_card",
+    "tutorial_bookmark",
+    "other",
+]
+
+_LIVESTREAM_DEMO_BALANCE = frozenset(get_args(LivestreamFunnelDemoBalance))
+_SHARE_TRIGGER = frozenset(get_args(ShareTriggerType))
+_SAVE_TRIGGER = frozenset(get_args(SaveTriggerType))
+
+
+class AffiliateScriptPhases(BaseModel):
+    """Five-phase Shopee/TikTok Shop short video spine (§4). Optional per-phase booleans."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    hook_attention: bool | None = None
+    product_showcase: bool | None = None
+    usage_demo: bool | None = None
+    social_proof: bool | None = None
+    closing_cta: bool | None = None
+
+
 # §11 — Vietnamese on-camera persona (diagnosis-first Sprint 3). Slugs only in JSON.
 CreatorPersonaSlug = Literal[
     "chuyen_gia",
@@ -674,6 +714,13 @@ class VideoAnalysis(BaseModel):
     sound_layering: SoundLayeringMix | None = None
     """BGM + VO + diegetic SFX balance — thin = one lane dominates (risk for ASMR/mukbang)."""
 
+    affiliate_script_phases: AffiliateScriptPhases | None = None
+    """§4 affiliate spine — filled when conversion is shop/affiliate."""
+    livestream_funnel_demo: LivestreamFunnelDemoBalance | None = None
+    """§4 livestream funnel — demo completeness vs open-loop tease."""
+    share_trigger_type: ShareTriggerType | None = None
+    save_trigger_type: SaveTriggerType | None = None
+
     @field_validator("loop_architecture_score", mode="before")
     @classmethod
     def _coerce_loop_architecture_score(cls, v: object) -> object:
@@ -754,6 +801,56 @@ class VideoAnalysis(BaseModel):
         if s in _SOUND_LAYERING_ALLOWED:
             return s
         return None
+
+    @field_validator("affiliate_script_phases", mode="before")
+    @classmethod
+    def _coerce_affiliate_script_phases(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        if isinstance(v, AffiliateScriptPhases):
+            return v
+        if isinstance(v, dict):
+            return v
+        return None
+
+    @field_validator("livestream_funnel_demo", mode="before")
+    @classmethod
+    def _normalize_livestream_funnel_demo(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {
+            "open_loop": "teaser_open_loop",
+            "teaser": "teaser_open_loop",
+            "incomplete_demo": "teaser_open_loop",
+            "full_demo": "over_complete",
+            "too_complete": "over_complete",
+            "complete": "over_complete",
+            "ok": "balanced",
+            "vua_du": "balanced",
+        }
+        s = aliases.get(s, s)
+        return s if s in _LIVESTREAM_DEMO_BALANCE else None
+
+    @field_validator("share_trigger_type", mode="before")
+    @classmethod
+    def _normalize_share_trigger(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        if s in ("không", "khong", "null", "no"):
+            return "none"
+        return s if s in _SHARE_TRIGGER else "other"
+
+    @field_validator("save_trigger_type", mode="before")
+    @classmethod
+    def _normalize_save_trigger(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        if s in ("không", "khong", "null", "no"):
+            return "none"
+        return s if s in _SAVE_TRIGGER else "other"
 
     @field_validator("slang_freshness_score", mode="before")
     @classmethod

@@ -873,14 +873,18 @@ export interface NarrativeVi {
   diagnosis_vi?: DiagnosisViV6;
 }
 
-/** Stable video-diagnosis section ids (Sprint 0 pool; grows with sprints). */
+/** Stable video-diagnosis section ids (Sprint 9 pool; grows with sprints). */
 export type VideoDiagnosisSectionId =
   | "diagnosis"
   | "compliance"
+  | "hook_analysis"
   | "distribution"
   | "niche_pattern"
   | "channel_pattern"
   | "commerce"
+  | "sound"
+  | "persona"
+  | "script_structure"
   | "next_video";
 
 /** One section inside `diagnosis_vi.sections` — mirrors channel `ChannelSection` shape loosely for LLM JSON. */

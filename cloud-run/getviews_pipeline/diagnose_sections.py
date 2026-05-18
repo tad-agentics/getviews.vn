@@ -25,6 +25,7 @@ class VideoSectionId(StrEnum):
     commerce = "commerce"
     sound = "sound"
     persona = "persona"
+    script_structure = "script_structure"
     next_video = "next_video"
 
 
@@ -100,6 +101,10 @@ def _applies_sound(ctx: dict, manifest: Manifest) -> bool:
     return _has_gate(manifest, "sound")
 
 
+def _applies_script_structure(_ctx: dict, manifest: Manifest) -> bool:
+    return _has_gate(manifest, "script_structure")
+
+
 def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
     return any(
         s.salience >= HOOK_ANALYSIS_SECTION_MIN_SALIENCE
@@ -117,6 +122,7 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.commerce, 60, False, _applies_commerce),
     SectionSpec(VideoSectionId.sound, 62, False, _applies_sound),
     SectionSpec(VideoSectionId.persona, 65, False, _applies_persona),
+    SectionSpec(VideoSectionId.script_structure, 68, False, _applies_script_structure),
     SectionSpec(VideoSectionId.next_video, 90, True, lambda _c, _m: True),
 )
 
@@ -158,6 +164,10 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("persona", "average"): "PHONG CÁCH VÀ NHÂN VẬT",
     ("persona", "flop"): "PHONG CÁCH VÀ NHÂN VẬT",
     ("persona", "unknown"): "PHONG CÁCH VÀ NHÂN VẬT",
+    ("script_structure", "hit"): "CẤU TRÚC KỊCH BẢN",
+    ("script_structure", "average"): "CẤU TRÚC KỊCH BẢN",
+    ("script_structure", "flop"): "CẤU TRÚC KỊCH BẢN",
+    ("script_structure", "unknown"): "CẤU TRÚC KỊCH BẢN",
     ("next_video", "hit"): "VIDEO TIẾP THEO NÊN QUAY",
     ("next_video", "average"): "VIDEO TIẾP THEO NÊN QUAY",
     ("next_video", "flop"): "VIDEO TIẾP THEO NÊN QUAY",
