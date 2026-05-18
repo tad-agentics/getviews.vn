@@ -345,6 +345,7 @@ def build_pattern_report(
     (e.g. ``{"timing": TimingPayload}``). Only ``"timing"`` is supported today;
     unknown keys are ignored with a ``[pattern]`` warning.
     """
+    eff_win = max(int(window_days), 14)
     wow = wow_rows_to_wow_diff(fetch_pattern_wow_diff_rows(niche_id)).model_dump()
 
     try:
@@ -356,7 +357,7 @@ def build_pattern_report(
         # Previously returned the @demo/"Stub video" fixture which leaked
         # placeholder evidence cards to production users (BUG-01, QA audit
         # 2026-04-22). The empty state is honest: no findings, no stubs.
-        data = build_empty_pattern_report(window_days=window_days)
+        data = build_empty_pattern_report(window_days=eff_win)
         data["wow_diff"] = wow
         if subreports:
             data["subreports"] = _build_pattern_subreports(niche_id, query, window_days, subreports)
@@ -381,10 +382,11 @@ def build_pattern_report(
     if ctx is None:
         if step_queue is not None:
             emit(step_queue, step_tool_complete(1, 0, 0, [], tool="corpus"))
-        data = build_empty_pattern_report(window_days=window_days)
+        data = build_empty_pattern_report(window_days=eff_win)
         data["wow_diff"] = wow
         return data
 
+    eff_win = int(ctx.get("effective_window_days") or eff_win)
     ni = ctx["ni"]
     he_rows: list[dict[str, Any]] = ctx["he_rows"]
     corpus: list[dict[str, Any]] = ctx["corpus"]
@@ -434,7 +436,7 @@ def build_pattern_report(
         thin = build_thin_corpus_pattern_report(
             sample_size=sample_n,
             niche_label=niche_label,
-            window_days=window_days,
+            window_days=eff_win,
         )
         thin["wow_diff"] = wow
         if isinstance(thin.get("confidence"), dict):
@@ -442,6 +444,8 @@ def build_pattern_report(
         outlier_t = fetch_outlier_story(sb, niche_id, window_days)
         if outlier_t is not None:
             thin["outlier_story"] = outlier_t.model_dump()
+        if subreports:
+            thin["subreports"] = _build_pattern_subreports(niche_id, query, window_days, subreports)
         return thin
 
     org = float(ni.get("organic_avg_views") or 0)
@@ -592,7 +596,7 @@ def build_pattern_report(
     fresh_h = _freshness_hours_from_corpus(corpus)
     confidence = ConfidenceStrip(
         sample_size=sample_n,
-        window_days=window_days,
+        window_days=eff_win,
         niche_scope=niche_label,
         freshness_hours=fresh_h,
         intent_confidence="medium",
@@ -605,7 +609,7 @@ def build_pattern_report(
             kind="video",
             label="Corpus quét",
             count=len(corpus),
-            sub=f"{len(creators)} creator · {window_days}d",
+            sub=f"{len(creators)} creator · {eff_win}d",
         )
     ]
 

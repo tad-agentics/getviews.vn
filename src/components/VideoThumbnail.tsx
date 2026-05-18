@@ -73,6 +73,8 @@ export type VideoThumbnailProps = {
   loading?: "lazy" | "eager";
   /** Browser fetch priority hint. ``high`` for above-fold. */
   fetchPriority?: "auto" | "high" | "low";
+  /** ``cover`` fills frame (may crop); ``contain`` shows full frame (letterbox). */
+  objectFit?: "cover" | "contain";
 };
 
 export function VideoThumbnail({
@@ -84,6 +86,7 @@ export function VideoThumbnail({
   alt = "",
   loading = "lazy",
   fetchPriority = "auto",
+  objectFit = "cover",
 }: VideoThumbnailProps) {
   const [failed, setFailed] = useState(false);
   const url = thumbnailUrl?.trim() || null;
@@ -93,7 +96,7 @@ export function VideoThumbnail({
       <img
         src={url}
         alt={alt}
-        className={`object-cover ${className}`.trim()}
+        className={`${objectFit === "contain" ? "object-contain" : "object-cover"} ${className}`.trim()}
         loading={loading}
         fetchPriority={fetchPriority}
         onError={() => {

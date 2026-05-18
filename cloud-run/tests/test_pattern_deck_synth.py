@@ -192,9 +192,15 @@ def _mock_client_with_pattern(
             # ``update().eq().execute()`` chain for upsert path.
             builder.update.return_value.eq.return_value.execute.return_value = MagicMock(data=None)
         elif name == "video_corpus":
-            builder.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
-                data=grounding,
-            )
+            # Chains: .select().eq().order().limit().execute() or double .eq()
+            chain = MagicMock()
+            chain.select.return_value = chain
+            chain.eq.return_value = chain
+            chain.order.return_value = chain
+            tail = MagicMock()
+            tail.execute.return_value = MagicMock(data=grounding)
+            chain.limit.return_value = tail
+            builder.select.return_value = chain
         elif name == "niche_taxonomy":
             builder.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
                 data={"name_vn": niche_label, "name_en": niche_label},

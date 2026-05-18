@@ -5,8 +5,9 @@ Produces the four content fields the design's PatternModal renders
 ``video_patterns``: ``structure``, ``why``, ``careful``, ``angles``.
 
 Pipeline:
-  1. ``_fetch_pattern_grounding`` — pull the pattern row + up to 12 of
-     its corpus videos with hook_phrase + hook_type + views.
+  1. ``_fetch_pattern_grounding`` — pull up to 12 corpus videos tagged with
+     this pattern (by views), balanced across ``niche_spread`` when the
+     pattern is cross-niche, with optional HI-9 slug guard.
   2. ``_call_pattern_gemini`` — single Gemini call (response_json_schema
      enforced via Pydantic). Cheap model — flash-lite tier — since the
      output is pure text composition off a small grounding context.
@@ -34,9 +35,17 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from getviews_pipeline.profile_niches import (
+    CREATOR_NICHE_SLUG_TO_ID,
+    creator_niche_id_for_legacy_niche,
+)
 from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
 
 logger = logging.getLogger(__name__)
+
+_CREATOR_NICHE_ID_TO_SLUG: dict[int, str] = {
+    int(v): str(k) for k, v in CREATOR_NICHE_SLUG_TO_ID.items()
+}
 
 # Decks regenerate when older than 7 days — same cadence as channel_diagnoses.
 DECK_STALE_AFTER = timedelta(days=7)
@@ -162,18 +171,118 @@ def _fetch_pattern_row(client: Any, pattern_id: str) -> dict[str, Any] | None:
         return None
 
 
-def _fetch_pattern_grounding(client: Any, pattern_id: str) -> list[dict[str, Any]]:
-    """Top corpus videos tagged with this pattern (by views)."""
+def _hi9_slug(video: dict[str, Any]) -> str | None:
+    aj = video.get("analysis_json")
+    if not isinstance(aj, dict):
+        return None
+    nc = aj.get("niche_classification")
+    if not isinstance(nc, dict):
+        return None
+    raw = nc.get("creator_niche_slug")
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    return s or None
+
+
+def _expected_hi9_slugs_for_legacy_spread(legacy_ids: list[int]) -> set[str] | None:
+    """Map ``video_patterns.niche_spread`` (legacy ``niche_taxonomy.id``) → HI-9 slugs.
+
+    Returns ``None`` when nothing maps — caller skips HI-9 filtering.
+    """
+    slugs: set[str] = set()
+    for nid in legacy_ids:
+        cnid = creator_niche_id_for_legacy_niche(int(nid))
+        if cnid is None:
+            continue
+        slug = _CREATOR_NICHE_ID_TO_SLUG.get(int(cnid))
+        if slug:
+            slugs.add(slug)
+    if not slugs:
+        return None
+    return slugs
+
+
+def _fetch_pattern_grounding(
+    client: Any,
+    pattern_id: str,
+    legacy_niche_spread: list[Any],
+) -> list[dict[str, Any]]:
+    """Top corpus videos for grounding — balanced across niches when spread ≥ 2."""
+    select_cols = (
+        "video_id, niche_id, creator_handle, views, hook_phrase, hook_type, analysis_json"
+    )
     try:
-        res = (
-            client.table("video_corpus")
-            .select("video_id, creator_handle, views, hook_phrase, hook_type, analysis_json")
-            .eq("pattern_id", pattern_id)
-            .order("views", desc=True)
-            .limit(GROUNDING_CAP)
-            .execute()
-        )
-        return list(res.data or [])
+        ids = [int(x) for x in legacy_niche_spread if x is not None]
+        allowed = _expected_hi9_slugs_for_legacy_spread(ids)
+
+        def apply_hi9_guard(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            if allowed is None:
+                return rows
+            out: list[dict[str, Any]] = []
+            for v in rows:
+                slug = _hi9_slug(v)
+                if slug is not None and slug not in allowed:
+                    continue
+                out.append(v)
+            return out
+
+        if not ids:
+            res = (
+                client.table("video_corpus")
+                .select(select_cols)
+                .eq("pattern_id", pattern_id)
+                .order("views", desc=True)
+                .limit(GROUNDING_CAP * 3)
+                .execute()
+            )
+            rows = apply_hi9_guard(list(res.data or []))
+            rows.sort(key=lambda r: float(r.get("views") or 0.0), reverse=True)
+            return rows[:GROUNDING_CAP]
+
+        if len(ids) == 1:
+            res = (
+                client.table("video_corpus")
+                .select(select_cols)
+                .eq("pattern_id", pattern_id)
+                .eq("niche_id", ids[0])
+                .order("views", desc=True)
+                .limit(GROUNDING_CAP * 3)
+                .execute()
+            )
+            rows = apply_hi9_guard(list(res.data or []))
+            rows.sort(key=lambda r: float(r.get("views") or 0.0), reverse=True)
+            return rows[:GROUNDING_CAP]
+
+        per_niche = max(1, GROUNDING_CAP // len(ids))
+        seen: set[str] = set()
+        merged: list[dict[str, Any]] = []
+        for nid in ids:
+            nid_count = 0
+            res = (
+                client.table("video_corpus")
+                .select(select_cols)
+                .eq("pattern_id", pattern_id)
+                .eq("niche_id", nid)
+                .order("views", desc=True)
+                .limit(per_niche * 3)
+                .execute()
+            )
+            for v in res.data or []:
+                vid = str(v.get("video_id") or "")
+                if not vid:
+                    continue
+                slug = _hi9_slug(v)
+                if allowed is not None and slug is not None and slug not in allowed:
+                    continue
+                if vid not in seen:
+                    seen.add(vid)
+                    merged.append(v)
+                    nid_count += 1
+                    if nid_count >= per_niche:
+                        break
+        merged.sort(key=lambda r: float(r.get("views") or 0.0), reverse=True)
+        return merged[:GROUNDING_CAP]
     except Exception as exc:
         logger.warning("[pattern_deck_synth] grounding fetch failed id=%s: %s", pattern_id, exc)
         return []
@@ -229,7 +338,7 @@ _PROMPT_TEMPLATE = """Bạn là biên tập TikTok tiếng Việt. {niche_clause
 
 PATTERN: {pattern_name}
 
-Grounding (top {n} video thực tế tagged với pattern này, sắp theo view). Mỗi video có thể có `subject_matter` (tóm tắt chủ đề HI-9) — dùng để viết why/structure cụ thể hơn khi có:
+Grounding (top {n} video thực tế tagged với pattern này, sắp theo view). {grounding_fields_note}
 {grounding_json}
 
 Trả về JSON theo schema:
@@ -256,6 +365,37 @@ NGUYÊN TẮC:
 {cross_niche_rule}"""
 
 
+def _build_grounding_row(v: dict[str, Any], *, is_cross_niche: bool) -> dict[str, Any]:
+    row: dict[str, Any] = {
+        "video_id": v.get("video_id"),
+        "creator": v.get("creator_handle"),
+        "views": v.get("views"),
+        "hook_type": v.get("hook_type"),
+        "hook_phrase": (str(v.get("hook_phrase") or ""))[:160],
+    }
+    aj = v.get("analysis_json")
+    if not isinstance(aj, dict):
+        aj = {}
+    if is_cross_niche:
+        nc = aj.get("niche_classification")
+        if isinstance(nc, dict):
+            slug = nc.get("creator_niche_slug")
+            if slug:
+                row["niche"] = slug
+        cc = aj.get("content_context")
+        if isinstance(cc, dict):
+            subjects = cc.get("primary_subjects")
+            if isinstance(subjects, list) and subjects:
+                row["primary_subjects"] = [
+                    str(s) for s in subjects[:3] if s is not None and str(s).strip()
+                ]
+    else:
+        sm = extract_subject_matter_from_analysis_json(aj)
+        if sm:
+            row["subject_matter"] = sm
+    return row
+
+
 def _build_prompt(
     pattern_name: str,
     niche_name: str,
@@ -274,20 +414,22 @@ def _build_prompt(
     was rendering food-flavored copy on a Beauty creator's screen.
     Single-niche patterns keep the existing niche-specific phrasing.
     """
-    trimmed = []
-    for v in videos[:GROUNDING_CAP]:
-        row = {
-            "video_id":   v.get("video_id"),
-            "creator":    v.get("creator_handle"),
-            "views":      v.get("views"),
-            "hook_type":  v.get("hook_type"),
-            "hook_phrase": (str(v.get("hook_phrase") or ""))[:160],
-        }
-        sm = extract_subject_matter_from_analysis_json(v.get("analysis_json"))
-        if sm:
-            row["subject_matter"] = sm
-        trimmed.append(row)
     is_cross_niche = bool(niche_labels and len(niche_labels) >= 2)
+    trimmed = [
+        _build_grounding_row(v, is_cross_niche=is_cross_niche)
+        for v in videos[:GROUNDING_CAP]
+    ]
+    if is_cross_niche:
+        grounding_fields_note = (
+            "Mỗi dòng có thể có `niche` (slug phân loại HI-9) và `primary_subjects` — "
+            "chỉ để thấy đa ngách; PHẢI viết why/structure/angles TRUNG TÍNH, không bám một "
+            "chủ đề cụ thể."
+        )
+    else:
+        grounding_fields_note = (
+            "Mỗi video có thể có `subject_matter` (tóm tắt chủ đề HI-9) — dùng để viết "
+            "why/structure cụ thể hơn khi có."
+        )
     if is_cross_niche:
         # Quote each niche label so Gemini doesn't free-associate.
         spread_str = ", ".join(f'"{lbl}"' for lbl in niche_labels)
@@ -310,6 +452,7 @@ def _build_prompt(
         niche_clause=niche_clause,
         pattern_name=pattern_name or "(chưa có tên)",
         n=len(trimmed),
+        grounding_fields_note=grounding_fields_note,
         grounding_json=json.dumps(trimmed, ensure_ascii=False, indent=2),
         cross_niche_rule=cross_niche_rule,
     )
@@ -362,7 +505,8 @@ def synthesize_pattern_deck(
     if not pattern:
         return PatternDeckResult(pattern_id=pattern_id, deck=None, error="pattern_not_found")
 
-    videos = _fetch_pattern_grounding(user_sb, pattern_id)
+    niche_spread = list(pattern.get("niche_spread") or [])
+    videos = _fetch_pattern_grounding(user_sb, pattern_id, niche_spread)
     if len(videos) < MIN_GROUNDING_VIDEOS:
         return PatternDeckResult(
             pattern_id=pattern_id,
@@ -370,7 +514,6 @@ def synthesize_pattern_deck(
             error=f"thin_corpus:{len(videos)}",
         )
 
-    niche_spread = list(pattern.get("niche_spread") or [])
     primary_niche = int(niche_spread[0]) if niche_spread else None
     niche_name = _resolve_niche_label(user_sb, primary_niche)
     # Cross-niche patterns (`niche_spread.length >= 2`) need a neutral
@@ -506,6 +649,7 @@ __all__ = [
     "PatternDeckBatchSummary",
     "PatternDeckLLM",
     "PatternDeckResult",
+    "_build_grounding_row",
     "_build_prompt",
     "_fetch_pattern_grounding",
     "_fetch_pattern_row",

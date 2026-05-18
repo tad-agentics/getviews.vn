@@ -61,23 +61,30 @@ export function momentumVi(m: LifecycleData["momentum"]): { label: string; color
 
 export function wowDiffHasContent(
   w: {
-    new_entries: unknown[];
-    dropped: unknown[];
-    rank_changes: unknown[];
+    new_entries?: unknown[] | null;
+    dropped?: unknown[] | null;
+    rank_changes?: unknown[] | null;
   } | null | undefined,
 ): boolean {
   if (!w) return false;
-  return w.new_entries.length > 0 || w.dropped.length > 0 || w.rank_changes.length > 0;
+  return (
+    (w.new_entries?.length ?? 0) > 0 ||
+    (w.dropped?.length ?? 0) > 0 ||
+    (w.rank_changes?.length ?? 0) > 0
+  );
 }
 
 export function summarizeWoWDiff(w: {
-  new_entries: Array<Record<string, unknown>>;
-  dropped: Array<Record<string, unknown>>;
-  rank_changes: Array<Record<string, unknown>>;
+  new_entries?: Array<Record<string, unknown>> | null;
+  dropped?: Array<Record<string, unknown>> | null;
+  rank_changes?: Array<Record<string, unknown>> | null;
 }): string {
   const parts: string[] = [];
-  if (w.new_entries.length) parts.push(`${w.new_entries.length} hook mới trong top`);
-  if (w.dropped.length) parts.push(`${w.dropped.length} hook rớt khỏi bảng`);
-  if (w.rank_changes.length) parts.push(`${w.rank_changes.length} thay đổi thứ hạng`);
+  const nNew = w.new_entries?.length ?? 0;
+  const nDrop = w.dropped?.length ?? 0;
+  const nRank = w.rank_changes?.length ?? 0;
+  if (nNew > 0) parts.push(`${nNew} hook mới trong top`);
+  if (nDrop > 0) parts.push(`${nDrop} hook rớt khỏi bảng`);
+  if (nRank > 0) parts.push(`${nRank} thay đổi thứ hạng`);
   return parts.join(" · ");
 }

@@ -64,7 +64,7 @@ export function EvidenceGrid({ items }: { items: EvidenceCardPayloadData[] }) {
                     {(v.engagement_rate * 100).toFixed(1)}% ER
                   </span>
                 )}
-                <span>{Math.round(v.retention * 100)}% giữ</span>
+                <span>{Math.round(v.retention * 100)}% tương tác</span>
                 <span>{formatDurationSec(v.duration_sec)}</span>
                 <span className="text-[color:var(--gv-accent)]">{v.hook_family}</span>
               </div>

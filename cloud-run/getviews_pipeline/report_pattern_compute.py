@@ -944,6 +944,7 @@ def load_pattern_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, A
             "corpus": corpus,
             "trending_sounds": trending_sounds,
             "sound_trends": sound_trends,
+            "effective_window_days": max(int(window_days), 14),
         }
     except Exception as exc:
         logger.warning("[pattern] load_pattern_inputs failed: %s", exc)

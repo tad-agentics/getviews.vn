@@ -30,14 +30,14 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
           <p className="gv-mono mb-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-            § I — PATTERN
+            Phần I — Pattern
           </p>
           <h2 className="gv-tight m-0 text-[clamp(22px,2.5vw,28px)] font-semibold tracking-[-0.02em] text-[color:var(--gv-ink)]">
             Công thức từ video viral trong ngách
           </h2>
         </div>
-        <p className="gv-mono whitespace-nowrap text-[10px] uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-          CLICK → HỌC FULL DECK
+        <p className="gv-mono max-w-[200px] text-right text-[10px] leading-snug tracking-[0.06em] text-[color:var(--gv-ink-4)]">
+          Chạm thẻ để xem công thức đầy đủ.
         </p>
       </div>
 

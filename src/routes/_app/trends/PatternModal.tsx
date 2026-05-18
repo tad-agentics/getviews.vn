@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowRight, Play, X } from "lucide-react";
 
@@ -81,7 +81,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
       <header className="flex items-start justify-between gap-4 border-b border-[color:var(--gv-rule)] px-7 py-[18px]">
         <div className="min-w-0 flex-1">
           <p className="gv-mono mb-1.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-            PATTERN · {pattern.instance_count} VIDEO · {avgViewsLabel} VIEW TB
+            {pattern.instance_count} video · {avgViewsLabel} lượt xem TB
           </p>
           <DialogTitle className="gv-tight m-0 text-[28px] font-semibold leading-[1.05] tracking-[-0.02em] text-[color:var(--gv-ink)]">
             {pattern.display_name}
@@ -92,7 +92,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
             </DialogDescription>
           ) : (
             <DialogDescription className="sr-only">
-              Pattern detail
+              Mô tả pattern cho trợ năng — xem nội dung chính trong lưới.
             </DialogDescription>
           )}
         </div>
@@ -112,7 +112,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
         {/* Left — phone preview + sample switcher */}
         <aside className="border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-5 py-5 min-[820px]:border-b-0 min-[820px]:border-r">
           <p className="gv-mono mb-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-            VIDEO MẪU
+            Video mẫu
           </p>
           <PhoneTile video={active} />
           <Btn
@@ -139,7 +139,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
           {videos.length > 1 ? (
             <>
               <p className="gv-mono mt-4 mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-[color:var(--gv-ink-4)]">
-                CHUYỂN VIDEO ({activeIdx + 1}/{videos.length})
+                Chuyển video ({activeIdx + 1}/{videos.length})
               </p>
               <div className="grid grid-cols-4 gap-1.5">
                 {videos.map((v, i) => {
@@ -171,7 +171,7 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
                         aria-hidden
                       />
                       <span className="gv-mono absolute bottom-0.5 left-0 right-0 truncate px-1 text-center text-[7.5px] text-white">
-                        ↑{formatViews(v.views)}
+                        {formatViews(v.views)}
                       </span>
                     </button>
                   );
@@ -236,7 +236,10 @@ function phoneCaptionHandle(video: PatternVideo): string {
 
 function PhoneTileMeta({ video }: { video: PatternVideo }) {
   const handle = phoneCaptionHandle(video);
-  const parts = [handle, video.views > 0 ? `↑${formatViews(video.views)}` : null].filter(Boolean);
+  const parts = [
+    handle,
+    video.views > 0 ? `${formatViews(video.views)} lượt xem` : null,
+  ].filter(Boolean);
   if (parts.length === 0) return null;
   return (
     <p className="gv-mono mt-2 text-center text-[10px] leading-snug text-[color:var(--gv-ink-4)]">
@@ -246,7 +249,13 @@ function PhoneTileMeta({ video }: { video: PatternVideo }) {
 }
 
 function PhoneTile({ video }: { video: PatternVideo | null }) {
-  const shellCls = "relative overflow-hidden rounded-[10px] bg-[color:var(--gv-canvas-2)]";
+  const [hoverPlay, setHoverPlay] = useState(false);
+  useEffect(() => {
+    setHoverPlay(false);
+  }, [video?.video_id]);
+
+  const shellCls =
+    "relative overflow-hidden rounded-[10px] bg-black";
   if (!video) {
     return (
       <div className={shellCls} style={{ aspectRatio: "9 / 16" }}>
@@ -261,14 +270,49 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
   if (embedId) {
     return (
       <div className="w-full">
-        <div className={shellCls} style={{ aspectRatio: "9 / 16" }}>
-          <iframe
-            key={embedId}
-            title={`TikTok video ${embedId}`}
-            src={`https://www.tiktok.com/embed/v2/${embedId}`}
-            className="absolute inset-0 h-full w-full border-0"
-            allow="encrypted-media; fullscreen; autoplay; picture-in-picture"
-          />
+        <div
+          className={shellCls}
+          style={{ aspectRatio: "9 / 16" }}
+          onMouseEnter={() => setHoverPlay(true)}
+        >
+          {hoverPlay ? (
+            <iframe
+              key={embedId}
+              title={`TikTok video ${embedId}`}
+              src={`https://www.tiktok.com/embed/v2/${embedId}`}
+              className="absolute inset-0 h-full w-full border-0"
+              allow="encrypted-media; fullscreen; autoplay; picture-in-picture"
+            />
+          ) : (
+            <>
+              <VideoThumbnail
+                thumbnailUrl={video.thumbnail_url}
+                videoId={video.video_id}
+                objectFit="contain"
+                className="absolute inset-0 h-full w-full"
+                placeholderClassName="bg-black"
+                loading="eager"
+                fetchPriority="high"
+              />
+              <span
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.25), transparent 30%, transparent 70%, rgba(0,0,0,0.75))",
+                }}
+                aria-hidden
+              />
+              <span className="gv-mono pointer-events-none absolute left-3 right-3 top-3 text-[10px] text-white opacity-90">
+                {phoneCaptionHandle(video)}
+              </span>
+              <span
+                className="pointer-events-none absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90"
+                aria-hidden
+              >
+                <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
+              </span>
+            </>
+          )}
         </div>
         <PhoneTileMeta video={video} />
       </div>
@@ -280,8 +324,10 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
       <div className={shellCls} style={{ aspectRatio: "9 / 16" }}>
         <VideoThumbnail
           thumbnailUrl={video.thumbnail_url}
+          videoId={video.video_id}
+          objectFit="contain"
           className="absolute inset-0 h-full w-full"
-          placeholderClassName=""
+          placeholderClassName="bg-black"
         />
         <span
           className="absolute inset-0 pointer-events-none"
@@ -301,7 +347,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
           <Play className="h-4 w-4 text-[color:var(--gv-ink)]" fill="currentColor" />
         </span>
         <span className="gv-mono pointer-events-none absolute bottom-3 left-3 right-3 text-[10px] text-white opacity-90">
-          ↑ {formatViews(video.views)}
+          {formatViews(video.views)} lượt xem
         </span>
       </div>
     </div>
@@ -338,10 +384,11 @@ function Takeaway({
       ) : (
         <p className="m-0 text-[13px] leading-[1.55] text-[color:var(--gv-ink)]" style={{ textWrap: "pretty" }}>
           {hookSample
-            ? `Pattern này đang chạy mạnh trong ngách. Hook tiêu biểu: "${hookSample}".`
-            : "Pattern này đang chạy mạnh trong ngách của bạn."}{" "}
+            ? `Công thức này đang chạy mạnh trong ngách. Hook tiêu biểu: «${hookSample}».`
+            : "Công thức này đang chạy mạnh trong ngách của bạn."}{" "}
           <span className="text-[color:var(--gv-ink-3)]">
-            Cấu trúc chi tiết và góc còn trống đang được biên tập — sẽ có trong vài ngày tới.
+            Khung cấu trúc 4 bước và góc trống sẽ được cập nhật khi pipeline
+            deck chạy xong — thường trong vài ngày.
           </span>
         </p>
       )}

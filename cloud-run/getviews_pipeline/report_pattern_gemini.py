@@ -201,9 +201,7 @@ def fill_pattern_narrative(
             f"chứng minh), hãy đặt tên và mô tả ngắn gọn ≤220 ký tự: 'Biến thể đang nổi: [tên] — [mô tả + dấu hiệu]'. "
             f"Nếu KHÔNG thấy biến thể cụ thể đủ nổi bật, để chuỗi rỗng ''. KHÔNG bịa nếu không có bằng chứng trong dữ liệu."
         )
-        prompt = f"""{wow_block}Bạn là chuyên gia phân tích TikTok Việt Nam. Nhiệm vụ: TRẢ LỜI câu hỏi dưới đây bằng insight thực chiến.
-
-Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
+        prompt = f"""{wow_block}Trả về DUY NHẤT một JSON object (không markdown) với các khóa:
 
 - thesis: string ≤300 ký tự — BẮT ĐẦU BẰNG "Kết luận nhanh:" rồi 1 câu phát hiện CỤ THỂ NHẤT tuần này kèm số liệu thực. Nếu có WOW ALERT phía trên, ưu tiên đưa số đó vào câu mở (ví dụ: "Kết luận nhanh: Bằng chứng xã hội tăng 3 bậc so với tuần trước — đang là hook thắng tuyệt đối ngách {niche_label}."). Nếu không có WoW delta, mở bằng hook dẫn đầu + view trung bình cụ thể. Sau câu mở, nêu thêm 1 xu hướng bổ sung. KHÔNG bắt đầu bằng "Trong ngách..." hay câu generic.
 {hook_narratives_rule}
@@ -232,20 +230,30 @@ Creator count per pattern (dùng để framing cross-creator validation):
 {counts_inject}
 Khi creator_count >= 3: ghi rõ "pattern này giữ vững ở X creator — format là biến số, không phải creator"
 {live_block}{performers_block}{ab_block}
-
---- QUY TẮC ---
-- Tiếng Việt tự nhiên, không emoji, không mở đầu "Chào bạn".
-- Không dùng: "chắc chắn", "hiệu quả", "bùng nổ", "công thức vàng".
-- Số liệu chỉ được trích từ dữ liệu trên; không tự bịa ra %.
-- hook_narratives là trường ưu tiên — viết đủ 500 ký tự nếu có dữ liệu. hook_insights chỉ là fallback ngắn.
-- cultural_framing, why_it_works, micro_patterns, cross_pattern_synthesis — không bỏ qua bất kỳ trường nào.
-- generated_prerequisites: bắt buộc đủ {n_top} sublist (có thể rỗng [] nếu không infer được — khi đó backend dùng chip mặc định theo hook).
 """
+        system_instruction = (
+            "Bạn là chuyên gia phân tích TikTok Việt Nam. Nhiệm vụ: trả lời user prompt bằng insight thực chiến. "
+            "Trả về DUY NHẤT JSON (không markdown) đúng schema response.\n\n"
+            "--- QUY TẮC ---\n"
+            "- Tiếng Việt tự nhiên, không emoji, không mở đầu \"Chào bạn\".\n"
+            "- Không dùng: \"chắc chắn\", \"hiệu quả\", \"bùng nổ\", \"công thức vàng\".\n"
+            "- Số liệu chỉ được trích từ dữ liệu trong user prompt; không tự bịa ra %.\n"
+            "- hook_narratives là trường ưu tiên — viết đủ 500 ký tự nếu có dữ liệu. "
+            "hook_insights chỉ là fallback ngắn.\n"
+            "- cultural_framing, why_it_works, micro_patterns, cross_pattern_synthesis — "
+            "không bỏ qua bất kỳ trường nào.\n"
+            f"- generated_prerequisites: bắt buộc đủ {n_top} sublist theo user prompt "
+            "(có thể rỗng [] nếu không infer được — khi đó backend dùng chip mặc định theo hook).\n"
+            "- Khi phần Micro-element trong user prompt chỉ là đúng "
+            "\"(không có dữ liệu micro-element)\", KHÔNG đưa số liệu hoặc chi tiết cụ thể "
+            "về micro-element; không bịa micro-pattern.\n"
+        )
         cfg = types.GenerateContentConfig(
             temperature=0.35,
             max_output_tokens=3500,
             response_mime_type="application/json",
             response_json_schema=PatternNarrativeLLM.model_json_schema(),
+            system_instruction=system_instruction,
         )
         resp = _generate_content_models(
             [prompt],

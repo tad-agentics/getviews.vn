@@ -217,7 +217,7 @@ function CollageTile({ cell }: { cell: PatternVideo }) {
           className="gv-mono absolute right-1.5 top-1.5 rounded-[3px] bg-black/55 px-1.5 py-0.5 text-[9px] text-white"
           aria-hidden
         >
-          ↑{formatViews(cell.views)}
+          {formatViews(cell.views)}
         </span>
       ) : null}
     </div>
