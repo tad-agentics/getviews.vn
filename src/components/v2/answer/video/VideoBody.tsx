@@ -423,7 +423,7 @@ export function VideoBody({
           </h1>
         </header>
 
-        {narrativeVi?.ket_luan_nhanh ? (
+        {narrativeVi?.ket_luan_nhanh && !showV6SectionBody ? (
           <section className="mb-4" aria-label="Kết luận nhanh">
             <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
               Kết luận nhanh
@@ -436,7 +436,7 @@ export function VideoBody({
           </section>
         ) : null}
 
-        {isFlop && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
+        {isFlop && !showV6SectionBody && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
           <section className="mb-4" aria-label="Mức độ cải thiện có thể kỳ vọng">
             <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
               Mức cải thiện lượt xem (ước lượng thận trọng)
@@ -454,7 +454,7 @@ export function VideoBody({
 
         <KpiGrid kpis={report.kpis} />
 
-        {brightEffective ? (
+        {brightEffective && !showV6SectionBody ? (
           <div
             className="mb-4 rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-2.5"
             aria-label="Điểm sáng tín hiệu"
