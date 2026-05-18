@@ -162,6 +162,11 @@ export default function HomeScreen() {
     () =>
       [
         {
+          id: "flop-why",
+          label: "Video flop — vì sao?",
+          prompt: `Video của mình flop — phân tích nguyên nhân và nên chỉnh gì?`,
+        },
+        {
           id: "trend-week",
           label: "Xu hướng tuần này",
           prompt: `Xu hướng và chủ đề nào đang nổi trong ngách ${nicheLabel} tuần này?`,
@@ -177,24 +182,9 @@ export default function HomeScreen() {
           prompt: `Trong ngách ${nicheLabel}, ngách con nào đáng khai thác hoặc mở rộng thêm?`,
         },
         {
-          id: "timing",
-          label: "Khung giờ đăng",
-          prompt: `Nên đăng TikTok khung giờ nào trong tuần để tối ưu reach?`,
-        },
-        {
           id: "brief-week",
           label: "Brief tuần này",
           prompt: `Viết brief sản xuất nội dung tuần này cho ngách ${nicheLabel}.`,
-        },
-        {
-          id: "flop-why",
-          label: "Video flop — vì sao?",
-          prompt: `Video của mình flop — phân tích nguyên nhân và nên chỉnh gì?`,
-        },
-        {
-          id: "channel-mine",
-          label: "Soi kênh mình",
-          prompt: `Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.`,
         },
       ] as const,
     [nicheLabel],

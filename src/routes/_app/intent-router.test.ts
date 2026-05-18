@@ -386,7 +386,7 @@ describe("planAnswerEntry — /answer session vs redirect", () => {
     }
   });
 
-  it("own_channel → /app/channel (Studio Home chip)", () => {
+  it("own_channel → /app/channel (same destination as tab Khám kênh)", () => {
     const p = planAnswerEntry(
       "Soi kênh của mình — tổng quan hook, format và gợi ý cải thiện.",
       false,
