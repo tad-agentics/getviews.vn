@@ -263,6 +263,21 @@ No Cloud Run involved. Fast path (~2–5s). Free for `follow_up` intents.
 
 ## 9. Data Model (Key Tables)
 
+### Two parallel session data models (NOT legacy — both live)
+
+GetViews runs **two coexisting session models**. Do not confuse them or try to consolidate:
+
+| Model | Tables | Used by | Write path |
+|-------|--------|---------|------------|
+| **Chat model** (older) | `chat_sessions` + `chat_messages` | Text intents ⑤⑥⑦ (Vercel `/api/chat`), `/stream` Cloud Run path, history drawer, `session_store.py` context reconstruction | Cloud Run `intent.py` + Vercel Edge |
+| **Answer sessions model** (newer) | `answer_sessions` + `answer_turns` | Structured video diagnosis (Intents ①③④), channel diagnosis, follow-up turns | Cloud Run `answer.py` + `answer_session.py` |
+
+`history_union` + `search_history_union` SQL RPCs surface both models in one unified history drawer.
+`chat_messages` is **immutable** — no UPDATE ever (see TD chat-immutable). `answer_turns` payload is append-only.
+`gemini_calls` is logged from Cloud Run for both models; `user_id` may be null for answer-session calls (service-role path).
+
+**Do not delete `chat_sessions` / `chat_messages`** — they hold all legacy text-intent history and are still written for every new text intent session.
+
 | Table | Owner | Write path | Notes |
 |-------|-------|-----------|-------|
 | `profiles` | Supabase | Client (RLS), Edge Functions | `creator_niche_id` FK, `credits`, `is_processing`, `is_admin` |
@@ -270,8 +285,10 @@ No Cloud Run involved. Fast path (~2–5s). Free for `follow_up` intents.
 | `content_classifications` | Supabase | Migrations only | 74 analysis-facing categories |
 | `video_corpus` | Cloud Run batch | Service role only | 46K+ analyzed TikTok videos; `ingest_source` is write-once |
 | `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); `_schema_version: "v5"` |
-| `answer_sessions` | Supabase | Client + Cloud Run | Session format, intent type, credit spend |
-| `chat_messages` | Supabase | Cloud Run only | Immutable — no UPDATE ever |
+| `chat_sessions` | Supabase | Client + Cloud Run | Chat model — title, niche, soft-delete via `deleted_at` |
+| `chat_messages` | Supabase | Cloud Run only | Chat model — immutable (no UPDATE); text intent transcripts |
+| `answer_sessions` | Supabase | Client + Cloud Run | Answer model — session format, intent type |
+| `answer_turns` | Supabase | Cloud Run (service role) | Answer model — append-only; `payload` is validated `ReportV1` JSON |
 | `processed_webhook_events` | Supabase | Edge Function | UNIQUE constraint for PayOS idempotency |
 | `niche_intelligence` | Supabase | Cloud Run batch | Materialized niche stats for TrendScreen |
 | `vietnamese_asr_cache` | Supabase | Cloud Run (service role) | **HI-14:** Deduped GCP Speech-to-Text `vi-VN` segments per `video_id`; video paths only (carousels skip STT — HI-17) |
