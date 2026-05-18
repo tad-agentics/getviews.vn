@@ -204,7 +204,7 @@ export default function ChannelScreen() {
                         }}
                         placeholder="@handle  hoặc dán link đầy đủ"
                         aria-label="Handle hoặc URL kênh TikTok"
-                        className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3.5 text-[15px] font-medium text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)]"
+                        className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3.5 text-base font-medium text-[color:var(--gv-ink)] outline-none placeholder:text-[color:var(--gv-ink-4)]"
                       />
                       <button
                         type="submit"
@@ -358,7 +358,7 @@ function ChannelDiagnosisBody({
             value={another}
             onChange={(e) => setAnother(e.target.value)}
             placeholder={at}
-            className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
+            className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-base text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
             autoComplete="off"
           />
         </label>
@@ -383,7 +383,7 @@ function ChannelDiagnosisBody({
               value={videoUrlInput}
               onChange={(e) => setVideoUrlInput(e.target.value)}
               placeholder="https://tiktok.com/@handle/video/..."
-              className="min-w-0 flex-1 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-sm text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
+              className="min-w-0 flex-1 rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-base text-[color:var(--gv-ink)] outline-none focus:border-[color:var(--gv-ink)]"
               autoComplete="off"
             />
             <Btn

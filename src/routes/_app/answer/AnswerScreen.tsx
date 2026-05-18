@@ -546,7 +546,7 @@ export default function AnswerScreen() {
                 <button
                   type="button"
                   onClick={() => navigate("/app")}
-                  className="inline-flex min-h-[30px] items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-1 gv-mono text-[11px] font-medium leading-none tracking-[0.06em] text-[color:var(--gv-ink-3)] transition-colors hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)]"
+                  className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-1 gv-mono text-[11px] font-medium leading-none tracking-[0.06em] text-[color:var(--gv-ink-3)] transition-colors hover:border-[color:var(--gv-ink)] hover:text-[color:var(--gv-ink)]"
                 >
                   <ArrowLeft className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
                   Studio

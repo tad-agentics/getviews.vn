@@ -16,7 +16,7 @@ export type AppShellActive = Tab | "script" | "admin" | "douyin";
 /**
  * Mobile bottom tab bar (Phase A · A3.3).
  *
- * Five items on ≤900px: Trang chủ, Nghiên cứu, Xu hướng, Khám kênh, Cài đặt.
+ * Five items below `lg`: Trang chủ, Nghiên cứu, Xu hướng, Khám kênh, Cài đặt.
  * Active tab ink-filled; tapping navigates.
  *
  * Sits above the browser safe area via `pb-[env(safe-area-inset-bottom)]`
@@ -41,7 +41,7 @@ export function BottomTabBar({ active }: { active?: AppShellActive }) {
   return (
     <nav
       aria-label="Điều hướng dưới"
-      className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pb-[env(safe-area-inset-bottom)]"
+      className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="grid grid-cols-5">
         {items.map(({ key, label, icon: Icon, to }) => {

@@ -40,7 +40,7 @@ export default function AdminScreen() {
 
   if (isLoading) {
     return (
-      <AppLayout active="admin">
+      <AppLayout active="admin" enableMobileSidebar>
         <div
           role="status"
           aria-label="Đang tải"
@@ -52,11 +52,11 @@ export default function AdminScreen() {
   if (!isAdmin) {
     // Keep the redirect-effect tick quiet — render the empty shell so the
     // layout doesn't reflow between "loading" and "bounce".
-    return <AppLayout active="admin">{null}</AppLayout>;
+    return <AppLayout active="admin" enableMobileSidebar>{null}</AppLayout>;
   }
 
   return (
-    <AppLayout active="admin">
+    <AppLayout active="admin" enableMobileSidebar>
       <div className="min-h-full w-full bg-[color:var(--gv-canvas)] text-[color:var(--gv-ink)]">
         <TopBar kicker="ADMIN · OPS CONSOLE" title="Sức khỏe hệ thống" />
 

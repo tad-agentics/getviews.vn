@@ -401,9 +401,10 @@ function KhoSelectChip({
   onRemove?: () => void;
 }) {
   return (
-    <div
-      className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[9px] font-medium leading-none text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
-    >
+    <div className="inline-flex min-h-[44px] items-center py-2.5">
+      <div
+        className={`inline-flex ${KHO_FILTER_CHIP_H} max-w-full shrink-0 items-stretch overflow-hidden rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] pl-0.5 text-[9px] font-medium leading-none text-[color:var(--gv-ink)] transition-colors duration-[120ms] hover:border-[color:var(--gv-ink)]`}
+      >
       {onRemove && isDirty ? (
         <button
           type="button"
@@ -427,6 +428,7 @@ function KhoSelectChip({
         {hasArrow ? <ChevronDown className="h-2 w-2 shrink-0 text-[var(--faint)]" strokeWidth={2} aria-hidden /> : null}
       </button>
     </div>
+    </div>
   );
 }
 
@@ -443,13 +445,14 @@ function KhoTogglePill({
 }) {
   if (onRemove) {
     return (
-      <div
-        className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[9px] font-medium leading-none ${KHO_FILTER_CHIP_H} ${
-          active
-            ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)]"
-            : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]"
-        }`}
-      >
+      <div className="inline-flex min-h-[44px] items-center py-2.5">
+        <div
+          className={`inline-flex max-w-full shrink-0 items-stretch overflow-hidden rounded-full border text-[9px] font-medium leading-none ${KHO_FILTER_CHIP_H} ${
+            active
+              ? "border-[color:var(--gv-ink)] bg-[color:var(--gv-ink)]"
+              : "border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)]"
+          }`}
+        >
         <button
           type="button"
           onClick={onClick}
@@ -481,10 +484,12 @@ function KhoTogglePill({
             <X className="h-2.5 w-2.5" strokeWidth={2} />
           </button>
         ) : null}
+        </div>
       </div>
     );
   }
   return (
+    <div className="inline-flex min-h-[44px] items-center py-2.5">
     <button
       type="button"
       onClick={onClick}
@@ -496,6 +501,7 @@ function KhoTogglePill({
     >
       {label}
     </button>
+    </div>
   );
 }
 
@@ -993,7 +999,7 @@ export default function ExploreScreen() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setFilter({ q: e.target.value || null })}
-                    className="min-h-0 min-w-0 flex-1 border-none bg-transparent py-0.5 text-[13px] font-medium leading-tight text-[var(--ink)] outline-none placeholder:text-[var(--faint)]"
+                    className="min-h-0 min-w-0 flex-1 border-none bg-transparent py-0.5 text-base font-medium leading-tight text-[var(--ink)] outline-none placeholder:text-[var(--faint)]"
                     placeholder="Tìm hook, creator, từ khoá…"
                     aria-label="Tìm video trong kho"
                   />

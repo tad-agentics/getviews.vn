@@ -17,6 +17,7 @@ import {
   Shield,
   Archive,
   Search,
+  AlignLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { BrandMark } from "@/components/BrandMark";
@@ -38,6 +39,7 @@ import { readChannelHistory } from "@/lib/channelHistory";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsageArc } from "@/components/UsageArc";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { BottomTabBar, type AppShellActive } from "@/components/BottomTabBar";
 
 /** Sidebar row — legacy chat thread or Phase C answer (research) session. */
@@ -378,7 +380,9 @@ function SessionRow({
           />
           <button
             onMouseDown={(e) => { e.preventDefault(); commitRename(); }}
-            className="w-5 h-5 flex items-center justify-center rounded text-[color:var(--gv-accent)] hover:bg-[color:var(--gv-rule)] flex-shrink-0"
+            type="button"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-[color:var(--gv-accent)] hover:bg-[color:var(--gv-rule)]"
+            aria-label="Xác nhận đổi tên"
           >
             <Check className="w-3 h-3" strokeWidth={2.5} />
           </button>
@@ -422,7 +426,7 @@ function SessionRow({
               ref={moreRef}
               onClick={openMenu}
               aria-label={session.source === "answer" ? "Tuỳ chọn phiên nghiên cứu" : "Tuỳ chọn phiên chat"}
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors duration-100 max-lg:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100 ${
                 isActive && session.source === "answer"
                   ? "text-[color:var(--gv-canvas)] hover:bg-[color:rgba(255,255,255,0.12)]"
                   : `hover:bg-[color:var(--gv-rule)] hover:text-[color:var(--gv-ink-2)] ${
@@ -485,6 +489,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   );
 
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     source: "chat" | "answer" | "channel";
@@ -672,7 +677,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 navigate("/app/answer");
                 onClose?.();
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)] md:h-9 md:w-9"
+              className="flex h-11 w-11 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
             >
               <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.8} />
             </button>
@@ -680,7 +685,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
               <button
                 onClick={onClose}
                 aria-label="Đóng menu"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)] md:h-9 md:w-9"
+                className="flex h-11 w-11 items-center justify-center rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
               >
                 <X className="h-3.5 w-3.5 md:h-4 md:w-4" strokeWidth={1.8} />
               </button>
@@ -907,6 +912,30 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
       {/* ── Mobile ─────────────────────────── */}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
+        {enableMobileSidebar ? (
+          <>
+            <div className="sticky top-0 z-30 flex shrink-0 items-center border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)] px-2 pt-[env(safe-area-inset-top)]">
+              <button
+                type="button"
+                aria-label="Mở lịch sử phiên"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[color:var(--gv-ink-2)] transition-colors hover:bg-[color:var(--gv-canvas-2)]"
+                onClick={() => setMobileNavOpen(true)}
+              >
+                <AlignLeft className="h-5 w-5" strokeWidth={1.8} aria-hidden />
+              </button>
+            </div>
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetContent
+                side="left"
+                className="h-full w-full max-w-[min(100vw,320px)] gap-0 border-0 bg-[color:var(--gv-canvas-2)] p-0 [&>button]:hidden sm:max-w-sm"
+              >
+                <div className="flex h-full max-h-dvh flex-col overflow-hidden">
+                  <SidebarContent onClose={() => setMobileNavOpen(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </>
+        ) : null}
         <div
           className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${
             enableMobileSidebar
@@ -919,7 +948,6 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
 
         {/* Mobile bottom tab bar — only on /_app/ screens that opt in. */}
         {enableMobileSidebar ? <BottomTabBar active={active} /> : null}
-
       </div>
 
       {/* ── Delete confirmation dialog ── */}

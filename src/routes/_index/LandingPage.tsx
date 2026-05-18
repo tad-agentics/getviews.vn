@@ -769,7 +769,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
             animate={{ y: 0 }}
             exit={{ y: 64 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-[color:var(--gv-ink)] border-t border-[color:var(--gv-rule)]"
+            className="fixed bottom-0 left-0 right-0 z-50 border-t border-[color:var(--gv-rule)] bg-[color:var(--gv-ink)] pb-[env(safe-area-inset-bottom)]"
           >
             <div className="max-w-3xl mx-auto flex items-center justify-between px-4 py-3">
               <span className="font-extrabold text-white text-sm">
@@ -1258,7 +1258,7 @@ export default function LandingPage({ stats }: { stats: LandingStats }) {
         </div>
       </section>
 
-      {stickyVisible && <div className="h-14" />}
+      {stickyVisible && <div className="h-[calc(3.5rem+env(safe-area-inset-bottom))]" />}
     </div>
   );
 }

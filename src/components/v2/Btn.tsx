@@ -24,7 +24,7 @@ const VARIANTS: Record<BtnVariant, string> = {
 };
 
 const SIZES: Record<BtnSize, string> = {
-  sm: "h-8 px-3 text-xs",
+  sm: "h-8 min-h-[44px] px-3 text-xs",
   /* Reference .btn: 13px */
   md: "h-10 px-4 text-[13px] leading-tight",
   lg: "h-12 px-6 text-[15px] leading-tight",

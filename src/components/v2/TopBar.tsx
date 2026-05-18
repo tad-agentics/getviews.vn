@@ -23,9 +23,8 @@ export function TopBar({
     <header
       className={[
         "sticky top-0 z-10 w-full",
-        /* Cùng band với sidebar brand: 56px / 64px (h-14 / h-16). shrink-0
-           prevents flex parents from squishing the bar below its declared height. */
-        "box-border flex h-14 min-h-14 shrink-0 items-center justify-between gap-4 px-4 md:h-16 md:min-h-16 md:px-7",
+        /* Cùng band với sidebar brand + iOS safe area (PWA standalone). */
+        "box-border flex min-h-[calc(3.5rem+var(--gv-safe-top))] shrink-0 items-center justify-between gap-4 px-4 pt-[var(--gv-safe-top)] md:min-h-[calc(4rem+var(--gv-safe-top))] md:px-7",
         "border-b border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas)]",
         className ?? "",
       ].filter(Boolean).join(" ")}

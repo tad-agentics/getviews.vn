@@ -357,7 +357,7 @@ export default function HistoryScreen() {
                                 if (editingRow) commitRename(editingRow.id, editingRow.type);
                               }}
                               autoFocus
-                              className="text-sm"
+                              className="text-base"
                             />
                           </div>
                         ) : (

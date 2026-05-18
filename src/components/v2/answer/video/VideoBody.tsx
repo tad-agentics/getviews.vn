@@ -37,7 +37,7 @@ import {
   CreatorComparisonCard,
 } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopIssueNarrativeRow } from "@/components/v2/answer/video/blocks/FlopIssueRow";
-import { formatSaveRatePct } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
+import { FlopDiagnosisStrip, formatSaveRatePct } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { CrossFormatPanel } from "@/components/v2/answer/video/blocks/CrossFormatPanel";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -303,7 +303,7 @@ export function VideoBody({
         */}
         <div className="space-y-3 self-start min-[900px]:sticky min-[900px]:top-20 lg:top-24">
           <div
-            className="relative aspect-[9/16] overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
+            className="relative aspect-[9/16] max-h-[56vh] min-[900px]:max-h-none overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
             style={{
               backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
               backgroundColor: "var(--gv-canvas-2)",
@@ -341,6 +341,9 @@ export function VideoBody({
               ) : null}
             </div>
           </div>
+          <p className="min-[900px]:hidden text-center gv-mono text-[10px] text-[color:var(--gv-ink-4)]">
+            Cuộn xuống để xem báo cáo
+          </p>
         </div>
       </aside>
 
@@ -453,6 +456,14 @@ export function VideoBody({
         ) : null}
 
         <KpiGrid kpis={report.kpis} />
+
+        {isFlop ? (
+          <FlopDiagnosisStrip
+            meta={meta}
+            nicheMeta={report.niche_meta ?? null}
+            retentionEnd={retEnd}
+          />
+        ) : null}
 
         {brightEffective && !showV6SectionBody ? (
           <div
