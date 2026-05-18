@@ -1004,6 +1004,14 @@ def finalize_video_narrative_layer(
     ts_posted = meta.get("created_at") or meta.get("posted_at")
     if ts_posted:
         user_stats["posted_at"] = str(ts_posted)
+    cc_raw = meta.get("commerce_conversion")
+    if isinstance(cc_raw, dict) and cc_raw:
+        user_stats["commerce_conversion"] = cc_raw
+    elif meta.get("shop_order_count") is not None:
+        try:
+            user_stats["shop_order_count"] = int(meta["shop_order_count"])
+        except (TypeError, ValueError):
+            pass
     ch_ratio_hint = meta.get("target_vs_creator_median")
     try:
         ch_ratio_f = float(ch_ratio_hint) if ch_ratio_hint is not None else None

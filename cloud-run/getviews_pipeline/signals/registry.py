@@ -13,6 +13,7 @@ from getviews_pipeline.signals.editing import extract_editing_signals
 from getviews_pipeline.signals.engagement import extract_engagement_signals
 from getviews_pipeline.signals.hook import extract_hook_signals
 from getviews_pipeline.signals.metadata import extract_metadata_signals
+from getviews_pipeline.signals.performance import extract_commerce_performance_override_signal
 from getviews_pipeline.signals.persona import extract_persona_signals
 from getviews_pipeline.signals.reference import extract_reference_signals
 from getviews_pipeline.signals.salience import MAX_SIGNALS_PER_SECTION_IN_PROMPT
@@ -29,6 +30,7 @@ _EXTRACTORS = (
     extract_reference_signals,
     extract_channel_signals,
     extract_commerce_signals,
+    extract_commerce_performance_override_signal,
     extract_metadata_signals,
     extract_editing_signals,
     extract_douyin_signals,

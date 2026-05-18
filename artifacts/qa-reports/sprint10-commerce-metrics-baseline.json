@@ -1,0 +1,49 @@
+{
+  "feature": "sprint10-commerce-metrics",
+  "task_id": "sprint10-commerce-metrics-final-qa",
+  "plan": ".cursor/plans/diagnosis-first_plan_—_full_12-section_taxonomy_coverage_02458d1e.plan.md — Sprint 10 §12 + Final QA / cutover",
+  "date": "2026-05-18",
+  "verdict": "PASS_WITH_CONCERNS",
+  "health_score": 81,
+  "pass_results": {
+    "ac1_commerce_metric_override_signal": "PASS",
+    "ac2_ingest_user_stats_partial": "PASS",
+    "ac3_final_qa_50_fixture_cutover": "DEFERRED"
+  },
+  "evidence": [
+    "`signals/performance.py` — `extract_commerce_performance_override_signal`: fires only on commercial ctx + view-underperformance + server-side conversion (`commerce_conversion` dict or `shop_order_count`) + `_strong_shop_conversion` heuristic; emits `commerce_performance_conversion_override` with salience 1.0, section `commerce`, taxonomy §12.",
+    "`signals/registry.py` — `extract_commerce_performance_override_signal` registered in `_EXTRACTORS`; manifest sorts by salience.",
+    "`video_analyze.py` — copies `meta.commerce_conversion` (dict) or `meta.shop_order_count` into `user_stats` without Gemini-invented counts.",
+    "`tests/test_sprint10_commerce_performance.py` — coverage for flop+average overrides, hit-tier suppression, sparse orders, entertainment-only, flat `shop_order_count`, manifest inclusion.",
+    "Verification run 2026-05-18: `pytest tests/test_sprint10_commerce_performance.py tests/test_diagnosis_v6_helpers.py -q` → 14 passed.",
+    "Verification run 2026-05-18: `ruff check getviews_pipeline/signals/performance.py getviews_pipeline/signals/registry.py getviews_pipeline/video_analyze.py` → All checks passed.",
+    "Docs: `artifacts/docs/system-design.md` § diagnosis-first v6 notes §12 override + server-only population; `artifacts/docs/changelog.md` Sprint 10 row defers 50-fixture / flip gates."
+  ],
+  "concerns": [
+    "Plan Sprint 10 Final QA not executed in-repo: 50-fixture regression, narrative-quality evaluator pass, manual sample review, v5→v6 cutover checklist.",
+    "Shop/API metric ingest is conditional on upstream `meta`; cart/add-to-cart/commission fields from plan not modeled yet — only order-shaped paths merged.",
+    "Heuristic thresholds (`_strong_shop_conversion`, `_views_underperforming`) need calibration on real Shop-backed traffic to limit false positives/negatives."
+  ],
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "Deferred operational QA gate",
+      "status": "deferred",
+      "detail": "Acceptance criterion 3 explicitly out of scope for this code slice; blocks declaring full Sprint 10 \"complete\" per plan calendar."
+    },
+    {
+      "severity": "low",
+      "title": "Integration dependency",
+      "status": "open",
+      "detail": "Signal does nothing until ensemble/metadata pipeline supplies `commerce_conversion` or `shop_order_count`."
+    }
+  ],
+  "category_scores": {
+    "implementation": 93,
+    "test_coverage": 86,
+    "security_secrets_rls": 100,
+    "integration_documentation": 88,
+    "plan_completeness": 58
+  },
+  "recommendation": "Ship this pipeline slice as §12 groundwork. Before flipping `GETVIEWS_DIAGNOSIS_SECTION_MODE` or relying on override copy in prod: populate Shop metrics on `meta` for a pilot cohort; spot-check ~20 diagnoses for false positives; execute plan’s 50-fixture + cutover criteria with narrative evaluator sign-off."
+}
