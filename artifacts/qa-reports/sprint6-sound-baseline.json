@@ -1,0 +1,18 @@
+{
+  "task_id": "sprint6-sound",
+  "plan": "Diagnosis-first plan — full 12-section taxonomy (Sprint 6 §6 sound)",
+  "verdict": "PASS_WITH_CONCERNS",
+  "health_score": 93,
+  "evidence": [
+    "QA agent code review + pytest tests/test_sound_sprint6.py: 11 passed",
+    "Full cloud-run pytest: 2082 passed, 1 skipped",
+    "ruff: clean on touched Python modules",
+    "npm run typecheck: PASS"
+  ],
+  "concerns": [
+    "CML strip-risk mostly dormant while aggregator sets commercial_music_library_eligible=true for non-original until TikTok/API wiring.",
+    "Lifecycle signal skips phase=peak (no salience in _LIFECYCLE_SALIENCE) — intentional neutral.",
+    "parody lifecycle not inferred by infer_sound_lifecycle_phase."
+  ],
+  "recommendation": "Apply migration 20260720000000_trending_sounds_sprint6_sound_intel.sql to remote before prod; when CML ground truth exists, stop defaulting eligible true."
+}

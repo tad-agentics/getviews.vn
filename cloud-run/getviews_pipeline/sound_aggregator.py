@@ -16,6 +16,7 @@ def _week_start_monday(today: date) -> date:
 
 async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
     """Aggregate top non-original sounds per niche for current week. Upsert trending_sounds."""
+    from getviews_pipeline.layer0_sound import infer_sound_lifecycle_phase
     from getviews_pipeline.supabase_client import get_service_client
 
     if client is None:
@@ -23,6 +24,7 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
 
     week_of = _week_start_monday(date.today())
     week_of_str = week_of.isoformat()
+    prev_week_str = (week_of - timedelta(days=7)).isoformat()
     since_dt = datetime.now(UTC) - timedelta(days=7)
     since_iso = since_dt.isoformat()
 
@@ -81,19 +83,52 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
             if not top:
                 continue
 
-            upsert_rows = [
-                {
+            sound_ids_top = [str(s["sound_id"]) for s in top]
+
+            def _prev_counts_for_sids(_nid: int = niche_id) -> dict[str, int]:
+                if not sound_ids_top:
+                    return {}
+                try:
+                    prev_res = (
+                        client.table("trending_sounds")
+                        .select("sound_id,usage_count")
+                        .eq("niche_id", _nid)
+                        .eq("week_of", prev_week_str)
+                        .in_("sound_id", sound_ids_top)
+                        .execute()
+                    )
+                except Exception:
+                    return {}
+                out: dict[str, int] = {}
+                for pr in prev_res.data or []:
+                    sid = pr.get("sound_id")
+                    if not sid:
+                        continue
+                    out[str(sid)] = int(pr.get("usage_count") or 0)
+                return out
+
+            prev_by_sound = await loop.run_in_executor(None, _prev_counts_for_sids)
+
+            upsert_rows = []
+            for s in top:
+                sid = s["sound_id"]
+                prev_u = int(prev_by_sound.get(str(sid), 0))
+                curr_u = int(s["usage_count"])
+                lifecycle = infer_sound_lifecycle_phase(prev_u, curr_u)
+                # Non-original trending clips: assume CML-eligible until TikTok API wires through.
+                cml_ok = True if not s["is_original_sound"] else None
+                upsert_rows.append({
                     "niche_id": niche_id,
-                    "sound_id": s["sound_id"],
+                    "sound_id": sid,
                     "sound_name": s["sound_name"],
-                    "usage_count": s["usage_count"],
+                    "usage_count": curr_u,
                     "is_original_sound": s["is_original_sound"],
                     "total_views": s["total_views"],
                     "commerce_signal": False,
                     "week_of": week_of_str,
-                }
-                for s in top
-            ]
+                    "lifecycle_phase": lifecycle,
+                    "commercial_music_library_eligible": cml_ok,
+                })
 
             def _upsert() -> None:
                 client.table("trending_sounds").upsert(

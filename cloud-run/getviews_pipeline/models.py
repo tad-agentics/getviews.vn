@@ -156,6 +156,8 @@ AudioTrackRoleType = Literal[
     "spoken_overlay",
 ]
 
+SoundLayeringMix = Literal["thin", "balanced", "rich"]
+
 EnergyLevel = Literal["low", "medium", "high"]
 
 ToneType = Literal[
@@ -224,6 +226,7 @@ class HookTimelineEvent(BaseModel):
 
 
 _DIALECT_ALLOWED = frozenset(get_args(DialectDetected))
+_SOUND_LAYERING_ALLOWED = frozenset(get_args(SoundLayeringMix))
 
 
 class HookAnalysis(BaseModel):
@@ -664,6 +667,13 @@ class VideoAnalysis(BaseModel):
     slang_freshness_score: SlangFreshnessTier | None = None
     loop_architecture_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
+    audio_track_role: AudioTrackRoleType | None = None
+    """ME-19 §6: trending_sound | original_music | silent | spoken_overlay."""
+    sound_dialect_audio: DialectDetected | None = None
+    """Regional flavour of BGM / sung hook (may differ from spoken dialect)."""
+    sound_layering: SoundLayeringMix | None = None
+    """BGM + VO + diegetic SFX balance — thin = one lane dominates (risk for ASMR/mukbang)."""
+
     @field_validator("loop_architecture_score", mode="before")
     @classmethod
     def _coerce_loop_architecture_score(cls, v: object) -> object:
@@ -698,6 +708,52 @@ class VideoAnalysis(BaseModel):
         }
         s = aliases.get(s, s)
         return s if s in _CREATOR_PERSONA_SLUGS else None
+
+    @field_validator("audio_track_role", mode="before")
+    @classmethod
+    def _normalize_audio_track_role(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        aliases = {
+            "trending": "trending_sound",
+            "nhac_trending": "trending_sound",
+            "original": "original_music",
+            "goc": "original_music",
+            "mute": "silent",
+            "no_audio": "silent",
+            "voiceover": "spoken_overlay",
+        }
+        s = aliases.get(s, s)
+        return s if s in get_args(AudioTrackRoleType) else None
+
+    @field_validator("sound_dialect_audio", mode="before")
+    @classmethod
+    def _normalize_sound_dialect_audio(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower().replace("-", "_")
+        if s in ("huế", "hue", "huet"):
+            return "hue"
+        if s in ("quảng_nam", "quang_nam", "quangnam"):
+            return "quang_nam"
+        if s in ("southern", "nam", "mien_nam", "miền_nam"):
+            return "southern"
+        if s in ("northern", "bac", "miền_bắc", "mien_bac"):
+            return "northern"
+        if s in ("none", "không", "khong", "neutral", "unknown", ""):
+            return "none"
+        return s if s in _DIALECT_ALLOWED else None
+
+    @field_validator("sound_layering", mode="before")
+    @classmethod
+    def _normalize_sound_layering(cls, v: object) -> object:
+        if v is None or v == "":
+            return None
+        s = str(v).strip().lower()
+        if s in _SOUND_LAYERING_ALLOWED:
+            return s
+        return None
 
     @field_validator("slang_freshness_score", mode="before")
     @classmethod
@@ -833,6 +889,8 @@ class Music(BaseModel):
     title: str | None = None
     artist: str | None = None
     is_original: bool | None = None
+    music_id: str | None = None
+    """TikTok / EnsembleData music.id — aligns with video_corpus.sound_id."""
 
 
 class VideoMetadata(BaseModel):

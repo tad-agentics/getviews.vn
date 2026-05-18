@@ -614,6 +614,85 @@ async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
         return {}
 
 
+def fetch_latest_sound_radar(client: Any, niche_id: int) -> dict[str, Any]:
+    """Latest trend_velocity.sound_trends JSON for Sound Radar (accelerating/peaking/cooling)."""
+    if niche_id <= 0:
+        return {}
+    try:
+        res = (
+            client.table("trend_velocity")
+            .select("sound_trends,week_start")
+            .eq("niche_id", niche_id)
+            .order("week_start", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = res.data or []
+        if not rows:
+            return {}
+        st = rows[0].get("sound_trends") or {}
+        return st if isinstance(st, dict) else {}
+    except Exception as exc:
+        logger.warning("[corpus_context] sound_radar niche_id=%s failed: %s", niche_id, exc)
+        return {}
+
+
+def fetch_latest_trending_sound_profile(
+    client: Any,
+    niche_id: int,
+    sound_id: str,
+) -> dict[str, Any] | None:
+    """Trending_sounds row for this niche+sound (latest week_of)."""
+    sid = str(sound_id or "").strip()
+    if niche_id <= 0 or not sid:
+        return None
+    try:
+        res = (
+            client.table("trending_sounds")
+            .select(
+                "lifecycle_phase,commercial_music_library_eligible,dialect_audio,"
+                "usage_count,week_of,sound_name"
+            )
+            .eq("niche_id", niche_id)
+            .eq("sound_id", sid)
+            .order("week_of", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = res.data or []
+        if not rows:
+            return None
+        return rows[0] if isinstance(rows[0], dict) else None
+    except Exception as exc:
+        logger.warning(
+            "[corpus_context] trending_sound profile niche=%s sound=%s failed: %s",
+            niche_id, sid[:16], exc,
+        )
+        return None
+
+
+def enrich_niche_meta_with_sound_radar(
+    niche_id: int,
+    niche_meta: dict[str, Any],
+) -> dict[str, Any]:
+    """Attach sound_radar snapshot for §6 signal extractors (read-only)."""
+    if niche_id <= 0:
+        return niche_meta
+    client = _anon_client()
+    radar = fetch_latest_sound_radar(client, niche_id)
+    if radar:
+        niche_meta = {**niche_meta, "sound_radar": radar}
+    return niche_meta
+
+
+def lookup_trending_sound_profile_for_diagnosis(
+    niche_id: int,
+    sound_id: str,
+) -> dict[str, Any] | None:
+    """Service-role-free lookup for live diagnosis path."""
+    return fetch_latest_trending_sound_profile(_anon_client(), niche_id, sound_id)
+
+
 async def get_cached_analysis(video_id: str) -> dict[str, Any] | None:
     """Look up a previously-analyzed video in video_corpus by video_id.
 

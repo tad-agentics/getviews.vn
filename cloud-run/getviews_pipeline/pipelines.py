@@ -17,6 +17,7 @@ from getviews_pipeline.analysis_core import analyze_aweme
 from getviews_pipeline.claim_tiers import PATTERN_SPREAD_MIN_INSTANCES
 from getviews_pipeline.corpus_context import (
     build_corpus_citation_block,
+    enrich_niche_meta_with_sound_radar,
     fetch_corpus_reference_pool,
     fetch_creator_format_history,
     format_creator_format_history_for_diagnosis,
@@ -24,6 +25,7 @@ from getviews_pipeline.corpus_context import (
     get_niche_intelligence,
     get_signal_grades_for_niche,
     get_top_breakout_videos,
+    lookup_trending_sound_profile_for_diagnosis,
     resolve_niche_id_cached,
 )
 from getviews_pipeline.corpus_ingest import classify_format
@@ -689,6 +691,42 @@ def _estimate_er_percentile_rank(user_er: float, niche_avg_er: float | None) -> 
     # Map ratio≈1.0 → rank 50; clamp 5–95 to avoid saturate messaging.
     ranked = 50.0 + (ratio - 1.0) * 40.0
     return max(5.0, min(95.0, ranked))
+
+
+def _augment_user_stats_for_sound_diagnosis(
+    user_stats: dict[str, Any],
+    user_metadata_dict: dict[str, Any],
+    user_analysis_dict: dict[str, Any],
+    niche_id: int,
+) -> None:
+    """§6 sound signals — attach music ids + optional trending_sounds profile (read-only)."""
+    music = user_metadata_dict.get("music") or {}
+    mid = music.get("music_id")
+    if mid is None:
+        mid = music.get("id")
+    if mid is not None:
+        s = str(mid).strip()
+        user_stats["sound_id"] = s or None
+    else:
+        user_stats["sound_id"] = None
+    user_stats["music_title"] = music.get("title")
+    user_stats["music_is_original"] = music.get("is_original")
+    promo = str(user_analysis_dict.get("promotion_type") or "organic").lower()
+    ci = user_analysis_dict.get("commerce_intent") or {}
+    if not isinstance(ci, dict):
+        ci = {}
+    obj = str(ci.get("conversion_objective") or "").lower()
+    user_stats["account_commercial_heuristic"] = promo not in (
+        "organic",
+        "",
+    ) or obj not in ("", "entertainment_first")
+    user_stats["trending_sound_profile"] = None
+    sid = user_stats.get("sound_id")
+    if niche_id > 0 and sid:
+        user_stats["trending_sound_profile"] = lookup_trending_sound_profile_for_diagnosis(
+            niche_id,
+            str(sid),
+        )
 
 
 def _reference_evidence_lines(
@@ -1922,6 +1960,8 @@ async def run_video_diagnosis(
     # harder for the model to ignore than prose guidance.
     if not niche_meta:
         niche_meta = {"_note": "Không có data niche — KHÔNG tạo số liệu niche, KHÔNG so sánh với chuẩn niche"}
+    if niche_id is not None and int(niche_id) > 0:
+        niche_meta = enrich_niche_meta_with_sound_radar(int(niche_id), niche_meta)
 
     # Layer 0 context — pre-computed mechanism insight for this niche (fail-open).
     # Wave 3: also surface the raw execution_tip on the output so the FE can
@@ -2170,6 +2210,13 @@ async def run_video_diagnosis(
                     _author_handle_v,
                     _ch_v,
                 )
+
+            _augment_user_stats_for_sound_diagnosis(
+                user_stats,
+                user_metadata_dict,
+                user_analysis_dict,
+                int(niche_id) if niche_id is not None else 0,
+            )
 
             diagnosis_md, narrative_vi_out, format_cards_out = await run_sync(
                 synthesize_diagnosis_v2,

@@ -892,6 +892,8 @@ def parse_metadata(aweme_detail: dict[str, Any]) -> VideoMetadata:
         verified = False
 
     music = aweme_detail.get("music") or {}
+    music_id_raw = music.get("id") or music.get("id_str")
+    music_id = str(music_id_raw).strip() if music_id_raw else None
 
     ct_detected = detect_content_type(aweme_detail)
     if ct_detected == "carousel":
@@ -929,6 +931,7 @@ def parse_metadata(aweme_detail: dict[str, Any]) -> VideoMetadata:
             title=music.get("title"),
             artist=music.get("author"),
             is_original=music.get("is_original"),
+            music_id=music_id,
         ),
         thumbnail_url=thumbnail_url,
     )

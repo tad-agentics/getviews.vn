@@ -23,6 +23,7 @@ class VideoSectionId(StrEnum):
     niche_pattern = "niche_pattern"
     channel_pattern = "channel_pattern"
     commerce = "commerce"
+    sound = "sound"
     persona = "persona"
     next_video = "next_video"
 
@@ -78,6 +79,27 @@ def _applies_persona(_ctx: dict, manifest: Manifest) -> bool:
     )
 
 
+def _video_has_audible_sound_track(ctx: dict) -> bool:
+    us = ctx.get("user_stats") or {}
+    if str(us.get("sound_id") or "").strip():
+        return True
+    if str(us.get("music_title") or "").strip():
+        return True
+    ua = ctx.get("user_analysis") or {}
+    if not isinstance(ua, dict):
+        return False
+    role = str(ua.get("audio_track_role") or "").strip().lower()
+    if role and role != "silent":
+        return True
+    return False
+
+
+def _applies_sound(ctx: dict, manifest: Manifest) -> bool:
+    if not _video_has_audible_sound_track(ctx):
+        return False
+    return _has_gate(manifest, "sound")
+
+
 def _applies_hook_analysis(_ctx: dict, manifest: Manifest) -> bool:
     return any(
         s.salience >= HOOK_ANALYSIS_SECTION_MIN_SALIENCE
@@ -93,6 +115,7 @@ SECTION_POOL: tuple[SectionSpec, ...] = (
     SectionSpec(VideoSectionId.niche_pattern, 40, False, _applies_niche_pattern),
     SectionSpec(VideoSectionId.channel_pattern, 50, False, _applies_channel_pattern),
     SectionSpec(VideoSectionId.commerce, 60, False, _applies_commerce),
+    SectionSpec(VideoSectionId.sound, 62, False, _applies_sound),
     SectionSpec(VideoSectionId.persona, 65, False, _applies_persona),
     SectionSpec(VideoSectionId.next_video, 90, True, lambda _c, _m: True),
 )
@@ -127,6 +150,10 @@ VIDEO_SECTION_DEFAULT_TITLES: dict[tuple[str, str], str] = {
     ("commerce", "average"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
     ("commerce", "flop"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
     ("commerce", "unknown"): "THƯƠNG MẠI VÀ CHUYỂN ĐỔI",
+    ("sound", "hit"): "ÂM THANH VÀ NHỊP ĐIỆU",
+    ("sound", "average"): "ÂM THANH VÀ NHỊP ĐIỆU",
+    ("sound", "flop"): "ÂM THANH VÀ NHỊP ĐIỆU",
+    ("sound", "unknown"): "ÂM THANH VÀ NHỊP ĐIỆU",
     ("persona", "hit"): "PHONG CÁCH VÀ NHÂN VẬT",
     ("persona", "average"): "PHONG CÁCH VÀ NHÂN VẬT",
     ("persona", "flop"): "PHONG CÁCH VÀ NHÂN VẬT",

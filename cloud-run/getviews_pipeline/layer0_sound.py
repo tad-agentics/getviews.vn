@@ -22,6 +22,42 @@ logger = logging.getLogger(__name__)
 EMERGING_MIN_THIS_WEEK = 3
 EMERGING_MAX_LAST_WEEK = 1
 
+# Week-over-week lifecycle labels written by sound_aggregation (§6 diagnosis signals).
+_LIFECYCLE_ALLOWED = frozenset({"emerging", "growth", "peak", "parody", "decline"})
+
+
+def infer_sound_lifecycle_phase(prev_count: int, curr_count: int) -> str | None:
+    """Map two weekly usage_counts to a coarse lifecycle phase (VN taxonomy §6).
+
+    - emerging: first meaningful breakout (low prior week, strong this week)
+    - growth: sharp week-over-week rise from an established base
+    - peak: high stable usage both weeks (flat)
+    - decline: meaningful drop from a meaningful base
+    """
+    pw = max(0, int(prev_count))
+    cw = max(0, int(curr_count))
+    if cw <= 0:
+        return None
+    if pw <= EMERGING_MAX_LAST_WEEK and cw >= EMERGING_MIN_THIS_WEEK:
+        return "emerging"
+    if pw <= 0:
+        return None
+    delta_pct = round((cw - pw) / pw * 100.0, 1) if pw else 999.0
+    if delta_pct >= 50.0 and cw >= 3:
+        return "growth"
+    if pw >= 5 and cw >= 5 and -15.0 <= delta_pct <= 15.0:
+        return "peak"
+    if delta_pct <= -50.0 and pw >= 5:
+        return "decline"
+    return None
+
+
+def normalize_lifecycle_phase(raw: object) -> str | None:
+    if raw is None or raw == "":
+        return None
+    s = str(raw).strip().lower()
+    return s if s in _LIFECYCLE_ALLOWED else None
+
 
 def _week_start_monday(today: date) -> date:
     return today - timedelta(days=today.weekday())
