@@ -37,7 +37,7 @@ import {
   CreatorComparisonCard,
 } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopIssueNarrativeRow } from "@/components/v2/answer/video/blocks/FlopIssueRow";
-import { FlopDiagnosisStrip, formatSaveRatePct } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
+import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
 import { CrossFormatPanel } from "@/components/v2/answer/video/blocks/CrossFormatPanel";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
@@ -63,10 +63,6 @@ import type {
 } from "@/lib/api-types";
 
 // Utility for building flop script handoff prompt — local to VideoBody
-function formatViewsVi(n: number): string {
-  return n.toLocaleString("vi-VN");
-}
-
 function atHandle(raw: string | null | undefined): string {
   if (!raw) return "@—";
   const handle = raw.startsWith("@") ? raw : `@${raw}`;
@@ -194,25 +190,17 @@ export function VideoBody({
   // query; the answer surface doesn't, so we derive instead. Same shape
   // VideoScreen used for its play-button overlay.
   const tiktokWatchUrl = useMemo(() => {
+    if (!report.video_id) return null;
     const raw = meta.creator?.trim() ?? "";
-    if (!raw || !report.video_id) return null;
-    const handle = raw.startsWith("@") ? raw.slice(1) : raw;
-    if (!handle) return null;
-    return `https://www.tiktok.com/@${handle}/video/${report.video_id}`;
-  }, [meta.creator, report.video_id]);
-
-  const thumbStats = useMemo(() => {
-    const parts: string[] = [];
-    if (meta.date_posted) parts.push(`Đăng ${meta.date_posted}`);
-    parts.push(`${formatViewsVi(meta.views)} view`);
-    if (meta.saves != null && meta.saves > 0) {
-      parts.push(`${formatViewsVi(meta.saves)} save`);
-    } else {
-      parts.push(`save ${formatSaveRatePct(meta)}`);
+    if (raw) {
+      const handle = raw.startsWith("@") ? raw.slice(1) : raw;
+      if (handle) {
+        return `https://www.tiktok.com/@${handle}/video/${report.video_id}`;
+      }
     }
-    if (meta.shares > 0) parts.push(`${formatViewsVi(meta.shares)} share`);
-    return parts.join(" · ");
-  }, [meta]);
+    // TikTok resolves /video/{id} without @handle — needed when corpus row is missing creator.
+    return `https://www.tiktok.com/video/${report.video_id}`;
+  }, [meta.creator, report.video_id]);
 
   useEffect(() => {
     logUsage("video_body_load", {
@@ -301,9 +289,9 @@ export function VideoBody({
           stacks above the body and a sticky 9/16 thumbnail pins a near-full-viewport
           poster over the scrolling report at mobile width (360–640px).
         */}
-        <div className="space-y-3 self-start min-[900px]:sticky min-[900px]:top-20 lg:top-24">
+        <div className="w-full min-w-0 shrink-0 space-y-3 self-start min-[900px]:sticky min-[900px]:top-20 lg:top-24">
           <div
-            className="relative aspect-[9/16] max-h-[56vh] min-[900px]:max-h-none overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
+            className="relative aspect-[9/16] w-full max-[899px]:max-h-[56vh] shrink-0 overflow-hidden rounded-[18px] border-[8px] border-[color:var(--gv-ink)] shadow-[0_30px_60px_-30px_color-mix(in_srgb,var(--gv-ink)_34%,transparent)]"
             style={{
               backgroundImage: meta.thumbnail_url ? `url(${meta.thumbnail_url})` : undefined,
               backgroundColor: "var(--gv-canvas-2)",
@@ -311,6 +299,13 @@ export function VideoBody({
               backgroundPosition: "center",
             }}
           >
+            {!meta.thumbnail_url ? (
+              <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center px-3">
+                <span className="gv-mono text-center text-[10px] font-medium uppercase tracking-wide text-[color:var(--gv-ink-4)]">
+                  Chưa có ảnh bìa
+                </span>
+              </div>
+            ) : null}
             {!isFlop && meta.is_breakout ? (
               <div className="pointer-events-none absolute left-3 top-3 z-[1]">
                 <span className="gv-mono rounded-[3px] bg-[color:var(--gv-accent)] px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[0.05em] text-[color:var(--gv-paper)]">
@@ -334,7 +329,8 @@ export function VideoBody({
             ) : null}
             <div className="pointer-events-none absolute bottom-4 left-3.5 right-3.5 text-[color:var(--gv-paper)]">
               <div className="gv-mono text-[11px] opacity-90">
-                {atHandle(meta.creator)} · {Math.round(duration)}s
+                {meta.creator?.trim() ? atHandle(meta.creator) : "Kênh chưa xác định"} ·{" "}
+                {Math.round(duration)}s
               </div>
               {meta.title ? (
                 <p className="gv-tight mt-1 text-lg leading-tight">{meta.title}</p>
