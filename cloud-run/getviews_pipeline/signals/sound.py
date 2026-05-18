@@ -12,6 +12,7 @@ _LIFECYCLE_SALIENCE = {
     "parody": 0.6,
     "decline": 0.55,
     "growth": 0.55,
+    "peak": 0.52,
 }
 
 _RADAR_TO_PHASE = {
@@ -71,10 +72,26 @@ def extract_sound_lifecycle_signal(ctx: dict) -> list[Signal]:
         return []
     sid = str(_us(ctx).get("sound_id") or "").strip()
     title = str(_us(ctx).get("music_title") or "").strip()
-    claim = (
-        f"Sound đang ở phase {phase} trong ngách"
-        f" — {'cửa sổ cơ hội ngắn' if phase in ('emerging', 'growth') else 'canh báo xu hướng'}."
-    )
+    if phase in ("emerging", "growth"):
+        tail = "cửa sổ cơ hội ngắn"
+    elif phase == "peak":
+        tail = "mức dùng ổn định trong ngách — an toàn nhưng dễ trùng lặp format"
+    elif phase == "decline":
+        tail = "xu hướng đang hạ nhiệt"
+    else:
+        tail = "giai đoạn nhại / biến thể — dễ bão hòa nhanh"
+    claim = f"Sound đang ở phase {phase} trong ngách — {tail}."
+    if phase in ("emerging", "growth"):
+        suggested_fix = (
+            "Ra thêm biến thể cùng sound trong 48–72h nếu emerging/growth; "
+            "tránh dựa hoàn toàn vào sound đã decline."
+        )
+    elif phase == "peak":
+        suggested_fix = (
+            "Tách biệt bằng hook hoặc staging cá nhân — sound đang bão hòa, cần điểm nhấn riêng."
+        )
+    else:
+        suggested_fix = "Chuẩn bị sound/template kế tiếp — xu hướng đang hạ nhiệt."
     return [
         Signal(
             id="sound_lifecycle_phase",
@@ -89,12 +106,7 @@ def extract_sound_lifecycle_signal(ctx: dict) -> list[Signal]:
                     location=loc,
                 ),
             ],
-            suggested_fix=(
-                "Ra thêm biến thể cùng sound trong 48–72h nếu emerging/growth; "
-                "tránh dựa hoàn toàn vào sound đã decline."
-                if phase in ("emerging", "growth")
-                else "Chuẩn bị sound/template kế tiếp — xu hướng đang hạ nhiệt."
-            ),
+            suggested_fix=suggested_fix,
         )
     ]
 

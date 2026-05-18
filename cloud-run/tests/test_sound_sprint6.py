@@ -5,7 +5,7 @@ from __future__ import annotations
 from getviews_pipeline.diagnose_sections import select_sections_to_emit
 from getviews_pipeline.layer0_sound import infer_sound_lifecycle_phase, normalize_lifecycle_phase
 from getviews_pipeline.signals.base import Signal
-from getviews_pipeline.signals.registry import build_diagnosis_ctx, build_signal_manifest
+from getviews_pipeline.signals.registry import build_diagnosis_ctx
 from getviews_pipeline.signals.sound import extract_sound_signals
 
 
@@ -47,6 +47,25 @@ def test_sound_lifecycle_from_trending_profile() -> None:
     assert len(sigs) == 1
     assert sigs[0].salience == 0.65
     assert sigs[0].section_id == "sound"
+
+
+def test_sound_lifecycle_peak_from_trending_profile() -> None:
+    ctx = build_diagnosis_ctx(
+        user_analysis={},
+        user_stats={
+            "sound_id": "peak-sid",
+            "trending_sound_profile": {"lifecycle_phase": "peak"},
+        },
+        reference_videos=[],
+        channel_context=None,
+        performance_tier="average",
+        niche_meta={},
+    )
+    sigs = [s for s in extract_sound_signals(ctx) if s.id == "sound_lifecycle_phase"]
+    assert len(sigs) == 1
+    assert sigs[0].salience == 0.52
+    assert "peak" in sigs[0].claim
+    assert "bão hòa" in sigs[0].suggested_fix
 
 
 def test_sound_lifecycle_from_radar_accelerating_hot() -> None:
