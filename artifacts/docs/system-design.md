@@ -55,7 +55,7 @@
                  ▼
         ┌──────────────────────────────────────┐
         │  Cloudflare R2 — single public bucket │
-        │  getviews-media (R2_BUCKET_NAME)      │
+        │  getviews-frames (R2_BUCKET_NAME)     │
         │  Namespaces:                          │
         │   frames/{id}/{0,1,2}.png             │
         │   thumbnails/{id}.png or .jpg         │
@@ -550,7 +550,7 @@ Response includes: `generated`, `skipped_thin` (< 10 grounding videos), `failed_
 
 ### Bucket topology
 
-Single bucket (`getviews-media`, default) configured via `R2_BUCKET_NAME` env var. All objects are public — no signed URLs. Two CDN domain env vars are supported (optional custom domains; falls back to the Cloudflare `pub-*.r2.dev` URL pattern when unset):
+Single bucket (`getviews-frames`) configured via `R2_BUCKET_NAME` env var. All objects are public — no signed URLs. Two CDN domain env vars are supported (optional custom domains; falls back to the Cloudflare `pub-*.r2.dev` URL pattern when unset):
 
 | Env var | Default | Purpose |
 |---|---|---|

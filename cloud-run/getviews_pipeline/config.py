@@ -357,7 +357,7 @@ RESIDENTIAL_PROXY_URL = os.environ.get("RESIDENTIAL_PROXY_URL")
 #   R2_ACCOUNT_ID        — Cloudflare account ID
 #   R2_ACCESS_KEY_ID     — R2 API token access key (Object Read & Write)
 #   R2_SECRET_ACCESS_KEY — R2 API token secret key
-#   R2_BUCKET_NAME       — R2 bucket name (e.g. "getviews-media")
+#   R2_BUCKET_NAME       — R2 bucket name (e.g. "getviews-frames")
 #   R2_PUBLIC_URL        — Public URL prefix for frames (e.g. "https://media.getviews.vn")
 #
 # Optional — separate public URL for videos (defaults to R2_PUBLIC_URL if unset):

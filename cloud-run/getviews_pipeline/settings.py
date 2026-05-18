@@ -137,7 +137,7 @@ class _PipelineSettings(BaseSettings):
     r2_account_id: str = Field(default="")
     r2_access_key_id: str = Field(default="")
     r2_secret_access_key: str = Field(default="")
-    r2_bucket_name: str = Field(default="getviews-media")
+    r2_bucket_name: str = Field(default="getviews-frames")
     r2_public_url: str = Field(default="")
     r2_video_public_url: str = Field(default="")
 
