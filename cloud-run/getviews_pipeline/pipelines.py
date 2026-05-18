@@ -390,6 +390,104 @@ def _dominant_creator_persona_from_corpus(
     return top
 
 
+def _fetch_channel_context_from_live_posts(
+    handle: str,
+    current_video_id: str,
+) -> dict[str, Any]:
+    """Synchronous EnsembleData fallback for channel context when corpus < 2 videos.
+
+    Called only when the corpus query returns 0–1 other videos (common for creators
+    analyzed on-demand for the first time). Uses httpx.Client so it is safe to call
+    from a thread-pool executor. Posts are not persisted to corpus here — that happens
+    separately via promote_on_demand_to_corpus.
+    """
+    import httpx
+
+    from getviews_pipeline.config import ENSEMBLEDATA_USER_POSTS_URL, require_ensembledata_token
+
+    try:
+        token = require_ensembledata_token()
+    except ValueError:
+        return {"available": False, "reason": "ED token missing — no live fallback"}
+
+    try:
+        with httpx.Client(timeout=12.0) as client:
+            resp = client.get(
+                ENSEMBLEDATA_USER_POSTS_URL,
+                params={
+                    "username": handle,
+                    "depth": 1,
+                    "start_cursor": 0,
+                    "new_version": "False",
+                    "download_video": "False",
+                    "token": token,
+                },
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+    except Exception as exc:
+        logger.debug("[channel_context] ED live fallback failed handle=%r: %s", handle, exc)
+        return {"available": False, "reason": f"ED live fallback failed: {str(exc)[:60]}"}
+
+    data = payload.get("data") or {}
+    awemes: list[dict[str, Any]] = []
+    if isinstance(data, dict):
+        awemes = data.get("aweme_list") or []
+    elif isinstance(data, list):
+        awemes = data
+
+    # Filter out the current video and build minimal channel-context rows
+    rows: list[dict[str, Any]] = []
+    for aw in awemes:
+        aid = str(aw.get("aweme_id") or aw.get("id") or "")
+        if aid == current_video_id:
+            continue
+        views = int(aw.get("statistics", {}).get("play_count") or aw.get("views") or 0)
+        desc = str(aw.get("desc") or aw.get("caption") or "")
+        rows.append({"video_id": aid, "caption": desc, "views": views, "content_format": None})
+
+    if len(rows) < 2:
+        return {
+            "available": False,
+            "reason": f"ED returned {len(rows)} usable posts — chưa đủ để so sánh",
+        }
+
+    view_counts = [r["views"] for r in rows]
+    median_views = float(stats_module.median(view_counts)) if view_counts else 0.0
+    sorted_rows = sorted(rows, key=lambda r: r["views"], reverse=True)
+    top_videos = sorted_rows[:2]
+    bottom_videos = sorted_rows[-2:]
+
+    return {
+        "available": True,
+        "source": "live",  # distinguish from corpus-backed context
+        "top_videos": [
+            {
+                "aweme_id": v["video_id"],
+                "desc": v["caption"],
+                "views": v["views"],
+                "content_format": None,
+                "tiktok_url": f"https://www.tiktok.com/@{handle}/video/{v['video_id']}",
+            }
+            for v in top_videos
+        ],
+        "bottom_videos": [
+            {
+                "aweme_id": v["video_id"],
+                "desc": v["caption"],
+                "views": v["views"],
+                "content_format": None,
+                "tiktok_url": f"https://www.tiktok.com/@{handle}/video/{v['video_id']}",
+            }
+            for v in bottom_videos
+        ],
+        "best_performing_format": None,
+        "sample_size": len(rows),
+        "median_views": median_views,
+        "per_format_views": None,
+    }
+
+
 def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> dict[str, Any]:
     handle = creator_handle.lstrip("@").strip()
     vid = str(current_video_id or "").strip()
@@ -409,10 +507,12 @@ def fetch_channel_context_sync(creator_handle: str, current_video_id: str) -> di
         )
         videos = list(res.data or [])
         if len(videos) < 2:
-            return {
-                "available": False,
-                "reason": f"Chỉ có {len(videos)} video khác trong kho — chưa đủ để so sánh",
-            }
+            logger.debug(
+                "[channel_context] corpus sparse (n=%d) for handle=%r — trying ED live fallback",
+                len(videos),
+                handle,
+            )
+            return _fetch_channel_context_from_live_posts(handle, vid)
 
         view_counts = [int(v.get("views") or 0) for v in videos]
         median_views = float(stats_module.median(view_counts)) if view_counts else 0.0

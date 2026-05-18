@@ -81,8 +81,11 @@ def _applies_channel_pattern(ctx: dict, _manifest: Manifest) -> bool:
     ch = ctx.get("channel_context") or {}
     if not isinstance(ch, dict) or not ch.get("available"):
         return False
-    # 2+ channel videos gives a meaningful top/bottom comparison for narrative.
-    return int(ch.get("sample_size") or 0) >= 2
+    n = int(ch.get("sample_size") or 0)
+    # Live ED fallback has less signal per video (no content_format) — require ≥ 3 posts.
+    # Corpus-backed context is richer, so 2 suffices for a meaningful comparison.
+    min_n = 3 if ch.get("source") == "live" else 2
+    return n >= min_n
 
 
 def _applies_commerce(ctx: dict, manifest: Manifest) -> bool:

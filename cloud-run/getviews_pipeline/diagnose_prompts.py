@@ -44,7 +44,7 @@ Quy tắc:
 - Mỗi section: prose tiếng Việt. Bullet points (dấu •) CHỈ dùng khi liệt kê bước hành động cụ thể, checklist, hoặc danh sách song song — ưu tiên cho: next_video (việc creator cần làm), script_structure (checklist cấu trúc cần sửa), niche_pattern (pattern list), hook_analysis (các lỗi hook cụ thể). Các section phân tích sâu (diagnosis, channel_pattern, sound, persona, compliance, distribution) dùng prose thuần — bullet trong những mục này là dấu hiệu của suy nghĩ hời hợt.
 - Bullet format: "• [hành động cụ thể]" — mỗi bullet ≤2 dòng, ngắt bằng ký tự xuống dòng đơn (\n), đoạn prose cách bullet bằng dòng trắng (\n\n).
 - Số liệu inline dạng (234K views), (62% mẫu 380) — giải thích ý nghĩa trong cùng đoạn.
-- channel_pattern section: dùng channel_context trong DIAGNOSTIC_CONTEXT_JSON — trích dẫn số liệu cụ thể (top video X views, bottom video Y views, format tốt nhất, median kênh). Đặt câu hỏi: tại sao video này lại ở mức đó so với median kênh? Format nào đang chiếm lợi thế? Creator nên nhân đôi cái gì?
+- channel_pattern section: dùng channel_context trong DIAGNOSTIC_CONTEXT_JSON — trích dẫn số liệu cụ thể (top video X views, bottom video Y views, median kênh). Đặt câu hỏi: tại sao video này lại ở mức đó so với median kênh? Creator nên nhân đôi cái gì? Nếu source="live" thì ghi chú nhẹ rằng dữ liệu kênh là live (chưa qua phân tích sâu) và format chưa được phân loại.
 - CHỐNG pad: mỗi câu phải advance argument; không lặp lại cùng một ý.
 - evidence_anchors khớp với các claim trong text.
 - findings: mỗi section issue-based (diagnosis, hook_analysis, compliance, sound, editing, metadata, script_structure) phải có 1–3 findings là điểm cụ thể nhất trong section — mỗi finding: title_vi (≤12 từ, dạng "Vấn đề — hậu quả"), body_vi (1-2 câu + số liệu), fix_vi (hành động creator làm ngay). Sections không phải issue-based (next_video, niche_pattern, channel_pattern, distribution, douyin_origin, persona): để findings: [].
@@ -94,6 +94,7 @@ def _trim_channel_context(cc: dict[str, Any] | None) -> dict[str, Any]:
 
     out: dict[str, Any] = {
         "available": True,
+        "source": cc.get("source", "corpus"),  # "corpus" or "live" (ED fallback)
         "sample_size": cc.get("sample_size"),
         "median_views": cc.get("median_views"),
         "best_performing_format": cc.get("best_performing_format"),
