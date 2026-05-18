@@ -5,60 +5,53 @@
  * `timingFormat.cellBackgroundForValue` so all colours resolve through
  * `--gv-*` tokens (no rgba, no hex, no purple shims).
  *
- * Sparse-mode contract: when `variance_note.kind === "sparse"` the parent
- * passes `maskBelowFive={true}`; we hide value labels for cells < 5 to
- * avoid over-reading noise. Empty labels also mean fewer accessibility
- * announcements during keyboard traversal.
+ * Value labels: show rounded score for cells ≥ 5 only; lower scores stay
+ * blank so sparse cells do not read as “confident” counts.
  */
 
 import type { TimingReportPayload } from "@/lib/api-types";
+import { TIMING_DAYS_VN, TIMING_HOURS_VN, isTimingHeatmapGrid } from "@/lib/timingGridLabels";
 import {
   cellBackgroundForValue,
   cellBorderForValue,
   cellLabelColorForValue,
 } from "./timingFormat";
 
-const DAYS_VN = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-const HOURS_VN = ["6–9", "9–12", "12–15", "15–18", "18–20", "20–22", "22–24", "0–3"];
-
 export function TimingHeatmap({
   grid,
-  maskBelowFive,
   legendFooter,
 }: {
   grid: TimingReportPayload["grid"];
-  maskBelowFive: boolean;
   /** Right-aligned footer text, e.g. "Dữ liệu từ 112 video · niche Tech". */
   legendFooter?: string;
 }) {
+  if (!isTimingHeatmapGrid(grid)) {
+    return null;
+  }
+
   return (
     <section>
       <p className="gv-mono mb-[10px] text-[10px] uppercase tracking-wide text-[color:var(--gv-accent)] font-semibold">
-        Heatmap · 7 ngày × 8 khung giờ
+        Lưới khung giờ (ICT) · 7 ngày × 8 khung
       </p>
       <div className="overflow-x-auto">
-      <div
-        className="grid min-w-[580px] gap-[3px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[10px]"
-        style={{ gridTemplateColumns: "28px repeat(8, minmax(0, 1fr))" }}
-      >
-        <div />
-        {HOURS_VN.map((h) => (
-          <div
-            key={h}
-            className="gv-mono px-0 py-[2px] text-center text-[9px] text-[color:var(--gv-ink-4)]"
-          >
-            {h}
-          </div>
-        ))}
-        {DAYS_VN.map((d, di) => (
-          <Row
-            key={d}
-            label={d}
-            values={grid[di] ?? []}
-            maskBelowFive={maskBelowFive}
-          />
-        ))}
-      </div>
+        <div
+          className="grid min-w-[580px] gap-[3px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-[10px]"
+          style={{ gridTemplateColumns: "28px repeat(8, minmax(0, 1fr))" }}
+        >
+          <div />
+          {TIMING_HOURS_VN.map((h) => (
+            <div
+              key={h}
+              className="gv-mono px-0 py-[2px] text-center text-[9px] text-[color:var(--gv-ink-4)]"
+            >
+              {h}
+            </div>
+          ))}
+          {TIMING_DAYS_VN.map((d, di) => (
+            <Row key={d} label={d} values={grid[di]!} />
+          ))}
+        </div>
       </div>
       <div className="mt-[10px] flex items-center gap-3 text-[10px]">
         <span className="gv-mono text-[color:var(--gv-ink-4)]">Thấp</span>
@@ -80,15 +73,7 @@ export function TimingHeatmap({
   );
 }
 
-function Row({
-  label,
-  values,
-  maskBelowFive,
-}: {
-  label: string;
-  values: number[];
-  maskBelowFive: boolean;
-}) {
+function Row({ label, values }: { label: string; values: number[] }) {
   return (
     <>
       <div className="gv-mono flex items-center text-[10px] font-medium text-[color:var(--gv-ink-3)]">
@@ -97,7 +82,7 @@ function Row({
       {values.map((v, hi) => (
         <div
           key={hi}
-          aria-label={`${label} · ${HOURS_VN[hi]} · ${v.toFixed(1)}`}
+          aria-label={`${label} · ${TIMING_HOURS_VN[hi]} · ${Number.isFinite(v) ? v.toFixed(1) : "—"}`}
           className="gv-mono flex items-center justify-center text-[10px]"
           style={{
             backgroundColor: cellBackgroundForValue(v),
@@ -107,7 +92,7 @@ function Row({
             fontWeight: v >= 7 ? 600 : 400,
           }}
         >
-          {!maskBelowFive && v >= 5 ? Math.round(v) : ""}
+          {v >= 5 ? Math.round(v) : ""}
         </div>
       ))}
     </>

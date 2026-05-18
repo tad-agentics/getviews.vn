@@ -6,7 +6,9 @@ Data sources:
 - ``video_corpus.views`` → per-cell median vs niche median → lift multiplier
   (driven through ``classify_variance`` to set the ``VarianceNote`` chip).
 - ``timing_top_window_streak(p_niche_id, p_day, p_hour_bucket)`` RPC →
-  streak length for the #1 window's fatigue band.
+  streak length for the #1 window's fatigue band (ICT + COALESCE on
+  ``posted_at`` / ``indexed_at`` / ``created_at``; see migration
+  ``20260518130000_timing_top_window_streak_ict_posted_at.sql``).
 
 Contracts:
 - Grid values normalised 0–10 so the UI tone ramp (5 levels) maps cleanly.
@@ -20,6 +22,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from getviews_pipeline.report_timing import (  # noqa: F401 — circular-safe (runtime only)
     DAY_LABELS_VN,  # unused here but re-exported for callers
@@ -30,6 +33,9 @@ from getviews_pipeline.report_timing import (  # noqa: F401 — circular-safe (r
 from getviews_pipeline.report_types import ActionCardPayload
 
 logger = logging.getLogger(__name__)
+
+# Display buckets for TikTok VN — align grid + diagnosis text + streak RPC (ICT wall clock).
+_HO_CHI_MINH = ZoneInfo("Asia/Ho_Chi_Minh")
 
 
 # ── Heatmap build + top-window ranking ─────────────────────────────────────
@@ -105,6 +111,7 @@ def build_heatmap_grid(
             continue
         if views <= 0:
             continue
+        dt = dt.astimezone(_HO_CHI_MINH)
         day_idx = dt.weekday()
         hour_idx = _bucket_for_hour(dt.hour)
         buckets[day_idx][hour_idx].append(views)
@@ -196,18 +203,18 @@ def classify_variance(top_windows: list[dict[str, Any]]) -> dict[str, str]:
         return {
             "kind": "strong",
             "label": "Heatmap CÓ ý nghĩa",
-            "detail": f"Cửa sổ mạnh nhất gấp {lift:.1f}× median — tín hiệu ổn định.",
+            "detail": f"Cửa sổ mạnh nhất gấp {lift:.1f}× trung vị — tín hiệu ổn định.",
         }
     if lift >= 1.3:
         return {
             "kind": "weak",
             "label": "Heatmap có xu hướng nhưng chưa rõ",
-            "detail": f"Cửa sổ mạnh nhất gấp {lift:.1f}× median — còn biên độ cải thiện.",
+            "detail": f"Cửa sổ mạnh nhất gấp {lift:.1f}× trung vị — còn biên độ cải thiện.",
         }
     return {
         "kind": "sparse",
         "label": "Heatmap CHƯA ổn định — mẫu thưa",
-        "detail": f"Cửa sổ mạnh nhất chỉ {lift:.1f}× median — dùng top-3 để định hướng.",
+        "detail": f"Cửa sổ mạnh nhất chỉ {lift:.1f}× trung vị — dùng top-3 để định hướng.",
     }
 
 
@@ -251,7 +258,7 @@ def static_timing_action_cards(top_window: dict[str, Any] | None) -> list[Action
     lift = float((top_window or {}).get("lift_multiplier") or 1.0)
     day = str((top_window or {}).get("day") or "—")
     hours = str((top_window or {}).get("hours") or "—")
-    lift_str = f"{lift:.1f}× median" if lift > 1.0 else "≈ median"
+    lift_str = f"{lift:.1f}× trung vị" if lift > 1.0 else "≈ trung vị"
     return [
         ActionCardPayload(
             icon="calendar",
@@ -260,7 +267,7 @@ def static_timing_action_cards(top_window: dict[str, Any] | None) -> list[Action
             cta="Mở lịch",
             primary=True,
             route="/app/script",
-            forecast={"expected_range": lift_str, "baseline": "1.0× median"},
+            forecast={"expected_range": lift_str, "baseline": "1.0× trung vị"},
         ),
         ActionCardPayload(
             icon="search",
@@ -305,3 +312,97 @@ def load_timing_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, An
     except Exception as exc:
         logger.warning("[timing] load_timing_inputs failed: %s", exc)
         return None
+
+
+# Minimum corpus rows for a short niche timing paragraph inside video diagnosis (lower
+# than standalone Timing report — avoid silent gaps when niche is thin).
+_DIAGNOSIS_TIMING_MIN_CORPUS = 20
+
+
+def compute_diagnosis_posting_bundle(
+    sb: Any,
+    niche_id: int,
+    *,
+    window_days: int = 14,
+    user_create_time_unix: int | None = None,
+) -> tuple[str, dict[str, Any] | None]:
+    """Prompt block + UI payload for video/carousel diagnosis (single DB load).
+
+    Returns ``("", None)`` when niche invalid, load fails, corpus too thin, or
+    no ranked windows.
+    """
+    if niche_id <= 0:
+        return "", None
+    ctx = load_timing_inputs(sb, niche_id, window_days)
+    if not ctx:
+        return "", None
+    corpus: list[dict[str, Any]] = list(ctx.get("corpus") or [])
+    niche_label = str(ctx.get("niche_label") or "")
+    if len(corpus) < _DIAGNOSIS_TIMING_MIN_CORPUS:
+        return "", None
+
+    grid, counts, niche_median = build_heatmap_grid(corpus)
+    top_windows = compute_top_windows(grid, counts, niche_median=niche_median)
+    if not top_windows:
+        return "", None
+
+    variance = classify_variance(top_windows)
+    user_post_window_vi: str | None = None
+    lines: list[str] = [
+        f"Ngách: {niche_label} — timing corpus {len(corpus)} video (~{window_days} ngày gần nhất).",
+        f"Độ tin cửa sổ: {variance.get('label', '')} — {variance.get('detail', '')}.",
+    ]
+    for i, w in enumerate(top_windows[:3], start=1):
+        lines.append(
+            f"Top {i}: {w['day']} khung {w['hours']} — ~{w['lift_multiplier']}× trung vị "
+            f"({w.get('sample', 0)} clip trong ô)."
+        )
+
+    if user_create_time_unix and user_create_time_unix > 0:
+        try:
+            dt = datetime.fromtimestamp(int(user_create_time_unix), tz=UTC).astimezone(_HO_CHI_MINH)
+            ud = _day_vn(dt.weekday())
+            hi = _bucket_for_hour(dt.hour)
+            uh = HOUR_BUCKETS_VN[hi]
+            user_post_window_vi = f"Bài đang phân tích đăng: {ud}, khung {uh} (giờ Việt Nam)."
+            lines.append(
+                f"Video đang phân tích đăng: {ud}, bucket {uh} (theo cùng lưới 7×8 với heatmap; giờ Việt Nam)."
+            )
+        except (OSError, ValueError, OverflowError):
+            pass
+
+    body = "\n".join(lines)
+    text = f"NICHE_POSTING_CONTEXT:\n{body}"
+
+    ui_payload: dict[str, Any] = {
+        "grid": grid,
+        "variance_note": variance,
+        "top_3_windows": top_windows[:3],
+        "sample_size": len(corpus),
+        "window_days": window_days,
+        "niche_label": niche_label,
+        "user_post_window_vi": user_post_window_vi,
+    }
+    return text, ui_payload
+
+
+def build_diagnosis_posting_context_text(
+    sb: Any,
+    niche_id: int,
+    *,
+    window_days: int = 14,
+    user_create_time_unix: int | None = None,
+) -> str:
+    """Compact Vietnamese block for video/carousel diagnosis prompts.
+
+    Reuses the same heatmap inputs as the standalone Timing report but only
+    emits prose-friendly top windows + variance — no separate timing analysis
+    surface; the model folds this into ``distribution`` or ``diagnosis`` sections.
+    """
+    text, _ = compute_diagnosis_posting_bundle(
+        sb,
+        niche_id,
+        window_days=window_days,
+        user_create_time_unix=user_create_time_unix,
+    )
+    return text

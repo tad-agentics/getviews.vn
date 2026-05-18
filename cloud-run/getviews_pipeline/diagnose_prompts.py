@@ -59,6 +59,7 @@ Quy tắc:
   Ví dụ: "Video dưới đây cho thấy cách các creator trong ngách đang áp dụng hook này hiệu quả."
   hoặc "Đây là những video đang làm tốt format này trong cùng ngách — quan sát sự khác biệt ở frame đầu."
   Câu dẫn phải liên quan trực tiếp đến điểm vừa phân tích trong section, không được generic.
+- Khi có NICHE_POSTING_CONTEXT: đây là tóm tắt khung giờ đăng theo corpus ngách (heatmap 7×8, top cửa sổ + độ tin cậy). Tích hợp 1–2 đoạn prose vào section **distribution** nếu distribution có trong SECTIONS_TO_EMIT; nếu không thì gói vào **diagnosis**. So sánh bucket đăng của video user (dòng cuối block, nếu có) với top cửa sổ; không tạo section riêng cho timing, không mô tả lại toàn bộ heatmap — chỉ dùng số liệu đã cho, không bịa thêm ô giờ.
 - niche_pattern: có thể điền embedded_tiles với aweme_id từ reference pool (thumbnail_url optional); findings: []. Nếu cross_format_signal có trong DIAGNOSTIC_CONTEXT_JSON: trích dẫn cụ thể — "format X đang chạy ở N ngách", hook nào đang đạt view cao nhất, và creator nên học gì từ đó. Đây là so sánh với pattern viral trong ngách — không chỉ mô tả mà phải ra conclusion rõ ràng.
 """
 
@@ -147,6 +148,7 @@ def build_diagnosis_v6_user_prompt(
     corpus_citation: str = "",
     persona_block: str = "",
     reference_evidence_block: str = "",
+    niche_posting_context_block: str = "",
     collapsed_questions: list[str] | None = None,
     cross_format_signal: dict[str, Any] | None = None,
 ) -> str:
@@ -207,6 +209,8 @@ def build_diagnosis_v6_user_prompt(
         blocks.append(f"\n\nPERSONA_BLOCK:\n{persona_block}")
     if reference_evidence_block:
         blocks.append(f"\n\nREFERENCE_EVIDENCE:\n{reference_evidence_block}")
+    if niche_posting_context_block:
+        blocks.append(f"\n\n{niche_posting_context_block.strip()}")
     if wants_directions:
         blocks.append(
             "\n\nBổ sung sau diagnosis_vi: trong format_cards để 1-4 gợi ý hướng "

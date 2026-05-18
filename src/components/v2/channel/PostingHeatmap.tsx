@@ -14,8 +14,7 @@
  *     component; `_compute_posting_heatmap` uses the same empty-sentinel.
  */
 
-const DAYS_VN = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-const HOURS_VN = ["6–9", "9–12", "12–15", "15–18", "18–20", "20–22", "22–24", "0–3"];
+import { TIMING_DAYS_VN, TIMING_HOURS_VN, isTimingHeatmapGrid } from "@/lib/timingGridLabels";
 
 /** Single-hue cell background — `--gv-ink` ramp, normalised to grid max. */
 export function postingCellBackground(value: number, max: number): string {
@@ -38,6 +37,10 @@ export function postingCellLabelColor(value: number, max: number): string {
 }
 
 export function PostingHeatmap({ grid, legendFooter }: { grid: number[][]; legendFooter?: string }) {
+  if (!isTimingHeatmapGrid(grid)) {
+    return null;
+  }
+
   const flat = grid.flat();
   const max = flat.length ? Math.max(...flat, 0) : 0;
 
@@ -51,7 +54,7 @@ export function PostingHeatmap({ grid, legendFooter }: { grid: number[][]; legen
         style={{ gridTemplateColumns: "28px repeat(8, minmax(0, 1fr))" }}
       >
         <div />
-        {HOURS_VN.map((h) => (
+        {TIMING_HOURS_VN.map((h) => (
           <div
             key={h}
             className="gv-mono px-0 py-[2px] text-center text-[9px] text-[color:var(--gv-ink-4)]"
@@ -59,8 +62,8 @@ export function PostingHeatmap({ grid, legendFooter }: { grid: number[][]; legen
             {h}
           </div>
         ))}
-        {DAYS_VN.map((d, di) => (
-          <Row key={d} label={d} values={grid[di] ?? []} max={max} />
+        {TIMING_DAYS_VN.map((d, di) => (
+          <Row key={d} label={d} values={grid[di]!} max={max} />
         ))}
       </div>
       <div className="mt-[10px] flex items-center gap-3 text-[10px]">
@@ -92,7 +95,7 @@ function Row({ label, values, max }: { label: string; values: number[]; max: num
       {values.map((v, hi) => (
         <div
           key={hi}
-          aria-label={`${label} · ${HOURS_VN[hi]} · ${v} video`}
+          aria-label={`${label} · ${TIMING_HOURS_VN[hi]} · ${v} video`}
           className="gv-mono flex items-center justify-center text-[10px]"
           style={{
             backgroundColor: postingCellBackground(v, max),

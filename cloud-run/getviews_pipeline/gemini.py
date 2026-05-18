@@ -1143,6 +1143,7 @@ def _synthesize_diagnosis_v6_section_pool(
     reference_evidence_block: str,
     creator_format_history_block: str,
     cross_format_signal: dict[str, Any] | None = None,
+    niche_posting_context_block: str = "",
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
     from getviews_pipeline.compliance import collect_compliance_flags
@@ -1193,6 +1194,7 @@ def _synthesize_diagnosis_v6_section_pool(
         reference_evidence_block=reference_evidence_block,
         collapsed_questions=collapsed_questions,
         cross_format_signal=cross_format_signal,
+        niche_posting_context_block=niche_posting_context_block,
     )
     prompt = _prefix_user_sections(
         [layer0_context or "", creator_format_history_block or ""],
@@ -1292,6 +1294,7 @@ def synthesize_diagnosis_v2(
     reference_evidence_block: str = "",
     creator_format_history_block: str = "",
     cross_format_signal: dict[str, Any] | None = None,
+    niche_posting_context_block: str = "",
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
@@ -1315,6 +1318,7 @@ def synthesize_diagnosis_v2(
             reference_evidence_block=reference_evidence_block,
             creator_format_history_block=creator_format_history_block,
             cross_format_signal=cross_format_signal,
+            niche_posting_context_block=niche_posting_context_block,
         )
 
     allowed = _allowed_aweme_ids(reference_videos)
@@ -1337,7 +1341,7 @@ def synthesize_diagnosis_v2(
         reference_evidence_block=reference_evidence_block,
     )
     prompt = _prefix_user_sections(
-        [layer0_context or "", creator_format_history_block or ""],
+        [layer0_context or "", creator_format_history_block or "", niche_posting_context_block or ""],
         prompt,
     )
     if collapsed_questions:
@@ -1410,6 +1414,7 @@ def synthesize_diagnosis_carousel_v2(
     corpus_citation: str = "",
     persona_block: str = "",
     creator_format_history_block: str = "",
+    niche_posting_context_block: str = "",
 ) -> str:
     """V2 carousel diagnosis — 2-layer narrative (distribution + swipe logic), corpus-aware.
 
@@ -1433,9 +1438,20 @@ def synthesize_diagnosis_carousel_v2(
         persona_block=persona_block,
     )
     prompt = _prefix_user_sections(
-        [layer0_context or "", creator_format_history_block or ""],
+        [
+            layer0_context or "",
+            creator_format_history_block or "",
+            niche_posting_context_block or "",
+        ],
         prompt,
     )
+    if (niche_posting_context_block or "").strip():
+        prompt = (
+            prompt.rstrip()
+            + "\n\nNếu có khối bắt đầu bằng NICHE_POSTING_CONTEXT phía trên: nhúng vào "
+            "**TẦNG 1 — PHÂN PHỐI** (ưu tiên PHẦN 1B — phân phối carousel này); "
+            "không mở mục “khung giờ đăng” hay timing riêng.\n"
+        )
     if collapsed_questions:
         question_block = (
             "\n\nNgười dùng hỏi nhiều câu; thêm mục có tiêu đề rõ cho từng câu:\n"

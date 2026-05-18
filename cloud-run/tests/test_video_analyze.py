@@ -918,6 +918,7 @@ def test_narrative_cache_update_omits_keys_when_synth_returns_none() -> None:
         "view_scenarios",
         "channel_context",
         "reference_videos",
+        "niche_posting_context",
     ):
         assert k not in payload, f"{k} would have NULL-overwritten the cache"
 
@@ -935,6 +936,7 @@ def test_narrative_cache_update_includes_all_keys_when_all_present() -> None:
         view_scenarios=[{"focus_vi": "a"}],
         channel_context={"available": True},
         reference_videos=[{"aweme_id": "x"}],
+        niche_posting_context={"sample_size": 20, "window_days": 14, "grid": [[0.0] * 8] * 7},
     )
     for k in (
         "narrative_vi",
@@ -945,5 +947,6 @@ def test_narrative_cache_update_includes_all_keys_when_all_present() -> None:
         "view_scenarios",
         "channel_context",
         "reference_videos",
+        "niche_posting_context",
     ):
         assert k in payload

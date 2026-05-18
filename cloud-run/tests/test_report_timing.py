@@ -17,6 +17,9 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from getviews_pipeline.report_timing import (
+    _day_vn,
+    _hours_vn,
+    _lowest_window_from_grid,
     build_fatigued_timing_report,
     build_fixture_timing_report,
     build_thin_corpus_timing_report,
@@ -88,14 +91,41 @@ def test_build_timing_report_threads_window_days_on_fixture_fallback() -> None:
     assert p.confidence.window_days == 21
 
 
+@patch("getviews_pipeline.report_timing_gemini.fill_timing_narrative")
 @patch("getviews_pipeline.report_timing_compute.load_timing_inputs")
-def test_build_timing_report_thin_niche_routes_to_thin(mock_load: MagicMock) -> None:
+def test_build_timing_report_thin_niche_routes_to_thin(
+    mock_load: MagicMock, mock_narr: MagicMock,
+) -> None:
     mock_load.return_value = {"niche_label": "Tech", "corpus": []}
+    mock_narr.return_value = {"insight": "insight", "related_questions": []}
     with patch("getviews_pipeline.supabase_client.get_service_client", return_value=MagicMock()):
         inner = build_timing_report(5, "q", window_days=14)
     p = TimingPayload.model_validate(inner)
-    assert p.confidence.sample_size < 80
+    assert p.confidence.sample_size == 0
     assert p.variance_note["kind"] == "sparse"
+
+
+@patch("getviews_pipeline.report_timing_gemini.fill_timing_narrative")
+@patch("getviews_pipeline.report_timing_compute.fetch_top_window_streak", return_value=0)
+@patch("getviews_pipeline.report_timing_compute.load_timing_inputs")
+def test_build_timing_report_thin_sample_uses_real_grid_not_fixture(
+    mock_load: MagicMock,
+    _streak: MagicMock,
+    mock_narr: MagicMock,
+) -> None:
+    """sample_n < 80: heatmap from corpus, not build_thin_corpus_timing_report grid."""
+    base = datetime(2026, 4, 18, 12, 0, tzinfo=UTC)
+    rows = [{"video_id": f"v{i}", "views": 8000, "posted_at": base.isoformat()} for i in range(42)]
+    mock_load.return_value = {"niche_label": "Skincare", "corpus": rows}
+    mock_narr.return_value = {"insight": "i", "related_questions": []}
+    with patch("getviews_pipeline.supabase_client.get_service_client", return_value=MagicMock()):
+        inner = build_timing_report(5, "q", window_days=14)
+    p = TimingPayload.model_validate(inner)
+    assert p.confidence.sample_size == 42
+    assert p.variance_note["kind"] == "sparse"
+    thin_fixture = build_thin_corpus_timing_report()
+    assert p.grid != thin_fixture["grid"]
+    assert p.confidence.niche_scope == "Skincare"
 
 
 @patch("getviews_pipeline.report_timing_compute.fetch_top_window_streak", return_value=0)
@@ -108,7 +138,7 @@ def test_build_timing_report_sets_contrarian_when_variance_sparse(
     mock_var: MagicMock,
     _streak: MagicMock,
 ) -> None:
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)
+    base = datetime(2026, 4, 18, 12, 0, tzinfo=UTC)
     rows = [
         {"video_id": f"s{i}", "views": 10_000, "posted_at": base.isoformat()}
         for i in range(100)
@@ -128,13 +158,16 @@ def test_build_timing_report_sets_contrarian_when_variance_sparse(
     assert "hook" in (p.contrarian_note or "").lower()
 
 
+@patch("getviews_pipeline.report_timing_gemini.fill_timing_narrative")
 @patch("getviews_pipeline.report_timing_compute.fetch_top_window_streak")
 @patch("getviews_pipeline.report_timing_compute.load_timing_inputs")
 def test_build_timing_report_full_corpus_returns_strong_variance(
-    mock_load: MagicMock, mock_streak: MagicMock
+    mock_load: MagicMock, mock_streak: MagicMock, mock_narr: MagicMock
 ) -> None:
+    mock_narr.return_value = {"insight": "insight", "related_questions": []}
     # Synthesise 100 rows concentrated on Saturday 18–20 (day_idx=5, hour_idx=4).
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)  # Saturday 19:00 UTC
+    # ICT: Saturday 19:00 = 12:00 UTC same calendar day.
+    base = datetime(2026, 4, 18, 12, 0, tzinfo=UTC)
     rows: list[dict[str, object]] = []
     # Strong cell: 60 rows, 20000 views each.
     for i in range(60):
@@ -163,12 +196,14 @@ def test_build_timing_report_full_corpus_returns_strong_variance(
     assert p.fatigue_band is None  # streak returned 0
 
 
+@patch("getviews_pipeline.report_timing_gemini.fill_timing_narrative")
 @patch("getviews_pipeline.report_timing_compute.fetch_top_window_streak", return_value=6)
 @patch("getviews_pipeline.report_timing_compute.load_timing_inputs")
 def test_build_timing_report_populates_fatigue_when_streak_geq_4(
-    mock_load: MagicMock, _streak: MagicMock
+    mock_load: MagicMock, _streak: MagicMock, mock_narr: MagicMock
 ) -> None:
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)
+    mock_narr.return_value = {"insight": "insight", "related_questions": []}
+    base = datetime(2026, 4, 18, 12, 0, tzinfo=UTC)
     rows: list[dict[str, object]] = []
     for i in range(100):
         off = timedelta(minutes=i * 7)
@@ -202,7 +237,8 @@ def test_bucket_for_hour_wraps_3_to_6_into_sleep_slot() -> None:
 
 
 def test_build_heatmap_grid_normalises_to_0_10() -> None:
-    base = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)
+    # Saturday 19:00 ICT (see full_corpus test) — peak cell T7 18–20.
+    base = datetime(2026, 4, 18, 12, 0, tzinfo=UTC)
     rows = [
         {"views": 10_000, "posted_at": base.isoformat()},
         {"views": 10_000, "posted_at": base.isoformat()},
@@ -211,7 +247,7 @@ def test_build_heatmap_grid_normalises_to_0_10() -> None:
     ]
     grid, counts, niche_median = build_heatmap_grid(rows)
     assert len(grid) == 7 and len(grid[0]) == 8
-    # Saturday 18–20 cell is the peak (value normalises to 10).
+    # Saturday 18–20 ICT (same instant as test_build_timing_report_full_corpus).
     assert grid[5][4] == 10.0
     assert counts[5][4] == 2
     assert niche_median > 0
@@ -260,4 +296,46 @@ def test_static_timing_action_cards_uses_top_window_labels() -> None:
     assert len(cards) == 2
     assert "Thứ 7" in cards[0].title
     assert "18–20" in cards[0].title
-    assert cards[0].forecast["expected_range"].endswith("× median")
+    assert cards[0].forecast["expected_range"].endswith("× trung vị")
+
+
+def test_lowest_window_from_grid_skips_zero_cells() -> None:
+    grid = [[0.0] * 8 for _ in range(7)]
+    grid[2][1] = 3.0
+    grid[3][2] = 5.0
+    lw = _lowest_window_from_grid(grid)
+    assert lw == {"day": _day_vn(2), "hours": _hours_vn(1)}
+
+
+def test_build_heatmap_grid_falls_back_to_indexed_at_when_posted_at_null() -> None:
+    base = datetime(2026, 4, 18, 12, 0, tzinfo=UTC)
+    rows = [
+        {
+            "views": 5000,
+            "posted_at": None,
+            "indexed_at": base.isoformat(),
+            "created_at": "2020-01-01T00:00:00+00:00",
+        },
+        {
+            "views": 5000,
+            "posted_at": None,
+            "indexed_at": base.isoformat(),
+            "created_at": "2020-01-01T00:00:00+00:00",
+        },
+    ]
+    _grid, counts, _ = build_heatmap_grid(rows)
+    assert counts[5][4] == 2
+
+
+def test_build_heatmap_grid_buckets_in_ict_not_utc_wall_clock() -> None:
+    """19:00 UTC is 02:00 Sunday ICT — not the same heatmap cell as 12:00 UTC (19:00 ICT)."""
+    base_ict_evening = datetime(2026, 4, 18, 12, 0, tzinfo=UTC)
+    rows_a = [{"views": 1000, "posted_at": base_ict_evening.isoformat()} for _ in range(2)]
+    _ga, ca, _ = build_heatmap_grid(rows_a)
+    assert ca[5][4] == 2
+
+    base_utc_19 = datetime(2026, 4, 18, 19, 0, tzinfo=UTC)
+    rows_b = [{"views": 1000, "posted_at": base_utc_19.isoformat()} for _ in range(2)]
+    _gb, cb, _ = build_heatmap_grid(rows_b)
+    assert cb[5][4] == 0
+    assert cb[6][7] == 2

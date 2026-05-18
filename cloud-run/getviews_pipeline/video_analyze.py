@@ -582,6 +582,7 @@ def _response_from_diagnostics_row(
         "view_scenarios": diag.get("view_scenarios"),
         "channel_context": diag.get("channel_context"),
         "reference_videos": diag.get("reference_videos"),
+        "niche_posting_context": diag.get("niche_posting_context"),
     }
 
 
@@ -809,6 +810,7 @@ def _build_narrative_cache_update(
     view_scenarios: list[dict[str, Any]] | None,
     channel_context: dict[str, Any] | None,
     reference_videos: list[dict[str, Any]] | None,
+    niche_posting_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the conditional UPDATE payload for the narrative cache row.
 
@@ -837,6 +839,8 @@ def _build_narrative_cache_update(
         payload["channel_context"] = channel_context
     if reference_videos:
         payload["reference_videos"] = reference_videos
+    if niche_posting_context:
+        payload["niche_posting_context"] = niche_posting_context
     return payload
 
 
@@ -1050,6 +1054,40 @@ def finalize_video_narrative_layer(
     except Exception:
         logger.debug("[video_narrative] douyin_match enrich skipped", exc_info=True)
 
+    niche_posting_context_block = ""
+    niche_posting_context_ui: dict[str, Any] | None = None
+    try:
+        _nid_syn = int(meta.get("niche_id") or 0)
+        if _nid_syn > 0:
+            from getviews_pipeline.report_timing_compute import (
+                compute_diagnosis_posting_bundle,
+            )
+            from getviews_pipeline.supabase_client import get_service_client as _gv_svc
+
+            _sb_pc = _gv_svc()
+            _ct_u: int | None = None
+            _ctr = meta.get("create_time")
+            if isinstance(_ctr, (int, float)) and _ctr > 0:
+                _ct_u = int(_ctr)
+            else:
+                for key in ("created_at", "posted_at"):
+                    ts_posted = meta.get(key)
+                    if ts_posted:
+                        try:
+                            dt = datetime.fromisoformat(str(ts_posted).replace("Z", "+00:00"))
+                            _ct_u = int(dt.astimezone(UTC).timestamp())
+                            break
+                        except (TypeError, ValueError, OSError):
+                            pass
+            niche_posting_context_block, niche_posting_context_ui = compute_diagnosis_posting_bundle(
+                _sb_pc,
+                _nid_syn,
+                window_days=14,
+                user_create_time_unix=_ct_u,
+            )
+    except Exception as exc:
+        logger.warning("[video_narrative] niche posting context failed: %s", exc)
+
     diagnosis_md = ""
     narrative_vi_out: dict[str, Any] | None = None
     format_cards_out: list[dict[str, Any]] | None = None
@@ -1067,7 +1105,12 @@ def finalize_video_narrative_layer(
             errors=errors_prompt or None,
             reference_evidence_block="",
             creator_format_history_block=creator_format_history_block,
-            cross_format_signal=out.get("cross_format_signal") if isinstance(out.get("cross_format_signal"), dict) else None,
+            cross_format_signal=(
+                out.get("cross_format_signal")
+                if isinstance(out.get("cross_format_signal"), dict)
+                else None
+            ),
+            niche_posting_context_block=niche_posting_context_block,
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
@@ -1126,6 +1169,11 @@ def finalize_video_narrative_layer(
                     if view_scenarios_computed is not None
                     else {}
                 ),
+                **(
+                    {"niche_posting_context": niche_posting_context_ui}
+                    if niche_posting_context_ui is not None
+                    else {}
+                ),
             },
         )
 
@@ -1142,6 +1190,8 @@ def finalize_video_narrative_layer(
         out["narrative_vi"] = narrative_vi_out
     if format_cards_out is not None:
         out["format_cards"] = format_cards_out
+    if niche_posting_context_ui is not None:
+        out["niche_posting_context"] = niche_posting_context_ui
     if diagnosis_md:
         out["diagnosis"] = diagnosis_md
     # Phase 4.4.6 — stable BE marker so the FE can detect v5 responses
@@ -1165,6 +1215,7 @@ def finalize_video_narrative_layer(
             view_scenarios=view_scenarios_computed,
             channel_context=channel_context_payload,
             reference_videos=out.get("reference_videos"),
+            niche_posting_context=niche_posting_context_ui,
         )
         try:
             from getviews_pipeline.supabase_client import get_service_client

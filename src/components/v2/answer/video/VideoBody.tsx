@@ -33,6 +33,7 @@ import { logUsage } from "@/lib/logUsage";
 import { r2FrameUrl } from "@/lib/services/corpus-service";
 import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
 import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectionRenderer";
+import { DiagnosisPostingContextBlock } from "@/components/diagnosis/DiagnosisPostingContextBlock";
 import {
   CreatorComparisonCard,
 } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
@@ -164,6 +165,8 @@ export function VideoBody({
     report.bright_spot_signal;
   const viewScenariosEffective: ViewScenario[] | undefined =
     narrativeReady?.view_scenarios ?? report.view_scenarios;
+  const nichePostingContextEffective =
+    narrativeReady?.niche_posting_context ?? report.niche_posting_context ?? null;
   const channelEffective: ChannelContext | undefined =
     channelContext ?? report.channel_context;
   // BE classifies each video into a refined tier (`hit | average | flop | unknown`)
@@ -476,6 +479,10 @@ export function VideoBody({
               </p>
             </div>
           </div>
+        ) : null}
+
+        {nichePostingContextEffective ? (
+          <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
         ) : null}
 
         {showV6SectionBody ? (

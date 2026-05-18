@@ -160,7 +160,8 @@ This is the most expensive and critical path. Every step has a cost and a guard.
 
 9. synthesize_diagnosis_v2(DiagnosisSynthesisInput):
    ├─ Gemini call 1: narrative_vi (van_de_chinh + loi_chinh_narrative + dinh_huong_chien_luoc)
-   └─ Gemini call 2: format_cards
+   ├─ Gemini call 2: format_cards
+   └─ Khung giờ đăng (ngách): `build_diagnosis_posting_context_text` → block `NICHE_POSTING_CONTEXT`; v6 gộp vào `distribution` hoặc `diagnosis` (không báo cáo Timing tách trên `/app/answer`).
 
 10. Stream SSE tokens to browser (stream_id + seq per token)
     └─ 60s in-memory replay buffer for reconnection (TD-4)

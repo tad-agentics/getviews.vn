@@ -1019,6 +1019,17 @@ export interface ReferenceVideoCard {
   source: "corpus" | "live_search";
 }
 
+/** Corpus timing slice for video/carousel diagnosis body (not full TimingReportPayload). */
+export interface DiagnosisPostingContextPayload {
+  grid: number[][];
+  variance_note: Record<string, string>;
+  top_3_windows: Array<Record<string, unknown>>;
+  sample_size: number;
+  window_days: number;
+  niche_label?: string;
+  user_post_window_vi?: string | null;
+}
+
 /** Partial payload streamed before final Vietnamese synthesis lands on `ReportV1`. */
 export interface VideoAnswerPreSynthesisPayload {
   bright_spot_signal?: BrightSpotSignal;
@@ -1032,6 +1043,7 @@ export interface VideoAnswerNarrativeReadyPayload {
   errors?: VideoFlopIssue[];
   bright_spot_signal?: BrightSpotSignal;
   view_scenarios?: ViewScenario[];
+  niche_posting_context?: DiagnosisPostingContextPayload;
 }
 
 // ── Diagnostic template (2026-04-22) ──────────────────────────────────────
@@ -1115,6 +1127,8 @@ export type VideoReportPayload = VideoAnalyzeResponse & {
   reference_videos?: ReferenceVideoCard[];
   /** Account-refined tier when available: `hit` | `average` | `flop` | `unknown` */
   performance_tier?: string;
+  /** Niche posting heatmap + top windows (diagnosis embed; optional). */
+  niche_posting_context?: DiagnosisPostingContextPayload;
 };
 
 /** §J — 6-shot TikTok script (answer ``builder_fmt == "script"``). */

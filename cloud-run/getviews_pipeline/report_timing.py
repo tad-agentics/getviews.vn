@@ -93,7 +93,7 @@ def build_fixture_timing_report() -> dict[str, Any]:
                 cta="Mở lịch",
                 primary=True,
                 route="/app/script",
-                forecast={"expected_range": "2.8× median", "baseline": "1.0× median"},
+                forecast={"expected_range": "2.8× trung vị", "baseline": "1.0× trung vị"},
             ),
             ActionCardPayload(
                 icon="search",
@@ -187,8 +187,9 @@ def build_timing_report(
 ) -> dict[str, Any]:
     """Live Timing report. Falls back to fixture when DB / niche is unavailable.
 
-    Empty state (``sample_size < 80``) → thin-corpus fixture (variance kind
-    "sparse"). Fatigue band populated when ``timing_top_window_streak`` RPC
+    Empty state (``sample_size < 80``) still computes a **real** heatmap from the
+    corpus with ``variance_note.kind == "sparse"`` (thin-sample warning).
+    Fatigue band populated when ``timing_top_window_streak`` RPC
     returns ≥ 4 for the chosen top (day, hour_bucket) pair.
 
     2026-04-22 update: ``query`` is no longer discarded. The ranked window
@@ -262,7 +263,7 @@ def build_timing_report(
                 break
         emit(step_queue, step_tool_complete(1, 0, sample_n, thumbs, tool="corpus"))
 
-    if niche_id <= 0 or sample_n < 80:
+    if niche_id <= 0:
         if step_queue is not None:
             from getviews_pipeline.step_events import (
                 emit,
@@ -283,6 +284,8 @@ def build_timing_report(
             thin["confidence"]["sample_size"] = sample_n
         return thin
 
+    force_thin_variance = sample_n < 80
+
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_status, step_tool_start
 
@@ -292,7 +295,17 @@ def build_timing_report(
     grid, counts, niche_median = build_heatmap_grid(corpus)
     top_windows = compute_top_windows(grid, counts, niche_median=niche_median)
     lowest = _lowest_window_from_grid(grid)
-    variance = classify_variance(top_windows)
+    if force_thin_variance:
+        variance = {
+            "kind": "sparse",
+            "label": "Heatmap CHƯA ổn định — mẫu ít",
+            "detail": (
+                f"Chỉ {sample_n} video trong {window_days} ngày gần nhất; "
+                "heatmap và top-3 chỉ mang tính tham khảo."
+            ),
+        }
+    else:
+        variance = classify_variance(top_windows)
 
     contrarian: str | None = None
     if isinstance(variance, dict) and variance.get("kind") == "sparse":
@@ -346,7 +359,7 @@ def build_timing_report(
         top_window=top_window_dict,
         top_3_windows=top_3_for_prompt,
         lowest_window=lowest,
-        variance_note=variance.get("note") if isinstance(variance, dict) else None,
+        variance_note=variance.get("detail") if isinstance(variance, dict) else None,
     )
     insight = narrative["insight"]
     related_questions = narrative["related_questions"]
@@ -363,7 +376,11 @@ def build_timing_report(
             window_days=window_days,
             niche_scope=niche_label,
             freshness_hours=_freshness_from_corpus(corpus),
-            intent_confidence="high" if sample_n >= 150 else "medium",
+            intent_confidence=(
+                "low"
+                if sample_n < 80
+                else ("high" if sample_n >= 150 else "medium")
+            ),
         ),
         top_window=(
             {
@@ -513,6 +530,8 @@ def _lowest_window_from_grid(grid: list[list[float]]) -> dict[str, str]:
     lowest: tuple[int, int] | None = None
     for di, row in enumerate(grid):
         for hi, v in enumerate(row):
+            if v <= 0:
+                continue
             if v < lowest_val:
                 lowest_val = v
                 lowest = (di, hi)

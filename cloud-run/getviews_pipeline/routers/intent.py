@@ -499,6 +499,7 @@ async def stream(
                     "errors",
                     "structural_errors",
                     "kpi",
+                    "niche_posting_context",
                 )
                 structured: dict[str, Any] | None = {
                     k: out[k]

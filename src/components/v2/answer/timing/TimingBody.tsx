@@ -5,13 +5,9 @@
  *   ConfidenceStrip → HumilityBanner (thin) → TimingHeadline → Heatmap
  *                   → VarianceNote → FatigueBand (optional) → ActionCards
  *
- * Empty state (`sample_size < 80`) forwards to `TimingHeatmap` with
- * `maskBelowFive={true}` so cells below the value floor render blank; the
- * top-3 list in the headline still shows, matching plan §2.3 empty-state
- * contract.
- *
- * Variance chip `sparse` also triggers the mask so weak heatmaps never
- * ship false confidence.
+ * `TimingHeatmap` omits numeric labels for cells with score &lt; 5; thin
+ * samples (`sample_size &lt; 80`) still show a real corpus grid with
+ * `variance_note.kind === "sparse"`.
  */
 
 import { useState } from "react";
@@ -36,8 +32,6 @@ export function TimingBody({
   sessionIntentType?: string;
 }) {
   const thin = report.confidence.sample_size < 80;
-  const varianceKind = (report.variance_note?.kind as string | undefined) ?? "strong";
-  const maskBelowFive = thin || varianceKind === "sparse";
   const [humilityOpen, setHumilityOpen] = useState(true);
 
   const legendFooter = `Dữ liệu từ ${report.confidence.sample_size} video · ngách ${
@@ -57,11 +51,7 @@ export function TimingBody({
 
       <TimingHeadline report={report} sessionIntentType={sessionIntentType} />
 
-      <TimingHeatmap
-        grid={report.grid}
-        maskBelowFive={maskBelowFive}
-        legendFooter={legendFooter}
-      />
+      <TimingHeatmap grid={report.grid} legendFooter={legendFooter} />
 
       <VarianceNote note={report.variance_note} />
 
