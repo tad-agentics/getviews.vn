@@ -29,8 +29,11 @@ def _is_commercial(ua: dict, ci: dict[str, Any]) -> bool:
     promo = str(ua.get("promotion_type") or "organic").lower()
     if promo not in ("organic", ""):
         return True
-    obj = str(ci.get("conversion_objective") or "entertainment_first").lower()
-    return obj != "entertainment_first"
+    # If Gemini populated commerce_intent at all, there is enough evidence to
+    # run commerce analysis regardless of conversion_objective label.
+    if ci:
+        return True
+    return False
 
 
 def _verbal_cta_satisfied(ua: dict, ci: dict[str, Any]) -> bool:

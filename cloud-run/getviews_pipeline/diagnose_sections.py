@@ -89,12 +89,19 @@ def _applies_commerce(ctx: dict, manifest: Manifest) -> bool:
 
     Organic + ``commerce_intent`` (e.g. shop_direct) still yields §0/§12 signals; the section
     must open whenever ``manifest[\"commerce\"]`` is non-empty, otherwise v6 drops the manifest.
+
+    Fallback: business/brand account_type always warrants a commerce section even when
+    Gemini classifies the video as organic (brand showcase without explicit shop CTA).
     """
     if manifest.get("commerce"):
         return True
     ua = ctx.get("user_analysis") or {}
     promo = str(ua.get("promotion_type") or "organic").lower()
-    return promo not in ("organic", "")
+    if promo not in ("organic", ""):
+        return True
+    us = ctx.get("user_stats") or {}
+    account_type = str(us.get("account_type") or "").lower()
+    return account_type in ("business", "brand", "creator_marketplace")
 
 
 def _applies_metadata(_ctx: dict, manifest: Manifest) -> bool:
