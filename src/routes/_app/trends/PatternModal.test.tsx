@@ -81,7 +81,7 @@ describe("PatternModal — open state", () => {
     const { getByText, getAllByText } = wrap(
       <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
-    expect(getByText(/PATTERN · 47 VIDEO · 142\.0K VIEW TB/)).toBeTruthy();
+    expect(getByText(/47 video · 142\.0K lượt xem TB/)).toBeTruthy();
     expect(getByText("Sau ___ tháng dùng")).toBeTruthy();
     // Sample hook appears in the description AND inside the takeaway —
     // expect ≥ 1.
@@ -103,7 +103,7 @@ describe("PatternModal — open state", () => {
     const { getByText, getAllByLabelText } = wrap(
       <PatternModal pattern={samplePattern()} nicheId={4} open onOpenChange={() => {}} />,
     );
-    expect(getByText(/CHUYỂN VIDEO \(1\/3\)/)).toBeTruthy();
+    expect(getByText(/Chuyển video \(1\/3\)/)).toBeTruthy();
     expect(getAllByLabelText(/Mẫu \d+/).length).toBe(3);
   });
 
@@ -137,24 +137,32 @@ describe("PatternModal — open state", () => {
     expect(onChange).toHaveBeenCalledWith(false);
   });
 
-  it("embeds TikTok player in-modal when video_id is a numeric aweme id", () => {
+  it("loads TikTok embed on hover and unloads on mouse leave for numeric aweme id", () => {
+    const embedId = "7349098765432101123";
     const p = samplePattern({
       videos: [
         {
-          video_id: "7349098765432101123",
+          video_id: embedId,
           thumbnail_url: "https://t/1.jpg",
           creator_handle: "an.tech",
           views: 250_000,
           tiktok_url: null,
         },
-        ...samplePattern().videos.slice(1),
       ],
     });
     wrap(<PatternModal pattern={p} nicheId={4} open onOpenChange={() => {}} />);
-    const iframe = document.body.querySelector(
-      'iframe[src*="tiktok.com/embed/v2/7349098765432101123"]',
-    );
-    expect(iframe).toBeTruthy();
+    const iframeSel = `iframe[src*="tiktok.com/embed/v2/${embedId}"]`;
+    expect(document.body.querySelector(iframeSel)).toBeNull();
+
+    const phoneShell = document.body.querySelector(
+      'aside div.relative.overflow-hidden[style*="aspect-ratio: 9 / 16"]',
+    ) as HTMLElement;
+    expect(phoneShell).toBeTruthy();
+    fireEvent.mouseEnter(phoneShell);
+    expect(document.body.querySelector(iframeSel)).toBeTruthy();
+
+    fireEvent.mouseLeave(phoneShell);
+    expect(document.body.querySelector(iframeSel)).toBeNull();
   });
 
   it("renders a 'no video' fallback when pattern has zero videos", () => {

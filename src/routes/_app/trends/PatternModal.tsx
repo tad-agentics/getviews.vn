@@ -274,6 +274,7 @@ function PhoneTile({ video }: { video: PatternVideo | null }) {
           className={shellCls}
           style={{ aspectRatio: "9 / 16" }}
           onMouseEnter={() => setHoverPlay(true)}
+          onMouseLeave={() => setHoverPlay(false)}
         >
           {hoverPlay ? (
             <iframe
