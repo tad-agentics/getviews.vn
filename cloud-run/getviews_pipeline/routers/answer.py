@@ -301,3 +301,19 @@ async def answer_patch_session(
     except PermissionError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
     return JSONResponse(row)
+
+
+@router.delete("/answer/sessions/{session_id}")
+async def answer_delete_session(
+    session_id: str,
+    user: dict[str, Any] = Depends(require_user),
+) -> JSONResponse:
+    """Permanently delete an answer session (turns cascade)."""
+    from getviews_pipeline.answer_session import delete_session
+
+    try:
+        await run_sync(delete_session, user["user_id"], session_id)
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="session_not_found")
+    logger.info("[answer/sessions] DELETE id=%s user=%s", session_id, user["user_id"])
+    return JSONResponse({"ok": True})

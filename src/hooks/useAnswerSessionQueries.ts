@@ -7,7 +7,12 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { fetchAnswerSessionDetail, fetchAnswerSessions, patchAnswerSession } from "@/lib/answerApi";
+import {
+  deleteAnswerSession,
+  fetchAnswerSessionDetail,
+  fetchAnswerSessions,
+  patchAnswerSession,
+} from "@/lib/answerApi";
 import type { AnswerSessionRow, AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 
 export const answerSessionKeys = {
@@ -59,37 +64,27 @@ export function useAnswerSessionDetail(sessionId: string | null | undefined, use
   });
 }
 
-/**
- * Archive (soft-delete) an answer session by PATCHing `archived_at` to now.
- *
- * Distinct from chat sessions which hard-delete via RPC — answer sessions
- * carry irreversible Gemini + EnsembleData spend on their turn rows, so
- * the model kept an `archived_at` column for reversibility. The history
- * view's `history_union` RPC filters `archived_at IS NULL`, so setting
- * it is effectively "delete" from the user's point of view.
- *
- * On success invalidates both the answer-sessions list cache (drawer on
- * /app/answer) and the history-union cache (the /app/history list) so
- * the row disappears from every surface without a manual reload.
- */
-export function useArchiveAnswerSession() {
+/** Permanently delete an answer session (``DELETE /answer/sessions/:id``). */
+export function useDeleteAnswerSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
       const t = await getToken();
       if (!t) throw new Error("auth");
-      return patchAnswerSession(t, sessionId, {
-        archived_at: new Date().toISOString(),
-      });
+      await deleteAnswerSession(t, sessionId);
     },
-    onSuccess: (_row, sessionId) => {
+    onSuccess: (_void, sessionId) => {
+      qc.removeQueries({ queryKey: answerSessionKeys.detail(sessionId) });
       void qc.invalidateQueries({ queryKey: answerSessionKeys.all });
-      void qc.invalidateQueries({ queryKey: answerSessionKeys.detail(sessionId) });
-      // history_union + search_history_union filter archived_at IS NULL.
       void qc.invalidateQueries({ queryKey: ["history_union"] });
       void qc.invalidateQueries({ queryKey: ["search_history_union"] });
     },
   });
+}
+
+/** @deprecated Use ``useDeleteAnswerSession`` — hard delete replaced soft archive. */
+export function useArchiveAnswerSession() {
+  return useDeleteAnswerSession();
 }
 
 /**

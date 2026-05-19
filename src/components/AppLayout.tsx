@@ -30,7 +30,7 @@ import { useChatSessions, useDeleteSession, useUpdateSession } from "@/hooks/use
 import {
   answerSessionKeys,
   useAnswerSessionsList,
-  useArchiveAnswerSession,
+  useDeleteAnswerSession,
   useRenameAnswerSession,
 } from "@/hooks/useAnswerSessionQueries";
 import { chatKeys } from "@/hooks/useChatSession";
@@ -171,14 +171,14 @@ function DeleteConfirmDialog({
   variant: "chat" | "answer";
 }) {
   const title =
-    variant === "answer" ? "Ẩn phiên nghiên cứu" : "Xoá cuộc trò chuyện";
+    variant === "answer" ? "Xoá phiên nghiên cứu" : "Xoá cuộc trò chuyện";
   const body =
     variant === "answer" ? (
       <>
-        Phiên sẽ biến khỏi Studio và Lịch sử — bạn không mở lại được từ đây.
+        Bạn có chắc muốn xoá phiên này không?
         <br />
         <span className="text-[color:var(--gv-ink)] font-semibold">
-          Lượt phân tích đã chạy vẫn được lưu ở hạ tầng (không hiện lại trong app).
+          Toàn bộ lượt phân tích và kết quả trong phiên sẽ bị xoá vĩnh viễn — không khôi phục được.
         </span>
       </>
     ) : (
@@ -190,7 +190,7 @@ function DeleteConfirmDialog({
         </span>
       </>
     );
-  const confirmLabel = variant === "answer" ? "Ẩn phiên" : "Xoá vĩnh viễn";
+  const confirmLabel = "Xoá vĩnh viễn";
 
   return (
     <>
@@ -478,7 +478,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
   const qc = useQueryClient();
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
-  const archiveAnswerSession = useArchiveAnswerSession();
+  const deleteAnswerSessionMutation = useDeleteAnswerSession();
   const renameAnswerSession = useRenameAnswerSession();
   const cloudUrl = env.VITE_CLOUD_RUN_API_URL;
   const answerListQuery = useAnswerSessionsList(
@@ -579,8 +579,9 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
     if (!t) return;
     setDeleteTarget(null);
     if (t.source === "answer") {
-      archiveAnswerSession.mutate(t.id, {
+      deleteAnswerSessionMutation.mutate(t.id, {
         onSuccess: () => {
+          qc.removeQueries({ queryKey: answerSessionKeys.detail(t.id) });
           void qc.invalidateQueries({ queryKey: answerSessionKeys.all });
           setPinnedIds((prev) => {
             const next = new Set(prev);
@@ -664,7 +665,7 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
                 Getviews<span className="text-[color:var(--gv-accent-2-deep)]">.</span>
               </span>
               <p className="gv-uc mt-[3px] text-[9px] font-semibold text-[color:var(--gv-ink-4)] md:text-[9.5px]">
-                Studio · Creator
+                Creator Studio
               </p>
             </div>
           </div>

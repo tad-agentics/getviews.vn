@@ -953,7 +953,7 @@ export default function SettingsScreen() {
 
           <LogoutSection logout={logout} navigate={navigate} />
 
-          <footer className="mt-10 space-y-1 text-center font-mono text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
+          <footer className="mt-10 space-y-1 text-center text-sm leading-relaxed text-[color:var(--gv-ink-4)]">
             <p>Getviews.vn · v1.0.0</p>
             <p className="mx-auto max-w-xl">
               Một sản phẩm thuộc CÔNG TY CỔ PHẦN PHÁT TRIỂN SẢN PHẨM SÁNG TẠO VIỆT - MST: 0108150321

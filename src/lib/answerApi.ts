@@ -135,14 +135,32 @@ export async function fetchAnswerSessionDetail(accessToken: string, sessionId: s
   };
 }
 
+/** ``DELETE /answer/sessions/:id`` — permanently remove session + turns (cascade). */
+export async function deleteAnswerSession(
+  accessToken: string,
+  sessionId: string,
+): Promise<void> {
+  const base = answerApiBase();
+  if (!base) throw new Error("no_cloud_run");
+  const res = await fetchWithTimeout(`${base}/answer/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    timeoutMs: 15_000,
+  });
+  if (res.status === 401) {
+    throwSessionExpired("401_from_cloud_run");
+  }
+  if (res.status === 404) throw new Error("session_not_found");
+  if (!res.ok) {
+    await throwFromResponse(res, "answer/session DELETE");
+  }
+}
+
 /**
  * ``PATCH /answer/sessions/:id`` — update title and/or archived_at.
  *
- * Answer sessions have an ``archived_at`` column (history_union filters
- * ``archived_at IS NULL``, so setting it effectively hides the session from
- * /app/history). Distinct from chat sessions which hard-delete via RPC —
- * per phase-c-plan.md the soft-delete model stayed for answer because
- * turn rows carry irreversible cost (Gemini + EnsembleData spend).
+ * ``archived_at`` remains for admin/legacy paths; user-facing delete uses
+ * ``deleteAnswerSession`` (hard delete).
  */
 export async function patchAnswerSession(
   accessToken: string,

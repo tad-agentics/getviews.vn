@@ -64,7 +64,7 @@ vi.mock("@/hooks/useAnswerSessionQueries", async () => {
   );
   return {
     ...actual,
-    useArchiveAnswerSession: () => ({ mutateAsync: vi.fn() }),
+    useDeleteAnswerSession: () => ({ mutateAsync: vi.fn() }),
     useRenameAnswerSession: () => ({ mutateAsync: vi.fn() }),
   };
 });

@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useDeleteSession, useUpdateSession } from "@/hooks/useChatSessions";
-import { useArchiveAnswerSession, useRenameAnswerSession } from "@/hooks/useAnswerSessionQueries";
+import { useDeleteAnswerSession, useRenameAnswerSession } from "@/hooks/useAnswerSessionQueries";
 import {
   type HistoryUnionRow,
   useHistoryUnion,
@@ -102,7 +102,7 @@ export default function HistoryScreen() {
 
   const deleteSession = useDeleteSession();
   const updateSession = useUpdateSession();
-  const archiveAnswerSession = useArchiveAnswerSession();
+  const deleteAnswerSession = useDeleteAnswerSession();
   const renameAnswerSession = useRenameAnswerSession();
 
   // Delete flow needs to know which surface the target belongs to so the
@@ -214,11 +214,8 @@ export default function HistoryScreen() {
               Xoá phiên này?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[color:var(--gv-ink-3)]">
-              {/* Answer sessions soft-delete (archived_at set); the turn rows
-                  + their costly Gemini/EnsembleData outputs stay in the DB
-                  for reversibility. Chat sessions hard-delete with cascade. */}
               {deleteTarget?.type === "answer"
-                ? "Phiên sẽ bị ẩn khỏi lịch sử. Dữ liệu phân tích vẫn được giữ lại."
+                ? "Toàn bộ lượt phân tích trong phiên sẽ bị xoá vĩnh viễn — không khôi phục được."
                 : "Bạn sẽ mất toàn bộ lịch sử hội thoại."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -237,7 +234,7 @@ export default function HistoryScreen() {
                   if (target.type === "chat") {
                     await deleteSession.mutateAsync(target.id);
                   } else {
-                    await archiveAnswerSession.mutateAsync(target.id);
+                    await deleteAnswerSession.mutateAsync(target.id);
                   }
                 } catch {
                   /* chat: optimistic rollback handled in hook;

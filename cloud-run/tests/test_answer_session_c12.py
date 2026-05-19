@@ -8,6 +8,7 @@ import pytest
 
 from getviews_pipeline.answer_session import (
     create_session,
+    delete_session,
     get_session_turns,
     patch_session,
 )
@@ -159,3 +160,38 @@ def test_patch_session_updates_title(mock_get: MagicMock) -> None:
 
     out = patch_session("u1", "s1", title="New")
     assert out["title"] == "New"
+
+
+@patch("getviews_pipeline.answer_session.get_service_client")
+def test_delete_session_removes_row(mock_get: MagicMock) -> None:
+    mock_sb = MagicMock()
+    chain = MagicMock()
+    mock_sb.table.return_value = chain
+    chain.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.single.return_value = chain
+    chain.delete.return_value = chain
+    chain.execute.side_effect = [
+        MagicMock(data={"user_id": "u1"}),
+        MagicMock(data=[]),
+    ]
+    mock_get.return_value = mock_sb
+
+    delete_session("u1", "s1")
+    chain.delete.assert_called_once()
+    chain.delete.return_value.eq.assert_called_with("id", "s1")
+
+
+@patch("getviews_pipeline.answer_session.get_service_client")
+def test_delete_session_wrong_user(mock_get: MagicMock) -> None:
+    mock_sb = MagicMock()
+    chain = MagicMock()
+    mock_sb.table.return_value = chain
+    chain.select.return_value = chain
+    chain.eq.return_value = chain
+    chain.single.return_value = chain
+    chain.execute.return_value = MagicMock(data={"user_id": "other"})
+    mock_get.return_value = mock_sb
+
+    with pytest.raises(PermissionError):
+        delete_session("u1", "s1")

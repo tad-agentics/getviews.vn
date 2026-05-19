@@ -338,3 +338,30 @@ def test_create_answer_session_missing_auth_returns_401() -> None:
         },
     )
     assert res.status_code == 401
+
+
+def test_delete_answer_session_happy_path(
+    client_with_user: TestClient,
+    _fake_service_client: _FakeSupabase,
+) -> None:
+    """``DELETE /answer/sessions/:id`` removes the row for the owner."""
+    create = client_with_user.post(
+        "/answer/sessions",
+        json={
+            "initial_q": "q",
+            "intent_type": "trend_spike",
+            "niche_id": None,
+            "format": "pattern",
+        },
+        headers={"Authorization": "Bearer fake"},
+    )
+    assert create.status_code == 200
+    sid = create.json()["id"]
+    res = client_with_user.delete(
+        f"/answer/sessions/{sid}",
+        headers={"Authorization": "Bearer fake"},
+    )
+    assert res.status_code == 200
+    assert res.json() == {"ok": True}
+    remaining = _fake_service_client._store.get("answer_sessions", [])
+    assert not any(r["id"] == sid for r in remaining)

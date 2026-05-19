@@ -820,3 +820,13 @@ def patch_session(
         return s.data
     sb.table("answer_sessions").update(upd).eq("id", session_id).execute()
     return sb.table("answer_sessions").select("*").eq("id", session_id).single().execute().data
+
+
+def delete_session(user_id: str, session_id: str) -> None:
+    """Hard-delete an answer session and cascade ``answer_turns`` (+ idempotency rows)."""
+    sb = get_service_client()
+    s = sb.table("answer_sessions").select("user_id").eq("id", session_id).single().execute()
+    if not s.data or s.data["user_id"] != user_id:
+        raise PermissionError("session_not_found")
+    sb.table("answer_sessions").delete().eq("id", session_id).execute()
+    logger.info("[answer/sessions] deleted session=%s user=%s", session_id, user_id)
