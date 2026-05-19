@@ -364,7 +364,7 @@ describe("VideoBody render", () => {
     });
     renderInRouter(withComparison);
     // Kicker carries the creator handle inline with the section title.
-    expect(screen.getByText(/SO SÁNH TRONG KÊNH · @creatorx/)).toBeTruthy();
+    expect(screen.getByText(/So sánh trong kênh · @creatorx/i)).toBeTruthy();
     expect(screen.getByText("Video có views cao nhất")).toBeTruthy();
     expect(screen.getByText("Video có views thấp nhất")).toBeTruthy();
     // Hit views formatted as 1.2M (formatViews threshold)
@@ -432,7 +432,7 @@ describe("VideoBody render", () => {
       meta: { ...makeFlopReport().meta, creator: "" },
     });
     renderInRouter(withoutCreator);
-    expect(screen.queryByText(/SO SÁNH TRONG KÊNH/)).toBeNull();
+    expect(screen.queryByText(/So sánh trong kênh/i)).toBeNull();
   });
 
   it("omits ContextStrip entirely when no enrichment + no creator_median_views", () => {

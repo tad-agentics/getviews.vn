@@ -81,10 +81,13 @@ export function ChannelProofBlock({
   channelContext,
   analyzedFormat,
   creatorHandle,
+  variant = "standalone",
 }: {
   channelContext: ChannelContext;
   analyzedFormat?: string | null;
   creatorHandle?: string | null;
+  /** `embed` — inside `channel_pattern` section (no duplicate section heading). */
+  variant?: "standalone" | "embed";
 }) {
   if (!channelContext.available) return null;
 
@@ -125,21 +128,14 @@ export function ChannelProofBlock({
 
   const handle = atHandle(creatorHandle);
 
-  return (
-    <section className="mb-6" aria-label="Dữ liệu kênh">
-      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-        Dữ liệu kênh {handle || ""}
-      </h3>
-
+  const body = (
+    <>
       <div className="grid grid-cols-1 gap-3 min-[700px]:grid-cols-2">
-        {/* Best-performing format */}
         <FormatRangeCell
           formatKey={bestEntry[0]}
           entry={bestEntry[1]}
           isAnalyzed={Boolean(isBestFormat)}
         />
-
-        {/* This video's format (or worst-performing if analyzed = best) */}
         {analyzedEntry && !isBestFormat ? (
           <FormatRangeCell
             formatKey={analyzedEntry[0]}
@@ -154,13 +150,11 @@ export function ChannelProofBlock({
           />
         ) : null}
       </div>
-
       {patternNote ? (
         <p className="mt-2 text-[12px] leading-relaxed text-[color:var(--gv-ink-3)]">
           {patternNote}
         </p>
       ) : null}
-
       {channelContext.median_views != null ? (
         <p className="mt-1 text-[11px] text-[color:var(--gv-ink-4)]">
           Trung vị kênh:{" "}
@@ -173,6 +167,29 @@ export function ChannelProofBlock({
             : ""}
         </p>
       ) : null}
+    </>
+  );
+
+  if (variant === "embed") {
+    return (
+      <div
+        className="mt-4 border-t border-[color:var(--gv-rule)] pt-4"
+        aria-label="Dữ liệu format trên kênh"
+      >
+        <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
+          Phân bổ format trên kênh {handle || ""}
+        </p>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <section className="mb-6" aria-label="Dữ liệu kênh">
+      <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
+        Dữ liệu kênh {handle || ""}
+      </h3>
+      {body}
     </section>
   );
 }
@@ -184,20 +201,19 @@ export function ChannelContextLegacy({
   channelContext,
   metaTitle,
   metaViews,
+  variant = "standalone",
 }: {
   channelContext: ChannelContext;
   metaTitle?: string | null;
   metaViews: number;
+  variant?: "standalone" | "embed";
 }) {
   if (!channelContext.available) return null;
 
   const formatViewsVi = (n: number) => n.toLocaleString("vi-VN");
 
-  return (
-    <section className="mb-6">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Ngữ cảnh kênh
-      </h3>
+  const body = (
+    <>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1440px]:grid-cols-3">
         {channelContext.top_videos?.slice(0, 2).map((v) => (
           <div
@@ -285,6 +301,29 @@ export function ChannelContextLegacy({
             : ""}
         </p>
       ) : null}
+    </>
+  );
+
+  if (variant === "embed") {
+    return (
+      <div
+        className="mt-4 border-t border-[color:var(--gv-rule)] pt-4"
+        aria-label="Ngữ cảnh kênh"
+      >
+        <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted)]">
+          Video gần đây trên kênh
+        </p>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <section className="mb-6">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Ngữ cảnh kênh
+      </h3>
+      {body}
     </section>
   );
 }

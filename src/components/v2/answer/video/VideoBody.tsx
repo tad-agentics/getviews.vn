@@ -218,6 +218,7 @@ export function VideoBody({
   const v6SectionIds = new Set(v6Sections?.map((s) => String(s.section_id)) ?? []);
   const hasV6ChannelPattern = v6SectionIds.has("channel_pattern");
   const hasV6HookAnalysis = v6SectionIds.has("hook_analysis");
+  const hasV6Distribution = v6SectionIds.has("distribution");
   // CrossFormatPanel is a v5 standalone block. In v6 the cross-format signal
   // is passed into the Gemini prompt so niche_pattern/distribution narrate it
   // directly — suppress the standalone card to avoid duplication.
@@ -489,7 +490,7 @@ export function VideoBody({
           </div>
         ) : null}
 
-        {nichePostingContextEffective ? (
+        {nichePostingContextEffective && !showV6SectionBody ? (
           <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
         ) : null}
 
@@ -502,23 +503,25 @@ export function VideoBody({
                   <DiagnosisSectionRenderer
                     section={sec}
                     referenceVideos={refVideos}
+                    postingContext={
+                      sid === "distribution" ? nichePostingContextEffective : undefined
+                    }
+                    creatorComparison={
+                      sid === "channel_pattern" ? report.creator_comparison ?? null : undefined
+                    }
+                    channelPatternEmbed={
+                      sid === "channel_pattern" && channelEffective?.available
+                        ? {
+                            channelContext: channelEffective,
+                            analyzedFormat: meta.content_format ?? null,
+                            creatorHandle: meta.creator ?? null,
+                            metaTitle: meta.title,
+                            metaViews: meta.views,
+                            isV5,
+                          }
+                        : undefined
+                    }
                   />
-                  {/* Channel data cards embedded immediately after channel_pattern prose */}
-                  {sid === "channel_pattern" && channelEffective?.available ? (
-                    isV5 ? (
-                      <ChannelProofBlock
-                        channelContext={channelEffective}
-                        analyzedFormat={meta.content_format ?? null}
-                        creatorHandle={meta.creator ?? null}
-                      />
-                    ) : (
-                      <ChannelContextLegacy
-                        channelContext={channelEffective}
-                        metaTitle={meta.title}
-                        metaViews={meta.views}
-                      />
-                    )
-                  ) : null}
                   {/* Hook phase cards embedded immediately after hook_analysis prose */}
                   {sid === "hook_analysis" && report.hook_phases?.length ? (
                     <div className="mb-6">
@@ -532,6 +535,14 @@ export function VideoBody({
               );
             })}
           </div>
+        ) : null}
+
+        {showV6SectionBody && nichePostingContextEffective && !hasV6Distribution ? (
+          <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
+        ) : null}
+
+        {showV6SectionBody && !hasV6ChannelPattern && report.creator_comparison ? (
+          <CreatorComparisonCard data={report.creator_comparison} />
         ) : null}
 
         {!showV6SectionBody && narrativeVi?.van_de_chinh ? (
@@ -575,15 +586,16 @@ export function VideoBody({
         {/* Standalone channel block: shown when channel data is available but
             channel_pattern didn't emit as a v6 section (sample_size < 2).
             Add a brief intro so the cards aren't orphaned without context. */}
-        {channelEffective?.available && !hasV6ChannelPattern ? (
+        {channelEffective?.available &&
+        !hasV6ChannelPattern &&
+        !report.creator_comparison ? (
           <div className="mb-6">
-            <h3 className="text-base font-bold text-[color:var(--foreground)] leading-snug mb-2">
-              SO SÁNH TRONG KÊNH
+            <h3 className="mb-2 text-base font-bold leading-snug text-[color:var(--foreground)]">
+              Video này so với kênh bạn
             </h3>
             <p className="mb-3 max-w-[680px] text-[14px] leading-relaxed text-[color:var(--gv-ink-2)]">
               Video này so với các video khác trên cùng kênh — video có lượt xem cao nhất cho thấy
-              format và hook đang hoạt động tốt; video thấp nhất chỉ ra điểm yếu lặp lại. Đặt hai
-              đầu lại với nhau để thấy khoảng cách và nguyên nhân.
+              format và hook đang hoạt động tốt; video thấp nhất chỉ ra điểm yếu lặp lại.
             </p>
             {isV5 ? (
               <ChannelProofBlock
@@ -613,7 +625,7 @@ export function VideoBody({
           <NextStepsSection text={narrativeVi.dinh_huong_chien_luoc} />
         ) : null}
 
-        {report.creator_comparison ? (
+        {!showV6SectionBody && report.creator_comparison ? (
           <CreatorComparisonCard data={report.creator_comparison} />
         ) : null}
 

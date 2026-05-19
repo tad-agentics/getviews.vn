@@ -3,12 +3,21 @@
  */
 import { SectionProseBlocks } from "@/components/SectionProseBlocks";
 import type {
+  ChannelContext,
   ChannelNextVideoConcept,
   ChannelPerformerTile,
+  CreatorComparison,
   DiagnosisFinding,
+  DiagnosisPostingContextPayload,
   DiagnosisSectionVi,
   ReferenceVideoCard,
 } from "@/lib/api-types";
+import { CreatorComparisonEmbed } from "@/components/diagnosis/CreatorComparisonEmbed";
+import { PostingHeatmapEmbed } from "@/components/diagnosis/PostingHeatmapEmbed";
+import {
+  ChannelContextLegacy,
+  ChannelProofBlock,
+} from "@/components/v2/answer/video/blocks/ChannelProofBlock";
 import { NextVideoCard, NextVideoCardEmpty } from "@/routes/_app/channel/components/NextVideoCard";
 import { VideoTileRow } from "@/routes/_app/channel/components/VideoTileRow";
 
@@ -120,12 +129,33 @@ function SectionFindingCard({
   );
 }
 
+export interface ChannelPatternEmbedProps {
+  channelContext: ChannelContext;
+  analyzedFormat?: string | null;
+  creatorHandle?: string | null;
+  metaTitle?: string | null;
+  metaViews: number;
+  isV5: boolean;
+}
+
 interface DiagnosisSectionRendererProps {
   section: DiagnosisSectionVi;
   referenceVideos: ReferenceVideoCard[];
+  /** Corpus 7×8 grid — embedded under `distribution` prose when present. */
+  postingContext?: DiagnosisPostingContextPayload | null;
+  /** Hit/flop peer videos — embedded under `channel_pattern` prose. */
+  creatorComparison?: CreatorComparison | null;
+  /** Format-range channel stats — embedded under `channel_pattern` when available. */
+  channelPatternEmbed?: ChannelPatternEmbedProps | null;
 }
 
-export function DiagnosisSectionRenderer({ section, referenceVideos }: DiagnosisSectionRendererProps) {
+export function DiagnosisSectionRenderer({
+  section,
+  referenceVideos,
+  postingContext,
+  creatorComparison,
+  channelPatternEmbed,
+}: DiagnosisSectionRendererProps) {
   const title = sectionTitle(section);
   const text = sectionText(section);
   const sid = String(section.section_id);
@@ -174,6 +204,29 @@ export function DiagnosisSectionRenderer({ section, referenceVideos }: Diagnosis
           paragraphClassName="text-[15px] leading-relaxed text-[color:var(--foreground)]"
         />
       </div>
+      {sid === "distribution" && postingContext ? (
+        <PostingHeatmapEmbed payload={postingContext} />
+      ) : null}
+      {sid === "channel_pattern" && creatorComparison ? (
+        <CreatorComparisonEmbed data={creatorComparison} />
+      ) : null}
+      {sid === "channel_pattern" && channelPatternEmbed?.channelContext.available ? (
+        channelPatternEmbed.isV5 ? (
+          <ChannelProofBlock
+            channelContext={channelPatternEmbed.channelContext}
+            analyzedFormat={channelPatternEmbed.analyzedFormat}
+            creatorHandle={channelPatternEmbed.creatorHandle}
+            variant="embed"
+          />
+        ) : (
+          <ChannelContextLegacy
+            channelContext={channelPatternEmbed.channelContext}
+            metaTitle={channelPatternEmbed.metaTitle}
+            metaViews={channelPatternEmbed.metaViews}
+            variant="embed"
+          />
+        )
+      ) : null}
       {tiles.length > 0 ? (
         <div className="mt-4 border-t border-[color:var(--gv-rule)] pt-4">
           <VideoTileRow tiles={tiles} />
