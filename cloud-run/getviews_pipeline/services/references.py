@@ -18,6 +18,23 @@ from getviews_pipeline.pipelines import (  # noqa: E402
 )
 
 
+def _proximity_score_for_ref(
+    ref: dict[str, Any],
+    *,
+    video_desc: str,
+    video_hashtags: list[str],
+) -> int:
+    """Score corpus aweme rows or ``analyze_aweme`` synthesis refs for caption overlap."""
+    meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
+    analysis = ref.get("analysis") if isinstance(ref.get("analysis"), dict) else {}
+    shaped = {
+        "desc": ref.get("desc") or meta.get("description") or "",
+        "metadata": meta,
+        "analysis": analysis,
+    }
+    return _content_proximity_score(shaped, video_desc, video_hashtags)
+
+
 def _annotate_pick_proximity(
     picks: list[dict[str, Any]],
     *,
@@ -25,7 +42,36 @@ def _annotate_pick_proximity(
     video_hashtags: list[str],
 ) -> None:
     for p in picks:
-        p["_proximity_score"] = _content_proximity_score(p, video_desc, video_hashtags)
+        p["_proximity_score"] = _proximity_score_for_ref(
+            p, video_desc=video_desc, video_hashtags=video_hashtags
+        )
+
+
+def _ensure_slim_refs_proximity_scores(
+    synthesis_refs: list[dict[str, Any]],
+    slim_refs: list[dict[str, Any]],
+    *,
+    video_desc: str,
+    video_hashtags: list[str],
+) -> None:
+    """Backfill ``content_proximity_score`` on slim cards (live_search path skips corpus annotate)."""
+    by_id: dict[str, dict[str, Any]] = {}
+    for ref in synthesis_refs:
+        meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
+        aid = str(ref.get("aweme_id") or meta.get("video_id") or "").strip()
+        if aid:
+            by_id[aid] = ref
+
+    for slim in slim_refs:
+        if slim.get("content_proximity_score") is not None:
+            continue
+        aid = str(slim.get("aweme_id") or "").strip()
+        ref = by_id.get(aid)
+        if not ref:
+            continue
+        slim["content_proximity_score"] = _proximity_score_for_ref(
+            ref, video_desc=video_desc, video_hashtags=video_hashtags
+        )
 
 __all__ = [
     "REF_N",
@@ -171,6 +217,13 @@ async def select_synthesis_references_for_video(
                     corpus_source = "live_search"
         except Exception as exc:
             logger.warning("[references] live_search_fn failed: %s", exc)
+
+    _ensure_slim_refs_proximity_scores(
+        synthesis_refs,
+        slim_refs,
+        video_desc=video_desc,
+        video_hashtags=video_hashtags,
+    )
 
     evidence_block = _reference_evidence_lines(synthesis_refs, corpus_source)
     return synthesis_refs, slim_refs, evidence_block
