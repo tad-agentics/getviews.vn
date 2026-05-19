@@ -12,6 +12,7 @@
 
 | Feature | What changed | Blocking? | Fixed? | Commit |
 |---|---|---|---|---|
+| Answer session delete | **Hard delete:** `DELETE /answer/sessions/:id` + RLS `answer_sessions_delete_own`; Studio/history「Xoá」removes session + `answer_turns` (replaces `archived_at` soft-hide). Migration `20260726000000`. Does not purge `video_diagnostics` cache rows. | NO | Yes | 3011f55 |
 | Answer sidebar titles | **Option A:** after video diagnosis synthesis, promote `answer_sessions.title` from `narrative_vi.headline_vi` when title still matches auto-truncated `initial_q` (preserves manual `patch_session` renames). | NO | Yes | 6332eb2 |
 | Video answer / reference tiles | **Off-topic embedded refs:** annotate `content_proximity_score` on synthesis pool picks; post-synthesis `_sanitize_diagnosis_embedded_tiles` keeps only proximity ≥1 ids resolved from pool; FE `mapDiagnosisEmbeddedTiles` drops orphan aweme hints. | NO | Yes | 61570d7 |
 | Video answer / v6 cutover (pre-launch) | **Single FE path:** `resolveDiagnosisSections` + `DiagnosisSectionRenderer` only — removed pre-v6 `van_de_chinh`, numbered flop rows, `ket_luan_nhanh` callout, `CrossFormatPanel`, duplicate posting/channel cards. **BE default:** `GETVIEWS_DIAGNOSIS_SECTION_MODE=1` (set `=0` to opt out). **Cache:** `TRUNCATE video_diagnostics` via `20260725000000_clear_video_diagnostics_v6_cutover.sql`. Cloud Run user redeployed (`getviews-pipeline-user-00121-vgh`). | NO | Yes | 2c61bf1 |
