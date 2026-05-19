@@ -49,6 +49,51 @@ _TURN_KINDS: frozenset[str] = frozenset(
     {"primary", "timing", "creators", "script", "generic"}
 )
 
+_DEFAULT_SESSION_TITLE = "Phiên nghiên cứu"
+_AUTO_TITLE_MAX_LEN = 80
+
+
+def auto_title_from_initial_q(initial_q: str) -> str:
+    """Sidebar title at session create — mirrors ``create_session`` insert."""
+    q = (initial_q or "").strip()
+    if not q:
+        return _DEFAULT_SESSION_TITLE
+    return (q[:_AUTO_TITLE_MAX_LEN] + "…") if len(q) > _AUTO_TITLE_MAX_LEN else q
+
+
+def title_from_headline_vi(headline_vi: str) -> str | None:
+    """Truncate synthesis headline for ``answer_sessions.title``."""
+    headline = str(headline_vi or "").strip()
+    if not headline or headline == "—":
+        return None
+    return (
+        (headline[:_AUTO_TITLE_MAX_LEN] + "…")
+        if len(headline) > _AUTO_TITLE_MAX_LEN
+        else headline
+    )
+
+
+def maybe_promote_session_title_from_video_narrative(
+    session: dict[str, Any],
+    video_report: dict[str, Any],
+) -> str | None:
+    """Return a new title when the row still carries the auto ``initial_q`` title.
+
+    Preserves manual renames from the sidebar (``patch_session``): only promotes
+    when ``title`` exactly matches ``auto_title_from_initial_q(initial_q)``.
+    """
+    initial_q = str(session.get("initial_q") or "")
+    current_title = str(session.get("title") or "")
+    if current_title != auto_title_from_initial_q(initial_q):
+        return None
+    narrative = video_report.get("narrative_vi")
+    if not isinstance(narrative, dict):
+        return None
+    new_title = title_from_headline_vi(str(narrative.get("headline_vi") or ""))
+    if not new_title or new_title == current_title:
+        return None
+    return new_title
+
 
 def select_builder_for_turn(session_fmt: str, kind: str) -> str:
     """Map ``(session.format, turn.kind)`` to the report builder.
@@ -295,13 +340,12 @@ def create_session(
             row = sb.table("answer_sessions").select("*").eq("id", existing_sid).single().execute()
             return row.data
 
-    title = (initial_q[:80] + "…") if len(initial_q) > 80 else initial_q
     insert_payload: dict[str, Any] = {
         "user_id": user_id,
         "initial_q": initial_q,
         "intent_type": intent_type,
         "format": format,
-        "title": title or "Phiên nghiên cứu",
+        "title": auto_title_from_initial_q(initial_q),
     }
     if niche_id is not None:
         insert_payload["niche_id"] = niche_id
@@ -373,7 +417,7 @@ def append_turn(
     sb_srv = get_service_client()
     sess = (
         sb_srv.table("answer_sessions")
-        .select("id,user_id,format,niche_id")
+        .select("id,user_id,format,niche_id,title,initial_q")
         .eq("id", session_id)
         .single()
         .execute()
@@ -668,6 +712,16 @@ def append_turn(
             logger.warning(
                 "[answer/turns] turn_context extraction failed session=%s",
                 session_id, exc_info=True,
+            )
+
+    if builder_fmt == "video" and isinstance(inner, dict):
+        promoted_title = maybe_promote_session_title_from_video_narrative(session, inner)
+        if promoted_title:
+            session_update["title"] = promoted_title
+            logger.info(
+                "[answer/turns] title promoted from headline_vi session=%s title=%r",
+                session_id,
+                promoted_title[:60],
             )
 
     sb_srv.table("answer_sessions").update(session_update).eq("id", session_id).execute()
