@@ -42,10 +42,14 @@ case "$TARGET" in
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
-  echo "Building image $IMAGE..."
-  gcloud builds submit --project "$PROJECT_ID" --tag "$IMAGE" "$SCRIPT_DIR"
+  echo "Building image $IMAGE (context: repo root — includes supabase/migrations for junction)..."
+  gcloud builds submit --project "$PROJECT_ID" \
+    --config="$SCRIPT_DIR/cloudbuild.yaml" \
+    --substitutions="_TAG=$IMAGE" \
+    "$REPO_ROOT"
 else
   echo "SKIP_BUILD=1 — reusing existing image $IMAGE"
 fi

@@ -1,0 +1,12 @@
+# Build from repo root so Dockerfile can COPY supabase/migrations + cloud-run/.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - cloud-run/Dockerfile
+      - -t
+      - $_TAG
+      - .
+images:
+  - $_TAG

@@ -14,6 +14,13 @@ Three PRs shipped in May 2026 put the data-pipeline infrastructure in
 place, but none of it is running yet because no cron is scheduled to
 fire the `/batch/*` endpoints:
 
+> **2026-05-19 ops:** Use **Supabase pg_cron only** for `POST /batch/ingest`
+> and `POST /batch/morning-ritual`. Legacy **GCP Cloud Scheduler** jobs
+> `getviews-corpus-ingest` (02:00 ICT) and `getviews-morning-ritual` (22:00 ICT)
+> duplicated those calls and were **paused** via
+> `cloud-run/scripts/ops/pause-duplicate-gcp-schedulers.sh`. Do not re-enable
+> both layers without removing pg_cron schedules.
+
 | Shipped | What it does | Why it's dormant |
 |---|---|---|
 | `hook_effectiveness_compute.py` (#109) | Populates the `hook_effectiveness` aggregate every week | Never called — table still has 0 rows |

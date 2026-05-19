@@ -10,9 +10,19 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+_PR1_MIGRATION = "supabase/migrations/20260510000004_two_axis_niche_pr1_schema.sql"
+
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    """Repo root locally (``getviews.vn/``); ``/app`` in Cloud Run when migrations are copied."""
+    here = Path(__file__).resolve()
+    for base in (here.parents[1], here.parents[2]):
+        if (base / _PR1_MIGRATION).is_file():
+            return base
+    raise FileNotFoundError(
+        f"Missing {_PR1_MIGRATION} — Cloud Run image must COPY supabase migrations; "
+        "see cloud-run/Dockerfile"
+    )
 
 
 @lru_cache(maxsize=1)

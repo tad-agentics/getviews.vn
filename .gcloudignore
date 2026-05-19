@@ -1,0 +1,16 @@
+# Cloud Build context (repo root via cloud-run/deploy.sh) — keep uploads small.
+.git/
+.cursor/
+agent-workspace/
+node_modules/
+build/
+dist/
+.vercel/
+tests/
+playwright-report/
+.auth/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/*.pyc
+artifacts/uiux-reference/

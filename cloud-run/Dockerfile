@@ -7,12 +7,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY pyproject.toml .
-COPY getviews_pipeline/ ./getviews_pipeline/
+COPY cloud-run/pyproject.toml .
+COPY cloud-run/getviews_pipeline/ ./getviews_pipeline/
 RUN pip install --no-cache-dir -e ".[logs]"
 
-COPY main.py .
-COPY scripts/ ./scripts/
+COPY cloud-run/main.py .
+COPY cloud-run/scripts/ ./scripts/
+
+# HI-11 junction lookup reads PR1/PR6/HI-16 seed SQL at runtime (junction_content_class.py).
+COPY supabase/migrations/20260510000004_two_axis_niche_pr1_schema.sql \
+  supabase/migrations/20260510000004_two_axis_niche_pr1_schema.sql
+COPY supabase/migrations/20260516190000_hi16_carousel_format_axis_junction.sql \
+  supabase/migrations/20260516190000_hi16_carousel_format_axis_junction.sql
+COPY supabase/migrations/20260630000003_creator_niches_16_music_real_estate.sql \
+  supabase/migrations/20260630000003_creator_niches_16_music_real_estate.sql
 
 ENV PORT=8080
 EXPOSE 8080

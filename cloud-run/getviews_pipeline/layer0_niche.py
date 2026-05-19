@@ -6,6 +6,9 @@ hook+format formula, then uses contrastive framing (top 5 vs 5 baseline)
 to extract causal mechanisms via Gemini.
 
 Output stored in niche_insights table.
+
+``cross_niche_signals`` was dropped in migration ``20260719000005`` — do not
+re-add to upsert payloads (Module 0C sunset).
 """
 
 from __future__ import annotations
@@ -15,7 +18,21 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Final
+
+# Explicit allow-list — prevents PostgREST PGRST204 on removed columns.
+NICHE_INSIGHT_UPSERT_COLUMNS: Final[tuple[str, ...]] = (
+    "niche_id",
+    "week_of",
+    "top_formula_hook",
+    "top_formula_format",
+    "insight_text",
+    "mechanisms",
+    "execution_tip",
+    "staleness_risk",
+    "quality_flag",
+    "computed_at",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +267,9 @@ async def run_niche_insights(client: Any | None = None) -> NicheInsightResult:
                 "quality_flag": quality_flag,
                 "computed_at": computed_at,
             }
+            extra = set(row) - set(NICHE_INSIGHT_UPSERT_COLUMNS)
+            if extra:
+                raise ValueError(f"niche_insights upsert has unknown columns: {extra}")
 
             def _upsert(r: dict = row) -> None:
                 client.table("niche_insights").upsert(
