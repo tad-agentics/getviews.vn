@@ -285,7 +285,7 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 | `creator_niches` | Supabase | Migrations only | 16 UX-facing buckets |
 | `content_classifications` | Supabase | Migrations only | 74 analysis-facing categories |
 | `video_corpus` | Cloud Run batch | Service role only | 46K+ analyzed TikTok videos; `ingest_source` is write-once |
-| `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); `_schema_version: "v5"` |
+| `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change) |
 | `chat_sessions` | Supabase | Client + Cloud Run | Chat model — title, niche, soft-delete via `deleted_at` |
 | `chat_messages` | Supabase | Cloud Run only | Chat model — immutable (no UPDATE); text intent transcripts |
 | `answer_sessions` | Supabase | Client + Cloud Run | Answer model — session format, intent type |
@@ -316,7 +316,7 @@ These are production guards. Breaking any of them silently loses money or data.
 | **TD-4** | SSE reconnection: Cloud Run emits `stream_id` + `seq` per token, replays from 60s in-memory buffer | Cloud Run |
 | **TD-5** | Credits granted upfront at PAID webhook — no subscription, no monthly top-up | Edge Function |
 | **TD-6** | **Junction parity for `route` mode:** When `NICHE_RESOLVER_MODE=route`, a promoted `content_class_id` may only be written when junction lookup succeeds (`junction_has_pair` / `content_class_id_for_creator_niche_format`). Otherwise ingest falls back to the hashtag ladder. Seed data (`JUNCTION_NICHE_FORMAT_PAIRS` + migrations) must stay aligned — CI pins `test_hi9_junction_seed.py`. | `corpus_ingest.py` + taxonomy migrations |
-| **TD-7** | **Extraction parity (live vs batch):** On-demand SSE and batch corpus ingest must share the same Vietnamese extraction prompts and HI-9 `niche_classification` contract so shadow telemetry, corpus rows, and user diagnoses stay comparable. Do not fork prompt/schema between pods without an explicit parity audit. | `extraction.py`, `corpus_ingest.py`, `prompts.py` |
+| **TD-7** | **Extraction parity (live vs batch):** On-demand SSE and batch corpus ingest must share the same Vietnamese extraction prompts and HI-9 `niche_classification` contract so shadow telemetry, corpus rows, and user diagnoses stay comparable. **`build_tiktok_caption_extraction_prefix`** + tagline-vs-rhetorical-hook rules must ship on every path through `analyze_video` / batch JSONL (not ASR-only). **`user_stats.caption`** in synthesis = TikTok `desc`, never `meta.title` / `hook_phrase`. | `analysis_core.py`, `corpus_ingest.py`, `prompts.py`, `video_analyze.py` |
 
 ---
 
@@ -350,7 +350,7 @@ All business logic lives in `services/`. `pipelines.py` and `video_analyze.py` a
 | `services/synthesis.py` | `synthesize_core`, narrative generation, format cards |
 | `services/channel.py` | `fetch_channel_context_sync` (24h in-process cache), creator comparison |
 | `services/performance.py` | Performance tier classification, KPI enrichment |
-| `services/references.py` | Corpus reference video selection |
+| `services/references.py` | `select_synthesis_references_for_video` — corpus pool → proximity → content-targeted ED merge → `_reference_evidence_lines` (stream + finalize parity) |
 | `services/corpus_quality.py` | `promote_on_demand_to_corpus`, `quality_tier`, cohort eligibility |
 | `services/asr_vietnamese.py` | **HI-14:** `sync_prepare_vietnamese_asr_supplement` — GCP STT `vi-VN`, reads/writes `vietnamese_asr_cache` (**video file paths only**; carousels skip) |
 
@@ -359,12 +359,33 @@ All business logic lives in `services/`. `pipelines.py` and `video_analyze.py` a
 - **HI-14:** Before the main Gemini vision pass on **videos**, the pipeline may fetch a short Vietnamese transcript via Google Cloud Speech-to-Text (`vi-VN`), formatted into the extraction user turn. Results are cached per `video_id` in `vietnamese_asr_cache` so later calls reuse one ASR pass. **Carousels do not invoke this path** (image-only `analyze_carousel`).
 - **HI-15:** `analyze_video` may send **two** `Part` payloads: full clip at `GEMINI_VIDEO_BASE_FPS` and the first `GEMINI_HOOK_WINDOW_END_SEC` at clamped `GEMINI_HOOK_WINDOW_FPS` (3–5), so hook timing sees sharper frames without raising cost on the whole file. `GEMINI_HOOK_WINDOW_DUAL_PART=false` restores single-Part behaviour.
 
+### Caption TikTok vs hook in-video
+
+| Field | Source | UI / synthesis |
+|-------|--------|----------------|
+| `video_corpus.caption` | `aweme.desc` at ingest | Unchanged semantics |
+| `hook_analysis.hook_phrase` | Gemini vision (+ caption prefix rules) | Hook section / copy handoff |
+| `VideoAnalyzeMeta.caption` | TikTok `desc` on response | Phone overlay (`line-clamp`) |
+| `VideoAnalyzeMeta.hook_phrase` | Extraction `hook_phrase` | Script handoff when set |
+| `VideoAnalyzeMeta.title` | **Legacy** — first line of `desc` | Backward compat only; do not assign vision hook here |
+
+Extraction prepends `CAPTION_TIKTOK` via `build_tiktok_caption_extraction_prefix` (merged with HI-14 ASR block). When caption opens with a rhetorical hook and 0–3s overlay is only a marketing tagline (“coming soon”, launch date, collection name), model should set `hook_phrase` from caption and record overlay in `hook_timeline` / overlays — **batch + on-demand** share the same prefix (TD-7).
+
+### Live on-demand niche ladder
+
+Distinct from batch loop niche: `resolve_live_niche_id` in `live_niche.py` — (1) `CREATOR_NICHE_OVERRIDE` (e.g. `curnon.official` → fashion/jewelry `niche_id=3`), (2) `classify_from_hashtags`, (3) `find_niche_match` on `desc` + `challenges[].title`, (4) `answer_sessions.niche_id` via `build_video_report(session_niche_id=…)`, (5) `profiles.creator_niche_id` → `legacy_niche_id_for_creator_niche`. `finalize_video_narrative_layer` re-resolves empty `meta.niche_label`, refreshes benchmark, then runs `select_synthesis_references_for_video`.
+
+### Reference parity (answer / on-demand finalize)
+
+`/stream` (`pipelines.run_video_diagnosis`) and `finalize_video_narrative_layer` both call `select_synthesis_references_for_video`: corpus pool (≥`REF_N` or sparse/live fallback) → `_select_by_proximity_then_er` → `_maybe_merge_content_targeted_refs_async` → `_reference_evidence_lines` passed to `synthesize_diagnosis_v2(..., reference_evidence_block=…)`.
+
 ### Two cores — one extraction, one diagnosis
 
 ```
 run_extraction_core(video_path) -> ExtractionResult
   • Download video (R2 / temp)
   • Optional HI-14 ASR supplement (video only) → cached transcript hint
+  • Optional `CAPTION_TIKTOK` prefix (`build_tiktok_caption_extraction_prefix`) — same on carousel limit note
   • Gemini vision (e.g. `gemini-3.1-flash-lite`) — frame / video Parts per HI-15
   • apply_timestamp_guards  ← v4 hardening
   • validate_transcript      ← v4 hardening

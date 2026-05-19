@@ -30,8 +30,12 @@ export interface VideoAnalyzeMeta {
   duration_sec: number;
   thumbnail_url: string | null;
   date_posted: string | null;
-  /** Fixture / UI: video title */
+  /** Legacy display line — first line of TikTok ``desc``; prefer ``caption`` for overlay. */
   title?: string;
+  /** Full TikTok post description (``aweme.desc``). */
+  caption?: string | null;
+  /** In-video hook / overlay phrase from Gemini extraction — not the post caption. */
+  hook_phrase?: string | null;
   /** ``niche_taxonomy.name_vn`` / ``name_en`` — win report kicker ``BÁO CÁO PHÂN TÍCH · …``. */
   niche_label?: string;
   is_breakout?: boolean;

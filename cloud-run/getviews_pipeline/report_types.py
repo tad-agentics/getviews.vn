@@ -464,6 +464,8 @@ class VideoMeta(BaseModel):
     thumbnail_url: str | None = None
     date_posted: str | None = None
     title: str | None = None
+    caption: str | None = None
+    hook_phrase: str | None = None
     niche_label: str | None = None
     is_breakout: bool | None = None
     saves: int | None = None

@@ -1869,6 +1869,20 @@ async def _analyze_videos_gemini_batch_for_corpus(
                     logger.warning("[hi14] batch path asr prep failed: %s", exc)
                     asr_prefix, stt_usd = "", None
 
+                from getviews_pipeline.prompts import (
+                    build_tiktok_caption_extraction_prefix,
+                    merge_extraction_supplemental_prefixes,
+                )
+
+                caption_prefix = build_tiktok_caption_extraction_prefix(
+                    metadata.description,
+                    metadata.hashtags,
+                )
+                asr_prefix = merge_extraction_supplemental_prefixes(
+                    asr_prefix,
+                    caption_prefix,
+                ) or ""
+
                 async def _noop_frames() -> list[str]:
                     return []
 

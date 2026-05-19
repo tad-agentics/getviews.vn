@@ -409,6 +409,8 @@ def build_video_report(
     query: str,
     mode: str | None = None,
     step_queue: asyncio.Queue | None = None,
+    session_niche_id: int | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Build a ``VideoAnalyzeResponse``-shaped dict for an answer turn.
 
@@ -495,6 +497,8 @@ def build_video_report(
             tiktok_url=url,
             mode=resolved_mode,  # type: ignore[arg-type]
             step_queue=step_queue,
+            fallback_niche_id=session_niche_id,
+            user_id=user_id,
         )
 
     # Add the answer-shell common fields. ``sources`` empty because a
@@ -591,7 +595,18 @@ def build_video_report(
 
     from getviews_pipeline.video_analyze import finalize_video_narrative_layer
 
-    finalize_video_narrative_layer(out, step_queue=step_queue)
+    if session_niche_id and int(session_niche_id) > 0:
+        out.setdefault("__fallback_niche_id", int(session_niche_id))
+    if isinstance(meta, dict) and meta.get("caption") and not out.get("__tiktok_desc"):
+        out["__tiktok_desc"] = str(meta["caption"])
+    finalize_video_narrative_layer(
+        out,
+        step_queue=step_queue,
+        fallback_niche_id=session_niche_id,
+        user_sb=user_sb,
+        service_sb=service_sb,
+        user_id=user_id,
+    )
 
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_done, step_tool_complete

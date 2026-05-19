@@ -40,6 +40,20 @@ from getviews_pipeline.video_analyze import (
 # ── Test scaffolding ────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _skip_on_demand_cache_unless_cache_tests(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+) -> None:
+    """Most tests stub ``service_sb`` strictly; bypass cache lookup unless named."""
+    if "cache_hit" in request.node.name or "cache_miss" in request.node.name:
+        return
+    monkeypatch.setattr(
+        "getviews_pipeline.video_analyze._try_on_demand_cache_hit",
+        lambda *args, **kwargs: None,
+    )
+
+
 def _aweme_fixture(
     *,
     aweme_id: str = "7630766288574369045",
@@ -432,6 +446,7 @@ def test_on_demand_cache_hit_returns_cached_response_without_running_gemini() ->
         "meta": {"creator": "curnon.official", "views": 8_400},
         "source": "on_demand",
         "narrative_vi": {"headline_vi": "Cached headline"},
+        "response_schema_version": 2,
     }
     fresh_iso = datetime.now(UTC).isoformat()
     service_sb = MagicMock()

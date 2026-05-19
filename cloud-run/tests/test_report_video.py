@@ -39,7 +39,7 @@ from getviews_pipeline.report_video import (
 def _stub_finalize_video_narrative_layer(monkeypatch: pytest.MonkeyPatch) -> None:
     """Avoid real Gemini when ``build_video_report`` runs narrative finalize."""
 
-    def _noop(_out: object, *, step_queue: object | None = None) -> None:
+    def _noop(_out: object, **kwargs: object) -> None:
         return None
 
     monkeypatch.setattr(

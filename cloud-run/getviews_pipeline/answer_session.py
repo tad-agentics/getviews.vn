@@ -507,6 +507,8 @@ def append_turn(
                 user_sb=sb_user_for_video,
                 query=query,
                 step_queue=step_queue,
+                session_niche_id=niche_pk or None,
+                user_id=user_id,
             )
         elif builder_fmt == "script":
             inner = build_script_report(

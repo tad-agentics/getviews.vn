@@ -24,6 +24,10 @@ from getviews_pipeline.config import (
 from getviews_pipeline.corpus_context import get_cached_analysis
 from getviews_pipeline.entry_cost import score_entry_cost
 from getviews_pipeline.gemini import analyze_carousel, analyze_video, synthesize_diagnosis
+from getviews_pipeline.prompts import (
+    build_tiktok_caption_extraction_prefix,
+    merge_extraction_supplemental_prefixes,
+)
 from getviews_pipeline.models import (
     CarouselAnalyzeResult,
     ContentType,
@@ -200,11 +204,17 @@ async def _analyze_video(
                 logger.warning("[hi14] asr supplement prep failed: %s", exc)
                 asr_prefix, stt_usd = "", None
 
+            caption_prefix = build_tiktok_caption_extraction_prefix(
+                metadata.description,
+                metadata.hashtags,
+            )
+            supplemental = merge_extraction_supplemental_prefixes(asr_prefix, caption_prefix)
+
             analysis = await asyncio.wait_for(
                 run_sync(
                     analyze_video,
                     video_path,
-                    supplemental_user_prefix=asr_prefix or None,
+                    supplemental_user_prefix=supplemental,
                     gcp_stt_cost_usd=stt_usd,
                 ),
                 timeout=GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,
@@ -297,6 +307,12 @@ async def _analyze_carousel(
     total_slides = metadata.slide_count or len(url_lists)
     fetch_lists = url_lists[:CAROUSEL_MAX_SLIDES]
     limit_note = ""
+    caption_prefix = build_tiktok_caption_extraction_prefix(
+        metadata.description,
+        metadata.hashtags,
+    )
+    if caption_prefix:
+        limit_note = caption_prefix + limit_note
     meta_diag = metadata.model_dump()
 
     if total_slides > CAROUSEL_EXTRACT_MAX_SLIDES:
@@ -489,11 +505,17 @@ async def analyze_aweme_from_path(
             logger.warning("[hi14] asr supplement prep failed (from_path): %s", exc)
             asr_prefix, stt_usd = "", None
 
+        caption_prefix = build_tiktok_caption_extraction_prefix(
+            metadata.description,
+            metadata.hashtags,
+        )
+        supplemental = merge_extraction_supplemental_prefixes(asr_prefix, caption_prefix)
+
         analysis = await asyncio.wait_for(
             run_sync(
                 analyze_video,
                 video_path,
-                supplemental_user_prefix=asr_prefix or None,
+                supplemental_user_prefix=supplemental,
                 gcp_stt_cost_usd=stt_usd,
             ),
             timeout=GEMINI_VIDEO_ANALYSIS_HARD_TIMEOUT_SEC,

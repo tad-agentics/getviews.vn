@@ -88,6 +88,8 @@ CREATOR_NICHE_OVERRIDE: dict[str, int] = {
     # management. Gemini tags talking-head + green-screen frames as skincare.
     # Correct bucket: niche_id=5 (Kinh doanh online / Bán hàng).
     "andypham.academy": 5,
+    # Curnon — jewelry / fashion brand; thin hashtags often mis-route to skincare.
+    "curnon.official": 3,
 }
 
 

@@ -32,6 +32,22 @@ from getviews_pipeline.video_structural import (
 logger = logging.getLogger(__name__)
 
 DIAGNOSTICS_STALE_AFTER = timedelta(hours=1)
+# Bump when ``VideoAnalyzeResponse.meta`` shape changes (invalidates on-demand cache).
+ON_DEMAND_RESPONSE_SCHEMA_VERSION = 2
+
+
+def _truncate_tiktok_caption(text: str, *, max_len: int = 2000) -> str:
+    return (text or "").strip()[:max_len]
+
+
+def _legacy_meta_title(caption: str, hook_phrase: str) -> str | None:
+    """First line of TikTok desc for backward-compat ``meta.title``."""
+    cap = (caption or "").strip()
+    if cap:
+        first = cap.split("\n")[0].strip()
+        return first[:200] if first else None
+    hp = (hook_phrase or "").strip()
+    return hp[:200] if hp else None
 
 
 def _fetch_sidecars_sync(
@@ -476,7 +492,9 @@ def _response_from_diagnostics_row(
         analysis = {}
     dur = video_duration_sec(analysis)
     hook = (analysis.get("hook_analysis") or {}) if isinstance(analysis.get("hook_analysis"), dict) else {}
-    title_hint = str(hook.get("hook_phrase") or "")[:200]
+    hook_phrase = str(hook.get("hook_phrase") or "").strip()
+    tiktok_caption = _truncate_tiktok_caption(str(video.get("caption") or ""))
+    title_hint = _legacy_meta_title(tiktok_caption, hook_phrase)
     ret_curve = diag.get("retention_curve") or retention_user
     bench_curve = diag.get("niche_benchmark_curve") or niche_benchmark
     ret_end = float(ret_curve[-1]["pct"]) if ret_curve else 0.0
@@ -541,6 +559,8 @@ def _response_from_diagnostics_row(
             else None,
             "created_at": video.get("created_at") or None,
             "title": title_hint or None,
+            "caption": tiktok_caption or None,
+            "hook_phrase": hook_phrase or None,
             "engagement_rate": float(video.get("engagement_rate") or 0.0),
             "niche_label": niche_label or None,
             "niche_id": int(video.get("niche_id") or 0),
@@ -646,33 +666,6 @@ def resolve_video_id(sb: Any, *, video_id: str | None, tiktok_url: str | None) -
     return str(rows[0]["video_id"])
 
 
-def _corpus_aweme_to_synthesis_ref(aweme: dict[str, Any]) -> dict[str, Any]:
-    """Shape a corpus pool aweme like ``run_video_diagnosis`` analyzed refs."""
-    from getviews_pipeline.output_redesign import hook_type_vi
-
-    stats = aweme.get("statistics") or {}
-    views = int(stats.get("play_count") or 0)
-    handle = (aweme.get("author") or {}).get("unique_id") or ""
-    corpus_analysis = aweme.get("_corpus_analysis") or {}
-    raw_hook_type = (corpus_analysis.get("hook_analysis") or {}).get("hook_type") or ""
-    return {
-        "aweme_id": aweme["aweme_id"],
-        "analysis": corpus_analysis,
-        "metadata": {
-            "video_id": aweme["aweme_id"],
-            "author": {"username": handle},
-            "views": views,
-            "tiktok_url": aweme.get("_corpus_tiktok_url", ""),
-            "thumbnail_url": aweme.get("thumbnail_url"),
-            "days_ago": aweme.get("_corpus_days_ago", 0),
-            "breakout": aweme.get("_corpus_breakout", 0.0),
-            "hook_type": raw_hook_type,
-            "hook_type_vi": hook_type_vi(raw_hook_type),
-            "content_type": aweme.get("_corpus_content_type", "video"),
-        },
-    }
-
-
 def _live_analyzed_to_slim_input(result: dict[str, Any]) -> dict[str, Any]:
     """Shape ``analyze_aweme`` output like an aweme dict for ``_slim_reference_video``."""
     meta = result.get("metadata") or {}
@@ -760,46 +753,6 @@ async def _live_search_references_for_finalize(
     return synthesis_refs, slim_refs
 
 
-def _select_corpus_references_for_finalize(
-    niche_name: str,
-    target_video_id: str,
-    *,
-    preferred_content_format: str | None = None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Corpus refs when pool ≥ REF_N; otherwise Ensemble live search + on-demand analysis."""
-    from getviews_pipeline.corpus_context import fetch_corpus_reference_pool_sync
-    from getviews_pipeline.pipelines import REF_N, _slim_reference_video
-
-    if not niche_name.strip() or not target_video_id.strip():
-        return [], []
-    pool = fetch_corpus_reference_pool_sync(
-        niche_name, days=30, limit=40, exclude_video_id=target_video_id
-    )
-    pref = str(preferred_content_format or "").strip().lower()
-    if pref:
-        pool.sort(
-            key=lambda v: (
-                0 if str(v.get("_corpus_content_format") or "").strip().lower() == pref else 1,
-                -float(v.get("_corpus_er") or 0.0),
-            ),
-        )
-    else:
-        pool.sort(key=lambda v: -float(v.get("_corpus_er") or 0.0))
-    if len(pool) >= REF_N:
-        skip = {target_video_id}
-        picks = [v for v in pool if v.get("aweme_id") not in skip][:REF_N]
-        if len(picks) >= REF_N:
-            synthesis = [_corpus_aweme_to_synthesis_ref(p) for p in picks]
-            slim = [_slim_reference_video(p, "corpus") for p in picks]
-            return synthesis, slim
-
-    try:
-        return asyncio.run(_live_search_references_for_finalize(niche_name, target_video_id))
-    except Exception as exc:
-        logger.warning("[finalize_narrative] live reference search failed: %s", exc)
-        return [], []
-
-
 def _build_narrative_cache_update(
     *,
     narrative_vi: dict[str, Any],
@@ -848,6 +801,10 @@ def finalize_video_narrative_layer(
     out: dict[str, Any],
     *,
     step_queue: Any | None = None,
+    fallback_niche_id: int | None = None,
+    user_sb: Any | None = None,
+    service_sb: Any | None = None,
+    user_id: str | None = None,
 ) -> None:
     """Call 2 — narrative synthesis + SSE; mutates *out* in place.
 
@@ -904,12 +861,86 @@ def finalize_video_narrative_layer(
         out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else {}
     )
 
-    niche_name = str(meta.get("niche_label") or "")
     video_id = str(out.get("video_id") or "")
-    synthesis_refs, slim_refs = _select_corpus_references_for_finalize(
-        niche_name,
-        video_id,
-        preferred_content_format=content_format or None,
+    video_desc = str(
+        out.pop("__tiktok_desc", None)
+        or meta.get("caption")
+        or meta.get("title")
+        or ""
+    )
+    video_hashtags = list(out.pop("__tiktok_hashtags", None) or [])
+
+    session_fallback = int(
+        fallback_niche_id
+        or out.pop("__fallback_niche_id", 0)
+        or 0
+    )
+    niche_id_meta = int(meta.get("niche_id") or 0)
+    if (not str(meta.get("niche_label") or "").strip() or niche_id_meta <= 0) and service_sb:
+        try:
+            from getviews_pipeline.live_niche import resolve_live_niche_id
+
+            aweme_for_niche = out.pop("__aweme_for_niche", None)
+            if not isinstance(aweme_for_niche, dict):
+                aweme_for_niche = {
+                    "desc": video_desc,
+                    "challenges": [],
+                    "author": {"unique_id": str(meta.get("creator") or "").lstrip("@")},
+                    "text_extra": [{"hashtag_name": h} for h in video_hashtags if h],
+                }
+            resolved_nid = asyncio.run(
+                resolve_live_niche_id(
+                    service_sb,
+                    aweme_for_niche,
+                    fallback_session_niche_id=session_fallback or None,
+                    user_id=user_id,
+                )
+            )
+            if resolved_nid > 0:
+                niche_id_meta = resolved_nid
+                meta["niche_id"] = resolved_nid
+                label_sb = user_sb if user_sb is not None else service_sb
+                niche_label_fixed = _resolve_niche_label(label_sb, resolved_nid)
+                if niche_label_fixed:
+                    meta["niche_label"] = niche_label_fixed
+                    out["meta"] = meta
+                if user_sb is not None:
+                    from getviews_pipeline.video_niche_benchmark import (
+                        fetch_video_benchmark_with_axis,
+                    )
+
+                    niche_intel_fix, bench_axis = fetch_video_benchmark_with_axis(
+                        user_sb,
+                        niche_id=resolved_nid,
+                        content_class_id=None,
+                    )
+                    bench_fix = build_niche_benchmark_payload(
+                        niche_intel_fix,
+                        niche_id=resolved_nid,
+                        duration_sec=float(meta.get("duration_sec") or 30.0),
+                        user_sb=user_sb,
+                    )
+                    if bench_fix.get("niche_meta"):
+                        niche_meta = bench_fix["niche_meta"]
+                        niche_meta["benchmark_axis"] = bench_axis
+                        out["niche_meta"] = niche_meta
+                        if bench_fix.get("niche_benchmark_curve"):
+                            out["niche_benchmark_curve"] = bench_fix["niche_benchmark_curve"]
+        except Exception as exc:
+            logger.warning("[video_narrative] live niche resolve failed: %s", exc)
+
+    niche_name = str(meta.get("niche_label") or "")
+    from getviews_pipeline.services.references import select_synthesis_references_for_video
+
+    synthesis_refs, slim_refs, evidence_block = asyncio.run(
+        select_synthesis_references_for_video(
+            niche_name=niche_name,
+            video_id=video_id,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            preferred_content_format=content_format or None,
+            live_search_fn=_live_search_references_for_finalize,
+        )
     )
     out["reference_videos"] = slim_refs
 
@@ -951,7 +982,7 @@ def finalize_video_narrative_layer(
         "shares": int(meta.get("shares") or 0),
         "duration_sec": float(meta.get("duration_sec") or 0.0),
         "save_rate": float(meta.get("save_rate") or 0.0),
-        "caption": str(meta.get("title") or meta.get("caption") or ""),
+        "caption": str(meta.get("caption") or video_desc or ""),
     }
 
     errors: list[dict[str, Any]] = list(out.get("errors") or [])
@@ -1103,7 +1134,7 @@ def finalize_video_narrative_layer(
             performance_tier=performance_tier,
             channel_context=channel_context_payload,
             errors=errors_prompt or None,
-            reference_evidence_block="",
+            reference_evidence_block=evidence_block,
             creator_format_history_block=creator_format_history_block,
             cross_format_signal=(
                 out.get("cross_format_signal")
@@ -1583,23 +1614,26 @@ def _build_video_dict_from_aweme(
     }
 
 
-async def _classify_niche_id_async(service_sb: Any, aweme: dict[str, Any]) -> int:
-    """Best-effort niche_id from hashtags.
-
-    Falls back to ``0`` when no hashtags match (the FE's ``winners_sample_size``
-    null-fallback already renders "Đang xây dựng pool" copy in that case,
-    so the user still gets a useful analysis without a niche cohort).
-    """
-    from getviews_pipeline import ensemble
-    from getviews_pipeline.hashtag_niche_map import classify_from_hashtags
+async def _classify_niche_id_async(
+    service_sb: Any,
+    aweme: dict[str, Any],
+    *,
+    fallback_session_niche_id: int | None = None,
+    user_id: str | None = None,
+) -> int:
+    """Best-effort niche via ``resolve_live_niche_id`` ladder."""
+    from getviews_pipeline.live_niche import resolve_live_niche_id
 
     try:
-        meta = ensemble.parse_metadata(aweme)
-        nid = await classify_from_hashtags(meta.hashtags, service_sb)
-        return int(nid) if nid else 0
+        return await resolve_live_niche_id(
+            service_sb,
+            aweme,
+            fallback_session_niche_id=fallback_session_niche_id,
+            user_id=user_id,
+        )
     except Exception as exc:  # noqa: BLE001 — niche is best-effort, never fatal
         logger.warning(
-            "[video_analyze_on_demand] niche classify failed (continuing with 0): %s", exc,
+            "[video_analyze_on_demand] niche resolve failed (continuing with 0): %s", exc,
         )
         return 0
 
@@ -1718,6 +1752,8 @@ def _try_on_demand_cache_hit(
     cached = row.get("cached_response")
     if not isinstance(cached, dict) or not cached:
         return None
+    if int(cached.get("response_schema_version") or 1) < ON_DEMAND_RESPONSE_SCHEMA_VERSION:
+        return None
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
@@ -1761,6 +1797,8 @@ def run_video_analyze_on_demand(
     tiktok_url: str,
     mode: Literal["win", "flop"] | None = None,
     step_queue: Any | None = None,
+    fallback_niche_id: int | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline for URLs not yet in ``video_corpus``.
 
@@ -1805,7 +1843,26 @@ def run_video_analyze_on_demand(
         # can distinguish and surface a Vietnamese message instead of a 500.
         raise RuntimeError(err)
 
-    niche_id = asyncio.run(_classify_niche_id_async(service_sb, aweme))
+    from getviews_pipeline import ensemble
+
+    meta_ed = ensemble.parse_metadata(aweme)
+    video_desc_od = str(aweme.get("desc") or meta_ed.description or "")
+    video_hashtags_od = [
+        str(t.get("hashtag_name") or t.get("title") or "").lstrip("#")
+        for t in (aweme.get("text_extra") or [])
+        if t.get("hashtag_name") or t.get("title")
+    ]
+    if not video_hashtags_od and meta_ed.hashtags:
+        video_hashtags_od = [str(h).lstrip("#") for h in meta_ed.hashtags]
+
+    niche_id = asyncio.run(
+        _classify_niche_id_async(
+            service_sb,
+            aweme,
+            fallback_session_niche_id=fallback_niche_id,
+            user_id=user_id,
+        )
+    )
     video = _build_video_dict_from_aweme(aweme, analyze_result, niche_id)
     vid = video["video_id"]
     if not vid:
@@ -1932,6 +1989,11 @@ def run_video_analyze_on_demand(
     )
     out["__narrative_analysis"] = analysis
     out["__narrative_content_format"] = content_format_str_od
+    out["__tiktok_desc"] = video_desc_od
+    out["__tiktok_hashtags"] = video_hashtags_od
+    out["__aweme_for_niche"] = aweme
+    out["__fallback_niche_id"] = int(fallback_niche_id or 0)
+    out["response_schema_version"] = ON_DEMAND_RESPONSE_SCHEMA_VERSION
     # Flag the response so the FE can render a subtle "phân tích trực tiếp"
     # badge — corpus rows don't set this, so the FE only highlights when
     # explicitly truthy.

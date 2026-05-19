@@ -38,7 +38,7 @@ _VIDEO_EXTRACTION_CORE_VI = """Phân tích video TikTok này. Chỉ trả về J
 
 QUY TẮC BẮT BUỘC:
 - audio_transcript: Phiên âm ĐÚNG ngôn ngữ gốc (chủ yếu tiếng Việt). KHÔNG dịch sang tiếng Anh. Giữ dấu đầy đủ (ă â đ ê ô ơ ư …). Chỗ không nghe rõ → ghi "[không rõ]".
-- hook_phrase: ĐÚNG nguyên văn lời mở đầu (thường tiếng Việt) — không diễn giải, không dịch. Nếu 3s đầu không có lời, dùng chữ overlay đầu tiên thấy rõ.
+- hook_phrase: ĐÚNG nguyên văn lời mở đầu (thường tiếng Việt) — không diễn giải, không dịch. Nếu 3s đầu không có lời, dùng chữ overlay đầu tiên thấy rõ. Khi có khối CAPTION_TIKTOK bên dưới: nếu caption có câu mở/hook thuyết phục (câu hỏi, pain, promise) và overlay 0–3s chỉ là tagline marketing ("coming soon", ngày ra mắt, #newcollection, tên BST) → hook_phrase = câu mở đầu caption (nguyên văn); ghi overlay vào hook_timeline / text_overlay. KHÔNG thay audio_transcript bằng caption.
 - hook_timeline: 2–5 sự kiện trong cửa sổ hook 0.0–3.0s; sắp xếp t tăng dần. Mỗi event thuộc một trong: face_enter, first_word, text_overlay, sound_drop, cut, product_enter, reveal. t tính bằng giây, chính xác 0.1s. Bỏ sự kiện không xảy ra trong 3s đầu. Bỏ qua nếu tín hiệu yếu.
 - QUAN TRỌNG (GIẢI MÃ HOOK): Mỗi cửa sổ 0.0–0.8s / 0.8–1.8s / 1.8–3.0s chỉ mô tả việc xảy ra trong cửa sổ đó. Trong hook_timeline[].note: không viết "ngay đầu video", "khung hình đầu tiên", "cuối clip" trừ khi khớp hook_timeline[].t (vd t≈0 cho đầu video). Không gắn lời nói @X vào note nếu X không khớp gần t của sự kiện — dùng first_speech_at cho lời mở.
 - hook_analysis.hook_type: CHỈ chọn một literal snake_case từ schema (vd: question, bold_claim, shock_stat, story_open, controversy, challenge, how_to, social_proof, curiosity_gap, pain_point, trend_hijack, warning, reaction, comparison, expose, insider, secret, pov, vach_tran, gia_soc, dialect_identity, fomo_urgency, tips_value, none, other) — không dùng tiếng Anh tự do, không dùng nhãn tiếng Việt làm giá trị.
@@ -1233,3 +1233,35 @@ def build_diagnosis_synthesis_prompt_v2(
         errors=errors,
         reference_evidence_block=reference_evidence_block,
     )
+
+
+_CAPTION_PREFIX_MAX_CHARS = 2000
+
+
+def build_tiktok_caption_extraction_prefix(
+    description: str | None,
+    hashtags: list[str] | None,
+) -> str | None:
+    """Prepended to Gemini extraction user turn (live + batch, TD-7 parity)."""
+    desc = (description or "").strip()
+    tag_parts = [
+        f"#{str(h).lstrip('#')}"
+        for h in (hashtags or [])
+        if str(h).strip()
+    ]
+    if not desc and not tag_parts:
+        return None
+    lines = [
+        "CAPTION_TIKTOK (nguồn đăng bài, không phải overlay trong clip):",
+        desc[:_CAPTION_PREFIX_MAX_CHARS] if desc else "",
+    ]
+    body = "\n".join(line for line in lines if line)
+    if tag_parts:
+        body = f"{body}\n\nHASHTAGS: {' '.join(tag_parts[:40])}"
+    return body.strip() or None
+
+
+def merge_extraction_supplemental_prefixes(*parts: str | None) -> str | None:
+    """Join ASR + caption blocks for ``analyze_video`` / batch JSONL."""
+    merged = "\n\n".join(p.strip() for p in parts if p and str(p).strip())
+    return merged or None

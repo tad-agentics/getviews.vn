@@ -233,6 +233,7 @@ export function VideoBody({
   const goWinScript = () => {
     logUsage("video_to_script", { video_id: report.video_id, mode: "win" });
     const topic =
+      meta.caption?.trim() ||
       meta.title?.trim() ||
       narrativeVi?.headline_vi?.trim() ||
       `Video từ @${meta.creator?.trim() || "creator"}`;
@@ -249,12 +250,17 @@ export function VideoBody({
     );
   };
 
+  const overlayCaption =
+    meta.caption?.trim() || meta.title?.trim() || "";
+  const hookCopyText =
+    meta.hook_phrase?.trim() ||
+    (report.hook_phases?.[0]
+      ? `${report.hook_phases[0].t_range} · ${report.hook_phases[0].label}`
+      : "") ||
+    (narrativeVi?.headline_vi ?? "");
+
   const copyHook = async () => {
-    const phases = report.hook_phases ?? [];
-    const first = phases[0];
-    const text = first
-      ? `${first.t_range} · ${first.label}`
-      : (narrativeVi?.headline_vi ?? "");
+    const text = hookCopyText;
     if (!text.trim()) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -335,8 +341,10 @@ export function VideoBody({
                 {meta.creator?.trim() ? atHandle(meta.creator) : "Kênh chưa xác định"} ·{" "}
                 {Math.round(duration)}s
               </div>
-              {meta.title ? (
-                <p className="gv-tight mt-1 text-lg leading-tight">{meta.title}</p>
+              {overlayCaption ? (
+                <p className="gv-tight mt-1 line-clamp-2 text-lg leading-tight">
+                  {overlayCaption}
+                </p>
               ) : null}
             </div>
           </div>
