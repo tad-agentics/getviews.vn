@@ -132,6 +132,118 @@ def test_full_fixture_is_full_corpus() -> None:
     assert p.confidence.sample_size >= 30
 
 
+@patch("getviews_pipeline.report_pattern.fetch_outlier_story", return_value=None)
+@patch("getviews_pipeline.report_pattern.load_pattern_inputs")
+@patch("getviews_pipeline.supabase_client.get_service_client")
+@patch("getviews_pipeline.report_pattern.fetch_pattern_wow_diff_rows", return_value=[])
+def test_fetch_outlier_story_uses_effective_window(
+    _mock_wow: MagicMock,
+    mock_get_sb: MagicMock,
+    mock_load: MagicMock,
+    mock_outlier: MagicMock,
+) -> None:
+    """Outlier corpus query must use eff_win (14d floor / ctx), not raw window_days."""
+    mock_get_sb.return_value = MagicMock()
+    mock_load.return_value = {
+        "effective_window_days": 21,
+        "niche_label": "Food",
+        "ni": {"sample_size": 5},
+        "he_rows": [
+            {
+                "hook_type": "bold_claim",
+                "avg_views": 1000,
+                "avg_completion_rate": 0.5,
+                "sample_size": 3,
+                "trend_direction": "stable",
+            },
+        ],
+        "corpus": [],
+        "trending_sounds": [],
+        "sound_trends": {},
+    }
+    build_pattern_report(9, "q", "pattern", window_days=7)
+    mock_outlier.assert_called_once_with(mock_get_sb.return_value, 9, 21)
+
+
+@patch("getviews_pipeline.report_timing.build_timing_report")
+def test_pattern_subreports_early_path_uses_eff_win_floor(mock_timing: MagicMock) -> None:
+    """No service client: timing subreport still gets max(window_days, 14)."""
+    mock_timing.return_value = {
+        "confidence": {
+            "sample_size": 50,
+            "window_days": 14,
+            "niche_scope": "Tech",
+            "freshness_hours": 3,
+            "intent_confidence": "high",
+        },
+        "top_window": {"day": "T7", "hours": "18–22", "lift_multiplier": 2.0},
+        "top_3_windows": [],
+        "lowest_window": {"day": "T2", "hours": "0–3"},
+        "grid": [[1.0] * 8 for _ in range(7)],
+        "variance_note": {"kind": "strong", "label": "ok"},
+        "fatigue_band": None,
+        "actions": [],
+        "sources": [],
+        "related_questions": [],
+    }
+    with patch(
+        "getviews_pipeline.supabase_client.get_service_client",
+        side_effect=ValueError("no env"),
+    ):
+        build_pattern_report(1, "post khi nào", "content_calendar", window_days=7, subreports=["timing"])
+    mock_timing.assert_called_once_with(1, "post khi nào", window_days=14)
+
+
+@patch("getviews_pipeline.report_timing.build_timing_report")
+@patch("getviews_pipeline.report_pattern.load_pattern_inputs")
+@patch("getviews_pipeline.supabase_client.get_service_client")
+@patch("getviews_pipeline.report_pattern.fetch_pattern_wow_diff_rows", return_value=[])
+def test_pattern_subreports_thin_path_uses_ctx_effective_window(
+    _mock_wow: MagicMock,
+    mock_get_sb: MagicMock,
+    mock_load: MagicMock,
+    mock_timing: MagicMock,
+) -> None:
+    mock_get_sb.return_value = MagicMock()
+    mock_load.return_value = {
+        "effective_window_days": 21,
+        "niche_label": "Food",
+        "ni": {"sample_size": 5},
+        "he_rows": [
+            {
+                "hook_type": "bold_claim",
+                "avg_views": 1000,
+                "avg_completion_rate": 0.5,
+                "sample_size": 3,
+                "trend_direction": "stable",
+            },
+        ],
+        "corpus": [],
+        "trending_sounds": [],
+        "sound_trends": {},
+    }
+    mock_timing.return_value = {
+        "confidence": {
+            "sample_size": 50,
+            "window_days": 21,
+            "niche_scope": "Food",
+            "freshness_hours": 3,
+            "intent_confidence": "high",
+        },
+        "top_window": {"day": "T7", "hours": "18–22", "lift_multiplier": 2.0},
+        "top_3_windows": [],
+        "lowest_window": {"day": "T2", "hours": "0–3"},
+        "grid": [[1.0] * 8 for _ in range(7)],
+        "variance_note": {"kind": "strong", "label": "ok"},
+        "fatigue_band": None,
+        "actions": [],
+        "sources": [],
+        "related_questions": [],
+    }
+    build_pattern_report(9, "post khi nào", "content_calendar", window_days=7, subreports=["timing"])
+    mock_timing.assert_called_once_with(9, "post khi nào", window_days=21)
+
+
 @patch("getviews_pipeline.report_pattern.fetch_pattern_wow_diff_rows")
 def test_build_pattern_report_merges_wow(mock_fetch: MagicMock) -> None:
     mock_fetch.return_value = [

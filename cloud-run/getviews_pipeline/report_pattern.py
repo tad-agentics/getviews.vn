@@ -360,7 +360,7 @@ def build_pattern_report(
         data = build_empty_pattern_report(window_days=eff_win)
         data["wow_diff"] = wow
         if subreports:
-            data["subreports"] = _build_pattern_subreports(niche_id, query, window_days, subreports)
+            data["subreports"] = _build_pattern_subreports(niche_id, query, eff_win, subreports)
         return data
 
     if step_queue is not None:
@@ -441,11 +441,11 @@ def build_pattern_report(
         thin["wow_diff"] = wow
         if isinstance(thin.get("confidence"), dict):
             thin["confidence"]["freshness_hours"] = _freshness_hours_from_corpus(corpus)
-        outlier_t = fetch_outlier_story(sb, niche_id, window_days)
+        outlier_t = fetch_outlier_story(sb, niche_id, eff_win)
         if outlier_t is not None:
             thin["outlier_story"] = outlier_t.model_dump()
         if subreports:
-            thin["subreports"] = _build_pattern_subreports(niche_id, query, window_days, subreports)
+            thin["subreports"] = _build_pattern_subreports(niche_id, query, eff_win, subreports)
         return thin
 
     org = float(ni.get("organic_avg_views") or 0)
@@ -620,7 +620,7 @@ def build_pattern_report(
     from getviews_pipeline.niche_insight_fetcher import fetch_niche_insight
 
     niche_insight = fetch_niche_insight(niche_id, client=sb)
-    outlier_story = fetch_outlier_story(sb, niche_id, window_days)
+    outlier_story = fetch_outlier_story(sb, niche_id, eff_win)
 
     payload = PatternPayload(
         confidence=confidence,
@@ -641,7 +641,7 @@ def build_pattern_report(
         sources=sources,
         related_questions=list(narr.get("related_questions") or [])[:4],
         subreports=(
-            _build_pattern_subreports(niche_id, query, window_days, subreports)
+            _build_pattern_subreports(niche_id, query, eff_win, subreports)
             if subreports
             else None
         ),
