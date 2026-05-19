@@ -990,6 +990,29 @@ def _reference_ids_with_content_proximity(
     return out
 
 
+def _strip_disallowed_embedded_tile_ids(
+    diagnosis_vi: dict[str, Any],
+    allowed_aweme: set[str],
+) -> None:
+    """Null ``aweme_id`` / ``video_id`` on tiles outside the synthesis pool (no resolve pass)."""
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        tiles = sec.get("embedded_tiles")
+        if not isinstance(tiles, list):
+            continue
+        for t in tiles:
+            if not isinstance(t, dict):
+                continue
+            for key in ("aweme_id", "video_id"):
+                v = t.get(key)
+                if v is not None and str(v) not in allowed_aweme:
+                    t[key] = None
+
+
 def _sanitize_diagnosis_embedded_tiles(
     diagnosis_vi: dict[str, Any],
     reference_videos: list[dict[str, Any]],
@@ -1087,6 +1110,7 @@ def _validate_diagnosis_vi_citations(
                 if quote_s.isdigit() and len(quote_s) >= 12 and _strip_aweme_value(quote_s):
                     a["quote"] = None
 
+    _strip_disallowed_embedded_tile_ids(diagnosis_vi, allowed_aweme)
     if reference_videos is not None:
         _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed_aweme)
 
