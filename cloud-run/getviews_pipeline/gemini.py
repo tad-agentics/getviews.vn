@@ -973,6 +973,8 @@ def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None
 
 
 _EMBEDDED_TILE_MIN_PROXIMITY = 1
+# Ensemble niche pool — already niche-filtered; caption overlap may still be 0.
+_LIVE_EMBED_SOURCES: frozenset[str] = frozenset({"live_search", "sparse_fallback"})
 
 
 def _reference_ids_with_content_proximity(
@@ -988,6 +990,37 @@ def _reference_ids_with_content_proximity(
         if score >= _EMBEDDED_TILE_MIN_PROXIMITY:
             out.add(aid)
     return out
+
+
+def _embed_allowed_for_tiles(
+    reference_videos: list[dict[str, Any]],
+    allowed_aweme: set[str],
+) -> set[str]:
+    """Aweme ids Gemini may resolve into ``embedded_tiles``.
+
+    Corpus refs need caption/hashtag overlap (``content_proximity_score`` ≥ 1) so a
+    wrong-niche corpus row cannot surface. Live-search / sparse-fallback refs are
+    already niche-scoped by Ensemble — when every proximity is 0, allow the top two
+    pool ids by proximity then views so embedded evidence still appears in-section.
+    """
+    relevant = _reference_ids_with_content_proximity(reference_videos)
+    if relevant:
+        return allowed_aweme & relevant
+
+    scored: list[tuple[int, int, str]] = []
+    for r in reference_videos:
+        aid = str(r.get("aweme_id") or r.get("video_id") or "")
+        if not aid or aid not in allowed_aweme:
+            continue
+        if str(r.get("source") or "") not in _LIVE_EMBED_SOURCES:
+            continue
+        prox = int(r.get("content_proximity_score") or r.get("_proximity_score") or 0)
+        views = int(r.get("views") or 0)
+        scored.append((prox, views, aid))
+    if not scored:
+        return set()
+    scored.sort(key=lambda x: (-x[0], -x[1]))
+    return {aid for _, _, aid in scored[:2]}
 
 
 def _strip_disallowed_embedded_tile_ids(
@@ -1021,8 +1054,7 @@ def _sanitize_diagnosis_embedded_tiles(
     """Resolve ``embedded_tiles`` from the reference pool only — drop hallucinated or off-topic ids."""
     from getviews_pipeline.diagnose_parse import resolve_embedded_tiles
 
-    relevant = _reference_ids_with_content_proximity(reference_videos)
-    embed_allowed = allowed_aweme & relevant if relevant else set()
+    embed_allowed = _embed_allowed_for_tiles(reference_videos, allowed_aweme)
 
     sections = diagnosis_vi.get("sections")
     if not isinstance(sections, list):

@@ -8,11 +8,12 @@ from getviews_pipeline.gemini import (
 )
 
 
-def _slim(aid: str, desc: str, *, proximity: int) -> dict:
+def _slim(aid: str, desc: str, *, proximity: int, source: str = "corpus") -> dict:
     return {
         "aweme_id": aid,
         "desc": desc,
         "content_proximity_score": proximity,
+        "source": source,
         "thumbnail_url": f"https://thumb/{aid}.jpg",
         "tiktok_url": f"https://tiktok.com/@x/video/{aid}",
         "views": 68_000,
@@ -61,7 +62,7 @@ def test_sanitize_resolves_on_topic_tile_from_pool() -> None:
 
 
 def test_sanitize_clears_all_tiles_when_no_proximity_match() -> None:
-    refs = [_slim("111", "generic beauty", proximity=0)]
+    refs = [_slim("111", "generic beauty", proximity=0, source="corpus")]
     diag_vi = {
         "sections": [
             {"section_id": "diagnosis", "embedded_tiles": [{"aweme_id": "111"}]}
@@ -69,6 +70,25 @@ def test_sanitize_clears_all_tiles_when_no_proximity_match() -> None:
     }
     _sanitize_diagnosis_embedded_tiles(diag_vi, refs, {"111"})
     assert diag_vi["sections"][0]["embedded_tiles"] == []
+
+
+def test_sanitize_keeps_live_search_tile_when_proximity_zero() -> None:
+    refs = [
+        _slim("111", "đồng hồ nam dây da", proximity=0, source="live_search"),
+        _slim("222", "unrelated beauty", proximity=0, source="live_search"),
+    ]
+    diag_vi = {
+        "sections": [
+            {
+                "section_id": "hook_analysis",
+                "embedded_tiles": [{"aweme_id": "111"}],
+            }
+        ]
+    }
+    _sanitize_diagnosis_embedded_tiles(diag_vi, refs, {"111", "222"})
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    assert len(tiles) == 1
+    assert tiles[0]["aweme_id"] == "111"
 
 
 def test_validate_citations_invokes_tile_sanitize() -> None:
