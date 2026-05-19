@@ -298,7 +298,6 @@ function ProfileSettingsSection({
         <SectionLabel>Bảo mật</SectionLabel>
         <Card>
           <Row label="Đổi mật khẩu" onClick={() => {}} />
-          <Row label="Xác thực hai yếu tố" sub="Bảo vệ tài khoản của bạn" value="Tắt" onClick={() => {}} />
         </Card>
       </div>
 
@@ -954,7 +953,12 @@ export default function SettingsScreen() {
 
           <LogoutSection logout={logout} navigate={navigate} />
 
-          <p className="mt-10 text-center font-mono text-[11px] text-[color:var(--gv-ink-4)]">Getviews.vn · v1.0.0</p>
+          <footer className="mt-10 space-y-1 text-center font-mono text-[11px] leading-relaxed text-[color:var(--gv-ink-4)]">
+            <p>Getviews.vn · v1.0.0</p>
+            <p className="mx-auto max-w-xl">
+              Một sản phẩm thuộc CÔNG TY CỔ PHẦN PHÁT TRIỂN SẢN PHẨM SÁNG TẠO VIỆT - MST: 0108150321
+            </p>
+          </footer>
         </div>
       </div>
     </AppLayout>
