@@ -973,8 +973,9 @@ def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None
 
 
 _EMBEDDED_TILE_MIN_PROXIMITY = 1
-# Ensemble niche pool — already niche-filtered; caption overlap may still be 0.
-_LIVE_EMBED_SOURCES: frozenset[str] = frozenset({"live_search", "sparse_fallback"})
+_EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
+    {"hook_analysis", "diagnosis", "niche_pattern", "distribution", "script_structure"},
+)
 
 
 def _reference_ids_with_content_proximity(
@@ -998,10 +999,11 @@ def _embed_allowed_for_tiles(
 ) -> set[str]:
     """Aweme ids Gemini may resolve into ``embedded_tiles``.
 
-    Corpus refs need caption/hashtag overlap (``content_proximity_score`` ≥ 1) so a
-    wrong-niche corpus row cannot surface. Live-search / sparse-fallback refs are
-    already niche-scoped by Ensemble — when every proximity is 0, allow the top two
-    pool ids by proximity then views so embedded evidence still appears in-section.
+    When any pool row has caption/hashtag overlap (score ≥ 1), only those ids are
+    embeddable — blocks citing a high-ER but off-caption corpus row. When the whole
+    pool scores 0 (common for same-niche peers with different hooks), the pool was
+    already niche-filtered in ``select_synthesis_references_for_video`` — allow the
+    top two ids by proximity then views so in-section evidence still renders.
     """
     relevant = _reference_ids_with_content_proximity(reference_videos)
     if relevant:
@@ -1012,8 +1014,6 @@ def _embed_allowed_for_tiles(
         aid = str(r.get("aweme_id") or r.get("video_id") or "")
         if not aid or aid not in allowed_aweme:
             continue
-        if str(r.get("source") or "") not in _LIVE_EMBED_SOURCES:
-            continue
         prox = int(r.get("content_proximity_score") or r.get("_proximity_score") or 0)
         views = int(r.get("views") or 0)
         scored.append((prox, views, aid))
@@ -1021,6 +1021,71 @@ def _embed_allowed_for_tiles(
         return set()
     scored.sort(key=lambda x: (-x[0], -x[1]))
     return {aid for _, _, aid in scored[:2]}
+
+
+def _inject_fallback_embedded_tiles(
+    diagnosis_vi: dict[str, Any],
+    reference_videos: list[dict[str, Any]],
+    embed_allowed: set[str],
+) -> None:
+    """When the pool is non-empty but Gemini left ``embedded_tiles`` blank, attach one peer."""
+    from getviews_pipeline.diagnose_parse import resolve_embedded_tiles
+
+    if not embed_allowed:
+        return
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return
+
+    ranked = sorted(
+        embed_allowed,
+        key=lambda aid: -max(
+            (
+                int(
+                    r.get("content_proximity_score") or r.get("_proximity_score") or 0
+                )
+                for r in reference_videos
+                if str(r.get("aweme_id") or r.get("video_id") or "") == aid
+            ),
+            default=0,
+        ),
+    )
+    by_sid: dict[str, dict[str, Any]] = {}
+    for sec in sections:
+        if isinstance(sec, dict):
+            sid = str(sec.get("section_id") or "")
+            if sid:
+                by_sid[sid] = sec
+
+    aid_idx = 0
+    for sid in (
+        "hook_analysis",
+        "diagnosis",
+        "niche_pattern",
+        "distribution",
+        "script_structure",
+    ):
+        if aid_idx >= len(ranked):
+            break
+        if sid not in _EMBED_TILE_SECTION_IDS:
+            continue
+        sec = by_sid.get(sid)
+        if not sec:
+            continue
+        existing = sec.get("embedded_tiles")
+        if isinstance(existing, list) and existing:
+            continue
+        aid = ranked[aid_idx]
+        resolved = resolve_embedded_tiles([{"aweme_id": aid}], reference_videos)
+        resolved = [
+            t
+            for t in resolved
+            if t.get("aweme_id")
+            and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
+        ]
+        if resolved:
+            sec["embedded_tiles"] = resolved[:1]
+            aid_idx += 1
 
 
 def _strip_disallowed_embedded_tile_ids(
@@ -1100,6 +1165,8 @@ def _sanitize_diagnosis_embedded_tiles(
             if t.get("aweme_id")
             and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
         ]
+
+    _inject_fallback_embedded_tiles(diagnosis_vi, reference_videos, embed_allowed)
 
 
 def _validate_diagnosis_vi_citations(

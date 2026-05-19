@@ -37,7 +37,8 @@ def test_sanitize_drops_off_topic_embedded_tiles() -> None:
     }
     _sanitize_diagnosis_embedded_tiles(diag_vi, refs, allowed)
     tiles = diag_vi["sections"][0]["embedded_tiles"]
-    assert tiles == []
+    assert len(tiles) == 1
+    assert tiles[0]["aweme_id"] == "111"
 
 
 def test_sanitize_resolves_on_topic_tile_from_pool() -> None:
@@ -61,15 +62,32 @@ def test_sanitize_resolves_on_topic_tile_from_pool() -> None:
     assert "đồng hồ" in (tiles[0].get("caption_snippet") or "")
 
 
-def test_sanitize_clears_all_tiles_when_no_proximity_match() -> None:
-    refs = [_slim("111", "generic beauty", proximity=0, source="corpus")]
+def test_sanitize_keeps_corpus_pool_tile_when_proximity_zero() -> None:
+    refs = [_slim("111", "đồng hồ dây da", proximity=0, source="corpus")]
     diag_vi = {
         "sections": [
             {"section_id": "diagnosis", "embedded_tiles": [{"aweme_id": "111"}]}
         ]
     }
     _sanitize_diagnosis_embedded_tiles(diag_vi, refs, {"111"})
-    assert diag_vi["sections"][0]["embedded_tiles"] == []
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    assert len(tiles) == 1
+    assert tiles[0]["aweme_id"] == "111"
+
+
+def test_inject_fallback_tile_when_gemini_omits_embedded_tiles() -> None:
+    from getviews_pipeline.gemini import _inject_fallback_embedded_tiles
+
+    refs = [_slim("111", "đồng hồ", proximity=0, source="corpus")]
+    diag_vi = {
+        "sections": [
+            {"section_id": "hook_analysis", "text_vi": "prose", "embedded_tiles": []},
+        ]
+    }
+    _inject_fallback_embedded_tiles(diag_vi, refs, {"111"})
+    tiles = diag_vi["sections"][0]["embedded_tiles"]
+    assert len(tiles) == 1
+    assert tiles[0]["aweme_id"] == "111"
 
 
 def test_sanitize_keeps_live_search_tile_when_proximity_zero() -> None:
