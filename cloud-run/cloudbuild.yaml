@@ -1,12 +1,29 @@
-# Build from repo root so Dockerfile can COPY supabase/migrations + cloud-run/.
+# Build from repo root (cloud-run/deploy.sh or .github/workflows/cloud-run-build.yml).
+# Substitutions: _TAG (required), _TAG_SHA (optional, e.g. gcr.io/PROJECT/getviews-pipeline:$COMMIT_SHA)
+substitutions:
+  _TAG: gcr.io/PROJECT/getviews-pipeline
+  _TAG_SHA: ""
+
 steps:
   - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
     args:
-      - build
-      - -f
-      - cloud-run/Dockerfile
-      - -t
-      - $_TAG
-      - .
+      - -c
+      - |
+        set -euo pipefail
+        tags=(-t "$_TAG")
+        if [[ -n "$_TAG_SHA" && "$_TAG_SHA" != "$_TAG" ]]; then
+          tags+=(-t "$_TAG_SHA")
+        fi
+        cache=()
+        if docker pull "$_TAG" 2>/dev/null; then
+          cache=(--cache-from "$_TAG")
+        fi
+        docker build -f cloud-run/Dockerfile "${tags[@]}" "${cache[@]}" .
+        if [[ -n "$_TAG_SHA" && "$_TAG_SHA" != "$_TAG" ]]; then
+          docker push "$_TAG_SHA"
+        fi
+    id: build
+
 images:
   - $_TAG

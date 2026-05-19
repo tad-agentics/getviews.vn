@@ -13,7 +13,7 @@
 #   ./deploy.sh                   # build + deploy both services
 #   ./deploy.sh user              # build + deploy user only
 #   ./deploy.sh batch             # build + deploy batch only
-#   SKIP_BUILD=1 ./deploy.sh ...  # reuse previous image
+#   SKIP_BUILD=1 ./deploy.sh ...  # reuse image (after CI build — see cloud-run/docs/ci-cloud-run-build.md)
 #
 # Project: set GCP_PROJECT_ID or ``gcloud config set project ID`` (active
 # config is used when GCP_PROJECT_ID is unset).
@@ -45,13 +45,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
-  echo "Building image $IMAGE (context: repo root — includes supabase/migrations for junction)..."
+  echo "Building image $IMAGE (context: repo root — .gcloudignore keeps upload small)..."
   gcloud builds submit --project "$PROJECT_ID" \
     --config="$SCRIPT_DIR/cloudbuild.yaml" \
     --substitutions="_TAG=$IMAGE" \
     "$REPO_ROOT"
 else
-  echo "SKIP_BUILD=1 — reusing existing image $IMAGE"
+  echo "SKIP_BUILD=1 — reusing existing image $IMAGE (built by CI or a prior local submit)"
 fi
 
 # IMPORTANT — env-var preservation across image-rebuild deploys.

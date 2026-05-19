@@ -1,0 +1,70 @@
+# Build getviews-pipeline image on Cloud Build (push to main or manual).
+# Deploy separately: SKIP_BUILD=1 ./cloud-run/deploy.sh batch|user|both
+# Setup: cloud-run/docs/ci-cloud-run-build.md
+
+name: Cloud Run — build image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cloud-run/**"
+      - "supabase/migrations/20260510000004_two_axis_niche_pr1_schema.sql"
+      - "supabase/migrations/20260516190000_hi16_carousel_format_axis_junction.sql"
+      - "supabase/migrations/20260630000003_creator_niches_16_music_real_estate.sql"
+      - ".dockerignore"
+      - ".gcloudignore"
+      - "cloud-run/cloudbuild.yaml"
+      - "cloud-run/Dockerfile"
+      - ".github/workflows/cloud-run-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: cloud-run-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Cloud Build (repo root → gcr.io)
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/getviews-pipeline
+        run: |
+          set -euo pipefail
+          if [[ -z "${PROJECT_ID}" ]]; then
+            echo "::error::Set repository secret GCP_PROJECT_ID (e.g. project-ddfb2960-ee81-4c98-b4f)"
+            exit 1
+          fi
+          gcloud builds submit \
+            --project "$PROJECT_ID" \
+            --config=cloud-run/cloudbuild.yaml \
+            --substitutions="_TAG=${IMAGE},_TAG_SHA=${IMAGE}:${GITHUB_SHA}" \
+            .
+
+      - name: Summary
+        env:
+          IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/getviews-pipeline
+        run: |
+          echo "### Image built" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`${IMAGE}\` (tag \`latest\` from cloudbuild)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`${IMAGE}:${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deploy without rebuild:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```bash' >> "$GITHUB_STEP_SUMMARY"
+          echo "SKIP_BUILD=1 ./cloud-run/deploy.sh both" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
