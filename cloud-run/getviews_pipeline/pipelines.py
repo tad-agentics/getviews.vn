@@ -199,7 +199,8 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
     tiktok_url = None
     if author_handle and aweme_id:
         tiktok_url = f"https://tiktok.com/@{author_handle}/video/{aweme_id}"
-    return {
+    prox = r.get("_proximity_score")
+    out: dict[str, Any] = {
         "aweme_id": aweme_id,
         "desc": ((r.get("desc") or "")[:120]) or None,
         "hook_type": hook_type,
@@ -211,6 +212,9 @@ def _slim_reference_video(r: dict[str, Any], source: str = "corpus") -> dict[str
         "tiktok_url": tiktok_url,
         "source": source,
     }
+    if prox is not None:
+        out["content_proximity_score"] = int(prox)
+    return out
 
 
 def compute_bright_spot_signal(

@@ -9,12 +9,23 @@ logger = logging.getLogger(__name__)
 
 from getviews_pipeline.pipelines import (  # noqa: E402
     REF_N,
+    _content_proximity_score,
     _maybe_merge_content_targeted_refs_async,
     _niche_aweme_pool,
     _reference_evidence_lines,
     _select_by_proximity_then_er,
     _slim_reference_video,
 )
+
+
+def _annotate_pick_proximity(
+    picks: list[dict[str, Any]],
+    *,
+    video_desc: str,
+    video_hashtags: list[str],
+) -> None:
+    for p in picks:
+        p["_proximity_score"] = _content_proximity_score(p, video_desc, video_hashtags)
 
 __all__ = [
     "REF_N",
@@ -134,6 +145,9 @@ async def select_synthesis_references_for_video(
 
     corpus_picks = [p for p in picks if p.get("_from_corpus")][:REF_N]
     if corpus_picks:
+        _annotate_pick_proximity(
+            corpus_picks, video_desc=video_desc, video_hashtags=video_hashtags
+        )
         synthesis_refs = [corpus_aweme_to_synthesis_ref(p) for p in corpus_picks]
         slim_refs = [_slim_reference_video(p, "corpus") for p in corpus_picks]
         if len(corpus_picks) < REF_N:

@@ -45,10 +45,12 @@ export function mapDiagnosisEmbeddedTiles(
     const row = t as Record<string, unknown>;
     const aid = String(row.aweme_id ?? row.video_id ?? "");
     const src = aid ? byId[aid] : undefined;
-    const url = String(src?.tiktok_url ?? row.video_url ?? row.tiktok_url ?? "");
-    const thumb = String(src?.thumbnail_url ?? row.thumbnail_url ?? "");
-    const views = Number(src?.views ?? row.views ?? 0) || 0;
-    const snip = String(src?.desc ?? row.caption_snippet ?? row.desc ?? "").slice(0, 120);
+    // Only show tiles joined to the synthesis reference pool — never orphan Gemini captions.
+    if (!src) continue;
+    const url = String(src.tiktok_url ?? row.video_url ?? row.tiktok_url ?? "");
+    const thumb = String(src.thumbnail_url ?? row.thumbnail_url ?? "");
+    const views = Number(src.views ?? row.views ?? 0) || 0;
+    const snip = String(src.desc ?? row.caption_snippet ?? row.desc ?? "").slice(0, 120);
     if (!url && !thumb && !snip) continue;
     out.push({
       video_url: url,

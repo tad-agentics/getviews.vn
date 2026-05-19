@@ -972,9 +972,85 @@ def _split_diagnosis_leading_json(full_text: str) -> tuple[dict[str, Any] | None
     return obj if isinstance(obj, dict) else None, rest
 
 
+_EMBEDDED_TILE_MIN_PROXIMITY = 1
+
+
+def _reference_ids_with_content_proximity(
+    reference_videos: list[dict[str, Any]],
+) -> set[str]:
+    """Aweme ids whose caption/hashtag overlap scored at least ``_EMBEDDED_TILE_MIN_PROXIMITY``."""
+    out: set[str] = set()
+    for r in reference_videos:
+        aid = str(r.get("aweme_id") or r.get("video_id") or "")
+        if not aid:
+            continue
+        score = int(r.get("content_proximity_score") or r.get("_proximity_score") or 0)
+        if score >= _EMBEDDED_TILE_MIN_PROXIMITY:
+            out.add(aid)
+    return out
+
+
+def _sanitize_diagnosis_embedded_tiles(
+    diagnosis_vi: dict[str, Any],
+    reference_videos: list[dict[str, Any]],
+    allowed_aweme: set[str],
+) -> None:
+    """Resolve ``embedded_tiles`` from the reference pool only — drop hallucinated or off-topic ids."""
+    from getviews_pipeline.diagnose_parse import resolve_embedded_tiles
+
+    relevant = _reference_ids_with_content_proximity(reference_videos)
+    embed_allowed = allowed_aweme & relevant if relevant else set()
+
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return
+
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        raw_tiles = sec.get("embedded_tiles")
+        if not isinstance(raw_tiles, list) or not raw_tiles:
+            sec["embedded_tiles"] = []
+            continue
+        if not embed_allowed:
+            sec["embedded_tiles"] = []
+            continue
+
+        hints: list[dict[str, Any]] = []
+        for t in raw_tiles:
+            if not isinstance(t, dict):
+                continue
+            aid = str(t.get("aweme_id") or t.get("video_id") or "").strip()
+            if aid.isdigit() and aid in embed_allowed:
+                hints.append({"aweme_id": aid})
+
+        if not hints:
+            sec["embedded_tiles"] = []
+            continue
+
+        by_prox: dict[str, int] = {}
+        for r in reference_videos:
+            rid = str(r.get("aweme_id") or r.get("video_id") or "")
+            if rid:
+                by_prox[rid] = int(
+                    r.get("content_proximity_score") or r.get("_proximity_score") or 0
+                )
+        hints.sort(key=lambda h: -by_prox.get(str(h.get("aweme_id") or ""), 0))
+        hints = hints[:2]
+
+        resolved = resolve_embedded_tiles(hints, reference_videos)
+        sec["embedded_tiles"] = [
+            t
+            for t in resolved
+            if t.get("aweme_id")
+            and (t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"))
+        ]
+
+
 def _validate_diagnosis_vi_citations(
     diagnosis_vi: dict[str, Any],
     allowed_aweme: set[str],
+    reference_videos: list[dict[str, Any]] | None = None,
 ) -> None:
     """Mutate v6 ``diagnosis_vi`` in place: drop aweme citations outside ``allowed_aweme``.
 
@@ -1011,32 +1087,20 @@ def _validate_diagnosis_vi_citations(
                 if quote_s.isdigit() and len(quote_s) >= 12 and _strip_aweme_value(quote_s):
                     a["quote"] = None
 
-    sections = diagnosis_vi.get("sections")
-    if isinstance(sections, list):
-        for sec in sections:
-            if not isinstance(sec, dict):
-                continue
-            tiles = sec.get("embedded_tiles")
-            if not isinstance(tiles, list):
-                continue
-            for t in tiles:
-                if not isinstance(t, dict):
-                    continue
-                for key in ("aweme_id", "video_id"):
-                    v = t.get(key)
-                    if v is not None and str(v) not in allowed_aweme:
-                        t[key] = None
+    if reference_videos is not None:
+        _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed_aweme)
 
 
 def _validate_narrative_citations(
     narrative_vi: dict[str, Any] | None,
     format_cards: list[dict[str, Any]] | None,
     allowed_aweme: set[str],
+    reference_videos: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]] | None]:
     if narrative_vi:
         diag = narrative_vi.get("diagnosis_vi")
         if isinstance(diag, dict):
-            _validate_diagnosis_vi_citations(diag, allowed_aweme)
+            _validate_diagnosis_vi_citations(diag, allowed_aweme, reference_videos)
         for item in narrative_vi.get("loi_chinh_narrative") or []:
             if not isinstance(item, dict):
                 continue
@@ -1231,7 +1295,7 @@ def _synthesize_diagnosis_v6_section_pool(
             fc = raw_obj.get("format_cards")
             format_cards = fc if isinstance(fc, list) else None
             narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed
+                narrative_vi, format_cards, allowed, reference_videos
             )
             narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
             q = score_diagnosis_output_v6(
@@ -1250,7 +1314,7 @@ def _synthesize_diagnosis_v6_section_pool(
             narrative_vi = nv if isinstance(nv, dict) else None
             format_cards = fc if isinstance(fc, list) else None
             narrative_vi, format_cards = _validate_narrative_citations(
-                narrative_vi, format_cards, allowed
+                narrative_vi, format_cards, allowed, reference_videos
             )
             narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
             body = remainder.strip()
@@ -1378,7 +1442,7 @@ def synthesize_diagnosis_v2(
         narrative_vi = nv if isinstance(nv, dict) else None
         format_cards = fc if isinstance(fc, list) else None
         narrative_vi, format_cards = _validate_narrative_citations(
-            narrative_vi, format_cards, allowed
+            narrative_vi, format_cards, allowed, reference_videos
         )
         narrative_vi = _normalize_narrative_vi_dict(narrative_vi)
     body = remainder.strip()
