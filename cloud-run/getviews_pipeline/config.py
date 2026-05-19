@@ -415,9 +415,10 @@ GEMINI_VIDEO_DIAGNOSIS_HARD_TIMEOUT_SEC = _float_env(
     "120",
 )
 
-# Section-pool + signal-manifest diagnosis (JSON ``diagnosis_vi``, schema v6). Off by default.
+# Section-pool + signal-manifest diagnosis (JSON ``diagnosis_vi``, schema v6). On by default (pre-launch).
+# Set GETVIEWS_DIAGNOSIS_SECTION_MODE=0 to force legacy monolithic synthesis.
 GETVIEWS_DIAGNOSIS_SECTION_MODE = (
-    (os.environ.get("GETVIEWS_DIAGNOSIS_SECTION_MODE") or "").strip() == "1"
+    (os.environ.get("GETVIEWS_DIAGNOSIS_SECTION_MODE") or "1").strip() != "0"
 )
 
 # Backward-compat aliases — keep older callers working.

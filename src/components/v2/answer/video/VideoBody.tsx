@@ -34,12 +34,9 @@ import { r2FrameUrl } from "@/lib/services/corpus-service";
 import { ContextStrip } from "@/components/v2/answer/video/blocks/ContextStrip";
 import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectionRenderer";
 import { DiagnosisPostingContextBlock } from "@/components/diagnosis/DiagnosisPostingContextBlock";
-import {
-  CreatorComparisonCard,
-} from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
-import { FlopIssueNarrativeRow } from "@/components/v2/answer/video/blocks/FlopIssueRow";
+import { CreatorComparisonCard } from "@/components/v2/answer/video/blocks/CreatorComparisonCard";
 import { FlopDiagnosisStrip } from "@/components/v2/answer/video/blocks/FlopDiagnosisStrip";
-import { CrossFormatPanel } from "@/components/v2/answer/video/blocks/CrossFormatPanel";
+import { resolveDiagnosisSections } from "@/lib/resolveDiagnosisSections";
 import { FormatCardsGrid } from "@/components/v2/answer/video/blocks/FormatCardsGrid";
 import { PerformanceTierChip } from "@/components/v2/answer/video/blocks/PerformanceTierChip";
 import {
@@ -213,16 +210,14 @@ export function VideoBody({
     });
   }, [viewMode, report.video_id, report.source]);
 
-  const v6Sections = narrativeVi?.diagnosis_vi?.sections;
-  const showV6SectionBody = Array.isArray(v6Sections) && v6Sections.length > 0;
-  const v6SectionIds = new Set(v6Sections?.map((s) => String(s.section_id)) ?? []);
-  const hasV6ChannelPattern = v6SectionIds.has("channel_pattern");
-  const hasV6HookAnalysis = v6SectionIds.has("hook_analysis");
-  const hasV6Distribution = v6SectionIds.has("distribution");
-  // CrossFormatPanel is a v5 standalone block. In v6 the cross-format signal
-  // is passed into the Gemini prompt so niche_pattern/distribution narrate it
-  // directly — suppress the standalone card to avoid duplication.
-  const showCrossFormatPanel = !showV6SectionBody && Boolean(report.cross_format_signal);
+  const diagnosisSections = useMemo(
+    () => resolveDiagnosisSections(narrativeVi, flopIssuesForNarrative, viewMode),
+    [narrativeVi, flopIssuesForNarrative, viewMode],
+  );
+  const sectionIds = new Set(diagnosisSections.map((s) => String(s.section_id)));
+  const hasChannelPattern = sectionIds.has("channel_pattern");
+  const hasHookAnalysis = sectionIds.has("hook_analysis");
+  const hasDistribution = sectionIds.has("distribution");
 
   const goScript = () => {
     if (isFlop) logUsage("flop_cta_click", { video_id: report.video_id });
@@ -434,20 +429,7 @@ export function VideoBody({
           </h1>
         </header>
 
-        {narrativeVi?.ket_luan_nhanh && !showV6SectionBody ? (
-          <section className="mb-4" aria-label="Kết luận nhanh">
-            <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-              Kết luận nhanh
-            </p>
-            <div className="rounded-[12px] bg-primary/10 px-4 py-3">
-              <p className="max-w-[680px] leading-relaxed text-foreground">
-                {narrativeVi.ket_luan_nhanh}
-              </p>
-            </div>
-          </section>
-        ) : null}
-
-        {isFlop && !showV6SectionBody && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
+        {isFlop && viewScenariosEffective && viewScenariosEffective.length > 0 ? (
           <section className="mb-4" aria-label="Mức độ cải thiện có thể kỳ vọng">
             <p className="gv-mono mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
               Mức cải thiện lượt xem (ước lượng thận trọng)
@@ -473,30 +455,9 @@ export function VideoBody({
           />
         ) : null}
 
-        {brightEffective && !showV6SectionBody ? (
-          <div
-            className="mb-4 rounded-[10px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] px-3 py-2.5"
-            aria-label="Điểm sáng tín hiệu"
-          >
-            <p className="gv-mono mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)]">
-              Tín hiệu
-            </p>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[color:var(--gv-accent)]" />
-              <p className="text-[13px] leading-snug text-[color:var(--gv-ink-2)]">
-                {brightEffective.message_vi}
-              </p>
-            </div>
-          </div>
-        ) : null}
-
-        {nichePostingContextEffective && !showV6SectionBody ? (
-          <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
-        ) : null}
-
-        {showV6SectionBody ? (
+        {diagnosisSections.length > 0 ? (
           <div className="mb-6" aria-label="Chẩn đoán theo mục">
-            {v6Sections!.map((sec, idx) => {
+            {diagnosisSections.map((sec, idx) => {
               const sid = String(sec.section_id);
               return (
                 <Fragment key={`${sid}-${idx}`}>
@@ -537,57 +498,30 @@ export function VideoBody({
           </div>
         ) : null}
 
-        {showV6SectionBody && nichePostingContextEffective && !hasV6Distribution ? (
+        {diagnosisSections.length > 0 &&
+        nichePostingContextEffective &&
+        !hasDistribution ? (
           <DiagnosisPostingContextBlock payload={nichePostingContextEffective} />
         ) : null}
 
-        {showV6SectionBody && !hasV6ChannelPattern && report.creator_comparison ? (
+        {diagnosisSections.length > 0 && !hasChannelPattern && report.creator_comparison ? (
           <CreatorComparisonCard data={report.creator_comparison} />
         ) : null}
 
-        {!showV6SectionBody && narrativeVi?.van_de_chinh ? (
-          <section className="mb-6">
-            <h3 className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--gv-ink-4)]">
-              Vấn đề cốt lõi
-            </h3>
-            <p className="max-w-[680px] text-[15px] leading-relaxed text-foreground">
-              {narrativeVi.van_de_chinh}
-            </p>
-          </section>
-        ) : null}
-
-        {viewMode === "flop" && flopIssuesForNarrative.length > 0 ? (
-          <section className="mb-6">
-            <div className="flex flex-col gap-3">
-              {flopIssuesForNarrative.map((issue, i) => {
-                const narrativeItem = narrativeVi?.loi_chinh_narrative?.find(
-                  (n) => n.error_id === issue.error_id,
-                );
-                return (
-                  <FlopIssueNarrativeRow
-                    key={issue.error_id ?? `${issue.title}-${i}`}
-                    rank={i + 1}
-                    issue={issue}
-                    narrativeItem={narrativeItem}
-                    referenceVideos={refVideos}
-                  />
-                );
-              })}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <Btn type="button" variant="accent" onClick={goScript}>
-                Viết lại kịch bản
-                <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-              </Btn>
-            </div>
-          </section>
+        {isFlop && flopIssueCount > 0 ? (
+          <div className="mb-6 flex justify-end">
+            <Btn type="button" variant="accent" onClick={goScript}>
+              Viết lại kịch bản
+              <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+            </Btn>
+          </div>
         ) : null}
 
         {/* Standalone channel block: shown when channel data is available but
             channel_pattern didn't emit as a v6 section (sample_size < 2).
             Add a brief intro so the cards aren't orphaned without context. */}
         {channelEffective?.available &&
-        !hasV6ChannelPattern &&
+        !hasChannelPattern &&
         !report.creator_comparison ? (
           <div className="mb-6">
             <h3 className="mb-2 text-base font-bold leading-snug text-[color:var(--foreground)]">
@@ -617,16 +551,8 @@ export function VideoBody({
           <FormatCardsGrid cards={formatCardsEffective} referenceVideos={refVideos} />
         ) : null}
 
-        {showCrossFormatPanel ? (
-          <CrossFormatPanel signal={report.cross_format_signal!} />
-        ) : null}
-
-        {narrativeVi?.dinh_huong_chien_luoc ? (
+        {narrativeVi?.dinh_huong_chien_luoc && !sectionIds.has("next_video") ? (
           <NextStepsSection text={narrativeVi.dinh_huong_chien_luoc} />
-        ) : null}
-
-        {!showV6SectionBody && report.creator_comparison ? (
-          <CreatorComparisonCard data={report.creator_comparison} />
         ) : null}
 
         {report.segments && report.segments.length > 0 ? (
@@ -670,7 +596,7 @@ export function VideoBody({
         ) : null}
 
         {/* Hook phases collapsible: only when v6 hook_analysis section did not embed it */}
-        {report.hook_phases?.length && !hasV6HookAnalysis ? (
+        {report.hook_phases?.length && !hasHookAnalysis ? (
           <Collapsible defaultOpen={false}>
             <CollapsibleTrigger asChild>
               <button
@@ -693,22 +619,20 @@ export function VideoBody({
           </Collapsible>
         ) : null}
 
-        {!showV6SectionBody ? (
-          <Collapsible defaultOpen={false}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
-              >
-                <span>Bối cảnh phân tích</span>
-                <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ContextStrip meta={meta} enrichment={report.enrichment} />
-            </CollapsibleContent>
-          </Collapsible>
-        ) : null}
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="gv-mono flex w-full items-center justify-between gap-2 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--gv-ink-4)] hover:text-[color:var(--gv-ink-3)]"
+            >
+              <span>Bối cảnh phân tích</span>
+              <span className="shrink-0 text-[11px] normal-case tracking-normal">▼ mở rộng</span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ContextStrip meta={meta} enrichment={report.enrichment} />
+          </CollapsibleContent>
+        </Collapsible>
 
         {viewMode === "win" && winLessons.length ? (
           <section>
