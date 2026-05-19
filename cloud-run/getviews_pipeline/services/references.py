@@ -133,16 +133,28 @@ async def select_synthesis_references_for_video(
     slim_refs: list[dict[str, Any]] = []
 
     corpus_picks = [p for p in picks if p.get("_from_corpus")][:REF_N]
-    if len(corpus_picks) >= REF_N:
+    if corpus_picks:
         synthesis_refs = [corpus_aweme_to_synthesis_ref(p) for p in corpus_picks]
         slim_refs = [_slim_reference_video(p, "corpus") for p in corpus_picks]
-    elif live_search_fn is not None:
+        if len(corpus_picks) < REF_N:
+            corpus_source = "sparse_fallback"
+
+    if len(synthesis_refs) < REF_N and live_search_fn is not None:
         try:
             live_syn, live_slim = await live_search_fn(niche, target_id)
             if live_syn:
-                synthesis_refs = live_syn
-                slim_refs = live_slim
-                corpus_source = "live_search"
+                seen = {str(r.get("aweme_id") or "") for r in synthesis_refs}
+                for ref, slim in zip(live_syn, live_slim, strict=False):
+                    aid = str(ref.get("aweme_id") or "")
+                    if aid and aid in seen:
+                        continue
+                    synthesis_refs.append(ref)
+                    slim_refs.append(slim)
+                    seen.add(aid)
+                    if len(synthesis_refs) >= REF_N:
+                        break
+                if synthesis_refs and not corpus_picks:
+                    corpus_source = "live_search"
         except Exception as exc:
             logger.warning("[references] live_search_fn failed: %s", exc)
 
