@@ -1871,7 +1871,7 @@ export type Database = {
           credits_reset_at: string | null
           daily_free_query_count: number
           daily_free_query_reset_at: string | null
-          deep_credits_remaining: number
+          credits_remaining: number
           display_name: string
           email: string
           id: string
@@ -1892,7 +1892,7 @@ export type Database = {
           credits_reset_at?: string | null
           daily_free_query_count?: number
           daily_free_query_reset_at?: string | null
-          deep_credits_remaining?: number
+          credits_remaining?: number
           display_name?: string
           email: string
           id: string
@@ -1913,7 +1913,7 @@ export type Database = {
           credits_reset_at?: string | null
           daily_free_query_count?: number
           daily_free_query_reset_at?: string | null
-          deep_credits_remaining?: number
+          credits_remaining?: number
           display_name?: string
           email?: string
           id?: string
@@ -2118,7 +2118,7 @@ export type Database = {
           amount_vnd: number
           billing_period: string
           created_at: string
-          deep_credits_granted: number
+          credits_granted: number
           expires_at: string
           id: string
           payos_order_code: string
@@ -2135,7 +2135,7 @@ export type Database = {
           amount_vnd: number
           billing_period: string
           created_at?: string
-          deep_credits_granted: number
+          credits_granted: number
           expires_at: string
           id?: string
           payos_order_code: string
@@ -2152,7 +2152,7 @@ export type Database = {
           amount_vnd?: number
           billing_period?: string
           created_at?: string
-          deep_credits_granted?: number
+          credits_granted?: number
           expires_at?: string
           id?: string
           payos_order_code?: string

@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
 
       const { data: sub } = await supabase
         .from("subscriptions")
-        .select("tier, deep_credits_granted, expires_at, amount_vnd")
+        .select("tier, credits_granted, expires_at, amount_vnd")
         .eq("payos_order_code", orderCode)
         .single();
 
@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
             template: "receipt",
             to: profile.email,
             data: {
-              count: sub.deep_credits_granted,
+              count: sub.credits_granted,
               display_name: profile.display_name ?? "",
               tier: sub.tier,
               expires_at: sub.expires_at,

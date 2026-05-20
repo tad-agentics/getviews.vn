@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
     for (const uid of userIds) {
       const { error: u2 } = await supabase
         .from("profiles")
-        .update({ subscription_tier: "free", deep_credits_remaining: 0 })
+        .update({ subscription_tier: "free", credits_remaining: 0 })
         .eq("id", uid);
       if (u2) throw u2;
     }

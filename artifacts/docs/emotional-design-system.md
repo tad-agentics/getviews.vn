@@ -46,7 +46,7 @@ When two layers conflict in a design decision, higher priority wins.
 2. **Name the specific fix, not the general category.** Wrong: "Cần cải thiện hook." Right: "Đổi hook thành 'ĐỪNG MUA [sản phẩm] nếu chưa xem video này' + mở bằng mặt nhìn camera trong 0.5 giây đầu."
 3. **Include a tappable reference for every claim.** Every corpus-backed statement includes a thumbnail card the user can tap to see the actual TikTok video. The evidence is one tap away. This is the opposite of guru culture.
 4. **Finish with the next action, not a summary.** Last line of every response is what Minh should do in the next 10 minutes. Not "Tóm lại..." — instead "Quay lại video hôm nay: hook Cảnh Báo + mặt + text 0.5s. Đây là 3 video mẫu."
-5. **Treat credits like the user's money — because they are.** Never waste a deep credit on something that could be answered with a free follow-up. If the user asks a clarifying question, don't charge. If they ask for a new analysis, charge. Intent detection is conservative: ambiguous = free.
+5. **Treat credits like the user's money — because they are.** Never waste a credit on something that could be answered with a free follow-up. If the user asks a clarifying question, don't charge. If they ask for a new analysis, charge. Intent detection is conservative: ambiguous = free.
 6. **Stay quiet after delivering a big result.** No upsell after diagnosis. No "Bạn cũng có thể thử..." after a brief. Let the result breathe. The user needs 10 seconds to absorb before the next prompt.
 
 ---
@@ -328,11 +328,11 @@ Minh's primary device is a phone (360–393px). The desktop layout (centered 720
 - Reveal: Creator cards appear in a vertical stack with 100ms stagger. Each card slides in from bottom, opacity 0→1.
 - Highlight: Creators with corpus data get a small purple "Có data" badge — signals deeper analysis is available.
 **Duration:** 500ms for 5-card stack
-**After this moment:** Natural prompt: user taps a creator → "Phân tích @handle chi tiết hơn" (triggers ③, costs 1 deep credit).
+**After this moment:** Natural prompt: user taps a creator → "Phân tích @handle chi tiết hơn" (triggers ③, costs 1 credit).
 
 ### D5 — Credit Consumption Feedback
 **Screen:** Credit bar (persistent at bottom of chat)
-**Trigger:** A deep credit is consumed (intents ①–⑤)
+**Trigger:** A credit is consumed (intents ①–⑤)
 **Emotion target:** Awareness — "I know I was charged, it's transparent"
 **Mechanism:**
 - Credit count number pulses: scale 1→1.15→1, 300ms `ease-out`. Color briefly flashes `--danger` then back to `--purple`.
@@ -340,7 +340,7 @@ Minh's primary device is a phone (360–393px). The desktop layout (centered 720
 - A small "−1" floats up from the number and fades out (opacity 1→0, translateY 0→-12px, 400ms).
 **Duration:** 400ms
 **Thresholds:**
-- Credits ≤5: bar text changes to `--danger` color, prefix "⚠" added: "⚠ 5 deep credits còn lại"
+- Credits ≤5: bar text changes to `--danger` color, prefix "⚠" added: "⚠ 5 credits còn lại"
 - Credits = 0: bar becomes a tappable CTA with `--purple` bg: "Hết credit. Mua thêm →"
 
 ### D6 — Free Query Confirmation
@@ -352,10 +352,10 @@ Minh's primary device is a phone (360–393px). The desktop layout (centered 720
 - Pill fades out after 2s (opacity 1→0, 400ms).
 - Color: `--purple` text on `--purple-light` bg. Rounded pill, 10px padding.
 **Duration:** 150ms in + 2s hold + 400ms out
-**Why this matters:** Reduces credit hoarding. Vietnamese users are price-sensitive — explicitly confirming "this was free" encourages more browsing, which drives engagement, which drives deep credit consumption on insights they discover.
+**Why this matters:** Reduces credit hoarding. Vietnamese users are price-sensitive — explicitly confirming "this was free" encourages more browsing, which drives engagement, which drives credit consumption on insights they discover.
 
 ### No-Dopamine Zones
-- **Paywall / credit exhaustion:** Flat, transactional. "Hết deep credit tháng này. Mua thêm 10 credit = 130K." No urgency, no FOMO, no countdown.
+- **Paywall / credit exhaustion:** Flat, transactional. "Hết credit tháng này. Mua thêm 10 credit = 130K." No urgency, no FOMO, no countdown.
 - **Error states:** Calm, specific. "Video không tải được — TikTok CDN chặn. Thử dán lại hoặc dùng video khác." No emoji. No "Oops."
 - **Onboarding niche selection:** Neutral. The user is choosing their niche, not celebrating. Clean dropdown, no animation.
 - **Settings / account screens:** Zero animation. Static. These are utility, not experience.
@@ -412,16 +412,16 @@ Linh's #1 output action: forward a brief to a KOL on Zalo. Minh's #1 share actio
 | Error | video_fail | "Video không tải được — thử dán lại hoặc dùng video khác." | — |
 | Error | gemini_fail | "Đang bận — thử lại sau vài giây." | — |
 | Error | stream_interrupted | "— Bị gián đoạn. Gõ 'tiếp' để tiếp tục." | — |
-| Paywall | credit_depleted | "Hết deep credit tháng này. Mua thêm 10 credit = 130K VND." | — |
-| Paywall | credit_low | "⚠ {{remaining}} deep credits còn lại" | remaining |
-| Paywall | credit_bar | "{{count}} deep credits còn lại · Lướt xu hướng & tìm KOL không giới hạn" | count |
+| Paywall | credit_depleted | "Hết credit tháng này. Mua thêm 10 credit = 130K VND." | — |
+| Paywall | credit_low | "⚠ {{remaining}} credits còn lại" | remaining |
+| Paywall | credit_bar | "{{count}} credits còn lại · Lướt xu hướng & tìm KOL không giới hạn" | count |
 | Free | free_pill | "Miễn phí ✓" | — |
 | Ambient | nav_chat | "Chat" | — |
 | Ambient | nav_trends | "Xu hướng" | — |
 | Ambient | nav_history | "Lịch sử" | — |
 | Confirmation | copy_success | "Đã copy ✓" | — |
 | Confirmation | copy_zalo | "Đã copy — forward qua Zalo cho KOL luôn." | — |
-| Confirmation | credit_purchased | "Đã thêm {{count}} deep credit. Balance: {{total}}." | count, total |
+| Confirmation | credit_purchased | "Đã thêm {{count}} credit. Balance: {{total}}." | count, total |
 | Loading | diagnosis_p1 | "Đang tải video..." | — |
 | Loading | diagnosis_p2 | "Đang xem video của bạn..." | — |
 | Loading | diagnosis_p3 | "Đang so sánh với {{count}} video trong niche..." | count |

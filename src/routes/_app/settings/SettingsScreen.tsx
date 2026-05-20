@@ -319,11 +319,11 @@ function PlanPanel({
 }: {
   navigate: (path: string) => void;
   profile: ProfileRow | null | undefined;
-  subscription: { tier: string; expires_at: string; deep_credits_granted: number } | null | undefined;
+  subscription: { tier: string; expires_at: string; credits_granted: number } | null | undefined;
   loading: boolean;
 }) {
-  const cap = (profile as { deep_credits_total?: number } | null)?.deep_credits_total ?? 50;
-  const remaining = profile?.deep_credits_remaining ?? 0;
+  const cap = (profile as { credits_total?: number } | null)?.credits_total ?? 50;
+  const remaining = profile?.credits_remaining ?? 0;
   const creditPct = useMemo(
     () => (cap > 0 ? Math.min(100, Math.round((remaining / cap) * 100)) : 0),
     [remaining, cap],

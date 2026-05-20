@@ -405,7 +405,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 | ------------------------------- | ------------------- | -------------------------------- |
 | profiles.display_name           | profiles table      | "Bạn"                            |
 | profiles.primary_niche          | profiles table      | "creator" (fallback niche label) |
-| profiles.deep_credits_remaining | profiles table      | 0                                |
+| profiles.credits_remaining | profiles table      | 0                                |
 | sessions[].id                   | chat_sessions table | —                                |
 | sessions[].messages             | chat_messages table | []                               |
 | sessions[].intent_type          | chat_sessions table | null                             |
@@ -429,7 +429,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 4. User types or pastes text → SendButton activates (`--purple` bg).
 5. URL detected in input → URLChip appears above input: "Video TikTok — @{{handle}}" (purple left border). Intent pre-classified as ①/③/④.
 6. User taps SendButton → UserMessageBubble appears right-aligned. FreeQueryPill appears IF free intent (⑥⑦ or follow-up). StreamingStatusText appears in AssistantMessageBlock position.
-7. IF deep intent (①-⑤): credit check. IF credits ≥ 1 → proceed. IF credits = 0 → inline paywall appears: "Hết deep credit tháng này. Mua thêm 10 credit = 130K VND." + tappable "Mua thêm →" link.
+7. IF deep intent (①-⑤): credit check. IF credits ≥ 1 → proceed. IF credits = 0 → inline paywall appears: "Hết credit tháng này. Mua thêm 10 credit = 130K VND." + tappable "Mua thêm →" link.
 8. IF credits ≥ 1 → StreamingStatusText phases (e.g., for ①: "Đang tải video..." → "Đang xem video của bạn..." → "Đang so sánh với {{count}} video trong niche..."). D5: CreditBar pulses, number decrements, "−1" floats up.
 9. Tokens stream in: text appears token-by-token (opacity 0→1, 60ms each).
 10. Structured content (DiagnosisRows, HookRankingBars, BriefBlocks, CreatorCards) buffers during stream → appears as complete units with dopamine animations when ready.
@@ -469,10 +469,10 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - char_overflow: "Đã cắt — giới hạn 1.000 ký tự" — Ambient
 - scroll_down_pill: "↓ Cuộn xuống" — Ambient
 - free_pill: "Miễn phí ✓" — Ambient
-- credit_bar_normal: "{{count}} deep credits còn lại · Lướt xu hướng & tìm KOL không giới hạn" — Ambient
-- credit_bar_low: "⚠ {{count}} deep credits còn lại" — Ambient
+- credit_bar_normal: "{{count}} credits còn lại · Lướt xu hướng & tìm KOL không giới hạn" — Ambient
+- credit_bar_low: "⚠ {{count}} credits còn lại" — Ambient
 - credit_bar_zero: "Hết credit. Mua thêm →" — Paywall
-- paywall_inline: "Hết deep credit tháng này. Mua thêm 10 credit = 130.000 VND." — Paywall
+- paywall_inline: "Hết credit tháng này. Mua thêm 10 credit = 130.000 VND." — Paywall
 - loading_diagnosis_1: "Đang tải video..." — Loading
 - loading_diagnosis_2: "Đang xem video của bạn..." — Loading
 - loading_diagnosis_3: "Đang so sánh với {{count}} video trong niche..." — Loading
@@ -500,7 +500,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - Network lost mid-stream → error message "— Bị gián đoạn. Gõ 'tiếp' để tiếp tục." appended inline
 - iOS keyboard opens → ChatInput scrolls up; CreditBar stays above keyboard
 
-**Credit cost:** 1 deep credit per deep intent (①–⑤). Free for ⑥, ⑦, and follow-ups within same session.
+**Credit cost:** 1 credit per deep intent (①–⑤). Free for ⑥, ⑦, and follow-ups within same session.
 
 ---
 
@@ -668,7 +668,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 | Variable                        | Source         | Default if null |
 | ------------------------------- | -------------- | --------------- |
 | profiles.subscription_tier      | profiles table | "free"          |
-| profiles.deep_credits_remaining | profiles table | 0               |
+| profiles.credits_remaining | profiles table | 0               |
 | profiles.credits_reset_at       | profiles table | —               |
 
 
@@ -848,7 +848,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 
 | Variable                        | Source                       | Default if null |
 | ------------------------------- | ---------------------------- | --------------- |
-| profiles.deep_credits_remaining | profiles table (post-update) | 0               |
+| profiles.credits_remaining | profiles table (post-update) | 0               |
 | profiles.subscription_tier      | profiles table (post-update) | "free"          |
 | order.plan_name                 | route state                  | —               |
 
@@ -861,7 +861,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 
 **Interaction flow:**
 
-1. Screen loads (after PayOS webhook confirmed) → SuccessIcon. Heading: "Đã thêm {{count}} deep credits." Credit balance displays in large JetBrains Mono.
+1. Screen loads (after PayOS webhook confirmed) → SuccessIcon. Heading: "Đã thêm {{count}} credits." Credit balance displays in large JetBrains Mono.
 2. D5 (CreditConsumption, refill variant): CreditBar border flashes `--purple` 200ms, then credit count increments from old balance to new balance over 800ms (same component as in ChatScreen, but direction is upward — adding credits).
 3. User taps "Bắt đầu phân tích ngay" → ChatScreen. First chat session pre-populated prompt: "Dán link video đầu tiên để phân tích."
 4. Hardware back while on this screen → ChatScreen (not PricingScreen — payment is done).
@@ -876,9 +876,9 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 
 **Copy slots (production-ready):**
 
-- screen_heading: "Đã thêm {{count}} deep credits." — Confirmation
+- screen_heading: "Đã thêm {{count}} credits." — Confirmation
 - plan_activated: "Gói {{plan_name}} đã kích hoạt. Credits có hiệu lực đến {{expiry_date}}." — Confirmation
-- credit_label: "Deep credits còn lại" — Ambient
+- credit_label: "Credit còn lại" — Ambient
 - cta_button: "Bắt đầu phân tích ngay" — Ambient
 - loading_activate: "Đang kích hoạt gói..." — Loading
 - error_credits_delay: "Thanh toán thành công nhưng credits chưa cập nhật — liên hệ [support@getviews.vn](mailto:support@getviews.vn) nếu chưa thấy sau 5 phút." — Error
@@ -913,7 +913,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 | profiles.display_name           | profiles table      | "Bạn"           |
 | profiles.email                  | profiles table      | —               |
 | profiles.subscription_tier      | profiles table      | "free"          |
-| profiles.deep_credits_remaining | profiles table      | 0               |
+| profiles.credits_remaining | profiles table      | 0               |
 | profiles.credits_reset_at       | profiles table      | —               |
 | profiles.primary_niche          | profiles table      | —               |
 | credit_ledger[].intent_type     | credit_ledger table | —               |
@@ -949,7 +949,7 @@ TrendScreen, HistoryScreen, and ExploreScreen serve dual purpose. Dedicated rete
 - section_profile: "Thông tin" — Ambient
 - section_subscription: "Gói cước" — Ambient
 - subscription_tier_label: "Gói {{tier_name}}" — Ambient
-- subscription_credits: "{{count}} deep credits còn lại" — Ambient
+- subscription_credits: "{{count}} credits còn lại" — Ambient
 - subscription_expiry: "Credits hết hạn: {{expiry_date}}" — Ambient
 - upgrade_button: "Nâng cấp" — Ambient
 - renew_button: "Gia hạn" — Ambient
@@ -1055,10 +1055,10 @@ Settings accessed via header icon in ChatScreen, TrendScreen, HistoryScreen.
 ### User Scenario 02 (Linh — Pro):
 
 - Asks trends → TrendScreen or ChatScreen ✓
-- Video analysis (deep credit) → ChatScreen ✓
+- Video analysis (credit) → ChatScreen ✓
 - Find creators (free ⑦) → ChatScreen inline ✓
-- Competitor profile (deep credit) → ChatScreen ✓
-- Brief generation (deep credit) → ChatScreen (D3) ✓
+- Competitor profile (credit) → ChatScreen ✓
+- Brief generation (credit) → ChatScreen (D3) ✓
 - Copy brief → copy button → plain text for Zalo ✓
 
 ### Auth Flow:

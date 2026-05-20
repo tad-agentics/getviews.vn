@@ -576,7 +576,7 @@ When adding a new pipeline (e.g., `instagram_ingest.py`):
 - **Primary turn** (`kind = 'primary'`): 1 credit via `decrement_credit()` before work starts. Insufficient balance → `insufficient_credits`, no turn row.
 - **Script turn** (`builder_fmt == "script"`): **3 credits** (B.4 parity with script workshop).
 - **Most other follow-up kinds** (`timing`, `creators`, `generic`, …): 0 credits on that turn.
-- Channel diagnosis (`/channel/diagnose`) bills separately (3 deep_credits) — not via answer turns.
+- Channel diagnosis (`/channel/diagnose`) bills separately (3 credits) — not via answer turns; wallet column `profiles.credits_remaining`.
 
 ### SSE replay
 

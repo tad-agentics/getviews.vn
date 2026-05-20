@@ -24,7 +24,7 @@ const PLAN_CONFIG: Record<
   z.infer<typeof PlanSchema>,
   {
     amount_vnd: number;
-    deep_credits_granted: number;
+    credits_granted: number;
     tier: "starter";
     db_billing_period: DbBillingPeriod;
     billing_period: "monthly" | "biannual" | "annual" | "pack";
@@ -32,42 +32,42 @@ const PLAN_CONFIG: Record<
 > = {
   starter_monthly: {
     amount_vnd: 249_000,
-    deep_credits_granted: 30,
+    credits_granted: 30,
     tier: "starter",
     db_billing_period: "monthly",
     billing_period: "monthly",
   },
   starter_biannual: {
     amount_vnd: 199_000 * 6,
-    deep_credits_granted: 30 * 6,
+    credits_granted: 30 * 6,
     tier: "starter",
     db_billing_period: "biannual",
     billing_period: "biannual",
   },
   starter_annual: {
     amount_vnd: 199_000 * 12,
-    deep_credits_granted: 30 * 12,
+    credits_granted: 30 * 12,
     tier: "starter",
     db_billing_period: "annual",
     billing_period: "annual",
   },
   pack_10: {
     amount_vnd: 130_000,
-    deep_credits_granted: 10,
+    credits_granted: 10,
     tier: "starter",
     db_billing_period: "overage_10",
     billing_period: "pack",
   },
   pack_30: {
     amount_vnd: 350_000,
-    deep_credits_granted: 30,
+    credits_granted: 30,
     tier: "starter",
     db_billing_period: "overage_30",
     billing_period: "pack",
   },
   pack_50: {
     amount_vnd: 550_000,
-    deep_credits_granted: 50,
+    credits_granted: 50,
     tier: "starter",
     db_billing_period: "overage_50",
     billing_period: "pack",
@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
       tier: cfg.tier,
       billing_period: cfg.db_billing_period,
       amount_vnd: cfg.amount_vnd,
-      deep_credits_granted: cfg.deep_credits_granted,
+      credits_granted: cfg.credits_granted,
       starts_at: starts.toISOString(),
       expires_at: expires.toISOString(),
       payos_order_code: String(orderCode),
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
         qrCode: qrCode ?? "",
         orderCode,
         amount_vnd: cfg.amount_vnd,
-        deep_credits_granted: cfg.deep_credits_granted,
+        credits_granted: cfg.credits_granted,
         billing_period: cfg.billing_period,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },

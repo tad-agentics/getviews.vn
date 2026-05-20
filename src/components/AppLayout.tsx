@@ -855,8 +855,8 @@ export function AppLayout({ active, children, enableMobileSidebar = false }: App
             </button>
             {profile ? (
               <UsageArc
-                used={((profile as { deep_credits_total?: number }).deep_credits_total ?? 50) - (profile.deep_credits_remaining ?? 0)}
-                limit={(profile as { deep_credits_total?: number }).deep_credits_total ?? 50}
+                used={((profile as { credits_total?: number }).credits_total ?? 50) - (profile.credits_remaining ?? 0)}
+                limit={(profile as { credits_total?: number }).credits_total ?? 50}
               />
             ) : null}
             <button

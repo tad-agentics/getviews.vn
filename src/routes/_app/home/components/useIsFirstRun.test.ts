@@ -22,7 +22,7 @@ function makeProfile(overrides: Partial<ProfileRow> = {}): ProfileRow {
     credits_reset_at: null,
     daily_free_query_count: 0,
     daily_free_query_reset_at: null,
-    deep_credits_remaining: 0,
+    credits_remaining: 0,
     display_name: "An",
     email: "a@b.vn",
     is_admin: false,

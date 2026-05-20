@@ -2,7 +2,37 @@
 
 *Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. **Source of truth** for what ships where — update this file in the same commit as any route, endpoint, or orchestration change.*
 
+*User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
+*V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
+
 *Verified against codebase **2026-05-20** (`6a69ab3`). Spot-checked: `routes.ts` mounts; dual SSE orchestration (`useSessionStream` `answer_turn` vs `/stream`); video report path `build_video_report` → `run_video_analyze_*` → `finalize_video_narrative_layer` → `synthesize_diagnosis_v2`; `/stream` dispatch (`intent.py:265`); `/channel/diagnose` + **7-day** DB cache (`video.py:291`, `736`); `/home/*` (`home.py:31/49/67/87`, `regenerate-ritual` 181); `/answer/sessions*` including PATCH/DELETE (`answer.py:62/94/260/280/291/306`); `/script/*` (`script.py:37–192`); `/admin/*` (`admin.py:771–1453`); `/batch/*` (`batch.py:23–1257`); Edge `api/chat.ts` + `api/landing-stats.ts`; `history_union` RPC; PayOS `create-payment`; embed-tile contract (`gemini.py` `EMBED_CONTRACT_VERSION`, `video_analyze.py` schema v3).*
+
+---
+
+## Post-V1 backlog (không trong product vision V1)
+
+*Tổng hợp từ [`feature-map-v1.md`](feature-map-v1.md) — code as-built có thể vẫn tồn tại; V1 **không** marketing, nav, billing, hay QA GTM.*
+
+| Item | As-built / route | Ghi chú |
+|------|------------------|---------|
+| **So sánh 2 video (F3)** | `/app/compare`, `CompareScreen.tsx`, `report_compare.py` | POST `/stream` `compare_videos`; 1 credit; ẩn khỏi V1 UX. Wave 2 / agency |
+| **Watchlist đối thủ + push alert** | — | Wave 2 |
+| **Douyin trend forecast** (lead-time productized) | — | Wave 2; đọc Douyin vẫn V1 qua Tab Xu hướng mode Douyin |
+| **Passive FYP mirror / push feed** | — | Wave 2+ |
+| **Legacy `POST /channel/analyze`** | `video.py` | Corpus-only channel; cleanup candidate — V1 dùng `/channel/diagnose` only |
+| **Legacy chat sessions mới** | `chat_sessions`, `/api/chat` | V1: chỉ maintain `history_union` cho rows cũ |
+| **Answer follow-up (turn 2+)** | `POST /answer/sessions/{id}/turns`, `append_turn` | Sau `video_diagnosis`: pattern, timing, ideas, generic, creators, script…; TimelineRail |
+| **Composer — câu hỏi text** | `intent-router.ts`, `/api/chat` | Intents ⑤⑥⑦ + research Q&A; V1 composer = URL/@handle theo pill only |
+| **Script — thư viện câu searchable** | — | v1.1 |
+| **Auto-post / scheduler** | — | Out of product |
+| **Viral alignment score** | — | Deferred (ρ &lt; 0.35) |
+| **Shopee / affiliate product ranking** | — | Kalodata territory |
+| **TikTok OAuth / Ads API** (boost attribution) | — | V1: inference ED + corpus only |
+| **User self-report “đã chạy ads”** | — | V1: tự động only |
+| **English UI, native apps, recurring subscription** | — | Project rules |
+| **Đổi route `/app/trends` → `/app/xu-huong`** | Open product (D4 in vision doc) | SEO/i18n |
+
+**Maintenance:** Khi defer hoặc cut một tính năng khỏi V1, **xóa** khỏi `feature-map-v1.md` và **thêm một dòng** vào bảng này trong cùng PR doc.
 
 ---
 
@@ -66,7 +96,9 @@
 
 ## 3. /app/answer — Video Diagnosis + Q&A Research
 
-**Central surface for structured video reports (Win/Flop), follow-up Q&A, and multi-turn research. Replaces deleted `/app/video` (2026-04-28).**
+**Central surface for structured video reports (Win/Flop). Replaces deleted `/app/video` (2026-04-28).**
+
+**V1 product:** **single turn** per video session — no follow-up Q&A in Answer UI ([`feature-map-v1.md`](feature-map-v1.md) §4.10.1). As-built still supports turn 2+ (see ② below) — Post-V1.
 
 - **FE:** `src/routes/_app/answer/AnswerScreen.tsx` (`routes.ts:15`)
 - **Entry points:**
@@ -97,7 +129,9 @@
 - **DB tables:** `answer_sessions`, `answer_turns`, `video_diagnostics`, `video_corpus`, `content_classifications`
 - **Status:** shipped & live
 
-### ② Follow-up turns (Q&A)
+### ② Follow-up turns (Q&A) — not in V1 GTM
+
+**V1:** hidden — see [Post-V1 backlog](#post-v1-backlog-không-trong-product-vision-v1).
 - Same POST `/answer/sessions/{id}/turns` with turn `kind` from `appendTurnKindForQuery()` (timing, creators, script, generic, …)
 - **Synthesis:** intent-specific `run_*` in `pipelines.py` (e.g. `run_trend_spike`, `run_creator_search`, `run_shot_list`)
 - Text-only free intents may also use Vercel **`POST /api/chat`** when routed to chat mode (see §13)
@@ -137,7 +171,7 @@
   - POST `/channel/refresh-mine` (`video.py:143`) — refresh signed-in user's channel
 - **Cache:** `channel_diagnoses` row, **`max_age_days=7`** default (`_fetch_channel_diagnoses_cache`, `video.py:291`); `force_refresh=true` bypasses
 - **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py`; corpus-first peers + live EnsembleData hybrid
-- **Credit cost:** 3 deep_credits per diagnosis
+- **Credit cost:** UI gates **3** `credits_remaining` (`ChannelScreen.tsx` `CREDIT_COST`); BE `decrement_credit` deducts **1** per diagnosis on cache miss — align FE/BE before marketing copy
 - **DB tables:** `channel_diagnoses`, `video_patterns`, `hook_effectiveness`, `creator_velocity`, `niche_insights`
 - **Status:** shipped & live
 
@@ -186,12 +220,13 @@
 
 ## 9. /app/compare — Two-Video Comparison
 
+- **V1 product:** **không ship** — xem [Post-V1 backlog](#post-v1-backlog-không-trong-product-vision-v1). Route có thể giữ; ẩn nav GTM V1.
 - **FE:** `src/routes/_app/compare/CompareScreen.tsx`
 - **Entry:** `/app/compare?url_a=&url_b=`
 - **Flow:** `useSessionStream()` (default **chat** mode) → POST **`/stream`** with `compare_videos` → `run_compare_pipeline()` (`report_compare.py`) parallelizes **`run_video_diagnosis()`** per URL, then delta
 - **Single-side fallback:** surviving side returns `video_diagnosis` shape → navigate **`/app/answer`** with `prefillUrl` (not `/app/video`)
 - **DB tables:** `video_corpus`, `video_diagnostics`, `video_patterns`
-- **Status:** shipped & live
+- **Status:** shipped in codebase · **not in V1 GTM**
 
 ---
 
@@ -334,12 +369,12 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 | Landing | / | live | Pre-rendered SEO |
 | Auth | /login, /signup, /auth/callback | live | Supabase; Facebook OAuth |
 | Home | /app | live | Ritual, ticker, starter creators |
-| Answer | /app/answer | live | Video report + Q&A; answer_turn SSE |
+| Answer | /app/answer | live (video 1-turn V1) | `answer_turn` SSE; follow-up turns Post-V1 |
 | History | /app/history | live | `history_union` RPC |
-| Channel | /app/channel | live | 3 credits; 7d cache |
+| Channel | /app/channel | live | UI 3 / BE 1 credit (see §5); 7d cache |
 | Trends | /app/trends | live | Pattern explorer |
 | Script | /app/script | live (core) | Scene intel WIP |
-| Compare | /app/compare | live | `/stream`; fallback → answer |
+| Compare | /app/compare | codebase only (not V1 GTM) | `/stream`; see Post-V1 backlog |
 | Douyin | /app/douyin | live (read) | Batch ingest live |
 | Onboarding | /app/onboarding | live | Single niche |
 | Settings | /app/settings | live | Profile + niche |

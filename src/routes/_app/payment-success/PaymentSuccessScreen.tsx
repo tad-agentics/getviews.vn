@@ -18,7 +18,7 @@ export default function PaymentSuccessScreen() {
     st != null && typeof st === "object" && (st.creditsDelta != null || Boolean(st.planName));
 
   const { data: profile, isPending } = useProfile();
-  const remaining = profile?.deep_credits_remaining ?? 0;
+  const remaining = profile?.credits_remaining ?? 0;
   const delta = st?.creditsDelta;
 
   const headingCount = delta ?? remaining;

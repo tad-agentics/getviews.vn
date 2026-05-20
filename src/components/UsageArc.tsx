@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/tooltip";
 
 interface UsageArcProps {
-  used: number;   // analyses used (deep_credits_remaining subtracted from cap)
-  limit: number;  // monthly cap (deep_credits_total)
+  used: number;   // analyses used (credits_remaining subtracted from cap)
+  limit: number;  // monthly cap (credits_total)
 }
 
 export function UsageArc({ used, limit }: UsageArcProps) {

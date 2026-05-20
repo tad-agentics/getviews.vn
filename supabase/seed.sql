@@ -78,7 +78,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO profiles (
   id, display_name, email, avatar_url,
   primary_niche, tiktok_handle,
-  subscription_tier, deep_credits_remaining, lifetime_credits_used,
+  subscription_tier, credits_remaining, lifetime_credits_used,
   credits_reset_at, daily_free_query_count, is_processing
 ) VALUES (
   '00000000-0000-0000-0000-000000000001',
@@ -90,13 +90,13 @@ INSERT INTO profiles (
 ) ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   subscription_tier = EXCLUDED.subscription_tier,
-  deep_credits_remaining = EXCLUDED.deep_credits_remaining;
+  credits_remaining = EXCLUDED.credits_remaining;
 
 -- Linh — Pro plan agency user
 INSERT INTO profiles (
   id, display_name, email, avatar_url,
   primary_niche, tiktok_handle,
-  subscription_tier, deep_credits_remaining, lifetime_credits_used,
+  subscription_tier, credits_remaining, lifetime_credits_used,
   credits_reset_at, daily_free_query_count, is_processing
 ) VALUES (
   '00000000-0000-0000-0000-000000000002',
@@ -108,13 +108,13 @@ INSERT INTO profiles (
 ) ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   subscription_tier = EXCLUDED.subscription_tier,
-  deep_credits_remaining = EXCLUDED.deep_credits_remaining;
+  credits_remaining = EXCLUDED.credits_remaining;
 
 -- Free tier user
 INSERT INTO profiles (
   id, display_name, email, avatar_url,
   primary_niche, tiktok_handle,
-  subscription_tier, deep_credits_remaining, lifetime_credits_used,
+  subscription_tier, credits_remaining, lifetime_credits_used,
   daily_free_query_count, is_processing
 ) VALUES (
   '00000000-0000-0000-0000-000000000003',
@@ -126,13 +126,13 @@ INSERT INTO profiles (
 ) ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   subscription_tier = EXCLUDED.subscription_tier,
-  deep_credits_remaining = EXCLUDED.deep_credits_remaining;
+  credits_remaining = EXCLUDED.credits_remaining;
 
 -- ─── Subscriptions ────────────────────────────────────────────────────────────
 
 INSERT INTO subscriptions (
   id, user_id, tier, billing_period,
-  amount_vnd, deep_credits_granted,
+  amount_vnd, credits_granted,
   starts_at, expires_at,
   payos_order_code, payos_payment_id, status
 ) VALUES (

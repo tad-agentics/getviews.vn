@@ -86,10 +86,10 @@ Example: "Chat" · "Xu hướng" · "Lịch sử" · "Cài đặt"
 
 ### Credit Display (persistent bar)
 Emotional objective: Transparency — user always knows balance without anxiety
-Rule: Show deep credit count + remind unlimited browse is free. No urgency language until ≤5.
+Rule: Show credit count + remind unlimited browse is free. No urgency language until ≤5.
 Examples:
-- Normal: "{{count}} deep credits còn lại · Lướt xu hướng & tìm KOL không giới hạn"
-- Low (≤5): "⚠ {{count}} deep credits còn lại"
+- Normal: "{{count}} credit còn lại · Lướt xu hướng & tìm KOL không giới hạn"
+- Low (≤5): "⚠ {{count}} credit còn lại"
 - Zero: "Hết credit. Mua thêm →" (tappable CTA)
 
 ### Free Query Pill
@@ -100,7 +100,7 @@ Example: "Miễn phí ✓"
 ### Paywall / Credit Exhaustion
 Emotional objective: Transactional — flat, honest, no pressure
 Rule: State what's needed. Price. One CTA. No FOMO, no countdown, no "chỉ còn X giờ."
-Example: "Hết deep credit tháng này. Mua thêm 10 credit = 130K VND."
+Example: "Hết credit tháng này. Mua thêm 10 credit = 130K VND."
 
 ### Input States
 Emotional objective: Responsiveness — the field is alive, the system listens

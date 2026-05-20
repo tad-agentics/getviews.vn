@@ -41,7 +41,7 @@ vi.mock("@/hooks/useChannelDiagnose", () => ({
 
 vi.mock("@/hooks/useProfile", () => ({
   useProfile: () => ({
-    data: { creator_niche_id: 1, deep_credits_remaining: 10 },
+    data: { creator_niche_id: 1, credits_remaining: 10 },
     isPending: false,
   }),
 }));

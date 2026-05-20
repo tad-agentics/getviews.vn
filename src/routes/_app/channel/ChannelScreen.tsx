@@ -72,7 +72,7 @@ export default function ChannelScreen() {
   const [draftHandle, setDraftHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
 
-  const credits = (profile as { deep_credits_remaining?: number } | null | undefined)?.deep_credits_remaining ?? 0;
+  const credits = (profile as { credits_remaining?: number } | null | undefined)?.credits_remaining ?? 0;
   const hasCredits = credits >= CREDIT_COST;
 
   const openHandle = useCallback(
