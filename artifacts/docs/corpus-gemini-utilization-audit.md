@@ -1,6 +1,6 @@
 # Corpus Gemini Utilization Audit
 
-**Last updated:** 2026-05-20 (`6a69ab3`)  
+**Last updated:** 2026-05-21 (`6a69ab3` + dead-field recalibration)  
 **Status:** Audit complete (audit-only — no implementation scope).  
 **Related:** [`feature-map.md`](feature-map.md) (routes/jobs) · [`system-design.md`](system-design.md) §12 (two-core invariants) · embedded tiles out of scope (answer `video_diagnostics` path).
 
@@ -72,7 +72,7 @@ flowchart TB
 | `topics` | Cột + ref desc; một số signal sound | |
 | `cta`, `promotion_type`, `commerce_intent` (một phần) | `cta_type`, `is_commerce` | `commerce_intent` đầy đủ → diagnosis signals |
 | `niche_classification` + `content_context` | HI-11 shadow/route; ME-17 backfill; `morning_ritual` **`subject_matter` only** | `NICHE_RESOLVER_MODE=shadow` (default): **không** đổi `niche_id` canonical |
-| `style_tags`, `pain_points`, `target_audience` | Cột DB | FE corpus list **không** select (`useVideoCorpus.ts`) |
+| `style_tags`, `pain_points`, `target_audience` | Cột DB; **`ContextStrip.tsx`** trên `/app/answer` (`video_analyze` enrichment) | Explore/Trends list **không** select (`useVideoCorpus.ts`) — không phải “abandoned” |
 
 ### Tier B — Chủ yếu khi **user diagnosis**
 
@@ -89,12 +89,21 @@ flowchart TB
 
 | Field | Tình trạng |
 |-------|------------|
-| `key_timestamps`, `key_messages` | Schema compat / không reader chính |
+| `key_messages` | **Gần dead** — chỉ `models.py` + test fixtures; an toàn ứng viên trim |
+| `key_timestamps` | Schema compat; không reader chính |
 | `content_direction`, `energy_level` | Chủ yếu `pattern_fingerprint.py` |
-| `persona_consistency_signals` | Không có signal extractor đọc object này |
+| `persona_consistency_signals` | Không có signal extractor đọc object này (chỉ `creator_persona`, dialect) |
 | `content_context` subfields (trừ `subject_matter`) | Tests + `pattern_deck_synth.py` |
 | `niche_classification` trên **corpus peer** | **Không** dùng trong ref score — peer `niche_classification` ignored |
 | `douyin_origin` trên TikTok corpus | Null lúc extract |
+
+**Không xếp Tier C (đã có consumer — đừng gọi “dead”):**
+
+| Field | Consumer thực tế |
+|-------|------------------|
+| `text_overlays[]` | `text_overlay_count` ingest; `pattern_fingerprint.py`; `output_redesign.py` (format weights); `vietnamese_slang.py`; `score_entry_cost`; §5 fields `text_overlay_font_size_tier` / `text_overlay_color_emphasis` → `signals/editing.py` |
+| `audio_track_role` | `diagnose_sections._video_has_audible_sound_track()` — **gate** section `sound` (không đọc trong `signals/sound.py` trực tiếp) |
+| `commerce_intent` | **Tier B** — `signals/commerce.py`, `compliance.py`, `editing.py`, `engagement.py`, `performance.py`, `script.py` |
 
 **Ref proximity (2026-05-20):** [`_content_proximity_score`](../../cloud-run/getviews_pipeline/pipelines.py) dùng hashtag overlap, `desc` 200 chars, **`content_context.subject_matter`** (promoted từ ingest), và `topics`. Vẫn **không** đọc `niche_classification` hai trục từ peer row.
 
@@ -150,6 +159,54 @@ Từ [`system-design.md` §12](system-design.md):
 - HI-11 shadow: telemetry mỗi đêm, `niche_id` canonical vẫn hashtag (runbook cutover).
 - Optional HI-13 Batch API ingest (`CORPUS_INGEST_USE_GEMINI_BATCH`) — see `system-design.md` §6.
 
+**Giả thuyết chi phí (billing DB / ops — không chứng minh từ repo):** extraction spend >> synthesis spend khi synthesis call volume thấp ⇒ **under-synthesize**, chưa phải “synthesis inherently cheap.” Reframe provider (e.g. DeepSeek) chỉ có ý nghĩa **sau** khi tăng volume section synthesis.
+
+---
+
+## 7. Dead vs misclassified (recalibration 2026-05-21)
+
+Review ngoài từng gắn nhãn “6 field dead” — đối chiếu grep `cloud-run/` + `src/`:
+
+| Field | Verdict | Evidence |
+|-------|---------|----------|
+| `key_messages` | **Dead (trim-safe)** | Không consumer production ngoài schema/tests |
+| `audio_track_role` | **Misclassified as dead** | `diagnose_sections.py` L129–141 — bật sound section khi role ≠ `silent` |
+| `text_overlays` | **Misclassified as dead** | Ingest count + fingerprint + output_redesign + slang + entry_cost; editing signals dùng derived overlay tiers |
+| `style_tags` | **Partial** | DB column + `ContextStrip`; **không** mạnh trong signal manifest / corpus aggregate |
+| `target_audience`, `pain_points` | **Misclassified as abandoned** | DB + `ContextStrip.tsx` + `persona.py` |
+| `commerce_intent` | **Heavily used** | Toàn bộ §0 + nhiều `signals/*` — **không** trim |
+
+### “Heuristic-only, không tới UI” — hiệu chỉnh
+
+Nhiều field HI-9 (metadata, editing, persona, engagement, script) **không** aggregate trên Trends/Pattern nhưng **có thể tới UI** qua:
+
+`user_analysis` → `build_signal_manifest` → `select_sections_to_emit` → `synthesize_diagnosis_v2` (v6) → `DiagnosisSectionRenderer`
+
+Ví dụ: `safe_zone_status`, `color_grading_style`, `creator_persona`, `share_trigger_type` — fire rate và salience quyết định section có xuất hiện hay không. Đúng hơn: **conditional diagnosis UI**, không phải **zero consumer**.
+
+### v6 synthesis — không phải “8 field = 80%”
+
+Luồng thật (`diagnose_prompts.build_diagnosis_v6_user_prompt`):
+
+1. **`SIGNAL_MANIFEST`** — distilled từ nhiều field qua `signals/registry.py`
+2. **`USER_ANALYSIS_JSON`** — truncate ~24 top-level keys (không phải chỉ hook/scenes/transcript)
+3. Corpus citation, reference IDs, channel context, errors head
+
+Hook + transcript + scenes + `commerce_intent` là **trục**, không phải toàn bộ input. Đo impact trim bằng **diff synthesis output**, không bằng đếm field trong prompt JSON.
+
+---
+
+## 8. Chiến lược trim / tăng utilization (tham khảo)
+
+| Bước | Hành động | Rủi ro |
+|------|-----------|--------|
+| 1 | Trim **`key_messages` only** (+ prompt/schema regen); diff v6 trên sample corpus | Thấp |
+| 2 | **Signal ablation** — log fire rate per signal id trong `registry.py`; trim field nguồn cho signals &lt;1% | Trung — cần metric trước khi cắt |
+| 3 | **Không** batch-trim `audio_track_role`, `text_overlays`, `commerce_intent` without replacement | Cao — regression section gates |
+| 4 | Tăng synthesis (commerce/compliance/persona sections) **hoặc** rút prompt ingest — chọn một; DeepSeek chỉ sau bước 4 | Product decision |
+
+Ước lượng $ tiết kiệm khi trim (ví dụ ~$2/mo cho vài field nhỏ) **chưa audit từ `gemini_calls`** — coi là hypothesis cho đến khi query billing.
+
 ---
 
 ## Follow-up (tham khảo, không cam kết)
@@ -159,6 +216,8 @@ Từ [`system-design.md` §12](system-design.md):
 | 1 | Ref proximity: `subject_matter` + topical overlap | **Partial** — `subject_matter` shipped `6a69ab3`; peer `niche_classification` still unused |
 | 2 | `search_vector`: thêm `transcript_snippet` / `topics` | Open |
 | 3 | HI-11 flip `route` sau audit 100-row | Open (runbook) |
-| 4 | Rút prompt ingest để giảm cost | Open |
+| 4 | Rút prompt ingest để giảm cost | Open — **sau** signal ablation; không gom “6 dead fields” đã recalibrate |
+| 5 | Signal fire-rate dashboard / ablation harness | Open |
+| 6 | Provider cost (DeepSeek vs Flash-Lite) | Open — chỉ khi synthesis volume tăng ~10× |
 
 **Out of scope:** embedded evidence tiles on `/app/answer` (`video_diagnostics` cache) — separate fix shipped `6a69ab3`.
