@@ -31,6 +31,9 @@ from getviews_pipeline.creator_blocklist import (
         "vnexpress_hanoi", "vietnamnet.vn",
         # sports outlets
         "thethao247.vn", "football.century_", "onsportsplus",
+        "fptplay.sports", "fptplay.bongdaviet", "bongdavadoisong",
+        # general news
+        "28international",
         # gaming/esports news
         "kiran.aov.news", "vovgamesport",
     ],

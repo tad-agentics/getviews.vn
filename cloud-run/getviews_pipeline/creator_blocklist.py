@@ -49,9 +49,12 @@ NEWS_AGGREGATOR_HANDLES: frozenset[str] = frozenset({
     "24h.sports", "24h.tinmoi", "bongda24h.vn.official",
     "24h_nhieuchuyen", "24hmoney.dautu",
 
+    # ── FPT Play / platform sports news ─────────────────────────────
+    "fptplay.sports", "fptplay.bongdaviet",
+
     # ── Sports media outlets ────────────────────────────────────────
     "thethao247.vn", "thethaovavanhoa", "thethao.net206",
-    "thethaovacuocsong21", "sportfocusvn", "asiasportvn",
+    "thethaovacuocsong21", "bongdavadoisong", "sportfocusvn", "asiasportvn",
     "btsport739taquangbuu", "chuyensports",
     "football.century_", "football_nvc", "minhhuu_football",
     "sinregar_football", "ptfootball", "ducansport",
@@ -66,6 +69,7 @@ NEWS_AGGREGATOR_HANDLES: frozenset[str] = frozenset({
     "freefireesportswc", "tsa.esport_1",
 
     # ── General news / showbiz aggregators ──────────────────────────
+    "28international",
     "znewssocial", "kenh14official", "kenh14disoisaodi",
     "beatvn_official", "news360.k37", ".vni.media",
     "vnexpress_hanoi", "vietnamnet.vn", "tayninh.news",
