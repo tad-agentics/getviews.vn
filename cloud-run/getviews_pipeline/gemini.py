@@ -2168,6 +2168,63 @@ def _text_from_batch_response_dict(resp: dict[str, Any]) -> str:
     return "\n".join(texts)
 
 
+def parse_batch_extraction_analysis_json(text: str) -> dict[str, Any]:
+    """Parse ``VideoAnalysis`` JSON from a batch result line (markdown fences OK)."""
+    parsed = _parse_json_object(text)
+    if not isinstance(parsed, dict):
+        raise ValueError("batch extraction response must be a JSON object")
+    return parsed
+
+
+def _batch_job_state_name(job: Any) -> str:
+    st = job.state
+    return getattr(st, "name", None) or str(st)
+
+
+def _batch_stats_dict(job: Any) -> dict[str, int]:
+    """Best-effort ``batchStats`` from a completed batch job object."""
+    raw = getattr(job, "batch_stats", None)
+    if raw is None:
+        return {}
+    out: dict[str, int] = {}
+    for key in ("request_count", "successful_request_count", "failed_request_count"):
+        if isinstance(raw, dict):
+            val = raw.get(key)
+        else:
+            val = getattr(raw, key, None)
+        if val is None:
+            continue
+        try:
+            out[key] = int(val)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _log_batch_job_stats(job: Any, *, display_name: str, n_records: int) -> None:
+    stats = _batch_stats_dict(job)
+    if not stats:
+        return
+    logger.info(
+        "[gemini] corpus extraction batch stats display_name=%s n_records=%d "
+        "request_count=%s successful_request_count=%s failed_request_count=%s",
+        display_name,
+        n_records,
+        stats.get("request_count"),
+        stats.get("successful_request_count"),
+        stats.get("failed_request_count"),
+        extra={"event": "gemini_batch_stats", "display_name": display_name, **stats},
+    )
+
+
+def _cancel_batch_job_best_effort(client: Any, job_name: str) -> None:
+    try:
+        client.batches.cancel(name=job_name)
+        logger.info("[gemini] batch cancel requested name=%s", job_name)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[gemini] batch cancel failed name=%s: %s", job_name, exc)
+
+
 def _parse_batch_output_jsonl_line(
     line_obj: dict[str, Any],
 ) -> tuple[str | None, str | None, str | None, int, int, int]:
@@ -2198,8 +2255,9 @@ def run_corpus_extraction_batch_file_job(
 ) -> dict[str, Any]:
     """Submit JSONL (File API), poll, map per-key results, log ``gemini_calls``.
 
-    Deletes ``gemini_file_names`` (uploaded video Files) and the JSONL input
-    file best-effort after the job reaches a terminal state.
+    On poll timeout, requests batch cancel and **does not** delete uploaded
+    video Files until the job reaches a terminal state (avoids breaking an
+    in-flight batch). JSONL input file is always deleted best-effort.
     """
     from getviews_pipeline.gemini_cost import log_gemini_call
 
@@ -2208,6 +2266,8 @@ def run_corpus_extraction_batch_file_job(
 
     client = _get_client()
     stt_map = gcp_stt_cost_by_video_id or {}
+    job_name: str | None = None
+    job_terminal = False
     uploaded_jsonl = None
     tmp = tempfile.NamedTemporaryFile(
         mode="w",
@@ -2262,27 +2322,41 @@ def run_corpus_extraction_batch_file_job(
 
         deadline = time.monotonic() + poll_max_s
         job = batch_job
-        state_name = ""
+        state_name = _batch_job_state_name(job)
         while time.monotonic() < deadline:
             job = client.batches.get(name=job_name)
-            st = job.state
-            state_name = getattr(st, "name", None) or str(st)
+            state_name = _batch_job_state_name(job)
             if state_name in _BATCH_TERMINAL_STATES:
+                job_terminal = True
                 break
             time.sleep(max(1.0, poll_interval_s))
         else:
             job = client.batches.get(name=job_name)
-            st = job.state
-            state_name = getattr(st, "name", None) or str(st)
+            state_name = _batch_job_state_name(job)
+
+        if not job_terminal:
+            _cancel_batch_job_best_effort(client, job_name)
+            job = client.batches.get(name=job_name)
+            state_name = _batch_job_state_name(job)
+            job_terminal = state_name in _BATCH_TERMINAL_STATES
+
+        _log_batch_job_stats(job, display_name=display_name, n_records=len(records))
 
         by_video_id: dict[str, dict[str, Any]] = {}
 
-        if state_name not in _BATCH_TERMINAL_STATES:
+        if not job_terminal:
+            logger.warning(
+                "[gemini] batch poll timeout — job not terminal; "
+                "keeping Files API video uploads name=%s state=%s",
+                job_name,
+                state_name,
+            )
             return {
                 "ok": False,
                 "state": state_name,
                 "by_video_id": by_video_id,
                 "job_error": "poll_timeout_or_stuck",
+                "batch_stats": _batch_stats_dict(job),
             }
 
         if state_name != "JOB_STATE_SUCCEEDED":
@@ -2294,6 +2368,7 @@ def run_corpus_extraction_batch_file_job(
                 "state": state_name,
                 "by_video_id": by_video_id,
                 "job_error": err_msg or state_name,
+                "batch_stats": _batch_stats_dict(job),
             }
 
         dest = job.dest
@@ -2351,19 +2426,49 @@ def run_corpus_extraction_batch_file_job(
                 is_batch=True,
             )
 
-        return {"ok": True, "state": state_name, "by_video_id": by_video_id}
+        line_ok = sum(1 for v in by_video_id.values() if v.get("ok"))
+        line_fail = len(by_video_id) - line_ok
+        stats = _batch_stats_dict(job)
+        logger.info(
+            "[gemini] corpus extraction batch complete display_name=%s "
+            "line_ok=%d line_fail=%d n_records=%d",
+            display_name,
+            line_ok,
+            line_fail,
+            len(records),
+            extra={
+                "event": "gemini_batch_complete",
+                "display_name": display_name,
+                "line_ok": line_ok,
+                "line_fail": line_fail,
+                **stats,
+            },
+        )
+        return {
+            "ok": True,
+            "state": state_name,
+            "by_video_id": by_video_id,
+            "batch_stats": stats,
+        }
     finally:
         try:
             tmp_path.unlink(missing_ok=True)
         except OSError:
             pass
-        for fname in gemini_file_names:
-            if not fname:
-                continue
-            try:
-                client.files.delete(name=fname)
-            except Exception:
-                pass
+        if job_terminal:
+            for fname in gemini_file_names:
+                if not fname:
+                    continue
+                try:
+                    client.files.delete(name=fname)
+                except Exception:
+                    pass
+        elif gemini_file_names:
+            logger.warning(
+                "[gemini] skipping Files API video delete — batch job not terminal "
+                "(name=%s)",
+                job_name,
+            )
         if uploaded_jsonl is not None:
             try:
                 client.files.delete(name=uploaded_jsonl.name)

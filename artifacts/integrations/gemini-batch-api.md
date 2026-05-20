@@ -2,6 +2,8 @@
 
 **Status:** **IMPLEMENTED** behind env (2026-05-16). Set `CORPUS_INGEST_USE_GEMINI_BATCH=true` on the batch Cloud Run service. Default remains **off** until operators validate latency + provider stability.
 
+**2026-05-19 fixes (HI-13 hardening):** batch JSON parse uses `_normalize_response` (fences); poll timeout calls `batches.cancel` and skips deleting uploaded **video** Files until terminal; logs `batch_stats` (`failed_request_count`, etc.). Tests: `cloud-run/tests/test_hi13_batch_job.py`.
+
 ## Go / no-go checklist
 
 | Criterion | Result | Evidence |
