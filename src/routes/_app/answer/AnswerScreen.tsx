@@ -26,6 +26,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { AnswerTurnRow, ReportV1 } from "@/lib/api-types";
 import { logUsage } from "@/lib/logUsage";
+import { extractTikTokVideoIdFromText } from "@/lib/tiktokUrl";
 import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
 import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
@@ -172,6 +173,15 @@ export default function AnswerScreen() {
   const sessionIntentType = detailQuery.data?.session?.intent_type;
 
   const lastPayload = useMemo(() => lastPayloadFromTurns(turns), [turns]);
+
+  /** `?session=` shows an old turn while `?q=` points at a different TikTok video. */
+  const sessionQueryVideoMismatch = useMemo(() => {
+    const q = seedQ.trim();
+    if (!sessionId || !q || !lastPayload || lastPayload.kind !== "video") return false;
+    const qVid = extractTikTokVideoIdFromText(q);
+    const turnVid = String(lastPayload.report?.video_id ?? "").trim();
+    return Boolean(qVid && turnVid && qVid !== turnVid);
+  }, [sessionId, seedQ, lastPayload]);
 
   const surfaceStats = useMemo(() => surfaceStatsFromPayload(lastPayload), [lastPayload]);
 
@@ -659,6 +669,26 @@ export default function AnswerScreen() {
           }
           main={
             <TimelineRail turnCount={turnCount}>
+              {sessionQueryVideoMismatch ? (
+                <div
+                  className="mb-6 rounded-[12px] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-4 py-3"
+                  role="status"
+                >
+                  <p className="m-0 text-[13px] leading-relaxed text-[color:var(--gv-ink-2)]">
+                    Link trong thanh địa chỉ khác video đang hiển thị trong phiên này. Bạn có thể mở phân tích
+                    mới cho URL vừa dán.
+                  </p>
+                  <Btn
+                    variant="ink"
+                    size="sm"
+                    type="button"
+                    className="mt-3"
+                    onClick={() => setSearchParams({ q: seedQ.trim() }, { replace: true })}
+                  >
+                    Phân tích video này
+                  </Btn>
+                </div>
+              ) : null}
               {error ? (
                 <p className="mt-4 text-sm text-[var(--gv-danger)]">
                   {analysisErrorCopy(error)}

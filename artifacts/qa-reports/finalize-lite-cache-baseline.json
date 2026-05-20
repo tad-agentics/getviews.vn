@@ -1,0 +1,19 @@
+{
+  "task_id": "finalize-lite-cache",
+  "verdict": "PASS_WITH_CONCERNS",
+  "evidence": {
+    "pytest": [
+      "cloud-run/tests/test_embedded_tiles_sanitize.py — 8 passed",
+      "cloud-run/tests/test_embed_repair_cache.py — 3 passed"
+    ],
+    "vitest": [
+      "src/lib/tiktokUrl.test.ts — 2 passed",
+      "src/components/diagnosis/DiagnosisSectionRenderer.test.tsx — 4 passed"
+    ],
+    "typecheck": "npm run typecheck — pass"
+  },
+  "concerns": [
+    "Prod manual QA (Curnon URL re-run within 1h) required after Cloud Run deploy — not run in this session."
+  ],
+  "recommendation": "Deploy user Cloud Run pod; verify session shows VideoTileRow on diagnosis section after cache hit."
+}

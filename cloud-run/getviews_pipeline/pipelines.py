@@ -850,6 +850,14 @@ def _content_proximity_score(
         or str(ref_meta.get("description") or "")
         or str(analysis.get("audio_transcript") or "")[:200]
     ).lower()
+    ref_cc = analysis.get("content_context")
+    if isinstance(ref_cc, dict):
+        sm = str(ref_cc.get("subject_matter") or "").strip().lower()
+        if sm:
+            ref_text = f"{ref_text} {sm}".strip()
+        topics = ref_cc.get("topics")
+        if isinstance(topics, list):
+            ref_text = f"{ref_text} {' '.join(str(t) for t in topics if t)}".strip()
     score = 0
     for tag in video_hashtags:
         t = str(tag or "").lower().lstrip("#")

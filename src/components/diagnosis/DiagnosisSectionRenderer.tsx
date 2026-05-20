@@ -7,6 +7,7 @@ import type {
   ChannelNextVideoConcept,
   ChannelPerformerTile,
   CreatorComparison,
+  DiagnosisEvidenceAnchorVi,
   DiagnosisFinding,
   DiagnosisPostingContextPayload,
   DiagnosisSectionVi,
@@ -62,6 +63,31 @@ export function mapDiagnosisEmbeddedTiles(
     });
   }
   return out;
+}
+
+/** Map v6 ``evidence_anchors`` (aweme_id only) into tiles when section has no embedded_tiles. */
+export function embeddedTilesFromEvidenceAnchors(
+  anchors: DiagnosisEvidenceAnchorVi[] | undefined,
+  references: ReferenceVideoCard[],
+  sectionId: string,
+): ChannelPerformerTile[] {
+  if (!anchors?.length) return [];
+  const sid = sectionId.trim();
+  const hints: unknown[] = [];
+  for (const a of anchors) {
+    if (!a || typeof a !== "object") continue;
+    const typ = String(a.type ?? "")
+      .toLowerCase()
+      .replace(/-/g, "_");
+    if (typ !== "aweme_id") continue;
+    const anchorSid = String(a.section_id ?? "").trim();
+    if (anchorSid && anchorSid !== sid) continue;
+    const aid = String(a.quote ?? a.location ?? "").trim();
+    if (aid && /^\d{15,22}$/.test(aid)) {
+      hints.push({ aweme_id: aid });
+    }
+  }
+  return mapDiagnosisEmbeddedTiles(hints, references);
 }
 
 function looseNextVideoConcept(
@@ -143,6 +169,8 @@ export interface ChannelPatternEmbedProps {
 interface DiagnosisSectionRendererProps {
   section: DiagnosisSectionVi;
   referenceVideos: ReferenceVideoCard[];
+  /** v6 peer citations when ``embedded_tiles`` is empty (aweme_id anchors only). */
+  evidenceAnchors?: DiagnosisEvidenceAnchorVi[];
   /** Corpus 7×8 grid — embedded under `distribution` prose when present. */
   postingContext?: DiagnosisPostingContextPayload | null;
   /** Hit/flop peer videos — embedded under `channel_pattern` prose. */
@@ -154,6 +182,7 @@ interface DiagnosisSectionRendererProps {
 export function DiagnosisSectionRenderer({
   section,
   referenceVideos,
+  evidenceAnchors,
   postingContext,
   creatorComparison,
   channelPatternEmbed,
@@ -161,7 +190,11 @@ export function DiagnosisSectionRenderer({
   const title = sectionTitle(section);
   const text = sectionText(section);
   const sid = String(section.section_id);
-  const tiles = mapDiagnosisEmbeddedTiles(section.embedded_tiles, referenceVideos);
+  const tilesFromSection = mapDiagnosisEmbeddedTiles(section.embedded_tiles, referenceVideos);
+  const tiles =
+    tilesFromSection.length > 0
+      ? tilesFromSection
+      : embeddedTilesFromEvidenceAnchors(evidenceAnchors, referenceVideos, sid);
 
   if (sid === "next_video") {
     const nvRaw =

@@ -977,6 +977,46 @@ _EMBED_TILE_SECTION_IDS: frozenset[str] = frozenset(
     {"hook_analysis", "diagnosis", "niche_pattern", "distribution", "script_structure"},
 )
 
+# Bump when embedded-tile sanitize/inject contract changes (finalize-lite repair gate).
+EMBED_CONTRACT_VERSION = 1
+
+
+def count_valid_embedded_tiles(diagnosis_vi: dict[str, Any] | None) -> int:
+    """Count tiles that survive BE display rules (aweme + url/thumb/caption)."""
+    if not isinstance(diagnosis_vi, dict):
+        return 0
+    sections = diagnosis_vi.get("sections")
+    if not isinstance(sections, list):
+        return 0
+    total = 0
+    for sec in sections:
+        if not isinstance(sec, dict):
+            continue
+        tiles = sec.get("embedded_tiles")
+        if not isinstance(tiles, list):
+            continue
+        for t in tiles:
+            if not isinstance(t, dict):
+                continue
+            aid = str(t.get("aweme_id") or t.get("video_id") or "")
+            if not aid:
+                continue
+            if t.get("video_url") or t.get("thumbnail_url") or t.get("caption_snippet"):
+                total += 1
+    return total
+
+
+def repair_diagnosis_vi_embedded_tiles(
+    diagnosis_vi: dict[str, Any],
+    reference_videos: list[dict[str, Any]],
+) -> int:
+    """Re-run sanitize + fallback inject; return valid tile count after."""
+    allowed = _allowed_aweme_ids(reference_videos)
+    if not allowed or not reference_videos:
+        return count_valid_embedded_tiles(diagnosis_vi)
+    _sanitize_diagnosis_embedded_tiles(diagnosis_vi, reference_videos, allowed)
+    return count_valid_embedded_tiles(diagnosis_vi)
+
 
 def _reference_ids_with_content_proximity(
     reference_videos: list[dict[str, Any]],

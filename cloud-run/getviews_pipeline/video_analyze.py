@@ -33,7 +33,10 @@ logger = logging.getLogger(__name__)
 
 DIAGNOSTICS_STALE_AFTER = timedelta(hours=1)
 # Bump when ``VideoAnalyzeResponse.meta`` shape changes (invalidates on-demand cache).
-ON_DEMAND_RESPONSE_SCHEMA_VERSION = 2
+# v3 — embed_contract_version + finalize-lite repair for poisoned cached_response blobs.
+ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3
+# Minimum on-demand blob version we still attempt embed repair on (v2 blobs may lack tiles).
+ON_DEMAND_RESPONSE_SCHEMA_VERSION_MIN = 2
 
 
 def _truncate_tiktok_caption(text: str, *, max_len: int = 2000) -> str:
@@ -797,6 +800,187 @@ def _build_narrative_cache_update(
     return payload
 
 
+def _response_needs_embed_tile_repair(out: dict[str, Any]) -> bool:
+    """True when synthesis pool exists but v6 sections lack displayable embedded tiles."""
+    from getviews_pipeline.gemini import EMBED_CONTRACT_VERSION, count_valid_embedded_tiles
+
+    if int(out.get("embed_contract_version") or 0) >= EMBED_CONTRACT_VERSION:
+        return False
+    refs = out.get("reference_videos")
+    if not isinstance(refs, list) or len(refs) == 0:
+        return False
+    narrative = out.get("narrative_vi")
+    if not isinstance(narrative, dict):
+        return False
+    diag = narrative.get("diagnosis_vi")
+    if not isinstance(diag, dict):
+        return False
+    return count_valid_embedded_tiles(diag) == 0
+
+
+async def _refetch_synthesis_reference_videos(
+    out: dict[str, Any],
+    *,
+    fallback_niche_id: int | None = None,
+    user_id: str | None = None,
+    service_sb: Any | None = None,
+    user_sb: Any | None = None,
+) -> list[dict[str, Any]]:
+    """Best-effort pool refresh when cached rows lack ``reference_videos``."""
+    from getviews_pipeline.services.references import select_synthesis_references_for_video
+
+    meta: dict[str, Any] = out.get("meta") if isinstance(out.get("meta"), dict) else {}
+    video_id = str(out.get("video_id") or "")
+    video_desc = str(meta.get("caption") or meta.get("title") or "")
+    video_hashtags: list[str] = []
+    niche_name = str(meta.get("niche_label") or "")
+    content_format = str(meta.get("content_format") or "")
+    if (not niche_name or int(meta.get("niche_id") or 0) <= 0) and service_sb:
+        try:
+            from getviews_pipeline.live_niche import resolve_live_niche_id
+
+            aweme_for_niche = {
+                "desc": video_desc,
+                "challenges": [],
+                "author": {"unique_id": str(meta.get("creator") or "").lstrip("@")},
+                "text_extra": [],
+            }
+            resolved_nid = await resolve_live_niche_id(
+                service_sb,
+                aweme_for_niche,
+                fallback_session_niche_id=int(fallback_niche_id or 0) or None,
+                user_id=user_id,
+            )
+            if resolved_nid > 0:
+                meta["niche_id"] = resolved_nid
+                label_sb = user_sb if user_sb is not None else service_sb
+                niche_name = _resolve_niche_label(label_sb, resolved_nid) or niche_name
+                out["meta"] = meta
+        except Exception as exc:
+            logger.warning("[embed_repair] niche resolve failed: %s", exc)
+
+    _, slim_refs, _ = await select_synthesis_references_for_video(
+        niche_name=niche_name,
+        video_id=video_id,
+        video_desc=video_desc,
+        video_hashtags=video_hashtags,
+        preferred_content_format=content_format or None,
+        live_search_fn=_live_search_references_for_finalize,
+    )
+    return slim_refs
+
+
+def _apply_embed_tile_repair_to_out(
+    out: dict[str, Any],
+    *,
+    fallback_niche_id: int | None = None,
+    user_sb: Any | None = None,
+    service_sb: Any | None = None,
+    user_id: str | None = None,
+) -> bool:
+    """Mutate *out* with sanitize/inject on cached or fresh v6 diagnosis. Returns True if repaired."""
+    from getviews_pipeline.gemini import (
+        EMBED_CONTRACT_VERSION,
+        repair_diagnosis_vi_embedded_tiles,
+    )
+
+    narrative = out.get("narrative_vi")
+    if not isinstance(narrative, dict):
+        return False
+    diag = narrative.get("diagnosis_vi")
+    if not isinstance(diag, dict):
+        return False
+
+    refs = out.get("reference_videos")
+    if not isinstance(refs, list) or len(refs) == 0:
+        try:
+            slim = asyncio.run(
+                _refetch_synthesis_reference_videos(
+                    out,
+                    fallback_niche_id=fallback_niche_id,
+                    user_id=user_id,
+                    service_sb=service_sb,
+                    user_sb=user_sb,
+                )
+            )
+        except Exception as exc:
+            logger.warning("[embed_repair] refetch failed video_id=%s: %s", out.get("video_id"), exc)
+            slim = []
+        if slim:
+            out["reference_videos"] = slim
+            refs = slim
+
+    if not refs:
+        return False
+
+    before = int(out.get("embed_contract_version") or 0)
+    tile_n = repair_diagnosis_vi_embedded_tiles(diag, refs)
+    out["embed_contract_version"] = EMBED_CONTRACT_VERSION
+    out["response_schema_version"] = ON_DEMAND_RESPONSE_SCHEMA_VERSION
+    logger.info(
+        "[embed_repair] video_id=%s tiles=%d refs=%d prior_contract=%s",
+        out.get("video_id"),
+        tile_n,
+        len(refs),
+        before,
+    )
+    return tile_n > 0
+
+
+def _persist_embed_repair_to_diagnostics(out: dict[str, Any]) -> None:
+    """Write repaired narrative/refs back to ``video_diagnostics`` (non-fatal)."""
+    narrative = out.get("narrative_vi")
+    if not isinstance(narrative, dict):
+        return
+    try:
+        from getviews_pipeline.supabase_client import get_service_client
+
+        sb = get_service_client()
+        cache_vid = str(out.get("video_id") or "")
+        if not cache_vid:
+            return
+
+        update_payload = _build_narrative_cache_update(
+            narrative_vi=narrative,
+            format_cards=out.get("format_cards") if isinstance(out.get("format_cards"), list) else None,
+            diagnosis_md=str(out.get("diagnosis") or "") or None,
+            performance_tier=str(out.get("performance_tier") or "") or None,
+            bright_spot=out.get("bright_spot_signal")
+            if isinstance(out.get("bright_spot_signal"), dict)
+            else None,
+            view_scenarios=out.get("view_scenarios")
+            if isinstance(out.get("view_scenarios"), list)
+            else None,
+            channel_context=out.get("channel_context")
+            if isinstance(out.get("channel_context"), dict)
+            else None,
+            reference_videos=out.get("reference_videos")
+            if isinstance(out.get("reference_videos"), list)
+            else None,
+            niche_posting_context=out.get("niche_posting_context")
+            if isinstance(out.get("niche_posting_context"), dict)
+            else None,
+        )
+        if update_payload:
+            sb.table("video_diagnostics").update(update_payload).eq("video_id", cache_vid).execute()
+
+        on_demand_url = out.get("__cache_on_demand_url") or out.get("tiktok_url")
+        if str(out.get("source") or "") == "on_demand" and on_demand_url:
+            cacheable = {k: v for k, v in out.items() if not str(k).startswith("__")}
+            _persist_on_demand_cache(
+                sb,
+                tiktok_url=str(on_demand_url),
+                video_id=cache_vid,
+                response=cacheable,
+            )
+    except Exception as exc:
+        logger.warning(
+            "[embed_repair] diagnostics persist failed video_id=%s: %s",
+            out.get("video_id"),
+            exc,
+        )
+
+
 def finalize_video_narrative_layer(
     out: dict[str, Any],
     *,
@@ -837,6 +1021,20 @@ def finalize_video_narrative_layer(
         # for the caller (matches the post-synthesis branch below).
         out.pop("__narrative_analysis", None)
         out.pop("__narrative_content_format", None)
+        if _response_needs_embed_tile_repair(out):
+            _apply_embed_tile_repair_to_out(
+                out,
+                fallback_niche_id=fallback_niche_id,
+                user_sb=user_sb,
+                service_sb=service_sb,
+                user_id=user_id,
+            )
+            _persist_embed_repair_to_diagnostics(out)
+        else:
+            from getviews_pipeline.gemini import EMBED_CONTRACT_VERSION
+
+            if int(out.get("embed_contract_version") or 0) < EMBED_CONTRACT_VERSION:
+                out["embed_contract_version"] = EMBED_CONTRACT_VERSION
         return
 
     from getviews_pipeline.gemini import synthesize_diagnosis_v2
@@ -1153,6 +1351,13 @@ def finalize_video_narrative_layer(
             len(errors_prompt),
             list((analysis or {}).keys())[:5],
         )
+    if narrative_vi_out is not None and slim_refs:
+        diag_pre = narrative_vi_out.get("diagnosis_vi")
+        if isinstance(diag_pre, dict):
+            from getviews_pipeline.gemini import repair_diagnosis_vi_embedded_tiles
+
+            repair_diagnosis_vi_embedded_tiles(diag_pre, slim_refs)
+
     if narrative_vi_out is not None:
         dur_note = float(meta.get("duration_sec") or user_stats.get("duration_sec") or 0.0)
         # er_percentile_rank here is a ratio-derived score (~5–95), not a literal corpus
@@ -1228,6 +1433,19 @@ def finalize_video_narrative_layer(
     # Phase 4.4.6 — stable BE marker so the FE can detect v5 responses
     # without brittle sentence-count heuristics on van_de_chinh.
     out["_schema_version"] = "v5"
+
+    if _response_needs_embed_tile_repair(out):
+        _apply_embed_tile_repair_to_out(
+            out,
+            fallback_niche_id=fallback_niche_id,
+            user_sb=user_sb,
+            service_sb=service_sb,
+            user_id=user_id,
+        )
+    else:
+        from getviews_pipeline.gemini import EMBED_CONTRACT_VERSION
+
+        out["embed_contract_version"] = EMBED_CONTRACT_VERSION
 
     # Persist the narrative layer alongside the deterministic one so
     # the next request on the same video_id within the diagnostics TTL
@@ -1704,7 +1922,13 @@ def normalize_tiktok_url(url: str) -> str:
 
 
 def _try_on_demand_cache_hit(
-    service_sb: Any, tiktok_url: str, *, step_queue: Any | None = None,
+    service_sb: Any,
+    tiktok_url: str,
+    *,
+    step_queue: Any | None = None,
+    user_sb: Any | None = None,
+    fallback_niche_id: int | None = None,
+    user_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Return a previously-cached on-demand response if one is fresh.
 
@@ -1752,12 +1976,29 @@ def _try_on_demand_cache_hit(
     cached = row.get("cached_response")
     if not isinstance(cached, dict) or not cached:
         return None
-    if int(cached.get("response_schema_version") or 1) < ON_DEMAND_RESPONSE_SCHEMA_VERSION:
+    if int(cached.get("response_schema_version") or 1) < ON_DEMAND_RESPONSE_SCHEMA_VERSION_MIN:
         return None
     if step_queue is not None:
         from getviews_pipeline.step_events import emit, step_process
 
         emit(step_queue, step_process("Đang tải kết quả..."))
+    if _response_needs_embed_tile_repair(cached):
+        _apply_embed_tile_repair_to_out(
+            cached,
+            fallback_niche_id=fallback_niche_id,
+            user_sb=user_sb,
+            service_sb=service_sb,
+            user_id=user_id,
+        )
+        vid = str(cached.get("video_id") or "")
+        if vid and tiktok_url:
+            cacheable = {k: v for k, v in cached.items() if not str(k).startswith("__")}
+            _persist_on_demand_cache(
+                service_sb,
+                tiktok_url=tiktok_url,
+                video_id=vid,
+                response=cacheable,
+            )
     from getviews_pipeline.observability import log_cache_event
     log_cache_event(event="cache_hit", cache_source="on_demand_cache", video_id=None)
     return cached
@@ -1822,7 +2063,14 @@ def run_video_analyze_on_demand(
     """
     # Cache hit: skip EnsembleData + Gemini entirely when we've already
     # analysed this URL within the 1h diagnostics TTL.
-    cached = _try_on_demand_cache_hit(service_sb, tiktok_url, step_queue=step_queue)
+    cached = _try_on_demand_cache_hit(
+        service_sb,
+        tiktok_url,
+        step_queue=step_queue,
+        user_sb=user_sb,
+        fallback_niche_id=fallback_niche_id,
+        user_id=user_id,
+    )
     if cached is not None:
         return cached
 

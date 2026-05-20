@@ -464,6 +464,7 @@ export function VideoBody({
                   <DiagnosisSectionRenderer
                     section={sec}
                     referenceVideos={refVideos}
+                    evidenceAnchors={narrativeVi?.diagnosis_vi?.evidence_anchors}
                     postingContext={
                       sid === "distribution" ? nichePostingContextEffective : undefined
                     }

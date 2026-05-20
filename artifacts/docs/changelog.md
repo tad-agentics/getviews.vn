@@ -12,6 +12,7 @@
 
 | Feature | What changed | Blocking? | Fixed? | Commit |
 |---|---|---|---|---|
+| Video answer / embedded tiles cache | **finalize-lite:** `EMBED_CONTRACT_VERSION` + `repair_diagnosis_vi_embedded_tiles` on corpus cache hit and on-demand `cached_response` repair (schema v3); re-persist `video_diagnostics`. **FE:** `evidence_anchors` (`aweme_id`) fallback; session/`?q=` video mismatch banner. **Proximity:** corpus peer `content_context.subject_matter` in `_content_proximity_score`. | NO | Yes | — |
 | Answer session delete | **Hard delete:** `DELETE /answer/sessions/:id` + RLS `answer_sessions_delete_own`; Studio/history「Xoá」removes session + `answer_turns` (replaces `archived_at` soft-hide). Migration `20260726000000`. Does not purge `video_diagnostics` cache rows. | NO | Yes | 3011f55 |
 | Answer sidebar titles | **Option A:** after video diagnosis synthesis, promote `answer_sessions.title` from `narrative_vi.headline_vi` when title still matches auto-truncated `initial_q` (preserves manual `patch_session` renames). | NO | Yes | 6332eb2 |
 | Video answer / reference tiles | **Off-topic embedded refs:** annotate `content_proximity_score` on synthesis pool picks; post-synthesis `_sanitize_diagnosis_embedded_tiles` keeps only proximity ≥1 ids resolved from pool; FE `mapDiagnosisEmbeddedTiles` drops orphan aweme hints. | NO | Yes | 61570d7 |

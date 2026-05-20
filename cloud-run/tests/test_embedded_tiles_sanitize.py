@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from getviews_pipeline.gemini import (
+    EMBED_CONTRACT_VERSION,
+    count_valid_embedded_tiles,
+    repair_diagnosis_vi_embedded_tiles,
     _sanitize_diagnosis_embedded_tiles,
     _validate_diagnosis_vi_citations,
 )
@@ -107,6 +110,22 @@ def test_sanitize_keeps_live_search_tile_when_proximity_zero() -> None:
     tiles = diag_vi["sections"][0]["embedded_tiles"]
     assert len(tiles) == 1
     assert tiles[0]["aweme_id"] == "111"
+
+
+def test_repair_diagnosis_vi_embedded_tiles_injects_when_empty() -> None:
+    refs = [_slim("111", "đồng hồ nam luxury", proximity=1)]
+    diag_vi = {
+        "sections": [
+            {"section_id": "diagnosis", "text_vi": "prose", "embedded_tiles": []},
+        ]
+    }
+    n = repair_diagnosis_vi_embedded_tiles(diag_vi, refs)
+    assert n >= 1
+    assert count_valid_embedded_tiles(diag_vi) >= 1
+
+
+def test_embed_contract_version_constant() -> None:
+    assert EMBED_CONTRACT_VERSION >= 1
 
 
 def test_validate_citations_invokes_tile_sanitize() -> None:
