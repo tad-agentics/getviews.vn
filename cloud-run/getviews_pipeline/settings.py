@@ -109,13 +109,13 @@ class _PipelineSettings(BaseSettings):
     batch_priority_niche_max_vpn: int = Field(default=90, ge=1)
     batch_max_failures: int = Field(default=3, ge=0)
     batch_concurrency: int = Field(default=4, ge=1, le=32)
-    batch_min_views: int = Field(default=10000, ge=0)
+    batch_min_views: int = Field(default=20_000, ge=0)
     reference_ingest_min_views: int = Field(
-        default=50_000,
+        default=100_000,
         ge=0,
         description="Min play_count to enqueue live reference videos into corpus_ingest_queue",
     )
-    batch_min_er: float = Field(default=1.0, ge=0.0)
+    batch_min_er: float = Field(default=2.0, ge=0.0)
     batch_keyword_pages: int = Field(default=2, ge=1)
     batch_carousels_per_niche: int = Field(default=3, ge=0)
     batch_carousels_by_niche: str = Field(
@@ -125,7 +125,7 @@ class _PipelineSettings(BaseSettings):
             "empty = use batch_carousels_per_niche for all; 0 disables carousels for that niche"
         ),
     )
-    batch_carousel_min_likes: int = Field(default=500, ge=0)
+    batch_carousel_min_likes: int = Field(default=1000, ge=0)
     batch_hashtag_fetch_limit: int = Field(default=15, ge=1)
     batch_hashtag_fetch_by_niche: str = Field(default="")
     reingest_multi_chunk: int = Field(default=12, ge=1)

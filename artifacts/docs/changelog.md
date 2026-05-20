@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-19 — Corpus ingest quality gates ×2
+
+- **Batch video:** `BATCH_MIN_VIEWS` 10k→20k, `BATCH_MIN_ER` 1.0%→2.0%; carousel `BATCH_CAROUSEL_MIN_LIKES` 500→1k; live reference queue 50k→100k views (`settings.py` defaults). Redeploy batch pod to apply on Cloud Run.
+
 ## 2026-05-19 — News aggregator blocklist (FPT Play + 28international)
 
 - **Blocklist:** `28international`, `fptplay.sports`, `fptplay.bongdaviet`, `bongdavadoisong` in `creator_blocklist.py` + migration `20260728000001_remove_news_aggregator_fpt28.sql` (purge existing corpus rows).
