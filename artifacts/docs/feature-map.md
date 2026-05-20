@@ -1,8 +1,8 @@
-# Feature Map (main @ baa3af1)
+# Feature Map (main @ 6a69ab3)
 
-*Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. Status reflects shipping state on 2026-05-20.*
+*Comprehensive full-stack inventory of user-facing surfaces, backend endpoints, synthesis paths, and database tables. **Source of truth** for what ships where — update this file in the same commit as any route, endpoint, or orchestration change.*
 
-*Verified against codebase 2026-05-20. Route + endpoint claims spot-checked: routes.ts mounts, `/stream` dispatch (intent.py:265), all 9 `async def run_*` pipelines, `/channel/diagnose` (video.py:736), `/home/*` quartet (home.py:31/49/67/87), `/answer/sessions[/{id}/turns]` (answer.py:62/94/260/280/291/306), `/script/*` 9-endpoint set (script.py:37–192), `/admin/*` (admin.py:771–1453), `/batch/*` (batch.py:23–1257), edge functions `api/chat.ts` + `api/landing-stats.ts`, and the `signals/` module set.*
+*Verified against codebase **2026-05-20** (`6a69ab3`). Spot-checked: `routes.ts` mounts; dual SSE orchestration (`useSessionStream` `answer_turn` vs `/stream`); video report path `build_video_report` → `run_video_analyze_*` → `finalize_video_narrative_layer` → `synthesize_diagnosis_v2`; `/stream` dispatch (`intent.py:265`); `/channel/diagnose` + **7-day** DB cache (`video.py:291`, `736`); `/home/*` (`home.py:31/49/67/87`, `regenerate-ritual` 181); `/answer/sessions*` including PATCH/DELETE (`answer.py:62/94/260/280/291/306`); `/script/*` (`script.py:37–192`); `/admin/*` (`admin.py:771–1453`); `/batch/*` (`batch.py:23–1257`); Edge `api/chat.ts` + `api/landing-stats.ts`; `history_union` RPC; PayOS `create-payment`; embed-tile contract (`gemini.py` `EMBED_CONTRACT_VERSION`, `video_analyze.py` schema v3).*
 
 ---
 
@@ -11,7 +11,7 @@
 ### /) Landing page
 - **FE:** `src/routes/_index/route.tsx` (line 18), `src/routes/_index/LandingPage.tsx`
 - **BE endpoints:**
-  - GET `/api/landing-stats` (Vercel Edge, `api/landing-stats.ts`) → fetches aggregated hook statistics + thumbnail IDs for hero carousel
+  - GET `/api/landing-stats` (Vercel Edge, `api/landing-stats.ts`) → aggregated hook statistics + thumbnail IDs for hero carousel
 - **DB tables:** `hook_effectiveness` (read for hooks list), R2 (frame0 thumbnails)
 - **Status:** shipped & live
 - **Evidence:** Route mounted `src/routes.ts:5`. Landing stats loader at line 20.
@@ -35,334 +35,295 @@
 ### /app (index)
 - **FE:** `src/routes/_app/route.tsx` → HomeScreen
 - **Routing logic:**
+  - `?session=<id>` → redirect to `/app/history/chat/<id>` (legacy chat URLs)
   - If no niche in profile → redirect to `/app/onboarding`
   - Otherwise render HomeScreen (lazy)
 - **Query:** `useProfile()` → checks `profileHasNiche()` at line 44
 - **Status:** shipped & live
-- **Evidence:** `routes.ts:14`, redirect logic at lines 44–46
+- **Evidence:** `routes.ts:14`, redirect logic at lines 27–46
 
 ### /app/home (implicit via HomeScreen)
 - **FE:** `src/routes/_app/home/HomeScreen.tsx`
 - **Sub-surfaces:**
-  1. **Ticker marquee** — `TickerMarquee` component, pulls from `/home/ticker`
-  2. **Daily ritual widget** — `HomeSuggestionsToday` tier rendering, pulls `/home/daily-ritual` + `/home/pulse`
-  3. **Starter creators** — contextual creator card widget, `/home/starter-creators`
-  4. **Pulse data** — niche vitals, calls `/home/pulse` (line 115)
-  5. **Query composer** — text input for video URL / niche questions (lines 66–67)
+  1. **Ticker marquee** — `TickerMarquee`, pulls `/home/ticker`
+  2. **Daily ritual widget** — `HomeSuggestionsToday`, pulls `/home/daily-ritual` + `/home/pulse`
+  3. **Starter creators** — `/home/starter-creators`
+  4. **Pulse data** — `/home/pulse`
+  5. **Query composer** — video URL / niche questions → intent router → `/app/answer` (or other destinations)
 - **BE endpoints:**
-  - GET `/home/pulse` → `cloud-run/routers/home.py:32` — returns niche health (as_of timestamp, pulse data) + daily ritual regen status
-  - GET `/home/ticker` → `cloud-run/routers/home.py:50` — hot hooks (3 per niche)
-  - GET `/home/starter-creators` → `cloud-run/routers/home.py:68` — 3 trending creators
-  - GET `/home/daily-ritual` → `cloud-run/routers/home.py:88` — user's daily ritual suggestions (3 tiers: 01 scripts, 02 channel analysis, 03 trend insight)
-  - GET `/answer/sessions` → queries past sessions for user (implied via `answerSessionKeys.listsForUser()`)
-- **Synthesis paths invoked:**
-  - Daily ritual synthesis (pattern_decks, brief_generation, creator_search pipelines called nightly via `/batch/morning-ritual`)
+  - GET `/home/pulse` → `cloud-run/getviews_pipeline/routers/home.py:31`
+  - GET `/home/ticker` → `home.py:49` — hot hooks (3 per niche)
+  - GET `/home/starter-creators` → `home.py:67`
+  - GET `/home/daily-ritual` → `home.py:87` — 3-tier ritual (scripts / channel / trend)
+  - POST `/home/regenerate-ritual` → `home.py:181` — on-demand ritual regen (202)
+- **Synthesis paths invoked (batch/cron):**
+  - Daily ritual: `/batch/morning-ritual` or `POST /admin/trigger/morning_ritual`
   - Pulse aggregation (daily corpus snapshot)
 - **DB tables:** `daily_ritual`, `starter_creators`, `niche_insights`, `answer_sessions`, `answer_turns`
 - **Status:** shipped & live
-- **Evidence:** HomeScreen lines 115–126 (pulse + ticker), daily ritual suggestions rendering at line 200+, routes.ts:14
 
 ---
 
 ## 3. /app/answer — Video Diagnosis + Q&A Research
 
-**Central surface for video analysis, follow-up Q&A, and multi-turn research synthesis.**
+**Central surface for structured video reports (Win/Flop), follow-up Q&A, and multi-turn research. Replaces deleted `/app/video` (2026-04-28).**
 
-- **FE:** `src/routes/_app/answer/AnswerScreen.tsx` (lazy route at `routes.ts:15`)
-- **Entry points:** 
-  - Direct `/app/answer` (fresh session) or `/app/answer?session=<id>` (resume)
-  - Seeded from home composer (`?q=<query>`), OR from /app/channel diagnostics deep link
-- **Primary query params:** `?session=`, `?q=`, `?session_id=`
+- **FE:** `src/routes/_app/answer/AnswerScreen.tsx` (`routes.ts:15`)
+- **Entry points:**
+  - `/app/answer` (fresh) or `/app/answer?session=<id>` (resume; alias `session_id`)
+  - Home composer `?q=<query>`; channel deep link; compare single-side fallback → `/app/answer` + `state.prefillUrl`
+- **Query params:** `?session=` | `?session_id=`, `?q=`
 
-### ① **Sub-surface: Primary turn (video diagnosis)**
-- **FE flow:** QueryComposer accepts TikTok URL or text question → `createAnswerSession()` → SSE stream
-- **Intent router logic:** `src/routes/_app/intent-router.ts` classifies input (video URL → `video_diagnosis`, text → `follow_up_unclassifiable` or specific intent)
+### FE streaming contract
+- **`useSessionStream({ mode: "answer_turn" })`** → `POST /answer/sessions/{id}/turns` (not `/stream`)
+- **`createAnswerSession()`** → `POST /answer/sessions` with optional `Idempotency-Key`
+- **Intent router:** `intent-router.ts` maps `video_diagnosis` → `answer:video`; other intents → `answer:pattern` | `answer:timing` | `answer:generic` | etc.
+- **Session safety:** banner when `?q=` URL disagrees with loaded session video (`AnswerScreen.tsx`)
+
+### ① Primary turn (video URL → structured diagnosis)
 - **BE endpoints:**
-  - POST `/answer/sessions` (Cloud Run, `routers/answer.py:62`) — idempotency-keyed, creates blank session row
-  - POST `/answer/sessions/{session_id}/turns` (Cloud Run SSE, `routers/answer.py:94`) — streams diagnosis; supports resume_stream_id + resume_from_seq replay
-- **Synthesis pipeline:**
-  - For video URL: `run_video_diagnosis()` calls `diagnosis_synthesis_v6_section_pool` (prompts.py) → Gemini extracts hook, commerce, story arc, etc.
-  - Signals evaluated: `hook_type`, `hook_effectiveness`, `creator_velocity`, `video_patterns`, `niche_insights` (lookups)
-  - Output: ReportV1 (diagnosis payload) with sections: hook ranking, patterns, commerce hooks, ideas
-- **DB tables:** `answer_sessions`, `answer_turns`, `video_diagnostics`, `video_corpus`, `hook_effectiveness`, `content_classifications`, `signal_grades`
-- **Status:** shipped & live
-- **Evidence:** AnswerScreen.tsx line 143 (useAnswerSessionDetail), POST /answer/sessions at answerApi.ts:52, playback loop at lines 255–295
-
-### ② **Sub-surface: Follow-up turns (Q&A)**
-- **FE:** ContinuationTurn component + FollowUpComposer, manual query input
-- **Intent router:** Classifies follow-up intent from text (trend_spike, creator_search, timing, script, generic, etc.)
-- **BE:** POST `/answer/sessions/{session_id}/turns` → same stream endpoint but different kind ("timing", "creators", "script", "generic")
-- **Synthesis:** Intent-specific pipeline (e.g., `run_trend_spike()` for niche trend data, `run_creator_search()` for creator finder, `run_shot_list()` for script suggestions)
-- **Status:** shipped & live
-- **Evidence:** ContinuationTurn component usage in AnswerScreen, follow-up composer at lines 330+
-
-### ③ **Sub-surface: Chat history**
-- **FE display:** TimelineRail shows turn breadcrumb, click to jump to a turn
-- **Query:** GET `/answer/sessions/{session_id}` → fetches full session detail (header + all turns)
-- **DB:** answer_sessions.title, answer_turns array
+  - POST `/answer/sessions` (`answer.py:62`) — create session row
+  - POST `/answer/sessions/{session_id}/turns` (`answer.py:94`) — SSE `ReportV1`; TD-4 replay via `resume_stream_id` + `resume_from_seq`
+- **Server orchestration:** `append_turn()` (`answer_session.py`) → **`build_video_report()`** (`report_video.py:405`):
+  1. Corpus path: `run_video_analyze_pipeline()` (`video_analyze.py`)
+  2. Else on-demand: `run_video_analyze_on_demand()`
+  3. Narrative layer: `finalize_video_narrative_layer()` → **`synthesize_diagnosis_v2()`** (v6 section pool in `gemini.py`)
+  4. Persist: `video_diagnostics` (`source` corpus | on_demand), `answer_turns` payload
+- **Embedded reference tiles (2026-05):**
+  - Canonical: `narrative_vi.diagnosis_vi.sections[].embedded_tiles` joined to `reference_videos` in `DiagnosisSectionRenderer.tsx`
+  - Cache repair: `embed_contract_version` + `repair_diagnosis_vi_embedded_tiles()` on corpus/on-demand cache hits (`finalize-lite`); `ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3`
+  - FE fallback: `embeddedTilesFromEvidenceAnchors` when anchors carry `aweme_id` (`VideoBody.tsx`)
+- **Signals (read-only lookups):** `hook_effectiveness`, `video_patterns`, `niche_insights`, `signal_grades`, corpus peers
+- **DB tables:** `answer_sessions`, `answer_turns`, `video_diagnostics`, `video_corpus`, `content_classifications`
 - **Status:** shipped & live
 
-**Core answer-session error codes:** insufficient_credits, daily_free_limit, stream_failed, stream_timeout, session_not_found, idempotency_conflict (AnswerScreen.tsx:53–70)
+### ② Follow-up turns (Q&A)
+- Same POST `/answer/sessions/{id}/turns` with turn `kind` from `appendTurnKindForQuery()` (timing, creators, script, generic, …)
+- **Synthesis:** intent-specific `run_*` in `pipelines.py` (e.g. `run_trend_spike`, `run_creator_search`, `run_shot_list`)
+- Text-only free intents may also use Vercel **`POST /api/chat`** when routed to chat mode (see §13)
+- **Status:** shipped & live
+
+### ③ In-session timeline + session CRUD
+- **TimelineRail** — jump between turns; GET `/answer/sessions/{session_id}` (`answer.py:280`)
+- **PATCH** `/answer/sessions/{session_id}` (`answer.py:291`) — title / metadata
+- **DELETE** `/answer/sessions/{session_id}` (`answer.py:306`) — soft-delete session
+- **List:** GET `/answer/sessions` (`answer.py:260`)
+
+**Answer error codes (FE):** `insufficient_credits`, `daily_free_limit`, `stream_failed`, `stream_timeout`, `session_not_found`, `idempotency_conflict` (`AnswerScreen.tsx`)
 
 ---
 
 ## 4. /app/history — Session Archive
 
-- **FE:** `src/routes/_app/history/route.tsx` → HistoryScreen
-- **Sub-views:**
-  - List of sessions (with filter ribbon: niche, intent type, date range)
-  - Click → `/app/history/chat/:sessionId` (ChatSessionReadScreen)
-- **BE endpoints:**
-  - GET `/answer/sessions` (Cloud Run, `routers/answer.py`) — paginated list for user
-  - GET `/answer/sessions/{session_id}` → full detail with turns
-- **DB tables:** `answer_sessions`, `answer_turns`
+- **FE:** `src/routes/_app/history/route.tsx` → HistoryScreen; detail at `/app/history/chat/:sessionId`
+- **BE:**
+  - **Primary list:** Supabase RPC **`history_union`** (+ **`search_history_union`** when searching) — merges `answer_sessions` and legacy `chat_sessions` (`useHistoryUnion.ts`)
+  - GET `/answer/sessions` — answer-only paginated list (also used elsewhere)
+  - GET `/answer/sessions/{session_id}` — full answer session + turns
+- **Filters:** niche, intent type, date range (client-side on union rows)
+- **DB tables:** `answer_sessions`, `answer_turns`, `chat_sessions`, `chat_messages` (legacy rows still listed)
 - **Status:** shipped & live
-- **Evidence:** `routes.ts:16–18`, HistoryScreen.tsx filter ribbon
+- **Evidence:** `HistoryScreen.tsx` (union RPC), `routes.ts:16–17`
 
 ---
 
 ## 5. /app/channel — Channel Deep-Dive Analysis
 
-- **FE:** `src/routes/_app/channel/ChannelScreen.tsx` (lazy route at `routes.ts:27`)
-- **Entry:** `/app/channel?handle=<@handle>` (optional `?creator_niche_id=<id>`, `?force_refresh=true`, `?video_url=<...>`)
-- **Flow:** User enters TikTok handle → calls `useChannelDiagnose()` → SSE diagnosis
+- **FE:** `src/routes/_app/channel/ChannelScreen.tsx` (`routes.ts:27`)
+- **Entry:** `/app/channel?handle=<@handle>` (+ optional `creator_niche_id`, `force_refresh=true`, `video_url`)
 - **BE endpoints:**
-  - GET `/channel/user-search` (Cloud Run, `routers/video.py:100`) — autocomplete handle lookup
-  - POST `/channel/diagnose` (Cloud Run SSE, `routers/video.py:736`) — streams channel diagnosis with sections (growth trajectory, content directions, niche fit, competitor benchmarks, top patterns)
-  - POST `/channel/refresh-mine` (Cloud Run, `routers/video.py:143`) — refresh current user's own channel cache
-- **Synthesis paths:**
-  - `run_own_channel()` / `run_competitor_profile()` pipelines → calls `channel_diagnose_prompts.py` Gemini synthesis
-  - Sections rendered: GrowthCard (trajectory), ScoreCard (niche fit), CommentRadarTile, PatternSpreadStrip (hot hooks in channel)
-  - Signals: `channel_diagnoses` row, `video_patterns`, `hook_effectiveness`, `creator_velocity`
-- **DB tables:** `channel_diagnoses` (cached, keyed by handle), `video_patterns`, `creator_velocity`, `hook_effectiveness`, `niche_insights`
-- **Credit cost:** 3 deep_credits per diagnosis (ChannelScreen.tsx:22)
+  - GET `/channel/user-search` (`video.py:100`) — handle autocomplete
+  - POST `/channel/diagnose` (`video.py:736`) — SSE narrative channel diagnosis (Lightreel-style v2)
+  - POST `/channel/refresh-mine` (`video.py:143`) — refresh signed-in user's channel
+- **Cache:** `channel_diagnoses` row, **`max_age_days=7`** default (`_fetch_channel_diagnoses_cache`, `video.py:291`); `force_refresh=true` bypasses
+- **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py`; corpus-first peers + live EnsembleData hybrid
+- **Credit cost:** 3 deep_credits per diagnosis
+- **DB tables:** `channel_diagnoses`, `video_patterns`, `hook_effectiveness`, `creator_velocity`, `niche_insights`
 - **Status:** shipped & live
-- **Evidence:** Channel diagnosis endpoint at video.py:736, SectionRenderer at ChannelScreen.tsx:17, scorecard at line 18
 
 ---
 
 ## 6. /app/trends — Niche Intelligence & Pattern Explorer
 
 - **FE:** `src/routes/_app/trends/route.tsx` → ExploreScreen
-- **Param:** `?niche=<id>` (else defaults to user's primary niche)
-- **Sub-views:**
-  - Top patterns (hook gallery, sorted by trend velocity)
-  - Filter/sort UI
-- **BE endpoints:**
-  - GET `/home/pulse` (reused) — niche vitals
-  - GET `/script/hook-patterns` (Cloud Run, implied from ScriptScreen data dependency) — hooks + recent usage
-- **Signals:** `trend_velocity` table (updated nightly), hook recency
+- **Param:** `?niche=<id>` (defaults to user's primary niche)
+- **BE:** GET `/home/pulse`; GET `/script/hook-patterns` (`script.py:84`)
 - **DB tables:** `video_patterns`, `trend_velocity`, `hook_effectiveness`, `niche_taxonomy`
 - **Status:** shipped & live
-- **Evidence:** `routes.ts:19`, ExploreScreen lazy load
 
 ---
 
 ## 7. /app/script — Content Script Workshop
 
-- **FE:** `src/routes/_app/script/route.tsx` → ScriptScreen
-- **Params:** `?hook=`, `?niche_id=`, `?topic=`, `?duration=`
-- **Features:**
-  - Hook pattern explorer (top hooks for niche + filter)
-  - Scene intelligence (if enabled)
-  - Shot list generation (idea references)
-  - Save draft script
-- **BE endpoints:**
-  - GET `/script/scene-intelligence` (`routers/script.py:37`) — scene type classifier (depends on batch `/batch/scene-intelligence` job)
-  - GET `/script/idea-references` (`routers/script.py:58`) — idea suggestions keyed to hook
-  - GET `/script/hook-patterns` (`routers/script.py:84`) — top hooks for niche + metadata
-  - POST `/script/generate` (`routers/script.py:105`) — synchronous script generation given hook + niche
-  - POST `/script/save` (`routers/script.py:138`) — legacy save path
-  - POST `/script/drafts` (`routers/script.py:147`) — save new draft
-  - GET `/script/drafts` (`routers/script.py:156`) — user's saved scripts
-  - GET `/script/drafts/{draft_id}` (`routers/script.py:173`) — single draft detail
-  - POST `/script/drafts/{draft_id}/export` (`routers/script.py:192`) — export draft
-- **Sub-route:** `/app/script/shoot/:draftId` (AnswerScreen with draft hydration) — renders script sections + video guidance
-- **Synthesis paths:**
-  - `run_shot_list()` pipeline — Gemini generates shot list given hook + niche
-  - Scene intelligence → batch job classifies video frames into scene types
-- **DB tables:** `draft_scripts`, `public.video_shots`, `scene_intelligence`, `hook_effectiveness`, `content_format_reclassify`
-- **Status:** shipped & live (core) / WIP (scene intelligence batch integration)
-- **Evidence:** `routes.ts:28–29`, script.py router, draft_scripts schema in migrations
+- **FE:** `src/routes/_app/script/route.tsx` → ScriptScreen; shoot sub-route `app/script/shoot/:draftId`
+- **BE endpoints** (`routers/script.py`):
+  - GET `/script/scene-intelligence` (37)
+  - GET `/script/idea-references` (58)
+  - GET `/script/hook-patterns` (84)
+  - POST `/script/generate` (105)
+  - POST `/script/save` (138) — legacy
+  - POST `/script/drafts` (147)
+  - GET `/script/drafts` (156)
+  - GET `/script/drafts/{draft_id}` (173)
+  - POST `/script/drafts/{draft_id}/export` (192)
+- **Synthesis:** `run_shot_list()`; scene intel via `/batch/scene-intelligence`
+- **DB tables:** `draft_scripts`, `video_shots`, `scene_intelligence`, `hook_effectiveness`
+- **Status:** shipped & live (core) / WIP (scene intelligence batch)
 
 ---
 
 ## 8. /app/douyin — Douyin Corpus & Analytics
 
 - **FE:** `src/routes/_app/douyin/route.tsx` → DouyinScreen
-- **Features:**
-  - Douyin niche selector (16+ Chinese niches)
-  - Pattern feed (hot hooks in Douyin)
-  - Trend explorer
-- **BE endpoints:**
-  - GET `/douyin/feed` (Cloud Run, `routers/douyin.py`) — paginated hot videos
-  - GET `/douyin/patterns` → hot Douyin-specific patterns
-  - (Implied) Batch `/batch/douyin-ingest`, `/batch/douyin-patterns`, `/batch/douyin-synth` (nightly corpus refresh)
+- **BE endpoints** (`routers/douyin.py`):
+  - GET `/douyin/feed` (28)
+  - GET `/douyin/patterns` (50)
+- **Batch:** `/batch/douyin-ingest` (215), `/batch/douyin-synth` (1139), `/batch/douyin-patterns` (1257)
 - **DB tables:** `douyin_video_corpus`, `douyin_video_shots`, `douyin_niche_taxonomy`, `douyin_patterns`
-- **Status:** shipped & live (read surfaces) / WIP (corpus sync + pattern synthesis)
-- **Evidence:** `routes.ts:20`, douyin.py router, Douyin corpus migrations (20260603000000_*, 20260603000002_*)
+- **Status:** shipped & live (read) / WIP (streaming diagnosis UI)
 
 ---
 
 ## 9. /app/compare — Two-Video Comparison
 
-- **FE:** `src/routes/_app/compare/route.tsx` → CompareScreen
-- **Entry:** `/app/compare?url_a=<url>&url_b=<url>` (from intent router)
-- **Flow:** Two video URLs → POST `/stream` with intent `compare_videos` → parallel diagnoses + delta synthesis
-- **BE endpoints:**
-  - POST `/stream` (Cloud Run, `routers/intent.py:265`) — orchestrates `run_compare_pipeline()` (report_compare.py) which parallelizes diagnoses then diffs them
-- **Output:** ComparePayload (delta report showing differences in hooks, patterns, commerce effectiveness)
-- **DB tables:** video_corpus, video_diagnostics, video_patterns (both videos)
+- **FE:** `src/routes/_app/compare/CompareScreen.tsx`
+- **Entry:** `/app/compare?url_a=&url_b=`
+- **Flow:** `useSessionStream()` (default **chat** mode) → POST **`/stream`** with `compare_videos` → `run_compare_pipeline()` (`report_compare.py`) parallelizes **`run_video_diagnosis()`** per URL, then delta
+- **Single-side fallback:** surviving side returns `video_diagnosis` shape → navigate **`/app/answer`** with `prefillUrl` (not `/app/video`)
+- **DB tables:** `video_corpus`, `video_diagnostics`, `video_patterns`
 - **Status:** shipped & live
-- **Evidence:** `routes.ts:26`, compare.py route comment at lines 10–15, report_compare import in intent.py
 
 ---
 
 ## 10. /app/onboarding
 
 - **FE:** `src/routes/_app/onboarding/route.tsx`
-- **Purpose:** Single-niche setup for new users (niche_taxonomy picker)
-- **BE:** Writes creator_niches → profiles.creator_niche_id
+- **Purpose:** Single-niche picker (`creator_niches` → `profiles.creator_niche_id`)
 - **Status:** shipped & live
-- **Evidence:** `routes.ts:17`, profile redirect logic in /app route
 
 ---
 
 ## 11. /app/settings, /app/learn-more, /app/pricing, /app/checkout, /app/payment-success
 
-- **FE:** Lazy-loaded screens (`src/routes/_app/<feature>/route.tsx`)
-- **/app/settings:**
-  - Niche/profile editor, subscription management, API key management (if admin)
-  - POST → updates profiles table
-- **/app/pricing:** Static pricing display (no BE integration)
-- **/app/checkout:** Lemon Squeezy integration (subscription)
-- **/app/payment-success:** Post-checkout redirect
-- **Status:** shipping / live
-- **Evidence:** `routes.ts:30–34`
+- **FE:** Lazy routes `routes.ts:30–34`
+- **/app/settings:** profile + niche edit; admin API keys when applicable
+- **/app/pricing:** static pack display (links to checkout)
+- **/app/checkout:** **PayOS** one-time credit packs via Supabase Edge Function **`create-payment`**; payment methods MoMo / VietQR (`CheckoutScreen.tsx`). **Not** recurring subscription.
+- **/app/payment-success:** return URL after PayOS redirect
+- **/app/learn-more:** support copy references PayOS transaction IDs for refunds
+- **Status:** shipped & live
 
 ---
 
 ## 12. /app/admin — Operator Dashboard
 
-- **FE:** `src/routes/_app/admin/route.tsx` → AdminScreen + sub-panels (EnsembleCreditsPanel, FunnelPanel, CorpusHealthPanel, TriggersPanel, ThumbnailFailuresPanel, LogsPanel, ActionLogPanel, Layer0Panel)
-- **BE endpoints (Cloud Run `routers/admin.py`):**
-  - **Observability:**
-    - GET `/admin/corpus-health` (line 771) — corpus recency, niche distribution, ingest queue status
-    - GET `/admin/ensemble-credits` (line 861) — Gemini usage (call count, spend, burndown)
-    - GET `/admin/ensemble-call-sites` (line 880) — breakdown by synthesis path
-    - GET `/admin/ensemble-history` (line 908) — 7-day Gemini usage trend
-    - GET `/admin/alert-fires` (line 983) — recent alerts (ensemble runway, corpus staleness, trigger failures)
-    - GET `/admin/logs` (line 997) — structured logs tail
-    - GET `/admin/action-log` (line 1038) — audit log of operator triggers
-    - GET `/admin/funnel` (line 1052) — user funnel (signup → first diagnosis → subscription)
-    - GET `/admin/layer0-health` (implied) — video extraction queue status
-  - **Triggers (manual batch jobs)** — all in `routers/admin.py`:
-    - POST `/admin/trigger/ingest` (1228) → corpus ingest with optional niche filter
-    - POST `/admin/trigger/analytics` (1259) → batch analytics recalc
-    - POST `/admin/trigger/scene_intelligence` (1267) → batch scene classification
-    - POST `/admin/trigger/thumbnail_backfill` (1275) → re-extract thumbnails from R2 fallback
-    - POST `/admin/trigger/backfill_classification` (1312) → re-run content-format classifier
-    - POST `/admin/trigger/refresh` (1330) → re-diagnose channels / refresh feeds
-    - POST `/admin/trigger/reclassify_format` (1346) → re-classify content format
-    - POST `/admin/trigger/r2_janitor` (1357) → cleanup orphaned R2 assets
-    - POST `/admin/trigger/layer0` (1371) → reprocess failed video extractions
-    - POST `/admin/trigger/enrich_shots_top500` (1382) → enrich shot metadata for top corpus
-    - POST `/admin/trigger/viral_score_backtest` (1394) → eval viral-score model on historical corpus
-    - **Note:** there is NO `/admin/trigger/morning-ritual` — morning ritual is regenerated via `POST /home/regenerate-ritual` (`home.py:181`) for users or `POST /batch/morning-ritual` (`batch.py:1031`) for the cron.
-- **Alert rules:** Ensemble runway low, corpus stale, trigger error spike, pg_net batch HTTP 4xx
-- **DB tables:** `ensemble_calls`, `admin_alert_rules`, `admin_alert_fires`, `admin_action_log`, `batch_job_runs`, `batch_http_log`
+- **FE:** `src/routes/_app/admin/route.tsx` — CorpusHealth, EnsembleCredits, Funnel, Triggers, Layer0, Logs, etc.
+- **Observability** (`routers/admin.py`):
+  - GET `/admin/corpus-health` (771)
+  - GET `/admin/ensemble-credits` (861)
+  - GET `/admin/ensemble-call-sites` (880)
+  - GET `/admin/ensemble-history` (908)
+  - GET `/admin/alert-fires` (983)
+  - GET `/admin/logs` (997)
+  - GET `/admin/action-log` (1038)
+  - GET `/admin/funnel` (1052)
+  - GET `/admin/layer0-health` (1453)
+- **Triggers:**
+  - POST `/admin/trigger/ingest` (1228)
+  - POST `/admin/trigger/morning_ritual` (1241) — same workload as `/batch/morning-ritual`
+  - POST `/admin/trigger/analytics` (1259)
+  - POST `/admin/trigger/scene_intelligence` (1267)
+  - POST `/admin/trigger/thumbnail_backfill` (1275)
+  - POST `/admin/trigger/backfill_classification` (1312)
+  - POST `/admin/trigger/refresh` (1330)
+  - POST `/admin/trigger/reclassify_format` (1346)
+  - POST `/admin/trigger/r2_janitor` (1357)
+  - POST `/admin/trigger/layer0` (1371)
+  - POST `/admin/trigger/enrich_shots_top500` (1382)
+  - POST `/admin/trigger/viral_score_backtest` (1394)
+- **User/cron equivalents:** `POST /home/regenerate-ritual` (per user); `POST /batch/morning-ritual` (cron)
 - **Status:** shipped & live
-- **Evidence:** Admin router line 771+, AdminScreen.tsx structure with sub-panels
 
 ---
 
 ## 13. Vercel Edge Functions
 
 ### `api/chat.ts`
-- **Endpoint:** POST `/api/chat` (Vercel Edge)
-- **Purpose:** Message streaming from a React Query + SSE integration (implied dual-mode streaming for replay buffering)
-- **Status:** shipped & live (infrastructure)
-- **Evidence:** `api/chat.ts:20`
+- **Endpoint:** POST `/api/chat` (Edge Runtime)
+- **Purpose:** **Text intents ⑤⑥⑦ + follow-ups** — Gemini `gemini-3.1-flash-lite` (or `GEMINI_SYNTHESIS_MODEL`), free-intent daily cap, writes `chat_sessions` / `chat_messages`. Used when FE streams in **chat** mode (not `answer_turn`).
+- **Evidence:** `api/chat.ts` header comment; `FREE_INTENTS` set lines 32–37
 
 ### `api/landing-stats.ts`
-- **Endpoint:** GET `/api/landing-stats`
-- **Purpose:** Lightweight aggregated stats for landing page (hook list + frame thumbnails)
-- **Status:** shipped & live
-- **Evidence:** Landing route loader (src/routes/_index/route.tsx:20)
+- **Endpoint:** GET `/api/landing-stats` — landing hero hooks + R2 thumbnails
+- **Evidence:** `src/routes/_index/route.tsx` loader
 
 ---
 
 ## 14. Background Jobs (Cloud Run + pg_cron)
 
-All `/batch/*` endpoints live in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH_SECRET`).
+All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH_SECRET`). Vault `cloud_run_api_url` must point at **batch** service.
 
-| Job | Endpoint (batch.py line) | Synthesis | DB write | Status |
+| Job | Endpoint (line) | Synthesis | DB write | Status |
 |---|---|---|---|---|
-| Corpus ingest | `/batch/ingest` (95) | `corpus_ingest.py` extracts hooks/scenes/transcript via Gemini per video | `video_corpus`, `video_shots`, `video_patterns`, `content_classifications`, `signal_grades` | live |
-| Post-processing | `/batch/post-processing` (160) | analytics + signal recomputes after ingest | `niche_insights`, `signal_grades` | live |
-| Re-ingest videos | `/batch/reingest-videos` (278) | re-extract a list of video IDs | `video_corpus`, `video_shots` | live |
-| Ingest queue drain | `/batch/process-ingest-queue` (313) — daily pg_cron | drains `corpus_ingest_queue` (new 2026-05-19) | `corpus_ingest_queue`, `video_corpus` | live |
-| Channel/feed refresh | `/batch/refresh` (376) | re-diagnose channels + feed snapshots | `channel_diagnoses` | live |
-| Reclassify format | `/batch/reclassify-format` (405) | re-runs content-format classifier on existing corpus | `content_classifications` | live |
-| Classification backfill | `/batch/backfill-classification` (445) | re-classify content + hook type | `content_classifications`, `signal_grades` | live |
-| Sound aggregate | `/batch/sound-aggregate` (481) | trending sounds rollup | `trending_sounds` | live |
-| Trend velocity | `/batch/trend-velocity` (518) — weekly | hook recency + velocity scoring | `trend_velocity` | live |
-| R2 janitor | `/batch/r2-janitor` (568) | delete orphaned R2 assets | (R2 only) | live |
-| Thumbnail backfill | `/batch/backfill-thumbnails` (633) | re-extract frame0 + frame analysis | `video_shots` (frame metadata) | live |
-| Analytics | `/batch/analytics` (896) | corpus stats + niche insights rollup | `niche_insights` | live |
-| Layer0 reprocess | `/batch/layer0` (979) | reprocess failed extractions | `video_corpus` | live |
-| Morning ritual | `/batch/morning-ritual` (1031) — daily | calls `run_brief_generation` / `run_competitor_profile` / `run_creator_search` per active user-niche | `daily_ritual`, `starter_creators` | live |
-| Pattern decks | `/batch/pattern-decks` (1064) — daily | aggregates `hook_effectiveness`, `video_patterns`, `trend_velocity` per niche | `video_patterns` (upsert) | live |
-| Douyin synth | `/batch/douyin-synth` (1139) — D3b daily | grades `douyin_video_corpus` rows for adapt-level | `douyin_video_corpus` | live |
-| Scene intelligence | `/batch/scene-intelligence` (1202) | frame scene-type classification | `scene_intelligence` | WIP |
-| Douyin patterns | `/batch/douyin-patterns` (1257) — D5c weekly | synthesize 3 pattern signals per active niche | `douyin_patterns` | live |
-| Douyin ingest | `/batch/douyin-ingest` (215) — nightly | extracts Douyin video metadata + thumbnails | `douyin_video_corpus`, `douyin_video_shots` | live |
+| Corpus ingest | `/batch/ingest` (95) | `corpus_ingest.py` | `video_corpus`, `video_shots`, `video_patterns`, `content_classifications`, `signal_grades` | live |
+| Post-processing | `/batch/post-processing` (160) | analytics + signals | `niche_insights`, `signal_grades` | live |
+| Douyin ingest | `/batch/douyin-ingest` (215) | Douyin metadata | `douyin_video_corpus`, `douyin_video_shots` | live |
+| Re-ingest videos | `/batch/reingest-videos` (278) | re-extract IDs | `video_corpus`, `video_shots` | live |
+| Ingest queue drain | `/batch/process-ingest-queue` (313) | drains queue | `corpus_ingest_queue`, `video_corpus` | live |
+| Channel/feed refresh | `/batch/refresh` (376) | channel refresh | `channel_diagnoses` | live |
+| Reclassify format | `/batch/reclassify-format` (405) | format classifier | `content_classifications` | live |
+| Classification backfill | `/batch/backfill-classification` (445) | two-axis backfill | `content_classifications`, `signal_grades` | live |
+| Sound aggregate | `/batch/sound-aggregate` (481) | sounds rollup | `trending_sounds` | live |
+| Trend velocity | `/batch/trend-velocity` (518) | weekly velocity | `trend_velocity` | live |
+| R2 janitor | `/batch/r2-janitor` (568) | orphan cleanup | R2 only | live |
+| Thumbnail backfill | `/batch/backfill-thumbnails` (633) | frame0 repair | `video_shots` | live |
+| Analytics | `/batch/analytics` (896) | niche rollup | `niche_insights` | live |
+| Layer0 reprocess | `/batch/layer0` (979) | failed extractions | `video_corpus` | live |
+| Morning ritual | `/batch/morning-ritual` (1031) | per-user ritual | `daily_ritual`, `starter_creators` | live |
+| Pattern decks | `/batch/pattern-decks` (1064) | hook aggregates | `video_patterns` | live |
+| Douyin synth | `/batch/douyin-synth` (1139) | adapt grading | `douyin_video_corpus` | live |
+| Scene intelligence | `/batch/scene-intelligence` (1202) | scene types | `scene_intelligence` | WIP |
+| Douyin patterns | `/batch/douyin-patterns` (1257) | pattern synth | `douyin_patterns` | live |
 
-**Other periodic tasks (pg_cron-driven, not in batch.py):**
-- Channel diagnoses prune — `channel_diagnoses` rows older than 7d (weekly)
-- Starter creators reseed — weekly
-- Daily health digest — Monday email
-- pg_net batch HTTP 4xx watcher — hourly
-
-**User-facing trigger:** `POST /home/regenerate-ritual` (`home.py:181`) for on-demand morning-ritual regeneration; polls back via `/home/daily-ritual`.
+**pg_cron (not in batch.py):** channel_diagnoses prune (>7d), starter creators reseed, Monday health digest, pg_net batch HTTP 4xx watcher (hourly).
 
 ---
 
 ## 15. Cross-Feature Observations
 
-### Synthesis path orchestration
-- **Single entry point:** POST `/stream` (intent.py) classifies intent from text/URL, then dispatches to:
-  - `run_video_diagnosis()` → video_diagnosis intent
-  - `run_competitor_profile()` → channel deep-dive
-  - `run_creator_search()` → creator finder
-  - `run_trend_spike()` → trend explorer
-  - `run_shot_list()` → script generator
-  - `run_compare_pipeline()` → two-video comparison
-- **Synthesis engine:** All paths invoke Gemini via `gemini_text_only()` (genai SDK) + LLM cache for prompt deduplication
-- **Signals layer:** All diagnoses read from `hook_effectiveness`, `video_patterns`, `signal_grades`, `niche_insights` (precomputed by batch jobs)
+### Dual SSE orchestration (do not conflate)
+
+| Path | FE hook | Endpoint | Typical use |
+|---|---|---|---|
+| **Answer research** | `useSessionStream({ mode: "answer_turn" })` | `POST /answer/sessions/{id}/turns` | `/app/answer` video + Q&A turns, `ReportV1` |
+| **Chat / compare / legacy stream** | `useSessionStream()` (default) | `POST /stream` (`intent.py:265`) | Compare, some chat-era intents, `run_video_diagnosis` compare arms |
+| **Text intents Edge** | chat mode → Vercel | `POST /api/chat` | Free/cheap text follow-ups, format lifecycle |
+
+**Video diagnosis synthesis (answer path):** `build_video_report` → `run_video_analyze_pipeline` | `run_video_analyze_on_demand` → `finalize_video_narrative_layer` → `synthesize_diagnosis_v2` — **not** a direct call to `run_video_diagnosis()` (that function serves `/stream` and compare internals).
+
+**Gemini:** `gemini_text_only()` + prompt dedup cache across paths.
 
 ### Niche taxonomy dual-mode
-- **Legacy:** `niche_taxonomy` (TikTok Vietnam niches, 1–21)
-- **New:** `creator_niches` (16+ multi-platform niches: music, real estate, fashion, etc.)
-- **User assignment:** profiles.creator_niche_id (single niche per user post-2026-05-05 refactor)
-- **Backward compat:** Surfaces still read niche_taxonomy for hook signals + pattern lookups
+- **Legacy:** `niche_taxonomy` (corpus `niche_id` filtering)
+- **UX axis:** `creator_niches` (16 buckets) ↔ `content_classifications` (74) via `creator_niche_content_classes`
+- **User:** `profiles.creator_niche_id` (single niche since 2026-05-05)
 
-### Unused/dormant code paths
-- `/app/video` route deleted (2026-04-28) — video diagnosis now lands in `/app/answer` sessions
-- `chat_messages`, `chat_sessions` (legacy chat-era tables) — schema exists but no active FE queries
-- `METADATA_ONLY` intent (historical) — folded into `follow_up_unclassifiable` (intent.py:84)
-- `format_lifecycle` table — populated but not actively read by any FE surface (WIP lifecycle modeling)
+### Dormant / legacy
+- `/app/video` deleted 2026-04-28 — render `VideoBody` inside answer sessions only
+- `chat_messages` / `chat_sessions` — still in `history_union`; no new product surface
+- `format_lifecycle` table — batch-populated; FE uses `format_lifecycle_optimize` intent → `answer:lifecycle`
+- `POST /channel/analyze` — legacy corpus-only channel endpoint (Phase 2 cleanup candidate)
 
-### Data freshness signals
-- **Pulse (home widget):** `as_of` timestamp from corpus snapshot (daily)
-- **Ticker (hot hooks):** 3-day recency window, updated nightly
-- **Trends (pattern explorer):** `trend_velocity` updated nightly (velocity = instance count change week-over-week)
-- **Channel diagnoses:** Cached for 30 days (force_refresh=true invalidates)
+### Data freshness
+- **Pulse:** daily `as_of`
+- **Ticker:** ~3-day hook window, nightly refresh
+- **Trend velocity:** nightly / weekly job
+- **Channel diagnoses:** **7-day** DB cache (`max_age_days=7`); in-memory channel snapshot staleness gate ~18–24h for live ED refresh paths
 
-### Error recovery
-- **SSE replay buffer:** `/answer/sessions/{id}/turns` supports `?resume_stream_id=<>&resume_from_seq=<>` (90s TTL in `session_store.get_stream_chunks()`)
-- **Idempotency:** `/answer/sessions` POST accepts Idempotency-Key header (120s server cache via `answer_session_idempotency` table)
-- **Credit rollback:** On stream failure, credits returned to user_id (dependency: `credit_transactions` audit trail)
+### Error recovery (TD-1–TD-5)
+- **SSE replay:** `resume_stream_id` + `resume_from_seq` on answer turns (60s server buffer, TD-4)
+- **Idempotency:** `Idempotency-Key` on session create (~120s)
+- **Credits:** atomic `decrement_credit()`; rollback on stream failure via `credit_transactions`
 
 ---
 
@@ -370,41 +331,48 @@ All `/batch/*` endpoints live in `cloud-run/getviews_pipeline/routers/batch.py` 
 
 | Surface | FE Route | Status | Notes |
 |---|---|---|---|
-| Landing page | / | ✓ live | Pre-rendered, SEO tags |
-| Auth (OAuth + email) | /login, /signup, /auth/callback | ✓ live | Supabase Auth |
-| Home + widgets | /app | ✓ live | Daily ritual, ticker, starter creators |
-| Answer/diagnosis | /app/answer | ✓ live | Video URL + Q&A, 5+ intent types |
-| History | /app/history | ✓ live | Session archive + filtering |
-| Channel deep-dive | /app/channel | ✓ live | Handle analysis + benchmarks |
-| Trends explorer | /app/trends | ✓ live | Niche pattern feed |
-| Script workshop | /app/script | ✓ live (core) | Hook patterns + draft saved; scene intel WIP |
-| Video comparison | /app/compare | ✓ live | Parallel diagnosis + delta |
-| Douyin corpus | /app/douyin | ✓ live (read) | Ingest + pattern synth live but streaming UI TBD |
-| Onboarding | /app/onboarding | ✓ live | Single-niche picker |
-| Settings | /app/settings | ✓ live | Niche edit, API keys (admin) |
-| Pricing | /app/pricing | ✓ live | Static display |
-| Checkout | /app/checkout | ✓ live | Lemon Squeezy integration |
-| Admin panel | /app/admin | ✓ live | Full operator dashboard |
+| Landing | / | live | Pre-rendered SEO |
+| Auth | /login, /signup, /auth/callback | live | Supabase; Facebook OAuth |
+| Home | /app | live | Ritual, ticker, starter creators |
+| Answer | /app/answer | live | Video report + Q&A; answer_turn SSE |
+| History | /app/history | live | `history_union` RPC |
+| Channel | /app/channel | live | 3 credits; 7d cache |
+| Trends | /app/trends | live | Pattern explorer |
+| Script | /app/script | live (core) | Scene intel WIP |
+| Compare | /app/compare | live | `/stream`; fallback → answer |
+| Douyin | /app/douyin | live (read) | Batch ingest live |
+| Onboarding | /app/onboarding | live | Single niche |
+| Settings | /app/settings | live | Profile + niche |
+| Pricing | /app/pricing | live | Static packs |
+| Checkout | /app/checkout | live | **PayOS** one-time |
+| Admin | /app/admin | live | Operator dashboard |
 
 ---
 
 ## API Client Patterns
 
-- **React Query:** `useQuery()` for GET endpoints (with polling/refetch for real-time data)
-- **SSE (Server-Sent Events):** `fetchEventSource()` for streaming `/stream` and `/answer/sessions/{id}/turns` (with replay buffer via `useSessionStream()` hook)
-- **Manual fetch:** Edge functions (`api/chat.ts`, `api/landing-stats.ts`) + legacy endpoints
-- **Auth:** Supabase JWT in `Authorization: Bearer <token>` header (validated by `require_user` FastAPI dependency)
+- **React Query:** server state (profile, history union, session detail)
+- **SSE:** `useSessionStream()` — **`answer_turn`** → `/answer/sessions/:id/turns`; default → Cloud Run `/stream` or Edge `/api/chat`
+- **Replay:** TD-4 resume params; `savePendingAnswerStream` / `clearPendingAnswerStream` for tab recovery
+- **Auth:** Supabase JWT `Authorization: Bearer` → Cloud Run `require_user`
 
 ---
 
 ## Key Infrastructure Files
 
-- **Routes:** `src/routes.ts` (mounted tree)
-- **Intent router:** `src/routes/_app/intent-router.ts` (input classification logic)
-- **Cloud Run:** `cloud-run/getviews_pipeline/routers/` (answer.py, video.py, intent.py, home.py, script.py, admin.py, batch_proxy.py, douyin.py)
-- **Synthesis pipelines:** `cloud-run/getviews_pipeline/pipelines.py` (run_* functions)
-- **Prompts:** `cloud-run/getviews_pipeline/prompts.py`, `diagnose_prompts.py`, `channel_diagnose_prompts.py`
-- **Corpus logic:** `corpus_ingest.py`, `corpus_context.py`, `channel_diagnose.py`
-- **DB schema:** `supabase/migrations/` (200+ DDL migrations)
-- **Signals layer:** `cloud-run/getviews_pipeline/signals/` — `base.py`, `channel.py`, `commerce.py`, `compliance.py`, `context_signals.py`, `distribution.py`, `douyin.py`, `editing.py`, plus `engagement.py`, `hook.py`, `performance.py`, `script.py` etc. Consumed by `pipelines.py::run_video_diagnosis` and others.
+| Area | Path |
+|---|---|
+| Routes | `src/routes.ts` |
+| Intent routing | `src/routes/_app/intent-router.ts` |
+| Answer API | `src/lib/answerApi.ts`, `src/hooks/useSessionStream.ts` |
+| Video report | `cloud-run/getviews_pipeline/report_video.py`, `video_analyze.py` |
+| Legacy stream diagnosis | `cloud-run/getviews_pipeline/pipelines.py` (`run_video_diagnosis`) |
+| Compare | `cloud-run/getviews_pipeline/report_compare.py` |
+| Routers | `cloud-run/getviews_pipeline/routers/{answer,video,intent,home,script,admin,batch,douyin}.py` |
+| Prompts | `prompts.py`, `diagnose_prompts.py`, `channel_diagnose_prompts.py` |
+| Embed repair | `gemini.py` (`repair_diagnosis_vi_embedded_tiles`, `EMBED_CONTRACT_VERSION`) |
+| FE diagnosis render | `src/components/v2/answer/DiagnosisSectionRenderer.tsx`, `VideoBody.tsx` |
+| DB | `supabase/migrations/` |
+| Signals | `cloud-run/getviews_pipeline/signals/` — `base`, `registry`, `channel`, `commerce`, `compliance`, `context_signals`, `distribution`, `douyin`, `editing`, `engagement`, `hook`, `metadata`, `performance`, `persona`, `reference`, `salience`, `script`, `sound`, `triggers` |
 
+**Maintenance rule:** When adding a route, endpoint, or changing orchestration, update this file **and** [`system-design.md`](system-design.md) §3–§4 in the **same commit**; bump both `main @ <short-sha>` headers.

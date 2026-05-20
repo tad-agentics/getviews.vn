@@ -1,7 +1,9 @@
 # System Design — GetViews.vn
 
-**Last updated:** 2026-05-17  
+**Last updated:** 2026-05-20 (`6a69ab3`)  
 **Status:** Living document. Update in the same commit as any architectural change.
+
+**Surface inventory (routes, endpoints, synthesis paths, shipping status):** [`feature-map.md`](feature-map.md) — per-route source of truth. **Orchestration / invariants:** this file. Update **both** and bump `main @ <sha>` / **Last updated** in the same commit when routes or pipelines change.
 
 ---
 
@@ -82,19 +84,23 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/` | Landing | Pre-rendered for SEO. Eager-loaded. |
 | `/login` `/signup` | Auth | Supabase OAuth redirect. |
 | `/auth/callback` | Auth | OAuth callback handler. |
-| `/app` | App shell | Auth-guarded by `_app/layout.tsx`. |
-| `/app/answer` | Answer | Video diagnosis + text Q&A. All session types land here. |
-| `/app/history` | History | Session list. |
-| `/app/history/chat/:sessionId` | History | Read-only legacy transcript. |
+| `/app` | App shell | Auth-guarded by `_app/layout.tsx`. `?session=` → `/app/history/chat/:id`. No niche → `/app/onboarding`. |
+| `/app/onboarding` | Onboarding | Single-niche picker (`profiles.creator_niche_id`). |
+| `/app/answer` | Answer | **Primary** structured video report + Q&A turns (`ReportV1`). Replaces deleted `/app/video`. |
+| `/app/history` | History | Session list via `history_union` RPC. |
+| `/app/history/chat/:sessionId` | History | Read-only legacy chat transcript. |
 | `/app/trends` | Trends | Niche intelligence + hook effectiveness. |
 | `/app/douyin` | Douyin | Douyin trend analysis. |
-| `/app/compare` | Compare | Side-by-side creator comparison. |
-| `/app/channel` | Channel | Channel deep-dive. |
+| `/app/compare` | Compare | Two URLs → `POST /stream` `compare_videos`. |
+| `/app/channel` | Channel | Channel deep-dive (`POST /channel/diagnose`). |
 | `/app/script` | Script | Script generation. |
 | `/app/script/shoot/:draftId` | Script | Shoot-mode for a draft. |
-| `/app/settings` | Settings | Profile + niche + subscription. |
-| `/app/pricing` `/app/checkout` `/app/payment-success` | Billing | PayOS flow. |
-| `/app/admin` | Admin | Gated by `profiles.is_admin`. Batch pod only. |
+| `/app/settings` | Settings | Profile + niche edit. |
+| `/app/learn-more` | Learn more | Support / refund copy (PayOS). |
+| `/app/pricing` `/app/checkout` `/app/payment-success` | Billing | PayOS **one-time** credit packs (`create-payment` Edge Function). |
+| `/app/admin` | Admin | Gated by `profiles.is_admin`. Observability + manual batch triggers. |
+
+**Deleted:** `/app/video` (2026-04-28) — `VideoBody` renders inside `/app/answer` sessions only.
 
 Every `/app/*` leaf route is code-split with `React.lazy` + `Suspense`.  
 Do not use React Router `clientLoader` — TanStack Query is the data layer.
@@ -103,95 +109,145 @@ Do not use React Router `clientLoader` — TanStack Query is the data layer.
 
 ## 3. Intent Routing
 
-`src/routes/_app/intent-router.ts` — `detectIntent(query)` classifies each user message before any network call.
+`src/routes/_app/intent-router.ts` — `detectIntent(query)` classifies input; `resolveDestination()` maps intent → **screen** (`answer:video`, `answer:pattern`, `/app/compare`, `/app/channel`, …). **Transport** (which HTTP endpoint) is chosen separately by the screen/hook — see §4.
 
 ```
 User message
      │
-     ├─ Contains TikTok URL?
-     │      └─ YES → video_diagnosis → Cloud Run /video (SSE)
+     ├─ Two TikTok URLs?
+     │      └─ YES → compare_videos → /app/compare → POST /stream
+     │
+     ├─ One TikTok URL?
+     │      └─ YES → video_diagnosis → /app/answer → POST /answer/sessions/{id}/turns
+     │                 (answer_turn SSE — NOT POST /video; route deleted)
      │
      ├─ Contains @handle?
-     │      └─ YES → channel_analyze → Cloud Run /channel or /app/channel shortcut
+     │      └─ YES → channel → /app/channel → POST /channel/diagnose
      │
-     ├─ Explicit keyword match (trends / douyin / compare / script)?
-     │      └─ YES → specialized intent → Cloud Run specialized router
+     ├─ Explicit keyword (trends / douyin / script / …)?
+     │      └─ YES → specialized intent → answer:* shelf or dedicated screen
      │
-     └─ Everything else → follow_up_classifiable / follow_up_unclassifiable
-              └─ → Vercel Edge /api/chat (Gemini text, no credits)
+     └─ Text-only follow-up
+              ├─ answer session continuation → POST /answer/sessions/{id}/turns (kind ≠ primary)
+              └─ legacy chat / free text → POST /api/chat (Vercel Edge)
 ```
 
-**Rule:** Never reinvent routing inside screen components. Extend `detectIntent()` and its tests (`intent-router.test.ts`).
+**Rule:** Never reinvent routing inside screen components. Extend `detectIntent()`, `resolveDestination()`, and `intent-router.test.ts`.
+
+### Dual SSE transport (FE: `useSessionStream`)
+
+| Mode | Endpoint | Typical surfaces |
+|------|----------|------------------|
+| `answer_turn` | `POST /answer/sessions/{id}/turns` | `/app/answer` (video + structured follow-ups) |
+| default (`chat`) | `POST /stream` (`intent.py:265`) | `/app/compare`, legacy chat-era `video_diagnosis` |
+| chat → Vercel | `POST /api/chat` | Free/cheap text intents ⑤⑥⑦ |
+
+Both Cloud Run SSE paths use `stream_id` + `seq` and a **60s** in-memory replay buffer (TD-4). Answer turns also emit **heartbeat** frames every 10s during long Gemini work to avoid client idle timeout.
 
 ---
 
 ## 4. Video Analysis Flow (user-facing SSE)
 
-This is the most expensive and critical path. Every step has a cost and a guard.
+The product has **two** user-facing video diagnosis transports. Do not conflate them.
+
+### 4.1 Primary — Answer turn (Studio → `/app/answer`)
+
+This is the default path when a creator pastes a TikTok URL in Home or Answer.
 
 ```
-1. Browser: detectIntent → video_diagnosis
-2. Browser: POST /video to Cloud Run user pod (Supabase JWT in Authorization: Bearer)
-3. Cloud Run: JWT validated via Supabase JWKS
+1. FE: detectIntent → video_diagnosis → navigate /app/answer
+2. FE: createAnswerSession() → POST /answer/sessions (optional Idempotency-Key)
+3. FE: useSessionStream({ mode: "answer_turn" })
+        → POST /answer/sessions/{session_id}/turns (Supabase JWT)
+4. Cloud Run: answer_append_turn → append_turn() (answer_session.py)
+   ├─ primary kind: decrement_credit() ×1 via user JWT (TD-1)
+   ├─ script kind: decrement_credit() ×3
+   └─ other kinds: often free (see append_turn builder matrix)
 
-4. Cache check (video_diagnostics table):
-   ├─ HIT (< 1h old, has van_de_chinh): stream cached result → done (~2s, $0 Gemini)
-   └─ MISS: continue
+5. append_turn → build_video_report() (report_video.py)
+   ├─ A) Corpus hit: run_video_analyze_pipeline()
+   │      └─ reads video_corpus + video_diagnostics; may short-circuit narrative cache
+   └─ B) Corpus miss: run_video_analyze_on_demand()
+          ├─ EnsembleData fetch + extraction (async_run_extraction_core / analyze_video)
+          ├─ v4 hardening on extraction path
+          └─ writes/updates video_diagnostics (source=on_demand)
 
-5. TD-3 guard: SET profiles.is_processing = true (atomic RPC)
-   └─ Already processing? → return 429
+6. finalize_video_narrative_layer() (video_analyze.py) — mutates response in place
+   ├─ Cache hit with narrative_vi.van_de_chinh: skip Gemini synthesis; may run embed-tile repair (§4.3)
+   └─ Miss: select_synthesis_references_for_video → synthesize_diagnosis_v2()
+          (v6 section pool when GETVIEWS_DIAGNOSIS_SECTION_MODE=1)
+          ├─ narrative_vi + diagnosis_vi.sections[].embedded_tiles
+          ├─ format_cards, performance_tier, channel_context, reference_videos
+          └─ posting context folded into distribution/diagnosis (no separate Timing report on answer)
 
-6. run_extraction_core(video_path):
-   ├─ Download video (EnsembleData → R2 / temp storage)
-   ├─ Gemini vision analysis (gemini-3.1-flash-lite-preview)
-   ├─ apply_timestamp_guards   ← v4 hardening, non-negotiable
-   ├─ validate_transcript       ← v4 hardening
-   ├─ score_entry_cost          ← v4 hardening
-   └─ Returns: ExtractionResult (typed Pydantic + TS interface)
+7. SSE to browser: hello (seq 0) → step events → terminal ReportV1 payload
+   └─ Chunks cached in session_store for TD-4 replay (no re-bill on successful resume)
 
-7. run_video_diagnosis_core(DiagnosisInput):
-   ├─ extract_video_errors (gemini-3.1-flash-lite-preview)
-   ├─ apply_rule_based_video_errors  ← v4 hardening
-   ├─ retention curve parsing, hook phases, segments
-   └─ Returns: DiagnosisResult
-
-8. fetch_channel_context_sync(creator_handle):
-   └─ 24h in-process cache → EnsembleData if miss
-
-9. synthesize_diagnosis_v2(DiagnosisSynthesisInput):
-   ├─ Gemini call 1: narrative_vi (van_de_chinh + loi_chinh_narrative + dinh_huong_chien_luoc)
-   ├─ Gemini call 2: format_cards
-   └─ Khung giờ đăng (ngách): `build_diagnosis_posting_context_text` → block `NICHE_POSTING_CONTEXT`; v6 gộp vào `distribution` hoặc `diagnosis` (không báo cáo Timing tách trên `/app/answer`).
-
-10. Stream SSE tokens to browser (stream_id + seq per token)
-    └─ 60s in-memory replay buffer for reconnection (TD-4)
-
-11. Write to video_diagnostics (1h TTL cache)
-    └─ _schema_version: "v5" marker included
-
-12. promote_on_demand_to_corpus() if quality_tier eligible
-    └─ COALESCE ingest_source — first writer wins, batch never overwrites user provenance
-
-13. SET profiles.is_processing = false
+8. Persist answer_turns.payload (ReportV1); video_diagnostics row holds on-demand cache
+9. Optional: promote_on_demand_to_corpus() when quality_tier eligible (ingest_source write-once)
 ```
 
-**Total time:** 20–30s cold. 2s warm (cache hit).  
-**Gemini calls cold:** 3 (extraction + error + synthesis×2 counted as one call each).
+**Cold:** ~20–30s. **Warm** (diagnostics + narrative cache): ~2s.  
+**Not used on this path:** `POST /video`, `pipelines.run_video_diagnosis()` as the top-level orchestrator.
+
+### 4.2 Secondary — `/stream` (compare + legacy chat video)
+
+```
+1. FE: useSessionStream() default mode → POST /stream (intent.py)
+2. intent normalized:
+   ├─ compare_videos → run_compare_pipeline() → run_video_diagnosis() per URL + delta
+   └─ video_diagnosis → run_video_diagnosis() directly (chat session_store context)
+3. Uses pipelines.py orchestration + run_video_diagnosis_core inside the diagnosis stack
+4. TD-3: profiles.is_processing guard on /stream path
+5. Compare single-side failure → FE redirects to /app/answer with prefillUrl
+```
+
+`/app/compare` is the main live caller. New Studio work should stay on §4.1 unless explicitly adding a `/stream` consumer.
+
+### 4.3 Embedded reference tiles (answer path)
+
+**Canonical UI contract:** `narrative_vi.diagnosis_vi.sections[].embedded_tiles[]` joined to `reference_videos` by `aweme_id` in `DiagnosisSectionRenderer.tsx`.
+
+**Poisoned-cache problem (2026-05):** Rows could cache `reference_videos` but zero `embedded_tiles` on all sections. Fixes:
+
+| Mechanism | Where |
+|-----------|--------|
+| `EMBED_CONTRACT_VERSION` + `repair_diagnosis_vi_embedded_tiles()` | `gemini.py` |
+| `finalize-lite` on corpus/on-demand cache hits | `finalize_video_narrative_layer`, `_try_on_demand_cache_hit` |
+| `ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3` | `video_analyze.py` — stale `cached_response` below min version re-synthesizes |
+| FE fallback | `embeddedTilesFromEvidenceAnchors` when `evidence_anchors` carry `aweme_id` |
+
+Channel diagnosis uses a **different** embed shape (`section_start.embedded_tiles` on SSE — §16); do not reuse video answer repair logic there.
+
+### 4.4 Shared pipeline internals (both paths)
+
+Extraction + diagnosis cores (§12) apply inside `run_video_analyze_*` and `run_video_diagnosis`:
+
+- `async_run_extraction_core` / `run_extraction_core` → `ExtractionResult`
+- `run_video_diagnosis_core` → `DiagnosisResult` (error extraction + structural parse)
+- `finalize_video_narrative_layer` + `synthesize_diagnosis_v2` for the **answer** report shape
+- Default model: **`gemini-3.1-flash-lite`** (override `GEMINI_SYNTHESIS_MODEL`)
 
 ---
 
-## 5. Text Query Flow (Vercel Edge)
+## 5. Text Query Flow (Vercel Edge + answer follow-ups)
+
+### 5.1 Vercel Edge (`/api/chat`)
 
 ```
-1. Browser: detectIntent → follow_up_*
+1. Browser: detectIntent → follow_up_* (or format_lifecycle, creator_search in FREE_INTENTS)
 2. Browser: POST /api/chat (Vercel Edge, Supabase JWT)
-3. Edge: validate JWT via Supabase client, check credits
-4. Edge: TD-1 guard — decrement_credit() RPC (WHERE credits > 0)
-5. Edge: stream Gemini SSE (gemini-3.1-flash-lite-preview or flash-preview)
-6. Browser: render streamed tokens
+3. Edge: validate JWT, optional free-intent daily cap (100/day)
+4. Edge: TD-1 decrement_credit() when intent is billable
+5. Edge: stream Gemini (gemini-3.1-flash-lite default)
+6. Writes chat_sessions + chat_messages (immutable)
 ```
 
-No Cloud Run involved. Fast path (~2–5s). Free for `follow_up` intents.
+No Cloud Run. Typical latency ~2–5s.
+
+### 5.2 Answer-session text follow-ups
+
+Structured follow-ups inside an existing `/app/answer` session use **`answer_turn`** SSE (§4.1) with `kind` ≠ `primary` and intent-specific `run_*` builders in `append_turn` — not `/api/chat`.
 
 ---
 
@@ -199,7 +255,8 @@ No Cloud Run involved. Fast path (~2–5s). Free for `follow_up` intents.
 
 | Layer | Storage | TTL | Key | Cost of miss |
 |-------|---------|-----|-----|-------------|
-| Video diagnosis | `video_diagnostics` (Supabase) | 1h | canonical `tiktok_url` | ~30s + 3 Gemini calls |
+| Video diagnosis | `video_diagnostics` (Supabase) | ~1h (application) | normalized `tiktok_url` / `video_id`; `cached_response.response_schema_version` + `embed_contract_version` gate stale blobs | ~30s + synthesis on miss |
+| Channel diagnosis | `channel_diagnoses` | **7 days** | `(handle, video_url, niche_id)` | full re-diagnose |
 | Corpus rows | `video_corpus` (Supabase) | permanent | `aweme_id` | full re-ingest |
 | Channel snapshot | In-process (Cloud Run user pod) | 24h, 500 entries | `creator_handle` (normalized) | 1 EnsembleData query |
 | TanStack Query | Browser memory | varies by hook | per query key | 1 Supabase query |
@@ -377,7 +434,7 @@ Distinct from batch loop niche: `resolve_live_niche_id` in `live_niche.py` — (
 
 ### Reference parity (answer / on-demand finalize)
 
-`/stream` (`pipelines.run_video_diagnosis`) and `finalize_video_narrative_layer` both call `select_synthesis_references_for_video`: corpus pool (≥`REF_N` or sparse/live fallback) → `_select_by_proximity_then_er` → `_maybe_merge_content_targeted_refs_async` → `_reference_evidence_lines` passed to `synthesize_diagnosis_v2(..., reference_evidence_block=…)`.
+**Answer path** (`build_video_report` → `run_video_analyze_*` → `finalize_video_narrative_layer`) and **`/stream`** (`pipelines.run_video_diagnosis`) both end in `finalize_video_narrative_layer` or an equivalent synthesis step that calls `select_synthesis_references_for_video`: corpus pool (≥`REF_N` or sparse/live fallback) → `_select_by_proximity_then_er` → `_maybe_merge_content_targeted_refs_async` → `_reference_evidence_lines` passed to `synthesize_diagnosis_v2(..., reference_evidence_block=…)`. Embed-tile repair (§4.3) applies on the answer finalize path only.
 
 ### Two cores — one extraction, one diagnosis
 
@@ -510,11 +567,12 @@ When adding a new pipeline (e.g., `instagram_ingest.py`):
 | `answer_sessions` | One row per research session. `format ∈ 'pattern' | 'ideas' | 'timing' | 'generic' | 'video_diagnosis'` |
 | `answer_turns` | Append-only. `payload` is a validated `ReportV1` JSON inserted with service role (bypasses RLS). Authenticated users SELECT only. |
 
-### Credit rules
+### Credit rules (`append_turn`)
 
-- **Primary turn** (`kind = 'primary'`): 1 credit via `decrement_credit()` RPC **before** SSE stream starts. Insufficient balance → 402, no `answer_turns` row written.
-- **Follow-up turns** (`timing`, `creators`, `script`): 0 credits — session already paid.
-- **Generic fallback**: 0 credits.
+- **Primary turn** (`kind = 'primary'`): 1 credit via `decrement_credit()` before work starts. Insufficient balance → `insufficient_credits`, no turn row.
+- **Script turn** (`builder_fmt == "script"`): **3 credits** (B.4 parity with script workshop).
+- **Most other follow-up kinds** (`timing`, `creators`, `generic`, …): 0 credits on that turn.
+- Channel diagnosis (`/channel/diagnose`) bills separately (3 deep_credits) — not via answer turns.
 
 ### SSE replay
 
