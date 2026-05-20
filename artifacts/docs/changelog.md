@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-05-19 — News aggregator blocklist (FPT Play + 28international)
+
+- **Blocklist:** `28international`, `fptplay.sports`, `fptplay.bongdaviet`, `bongdavadoisong` in `creator_blocklist.py` + migration `20260728000001_remove_news_aggregator_fpt28.sql` (purge existing corpus rows).
+
+## 2026-05-19 — Retire comedy + pets_home UX niches
+
+- **Migration** `20260728000000_retire_comedy_pets_home_niches.sql`: deactivate `creator_niches` id 5 (Hài · Giải trí) and 13 (Thú cưng · Nhà cửa); merge users + junction into lifestyle (4); legacy ingest buckets 13/19/20 → new `niche_taxonomy` id 27 (Đời sống · Tâm sự).
+- **Code:** `two_axis_taxonomy.py`, `profileNiches.ts`, `profile_niches.py`, `corpus_ingest.py` — 14 active UX buckets; lifestyle maps to legacy 27.
+
 ## How to use
 
 - Add one row per deviation discovered during build — takes 30 seconds

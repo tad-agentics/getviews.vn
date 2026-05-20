@@ -1,7 +1,7 @@
 # Product Vision V1 — GetViews.vn
 
 **Version:** 2.0 — **FINAL (GTM scope)**  
-**Last updated:** 2026-05-20  
+**Last updated:** 2026-05-19  
 **Codebase ref:** `dc8c675`  
 **Status:** Product vision **đã chốt** cho launch — lược giản so với as-built; **freeze UI** hai surface browse (Studio gợi ý + Xu hướng công thức/kho); phần còn lại = build/align (video depth, billing, handoff)  
 
@@ -12,6 +12,7 @@
 | [`feature-map.md`](feature-map.md) | Inventory as-built + **Post-V1 backlog** (mọi thứ không build V1) |
 | [`product-value-audit.md`](product-value-audit.md) | Value → data audit, gaps, PVA backlog |
 | [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) | Extract field tiers, trim rules |
+| [`data-utilization-map-v1.md`](data-utilization-map-v1.md) | **FIELD × feature** matrix (F1–F8 + Studio) — pre-implement gate |
 | [`system-design.md`](system-design.md) | Architecture, invariants TD-1–TD-7 — **sync §4.12** khi ship depth/cache |
 | [`emotional-design-system.md`](emotional-design-system.md) | Persona Minh, tone, authority |
 | [`bao-cao-flop-video-kenh-toan-dien-v5.md`](bao-cao-flop-video-kenh-toan-dien-v5.md) | Taxonomy flop (§1.8 Seeding & Ads) — signal engineering reference |
@@ -51,7 +52,7 @@ Hai surface **browse** không reshape cho GTM — chỉ fix handoff / billing / 
 | 2 | Phân tích kênh creator — **cơ bản + chuyên sâu** | **Channel Intelligence** | Tab Studio — pill Khám Kênh |
 | 3 | Corpus + công thức ngách — thay doomscroll | **Xu hướng** | Tab Xu hướng — công thức + kho video (§3.2, freeze) |
 | 4 | Kịch bản chi tiết để quay | **Script Studio** | Tab Studio — pill Tạo kịch bản |
-| 5 | Data extract & utilize **đều** cho mọi feature trên | **Data plane** | Ingest + batch + claim tiers |
+| 5 | Data extract & utilize **đều** cho mọi feature trên | **Data plane** | Ingest + batch + claim tiers; pre-launch gate §8.6–§8.7 |
 
 ```mermaid
 flowchart TB
@@ -1042,15 +1043,19 @@ EnsembleData metadata
 
 ### 8.2 Utilization matrix V1
 
-| Feature | Bắt buộc đọc |
+**Chi tiết đầy đủ (FIELD × feature, legend, orphans, depth split):** [`data-utilization-map-v1.md`](data-utilization-map-v1.md) — **bắt buộc sign-off trước Wave 1 implement.**
+
+| Feature | Bắt buộc đọc (tóm tắt) |
 |---------|----------------|
 | F2 Video Cơ bản (Win default Trends) | Full manifest; synthesize whitelist §4.2; Win signals W0 khi `tier=hit`; cache `(video_id, basic)` |
 | F1 Video Chuyên sâu | Same manifest; full sections + §4.8.3 P0–P1 + `boost_attribution` §4.7; cache `(video_id, deep)` |
-| F1/F2 reference peers | `fetch_corpus_reference_pool` + proximity pick | Chỉ `reference_eligible = true` (§4.7.5) |
+| F1/F2 reference peers | `fetch_corpus_reference_pool` + proximity pick; chỉ `reference_eligible = true` (§4.7.5) |
 | F5 Channel Nhanh | `creator_velocity`, corpus top videos by handle |
-| F4 Channel Sâu | + `channel_diagnoses`, peers, `video_patterns` |
+| F4 Channel Sâu | + `channel_diagnoses`, peers, `video_patterns`, `channel_findings` §5.3 |
 | F6 Xu hướng | `video_patterns`, `hook_effectiveness`, `video_corpus` (kho); `douyin_*` chỉ nếu block phụ hiện |
 | F7 Script | `hook_phrase`, `scenes[]`, `scene_intelligence`, ritual grounding JSON |
+| STU Studio | `daily_ritual`, `hook_effectiveness`, breakout corpus — §3.1 |
+| F8 Batch | Promoted cols, MV, `claim_tiers`, M1/M2 — cột **BAT** trong map |
 
 ### 8.3 Claim gating (không marketing claim rỗng)
 
@@ -1080,6 +1085,101 @@ UI: `ConfidenceStrip` / humility khi dưới ngưỡng — **đã có** trên pa
 4. HI-11 `route` flip sau 100-row audit ([`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md))  
 5. **Boost attribution P0–P1** (§4.7): heuristic + `reference_eligible` + optional `stats_history`  
 6. **`video_diagnostics` composite key** `(video_id, analysis_depth)` — §4.12.3  
+
+### 8.6 Pre-launch — mua kho (không so sánh on-demand vs batch)
+
+**Bối cảnh:** Pre-launch **chưa có traffic** — `diagnosed_7d` thấp là bình thường; **không** dùng tỷ lệ diagnosis/corpus để kết luận “lãng phí extract” hay cắt feature V1.
+
+**Mục tiêu batch ingest trước launch:**
+
+```text
+Batch extract ($)  →  corpus + MV (patterns, hooks, rituals)
+                              ↓
+Launch            →  User thấy: ngách có N video, công thức Y, hook Z (tin được)
+                              ↓
+Sau launch        →  Diagnosis tận dụng blob đã có (corpus-hit → synthesis, không extract lại)
+```
+
+**Hai track tách biệt (không trộn):**
+
+| Track | Câu hỏi | Quyết định |
+|-------|---------|------------|
+| **A — Product / GTM** | Surface nào ship V1? | `feature-map-v1` scope + freeze §1.1 — **không** kỳ vọng giảm `video_extraction` |
+| **B — Corpus / cost** | Trả bao nhiêu $/ngày cho kho? | Ingest volume, hero niches, optional HI-13/HI-15 — §8.8 |
+
+**North star pre-launch:** Mỗi đô extract phải **hiện** trên Xu hướng, Studio, hoặc câu chuyện launch — không cần chờ user diagnosis.
+
+**Hai trục taxonomy (data, không nhầm §4 “hai mức depth”):**
+
+| Trục | Bảng | Vai trò pre-launch |
+|------|------|-------------------|
+| Creator niche (UX) | `creator_niches` (16) | Pill Studio/Xu hướng, ritual, pattern filter |
+| Content class (granular) | `content_classifications` (74) + junction | Batch routing HI-11 (`shadow` → audit → `route`); filter kho khi đã wire |
+
+Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map-v1.md). Cutover: [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md).
+
+### 8.7 Pre-launch utilization gate (tối đa giá trị trên cùng budget)
+
+**Ba tầng utilize** — không cần traffic thật; dogfood staging + `corpus-health.sql`.
+
+#### Tầng 1 — Surface kho trên UI (P0 launch)
+
+| Surface | ID | Data batch đã trả | Gate pre-launch |
+|---------|-----|-------------------|-----------------|
+| **Xu hướng — Công thức** | F6 | `video_patterns` | Mỗi **ngách hero** ≥ 1 pattern có mechanism + ví dụ; không card rỗng |
+| **Xu hướng — Kho** | F6 | `video_corpus` promote cols | Filter/search; `ConfidenceStrip` đúng tier §8.3 |
+| **Studio — Gợi ý** | STU | `daily_ritual`, `hook_effectiveness`, breakout | Cron `morning-ritual` OK; preview tier I–III trên staging |
+| **Hook / format chips** | F6/STU | `hook_effectiveness`, `niche_intelligence` | Thin → copy khiêm tốn; **không** % giả khi &lt; `niche_norms` |
+
+#### Tầng 2 — Aggregate từ corpus (Gemini **rẻ** hơn vision — tận dụng blob)
+
+Chạy / verify nightly (F8 BAT) — **không** tăng `video_extraction`:
+
+- `hook_effectiveness` refresh  
+- `video_patterns` / pattern-deck synth  
+- `niche_intelligence` MV  
+- `scene_intelligence` (F7 demo)  
+- `daily_ritual` seed (demo accounts nếu cần screenshot launch)
+
+#### Tầng 3 — Launch story = data contract
+
+- Số video/ngách: query `video_corpus` thật — **không** số marketing cố định (§13, `corpus-health`)  
+- 1–2 công thức hero có hook mẫu từ `video_patterns`  
+- ≥1 demo **Answer corpus-hit** (URL đã trong kho) — chứng minh synthesis scale **sau** launch, không cần mass on-demand pre-launch
+
+**P0 fields** (mỗi field phải có đường BAT/F6/STU — chi tiết ô trong utilization map):
+
+| Nhóm field | Phục vụ launch |
+|------------|----------------|
+| `hook_type`, `hook_phrase`, `views`, `engagement_rate`, `content_format` | Kho + patterns + STU |
+| `content_context.subject_matter` | Ritual + pattern naming |
+| `niche_classification` / `content_class_id` / `inferred_creator_niche_id` | Pill + filter (shadow OK) |
+| MV: `hook_effectiveness`, `video_patterns`, `niche_intelligence` | F6 + claim tiers |
+
+**P1 defer** (vẫn trong full extract / TD-7; **không** block launch UI):
+
+- `persona_consistency_signals`, `key_messages` — § utilization map §8 orphans  
+- Phần lớn field chỉ **F1 audit** (sound/editing/douyin…) — giá trị tăng **sau** khi có diagnosis traffic  
+
+**Ngách hero (chốt trước launch):** 5–8 `creator_niche_id` — ingest **đủ sâu** (đạt `niche_norms` / `hook_effectiveness` §8.3); ngách phụ breadth tùy budget §8.8.
+
+**SQL gate:** [`artifacts/sql/corpus-health.sql`](../sql/corpus-health.sql) — chạy trước GTM; map tier → copy `ConfidenceStrip` / humility.
+
+### 8.8 Ingest policy (cost) — tách khỏi feature scope
+
+Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** hoặc profile rẻ hơn cho ngách non-hero.
+
+| Lever | Env / code | Ghi chú |
+|-------|------------|---------|
+| Volume/ngách | `BATCH_VIDEOS_PER_NICHE`, `BATCH_PRIORITY_NICHE_IDS` | Ưu tiên hero; breadth sau |
+| Daily cap | `GEMINI_DAILY_USD_MAX` + enforce batch pod | Baseline extract ~**$20–32/ngày** (sync `video_extraction`; HI-13 batch API khi bật) — cập nhật `system-design.md` §17 khi ship |
+| Hook window | `GEMINI_HOOK_WINDOW_DUAL_PART=false` | Tiết kiệm vision sub-call |
+| Batch API | HI-13 `video_extraction_batch` | Giảm $/video khi model hỗ trợ — không đổi schema |
+| Lite profile (tương lai) | Breadth ngách phụ | Hook + format + `subject_matter` — **không** block hero full extract |
+
+**Không kỳ vọng:** trim schema V1 alone giảm bill đáng kể (~1–3% theo [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md)).
+
+**RECOMMENDATION pre-launch:** Giữ ingest đủ sâu **ngách hero**; maximize **tầng 1–2** §8.7 thay vì cắt F6/STU UI.
 
 ---
 
@@ -1120,7 +1220,7 @@ Tất cả trừ qua RPC `decrement_credit` → `credits_remaining`.
 
 | Phase | Features | Lý do |
 |-------|----------|--------|
-| **0** | F8 — corpus health, cron SLA, channel billing fix, **§4.7 P0**, **§4.12.3** migration `analysis_depth` | Ref pool + cache partition |
+| **0** | F8 — corpus health, cron SLA, **§8.7 pre-launch gate**, channel billing fix, **§4.7 P0**, **§4.12.3** migration `analysis_depth` | Ref pool + cache partition + hero niche depth |
 | **1a** | **F2 Win path:** §4.10 handoff (6 navigate sites), §4.11 depth picker + upsell, `analysis_depth` BE, **W0** win signals | Đóng JTBD doomscroll trước F6 reshape |
 | **1b** | F2/F1 depth parity; §4.8 S1–S2 (`boost.py`, cap=5) | Basic → Deep upsell |
 | **1c** | F4 — §5.3 C1 (`channel_findings` P0) | Channel deep |
@@ -1165,6 +1265,10 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [ ] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công)  
 - [ ] Ritual Studio tier I → **Script Studio** ≤2 tap  
 - [ ] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier  
+- [ ] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch  
+- [ ] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier  
+- [ ] **§8.7:** Studio tier I–III render trên staging (`daily_ritual` + breakout); cron nightly SLA §6.3  
+- [ ] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch  
 - [ ] Channel FE/BE credit aligned  
 - [ ] TD-7: batch ingest và on-demand extract cùng contract (audit parity)  
 - [ ] §4.7: reference peers `reference_eligible`; boost section chỉ Chuyên sâu; không claim ads poisoning từ heuristic alone  
@@ -1227,7 +1331,9 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 - [x] Studio freeze? → **Gợi ý hôm nay** 3 tầng (§3.1.1)  
 - [x] Handoff? → **`depth=basic` + `mode=win`** (§4.10)  
 - [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12)  
+- [x] Pre-launch cost ≠ cắt feature? → **§8.6–§8.8** — utilize kho; ingest policy tách track A/B  
 - [ ] Human sign-off §14 D2, D4, D6, D8–D10 trước implement video depth  
+- [ ] Chốt danh sách **ngách hero** + chạy `corpus-health` theo §8.7 trước GTM  
 
 ---
 
