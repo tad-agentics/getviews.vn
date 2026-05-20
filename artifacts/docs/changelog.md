@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-19 — Music vs lifestyle ingest split (option C)
+
+- **Migration** `20260729000000_music_dance_ingest_niche_28.sql`: new `niche_taxonomy` id 28 (Âm nhạc · Vũ đạo); rebadge `video_corpus` rows with `content_class_id` 28/29 off bucket 27; drop music classes from lifestyle junction; `map_legacy_niche_to_creator_niche` 22→15, 28→15.
+- **Code:** `legacyNicheIdForCreatorNiche(15)→28`, shared `corpusNicheFilter.ts`, Xu hướng grid/counts + Home breakouts filter `content_class_id` AND `niche_id`; `corpus_ingest` niche 28 content-class routing; lifestyle ingest no longer maps dance→29.
+
 ## 2026-05-19 — Corpus ingest quality gates ×2
 
 - **Batch video:** `BATCH_MIN_VIEWS` 10k→20k, `BATCH_MIN_ER` 1.0%→2.0%; carousel `BATCH_CAROUSEL_MIN_LIKES` 500→1k; live reference queue 50k→100k views (`settings.py` defaults). Redeploy batch pod to apply on Cloud Run.

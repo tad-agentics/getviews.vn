@@ -57,7 +57,7 @@ _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     11: 16,  # Travel & Outdoor Sports → Travel (representative; Sports = legacy 21)
     12: 14,  # Auto & Moto → Ô tô / Xe máy
     14: 8,   # Gym & Fitness → Gym / Fitness VN
-    15: 27,  # Music & Dance → lifestyle ingest bucket (entertainment corpus)
+    15: 28,  # Music & Dance → Âm nhạc · Vũ đạo (legacy ingest)
     16: 10,  # Real Estate → Bất động sản (niche_taxonomy)
 }
 
@@ -68,7 +68,7 @@ def _canonical_legacy_niche_id(legacy_id: int) -> int:
         13: 27,
         19: 27,
         20: 27,
-        22: 27,
+        22: 28,
     }
     return aliases.get(int(legacy_id), int(legacy_id))
 
@@ -76,8 +76,8 @@ def _canonical_legacy_niche_id(legacy_id: int) -> int:
 def creator_niche_id_for_legacy_niche(legacy_niche_id: int | None) -> int | None:
     """Inverse of ``legacy_niche_id_for_creator_niche`` — pick one creator niche per legacy id.
 
-    When multiple creator niches map to the same legacy representative (e.g. lifestyle,
-    music → 27), returns the **lowest** creator_niche_id for a stable tie-break.
+    When multiple creator niches map to the same legacy representative, returns the
+    **lowest** creator_niche_id for a stable tie-break.
     Returns ``None`` when ``legacy_niche_id`` is unknown.
     """
     if legacy_niche_id is None:

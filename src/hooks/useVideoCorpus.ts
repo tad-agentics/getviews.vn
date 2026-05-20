@@ -1,10 +1,13 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { applyVideoCorpusNicheFilter } from "@/lib/corpusNicheFilter";
 import { supabase } from "@/lib/supabase";
 
 const PAGE_SIZE = 20;
 
 export interface VideoCorpusFilters {
   nicheId?: number | null;
+  /** Two-axis junction filter — ANDed with ``nicheId`` when both set. */
+  contentClassIds?: number[];
   sortBy?: "views" | "engagement_rate" | "indexed_at";
   sortOrder?: "asc" | "desc";
   dateFrom?: string | null;
@@ -23,8 +26,12 @@ export const corpusKeys = {
   breakout: (nicheId: number | null) => ["video_corpus", "breakout", nicheId] as const,
   /** Head-only count of rows matching the active filter combo. Used for the
    *  filter chip's "N kết quả" affordance without paying for a full fetch. */
-  count: (filters: Pick<VideoCorpusFilters, "nicheId" | "search" | "minViews" | "contentFormat">) =>
-    ["video_corpus", "count", filters] as const,
+  count: (
+    filters: Pick<
+      VideoCorpusFilters,
+      "nicheId" | "contentClassIds" | "search" | "minViews" | "contentFormat"
+    >,
+  ) => ["video_corpus", "count", filters] as const,
   /** All indexed videos for a niche — no search / views / format filters (hero, trust). */
   nicheTotal: (nicheId: number | null) => ["video_corpus", "niche_total", nicheId] as const,
   /** Videos indexed in the rolling last 7 days for a niche (hero H1). */
@@ -32,7 +39,17 @@ export const corpusKeys = {
 };
 
 export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
-  const { nicheId, sortBy = "indexed_at", sortOrder = "desc", dateFrom, dateTo, search, minViews, contentFormat } = filters;
+  const {
+    nicheId,
+    contentClassIds,
+    sortBy = "indexed_at",
+    sortOrder = "desc",
+    dateFrom,
+    dateTo,
+    search,
+    minViews,
+    contentFormat,
+  } = filters;
 
   return useInfiniteQuery({
     queryKey: corpusKeys.list(filters),
@@ -41,9 +58,10 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
         "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier, tone, cta_type, is_commerce, sound_name, creator_tier, posting_hour, video_duration",
       );
 
-      if (nicheId != null && nicheId !== 0) {
-        query = query.eq("niche_id", nicheId);
-      }
+      query = applyVideoCorpusNicheFilter(query, {
+        legacyNicheId: nicheId,
+        contentClassIds,
+      });
       if (dateFrom) {
         query = query.gte("indexed_at", dateFrom);
       }

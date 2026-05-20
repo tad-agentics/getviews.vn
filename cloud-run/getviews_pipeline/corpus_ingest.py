@@ -1030,12 +1030,17 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
         if cf in ("review", "comparison"):
             return 43
         return 42
+    # ── Music & Dance (legacy 28)
+    if niche_id == 28:
+        if cf == "dance":
+            return 29
+        if cf in ("highlight", "outfit_transition"):
+            return 28
+        return 28
     # ── Lifestyle ingest (legacy 13 → 27; 19/20 merged into 27 at ingest)
     if niche_id in (13, 27):
         if cf == "comedy_skit":
             return 24
-        if cf == "dance":
-            return 29
         if cf in ("storytelling", "pov"):
             return 26
         return 24

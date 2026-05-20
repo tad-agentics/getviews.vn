@@ -15,7 +15,7 @@ const NICHE_TAXONOMY_ALIASES: Readonly<Record<number, number>> = {
   13: 27, // Hài (retired) → Đời sống · Tâm sự
   19: 27, // Thú cưng (retired) → Đời sống · Tâm sự
   20: 27, // Nhà cửa (retired) → Đời sống · Tâm sự
-  22: 27, // K-pop / Âm nhạc retired → Đời sống · Tâm sự
+  22: 28, // K-pop (retired) → Âm nhạc · Vũ đạo ingest
   23: 11, // Học tiếng → EduTok VN
   24: 15, // Crypto / Web3 → Tài chính / Đầu tư
   25: 14, // Moto culture → Ô tô / Xe máy
@@ -110,7 +110,7 @@ export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | n
     case 11: return 16; // Travel & Outdoor Sports → Travel (representative; Sports = legacy 21)
     case 12: return 14; // Auto & Moto → Ô tô / Xe máy
     case 14: return 8;  // Gym & Fitness → Gym / Fitness VN
-    case 15: return 27; // Music & Dance → lifestyle ingest bucket
+    case 15: return 28; // Music & Dance → Âm nhạc · Vũ đạo (legacy ingest)
     case 16: return 10; // Real Estate → Bất động sản (niche_taxonomy)
     default: return null;
   }

@@ -15,6 +15,10 @@ import { TopBar } from "@/components/v2/TopBar";
 import { Btn } from "@/components/v2/Btn";
 import { supabase } from "@/lib/supabase";
 import { corpusKeys, useVideoCorpus } from "@/hooks/useVideoCorpus";
+import {
+  applyVideoCorpusNicheFilter,
+  fetchContentClassIdsForCreatorNiche,
+} from "@/lib/corpusNicheFilter";
 import { useProfile } from "@/hooks/useProfile";
 import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { TrendsDouyinCard } from "./TrendsDouyinCard";
@@ -653,6 +657,13 @@ export default function ExploreScreen() {
     [selectedCreatorNicheId],
   );
 
+  const { data: contentClassIds = [] } = useQuery({
+    queryKey: ["creator_niche_content_classes", selectedCreatorNicheId],
+    queryFn: () => fetchContentClassIdsForCreatorNiche(selectedCreatorNicheId!),
+    enabled: selectedCreatorNicheId != null,
+    staleTime: 10 * 60_000,
+  });
+
   const { data: niches } = useCreatorNiches();
 
   const {
@@ -724,6 +735,7 @@ export default function ExploreScreen() {
 
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({
     nicheId: selectedNicheId,
+    contentClassIds,
     sortBy,
     sortOrder: "desc",
     search: searchQuery || undefined,
@@ -742,6 +754,7 @@ export default function ExploreScreen() {
   const { data: corpusCount } = useQuery({
     queryKey: corpusKeys.count({
       nicheId: selectedNicheId,
+      contentClassIds,
       search: searchQuery || undefined,
       minViews: activeViewFilter ?? undefined,
       contentFormat: activeFormat ?? undefined,
@@ -750,7 +763,10 @@ export default function ExploreScreen() {
       let q = supabase
         .from("video_corpus")
         .select("*", { count: "planned", head: true });
-      if (selectedNicheId != null) q = q.eq("niche_id", selectedNicheId);
+      q = applyVideoCorpusNicheFilter(q, {
+        legacyNicheId: selectedNicheId,
+        contentClassIds,
+      });
       if (searchQuery?.trim()) q = q.textSearch("search_vector", searchQuery.trim(), { config: "simple", type: "plain" });
       if (activeViewFilter != null) q = q.gte("views", activeViewFilter);
       if (activeFormat != null) q = q.eq("content_format", activeFormat);
@@ -763,12 +779,16 @@ export default function ExploreScreen() {
 
   /** Total videos in niche (no search / view / format filters) — §II kho title. */
   const { data: nicheTotalCount, isPending: nicheTotalCountPending } = useQuery({
-    queryKey: corpusKeys.nicheTotal(selectedNicheId),
+    queryKey: [...corpusKeys.nicheTotal(selectedNicheId), contentClassIds],
     queryFn: async () => {
-      const { count, error } = await supabase
+      let q = supabase
         .from("video_corpus")
-        .select("*", { count: "planned", head: true })
-        .eq("niche_id", selectedNicheId!);
+        .select("*", { count: "planned", head: true });
+      q = applyVideoCorpusNicheFilter(q, {
+        legacyNicheId: selectedNicheId,
+        contentClassIds,
+      });
+      const { count, error } = await q;
       if (error) return null;
       return count;
     },
@@ -778,14 +798,18 @@ export default function ExploreScreen() {
 
   /** Rolling 7d indexed count — hero H1 (“tuần qua”); uses ``indexed_at`` like the grid date filter. */
   const { data: nicheWeekCount } = useQuery({
-    queryKey: corpusKeys.nicheLast7d(selectedNicheId),
+    queryKey: [...corpusKeys.nicheLast7d(selectedNicheId), contentClassIds],
     queryFn: async () => {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { count, error } = await supabase
+      let q = supabase
         .from("video_corpus")
         .select("*", { count: "planned", head: true })
-        .eq("niche_id", selectedNicheId!)
         .gte("indexed_at", since);
+      q = applyVideoCorpusNicheFilter(q, {
+        legacyNicheId: selectedNicheId,
+        contentClassIds,
+      });
+      const { count, error } = await q;
       if (error) return null;
       return count;
     },

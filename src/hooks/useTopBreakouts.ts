@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { applyVideoCorpusNicheFilter, fetchContentClassIdsForCreatorNiche } from "@/lib/corpusNicheFilter";
 import { supabase } from "@/lib/supabase";
 import { legacyNicheIdForCreatorNiche } from "@/lib/profileNiches";
 
@@ -17,38 +18,6 @@ export type BreakoutVideo = {
 
 const CORPUS_COLS =
   "video_id, tiktok_url, thumbnail_url, video_url, creator_handle, views, breakout_multiplier, hook_phrase, hook_type, video_duration";
-
-/**
- * Applies the sharpest available niche filter to a query builder:
- * 1. content_class_id IN (...) — precise two-axis model (preferred)
- * 2. niche_id = ... — legacy single-bucket fallback
- * 3. no filter — global, when niche is unknown
- */
-function applyNicheFilter<
-  T extends {
-    in: (col: string, vals: number[]) => T;
-    eq: (col: string, val: number) => T;
-  },
->(q: T, contentClassIds: number[], legacyNicheId: number | null): T {
-  if (contentClassIds.length > 0) return q.in("content_class_id", contentClassIds);
-  if (legacyNicheId != null) return q.eq("niche_id", legacyNicheId);
-  return q;
-}
-
-/**
- * Resolves the content_class_ids for a creator niche via the M:N junction table.
- * Falls back to an empty array on error (query will then use legacyNicheId fallback).
- * DB types may not include this table yet — cast is intentional until next `supabase gen types`.
- */
-async function fetchContentClassIds(creatorNicheId: number): Promise<number[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
-    .from("creator_niche_content_classes")
-    .select("content_class_id")
-    .eq("creator_niche_id", creatorNicheId);
-  if (error || !data) return [];
-  return (data as { content_class_id: number }[]).map((r) => r.content_class_id);
-}
 
 /** Exported for unit tests — deterministic slice that rotates over time when pool > limit. */
 export function pickRotatingBreakoutWindow<T extends { video_id: string }>(
@@ -91,7 +60,7 @@ async function fetchTopBreakoutsForHome(
   let legacyNicheId: number | null = null;
 
   if (creatorNicheId != null) {
-    contentClassIds = await fetchContentClassIds(creatorNicheId);
+    contentClassIds = await fetchContentClassIdsForCreatorNiche(creatorNicheId);
     // If the junction table is empty or the table hasn't been seeded for this niche,
     // fall back to the legacy 1:1 niche mapping.
     if (contentClassIds.length === 0) {
@@ -117,7 +86,7 @@ async function fetchTopBreakoutsForHome(
     .select(CORPUS_COLS)
     .gte("indexed_at", since14)
     .gte("breakout_multiplier", 1.0);
-  q1 = applyNicheFilter(q1, contentClassIds, legacyNicheId);
+  q1 = applyVideoCorpusNicheFilter(q1, { contentClassIds, legacyNicheId });
   const { data: d1, error: e1 } = await q1
     .order("breakout_multiplier", { ascending: false })
     .order("indexed_at", { ascending: false })
@@ -132,7 +101,7 @@ async function fetchTopBreakoutsForHome(
       .select(CORPUS_COLS)
       .gte("indexed_at", since90)
       .gte("breakout_multiplier", 1.0);
-    q2 = applyNicheFilter(q2, contentClassIds, legacyNicheId);
+    q2 = applyVideoCorpusNicheFilter(q2, { contentClassIds, legacyNicheId });
     const { data: d2, error: e2 } = await q2
       .order("breakout_multiplier", { ascending: false })
       .order("indexed_at", { ascending: false })
@@ -144,7 +113,7 @@ async function fetchTopBreakoutsForHome(
   // 3) Top views — fills the row when multipliers are not backfilled yet
   if (pool.length < limit) {
     let q3 = supabase.from("video_corpus").select(CORPUS_COLS);
-    q3 = applyNicheFilter(q3, contentClassIds, legacyNicheId);
+    q3 = applyVideoCorpusNicheFilter(q3, { contentClassIds, legacyNicheId });
     const { data: d3, error: e3 } = await q3
       .order("views", { ascending: false })
       .order("indexed_at", { ascending: false })
