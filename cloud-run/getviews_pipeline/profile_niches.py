@@ -29,7 +29,6 @@ CREATOR_NICHE_SLUG_TO_ID: dict[str, int] = {
     "fashion": 2,
     "food": 3,
     "lifestyle": 4,
-    "comedy": 5,
     "family": 6,
     "education": 7,
     "tech_gaming": 8,
@@ -37,18 +36,19 @@ CREATOR_NICHE_SLUG_TO_ID: dict[str, int] = {
     "wellness": 10,
     "travel": 11,
     "auto": 12,
-    "pets_home": 13,
     "gym_fitness": 14,
     "music_dance": 15,
     "real_estate": 16,
 }
 
+# Legacy ingest ids retired into niche 27 (20260728). Keep 13/19/20 for cold DB reads.
+_LIFESTYLE_LEGACY_NICHE_IDS: frozenset[int] = frozenset({13, 19, 20, 27})
+
 _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     1:  2,   # Beauty → Skincare
     2:  3,   # Fashion → Thời trang Phụ kiện
     3:  4,   # Food → Ẩm thực & Ăn uống
-    4:  13,  # Lifestyle / Storytelling → Hài / Giải trí (closest legacy bucket)
-    5:  13,  # Comedy → Hài / Giải trí
+    4:  27,  # Lifestyle → Đời sống · Tâm sự (legacy ingest)
     6:  7,   # Family → Mẹ bỉm
     7:  11,  # Education → EduTok VN
     8:  9,   # Tech & Gaming → Công nghệ (representative; Gaming = legacy 17)
@@ -56,25 +56,36 @@ _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     10: 26,  # Wellness → Sức khoẻ / Wellness
     11: 16,  # Travel & Outdoor Sports → Travel (representative; Sports = legacy 21)
     12: 14,  # Auto & Moto → Ô tô / Xe máy
-    13: 19,  # Pets & Home → Pets (representative; Home = legacy 20)
     14: 8,   # Gym & Fitness → Gym / Fitness VN
-    15: 13,  # Music & Dance → Hài / Giải trí (corpus entertainment bucket)
+    15: 27,  # Music & Dance → lifestyle ingest bucket (entertainment corpus)
     16: 10,  # Real Estate → Bất động sản (niche_taxonomy)
 }
+
+
+def _canonical_legacy_niche_id(legacy_id: int) -> int:
+    """Map retired taxonomy ids to surviving ingest bucket (mirror ``profileNiches.ts``)."""
+    aliases = {
+        13: 27,
+        19: 27,
+        20: 27,
+        22: 27,
+    }
+    return aliases.get(int(legacy_id), int(legacy_id))
 
 
 def creator_niche_id_for_legacy_niche(legacy_niche_id: int | None) -> int | None:
     """Inverse of ``legacy_niche_id_for_creator_niche`` — pick one creator niche per legacy id.
 
-    When multiple creator niches map to the same legacy representative (e.g. comedy,
-    lifestyle, music → 13), returns the **lowest** creator_niche_id for a stable tie-break.
+    When multiple creator niches map to the same legacy representative (e.g. lifestyle,
+    music → 27), returns the **lowest** creator_niche_id for a stable tie-break.
     Returns ``None`` when ``legacy_niche_id`` is unknown.
     """
     if legacy_niche_id is None:
         return None
+    canonical = _canonical_legacy_niche_id(int(legacy_niche_id))
     matches = [
         cnid for cnid, lid in _LEGACY_NICHE_FOR_CREATOR_NICHE.items()
-        if lid == int(legacy_niche_id)
+        if lid == canonical
     ]
     if not matches:
         return None

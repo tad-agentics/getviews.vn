@@ -21,8 +21,9 @@ export const creatorNichesKeys = {
  *
  * Sorted by ``display_order`` so the picker matches the seeded order
  * in 20260510000000_two_axis_niche_pr1_schema.sql (beauty → fashion →
- * food → lifestyle → comedy → family → education → tech_gaming →
- * business → wellness → fitness → travel → auto → pets_home).
+ * food → lifestyle → family → education → tech_gaming → business →
+ * wellness → fitness → travel → auto → music_dance → real_estate).
+ * Retired 2026-07-28: comedy, pets_home (merged into lifestyle).
  */
 export function useCreatorNiches() {
   return useQuery({

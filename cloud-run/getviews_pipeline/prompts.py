@@ -141,7 +141,7 @@ Ví dụ 2 — Ẩm thực + vlog_daily:
 
 Ví dụ 3 — Hài + skit_scripted:
   content_context.subject_matter: "Skit chơi lại trend 'khi mẹ hỏi con đi đâu' với twist cuối."
-  niche_classification.creator_niche_slug: "comedy"
+  niche_classification.creator_niche_slug: "lifestyle"
   niche_classification.format_axis: "skit_scripted"
   niche_classification.confidence: 0.93
   niche_classification.rationale: "Nhiều vai, thoại kịch bản, cài twist — không phải talking head tư vấn."

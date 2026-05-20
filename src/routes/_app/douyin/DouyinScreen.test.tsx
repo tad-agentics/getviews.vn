@@ -367,8 +367,8 @@ describe("DouyinScreen — D4c toolbar + auto-niche", () => {
       data: _feed(),
       isPending: false, isError: false, refetch: vi.fn(),
     });
-    // creator_niche 5 (Comedy) → legacy 13 (Hài) — no Douyin slug.
-    useProfile.mockReturnValue({ data: { creator_niche_id: 5 } });
+    // creator_niche 4 (Lifestyle) → legacy 27 — no Douyin slug.
+    useProfile.mockReturnValue({ data: { creator_niche_id: 4 } });
     _renderScreen();
     expect(screen.queryByText(/Đang lọc theo ngách bạn theo dõi/)).toBeNull();
     // Grid stays at full corpus.

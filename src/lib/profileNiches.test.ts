@@ -36,10 +36,10 @@ describe("profileNiches (two-axis model since PR6)", () => {
     expect(profileFirstNicheId({ creator_niche_id: null })).toBeNull();
   });
 
-  it("legacyNicheIdForCreatorNiche covers all 16 creator_niches", () => {
+  it("legacyNicheIdForCreatorNiche covers active creator_niches", () => {
     const expected: Record<number, number | null> = {
-      1: 2, 2: 3, 3: 4, 4: 13, 5: 13, 6: 7, 7: 11, 8: 9, 9: 5,
-      10: 26, 11: 16, 12: 14, 13: 19, 14: 8, 15: 13, 16: 10,
+      1: 2, 2: 3, 3: 4, 4: 27, 6: 7, 7: 11, 8: 9, 9: 5,
+      10: 26, 11: 16, 12: 14, 14: 8, 15: 27, 16: 10,
     };
     for (const [cni, legacy] of Object.entries(expected)) {
       expect(legacyNicheIdForCreatorNiche(Number(cni))).toBe(legacy);
@@ -49,14 +49,16 @@ describe("profileNiches (two-axis model since PR6)", () => {
 
   it("creatorNicheIdForLegacyNiche picks lowest id on ties (mirror Python)", () => {
     expect(creatorNicheIdForLegacyNiche(26)).toBe(10);
-    expect(creatorNicheIdForLegacyNiche(13)).toBe(4); // comedy, lifestyle, music → min id 4
+    expect(creatorNicheIdForLegacyNiche(27)).toBe(4); // lifestyle + music → min id 4
+    expect(creatorNicheIdForLegacyNiche(13)).toBe(4); // retired Hài alias → lifestyle
     expect(creatorNicheIdForLegacyNiche(999)).toBeNull();
   });
 
   it("canonicalNicheTaxonomyId maps retired ids and is a no-op for current ones", () => {
     expect(canonicalNicheTaxonomyId(1)).toBe(5); // Shopee review → Kinh doanh online
     expect(canonicalNicheTaxonomyId(18)).toBe(4);
-    expect(canonicalNicheTaxonomyId(22)).toBe(13); // K-pop / Âm nhạc → Hài / Giải trí
+    expect(canonicalNicheTaxonomyId(22)).toBe(27); // K-pop → Đời sống · Tâm sự
+    expect(canonicalNicheTaxonomyId(13)).toBe(27);
     expect(canonicalNicheTaxonomyId(23)).toBe(11);
     expect(canonicalNicheTaxonomyId(7)).toBe(7);
   });

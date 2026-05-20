@@ -1,6 +1,7 @@
 """Canonical two-axis labels aligned with Supabase ``creator_niches`` + ``format_axis``.
 
-Source: ``20260510000004_two_axis_niche_pr1_schema.sql`` + ``20260630000003`` (16 niches).
+Source: ``20260510000004_two_axis_niche_pr1_schema.sql`` + ``20260630000003`` (16 niches)
++ ``20260728000000`` (retire ``comedy``, ``pets_home`` → 14 active UX buckets).
 """
 
 from __future__ import annotations
@@ -13,7 +14,6 @@ CREATOR_NICHE_SLUGS: Final[tuple[str, ...]] = (
     "fashion",
     "food",
     "lifestyle",
-    "comedy",
     "family",
     "education",
     "tech_gaming",
@@ -21,7 +21,6 @@ CREATOR_NICHE_SLUGS: Final[tuple[str, ...]] = (
     "wellness",
     "travel",
     "auto",
-    "pets_home",
     "gym_fitness",
     "music_dance",
     "real_estate",
@@ -48,7 +47,6 @@ CREATOR_NICHE_VI: Final[dict[str, str]] = {
     "fashion": "Thời trang · Phụ kiện",
     "food": "Ẩm thực · Ăn uống",
     "lifestyle": "Đời sống · Tâm sự",
-    "comedy": "Hài · Giải trí",
     "family": "Nuôi con · Gia đình",
     "education": "Giáo dục · Sự nghiệp",
     "tech_gaming": "Công nghệ · Gaming",
@@ -56,7 +54,6 @@ CREATOR_NICHE_VI: Final[dict[str, str]] = {
     "wellness": "Sức khoẻ · Wellness",
     "travel": "Du lịch · Thể thao",
     "auto": "Ô tô · Xe máy",
-    "pets_home": "Thú cưng · Nhà cửa",
     "gym_fitness": "Gym · Fitness",
     "music_dance": "Âm nhạc · Vũ đạo",
     "real_estate": "Bất động sản · Nhà đất",
@@ -82,7 +79,6 @@ CreatorNicheSlug = Literal[
     "fashion",
     "food",
     "lifestyle",
-    "comedy",
     "family",
     "education",
     "tech_gaming",
@@ -90,7 +86,6 @@ CreatorNicheSlug = Literal[
     "wellness",
     "travel",
     "auto",
-    "pets_home",
     "gym_fitness",
     "music_dance",
     "real_estate",
@@ -139,10 +134,9 @@ CAROUSEL_FORMAT_AXIS_VI: Final[dict[str, str]] = {
 }
 
 
-# Junction: ``VIDEO_JUNCTION_NICHE_FORMAT_PAIRS`` = 55 from PR1+PR6 SQL parse;
-# ``CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS`` = 80 (16 niches × 5 carousel axes, HI-16
-# migration ``20260516190000_hi16_carousel_format_axis_junction.sql``).
-# Union = ``JUNCTION_NICHE_FORMAT_PAIRS`` (135). Tests: ``tests/test_hi9_junction_seed.py``.
+# Junction: ``VIDEO_JUNCTION_NICHE_FORMAT_PAIRS`` = 50 (14 niches, post-20260728);
+# ``CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS`` = 70 (14 × 5 carousel axes, HI-16).
+# Union = ``JUNCTION_NICHE_FORMAT_PAIRS`` (120). Tests: ``tests/test_hi9_junction_seed.py``.
 VIDEO_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset({
     ("auto", "review_unboxing"),
     ("auto", "talking_head_advice"),
@@ -156,11 +150,6 @@ VIDEO_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset
     ("business", "review_unboxing"),
     ("business", "talking_head_advice"),
     ("business", "vlog_daily"),
-    ("comedy", "dance_choreography"),
-    ("comedy", "music_performance"),
-    ("comedy", "pov_storytelling"),
-    ("comedy", "react_commentary"),
-    ("comedy", "skit_scripted"),
     ("education", "talking_head_advice"),
     ("education", "tutorial"),
     ("family", "comedy_observational"),
@@ -177,17 +166,17 @@ VIDEO_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset
     ("food", "vlog_daily"),
     ("gym_fitness", "tutorial"),
     ("gym_fitness", "vlog_daily"),
+    ("lifestyle", "dance_choreography"),
     ("lifestyle", "montage_highlights"),
+    ("lifestyle", "music_performance"),
     ("lifestyle", "pov_storytelling"),
+    ("lifestyle", "react_commentary"),
+    ("lifestyle", "skit_scripted"),
     ("lifestyle", "talking_head_advice"),
     ("lifestyle", "tutorial"),
     ("lifestyle", "vlog_daily"),
     ("music_dance", "dance_choreography"),
     ("music_dance", "music_performance"),
-    ("pets_home", "montage_highlights"),
-    ("pets_home", "pov_storytelling"),
-    ("pets_home", "talking_head_advice"),
-    ("pets_home", "tutorial"),
     ("real_estate", "vlog_daily"),
     ("tech_gaming", "montage_highlights"),
     ("tech_gaming", "review_unboxing"),

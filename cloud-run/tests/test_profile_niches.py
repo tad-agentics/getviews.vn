@@ -24,8 +24,7 @@ from getviews_pipeline.profile_niches import (
         (1,  2),   # Beauty → Skincare
         (2,  3),   # Fashion
         (3,  4),   # Food
-        (4,  13),  # Lifestyle / Storytelling → Hài
-        (5,  13),  # Comedy → Hài
+        (4,  27),  # Lifestyle → Đời sống · Tâm sự
         (6,  7),   # Family → Mẹ bỉm
         (7,  11),  # Education → EduTok
         (8,  9),   # Tech & Gaming → Tech (representative)
@@ -33,9 +32,8 @@ from getviews_pipeline.profile_niches import (
         (10, 26),  # Wellness
         (11, 16),  # Travel & Outdoor Sports → Travel (representative)
         (12, 14),  # Auto & Moto
-        (13, 19),  # Pets & Home → Pets (representative)
         (14, 8),   # Gym & Fitness
-        (15, 13),  # Music & Dance → Hài / Giải trí
+        (15, 27),  # Music & Dance → lifestyle ingest bucket
         (16, 10),  # Real Estate → Bất động sản
     ],
 )
@@ -50,7 +48,8 @@ def test_legacy_niche_id_unknown() -> None:
 
 def test_creator_niche_id_for_legacy_niche_tie_break() -> None:
     assert creator_niche_id_for_legacy_niche(26) == 10
-    assert creator_niche_id_for_legacy_niche(13) == 4  # lowest among 4,5,15 → 13
+    assert creator_niche_id_for_legacy_niche(27) == 4
+    assert creator_niche_id_for_legacy_niche(13) == 4  # retired alias → lifestyle
     assert creator_niche_id_for_legacy_niche(999) is None
     assert creator_niche_id_for_legacy_niche(None) is None
 

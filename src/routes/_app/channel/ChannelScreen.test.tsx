@@ -214,7 +214,7 @@ describe("ChannelScreen", () => {
     first.unmount();
 
     // Second render with a different niche → start called again with 5.
-    renderScreen("?handle=sammie.tech&creator_niche_id=5");
+    renderScreen("?handle=sammie.tech&creator_niche_id=4");
     expect(startSpy).toHaveBeenCalledTimes(2);
     expect(startSpy.mock.calls[1][1]).toBe(5);
   });

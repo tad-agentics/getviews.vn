@@ -868,11 +868,11 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     #   (a) strict-comedy topic match (comedy / skit / prank / etc.) —
     #       fires regardless of niche, because these tokens are
     #       specific enough to be unambiguous across niches.
-    #   (b) niche=13 gate — tone=humorous OR generic humor marker.
+    #   (b) niche=27 gate (legacy 13 pre-20260728) — tone=humorous OR generic humor marker.
     #       Generic markers ("humor", "funny", "hài hước") appear on
-    #       vlog / outfit rows too; gating by niche=13 prevents leaks.
+    #       vlog / outfit rows too; gating by lifestyle ingest bucket prevents leaks.
     if comedy_strict_re.search(combined) or (
-        niche_id == 13
+        niche_id in (13, 27)
         and (tone == "humorous" or comedy_n13_markers_re.search(combined))
     ):
         return "comedy_skit"
@@ -1030,8 +1030,8 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
         if cf in ("review", "comparison"):
             return 43
         return 42
-    # ── Comedy (legacy 13)
-    if niche_id == 13:
+    # ── Lifestyle ingest (legacy 13 → 27; 19/20 merged into 27 at ingest)
+    if niche_id in (13, 27):
         if cf == "comedy_skit":
             return 24
         if cf == "dance":
@@ -1039,6 +1039,22 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
         if cf in ("storytelling", "pov"):
             return 26
         return 24
+    # ── Pets (legacy 19 — cold DB only)
+    if niche_id == 19:
+        if cf == "tutorial":
+            return 71
+        if cf == "lesson":
+            return 70
+        if cf in ("storytelling", "pov", "comedy_skit"):
+            return 72
+        return 69
+    # ── Home (legacy 20 — cold DB only)
+    if niche_id == 20:
+        if cf == "tutorial":
+            return 74
+        if cf in ("haul", "review"):
+            return 73
+        return 73
     # ── Music (legacy 22 retired, kept for backfill)
     if niche_id == 22:
         if cf == "dance":
@@ -1078,22 +1094,6 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
         if cf == "lesson":
             return 53
         return 52
-    # ── Pets (legacy 19)
-    if niche_id == 19:
-        if cf == "tutorial":
-            return 71
-        if cf == "lesson":
-            return 70
-        if cf in ("storytelling", "pov", "comedy_skit"):
-            return 72
-        return 69
-    # ── Home (legacy 20)
-    if niche_id == 20:
-        if cf == "tutorial":
-            return 74
-        if cf in ("haul", "review"):
-            return 73
-        return 73
     # ── Retired niches with no special format mapping
     if niche_id == 1:
         return 49   # Shopee review
@@ -1984,9 +1984,10 @@ async def _analyze_videos_gemini_batch_for_corpus(
         analysis_obj: VideoAnalysis | None = None
         if br and br.get("ok") and br.get("text"):
             try:
-                raw = json.loads(str(br["text"]))
-                if isinstance(raw, dict):
-                    merge_lexicon_slang_into_video_analysis_dict(raw)
+                from getviews_pipeline.gemini import parse_batch_extraction_analysis_json
+
+                raw = parse_batch_extraction_analysis_json(str(br["text"]))
+                merge_lexicon_slang_into_video_analysis_dict(raw)
                 analysis_obj = VideoAnalysis.model_validate(raw)
             except Exception as exc:  # noqa: BLE001
                 logger.warning(

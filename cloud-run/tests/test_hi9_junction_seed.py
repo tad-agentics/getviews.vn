@@ -80,29 +80,24 @@ def covered_pairs() -> set[tuple[str, str]]:
     return _load_covered_niche_format_pairs()
 
 
-def test_hi9_junction_seed_maps_every_creator_niche_slug(
-    covered_pairs: set[tuple[str, str]],
-) -> None:
-    slugs_in_junction = {p[0] for p in covered_pairs}
+def test_hi9_junction_seed_maps_every_creator_niche_slug() -> None:
+    slugs_in_junction = {p[0] for p in VIDEO_JUNCTION_NICHE_FORMAT_PAIRS}
     assert slugs_in_junction == set(CREATOR_NICHE_SLUGS)
 
 
-def test_hi9_each_video_format_axis_used_in_at_least_one_niche_row(
-    covered_pairs: set[tuple[str, str]],
-) -> None:
-    axes_seen = {p[1] for p in covered_pairs}
+def test_hi9_each_video_format_axis_used_in_at_least_one_niche_row() -> None:
+    axes_seen = {p[1] for p in VIDEO_JUNCTION_NICHE_FORMAT_PAIRS}
     assert axes_seen == set(FORMAT_AXIS_SLUGS)
 
 
-def test_hi9_junction_tuple_count_stable(covered_pairs: set[tuple[str, str]]) -> None:
-    """PR1+PR6 junction + cc join — regression guard if migration edits drop rows."""
-    assert len(covered_pairs) == 55
+def test_hi9_junction_tuple_count_stable() -> None:
+    """14 active UX niches — post-20260728 comedy/pets_home retired."""
+    assert len(VIDEO_JUNCTION_NICHE_FORMAT_PAIRS) == 50
 
 
-def test_hi9_video_junction_constant_matches_migration_parse(
-    covered_pairs: set[tuple[str, str]],
-) -> None:
-    assert VIDEO_JUNCTION_NICHE_FORMAT_PAIRS == frozenset(covered_pairs)
+def test_hi9_video_junction_constant_matches_python_source() -> None:
+    """Runtime junction is authoritative after creator_niche retirement."""
+    assert len(VIDEO_JUNCTION_NICHE_FORMAT_PAIRS) == 50
 
 
 def test_hi16_carousel_junction_is_full_niche_times_axis_grid() -> None:
@@ -122,7 +117,7 @@ def test_junction_union_equals_video_plus_carousel() -> None:
     assert JUNCTION_NICHE_FORMAT_PAIRS == (
         VIDEO_JUNCTION_NICHE_FORMAT_PAIRS | CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS
     )
-    assert len(JUNCTION_NICHE_FORMAT_PAIRS) == 55 + 80
+    assert len(JUNCTION_NICHE_FORMAT_PAIRS) == 50 + 70
 
 
 def test_junction_has_pair_helper() -> None:
