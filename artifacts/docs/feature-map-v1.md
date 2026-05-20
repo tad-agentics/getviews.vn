@@ -1,9 +1,9 @@
 # Product Vision V1 — GetViews.vn
 
-**Version:** 1.9  
-**Last updated:** 2026-05-20 (V1: không follow-up; credit thông thường `credits_remaining`)  
-**Codebase ref (implementation today):** `6d439c2`  
-**Status:** Product vision — **chỉ** phạm vi ship GTM V1; không liệt kê tính năng cắt / Wave 2  
+**Version:** 2.0 — **FINAL (GTM scope)**  
+**Last updated:** 2026-05-20  
+**Codebase ref:** `dc8c675`  
+**Status:** Product vision **đã chốt** cho launch — lược giản so với as-built; **freeze UI** hai surface browse (Studio gợi ý + Xu hướng công thức/kho); phần còn lại = build/align (video depth, billing, handoff)  
 
 **Related docs:**
 
@@ -22,13 +22,24 @@
 
 ## 1. North star V1
 
-> Thay phần lớn thời gian doomscroll bằng một **studio**: biết gì đang nổi (TikTok VN + Douyin), vì sao video/kênh chạy hoặc flop (nhanh hoặc sâu), và có **kịch bản sẵn để quay** — mọi insight dùng **cùng một lớp extract corpus**, không phải pipeline rời.
+> Thay phần lớn thời gian doomscroll bằng **Creator Studio**: **gợi ý quay hôm nay** + **công thức/kho video** đã có sẵn, rồi **khám video/kênh** (cơ bản hoặc chuyên sâu) và **kịch bản** — mọi insight dùng **cùng một lớp extract corpus**, không pipeline rời.
 
-**Ba câu hỏi sản phẩm (giữ nguyên từ implementation plan):**
+**Ba câu hỏi sản phẩm (GTM):**
 
-1. *Hôm nay nên quay gì?* → Trụ 3 (Xu hướng) + Trụ 4 (Script Studio)  
-2. *Làm như thế nào?* → Trụ 4 + Video/Kênh basic  
-3. *Tại sao video trước flop / video kia chạy?* → Trụ 1 + Trụ 2 (deep)  
+1. *Hôm nay nên quay gì?* → **Tab Studio** — khối **Gợi ý hôm nay** (3 tầng, §3.1) + **Tab Xu hướng** — công thức viral + kho video (§3.2)  
+2. *Làm như thế nào?* → Script Studio (pill) + video/kênh **Cơ bản**  
+3. *Tại sao video trước flop / video kia chạy?* → Video **Chuyên sâu** + kênh **Sâu** (composer pills)  
+
+### 1.1 V1 launch freeze (đã chốt — giữ nguyên UI as-built)
+
+Hai surface **browse** không reshape cho GTM — chỉ fix handoff / billing / depth ở luồng phân tích:
+
+| Surface | Route | **Giữ nguyên V1** | **V1 build** (không đổi layout freeze) |
+|---------|-------|-------------------|----------------------------------------|
+| **Studio** | `/app` | **Gợi ý hôm nay** — 3 tầng [`HomeSuggestionsToday.tsx`](../../src/routes/_app/home/components/HomeSuggestionsToday.tsx): I Hôm nay quay ngay · II Công thức nền · III Cảm hứng | Composer **4 pill** + Cơ bản/Chuyên sâu; URL-only; §4 |
+| **Xu hướng** | `/app/trends` | **Công thức từ video viral trong ngách** [`TrendsPatternGrid`](../../src/routes/_app/trends/TrendsPatternGrid.tsx) + **Kho video** [`ExploreScreen`](../../src/routes/_app/trends/ExploreScreen.tsx) § II | Card → Answer: `depth=basic&mode=win&from=trends` (§4.10) |
+
+**Không yêu cầu V1:** segment TikTok/Douyin riêng trên Xu hướng; duplicate “Hôm nay” trên Trends; reshape F6. Các block phụ (âm thanh, `TrendsDouyinCard`, `TrendsRail`, thesis hero) — **giữ nếu code đã có**, không block launch → [`feature-map.md`](feature-map.md) § Post-V1.
 
 ---
 
@@ -38,7 +49,7 @@
 |---|---------------------|--------|----------------|
 | 1 | Phân tích video flop/win — **cơ bản + chuyên sâu** | **Video Intelligence** | Tab Studio — pill Khám Video flop / win |
 | 2 | Phân tích kênh creator — **cơ bản + chuyên sâu** | **Channel Intelligence** | Tab Studio — pill Khám Kênh |
-| 3 | Kênh xu hướng VN + Douyin — insight thay doomscroll | **Xu hướng** | Tab Xu hướng — mode TikTok · Douyin (§3.2) |
+| 3 | Corpus + công thức ngách — thay doomscroll | **Xu hướng** | Tab Xu hướng — công thức + kho video (§3.2, freeze) |
 | 4 | Kịch bản chi tiết để quay | **Script Studio** | Tab Studio — pill Tạo kịch bản |
 | 5 | Data extract & utilize **đều** cho mọi feature trên | **Data plane** | Ingest + batch + claim tiers |
 
@@ -85,18 +96,34 @@ flowchart TB
     P3[Khám_Kênh]
     P4[Tạo_kịch_bản]
   end
-  subgraph modes [Xu_huong_segment]
-    M1[TikTok]
-    M2[Douyin]
+  subgraph xh [Xu_huong_freeze]
+    X1[Cong_thuc_viral]
+    X2[Kho_video]
   end
   ST --> pills
-  XH --> modes
+  XH --> xh
   pills --> depth[Cơ_bản_·_Chuyên_sâu_trong_composer]
 ```
 
-### 3.1 Tab Studio
+### 3.1 Tab Studio (`/app`)
 
-**V1:** tạm **giữ layout UI như hiện nay** (composer + vùng kết quả). Đổi **pill** trên composer thành **4 mục**:
+**Trang mặc định sau đăng nhập** — TopBar “Sảnh Sáng Tạo” ([`HomeScreen.tsx`](../../src/routes/_app/home/HomeScreen.tsx)).
+
+#### 3.1.1 Gợi ý hôm nay — **freeze UI (V1)**
+
+Giữ nguyên khối **GỢI Ý HÔM NAY** — 3 tầng, không reshape layout/copy ladder:
+
+| Tầng | Tag | Nội dung | Component |
+|------|-----|----------|-----------|
+| **I** | HÔM NAY QUAY NGAY | 3 video tiếp theo + kịch bản sẵn | [`StudioHero`](../../src/routes/_app/home/components/StudioHero.tsx) + `daily_ritual` |
+| **II** | CÔNG THỨC NỀN | Hook/pattern đứng sau gợi ý | [`HooksTable`](../../src/routes/_app/home/components/HooksTable.tsx) embedded |
+| **III** | CẢM HỨNG | 3 video nổi ngoài kênh | [`BreakoutGrid`](../../src/routes/_app/home/components/BreakoutGrid.tsx) → link `/app/trends` |
+
+Tier III = bridge sang Tab Xu hướng (kho + công thức đầy đủ) — **không** duplicate ritual trên Trends.
+
+#### 3.1.2 Composer + pills — **V1 build**
+
+Giữ shell composer hiện tại; đổi **pill** thành **4 mục** (thay chip/intent tự do):
 
 | Pill (tiếng Việt) | Job | Route / surface | Ghi chú |
 |-------------------|-----|-----------------|--------|
@@ -111,16 +138,29 @@ flowchart TB
 - **Hai nút Cơ bản / Chuyên sâu** trong composer — user chọn `analysis_depth` **trước** khi khám **video hoặc kênh** (§4.11.2, §10 billing).
 - Pill flop/win **chỉ đặt framing** (`report.mode`); depth **độc lập** qua nút composer.
 
-### 3.2 Tab Xu hướng
+### 3.2 Tab Xu hướng (`/app/trends`)
 
-Tab riêng — **không** gộp pill Studio. **Hai mode** (segment / sub-tab):
+Tab riêng — **không** gộp pill Studio. TopBar as-built: “Xu Hướng Tuần Này” ([`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx)).
 
-| Mode | Nội dung | Data chính |
-|------|----------|------------|
-| **TikTok** | Hôm nay, đang nổi VN, công thức & hook, âm thanh | `daily_ritual`, `video_corpus`, `hook_effectiveness`, `trending_sounds` |
-| **Douyin** | Format/hook Trung Quốc → cơ hội VN | `douyin_video_corpus`, `douyin_patterns` |
+#### 3.2.1 Hai khối chính — **freeze UI (V1)**
 
-CTA trên card (vd. breakout TikTok) → handoff khám video: `depth=basic`, `mode=win`, `from=trends` (§4.10). Shell **có thể** chuyển sang Tab Studio khi bắt đầu stream kết quả (polish V1.1) — V1 tối thiểu: navigate `/app/answer?...` như spec.
+| # | Tiêu đề user-facing | Phần | Component | Data |
+|---|---------------------|------|-----------|------|
+| **1** | **Công thức từ video viral trong ngách** | Phần I — Pattern | [`TrendsPatternGrid`](../../src/routes/_app/trends/TrendsPatternGrid.tsx) + `PatternModal` | `useTopPatterns`, `video_patterns` |
+| **2** | **Kho video** (kicker `II — KHO VIDEO`) | Tìm trong corpus + filter | `ExploreScreen` grid + `ExploreCorpusVideoModal` | `video_corpus`, niche pills |
+
+**CTA V1 (build, không đổi 2 khối trên):** tap tile / breakout / “Giải mã” → `/app/answer?q=…&depth=basic&mode=win&from=trends` (§4.10).
+
+#### 3.2.2 Phụ trên trang — giữ as-built, không gate launch
+
+| Block | V1 |
+|-------|-----|
+| `TrendsNichePills`, `TrendsPatternThesisHero` | ✅ Giữ |
+| `TrendingSoundsSection`, `TrendsDouyinCard` | ✅ Giữ — **không** bắt buộc QA segment Douyin |
+| `TrendsRail` (desktop) | ✅ Giữ |
+| Segment cấp 1 **TikTok \| Douyin** | ❌ **Không** ship requirement — Post-V1 |
+
+**Ritual “hôm nay quay gì”** chỉ ở **Studio §3.1.1** — không thêm block ritual trên Xu hướng cho V1.
 
 ### 3.3 Map trụ sản phẩm → navigation
 
@@ -129,7 +169,7 @@ CTA trên card (vd. breakout TikTok) → handoff khám video: `depth=basic`, `mo
 | Video Intelligence | **Studio** | Pill Khám Video flop · Khám Video win |
 | Channel Intelligence | **Studio** | Pill Khám Kênh |
 | Script Studio | **Studio** | Pill Tạo kịch bản |
-| Xu hướng | **Xu hướng** | Mode TikTok · Douyin |
+| Xu hướng | **Xu hướng** | Công thức + Kho video (§3.2.1) |
 | Data plane | — | `/batch/*`, ingest (không user-facing) |
 
 ---
@@ -560,7 +600,7 @@ Refresh: tái dùng `niche_intelligence` MV + query percentiles trong `corpus_co
 
 ### 4.10 Entry points & navigation contract
 
-**Shell:** §3 — Tab **Studio** (4 pill) · Tab **Xu hướng** (TikTok / Douyin).
+**Shell:** §3 — Tab **Studio** (gợi ý 3 tầng + 4 pill) · Tab **Xu hướng** (công thức + kho).
 
 | Entry | Route / handoff V1 | Default `depth` | Default `mode` | `source_entry` |
 |-------|-------------------|-----------------|----------------|----------------|
@@ -635,9 +675,9 @@ Tham chiếu [`artifacts/uiux-reference/`](../../artifacts/uiux-reference/) + [`
 - Sticky CTA: “Phân tích chuyên sâu (2 credit)” — gọi lại cùng URL, `depth=deep`.  
 - Teaser cards: locked sections từ full manifest (Âm thanh, Editing, Douyin, Boost…) — §4.2; **không** synthesize sẵn.
 
-#### 4.11.4 Tab Xu hướng — card CTA (mode TikTok / Douyin)
+#### 4.11.4 Tab Xu hướng — card CTA
 
-- Context: user ở **Tab Xu hướng**, không Tab Studio.  
+- Context: user ở **Tab Xu hướng** (công thức / kho / rail), không Tab Studio.  
 - Label đề xuất: **“Giải mã video này”**.  
 - **1 tap** → `/app/answer?...&depth=basic&mode=win&from=trends` — **không** hiện nút Cơ bản/Chuyên sâu (đã default basic).  
 - Optional polish: auto-focus **Tab Studio** khi stream bắt đầu (V1.1).
@@ -912,52 +952,49 @@ flowchart LR
 
 ---
 
-## 6. Trụ 3 — Xu hướng (thay doomscroll)
+## 6. Trụ 3 — Xu hướng (browse corpus)
 
-Surface: **Tab Xu hướng** trong Creator Studio (§3.2) — **không** nằm trong Tab Studio. Hai mode **TikTok** · **Douyin**; mỗi item có **“Vì sao”**, không chỉ thumbnail.
+Surface: **Tab Xu hướng** (§3.2) — **freeze** hai khối **Công thức** + **Kho video**. “Hôm nay quay gì” = **Studio §3.1.1**, không duplicate trên Trends.
 
-### 6.1 Nội dung theo mode
+### 6.1 Scope V1 (đã chốt)
 
-| Lớp | Mode | Insight | Nguồn data | V1 UX |
-|-----|------|---------|------------|--------|
-| **Hôm nay** | TikTok | 3 hướng quay + script seed | `daily_ritual`, morning-ritual | Block “Hôm nay” trong mode TikTok |
-| **Đang nổi VN** | TikTok | Outlier vs baseline ngách | `breakout_multiplier`, `video_corpus` | CTA → F2 `basic`+`win` (§4.10) |
-| **Công thức & hook** | TikTok | Format Growth | `hook_effectiveness`, `video_patterns` | HooksTable / pattern decks |
-| **Âm thanh** | TikTok | Sound + ngữ cảnh ngách | `trending_sounds`, `trend_velocity` | `TrendingSoundsSection` |
-| **Douyin insight** | Douyin | Format/hook TQ → VN | `douyin_video_corpus`, `douyin_patterns` | Mode Douyin — **không** route `/app/douyin` riêng V1 |
+| Khối | Job | Ship |
+|------|-----|------|
+| **Công thức viral** | “Công thức nào video hit trong ngách đang dùng?” | ✅ **Giữ nguyên** UI + `PatternModal` |
+| **Kho video** | Tìm/lọc corpus, xem tile, mở modal | ✅ **Giữ nguyên** filter/search |
+| **Handoff phân tích** | 1 tap → video Win Cơ bản | 🔨 Query `depth`/`mode`/`from` §4.10 |
+| Segment TikTok/Douyin, ritual Trends, reshape layout | — | ❌ Post-V1 |
 
 ### 6.2 Feature ID
 
 | ID | Tên | Trạng thái | Ghi chú |
 |----|-----|------------|---------|
-| **F6** | Xu hướng (Tab + TikTok/Douyin) | **Partial → reshape** | Tab Xu hướng §3.2; `/app/trends` + ticker; bỏ app Douyin riêng |
+| **F6** | Xu hướng | ✅ **UI freeze** · 🔨 **handoff** | `/app/trends`; §3.2.1 |
 
-### 6.3 Freshness SLA (V1 honesty)
+### 6.3 Freshness SLA (copy honesty)
 
-| Signal | Cadence | User-facing copy |
-|--------|---------|------------------|
-| Morning ritual | Daily ~22:00 ICT (pg_cron) | “Cập nhật sáng nay” |
-| Breakouts / analytics | Post `/batch/analytics` nightly | “Tính đêm qua” |
-| `trend_velocity` | Weekly | Không gọi “24h FYP” |
-| Douyin ingest | Batch (xem cron) | “Tuần này từ Douyin” |
+| Signal | Cadence | Copy gợi ý |
+|--------|---------|--------------|
+| `daily_ritual` (Studio tier I) | Daily cron | “Cập nhật sáng nay” trên Studio |
+| Pattern / corpus counts | Nightly batch | “Tính đêm qua” trên Xu hướng |
+| Douyin card (nếu hiện) | Batch | Không claim realtime FYP |
 
-### 6.4 Luồng vàng
+### 6.4 Luồng vàng GTM
 
 ```mermaid
 flowchart LR
-  open[Mở_app] --> tabXH[Tab_Xu_huong_TikTok]
-  tabXH --> tap[Tap_breakout_card]
-  tap --> f2[F2_Win_Co_ban_1_credit]
-  f2 --> upsell{Muốn_sâu?}
-  upsell -->|2_credit| f1[F1_Chuyen_sau]
-  f2 --> script[Script_Studio_F7]
-  upsell --> script
+  studio[Tab_Studio_Goi_y_hom_nay] --> script[Script_Studio]
+  studio --> trends[Tab_Xu_huong]
+  trends --> congthuc[Cong_thuc_viral]
+  trends --> kho[Kho_video]
+  congthuc --> f2[F2_Win_Co_ban]
+  kho --> f2
+  f2 --> upsell[Chuyen_sau_2_credit]
 ```
 
-1. Mở app → **Tab Studio** (default); chuyển **Tab Xu hướng** → mode **TikTok** / Hôm nay (không paste URL).  
-2. Tap breakout / Douyin card → **Video Cơ bản Win** (`mode=win`, §4.10) — 1 credit.  
-3. Optional → **Chuyên sâu** (upsell trong `VideoBody`, §4.11.3).  
-4. “Quay theo công thức” / ritual → **Script Studio** (≤2 tap từ insight).
+1. **Studio** — tier I ritual → script; tier III → Xu hướng.  
+2. **Xu hướng** — chọn pattern hoặc video kho → **Giải mã** / tile CTA → F2 (`basic`+`win`, 1 credit).  
+3. Upsell **Chuyên sâu** trong `VideoBody` hoặc composer pill flop/win.
 
 ---
 
@@ -1012,7 +1049,7 @@ EnsembleData metadata
 | F1/F2 reference peers | `fetch_corpus_reference_pool` + proximity pick | Chỉ `reference_eligible = true` (§4.7.5) |
 | F5 Channel Nhanh | `creator_velocity`, corpus top videos by handle |
 | F4 Channel Sâu | + `channel_diagnoses`, peers, `video_patterns` |
-| F6 Xu hướng | `breakout_multiplier`, `hook_effectiveness`, `trending_sounds`, `video_patterns`, `douyin_*` |
+| F6 Xu hướng | `video_patterns`, `hook_effectiveness`, `video_corpus` (kho); `douyin_*` chỉ nếu block phụ hiện |
 | F7 Script | `hook_phrase`, `scenes[]`, `scene_intelligence`, ritual grounding JSON |
 
 ### 8.3 Claim gating (không marketing claim rỗng)
@@ -1054,7 +1091,7 @@ UI: `ConfidenceStrip` / humility khi dưới ngưỡng — **đã có** trên pa
 | F2 | Phân tích video Cơ bản (Win doomscroll) | 1 | Basic | 🔨 | `/app/answer?depth=basic`; Trends: `mode=win&from=trends` (§4.10) |
 | F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` |
 | F5 | Soi kênh Nhanh | 2 | Basic | 🔨 | Xu hướng card / channel |
-| F6 | Xu hướng (VN + Douyin) | 3 | — | ◐ | `/app/trends` + Home merge |
+| F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · 🔨 handoff | `/app/trends` §3.2.1 |
 | F7 | Script Studio | 4 | — | ◐ | `/app/script` |
 | F8 | Data plane | 5 | — | ◐ | batch + claim tiers |
 
@@ -1087,7 +1124,7 @@ Tất cả trừ qua RPC `decrement_credit` → `credits_remaining`.
 | **1a** | **F2 Win path:** §4.10 handoff (6 navigate sites), §4.11 depth picker + upsell, `analysis_depth` BE, **W0** win signals | Đóng JTBD doomscroll trước F6 reshape |
 | **1b** | F2/F1 depth parity; §4.8 S1–S2 (`boost.py`, cap=5) | Basic → Deep upsell |
 | **1c** | F4 — §5.3 C1 (`channel_findings` P0) | Channel deep |
-| **2** | F6 — Unified Xu hướng UX (cards “Vì sao” — handoff đã có ở 1a) | Q1 polish |
+| **2** | F6 — handoff query only (§4.10); **không** reshape Xu hướng UI | Align sau 1a |
 | **3** | F7 — Script golden path | Q2 “làm thế nào” |
 | **4** | Polish F1, F4 + GTM copy | Monetize Q3 |
 
@@ -1101,8 +1138,9 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 |------------|-----|------------|
 | Video | `build_video_report`, `VideoBody` | §4.2–§4.12 |
 | Kênh | `/channel/diagnose` | F5 peek; fix 3 vs 1 credit (D2) |
-| Xu hướng | Tab Xu hướng: Explore, Douyin embed, ritual | Mode TikTok / Douyin §3.2; CTA → `from=trends` |
-| Studio shell | App layout, composer pills | 4 pill §3.1; nút Cơ bản/Chuyên sâu; flop/win preset `mode` |
+| Xu hướng | `TrendsPatternGrid` + Kho video §3.2.1 | **Giữ UI**; CTA → `from=trends` §4.10 |
+| Studio home | `HomeSuggestionsToday` 3 tầng §3.1.1 | **Giữ UI** |
+| Studio shell | App layout, composer | 4 pill §3.1.2; Cơ bản/Chuyên sâu |
 | Script | `script.py`, scene intel | Golden path từ F6 / `goWinScript` |
 | Data | `/batch/*`, `video_diagnostics` | §4.12 migration; §4.7 M1–M4 |
 
@@ -1116,15 +1154,16 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 
 ## 13. Acceptance criteria V1 (launch gate)
 
-- [ ] Mở app → **Tab Studio** mặc định (composer + 4 pill); Tab Xu hướng ≤1 tap  
-- [ ] Tab Xu hướng (TikTok) → **Hôm nay + Đang nổi** không cần paste URL  
+- [ ] Mở app → **Tab Studio** mặc định; **Gợi ý hôm nay** 3 tầng render (§3.1.1)  
+- [ ] Tab Xu hướng → **Công thức viral** + **Kho video** (§3.2.1) không regress layout  
+- [ ] Studio tier I → ritual/script; tier III → `/app/trends`  
 - [ ] Mọi video card → **Cơ bản** hoặc **Chuyên sâu**; cùng V6 UI; Cơ bản ⊆ sections Chuyên sâu  
 - [ ] Cache `(video_id, analysis_depth)` tách biệt; basic ⊆ deep sections; không serve nhầm depth  
 - [ ] §4.9–§4.12 Win: Xu hướng 1 tap → `basic` + `mode=win`; không pipeline `/stream` riêng  
 - [ ] §4.8 W0: ≥2 signal `win_*` + test; salience `tier_gate=hit`  
 - [ ] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10  
-- [ ] Douyin tab có ≥1 insight có explanation text (không chỉ list)  
-- [ ] Ritual / trend → **Script Studio** trong ≤2 tap  
+- [ ] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công)  
+- [ ] Ritual Studio tier I → **Script Studio** ≤2 tap  
 - [ ] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier  
 - [ ] Channel FE/BE credit aligned  
 - [ ] TD-7: batch ingest và on-demand extract cùng contract (audit parity)  
@@ -1141,11 +1180,12 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 |---|---------|---------|
 | D1 | ~~Video Cơ bản credit~~ | **Đã chốt:** 1× basic / 2× deep (§10) — implement RPC |
 | D2 | Channel Sâu charge | A) 3× RPC B) 1× như BE hiện tại C) 3× single RPC mới |
-| D3 | ~~Shell + landing~~ | **Đã chốt (§3):** 2 tab Studio + Xu hướng (TikTok/Douyin). **Landing = Tab Studio** (không trends/Home default) |
+| D3 | ~~Shell + landing~~ | **Đã chốt:** 2 tab Studio + Xu hướng; **landing = `/app`** (Gợi ý hôm nay + composer) |
+| D11 | ~~Xu hướng scope~~ | **Đã chốt (§3.2.1):** freeze Công thức + Kho video; không segment TikTok/Douyin bắt buộc |
 | D4 | Đổi tên route `/app/trends` → `/app/xu-huong`? | SEO/i18n vs redirect cost |
 | D5 | ~~Boost — user khai báo hay OAuth?~~ | **Đã chốt:** chỉ M1–M4 tự động (§4.7) |
 | D6 | `reference_eligible=false` khi `suspect_medium` | **Đề xuất:** A) Auto loại ref + MV aggregates (§4.7.5) |
-| D7 | Xu hướng → video analyze default | **Đề xuất chốt:** A) `depth=basic` + `mode=win` explicit (§4.10) B) basic only, mode heuristic C) deep default |
+| D7 | ~~Xu hướng → video handoff~~ | **Đã chốt:** `depth=basic` + `mode=win` + `from=trends` (§4.10) |
 | D8 | Cache composite migration | **Đề xuất:** A) `UNIQUE (video_id, analysis_depth)` + backfill `deep` (§4.12.3) B) defer — ship depth without DB partition |
 | D9 | `mode` win↔flop đổi cache | **Đề xuất V1:** A) Giữ full recompute khi `mode` override (as-built) B) Cache chỉ theo depth; mode = prompt slice (V1.1) |
 | D10 | Compliance trên Win Basic | **Đề xuất:** A) Giữ khi `applies` (§4.2) B) V1.1 bỏ khỏi whitelist Win |
@@ -1166,7 +1206,8 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 | BE cache | [`video_analyze.py`](../../cloud-run/getviews_pipeline/video_analyze.py) | Read/write `(video_id, analysis_depth)`; synthesis-only upgrade |
 | DB | `*_video_diagnostics_analysis_depth.sql`, `20260727000000_rename_deep_credits_to_credits.sql` | Cache partition; `credits_remaining` / `credits_granted` |
 | FE routes | [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx), [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | `depth`/`mode`/`from`; **no follow-up** §4.10.1 |
-| FE trends | [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), `TrendsRail`, `PatternModal`, … | Full query handoff §4.10 |
+| FE Studio home | [`HomeSuggestionsToday.tsx`](../../src/routes/_app/home/components/HomeSuggestionsToday.tsx) | **Freeze** — no layout reshape |
+| FE trends | [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), [`TrendsPatternGrid.tsx`](../../src/routes/_app/trends/TrendsPatternGrid.tsx) | **Freeze** UI; handoff query §4.10 |
 | FE UI | `DepthPicker` (mới hoặc inline composer), [`VideoBody.tsx`](../../src/components/v2/answer/video/VideoBody.tsx) | Teasers, Deep CTA §4.11 |
 | Types | [`api-types.ts`](../../src/lib/api-types.ts), [`report_types.py`](../../cloud-run/getviews_pipeline/report_types.py) | `analysis_depth`, `source_entry` |
 | Docs sync | [`system-design.md`](system-design.md), [`feature-map.md`](feature-map.md) | Mirror §4.12 khi ship |
@@ -1182,12 +1223,12 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 ## 16. Doc self-review (vision V1)
 
 - [x] Pipeline Win riêng? → **Không** (§4.9)  
-- [x] Xu hướng default? → **`depth=basic` + `mode=win`** (§4.10)  
-- [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12) — không `+ tier`  
-- [x] BE/FE file list? → §15  
-- [x] §4.1 / §4.9 / §4.12 nhất quán cache wording  
-- [ ] Human sign-off §14 D7–D10 trước implement  
+- [x] Xu hướng freeze? → **Công thức + Kho video** giữ nguyên (§3.2.1)  
+- [x] Studio freeze? → **Gợi ý hôm nay** 3 tầng (§3.1.1)  
+- [x] Handoff? → **`depth=basic` + `mode=win`** (§4.10)  
+- [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12)  
+- [ ] Human sign-off §14 D2, D4, D6, D8–D10 trước implement video depth  
 
 ---
 
-*Document owner: Product / Tech Lead. **Vision V1 only** — deferred / Wave 2 / as-built không ship: [`feature-map.md`](feature-map.md) § Post-V1 backlog. Next: resolve §14, sync `system-design.md` + `feature-map.md`, then [`build-plan.md`](../plans/build-plan.md).*
+*Document owner: Product / Tech Lead. **v2.0 FINAL** — browse surfaces frozen; build focus = video depth, billing, composer pills, handoff. Deferred: [`feature-map.md`](feature-map.md) § Post-V1. Next: [`build-plan.md`](../plans/build-plan.md) từ §11.*

@@ -17,7 +17,7 @@
 |------|------------------|---------|
 | **So sánh 2 video (F3)** | `/app/compare`, `CompareScreen.tsx`, `report_compare.py` | POST `/stream` `compare_videos`; 1 credit; ẩn khỏi V1 UX. Wave 2 / agency |
 | **Watchlist đối thủ + push alert** | — | Wave 2 |
-| **Douyin trend forecast** (lead-time productized) | — | Wave 2; đọc Douyin vẫn V1 qua Tab Xu hướng mode Douyin |
+| **Douyin trend forecast** (lead-time productized) | — | Wave 2; V1 chỉ `TrendsDouyinCard` optional trên `/app/trends` |
 | **Passive FYP mirror / push feed** | — | Wave 2+ |
 | **Legacy `POST /channel/analyze`** | `video.py` | Corpus-only channel; cleanup candidate — V1 dùng `/channel/diagnose` only |
 | **Legacy chat sessions mới** | `chat_sessions`, `/api/chat` | V1: chỉ maintain `history_union` cho rows cũ |
@@ -31,6 +31,9 @@
 | **User self-report “đã chạy ads”** | — | V1: tự động only |
 | **English UI, native apps, recurring subscription** | — | Project rules |
 | **Đổi route `/app/trends` → `/app/xu-huong`** | Open product (D4 in vision doc) | SEO/i18n |
+| **Xu hướng — segment TikTok \| Douyin (cấp 1)** | — | V1 freeze: một trang Explore; `TrendsDouyinCard` optional |
+| **Xu hướng — block “Hôm nay” / ritual duplicate** | — | Ritual chỉ Studio `HomeSuggestionsToday` tier I |
+| **F6 full UX reshape** | — | V1: giữ Công thức + Kho video; chỉ handoff §4.10 |
 
 **Maintenance:** Khi defer hoặc cut một tính năng khỏi V1, **xóa** khỏi `feature-map-v1.md` và **thêm một dòng** vào bảng này trong cùng PR doc.
 
