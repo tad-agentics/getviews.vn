@@ -3,7 +3,7 @@
 **Last updated:** 2026-05-20 (`6a69ab3`)  
 **Status:** Living document. Update in the same commit as any architectural change.
 
-**Surface inventory (routes, endpoints, synthesis paths, shipping status):** [`feature-map.md`](feature-map.md) — per-route source of truth. **Orchestration / invariants:** this file. Update **both** and bump `main @ <sha>` / **Last updated** in the same commit when routes or pipelines change.
+**Surface inventory (routes, endpoints, synthesis paths, shipping status):** [`feature-map.md`](feature-map.md) — per-route source of truth. **Orchestration / invariants:** this file. **Corpus Gemini field utilization:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md). Update docs and bump `main @ <sha>` / **Last updated** in the same commit when routes or pipelines change.
 
 ---
 
@@ -455,6 +455,10 @@ run_video_diagnosis_core(DiagnosisInput) -> DiagnosisResult
   • structural parsing (retention curve, hook phases, segments)
   Returns: DiagnosisResult (Pydantic)
 ```
+
+### Corpus extraction utilization
+
+Nightly ingest runs **one Gemini extraction call per video** (carousel: image path). Output lands in `video_corpus.analysis_json` plus ~25 promoted columns. **~50–65%** of extracted fields have a clear batch or aggregate consumer; most HI-9 semantic fields activate on **user diagnosis** when the same `video_id` is analyzed (Tier B signals). Field-level tier map: [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md).
 
 **Invariants (enforced by CI):**
 - **Batch never calls `run_video_diagnosis_core`.** Batch (`corpus_ingest`, `douyin_ingest`) calls `async_run_extraction_core` only. Diagnosis is user-facing SSE only.
