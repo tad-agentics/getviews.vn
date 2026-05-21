@@ -160,11 +160,11 @@ class _PipelineSettings(BaseSettings):
         description="niche | class — batch loop over niche_taxonomy vs content_class_ingest_targets",
     )
     corpus_write_niche_id: bool = Field(
-        default=True,
+        default=False,
         description="Phase 4: when false, batch upsert omits niche_id (class-only cohort)",
     )
     refresh_niche_intelligence_mv: bool = Field(
-        default=True,
+        default=False,
         description="Phase 4: when false, skip nightly refresh_niche_intelligence RPC",
     )
     corpus_boost_hard_reject: bool = Field(default=False)

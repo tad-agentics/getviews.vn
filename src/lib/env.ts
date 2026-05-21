@@ -42,7 +42,7 @@ const clientEnvSchema = z.object({
    *  when aggregate MV sample ≥ threshold (see ``corpusNicheFilter.ts``). */
   VITE_CORPUS_BROWSE_CLASS_FIRST: VITE_BOOL_DEFAULT_TRUE,
   /** Phase 4 — sunset bridge: drop legacy ``niche_id`` AND on browse queries. */
-  VITE_CORPUS_BROWSE_CLASS_ONLY: VITE_BOOL,
+  VITE_CORPUS_BROWSE_CLASS_ONLY: VITE_BOOL_DEFAULT_TRUE,
 });
 
 export type ClientEnv = z.infer<typeof clientEnvSchema>;

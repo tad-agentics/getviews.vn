@@ -1,9 +1,15 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — Content-class pivot Phase 4 promoted
+
+- **Batch defaults:** `CORPUS_WRITE_NICHE_ID=false` (upsert omits `niche_id`); `REFRESH_NICHE_INTELLIGENCE_MV=false` (skip legacy MV; class MVs still refresh).
+- **FE default:** `VITE_CORPUS_BROWSE_CLASS_ONLY` opt-out (`"false"` re-enables legacy `niche_id` AND on browse).
+- **Rollback:** set `CORPUS_WRITE_NICHE_ID=true`, `REFRESH_NICHE_INTELLIGENCE_MV=true`, `VITE_CORPUS_BROWSE_CLASS_ONLY=false`.
+
 ## 2026-05-21 — Content-class pivot flags promoted (default on)
 
 - **Cloud Run defaults:** `CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`, `LIVE_COHORT_CLASS_FIRST=true` in `settings.py` + batch/user pod env.
-- **FE default:** `VITE_CORPUS_BROWSE_CLASS_FIRST` opt-out (`"false"` disables); Phase 4 `CLASS_ONLY` / `CORPUS_WRITE_NICHE_ID` unchanged (still opt-in sunset).
+- **FE default:** `VITE_CORPUS_BROWSE_CLASS_FIRST` opt-out (`"false"` disables); Phase 4 sunset now also default-on (see entry above).
 - **Rollback:** set env back to `legacy` / `niche` / `false` on batch+user pods and `VITE_CORPUS_BROWSE_CLASS_FIRST=false` on Vercel.
 
 ## 2026-05-21 — Content-class pivot gap closure (audit follow-up)
