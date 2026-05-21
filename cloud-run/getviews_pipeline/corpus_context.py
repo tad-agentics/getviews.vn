@@ -850,9 +850,12 @@ def fetch_corpus_reference_pool_sync(
             )
             .eq("niche_id", niche_id)
             .gte("indexed_at", indexed_at_cutoff_iso(days))
+            .order("breakout_multiplier", desc=True, nullsfirst=False)
             .order("engagement_rate", desc=True)
             .limit(limit)
         )
+        if _settings.corpus_boost_hard_reject:
+            query = query.eq("reference_eligible", True)
         rows = (query.execute().data) or []
         return _build_reference_awemes_from_rows(rows, exclude_video_id=exclude_video_id)
     except Exception as exc:
@@ -899,9 +902,12 @@ async def fetch_corpus_reference_pool(
             )
             .eq("niche_id", niche_id)
             .gte("indexed_at", indexed_at_cutoff_iso(days))
+            .order("breakout_multiplier", desc=True, nullsfirst=False)
             .order("engagement_rate", desc=True)
             .limit(limit)
         )
+        if _settings.corpus_boost_hard_reject:
+            query = query.eq("reference_eligible", True)
         result = query.execute()
         rows = result.data or []
 

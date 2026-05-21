@@ -39,6 +39,8 @@ Playwright is excluded from vitest (`vitest.config.mts` excludes `tests/**`). Tr
 
 **Cloud Run Python pipeline (under `cloud-run/`):**
 
+Corpus nightly ingest **selection criteria** (instructiveness rank, purity gates): [`artifacts/docs/corpus-ingest-criteria-v1.md`](artifacts/docs/corpus-ingest-criteria-v1.md) · architecture §12.1 in [`system-design.md`](artifacts/docs/system-design.md).
+
 ```bash
 cd cloud-run && uv pip install -e ".[dev]"    # or pip install -e ".[dev]"
 pytest                                         # tests in cloud-run/tests/

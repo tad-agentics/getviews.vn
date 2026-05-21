@@ -127,6 +127,42 @@ class _PipelineSettings(BaseSettings):
     )
     batch_carousel_min_likes: int = Field(default=1000, ge=0)
     batch_hashtag_fetch_limit: int = Field(default=15, ge=1)
+    # ── Corpus ingest selection (instructiveness / purity) ─────────────────
+    corpus_ingest_mode: str = Field(
+        default="legacy",
+        description="legacy | shadow | purity — see corpus-ingest-criteria-v1.md",
+    )
+    corpus_ingest_max_age_days: int = Field(
+        default=0,
+        ge=0,
+        description="Tier 1 hard max post age (days); 0=off. Purity default 14 via env.",
+    )
+    corpus_relax_trigger_max: int = Field(default=5, ge=0)
+    corpus_relax_view_floor_pct: float = Field(default=0.30, ge=0.0, le=1.0)
+    corpus_hook_predict_penalty: float = Field(default=15.0, ge=0.0)
+    corpus_velocity_gate_min: float = Field(default=0.15, ge=0.0)
+    corpus_sound_organic_bonus: float = Field(default=1.0, ge=0.0)
+    corpus_ingest_shadow_log: bool = Field(default=True)
+    corpus_boost_hard_reject: bool = Field(default=False)
+    corpus_postextract_hook_cap: int = Field(default=3, ge=1)
+    corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)
+    corpus_purity_vpn_default: int = Field(default=15, ge=1)
+    corpus_purity_pass_rate_vpn_bonus: int = Field(default=3, ge=0)
+    corpus_max_per_creator: int = Field(default=2, ge=1)
+    corpus_max_per_sound: int = Field(default=2, ge=1)
+    corpus_convergence_min_gates: int = Field(default=3, ge=1, le=4)
+    corpus_convergence_relaxed_min_gates: int = Field(default=2, ge=1, le=4)
+    corpus_tier1_min_extract_floor: int = Field(default=3, ge=1)
+    ed_batch_comment_fetch_enabled: bool = Field(default=False)
+    ed_batch_comment_fetch_kill_pct: float = Field(default=15.0, ge=0.0, le=100.0)
+    corpus_postextract_hard_reject: bool = Field(
+        default=True,
+        description="Tier 3a hard failures block upsert when true",
+    )
+    corpus_postextract_hook_cap_enforce: bool = Field(
+        default=False,
+        description="Tier 3b soft hook cap — post-15/6",
+    )
     batch_hashtag_fetch_by_niche: str = Field(default="")
     reingest_multi_chunk: int = Field(default=12, ge=1)
     classifier_gemini_daily_max: int = Field(default=0, ge=0)

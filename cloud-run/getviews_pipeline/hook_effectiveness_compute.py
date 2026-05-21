@@ -70,7 +70,10 @@ def _fetch_corpus_window(
     """Pull the rows needed for aggregation — narrow column list."""
     q = (
         client.table("video_corpus")
-        .select("niche_id, content_class_id, hook_type, views, engagement_rate, save_rate, indexed_at")
+        .select(
+            "niche_id, content_class_id, hook_type, views, engagement_rate, "
+            "save_rate, breakout_multiplier, indexed_at"
+        )
         .not_.is_("hook_type", None)
         .gte("indexed_at", since.isoformat())
     )
@@ -91,7 +94,13 @@ def _bucket_metrics(bucket_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     Returns None when the bucket has zero usable views (every row had
     views=0 — no point storing the row).
     """
-    views = [float(r.get("views") or 0) for r in bucket_rows if (r.get("views") or 0) > 0]
+    views = []
+    for r in bucket_rows:
+        v = float(r.get("views") or 0)
+        if v <= 0:
+            continue
+        bm = float(r.get("breakout_multiplier") or 1.0)
+        views.append(v * min(max(bm, 1.0), 5.0))
     er = [float(r["engagement_rate"]) for r in bucket_rows if r.get("engagement_rate") is not None]
     sr = [float(r["save_rate"]) for r in bucket_rows if r.get("save_rate") is not None]
 

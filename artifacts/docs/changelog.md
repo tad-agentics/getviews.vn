@@ -1,5 +1,18 @@
 # Changelog — GetViews.vn
 
+## 2026-05-20 — Corpus ingest criteria (instructiveness selection)
+
+- **Spec + code:** [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md); `corpus_instructiveness.py`, `corpus_boost_suspect.py`; `CORPUS_INGEST_MODE` (`legacy`|`shadow`|`purity`), R1/R2/R3, shadow logging, post-extract Tier 3, migration `20260520000000_corpus_ingest_criteria_columns.sql` (`boost_attribution`, `reference_eligible`, `ingest_relaxation_tier`).
+- **Consumers:** `morning_ritual` breakout-weighted grounding; `corpus_context` ref pool sort; `hook_effectiveness_compute` breakout weight; Trends virals rail `breakout_multiplier ≥ 2`.
+- **Docs:** `system-design.md` §12.1 live + TD-8 note; Phase D0–D2 cross-links; QA baseline [`corpus-ingest-criteria-baseline.json`](../qa-reports/corpus-ingest-criteria-baseline.json).
+- **Deploy:** set `CORPUS_INGEST_MODE=shadow` → observe 3–7 nights → flip `purity` + `BATCH_VIDEOS_PER_NICHE=15` + `KEYWORD_SEARCH_AUTHOR_STATS=true` on batch pod.
+
+## 2026-05-20 — Corpus ingest criteria v1 spec + Phase D0 doc stub
+
+- **New:** [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md) — canonical instructiveness formula, Tier 0–3, R1/R2/R3, shadow gate matrix, Minh rubric, env defaults, flip checklist.
+- **Docs:** `system-design.md` §12.1 planned stub + Update Protocol bullets; cross-links in `feature-map.md`, `product-value-audit.md` PVA-009, `corpus-research-practitioner-compass.md`, `CLAUDE.md`.
+- **Code:** not yet — `CORPUS_INGEST_MODE=legacy` until Phase 2 flip.
+
 ## 2026-05-19 — Music vs lifestyle ingest split (option C)
 
 - **Migration** `20260729000000_music_dance_ingest_niche_28.sql`: new `niche_taxonomy` id 28 (Âm nhạc · Vũ đạo); rebadge `video_corpus` rows with `content_class_id` 28/29 off bucket 27; drop music classes from lifestyle junction; `map_legacy_niche_to_creator_niche` 22→15, 28→15.

@@ -364,7 +364,7 @@ Gap: forecast Wave 2; adoption stage not productized as lead-time
 | PVA-006 | 3·Q1 | Scope | Competitor alerts → Wave 2 spec only | creator_velocity | 3/10 | Wave 2 |
 | PVA-007 | 4·Q1 | Utilization | Sound section: lifecycle label + niche usage count | trending_sounds, sound-aggregate | 7/10 | 5+ |
 | PVA-008 | 5·Q2 | UX | Script: searchable hook corpus by niche | hook_effectiveness, hook_phrase | 7/10 | 5+ |
-| PVA-009 | 1·Q1 | Data | Per-niche ingest quota until hook_effectiveness tier | ingest cron | 10/10 | data |
+| PVA-009 | 1·Q1 | Data | Instructiveness ingest — **code landed** (`legacy` default); flip `shadow`→`purity` on batch pod — [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md) | ingest cron | 10/10 | data |
 | PVA-010 | 2·Q3 | Utilization | Signal ablation harness + dashboard | registry.py | 7/10 | data |
 | PVA-011 | 2·Q3 | Utilization | search_vector: transcript + topics | analysis_json | 7/10 | data |
 | PVA-012 | all | HI-11 | Route mode flip after 100-row audit | two-axis runbook | 7/10 | data |

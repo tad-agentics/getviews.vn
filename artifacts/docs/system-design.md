@@ -514,6 +514,28 @@ Cloud Run can run multiple replicas. No mutable module-level state is allowed **
 
 Everything else must be stateless and safe to reconstruct on each request.
 
+### 12.1 Corpus ingest selection (live)
+
+Nightly `/batch/ingest` ranks EnsembleData pool candidates with **`instructiveness_score`** (breakout-relative + recency + ER + sound momentum), not raw `play_count`. Canonical thresholds: [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md).
+
+| Mode | Behavior |
+|------|----------|
+| `legacy` | Flat view floor; sort `play_count`; VPN≈30 |
+| `shadow` | Compute purity stack + `[corpus_shadow]` logs; legacy selection ships |
+| `purity` | Tier 0–2 gates, R1/R2/R3, VPN=15, post-extract Tier 3 |
+
+**Modules:** `corpus_instructiveness.py` (score + select), `corpus_boost_suspect.py` (§4.7 M1 proxy). Batch-start prefetch: niche p50/p75 views, boost percentiles, `trend_velocity` sound buckets.
+
+**TD-8:** Ingest selection changes must not fork TD-7 extraction contract (same `async_run_extraction_core` / prompts).
+
+**Post-extract (Tier 3):** hard failures block upsert when `CORPUS_POSTEXTRACT_HARD_REJECT=true` (non-VN caption, uninstructive structure, hook–content mismatch). Hook-type soft cap (`CORPUS_POSTEXTRACT_HOOK_CAP_ENFORCE`) post-15/6 with breakout ≥3.0 bypass.
+
+**Columns:** `boost_attribution`, `reference_eligible`, `ingest_relaxation_tier` (migration `20260520000000_corpus_ingest_criteria_columns.sql`).
+
+**Consumers (Phase 4):** `morning_ritual` grounding pool sorts `breakout_multiplier`; ref pool (`corpus_context`) sorts breakout + optional `reference_eligible` filter; `hook_effectiveness_compute` weights by breakout; Trends virals rail min `breakout_multiplier ≥ 2`.
+
+**Phase 5b (optional):** top-niche ED comment fetch → `comment_radar` when `ED_BATCH_COMMENT_FETCH_ENABLED=true` (gated by shadow overlap metrics in v1 spec §13).
+
 ### COALESCE provenance on UPSERT
 
 `video_corpus.ingest_source` records how a row was first created: `batch_nightly`, `user_diagnosis`, `douyin_batch`, or **`reference_live_search`** (high-view refs enqueued from live diagnosis and drained by the batch pod). This column is **write-once** — the first writer sets it; subsequent UPSERTs must not overwrite it.
@@ -844,3 +866,5 @@ When any of the following changes, update this file in the same commit:
 - New critical invariant (TD-N)
 - Billing / credit flow change
 - New external service dependency
+- Corpus ingest **selection criteria** change (pre-Gemini rank/gates) — update §12.1 + [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md)
+- Corpus ingest **pre/post-Gemini gate** change (Tier 3 reject, boost-suspect, hook cap)

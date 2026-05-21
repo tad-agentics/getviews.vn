@@ -40,6 +40,17 @@ from getviews_pipeline.config import (
     R2_PUBLIC_URL,
 )
 from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
+from getviews_pipeline.corpus_instructiveness import (
+    IngestBatchContext,
+    corpus_ingest_mode,
+    effective_videos_per_niche,
+    post_extract_should_reject,
+    pre_pool_min_views,
+    prefetch_ingest_batch_context,
+    select_purity_candidates,
+)
+from getviews_pipeline.corpus_boost_suspect import classify_boost_suspect
+from getviews_pipeline.settings import settings as _ingest_settings
 from getviews_pipeline.ed_budget import theoretical_ed_pool_requests
 from getviews_pipeline.gemini import (
     analyze_video,
@@ -235,6 +246,8 @@ class BatchSummary:
     # of niches that were not processed before the budget expired.
     aborted_early: bool = False
     niches_remaining: int = 0
+    ingest_mode: str = "legacy"
+    shadow_metrics: dict[str, Any] = field(default_factory=dict)
 
 
 # ── Thin-niche prioritization (Wave 5+ Phase 2) ────────────────────────────────
@@ -1787,7 +1800,7 @@ def _video_pool_gate_diagnostics(
         if play_count == 0:
             d["play_count_zero"] += 1
             continue
-        if play_count < BATCH_MIN_VIEWS:
+        if play_count < pre_pool_min_views():
             d["below_min_views"] += 1
             continue
         author = a.get("author") or {}
@@ -2079,12 +2092,14 @@ async def _ingest_candidate_awemes(
     candidates: list[dict[str, Any]],
     *,
     niche_signal_hashtags_by_id: dict[int, list[str]] | None = None,
+    ingest_batch_ctx: IngestBatchContext | None = None,
 ) -> IngestResult:
     """Analyze prepared aweme dicts and upsert rows (shared by pool ingest + explicit reingest)."""
     result = IngestResult(niche_id=niche_id, niche_name=niche_name)
     if not candidates:
         return result
 
+    hook_type_counts: dict[str, int] = {}
     # Per-aweme niche (CR-3): ingest_niche stashes creator overrides on each
     # dict; pop here so Ensemble/Gemini paths never see the internal key.
     per_aweme_niche_ids: list[int] = []
@@ -2310,6 +2325,62 @@ async def _ingest_candidate_awemes(
                 (str(err)[:400] if err is not None else None),
             )
         else:
+            br = row.get("breakout_ratio")
+            reject, reason = post_extract_should_reject(
+                row,
+                analysis,
+                hook_type_counts=hook_type_counts,
+                breakout_ratio=float(br) if br is not None else None,
+            )
+            if reject:
+                result.skipped += 1
+                logger.info(
+                    "[corpus] niche=%s post_extract_reject video_id=%s reason=%s",
+                    niche_name,
+                    vid,
+                    reason,
+                )
+                continue
+            ht = str(row.get("hook_type") or "none")
+            hook_type_counts[ht] = hook_type_counts.get(ht, 0) + 1
+            stats = aweme.get("statistics") or {}
+            v = int(stats.get("play_count") or stats.get("playCount") or 0)
+            c = int(stats.get("comment_count") or stats.get("commentCount") or 0)
+            likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
+            shares = int(stats.get("share_count") or stats.get("shareCount") or 0)
+            er = _safe_engagement_rate(
+                er_from_analysis=None,
+                views=v,
+                likes=likes,
+                comments=c,
+                shares=shares,
+            )
+            from getviews_pipeline.corpus_boost_suspect import boost_percentiles_from_niche_intel
+
+            pct = boost_percentiles_from_niche_intel(None)
+            if ingest_batch_ctx is not None:
+                pct = ingest_batch_ctx.niche_boost.get(route_nid) or ingest_batch_ctx.global_boost
+            boost = classify_boost_suspect(
+                views=v,
+                er=er,
+                comments=c,
+                percentiles=pct,
+                hard_reject_enabled=_ingest_settings.corpus_boost_hard_reject,
+            )
+            row["boost_attribution"] = boost.attribution
+            row["reference_eligible"] = boost.reference_eligible
+            row["ingest_relaxation_tier"] = int(
+                aweme.get("_ingest_relaxation_tier") or 0
+            )
+            if _ingest_settings.ed_batch_comment_fetch_enabled:
+                try:
+                    from getviews_pipeline.comment_radar_cache import resolve_comment_radar
+
+                    radar = await resolve_comment_radar(vid, comment_count_hint=c)
+                    if radar:
+                        row["comment_radar"] = radar
+                except Exception as exc:
+                    logger.warning("[corpus] batch comment_radar %s: %s", vid, exc)
             try:
                 from getviews_pipeline.pattern_fingerprint import (
                     compute_and_upsert_pattern,
@@ -2473,6 +2544,7 @@ async def ingest_niche(
     hashtag_yields_for_niche: dict[str, int] | None = None,
     niche_signal_hashtags_by_id: dict[int, list[str]] | None = None,
     existing_video_ids: set[str] | None = None,
+    ingest_batch_ctx: IngestBatchContext | None = None,
 ) -> IngestResult:
     niche_id: int = niche["id"]
     niche_name: str = niche.get("name_en") or niche.get("name_vn") or str(niche_id)
@@ -2524,6 +2596,8 @@ async def ingest_niche(
         return True
 
     # ── Video candidates ─────────────────────────────────────────────────────────
+    mode = corpus_ingest_mode()
+    pool_min_views = pre_pool_min_views(mode)
     candidates = []
     blocklist_skipped = 0
     for a in pool:
@@ -2566,9 +2640,15 @@ async def ingest_niche(
             logger.debug("[corpus] skip %s — play_count=0 (no real stats)", vid)
             continue
 
-        # Gate 2: minimum view floor — filters out low-reach content
-        if play_count < BATCH_MIN_VIEWS:
-            logger.debug("[corpus] skip %s — play_count=%d < min=%d", vid, play_count, BATCH_MIN_VIEWS)
+        # Gate 2: view floor — legacy flat 20k; shadow/purity defer to Tier 1 tiers
+        if play_count < pool_min_views:
+            logger.debug(
+                "[corpus] skip %s — play_count=%d < pre_pool_min=%d mode=%s",
+                vid,
+                play_count,
+                pool_min_views,
+                mode,
+            )
             continue
 
         # Gate 3+4: Vietnamese creator
@@ -2592,13 +2672,57 @@ async def ingest_niche(
 
         candidates.append(a)
 
-    # Sort by play_count desc (most-viewed first) for quality signal
-    candidates.sort(
+    signal_tags = (
+        (niche_signal_hashtags_by_id or {}).get(niche_id, [])
+    )
+    vpn = videos_per_niche_override if videos_per_niche_override is not None else BATCH_VIDEOS_PER_NICHE
+    if mode == "purity":
+        vpn = effective_videos_per_niche(vpn)
+
+    legacy_sorted = sorted(
+        candidates,
         key=lambda a: int((a.get("statistics") or {}).get("play_count", 0) or 0),
         reverse=True,
     )
-    vpn = videos_per_niche_override if videos_per_niche_override is not None else BATCH_VIDEOS_PER_NICHE
-    candidates = candidates[:vpn]
+    legacy_top = legacy_sorted[:vpn]
+
+    if mode in ("shadow", "purity") and ingest_batch_ctx is not None:
+        ctx = ingest_batch_ctx
+        purity_selected, sel_meta = select_purity_candidates(
+            candidates,
+            niche_id=niche_id,
+            signal_hashtags=signal_tags,
+            k=vpn,
+            ctx=ctx,
+            er_fn=_safe_engagement_rate,
+        )
+        if mode == "shadow":
+            candidates = legacy_top
+            logger.info(
+                "[corpus_shadow] niche=%s purity_would_select=%d legacy_select=%d meta=%s",
+                niche_name,
+                len(purity_selected),
+                len(legacy_top),
+                sel_meta,
+            )
+        else:
+            candidates = purity_selected
+            relax_tier = int(sel_meta.get("relaxation_tier") or 0)
+            for c in candidates:
+                c["_ingest_relaxation_tier"] = relax_tier
+            logger.info(
+                "[corpus] niche=%s purity selected=%d relaxation_tier=%s",
+                niche_name,
+                len(candidates),
+                relax_tier,
+            )
+    else:
+        candidates = legacy_top
+        if mode == "shadow" and ingest_batch_ctx is None:
+            logger.warning(
+                "[corpus] shadow mode without batch context — falling back to legacy sort",
+            )
+
     video_candidate_aweme_ids = {
         str(c.get("aweme_id", "") or "") for c in candidates
     }
@@ -2711,6 +2835,7 @@ async def ingest_niche(
         niche_name,
         candidates,
         niche_signal_hashtags_by_id=niche_signal_hashtags_by_id,
+        ingest_batch_ctx=ingest_batch_ctx,
     )
     result.inserted = sub.inserted
     result.skipped = sub.skipped
@@ -3172,6 +3297,7 @@ async def run_batch_ingest(
         summary.aborted_early=True when the budget was exhausted mid-run.
     """
     summary = BatchSummary()
+    summary.ingest_mode = corpus_ingest_mode()
     client = _service_client()
 
     niches: list[dict[str, Any]] = await asyncio.get_event_loop().run_in_executor(
@@ -3206,7 +3332,26 @@ async def run_batch_ingest(
     # from blowing the ED budget.
     per_niche_vpn: dict[int, int] = {}
     niche_allocation_log: list[dict[str, Any]] = []
-    if vpn is None:
+    if vpn is None and summary.ingest_mode == "purity":
+        purity_vpn = effective_videos_per_niche(BATCH_VIDEOS_PER_NICHE)
+        for n in niches:
+            nid = int(n["id"])
+            per_niche_vpn[nid] = purity_vpn
+            niche_allocation_log.append({
+                "niche_id": nid,
+                "niche_name": n.get("name_en") or n.get("name_vn") or str(nid),
+                "current_count": 0,
+                "multiplier": 1.0,
+                "allocated_vpn": purity_vpn,
+                "priority_floor": False,
+                "purity_allocator": True,
+            })
+        logger.info(
+            "[corpus] purity allocator — uniform VPN=%d per niche (mode=%s)",
+            purity_vpn,
+            summary.ingest_mode,
+        )
+    elif vpn is None:
         niche_counts = await asyncio.get_event_loop().run_in_executor(
             None, lambda: _fetch_niche_counts_sync(client),
         )
@@ -3303,6 +3448,28 @@ async def run_batch_ingest(
         len(existing_snapshot),
     )
 
+    ingest_batch_ctx: IngestBatchContext | None = None
+    if summary.ingest_mode in ("shadow", "purity"):
+        niche_id_list = [int(n["id"]) for n in niches]
+        ingest_batch_ctx = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: prefetch_ingest_batch_context(client, niche_id_list),
+        )
+        if ingest_batch_ctx.missing_median_total > 0:
+            rate = ingest_batch_ctx.missing_median_count / max(
+                1, ingest_batch_ctx.missing_median_total
+            )
+            logger.info(
+                "[corpus] author median missing rate=%.1f%% (%d/%d)",
+                rate * 100,
+                ingest_batch_ctx.missing_median_count,
+                ingest_batch_ctx.missing_median_total,
+            )
+        summary.shadow_metrics["missing_median_rate"] = (
+            ingest_batch_ctx.missing_median_count
+            / max(1, ingest_batch_ctx.missing_median_total)
+        )
+
     # Wall-clock deadline: stop between niche batches, never mid-niche.
     # A 2-minute safety buffer ensures we return before Cloud Run kills the container.
     _BUDGET_SAFETY_BUFFER_S = 120
@@ -3351,6 +3518,7 @@ async def run_batch_ingest(
                         hashtag_yields_for_niche=hashtag_yields_all.get(int(n["id"]), {}),
                         niche_signal_hashtags_by_id=niche_signal_map,
                         existing_video_ids=existing_snapshot,
+                        ingest_batch_ctx=ingest_batch_ctx,
                     )
                     for n in batch
                 ],

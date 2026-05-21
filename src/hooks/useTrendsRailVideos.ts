@@ -75,6 +75,7 @@ export function useTrendsRailVideos(nicheId: number | null) {
           .eq("niche_id", nicheId)
           .eq("language", "vi")
           .not("thumbnail_url", "is", null)
+          .gte("breakout_multiplier", 2)
           .order("views", { ascending: false })
           .limit(RAIL_LIMIT),
       ]);

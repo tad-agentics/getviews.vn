@@ -303,7 +303,7 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 
 | Job | Endpoint (line) | Synthesis | DB write | Status |
 |---|---|---|---|---|
-| Corpus ingest | `/batch/ingest` (95) | `corpus_ingest.py` — 1× Gemini extraction → `analysis_json` + ~25 promoted columns ([utilization audit](corpus-gemini-utilization-audit.md)) | `video_corpus`, `video_shots`, `video_patterns`, `content_classifications`, `signal_grades` | live |
+| Corpus ingest | `/batch/ingest` (95) | `corpus_ingest.py` — 1× Gemini extraction → `analysis_json` + ~25 promoted columns ([utilization audit](corpus-gemini-utilization-audit.md)). **Selection criteria redesign (instructiveness rank):** [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md) | `video_corpus`, `video_shots`, `video_patterns`, `content_classifications`, `signal_grades` | live |
 | Post-processing | `/batch/post-processing` (160) | analytics + signals | `niche_insights`, `signal_grades` | live |
 | Douyin ingest | `/batch/douyin-ingest` (215) | Douyin metadata | `douyin_video_corpus`, `douyin_video_shots` | live |
 | Re-ingest videos | `/batch/reingest-videos` (278) | re-extract IDs | `video_corpus`, `video_shots` | live |

@@ -162,10 +162,11 @@ def _fetch_grounding_videos(
         try:
             rows = (
                 client.table("video_corpus")
-                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate")
+                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate, breakout_multiplier, breakout_ratio")
                 .eq("niche_id", niche_id)
                 .in_("creator_handle", reference_handles)
                 .gte("created_at", since_7d)
+                .order("breakout_multiplier", desc=True, nullsfirst=False)
                 .order("views", desc=True)
                 .limit(TARGET_GROUNDING_VIDEOS)
                 .execute()
@@ -180,9 +181,10 @@ def _fetch_grounding_videos(
         try:
             rows = (
                 client.table("video_corpus")
-                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate")
+                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate, breakout_multiplier, breakout_ratio")
                 .eq("niche_id", niche_id)
                 .gte("created_at", since_7d)
+                .order("breakout_multiplier", desc=True, nullsfirst=False)
                 .order("views", desc=True)
                 .limit(TARGET_GROUNDING_VIDEOS)
                 .execute()
@@ -198,9 +200,10 @@ def _fetch_grounding_videos(
         try:
             rows = (
                 client.table("video_corpus")
-                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate")
+                .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate, breakout_multiplier, breakout_ratio")
                 .eq("niche_id", niche_id)
                 .gte("created_at", since_30d)
+                .order("breakout_multiplier", desc=True, nullsfirst=False)
                 .order("views", desc=True)
                 .limit(TARGET_GROUNDING_VIDEOS)
                 .execute()

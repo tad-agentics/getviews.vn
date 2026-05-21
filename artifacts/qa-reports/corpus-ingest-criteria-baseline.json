@@ -1,0 +1,20 @@
+{
+  "feature": "corpus-ingest-criteria",
+  "created": "2026-05-20",
+  "spec": "artifacts/docs/corpus-ingest-criteria-v1.md",
+  "ingest_mode_default": "legacy",
+  "minh_save_rubric": {
+    "sample_per_niche": 20,
+    "pass_threshold_pct": 70,
+    "criteria": ["peer_breakout", "repeatable_structure", "niche_fit", "not_ads_skew"]
+  },
+  "shadow_gate_matrix": {
+    "thin_niche_starvation_max_niches": 2,
+    "hook_prefilter_precision_min": 0.8,
+    "missing_median_rate_max": 0.3,
+    "legacy_reject_rate_min": 0.25,
+    "boost_fp_max": 0.15
+  },
+  "status": "baseline_pre_shadow",
+  "notes": "Populate human Minh-save scores during Phase 1 shadow nights."
+}

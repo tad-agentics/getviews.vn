@@ -252,6 +252,8 @@ Hook + transcript + scenes + `commerce_intent` là **trục**, không phải to�
 
 ### 9.1 Luồng end-to-end (batch shard / niche)
 
+**2026-05-20:** Pre-Gemini **selection** is instructiveness-ranked in `shadow`/`purity` modes (`corpus_instructiveness.py`); **extraction contract unchanged** (TD-7). See [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md).
+
 ```mermaid
 flowchart TB
   ED[EnsembleData pool keyword hashtag]
