@@ -12,8 +12,57 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      acqe_run_state: {
+        Row: {
+          cold_start_complete: boolean
+          discovery_relax_active: boolean
+          id: number
+          last_run_at: string | null
+          run_count: number
+        }
+        Insert: {
+          cold_start_complete?: boolean
+          discovery_relax_active?: boolean
+          id: number
+          last_run_at?: string | null
+          run_count?: number
+        }
+        Update: {
+          cold_start_complete?: boolean
+          discovery_relax_active?: boolean
+          id?: number
+          last_run_at?: string | null
+          run_count?: number
+        }
+        Relationships: []
+      }
       admin_action_log: {
         Row: {
           action: string
@@ -636,6 +685,76 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "content_class_hook_effectiveness_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_class_ingest_targets: {
+        Row: {
+          active: boolean
+          content_class_id: number
+          daily_vpn: number
+          priority: number
+          signal_hashtags: string[]
+          updated_at: string
+          viability_tier: string | null
+        }
+        Insert: {
+          active?: boolean
+          content_class_id: number
+          daily_vpn?: number
+          priority?: number
+          signal_hashtags?: string[]
+          updated_at?: string
+          viability_tier?: string | null
+        }
+        Update: {
+          active?: boolean
+          content_class_id?: number
+          daily_vpn?: number
+          priority?: number
+          signal_hashtags?: string[]
+          updated_at?: string
+          viability_tier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_class_ingest_targets_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: true
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_class_trend_velocity: {
+        Row: {
+          computed_at: string
+          content_class_id: number
+          hook_type_shifts: Json | null
+          new_hashtags: string[] | null
+          week_start: string
+        }
+        Insert: {
+          computed_at?: string
+          content_class_id: number
+          hook_type_shifts?: Json | null
+          new_hashtags?: string[] | null
+          week_start: string
+        }
+        Update: {
+          computed_at?: string
+          content_class_id?: number
+          hook_type_shifts?: Json | null
+          new_hashtags?: string[] | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_class_trend_velocity_content_class_id_fkey"
             columns: ["content_class_id"]
             isOneToOne: false
             referencedRelation: "content_classifications"
@@ -1430,6 +1549,7 @@ export type Database = {
       }
       gemini_calls: {
         Row: {
+          cached_content_token_count: number | null
           call_site: string
           cost_usd: number
           created_at: string
@@ -1437,6 +1557,7 @@ export type Database = {
           error_code: string | null
           gcp_stt_cost_usd: number | null
           id: string
+          is_batch: boolean
           model_name: string
           session_id: string | null
           success: boolean
@@ -1445,6 +1566,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          cached_content_token_count?: number | null
           call_site: string
           cost_usd: number
           created_at?: string
@@ -1452,6 +1574,7 @@ export type Database = {
           error_code?: string | null
           gcp_stt_cost_usd?: number | null
           id?: string
+          is_batch?: boolean
           model_name: string
           session_id?: string | null
           success?: boolean
@@ -1460,6 +1583,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          cached_content_token_count?: number | null
           call_site?: string
           cost_usd?: number
           created_at?: string
@@ -1467,6 +1591,7 @@ export type Database = {
           error_code?: string | null
           gcp_stt_cost_usd?: number | null
           id?: string
+          is_batch?: boolean
           model_name?: string
           session_id?: string | null
           success?: boolean
@@ -1475,6 +1600,47 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      hashtag_class_map: {
+        Row: {
+          confidence: number
+          content_class_id: number
+          hashtag: string
+          last_seen_at: string | null
+          occurrences: number
+          source: string
+          updated_at: string
+          yield_14d: number | null
+        }
+        Insert: {
+          confidence?: number
+          content_class_id: number
+          hashtag: string
+          last_seen_at?: string | null
+          occurrences?: number
+          source?: string
+          updated_at?: string
+          yield_14d?: number | null
+        }
+        Update: {
+          confidence?: number
+          content_class_id?: number
+          hashtag?: string
+          last_seen_at?: string | null
+          occurrences?: number
+          source?: string
+          updated_at?: string
+          yield_14d?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hashtag_class_map_content_class_id_fkey"
+            columns: ["content_class_id"]
+            isOneToOne: false
+            referencedRelation: "content_classifications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hashtag_niche_map: {
         Row: {
@@ -1632,51 +1798,9 @@ export type Database = {
           },
         ]
       }
-      niche_daily_sounds: {
-        Row: {
-          computed_at: string
-          computed_date: string
-          emerging_sounds: Json | null
-          id: string
-          niche_id: number
-          sound_insight_text: string | null
-          top_sounds_3d: Json | null
-          top_sounds_7d: Json | null
-        }
-        Insert: {
-          computed_at?: string
-          computed_date?: string
-          emerging_sounds?: Json | null
-          id?: string
-          niche_id: number
-          sound_insight_text?: string | null
-          top_sounds_3d?: Json | null
-          top_sounds_7d?: Json | null
-        }
-        Update: {
-          computed_at?: string
-          computed_date?: string
-          emerging_sounds?: Json | null
-          id?: string
-          niche_id?: number
-          sound_insight_text?: string | null
-          top_sounds_3d?: Json | null
-          top_sounds_7d?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "niche_daily_sounds_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
-            referencedRelation: "niche_taxonomy"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       niche_insights: {
         Row: {
           computed_at: string | null
-          cross_niche_signals: Json | null
           execution_tip: string | null
           id: string
           insight_text: string | null
@@ -1690,7 +1814,6 @@ export type Database = {
         }
         Insert: {
           computed_at?: string | null
-          cross_niche_signals?: Json | null
           execution_tip?: string | null
           id?: string
           insight_text?: string | null
@@ -1704,7 +1827,6 @@ export type Database = {
         }
         Update: {
           computed_at?: string | null
-          cross_niche_signals?: Json | null
           execution_tip?: string | null
           id?: string
           insight_text?: string | null
@@ -1868,10 +1990,10 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           creator_niche_id: number | null
+          credits_remaining: number
           credits_reset_at: string | null
           daily_free_query_count: number
           daily_free_query_reset_at: string | null
-          credits_remaining: number
           display_name: string
           email: string
           id: string
@@ -1889,10 +2011,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           creator_niche_id?: number | null
+          credits_remaining?: number
           credits_reset_at?: string | null
           daily_free_query_count?: number
           daily_free_query_reset_at?: string | null
-          credits_remaining?: number
           display_name?: string
           email: string
           id: string
@@ -1910,10 +2032,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           creator_niche_id?: number | null
+          credits_remaining?: number
           credits_reset_at?: string | null
           daily_free_query_count?: number
           daily_free_query_reset_at?: string | null
-          credits_remaining?: number
           display_name?: string
           email?: string
           id?: string
@@ -2291,10 +2413,13 @@ export type Database = {
       trending_sounds: {
         Row: {
           commerce_signal: boolean
+          commercial_music_library_eligible: boolean | null
           computed_at: string
+          content_class_id: number | null
+          dialect_audio: string | null
           id: string
           is_original_sound: boolean
-          niche_id: number | null
+          lifecycle_phase: string | null
           sound_id: string
           sound_insight_text: string | null
           sound_name: string
@@ -2304,10 +2429,13 @@ export type Database = {
         }
         Insert: {
           commerce_signal?: boolean
+          commercial_music_library_eligible?: boolean | null
           computed_at?: string
+          content_class_id?: number | null
+          dialect_audio?: string | null
           id?: string
           is_original_sound?: boolean
-          niche_id?: number | null
+          lifecycle_phase?: string | null
           sound_id: string
           sound_insight_text?: string | null
           sound_name: string
@@ -2317,10 +2445,13 @@ export type Database = {
         }
         Update: {
           commerce_signal?: boolean
+          commercial_music_library_eligible?: boolean | null
           computed_at?: string
+          content_class_id?: number | null
+          dialect_audio?: string | null
           id?: string
           is_original_sound?: boolean
-          niche_id?: number | null
+          lifecycle_phase?: string | null
           sound_id?: string
           sound_insight_text?: string | null
           sound_name?: string
@@ -2330,10 +2461,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "trending_sounds_niche_id_fkey"
-            columns: ["niche_id"]
+            foreignKeyName: "trending_sounds_content_class_id_fkey"
+            columns: ["content_class_id"]
             isOneToOne: false
-            referencedRelation: "niche_taxonomy"
+            referencedRelation: "content_classifications"
             referencedColumns: ["id"]
           },
         ]
@@ -2365,9 +2496,12 @@ export type Database = {
       video_corpus: {
         Row: {
           analysis_json: Json
+          boost_attribution: string
           breakout_multiplier: number | null
           breakout_ratio: number | null
           caption: string | null
+          class_assignment_disagreement: number | null
+          class_assignment_tier: string | null
           comment_radar: Json | null
           comment_radar_fetched_at: string | null
           comments: number
@@ -2395,6 +2529,9 @@ export type Database = {
           id: string
           indexed_at: string
           inferred_creator_niche_id: number | null
+          ingest_loop_content_class_id: number | null
+          ingest_loop_niche_id: number | null
+          ingest_relaxation_tier: number
           ingest_source: string | null
           is_commerce: boolean | null
           is_duet: boolean | null
@@ -2413,9 +2550,11 @@ export type Database = {
           posting_hour: number | null
           promotion_type: string | null
           quality_tier: string | null
+          reference_eligible: boolean
           save_rate: number | null
           saves: number | null
           scene_count: number | null
+          score_cohort_mismatch: boolean
           search_vector: unknown
           shares: number
           sound_id: string | null
@@ -2438,9 +2577,12 @@ export type Database = {
         }
         Insert: {
           analysis_json: Json
+          boost_attribution?: string
           breakout_multiplier?: number | null
           breakout_ratio?: number | null
           caption?: string | null
+          class_assignment_disagreement?: number | null
+          class_assignment_tier?: string | null
           comment_radar?: Json | null
           comment_radar_fetched_at?: string | null
           comments?: number
@@ -2468,6 +2610,9 @@ export type Database = {
           id?: string
           indexed_at?: string
           inferred_creator_niche_id?: number | null
+          ingest_loop_content_class_id?: number | null
+          ingest_loop_niche_id?: number | null
+          ingest_relaxation_tier?: number
           ingest_source?: string | null
           is_commerce?: boolean | null
           is_duet?: boolean | null
@@ -2486,9 +2631,11 @@ export type Database = {
           posting_hour?: number | null
           promotion_type?: string | null
           quality_tier?: string | null
+          reference_eligible?: boolean
           save_rate?: number | null
           saves?: number | null
           scene_count?: number | null
+          score_cohort_mismatch?: boolean
           search_vector?: unknown
           shares?: number
           sound_id?: string | null
@@ -2511,9 +2658,12 @@ export type Database = {
         }
         Update: {
           analysis_json?: Json
+          boost_attribution?: string
           breakout_multiplier?: number | null
           breakout_ratio?: number | null
           caption?: string | null
+          class_assignment_disagreement?: number | null
+          class_assignment_tier?: string | null
           comment_radar?: Json | null
           comment_radar_fetched_at?: string | null
           comments?: number
@@ -2541,6 +2691,9 @@ export type Database = {
           id?: string
           indexed_at?: string
           inferred_creator_niche_id?: number | null
+          ingest_loop_content_class_id?: number | null
+          ingest_loop_niche_id?: number | null
+          ingest_relaxation_tier?: number
           ingest_source?: string | null
           is_commerce?: boolean | null
           is_duet?: boolean | null
@@ -2559,9 +2712,11 @@ export type Database = {
           posting_hour?: number | null
           promotion_type?: string | null
           quality_tier?: string | null
+          reference_eligible?: boolean
           save_rate?: number | null
           saves?: number | null
           scene_count?: number | null
+          score_cohort_mismatch?: boolean
           search_vector?: unknown
           shares?: number
           sound_id?: string | null
@@ -2658,6 +2813,7 @@ export type Database = {
           lessons: Json
           narrative_vi: Json | null
           niche_benchmark_curve: Json | null
+          niche_posting_context: Json | null
           performance_tier: string | null
           reference_videos: Json | null
           retention_curve: Json | null
@@ -2681,6 +2837,7 @@ export type Database = {
           lessons?: Json
           narrative_vi?: Json | null
           niche_benchmark_curve?: Json | null
+          niche_posting_context?: Json | null
           performance_tier?: string | null
           reference_videos?: Json | null
           retention_curve?: Json | null
@@ -2704,6 +2861,7 @@ export type Database = {
           lessons?: Json
           narrative_vi?: Json | null
           niche_benchmark_curve?: Json | null
+          niche_posting_context?: Json | null
           performance_tier?: string | null
           reference_videos?: Json | null
           retention_curve?: Json | null
@@ -2887,6 +3045,7 @@ export type Database = {
           avg_text_overlays: number | null
           avg_transitions_per_second: number | null
           avg_views: number | null
+          claim_tier: string | null
           commerce_avg_views: number | null
           commerce_pct: number | null
           computed_at: string | null
@@ -2901,6 +3060,7 @@ export type Database = {
           min_duration: number | null
           northern_count: number | null
           organic_avg_views: number | null
+          p50_views: number | null
           pct_face_in_half_sec: number | null
           pct_has_caption_text: number | null
           pct_has_specific_hashtags: number | null
@@ -2919,41 +3079,24 @@ export type Database = {
           },
         ]
       }
-      niche_intelligence: {
+      content_class_tier_intelligence: {
         Row: {
-          avg_duration: number | null
           avg_engagement_rate: number | null
-          avg_face_appears_at: number | null
-          avg_hashtag_count: number | null
-          avg_text_overlays: number | null
-          avg_transitions_per_second: number | null
-          commerce_avg_views: number | null
-          commerce_pct: number | null
+          avg_views: number | null
           computed_at: string | null
-          format_distribution: Json | null
-          has_cta_pct: number | null
-          hook_distribution: Json | null
-          max_duration: number | null
-          median_duration: number | null
+          content_class_id: number | null
+          creator_tier: string | null
           median_er: number | null
-          min_duration: number | null
-          niche_id: number | null
-          northern_count: number | null
-          organic_avg_views: number | null
-          pct_face_in_half_sec: number | null
-          pct_has_caption_text: number | null
-          pct_has_specific_hashtags: number | null
-          pct_original_sound: number | null
+          median_views: number | null
+          p75_views: number | null
           sample_size: number | null
-          southern_count: number | null
-          tone_distribution: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "video_corpus_niche_id_fkey"
-            columns: ["niche_id"]
+            foreignKeyName: "video_corpus_content_class_id_fkey"
+            columns: ["content_class_id"]
             isOneToOne: false
-            referencedRelation: "niche_taxonomy"
+            referencedRelation: "content_classifications"
             referencedColumns: ["id"]
           },
         ]
@@ -2979,6 +3122,26 @@ export type Database = {
         Returns: string
       }
       begin_processing: { Args: { p_user_id: string }; Returns: boolean }
+      content_class_channel_benchmarks: {
+        Args: { p_content_class_id: number; p_creator_tier?: string }
+        Returns: {
+          avg_views_p50: number
+          avg_views_p75: number
+          channel_count: number
+          engagement_p50: number
+          engagement_p75: number
+          posts_per_week_p50: number
+          posts_per_week_p75: number
+        }[]
+      }
+      content_class_stats_for_creator_niche: {
+        Args: { p_creator_niche_id: number }
+        Returns: {
+          claim_tier: string
+          content_class_id: number
+          sample_size: number
+        }[]
+      }
       corpus_hashtag_yields_14d: {
         Args: never
         Returns: {
@@ -3074,7 +3237,10 @@ export type Database = {
         }[]
       }
       refresh_content_class_intelligence: { Args: never; Returns: undefined }
-      refresh_niche_intelligence: { Args: never; Returns: undefined }
+      refresh_content_class_tier_intelligence: {
+        Args: never
+        Returns: undefined
+      }
       search_history_union: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
@@ -3137,8 +3303,8 @@ export type Database = {
       upsert_video_corpus_batch: {
         Args: { p_rows: Json }
         Returns: {
-          action: string
-          video_id: string
+          out_action: string
+          out_video_id: string
         }[]
       }
     }
@@ -3269,6 +3435,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

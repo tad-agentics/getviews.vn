@@ -89,8 +89,7 @@ export function TrendingSoundsSection({
     queryKey: ["trending_sounds_all", weekStr, classKey, legacyNicheId],
     queryFn: async () => {
       if (hasClassScope) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
           .from("trending_sounds")
           .select("sound_name, sound_id, usage_count, total_views, commerce_signal, content_class_id")
           .eq("week_of", weekStr)
@@ -141,8 +140,7 @@ export function TrendingSoundsSection({
   const { data: breakoutPool = [] } = useQuery({
     queryKey: ["trending_sounds_breakout_pool", weekStr],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("trending_sounds")
         .select("sound_name, sound_id, usage_count, total_views, commerce_signal, content_class_id")
         .eq("week_of", weekStr)

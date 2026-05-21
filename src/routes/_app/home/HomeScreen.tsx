@@ -157,8 +157,7 @@ export default function HomeScreen() {
     [topPatterns],
   );
 
-  // Corpus count for the composer chip — pulled from
-  // ``niche_intelligence.sample_size`` via ``useNicheRowsForIds``.
+  // Corpus count for the composer chip — from junction aggregate via ``useNicheRowsForIds``.
   // Hidden when 0 (empty niche / first-day account) so we don't claim
   // a corpus that doesn't exist.
   const currentNicheCount = useMemo(() => {
