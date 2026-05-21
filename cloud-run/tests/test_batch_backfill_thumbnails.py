@@ -276,8 +276,8 @@ def test_null_cdn_url_with_no_frame_does_not_touch_cdn(client: TestClient) -> No
 
 
 def test_already_r2_rows_are_skipped(client: TestClient) -> None:
-    """Rows whose ``thumbnail_url`` already points at the R2 public
-    URL are filtered out before any per-row work — keeps reruns cheap."""
+    """Rows whose ``thumbnail_url`` already points at a live R2 object
+    are filtered out before any per-row work — keeps reruns cheap."""
     rows = [
         {"video_id": "vA", "thumbnail_url": f"{_R2_PUBLIC}/thumbnails/vA.png"},
         {"video_id": "vB", "thumbnail_url": f"{_R2_PUBLIC}/thumbnails/vB.jpg"},
@@ -288,6 +288,7 @@ def test_already_r2_rows_are_skipped(client: TestClient) -> None:
 
     with _patch_r2_env(), \
          patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
+         patch("getviews_pipeline.r2.r2_public_thumbnail_exists", return_value=True), \
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail", frame_mock), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail", cdn_mock), \
          patch("getviews_pipeline.supabase_client.get_service_client",
@@ -301,6 +302,32 @@ def test_already_r2_rows_are_skipped(client: TestClient) -> None:
     frame_mock.assert_not_called()
     cdn_mock.assert_not_awaited()
     assert fake_sb.video_corpus.updates == []
+
+
+def test_phantom_r2_url_is_reprocessed(client: TestClient) -> None:
+    """DB URL has R2 prefix but object is missing → frame copy heals the row."""
+    rows = [{"video_id": "vP", "thumbnail_url": f"{_R2_PUBLIC}/thumbnails/vP.png"}]
+    fake_sb = _FakeSb(rows)
+
+    with _patch_r2_env(), \
+         patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
+         patch("getviews_pipeline.r2.r2_public_thumbnail_exists", return_value=False), \
+         patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail",
+               return_value=f"{_R2_PUBLIC}/thumbnails/vP.png"), \
+         patch("getviews_pipeline.r2.download_and_upload_thumbnail",
+               new=AsyncMock(return_value="must-not-be-called")), \
+         patch("getviews_pipeline.supabase_client.get_service_client",
+               return_value=fake_sb):
+        resp = _post(client)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["from_frame"] == 1
+    assert fake_sb.video_corpus.updates == [
+        {"col": "video_id", "val": "vP",
+         "patch": {"thumbnail_url": f"{_R2_PUBLIC}/thumbnails/vP.png"}},
+    ]
 
 
 # ── 7. Pagination — read more than 1000 rows ───────────────────────
@@ -345,8 +372,12 @@ def test_pagination_reads_past_first_1000(client: TestClient) -> None:
     needs = [{"video_id": f"n{i}", "thumbnail_url": None} for i in range(5)]
     sb = _PaginatingSb(on_r2 + needs)
 
+    def _thumb_exists(vid: str) -> bool:
+        return vid.startswith("r")
+
     with _patch_r2_env(), \
          patch("getviews_pipeline.config.R2_PUBLIC_URL", _R2_PUBLIC), \
+         patch("getviews_pipeline.r2.r2_public_thumbnail_exists", side_effect=_thumb_exists), \
          patch("getviews_pipeline.r2.copy_first_frame_to_thumbnail",
                side_effect=lambda vid: f"{_R2_PUBLIC}/thumbnails/{vid}.png"), \
          patch("getviews_pipeline.r2.download_and_upload_thumbnail",

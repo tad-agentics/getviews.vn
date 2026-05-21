@@ -44,7 +44,9 @@ export function useRitualEvidenceVideos(
         .select(EVIDENCE_COLS)
         .in("video_id", ids as string[]);
       if (error) throw error;
-      const rows = (data ?? []) as EvidenceVideo[];
+      const rows = ((data ?? []) as EvidenceVideo[]).filter(
+        (r) => r.thumbnail_url != null && r.thumbnail_url.trim() !== "",
+      );
       // Preserve the ranked order baked in by the BE picker.
       const order = new Map(ids.map((vid, i) => [vid, i]));
       return rows.slice().sort(

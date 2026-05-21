@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 export type CorpusNicheFilterableQuery = {
   eq: (column: string, value: number) => CorpusNicheFilterableQuery;
   in: (column: string, values: number[]) => CorpusNicheFilterableQuery;
+  not: (column: string, operator: string, value: null) => CorpusNicheFilterableQuery;
 };
 
 export type VideoCorpusNicheScope = {
@@ -50,4 +51,15 @@ export function applyVideoCorpusNicheFilter<T extends CorpusNicheFilterableQuery
     return query.eq("niche_id", legacyId) as T;
   }
   return query;
+}
+
+/**
+ * Browse-only filter: hide corpus rows with no stable thumbnail (NULL after
+ * backfill). Keeps analysis/matcher rows in DB; Explore grid, Home breakouts,
+ * and browse counts use this. Do not apply to thin-corpus / intel sample checks.
+ */
+export function applyBrowsableCorpusFilter<T extends Pick<CorpusNicheFilterableQuery, "not">>(
+  query: T,
+): T {
+  return query.not("thumbnail_url", "is", null) as unknown as T;
 }

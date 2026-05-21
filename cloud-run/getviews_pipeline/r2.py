@@ -73,6 +73,35 @@ def r2_configured() -> bool:
     return bool(R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_PUBLIC_URL)
 
 
+def r2_object_exists(key: str) -> bool:
+    """Return True when ``key`` is present in the configured R2 bucket."""
+    if not r2_configured() or not R2_BUCKET_NAME or not key:
+        return False
+    try:
+        client = _get_r2_client()
+        client.head_object(Bucket=R2_BUCKET_NAME, Key=key)
+        return True
+    except ClientError as exc:
+        code = str(exc.response.get("Error", {}).get("Code", ""))
+        if code in ("404", "NoSuchKey", "NotFound"):
+            return False
+        logger.warning("[r2] head_object failed for %s: %s", key, exc)
+        return False
+    except (BotoCoreError, Exception) as exc:
+        logger.warning("[r2] head_object error for %s: %s", key, exc)
+        return False
+
+
+def r2_public_thumbnail_exists(video_id: str) -> bool:
+    """True when ``thumbnails/{video_id}.png`` or ``.jpg`` exists in R2."""
+    if not video_id:
+        return False
+    for ext in (_FRAME_EXT, ".jpg"):
+        if r2_object_exists(f"thumbnails/{video_id}{ext}"):
+            return True
+    return False
+
+
 def _get_r2_client() -> Any:
     """Create a boto3 S3 client pointed at Cloudflare R2."""
     endpoint = _R2_ENDPOINT.format(account_id=R2_ACCOUNT_ID)

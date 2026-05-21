@@ -242,7 +242,7 @@ export function useTopPatterns(scope: TopPatternsScope | null, limit = STUDIO_HO
           acc.topViews = views;
           acc.topHook = hook;
         }
-        if (videoId) {
+        if (videoId && thumbnail?.trim()) {
           acc.rows.push({
             video_id: videoId,
             thumbnail_url: thumbnail,

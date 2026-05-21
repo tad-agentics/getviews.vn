@@ -4,7 +4,7 @@ vi.mock("@/lib/supabase", () => ({
   supabase: { from: vi.fn() },
 }));
 
-import { applyVideoCorpusNicheFilter } from "./corpusNicheFilter";
+import { applyBrowsableCorpusFilter, applyVideoCorpusNicheFilter } from "./corpusNicheFilter";
 
 function mockQuery() {
   const calls: { op: string; col: string; val: unknown }[] = [];
@@ -15,6 +15,10 @@ function mockQuery() {
     },
     in(col: string, val: number[]) {
       calls.push({ op: "in", col, val });
+      return q;
+    },
+    not(col: string, operator: string, val: null) {
+      calls.push({ op: "not", col, val: operator });
       return q;
     },
     calls,
@@ -42,5 +46,13 @@ describe("applyVideoCorpusNicheFilter", () => {
     const q = mockQuery();
     applyVideoCorpusNicheFilter(q, { legacyNicheId: null, contentClassIds: [] });
     expect(q.calls).toEqual([]);
+  });
+});
+
+describe("applyBrowsableCorpusFilter", () => {
+  it("excludes rows with null thumbnail_url", () => {
+    const q = mockQuery();
+    applyBrowsableCorpusFilter(q);
+    expect(q.calls).toEqual([{ op: "not", col: "thumbnail_url", val: "is" }]);
   });
 });

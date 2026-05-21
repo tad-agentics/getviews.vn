@@ -16,6 +16,7 @@ import { Btn } from "@/components/v2/Btn";
 import { supabase } from "@/lib/supabase";
 import { corpusKeys, useVideoCorpus } from "@/hooks/useVideoCorpus";
 import {
+  applyBrowsableCorpusFilter,
   applyVideoCorpusNicheFilter,
   fetchContentClassIdsForCreatorNiche,
 } from "@/lib/corpusNicheFilter";
@@ -776,13 +777,12 @@ export default function ExploreScreen() {
       contentFormat: activeFormat ?? undefined,
     }),
     queryFn: async () => {
-      let q = supabase
-        .from("video_corpus")
-        .select("*", { count: "planned", head: true });
-      q = applyVideoCorpusNicheFilter(q, {
-        legacyNicheId: selectedNicheId,
-        contentClassIds,
-      });
+      let q = applyBrowsableCorpusFilter(
+        applyVideoCorpusNicheFilter(supabase.from("video_corpus").select("*", { count: "planned", head: true }), {
+          legacyNicheId: selectedNicheId,
+          contentClassIds,
+        }),
+      );
       if (searchQuery?.trim()) q = q.textSearch("search_vector", searchQuery.trim(), { config: "simple", type: "plain" });
       if (activeViewFilter != null) q = q.gte("views", activeViewFilter);
       if (activeFormat != null) q = q.eq("content_format", activeFormat);
@@ -797,13 +797,12 @@ export default function ExploreScreen() {
   const { data: nicheTotalCount, isPending: nicheTotalCountPending } = useQuery({
     queryKey: [...corpusKeys.nicheTotal(selectedNicheId), contentClassIds],
     queryFn: async () => {
-      let q = supabase
-        .from("video_corpus")
-        .select("*", { count: "planned", head: true });
-      q = applyVideoCorpusNicheFilter(q, {
-        legacyNicheId: selectedNicheId,
-        contentClassIds,
-      });
+      let q = applyBrowsableCorpusFilter(
+        applyVideoCorpusNicheFilter(supabase.from("video_corpus").select("*", { count: "planned", head: true }), {
+          legacyNicheId: selectedNicheId,
+          contentClassIds,
+        }),
+      );
       const { count, error } = await q;
       if (error) return null;
       return count;
@@ -817,14 +816,18 @@ export default function ExploreScreen() {
     queryKey: [...corpusKeys.nicheLast7d(selectedNicheId), contentClassIds],
     queryFn: async () => {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      let q = supabase
-        .from("video_corpus")
-        .select("*", { count: "planned", head: true })
-        .gte("indexed_at", since);
-      q = applyVideoCorpusNicheFilter(q, {
-        legacyNicheId: selectedNicheId,
-        contentClassIds,
-      });
+      let q = applyBrowsableCorpusFilter(
+        applyVideoCorpusNicheFilter(
+          supabase
+            .from("video_corpus")
+            .select("*", { count: "planned", head: true })
+            .gte("indexed_at", since),
+          {
+            legacyNicheId: selectedNicheId,
+            contentClassIds,
+          },
+        ),
+      );
       const { count, error } = await q;
       if (error) return null;
       return count;

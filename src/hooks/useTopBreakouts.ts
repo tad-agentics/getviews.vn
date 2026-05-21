@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  applyBrowsableCorpusFilter,
   applyVideoCorpusNicheFilter,
   fetchContentClassIdsForCreatorNiche,
 } from "@/lib/corpusNicheFilter";
@@ -89,7 +90,7 @@ async function fetchTopBreakoutsForHome(
     .select(CORPUS_COLS)
     .gte("indexed_at", since14)
     .gte("breakout_multiplier", 1.0);
-  q1 = applyVideoCorpusNicheFilter(q1, filterScope);
+  q1 = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q1, filterScope));
   const { data: d1, error: e1 } = await q1
     .order("breakout_multiplier", { ascending: false })
     .order("indexed_at", { ascending: false })
@@ -104,7 +105,7 @@ async function fetchTopBreakoutsForHome(
       .select(CORPUS_COLS)
       .gte("indexed_at", since90)
       .gte("breakout_multiplier", 1.0);
-    q2 = applyVideoCorpusNicheFilter(q2, filterScope);
+    q2 = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q2, filterScope));
     const { data: d2, error: e2 } = await q2
       .order("breakout_multiplier", { ascending: false })
       .order("indexed_at", { ascending: false })
@@ -116,7 +117,7 @@ async function fetchTopBreakoutsForHome(
   // 3) Top views — fills the row when multipliers are not backfilled yet
   if (pool.length < limit) {
     let q3 = supabase.from("video_corpus").select(CORPUS_COLS);
-    q3 = applyVideoCorpusNicheFilter(q3, filterScope);
+    q3 = applyBrowsableCorpusFilter(applyVideoCorpusNicheFilter(q3, filterScope));
     const { data: d3, error: e3 } = await q3
       .order("views", { ascending: false })
       .order("indexed_at", { ascending: false })

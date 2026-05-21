@@ -666,7 +666,9 @@ async def batch_backfill_thumbnails(
       4. **NULL the column** — when all steps miss, set ``thumbnail_url=NULL``
          so the FE uses ``<VideoThumbnail>`` placeholder.
 
-    Rows already pointing at the R2 public URL are skipped. Reads are
+    Rows whose ``thumbnail_url`` already points at a **live** R2 object
+    (verified via ``head_object``) are skipped. Phantom DB URLs — R2 prefix
+    in Postgres but object deleted/missing — are reprocessed. Reads are
     paginated to bypass the 1000-row Supabase default.
 
     Protected by ``require_batch_caller``. Idempotent — safe to re-run.
@@ -677,6 +679,7 @@ async def batch_backfill_thumbnails(
         copy_first_frame_to_thumbnail,
         download_and_upload_thumbnail,
         r2_configured,
+        r2_public_thumbnail_exists,
     )
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -713,10 +716,20 @@ async def batch_backfill_thumbnails(
             break
         page += 1
 
-    to_backfill = [
-        r for r in rows
-        if not (r.get("thumbnail_url") or "").startswith(r2_prefix)
-    ]
+    thumb_exists_cache: dict[str, bool] = {}
+
+    def _row_needs_thumbnail_backfill(row: dict[str, Any]) -> bool:
+        url = (row.get("thumbnail_url") or "").strip()
+        if not url:
+            return True
+        if not url.startswith(r2_prefix):
+            return True
+        vid = str(row["video_id"])
+        if vid not in thumb_exists_cache:
+            thumb_exists_cache[vid] = r2_public_thumbnail_exists(vid)
+        return not thumb_exists_cache[vid]
+
+    to_backfill = [r for r in rows if _row_needs_thumbnail_backfill(r)]
     if limit is not None:
         to_backfill = to_backfill[:limit]
 
@@ -730,6 +743,9 @@ async def batch_backfill_thumbnails(
     async def _mirror_cdn(row: dict[str, Any]) -> str | None:
         cdn_url = row.get("thumbnail_url")
         if not cdn_url or not str(cdn_url).strip():
+            return None
+        # Do not treat a stale R2 URL as a TikTok CDN source.
+        if str(cdn_url).startswith(r2_prefix):
             return None
         try:
             return await download_and_upload_thumbnail(str(cdn_url), str(row["video_id"]))

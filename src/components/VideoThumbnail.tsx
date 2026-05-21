@@ -37,7 +37,9 @@ function _reportThumbnailFailure(videoId: string | undefined, failedUrl: string)
     if (_reported.has(videoId)) return;
     _reported.add(videoId);
   }
-  console.warn("[VideoThumbnail] load failed", { videoId, failedUrl });
+  if (import.meta.env.DEV) {
+    console.warn("[VideoThumbnail] load failed", { videoId, failedUrl });
+  }
   try {
     const endpoint = `${env.VITE_SUPABASE_URL}/functions/v1/track-thumbnail-failure`;
     const payload = JSON.stringify({ video_id: videoId, failed_url: failedUrl });

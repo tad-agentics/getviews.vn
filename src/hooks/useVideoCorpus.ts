@@ -1,5 +1,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { applyVideoCorpusNicheFilter } from "@/lib/corpusNicheFilter";
+import {
+  applyBrowsableCorpusFilter,
+  applyVideoCorpusNicheFilter,
+} from "@/lib/corpusNicheFilter";
 import { supabase } from "@/lib/supabase";
 
 const PAGE_SIZE = 20;
@@ -58,10 +61,12 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
         "id, video_id, tiktok_url, video_url, thumbnail_url, creator_handle, views, engagement_rate, content_type, content_format, niche_id, indexed_at, likes, shares, comments, hook_phrase, breakout_multiplier, tone, cta_type, is_commerce, sound_name, creator_tier, posting_hour, video_duration",
       );
 
-      query = applyVideoCorpusNicheFilter(query, {
-        legacyNicheId: nicheId,
-        contentClassIds,
-      });
+      query = applyBrowsableCorpusFilter(
+        applyVideoCorpusNicheFilter(query, {
+          legacyNicheId: nicheId,
+          contentClassIds,
+        }),
+      );
       if (dateFrom) {
         query = query.gte("indexed_at", dateFrom);
       }
