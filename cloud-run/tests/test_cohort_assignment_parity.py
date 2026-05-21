@@ -14,9 +14,9 @@ from getviews_pipeline.corpus_instructiveness import _breakout_for_aweme as brea
 from getviews_pipeline.video_niche_benchmark import fetch_video_benchmark_with_axis
 
 
-def test_corpus_score_cohort_default_legacy():
-    assert corpus_score_cohort() == "legacy"
-    assert use_class_score_cohort() is False
+def test_corpus_score_cohort_default_class():
+    assert corpus_score_cohort() == "class"
+    assert use_class_score_cohort() is True
 
 
 def test_breakout_uses_class_p50_when_class_cohort(monkeypatch):

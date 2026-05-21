@@ -144,11 +144,11 @@ class _PipelineSettings(BaseSettings):
     corpus_sound_organic_bonus: float = Field(default=1.0, ge=0.0)
     corpus_ingest_shadow_log: bool = Field(default=True)
     corpus_score_cohort: str = Field(
-        default="legacy",
+        default="class",
         description="legacy | class_shadow | class — instructiveness cohort axis",
     )
     live_cohort_class_first: bool = Field(
-        default=False,
+        default=True,
         description="When true, live benchmark prefers content_class_intelligence MV",
     )
     corpus_discovery_relax: bool = Field(
@@ -156,7 +156,7 @@ class _PipelineSettings(BaseSettings):
         description="ACQE Thin/Dormant: lower pre-pool floor, widen hashtag fetch",
     )
     corpus_ingest_loop: str = Field(
-        default="niche",
+        default="class",
         description="niche | class — batch loop over niche_taxonomy vs content_class_ingest_targets",
     )
     corpus_write_niche_id: bool = Field(

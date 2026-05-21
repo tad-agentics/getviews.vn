@@ -16,6 +16,12 @@ const VITE_BOOL = z
   .optional()
   .transform((v) => v === "true");
 
+/** Opt-out flag: unset or ``"true"`` → enabled; explicit ``"false"`` → disabled. */
+const VITE_BOOL_DEFAULT_TRUE = z
+  .string()
+  .optional()
+  .transform((v) => v !== "false");
+
 const clientEnvSchema = z.object({
   VITE_SUPABASE_URL: z.string().url(),
   VITE_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
@@ -34,7 +40,7 @@ const clientEnvSchema = z.object({
   VITE_ZALOPAY_ENABLED: VITE_BOOL,
   /** Phase 1 — browse ``video_corpus`` by junction ``content_class_id`` only
    *  when aggregate MV sample ≥ threshold (see ``corpusNicheFilter.ts``). */
-  VITE_CORPUS_BROWSE_CLASS_FIRST: VITE_BOOL,
+  VITE_CORPUS_BROWSE_CLASS_FIRST: VITE_BOOL_DEFAULT_TRUE,
   /** Phase 4 — sunset bridge: drop legacy ``niche_id`` AND on browse queries. */
   VITE_CORPUS_BROWSE_CLASS_ONLY: VITE_BOOL,
 });

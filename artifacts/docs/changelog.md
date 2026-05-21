@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — Content-class pivot flags promoted (default on)
+
+- **Cloud Run defaults:** `CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`, `LIVE_COHORT_CLASS_FIRST=true` in `settings.py` + batch/user pod env.
+- **FE default:** `VITE_CORPUS_BROWSE_CLASS_FIRST` opt-out (`"false"` disables); Phase 4 `CLASS_ONLY` / `CORPUS_WRITE_NICHE_ID` unchanged (still opt-in sunset).
+- **Rollback:** set env back to `legacy` / `niche` / `false` on batch+user pods and `VITE_CORPUS_BROWSE_CLASS_FIRST=false` on Vercel.
+
 ## 2026-05-21 — Content-class pivot gap closure (audit follow-up)
 
 - **Migration:** `20260820000004_content_class_pivot_gaps.sql` — `acqe_run_state.discovery_relax_active`, `content_class_trend_velocity`.
