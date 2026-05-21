@@ -1,9 +1,16 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — Docs: pivot production state sync
+
+- **`system-design.md` §9 + §12.1:** HI-11 prod `route`; browse/thin-banner defaults; full pivot env stack + rollback; class loop default on.
+- **`CLAUDE.md`:** niche model bullets aligned with promoted flags.
+- **`niche-taxonomy-ingest-ui-pipeline.md`:** §5.1 browse order, §5.4 thin fallback, §10 phase table.
+
 ## 2026-05-21 — Content-class pivot Phase 4 promoted
 
 - **Batch defaults:** `CORPUS_WRITE_NICHE_ID=false` (upsert omits `niche_id`); `REFRESH_NICHE_INTELLIGENCE_MV=false` (skip legacy MV; class MVs still refresh).
 - **FE default:** `VITE_CORPUS_BROWSE_CLASS_ONLY` opt-out (`"false"` re-enables legacy `niche_id` AND on browse).
+- **Docs:** `system-design.md` §9 niche bullets + §12.1 class loop default updated to production pivot state.
 - **Rollback:** set `CORPUS_WRITE_NICHE_ID=true`, `REFRESH_NICHE_INTELLIGENCE_MV=true`, `VITE_CORPUS_BROWSE_CLASS_ONLY=false`.
 
 ## 2026-05-21 — Content-class pivot flags promoted (default on)

@@ -195,10 +195,10 @@ Chi tiết formula: [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.m
 ### 5.1 Nguyên tắc
 
 - **User-facing label** luôn từ **`creator_niches`** (`name_vn`, `display_order`).
-- **Query `video_corpus`** khi browse theo UX pill:
-  - **Legacy (default):** `content_class_id IN (...)` **AND** `niche_id = legacyNicheIdForCreatorNiche(pill)` — tách lifestyle (27) vs music (28).
-  - **Phase 1 (`VITE_CORPUS_BROWSE_CLASS_FIRST=true`):** chỉ `content_class_id IN (...)` khi tổng `content_class_intelligence.sample_size` trên junction ≥ 20.
-  - **Phase 4 (`VITE_CORPUS_BROWSE_CLASS_ONLY=true`):** luôn chỉ `content_class_id IN (...)` (bỏ `niche_id` AND).
+- **Query `video_corpus`** khi browse theo UX pill (**production 2026-05-21+**):
+  - **Default (`VITE_CORPUS_BROWSE_CLASS_ONLY=true`, opt-out `"false"`):** chỉ `content_class_id IN (...)` khi junction có class (bỏ `niche_id` AND).
+  - **Phase 1 only (`CLASS_FIRST=true`, `CLASS_ONLY=false`):** chỉ `content_class_id IN (...)` khi tổng `content_class_intelligence.sample_size` trên junction ≥ 20; else legacy AND.
+  - **Legacy rollback:** `content_class_id IN (...)` **AND** `niche_id = legacyNicheIdForCreatorNiche(pill)` — tách lifestyle (27) vs music (28).
 
 Helper: `src/lib/corpusNicheFilter.ts` — `fetchContentClassIdsForCreatorNiche`, `shouldUseClassFirstBrowse`, `applyVideoCorpusNicheFilter`; aggregate qua `useContentClassIntelligence`.
 
@@ -231,10 +231,10 @@ Retired buckets không có trong list (`active = false` hoặc không seed).
 
 ### 5.4 MV và claim tier
 
-- `niche_intelligence` — keyed **`niche_taxonomy.id`** (legacy), sample size / hook tiers trên browse grid.
-- `content_class_intelligence` — keyed **`content_class_id`** (two-axis sharper cohorts cho diagnosis benchmark).
+- `niche_intelligence` — keyed **`niche_taxonomy.id`** (legacy bridge); MV refresh **skipped** in batch when `REFRESH_NICHE_INTELLIGENCE_MV=false` (Phase 4 prod).
+- `content_class_intelligence` — keyed **`content_class_id`** (two-axis sharper cohorts cho diagnosis benchmark + browse).
 
-UI “Ngách này mới có X video cùng format…” trên Trends đọc **tổng `content_class_intelligence.sample_size`** trên junction (P1), không còn `niche_intelligence.sample_size` đơn lẻ.
+UI thin banner trên Trends: **ưu tiên** tổng `content_class_intelligence.sample_size` trên junction khi có class; **fallback** `niche_intelligence.sample_size` khi junction rỗng (sau khi query settle).
 
 ---
 
@@ -305,11 +305,11 @@ So sánh `niche_id` với id loop trong log `[corpus] niche=… id=N` — đo t�
 |-------|---------------------|------------|
 | **0** | Provenance cols (`ingest_loop_*`, `class_assignment_*`, `score_cohort_mismatch`); `content_class_ingest_targets`; **ACQE** nightly; metrics SQL | 3-night baseline; Cross-Niche Migration Rate |
 | **0b** | `hashtag_class_map` + spec | Learn deploy Phase 3 |
-| **1** | `content_class_intelligence.claim_tier`; FE `VITE_CORPUS_BROWSE_CLASS_FIRST` | Junction aggregate ≥20 |
-| **1b** | `hi11_rolling_eval.py` rolling agreement/junction/outlier | Blocks Phase 2 promote |
-| **2** | Class-keyed instructiveness (`CORPUS_SCORE_COHORT`); `content_class_tier_intelligence` MV; `LIVE_COHORT_CLASS_FIRST` | `class_shadow` → `class` |
-| **3** | `CORPUS_INGEST_LOOP=class`; class dedup re-upsert; `CORPUS_DISCOVERY_RELAX` | Default `niche` for safety |
-| **4** | `CORPUS_WRITE_NICHE_ID=false`; `REFRESH_NICHE_INTELLIGENCE_MV=false`; `content_class_channel_benchmarks`; FE `VITE_CORPUS_BROWSE_CLASS_ONLY` | 30d observe before column drop |
+| **1** | `content_class_intelligence.claim_tier`; FE `VITE_CORPUS_BROWSE_CLASS_FIRST` | **Promoted 2026-05-21** (default on) |
+| **1b** | `hi11_rolling_eval.py` rolling agreement/junction/outlier | Observation gate pre-promote |
+| **2** | Class-keyed instructiveness (`CORPUS_SCORE_COHORT=class`); `content_class_tier_intelligence` MV; `LIVE_COHORT_CLASS_FIRST=true` | **Promoted 2026-05-21** |
+| **3** | `CORPUS_INGEST_LOOP=class`; class dedup re-upsert; `CORPUS_DISCOVERY_RELAX` | **Promoted 2026-05-21** (was default `niche`) |
+| **4** | `CORPUS_WRITE_NICHE_ID=false`; `REFRESH_NICHE_INTELLIGENCE_MV=false`; `content_class_channel_benchmarks`; FE `VITE_CORPUS_BROWSE_CLASS_ONLY=true` | **Promoted 2026-05-21**; column drop still future |
 
 **ACQE cold-start:** Nights 1–3 use all rows + global percentiles; no red-alert escalation. Validated subset from night 4+.
 
@@ -323,6 +323,7 @@ So sánh `niche_id` với id loop trong log `[corpus] niche=… id=N` — đo t�
 
 | Date | Change |
 |------|--------|
+| 2026-05-21 | Doc sync — production pivot defaults (Phase 1–4 promoted); browse + thin banner §5.1/§5.4; aligns with `system-design.md` §9 |
 | 2026-05-21 | §10 — Phase 4 sunset env + class channel benchmarks RPC |
 | 2026-05-21 | §10 — content-class pivot Phase 0–3 backend map + ACQE |
 | 2026-05-20 | Initial doc — two-axis + ingest discovery + purity interaction + UI mapping |
