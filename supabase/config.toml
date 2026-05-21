@@ -31,3 +31,6 @@ enabled = false
 enabled = false
 # client_id = "env(FACEBOOK_CLIENT_ID)"
 # secret = "env(FACEBOOK_SECRET)"
+
+[functions.track-thumbnail-failure]
+verify_jwt = false

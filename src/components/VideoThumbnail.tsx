@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { env } from "@/lib/env";
+import { corpusThumbnailSrcCandidates } from "@/lib/r2";
 
 /**
  * Single shared video-thumbnail renderer with proper error fallback.
@@ -15,15 +16,16 @@ import { env } from "@/lib/env";
  * the CDN URL has already expired — render a clean placeholder via this
  * component, never a broken-icon.
  *
- * Observability: onError fires a one-shot beacon to the
+ * Observability: onError fires a one-shot POST to the
  * ``track-thumbnail-failure`` Edge Function so ops can see the failure
- * rate in the admin panel. De-duplicated per video_id per page load
- * via a module-level Set so remounts don't double-count.
+ * rate in the admin panel. Uses ``fetch(..., { keepalive: true,
+ * credentials: 'omit' })`` — not ``sendBeacon`` — so CORS stays valid
+ * with Supabase's gateway. De-duplicated per video_id per page load.
  *
- * Architectural note: the component **trusts** ``thumbnailUrl``. We
- * don't try a fallback chain on the FE (R2 derived URL guesswork).
- * The data layer is the right place to make ``thumbnail_url``
- * reliable; the FE just renders it or its placeholder.
+ * Fallback: when ``videoId`` is set and ``VITE_R2_PUBLIC_URL`` is
+ * configured, expired TikTok CDN URLs in ``thumbnailUrl`` fall through to
+ * R2 ``thumbnails/{id}.png|.jpg`` then ``frames/{id}/0.png`` (same keys
+ * batch ingest writes). Telemetry fires only after all candidates fail.
  */
 
 /** Session-scoped dedup: fire at most one beacon per video_id per page load. */
@@ -39,12 +41,21 @@ function _reportThumbnailFailure(videoId: string | undefined, failedUrl: string)
   try {
     const endpoint = `${env.VITE_SUPABASE_URL}/functions/v1/track-thumbnail-failure`;
     const payload = JSON.stringify({ video_id: videoId, failed_url: failedUrl });
-    // sendBeacon is fire-and-forget; does not block navigation.
-    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-      navigator.sendBeacon(endpoint, new Blob([payload], { type: "application/json" }));
-    }
+    void fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: payload,
+      credentials: "omit",
+      keepalive: true,
+      mode: "cors",
+    }).catch(() => {
+      // Non-fatal — telemetry failure must not affect the component.
+    });
   } catch {
-    // Non-fatal — beacon failure must not affect the component.
+    // Non-fatal — telemetry failure must not affect the component.
   }
 }
 export type VideoThumbnailProps = {
@@ -88,10 +99,20 @@ export function VideoThumbnail({
   fetchPriority = "auto",
   objectFit = "cover",
 }: VideoThumbnailProps) {
-  const [failed, setFailed] = useState(false);
-  const url = thumbnailUrl?.trim() || null;
+  const candidates = useMemo(
+    () => corpusThumbnailSrcCandidates(videoId, thumbnailUrl),
+    [videoId, thumbnailUrl],
+  );
+  const [candidateIndex, setCandidateIndex] = useState(0);
 
-  if (url && !failed) {
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [candidates]);
+
+  const url = candidates[candidateIndex] ?? null;
+  const exhausted = candidates.length === 0 || candidateIndex >= candidates.length;
+
+  if (url && !exhausted) {
     return (
       <img
         src={url}
@@ -100,8 +121,16 @@ export function VideoThumbnail({
         loading={loading}
         fetchPriority={fetchPriority}
         onError={() => {
-          setFailed(true);
-          _reportThumbnailFailure(videoId ?? undefined, url);
+          const nextIndex = candidateIndex + 1;
+          if (nextIndex < candidates.length) {
+            setCandidateIndex(nextIndex);
+            return;
+          }
+          setCandidateIndex(candidates.length);
+          _reportThumbnailFailure(
+            videoId ?? undefined,
+            candidates[0] ?? thumbnailUrl?.trim() ?? url,
+          );
         }}
       />
     );

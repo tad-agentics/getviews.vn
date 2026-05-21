@@ -72,6 +72,7 @@ function BreakoutTile({ v, idx }: { v: BreakoutVideo; idx: number }) {
         <div className={`absolute inset-0 transition-opacity duration-300 ${playing ? "opacity-0" : "opacity-100"}`}>
           <VideoThumbnail
             thumbnailUrl={v.thumbnail_url}
+            videoId={v.video_id}
             className="h-full w-full"
             placeholderClassName=""
           />

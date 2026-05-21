@@ -1,35 +1,25 @@
 /**
- * VideoThumbnail — failure beacon behaviour tests.
- *
- * Verifies that:
- * - The beacon fires once when an image fails to load.
- * - The beacon does NOT fire again for the same video_id (session dedup).
- * - A missing videoId still fires (no crash), just not de-duplicated.
- * - No beacon fires when thumbnailUrl is null / empty (placeholder, no img).
+ * VideoThumbnail — R2 fallback + failure telemetry tests.
  */
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VideoThumbnail } from "./VideoThumbnail";
 
-// ── Mocks ──────────────────────────────────────────────────────────────────
-
 vi.mock("@/lib/env", () => ({
   env: {
     VITE_SUPABASE_URL: "https://test.supabase.co",
     VITE_SUPABASE_PUBLISHABLE_KEY: "anon-key",
+    VITE_R2_PUBLIC_URL: "https://media.getviews.vn",
   },
 }));
 
-const mockSendBeacon = vi.fn().mockReturnValue(true);
-
-// ── Setup / Teardown ───────────────────────────────────────────────────────
+const mockFetch = vi.fn().mockResolvedValue({ ok: true });
 
 beforeEach(() => {
-  // Re-isolate the module-level _reported Set between tests by resetting modules.
   vi.resetModules();
-  vi.stubGlobal("navigator", { sendBeacon: mockSendBeacon });
-  mockSendBeacon.mockClear();
+  vi.stubGlobal("fetch", mockFetch);
+  mockFetch.mockClear();
 });
 
 afterEach(() => {
@@ -37,70 +27,88 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
 async function importComponent() {
   const mod = await import("./VideoThumbnail");
   return mod.VideoThumbnail;
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+function exhaustThumbnailErrors(container: HTMLElement): void {
+  for (let i = 0; i < 6; i += 1) {
+    const img = container.querySelector("img");
+    if (!img) break;
+    fireEvent.error(img);
+  }
+}
 
-describe("VideoThumbnail — thumbnail failure beacon", () => {
-  it("fires sendBeacon once when image fails to load", async () => {
+describe("VideoThumbnail", () => {
+  it("falls back to R2 after stale CDN URL fails", async () => {
     const VT = await importComponent();
     const { container } = render(
-      <VT thumbnailUrl="https://r2.test/thumb.png" videoId="vid-1" />
+      <VT thumbnailUrl="https://tiktok.cdn/stale.jpg" videoId="1234567890123456" />,
     );
     const img = container.querySelector("img")!;
+    expect(img.getAttribute("src")).toBe("https://tiktok.cdn/stale.jpg");
     fireEvent.error(img);
-    expect(mockSendBeacon).toHaveBeenCalledTimes(1);
-    const [url, blob] = mockSendBeacon.mock.calls[0];
-    expect(url).toContain("track-thumbnail-failure");
-    expect(blob).toBeInstanceOf(Blob);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://media.getviews.vn/thumbnails/1234567890123456.png",
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(0);
   });
 
-  it("does NOT fire beacon a second time for the same video_id on re-render", async () => {
+  it("fires fetch once after all candidates fail", async () => {
     const VT = await importComponent();
     const { container } = render(
-      <VT thumbnailUrl="https://r2.test/thumb.png" videoId="vid-2" />
+      <VT thumbnailUrl="https://r2.test/thumb.png" videoId="1234567890123456" />,
     );
-    const img = container.querySelector("img")!;
-    fireEvent.error(img);
-    expect(mockSendBeacon).toHaveBeenCalledTimes(1);
+    exhaustThumbnailErrors(container);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toContain("track-thumbnail-failure");
+    expect(init).toMatchObject({
+      method: "POST",
+      credentials: "omit",
+      keepalive: true,
+      mode: "cors",
+    });
+  });
 
-    // Reset call count; re-mount fresh component with same video_id.
-    // The module-level _reported Set is NOT reset between renders (only between
-    // vi.resetModules() calls in beforeEach). Within the same test, the Set persists.
-    mockSendBeacon.mockClear();
+  it("does NOT fire fetch a second time for the same video_id on re-render", async () => {
+    const VT = await importComponent();
+    const { container } = render(
+      <VT thumbnailUrl="https://r2.test/thumb.png" videoId="2234567890123456" />,
+    );
+    exhaustThumbnailErrors(container);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    mockFetch.mockClear();
     cleanup();
     const { container: c2 } = render(
-      <VT thumbnailUrl="https://r2.test/thumb3.png" videoId="vid-2" />
+      <VT thumbnailUrl="https://r2.test/thumb3.png" videoId="2234567890123456" />,
     );
-    const img2 = c2.querySelector("img")!;
-    fireEvent.error(img2);
-    expect(mockSendBeacon).toHaveBeenCalledTimes(0);
+    exhaustThumbnailErrors(c2);
+    expect(mockFetch).toHaveBeenCalledTimes(0);
   });
 
-  it("fires beacon even when videoId is not provided (no crash)", async () => {
+  it("fires fetch even when videoId is not provided (no crash)", async () => {
     const VT = await importComponent();
     const { container } = render(<VT thumbnailUrl="https://r2.test/thumb.png" />);
-    const img = container.querySelector("img")!;
-    fireEvent.error(img);
-    expect(mockSendBeacon).toHaveBeenCalledTimes(1);
+    exhaustThumbnailErrors(container);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("renders placeholder and does NOT fire beacon when thumbnailUrl is null", async () => {
+  it("uses R2 when thumbnailUrl is null but videoId is set", async () => {
     const VT = await importComponent();
-    render(<VT thumbnailUrl={null} videoId="vid-null" />);
-    expect(screen.queryByRole("img")).toBeNull();
-    expect(mockSendBeacon).toHaveBeenCalledTimes(0);
+    const { container } = render(<VT thumbnailUrl={null} videoId="3234567890123456" />);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://media.getviews.vn/thumbnails/3234567890123456.png",
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(0);
   });
 
-  it("renders placeholder and does NOT fire beacon when thumbnailUrl is empty string", async () => {
+  it("renders placeholder when thumbnailUrl and videoId are missing", async () => {
     const VT = await importComponent();
-    render(<VT thumbnailUrl="" videoId="vid-empty" />);
+    render(<VT thumbnailUrl={null} />);
     expect(screen.queryByRole("img")).toBeNull();
-    expect(mockSendBeacon).toHaveBeenCalledTimes(0);
+    expect(mockFetch).toHaveBeenCalledTimes(0);
   });
 });

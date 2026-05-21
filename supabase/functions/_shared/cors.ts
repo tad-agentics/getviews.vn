@@ -45,9 +45,11 @@ export function buildCorsHeaders(req: Request): Record<string, string> {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     Vary: "Origin",
   };
+  // Never set Allow-Credentials — our browser handlers use Authorization /
+  // apikey headers, not cookies. Credentials + Supabase gateway's default
+  // ACAO behaviour breaks sendBeacon / fetch from www.getviews.vn.
   if (origin && isAllowedOrigin(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
-    headers["Access-Control-Allow-Credentials"] = "true";
   }
   return headers;
 }

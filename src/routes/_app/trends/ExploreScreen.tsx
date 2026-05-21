@@ -213,6 +213,7 @@ function ExploreCorpusVideoModal({
                 >
                   <VideoThumbnail
                     thumbnailUrl={thumbUrl}
+                    videoId={video.video_id}
                     className="absolute inset-0 h-full w-full"
                     placeholderClassName=""
                   />
@@ -258,7 +259,6 @@ function VideoCard({
   onNavigate?: () => void;
   nicheLabel?: string;
 }) {
-  const [imgFailed, setImgFailed] = useState(false);
   const [hoverClip, setHoverClip] = useState(false);
   const clipRef = useRef<HTMLVideoElement>(null);
   const clipSrc = video.videoUrl?.trim() ?? "";
@@ -322,19 +322,16 @@ function VideoCard({
             aria-hidden
           />
         ) : null}
-        {!imgFailed ? (
-          <img
-            src={video.img}
-            alt=""
-            loading="lazy"
-            className={`absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-200 ease-out ${
-              hoverClip && canHoverClip ? "opacity-0" : "opacity-100"
-            }`}
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <div className="absolute inset-0 z-10 h-full w-full bg-[var(--surface-alt)]" />
-        )}
+        <VideoThumbnail
+          thumbnailUrl={video.img !== PLACEHOLDER_THUMB ? video.img : null}
+          videoId={video.video_id}
+          alt=""
+          loading="lazy"
+          className={`absolute inset-0 z-10 h-full w-full transition-opacity duration-200 ease-out ${
+            hoverClip && canHoverClip ? "opacity-0" : "opacity-100"
+          }`}
+          placeholderClassName="bg-[var(--surface-alt)]"
+        />
         <div className="pointer-events-none absolute inset-0 z-[15] bg-gradient-to-b from-transparent from-40% to-black/70" />
         {(showBreakout || showViral) && (
           <div className="absolute top-2 left-2 flex gap-1">

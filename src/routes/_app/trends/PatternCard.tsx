@@ -193,6 +193,7 @@ function CollageTile({ cell }: { cell: PatternVideo }) {
     <div className="relative flex-1 overflow-hidden bg-[color:var(--gv-canvas-2)]">
       <VideoThumbnail
         thumbnailUrl={cell.thumbnail_url}
+        videoId={cell.video_id}
         className="absolute inset-0 h-full w-full"
         placeholderClassName=""
       />

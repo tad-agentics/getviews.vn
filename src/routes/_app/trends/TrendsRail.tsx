@@ -166,6 +166,7 @@ function RailRow({ video }: { video: RailVideo }) {
         >
           <VideoThumbnail
             thumbnailUrl={video.thumbnail_url}
+            videoId={video.video_id}
             className="absolute inset-0 h-full w-full"
             loading="lazy"
             placeholderClassName={thumbPh.placeholderClassName}
