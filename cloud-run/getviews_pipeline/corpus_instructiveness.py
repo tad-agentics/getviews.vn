@@ -26,7 +26,14 @@ from getviews_pipeline.settings import settings
 
 logger = logging.getLogger(__name__)
 
-BreakoutSource = Literal["author_median", "niche_p50", "niche_avg_fallback", "none"]
+BreakoutSource = Literal[
+    "author_median",
+    "niche_p50",
+    "class_p50",
+    "niche_avg_fallback",
+    "class_avg_fallback",
+    "none",
+]
 
 _CJK_PATTERN = re.compile(r"[぀-ゟ゠-ヿ一-鿿가-힯]")
 
@@ -261,9 +268,11 @@ def _breakout_for_aweme(
         return round(views / float(med), 2), "author_median"
     ns, used_class = _stats_for_cohort(niche_id, content_class_id, ctx)
     if ns and ns.p50_views > 0:
-        return round(views / ns.p50_views, 2), "niche_p50" if not used_class else "niche_p50"
+        src: BreakoutSource = "class_p50" if used_class else "niche_p50"
+        return round(views / ns.p50_views, 2), src
     if ns and ns.organic_avg_views > 0 and ns.corpus_count >= 20:
-        return round(views / ns.organic_avg_views, 2), "niche_avg_fallback"
+        avg_src: BreakoutSource = "class_avg_fallback" if used_class else "niche_avg_fallback"
+        return round(views / ns.organic_avg_views, 2), avg_src
     return 0.0, "none"
 
 

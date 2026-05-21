@@ -42,6 +42,7 @@ from getviews_pipeline.config import (
 from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
 from getviews_pipeline.corpus_instructiveness import (
     IngestBatchContext,
+    _classify_creator_tier,
     corpus_ingest_mode,
     corpus_score_cohort,
     effective_videos_per_niche,
@@ -1256,20 +1257,6 @@ def _detect_dialect(transcript: str) -> str | None:
     if south >= 2 and north >= 2:
         return "mixed"
     return "southern" if south > north else "northern"
-
-
-def _classify_creator_tier(followers: int | None) -> str | None:
-    if not followers or followers < 0:
-        return None
-    if followers < 1_000:
-        return "nano"
-    if followers < 10_000:
-        return "micro"
-    if followers < 100_000:
-        return "mid"
-    if followers < 1_000_000:
-        return "macro"
-    return "mega"
 
 
 def _vietnam_hour(create_time: int | None) -> int | None:

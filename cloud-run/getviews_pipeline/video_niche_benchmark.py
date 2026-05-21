@@ -289,36 +289,37 @@ def fetch_video_benchmark_with_axis(
 ) -> tuple[dict[str, Any] | None, str]:
     """Pick the sharper benchmark row available, with axis label.
 
-    Tries ``content_class_intelligence`` first when ``content_class_id`` is
-    provided AND the row clears ``CONTENT_CLASS_BENCHMARK_MIN_SAMPLE``.
-    Falls back to ``niche_intelligence`` keyed on ``niche_id``.
+    When ``live_cohort_class_first`` is on: tier MV → class MV → niche fallback.
+    When off (legacy): niche first → class fallback. Each source is queried at
+    most once per call.
 
-    Returns ``(row, axis)`` where ``axis`` is ``"content_class"`` or
-    ``"niche"`` (or ``"none"`` when both queries miss). The axis flows
-    through ``VideoNicheMeta`` so the FE can render
-    "vs N similar-format videos" vs "vs N videos in your niche".
+    Returns ``(row, axis)`` where ``axis`` is ``"content_class"``,
+    ``"content_class_tier"``, or ``"niche"`` (or ``"none"`` when all miss).
     """
     class_first = settings.live_cohort_class_first
-    if class_first and content_class_id is not None and creator_tier:
-        tier_row = fetch_content_class_tier_intelligence_sync(
-            sb, content_class_id, creator_tier,
-        )
-        if tier_row is not None:
-            return tier_row, "content_class_tier"
-    if content_class_id is not None and (class_first or content_class_id):
-        cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
-        if cc_row is not None:
-            return cc_row, "content_class"
-    if niche_id and not class_first:
-        n_row = fetch_niche_intelligence_sync(sb, niche_id)
-        if n_row is not None:
-            return n_row, "niche"
-    if content_class_id is not None and not class_first:
-        cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
-        if cc_row is not None:
-            return cc_row, "content_class"
+    if class_first:
+        if content_class_id is not None and creator_tier:
+            tier_row = fetch_content_class_tier_intelligence_sync(
+                sb, content_class_id, creator_tier,
+            )
+            if tier_row is not None:
+                return tier_row, "content_class_tier"
+        if content_class_id is not None:
+            cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
+            if cc_row is not None:
+                return cc_row, "content_class"
+        if niche_id:
+            n_row = fetch_niche_intelligence_sync(sb, niche_id)
+            if n_row is not None:
+                return n_row, "niche"
+        return None, "none"
+
     if niche_id:
         n_row = fetch_niche_intelligence_sync(sb, niche_id)
         if n_row is not None:
             return n_row, "niche"
+    if content_class_id is not None:
+        cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
+        if cc_row is not None:
+            return cc_row, "content_class"
     return None, "none"

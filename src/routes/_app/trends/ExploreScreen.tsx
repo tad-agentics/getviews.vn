@@ -107,6 +107,16 @@ function formatDurationSeconds(sec: number | null | undefined): string | null {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** ``niche_intelligence`` MV shape varies by migration; prefer ``sample_size`` when ``video_count_7d`` absent. */
+function nicheCorpusSampleCount(intel: Record<string, unknown> | null | undefined): number {
+  if (!intel || typeof intel !== "object") return 0;
+  const v7 = intel.video_count_7d;
+  if (typeof v7 === "number" && Number.isFinite(v7)) return v7;
+  const ss = intel.sample_size;
+  if (typeof ss === "number" && Number.isFinite(ss)) return ss;
+  return 0;
+}
+
 function viWeekKicker(): string {
   const d = new Date();
   const w = getISOWeek(d);
@@ -648,19 +658,24 @@ export default function ExploreScreen() {
     [selectedCreatorNicheId],
   );
 
-  const { data: contentClassIds = [] } = useQuery({
+  const { data: contentClassIds = [], isPending: contentClassIdsLoading } = useQuery({
     queryKey: ["creator_niche_content_classes", selectedCreatorNicheId],
     queryFn: () => fetchContentClassIdsForCreatorNiche(selectedCreatorNicheId!),
     enabled: selectedCreatorNicheId != null,
     staleTime: 10 * 60_000,
   });
 
-  const { data: junctionIntel } = useContentClassIntelligence(contentClassIds);
+  const { data: junctionIntel, isPending: junctionIntelLoading } =
+    useContentClassIntelligence(contentClassIds);
   const junctionAggregateSample = junctionIntel?.aggregateSampleSize ?? 0;
 
   const { data: niches } = useCreatorNiches();
 
-  const { data: nicheIntel } = useNicheIntelligence(selectedNicheId);
+  const {
+    data: nicheIntel,
+    isPending: nicheIntelLoading,
+    isError: nicheIntelQueryError,
+  } = useNicheIntelligence(selectedNicheId);
 
   // T5 (D7) — seed the 100K+ view filter on first mount when the URL
   // doesn't already carry a ``?min_views=`` param. Design pack
@@ -692,11 +707,25 @@ export default function ExploreScreen() {
     [niches, selectedCreatorNicheId],
   );
 
+  const nicheIntelRecord = nicheIntel as Record<string, unknown> | null | undefined;
+  const nicheCorpusSample = nicheCorpusSampleCount(nicheIntelRecord);
+  const hasJunctionClasses = contentClassIds.length > 0;
+
   const lowVideoCorpus = Boolean(
     selectedCreatorNicheId != null &&
-      contentClassIds.length > 0 &&
-      junctionAggregateSample < 10,
+      !contentClassIdsLoading &&
+      (hasJunctionClasses
+        ? !junctionIntelLoading && junctionAggregateSample < 10
+        : selectedNicheId != null &&
+          !nicheIntelLoading &&
+          !nicheIntelQueryError &&
+          (nicheIntel == null || nicheCorpusSample < 10)),
   );
+
+  const thinCorpusSampleCount = hasJunctionClasses
+    ? junctionAggregateSample
+    : nicheCorpusSample;
+  const thinCorpusUsesClassCopy = hasJunctionClasses;
 
   const staleTimestamp = nicheIntel?.computed_at ?? null;
   const trendsDataFreshLabel = useMemo(() => {
@@ -951,7 +980,9 @@ export default function ExploreScreen() {
             <TrendingSoundsSection nicheId={selectedNicheId} className="mb-4 min-[1100px]:hidden" />
             {selectedNicheId !== null && lowVideoCorpus ? (
               <p className="mb-4 text-xs text-[var(--muted)]">
-                Ngách này mới có {junctionAggregateSample} video cùng format trong mẫu phân tích — dữ liệu chưa đầy đủ.
+                {thinCorpusUsesClassCopy
+                  ? `Ngách này mới có ${thinCorpusSampleCount} video cùng format trong mẫu phân tích — dữ liệu chưa đầy đủ.`
+                  : `Ngách này mới có ${thinCorpusSampleCount} video trong mẫu phân tích — dữ liệu chưa đầy đủ.`}
               </p>
             ) : null}
           </section>

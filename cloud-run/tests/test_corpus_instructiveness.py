@@ -6,6 +6,7 @@ from getviews_pipeline.corpus_boost_suspect import BoostPercentiles, classify_bo
 from getviews_pipeline.corpus_instructiveness import (
     IngestBatchContext,
     NicheViewStats,
+    _classify_creator_tier,
     apply_diversity_caps,
     compute_instructiveness_score,
     looks_like_non_vietnamese_caption,
@@ -147,3 +148,17 @@ def test_diversity_cap_per_creator():
         )
     selected = apply_diversity_caps(items, 5, max_per_creator=2, max_per_sound=5)
     assert len(selected) == 2
+
+
+def test_classify_creator_tier_zero_followers_is_nano():
+    assert _classify_creator_tier(0) == "nano"
+    assert _classify_creator_tier(None) is None
+    assert _classify_creator_tier(-1) is None
+
+
+def test_corpus_ingest_uses_shared_classify_creator_tier():
+    from getviews_pipeline.corpus_ingest import _classify_creator_tier as ingest_fn
+
+    assert ingest_fn is _classify_creator_tier
+    assert ingest_fn(0) == "nano"
+
