@@ -56,6 +56,8 @@ Keep this mapping for at least **30 days after PR6** (stability window). Longer 
 ## Part B — HI-11: Two-axis niche resolver (shadow → `route`)
 
 > **Plan cross-ref:** In the pipeline audit remediation plan, this work is also called **Phase 7 — Gemini-driven classification (HI-9 + HI-11)**.
+>
+> **Production (2026-05-17+):** `NICHE_RESOLVER_MODE=route` on batch + user pods. Code default if unset remains `shadow` (rollback path).
 
 **Scope:** Batch corpus ingest (`corpus_ingest.py`) chooses how `video_corpus.niche_id` and `content_class_id` are written when Gemini HI-9 `niche_classification` is present. This is **independent** of the PR1–PR6 column cutover above; migrations `20260516120000_video_corpus_niche_resolution_shadow.sql` and RPC `20260719000001_upsert_corpus_niche_resolution_shadow.sql` add shadow/telemetry columns.
 
@@ -63,7 +65,7 @@ Keep this mapping for at least **30 days after PR6** (stability window). Longer 
 
 | Piece | Location |
 |-------|-----------|
-| Env flag | `NICHE_RESOLVER_MODE=shadow\|route` (default **shadow** if unset/invalid) — `cloud-run/getviews_pipeline/config.py` |
+| Env flag | `NICHE_RESOLVER_MODE=shadow\|route` (code default **shadow** if unset/invalid; **prod: route**) — `cloud-run/getviews_pipeline/config.py` |
 | Shadow telemetry | `_niche_resolution_shadow_fields` — `corpus_ingest.py` |
 | Route override | `_route_niche_and_class_override` + `content_class_id_override` in `_build_corpus_row` — `corpus_ingest.py` |
 | Junction lookup | `junction_content_class.content_class_id_for_creator_niche_format` |

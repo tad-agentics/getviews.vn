@@ -1,5 +1,7 @@
 # Data Utilization Map V1 — GetViews.vn
 
+> **Pivot SSOT (2026-05-21+):** Cohort + browse runtime — [`system-design.md`](system-design.md) §9. Matrix below is pre-implement gate; several F6 rows still reference `niche_intelligence` bridge paths.
+
 **Version:** 1.0  
 **Last updated:** 2026-05-20  
 **Status:** Pre-implement gate — Wave 1 data architecture  

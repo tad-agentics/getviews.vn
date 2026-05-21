@@ -19,7 +19,7 @@
 | **Watchlist đối thủ + push alert** | — | Wave 2 |
 | **Douyin trend forecast** (lead-time productized) | — | Wave 2; V1 chỉ `TrendsDouyinCard` optional trên `/app/trends` |
 | **Passive FYP mirror / push feed** | — | Wave 2+ |
-| **Legacy `POST /channel/analyze`** | `video.py` | Corpus-only channel; cleanup candidate — V1 dùng `/channel/diagnose` only |
+| **Legacy `/channel/analyze`** | *(removed)* | Dropped migration `20260715000001`; V1+ uses **`POST /channel/diagnose`** only |
 | **Legacy chat sessions mới** | `chat_sessions`, `/api/chat` | V1: chỉ maintain `history_union` cho rows cũ |
 | **Answer follow-up (turn 2+)** | `POST /answer/sessions/{id}/turns`, `append_turn` | Sau `video_diagnosis`: pattern, timing, ideas, generic, creators, script…; TimelineRail |
 | **Composer — câu hỏi text** | `intent-router.ts`, `/api/chat` | Intents ⑤⑥⑦ + research Q&A; V1 composer = URL/@handle theo pill only |
@@ -350,7 +350,7 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 - `/app/video` deleted 2026-04-28 — render `VideoBody` inside answer sessions only
 - `chat_messages` / `chat_sessions` — still in `history_union`; no new product surface
 - `format_lifecycle` table — batch-populated; FE uses `format_lifecycle_optimize` intent → `answer:lifecycle`
-- `POST /channel/analyze` — legacy corpus-only channel endpoint (Phase 2 cleanup candidate)
+- `POST /channel/analyze` — **removed** (`20260715000001`); use `POST /channel/diagnose`
 
 ### Data freshness
 - **Pulse:** daily `as_of`

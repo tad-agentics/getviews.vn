@@ -1,5 +1,7 @@
 # GetViews — implementation plan (revised)
 
+> **Pivot SSOT (2026-05-21+):** Runtime ingest/browse flags — [`system-design.md`](system-design.md) §9. Wave ops steps citing `refresh_niche_intelligence()` are legacy-bridge unless flag re-enabled.
+
 **Version:** 2026-05-09 (incorporates creator-survey signal + reviewer feedback)
 **Supersedes:** earlier ad-hoc roadmap. Each wave below is self-contained with exit criteria.
 

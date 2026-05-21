@@ -1,4 +1,4 @@
-"""Video niche-benchmark, video analyze, KOL browse/pin, channel analyze, and channel diagnose routes."""
+"""Video niche-benchmark, video analyze, KOL browse/pin, and channel diagnose routes."""
 
 from __future__ import annotations
 

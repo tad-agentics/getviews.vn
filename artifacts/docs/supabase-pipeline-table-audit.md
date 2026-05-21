@@ -1,5 +1,7 @@
 # Supabase tables × GetViews pipeline audit
 
+> **Content-class pivot (runtime SSOT, 2026-05-21+):** [`system-design.md`](system-design.md) §9 · [`niche-taxonomy-ingest-ui-pipeline.md`](niche-taxonomy-ingest-ui-pipeline.md) §10. This audit may list bridge tables/MVs; trust SSOT for production flag defaults (`REFRESH_NICHE_INTELLIGENCE_MV=false`, etc.).
+
 **Scope.** “Pipeline” here means **Cloud Run** (`cloud-run/main.py` + `cloud-run/getviews_pipeline/**/*.py`) using the **Supabase Python client** (`client.table(...)`, `sb.rpc(...)`, service-role where noted). It does **not** claim full coverage of **SPA** (`src/**` direct Supabase), **Vercel `api/*.ts`**, or **Supabase Edge Functions** (`supabase/functions/**`) — those are summarized in a separate column where relevant.
 
 **Schema source.** `supabase/migrations/*.sql` (as of repo `main`). `niche_intelligence` is a **materialized view**, not a base table.
@@ -27,7 +29,7 @@
 | `answer_turns` | table | **R/W** | `answer_session.py` — append turns, stream finalize |
 | `anonymous_usage` | table | **—** | Landing IP gate per migrations; not referenced in `cloud-run/` Python |
 | `batch_failures` | table | **—** | Northstar / tech-spec; **no** `cloud-run` references |
-| `channel_formulas` | table | **R/W** | `channel_analyze.py` — read user context, service upsert |
+| `channel_formulas` | table | **DROPPED** | Removed `20260715000001_drop_channel_formulas.sql` — legacy `/channel/analyze` (superseded by `channel_diagnoses`) |
 | `chat_archival_audit` | table | **—** / **Edge** | Nightly archival: `supabase/functions/cron-chat-archival` |
 | `chat_messages` | table | **W** | `main.py`, `session_store.py`; **SPA/api** for chat UX |
 | `chat_sessions` | table | **—** / **Edge** / **SPA** | Legacy chat; archival Edge deletes; **not** Cloud Run batch |
@@ -44,12 +46,12 @@
 | `niche_candidates` | table | **R/W** | `layer0_hashtag.py` |
 | `niche_insights` | table | **R/W** | `layer0_niche.py`, `layer0_migration.py`, `pipelines.py` |
 | `niche_taxonomy` | table | **R/W** | Widespread: corpus, layer0, reports, `morning_ritual.py`, etc. |
-| `niche_intelligence` | **MV** | **R** + **refresh** | Read: `corpus_context.py`, `report_*_compute.py`, `video_niche_benchmark.py`, `script_data.py`, `main.py` niche fetch. **Refresh:** `corpus_ingest.py` → `rpc("refresh_niche_intelligence")` |
+| `niche_intelligence` | **MV** | **R** (refresh **off** in prod) | Read: `corpus_context.py`, `report_*_compute.py`, `video_niche_benchmark.py` (fallback), `script_data.py`, FE hooks. **Batch refresh skipped** when `REFRESH_NICHE_INTELLIGENCE_MV=false`; class MVs are canonical for new paths |
 | `processed_webhook_events` | table | **—** / **Edge** | `payos-webhook`, `cron-prune-webhooks` |
-| `profiles` | table | **R/W** | `main.py` (`is_processing`, `primary_niche`), `morning_ritual.py`, `kol_browse.py`, `channel_analyze.py` |
+| `profiles` | table | **R/W** | `main.py` (`is_processing`), `morning_ritual.py`, `kol_browse.py`, `channel_diagnose` flow |
 | `scene_intelligence` | table | **R/W** | `scene_intelligence_refresh.py`, `script_data.py` |
 | `signal_grades` | table | **R/W** | `signal_classifier.py`, `corpus_context.py` |
-| `starter_creators` | table | **R** | `main.py`, `channel_analyze.py`, `kol_browse.py` |
+| `starter_creators` | table | **R** | `main.py`, `channel_diagnose.py`, `kol_browse.py` |
 | `subscriptions` | table | **—** / **Edge** | `create-payment`, `cron-expiry-check` |
 | `trend_velocity` | table | **R/W** | `trend_velocity.py` |
 | `trending_cards` | table | **R** (+ **W** via **Edge**) | **No Cloud Run batch writer** (module removed 2026-05). **Edge** `cron-monday-email` (RPC `get_weekly_trend_summaries`, optional `meta_insight` update); historical migrations / niche merges may still reference the table. |
@@ -68,7 +70,7 @@
 |-----|---------|
 | `decrement_credit` | `main.py` |
 | `increment_free_query_count` | `main.py` |
-| `refresh_niche_intelligence` | `corpus_ingest.py` |
+| `refresh_niche_intelligence` | `corpus_ingest.py` — **skipped in prod** when `REFRESH_NICHE_INTELLIGENCE_MV=false` |
 | `toggle_reference_channel` | `main.py` (KOL pin flow) |
 
 ---
@@ -79,7 +81,7 @@
 2. **`anonymous_usage`** — Still in schema for anonymous funnel; **not** in Cloud Run grep; likely **Edge/landing only** or future path — confirm before relying on it in batch jobs.
 3. **`credit_transactions`** — Ledger consistency is **RPC/Edge + SPA**, not mirrored in `main.py` direct table writes; correct if design is “no client balance update without ledger row”.
 4. **`chat_sessions`** — Cloud Run comment says session tracking in Supabase; **Python** mostly touches `chat_messages` + archival is **Edge**. History/search SQL functions (`history_union`, `search_history_union`) read `chat_sessions` server-side — not `.table()` in Python.
-5. **`niche_intelligence`** — Single source of truth for norms; **stale MV** if ingest skips `refresh_niche_intelligence` after bulk upserts (see `corpus_ingest.py` flags).
+5. **`niche_intelligence`** — Legacy bridge MV; **intentionally stale in prod** when `REFRESH_NICHE_INTELLIGENCE_MV=false`. Class norms: `content_class_intelligence` + tier MV (still refreshed nightly).
 
 ---
 

@@ -15,7 +15,7 @@ Stack: React Router v7 (Vite) · Supabase (DB + Auth + RLS + Edge Functions) · 
 - **Backend:** Supabase is the sole backend. Frontend talks to Supabase directly via publishable key + JWT. RLS handles all authorization. No API routes in the frontend.
 - **Server logic — Edge Functions:** Webhooks (PayOS payment confirmation), cron (expiry check, free query reset, webhook prune, stale processing guard), email (Resend via `send-email` Edge Function), PayOS payment creation.
 - **Server logic — Cloud Run (Python):** Video analysis pipeline (Intents ①③④ — avoids Vercel 60s timeout). Streams SSE directly to client. JWT-validated against `SUPABASE_JWT_SECRET`. Two services: user-facing (`min-instances: 1`, `/stream` SSE endpoint + `/channel/diagnose` SSE endpoint) + batch (`min-instances: 0`, daily 4 AM ICT indexer).
-  - `/channel/diagnose` is the **narrative** channel endpoint (Lightreel-style, 3 credits, 7-day cache, live EnsembleData + corpus hybrid). `/channel/analyze` is the **legacy** corpus-only endpoint — queued for Phase 2 cleanup (≥7 days post-cutover, separate PR).
+  - `/channel/diagnose` is the **narrative** channel endpoint (Lightreel-style, 3 credits, 7-day cache, live EnsembleData + corpus hybrid). Legacy `/channel/analyze` was **removed** (migration `20260715000001`).
 - **Text intents:** Intents ⑤⑥⑦ + follow-ups route through Vercel Edge Runtime (`/api/chat`). Gemini API call, stream via Vercel Edge.
 - **Design:** Tracked reference in `artifacts/uiux-reference/` (shell + screens + tokens file). Production screens live under `src/routes/` with hooks, auth, and states. Optional gitignored `src/make-import/` only if pasting a legacy Figma Make dump.
 

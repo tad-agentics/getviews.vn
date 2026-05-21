@@ -1,5 +1,7 @@
 # Corpus ingest selection criteria — v1
 
+> **Pivot SSOT (2026-05-21+):** Score cohort + ingest loop defaults — [`system-design.md`](system-design.md) §9 · §12.1 below describes selection tiers; class-keyed scoring is **production default** (`CORPUS_SCORE_COHORT=class`).
+
 **Status:** Approved for implementation (Phase 0)  
 **Last updated:** 2026-05-20  
 **Architecture summary:** [`system-design.md`](system-design.md) §12.1  
@@ -162,7 +164,7 @@ Optional: `CORPUS_SOUND_ORGANIC_BONUS=1` adds +1 within cap when `is_original_so
 
 ## 6. Boost-suspect heuristic
 
-Pre-Phase 5: percentiles from `niche_intelligence`; thin = `sample_size < 50` → **global** trailing-90d corpus percentiles (no `reference_eligible` filter).
+Pre-Phase 5: percentiles from `niche_intelligence` (legacy; MV refresh **off** in prod since Phase 4 — prefer class MV where wired); thin = `sample_size < 50` → **global** trailing-90d corpus percentiles (no `reference_eligible` filter).
 
 **`suspect_medium` when:**
 

@@ -815,14 +815,16 @@ Mandatory LLM sections: **verdict** + **recommendations** — fallback to raw pr
 - **Components**: `ScoreCard`, `HashtagInsightsBlock`, `NextVideoCard`, `SectionRenderer`, `VideoTileRow`, `CreatorTileRow`, `NumberedRecommendation` (hero / anti grouping), `StepProgress`, `ProvenanceLine` under `src/routes/_app/channel/components/`.
 - **Screen**: `ChannelScreen.tsx` — score card skeleton until `score_card` arrives; thin-corpus disclaimer when `peer_source === "thin"` (or legacy `niche_thin` in old payloads).
 
-### Phase 2 cleanup (deferred)
+### Phase 2 cleanup — **DONE** (2026-07-15)
 
-When `channel_diagnose` is stable (≥7 days), a separate PR deletes:
-- `channel_analyze.py` + `/channel/analyze` Cloud Run route
-- `useChannelAnalyze.ts` + `ChannelAnalyzeResponse` type
-- `ConnectChannelCard.tsx` + 5 home `Channel*Block` components
-- `DROP TABLE channel_formulas` + `DROP FUNCTION channel_corpus_stats`
-- (KEEP `niche_channel_benchmarks` — still used by `channel_diagnose`)
+Removed in migration `20260715000001_drop_channel_formulas.sql` + codebase cleanup:
+
+- ~~`channel_analyze.py` + `/channel/analyze`~~ — deleted
+- ~~`useChannelAnalyze.ts` + `ChannelAnalyzeResponse`~~ — deleted
+- ~~`ConnectChannelCard.tsx` + home `Channel*Block` components~~ — deleted
+- `DROP TABLE channel_formulas` + `DROP FUNCTION channel_corpus_stats` — applied
+
+**Kept:** `niche_channel_benchmarks` RPC + `content_class_channel_benchmarks` — used by `channel_diagnose`.
 
 ---
 

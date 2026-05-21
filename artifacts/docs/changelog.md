@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — Docs housekeeping Round A (pivot SSOT sync)
+
+- **SSOT banners** on 10 secondary docs → link `system-design.md` §9 + `niche-taxonomy-ingest-ui-pipeline.md` §10.
+- **Stale fixes:** `supabase-pipeline-table-audit` (dropped `channel_formulas`, niche MV refresh off), `feature-map-v1` launch gates, `feature-map` `/channel/analyze` removed, `system-design` Phase 2 cleanup marked DONE, HI-11 runbook prod `route`, `project.mdc` channel endpoint.
+- **Code smell (no behavior change):** `routers/video.py` module docstring — drop deleted `/channel/analyze` reference.
+
 ## 2026-05-21 — Docs: pivot production state sync
 
 - **`system-design.md` §9 + §12.1:** HI-11 prod `route`; browse/thin-banner defaults; full pivot env stack + rollback; class loop default on.

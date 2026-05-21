@@ -1,5 +1,7 @@
 # Corpus Gemini Utilization Audit
 
+> **Pivot SSOT (2026-05-21+):** Ingest loop + class cohort — [`system-design.md`](system-design.md) §9. §9 structural evaluation unchanged; batch now loops `content_class_ingest_targets` by default.
+
 **Last updated:** 2026-05-19 (§9 pipeline + §10 Gemini config & extraction prompt)  
 **Status:** Audit complete — §9 adds structural evaluation; implementation scope unchanged unless noted.  
 **Related:** [`feature-map-v1.md`](feature-map-v1.md) §8.6–§8.8 (pre-launch gate) · [`data-utilization-map-v1.md`](data-utilization-map-v1.md) (FIELD × F1–F8) · [`feature-map.md`](feature-map.md) (routes/jobs) · [`system-design.md`](system-design.md) §6 HI-13, §10 TD-7 · embedded tiles out of scope (answer `video_diagnostics` path).

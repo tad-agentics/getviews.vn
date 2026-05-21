@@ -1,5 +1,7 @@
 # content_format Taxonomy Expansion — Design Spec
 
+> **Pivot note:** Post-backfill MV refresh in this doc assumes `refresh_niche_intelligence()` — production batch skips that RPC when `REFRESH_NICHE_INTELLIGENCE_MV=false`; run manually if legacy MV still needed.
+
 **Status:** Wave 5+ design-doc commit (a): scaffold.
 **Audience:** engineering (to implement if greenlit) + reviewers.
 **Related:** `artifacts/docs/implementation-plan.md` Wave 5+, the

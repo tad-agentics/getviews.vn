@@ -1,5 +1,7 @@
 # Template PRD — `diagnostic`
 
+> **Bridge note:** Benchmark sources may still cite `niche_intelligence` in this spec; production diagnosis uses class cohorts per [`system-design.md`](system-design.md) §9.
+
 **Owner:** unassigned · **Status:** spec'd, not implemented · **Created:** 2026-04-22
 
 ## Purpose

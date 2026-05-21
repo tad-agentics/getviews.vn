@@ -3,7 +3,9 @@
 **Version:** 2.0 — **FINAL (GTM scope)**  
 **Last updated:** 2026-05-19  
 **Codebase ref:** `dc8c675`  
-**Status:** Product vision **đã chốt** cho launch — lược giản so với as-built; **freeze UI** hai surface browse (Studio gợi ý + Xu hướng công thức/kho); phần còn lại = build/align (video depth, billing, handoff)  
+**Status:** Product vision **đã chốt** cho launch — lược giản so với as-built; **freeze UI** hai surface browse (Studio gợi ý + Xu hướng công thức/kho); phần còn lại = build/align (video depth, billing, handoff)
+
+> **Pivot SSOT (2026-05-21+):** Production ingest/browse/benchmark defaults — [`system-design.md`](system-design.md) §9. Launch gate rows below may cite legacy `niche_intelligence`; class MVs are canonical for new ingest.
 
 **Related docs:**
 
@@ -1129,7 +1131,7 @@ Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map
 | **Xu hướng — Công thức** | F6 | `video_patterns` | Mỗi **ngách hero** ≥ 1 pattern có mechanism + ví dụ; không card rỗng |
 | **Xu hướng — Kho** | F6 | `video_corpus` promote cols | Filter/search; `ConfidenceStrip` đúng tier §8.3 |
 | **Studio — Gợi ý** | STU | `daily_ritual`, `hook_effectiveness`, breakout | Cron `morning-ritual` OK; preview tier I–III trên staging |
-| **Hook / format chips** | F6/STU | `hook_effectiveness`, `content_class_hook_effectiveness`, `content_class_intelligence` | Thin → copy khiêm tốn; legacy `niche_intelligence` bridge until `REFRESH_NICHE_INTELLIGENCE_MV=false` |
+| **Hook / format chips** | F6/STU | `hook_effectiveness`, `content_class_hook_effectiveness`, `content_class_intelligence` | Thin → copy khiêm tốn; **`content_class_intelligence`** primary; `niche_intelligence` bridge only (MV refresh off in prod) |
 
 #### Tầng 2 — Aggregate từ corpus (Gemini **rẻ** hơn vision — tận dụng blob)
 
@@ -1137,8 +1139,8 @@ Chạy / verify nightly (F8 BAT) — **không** tăng `video_extraction`:
 
 - `hook_effectiveness` refresh  
 - `video_patterns` / pattern-deck synth  
-- `niche_intelligence` MV  
-- `scene_intelligence` (F7 demo)  
+- `content_class_intelligence` + tier MV refresh (canonical); `niche_intelligence` refresh **skipped** in prod  
+- `scene_intelligence` (F7 demo)
 - `daily_ritual` seed (demo accounts nếu cần screenshot launch)
 
 #### Tầng 3 — Launch story = data contract

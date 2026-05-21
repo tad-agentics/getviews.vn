@@ -1,5 +1,7 @@
 # Screen Specs — GetViews.vn v1
 
+> **Archive context:** Pre-pivot screen spec (2026-04). Runtime browse/diagnosis defaults — [`system-design.md`](system-design.md) §9.
+
 **App:** GetViews.vn — Vietnamese TikTok creative intelligence chat tool  
 **Date:** 2026-04-08  
 **Deployment:** PWA (React Router v7 + Vite + Vercel)  
