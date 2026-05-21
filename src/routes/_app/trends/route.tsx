@@ -1,22 +1,20 @@
 import { lazy, Suspense } from "react";
 import type { MetaFunction } from "react-router";
+import { RouteScreenFallback } from "@/components/RouteScreenFallback";
 import { pageMeta } from "@/lib/pageTitle";
 
 export const meta: MetaFunction = () => pageMeta("Xu hướng");
+
+/** Shown while the route module / ExploreScreen chunk loads (silences RR dev hint). */
+export function HydrateFallback() {
+  return <RouteScreenFallback />;
+}
 
 const ExploreScreen = lazy(() => import("./ExploreScreen"));
 
 export default function TrendsRoute() {
   return (
-    <Suspense
-      fallback={
-        <div
-          role="status"
-          aria-label="Đang tải"
-          className="min-h-[40vh] flex-1 animate-pulse rounded-lg bg-[var(--surface-alt)]"
-        />
-      }
-    >
+    <Suspense fallback={<RouteScreenFallback />}>
       <ExploreScreen />
     </Suspense>
   );
