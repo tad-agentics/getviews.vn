@@ -72,6 +72,20 @@ Keep this mapping for at least **30 days after PR6** (stability window). Longer 
 - **`shadow`:** Hashtag resolver stays canonical for `niche_id` / ladder-filled `content_class_id`. Rows still get `niche_resolution_source`, `niche_resolution_confidence`, `inferred_creator_niche_id` for observability. Cloud Logging: `niche shadow disagree` when Gemini’s legacy niche would differ from the hashtag pick.
 - **`route`:** If confidence ≥ 0.6, slug maps to a creator niche, `junction_has_pair` passes, and junction returns a row → write **representative legacy** `niche_id` and **junction** `content_class_id` (ladder bypassed for that row). Otherwise same as hashtag path.
 
+### Phase 1b — Rolling automated eval (replaces one-time golden 100)
+
+Nightly after batch post-processing: `hi11_rolling_eval.py` samples recent `video_corpus` rows and writes `artifacts/qa-reports/hi11-rolling-eval.json`.
+
+| Metric | Promote threshold (7-night rolling median) |
+|--------|---------------------------------------------|
+| Hashtag class map agreement | ≥ **85%** |
+| Junction miss (conf ≥ 0.6) | ≤ **5%** |
+| Hook-type outlier vs class MV | ≤ **10%** |
+
+**Blocks** promoting `CORPUS_SCORE_COHORT=class` until green. CI smoke: frozen 27-row seed in `eval_classifier.py`.
+
+**Cold-start:** HI-11 eval runs regardless; class-first live benchmark stays behind `LIVE_COHORT_CLASS_FIRST=false` until Phase 2 promote.
+
 ### Phase 1 — Shadow observation (calendar: 3–7 days)
 
 1. Confirm **batch** Cloud Run has `NICHE_RESOLVER_MODE=shadow` (or unset). User pod only matters if it ever batch-writes `video_corpus` with the same path — keep aligned with batch.

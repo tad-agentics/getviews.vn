@@ -119,6 +119,8 @@ export interface VideoNicheMeta {
    * responses didn't carry this; default to ``"niche"`` semantics in the FE.
    */
   benchmark_axis?: "content_class" | "niche" | "none";
+  /** Optional BE cohort label (e.g. content class display name). */
+  cohort_label?: string | null;
   /** Niche / content-class MV — for server-side bright-spot ER percentile. */
   median_er?: number;
   avg_engagement_rate?: number;
@@ -1502,6 +1504,8 @@ export interface ChannelScoreCardData {
   niche_p50: number;
   niche_p75: number;
   category_label: string;
+  /** Two-axis — when ``content_class``, percentile row uses format cohort copy. */
+  benchmark_axis?: "content_class" | "niche" | "none";
   peak_views: number;
   peak_date_iso: string | null;
   peak_age_months: number | null;

@@ -65,12 +65,35 @@ class NicheViewStats:
 
 
 @dataclass
+class ContentClassViewStats:
+    content_class_id: int
+    p50_views: float = 0.0
+    p75_views: float = 0.0
+    p50_comment_rate: float = 0.0
+    p50_save_rate: float = 0.0
+    save_rate_row_count: int = 0
+    corpus_count: int = 0
+    organic_avg_views: float = 0.0
+
+
+@dataclass
+class ContentClassTierViewStats:
+    content_class_id: int
+    creator_tier: str
+    p50_views: float = 0.0
+    corpus_count: int = 0
+
+
+@dataclass
 class IngestBatchContext:
     """Prefetched stats for one batch night."""
 
     niche_stats: dict[int, NicheViewStats] = field(default_factory=dict)
+    class_stats: dict[int, ContentClassViewStats] = field(default_factory=dict)
+    class_tier_stats: dict[tuple[int, str], ContentClassTierViewStats] = field(default_factory=dict)
     global_boost: BoostPercentiles = field(default_factory=BoostPercentiles)
     niche_boost: dict[int, BoostPercentiles] = field(default_factory=dict)
+    class_boost: dict[int, BoostPercentiles] = field(default_factory=dict)
     sound_momentum: dict[int, dict[str, str]] = field(default_factory=dict)
     author_median_cache: dict[str, int | None] = field(default_factory=dict)
     missing_median_count: int = 0
@@ -98,6 +121,32 @@ def corpus_ingest_mode() -> str:
     if mode not in ("legacy", "shadow", "purity"):
         return "legacy"
     return mode
+
+
+def corpus_score_cohort() -> str:
+    """legacy | class_shadow | class — class_shadow scores on class, persists legacy."""
+    mode = (settings.corpus_score_cohort or "legacy").strip().lower()
+    if mode not in ("legacy", "class_shadow", "class"):
+        return "legacy"
+    return mode
+
+
+def use_class_score_cohort() -> bool:
+    return corpus_score_cohort() in ("class_shadow", "class")
+
+
+def predict_content_class_pre_score(
+    aweme: dict[str, Any],
+    *,
+    loop_niche_id: int,
+) -> int | None:
+    """Heuristic pre-score class from loop niche + content type (Phase 2 hook)."""
+    from getviews_pipeline import ensemble
+    from getviews_pipeline.corpus_ingest import _content_class_for
+
+    ctype = ensemble.detect_content_type(aweme)
+    fmt = "carousel" if ctype == "carousel" else "talking_head"
+    return _content_class_for(loop_niche_id, fmt)
 
 
 def pre_pool_min_views(mode: str | None = None) -> int:
@@ -186,18 +235,33 @@ def _author_median(aweme: dict[str, Any], ctx: IngestBatchContext) -> tuple[int 
     return med, "author_median"
 
 
+def _stats_for_cohort(
+    niche_id: int,
+    content_class_id: int | None,
+    ctx: IngestBatchContext,
+) -> tuple[NicheViewStats | ContentClassViewStats | None, bool]:
+    """Return (stats, used_class_axis)."""
+    if use_class_score_cohort() and content_class_id is not None:
+        cs = ctx.class_stats.get(content_class_id)
+        if cs and cs.p50_views > 0:
+            return cs, True
+    return ctx.niche_stats.get(niche_id), False
+
+
 def _breakout_for_aweme(
     aweme: dict[str, Any],
     views: int,
     niche_id: int,
     ctx: IngestBatchContext,
+    *,
+    content_class_id: int | None = None,
 ) -> tuple[float, BreakoutSource]:
     med, src = _author_median(aweme, ctx)
     if med and med > 0:
         return round(views / float(med), 2), "author_median"
-    ns = ctx.niche_stats.get(niche_id)
+    ns, used_class = _stats_for_cohort(niche_id, content_class_id, ctx)
     if ns and ns.p50_views > 0:
-        return round(views / ns.p50_views, 2), "niche_p50"
+        return round(views / ns.p50_views, 2), "niche_p50" if not used_class else "niche_p50"
     if ns and ns.organic_avg_views > 0 and ns.corpus_count >= 20:
         return round(views / ns.organic_avg_views, 2), "niche_avg_fallback"
     return 0.0, "none"
@@ -266,14 +330,25 @@ def compute_instructiveness_score(
     ctx: IngestBatchContext,
     relaxation_tier: int = 0,
     hook_type_counts: dict[str, int] | None = None,
+    content_class_id: int | None = None,
 ) -> CandidateScore:
     hook_type_counts = hook_type_counts or {}
-    breakout, breakout_source = _breakout_for_aweme(aweme, views, niche_id, ctx)
+    score_cc = content_class_id
+    if score_cc is None and use_class_score_cohort():
+        score_cc = aweme.get("_ingest_loop_content_class_id")
+        if score_cc is not None:
+            try:
+                score_cc = int(score_cc)
+            except (TypeError, ValueError):
+                score_cc = None
+    breakout, breakout_source = _breakout_for_aweme(
+        aweme, views, niche_id, ctx, content_class_id=score_cc,
+    )
     vel = velocity_score(aweme)
     missing_median = breakout_source != "author_median"
     vel_weight = 25.0 if missing_median else 15.0
 
-    ns = ctx.niche_stats.get(niche_id)
+    ns, _ = _stats_for_cohort(niche_id, score_cc, ctx)
     comment_rate = (comments / views) if views > 0 else 0.0
     save_norm = 0.0
     comment_norm = 0.0
@@ -319,7 +394,10 @@ def compute_instructiveness_score(
             score -= settings.corpus_hook_predict_penalty
             hook_penalty = True
 
-    pct = ctx.niche_boost.get(niche_id) or ctx.global_boost
+    if use_class_score_cohort() and score_cc is not None:
+        pct = ctx.class_boost.get(score_cc) or ctx.niche_boost.get(niche_id) or ctx.global_boost
+    else:
+        pct = ctx.niche_boost.get(niche_id) or ctx.global_boost
     boost = classify_boost_suspect(
         views=views,
         er=er,
@@ -351,6 +429,7 @@ def compute_instructiveness_score(
         ctx=ctx,
         signal_hashtags=signal_hashtags,
         relaxation_tier=relaxation_tier,
+        content_class_id=score_cc,
     )
 
     return CandidateScore(
@@ -426,6 +505,7 @@ def _convergence_pass(
     ctx: IngestBatchContext,
     signal_hashtags: list[str],
     relaxation_tier: int,
+    content_class_id: int | None = None,
 ) -> bool:
     min_gates = (
         settings.corpus_convergence_relaxed_min_gates
@@ -435,7 +515,7 @@ def _convergence_pass(
     gates = 0
     if breakout >= 2.0 or velocity >= settings.corpus_velocity_gate_min:
         gates += 1
-    ns = ctx.niche_stats.get(niche_id)
+    ns, _ = _stats_for_cohort(niche_id, content_class_id, ctx)
     if ns and ns.p50_comment_rate > 0 and comment_rate >= ns.p50_comment_rate:
         gates += 1
     elif save_rate is not None and save_rate > 0:
@@ -512,6 +592,15 @@ def select_purity_candidates(
                 comments=comments,
                 shares=shares,
             )
+            pre_cc = aweme.get("_ingest_loop_content_class_id")
+            try:
+                pre_cc_i = int(pre_cc) if pre_cc is not None else None
+            except (TypeError, ValueError):
+                pre_cc_i = None
+            if pre_cc_i is None and use_class_score_cohort():
+                pre_cc_i = predict_content_class_pre_score(aweme, loop_niche_id=niche_id)
+                if pre_cc_i is not None:
+                    aweme["_ingest_loop_content_class_id"] = pre_cc_i
             cs = compute_instructiveness_score(
                 aweme,
                 niche_id=niche_id,
@@ -523,6 +612,7 @@ def select_purity_candidates(
                 ctx=ctx,
                 relaxation_tier=relax,
                 hook_type_counts=hook_counts,
+                content_class_id=pre_cc_i,
             )
             if cs.predicted_hook:
                 hook_counts[cs.predicted_hook] = hook_counts.get(cs.predicted_hook, 0) + 1
@@ -597,10 +687,13 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
     """Load niche p50/p75, boost percentiles, sound momentum for batch night."""
     ctx = IngestBatchContext()
     since = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+    select_cols = (
+        "niche_id, content_class_id, creator_tier, views, comments, save_rate, engagement_rate"
+    )
     try:
         rows = (
             client.table("video_corpus")
-            .select("niche_id, views, comments, save_rate, engagement_rate")
+            .select(select_cols)
             .gte("indexed_at", since)
             .eq("language", "vi")
             .limit(50_000)
@@ -613,6 +706,8 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
         rows = []
 
     by_niche: dict[int, list[dict[str, Any]]] = {}
+    by_class: dict[int, list[dict[str, Any]]] = {}
+    by_class_tier: dict[tuple[int, str], list[dict[str, Any]]] = {}
     all_views: list[float] = []
     all_comment_rates: list[float] = []
     all_er: list[float] = []
@@ -622,6 +717,13 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
             continue
         nid = int(nid)
         by_niche.setdefault(nid, []).append(row)
+        cc = row.get("content_class_id")
+        if cc is not None:
+            cc_id = int(cc)
+            by_class.setdefault(cc_id, []).append(row)
+            tier = row.get("creator_tier")
+            if tier:
+                by_class_tier.setdefault((cc_id, str(tier)), []).append(row)
         v = float(row.get("views") or 0)
         if v > 0:
             all_views.append(v)
@@ -696,6 +798,52 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
                 thin=pct.thin,
             )
         ctx.niche_boost[nid] = pct
+
+    for cc_id, crows in by_class.items():
+        views = [float(r.get("views") or 0) for r in crows if float(r.get("views") or 0) > 0]
+        comment_rates = []
+        save_rates = []
+        save_count = 0
+        for r in crows:
+            v = float(r.get("views") or 0)
+            if v > 0:
+                comment_rates.append(float(r.get("comments") or 0) / v)
+            sr = r.get("save_rate")
+            if sr is not None:
+                save_count += 1
+                save_rates.append(float(sr))
+        avg_views = sum(views) / len(views) if views else 0.0
+        ctx.class_stats[cc_id] = ContentClassViewStats(
+            content_class_id=cc_id,
+            p50_views=_pct(views, 0.50),
+            p75_views=_pct(views, 0.75),
+            p50_comment_rate=_pct(comment_rates, 0.50),
+            p50_save_rate=_pct(save_rates, 0.50),
+            save_rate_row_count=save_count,
+            corpus_count=len(crows),
+            organic_avg_views=avg_views,
+        )
+        cs = ctx.class_stats[cc_id]
+        pct = BoostPercentiles(
+            sample_size=len(crows),
+            p10_comment_rate=ctx.global_boost.p10_comment_rate,
+            p25_er=ctx.global_boost.p25_er,
+            p75_views=cs.p75_views or ctx.global_boost.p75_views,
+            p90_views=max(cs.p75_views * 1.5, ctx.global_boost.p90_views),
+            thin=len(crows) < 15,
+        )
+        if pct.thin:
+            pct = ctx.global_boost
+        ctx.class_boost[cc_id] = pct
+
+    for (cc_id, tier), trows in by_class_tier.items():
+        views = [float(r.get("views") or 0) for r in trows if float(r.get("views") or 0) > 0]
+        ctx.class_tier_stats[(cc_id, tier)] = ContentClassTierViewStats(
+            content_class_id=cc_id,
+            creator_tier=tier,
+            p50_views=_pct(views, 0.50),
+            corpus_count=len(trows),
+        )
 
     week_start = datetime.now(UTC).date() - timedelta(days=datetime.now(UTC).weekday())
     for nid in niche_ids:

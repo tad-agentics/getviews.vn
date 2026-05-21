@@ -43,11 +43,14 @@ from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_ove
 from getviews_pipeline.corpus_instructiveness import (
     IngestBatchContext,
     corpus_ingest_mode,
+    corpus_score_cohort,
     effective_videos_per_niche,
     post_extract_should_reject,
+    predict_content_class_pre_score,
     pre_pool_min_views,
     prefetch_ingest_batch_context,
     select_purity_candidates,
+    use_class_score_cohort,
 )
 from getviews_pipeline.corpus_boost_suspect import classify_boost_suspect
 from getviews_pipeline.settings import settings as _ingest_settings
@@ -215,6 +218,40 @@ def _pick_hashtags_for_pool_fetch(
     return tags[:limit]
 
 
+def _discovery_relax_effective(niche: dict[str, Any]) -> bool:
+    """Env flag OR ACQE Thin/Dormant tier on the ingest target."""
+    if _ingest_settings.corpus_discovery_relax:
+        return True
+    return niche.get("_viability_tier") in ("Thin", "Dormant")
+
+
+def _resolve_pool_hashtags(
+    niche: dict[str, Any],
+    yields: dict[str, int],
+    ht_limit: int,
+    client: Any | None,
+) -> list[str]:
+    """Class map v2 first, then yield-ranked trim (Thin → top 25 tags)."""
+    loop_cc = niche.get("_loop_content_class_id")
+    thin = _discovery_relax_effective(niche)
+    signal = niche.get("signal_hashtags") or []
+    if loop_cc is not None and client is not None:
+        from getviews_pipeline.hashtag_class_map import (
+            fetch_map_hashtags_for_class_sync,
+            pick_hashtags_for_class,
+        )
+
+        extra = fetch_map_hashtags_for_class_sync(
+            client, int(loop_cc), limit=25 if thin else 15,
+        )
+        merged = pick_hashtags_for_class(signal, thin=thin, extra_from_map=extra)
+        effective_limit = 25 if thin else min(ht_limit, 15)
+        if thin and effective_limit < ADAPTIVE_HASHTAG_MIN_FETCH:
+            effective_limit = ADAPTIVE_HASHTAG_MIN_FETCH
+        return _pick_hashtags_for_pool_fetch(merged, yields, effective_limit)
+    return _pick_hashtags_for_pool_fetch(signal, yields, ht_limit)
+
+
 # ── Result containers ───────────────────────────────────────────────────────────
 
 @dataclass
@@ -247,6 +284,8 @@ class BatchSummary:
     aborted_early: bool = False
     niches_remaining: int = 0
     ingest_mode: str = "legacy"
+    score_cohort: str = "legacy"
+    ingest_loop: str = "niche"
     shadow_metrics: dict[str, Any] = field(default_factory=dict)
 
 
@@ -475,19 +514,17 @@ async def _fetch_niche_pool(
     *,
     keyword_pages: int | None = None,
     hashtag_yields: dict[str, int] | None = None,
+    client: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch posts for a niche via keyword search (paginated) + all signal hashtags, merged + deduped."""
     term = (niche.get("name_en") or "").strip()
-    hashtags: list[str] = niche.get("signal_hashtags") or []
 
     # Keyword search: paginated — broadens pool beyond a single page of ~20 posts
     keyword_task = _fetch_keyword_pages(term, max_pages=keyword_pages)
-    # Cap hashtag fetch calls; order by recent ingest yield when RPC data exists.
+    # Cap hashtag fetch calls; class map v2 first, then yield-ranked trim.
     yields = hashtag_yields or {}
     ht_limit = _hashtag_fetch_limit_for_niche(int(niche["id"]))
-    fetch_hashtags = _pick_hashtags_for_pool_fetch(
-        hashtags, yields, ht_limit
-    )
+    fetch_hashtags = _resolve_pool_hashtags(niche, yields, ht_limit, client)
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
         for ht in fetch_hashtags
@@ -519,6 +556,7 @@ async def _fetch_carousel_pool(
     niche: dict[str, Any],
     *,
     hashtag_yields: dict[str, int] | None = None,
+    client: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch carousel posts (aweme_type=2) for a niche from signal hashtag feeds.
 
@@ -536,13 +574,11 @@ async def _fetch_carousel_pool(
     0 carousels we call ``fetch_post_multi_info`` on the pool IDs (in chunks) to
     get full detail objects that include ``image_post_info``, then re-filter.
     """
-    hashtags: list[str] = niche.get("signal_hashtags") or []
-    if not hashtags:
-        return []
-
     yields = hashtag_yields or {}
     ht_limit = _hashtag_fetch_limit_for_niche(int(niche["id"]))
-    fetch_hashtags = _pick_hashtags_for_pool_fetch(hashtags, yields, ht_limit)
+    fetch_hashtags = _resolve_pool_hashtags(niche, yields, ht_limit, client)
+    if not fetch_hashtags:
+        return []
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
         for ht in fetch_hashtags
@@ -1683,6 +1719,18 @@ def _build_corpus_row(
     _shadow_nid = (
         shadow_resolver_niche_id if shadow_resolver_niche_id is not None else niche_id
     )
+    _final_cc = (
+        content_class_id_override
+        if content_class_id_override is not None
+        else _content_class_for(niche_id, _format)
+    )
+    _loop_cc = aweme.get("_ingest_loop_content_class_id")
+    _cohort_mismatch = bool(
+        use_class_score_cohort()
+        and _loop_cc is not None
+        and _final_cc is not None
+        and int(_loop_cc) != int(_final_cc)
+    )
 
     return {
         # ── Core columns (existing 17) ──
@@ -1735,11 +1783,7 @@ def _build_corpus_row(
         # for analysis. Mirrors map_legacy_corpus_to_content_class() in
         # supabase/migrations/20260511000000_two_axis_niche_pr2_corpus.sql.
         # HI-11 route mode: junction-derived id bypasses legacy ladder.
-        "content_class_id": (
-            content_class_id_override
-            if content_class_id_override is not None
-            else _content_class_for(niche_id, _format)
-        ),
+        "content_class_id": _final_cc,
         "cta_type": _classify_cta(analysis_json.get("cta")),
         "is_commerce": _detect_commerce(analysis_json),
         "dialect": _detect_dialect(transcript),
@@ -1769,6 +1813,11 @@ def _build_corpus_row(
         # Computed from ED metadata already in memory — zero incremental API cost.
         # NOT quality gates. Every row is annotated regardless.
         **annotate_distribution(hashtags, desc or None),
+
+        # Phase 0 provenance (ingest loop vs stored cohort)
+        "ingest_loop_niche_id": aweme.get("_ingest_loop_niche_id"),
+        "ingest_loop_content_class_id": _loop_cc,
+        "score_cohort_mismatch": _cohort_mismatch,
     }
 
 
@@ -2524,6 +2573,18 @@ async def _ingest_candidate_awemes(
                         niche_source="corpus_batch",
                         client=client,
                     )
+                    cc_learn = row.get("content_class_id")
+                    if cc_learn is not None:
+                        try:
+                            from getviews_pipeline.hashtag_class_map import learn_from_corpus_row
+
+                            await learn_from_corpus_row(
+                                client,
+                                hashtags=row_hashtags,
+                                content_class_id=int(cc_learn),
+                            )
+                        except Exception as exc:
+                            logger.debug("[hashtag_class_map] learn skip: %s", exc)
         except Exception as exc:
             logger.error("[corpus] niche=%s upsert failed: %s", niche_name, exc)
             result.failed += len(rows)
@@ -2557,6 +2618,7 @@ async def ingest_niche(
             niche,
             keyword_pages=keyword_pages_override,
             hashtag_yields=hashtag_yields_for_niche,
+            client=client,
         )
     except Exception as exc:
         logger.error("[corpus] niche=%s pool fetch failed: %s", niche_name, exc)
@@ -2573,7 +2635,7 @@ async def ingest_niche(
 
     if CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH:
         carousel_pool = await _fetch_carousel_pool(
-            niche, hashtag_yields=hashtag_yields_for_niche
+            niche, hashtag_yields=hashtag_yields_for_niche, client=client,
         )
     else:
         carousel_pool = _carousel_pool_from_merged_video_pool(
@@ -2598,11 +2660,20 @@ async def ingest_niche(
     # ── Video candidates ─────────────────────────────────────────────────────────
     mode = corpus_ingest_mode()
     pool_min_views = pre_pool_min_views(mode)
+    if _discovery_relax_effective(niche):
+        pool_min_views = max(1_000, pool_min_views - 2_000)
+    existing_class_map = niche.get("_existing_class_by_video") or {}
+    loop_cc_target = niche.get("_loop_content_class_id")
     candidates = []
     blocklist_skipped = 0
     for a in pool:
         vid = str(a.get("aweme_id", "") or "")
-        if vid in existing_ids:
+        if _should_skip_existing_for_dedup(
+            vid,
+            existing_ids,
+            loop_content_class_id=loop_cc_target,
+            existing_class_by_video=existing_class_map,
+        ):
             continue
 
         # Gate 0: news/aggregator blocklist — skip before any expensive
@@ -2631,6 +2702,13 @@ async def ingest_niche(
                 author_handle, niche_id, _niche_override,
             )
         a["_ingest_niche_id"] = effective_niche_id
+        a["_ingest_loop_niche_id"] = niche_id
+        pre_cc = predict_content_class_pre_score(a, loop_niche_id=niche_id)
+        if pre_cc is not None:
+            a["_ingest_loop_content_class_id"] = pre_cc
+        loop_cc = niche.get("_loop_content_class_id")
+        if loop_cc is not None:
+            a["_ingest_loop_content_class_id"] = int(loop_cc)
 
         stats = a.get("statistics") or {}
         play_count = int(stats.get("play_count") or stats.get("playCount") or 0)
@@ -2736,7 +2814,12 @@ async def ingest_niche(
     carousel_candidates = []
     for a in carousel_pool:
         vid = str(a.get("aweme_id", "") or "")
-        if vid in existing_ids:
+        if _should_skip_existing_for_dedup(
+            vid,
+            existing_ids,
+            loop_content_class_id=loop_cc_target,
+            existing_class_by_video=existing_class_map,
+        ):
             continue
         # Skip carousels already picked as video candidates (de-dup) — O(1) set lookup
         if vid in video_candidate_aweme_ids:
@@ -2909,8 +2992,11 @@ def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
 
     now_iso = _dt.now(UTC).isoformat()
     enriched = []
+    write_niche = bool(_ingest_settings.corpus_write_niche_id)
     for row in rows:
         r = dict(row)
+        if not write_niche:
+            r.pop("niche_id", None)
         r.setdefault("ingest_source", "batch_nightly")
         r.setdefault("quality_tier", "high")
         r.setdefault("first_seen_at", now_iso)
@@ -2951,6 +3037,11 @@ def _refresh_content_class_intelligence_sync(client: Any) -> None:
     client.rpc("refresh_content_class_intelligence", {}).execute()
 
 
+def _refresh_content_class_tier_intelligence_sync(client: Any) -> None:
+    """Refresh peer-band MV (Phase 2). Fails open if migration not applied."""
+    client.rpc("refresh_content_class_tier_intelligence", {}).execute()
+
+
 async def _refresh_niche_intelligence(client: Any) -> bool:
     """Refresh both niche_intelligence and content_class_intelligence MVs.
 
@@ -2960,14 +3051,18 @@ async def _refresh_niche_intelligence(client: Any) -> bool:
     """
     niche_ok = False
     cc_ok = False
-    try:
-        await asyncio.get_event_loop().run_in_executor(
-            None, lambda: _refresh_niche_intelligence_sync(client)
-        )
-        logger.info("[corpus] niche_intelligence materialized view refreshed")
+    if _ingest_settings.refresh_niche_intelligence_mv:
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None, lambda: _refresh_niche_intelligence_sync(client)
+            )
+            logger.info("[corpus] niche_intelligence materialized view refreshed")
+            niche_ok = True
+        except Exception as exc:
+            logger.error("[corpus] niche_intelligence refresh failed: %s", exc)
+    else:
+        logger.info("[corpus] niche_intelligence refresh skipped (REFRESH_NICHE_INTELLIGENCE_MV=false)")
         niche_ok = True
-    except Exception as exc:
-        logger.error("[corpus] niche_intelligence refresh failed: %s", exc)
     try:
         await asyncio.get_event_loop().run_in_executor(
             None, lambda: _refresh_content_class_intelligence_sync(client)
@@ -2981,6 +3076,16 @@ async def _refresh_niche_intelligence(client: Any) -> bool:
         logger.warning(
             "[corpus] content_class_intelligence refresh failed (acceptable "
             "if migration 20260514000000 not yet applied): %s",
+            exc,
+        )
+    try:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _refresh_content_class_tier_intelligence_sync(client)
+        )
+        logger.info("[corpus] content_class_tier_intelligence MV refreshed")
+    except Exception as exc:
+        logger.warning(
+            "[corpus] content_class_tier_intelligence refresh failed (non-fatal): %s",
             exc,
         )
     return niche_ok and cc_ok
@@ -3211,9 +3316,41 @@ async def run_ingest_post_processing(
         "layer0b_error": None,
         "layer0d_error": None,
         "weekly_analytics_run": False,
+        "acqe_error": None,
+        "hi11_rolling_error": None,
     }
 
     out["materialized_view_refreshed"] = await _refresh_niche_intelligence(client)
+
+    try:
+        from getviews_pipeline.class_quality_engine import run_acqe_nightly
+
+        out["acqe_summary"] = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: run_acqe_nightly(client),
+        )
+    except Exception as exc:
+        out["acqe_error"] = str(exc)
+        logger.error("[acqe] nightly failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.hi11_rolling_eval import run_hi11_rolling_eval
+
+        out["hi11_rolling"] = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: run_hi11_rolling_eval(client),
+        )
+    except Exception as exc:
+        out["hi11_rolling_error"] = str(exc)
+        logger.error("[hi11_rolling] failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.hashtag_class_map import run_hashtag_map_maintenance_sync
+
+        out["hashtag_map_maintenance"] = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: run_hashtag_map_maintenance_sync(client),
+        )
+    except Exception as exc:
+        out["hashtag_map_error"] = str(exc)
+        logger.error("[hashtag_class_map] maintenance failed (non-fatal): %s", exc)
 
     try:
         from getviews_pipeline.video_dang_hoc import run_video_dang_hoc
@@ -3298,11 +3435,20 @@ async def run_batch_ingest(
     """
     summary = BatchSummary()
     summary.ingest_mode = corpus_ingest_mode()
+    summary.score_cohort = corpus_score_cohort()
     client = _service_client()
 
-    niches: list[dict[str, Any]] = await asyncio.get_event_loop().run_in_executor(
-        None, lambda: _fetch_niches_sync(client)
-    )
+    loop_mode = _corpus_ingest_loop_mode()
+    summary.ingest_loop = loop_mode
+    if loop_mode == "class":
+        niches = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: fetch_ingest_targets_sync(client),
+        )
+        logger.info("[corpus] ingest loop=class — %d active targets", len(niches))
+    else:
+        niches = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _fetch_niches_sync(client),
+        )
     niche_signal_map = _niche_signal_hashtags_by_id_from_niches(niches)
 
     if niche_ids:
@@ -3443,6 +3589,13 @@ async def run_batch_ingest(
     existing_snapshot = await asyncio.get_event_loop().run_in_executor(
         None, lambda: _load_all_existing_video_ids_sync(client),
     )
+    existing_class_map: dict[str, int] = {}
+    if loop_mode == "class":
+        existing_class_map = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _load_existing_video_class_map_sync(client),
+        )
+        for n in niches:
+            n["_existing_class_by_video"] = existing_class_map
     logger.info(
         "[corpus] dedup snapshot: %d existing video_ids (paginated global load)",
         len(existing_snapshot),
@@ -3507,8 +3660,12 @@ async def run_batch_ingest(
                         # active (``vpn is None``); falls back to the
                         # uniform ``vpn`` from deep_pool mode otherwise.
                         videos_per_niche_override=(
-                            vpn if vpn is not None
-                            else per_niche_vpn.get(int(n["id"]))
+                            int(n["_daily_vpn"])
+                            if n.get("_daily_vpn") is not None
+                            else (
+                                vpn if vpn is not None
+                                else per_niche_vpn.get(int(n["id"]))
+                            )
                         ),
                         carousels_per_niche_override=(
                             min(_carousels_per_night_for_niche(int(n["id"])) * 2, 12)
@@ -3663,6 +3820,117 @@ async def _run_weekly_analytics(client: Any) -> None:
         )
     except Exception as exc:
         logger.error("[layer0a] Niche insight generation failed (non-fatal): %s", exc)
+
+def _corpus_ingest_loop_mode() -> str:
+    mode = (_ingest_settings.corpus_ingest_loop or "niche").strip().lower()
+    return mode if mode in ("niche", "class") else "niche"
+
+
+def _load_existing_video_class_map_sync(client: Any) -> dict[str, int]:
+    """video_id → content_class_id for Phase 3 class-change re-upsert."""
+    out: dict[str, int] = {}
+    offset = 0
+    page_size = 1000
+    while True:
+        res = (
+            client.table("video_corpus")
+            .select("video_id, content_class_id")
+            .not_.is_("content_class_id", "null")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        rows = res.data or []
+        for row in rows:
+            vid = row.get("video_id")
+            cc = row.get("content_class_id")
+            if vid and cc is not None:
+                out[str(vid)] = int(cc)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return out
+
+
+def _should_skip_existing_for_dedup(
+    video_id: str,
+    existing_ids: set[str],
+    *,
+    loop_content_class_id: int | None,
+    existing_class_by_video: dict[str, int] | None,
+) -> bool:
+    """Global dedup unless class-loop mode allows re-upsert when class changed."""
+    if not video_id or video_id not in existing_ids:
+        return False
+    if _corpus_ingest_loop_mode() != "class" or loop_content_class_id is None:
+        return True
+    prev = (existing_class_by_video or {}).get(video_id)
+    if prev is None:
+        return False
+    return int(prev) == int(loop_content_class_id)
+
+
+def _legacy_niche_id_for_class_sync(client: Any, content_class_id: int) -> int:
+    """Representative legacy niche_id for class-loop ingest (mode from corpus)."""
+    try:
+        res = (
+            client.table("video_corpus")
+            .select("niche_id")
+            .eq("content_class_id", content_class_id)
+            .not_.is_("niche_id", "null")
+            .limit(200)
+            .execute()
+        )
+        counts: dict[int, int] = {}
+        for row in res.data or []:
+            nid = row.get("niche_id")
+            if nid is not None:
+                counts[int(nid)] = counts.get(int(nid), 0) + 1
+        if counts:
+            return max(counts.items(), key=lambda x: x[1])[0]
+    except Exception as exc:
+        logger.warning("[corpus] legacy niche for class=%s failed: %s", content_class_id, exc)
+    return 1
+
+
+def fetch_ingest_targets_sync(client: Any) -> list[dict[str, Any]]:
+    """Active content_class_ingest_targets shaped like niche_taxonomy rows."""
+    targets = (
+        client.table("content_class_ingest_targets")
+        .select("content_class_id, signal_hashtags, daily_vpn, active, priority, viability_tier")
+        .eq("active", True)
+        .order("priority", desc=True)
+        .execute()
+        .data
+        or []
+    )
+    cc_meta: dict[int, dict[str, Any]] = {}
+    try:
+        cc_rows = (
+            client.table("content_classifications")
+            .select("id, name_vn, slug")
+            .execute()
+            .data
+            or []
+        )
+        cc_meta = {int(r["id"]): r for r in cc_rows}
+    except Exception:
+        pass
+    out: list[dict[str, Any]] = []
+    for t in targets:
+        cc_id = int(t["content_class_id"])
+        meta = cc_meta.get(cc_id, {})
+        leg_nid = _legacy_niche_id_for_class_sync(client, cc_id)
+        out.append({
+            "id": leg_nid,
+            "name_en": meta.get("slug") or f"class-{cc_id}",
+            "name_vn": meta.get("name_vn") or f"Class {cc_id}",
+            "signal_hashtags": t.get("signal_hashtags") or [],
+            "_loop_content_class_id": cc_id,
+            "_daily_vpn": int(t.get("daily_vpn") or 15),
+            "_viability_tier": t.get("viability_tier"),
+        })
+    return out
+
 
 def _fetch_niches_sync(client: Any) -> list[dict[str, Any]]:
     result = (

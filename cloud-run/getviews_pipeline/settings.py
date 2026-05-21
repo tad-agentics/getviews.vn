@@ -143,6 +143,30 @@ class _PipelineSettings(BaseSettings):
     corpus_velocity_gate_min: float = Field(default=0.15, ge=0.0)
     corpus_sound_organic_bonus: float = Field(default=1.0, ge=0.0)
     corpus_ingest_shadow_log: bool = Field(default=True)
+    corpus_score_cohort: str = Field(
+        default="legacy",
+        description="legacy | class_shadow | class — instructiveness cohort axis",
+    )
+    live_cohort_class_first: bool = Field(
+        default=False,
+        description="When true, live benchmark prefers content_class_intelligence MV",
+    )
+    corpus_discovery_relax: bool = Field(
+        default=False,
+        description="ACQE Thin/Dormant: lower pre-pool floor, widen hashtag fetch",
+    )
+    corpus_ingest_loop: str = Field(
+        default="niche",
+        description="niche | class — batch loop over niche_taxonomy vs content_class_ingest_targets",
+    )
+    corpus_write_niche_id: bool = Field(
+        default=True,
+        description="Phase 4: when false, batch upsert omits niche_id (class-only cohort)",
+    )
+    refresh_niche_intelligence_mv: bool = Field(
+        default=True,
+        description="Phase 4: when false, skip nightly refresh_niche_intelligence RPC",
+    )
     corpus_boost_hard_reject: bool = Field(default=False)
     corpus_postextract_hook_cap: int = Field(default=3, ge=1)
     corpus_hook_cap_breakout_bypass: float = Field(default=3.0, ge=0.0)

@@ -1114,7 +1114,7 @@ Sau launch        →  Diagnosis tận dụng blob đã có (corpus-hit → synt
 | Trục | Bảng | Vai trò pre-launch |
 |------|------|-------------------|
 | Creator niche (UX) | `creator_niches` (16) | Pill Studio/Xu hướng, ritual, pattern filter |
-| Content class (granular) | `content_classifications` (74) + junction | Batch routing HI-11 (`shadow` → audit → `route`); filter kho khi đã wire |
+| Content class (granular) | `content_classifications` (74) + junction | **Canonical cohort** when pivot flags on (`CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`); browse via `classFirstBrowse`; diagnosis peers `(class, creator_tier)` |
 
 Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map-v1.md). Cutover: [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md).
 
@@ -1129,7 +1129,7 @@ Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map
 | **Xu hướng — Công thức** | F6 | `video_patterns` | Mỗi **ngách hero** ≥ 1 pattern có mechanism + ví dụ; không card rỗng |
 | **Xu hướng — Kho** | F6 | `video_corpus` promote cols | Filter/search; `ConfidenceStrip` đúng tier §8.3 |
 | **Studio — Gợi ý** | STU | `daily_ritual`, `hook_effectiveness`, breakout | Cron `morning-ritual` OK; preview tier I–III trên staging |
-| **Hook / format chips** | F6/STU | `hook_effectiveness`, `niche_intelligence` | Thin → copy khiêm tốn; **không** % giả khi &lt; `niche_norms` |
+| **Hook / format chips** | F6/STU | `hook_effectiveness`, `content_class_hook_effectiveness`, `content_class_intelligence` | Thin → copy khiêm tốn; legacy `niche_intelligence` bridge until `REFRESH_NICHE_INTELLIGENCE_MV=false` |
 
 #### Tầng 2 — Aggregate từ corpus (Gemini **rẻ** hơn vision — tận dụng blob)
 

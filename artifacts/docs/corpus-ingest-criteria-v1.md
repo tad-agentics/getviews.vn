@@ -30,6 +30,18 @@ Nightly batch ingest (`corpus_ingest.py`) discovers candidates via EnsembleData 
 
 Rollback: set `CORPUS_INGEST_MODE=legacy` on batch pod (no migration revert needed).
 
+### Class-keyed score cohort (`CORPUS_SCORE_COHORT`, Phase 2)
+
+| Value | Behavior |
+|-------|----------|
+| `legacy` | Breakout OR / boost percentiles use loop `niche_id` stats (default) |
+| `class_shadow` | Score on predicted `content_class_id`; legacy selection path unchanged for promote gate |
+| `class` | Same as shadow; promote after HI-11 rolling eval green |
+
+Pre-score: `predict_content_class_pre_score()` (loop niche + format heuristic) before Gemini. `ingest_loop_content_class_id` stored on row; `score_cohort_mismatch` when post-route class differs.
+
+**Discovery relax:** `CORPUS_DISCOVERY_RELAX=true` lowers pre-pool floor when ACQE marks class Thin/Dormant (see [`hashtag-class-map-v2.md`](hashtag-class-map-v2.md)).
+
 ---
 
 ## 3. Criteria stack

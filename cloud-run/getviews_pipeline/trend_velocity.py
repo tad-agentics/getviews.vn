@@ -26,7 +26,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,8 @@ logger = logging.getLogger(__name__)
 class TrendVelocityResult:
     niches_processed: int = 0
     rows_upserted: int = 0
+    classes_processed: int = 0
+    class_rows_upserted: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -322,6 +324,109 @@ def _compute_trend_velocity_for_niche_sync(
     }
 
 
+def _compute_trend_velocity_for_class_sync(
+    client: Any,
+    content_class_id: int,
+    today: date,
+) -> dict[str, Any] | None:
+    """Hook shifts + new hashtags scoped to content_class_id (Phase 3 consumer)."""
+    days_since_sunday = (today.weekday() + 1) % 7
+    week_start = today - timedelta(days=days_since_sunday)
+    cutoff_14d = today - timedelta(days=14)
+    cutoff_7d = today - timedelta(days=7)
+
+    try:
+        result = (
+            client.table("video_corpus")
+            .select("engagement_rate, indexed_at, analysis_json, hashtags")
+            .eq("content_class_id", int(content_class_id))
+            .gte("indexed_at", cutoff_14d.isoformat())
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("[tv/class] cc=%s fetch failed: %s", content_class_id, exc)
+        return None
+
+    rows = result.data or []
+    if not rows:
+        return None
+
+    hook_stats: dict[str, dict[str, float]] = defaultdict(lambda: {
+        "tw_count": 0.0,
+        "pw_count": 0.0,
+        "tw_er_sum": 0.0,
+        "pw_er_sum": 0.0,
+    })
+    hashtag_set: set[str] = set()
+
+    for row in rows:
+        aj = row.get("analysis_json") or {}
+        hook = str(
+            (aj.get("hook_analysis") or {}).get("hook_type")
+            or aj.get("hook_type")
+            or "unknown"
+        ).strip()
+        er = float(row.get("engagement_rate") or 0.0)
+        indexed = str(row.get("indexed_at") or "")
+        is_this_week = indexed >= cutoff_7d.isoformat()
+
+        s = hook_stats[hook]
+        if is_this_week:
+            s["tw_count"] += 1
+            s["tw_er_sum"] += er
+        else:
+            s["pw_count"] += 1
+            s["pw_er_sum"] += er
+
+        for tag in row.get("hashtags") or []:
+            h = str(tag).lower().lstrip("#")
+            if h:
+                hashtag_set.add(h)
+
+    hook_type_shifts: dict[str, Any] = {}
+    for hook, s in hook_stats.items():
+        tw = s["tw_count"]
+        pw = s["pw_count"]
+        tw_er = s["tw_er_sum"] / tw if tw else 0.0
+        pw_er = s["pw_er_sum"] / pw if pw else 0.0
+        count_delta_pct = ((tw - pw) / pw * 100.0) if pw > 0 else (100.0 if tw > 0 else 0.0)
+        er_delta_pct = ((tw_er - pw_er) / pw_er * 100.0) if pw_er > 0 else 0.0
+        if count_delta_pct > 20:
+            signal = "rising"
+        elif count_delta_pct < -20:
+            signal = "declining"
+        else:
+            signal = "stable"
+        hook_type_shifts[hook] = {
+            "count_delta_pct": count_delta_pct,
+            "er_delta_pct": er_delta_pct,
+            "this_week_count": int(tw),
+            "prev_week_count": int(pw),
+            "signal": signal,
+        }
+
+    return {
+        "content_class_id": int(content_class_id),
+        "week_start": week_start.isoformat(),
+        "hook_type_shifts": hook_type_shifts,
+        "new_hashtags": sorted(hashtag_set)[:50],
+        "computed_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def _upsert_content_class_trend_velocity_sync(
+    client: Any,
+    rows: list[dict[str, Any]],
+) -> int:
+    if not rows:
+        return 0
+    client.table("content_class_trend_velocity").upsert(
+        rows,
+        on_conflict="content_class_id,week_start",
+    ).execute()
+    return len(rows)
+
+
 def _upsert_trend_velocity_sync(client: Any, rows: list[dict[str, Any]]) -> int:
     """Upsert trend_velocity rows. Returns count of rows upserted."""
     if not rows:
@@ -408,5 +513,53 @@ async def run_trend_velocity(client: Any | None = None) -> TrendVelocityResult:
         except Exception as exc:
             result.errors.append(f"upsert: {exc}")
             logger.error("[tv] Upsert failed: %s", exc)
+
+    from getviews_pipeline.settings import settings
+
+    if (
+        settings.corpus_ingest_loop.strip().lower() == "class"
+        or settings.live_cohort_class_first
+    ):
+        try:
+            targets_resp = await loop.run_in_executor(
+                None,
+                lambda: client.table("content_class_ingest_targets")
+                .select("content_class_id")
+                .eq("active", True)
+                .execute(),
+            )
+            targets = targets_resp.data or []
+        except Exception as exc:
+            result.errors.append(f"fetch class targets: {exc}")
+            targets = []
+
+        class_rows: list[dict[str, Any]] = []
+        for t in targets:
+            cc_id = int(t["content_class_id"])
+            try:
+                row = await loop.run_in_executor(
+                    None,
+                    lambda c=cc_id: _compute_trend_velocity_for_class_sync(
+                        client, c, today,
+                    ),
+                )
+                if row is not None:
+                    class_rows.append(row)
+                    result.classes_processed += 1
+            except Exception as exc:
+                result.errors.append(f"class={cc_id}: {exc}")
+
+        if class_rows:
+            try:
+                result.class_rows_upserted = await loop.run_in_executor(
+                    None,
+                    lambda: _upsert_content_class_trend_velocity_sync(client, class_rows),
+                )
+                logger.info(
+                    "[tv] Upserted %d content_class_trend_velocity rows",
+                    result.class_rows_upserted,
+                )
+            except Exception as exc:
+                result.errors.append(f"class upsert: {exc}")
 
     return result

@@ -77,6 +77,7 @@ Quick reference for AI operating constraints:
 - **Legacy bridge:** `video_corpus.niche_id` remains for corpus filtering; Python `legacy_niche_id_for_creator_niche()` and TypeScript `legacyNicheIdForCreatorNiche()` **must stay identical**.
 - **Batch ingest resolver:** `NICHE_RESOLVER_MODE` = `shadow` (default) or `route`. In **shadow**, hashtag + ladder stay canonical for `niche_id` / `content_class_id`; `niche_resolution_source`, `niche_resolution_confidence`, and `inferred_creator_niche_id` capture Gemini two-axis telemetry. In **route**, high-confidence HI-9 output + junction can override niche and set `content_class_id`. **Production:** shadow observation → 100-row audit → flip → MV refresh (see `artifacts/docs/two-axis-niche-cutover-runbook.md` Part B — plan “Phase 7”).
 - **Provenance:** Shadow and route paths populate `niche_resolution_source` etc.; ME-17 backfill targets rows with `niche_resolution_source IS NULL` after flip.
+- **Content-class pivot (Phase 0–4):** Cohort canonical = `(content_class_id, creator_tier)` when env flags promote (`CORPUS_SCORE_COHORT`, `CORPUS_INGEST_LOOP`, `LIVE_COHORT_CLASS_FIRST`, `VITE_CORPUS_BROWSE_CLASS_FIRST`). ACQE nightly + HI-11 rolling eval gate promote. See `artifacts/docs/content-class-pivot-metrics.sql` and `system-design.md` §9.
 
 ## Design system
 

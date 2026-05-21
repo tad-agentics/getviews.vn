@@ -54,7 +54,7 @@ flowchart TB
 
 **Entry:** `cloud-run/getviews_pipeline/corpus_ingest.py` → `services/extraction.py` `async_run_extraction_core` → `gemini.py` `analyze_video` / `analyze_carousel`.
 
-**Promote sang cột** (trích từ `_build_corpus_row`, ~L1698–1754): `hook_type`, `hook_phrase`, `face_appears_at`, `first_frame_type`, `video_duration`, `transitions_per_second`, `tone`, `text_overlay_count`, `scene_count`, `target_audience`, `pain_points`, `promotion_type`, `style_tags`, `content_format` (regex `classify_format`), `content_class_id`, `cta_type`, `is_commerce`, `dialect`, `topics`, `transcript_snippet` (500 ký tự), + cột ED (`views`, `sound_*`, `hashtags`, …) + HI-11 (`niche_resolution_*`, `inferred_creator_niche_id`).
+**Promote sang cột** (trích từ `_build_corpus_row`, ~L1698–1754): `hook_type`, `hook_phrase`, `face_appears_at`, `first_frame_type`, `video_duration`, `transitions_per_second`, `tone`, `text_overlay_count`, `scene_count`, `target_audience`, `pain_points`, `promotion_type`, `style_tags`, `content_format` (regex `classify_format`), `content_class_id`, `cta_type`, `is_commerce`, `dialect`, `topics`, `transcript_snippet` (500 ký tự), + cột ED (`views`, `sound_*`, `hashtags`, …) + HI-11 (`niche_resolution_*`, `inferred_creator_niche_id`) + pivot provenance (`ingest_loop_niche_id`, `ingest_loop_content_class_id`, `class_assignment_tier`, `score_cohort_mismatch`).
 
 **Không promote:** phần lớn object lồng nhau vẫn chỉ trong `analysis_json`.
 
@@ -88,7 +88,7 @@ flowchart TB
 | `audio_transcript` | `transcript_snippet`; guards; proximity ref (200 ký tự); `corpus_context` mô tả ref | |
 | `topics` | Cột + ref desc; một số signal sound | |
 | `cta`, `promotion_type`, `commerce_intent` (một phần) | `cta_type`, `is_commerce` | `commerce_intent` đầy đủ → diagnosis signals |
-| `niche_classification` + `content_context` | HI-11 shadow/route; ME-17 backfill; `morning_ritual` **`subject_matter` only** | `NICHE_RESOLVER_MODE=shadow` (default): **không** đổi `niche_id` canonical |
+| `niche_classification` + `content_context` | HI-11 shadow/route; ME-17 backfill; `morning_ritual` **`subject_matter` only** | Pre-pivot: `niche_id` ingest loop. Post-pivot promote: **`content_class_id`** cohort for score/benchmark/browse (see `CORPUS_SCORE_COHORT`) |
 | `style_tags`, `pain_points`, `target_audience` | Cột DB; **`ContextStrip.tsx`** trên `/app/answer` (`video_analyze` enrichment) | Explore/Trends list **không** select (`useVideoCorpus.ts`) — không phải “abandoned” |
 
 ### Tier B — Chủ yếu khi **user diagnosis**

@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from getviews_pipeline.settings import settings
 from getviews_pipeline.video_structural import model_niche_benchmark_curve
 
 logger = logging.getLogger(__name__)
@@ -243,11 +244,48 @@ def fetch_content_class_intelligence_sync(sb: Any, content_class_id: int) -> dic
     return row
 
 
+def fetch_content_class_tier_intelligence_sync(
+    sb: Any,
+    content_class_id: int,
+    creator_tier: str,
+) -> dict[str, Any] | None:
+    """Peer-band MV row for (content_class_id, creator_tier)."""
+    if not content_class_id or not creator_tier or sb is None:
+        return None
+    try:
+        res = (
+            sb.table("content_class_tier_intelligence")
+            .select(
+                "content_class_id,creator_tier,sample_size,median_views,"
+                "p75_views,median_er,avg_views,avg_engagement_rate,computed_at"
+            )
+            .eq("content_class_id", content_class_id)
+            .eq("creator_tier", creator_tier)
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning(
+            "[niche_benchmark] tier MV class=%s tier=%s: %s",
+            content_class_id,
+            creator_tier,
+            exc,
+        )
+        return None
+    rows = res.data or []
+    row = rows[0] if rows and isinstance(rows[0], dict) else None
+    if row is None:
+        return None
+    if _to_int(row.get("sample_size"), 0) < CONTENT_CLASS_BENCHMARK_MIN_SAMPLE:
+        return None
+    return row
+
+
 def fetch_video_benchmark_with_axis(
     sb: Any,
     *,
     niche_id: int,
     content_class_id: int | None,
+    creator_tier: str | None = None,
 ) -> tuple[dict[str, Any] | None, str]:
     """Pick the sharper benchmark row available, with axis label.
 
@@ -260,7 +298,22 @@ def fetch_video_benchmark_with_axis(
     through ``VideoNicheMeta`` so the FE can render
     "vs N similar-format videos" vs "vs N videos in your niche".
     """
-    if content_class_id is not None:
+    class_first = settings.live_cohort_class_first
+    if class_first and content_class_id is not None and creator_tier:
+        tier_row = fetch_content_class_tier_intelligence_sync(
+            sb, content_class_id, creator_tier,
+        )
+        if tier_row is not None:
+            return tier_row, "content_class_tier"
+    if content_class_id is not None and (class_first or content_class_id):
+        cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
+        if cc_row is not None:
+            return cc_row, "content_class"
+    if niche_id and not class_first:
+        n_row = fetch_niche_intelligence_sync(sb, niche_id)
+        if n_row is not None:
+            return n_row, "niche"
+    if content_class_id is not None and not class_first:
         cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
         if cc_row is not None:
             return cc_row, "content_class"

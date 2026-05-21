@@ -1,0 +1,45 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+
+export type ContentClassIntelligenceRow = {
+  content_class_id: number;
+  sample_size: number | null;
+  median_views?: number | null;
+  claim_tier?: string | null;
+};
+
+export const contentClassIntelligenceKeys = {
+  all: () => ["content_class_intelligence"] as const,
+  junction: (classIds: number[]) =>
+    ["content_class_intelligence", "junction", [...classIds].sort((a, b) => a - b)] as const,
+};
+
+/**
+ * Junction-scoped rows from ``content_class_intelligence`` MV.
+ * ``aggregateSampleSize`` = sum of ``sample_size`` — gates class-first browse + thin-claim banner.
+ */
+export function useContentClassIntelligence(contentClassIds: number[]) {
+  const sortedKey = [...contentClassIds].sort((a, b) => a - b);
+  return useQuery({
+    queryKey: contentClassIntelligenceKeys.junction(sortedKey),
+    queryFn: async () => {
+      if (contentClassIds.length === 0) {
+        return { rows: [] as ContentClassIntelligenceRow[], aggregateSampleSize: 0 };
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
+        .from("content_class_intelligence")
+        .select("content_class_id,sample_size,median_views,claim_tier")
+        .in("content_class_id", contentClassIds);
+      if (error) throw error;
+      const rows = (data ?? []) as ContentClassIntelligenceRow[];
+      const aggregateSampleSize = rows.reduce(
+        (sum, r) => sum + (typeof r.sample_size === "number" && r.sample_size > 0 ? r.sample_size : 0),
+        0,
+      );
+      return { rows, aggregateSampleSize };
+    },
+    enabled: contentClassIds.length > 0,
+    staleTime: 60 * 60_000,
+  });
+}

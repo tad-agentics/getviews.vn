@@ -358,6 +358,8 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 - **`creator_niche_content_classes`** — M:N junction with `is_primary` flag.
 - `niche_taxonomy` + `video_corpus.niche_id` are kept for backward compatibility. Downstream queries bridge via `legacy_niche_id_for_creator_niche()` (Python) / `legacyNicheIdForCreatorNiche()` (TypeScript) — both must stay in sync.
 - **HI-11 (batch ingest resolver):** Cloud Run env `NICHE_RESOLVER_MODE` is **`shadow`** (default) or **`route`**. In **shadow**, the legacy hashtag resolver remains canonical for `video_corpus.niche_id` / `content_class_id`; `niche_resolution_source`, `niche_resolution_confidence`, and `inferred_creator_niche_id` record Gemini two-axis telemetry. In **route**, high-confidence HI-9 `niche_classification` + `creator_niche_content_classes` junction can override niche and set `content_class_id` directly (ladder bypassed for that row). Operational sequence: shadow observation → 100-row manual audit → flip to `route` → MV refresh + hook stats (see `artifacts/docs/two-axis-niche-cutover-runbook.md` Part B).
+- **Corpus browse (SPA):** `src/lib/corpusNicheFilter.ts` scopes Xu hướng / Home breakouts. Default: `content_class_id IN (junction)` **AND** `niche_id = legacy`. Client flags: `VITE_CORPUS_BROWSE_CLASS_FIRST` (class-only when junction MV aggregate `sample_size` ≥ 20), `VITE_CORPUS_BROWSE_CLASS_ONLY` (Phase 4 — drop `niche_id` AND). Thin-claim copy sums `content_class_intelligence` across junction, not `niche_intelligence` alone. See `artifacts/docs/niche-taxonomy-ingest-ui-pipeline.md` §5.4.
+- **Content-class pivot (Phase 0–4, 2026-05-21):** Provenance columns `ingest_loop_niche_id`, `ingest_loop_content_class_id`, `class_assignment_tier`, `class_assignment_disagreement`, `score_cohort_mismatch`. **`content_class_ingest_targets`** + **ACQE** (`class_quality_engine.py`) auto tier Healthy/Thin/Dormant. Observability: [`content-class-pivot-metrics.sql`](content-class-pivot-metrics.sql). Env: `CORPUS_SCORE_COHORT` (`legacy`|`class_shadow`|`class`), `CORPUS_INGEST_LOOP` (`niche`|`class`, default `niche`), `LIVE_COHORT_CLASS_FIRST`, `CORPUS_DISCOVERY_RELAX`, **`CORPUS_WRITE_NICHE_ID`** (default `true`; `false` = stop writing `niche_id`), **`REFRESH_NICHE_INTELLIGENCE_MV`** (default `true`; `false` = skip legacy MV). Peer-band MV: `content_class_tier_intelligence`. Channel RPC: `content_class_channel_benchmarks`. Hashtag v2: `hashtag_class_map` — [`hashtag-class-map-v2.md`](hashtag-class-map-v2.md).
 
 ---
 
@@ -524,7 +526,9 @@ Nightly `/batch/ingest` ranks EnsembleData pool candidates with **`instructivene
 | `shadow` | Compute purity stack + `[corpus_shadow]` logs; legacy selection ships |
 | `purity` | Tier 0–2 gates, R1/R2/R3, VPN=15, post-extract Tier 3 |
 
-**Modules:** `corpus_instructiveness.py` (score + select), `corpus_boost_suspect.py` (§4.7 M1 proxy). Batch-start prefetch: niche p50/p75 views, boost percentiles, `trend_velocity` sound buckets.
+**Modules:** `corpus_instructiveness.py` (score + select), `corpus_boost_suspect.py` (§4.7 M1 proxy). Batch-start prefetch: niche p50/p75 views, boost percentiles, `trend_velocity` sound buckets. When `CORPUS_SCORE_COHORT=class_shadow|class`, also prefetch class-keyed p50/p75; `score_cohort_mismatch` flags loop vs stored class.
+
+**Class ingest loop (Phase 3, default off):** `CORPUS_INGEST_LOOP=class` uses `content_class_ingest_targets`; dedup allows re-upsert when `content_class_id` changes. **ACQE** (`class_quality_engine.py`) runs post-MV refresh; cold-start nights 1–3 per pipeline §10.
 
 **TD-8:** Ingest selection changes must not fork TD-7 extraction contract (same `async_run_extraction_core` / prompts).
 

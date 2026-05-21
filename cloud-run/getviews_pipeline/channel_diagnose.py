@@ -54,8 +54,14 @@ def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
         raise InsufficientCreditsError()
 
 
-def _fetch_niche_benchmarks(user_sb: Any, *, niche_id: int) -> dict[str, Any]:
-    """Per-niche channel-level percentiles from ``niche_channel_benchmarks`` RPC."""
+def _fetch_niche_benchmarks(
+    user_sb: Any,
+    *,
+    niche_id: int,
+    content_class_id: int | None = None,
+    creator_tier: str | None = None,
+) -> dict[str, Any]:
+    """Channel percentiles — class+tier RPC when class known, else legacy niche RPC."""
     fallback: dict[str, Any] = {
         "channel_count": 0,
         "avg_views_p25": 0,
@@ -66,6 +72,37 @@ def _fetch_niche_benchmarks(user_sb: Any, *, niche_id: int) -> dict[str, Any]:
         "posts_per_week_p50": 0.0,
         "posts_per_week_p75": 0.0,
     }
+    if content_class_id is not None:
+        try:
+            res = user_sb.rpc(
+                "content_class_channel_benchmarks",
+                {
+                    "p_content_class_id": content_class_id,
+                    "p_creator_tier": creator_tier,
+                },
+            ).execute()
+            data = res.data
+            if isinstance(data, list) and data and isinstance(data[0], dict):
+                data = data[0]
+            if isinstance(data, dict) and int(data.get("channel_count") or 0) > 0:
+                p50 = int(data.get("avg_views_p50") or 0)
+                return {
+                    "channel_count": int(data.get("channel_count") or 0),
+                    "avg_views_p25": p50,
+                    "avg_views_p50": p50,
+                    "avg_views_p75": int(data.get("avg_views_p75") or 0),
+                    "engagement_p50": float(data.get("engagement_p50") or 0),
+                    "engagement_p75": float(data.get("engagement_p75") or 0),
+                    "posts_per_week_p50": float(data.get("posts_per_week_p50") or 0),
+                    "posts_per_week_p75": float(data.get("posts_per_week_p75") or 0),
+                    "benchmark_axis": "content_class",
+                }
+        except Exception as exc:
+            logger.warning(
+                "[channel_diagnose] content_class_channel_benchmarks failed class=%s: %s",
+                content_class_id,
+                exc,
+            )
     try:
         res = user_sb.rpc("niche_channel_benchmarks", {"p_niche_id": niche_id}).execute()
         data = res.data
@@ -1277,18 +1314,82 @@ def _run_peer_corpus_query(
     legacy_niche_id: int,
     exclude_handle: str,
     content_class_id: int | None,
+    creator_tier: str | None = None,
 ) -> list[dict[str, Any]]:
     ex = exclude_handle.lower().strip()
     q = (
         user_sb.table("video_corpus")
-        .select("creator_handle,views,content_format,thumbnail_url,video_url,video_id,caption")
+        .select(
+            "creator_handle,views,content_format,thumbnail_url,video_url,video_id,caption,creator_tier"
+        )
         .eq("niche_id", legacy_niche_id)
         .neq("creator_handle", ex)
     )
     if content_class_id is not None:
         q = q.eq("content_class_id", content_class_id)
+    if creator_tier:
+        q = q.eq("creator_tier", creator_tier)
     res = q.order("views", desc=True).limit(160).execute()
     return res.data or []
+
+
+def _peer_tier_fallback_chain(
+    user_sb: Any,
+    legacy_niche_id: int,
+    exclude_handle: str,
+    content_class_id: int | None,
+    creator_tier: str | None,
+) -> tuple[list[dict[str, Any]], PeerSource]:
+    """(class, tier) → (class, all tiers) → niche-only fallback."""
+    if content_class_id is None:
+        rows = _run_peer_corpus_query(
+            user_sb, legacy_niche_id, exclude_handle, None, creator_tier=None,
+        )
+        n = len({str(r.get("creator_handle") or "").lower() for r in rows if r.get("creator_handle")})
+        if n >= 4:
+            return rows, "niche_only"
+        return rows, "thin" if rows else "thin"
+
+    if creator_tier:
+        tier_rows = _run_peer_corpus_query(
+            user_sb,
+            legacy_niche_id,
+            exclude_handle,
+            content_class_id,
+            creator_tier=creator_tier,
+        )
+        n_handles = len({
+            str(r.get("creator_handle") or "").lower()
+            for r in tier_rows
+            if r.get("creator_handle")
+        })
+        if n_handles >= 4:
+            return tier_rows, "content_class"
+
+    class_rows = _run_peer_corpus_query(
+        user_sb, legacy_niche_id, exclude_handle, content_class_id, creator_tier=None,
+    )
+    n_class = len({
+        str(r.get("creator_handle") or "").lower()
+        for r in class_rows
+        if r.get("creator_handle")
+    })
+    if n_class >= 4:
+        return class_rows, "content_class"
+
+    niche_rows = _run_peer_corpus_query(
+        user_sb, legacy_niche_id, exclude_handle, None, creator_tier=None,
+    )
+    n_niche = len({
+        str(r.get("creator_handle") or "").lower()
+        for r in niche_rows
+        if r.get("creator_handle")
+    })
+    if n_niche >= 4:
+        return niche_rows, "niche_only"
+    if niche_rows:
+        return niche_rows, "thin"
+    return [], "thin"
 
 
 async def select_niche_peer_creators(
@@ -1298,31 +1399,21 @@ async def select_niche_peer_creators(
     exclude_handle: str,
     channel_avg: float,
     limit: int = 3,
+    creator_tier: str | None = None,
 ) -> tuple[list[dict[str, Any]], PeerSource]:
-    """Corpus-first peers (content_class → niche fallback) + follower enrichment."""
+    """Corpus-first peers (content_class + optional tier → fallback) + follower enrichment."""
     if channel_avg <= 0:
         return [], "thin"
 
-    tier_rows: list[dict[str, Any]] = []
-    source: PeerSource = "thin"
-
-    if content_class_id is not None:
-        tier_rows = _run_peer_corpus_query(
-            user_sb, legacy_niche_id, exclude_handle, content_class_id
-        )
-        n_handles = len({str(r.get("creator_handle") or "").lower() for r in tier_rows if r.get("creator_handle")})
-        if n_handles >= 4:
-            source = "content_class"
-
-    if not tier_rows or source != "content_class":
-        tier_rows = _run_peer_corpus_query(user_sb, legacy_niche_id, exclude_handle, None)
-        n_handles2 = len({str(r.get("creator_handle") or "").lower() for r in tier_rows if r.get("creator_handle")})
-        if n_handles2 >= 4:
-            source = "niche_only"
-        elif n_handles2 > 0:
-            source = "thin"
-        else:
-            return [], "thin"
+    tier_rows, source = _peer_tier_fallback_chain(
+        user_sb,
+        legacy_niche_id,
+        exclude_handle,
+        content_class_id,
+        creator_tier,
+    )
+    if not tier_rows:
+        return [], "thin"
 
     by_h: dict[str, list[dict[str, Any]]] = {}
     for r in tier_rows:

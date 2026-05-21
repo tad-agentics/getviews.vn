@@ -438,6 +438,14 @@ async def _run_channel_diagnose(
 
     channel_avg = float(channel_pattern.get("global_avg_views") or 0)
     persona = await derive_channel_persona(sb_user, handle, legacy_nid, channel_pattern)
+    channel_followers = None
+    if videos:
+        channel_followers = videos[0].get("author_followers")
+    from getviews_pipeline.corpus_instructiveness import _classify_creator_tier
+
+    creator_tier = _classify_creator_tier(
+        int(channel_followers) if channel_followers is not None else None
+    )
     peer_creators_raw, peer_source = await select_niche_peer_creators(
         sb_user,
         legacy_nid,
@@ -445,12 +453,19 @@ async def _run_channel_diagnose(
         handle,
         channel_avg,
         limit=3,
+        creator_tier=creator_tier,
     )
     ugc_creators = [
         normalize_peer_creator_for_fe(dict(u), niche_slug=niche_slug)
         for u in peer_creators_raw
     ]
-    niche_benchmarks = await run_sync(_fetch_niche_benchmarks, sb_user, niche_id=legacy_nid)
+    niche_benchmarks = await run_sync(
+        _fetch_niche_benchmarks,
+        sb_user,
+        niche_id=legacy_nid,
+        content_class_id=persona.get("dominant_content_class_id"),
+        creator_tier=creator_tier,
+    )
 
     score_card = compute_score_card(
         videos,

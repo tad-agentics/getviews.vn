@@ -1,5 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { applyVideoCorpusNicheFilter, fetchContentClassIdsForCreatorNiche } from "@/lib/corpusNicheFilter";
+import {
+  applyVideoCorpusNicheFilter,
+  fetchContentClassIdsForCreatorNiche,
+} from "@/lib/corpusNicheFilter";
 import { supabase } from "@/lib/supabase";
 import { legacyNicheIdForCreatorNiche } from "@/lib/profileNiches";
 
@@ -59,14 +62,28 @@ async function fetchTopBreakoutsForHome(
   let contentClassIds: number[] = [];
   let legacyNicheId: number | null = null;
 
+  let aggregateSampleSize = 0;
   if (creatorNicheId != null) {
     contentClassIds = await fetchContentClassIdsForCreatorNiche(creatorNicheId);
+    if (contentClassIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: ccRows } = await (supabase as any)
+        .from("content_class_intelligence")
+        .select("sample_size")
+        .in("content_class_id", contentClassIds);
+      aggregateSampleSize = ((ccRows ?? []) as { sample_size: number | null }[]).reduce(
+        (sum, r) => sum + (typeof r.sample_size === "number" && r.sample_size > 0 ? r.sample_size : 0),
+        0,
+      );
+    }
     // If the junction table is empty or the table hasn't been seeded for this niche,
     // fall back to the legacy 1:1 niche mapping.
     if (contentClassIds.length === 0) {
       legacyNicheId = legacyNicheIdForCreatorNiche(creatorNicheId);
     }
   }
+
+  const filterScope = { contentClassIds, legacyNicheId, aggregateSampleSize };
 
   const pool: BreakoutVideo[] = [];
   const seen = new Set<string>();
@@ -86,7 +103,7 @@ async function fetchTopBreakoutsForHome(
     .select(CORPUS_COLS)
     .gte("indexed_at", since14)
     .gte("breakout_multiplier", 1.0);
-  q1 = applyVideoCorpusNicheFilter(q1, { contentClassIds, legacyNicheId });
+  q1 = applyVideoCorpusNicheFilter(q1, filterScope);
   const { data: d1, error: e1 } = await q1
     .order("breakout_multiplier", { ascending: false })
     .order("indexed_at", { ascending: false })
@@ -101,7 +118,7 @@ async function fetchTopBreakoutsForHome(
       .select(CORPUS_COLS)
       .gte("indexed_at", since90)
       .gte("breakout_multiplier", 1.0);
-    q2 = applyVideoCorpusNicheFilter(q2, { contentClassIds, legacyNicheId });
+    q2 = applyVideoCorpusNicheFilter(q2, filterScope);
     const { data: d2, error: e2 } = await q2
       .order("breakout_multiplier", { ascending: false })
       .order("indexed_at", { ascending: false })
@@ -113,7 +130,7 @@ async function fetchTopBreakoutsForHome(
   // 3) Top views — fills the row when multipliers are not backfilled yet
   if (pool.length < limit) {
     let q3 = supabase.from("video_corpus").select(CORPUS_COLS);
-    q3 = applyVideoCorpusNicheFilter(q3, { contentClassIds, legacyNicheId });
+    q3 = applyVideoCorpusNicheFilter(q3, filterScope);
     const { data: d3, error: e3 } = await q3
       .order("views", { ascending: false })
       .order("indexed_at", { ascending: false })

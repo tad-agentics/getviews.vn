@@ -197,6 +197,7 @@
 | `hook_effectiveness` (per niche × hook_type) | bench | bench | — | pattern | leader | anchor | anchor | MV | `hook_type`, views, ER buckets |
 | `video_patterns` (structure, mechanism, examples) | bench | bench | — | pattern | feed | anchor | spec | MV | `content_format`, `content_direction`, corpus peers |
 | `niche_intelligence` / `niche_meta` percentiles | bench | bench | — | score | feed | — | — | MV | views, ER, hooks, formats — §4.8.4 |
+| `content_class_intelligence` (junction aggregate) | — | bench | — | score | feed | — | — | MV | F6 browse class-first gate (`sample_size` sum ≥20); thin-claim banner; diagnosis `benchmark_axis` |
 | `daily_ritual` (3 videos + script prefill) | — | — | — | — | — | show | anchor | MV | Top corpus + `subject_matter` |
 | `scene_intelligence` (per niche scene bars) | — | teaser | — | — | — | — | spec | MV | `scenes[]` enrichment nightly |
 | `creator_velocity` | — | — | show | score | — | — | — | MV | ED rollup by handle |

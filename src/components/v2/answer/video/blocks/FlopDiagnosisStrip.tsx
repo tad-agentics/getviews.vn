@@ -28,7 +28,9 @@ export function FlopDiagnosisStrip({
       ? formatViewsVi(nicheMeta.avg_views)
       : "—";
   const isContentClass = nicheMeta?.benchmark_axis === "content_class";
-  const cohortLabel = isContentClass ? "Cùng format TB" : "Ngách TB";
+  const cohortLabel =
+    nicheMeta?.cohort_label?.trim() ||
+    (isContentClass ? "Cùng format TB" : "Ngách TB");
   const retSuffix = isContentClass ? "ret cùng format" : "ret ngách TB";
   const winnersLabel = isContentClass ? "video cùng format" : "video thắng trong ngách";
   const nicheRet =

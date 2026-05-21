@@ -1,5 +1,39 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — Content-class pivot gap closure (audit follow-up)
+
+- **Migration:** `20260820000004_content_class_pivot_gaps.sql` — `acqe_run_state.discovery_relax_active`, `content_class_trend_velocity`.
+- **Hashtag v2:** `hashtag_class_map.py` — class map fetch wired into `_fetch_niche_pool`; prune/yield/expand nightly; Thin/Dormant auto discovery relax via target tier.
+- **ACQE:** auto-merge duplicate format_axis classes (post cold-start); cohort outlier flagging; peer sanity log-only.
+- **HI-11:** shadow re-classify agreement; 7-night rolling median gate in artifact.
+- **Peers:** `select_niche_peer_creators` + `creator_tier` fallback chain; channel diagnose passes tier from live followers.
+- **Consumers:** `morning_ritual` junction class grounding; `trend_velocity` class-keyed upsert when ingest loop class-first.
+- **Tests:** 28 pivot pytest cases (was 21).
+
+## 2026-05-21 — Content-class corpus pivot Phase 4 (sunset bridge)
+
+- **Migration:** `20260820000003_content_class_pivot_phase4.sql` — `content_class_intelligence.claim_tier`, `content_class_stats_for_creator_niche`, `content_class_channel_benchmarks(class_id, tier)`.
+- **Batch:** `CORPUS_WRITE_NICHE_ID=false` omits `niche_id` on upsert; `REFRESH_NICHE_INTELLIGENCE_MV=false` skips legacy MV refresh.
+- **Channel:** `_fetch_niche_benchmarks` prefers class+tier RPC when `content_class_id` known.
+- **FE:** `VITE_CORPUS_BROWSE_CLASS_ONLY` drops legacy `niche_id` AND on browse (see P1 entry).
+- **Docs:** system-design niche sunset flags; pipeline §10 Phase 4 row.
+
+## 2026-05-21 — Content-class corpus pivot Phase 0–3 (backend)
+
+- **Migrations:** `20260820000000_content_class_pivot_phase0.sql` (provenance cols, `content_class_ingest_targets`, `acqe_run_state`, upsert RPC); `20260820000001_hashtag_class_map.sql`; `20260820000002_content_class_tier_intelligence_mv.sql`.
+- **ACQE:** `class_quality_engine.py` — nightly viability tiers, assignment flags, cold-start policy; wired in `run_ingest_post_processing`.
+- **HI-11 rolling eval:** `hi11_rolling_eval.py` — agreement/junction/outlier metrics.
+- **Ingest:** `ingest_loop_*` on aweme pre-score; `fetch_ingest_targets()` when `CORPUS_INGEST_LOOP=class` (default `niche`); class dedup re-upsert; `hashtag_class_map` learn on upsert.
+- **Score cohort:** `CORPUS_SCORE_COHORT`, `ContentClassViewStats`, class pre-score in `corpus_instructiveness.py`; `LIVE_COHORT_CLASS_FIRST` in `video_niche_benchmark.py`.
+- **Docs/SQL:** `content-class-pivot-metrics.sql`, `hashtag-class-map-v2.md`; pipeline §10; system-design §9+§12.1.
+
+## 2026-05-21 — Content-class corpus browse pivot (FE P1 + P4)
+
+- **Flags:** `VITE_CORPUS_BROWSE_CLASS_FIRST`, `VITE_CORPUS_BROWSE_CLASS_ONLY` in `src/lib/env.ts`.
+- **Filter:** `corpusNicheFilter.ts` — `shouldUseClassFirstBrowse`, class-only sunset; Xu hướng + Home breakouts + `useVideoCorpus` pass junction aggregate sample.
+- **Hook:** `useContentClassIntelligence.ts` — sum `content_class_intelligence.sample_size` for junction classes; Trends thin-claim banner uses aggregate, not `niche_intelligence`.
+- **Diagnosis UI:** `FlopDiagnosisStrip` / `ScoreCard` — cohort copy from `benchmark_axis` + optional `cohort_label` / `category_label`.
+
 ## 2026-05-20 — Remove calendar kill gate from ingest spec
 
 - **Docs:** Dropped `corpus-ingest-criteria-v1.md` §11 (2026-06-15 kill gate); Tier 3a/3b and optional phases gated by env + shadow metrics + human sign-off only. `system-design.md` §12.1 + `settings.py` descriptions updated. Plan files: metric-gated sequencing, no calendar deadline.

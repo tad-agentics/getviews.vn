@@ -16,10 +16,17 @@ interface ScoreCardProps {
 
 export function ScoreCard({ card }: ScoreCardProps) {
   const c = card.captions ?? {};
+  const isContentClassCohort = card.benchmark_axis === "content_class";
+  const cohortMeta =
+    isContentClassCohort && card.category_label && card.category_label !== "—"
+      ? card.category_label
+      : isContentClassCohort
+        ? "cùng format"
+        : "ngách";
   const rows: { key: string; label: string; value: string; caption?: string }[] = [
     {
       key: "percentile",
-      label: "Vị trí trong ngách",
+      label: isContentClassCohort ? "Vị trí trong format" : "Vị trí trong ngách",
       value: `~P${card.percentile_in_niche ?? "—"}`,
       caption: c.percentile,
     },
@@ -59,7 +66,7 @@ export function ScoreCard({ card }: ScoreCardProps) {
           Tóm tắt nhanh
         </p>
         <p className="text-[10px] text-[color:var(--gv-ink-4)]">
-          n={card.sample_size_videos ?? "—"} video · {card.category_label ?? "—"}
+          n={card.sample_size_videos ?? "—"} video · {cohortMeta}
         </p>
       </div>
       <dl className="flex flex-col gap-3">

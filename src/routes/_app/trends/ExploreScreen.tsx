@@ -25,6 +25,7 @@ import { TrendsDouyinCard } from "./TrendsDouyinCard";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { TrendsRail } from "./TrendsRail";
+import { useContentClassIntelligence } from "@/hooks/useContentClassIntelligence";
 import { useNicheIntelligence } from "@/hooks/useNicheIntelligence";
 import { formatDate, formatViews, formatRelativeSinceVi } from "@/lib/formatters";
 import { looksLikeNonVietnameseCaption } from "@/lib/nonVietnameseFilter";
@@ -104,16 +105,6 @@ function formatDurationSeconds(sec: number | null | undefined): string | null {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-/** `niche_intelligence` MV shape varies by migration; prefer `sample_size` when `video_count_7d` absent. */
-function nicheCorpusSampleCount(intel: Record<string, unknown> | null | undefined): number {
-  if (!intel || typeof intel !== "object") return 0;
-  const v7 = intel.video_count_7d;
-  if (typeof v7 === "number" && Number.isFinite(v7)) return v7;
-  const ss = intel.sample_size;
-  if (typeof ss === "number" && Number.isFinite(ss)) return ss;
-  return 0;
 }
 
 function viWeekKicker(): string {
@@ -664,13 +655,12 @@ export default function ExploreScreen() {
     staleTime: 10 * 60_000,
   });
 
+  const { data: junctionIntel } = useContentClassIntelligence(contentClassIds);
+  const junctionAggregateSample = junctionIntel?.aggregateSampleSize ?? 0;
+
   const { data: niches } = useCreatorNiches();
 
-  const {
-    data: nicheIntel,
-    isPending: nicheIntelLoading,
-    isError: nicheIntelQueryError,
-  } = useNicheIntelligence(selectedNicheId);
+  const { data: nicheIntel } = useNicheIntelligence(selectedNicheId);
 
   // T5 (D7) — seed the 100K+ view filter on first mount when the URL
   // doesn't already carry a ``?min_views=`` param. Design pack
@@ -702,13 +692,10 @@ export default function ExploreScreen() {
     [niches, selectedCreatorNicheId],
   );
 
-  const nicheIntelRecord = nicheIntel as Record<string, unknown> | null | undefined;
-
   const lowVideoCorpus = Boolean(
-    selectedNicheId &&
-      !nicheIntelLoading &&
-      !nicheIntelQueryError &&
-      (nicheIntel == null || nicheCorpusSampleCount(nicheIntelRecord) < 10),
+    selectedCreatorNicheId != null &&
+      contentClassIds.length > 0 &&
+      junctionAggregateSample < 10,
   );
 
   const staleTimestamp = nicheIntel?.computed_at ?? null;
@@ -736,6 +723,7 @@ export default function ExploreScreen() {
   const { data, isPending, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useVideoCorpus({
     nicheId: selectedNicheId,
     contentClassIds,
+    aggregateSampleSize: junctionAggregateSample,
     sortBy,
     sortOrder: "desc",
     search: searchQuery || undefined,
@@ -766,6 +754,7 @@ export default function ExploreScreen() {
       q = applyVideoCorpusNicheFilter(q, {
         legacyNicheId: selectedNicheId,
         contentClassIds,
+        aggregateSampleSize: junctionAggregateSample,
       });
       if (searchQuery?.trim()) q = q.textSearch("search_vector", searchQuery.trim(), { config: "simple", type: "plain" });
       if (activeViewFilter != null) q = q.gte("views", activeViewFilter);
@@ -787,6 +776,7 @@ export default function ExploreScreen() {
       q = applyVideoCorpusNicheFilter(q, {
         legacyNicheId: selectedNicheId,
         contentClassIds,
+        aggregateSampleSize: junctionAggregateSample,
       });
       const { count, error } = await q;
       if (error) return null;
@@ -808,6 +798,7 @@ export default function ExploreScreen() {
       q = applyVideoCorpusNicheFilter(q, {
         legacyNicheId: selectedNicheId,
         contentClassIds,
+        aggregateSampleSize: junctionAggregateSample,
       });
       const { count, error } = await q;
       if (error) return null;
@@ -960,7 +951,7 @@ export default function ExploreScreen() {
             <TrendingSoundsSection nicheId={selectedNicheId} className="mb-4 min-[1100px]:hidden" />
             {selectedNicheId !== null && lowVideoCorpus ? (
               <p className="mb-4 text-xs text-[var(--muted)]">
-                Niche này mới có {nicheCorpusSampleCount(nicheIntelRecord)} video trong mẫu phân tích — dữ liệu chưa đầy đủ.
+                Ngách này mới có {junctionAggregateSample} video cùng format trong mẫu phân tích — dữ liệu chưa đầy đủ.
               </p>
             ) : null}
           </section>

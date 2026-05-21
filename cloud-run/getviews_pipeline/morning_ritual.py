@@ -136,10 +136,36 @@ TARGET_GROUNDING_VIDEOS = 20
 # ── Grounding ──────────────────────────────────────────────────────────────
 
 
+def _fetch_content_class_ids_sync(client: Any, creator_niche_id: int | None) -> list[int]:
+    if creator_niche_id is None:
+        return []
+    try:
+        rows = (
+            client.table("creator_niche_content_classes")
+            .select("content_class_id")
+            .eq("creator_niche_id", int(creator_niche_id))
+            .execute()
+            .data
+            or []
+        )
+        return [int(r["content_class_id"]) for r in rows if r.get("content_class_id") is not None]
+    except Exception as exc:
+        logger.debug("[ritual] junction fetch failed: %s", exc)
+        return []
+
+
+def _scope_grounding_query(q: Any, niche_id: int, content_class_ids: list[int] | None) -> Any:
+    if content_class_ids:
+        return q.in_("content_class_id", content_class_ids)
+    return q.eq("niche_id", niche_id)
+
+
 def _fetch_grounding_videos(
     client: Any,
     niche_id: int,
     reference_handles: list[str],
+    *,
+    content_class_ids: list[int] | None = None,
 ) -> tuple[list[dict[str, Any]], str]:
     """Build the video pool + adequacy tier for a user.
 
@@ -160,13 +186,15 @@ def _fetch_grounding_videos(
     # Step 1 — reference-anchored, 7d.
     if reference_handles:
         try:
-            rows = (
+            q = (
                 client.table("video_corpus")
                 .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate, breakout_multiplier, breakout_ratio")
-                .eq("niche_id", niche_id)
                 .in_("creator_handle", reference_handles)
                 .gte("created_at", since_7d)
-                .order("breakout_multiplier", desc=True, nullsfirst=False)
+            )
+            q = _scope_grounding_query(q, niche_id, content_class_ids)
+            rows = (
+                q.order("breakout_multiplier", desc=True, nullsfirst=False)
                 .order("views", desc=True)
                 .limit(TARGET_GROUNDING_VIDEOS)
                 .execute()
@@ -179,12 +207,14 @@ def _fetch_grounding_videos(
     # Step 2 — niche-wide, 7d.
     if len(pool) < MIN_GROUNDING_VIDEOS:
         try:
-            rows = (
+            q = (
                 client.table("video_corpus")
                 .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate, breakout_multiplier, breakout_ratio")
-                .eq("niche_id", niche_id)
                 .gte("created_at", since_7d)
-                .order("breakout_multiplier", desc=True, nullsfirst=False)
+            )
+            q = _scope_grounding_query(q, niche_id, content_class_ids)
+            rows = (
+                q.order("breakout_multiplier", desc=True, nullsfirst=False)
                 .order("views", desc=True)
                 .limit(TARGET_GROUNDING_VIDEOS)
                 .execute()
@@ -198,12 +228,14 @@ def _fetch_grounding_videos(
     # Step 3 — niche-wide, 30d (last resort).
     if len(pool) < MIN_GROUNDING_VIDEOS:
         try:
-            rows = (
+            q = (
                 client.table("video_corpus")
                 .select("video_id, creator_handle, views, analysis_json, thumbnail_url, hook_phrase, hook_type, scene_count, video_duration, engagement_rate, breakout_multiplier, breakout_ratio")
-                .eq("niche_id", niche_id)
                 .gte("created_at", since_30d)
-                .order("breakout_multiplier", desc=True, nullsfirst=False)
+            )
+            q = _scope_grounding_query(q, niche_id, content_class_ids)
+            rows = (
+                q.order("breakout_multiplier", desc=True, nullsfirst=False)
                 .order("views", desc=True)
                 .limit(TARGET_GROUNDING_VIDEOS)
                 .execute()
@@ -587,6 +619,7 @@ def generate_ritual_for_user(
     niche_name: str,
     reference_handles: list[str],
     for_date: date | None = None,
+    content_class_ids: list[int] | None = None,
 ) -> RitualResult:
     """Generate today's 3 scripts for one user. Sync — called from the batch loop."""
     from google.genai import types  # type: ignore[import-untyped]
@@ -603,7 +636,9 @@ def generate_ritual_for_user(
 
     target_date = for_date or datetime.now(UTC).date()
 
-    videos, adequacy = _fetch_grounding_videos(client, niche_id, reference_handles)
+    videos, adequacy = _fetch_grounding_videos(
+        client, niche_id, reference_handles, content_class_ids=content_class_ids,
+    )
     if len(videos) < MIN_GROUNDING_VIDEOS:
         return RitualResult(
             user_id=user_id,
@@ -780,6 +815,12 @@ def run_morning_ritual_batch(
     # to the representative legacy ``niche_taxonomy.id`` so downstream
     # ritual generation (which queries video_corpus.niche_id) works unchanged.
     from getviews_pipeline.profile_niches import resolve_legacy_niche_from_profile_row
+    from getviews_pipeline.settings import settings
+
+    use_class_grounding = (
+        settings.corpus_ingest_loop.strip().lower() == "class"
+        or settings.live_cohort_class_first
+    )
 
     query = client.table("profiles").select(PROFILE_SELECT_RITUAL_BATCH)
     if user_ids:
@@ -808,12 +849,18 @@ def run_morning_ritual_batch(
         # batch. Each user is independent; one bad run shouldn't
         # rob 99 other creators of their daily ritual.
         try:
+            creator_niche_id = prof.get("creator_niche_id")
+            class_ids: list[int] | None = None
+            if use_class_grounding and creator_niche_id is not None:
+                ids = _fetch_content_class_ids_sync(client, int(creator_niche_id))
+                class_ids = ids if ids else None
             result = generate_ritual_for_user(
                 client,
                 user_id=prof["id"],
                 niche_id=nid,
                 niche_name=niche_name_map.get(nid, str(nid)),
                 reference_handles=list(prof.get("reference_channel_handles") or []),
+                content_class_ids=class_ids,
             )
         except Exception as exc:
             logger.exception(

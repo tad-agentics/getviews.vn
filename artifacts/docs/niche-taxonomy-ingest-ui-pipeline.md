@@ -195,11 +195,12 @@ Chi tiết formula: [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.m
 ### 5.1 Nguyên tắc
 
 - **User-facing label** luôn từ **`creator_niches`** (`name_vn`, `display_order`).
-- **Query `video_corpus`** dùng **hai filter AND** khi browse theo UX pill:
-  1. `content_class_id IN (...)` — junction rows của pill `creator_niche_id`
-  2. `niche_id = legacyNicheIdForCreatorNiche(pill)` — tách lifestyle (27) vs music (28), v.v.
+- **Query `video_corpus`** khi browse theo UX pill:
+  - **Legacy (default):** `content_class_id IN (...)` **AND** `niche_id = legacyNicheIdForCreatorNiche(pill)` — tách lifestyle (27) vs music (28).
+  - **Phase 1 (`VITE_CORPUS_BROWSE_CLASS_FIRST=true`):** chỉ `content_class_id IN (...)` khi tổng `content_class_intelligence.sample_size` trên junction ≥ 20.
+  - **Phase 4 (`VITE_CORPUS_BROWSE_CLASS_ONLY=true`):** luôn chỉ `content_class_id IN (...)` (bỏ `niche_id` AND).
 
-Helper: `src/lib/corpusNicheFilter.ts` — `fetchContentClassIdsForCreatorNiche` + `applyVideoCorpusNicheFilter`.
+Helper: `src/lib/corpusNicheFilter.ts` — `fetchContentClassIdsForCreatorNiche`, `shouldUseClassFirstBrowse`, `applyVideoCorpusNicheFilter`; aggregate qua `useContentClassIntelligence`.
 
 **Không** dùng raw `niche_taxonomy.name_vn` trên pill Trends — label pill = `creator_niches.name_vn`.
 
@@ -233,7 +234,7 @@ Retired buckets không có trong list (`active = false` hoặc không seed).
 - `niche_intelligence` — keyed **`niche_taxonomy.id`** (legacy), sample size / hook tiers trên browse grid.
 - `content_class_intelligence` — keyed **`content_class_id`** (two-axis sharper cohorts cho diagnosis benchmark).
 
-UI “Niche này mới có X video…” trên Trends đọc **`niche_intelligence.sample_size`**, không phải count junction-only.
+UI “Ngách này mới có X video cùng format…” trên Trends đọc **tổng `content_class_intelligence.sample_size`** trên junction (P1), không còn `niche_intelligence.sample_size` đơn lẻ.
 
 ---
 
@@ -296,8 +297,32 @@ So sánh `niche_id` với id loop trong log `[corpus] niche=… id=N` — đo t�
 
 ---
 
+## 10. Content-class corpus pivot (Phase 0–4)
+
+**Roadmap:** Canonical cohort moves from legacy `niche_taxonomy.id` loop to `content_class_id` (topic×format) + `creator_tier` peer band. UX pills (`creator_niches`) stay broad; backend + **ACQE** assign sharp class.
+
+| Phase | Backend deliverable | Env / gate |
+|-------|---------------------|------------|
+| **0** | Provenance cols (`ingest_loop_*`, `class_assignment_*`, `score_cohort_mismatch`); `content_class_ingest_targets`; **ACQE** nightly; metrics SQL | 3-night baseline; Cross-Niche Migration Rate |
+| **0b** | `hashtag_class_map` + spec | Learn deploy Phase 3 |
+| **1** | `content_class_intelligence.claim_tier`; FE `VITE_CORPUS_BROWSE_CLASS_FIRST` | Junction aggregate ≥20 |
+| **1b** | `hi11_rolling_eval.py` rolling agreement/junction/outlier | Blocks Phase 2 promote |
+| **2** | Class-keyed instructiveness (`CORPUS_SCORE_COHORT`); `content_class_tier_intelligence` MV; `LIVE_COHORT_CLASS_FIRST` | `class_shadow` → `class` |
+| **3** | `CORPUS_INGEST_LOOP=class`; class dedup re-upsert; `CORPUS_DISCOVERY_RELAX` | Default `niche` for safety |
+| **4** | `CORPUS_WRITE_NICHE_ID=false`; `REFRESH_NICHE_INTELLIGENCE_MV=false`; `content_class_channel_benchmarks`; FE `VITE_CORPUS_BROWSE_CLASS_ONLY` | 30d observe before column drop |
+
+**ACQE cold-start:** Nights 1–3 use all rows + global percentiles; no red-alert escalation. Validated subset from night 4+.
+
+**Peer band:** `(content_class_id, creator_tier)` — diagnosis yes; Trends browse no user-tier filter.
+
+**SQL pack:** [`content-class-pivot-metrics.sql`](content-class-pivot-metrics.sql)
+
+---
+
 ## 9. Amendment log
 
 | Date | Change |
 |------|--------|
+| 2026-05-21 | §10 — Phase 4 sunset env + class channel benchmarks RPC |
+| 2026-05-21 | §10 — content-class pivot Phase 0–3 backend map + ACQE |
 | 2026-05-20 | Initial doc — two-axis + ingest discovery + purity interaction + UI mapping |
