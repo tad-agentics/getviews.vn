@@ -316,7 +316,7 @@ def fetch_outlier_story(
         resp = (
             client.table("video_corpus")
             .select("creator_handle, views, breakout_ratio, hook_type, indexed_at")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", since_iso)
             .not_.is_("breakout_ratio", "null")
             .gt("breakout_ratio", 5.0)

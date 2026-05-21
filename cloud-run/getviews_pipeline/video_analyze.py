@@ -247,7 +247,7 @@ def fetch_niche_save_share_pct_quantiles_sync(
         res = (
             sb.table("video_corpus")
             .select("views, shares, saves")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gt("views", 0)
             .gte("indexed_at", since)
             .limit(limit)

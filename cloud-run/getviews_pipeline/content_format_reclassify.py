@@ -40,7 +40,7 @@ def _select_other_rows(
     """Fetch one page of 'other' / NULL rows, oldest first."""
     q = (
         client.table("video_corpus")
-        .select("video_id, niche_id, content_format, analysis_json, created_at")
+        .select("video_id, ingest_loop_niche_id, content_format, analysis_json, created_at")
         .or_("content_format.eq.other,content_format.is.null")
         .order("created_at", desc=False)
         .limit(page_size)
@@ -86,7 +86,7 @@ def run_content_format_reclassify(
         for row in rows:
             scanned += 1
             analysis_json = row.get("analysis_json") or {}
-            niche_id = int(row.get("niche_id") or 0)
+            niche_id = int(row.get("ingest_loop_niche_id") or 0)
             new_format = classify_format(analysis_json, niche_id)
 
             if new_format == "other" or new_format == row.get("content_format"):

@@ -38,7 +38,7 @@ def count_video_corpus_for_niche(niche_id: int, days: int) -> int:
         res = (
             sb.table("video_corpus")
             .select("video_id", count="exact")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", cutoff)
             .execute()
         )

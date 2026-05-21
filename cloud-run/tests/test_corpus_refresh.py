@@ -146,7 +146,7 @@ def _build_select_client(
 
 def test_select_candidates_null_bucket_only() -> None:
     """When NULL bucket fills the limit, stale bucket isn't queried."""
-    null_rows = [{"video_id": str(i), "niche_id": 1, "views": 1000 * i} for i in range(1, 6)]
+    null_rows = [{"video_id": str(i), "ingest_loop_niche_id": 1, "views": 1000 * i} for i in range(1, 6)]
     client = _build_select_client(null_rows=null_rows, stale_rows=[])
 
     rows = _select_refresh_candidates(client, limit=5)
@@ -156,8 +156,8 @@ def test_select_candidates_null_bucket_only() -> None:
 
 def test_select_candidates_falls_through_to_stale_when_null_short() -> None:
     """When NULLs don't fill the limit, the stale bucket fills the rest."""
-    null_rows = [{"video_id": "n1", "niche_id": 1, "views": 5000}]
-    stale_rows = [{"video_id": "s1", "niche_id": 1, "views": 3000}]
+    null_rows = [{"video_id": "n1", "ingest_loop_niche_id": 1, "views": 5000}]
+    stale_rows = [{"video_id": "s1", "ingest_loop_niche_id": 1, "views": 3000}]
     client = _build_select_client(null_rows=null_rows, stale_rows=stale_rows)
 
     rows = _select_refresh_candidates(client, limit=5)
@@ -166,7 +166,7 @@ def test_select_candidates_falls_through_to_stale_when_null_short() -> None:
 
 def test_select_candidates_default_limit_is_batch_constant() -> None:
     null_rows = [
-        {"video_id": str(i), "niche_id": 1, "views": 9999}
+        {"video_id": str(i), "ingest_loop_niche_id": 1, "views": 9999}
         for i in range(REFRESH_BATCH_LIMIT)
     ]
     client = _build_select_client(null_rows=null_rows, stale_rows=[])
@@ -239,8 +239,8 @@ async def test_run_refresh_zero_candidates_is_noop() -> None:
 @pytest.mark.asyncio
 async def test_run_refresh_updates_each_row_with_fresh_stats() -> None:
     candidates = [
-        {"video_id": "100", "niche_id": 1, "views": 10_000},
-        {"video_id": "101", "niche_id": 1, "views": 5_000},
+        {"video_id": "100", "ingest_loop_niche_id": 1, "views": 10_000},
+        {"video_id": "101", "ingest_loop_niche_id": 1, "views": 5_000},
     ]
     fresh_posts = [
         _build_post("100", views=15_000, likes=800, saves=120),
@@ -275,8 +275,8 @@ async def test_run_refresh_skips_deleted_posts() -> None:
     """ED returns play_count=0 for deleted/private posts. We must skip
     those (counted as ``missing``) instead of writing 0s to good rows."""
     candidates = [
-        {"video_id": "100", "niche_id": 1, "views": 10_000},
-        {"video_id": "999_deleted", "niche_id": 1, "views": 500},
+        {"video_id": "100", "ingest_loop_niche_id": 1, "views": 10_000},
+        {"video_id": "999_deleted", "ingest_loop_niche_id": 1, "views": 500},
     ]
     fresh_posts = [
         _build_post("100", views=12_000, likes=400),
@@ -302,7 +302,7 @@ async def test_run_refresh_handles_ensemble_failure_per_chunk() -> None:
     the whole chunk as errors, and the cron continues to the next."""
     # 25 candidates → 2 chunks (20 + 5)
     candidates = [
-        {"video_id": str(i), "niche_id": 1, "views": 9999}
+        {"video_id": str(i), "ingest_loop_niche_id": 1, "views": 9999}
         for i in range(25)
     ]
     client = _build_run_client(candidates=candidates)
@@ -332,7 +332,7 @@ async def test_run_refresh_handles_ensemble_failure_per_chunk() -> None:
 async def test_run_refresh_retries_once_on_transient_failure() -> None:
     """Retry-with-backoff: first attempt raises, second attempt
     succeeds — no error counted, chunk processed normally."""
-    candidates = [{"video_id": "100", "niche_id": 1, "views": 5_000}]
+    candidates = [{"video_id": "100", "ingest_loop_niche_id": 1, "views": 5_000}]
     client = _build_run_client(candidates=candidates)
 
     fresh_posts = [_build_post("100", views=7_500, likes=400)]
@@ -363,7 +363,7 @@ async def test_run_refresh_aborts_on_ed_daily_budget() -> None:
 
     # 40 candidates → 2 chunks of 20
     candidates = [
-        {"video_id": str(i), "niche_id": 1, "views": 9999}
+        {"video_id": str(i), "ingest_loop_niche_id": 1, "views": 9999}
         for i in range(40)
     ]
     client = _build_run_client(candidates=candidates)
@@ -391,7 +391,7 @@ async def test_run_refresh_per_chunk_cooldown_fires() -> None:
     """Between-chunk sleep runs once per inter-chunk gap (not after
     the final chunk)."""
     candidates = [
-        {"video_id": str(i), "niche_id": 1, "views": 9999}
+        {"video_id": str(i), "ingest_loop_niche_id": 1, "views": 9999}
         for i in range(45)  # 3 chunks: 20 + 20 + 5
     ]
     client = _build_run_client(candidates=candidates)

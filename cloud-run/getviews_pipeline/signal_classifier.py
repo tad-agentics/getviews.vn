@@ -109,7 +109,7 @@ def _grade_niche_sync(
     corpus_result = (
         client.table("video_corpus")
         .select("analysis_json, creator_handle, views, indexed_at")
-        .eq("niche_id", niche_id)
+        .eq("ingest_loop_niche_id", niche_id)
         .gte("indexed_at", since)
         .execute()
     )
@@ -157,7 +157,7 @@ def _grade_niche_sync(
     he_result = (
         client.table("hook_effectiveness")
         .select("hook_type, trend_direction")
-        .eq("niche_id", niche_id)
+        .eq("ingest_loop_niche_id", niche_id)
         .order("computed_at", desc=True)
         .limit(50)
         .execute()

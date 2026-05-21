@@ -789,7 +789,7 @@ async def admin_corpus_health(
         raise HTTPException(status_code=500, detail=f"niche_taxonomy: {exc}") from exc
 
     try:
-        corpus_res = client.table("video_corpus").select("niche_id, created_at").gte("created_at", cutoff_90d.isoformat()).execute()
+        corpus_res = client.table("video_corpus").select("ingest_loop_niche_id, created_at").gte("created_at", cutoff_90d.isoformat()).execute()
         corpus_rows = corpus_res.data or []
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"video_corpus: {exc}") from exc

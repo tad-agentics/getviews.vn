@@ -257,7 +257,7 @@ def _load_broad_corpus(sb: Any, niche_id: int | None, window_days: int) -> list[
             .limit(200)
         )
         if niche_id:
-            q = q.eq("niche_id", niche_id)
+            q = q.eq("ingest_loop_niche_id", niche_id)
         res = q.execute()
         return list(res.data or [])
     except Exception as exc:

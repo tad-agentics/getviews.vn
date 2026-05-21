@@ -83,7 +83,7 @@ async def _fetch_top_formula(client: Any, niche_id: int, since_iso: str) -> dict
         return (
             client.table("video_corpus")
             .select("hook_type,content_format")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .not_.is_("hook_type", None)
             .not_.is_("content_format", None)
             .gte("indexed_at", since_iso)
@@ -121,7 +121,7 @@ async def _fetch_top_and_baseline(
         return (
             client.table("video_corpus")
             .select("video_id,analysis_json,views,likes,comments,shares")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .eq("hook_type", formula_hook)
             .eq("content_format", formula_format)
             .gte("indexed_at", since_iso)
@@ -139,7 +139,7 @@ async def _fetch_top_and_baseline(
         return (
             client.table("video_corpus")
             .select("video_id,analysis_json,views,likes,comments,shares")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .not_.is_("hook_type", None)
             .not_.is_("content_format", None)
             .neq("hook_type", formula_hook)

@@ -71,7 +71,7 @@ def _fetch_corpus_window(
     q = (
         client.table("video_corpus")
         .select(
-            "niche_id, content_class_id, hook_type, views, engagement_rate, "
+            "ingest_loop_niche_id, content_class_id, hook_type, views, engagement_rate, "
             "save_rate, breakout_multiplier, indexed_at"
         )
         .not_.is_("hook_type", None)
@@ -83,7 +83,7 @@ def _fetch_corpus_window(
     return [
         r for r in rows
         if isinstance(r, dict)
-        and r.get("niche_id") is not None
+        and r.get("ingest_loop_niche_id") is not None
         and r.get("hook_type")
     ]
 
@@ -123,7 +123,7 @@ def _compute_buckets(rows: list[dict[str, Any]]) -> dict[tuple[int, str], dict[s
     """
     groups: dict[tuple[int, str], list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
-        key = (int(r["niche_id"]), str(r["hook_type"]))
+        key = (int(r["ingest_loop_niche_id"]), str(r["hook_type"]))
         groups[key].append(r)
 
     buckets: dict[tuple[int, str], dict[str, Any]] = {}

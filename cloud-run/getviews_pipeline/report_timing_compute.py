@@ -301,7 +301,7 @@ def load_timing_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, An
         cres = (
             sb.table("video_corpus")
             .select("video_id, views, posted_at, indexed_at, created_at")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", cutoff)
             .order("indexed_at", desc=True)
             .limit(2500)

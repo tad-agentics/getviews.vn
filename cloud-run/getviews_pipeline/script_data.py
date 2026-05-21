@@ -72,7 +72,7 @@ def fetch_scene_intelligence_for_niche(sb: Any, niche_id: int) -> dict[str, Any]
             "niche_id, scene_type, corpus_avg_duration, winner_avg_duration, "
             "winner_overlay_style, overlay_samples, tip, reference_video_ids, sample_size, computed_at"
         )
-        .eq("niche_id", niche_id)
+        .eq("ingest_loop_niche_id", niche_id)
         .order("scene_type")
         .execute()
     )
@@ -92,7 +92,7 @@ def fetch_hook_patterns_for_niche(sb: Any, niche_id: int) -> dict[str, Any]:
     ni_res = (
         sb.table("niche_intelligence")
         .select("organic_avg_views, commerce_avg_views, sample_size")
-        .eq("niche_id", niche_id)
+        .eq("ingest_loop_niche_id", niche_id)
         .maybe_single()
         .execute()
     )
@@ -106,7 +106,7 @@ def fetch_hook_patterns_for_niche(sb: Any, niche_id: int) -> dict[str, Any]:
     he_res = (
         sb.table("hook_effectiveness")
         .select("hook_type, avg_views, sample_size, trend_direction, computed_at")
-        .eq("niche_id", niche_id)
+        .eq("ingest_loop_niche_id", niche_id)
         .order("computed_at", desc=True)
         .limit(200)
         .execute()
@@ -165,7 +165,7 @@ def _derive_hook_patterns_from_corpus(
         res = (
             sb.table("video_corpus")
             .select("hook_type, views")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .not_.is_("hook_type", "null")
             .limit(2000)
             .execute()
@@ -294,7 +294,7 @@ def fetch_idea_references_for_niche(
             primary_rows = (
                 sb.table("video_corpus")
                 .select(select_cols)
-                .eq("niche_id", niche_id)
+                .eq("ingest_loop_niche_id", niche_id)
                 .eq("hook_type", resolved_hook)
                 .order("views", desc=True)
                 .limit(_IDEA_REF_FALLBACK_LIMIT)
@@ -315,7 +315,7 @@ def fetch_idea_references_for_niche(
             fallback_rows = (
                 sb.table("video_corpus")
                 .select(select_cols)
-                .eq("niche_id", niche_id)
+                .eq("ingest_loop_niche_id", niche_id)
                 .order("views", desc=True)
                 .limit(_IDEA_REF_FALLBACK_LIMIT)
                 .execute()

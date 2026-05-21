@@ -250,7 +250,7 @@ def load_lifecycle_inputs(
             .select(
                 "video_id, views, content_format, indexed_at, created_at, posted_at"
             )
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", cutoff)
             .order("indexed_at", desc=True)
             .limit(2500)

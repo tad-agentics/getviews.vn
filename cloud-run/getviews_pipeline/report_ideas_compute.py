@@ -328,7 +328,7 @@ def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500)
                 "video_id, creator_handle, views, hook_type, indexed_at, created_at, "
                 "engagement_rate, video_duration, analysis_json, caption, thumbnail_url"
             )
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", cutoff)
             .order("views", desc=True)
             .limit(limit)

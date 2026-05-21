@@ -105,7 +105,7 @@ def promote_on_demand_to_corpus(
         "video_id": video_id,
         "tiktok_url": tiktok_url,
         "creator_handle": creator_handle,
-        "niche_id": niche_id,
+        "ingest_loop_niche_id": niche_id,
         "analysis_json": analysis_json,
         "views": views,
         "likes": likes,

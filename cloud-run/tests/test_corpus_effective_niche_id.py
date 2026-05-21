@@ -59,7 +59,7 @@ async def test_ingest_candidate_awemes_uses_per_aweme_stashed_niche(
         captured.append(niche_id)
         return {
             "video_id": str(aweme.get("aweme_id")),
-            "niche_id": niche_id,
+            "ingest_loop_niche_id": niche_id,
             "content_type": "carousel",
             "hashtags": [],
         }

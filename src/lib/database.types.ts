@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       acqe_run_state: {
@@ -2541,7 +2516,6 @@ export type Database = {
           last_refetched_at: string | null
           last_refreshed_at: string | null
           likes: number
-          niche_id: number
           niche_resolution_confidence: number | null
           niche_resolution_source: string | null
           pain_points: Json | null
@@ -2622,7 +2596,6 @@ export type Database = {
           last_refetched_at?: string | null
           last_refreshed_at?: string | null
           likes?: number
-          niche_id: number
           niche_resolution_confidence?: number | null
           niche_resolution_source?: string | null
           pain_points?: Json | null
@@ -2703,7 +2676,6 @@ export type Database = {
           last_refetched_at?: string | null
           last_refreshed_at?: string | null
           likes?: number
-          niche_id?: number
           niche_resolution_confidence?: number | null
           niche_resolution_source?: string | null
           pain_points?: Json | null
@@ -2750,13 +2722,6 @@ export type Database = {
             columns: ["inferred_creator_niche_id"]
             isOneToOne: false
             referencedRelation: "creator_niches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "video_corpus_niche_id_fkey"
-            columns: ["niche_id"]
-            isOneToOne: false
-            referencedRelation: "niche_taxonomy"
             referencedColumns: ["id"]
           },
           {
@@ -3122,6 +3087,10 @@ export type Database = {
         Returns: string
       }
       begin_processing: { Args: { p_user_id: string }; Returns: boolean }
+      channel_corpus_stats: {
+        Args: { p_handle: string; p_niche: number }
+        Returns: Json
+      }
       content_class_channel_benchmarks: {
         Args: { p_content_class_id: number; p_creator_tier?: string }
         Returns: {
@@ -3435,9 +3404,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

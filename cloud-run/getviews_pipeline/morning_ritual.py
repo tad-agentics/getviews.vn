@@ -157,7 +157,7 @@ def _fetch_content_class_ids_sync(client: Any, creator_niche_id: int | None) -> 
 def _scope_grounding_query(q: Any, niche_id: int, content_class_ids: list[int] | None) -> Any:
     if content_class_ids:
         return q.in_("content_class_id", content_class_ids)
-    return q.eq("niche_id", niche_id)
+    return q.eq("ingest_loop_niche_id", niche_id)
 
 
 def _fetch_grounding_videos(

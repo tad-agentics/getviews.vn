@@ -207,7 +207,7 @@ def _fetch_page_with_retry(client: Any, cutoff_iso: str, start: int) -> list[dic
         try:
             res = (
                 client.table("video_corpus")
-                .select("video_id, niche_id, views, analysis_json")
+                .select("video_id, ingest_loop_niche_id, views, analysis_json")
                 .gte("indexed_at", cutoff_iso)
                 .range(start, start + PAGE_SIZE - 1)
                 .execute()

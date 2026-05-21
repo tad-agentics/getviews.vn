@@ -768,7 +768,7 @@ async def select_niche_peer_videos(
         res = (
             user_sb.table("video_corpus")
             .select("video_id,thumbnail_url,views,content_format,title,video_url,creator_handle")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .neq("creator_handle", exclude_handle)
             .order("views", desc=True)
             .limit(limit * 3)
@@ -902,7 +902,7 @@ async def derive_channel_persona(
         res = (
             user_sb.table("video_corpus")
             .select("content_class_id")
-            .eq("niche_id", legacy_niche_id)
+            .eq("ingest_loop_niche_id", legacy_niche_id)
             .eq("creator_handle", handle.lower())
             .not_.is_("content_class_id", "null")
             .limit(200)
@@ -1322,7 +1322,7 @@ def _run_peer_corpus_query(
         .select(
             "creator_handle,views,content_format,thumbnail_url,video_url,video_id,caption,creator_tier"
         )
-        .eq("niche_id", legacy_niche_id)
+        .eq("ingest_loop_niche_id", legacy_niche_id)
         .neq("creator_handle", ex)
     )
     if content_class_id is not None:

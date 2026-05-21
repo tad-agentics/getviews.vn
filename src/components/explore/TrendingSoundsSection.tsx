@@ -105,7 +105,7 @@ export function TrendingSoundsSection({
         const { data: corpusRows, error: cErr } = await supabase
           .from("video_corpus")
           .select("sound_id, sound_name, views, is_original_sound")
-          .eq("niche_id", legacyNicheId)
+          .eq("ingest_loop_niche_id", legacyNicheId)
           .not("sound_id", "is", null)
           .gte("indexed_at", sinceIso)
           .limit(500);

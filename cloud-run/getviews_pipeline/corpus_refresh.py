@@ -86,7 +86,7 @@ def _select_refresh_candidates(
     # NULL bucket first, then stale-bucket, both filtered by views.
     null_bucket = (
         client.table("video_corpus")
-        .select("video_id, niche_id, views, likes, comments, shares, saves")
+        .select("video_id, ingest_loop_niche_id, views, likes, comments, shares, saves")
         .is_("last_refetched_at", None)
         .gte("views", views_floor)
         .order("views", desc=True)
@@ -101,7 +101,7 @@ def _select_refresh_candidates(
     remaining = limit - len(rows)
     stale_bucket = (
         client.table("video_corpus")
-        .select("video_id, niche_id, views, likes, comments, shares, saves")
+        .select("video_id, ingest_loop_niche_id, views, likes, comments, shares, saves")
         .lt("last_refetched_at", stale_cutoff)
         .gte("views", views_floor)
         .order("views", desc=True)

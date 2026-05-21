@@ -110,9 +110,6 @@ function applyCorpusScope<T extends { in: (col: string, val: number[]) => T; eq:
   if (scope.contentClassIds.length > 0) {
     return query.in("content_class_id", scope.contentClassIds);
   }
-  if (scope.legacyNicheId != null) {
-    return query.eq("niche_id", scope.legacyNicheId);
-  }
   return query;
 }
 

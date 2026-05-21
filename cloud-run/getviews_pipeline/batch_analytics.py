@@ -87,7 +87,7 @@ def _compute_creator_velocity_sync(client: Any) -> list[dict[str, Any]]:
     since = (datetime.now(UTC) - timedelta(days=_VELOCITY_WINDOW_DAYS)).isoformat()
     rows = (
         client.table("video_corpus")
-        .select("creator_handle, niche_id, views")
+        .select("creator_handle, ingest_loop_niche_id, views")
         .gt("views", 0)
         .gte("indexed_at", since)
         .execute()
@@ -97,7 +97,7 @@ def _compute_creator_velocity_sync(client: Any) -> list[dict[str, Any]]:
     # Group by (creator_handle, niche_id)
     groups: dict[tuple[str, int], list[int]] = {}
     for row in data:
-        key = (row["creator_handle"], row["niche_id"])
+        key = (row["creator_handle"], row["ingest_loop_niche_id"])
         groups.setdefault(key, []).append(row["views"])
 
     # Compute aggregates
@@ -193,7 +193,7 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
         chunk = handles[i : i + chunk_size]
         vid_result = (
             client.table("video_corpus")
-            .select("id, creator_handle, niche_id, views")
+            .select("id, creator_handle, ingest_loop_niche_id, views")
             .in_("creator_handle", chunk)
             .gt("views", 0)
             .gte("indexed_at", since)
@@ -203,7 +203,7 @@ def _compute_breakout_multipliers_sync(client: Any) -> int:
 
         # Update breakout_multiplier for each video using the per-niche creator average
         for video in videos:
-            avg = velocity_map.get((video["creator_handle"], video["niche_id"]))
+            avg = velocity_map.get((video["creator_handle"], video["ingest_loop_niche_id"]))
             if not avg or avg <= 0:
                 continue
             breakout = round(video["views"] / avg, 2)
@@ -263,7 +263,7 @@ def _compute_view_velocity_sync(client: Any) -> list[dict[str, Any]]:
     # Pull 60 days of corpus rows in a single select — cheaper than two.
     rows = (
         client.table("video_corpus")
-        .select("creator_handle, niche_id, views, created_at")
+        .select("creator_handle, ingest_loop_niche_id, views, created_at")
         .gt("views", 0)
         .gte("created_at", t_prior_start.isoformat())
         .execute()
@@ -274,7 +274,7 @@ def _compute_view_velocity_sync(client: Any) -> list[dict[str, Any]]:
     buckets: dict[tuple[str, int], tuple[list[int], list[int]]] = {}
     for row in data:
         handle = row.get("creator_handle")
-        niche_id = row.get("niche_id")
+        niche_id = row.get("ingest_loop_niche_id")
         views = row.get("views")
         dt = _parse_ts(row.get("created_at"))
         if handle is None or niche_id is None or views is None or dt is None:

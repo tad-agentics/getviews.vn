@@ -637,7 +637,7 @@ def _format_avg_views_for_diagnosis(niche_id: int, content_format: str) -> float
             q = (
                 client.table("video_corpus")
                 .select("views")
-                .eq("niche_id", niche_id)
+                .eq("ingest_loop_niche_id", niche_id)
                 .eq("content_format", fmt)
                 .limit(200)
             )
@@ -680,7 +680,7 @@ def fetch_format_corpus_enrichment_sync(
         res = (
             client.table("video_corpus")
             .select("video_id, caption, views, creator_handle, likes, comments, shares")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .eq("content_format", content_format)
             .gte("indexed_at", since_iso)
             .limit(200)
@@ -2108,7 +2108,7 @@ async def _get_niche_insight(
             return (
                 client.table("niche_insights")
                 .select("insight_text,execution_tip,staleness_risk,quality_flag")
-                .eq("niche_id", niche_id)
+                .eq("ingest_loop_niche_id", niche_id)
                 .is_("quality_flag", None)  # only surface non-flagged insights
                 .order("week_of", desc=True)
                 .limit(1)

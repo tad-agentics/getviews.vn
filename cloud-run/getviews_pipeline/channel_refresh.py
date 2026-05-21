@@ -53,7 +53,7 @@ def _last_ingest_at_sync(client: Any, *, handle: str, niche_id: int) -> datetime
             client.table("video_corpus")
             .select("indexed_at")
             .ilike("creator_handle", norm)
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .order("indexed_at", desc=True)
             .limit(1)
             .execute()
@@ -82,7 +82,7 @@ def _existing_aweme_ids_sync(client: Any, *, handle: str, niche_id: int) -> set[
         res = (
             client.table("video_corpus")
             .select("video_id")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .ilike("creator_handle", norm)
             .execute()
         )

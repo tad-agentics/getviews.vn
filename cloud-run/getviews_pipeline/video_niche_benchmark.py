@@ -52,7 +52,7 @@ def count_winners_sample_in_niche_sync(sb: Any, niche_id: int, median_er: float)
         res = (
             sb.table("video_corpus")
             .select("video_id", count="exact")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .or_(f"breakout_multiplier.gte.1.5,engagement_rate.gt.{er_s}")
             .execute()
         )
@@ -181,7 +181,7 @@ def fetch_niche_intelligence_sync(sb: Any, niche_id: int) -> dict[str, Any] | No
                 "niche_id,sample_size,organic_avg_views,commerce_avg_views,"
                 "median_er,avg_engagement_rate,computed_at"
             )
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .execute()
         )
     except Exception as exc:

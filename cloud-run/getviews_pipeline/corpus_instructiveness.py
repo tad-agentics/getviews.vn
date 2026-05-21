@@ -697,7 +697,7 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
     ctx = IngestBatchContext()
     since = (datetime.now(UTC) - timedelta(days=30)).isoformat()
     select_cols = (
-        "niche_id, content_class_id, creator_tier, views, comments, save_rate, engagement_rate"
+        "ingest_loop_niche_id, content_class_id, creator_tier, views, comments, save_rate, engagement_rate"
     )
     try:
         rows = (
@@ -721,7 +721,7 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
     all_comment_rates: list[float] = []
     all_er: list[float] = []
     for row in rows:
-        nid = row.get("niche_id")
+        nid = row.get("ingest_loop_niche_id")
         if nid is None:
             continue
         nid = int(nid)
@@ -786,7 +786,7 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
             ni = (
                 client.table("niche_intelligence")
                 .select("*")
-                .eq("niche_id", nid)
+                .eq("ingest_loop_niche_id", nid)
                 .maybe_single()
                 .execute()
                 .data
@@ -860,7 +860,7 @@ def prefetch_ingest_batch_context(client: Any, niche_ids: list[int]) -> IngestBa
             tv = (
                 client.table("trend_velocity")
                 .select("sound_trends")
-                .eq("niche_id", nid)
+                .eq("ingest_loop_niche_id", nid)
                 .eq("week_start", week_start.isoformat())
                 .maybe_single()
                 .execute()

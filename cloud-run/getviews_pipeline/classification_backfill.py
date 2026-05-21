@@ -201,7 +201,7 @@ def run_classification_backfill(
 
     q = (
         client.table("video_corpus")
-        .select("video_id, niche_id, content_type, analysis_json, indexed_at")
+        .select("video_id, ingest_loop_niche_id, content_type, analysis_json, indexed_at")
         .is_("niche_resolution_source", "null")
         .not_.is_("analysis_json", "null")
         .order("indexed_at", desc=True)

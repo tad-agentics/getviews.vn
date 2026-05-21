@@ -224,7 +224,7 @@ def _compute_trend_velocity_for_niche_sync(
         result = (
             client.table("video_corpus")
             .select("engagement_rate, indexed_at, analysis_json, hashtags")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", cutoff_14d.isoformat())
             .execute()
         )

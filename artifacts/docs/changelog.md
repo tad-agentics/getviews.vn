@@ -1,11 +1,19 @@
 # Changelog — GetViews.vn
 
+## 2026-05-21 — Content-class pivot Phase C (`video_corpus.niche_id` dropped)
+
+- **Migration:** `20260822000001_phase_c_drop_video_corpus_niche_id.sql` — backfill `ingest_loop_niche_id`, update RPCs (`upsert_video_corpus_batch`, `corpus_hashtag_yields_14d`, `daily_corpus_growth_by_niche`, timing/pattern/channel helpers), recreate class MVs without `SELECT *`, drop `niche_id` column + indexes.
+- **Batch:** upsert never sends `niche_id`; corpus row builder omits legacy column.
+- **Cloud Run:** `video_corpus` filters use `ingest_loop_niche_id` (taxonomy loop bucket).
+- **FE:** browse filters are `content_class_id IN (...)` only — no `video_corpus.niche_id` fallback.
+- **Post-deploy:** run nightly batch ingest (or manual `/batch/ingest`) so MVs repopulate after migration.
+
 ## 2026-05-19 — Content-class pivot Round B (trends class + legacy MV drop)
 
 - **FE:** `useTopPatterns` + `TrendingSoundsSection` scoped by junction `content_class_id`; removed `VITE_CORPUS_BROWSE_*` dual-path flags; `corpusNicheFilter` class-only when junction non-empty.
 - **BE:** `sound_aggregator` loops `content_class_ingest_targets`; ticker/trend_velocity/pipelines read class-scoped `trending_sounds`; benchmark drops legacy niche-first branch; corpus ingest skips `niche_intelligence` refresh.
 - **Migration:** `20260821000001_round_b_class_trends_cleanup.sql` — `trending_sounds.content_class_id`, truncate + drop `niche_id`; DROP `niche_intelligence` MV + `refresh_niche_intelligence()`.
-- **Not yet:** `video_corpus.niche_id` column retained for thin-junction fallback + batch read paths (Phase C).
+- **Superseded by Phase C (2026-05-21):** `video_corpus.niche_id` dropped; use `content_class_id` + `ingest_loop_niche_id`.
 
 ## 2026-05-21 — Docs housekeeping Round A (pivot SSOT sync)
 

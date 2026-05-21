@@ -32,8 +32,8 @@ export async function fetchContentClassIdsForCreatorNiche(
 }
 
 /**
- * Class-first browse: ``content_class_id IN (...)`` when junction classes exist;
- * otherwise legacy ``niche_id`` equality (thin junction fallback only).
+ * Class-first browse: ``content_class_id IN (...)`` when junction classes exist.
+ * Phase C: no ``video_corpus.niche_id`` fallback — empty junction returns unscoped query.
  */
 export function applyVideoCorpusNicheFilter<T extends CorpusNicheFilterableQuery>(
   query: T,
@@ -45,10 +45,6 @@ export function applyVideoCorpusNicheFilter<T extends CorpusNicheFilterableQuery
   const classIds = scope.contentClassIds ?? [];
   if (classIds.length > 0) {
     return query.in("content_class_id", classIds) as T;
-  }
-  const legacyId = scope.legacyNicheId;
-  if (legacyId != null && legacyId !== 0) {
-    return query.eq("niche_id", legacyId) as T;
   }
   return query;
 }

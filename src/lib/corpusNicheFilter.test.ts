@@ -36,10 +36,10 @@ describe("applyVideoCorpusNicheFilter", () => {
     expect(q.calls).toEqual([{ op: "in", col: "content_class_id", val: [10, 11] }]);
   });
 
-  it("falls back to niche_id only when no content classes", () => {
+  it("applies no filter when junction is empty (Phase C)", () => {
     const q = mockQuery();
     applyVideoCorpusNicheFilter(q, { legacyNicheId: 27, contentClassIds: [] });
-    expect(q.calls).toEqual([{ op: "eq", col: "niche_id", val: 27 }]);
+    expect(q.calls).toEqual([]);
   });
 
   it("applies no filter when scope is empty", () => {

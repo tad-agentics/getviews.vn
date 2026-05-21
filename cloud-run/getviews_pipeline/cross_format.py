@@ -112,7 +112,7 @@ def _fetch_format_corpus(
         # Step 2 — corpus rows in those content_classes within the window.
         q = (
             sb.table("video_corpus")
-            .select("video_id, niche_id, hook_type, views, content_format")
+            .select("video_id, ingest_loop_niche_id, hook_type, views, content_format")
             .in_("content_class_id", cc_ids)
             .gt("views", 0)
             .gte("indexed_at", since_iso)
@@ -164,7 +164,7 @@ def get_cross_format_signal(
     by_hook: dict[str, list[dict[str, Any]]] = defaultdict(list)
     total_sample = 0
     for r in rows:
-        nid = r.get("niche_id")
+        nid = r.get("ingest_loop_niche_id")
         ht = r.get("hook_type") or ""
         v = int(r.get("views") or 0)
         if v <= 0:

@@ -62,7 +62,7 @@ export function useTrendsRailVideos(nicheId: number | null) {
         supabase
           .from("video_corpus")
           .select(RAIL_COLS)
-          .eq("niche_id", nicheId)
+          .eq("ingest_loop_niche_id", nicheId)
           .eq("language", "vi")
           .not("thumbnail_url", "is", null)
           .not("breakout_multiplier", "is", null)
@@ -72,7 +72,7 @@ export function useTrendsRailVideos(nicheId: number | null) {
         supabase
           .from("video_corpus")
           .select(RAIL_COLS)
-          .eq("niche_id", nicheId)
+          .eq("ingest_loop_niche_id", nicheId)
           .eq("language", "vi")
           .not("thumbnail_url", "is", null)
           .gte("breakout_multiplier", 2)

@@ -150,7 +150,7 @@ async def get_corpus_count(
             .gte("indexed_at", indexed_at_cutoff_iso(days))
         )
         if niche_id is not None:
-            query = query.eq("niche_id", niche_id)
+            query = query.eq("ingest_loop_niche_id", niche_id)
         result = query.execute()
         count = result.count or 0
         return count, niche_name
@@ -408,7 +408,7 @@ async def get_top_breakout_videos(
             .limit(limit)
         )
         if niche_id is not None:
-            query = query.eq("niche_id", niche_id)
+            query = query.eq("ingest_loop_niche_id", niche_id)
         result = query.execute()
         return result.data or []
     except Exception as exc:
@@ -848,7 +848,7 @@ def fetch_corpus_reference_pool_sync(
                 "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
                 "indexed_at, content_format, content_type, analysis_json"
             )
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", indexed_at_cutoff_iso(days))
             .order("breakout_multiplier", desc=True, nullsfirst=False)
             .order("engagement_rate", desc=True)
@@ -900,7 +900,7 @@ async def fetch_corpus_reference_pool(
                 "engagement_rate, breakout_multiplier, tiktok_url, thumbnail_url, "
                 "indexed_at, content_format, content_type, analysis_json"
             )
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", indexed_at_cutoff_iso(days))
             .order("breakout_multiplier", desc=True, nullsfirst=False)
             .order("engagement_rate", desc=True)

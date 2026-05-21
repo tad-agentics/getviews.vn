@@ -345,8 +345,8 @@ def _fetch_niche_counts_sync(client: Any) -> dict[int, int]:
     try:
         resp = (
             client.table("video_corpus")
-            .select("niche_id")
-            .not_.is_("niche_id", "null")
+            .select("ingest_loop_niche_id")
+            .not_.is_("ingest_loop_niche_id", "null")
             .limit(50_000)  # well over any realistic corpus size
             .execute()
         )
@@ -355,7 +355,7 @@ def _fetch_niche_counts_sync(client: Any) -> dict[int, int]:
         return {}
     counts: dict[int, int] = {}
     for row in resp.data or []:
-        nid = row.get("niche_id")
+        nid = row.get("ingest_loop_niche_id")
         if nid is None:
             continue
         counts[int(nid)] = counts.get(int(nid), 0) + 1
@@ -1723,7 +1723,6 @@ def _build_corpus_row(
         # ── Core columns (existing 17) ──
         "video_id": video_id,
         "content_type": content_type,
-        "niche_id": niche_id,
         **_niche_resolution_shadow_fields(
             analysis_json,
             _shadow_nid,
@@ -2979,11 +2978,9 @@ def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
 
     now_iso = _dt.now(UTC).isoformat()
     enriched = []
-    write_niche = bool(_ingest_settings.corpus_write_niche_id)
     for row in rows:
         r = dict(row)
-        if not write_niche:
-            r.pop("niche_id", None)
+        r.pop("niche_id", None)
         r.setdefault("ingest_source", "batch_nightly")
         r.setdefault("quality_tier", "high")
         r.setdefault("first_seen_at", now_iso)
@@ -3087,8 +3084,8 @@ def _pick_top_videos_for_enrichment_sync(
     target = max(1, int(limit))
     result = (
         client.table("video_corpus")
-        .select("video_id,niche_id")
-        .not_.is_("niche_id", "null")
+        .select("video_id,ingest_loop_niche_id")
+        .not_.is_("ingest_loop_niche_id", "null")
         .eq("content_type", "video")
         .order("views", desc=True)
         .limit(target * 2 + 50)
@@ -3843,7 +3840,7 @@ def _legacy_niche_id_for_class_sync(client: Any, content_class_id: int) -> int:
         )
         counts: dict[int, int] = {}
         for row in res.data or []:
-            nid = row.get("niche_id")
+            nid = row.get("ingest_loop_niche_id")
             if nid is not None:
                 counts[int(nid)] = counts.get(int(nid), 0) + 1
         if counts:

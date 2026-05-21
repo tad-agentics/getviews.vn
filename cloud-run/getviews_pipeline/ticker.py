@@ -95,7 +95,7 @@ def _breakout_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
     rows = (
         client.table("video_corpus")
         .select("video_id, creator_handle, views, breakout_multiplier")
-        .eq("niche_id", niche_id)
+        .eq("ingest_loop_niche_id", niche_id)
         .gte("created_at", since)
         .not_.is_("breakout_multiplier", None)
         .order("breakout_multiplier", desc=True)
@@ -190,7 +190,7 @@ def _rising_kol_items(client: Any, niche_id: int, since: str) -> list[TickerItem
     rows = (
         client.table("video_corpus")
         .select("creator_handle, views, creator_followers, breakout_multiplier")
-        .eq("niche_id", niche_id)
+        .eq("ingest_loop_niche_id", niche_id)
         .gte("created_at", since)
         .execute()
         .data or []

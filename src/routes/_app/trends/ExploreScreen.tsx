@@ -705,7 +705,7 @@ export default function ExploreScreen() {
       const { count, error } = await supabase
         .from("video_corpus")
         .select("*", { count: "planned", head: true })
-        .eq("niche_id", selectedNicheId!);
+        .eq("ingest_loop_niche_id", selectedNicheId!);
       if (error) throw error;
       return count ?? 0;
     },

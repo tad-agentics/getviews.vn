@@ -409,28 +409,6 @@ def run_acqe_nightly(client: Any) -> dict[str, Any]:
     )
 
     cross_niche_rate: float | None = None
-    try:
-        recent = (
-            client.table("video_corpus")
-            .select("ingest_loop_niche_id, niche_id")
-            .gte("indexed_at", since_7d)
-            .not_.is_("ingest_loop_niche_id", "null")
-            .limit(10_000)
-            .execute()
-            .data
-            or []
-        )
-        if recent:
-            migrated = sum(
-                1
-                for r in recent
-                if r.get("ingest_loop_niche_id") is not None
-                and r.get("niche_id") is not None
-                and int(r["ingest_loop_niche_id"]) != int(r["niche_id"])
-            )
-            cross_niche_rate = round(migrated / len(recent), 4)
-    except Exception as exc:
-        logger.warning("[acqe] cross-niche rate failed: %s", exc)
 
     red_alert = (
         not cold_start

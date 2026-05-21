@@ -75,7 +75,7 @@ def _compute_pulse_sync(client: Any, niche_id: int) -> PulseStats:
         rows = (
             client.table("video_corpus")
             .select("creator_handle, views, breakout_multiplier, created_at")
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("created_at", last_week_start.isoformat())
             .execute()
             .data or []
