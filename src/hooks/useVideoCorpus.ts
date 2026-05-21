@@ -6,10 +6,8 @@ const PAGE_SIZE = 20;
 
 export interface VideoCorpusFilters {
   nicheId?: number | null;
-  /** Two-axis junction filter — ANDed with ``nicheId`` unless class-first browse. */
+  /** Two-axis junction filter — class-only when non-empty. */
   contentClassIds?: number[];
-  /** Sum of ``content_class_intelligence.sample_size`` for junction classes (Phase 1 gate). */
-  aggregateSampleSize?: number;
   sortBy?: "views" | "engagement_rate" | "indexed_at";
   sortOrder?: "asc" | "desc";
   dateFrom?: string | null;
@@ -44,7 +42,6 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
   const {
     nicheId,
     contentClassIds,
-    aggregateSampleSize,
     sortBy = "indexed_at",
     sortOrder = "desc",
     dateFrom,
@@ -64,7 +61,6 @@ export function useVideoCorpus(filters: VideoCorpusFilters = {}) {
       query = applyVideoCorpusNicheFilter(query, {
         legacyNicheId: nicheId,
         contentClassIds,
-        aggregateSampleSize,
       });
       if (dateFrom) {
         query = query.gte("indexed_at", dateFrom);

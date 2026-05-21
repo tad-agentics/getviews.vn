@@ -11,10 +11,12 @@ import { useHomePulse } from "@/hooks/useHomePulse";
 import { useProfile } from "@/hooks/useProfile";
 import { useNicheTaxonomy } from "@/hooks/useNicheTaxonomy";
 import { useNicheRowsForIds } from "@/hooks/useTopNiches";
-import { useTopPatterns } from "@/hooks/useTopPatterns";
+import { useQuery } from "@tanstack/react-query";
+import { useTopPatterns, type TopPatternsScope } from "@/hooks/useTopPatterns";
+import { fetchContentClassIdsForCreatorNiche } from "@/lib/corpusNicheFilter";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
-import { profileFirstNicheId } from "@/lib/profileNiches";
+import { profileFirstNicheId, profileCreatorNicheId } from "@/lib/profileNiches";
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import { TickerMarquee } from "./components/TickerMarquee";
 import { FirstRunWelcomeStrip } from "./components/FirstRunWelcomeStrip";
@@ -131,11 +133,25 @@ export default function HomeScreen() {
     return niches.find((n) => n.id === id)?.name ?? "ngách của bạn";
   }, [selectedNicheId, niches]);
 
+  const creatorNicheId = profileCreatorNicheId(profile);
+
+  const { data: homeContentClassIds = [] } = useQuery({
+    queryKey: ["creator_niche_content_classes", creatorNicheId],
+    queryFn: () => fetchContentClassIdsForCreatorNiche(creatorNicheId!),
+    enabled: creatorNicheId != null,
+    staleTime: 10 * 60_000,
+  });
+
+  const patternScope = useMemo<TopPatternsScope | null>(() => {
+    if (selectedNicheId == null && homeContentClassIds.length === 0) return null;
+    return { contentClassIds: homeContentClassIds, legacyNicheId: selectedNicheId };
+  }, [homeContentClassIds, selectedNicheId]);
+
   // PR-cleanup-E — greeting + composer signals.
   // ``newHookCount``: count of hot patterns whose previous-week instance
   // count was 0 (true "mới" rather than "đang lên"). Same query
   // HooksTable already fires (limit=6, dedupes via React Query cache).
-  const { data: topPatterns = [] } = useTopPatterns(selectedNicheId);
+  const { data: topPatterns = [] } = useTopPatterns(patternScope);
   const newHookCount = useMemo(
     () => topPatterns.filter((p) => p.weekly_instance_count_prev === 0).length,
     [topPatterns],
@@ -375,7 +391,7 @@ export default function HomeScreen() {
 
           <div className="gv-fade-up gv-fade-up-delay-3 mb-12">
             <HomeSuggestionsToday
-                nicheId={selectedNicheId}
+                patternScope={patternScope}
                 creatorNicheId={profile?.creator_niche_id ?? null}
               />
           </div>

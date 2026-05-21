@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from getviews_pipeline.settings import settings
 from getviews_pipeline.video_structural import model_niche_benchmark_curve
 
 logger = logging.getLogger(__name__)
@@ -290,36 +289,23 @@ def fetch_video_benchmark_with_axis(
     """Pick the sharper benchmark row available, with axis label.
 
     When ``live_cohort_class_first`` is on: tier MV → class MV → niche fallback.
-    When off (legacy): niche first → class fallback. Each source is queried at
-    most once per call.
+    Legacy niche-first path removed (Round B).
 
     Returns ``(row, axis)`` where ``axis`` is ``"content_class"``,
     ``"content_class_tier"``, or ``"niche"`` (or ``"none"`` when all miss).
     """
-    class_first = settings.live_cohort_class_first
-    if class_first:
-        if content_class_id is not None and creator_tier:
-            tier_row = fetch_content_class_tier_intelligence_sync(
-                sb, content_class_id, creator_tier,
-            )
-            if tier_row is not None:
-                return tier_row, "content_class_tier"
-        if content_class_id is not None:
-            cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
-            if cc_row is not None:
-                return cc_row, "content_class"
-        if niche_id:
-            n_row = fetch_niche_intelligence_sync(sb, niche_id)
-            if n_row is not None:
-                return n_row, "niche"
-        return None, "none"
-
-    if niche_id:
-        n_row = fetch_niche_intelligence_sync(sb, niche_id)
-        if n_row is not None:
-            return n_row, "niche"
+    if content_class_id is not None and creator_tier:
+        tier_row = fetch_content_class_tier_intelligence_sync(
+            sb, content_class_id, creator_tier,
+        )
+        if tier_row is not None:
+            return tier_row, "content_class_tier"
     if content_class_id is not None:
         cc_row = fetch_content_class_intelligence_sync(sb, content_class_id)
         if cc_row is not None:
             return cc_row, "content_class"
+    if niche_id:
+        n_row = fetch_niche_intelligence_sync(sb, niche_id)
+        if n_row is not None:
+            return n_row, "niche"
     return None, "none"

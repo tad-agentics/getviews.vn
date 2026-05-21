@@ -1748,18 +1748,22 @@ async def run_trend_spike(
         trending_sounds: list[dict[str, Any]] = []
         if niche_id is not None:
             try:
+                from getviews_pipeline.profile_niches import content_class_ids_for_legacy_niche
+
                 sb = get_service_client()
-                _week_of = date.today() - timedelta(days=date.today().weekday())
-                _sounds_res = (
-                    sb.table("trending_sounds")
-                    .select("sound_name,usage_count,total_views,commerce_signal")
-                    .eq("niche_id", niche_id)
-                    .eq("week_of", _week_of.isoformat())
-                    .order("usage_count", desc=True)
-                    .limit(5)
-                    .execute()
-                )
-                trending_sounds = _sounds_res.data or []
+                class_ids = content_class_ids_for_legacy_niche(sb, niche_id)
+                if class_ids:
+                    _week_of = date.today() - timedelta(days=date.today().weekday())
+                    _sounds_res = (
+                        sb.table("trending_sounds")
+                        .select("sound_name,usage_count,total_views,commerce_signal")
+                        .in_("content_class_id", class_ids)
+                        .eq("week_of", _week_of.isoformat())
+                        .order("usage_count", desc=True)
+                        .limit(5)
+                        .execute()
+                    )
+                    trending_sounds = _sounds_res.data or []
             except Exception as exc:
                 logger.warning("trending_sounds fetch failed: %s", exc)
 

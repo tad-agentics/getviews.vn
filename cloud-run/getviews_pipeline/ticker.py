@@ -236,20 +236,20 @@ def _rising_kol_items(client: Any, niche_id: int, since: str) -> list[TickerItem
 
 
 def _sound_items(client: Any, niche_id: int, since: str) -> list[TickerItem]:
-    """Top 2 sounds trending in this niche this week.
+    """Top 2 sounds trending in this niche this week (class-scoped ``trending_sounds``)."""
+    from getviews_pipeline.profile_niches import content_class_ids_for_legacy_niche
 
-    trending_sounds is computed weekly; pick the most recent week_of entry
-    covering this niche.
-    """
-    # Pull the most recent week_of entries. trending_sounds stores usage_count
-    # + total_views per (niche, sound, week_of). Order by usage.
+    class_ids = content_class_ids_for_legacy_niche(client, niche_id)
+    if not class_ids:
+        return []
+
     rows = (
         client.table("trending_sounds")
         .select("sound_id, sound_name, usage_count, total_views, week_of")
-        .eq("niche_id", niche_id)
+        .in_("content_class_id", class_ids)
         .order("week_of", desc=True)
         .order("usage_count", desc=True)
-        .limit(4)
+        .limit(12)
         .execute()
         .data or []
     )

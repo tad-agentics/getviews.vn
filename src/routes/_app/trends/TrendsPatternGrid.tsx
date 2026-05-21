@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 
-import { useTopPatterns, type TopPattern } from "@/hooks/useTopPatterns";
+import { useTopPatterns, type TopPattern, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { PatternCard } from "./PatternCard";
 import { PatternModal } from "./PatternModal";
 
@@ -17,11 +17,14 @@ import { PatternModal } from "./PatternModal";
 const PATTERN_LIMIT = 6;
 
 export const TrendsPatternGrid = memo(function TrendsPatternGrid({
-  nicheId,
+  patternScope,
+  legacyNicheId = null,
 }: {
-  nicheId: number | null;
+  patternScope: TopPatternsScope;
+  /** PatternModal still keys related corpus on legacy id when set. */
+  legacyNicheId?: number | null;
 }) {
-  const { data: patterns = [], isPending } = useTopPatterns(nicheId, PATTERN_LIMIT);
+  const { data: patterns = [], isPending } = useTopPatterns(patternScope, PATTERN_LIMIT);
   const [openPattern, setOpenPattern] = useState<TopPattern | null>(null);
 
   return (
@@ -76,7 +79,7 @@ export const TrendsPatternGrid = memo(function TrendsPatternGrid({
 
       <PatternModal
         pattern={openPattern}
-        nicheId={nicheId}
+        nicheId={legacyNicheId}
         open={openPattern !== null}
         onOpenChange={(next) => {
           if (!next) setOpenPattern(null);

@@ -62,28 +62,14 @@ async function fetchTopBreakoutsForHome(
   let contentClassIds: number[] = [];
   let legacyNicheId: number | null = null;
 
-  let aggregateSampleSize = 0;
   if (creatorNicheId != null) {
     contentClassIds = await fetchContentClassIdsForCreatorNiche(creatorNicheId);
-    if (contentClassIds.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: ccRows } = await (supabase as any)
-        .from("content_class_intelligence")
-        .select("sample_size")
-        .in("content_class_id", contentClassIds);
-      aggregateSampleSize = ((ccRows ?? []) as { sample_size: number | null }[]).reduce(
-        (sum, r) => sum + (typeof r.sample_size === "number" && r.sample_size > 0 ? r.sample_size : 0),
-        0,
-      );
-    }
-    // If the junction table is empty or the table hasn't been seeded for this niche,
-    // fall back to the legacy 1:1 niche mapping.
     if (contentClassIds.length === 0) {
       legacyNicheId = legacyNicheIdForCreatorNiche(creatorNicheId);
     }
   }
 
-  const filterScope = { contentClassIds, legacyNicheId, aggregateSampleSize };
+  const filterScope = { contentClassIds, legacyNicheId };
 
   const pool: BreakoutVideo[] = [];
   const seen = new Set<string>();

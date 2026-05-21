@@ -3008,11 +3008,6 @@ def _upsert_rows_sync(client: Any, rows: list[dict[str, Any]]) -> None:
 
 # ── Materialized view refresh ────────────────────────────────────────────────────
 
-def _refresh_niche_intelligence_sync(client: Any) -> None:
-    """Refresh niche_intelligence materialized view via RPC."""
-    client.rpc("refresh_niche_intelligence", {}).execute()
-
-
 def _refresh_content_class_intelligence_sync(client: Any) -> None:
     """Refresh content_class_intelligence MV via RPC.
 
@@ -3029,27 +3024,9 @@ def _refresh_content_class_tier_intelligence_sync(client: Any) -> None:
     client.rpc("refresh_content_class_tier_intelligence", {}).execute()
 
 
-async def _refresh_niche_intelligence(client: Any) -> bool:
-    """Refresh both niche_intelligence and content_class_intelligence MVs.
-
-    Returns True only when BOTH refreshes succeed — content_class_intelligence
-    feeds the new analytics path; niche_intelligence still feeds the
-    legacy path. Both must be in-sync after a corpus update.
-    """
-    niche_ok = False
+async def _refresh_corpus_intelligence_mvs(client: Any) -> bool:
+    """Refresh content_class intelligence MVs after corpus updates."""
     cc_ok = False
-    if _ingest_settings.refresh_niche_intelligence_mv:
-        try:
-            await asyncio.get_event_loop().run_in_executor(
-                None, lambda: _refresh_niche_intelligence_sync(client)
-            )
-            logger.info("[corpus] niche_intelligence materialized view refreshed")
-            niche_ok = True
-        except Exception as exc:
-            logger.error("[corpus] niche_intelligence refresh failed: %s", exc)
-    else:
-        logger.info("[corpus] niche_intelligence refresh skipped (REFRESH_NICHE_INTELLIGENCE_MV=false)")
-        niche_ok = True
     try:
         await asyncio.get_event_loop().run_in_executor(
             None, lambda: _refresh_content_class_intelligence_sync(client)
@@ -3057,9 +3034,6 @@ async def _refresh_niche_intelligence(client: Any) -> bool:
         logger.info("[corpus] content_class_intelligence materialized view refreshed")
         cc_ok = True
     except Exception as exc:
-        # MV may not exist on older DBs (migration 20260514000000 not
-        # applied) — log + continue. Once the migration ships everywhere,
-        # this branch becomes a hard failure path on the next iteration.
         logger.warning(
             "[corpus] content_class_intelligence refresh failed (acceptable "
             "if migration 20260514000000 not yet applied): %s",
@@ -3075,7 +3049,7 @@ async def _refresh_niche_intelligence(client: Any) -> bool:
             "[corpus] content_class_tier_intelligence refresh failed (non-fatal): %s",
             exc,
         )
-    return niche_ok and cc_ok
+    return cc_ok
 
 
 def _pick_top_videos_for_enrichment_sync(
@@ -3267,7 +3241,7 @@ async def run_reingest_video_items(
             })
 
         if refresh_mv:
-            summary.materialized_view_refreshed = await _refresh_niche_intelligence(client)
+            summary.materialized_view_refreshed = await _refresh_corpus_intelligence_mvs(client)
         else:
             summary.materialized_view_refreshed = False
 
@@ -3307,7 +3281,7 @@ async def run_ingest_post_processing(
         "hi11_rolling_error": None,
     }
 
-    out["materialized_view_refreshed"] = await _refresh_niche_intelligence(client)
+    out["materialized_view_refreshed"] = await _refresh_corpus_intelligence_mvs(client)
 
     try:
         from getviews_pipeline.class_quality_engine import run_acqe_nightly

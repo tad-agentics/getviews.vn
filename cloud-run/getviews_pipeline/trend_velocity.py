@@ -95,11 +95,17 @@ def _compute_sound_trends_for_niche(
     Pre-launch corpus is small; this is pure SQL aggregation, no LLM.
     """
     prev_week_start = week_start - timedelta(days=7)
+    from getviews_pipeline.profile_niches import content_class_ids_for_legacy_niche
+
+    class_ids = content_class_ids_for_legacy_niche(client, niche_id)
+    if not class_ids:
+        return {}
+
     try:
         res = (
             client.table("trending_sounds")
             .select("sound_id,sound_name,usage_count,week_of,is_original_sound")
-            .eq("niche_id", niche_id)
+            .in_("content_class_id", class_ids)
             .in_("week_of", [week_start.isoformat(), prev_week_start.isoformat()])
             .execute()
         )

@@ -1,5 +1,12 @@
 # Changelog — GetViews.vn
 
+## 2026-05-19 — Content-class pivot Round B (trends class + legacy MV drop)
+
+- **FE:** `useTopPatterns` + `TrendingSoundsSection` scoped by junction `content_class_id`; removed `VITE_CORPUS_BROWSE_*` dual-path flags; `corpusNicheFilter` class-only when junction non-empty.
+- **BE:** `sound_aggregator` loops `content_class_ingest_targets`; ticker/trend_velocity/pipelines read class-scoped `trending_sounds`; benchmark drops legacy niche-first branch; corpus ingest skips `niche_intelligence` refresh.
+- **Migration:** `20260821000001_round_b_class_trends_cleanup.sql` — `trending_sounds.content_class_id`, truncate + drop `niche_id`; DROP `niche_intelligence` MV + `refresh_niche_intelligence()`.
+- **Not yet:** `video_corpus.niche_id` column retained for thin-junction fallback + batch read paths (Phase C).
+
 ## 2026-05-21 — Docs housekeeping Round A (pivot SSOT sync)
 
 - **SSOT banners** on 10 secondary docs → link `system-design.md` §9 + `niche-taxonomy-ingest-ui-pipeline.md` §10.

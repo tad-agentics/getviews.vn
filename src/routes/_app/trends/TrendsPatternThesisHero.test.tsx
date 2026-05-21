@@ -9,7 +9,9 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { TopPattern } from "@/hooks/useTopPatterns";
+import type { TopPattern, TopPatternsScope } from "@/hooks/useTopPatterns";
+
+const heroScope: TopPatternsScope = { contentClassIds: [10], legacyNicheId: 4 };
 
 const mockUseTopPatterns = vi.fn();
 vi.mock("@/hooks/useTopPatterns", () => ({
@@ -53,7 +55,7 @@ describe("TrendsPatternThesisHero", () => {
     mockUseTopPatterns.mockReturnValue({ data: [samplePattern()] });
     const { getByText } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Công nghệ"
         weekKicker="TUẦN 17 · 22.4—28.4"
         weekAnalyzedCount={301}
@@ -73,7 +75,7 @@ describe("TrendsPatternThesisHero", () => {
     });
     const { getByRole } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={137}
@@ -94,7 +96,7 @@ describe("TrendsPatternThesisHero", () => {
     });
     const { getByRole } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={null}
@@ -110,7 +112,7 @@ describe("TrendsPatternThesisHero", () => {
     mockUseTopPatterns.mockReturnValue({ data: [] });
     const { getByRole, getByText } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Tài chính"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={50}
@@ -135,7 +137,7 @@ describe("TrendsPatternThesisHero", () => {
     });
     const { getByText } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={137}
@@ -152,7 +154,7 @@ describe("TrendsPatternThesisHero", () => {
     });
     const { getByText, queryByText } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={137}
@@ -169,7 +171,7 @@ describe("TrendsPatternThesisHero", () => {
     });
     const { getByText } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={null}
@@ -185,7 +187,7 @@ describe("TrendsPatternThesisHero", () => {
     });
     const { getByText } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={137}
@@ -201,7 +203,7 @@ describe("TrendsPatternThesisHero", () => {
     });
     const { container } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={null}
@@ -218,7 +220,7 @@ describe("TrendsPatternThesisHero", () => {
     mockUseTopPatterns.mockReturnValue({ data: [samplePattern()] });
     const { container } = render(
       <TrendsPatternThesisHero
-        nicheId={4}
+        patternScope={heroScope}
         nicheLabel="Skincare"
         weekKicker="TUẦN 19"
         weekAnalyzedCount={137}

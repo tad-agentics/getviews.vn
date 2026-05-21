@@ -15,6 +15,8 @@ the read boundary instead of rewriting every query.
 
 from __future__ import annotations
 
+from typing import Any
+
 # Reverse map: creator_niches.id → most-representative niche_taxonomy.id.
 # Mirror of ``legacyNicheIdForCreatorNiche()`` in
 # ``src/lib/profileNiches.ts``. Both files must stay in sync.
@@ -118,3 +120,25 @@ def resolve_legacy_niche_from_profile_row(row: dict | None) -> int | None:
     if cni is None:
         return None
     return legacy_niche_id_for_creator_niche(cni)
+
+
+def content_class_ids_for_legacy_niche(client: Any, legacy_niche_id: int | None) -> list[int]:
+    """Junction ``content_class_id`` list for a legacy ingest niche (Round B sounds/trends)."""
+    cnid = creator_niche_id_for_legacy_niche(legacy_niche_id)
+    if cnid is None or client is None:
+        return []
+    try:
+        res = (
+            client.table("creator_niche_content_classes")
+            .select("content_class_id")
+            .eq("creator_niche_id", cnid)
+            .execute()
+        )
+    except Exception:
+        return []
+    out: list[int] = []
+    for row in res.data or []:
+        cc = row.get("content_class_id")
+        if cc is not None:
+            out.append(int(cc))
+    return out

@@ -15,7 +15,7 @@ def _week_start_monday(today: date) -> date:
 
 
 async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
-    """Aggregate top non-original sounds per niche for current week. Upsert trending_sounds."""
+    """Aggregate top non-original sounds per content class for current week."""
     from getviews_pipeline.layer0_sound import infer_sound_lifecycle_phase
     from getviews_pipeline.supabase_client import get_service_client
 
@@ -30,25 +30,34 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
 
     loop = asyncio.get_event_loop()
 
-    def _niche_ids() -> list[int]:
-        niches_res = client.table("niche_taxonomy").select("id").execute()
-        return [int(r["id"]) for r in (niches_res.data or [])]
+    def _class_ids() -> list[int]:
+        res = (
+            client.table("content_class_ingest_targets")
+            .select("content_class_id")
+            .eq("is_active", True)
+            .execute()
+        )
+        return [
+            int(r["content_class_id"])
+            for r in (res.data or [])
+            if r.get("content_class_id") is not None
+        ]
 
     try:
-        niches = await loop.run_in_executor(None, _niche_ids)
+        class_ids = await loop.run_in_executor(None, _class_ids)
     except Exception as exc:
-        logger.error("[sound_aggregation] niche_taxonomy: %s", exc)
+        logger.error("[sound_aggregation] content_class_ingest_targets: %s", exc)
         return {"upserted": 0, "error": str(exc)}
 
     total_upserted = 0
-    for niche_id in niches:
+    for content_class_id in class_ids:
         try:
 
-            def _fetch_corpus(_nid: int = niche_id) -> list[dict[str, Any]]:
+            def _fetch_corpus(_cc: int = content_class_id) -> list[dict[str, Any]]:
                 return (
                     client.table("video_corpus")
                     .select("sound_id,sound_name,is_original_sound,views")
-                    .eq("niche_id", _nid)
+                    .eq("content_class_id", _cc)
                     .not_.is_("sound_id", None)
                     .gte("indexed_at", since_iso)
                     .execute()
@@ -85,14 +94,14 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
 
             sound_ids_top = [str(s["sound_id"]) for s in top]
 
-            def _prev_counts_for_sids(_nid: int = niche_id) -> dict[str, int]:
+            def _prev_counts_for_sids(_cc: int = content_class_id) -> dict[str, int]:
                 if not sound_ids_top:
                     return {}
                 try:
                     prev_res = (
                         client.table("trending_sounds")
                         .select("sound_id,usage_count")
-                        .eq("niche_id", _nid)
+                        .eq("content_class_id", _cc)
                         .eq("week_of", prev_week_str)
                         .in_("sound_id", sound_ids_top)
                         .execute()
@@ -115,10 +124,9 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
                 prev_u = int(prev_by_sound.get(str(sid), 0))
                 curr_u = int(s["usage_count"])
                 lifecycle = infer_sound_lifecycle_phase(prev_u, curr_u)
-                # Non-original trending clips: assume CML-eligible until TikTok API wires through.
                 cml_ok = True if not s["is_original_sound"] else None
                 upsert_rows.append({
-                    "niche_id": niche_id,
+                    "content_class_id": content_class_id,
                     "sound_id": sid,
                     "sound_name": s["sound_name"],
                     "usage_count": curr_u,
@@ -133,13 +141,17 @@ async def run_sound_aggregation(client: Any | None = None) -> dict[str, Any]:
             def _upsert() -> None:
                 client.table("trending_sounds").upsert(
                     upsert_rows,
-                    on_conflict="niche_id,sound_id,week_of",
+                    on_conflict="content_class_id,sound_id,week_of",
                 ).execute()
 
             await loop.run_in_executor(None, _upsert)
             total_upserted += len(upsert_rows)
         except Exception as exc:
-            logger.warning("sound_aggregation niche=%s error: %s", niche_id, exc)
+            logger.warning(
+                "sound_aggregation content_class=%s error: %s",
+                content_class_id,
+                exc,
+            )
 
     logger.info("sound_aggregation done: %d rows upserted", total_upserted)
     return {"upserted": total_upserted}

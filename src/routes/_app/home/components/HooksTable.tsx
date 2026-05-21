@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
-import { useTopPatterns, STUDIO_HOME_TOP_PATTERNS_LIMIT, type TopPattern } from "@/hooks/useTopPatterns";
+import { useTopPatterns, STUDIO_HOME_TOP_PATTERNS_LIMIT, type TopPattern, type TopPatternsScope } from "@/hooks/useTopPatterns";
 
 /**
  * HooksTable — 6-col table matching the design's Home block:
@@ -46,13 +46,13 @@ function formatViews(n: number | null): string {
 }
 
 export const HooksTable = memo(function HooksTable({
-  nicheId,
+  patternScope,
   embedded = false,
 }: {
-  nicheId: number | null;
+  patternScope: TopPatternsScope | null;
   embedded?: boolean;
 }) {
-  const { data: patterns, isPending } = useTopPatterns(nicheId, STUDIO_HOME_TOP_PATTERNS_LIMIT);
+  const { data: patterns, isPending } = useTopPatterns(patternScope, STUDIO_HOME_TOP_PATTERNS_LIMIT);
 
   if (isPending) {
     if (embedded) {

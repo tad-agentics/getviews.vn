@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { ArrowRight } from "lucide-react";
 import { SectionHeader } from "@/components/v2/SectionHeader";
 import { TierHeader } from "@/components/v2/TierHeader";
-import { useTopPatterns } from "@/hooks/useTopPatterns";
+import { useTopPatterns, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { BreakoutGrid } from "./BreakoutGrid";
 import { HooksTable } from "./HooksTable";
 import { StudioHero } from "./StudioHero";
@@ -35,15 +35,15 @@ const SEE_ALL_TRENDS = (
  * outside case studies).
  */
 export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
-  nicheId,
+  patternScope,
   creatorNicheId,
 }: {
-  nicheId: number | null;
+  patternScope: TopPatternsScope | null;
   creatorNicheId: number | null;
 }) {
-  const { data: hookPatterns, isPending: hooksPending } = useTopPatterns(nicheId);
+  const { data: hookPatterns, isPending: hooksPending } = useTopPatterns(patternScope);
   const hookCount = hookPatterns?.length ?? 0;
-  const tier02Title = hookTierTitle(nicheId, hooksPending, hookCount);
+  const tier02Title = hookTierTitle(patternScope?.legacyNicheId ?? null, hooksPending, hookCount);
 
   return (
     <section className="mb-12">
@@ -76,7 +76,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           title="3 video tiếp theo bạn nên làm"
           caption="Tổng hợp từ pattern thắng 7 ngày qua. Cả 3 ý tưởng đều có kịch bản sẵn — bấm dòng để mở Xưởng viết."
         />
-        <StudioHero nicheId={nicheId} />
+        <StudioHero nicheId={patternScope?.legacyNicheId ?? null} />
       </div>
 
       <div className="mb-10 scroll-mt-20" data-tier="02">
@@ -87,7 +87,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           title={tier02Title}
           caption="Đây là các pattern đang ăn nhất tuần qua — các ý tưởng phía trên được sinh ra từ chúng. Lấy công thức trống, điền nội dung khác của bạn vào để mở rộng."
         />
-        <HooksTable embedded nicheId={nicheId} />
+        <HooksTable embedded patternScope={patternScope} />
       </div>
 
       <div className="scroll-mt-20" data-tier="03">

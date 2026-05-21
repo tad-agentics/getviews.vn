@@ -6,6 +6,7 @@ export type ContentClassIntelligenceRow = {
   sample_size: number | null;
   median_views?: number | null;
   claim_tier?: string | null;
+  computed_at?: string | null;
 };
 
 export const contentClassIntelligenceKeys = {
@@ -24,12 +25,16 @@ export function useContentClassIntelligence(contentClassIds: number[]) {
     queryKey: contentClassIntelligenceKeys.junction(sortedKey),
     queryFn: async () => {
       if (contentClassIds.length === 0) {
-        return { rows: [] as ContentClassIntelligenceRow[], aggregateSampleSize: 0 };
+        return {
+          rows: [] as ContentClassIntelligenceRow[],
+          aggregateSampleSize: 0,
+          latestComputedAt: null as string | null,
+        };
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from("content_class_intelligence")
-        .select("content_class_id,sample_size,median_views,claim_tier")
+        .select("content_class_id,sample_size,median_views,claim_tier,computed_at")
         .in("content_class_id", contentClassIds);
       if (error) throw error;
       const rows = (data ?? []) as ContentClassIntelligenceRow[];
@@ -37,7 +42,13 @@ export function useContentClassIntelligence(contentClassIds: number[]) {
         (sum, r) => sum + (typeof r.sample_size === "number" && r.sample_size > 0 ? r.sample_size : 0),
         0,
       );
-      return { rows, aggregateSampleSize };
+      const latestComputedAt = rows.reduce<string | null>((latest, r) => {
+        const ts = r.computed_at;
+        if (!ts) return latest;
+        if (latest == null || ts > latest) return ts;
+        return latest;
+      }, null);
+      return { rows, aggregateSampleSize, latestComputedAt };
     },
     enabled: contentClassIds.length > 0,
     staleTime: 60 * 60_000,

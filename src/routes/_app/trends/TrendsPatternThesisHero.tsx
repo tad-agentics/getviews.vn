@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useTopPatterns, type TopPattern } from "@/hooks/useTopPatterns";
+import { useTopPatterns, type TopPattern, type TopPatternsScope } from "@/hooks/useTopPatterns";
 
 /**
  * Trends — pattern-thesis hero (L2.2 Sprint 7c reshape).
@@ -21,13 +21,13 @@ import { useTopPatterns, type TopPattern } from "@/hooks/useTopPatterns";
  */
 
 export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
-  nicheId,
+  patternScope,
   nicheLabel,
   weekKicker,
   weekAnalyzedCount,
   totalAnalyzedInNiche,
 }: {
-  nicheId: number | null;
+  patternScope: TopPatternsScope;
   nicheLabel: string;
   /** "TUẦN 16 · 12.4—18.4" — caller computes for testability. */
   weekKicker: string;
@@ -38,7 +38,7 @@ export const TrendsPatternThesisHero = memo(function TrendsPatternThesisHero({
 }) {
   // Pull the same data the §I grid renders. React Query dedupes the
   // request so this is a free read.
-  const { data: patterns = [] } = useTopPatterns(nicheId);
+  const { data: patterns = [] } = useTopPatterns(patternScope);
 
   const strongCount = patterns.filter((p) => p.tier === "strong").length;
   const earlyCount = patterns.filter((p) => p.tier === "early").length;

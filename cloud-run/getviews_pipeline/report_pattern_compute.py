@@ -904,16 +904,20 @@ def load_pattern_inputs(sb: Any, niche_id: int, window_days: int) -> dict[str, A
         # which falls back to the original "ước lượng từ corpus" copy.
         trending_sounds: list[dict[str, Any]] = []
         try:
-            ts_res = (
-                sb.table("trending_sounds")
-                .select("sound_name,sound_id,usage_count,is_original_sound,total_views,week_of")
-                .eq("niche_id", niche_id)
-                .order("week_of", desc=True)
-                .order("usage_count", desc=True)
-                .limit(10)
-                .execute()
-            )
-            trending_sounds = ts_res.data or []
+            from getviews_pipeline.profile_niches import content_class_ids_for_legacy_niche
+
+            class_ids = content_class_ids_for_legacy_niche(sb, niche_id)
+            if class_ids:
+                ts_res = (
+                    sb.table("trending_sounds")
+                    .select("sound_name,sound_id,usage_count,is_original_sound,total_views,week_of")
+                    .in_("content_class_id", class_ids)
+                    .order("week_of", desc=True)
+                    .order("usage_count", desc=True)
+                    .limit(10)
+                    .execute()
+                )
+                trending_sounds = ts_res.data or []
         except Exception as exc:
             logger.warning("[pattern] trending_sounds fetch failed niche=%s: %s", niche_id, exc)
 

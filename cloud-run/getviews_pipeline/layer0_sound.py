@@ -74,7 +74,7 @@ async def _find_emerging_sounds(client: Any, loop: asyncio.AbstractEventLoop) ->
     def _fetch_this_week() -> list[dict]:
         return (
             client.table("trending_sounds")
-            .select("id,niche_id,sound_id,sound_name,usage_count,week_of")
+            .select("id,content_class_id,sound_id,sound_name,usage_count,week_of")
             .eq("week_of", this_week)
             .gte("usage_count", EMERGING_MIN_THIS_WEEK)
             .execute()
@@ -83,7 +83,7 @@ async def _find_emerging_sounds(client: Any, loop: asyncio.AbstractEventLoop) ->
     def _fetch_last_week() -> list[dict]:
         return (
             client.table("trending_sounds")
-            .select("sound_id,niche_id,usage_count")
+            .select("sound_id,content_class_id,usage_count")
             .eq("week_of", last_week)
             .execute()
         ).data or []
@@ -93,15 +93,18 @@ async def _find_emerging_sounds(client: Any, loop: asyncio.AbstractEventLoop) ->
         loop.run_in_executor(None, _fetch_last_week),
     )
 
-    # Build last-week lookup: (sound_id, niche_id) → usage_count
+    # Build last-week lookup: (sound_id, content_class_id) → usage_count
     last_week_map: dict[tuple[str, int], int] = {
-        (r["sound_id"], int(r["niche_id"])): int(r.get("usage_count") or 0)
+        (r["sound_id"], int(r["content_class_id"])): int(r.get("usage_count") or 0)
         for r in last_week_rows
+        if r.get("content_class_id") is not None
     }
 
     emerging = []
     for row in this_week_rows:
-        key = (row["sound_id"], int(row["niche_id"]))
+        if row.get("content_class_id") is None:
+            continue
+        key = (row["sound_id"], int(row["content_class_id"]))
         prev_count = last_week_map.get(key, 0)
         if prev_count <= EMERGING_MAX_LAST_WEEK:
             emerging.append({**row, "prev_count": prev_count})
@@ -113,16 +116,16 @@ async def _fetch_sound_videos(
     client: Any,
     loop: asyncio.AbstractEventLoop,
     sound_id: str,
-    niche_id: int,
+    content_class_id: int,
     since_iso: str,
 ) -> list[dict]:
-    """Fetch trimmed analysis for up to 5 videos using this sound in this niche."""
+    """Fetch trimmed analysis for up to 5 videos using this sound in this class."""
 
     def _query() -> list[dict]:
         return (
             client.table("video_corpus")
             .select("video_id,analysis_json,views,likes,comments,shares")
-            .eq("niche_id", niche_id)
+            .eq("content_class_id", content_class_id)
             .eq("sound_id", sound_id)
             .gte("indexed_at", since_iso)
             .order("views", desc=True)
@@ -151,20 +154,20 @@ async def _fetch_sound_videos(
     return result
 
 
-async def _fetch_niche_name(client: Any, loop: asyncio.AbstractEventLoop, niche_id: int) -> str:
+async def _fetch_class_name(client: Any, loop: asyncio.AbstractEventLoop, content_class_id: int) -> str:
     def _query() -> list[dict]:
         return (
-            client.table("niche_taxonomy")
-            .select("name_vn,name_en")
-            .eq("id", niche_id)
+            client.table("content_classifications")
+            .select("name_vn,slug")
+            .eq("id", content_class_id)
             .limit(1)
             .execute()
         ).data or []
 
     rows = await loop.run_in_executor(None, _query)
     if rows:
-        return rows[0].get("name_vn") or rows[0].get("name_en") or str(niche_id)
-    return str(niche_id)
+        return rows[0].get("name_vn") or rows[0].get("slug") or str(content_class_id)
+    return str(content_class_id)
 
 
 async def run_sound_insights(client: Any | None = None) -> dict[str, int]:
@@ -193,15 +196,15 @@ async def run_sound_insights(client: Any | None = None) -> dict[str, int]:
     for sound in emerging_sounds:
         sound_id = sound["sound_id"]
         sound_name = sound.get("sound_name") or sound_id
-        niche_id = int(sound["niche_id"])
+        content_class_id = int(sound["content_class_id"])
         count = int(sound.get("usage_count") or 0)
         prev_count = int(sound.get("prev_count") or 0)
         row_id = sound.get("id")
 
         try:
-            niche_name, videos = await asyncio.gather(
-                _fetch_niche_name(client, loop, niche_id),
-                _fetch_sound_videos(client, loop, sound_id, niche_id, since_iso),
+            class_name, videos = await asyncio.gather(
+                _fetch_class_name(client, loop, content_class_id),
+                _fetch_sound_videos(client, loop, sound_id, content_class_id, since_iso),
             )
 
             if not videos:
@@ -211,7 +214,7 @@ async def run_sound_insights(client: Any | None = None) -> dict[str, int]:
             trimmed_json = json.dumps(videos, ensure_ascii=False, indent=2)
             prompt = SOUND_INSIGHT_PROMPT_TEMPLATE.format(
                 sound_name=sound_name,
-                niche_name=niche_name,
+                niche_name=class_name,
                 count=count,
                 prev_count=prev_count,
                 trimmed_analysis_jsons=trimmed_json,
@@ -240,7 +243,7 @@ async def run_sound_insights(client: Any | None = None) -> dict[str, int]:
                 await loop.run_in_executor(None, _update_sound)
 
             analyzed += 1
-            logger.info("[layer0b] sound=%s niche=%s: insight written", sound_name, niche_name)
+            logger.info("[layer0b] sound=%s class=%s: insight written", sound_name, class_name)
 
         except Exception as exc:
             logger.error("[layer0b] sound=%s: %s", sound_name, exc)
