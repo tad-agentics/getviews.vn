@@ -528,7 +528,7 @@ Nightly `/batch/ingest` ranks EnsembleData pool candidates with **`instructivene
 
 **TD-8:** Ingest selection changes must not fork TD-7 extraction contract (same `async_run_extraction_core` / prompts).
 
-**Post-extract (Tier 3):** hard failures block upsert when `CORPUS_POSTEXTRACT_HARD_REJECT=true` (non-VN caption, uninstructive structure, hook–content mismatch). Hook-type soft cap (`CORPUS_POSTEXTRACT_HOOK_CAP_ENFORCE`) post-15/6 with breakout ≥3.0 bypass.
+**Post-extract (Tier 3):** hard failures block upsert when `CORPUS_POSTEXTRACT_HARD_REJECT=true` (non-VN caption, uninstructive structure, hook–content mismatch). Hook-type soft cap (`CORPUS_POSTEXTRACT_HOOK_CAP_ENFORCE`) is env-gated when shadow metrics pass; breakout ≥3.0 bypass.
 
 **Columns:** `boost_attribution`, `reference_eligible`, `ingest_relaxation_tier` (migration `20260520000000_corpus_ingest_criteria_columns.sql`).
 

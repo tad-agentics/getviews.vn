@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-20 — Remove calendar kill gate from ingest spec
+
+- **Docs:** Dropped `corpus-ingest-criteria-v1.md` §11 (2026-06-15 kill gate); Tier 3a/3b and optional phases gated by env + shadow metrics + human sign-off only. `system-design.md` §12.1 + `settings.py` descriptions updated. Plan files: metric-gated sequencing, no calendar deadline.
+
 ## 2026-05-20 — Corpus ingest criteria (instructiveness selection)
 
 - **Spec + code:** [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md); `corpus_instructiveness.py`, `corpus_boost_suspect.py`; `CORPUS_INGEST_MODE` (`legacy`|`shadow`|`purity`), R1/R2/R3, shadow logging, post-extract Tier 3, migration `20260520000000_corpus_ingest_criteria_columns.sql` (`boost_attribution`, `reference_eligible`, `ingest_relaxation_tier`).

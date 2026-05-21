@@ -163,14 +163,14 @@ Phase 1–2: log `would_reject_boost_suspect` only. Phase 5: hard reject + persi
 
 ## 7. Tier 3 — Post-extract reject
 
-**3a (pre-2026-06-15) — hard failures only:**
+**3a — hard failures** (default on via `CORPUS_POSTEXTRACT_HARD_REJECT`):
 
 - Non-VN caption (CJK >25% share — port of `nonVietnameseFilter.ts`)
 - `content_format` null + `scene_count < 2` + no `hook_phrase`
 - News/aggregator text markers
 - Hook–content mismatch (hook topic keywords absent from transcript/topics/pain_points)
 
-**3b (post-2026-06-15):**
+**3b — optional soft hook cap** (enable via `CORPUS_POSTEXTRACT_HOOK_CAP_ENFORCE` after shadow/QA sign-off — no calendar deadline):
 
 - Hook-type cap: **>3** same normalized `hook_type`/niche/night **unless** `breakout_ratio ≥ 3.0` (or proxy)
 - Re-check `suspect_medium` when Phase 5 live
@@ -228,15 +228,7 @@ Exempt: `ingest_source=user_diagnosis` promotion path.
 
 ---
 
-## 11. Launch kill gate (2026-06-15)
-
-**Minimum shippable:** Phase 0+D0 → 1 (shadow) → 2+D1 (purity) → 3a → 4a.
-
-Post-15/6 OK: Phase 5, 3b, 5b, 4b, D2.
-
----
-
-## 12. Flip checklist (Phase 2 + D1)
+## 11. Flip checklist (Phase 2 + D1)
 
 - [ ] Shadow matrix green OR documented human exceptions
 - [ ] `CORPUS_INGEST_MODE=purity` on batch pod
@@ -247,7 +239,7 @@ Post-15/6 OK: Phase 5, 3b, 5b, 4b, D2.
 
 ---
 
-## 13. Phase 5b enable gate
+## 12. Phase 5b enable gate
 
 Enable top-10/niche ED comment fetch when **both**:
 
@@ -256,7 +248,7 @@ Enable top-10/niche ED comment fetch when **both**:
 
 ---
 
-## 14. Success metrics (14 nights post-flip)
+## 13. Success metrics (14 nights post-flip)
 
 | Metric | Target |
 |--------|--------|
@@ -292,3 +284,4 @@ GROUP BY niche_id;
 |------|--------|--------|
 | 2026-05-20 | v1 initial spec from plan f76e0e39 + 153b4093 | Phase 0 |
 | 2026-05-20 | Code landed: instructiveness modules, migration, consumers; default mode `legacy` | Implementation |
+| 2026-05-20 | Removed §11 calendar kill gate (2026-06-15); Tier 3b + Phases 5/5b/4b gated by metrics + human sign-off only | Avoid date bias across roadmaps |

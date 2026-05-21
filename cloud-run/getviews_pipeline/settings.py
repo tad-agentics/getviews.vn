@@ -161,7 +161,7 @@ class _PipelineSettings(BaseSettings):
     )
     corpus_postextract_hook_cap_enforce: bool = Field(
         default=False,
-        description="Tier 3b soft hook cap — post-15/6",
+        description="Tier 3b soft hook cap — enable via env when shadow/QA metrics pass",
     )
     batch_hashtag_fetch_by_niche: str = Field(default="")
     reingest_multi_chunk: int = Field(default=12, ge=1)
