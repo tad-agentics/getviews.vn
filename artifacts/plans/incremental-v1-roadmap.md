@@ -228,7 +228,7 @@ User input (composer | pill | handoff prefill)
 
 **Wave 2 exit:** Mọi script flow trong `/app/answer` narrative-first; **composer + intent-router** vẫn là entry SSOT; shoot + draft linked session; F6 claim-tier aware; hero niche batch aligned.
 
-**Wave 2 complete @ `8d4759a` + W2-4 batch closure** (2026-05-22): housekeeping removed dead `/app/script` UI; W2-4 batch telemetry (`subject_matter_inserted` in `BatchSummary`), ref-pool desc includes `subject_matter`, merge-path proximity parity; docs resynced (`feature-map.md`, `product-value-audit.md`).
+**Wave 2 complete @ `b169673`** (2026-05-22): `cc6384a` narrative-first + `8d4759a` housekeeping + W2-4 batch closure; docs resynced.
 
 | Item | Status | Notes |
 |------|--------|-------|
