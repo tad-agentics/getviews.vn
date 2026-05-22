@@ -112,7 +112,7 @@ async def main() -> None:
             for r in summary.niche_results:
                 status = "✓" if r["failed"] == 0 else "⚠"
                 print(
-                    f"  {status} [{r['niche_id']:>3}] {r['niche_name']:<25} "
+                    f"  {status} [{r['ingest_loop_niche_id']:>3}] {r['niche_name']:<25} "
                     f"inserted={r['inserted']} skipped={r['skipped']} failed={r['failed']}"
                 )
                 for err in r["errors"]:

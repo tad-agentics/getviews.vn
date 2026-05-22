@@ -175,13 +175,13 @@ BATCH_HASHTAG_FETCH_LIMIT = _settings.batch_hashtag_fetch_limit
 BATCH_HASHTAG_FETCH_BY_NICHE = _parse_hashtag_fetch_by_niche(_settings.batch_hashtag_fetch_by_niche)
 
 
-def _carousels_per_night_for_niche(niche_id: int) -> int:
-    """Carousel slots per batch night — ME-18 per-niche map or uniform default."""
-    return BATCH_CAROUSELS_BY_NICHE.get(niche_id, BATCH_CAROUSELS_PER_NICHE)
+def _carousels_per_night_for_ingest_loop(ingest_loop_niche_id: int) -> int:
+    """Carousel slots per batch night — ME-18 per ingest-loop map or uniform default."""
+    return BATCH_CAROUSELS_BY_NICHE.get(ingest_loop_niche_id, BATCH_CAROUSELS_PER_NICHE)
 
 
-def _hashtag_fetch_limit_for_niche(niche_id: int) -> int:
-    return BATCH_HASHTAG_FETCH_BY_NICHE.get(niche_id, BATCH_HASHTAG_FETCH_LIMIT)
+def _hashtag_fetch_limit_for_ingest_loop(ingest_loop_niche_id: int) -> int:
+    return BATCH_HASHTAG_FETCH_BY_NICHE.get(ingest_loop_niche_id, BATCH_HASHTAG_FETCH_LIMIT)
 
 
 # Reingest multi-info chunk size.
@@ -256,7 +256,7 @@ def _resolve_pool_hashtags(
 
 @dataclass
 class IngestResult:
-    niche_id: int
+    ingest_loop_niche_id: int
     niche_name: str
     inserted: int = 0
     skipped: int = 0
@@ -276,8 +276,8 @@ class BatchSummary:
     # Wave 5+ Phase 2 — per-niche quota allocation snapshot. Empty list
     # when deep_pool overrode vpn (no per-niche calc) or when the niche-
     # count fetch failed (the prioritization fail-opens to the uniform
-    # default). One entry per niche: niche_id, niche_name, current_count,
-    # multiplier, allocated_vpn.
+    # default). One entry per niche: ingest_loop_niche_id, niche_name,
+    # current_count, multiplier, allocated_vpn.
     thin_niche_allocations: list[dict[str, Any]] = field(default_factory=list)
     # Wall-clock budget guard — set to True when the run stopped early to
     # avoid the Cloud Run request timeout. niches_remaining is the number
@@ -337,7 +337,7 @@ def apply_thin_niche_multiplier(
 
 
 def _fetch_niche_counts_sync(client: Any) -> dict[int, int]:
-    """Return ``{niche_id: row_count}`` for every niche in video_corpus.
+    """Return ``{ingest_loop_niche_id: row_count}`` for every ingest loop in video_corpus.
 
     Used by ``run_batch_ingest`` to compute per-niche quota multipliers
     before dispatching. Fails open to an empty dict on any DB error —
@@ -374,7 +374,7 @@ def _service_client() -> Any:
 
 
 def _load_hashtag_yields_all_sync(client: Any) -> dict[int, dict[str, int]]:
-    """niche_id → { normalized_hashtag → ingest_count } for last 14d (RPC)."""
+    """ingest_loop_niche_id → { normalized_hashtag → ingest_count } for last 14d (RPC)."""
     try:
         result = client.rpc("corpus_hashtag_yields_14d", {}).execute()
     except Exception as exc:
@@ -386,7 +386,7 @@ def _load_hashtag_yields_all_sync(client: Any) -> dict[int, dict[str, int]]:
     out: dict[int, dict[str, int]] = {}
     for row in result.data or []:
         try:
-            nid = int(row.get("niche_id"))
+            nid = int(row.get("niche_id"))  # RPC column alias → ingest_loop_niche_id
         except (TypeError, ValueError):
             continue
         ht = _norm_corpus_hashtag(str(row.get("hashtag") or ""))
@@ -526,7 +526,7 @@ async def _fetch_niche_pool(
     keyword_task = _fetch_keyword_pages(term, max_pages=keyword_pages)
     # Cap hashtag fetch calls; class map v2 first, then yield-ranked trim.
     yields = hashtag_yields or {}
-    ht_limit = _hashtag_fetch_limit_for_niche(int(niche["id"]))
+    ht_limit = _hashtag_fetch_limit_for_ingest_loop(int(niche["id"]))
     fetch_hashtags = _resolve_pool_hashtags(niche, yields, ht_limit, client)
     hashtag_tasks = [
         ensemble.fetch_hashtag_posts(ht.lstrip("#"), cursor=0)
@@ -578,7 +578,7 @@ async def _fetch_carousel_pool(
     get full detail objects that include ``image_post_info``, then re-filter.
     """
     yields = hashtag_yields or {}
-    ht_limit = _hashtag_fetch_limit_for_niche(int(niche["id"]))
+    ht_limit = _hashtag_fetch_limit_for_ingest_loop(int(niche["id"]))
     fetch_hashtags = _resolve_pool_hashtags(niche, yields, ht_limit, client)
     if not fetch_hashtags:
         return []
@@ -744,7 +744,7 @@ def _normalize_str_list(raw: Any, *, max_items: int, max_len: int) -> list[str]:
     return out
 
 
-def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
+def classify_format(analysis_json: dict[str, Any], legacy_niche_id: int) -> str:
     """Classify a video's content format from its Gemini analysis.
 
     ━━━ TAXONOMY LOCK — READ BEFORE CHANGING ━━━
@@ -864,7 +864,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
 
     if re.search(r"mukbang|ăn.*cùng|mời.*ăn|eating|asmr", combined):
         return "mukbang"
-    if niche_id == 4 and len(scenes) >= 10 and tone == "entertaining":
+    if legacy_niche_id == 4 and len(scenes) >= 10 and tone == "entertaining":
         return "mukbang"
     if re.search(r"grwm|get ready|makeup routine|morning routine|buổi sáng", combined):
         return "grwm"
@@ -874,7 +874,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     # BEFORE recipe/review to prevent niche-17 entertainment content
     # from being mis-captured by those regexes via action scenes or
     # "review" vocabulary inside gaming commentary.
-    if niche_id == 17 or gameplay_topic_re.search(combined):
+    if legacy_niche_id == 17 or gameplay_topic_re.search(combined):
         return "gameplay"
     if has_speech and re.search(
         r"công thức|recipe|nấu|cách làm|nguyên liệu|ướp|xào|chiên|nướng|hấp",
@@ -911,7 +911,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     # from former niche 23; lesson-format-natural alongside topic-regex.
     if (
         tone in ("educational", "authoritative")
-        and (niche_id == 11 or lesson_topic_re.search(combined))
+        and (legacy_niche_id == 11 or lesson_topic_re.search(combined))
     ):
         return "lesson"
     # Wave 5+ taxonomy expansion — comedy_skit (position 10). BEFORE
@@ -924,7 +924,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     #       Generic markers ("humor", "funny", "hài hước") appear on
     #       vlog / outfit rows too; gating by lifestyle ingest bucket prevents leaks.
     if comedy_strict_re.search(combined) or (
-        niche_id in (13, 27)
+        legacy_niche_id in (13, 27)
         and (tone == "humorous" or comedy_n13_markers_re.search(combined))
     ):
         return "comedy_skit"
@@ -974,7 +974,7 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
     # gate (≤ 80 chars OR music-only marker) distinguishes from vlog
     # / storytelling (transcript-heavy).
     if (
-        niche_id in (14, 16, 17, 21)
+        legacy_niche_id in (14, 16, 17, 21)
         and tone in ("entertaining", "humorous", "inspirational")
         and len(scenes) >= 4
         and (
@@ -993,13 +993,13 @@ def classify_format(analysis_json: dict[str, Any], niche_id: int) -> str:
 # for cold-clone DBs that still have history). Values: ``content_classifications.id``
 # (seeded in 20260510000000_two_axis_niche_pr1_schema). Tightened
 # format-specific rules listed first; per-niche fallback last.
-def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
-    if niche_id is None:
+def _content_class_for(legacy_niche_id: int, content_format: str | None) -> int | None:
+    if legacy_niche_id is None:
         return None
     cf = content_format or ""
 
     # ── Beauty (legacy 2)
-    if niche_id == 2:
+    if legacy_niche_id == 2:
         if cf in ("review", "comparison"):
             return 3
         if cf == "haul":
@@ -1012,7 +1012,7 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 5
         return 1
     # ── Fashion (legacy 3)
-    if niche_id == 3:
+    if legacy_niche_id == 3:
         if cf == "haul":
             return 7
         if cf in ("review", "comparison"):
@@ -1023,7 +1023,7 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 10
         return 6
     # ── Food (legacy 4)
-    if niche_id == 4:
+    if legacy_niche_id == 4:
         if cf == "recipe":
             return 13
         if cf == "mukbang":
@@ -1034,7 +1034,7 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 12
         return 11
     # ── Business / Finance / Real estate
-    if niche_id == 5:
+    if legacy_niche_id == 5:
         if cf in ("haul", "review", "comparison"):
             return 49
         if cf == "tutorial":
@@ -1042,16 +1042,16 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
         if cf == "storytelling":
             return 47
         return 48
-    if niche_id == 10:
+    if legacy_niche_id == 10:
         return 51
-    if niche_id == 15:
+    if legacy_niche_id == 15:
         if cf == "storytelling":
             return 47
         if cf == "comparison":
             return 46
         return 45
     # ── Family / Parenting (legacy 7)
-    if niche_id == 7:
+    if legacy_niche_id == 7:
         if cf == "comedy_skit":
             return 31
         if cf in ("vlog", "storytelling", "pov"):
@@ -1060,7 +1060,7 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 33
         return 33
     # ── Education (legacy 11, 23)
-    if niche_id in (11, 23):
+    if legacy_niche_id in (11, 23):
         if cf == "lesson":
             return 36
         if cf in ("tutorial", "comparison"):
@@ -1069,28 +1069,28 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 38
         return 35
     # ── Tech (legacy 9)
-    if niche_id == 9:
+    if legacy_niche_id == 9:
         if cf in ("haul", "review", "comparison"):
             return 40
         if cf == "tutorial":
             return 41
         return 40
     # ── Gaming (legacy 17)
-    if niche_id == 17:
+    if legacy_niche_id == 17:
         if cf == "gameplay":
             return 42
         if cf in ("review", "comparison"):
             return 43
         return 42
     # ── Music & Dance (legacy 28)
-    if niche_id == 28:
+    if legacy_niche_id == 28:
         if cf == "dance":
             return 29
         if cf in ("highlight", "outfit_transition"):
             return 28
         return 28
     # ── Lifestyle ingest (legacy 13 → 27; 19/20 merged into 27 at ingest)
-    if niche_id in (13, 27):
+    if legacy_niche_id in (13, 27):
         if cf == "comedy_skit":
             return 24
         if cf == "dance":
@@ -1099,7 +1099,7 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 26
         return 24
     # ── Pets (legacy 19 — cold DB only)
-    if niche_id == 19:
+    if legacy_niche_id == 19:
         if cf == "tutorial":
             return 71
         if cf == "lesson":
@@ -1108,19 +1108,19 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 72
         return 69
     # ── Home (legacy 20 — cold DB only)
-    if niche_id == 20:
+    if legacy_niche_id == 20:
         if cf == "tutorial":
             return 74
         if cf in ("haul", "review"):
             return 73
         return 73
     # ── Music (legacy 22 retired, kept for backfill)
-    if niche_id == 22:
+    if legacy_niche_id == 22:
         if cf == "dance":
             return 29
         return 28
     # ── Auto (legacy 14, 25)
-    if niche_id in (14, 25):
+    if legacy_niche_id in (14, 25):
         if cf in ("review", "comparison"):
             return 65
         if cf == "tutorial":
@@ -1129,40 +1129,40 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
             return 66
         return 65
     # ── Travel & Sports (legacy 16, 21)
-    if niche_id == 16:
+    if legacy_niche_id == 16:
         if cf == "lesson":
             return 62
         if cf in ("highlight", "outfit_transition"):
             return 63
         return 60
-    if niche_id == 21:
+    if legacy_niche_id == 21:
         if cf == "highlight":
             return 64
         if cf == "vlog":
             return 63
         return 64
     # ── Gym / Fitness (legacy 8)
-    if niche_id == 8:
+    if legacy_niche_id == 8:
         if cf in ("vlog", "storytelling"):
             return 59
         return 56
     # ── Wellness (legacy 26)
-    if niche_id == 26:
+    if legacy_niche_id == 26:
         if cf in ("vlog", "storytelling"):
             return 55
         if cf == "lesson":
             return 53
         return 52
     # ── Retired niches with no special format mapping
-    if niche_id == 1:
+    if legacy_niche_id == 1:
         return 49   # Shopee review
-    if niche_id == 6:
+    if legacy_niche_id == 6:
         return 23   # Chị đẹp → lifestyle_aesthetic
-    if niche_id == 12:
+    if legacy_niche_id == 12:
         return 50   # Livestream
-    if niche_id == 18:
+    if legacy_niche_id == 18:
         return 13   # Nấu ăn
-    if niche_id == 24:
+    if legacy_niche_id == 24:
         return 46   # Crypto
     return None
 
@@ -1606,7 +1606,7 @@ def _route_niche_and_class_override(
 def _build_corpus_row(
     aweme: dict[str, Any],
     analysis: dict[str, Any],
-    niche_id: int,
+    legacy_niche_id: int,
     *,
     content_class_id_override: int | None = None,
     shadow_resolver_niche_id: int | None = None,
@@ -1767,14 +1767,14 @@ def _build_corpus_row(
             video_id, hook_phrase[:60],
         )
 
-    _format = classify_format(analysis_json, niche_id)
+    _format = classify_format(analysis_json, legacy_niche_id)
     _shadow_nid = (
-        shadow_resolver_niche_id if shadow_resolver_niche_id is not None else niche_id
+        shadow_resolver_niche_id if shadow_resolver_niche_id is not None else legacy_niche_id
     )
     _final_cc = (
         content_class_id_override
         if content_class_id_override is not None
-        else _content_class_for(niche_id, _format)
+        else _content_class_for(legacy_niche_id, _format)
     )
     _loop_cc = aweme.get("_ingest_loop_content_class_id")
     _cohort_mismatch = bool(
@@ -2187,7 +2187,7 @@ async def _analyze_videos_gemini_batch_for_corpus(
 
 async def _ingest_candidate_awemes(
     client: Any,
-    niche_id: int,
+    ingest_loop_niche_id: int,
     niche_name: str,
     candidates: list[dict[str, Any]],
     *,
@@ -2197,7 +2197,9 @@ async def _ingest_candidate_awemes(
     """Analyze prepared aweme dicts and upsert rows (shared by pool ingest + explicit reingest)."""
     from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
 
-    result = IngestResult(niche_id=niche_id, niche_name=niche_name)
+    result = IngestResult(
+        ingest_loop_niche_id=ingest_loop_niche_id, niche_name=niche_name,
+    )
     if not candidates:
         return result
 
@@ -2208,7 +2210,7 @@ async def _ingest_candidate_awemes(
     for a in candidates:
         stashed = a.pop("_ingest_niche_id", None)
         per_aweme_niche_ids.append(
-            int(stashed) if stashed is not None else niche_id
+            int(stashed) if stashed is not None else ingest_loop_niche_id
         )
 
     logger.info("[corpus] niche=%s — analyzing %d candidates", niche_name, len(candidates))
@@ -2622,12 +2624,14 @@ async def _ingest_candidate_awemes(
             for row in rows:
                 row_hashtags: list[str] = row.get("hashtags") or []
                 if row_hashtags:
-                    await learn_hashtag_mappings(
-                        video_hashtags=row_hashtags,
-                        niche_id=row["niche_id"],
-                        niche_source="corpus_batch",
-                        client=client,
-                    )
+                    loop_nid = row.get("ingest_loop_niche_id")
+                    if loop_nid is not None:
+                        await learn_hashtag_mappings(
+                            video_hashtags=row_hashtags,
+                            niche_id=int(loop_nid),
+                            niche_source="corpus_batch",
+                            client=client,
+                        )
                     cc_learn = row.get("content_class_id")
                     if cc_learn is not None:
                         try:
@@ -2662,11 +2666,19 @@ async def ingest_niche(
     existing_video_ids: set[str] | None = None,
     ingest_batch_ctx: IngestBatchContext | None = None,
 ) -> IngestResult:
-    niche_id: int = niche["id"]
-    niche_name: str = niche.get("name_en") or niche.get("name_vn") or str(niche_id)
-    result = IngestResult(niche_id=niche_id, niche_name=niche_name)
+    ingest_loop_niche_id: int = niche["id"]
+    niche_name: str = (
+        niche.get("name_en") or niche.get("name_vn") or str(ingest_loop_niche_id)
+    )
+    result = IngestResult(
+        ingest_loop_niche_id=ingest_loop_niche_id, niche_name=niche_name,
+    )
 
-    logger.info("[corpus] niche=%s id=%d — fetching pool", niche_name, niche_id)
+    logger.info(
+        "[corpus] niche=%s id=%d — fetching pool",
+        niche_name,
+        ingest_loop_niche_id,
+    )
 
     try:
         pool = await _fetch_niche_pool(
@@ -2685,7 +2697,7 @@ async def ingest_niche(
         existing_ids = existing_video_ids
     else:
         existing_ids = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: _existing_video_ids_sync(client, niche_id)
+            None, lambda: _existing_video_ids_sync(client, ingest_loop_niche_id)
         )
 
     if CORPUS_LEGACY_CAROUSEL_HASHTAG_FETCH:
@@ -2749,16 +2761,18 @@ async def ingest_niche(
         # talking-head format matches Skincare). Override before row build.
         _niche_override = niche_override_for_handle(author_handle)
         effective_niche_id = (
-            _niche_override if _niche_override is not None else niche_id
+            _niche_override if _niche_override is not None else ingest_loop_niche_id
         )
-        if _niche_override is not None and _niche_override != niche_id:
+        if _niche_override is not None and _niche_override != ingest_loop_niche_id:
             logger.info(
                 "[corpus] niche override @%s: %d → %d",
-                author_handle, niche_id, _niche_override,
+                author_handle, ingest_loop_niche_id, _niche_override,
             )
         a["_ingest_niche_id"] = effective_niche_id
-        a["_ingest_loop_niche_id"] = niche_id
-        pre_cc = predict_content_class_pre_score(a, loop_niche_id=niche_id)
+        a["_ingest_loop_niche_id"] = ingest_loop_niche_id
+        pre_cc = predict_content_class_pre_score(
+            a, loop_niche_id=ingest_loop_niche_id,
+        )
         if pre_cc is not None:
             a["_ingest_loop_content_class_id"] = pre_cc
         loop_cc = niche.get("_loop_content_class_id")
@@ -2806,7 +2820,7 @@ async def ingest_niche(
         candidates.append(a)
 
     signal_tags = (
-        (niche_signal_hashtags_by_id or {}).get(niche_id, [])
+        (niche_signal_hashtags_by_id or {}).get(ingest_loop_niche_id, [])
     )
     vpn = videos_per_niche_override if videos_per_niche_override is not None else BATCH_VIDEOS_PER_NICHE
     if mode == "purity":
@@ -2823,7 +2837,7 @@ async def ingest_niche(
         ctx = ingest_batch_ctx
         purity_selected, sel_meta = select_purity_candidates(
             candidates,
-            niche_id=niche_id,
+            niche_id=ingest_loop_niche_id,
             signal_hashtags=signal_tags,
             k=vpn,
             ctx=ctx,
@@ -2891,14 +2905,15 @@ async def ingest_niche(
 
         _niche_override = niche_override_for_handle(author_handle)
         effective_niche_id = (
-            _niche_override if _niche_override is not None else niche_id
+            _niche_override if _niche_override is not None else ingest_loop_niche_id
         )
-        if _niche_override is not None and _niche_override != niche_id:
+        if _niche_override is not None and _niche_override != ingest_loop_niche_id:
             logger.info(
                 "[corpus] niche override (carousel) @%s: %d → %d",
-                author_handle, niche_id, _niche_override,
+                author_handle, ingest_loop_niche_id, _niche_override,
             )
         a["_ingest_niche_id"] = effective_niche_id
+        a["_ingest_loop_niche_id"] = ingest_loop_niche_id
 
         stats = a.get("statistics") or {}
         likes = int(stats.get("digg_count") or stats.get("diggCount") or 0)
@@ -2922,7 +2937,7 @@ async def ingest_niche(
     if carousels_per_niche_override is not None:
         cpn = carousels_per_niche_override
     else:
-        cpn = _carousels_per_night_for_niche(niche_id)
+        cpn = _carousels_per_night_for_ingest_loop(ingest_loop_niche_id)
     carousel_candidates = carousel_candidates[: max(0, cpn)]
 
     if carousel_candidates:
@@ -2969,7 +2984,7 @@ async def ingest_niche(
 
     sub = await _ingest_candidate_awemes(
         client,
-        niche_id,
+        ingest_loop_niche_id,
         niche_name,
         candidates,
         niche_signal_hashtags_by_id=niche_signal_hashtags_by_id,
@@ -3207,7 +3222,9 @@ async def run_reingest_video_items(
 ) -> BatchSummary:
     """Re-fetch posts by TikTok ``video_id`` / ``aweme_id`` and run analyze+upsert.
 
-    Each item is ``{"video_id": "<aweme_id>", "niche_id": <int>}`` (``aweme_id`` alias allowed).
+    Each item is ``{"video_id": "<aweme_id>", "niche_id": <int>}`` (``aweme_id``
+    alias allowed) where ``niche_id`` is the ingest-loop bucket
+    (``niche_taxonomy.id``).
     Does not run Sunday weekly analytics — only analyze/upsert + optional MV refresh.
     """
     from collections import defaultdict
@@ -3256,23 +3273,30 @@ async def run_reingest_video_items(
         by_niche[nid].append(vid)
 
     with ensemble.ed_batch_metering() as batch_id:
-        for niche_id, ids in by_niche.items():
-            niche = niches_by_id.get(niche_id)
+        for ingest_loop_niche_id, ids in by_niche.items():
+            niche = niches_by_id.get(ingest_loop_niche_id)
             if not niche:
-                logger.error("[corpus] reingest: unknown niche_id=%s", niche_id)
+                logger.error(
+                    "[corpus] reingest: unknown ingest_loop_niche_id=%s",
+                    ingest_loop_niche_id,
+                )
                 summary.total_failed += len(ids)
                 summary.niches_processed += 1
                 summary.niche_results.append({
-                    "niche_id": niche_id,
-                    "niche_name": str(niche_id),
+                    "ingest_loop_niche_id": ingest_loop_niche_id,
+                    "niche_name": str(ingest_loop_niche_id),
                     "inserted": 0,
                     "skipped": 0,
                     "failed": len(ids),
-                    "errors": ["unknown niche_id"],
+                    "errors": ["unknown ingest_loop_niche_id"],
                 })
                 continue
 
-            niche_name = niche.get("name_en") or niche.get("name_vn") or str(niche_id)
+            niche_name = (
+                niche.get("name_en")
+                or niche.get("name_vn")
+                or str(ingest_loop_niche_id)
+            )
             candidates: list[dict[str, Any]] = []
             missing = 0
             for i in range(0, len(ids), REINGEST_MULTI_CHUNK):
@@ -3301,7 +3325,7 @@ async def run_reingest_video_items(
 
             sub = await _ingest_candidate_awemes(
                 client,
-                niche_id,
+                ingest_loop_niche_id,
                 niche_name,
                 candidates,
                 niche_signal_hashtags_by_id=niche_signal_map,
@@ -3314,7 +3338,7 @@ async def run_reingest_video_items(
             summary.subject_matter_inserted += sub.subject_matter_inserted
             summary.niches_processed += 1
             summary.niche_results.append({
-                "niche_id": niche_id,
+                "ingest_loop_niche_id": ingest_loop_niche_id,
                 "niche_name": niche_name,
                 "inserted": sub.inserted,
                 "skipped": sub.skipped,
@@ -3614,7 +3638,7 @@ async def run_batch_ingest(
             nid = int(n["id"])
             per_niche_vpn[nid] = purity_vpn
             niche_allocation_log.append({
-                "niche_id": nid,
+                "ingest_loop_niche_id": nid,
                 "niche_name": n.get("name_en") or n.get("name_vn") or str(nid),
                 "current_count": 0,
                 "multiplier": 1.0,
@@ -3641,7 +3665,7 @@ async def run_batch_ingest(
             )
             per_niche_vpn[nid] = allocated
             niche_allocation_log.append({
-                "niche_id": nid,
+                "ingest_loop_niche_id": nid,
                 "niche_name": n.get("name_en") or n.get("name_vn") or str(nid),
                 "current_count": current,
                 "multiplier": round(mult, 2),
@@ -3651,7 +3675,9 @@ async def run_batch_ingest(
         # Star niches (e.g. Thời trang) — floor so main verticals keep ingesting
         # after thin-niche math drops them to 1×.
         if BATCH_PRIORITY_NICHE_IDS and BATCH_PRIORITY_NICHE_VPN_FLOOR > 0:
-            by_id: dict[int, dict[str, Any]] = {int(r["niche_id"]): r for r in niche_allocation_log}
+            by_id: dict[int, dict[str, Any]] = {
+                int(r["ingest_loop_niche_id"]): r for r in niche_allocation_log
+            }
             for n in niches:
                 nid = int(n["id"])
                 if nid not in BATCH_PRIORITY_NICHE_IDS:
@@ -3798,7 +3824,7 @@ async def run_batch_ingest(
                             )
                         ),
                         carousels_per_niche_override=(
-                            min(_carousels_per_night_for_niche(int(n["id"])) * 2, 12)
+                            min(_carousels_per_night_for_ingest_loop(int(n["id"])) * 2, 12)
                             if deep_pool
                             else None
                         ),
@@ -3822,7 +3848,7 @@ async def run_batch_ingest(
                 summary.subject_matter_inserted += res.subject_matter_inserted
                 summary.niches_processed += 1
                 summary.niche_results.append({
-                    "niche_id": res.niche_id,
+                    "ingest_loop_niche_id": res.ingest_loop_niche_id,
                     "niche_name": res.niche_name,
                     "inserted": res.inserted,
                     "skipped": res.skipped,
@@ -3920,13 +3946,13 @@ def _should_skip_existing_for_dedup(
 
 
 def _legacy_niche_id_for_class_sync(client: Any, content_class_id: int) -> int:
-    """Representative legacy niche_id for class-loop ingest (mode from corpus)."""
+    """Representative ingest-loop niche_id for class-loop ingest (mode from corpus)."""
     try:
         res = (
             client.table("video_corpus")
-            .select("niche_id")
+            .select("ingest_loop_niche_id")
             .eq("content_class_id", content_class_id)
-            .not_.is_("niche_id", "null")
+            .not_.is_("ingest_loop_niche_id", "null")
             .limit(200)
             .execute()
         )

@@ -37,18 +37,18 @@ def test_narrative_nang_dau_routes_to_storytelling() -> None:
         "đã 16 năm nhưng chưa một lần về thăm nhà đẻ",
         topics=["Culture", "Family"],
     )
-    assert classify_format(analysis, niche_id=16) == "storytelling"
+    assert classify_format(analysis, legacy_niche_id=16) == "storytelling"
 
 
 def test_cau_chuyen_routes_to_storytelling() -> None:
     analysis = _analysis("Hôm nay mình kể về câu chuyện của một người bạn")
-    assert classify_format(analysis, niche_id=13) == "storytelling"
+    assert classify_format(analysis, legacy_niche_id=13) == "storytelling"
 
 
 def test_dang_sau_la_routes_to_storytelling() -> None:
     """Reveal-framed narratives ('the reason behind is…')."""
     analysis = _analysis("Lý do đằng sau là gì? Mời các bạn cùng khám phá")
-    assert classify_format(analysis, niche_id=13) == "storytelling"
+    assert classify_format(analysis, legacy_niche_id=13) == "storytelling"
 
 
 # ── tutorial — VN procedural markers ─────────────────────────────────
@@ -61,17 +61,17 @@ def test_quyet_toan_routes_to_tutorial() -> None:
         "cả chục triệu đồng.",
         topics=["Quyết toán thuế", "Hoàn thuế"],
     )
-    assert classify_format(analysis, niche_id=15) == "tutorial"
+    assert classify_format(analysis, legacy_niche_id=15) == "tutorial"
 
 
 def test_bi_quyet_routes_to_tutorial() -> None:
     analysis = _analysis("Chia sẻ bí quyết giúp bạn làm việc hiệu quả hơn")
-    assert classify_format(analysis, niche_id=7) == "tutorial"
+    assert classify_format(analysis, legacy_niche_id=7) == "tutorial"
 
 
 def test_dang_ky_thu_tuc_routes_to_tutorial() -> None:
     analysis = _analysis("Cần chuẩn bị các thủ tục đăng ký như thế nào")
-    assert classify_format(analysis, niche_id=12) == "tutorial"
+    assert classify_format(analysis, legacy_niche_id=12) == "tutorial"
 
 
 # ── review — VN superiority / performance commentary ─────────────────
@@ -83,12 +83,12 @@ def test_an_dut_routes_to_review() -> None:
         "Bài hát mà đối thủ trình diễn... Sơ sơ thôi cũng đã ăn đứt đối thủ",
         topics=["Music Competition", "Performance Comparison"],
     )
-    assert classify_format(analysis, niche_id=6) == "review"
+    assert classify_format(analysis, legacy_niche_id=6) == "review"
 
 
 def test_phan_trinh_dien_routes_to_review() -> None:
     analysis = _analysis("Phần trình diễn của đối thủ có hồn quá")
-    assert classify_format(analysis, niche_id=6) == "review"
+    assert classify_format(analysis, legacy_niche_id=6) == "review"
 
 
 # ── comparison — additional Vietnamese markers ───────────────────────
@@ -96,7 +96,7 @@ def test_phan_trinh_dien_routes_to_review() -> None:
 
 def test_khac_nhau_routes_to_comparison() -> None:
     analysis = _analysis("Có mấy điểm khác nhau giữa hai loại này")
-    assert classify_format(analysis, niche_id=2) == "comparison"
+    assert classify_format(analysis, legacy_niche_id=2) == "comparison"
 
 
 # ── vlog — additional VN daily markers ───────────────────────────────
@@ -104,7 +104,7 @@ def test_khac_nhau_routes_to_comparison() -> None:
 
 def test_hom_nay_minh_routes_to_vlog() -> None:
     analysis = _analysis("Hôm nay mình đi ra quán cafe quen thuộc")
-    assert classify_format(analysis, niche_id=11) == "vlog"
+    assert classify_format(analysis, legacy_niche_id=11) == "vlog"
 
 
 # ── priority-order regressions ───────────────────────────────────────
@@ -113,13 +113,13 @@ def test_hom_nay_minh_routes_to_vlog() -> None:
 def test_recipe_wins_over_new_tutorial_markers() -> None:
     """Recipes mentioning bí quyết (tutorial marker) should stay recipe."""
     analysis = _analysis("Công thức bí quyết nấu phở chuẩn vị bắc")
-    assert classify_format(analysis, niche_id=4) == "recipe"
+    assert classify_format(analysis, legacy_niche_id=4) == "recipe"
 
 
 def test_review_still_wins_over_new_comparison_markers() -> None:
     """'đánh giá' + 'khác biệt' → review should win."""
     analysis = _analysis("Đánh giá sản phẩm, điểm khác biệt với đối thủ là")
-    assert classify_format(analysis, niche_id=3) == "review"
+    assert classify_format(analysis, legacy_niche_id=3) == "review"
 
 
 def test_existing_patterns_still_route_correctly() -> None:
@@ -138,7 +138,7 @@ def test_falls_through_to_other_for_no_markers() -> None:
         "Hôm qua công an phường Bắc Cam Ranh cho biết",
         topics=["An ninh trật tự", "ATM"],
     )
-    assert classify_format(analysis, niche_id=13) == "other"
+    assert classify_format(analysis, legacy_niche_id=13) == "other"
 
 
 # ── has_speech gate — pins the recipe/tutorial silent-transcript fix ──
@@ -152,7 +152,7 @@ def test_silent_transcript_with_cooking_topic_is_not_recipe() -> None:
         "[Không có lời thoại, chỉ có nhạc nền bài hát Until I Found You]",
         topics=["mèo", "nấu ăn", "thú cưng", "tình cảm"],
     )
-    assert classify_format(analysis, niche_id=19) == "other"
+    assert classify_format(analysis, legacy_niche_id=19) == "other"
 
 
 def test_silent_transcript_with_tutorial_topic_is_not_tutorial() -> None:
@@ -162,7 +162,7 @@ def test_silent_transcript_with_tutorial_topic_is_not_tutorial() -> None:
         "[âm nhạc]",
         topics=["hướng dẫn trang điểm"],
     )
-    assert classify_format(analysis, niche_id=2) == "other"
+    assert classify_format(analysis, legacy_niche_id=2) == "other"
 
 
 def test_recipe_still_matches_when_transcript_has_cooking_words() -> None:
@@ -172,7 +172,7 @@ def test_recipe_still_matches_when_transcript_has_cooking_words() -> None:
         "công thức làm bánh mì, 100 gram bột mì, bước 1 là",
         topics=["bánh mì"],
     )
-    assert classify_format(analysis, niche_id=4) == "recipe"
+    assert classify_format(analysis, legacy_niche_id=4) == "recipe"
 
 
 # ── vlog — pins personal-business-journey pattern ────────────────────
@@ -185,7 +185,7 @@ def test_post_graduation_business_narrative_routes_to_vlog() -> None:
         "sau khi tốt nghiệp, tôi lấy 3,5 tấn cam, ra chợ phiên dựng sạp",
         topics=["Entrepreneurship", "Street Food Business"],
     )
-    assert classify_format(analysis, niche_id=12) == "vlog"
+    assert classify_format(analysis, legacy_niche_id=12) == "vlog"
 
 
 # ── storytelling — pins drama/skit + southern dialect ───────────────
@@ -205,13 +205,13 @@ def test_drama_skit_topic_routes_to_comedy_skit_post_taxonomy_expansion() -> Non
         "tui đứng thất vọng với bà luôn á, cái hoàn cảnh nhà thằng Nhật",
         topics=["drama", "skit", "school life"],
     )
-    assert classify_format(analysis, niche_id=13) == "comedy_skit"
+    assert classify_format(analysis, legacy_niche_id=13) == "comedy_skit"
 
 
 def test_hoan_canh_routes_to_storytelling() -> None:
     """'hoàn cảnh' is a VN life-story marker."""
     analysis = _analysis("Hoàn cảnh gia đình khó khăn mỗi ngày khắc nghiệt")
-    assert classify_format(analysis, niche_id=16) == "storytelling"
+    assert classify_format(analysis, legacy_niche_id=16) == "storytelling"
 
 
 # ── Wave 5+ word-boundary regression — `history` must not fire `story` ──
@@ -234,7 +234,7 @@ def test_history_keyword_does_not_fire_storytelling() -> None:
     # Without the \b fix this fell into 'storytelling'; now it must
     # NOT match that branch (the test asserts the negative — what
     # bucket it lands in instead is up to downstream branches).
-    assert classify_format(analysis, niche_id=8) != "storytelling"
+    assert classify_format(analysis, legacy_niche_id=8) != "storytelling"
 
 
 def test_history_in_topic_does_not_fire_storytelling() -> None:
@@ -245,7 +245,7 @@ def test_history_in_topic_does_not_fire_storytelling() -> None:
         "Today we cover World War II events",
         topics=["history", "war", "education"],
     )
-    assert classify_format(analysis, niche_id=8) != "storytelling"
+    assert classify_format(analysis, legacy_niche_id=8) != "storytelling"
 
 
 def test_story_word_alone_still_fires_storytelling() -> None:
@@ -253,7 +253,7 @@ def test_story_word_alone_still_fires_storytelling() -> None:
     still routes to storytelling. Word-boundary preserves the legit
     case."""
     analysis = _analysis("Let me tell you a story about my grandmother")
-    assert classify_format(analysis, niche_id=8) == "storytelling"
+    assert classify_format(analysis, legacy_niche_id=8) == "storytelling"
 
 
 def test_dramatic_does_not_fire_storytelling() -> None:
@@ -263,7 +263,7 @@ def test_dramatic_does_not_fire_storytelling() -> None:
         "the dramatic shift in product quality was unexpected",
         topics=["product review"],
     )
-    assert classify_format(analysis, niche_id=8) != "storytelling"
+    assert classify_format(analysis, legacy_niche_id=8) != "storytelling"
 
 
 def test_drama_word_alone_still_fires_storytelling() -> None:
@@ -271,7 +271,7 @@ def test_drama_word_alone_still_fires_storytelling() -> None:
     Southern-dialect drama-skit regression test above; this is the
     minimal-input form)."""
     analysis = _analysis("kể về drama nhà chồng", topics=["drama"])
-    assert classify_format(analysis, niche_id=13) == "storytelling"
+    assert classify_format(analysis, legacy_niche_id=13) == "storytelling"
 
 
 # ── Wave 5+ taxonomy expansion — gameplay ────────────────────────────
@@ -287,7 +287,7 @@ def test_niche_17_fires_gameplay_unconditionally() -> None:
         "highlight match liên quân tối qua",
         topics=["mobile gaming"],
     )
-    assert classify_format(analysis, niche_id=17) == "gameplay"
+    assert classify_format(analysis, legacy_niche_id=17) == "gameplay"
 
 
 def test_gaming_topic_fires_gameplay_in_other_niches() -> None:
@@ -296,7 +296,7 @@ def test_gaming_topic_fires_gameplay_in_other_niches() -> None:
     analysis = _analysis(
         "review điện thoại chơi game", topics=["gaming", "smartphone"],
     )
-    assert classify_format(analysis, niche_id=9) == "gameplay"
+    assert classify_format(analysis, legacy_niche_id=9) == "gameplay"
 
 
 def test_lien_quan_routes_to_gameplay() -> None:
@@ -305,12 +305,12 @@ def test_lien_quan_routes_to_gameplay() -> None:
         "Pha xử lý đỉnh cao trong trận liên quân",
         topics=["liên quân"],
     )
-    assert classify_format(analysis, niche_id=17) == "gameplay"
+    assert classify_format(analysis, legacy_niche_id=17) == "gameplay"
 
 
 def test_roblox_topic_routes_to_gameplay() -> None:
     analysis = _analysis("Roblox map mới ra siêu vui", topics=["roblox"])
-    assert classify_format(analysis, niche_id=17) == "gameplay"
+    assert classify_format(analysis, legacy_niche_id=17) == "gameplay"
 
 
 def test_gameplay_wins_over_review_in_niche_17() -> None:
@@ -321,7 +321,7 @@ def test_gameplay_wins_over_review_in_niche_17() -> None:
         "review tướng mới đánh giá chi tiết",
         topics=["liên quân", "hero review"],
     )
-    assert classify_format(analysis, niche_id=17) == "gameplay"
+    assert classify_format(analysis, legacy_niche_id=17) == "gameplay"
 
 
 def test_gameplay_wins_over_tutorial_when_gaming_topic_present() -> None:
@@ -331,7 +331,7 @@ def test_gameplay_wins_over_tutorial_when_gaming_topic_present() -> None:
         "cách lên đồ tướng mới hướng dẫn chi tiết",
         topics=["liên quân", "gaming"],
     )
-    assert classify_format(analysis, niche_id=17) == "gameplay"
+    assert classify_format(analysis, legacy_niche_id=17) == "gameplay"
 
 
 # ── Wave 5+ taxonomy expansion — comedy_skit ─────────────────────────
@@ -347,7 +347,7 @@ def test_skit_keyword_fires_comedy_skit_regardless_of_niche() -> None:
         "Skit cuối tuần với gia đình",
         topics=["family", "skit"],
     )
-    assert classify_format(analysis, niche_id=8) == "comedy_skit"
+    assert classify_format(analysis, legacy_niche_id=8) == "comedy_skit"
 
 
 def test_prank_keyword_fires_comedy_skit() -> None:
@@ -355,7 +355,7 @@ def test_prank_keyword_fires_comedy_skit() -> None:
         "Prank bố mẹ giả vờ bị thương rồi cười",
         topics=["prank", "family"],
     )
-    assert classify_format(analysis, niche_id=11) == "comedy_skit"
+    assert classify_format(analysis, legacy_niche_id=11) == "comedy_skit"
 
 
 def test_niche_13_humorous_tone_fires_comedy_skit() -> None:
@@ -365,7 +365,7 @@ def test_niche_13_humorous_tone_fires_comedy_skit() -> None:
         topics=["family"],
         tone="humorous",
     )
-    assert classify_format(analysis, niche_id=13) == "comedy_skit"
+    assert classify_format(analysis, legacy_niche_id=13) == "comedy_skit"
 
 
 def test_niche_13_funny_keyword_fires_comedy_skit() -> None:
@@ -374,7 +374,7 @@ def test_niche_13_funny_keyword_fires_comedy_skit() -> None:
         "Funny moments với đám trẻ trong nhà",
         topics=["funny", "kids"],
     )
-    assert classify_format(analysis, niche_id=13) == "comedy_skit"
+    assert classify_format(analysis, legacy_niche_id=13) == "comedy_skit"
 
 
 def test_funny_keyword_outside_niche_13_does_not_fire_comedy_skit() -> None:
@@ -384,7 +384,7 @@ def test_funny_keyword_outside_niche_13_does_not_fire_comedy_skit() -> None:
         "Hôm nay mình quay đám trẻ trong nhà",
         topics=["funny", "kids"],
     )
-    assert classify_format(analysis, niche_id=11) != "comedy_skit"
+    assert classify_format(analysis, legacy_niche_id=11) != "comedy_skit"
 
 
 def test_bare_comedy_topic_does_not_fire_comedy_skit() -> None:
@@ -395,7 +395,7 @@ def test_bare_comedy_topic_does_not_fire_comedy_skit() -> None:
         "Outfit phối đồ đi chơi",
         topics=["fashion", "comedy"],
     )
-    assert classify_format(analysis, niche_id=2) != "comedy_skit"
+    assert classify_format(analysis, legacy_niche_id=2) != "comedy_skit"
 
 
 # ── Wave 5+ taxonomy expansion — lesson ──────────────────────────────
@@ -413,7 +413,7 @@ def test_niche_11_educational_tone_fires_lesson() -> None:
         topics=["economics"],
         tone="educational",
     )
-    assert classify_format(analysis, niche_id=11) == "lesson"
+    assert classify_format(analysis, legacy_niche_id=11) == "lesson"
 
 
 def test_vocabulary_topic_fires_lesson_in_any_niche() -> None:
@@ -423,7 +423,7 @@ def test_vocabulary_topic_fires_lesson_in_any_niche() -> None:
         topics=["vocabulary", "language learning"],
         tone="educational",
     )
-    assert classify_format(analysis, niche_id=8) == "lesson"
+    assert classify_format(analysis, legacy_niche_id=8) == "lesson"
 
 
 def test_ngu_phap_routes_to_lesson() -> None:
@@ -433,7 +433,7 @@ def test_ngu_phap_routes_to_lesson() -> None:
         topics=["ngữ pháp"],
         tone="educational",
     )
-    assert classify_format(analysis, niche_id=8) == "lesson"
+    assert classify_format(analysis, legacy_niche_id=8) == "lesson"
 
 
 def test_comparison_wins_over_lesson() -> None:
@@ -445,7 +445,7 @@ def test_comparison_wins_over_lesson() -> None:
         topics=["career"],
         tone="educational",
     )
-    assert classify_format(analysis, niche_id=11) == "comparison"
+    assert classify_format(analysis, legacy_niche_id=11) == "comparison"
 
 
 def test_lesson_requires_educational_tone() -> None:
@@ -456,7 +456,7 @@ def test_lesson_requires_educational_tone() -> None:
         topics=["vocabulary"],
         tone="conversational",
     )
-    assert classify_format(analysis, niche_id=11) != "lesson"
+    assert classify_format(analysis, legacy_niche_id=11) != "lesson"
 
 
 def test_tutorial_wins_over_lesson_when_procedural_verbs_present() -> None:
@@ -468,7 +468,7 @@ def test_tutorial_wins_over_lesson_when_procedural_verbs_present() -> None:
         topics=["grammar"],
         tone="educational",
     )
-    assert classify_format(analysis, niche_id=11) == "tutorial"
+    assert classify_format(analysis, legacy_niche_id=11) == "tutorial"
 
 
 # ── Wave 5+ taxonomy expansion — highlight ───────────────────────────
@@ -489,7 +489,7 @@ def test_niche_21_inspirational_short_clip_fires_highlight() -> None:
         scenes=[{"type": "broll"}] * 5,
         tone="inspirational",
     )
-    assert classify_format(analysis, niche_id=21) == "highlight"
+    assert classify_format(analysis, legacy_niche_id=21) == "highlight"
 
 
 def test_niche_16_entertaining_with_music_marker_fires_highlight() -> None:
@@ -501,7 +501,7 @@ def test_niche_16_entertaining_with_music_marker_fires_highlight() -> None:
         scenes=[{"type": "broll"}] * 6,
         tone="entertaining",
     )
-    assert classify_format(analysis, niche_id=16) == "highlight"
+    assert classify_format(analysis, legacy_niche_id=16) == "highlight"
 
 
 def test_niche_outside_highlight_set_does_not_fire_highlight() -> None:
@@ -512,7 +512,7 @@ def test_niche_outside_highlight_set_does_not_fire_highlight() -> None:
         scenes=[{"type": "broll"}] * 5,
         tone="entertaining",
     )
-    assert classify_format(analysis, niche_id=2) != "highlight"
+    assert classify_format(analysis, legacy_niche_id=2) != "highlight"
 
 
 def test_long_transcript_without_music_marker_does_not_fire_highlight() -> None:
@@ -524,7 +524,7 @@ def test_long_transcript_without_music_marker_does_not_fire_highlight() -> None:
         scenes=[{"type": "broll"}] * 5,
         tone="entertaining",
     )
-    assert classify_format(analysis, niche_id=16) != "highlight"
+    assert classify_format(analysis, legacy_niche_id=16) != "highlight"
 
 
 def test_few_scenes_does_not_fire_highlight() -> None:
@@ -535,7 +535,7 @@ def test_few_scenes_does_not_fire_highlight() -> None:
         scenes=[{"type": "broll"}] * 2,
         tone="inspirational",
     )
-    assert classify_format(analysis, niche_id=6) != "highlight"
+    assert classify_format(analysis, legacy_niche_id=6) != "highlight"
 
 
 def test_gameplay_wins_over_highlight_for_niche_17() -> None:
@@ -548,4 +548,4 @@ def test_gameplay_wins_over_highlight_for_niche_17() -> None:
         scenes=[{"type": "action"}] * 5,
         tone="entertaining",
     )
-    assert classify_format(analysis, niche_id=17) == "gameplay"
+    assert classify_format(analysis, legacy_niche_id=17) == "gameplay"
