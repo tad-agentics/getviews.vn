@@ -7,7 +7,7 @@
 **Code baseline:** `main` @ `8ad7ab0` (Wave 0 shipped)  
 **Status:** As-built FIELD × feature matrix + V1 gap markers (`🔨`)  
 **Vision:** [`feature-map-v1.md`](feature-map-v1.md) v2.0 FINAL  
-**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · Wave 1 ✅ @ `e3b5d01` · Wave 2+ open  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · Wave 1 ✅ @ `e3b5d01` · Wave 2 ✅  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`
@@ -149,7 +149,7 @@
 
 | FIELD | F2 | F1 | F5 | F4 | F6 | STU | F7 | BAT | Ghi chú |
 |-------|----|----|----|----|----|-----|----|-----|---------|
-| `content_context.subject_matter` | ref | ref | — | — | feed | anchor | — | MV | Proximity ref; `daily_ritual`; pattern deck |
+| `content_context.subject_matter` | ref | ref | live | — | feed | anchor | — | MV | Proximity ref + user-video rank (W2-4); ritual; pattern deck |
 | `content_context.creator_role` | teaser | audit | — | — | — | — | spec | — | Commerce vs role mismatch signal |
 | `content_context.content_purpose` | teaser | audit | — | — | feed | — | — | — | `pattern_fingerprint`, deck synth |
 | `content_context.language_register` | — | audit | — | — | — | — | spec | — | Persona / synthesis |

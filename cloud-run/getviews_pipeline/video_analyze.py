@@ -1073,6 +1073,9 @@ def finalize_video_narrative_layer(
 
     analysis: dict[str, Any] = out.pop("__narrative_analysis", None) or {}
     content_format: str = str(out.pop("__narrative_content_format", "") or "")
+    from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
+
+    user_subject_matter = extract_subject_matter_from_analysis_json(analysis)
     meta: dict[str, Any] = out.get("meta") if isinstance(out.get("meta"), dict) else {}
     niche_meta: dict[str, Any] = (
         out.get("niche_meta") if isinstance(out.get("niche_meta"), dict) else {}
@@ -1156,6 +1159,7 @@ def finalize_video_narrative_layer(
             video_desc=video_desc,
             video_hashtags=video_hashtags,
             preferred_content_format=content_format or None,
+            user_subject_matter=user_subject_matter,
             live_search_fn=_live_search_references_for_finalize,
         )
     )

@@ -1178,6 +1178,11 @@ export interface ScriptReportPayload {
   duration: number;
   tone: string;
   niche_label: string;
+  /** Wave 2 — narrative-first script report (`_schema_version: "script_v1"`). */
+  narrative_vi?: Pick<
+    NarrativeVi,
+    "headline_vi" | "ket_luan_nhanh" | "_schema_version" | "diagnosis_vi"
+  >;
   shots: ScriptShotCardData[];
   sources: SourceRowData[];
   related_questions: string[];

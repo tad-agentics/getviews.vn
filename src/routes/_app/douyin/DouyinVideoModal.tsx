@@ -21,6 +21,7 @@ import type {
   DouyinVideo,
 } from "@/lib/api-types";
 import { formatViews } from "@/lib/formatters";
+import { scriptPrefillFromDeeplink } from "@/lib/scriptPrefill";
 
 import {
   ADAPT_META,
@@ -105,15 +106,18 @@ function DouyinVideoModalBody({
   const subVI = video.sub_vi?.trim() || video.title_vi?.trim() || "";
 
   const handleAdaptToScript = (): void => {
-    const params = new URLSearchParams();
     const topic = (video.title_vi || video.title_zh || "").slice(0, 200);
-    if (topic) params.set("topic", topic);
-    if (subVI) params.set("hook", subVI.slice(0, 240));
-    if (video.video_duration && Number.isFinite(video.video_duration)) {
-      params.set("duration", String(Math.round(video.video_duration)));
-    }
+    const path =
+      scriptPrefillFromDeeplink({
+        topic: topic || null,
+        hook: subVI ? subVI.slice(0, 240) : null,
+        duration_sec:
+          video.video_duration && Number.isFinite(video.video_duration)
+            ? Math.round(video.video_duration)
+            : null,
+      }) ?? "/app/answer";
     onClose();
-    navigate(`/app/script?${params.toString()}`);
+    navigate(path);
   };
 
   const handleOpenSource = (): void => {

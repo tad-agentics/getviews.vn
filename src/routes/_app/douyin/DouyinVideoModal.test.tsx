@@ -115,18 +115,19 @@ describe("DouyinVideoModal — populated row", () => {
     expect(screen.getByText("BỐI CẢNH")).toBeTruthy();
   });
 
-  it("navigates to /app/script with prefill on Adapt CTA click", () => {
+  it("navigates to /app/answer with composer prefill on Adapt CTA click", () => {
     const { onOpenChange } = _renderModal();
     fireEvent.click(
       screen.getByRole("button", { name: /Adapt sang VN → Kịch bản/ }),
     );
     expect(navigate).toHaveBeenCalledTimes(1);
     const arg = navigate.mock.calls[0]![0] as string;
-    expect(arg.startsWith("/app/script?")).toBe(true);
+    expect(arg.startsWith("/app/answer?")).toBe(true);
     const qs = new URLSearchParams(arg.split("?")[1]);
-    expect(qs.get("topic")).toBe("3 việc trước khi ngủ");
-    expect(qs.get("hook")).toBe("Bí quyết để ngủ ngon");
-    expect(qs.get("duration")).toBe("30");
+    const q = decodeURIComponent(qs.get("q") ?? "");
+    expect(q).toContain("3 việc trước khi ngủ");
+    expect(q).toContain("Bí quyết để ngủ ngon");
+    expect(q).toContain("30");
     // Adapt navigates close the modal first.
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });

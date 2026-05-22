@@ -69,10 +69,12 @@ describe("TrendsRail", () => {
     const { getByText } = wrap(<TrendsRail nicheId={4} />);
     expect(getByText("VIDEO NÊN THAM KHẢO")).toBeTruthy();
     expect(getByText("Đang nổi lên")).toBeTruthy();
-    expect(getByText("Top 5 view 7 ngày qua")).toBeTruthy();
+    expect(
+      getByText("Top 5 view 7 ngày trong ngách bạn chọn — bấm để phân tích vì sao nổ"),
+    ).toBeTruthy();
     expect(getByText("VIDEO LEO ĐỈNH")).toBeTruthy();
     expect(getByText("Đang Viral")).toBeTruthy();
-    expect(getByText("Top 5 Viral Video trong ngách của bạn")).toBeTruthy();
+    expect(getByText("Top 5 viral all-time trong ngách — khác rail 7 ngày phía trên")).toBeTruthy();
   });
 
   it("renders one row per video with hook phrase as the title", () => {

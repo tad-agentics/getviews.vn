@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   scriptPrefillFromChannel,
+  scriptPrefillFromDeeplink,
   scriptPrefillFromPattern,
+  scriptPrefillFromQueryParams,
   scriptPrefillFromRitual,
   scriptPrefillFromVideo,
 } from "./scriptPrefill";
@@ -141,5 +143,45 @@ describe("scriptPrefillFromVideo", () => {
     });
     const msg = parseAnswerQ(path);
     expect(msg).toContain("Chủ đề");
+  });
+});
+
+describe("scriptPrefillFromDeeplink", () => {
+  it("composes topic, hook, duration from legacy script query", () => {
+    const path = scriptPrefillFromDeeplink({
+      topic: "Review tai nghe",
+      hook: "So sánh 200k vs 2tr",
+      duration_sec: 32,
+    });
+    expect(path).toMatch(/^\/app\/answer\?/);
+    const msg = parseAnswerQ(path!);
+    expect(msg).toContain("Review tai nghe");
+    expect(msg).toContain("So sánh");
+    expect(msg).toContain("32");
+  });
+
+  it("composes channel formula prefill", () => {
+    const path = scriptPrefillFromDeeplink({
+      prefill_handle: "minhreview",
+      prefill_format: "POV unbox",
+    });
+    const msg = parseAnswerQ(path!);
+    expect(msg).toContain("minhreview");
+    expect(msg).toContain("POV unbox");
+  });
+});
+
+describe("scriptPrefillFromQueryParams", () => {
+  it("parses URLSearchParams from Douyin-style deeplink", () => {
+    const params = new URLSearchParams();
+    params.set("topic", "Douyin title");
+    params.set("hook", "Sub VN");
+    params.set("duration", "45");
+    const path = scriptPrefillFromQueryParams(params);
+    expect(path).toBeTruthy();
+    const msg = parseAnswerQ(path!);
+    expect(msg).toContain("Douyin title");
+    expect(msg).toContain("Sub VN");
+    expect(msg).toContain("45");
   });
 });

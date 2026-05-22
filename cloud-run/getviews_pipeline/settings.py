@@ -104,7 +104,10 @@ class _PipelineSettings(BaseSettings):
     batch_recency_days: int = Field(default=30, ge=1)
     corpus_target_per_niche: int = Field(default=200, ge=1)
     thin_niche_max_multiplier: float = Field(default=3.0, ge=1.0)
-    batch_priority_niche_ids: str = Field(default="3", description="Comma-separated niche IDs for priority ingest")
+    batch_priority_niche_ids: str = Field(
+        default="1,2,3,4,5,8,9,11",
+        description="Comma-separated hero niche_taxonomy.id for priority ingest (Wave 2 §8.7)",
+    )
     batch_priority_niche_vpn_floor: int = Field(default=35, ge=0)
     batch_priority_niche_max_vpn: int = Field(default=90, ge=1)
     batch_max_failures: int = Field(default=3, ge=0)

@@ -13,6 +13,7 @@ import { extractChannelHandleFromMessage, normalizeChannelHandleInput, parseChan
 import { env } from "@/lib/env";
 import { logUsage } from "@/lib/logUsage";
 import { pushChannelHistory } from "@/lib/channelHistory";
+import { scriptPrefillFromDeeplink } from "@/lib/scriptPrefill";
 import { useAuth } from "@/lib/auth";
 import { SectionRenderer } from "./components/SectionRenderer";
 import { ScoreCard, ScoreCardSkeleton } from "./components/ScoreCard";
@@ -329,11 +330,10 @@ function ChannelDiagnosisBody({
     if (!fp) return null;
     const fmt = fp.channel_persona?.dominant_format ?? fp.dominant_format ?? "";
     if (!fmt || !handle) return null;
-    const params = new URLSearchParams({
+    return scriptPrefillFromDeeplink({
       prefill_handle: handle,
       prefill_format: fmt,
     });
-    return `/app/script?${params.toString()}`;
   }, [diagnose.finalPayload, handle]);
 
   const isDone = diagnose.status === "done";

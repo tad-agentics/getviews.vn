@@ -132,6 +132,8 @@ function ReportPayloadBody({
   payload,
   sessionIntentType,
   videoStreamProgress,
+  sessionId,
+  onOpenScriptShoot,
 }: {
   payload: ReportV1;
   /** Intent phiên (câu đầu) — tinh chỉnh kickers/copy khi trùng `format`. */
@@ -142,6 +144,8 @@ function ReportPayloadBody({
     channelContext: ChannelContext | null;
     narrativeReady: VideoAnswerNarrativeReadyPayload | null;
   };
+  sessionId?: string | null;
+  onOpenScriptShoot?: (draftId: string) => void;
 }) {
   // Kicker strings intentionally Vietnamese — matches CLAUDE.md's
   // "primary language for user-facing copy: Vietnamese. No English
@@ -202,7 +206,11 @@ function ReportPayloadBody({
     case "script":
       return (
         <AnswerBlock kicker="Kịch bản 6 cảnh" bare>
-          <ScriptBody report={payload.report} />
+          <ScriptBody
+            report={payload.report}
+            sessionId={sessionId ?? null}
+            onOpenShoot={onOpenScriptShoot}
+          />
         </AnswerBlock>
       );
     default:
@@ -246,6 +254,8 @@ export function ContinuationTurn({
   turn,
   sessionIntentType,
   videoStreamProgress,
+  sessionId,
+  onOpenScriptShoot,
 }: {
   turn: AnswerTurnRow;
   sessionIntentType?: string;
@@ -254,6 +264,8 @@ export function ContinuationTurn({
     channelContext: ChannelContext | null;
     narrativeReady: VideoAnswerNarrativeReadyPayload | null;
   };
+  sessionId?: string | null;
+  onOpenScriptShoot?: (draftId: string) => void;
 }) {
   // Primary turn duplicates AnswerScreen hero (“Câu hỏi” + H1). Divider +
   // H2 are for follow-ups only (see module comment on TURN_KIND_LABEL).
@@ -265,6 +277,8 @@ export function ContinuationTurn({
         payload={turn.payload}
         sessionIntentType={sessionIntentType}
         videoStreamProgress={videoStreamProgress}
+        sessionId={sessionId}
+        onOpenScriptShoot={onOpenScriptShoot}
       />
     </article>
   );

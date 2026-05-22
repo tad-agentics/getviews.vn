@@ -28,7 +28,7 @@ export default function ShootScreen() {
         kicker="CHẾ ĐỘ QUAY"
         title={draft?.topic || "Kịch bản"}
         right={
-          <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/script")}>
+          <Btn variant="ghost" size="sm" type="button" onClick={() => navigate("/app/answer")}>
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             Quay lại
           </Btn>
@@ -56,9 +56,9 @@ export default function ShootScreen() {
               className="mt-4"
               type="button"
               variant="ghost"
-              onClick={() => navigate("/app/script")}
+              onClick={() => navigate("/app/answer")}
             >
-              Về Xưởng Viết
+              Về Phân tích
             </Btn>
           </div>
         ) : (

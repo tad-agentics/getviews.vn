@@ -1,17 +1,21 @@
 /**
  * Phase C — 6-shot script report inside answer sessions (Studio).
+ * Wave 2 — narrative-first: headline → sections → shot rail.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Video } from "lucide-react";
 
+import { DiagnosisSectionRenderer } from "@/components/diagnosis/DiagnosisSectionRenderer";
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import { Btn } from "@/components/v2/Btn";
 import type {
+  DiagnosisSectionVi,
   ScriptReportPayload,
   ScriptShotCardData,
   ScriptShotReferenceData,
   ScriptVoLineData,
 } from "@/lib/api-types";
+import { ScriptActionsBar } from "./ScriptActionsBar";
 
 function formatVoStamp(t: ScriptVoLineData["t"], fallback: number): string {
   if (typeof t === "number" && Number.isFinite(t)) {
@@ -52,11 +56,27 @@ function breakoutLabel(ref: ScriptShotReferenceData, shot: ScriptShotCardData): 
   return null;
 }
 
-export function ScriptBody({ report }: { report: ScriptReportPayload }) {
+export function ScriptBody({
+  report,
+  sessionId = null,
+  onOpenShoot,
+}: {
+  report: ScriptReportPayload;
+  sessionId?: string | null;
+  onOpenShoot?: (draftId: string) => void;
+}) {
   const shots = report.shots ?? [];
   const [idx, setIdx] = useState(0);
+  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
   const safeIdx = Math.min(Math.max(0, idx), Math.max(0, shots.length - 1));
   const shot = shots[safeIdx];
+
+  const narrative = report.narrative_vi;
+  const headline = narrative?.headline_vi?.trim() || report.hook;
+  const sections = useMemo(
+    () => (narrative?.diagnosis_vi?.sections ?? []) as DiagnosisSectionVi[],
+    [narrative?.diagnosis_vi?.sections],
+  );
 
   const pills = [report.niche_label?.trim(), `${report.duration}s`, report.tone].filter(
     Boolean,
@@ -72,8 +92,13 @@ export function ScriptBody({ report }: { report: ScriptReportPayload }) {
           className="gv-tight m-0 text-[clamp(1.125rem,2.5vi+0.35rem,1.65rem)] font-medium leading-tight text-[color:var(--gv-ink)]"
           style={{ fontFamily: "var(--gv-font-display)", textWrap: "balance" }}
         >
-          {report.hook}
+          {headline}
         </p>
+        {narrative?.ket_luan_nhanh ? (
+          <p className="m-0 text-[14px] leading-relaxed text-[color:var(--gv-ink-2)]">
+            {narrative.ket_luan_nhanh}
+          </p>
+        ) : null}
         {pills.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {pills.map((p) => (
@@ -94,8 +119,23 @@ export function ScriptBody({ report }: { report: ScriptReportPayload }) {
         </p>
       </header>
 
+      {sections.length > 0 ? (
+        <section className="space-y-2 border-t border-[color:var(--gv-rule)] pt-5">
+          {sections.map((section) => (
+            <DiagnosisSectionRenderer
+              key={String(section.section_id)}
+              section={section}
+              referenceVideos={[]}
+            />
+          ))}
+        </section>
+      ) : null}
+
       {shot ? (
         <section className="rounded-[var(--gv-radius-md)] border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] p-4">
+          <p className="gv-mono mb-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-[color:var(--gv-ink-4)]">
+            6 cảnh · chi tiết từng shot
+          </p>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <p className="gv-mono m-0 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--gv-accent)]">
               Cảnh {safeIdx + 1} / {shots.length}
@@ -248,6 +288,14 @@ export function ScriptBody({ report }: { report: ScriptReportPayload }) {
           </div>
         </section>
       ) : null}
+
+      <ScriptActionsBar
+        report={report}
+        sessionId={sessionId}
+        savedDraftId={savedDraftId}
+        onDraftSaved={setSavedDraftId}
+        onShoot={(id) => onOpenShoot?.(id)}
+      />
     </div>
   );
 }

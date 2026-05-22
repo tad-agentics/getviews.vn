@@ -228,6 +228,15 @@ User input (composer | pill | handoff prefill)
 
 **Wave 2 exit:** Mọi script flow trong `/app/answer` narrative-first; **composer + intent-router** vẫn là entry SSOT; shoot + draft linked session; F6 claim-tier aware; hero niche batch aligned.
 
+| Item | Status | Notes |
+|------|--------|-------|
+| W2-1a Deprecate `/app/script` route | ✅ | Redirect + `scriptPrefillFromDeeplink`; CTAs → `/app/answer?q=` |
+| W2-1b Narrative-first script report | ✅ | `synthesize_script_narrative_vi()`; `ScriptBody` sections → shot rail |
+| W2-1c Drafts + shoot in Answer | ✅ | `ScriptActionsBar` + `?shoot=` panel; `source_session_id` on save |
+| W2-2 ConfidenceStrip on F6 | ✅ | `TrendsPatternGrid` + Explore kho when corpus thin |
+| W2-3 Hero niche list + batch IDs | ✅ | `feature-map-v1.md` §8.7; default `1,2,3,4,5,8,9,11` |
+| W2-4 subject_matter proximity | ✅ | User `subject_matter` in ref pool rank; ablation log |
+
 **Schema contract (W2-1b — Tech Lead default):**
 
 ```text

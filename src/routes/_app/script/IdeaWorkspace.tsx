@@ -9,7 +9,8 @@ import { useHomePulse } from "@/hooks/useHomePulse";
 import { useScriptDrafts } from "@/hooks/useScriptSave";
 import { useProfile } from "@/hooks/useProfile";
 import { formatRelativeSinceVi } from "@/lib/formatters";
-import { scriptPrefillFromRitual } from "@/lib/scriptPrefill";
+import { scriptShootRedirectPath } from "@/lib/answerHandoff";
+import { scriptPrefillFromDeeplink, scriptPrefillFromRitual } from "@/lib/scriptPrefill";
 import { env } from "@/lib/env";
 import { profileFirstNicheId } from "@/lib/profileNiches";
 import type { ScriptDraftRow } from "@/lib/api-types";
@@ -24,13 +25,10 @@ import type { ScriptDraftRow } from "@/lib/api-types";
  *     nightly-generated scripts Studio Home shows). Today's source produces
  *     up to 3 cards; the design's "5" is mock — we render whatever the
  *     ritual emits and let the cron grow.
- *   B · Tôi có ý tưởng riêng        → textarea + duration → navigates to
- *     ``/app/script?topic=…&duration=…`` so the existing detail screen
- *     prefills via its current URL-param flow.
+ *   B · Tôi có ý tưởng riêng        → textarea + duration → Answer composer
+ *     prefill via ``scriptPrefillFromDeeplink``.
  *   C · Nháp của bạn                → ``useScriptDrafts``; clicking a row
- *     opens the read-only shoot view (``/app/script/shoot/:id``) which is
- *     where saved drafts already live. Resume-editing back into the editor
- *     is a follow-up PR.
+ *     opens shoot panel in Answer (``scriptShootRedirectPath``).
  *
  * Path D (Shopee/Products) intentionally omitted — out-of-scope per
  * CLAUDE.md.
@@ -126,11 +124,12 @@ export function IdeaWorkspace() {
           />
           <CustomIdeaCard
             onSubmit={(topic, duration) => {
-              const qs = new URLSearchParams();
-              qs.set("topic", topic.slice(0, 500));
-              qs.set("duration", String(duration));
-              if (defaultNicheId != null) qs.set("niche_id", String(defaultNicheId));
-              navigate(`/app/script?${qs.toString()}`);
+              const path =
+                scriptPrefillFromDeeplink({
+                  topic: topic.slice(0, 500),
+                  duration_sec: duration,
+                }) ?? "/app/answer";
+              navigate(path);
             }}
           />
         </section>
@@ -359,7 +358,7 @@ function DraftsList({ drafts }: { drafts: ReadonlyArray<ScriptDraftRow> }) {
         return (
           <a
             key={d.id}
-            href={`/app/script/shoot/${encodeURIComponent(d.id)}`}
+            href={scriptShootRedirectPath(d.id, new URLSearchParams())}
             className="text-left flex flex-col gap-2 px-3.5 py-3 rounded-[6px] bg-[color:var(--gv-paper)] border border-[color:var(--gv-rule)] hover:border-[color:var(--gv-ink)] transition-colors"
           >
             <div

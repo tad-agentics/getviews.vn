@@ -1,5 +1,14 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Wave 2: Script → Answer narrative-first + F6 claims
+
+- **W2-1a:** `/app/script` + `/app/script/shoot/*` redirect to Answer; `scriptPrefillFromDeeplink` / `scriptRouteRedirectPath`; CTAs (Channel, Douyin, PatternActionCards) → composer `?q=` prefill; intent-router unchanged.
+- **W2-1b:** `synthesize_script_narrative_vi()` in `report_script.py` (`_schema_version: script_v1`); `ScriptReportPayload.narrative_vi`; `ScriptBody` narrative sections + shot carousel.
+- **W2-1c:** `ScriptActionsBar` (save draft + `source_session_id`, shoot, export); `ScriptShootPanel` at `?session=&shoot=` in Answer.
+- **W2-2:** `ConfidenceStrip` + `HumilityBanner` on thin F6 (`TrendsPatternGrid`, Explore kho).
+- **W2-3:** Hero niche table in `feature-map-v1.md` §8.7; `BATCH_PRIORITY_NICHE_IDS=1,2,3,4,5,8,9,11` default.
+- **W2-4:** Promoted `subject_matter` in ref proximity scoring + ablation log in `references.py`.
+
 ## 2026-05-22 — Wave 2 scope: Script → Answer narrative-first
 
 - **`incremental-v1-roadmap.md`:** Wave 2 rewritten — W2-1a/b/c (deprecate `/app/script` route only; **keep composer + intent-router**); human decisions on shoot/drafts/credits; schema = reuse `narrative_vi`.

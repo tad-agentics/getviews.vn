@@ -25,6 +25,8 @@ import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { TrendsDouyinCard } from "./TrendsDouyinCard";
 import { CrossNicheBreakoutLane } from "./components/CrossNicheBreakoutLane";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
+import { ConfidenceStrip } from "@/components/v2/answer/pattern/ConfidenceStrip";
+import { HumilityBanner } from "@/components/v2/answer/pattern/HumilityBanner";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { TrendsRail } from "./TrendsRail";
 import { useContentClassIntelligence } from "@/hooks/useContentClassIntelligence";
@@ -595,6 +597,7 @@ export default function ExploreScreen() {
   // round-tripping through URL params.
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
+  const [khoHumilityOpen, setKhoHumilityOpen] = useState(true);
   const formatMenuRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1004,7 +1007,14 @@ export default function ExploreScreen() {
           {/* PR-T3/T4 — § I PATTERN grid + click-to-open modal. Renders
            * the 6 hot patterns for the niche as 2×2-collage cards. */}
           {selectedNicheId !== null ? (
-            <TrendsPatternGrid patternScope={patternScope} legacyNicheId={selectedNicheId} />
+            <TrendsPatternGrid
+              patternScope={patternScope}
+              legacyNicheId={selectedNicheId}
+              thinSample={lowVideoCorpus}
+              thinSampleCount={thinCorpusSampleCount}
+              nicheScopeLabel={selectedNicheName}
+              freshnessHours={24}
+            />
           ) : null}
 
           <section className="pb-4">
@@ -1060,6 +1070,25 @@ export default function ExploreScreen() {
                 </div>
               </div>
             </div>
+
+            {selectedNicheId !== null && lowVideoCorpus ? (
+              <div className="mb-5 space-y-3">
+                <ConfidenceStrip
+                  data={{
+                    sample_size: thinCorpusSampleCount,
+                    window_days: 30,
+                    niche_scope: selectedNicheName ?? null,
+                    freshness_hours: 24,
+                    intent_confidence: "low",
+                    what_stalled_reason: null,
+                  }}
+                  thinSample
+                  humilityVisible={khoHumilityOpen}
+                  onHumilityToggle={() => setKhoHumilityOpen((v) => !v)}
+                />
+                {khoHumilityOpen ? <HumilityBanner /> : null}
+              </div>
+            ) : null}
 
             <div
               className="mb-5 flex w-full min-w-0 flex-wrap items-center gap-2"

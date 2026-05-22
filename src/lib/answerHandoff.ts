@@ -1,3 +1,5 @@
+import { scriptPrefillFromQueryParams } from "./scriptPrefill";
+
 /** §3.1 — shared `/app/answer` entry query contract (incremental v1 Wave 1). */
 
 export type AnswerHandoffDepth = "basic" | "deep";
@@ -60,4 +62,21 @@ export function inheritHandoffFromSearch(
     mode: mode ?? "win",
     from: from ?? searchParams.get("from") ?? undefined,
   });
+}
+
+/** Redirect target for deprecated ``/app/script`` — always Answer composer prefill. */
+export function scriptRouteRedirectPath(searchParams: URLSearchParams): string {
+  return scriptPrefillFromQueryParams(searchParams) ?? "/app/answer";
+}
+
+/** Redirect legacy shoot route → Answer in-session shoot panel. */
+export function scriptShootRedirectPath(
+  draftId: string,
+  searchParams: URLSearchParams,
+): string {
+  const params = new URLSearchParams();
+  const session = searchParams.get("session") ?? searchParams.get("session_id");
+  if (session) params.set("session", session);
+  params.set("shoot", draftId);
+  return `/app/answer?${params.toString()}`;
 }

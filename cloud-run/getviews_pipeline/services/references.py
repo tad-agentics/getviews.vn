@@ -23,6 +23,7 @@ def _proximity_score_for_ref(
     *,
     video_desc: str,
     video_hashtags: list[str],
+    user_subject_matter: str | None = None,
 ) -> int:
     """Score corpus aweme rows or ``analyze_aweme`` synthesis refs for caption overlap."""
     meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
@@ -32,7 +33,12 @@ def _proximity_score_for_ref(
         "metadata": meta,
         "analysis": analysis,
     }
-    return _content_proximity_score(shaped, video_desc, video_hashtags)
+    return _content_proximity_score(
+        shaped,
+        video_desc,
+        video_hashtags,
+        user_subject_matter=user_subject_matter,
+    )
 
 
 def _annotate_pick_proximity(
@@ -40,10 +46,14 @@ def _annotate_pick_proximity(
     *,
     video_desc: str,
     video_hashtags: list[str],
+    user_subject_matter: str | None = None,
 ) -> None:
     for p in picks:
         p["_proximity_score"] = _proximity_score_for_ref(
-            p, video_desc=video_desc, video_hashtags=video_hashtags
+            p,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            user_subject_matter=user_subject_matter,
         )
 
 
@@ -53,6 +63,7 @@ def _ensure_slim_refs_proximity_scores(
     *,
     video_desc: str,
     video_hashtags: list[str],
+    user_subject_matter: str | None = None,
 ) -> None:
     """Backfill ``content_proximity_score`` on slim cards (live_search path skips corpus annotate)."""
     by_id: dict[str, dict[str, Any]] = {}
@@ -70,7 +81,10 @@ def _ensure_slim_refs_proximity_scores(
         if not ref:
             continue
         slim["content_proximity_score"] = _proximity_score_for_ref(
-            ref, video_desc=video_desc, video_hashtags=video_hashtags
+            ref,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            user_subject_matter=user_subject_matter,
         )
 
 __all__ = [
@@ -115,6 +129,7 @@ async def select_synthesis_references_for_video(
     video_desc: str,
     video_hashtags: list[str],
     preferred_content_format: str | None = None,
+    user_subject_matter: str | None = None,
     live_search_fn: Any | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
     """Corpus pool → proximity picks → content-targeted merge → evidence block.
@@ -159,6 +174,7 @@ async def select_synthesis_references_for_video(
             cached_ids=cached_ids,
             n=REF_N,
             recency_days=30,
+            user_subject_matter=user_subject_matter,
         )
     else:
         corpus_source = "live_search" if len(corpus_pool) == 0 else "sparse_fallback"
@@ -173,6 +189,7 @@ async def select_synthesis_references_for_video(
             cached_ids=cached_ids,
             n=REF_N,
             recency_days=30,
+            user_subject_matter=user_subject_matter,
         )
 
     pool, picks = await _maybe_merge_content_targeted_refs_async(
@@ -192,7 +209,10 @@ async def select_synthesis_references_for_video(
     corpus_picks = [p for p in picks if p.get("_from_corpus")][:REF_N]
     if corpus_picks:
         _annotate_pick_proximity(
-            corpus_picks, video_desc=video_desc, video_hashtags=video_hashtags
+            corpus_picks,
+            video_desc=video_desc,
+            video_hashtags=video_hashtags,
+            user_subject_matter=user_subject_matter,
         )
         synthesis_refs = [corpus_aweme_to_synthesis_ref(p) for p in corpus_picks]
         slim_refs = [_slim_reference_video(p, "corpus") for p in corpus_picks]
@@ -223,7 +243,16 @@ async def select_synthesis_references_for_video(
         slim_refs,
         video_desc=video_desc,
         video_hashtags=video_hashtags,
+        user_subject_matter=user_subject_matter,
     )
+
+    if user_subject_matter:
+        logger.info(
+            "[proximity_ablation] subject_matter=%r top_pick=%s score=%s",
+            user_subject_matter[:80],
+            (picks[0].get("aweme_id") if picks else None),
+            (picks[0].get("_proximity_score") if picks else None),
+        )
 
     evidence_block = _reference_evidence_lines(synthesis_refs, corpus_source)
     return synthesis_refs, slim_refs, evidence_block

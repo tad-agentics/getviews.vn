@@ -841,6 +841,8 @@ def _content_proximity_score(
     ref: dict[str, Any],
     video_desc: str,
     video_hashtags: list[str],
+    *,
+    user_subject_matter: str | None = None,
 ) -> int:
     """Keyword/hashtag overlap between reference text and the user video."""
     ref_meta = ref.get("metadata") if isinstance(ref.get("metadata"), dict) else {}
@@ -851,14 +853,23 @@ def _content_proximity_score(
         or str(analysis.get("audio_transcript") or "")[:200]
     ).lower()
     ref_cc = analysis.get("content_context")
+    ref_subject_matter = ""
     if isinstance(ref_cc, dict):
         sm = str(ref_cc.get("subject_matter") or "").strip().lower()
         if sm:
+            ref_subject_matter = sm
             ref_text = f"{ref_text} {sm}".strip()
         topics = ref_cc.get("topics")
         if isinstance(topics, list):
             ref_text = f"{ref_text} {' '.join(str(t) for t in topics if t)}".strip()
     score = 0
+    user_sm = str(user_subject_matter or "").strip().lower()
+    if user_sm:
+        if user_sm in ref_text or (ref_subject_matter and ref_subject_matter in user_sm):
+            score += 5
+        for w in [w for w in user_sm.split() if len(w) > 3][:8]:
+            if w in ref_text:
+                score += 1
     for tag in video_hashtags:
         t = str(tag or "").lower().lstrip("#")
         if len(t) > 1 and t in ref_text:
@@ -884,6 +895,7 @@ def _select_by_proximity_then_er(
     cached_ids: set[str],
     n: int,
     recency_days: int = 30,
+    user_subject_matter: str | None = None,
 ) -> list[dict[str, Any]]:
     """Like select_reference_videos but primary sort is content proximity."""
     t = time.time()
@@ -901,7 +913,12 @@ def _select_by_proximity_then_er(
     ]
     candidates.sort(
         key=lambda v: (
-            _content_proximity_score(v, video_desc, video_hashtags),
+            _content_proximity_score(
+                v,
+                video_desc,
+                video_hashtags,
+                user_subject_matter=user_subject_matter,
+            ),
             _ref_rank_er(v),
         ),
         reverse=True,

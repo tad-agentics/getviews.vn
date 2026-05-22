@@ -29,6 +29,7 @@ import { logUsage } from "@/lib/logUsage";
 import { extractTikTokVideoIdFromText } from "@/lib/tiktokUrl";
 import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
+import { ScriptShootPanel } from "@/components/v2/answer/script/ScriptShootPanel";
 import {
   appendTurnKindForQuery,
   parseAnswerHandoffParams,
@@ -139,11 +140,37 @@ export default function AnswerScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const sessionId = searchParams.get("session") ?? searchParams.get("session_id");
   const seedQ = searchParams.get("q") ?? "";
+  const shootDraftId = searchParams.get("shoot");
   const handoff = useMemo(() => parseAnswerHandoffParams(searchParams), [searchParams]);
 
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [bootstrapLoading, setBootstrapLoading] = useState(false);
+
+  const openScriptShoot = useCallback(
+    (draftId: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("shoot", draftId);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const closeScriptShoot = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("shoot");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
 
   const uid = user?.id;
   const detailQuery = useAnswerSessionDetail(sessionId, uid);
@@ -718,6 +745,11 @@ export default function AnswerScreen() {
                   )}
                 </p>
               ) : null}
+              {shootDraftId ? (
+                <div className="mb-8">
+                  <ScriptShootPanel draftId={shootDraftId} onClose={closeScriptShoot} />
+                </div>
+              ) : null}
               {turnCount > 0 ? (
                 <div
                   className="space-y-10"
@@ -729,6 +761,8 @@ export default function AnswerScreen() {
                     <ContinuationTurn
                       key={t.id}
                       turn={t}
+                      sessionId={sessionId}
+                      onOpenScriptShoot={openScriptShoot}
                       sessionIntentType={sessionIntentType}
                       videoStreamProgress={
                         videoStreamProgress &&

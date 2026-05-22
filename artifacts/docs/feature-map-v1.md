@@ -1169,7 +1169,20 @@ Chạy / verify nightly (F8 BAT) — **không** tăng `video_extraction`:
 - `persona_consistency_signals`, `key_messages` — § utilization map §8 orphans  
 - Phần lớn field chỉ **F1 audit** (sound/editing/douyin…) — giá trị tăng **sau** khi có diagnosis traffic  
 
-**Ngách hero (chốt trước launch):** 5–8 `creator_niche_id` — ingest **đủ sâu** (đạt `niche_norms` / `hook_effectiveness` §8.3); ngách phụ breadth tùy budget §8.8.
+**Ngách hero (chốt trước launch):** 8 `niche_taxonomy.id` — ingest **đủ sâu** (đạt `niche_norms` / `hook_effectiveness` §8.3); ngách phụ breadth tùy budget §8.8.
+
+| `niche_taxonomy.id` | Nhãn (VN) | Ghi chú launch |
+|---------------------|-----------|----------------|
+| 1 | Review đồ Shopee / Gia dụng | Affiliate core — Minh persona |
+| 2 | Làm đẹp · Skincare | High ritual + pattern density |
+| 3 | Thời trang Phụ kiện | Default star niche (outfit/OOTD) |
+| 4 | Ẩm thực & Ăn uống | F&B review + recipe formats |
+| 5 | Kinh doanh online / Bán hàng | MMO + live-commerce adjacency |
+| 8 | Gym / Fitness VN | Workout + transformation hooks |
+| 9 | Công nghệ / Tech | Gadget review corpus |
+| 11 | EduTok VN | Knowledge/education formats |
+
+**Env default (Wave 2):** `BATCH_PRIORITY_NICHE_IDS=1,2,3,4,5,8,9,11` · floor `BATCH_PRIORITY_NICHE_VPN_FLOOR=35` · cap `BATCH_PRIORITY_NICHE_MAX_VPN=90`. Override per deploy in Cloud Run batch pod.
 
 **SQL gate:** [`artifacts/sql/corpus-health.sql`](../sql/corpus-health.sql) — chạy trước GTM; map tier → copy `ConfidenceStrip` / humility.
 

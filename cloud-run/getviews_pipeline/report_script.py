@@ -37,6 +37,22 @@ class _ScriptQueryExtract(BaseModel):
     tone: str = Field(default="Chuyên gia", max_length=20)
 
 
+class _ScriptNarrativeSection(BaseModel):
+    section_id: str = Field(..., max_length=40)
+    title_vi: str = Field(..., max_length=120)
+    text_vi: str = Field(..., max_length=2000)
+
+
+class _ScriptNarrativeDiagnosis(BaseModel):
+    sections: list[_ScriptNarrativeSection] = Field(min_length=3, max_length=3)
+
+
+class _ScriptNarrativeVi(BaseModel):
+    headline_vi: str = Field(..., max_length=200)
+    ket_luan_nhanh: str = Field(..., max_length=600)
+    diagnosis_vi: _ScriptNarrativeDiagnosis
+
+
 def _normalize_duration_from_text(q: str) -> int | None:
     m = re.search(r"(\d{2,3})\s*(?:s|giây|sec)", q, re.I)
     if m:
@@ -140,6 +156,102 @@ def _niche_label_sync(niche_id: int) -> str:
         return ""
 
 
+def _shots_summary_for_narrative(shots: list[dict[str, Any]]) -> str:
+    lines: list[str] = []
+    for i, shot in enumerate(shots[:6], start=1):
+        t0 = shot.get("t0", 0)
+        t1 = shot.get("t1", 0)
+        cam = str(shot.get("cam") or "").strip()
+        voice = str(shot.get("voice") or "").strip()[:120]
+        overlay = str(shot.get("overlay") or "").strip()
+        lines.append(
+            f"Cảnh {i} ({t0}-{t1}s): cam={cam}; voice=\"{voice}\"; overlay={overlay}"
+        )
+    return "\n".join(lines)
+
+
+def synthesize_script_narrative_vi(
+    *,
+    topic: str,
+    hook: str,
+    duration: int,
+    tone: str,
+    niche_label: str,
+    shots: list[dict[str, Any]],
+    user_id: str | None = None,
+) -> dict[str, Any]:
+    """Narrative-first script report layer — ``_schema_version: script_v1``."""
+    shots_block = _shots_summary_for_narrative(shots)
+    niche_line = niche_label.strip() or "ngách TikTok VN"
+    prompt = f"""Viết báo cáo kịch bản TikTok bằng tiếng Việt (peer creator, data-backed).
+
+Chủ đề: {topic}
+Hook mở: {hook}
+Độ dài: {duration}s · Tone: {tone} · Ngách: {niche_line}
+
+6 cảnh đã soạn:
+{shots_block}
+
+Trả về JSON:
+- headline_vi: một câu headline (≤20 từ) — nêu góc quay rõ ràng
+- ket_luan_nhanh: 1-2 câu tóm tắt vì sao cấu trúc này ăn trong ngách
+- diagnosis_vi.sections: đúng 3 section theo thứ tự:
+  1) section_id "hook_analysis" — title_vi + text_vi (phân tích hook 0-3s)
+  2) section_id "script_structure" — title_vi + text_vi (dòng chảy 6 cảnh)
+  3) section_id "next_video" — title_vi + text_vi (video tiếp theo nên quay gì)
+
+Quy tắc: cite số cụ thể khi có; không dùng từ cấm (bí mật, công thức vàng, triệu view); không mở bằng "Chào bạn"."""
+
+    cfg = types.GenerateContentConfig(
+        temperature=0.35,
+        response_mime_type="application/json",
+        response_json_schema=_ScriptNarrativeVi.model_json_schema(),
+    )
+    try:
+        response = _generate_content_models(
+            [prompt],
+            primary_model=GEMINI_KNOWLEDGE_MODEL,
+            fallbacks=[GEMINI_INTENT_MODEL],
+            config=cfg,
+            call_site="script_narrative_vi",
+            user_id=user_id,
+        )
+        raw = _response_text(response)
+        parsed = _ScriptNarrativeVi.model_validate_json(raw)
+        data = parsed.model_dump()
+        data["_schema_version"] = "script_v1"
+        return data
+    except Exception as exc:
+        logger.warning("[report_script] narrative synthesis failed, fallback: %s", exc)
+        return {
+            "headline_vi": hook[:200] or topic[:200],
+            "ket_luan_nhanh": (
+                f"Kịch bản {duration}s theo tone {tone} — hook mở trong 3 giây đầu, "
+                f"6 cảnh giữ nhịp xuyên suốt cho {niche_line}."
+            ),
+            "_schema_version": "script_v1",
+            "diagnosis_vi": {
+                "sections": [
+                    {
+                        "section_id": "hook_analysis",
+                        "title_vi": "Hook 0–3 giây",
+                        "text_vi": f"Mở bằng: «{hook}». Hook cần lộ trong ~1 giây đầu — trùng corpus top video trong {niche_line}.",
+                    },
+                    {
+                        "section_id": "script_structure",
+                        "title_vi": "Cấu trúc 6 cảnh",
+                        "text_vi": f"Chủ đề «{topic}» chia {duration}s thành 6 cảnh — xen cận mặt, b-roll và chữ overlay để giữ retention.",
+                    },
+                    {
+                        "section_id": "next_video",
+                        "title_vi": "Video tiếp theo",
+                        "text_vi": "Quay biến thể cùng hook với góc setup khác (POV hoặc so sánh trước/sau) để test retention tuần sau.",
+                    },
+                ],
+            },
+        }
+
+
 def build_script_report(
     *,
     service_sb: Any,
@@ -174,6 +286,17 @@ def build_script_report(
         raise RuntimeError("script_incomplete")
 
     niche_label = _niche_label_sync(niche_id)
+    if step_queue is not None:
+        emit(step_queue, step_start("Đang viết phân tích kịch bản…"))
+    narrative_vi = synthesize_script_narrative_vi(
+        topic=body.topic,
+        hook=body.hook,
+        duration=body.duration,
+        tone=str(body.tone),
+        niche_label=niche_label,
+        shots=shots,
+        user_id=user_id,
+    )
     inner: dict[str, Any] = {
         "topic": body.topic,
         "hook": body.hook,
@@ -181,6 +304,7 @@ def build_script_report(
         "duration": body.duration,
         "tone": body.tone,
         "niche_label": niche_label,
+        "narrative_vi": narrative_vi,
         "shots": shots,
         "sources": [],
         "related_questions": [],

@@ -1,28 +1,15 @@
-import { lazy, Suspense } from "react";
-import type { MetaFunction } from "react-router";
-import { pageMeta } from "@/lib/pageTitle";
+import { Navigate, useParams, useSearchParams } from "react-router";
 
-export const meta: MetaFunction = () => pageMeta("Chế độ quay");
-
-const ShootScreen = lazy(() => import("./ShootScreen"));
+import { scriptShootRedirectPath } from "@/lib/answerHandoff";
 
 /**
- * `/app/script/shoot/:draftId` — Phase D · D.1.1 "Chế độ quay".
- * Read-only mobile-friendly view of a saved draft. Lazy-loaded to keep
- * ScriptScreen's critical path small.
+ * Wave 2 — deprecated shoot route. Redirects to Answer in-session shoot panel.
  */
 export default function AppScriptShootRoute() {
-  return (
-    <Suspense
-      fallback={
-        <div
-          role="status"
-          aria-label="Đang tải chế độ quay"
-          className="min-h-[40vh] flex-1 animate-pulse rounded-lg bg-[color:var(--gv-canvas-2)]"
-        />
-      }
-    >
-      <ShootScreen />
-    </Suspense>
-  );
+  const { draftId } = useParams<{ draftId: string }>();
+  const [searchParams] = useSearchParams();
+  if (!draftId?.trim()) {
+    return <Navigate to="/app/answer" replace />;
+  }
+  return <Navigate to={scriptShootRedirectPath(draftId, searchParams)} replace />;
 }

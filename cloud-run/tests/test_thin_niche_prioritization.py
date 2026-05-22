@@ -136,16 +136,16 @@ def _mock_client(rows: list[dict] | None, *, raise_on_execute: bool = False) -> 
 
 def test_fetch_niche_counts_aggregates_correctly() -> None:
     rows = [
-        {"niche_id": 1}, {"niche_id": 1}, {"niche_id": 1},  # 3
-        {"niche_id": 2}, {"niche_id": 2},                    # 2
-        {"niche_id": 7},                                      # 1
+        {"ingest_loop_niche_id": 1}, {"ingest_loop_niche_id": 1}, {"ingest_loop_niche_id": 1},  # 3
+        {"ingest_loop_niche_id": 2}, {"ingest_loop_niche_id": 2},                                # 2
+        {"ingest_loop_niche_id": 7},                                                              # 1
     ]
     counts = _fetch_niche_counts_sync(_mock_client(rows))
     assert counts == {1: 3, 2: 2, 7: 1}
 
 
 def test_fetch_niche_counts_drops_null_niche_id() -> None:
-    rows = [{"niche_id": 1}, {"niche_id": None}, {"niche_id": 1}]
+    rows = [{"ingest_loop_niche_id": 1}, {"ingest_loop_niche_id": None}, {"ingest_loop_niche_id": 1}]
     counts = _fetch_niche_counts_sync(_mock_client(rows))
     assert counts == {1: 2}
 
@@ -202,8 +202,9 @@ def test_parse_csv_niche_ids() -> None:
 
 
 def test_default_priority_includes_fashion_niche() -> None:
-    """Product default: Thời trang / Outfit (taxonomy id 3) gets a floor."""
+    """Product default: hero list includes Thời trang (id 3) with VPN floor."""
     assert 3 in BATCH_PRIORITY_NICHE_IDS
+    assert len(BATCH_PRIORITY_NICHE_IDS) >= 8
     assert BATCH_PRIORITY_NICHE_VPN_FLOOR >= BATCH_VIDEOS_PER_NICHE
 
 

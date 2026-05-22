@@ -6,8 +6,8 @@
  * Surface contracts:
  *   1. Mode gate — ScriptScreen with no params renders IdeaWorkspace,
  *      with a ``?topic=`` param renders the detail screen.
- *   2. Path A — RitualScript[] → IdeaList rows, click → navigate to
- *      ``/app/script?topic=…&duration=…`` (via ``scriptPrefillFromRitual``).
+ *   2. Path A — RitualScript[] → IdeaList rows, click → Answer composer
+ *      prefill (via ``scriptPrefillFromRitual``).
  *   3. Path A empty — when ritual returns 0 scripts, friendly empty state.
  *   4. Path B — CustomIdeaCard submit gates on non-empty text and
  *      navigates with topic + duration query params.
@@ -191,18 +191,17 @@ describe("IdeaWorkspace", () => {
     expect(cta.disabled).toBe(false);
   });
 
-  it("Path B — submit navigates with topic + duration query", () => {
+  it("Path B — submit navigates to Answer composer with topic + duration", () => {
     renderWorkspace();
     const textarea = screen.getByPlaceholderText(/Mô tả ý tưởng video/) as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "Setup desk 3 triệu" } });
     fireEvent.click(screen.getByRole("button", { name: /Tạo script/ }));
     expect(mockNavigate).toHaveBeenCalledTimes(1);
     const url = mockNavigate.mock.calls[0][0] as string;
-    expect(url).toMatch(/^\/app\/script\?/);
-    expect(decodeURIComponent(url.replace(/\+/g, " "))).toMatch(
-      /Setup desk 3 triệu/,
-    );
-    expect(url).toMatch(/duration=32/);
+    expect(url).toMatch(/^\/app\/answer\?q=/);
+    const msg = decodeURIComponent(new URLSearchParams(url.split("?")[1]!).get("q") ?? "");
+    expect(msg).toContain("Setup desk 3 triệu");
+    expect(msg).toContain("32");
   });
 
   it("Path C — renders drafts with topic + shot count", () => {

@@ -86,3 +86,50 @@ export function scriptPrefillFromVideo(opts: {
   appendHookAndDurationLines(parts, opts.hook, opts.duration_sec ?? null);
   return answerComposerPath(parts.join(" "));
 }
+
+/** Deeplink params from legacy ``/app/script?topic=&hook=&duration=`` or channel formula. */
+export function scriptPrefillFromDeeplink(opts: {
+  topic?: string | null;
+  hook?: string | null;
+  duration_sec?: number | null;
+  prefill_handle?: string | null;
+  prefill_format?: string | null;
+}): string | null {
+  const handle = opts.prefill_handle?.trim().replace(/^@/, "");
+  const fmt = opts.prefill_format?.trim();
+  if (handle || fmt) {
+    const name = handle ? `@${handle}` : "kênh";
+    const formatLabel = fmt || "format chính";
+    return answerComposerPath(
+      `Viết kịch bản TikTok theo format ${formatLabel} cho ${name}.`,
+    );
+  }
+  const topic = opts.topic?.trim();
+  const hook = opts.hook?.trim();
+  const dur = opts.duration_sec;
+  if (!topic && !hook && (dur == null || !Number.isFinite(dur))) {
+    return null;
+  }
+  const parts = topic
+    ? [`Viết kịch bản TikTok cho: ${topic.slice(0, 500)}.`]
+    : ["Viết kịch bản TikTok."];
+  appendHookAndDurationLines(parts, hook || null, dur ?? null);
+  return answerComposerPath(parts.join(" "));
+}
+
+/** Map legacy ``/app/script`` query params → Answer composer ``?q=`` prefill. */
+export function scriptPrefillFromQueryParams(params: URLSearchParams): string | null {
+  const durationRaw = params.get("duration");
+  const durationParsed =
+    durationRaw != null && durationRaw.trim()
+      ? Number.parseInt(durationRaw, 10)
+      : null;
+  return scriptPrefillFromDeeplink({
+    topic: params.get("topic"),
+    hook: params.get("hook"),
+    duration_sec:
+      durationParsed != null && Number.isFinite(durationParsed) ? durationParsed : null,
+    prefill_handle: params.get("prefill_handle"),
+    prefill_format: params.get("prefill_format"),
+  });
+}
