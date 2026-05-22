@@ -13,8 +13,8 @@ don't have the video itself.
 
 See ``artifacts/docs/report-template-prd-diagnostic.md``.
 
-Live pipeline (commit 4c): load niche benchmarks from ``niche_intelligence``,
-call ``report_diagnostic_gemini.fill_diagnostic_narrative`` to map the
+Live pipeline (commit 4c): load cohort benchmarks from ``content_class_intelligence``
+(via junction aggregate shim), call ``report_diagnostic_gemini.fill_diagnostic_narrative``
 user's symptoms onto the 5 category verdicts + 2-3 prescriptions,
 validate, and return. Fallback paths (no Supabase client, no Gemini,
 empty query) all converge on a deterministic "5 unclear + paste-link"
@@ -190,12 +190,8 @@ def _load_niche_benchmarks(
     """Return ``(niche_label, benchmarks_dict)``.
 
     Reads ``niche_taxonomy`` for the display label, plus a best-effort
-    ``niche_intelligence`` row for avg retention / median tps / top
-    sound / common CTA types. Every field is optional — sparse rows
-    simply trim the prompt context.
-
-    Fails open: any DB error returns ``(None, {})`` so the builder can
-    still fall back to the deterministic unclear path.
+    aggregate from ``content_class_intelligence`` (junction-scoped) for
+    avg retention / median tps / top sound / common CTA types.
     """
     label: str | None = None
     bm: dict[str, Any] = {}
@@ -214,20 +210,26 @@ def _load_niche_benchmarks(
         logger.warning("[diagnostic] niche_taxonomy fetch failed: %s", exc)
 
     try:
-        ni = (
-            sb.table("niche_intelligence")
-            .select("avg_retention, median_tps, top_sound, common_cta_types")
-            .eq("niche_id", niche_id)
-            .maybe_single()
-            .execute()
+        from getviews_pipeline.profile_niches import creator_niche_id_for_legacy_niche
+        from getviews_pipeline.video_niche_benchmark import (
+            fetch_creator_niche_aggregate_intelligence_sync,
+            fetch_niche_intelligence_sync,
         )
-        ni_row = ni.data or {}
-        for k in ("avg_retention", "median_tps", "top_sound", "common_cta_types"):
-            if ni_row.get(k) is not None:
-                bm[k] = ni_row[k]
+
+        cn_id = creator_niche_id_for_legacy_niche(niche_id)
+        ni_row: dict[str, Any] | None = None
+        if cn_id is not None:
+            ni_row = fetch_creator_niche_aggregate_intelligence_sync(sb, cn_id)
+        if ni_row is None:
+            ni_row = fetch_niche_intelligence_sync(sb, niche_id) or {}
+        if ni_row.get("sample_size") is not None:
+            bm["sample_size"] = ni_row["sample_size"]
+        if ni_row.get("median_er") is not None:
+            bm["median_er"] = ni_row["median_er"]
+        if ni_row.get("avg_engagement_rate") is not None:
+            bm["avg_engagement_rate"] = ni_row["avg_engagement_rate"]
     except Exception as exc:
-        # niche_intelligence is optional enrichment — log and continue.
-        logger.info("[diagnostic] niche_intelligence skipped: %s", exc)
+        logger.info("[diagnostic] content_class benchmark skipped: %s", exc)
 
     return label, bm
 

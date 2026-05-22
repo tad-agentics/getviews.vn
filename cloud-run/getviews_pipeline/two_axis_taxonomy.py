@@ -27,8 +27,9 @@ CREATOR_NICHE_SLUGS: Final[tuple[str, ...]] = (
 )
 
 # Distinct ``format_axis`` values from ``content_classifications`` seed (PR1).
+# ``observational_relatable`` renamed from ``comedy_observational`` (20260823000003).
 FORMAT_AXIS_SLUGS: Final[tuple[str, ...]] = (
-    "comedy_observational",
+    "observational_relatable",
     "dance_choreography",
     "live_commerce",
     "montage_highlights",
@@ -71,7 +72,7 @@ FORMAT_AXIS_VI: Final[dict[str, str]] = {
     "dance_choreography": "Dance / choreography / dance challenge",
     "skit_scripted": "Skit kịch bản / parody có kịch bản",
     "live_commerce": "Livestream bán hàng / anchor giới thiệu deal",
-    "comedy_observational": "Hài quan sát / relatable (kể cả mẹ bỉm humor)",
+    "observational_relatable": "Hài quan sát / relatable (kể cả mẹ bỉm humor) — không trùng class slug",
 }
 
 CreatorNicheSlug = Literal[
@@ -92,7 +93,7 @@ CreatorNicheSlug = Literal[
 ]
 
 FormatAxisSlug = Literal[
-    "comedy_observational",
+    "observational_relatable",
     "dance_choreography",
     "live_commerce",
     "montage_highlights",
@@ -152,7 +153,7 @@ VIDEO_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset
     ("business", "vlog_daily"),
     ("education", "talking_head_advice"),
     ("education", "tutorial"),
-    ("family", "comedy_observational"),
+    ("family", "observational_relatable"),
     ("family", "talking_head_advice"),
     ("family", "vlog_daily"),
     ("fashion", "montage_highlights"),

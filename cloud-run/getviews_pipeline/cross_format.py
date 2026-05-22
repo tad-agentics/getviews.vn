@@ -43,7 +43,7 @@ _FORMAT_AXIS_LABEL_VI: dict[str, str] = {
     "music_performance":    "Cover / Performance",
     "review_unboxing":      "Review · Unbox",
     "live_commerce":        "Livestream commerce",
-    "comedy_observational": "Hài quan sát",
+    "observational_relatable": "Hài quan sát",
 }
 
 

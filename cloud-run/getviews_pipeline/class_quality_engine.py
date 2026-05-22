@@ -348,6 +348,307 @@ def _class_confusion_rate(
     return round(confused / len(rows), 4)
 
 
+def _export_junction_proposals(client: Any, *, since_7d: str) -> dict[str, Any]:
+    """Nightly export when (creator_niche_id, content_class_id) appears ≥5 videos/3 nights without junction."""
+    from getviews_pipeline.junction_content_class import creator_niche_has_content_class
+    from getviews_pipeline.profile_niches import CREATOR_NICHE_SLUG_TO_ID
+
+    try:
+        rows = (
+            client.table("video_corpus")
+            .select(
+                "content_class_id, inferred_creator_niche_id, niche_resolution_confidence"
+            )
+            .gte("indexed_at", since_7d)
+            .gte("niche_resolution_confidence", VALIDATED_CONF_MIN)
+            .not_.is_("content_class_id", "null")
+            .not_.is_("inferred_creator_niche_id", "null")
+            .limit(10_000)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        logger.warning("[acqe] junction proposal scan failed: %s", exc)
+        return {"proposals": [], "error": str(exc)}
+
+    counts: dict[tuple[int, int], int] = defaultdict(int)
+    for row in rows:
+        cn = row.get("inferred_creator_niche_id")
+        cc = row.get("content_class_id")
+        if cn is None or cc is None:
+            continue
+        try:
+            cn_i, cc_i = int(cn), int(cc)
+        except (TypeError, ValueError):
+            continue
+        if creator_niche_has_content_class(cn_i, cc_i):
+            continue
+        counts[(cn_i, cc_i)] += 1
+
+    slug_by_id = {v: k for k, v in CREATOR_NICHE_SLUG_TO_ID.items()}
+    proposals = [
+        {
+            "creator_niche_id": cn,
+            "creator_niche_slug": slug_by_id.get(cn),
+            "content_class_id": cc,
+            "videos_7d": n,
+            "recommendation": "human_review_add_junction_is_primary_false",
+        }
+        for (cn, cc), n in sorted(counts.items(), key=lambda x: -x[1])
+        if n >= 5
+    ]
+
+    history_path = (
+        Path(__file__).resolve().parents[2]
+        / "artifacts"
+        / "qa-reports"
+        / "acqe-junction-proposals-history.json"
+    )
+    history: dict[str, int] = {}
+    try:
+        if history_path.is_file():
+            history = json.loads(history_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        history = {}
+
+    night_key = datetime.now(UTC).strftime("%Y-%m-%d")
+    for prop in proposals:
+        k = f"{prop['creator_niche_id']}:{prop['content_class_id']}"
+        history[k] = history.get(k, 0) + 1
+
+    try:
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+
+    stable = [
+        p for p in proposals
+        if history.get(f"{p['creator_niche_id']}:{p['content_class_id']}", 0) >= 3
+    ]
+
+    artifact = {
+        "run_at": datetime.now(UTC).isoformat(),
+        "proposals": stable,
+        "candidates_7d": proposals,
+        "auto_add": False,
+        "alert_threshold_nights": 3,
+        "min_videos_7d": 5,
+    }
+
+    try:
+        out = (
+            Path(__file__).resolve().parents[2]
+            / "artifacts"
+            / "qa-reports"
+            / "acqe-junction-proposals.json"
+        )
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(artifact, indent=2, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        logger.debug("[acqe] junction proposals artifact skipped: %s", exc)
+
+    return artifact
+
+
+def _junction_invalid_rate_alert(client: Any, *, since_7d: str) -> dict[str, Any]:
+    """Alert wiring when junction-invalid >0.5% on validated subset."""
+    from getviews_pipeline.junction_content_class import creator_niche_has_content_class
+    from getviews_pipeline.profile_niches import creator_niche_id_for_legacy_niche
+
+    try:
+        rows = (
+            client.table("video_corpus")
+            .select("content_class_id, ingest_loop_niche_id, niche_resolution_confidence")
+            .gte("indexed_at", since_7d)
+            .gte("niche_resolution_confidence", VALIDATED_CONF_MIN)
+            .not_.is_("content_class_id", "null")
+            .limit(5000)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        return {"checked": 0, "invalid_rate": None, "alert": False, "error": str(exc)}
+
+    invalid = 0
+    checked = 0
+    for row in rows:
+        cc = row.get("content_class_id")
+        loop = row.get("ingest_loop_niche_id")
+        if cc is None or loop is None:
+            continue
+        cn = creator_niche_id_for_legacy_niche(int(loop))
+        if cn is None:
+            continue
+        checked += 1
+        if not creator_niche_has_content_class(cn, int(cc)):
+            invalid += 1
+
+    rate = round(invalid / max(checked, 1), 4)
+    alert = checked > 0 and rate > 0.005
+    if alert:
+        logger.error(
+            "[acqe] junction_invalid_rate=%.2f%% exceeds 0.5%% threshold (invalid=%d checked=%d)",
+            rate * 100,
+            invalid,
+            checked,
+        )
+    return {
+        "checked": checked,
+        "invalid": invalid,
+        "invalid_rate": rate,
+        "alert": alert,
+        "threshold": 0.005,
+    }
+
+
+def _write_qa_artifact(filename: str, payload: dict[str, Any]) -> None:
+    try:
+        out = Path(__file__).resolve().parents[2] / "artifacts" / "qa-reports" / filename
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        logger.debug("[acqe] artifact %s skipped: %s", filename, exc)
+
+
+def _export_hook_marker_candidates(client: Any, *, since_7d: str) -> dict[str, Any]:
+    """Tier-2 caption vs Tier-3 hook_type mismatch → candidate queue (no auto-append regex)."""
+    from getviews_pipeline.corpus_instructiveness import predict_hook_from_caption
+
+    try:
+        rows = (
+            client.table("video_corpus")
+            .select("video_id, caption, hook_type, breakout_ratio")
+            .gte("indexed_at", since_7d)
+            .not_.is_("caption", "null")
+            .not_.is_("hook_type", "null")
+            .gte("breakout_ratio", 1.5)
+            .limit(3000)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        return {"candidates": [], "error": str(exc)}
+
+    phrase_counts: dict[tuple[str, str], int] = defaultdict(int)
+    for row in rows:
+        caption = str(row.get("caption") or "").strip()
+        gemini_hook = str(row.get("hook_type") or "").strip()
+        if len(caption) < 8 or not gemini_hook:
+            continue
+        tier2 = predict_hook_from_caption(caption)
+        if tier2 is not None and tier2 == gemini_hook:
+            continue
+        snippet = caption[:48].strip()
+        if len(snippet) < 6:
+            continue
+        phrase_counts[(snippet, gemini_hook)] += 1
+
+    candidates = [
+        {
+            "caption_snippet": phrase,
+            "suggested_hook_type": hook,
+            "videos_7d": count,
+            "recommendation": "human_review_append_hook_marker",
+        }
+        for (phrase, hook), count in sorted(phrase_counts.items(), key=lambda x: -x[1])
+        if count >= 3
+    ][:20]
+
+    artifact = {
+        "run_at": datetime.now(UTC).isoformat(),
+        "candidates": candidates,
+        "auto_append": False,
+        "min_videos_7d": 3,
+    }
+    _write_qa_artifact("hook-marker-candidates.json", artifact)
+    return artifact
+
+
+def _export_taxonomy_drift_candidates(client: Any, *, since_7d: str) -> dict[str, Any]:
+    """High-breakout junction drift clusters → PD alert (no unclassified_unknown class)."""
+    from getviews_pipeline.junction_content_class import creator_niche_has_content_class
+    from getviews_pipeline.profile_niches import creator_niche_id_for_legacy_niche
+
+    try:
+        rows = (
+            client.table("video_corpus")
+            .select(
+                "video_id, content_class_id, ingest_loop_niche_id, "
+                "niche_resolution_confidence, breakout_ratio, analysis_json"
+            )
+            .gte("indexed_at", since_7d)
+            .gte("niche_resolution_confidence", VALIDATED_CONF_MIN)
+            .gte("breakout_ratio", 2.0)
+            .not_.is_("content_class_id", "null")
+            .limit(5000)
+            .execute()
+            .data
+            or []
+        )
+    except Exception as exc:
+        return {"clusters": [], "error": str(exc)}
+
+    clusters: dict[tuple[int, str], dict[str, Any]] = {}
+    total_validated = 0
+    drift_count = 0
+
+    for row in rows:
+        total_validated += 1
+        cc = int(row["content_class_id"])
+        loop = row.get("ingest_loop_niche_id")
+        cn = creator_niche_id_for_legacy_niche(int(loop)) if loop is not None else None
+        junction_ok = cn is not None and creator_niche_has_content_class(cn, cc)
+        aj = row.get("analysis_json") if isinstance(row.get("analysis_json"), dict) else {}
+        cc_ctx = aj.get("content_context") if isinstance(aj.get("content_context"), dict) else {}
+        subject = str(cc_ctx.get("subject_matter") or "").strip()[:120] or "unknown_subject"
+        if junction_ok:
+            continue
+        drift_count += 1
+        key = (cc, subject)
+        bucket = clusters.setdefault(
+            key,
+            {
+                "content_class_id": cc,
+                "subject_matter_sample": subject,
+                "video_ids": [],
+                "videos_7d": 0,
+            },
+        )
+        bucket["videos_7d"] += 1
+        vid = row.get("video_id")
+        if vid and len(bucket["video_ids"]) < 5:
+            bucket["video_ids"].append(str(vid))
+
+    stable = [
+        {**v, "recommendation": "human_review_new_class_or_junction"}
+        for v in sorted(clusters.values(), key=lambda x: -x["videos_7d"])
+        if v["videos_7d"] >= 3
+    ][:15]
+
+    drift_rate = round(drift_count / max(total_validated, 1), 4)
+    alert = total_validated > 0 and drift_rate >= 0.05
+
+    artifact = {
+        "run_at": datetime.now(UTC).isoformat(),
+        "clusters": stable,
+        "drift_rate_7d": drift_rate,
+        "alert": alert,
+        "alert_threshold": 0.05,
+        "auto_add_class": False,
+    }
+    _write_qa_artifact("taxonomy-drift-candidates.json", artifact)
+    if alert:
+        logger.error(
+            "[acqe] taxonomy_drift_rate=%.2f%% exceeds 5%% — review taxonomy-drift-candidates.json",
+            drift_rate * 100,
+        )
+    return artifact
+
+
 def run_acqe_nightly(client: Any) -> dict[str, Any]:
     """Run ACQE after corpus MV refresh. Returns summary dict for artifact logging."""
     now = datetime.now(UTC)
@@ -407,6 +708,10 @@ def run_acqe_nightly(client: Any) -> dict[str, Any]:
     merge_summary = _auto_merge_duplicate_classes(
         client, cold_start=cold_start, since_7d=since_7d,
     )
+    junction_proposals = _export_junction_proposals(client, since_7d=since_7d)
+    junction_alert = _junction_invalid_rate_alert(client, since_7d=since_7d)
+    hook_marker_candidates = _export_hook_marker_candidates(client, since_7d=since_7d)
+    taxonomy_drift = _export_taxonomy_drift_candidates(client, since_7d=since_7d)
 
     cross_niche_rate: float | None = None
 
@@ -434,6 +739,10 @@ def run_acqe_nightly(client: Any) -> dict[str, Any]:
         "cohort_outliers_flagged": outlier_flagged,
         "peer_sanity_logged": peer_sanity_logged,
         "auto_merge": merge_summary,
+        "junction_proposals": junction_proposals,
+        "junction_invalid_alert": junction_alert,
+        "hook_marker_candidates": hook_marker_candidates,
+        "taxonomy_drift_candidates": taxonomy_drift,
         "discovery_relax_active": discovery_relax,
         "cross_niche_migration_rate_7d": cross_niche_rate,
         "red_alert": red_alert,

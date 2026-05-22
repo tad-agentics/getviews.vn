@@ -1,0 +1,43 @@
+{
+  "generated_at": "2026-05-22T00:00:00Z",
+  "source": "cloud-run/getviews_pipeline/two_axis_taxonomy.py + supabase/migrations (PR1, PR6, HI-16, 20260728 retire)",
+  "wave_t_signed": true,
+  "wave_t_signed_at": "2026-05-22",
+  "counts": {
+    "active_creator_niches": 14,
+    "retired_creator_niches": 2,
+    "video_format_axes": 12,
+    "carousel_format_axes": 5,
+    "content_classes": 79,
+    "video_junction_pairs": 50,
+    "carousel_junction_pairs": 70,
+    "total_junction_pairs": 120
+  },
+  "retired_niches": [
+    {
+      "slug": "comedy",
+      "creator_niche_id": 5,
+      "merged_into": { "slug": "lifestyle", "creator_niche_id": 4 }
+    },
+    {
+      "slug": "pets_home",
+      "creator_niche_id": 13,
+      "merged_into": { "slug": "lifestyle", "creator_niche_id": 4 }
+    }
+  ],
+  "parity": {
+    "python_video_junction_matches_migrations": true,
+    "python_carousel_grid_14x5": true,
+    "junction_has_pair_authoritative": "two_axis_taxonomy.JUNCTION_NICHE_FORMAT_PAIRS"
+  },
+  "corpus_junction_baseline": {
+    "total_corpus_rows": 6772,
+    "junction_invalid_rows": 22,
+    "junction_invalid_rate": 0.0033,
+    "junction_invalid_rate_pct": "0.33%",
+    "status": "triaged_wave_1a",
+    "triage_artifact": "artifacts/qa-reports/junction-invalid-triage-v1.json",
+    "note": "22 rows where content_class_id ∉ junction(creator_niche mapped from ingest_loop). Triage complete — reclassify vs defer_wave4 per group."
+  },
+  "sign_off_ready": true
+}

@@ -6,8 +6,10 @@ from unittest.mock import MagicMock
 
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
+    carousel_diagnosis_thresholds,
     count_winners_sample_in_niche_sync,
     niche_row_to_video_meta,
+    peer_percentile,
 )
 
 
@@ -134,3 +136,18 @@ def test_niche_row_to_video_meta_still_null_when_no_views_column_set() -> None:
     }
     meta = niche_row_to_video_meta(row)
     assert meta["avg_views"] is None
+
+
+def test_peer_percentile_above_median() -> None:
+    assert peer_percentile(150_000, median=80_000, p75=120_000) == 93.0
+
+
+def test_peer_percentile_below_median() -> None:
+    assert peer_percentile(30_000, median=80_000) == 15.0
+
+
+def test_carousel_diagnosis_thresholds_topic_axis() -> None:
+    th = carousel_diagnosis_thresholds()
+    assert th["topic_axis"] == "carousel"
+    assert th["swipe_through_rate_strong"] == 0.60
+    assert th["slide_count_ideal"] == 7

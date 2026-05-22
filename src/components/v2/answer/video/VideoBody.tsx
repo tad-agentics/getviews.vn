@@ -452,6 +452,7 @@ export function VideoBody({
             meta={meta}
             nicheMeta={report.niche_meta ?? null}
             retentionEnd={retEnd}
+            isCarousel={Boolean(report.carousel_subformat_label)}
           />
         ) : null}
 

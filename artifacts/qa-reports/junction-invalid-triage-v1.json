@@ -1,0 +1,98 @@
+{
+  "version": "v1",
+  "generated_at": "2026-05-22",
+  "baseline": {
+    "total_corpus": 6772,
+    "junction_invalid_count": 22,
+    "junction_invalid_pct": 0.33
+  },
+  "decision_tree": {
+    "reclassify": "Gemini cross-bucket misclassification — update content_class_id via ladder or manual fix",
+    "defer_wave4": "Semantically valid cross-link — queue junction edge in Wave 4 after ACQE + human approve",
+    "manual_sample": "Ambiguous — review 5 videos before decision"
+  },
+  "groups": [
+    {
+      "creator_niche_slug": "business",
+      "content_class_slug": "real_estate_listing",
+      "count": 5,
+      "decision": "defer_wave4",
+      "rationale": "Affiliate/finance creators posting BĐS tour content — valid cross-topic; add business→real_estate_listing edge or reclassify to finance_business_story if POV-only"
+    },
+    {
+      "creator_niche_slug": "business",
+      "content_class_slug": "home_decor_inspiration",
+      "count": 3,
+      "decision": "reclassify",
+      "rationale": "Legacy ingest bucket 20 overlap — should map to lifestyle junction post-retire, not business"
+    },
+    {
+      "creator_niche_slug": "lifestyle",
+      "content_class_slug": "ecommerce_shopee_review",
+      "count": 3,
+      "decision": "reclassify",
+      "rationale": "Shopee review belongs to business niche; HI-11 route should not promote without junction"
+    },
+    {
+      "creator_niche_slug": "lifestyle",
+      "content_class_slug": "real_estate_listing",
+      "count": 2,
+      "decision": "defer_wave4",
+      "rationale": "Lifestyle vlog with property tour — consider lifestyle→real_estate_listing secondary edge"
+    },
+    {
+      "creator_niche_slug": "real_estate",
+      "content_class_slug": "finance_business_story",
+      "count": 2,
+      "decision": "reclassify",
+      "rationale": "Founder/finance POV mis-tagged as real_estate ingest loop"
+    },
+    {
+      "creator_niche_slug": "food",
+      "content_class_slug": "travel_food_tour",
+      "count": 2,
+      "decision": "defer_wave4",
+      "rationale": "Valid cross-niche — food primary, travel_food_tour already secondary on food junction"
+    },
+    {
+      "creator_niche_slug": "beauty",
+      "content_class_slug": "fashion_outfit_styling",
+      "count": 1,
+      "decision": "reclassify",
+      "rationale": "GRWM/outfit bleed — reclassify to beauty_makeup_tutorial or fashion if creator_niche inferred wrong"
+    },
+    {
+      "creator_niche_slug": "tech_gaming",
+      "content_class_slug": "gaming_gameplay",
+      "count": 1,
+      "decision": "reclassify",
+      "rationale": "topic_axis gaming vs creator_niche tech_gaming — verify ingest_loop vs Gemini creator_niche"
+    },
+    {
+      "creator_niche_slug": "wellness",
+      "content_class_slug": "fitness_gym_tutorial",
+      "count": 1,
+      "decision": "reclassify",
+      "rationale": "Fitness class should route to gym_fitness creator niche when confidence high"
+    },
+    {
+      "creator_niche_slug": "travel",
+      "content_class_slug": "sports_event_highlight",
+      "count": 1,
+      "decision": "defer_wave4",
+      "rationale": "Outdoor sports overlap travel niche — secondary junction exists on travel"
+    },
+    {
+      "creator_niche_slug": "education",
+      "content_class_slug": "finance_personal_advice",
+      "count": 1,
+      "decision": "reclassify",
+      "rationale": "Career/finance advice mis-assigned from business ingest loop"
+    }
+  ],
+  "summary": {
+    "reclassify": 10,
+    "defer_wave4": 12,
+    "manual_sample_pending": 0
+  }
+}

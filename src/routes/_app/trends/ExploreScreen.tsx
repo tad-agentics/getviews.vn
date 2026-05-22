@@ -23,6 +23,7 @@ import {
 import { useProfile } from "@/hooks/useProfile";
 import { useCreatorNiches } from "@/hooks/useCreatorNiches";
 import { TrendsDouyinCard } from "./TrendsDouyinCard";
+import { CrossNicheBreakoutLane } from "./components/CrossNicheBreakoutLane";
 import { TrendsPatternGrid } from "./TrendsPatternGrid";
 import { TrendsPatternThesisHero } from "./TrendsPatternThesisHero";
 import { TrendsRail } from "./TrendsRail";
@@ -995,6 +996,10 @@ export default function ExploreScreen() {
            * pre-VN-signal jump-off stays present even before the
            * creator has picked a niche. */}
           <TrendsDouyinCard />
+
+          {contentClassIds.length > 0 ? (
+            <CrossNicheBreakoutLane excludeClassIds={contentClassIds} />
+          ) : null}
 
           {/* PR-T3/T4 — § I PATTERN grid + click-to-open modal. Renders
            * the 6 hot patterns for the niche as 2×2-collage cards. */}

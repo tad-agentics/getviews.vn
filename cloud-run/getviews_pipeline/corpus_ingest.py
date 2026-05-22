@@ -1368,6 +1368,37 @@ def _resolve_actual_niche_from_content(
 
 _GEMINI_NICHE_CONFIDENCE_FLOOR = 0.6
 
+# TD-6 Wave 1b — per-batch counter for junction rejections (route mode).
+_hi11_junction_reject_count = 0
+
+
+def reset_hi11_junction_reject_count() -> None:
+    global _hi11_junction_reject_count
+    _hi11_junction_reject_count = 0
+
+
+def get_hi11_junction_reject_count() -> int:
+    return _hi11_junction_reject_count
+
+
+def _record_hi11_junction_reject(
+    *,
+    video_id: str,
+    creator_niche_id: int | None,
+    content_class_id: int | None,
+    reason: str,
+) -> None:
+    global _hi11_junction_reject_count
+    _hi11_junction_reject_count += 1
+    logger.warning(
+        "[corpus] hi11_junction_reject video_id=%s creator_niche_id=%s "
+        "content_class_id=%s reason=%s",
+        video_id or "?",
+        creator_niche_id,
+        content_class_id,
+        reason,
+    )
+
 
 def _niche_resolution_shadow_fields(
     analysis_json: dict[str, Any],
@@ -1464,6 +1495,7 @@ def _route_niche_and_class_override(
     from getviews_pipeline.config import NICHE_RESOLVER_MODE
     from getviews_pipeline.junction_content_class import (
         content_class_id_for_creator_niche_format,
+        creator_niche_has_content_class,
     )
     from getviews_pipeline.profile_niches import (
         CREATOR_NICHE_SLUG_TO_ID,
@@ -1498,6 +1530,12 @@ def _route_niche_and_class_override(
         fmt_raw = nc.get("format_axis")
     fmt_axis = str(fmt_raw).strip() if fmt_raw is not None else ""
     if not fmt_axis or not junction_has_pair(slug, fmt_axis):
+        _record_hi11_junction_reject(
+            video_id=video_id,
+            creator_niche_id=inferred,
+            content_class_id=None,
+            reason="junction_pair_miss",
+        )
         logger.warning(
             "[corpus] hi11 route skip video_id=%s junction_miss_or_empty "
             "niche_slug=%s format_axis=%s",
@@ -1509,11 +1547,34 @@ def _route_niche_and_class_override(
 
     cc_id = content_class_id_for_creator_niche_format(inferred, fmt_axis)
     if cc_id is None:
+        _record_hi11_junction_reject(
+            video_id=video_id,
+            creator_niche_id=inferred,
+            content_class_id=None,
+            reason="no_cc_row",
+        )
         logger.warning(
             "[corpus] hi11 route skip video_id=%s no_cc_row creator_niche_id=%s "
             "format_axis=%s",
             video_id or "?",
             inferred,
+            fmt_axis,
+        )
+        return hashtag_resolved_nid, None
+
+    if not creator_niche_has_content_class(inferred, cc_id):
+        _record_hi11_junction_reject(
+            video_id=video_id,
+            creator_niche_id=inferred,
+            content_class_id=cc_id,
+            reason="td6_junction_miss",
+        )
+        logger.warning(
+            "[corpus] hi11 route skip video_id=%s td6_junction_miss "
+            "creator_niche_id=%s content_class_id=%s format_axis=%s",
+            video_id or "?",
+            inferred,
+            cc_id,
             fmt_axis,
         )
         return hashtag_resolved_nid, None
@@ -3021,6 +3082,11 @@ def _refresh_content_class_tier_intelligence_sync(client: Any) -> None:
     client.rpc("refresh_content_class_tier_intelligence", {}).execute()
 
 
+def _refresh_creator_niche_content_class_stats_sync(client: Any) -> None:
+    """Wave 3c — refresh junction × class stats MV for morning ritual anchor."""
+    client.rpc("refresh_creator_niche_content_class_stats", {}).execute()
+
+
 async def _refresh_corpus_intelligence_mvs(client: Any) -> bool:
     """Refresh content_class intelligence MVs after corpus updates."""
     cc_ok = False
@@ -3044,6 +3110,16 @@ async def _refresh_corpus_intelligence_mvs(client: Any) -> bool:
     except Exception as exc:
         logger.warning(
             "[corpus] content_class_tier_intelligence refresh failed (non-fatal): %s",
+            exc,
+        )
+    try:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: _refresh_creator_niche_content_class_stats_sync(client)
+        )
+        logger.info("[corpus] creator_niche_content_class_stats MV refreshed")
+    except Exception as exc:
+        logger.warning(
+            "[corpus] creator_niche_content_class_stats refresh failed (non-fatal): %s",
             exc,
         )
     return cc_ok
@@ -3369,6 +3445,92 @@ async def run_ingest_post_processing(
     return out
 
 
+async def _run_weekly_analytics(client: Any) -> None:
+    """Run trend velocity + creator velocity + breakout multiplier + signal grading (Sunday only).
+
+    Non-fatal: errors are logged but do not fail the batch ingest.
+    """
+    try:
+        from getviews_pipeline.trend_velocity import run_trend_velocity
+        tv_result = await run_trend_velocity(client)
+        logger.info(
+            "[tv] rows_upserted=%d niches=%d errors=%s",
+            tv_result.rows_upserted,
+            tv_result.niches_processed,
+            tv_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[tv] Trend velocity computation failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.batch_analytics import run_analytics
+        analytics_result = await run_analytics(client)
+        logger.info(
+            "[analytics] creators_updated=%d videos_updated=%d errors=%s",
+            analytics_result.creators_updated,
+            analytics_result.videos_updated,
+            analytics_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[analytics] Weekly analytics failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.signal_classifier import run_signal_grading
+        signal_result = await run_signal_grading(client)
+        logger.info(
+            "[signal] grades_written=%d niches=%d errors=%s",
+            signal_result.grades_written,
+            signal_result.niches_processed,
+            signal_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[signal] Signal grading failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.cross_creator import run_cross_creator_detection
+
+        cc_result = await run_cross_creator_detection(client)
+        logger.info(
+            "[cross_creator] patterns_written=%d niches_affected=%d errors=%s",
+            cc_result.patterns_written,
+            cc_result.niches_affected,
+            cc_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[cross_creator] Cross-creator detection failed (non-fatal): %s", exc)
+
+    try:
+        from getviews_pipeline.sound_aggregator import run_sound_aggregation
+
+        sa_result = await run_sound_aggregation(client)
+        logger.info(
+            "[sound_aggregation] upserted=%d",
+            sa_result.get("upserted", 0),
+        )
+    except Exception as exc:
+        logger.error("[sound_aggregation] Sound aggregation failed (non-fatal): %s", exc)
+
+    # --- Layer 0: Intelligence Extraction (the brain) ---
+    # Runs LAST — reads from video_corpus + signal_grades + trending_sounds
+    # Non-fatal: if Layer 0 fails, dashboard still shows statistics (without mechanism)
+    #
+    # Layer 0D (hashtag discovery) ran here Sundays-only until 2026-05-17;
+    # promoted to daily inside run_ingest_post_processing for ≤24h discovery
+    # latency on new high-performing hashtags.
+
+    try:
+        from getviews_pipeline.layer0_niche import run_niche_insights
+        l0a_result = await run_niche_insights(client)
+        logger.info(
+            "[layer0a] insights=%d skipped=%d errors=%s",
+            l0a_result.insights_written,
+            l0a_result.niches_skipped,
+            l0a_result.errors or "none",
+        )
+    except Exception as exc:
+        logger.error("[layer0a] Niche insight generation failed (non-fatal): %s", exc)
+
+
 # ── Main batch entry point ───────────────────────────────────────────────────────
 
 async def run_batch_ingest(
@@ -3391,6 +3553,7 @@ async def run_batch_ingest(
         BatchSummary with per-niche counts and materialized view status.
         summary.aborted_early=True when the budget was exhausted mid-run.
     """
+    reset_hi11_junction_reject_count()
     summary = BatchSummary()
     summary.ingest_mode = corpus_ingest_mode()
     summary.score_cohort = corpus_score_cohort()
@@ -3670,12 +3833,14 @@ async def run_batch_ingest(
 
         logger.info(
             "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d "
-            "mv_refreshed=%s aborted_early=%s niches_remaining=%d elapsed=%.0fs",
+            "mv_refreshed=%s hi11_junction_reject=%d aborted_early=%s "
+            "niches_remaining=%d elapsed=%.0fs",
             summary.total_inserted,
             summary.total_skipped,
             summary.total_failed,
             summary.niches_processed,
             summary.materialized_view_refreshed,
+            get_hi11_junction_reject_count(),
             summary.aborted_early,
             summary.niches_remaining,
             time.monotonic() - t0,
@@ -3691,93 +3856,9 @@ async def run_batch_ingest(
                 theoretical_pool=theory_pool,
             )
         )
+    summary.shadow_metrics["hi11_junction_reject"] = get_hi11_junction_reject_count()
     return summary
 
-
-async def _run_weekly_analytics(client: Any) -> None:
-    """Run trend velocity + creator velocity + breakout multiplier + signal grading (Sunday only).
-
-    Non-fatal: errors are logged but do not fail the batch ingest.
-    """
-    try:
-        from getviews_pipeline.trend_velocity import run_trend_velocity
-        tv_result = await run_trend_velocity(client)
-        logger.info(
-            "[tv] rows_upserted=%d niches=%d errors=%s",
-            tv_result.rows_upserted,
-            tv_result.niches_processed,
-            tv_result.errors or "none",
-        )
-    except Exception as exc:
-        logger.error("[tv] Trend velocity computation failed (non-fatal): %s", exc)
-
-    try:
-        from getviews_pipeline.batch_analytics import run_analytics
-        analytics_result = await run_analytics(client)
-        logger.info(
-            "[analytics] creators_updated=%d videos_updated=%d errors=%s",
-            analytics_result.creators_updated,
-            analytics_result.videos_updated,
-            analytics_result.errors or "none",
-        )
-    except Exception as exc:
-        logger.error("[analytics] Weekly analytics failed (non-fatal): %s", exc)
-
-    try:
-        from getviews_pipeline.signal_classifier import run_signal_grading
-        signal_result = await run_signal_grading(client)
-        logger.info(
-            "[signal] grades_written=%d niches=%d errors=%s",
-            signal_result.grades_written,
-            signal_result.niches_processed,
-            signal_result.errors or "none",
-        )
-    except Exception as exc:
-        logger.error("[signal] Signal grading failed (non-fatal): %s", exc)
-
-    try:
-        from getviews_pipeline.cross_creator import run_cross_creator_detection
-
-        cc_result = await run_cross_creator_detection(client)
-        logger.info(
-            "[cross_creator] patterns_written=%d niches_affected=%d errors=%s",
-            cc_result.patterns_written,
-            cc_result.niches_affected,
-            cc_result.errors or "none",
-        )
-    except Exception as exc:
-        logger.error("[cross_creator] Cross-creator detection failed (non-fatal): %s", exc)
-
-    try:
-        from getviews_pipeline.sound_aggregator import run_sound_aggregation
-
-        sa_result = await run_sound_aggregation(client)
-        logger.info(
-            "[sound_aggregation] upserted=%d",
-            sa_result.get("upserted", 0),
-        )
-    except Exception as exc:
-        logger.error("[sound_aggregation] Sound aggregation failed (non-fatal): %s", exc)
-
-    # --- Layer 0: Intelligence Extraction (the brain) ---
-    # Runs LAST — reads from video_corpus + signal_grades + trending_sounds
-    # Non-fatal: if Layer 0 fails, dashboard still shows statistics (without mechanism)
-    #
-    # Layer 0D (hashtag discovery) ran here Sundays-only until 2026-05-17;
-    # promoted to daily inside run_ingest_post_processing for ≤24h discovery
-    # latency on new high-performing hashtags.
-
-    try:
-        from getviews_pipeline.layer0_niche import run_niche_insights
-        l0a_result = await run_niche_insights(client)
-        logger.info(
-            "[layer0a] insights=%d skipped=%d errors=%s",
-            l0a_result.insights_written,
-            l0a_result.niches_skipped,
-            l0a_result.errors or "none",
-        )
-    except Exception as exc:
-        logger.error("[layer0a] Niche insight generation failed (non-fatal): %s", exc)
 
 def _corpus_ingest_loop_mode() -> str:
     mode = (_ingest_settings.corpus_ingest_loop or "niche").strip().lower()

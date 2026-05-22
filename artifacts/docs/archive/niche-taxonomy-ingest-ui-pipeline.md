@@ -1,8 +1,10 @@
+> **ARCHIVED (Wave D · 2026-05-22):** Nội dung đã gộp vào [`../two-axis-niche-model.md`](../two-axis-niche-model.md). Giữ file này chỉ để tham chiếu lịch sử — không cập nhật.
+
 # Niche taxonomy · corpus ingest · UI — pipeline reference
 
-**Status:** Living doc (2026-05-20)  
+**Status:** Archived — superseded by `two-axis-niche-model.md`  
 **Audience:** Tech Lead, backend/frontend agents  
-**Related:** [`system-design.md`](system-design.md) §354 (two-axis model), §12.1 (ingest selection), [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md), [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md)
+**Related:** [`../two-axis-niche-model.md`](../two-axis-niche-model.md), [`../system-design.md`](../system-design.md) §354
 
 ---
 

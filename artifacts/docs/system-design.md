@@ -339,8 +339,8 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 | Table | Owner | Write path | Notes |
 |-------|-------|-----------|-------|
 | `profiles` | Supabase | Client (RLS), Edge Functions | `creator_niche_id` FK, `credits`, `is_processing`, `is_admin` |
-| `creator_niches` | Supabase | Migrations only | 16 UX-facing buckets |
-| `content_classifications` | Supabase | Migrations only | 74 analysis-facing categories |
+| `creator_niches` | Supabase | Migrations only | **14 active** UX-facing buckets (retired: comedy, pets_home) |
+| `content_classifications` | Supabase | Migrations only | **79** analysis-facing categories (74 video + 5 carousel HI-16) |
 | `video_corpus` | Cloud Run batch | Service role only | 46K+ analyzed TikTok videos; `ingest_source` is write-once |
 | `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change) |
 | `chat_sessions` | Supabase | Client + Cloud Run | Chat model — title, niche, soft-delete via `deleted_at` |
@@ -353,13 +353,15 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 
 ### Niche model (two-axis, since 2026-05-13)
 
-- **`creator_niches`** (16 buckets) — UX-facing. `profiles.creator_niche_id` FK. Single niche per user.
-- **`content_classifications`** (74 categories) — analysis-facing. `video_corpus.content_class_id`.
-- **`creator_niche_content_classes`** — M:N junction with `is_primary` flag.
-- `niche_taxonomy` + `video_corpus.niche_id` are kept for backward compatibility. Downstream queries bridge via `legacy_niche_id_for_creator_niche()` (Python) / `legacyNicheIdForCreatorNiche()` (TypeScript) — both must stay in sync.
-- **HI-11 (batch ingest resolver):** Cloud Run env `NICHE_RESOLVER_MODE` is **`shadow`** (code default if unset) or **`route`**. **Production (2026-05-17+):** `route` on batch + user pods. In **shadow**, the legacy hashtag resolver remains canonical for `video_corpus.niche_id` / `content_class_id`; `niche_resolution_source`, `niche_resolution_confidence`, and `inferred_creator_niche_id` record Gemini two-axis telemetry. In **route**, high-confidence HI-9 `niche_classification` + `creator_niche_content_classes` junction can override niche and set `content_class_id` directly (ladder bypassed for that row). Rollback: set `NICHE_RESOLVER_MODE=shadow` (see `artifacts/docs/two-axis-niche-cutover-runbook.md` Part B).
-- **Corpus browse (SPA):** `src/lib/corpusNicheFilter.ts` scopes Xu hướng / Home breakouts. **Production defaults (2026-05-21+):** `VITE_CORPUS_BROWSE_CLASS_FIRST=true` and `VITE_CORPUS_BROWSE_CLASS_ONLY=true` (both opt-out with `"false"`). When junction classes exist, browse filters **`content_class_id IN (...)` only** — no legacy `niche_id` AND. When `CLASS_FIRST` alone (legacy rollback), class-only applies only when junction aggregate `sample_size` ≥ 20. **Trends thin banner:** sums `content_class_intelligence` across junction when classes exist; falls back to `niche_intelligence.sample_size` when junction is empty (after queries settle). See `artifacts/docs/niche-taxonomy-ingest-ui-pipeline.md` §5.4.
-- **Content-class pivot (Phase 0–4, promoted 2026-05-21):** Provenance columns `ingest_loop_niche_id`, `ingest_loop_content_class_id`, `class_assignment_tier`, `class_assignment_disagreement`, `score_cohort_mismatch`. **`content_class_ingest_targets`** + **ACQE** (`class_quality_engine.py`) auto tier Healthy/Thin/Dormant. Observability: [`content-class-pivot-metrics.sql`](content-class-pivot-metrics.sql). **Production defaults** (`settings.py` + batch/user Cloud Run env): `CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`, `LIVE_COHORT_CLASS_FIRST=true`, **`CORPUS_WRITE_NICHE_ID=false`** (batch upsert omits `niche_id`), **`REFRESH_NICHE_INTELLIGENCE_MV=false`** (skip legacy MV; `refresh_content_class_intelligence` + tier MV + ACQE still run). Opt-in: `CORPUS_DISCOVERY_RELAX`. **Live benchmark** (`video_niche_benchmark.fetch_video_benchmark_with_axis`): when `LIVE_COHORT_CLASS_FIRST=true`, tier MV → class MV → niche fallback; legacy path queries each source at most once. Peer-band MV: `content_class_tier_intelligence`. Channel RPC: `content_class_channel_benchmarks`. Hashtag v2: `hashtag_class_map` — [`hashtag-class-map-v2.md`](hashtag-class-map-v2.md). Rollback: revert env to `legacy` / `niche` / `false` / `true` / `true` per flag.
+- **`creator_niches`** (**14 active** buckets) — UX-facing. `profiles.creator_niche_id` FK. Retired: `comedy`, `pets_home` → `lifestyle`.
+- **`content_classifications`** (**79** categories: 74 video + 5 carousel) — analysis-facing. `video_corpus.content_class_id`.
+- **`creator_niche_content_classes`** — M:N junction with `is_primary` tie-break at ingest only (FE loads full junction).
+- **Phase C (2026-05-21):** `video_corpus.niche_id` **dropped**. Cohort = `(content_class_id, creator_tier)`. Legacy bridge `legacyNicheIdForCreatorNiche()` for ingest loop only.
+- **HI-11:** Production `NICHE_RESOLVER_MODE=route` on batch + user pods. Rollback: `shadow` — see [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md).
+- **Corpus browse:** `VITE_CORPUS_BROWSE_CLASS_FIRST` + `VITE_CORPUS_BROWSE_CLASS_ONLY` default on. Filter `content_class_id IN (...)` only. **Thin banner:** sum `content_class_intelligence.sample_size` across junction — **no** `niche_intelligence` fallback. Canonical: [`two-axis-niche-model.md`](two-axis-niche-model.md) §8.
+- **Content-class pivot flags:** `CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`, `LIVE_COHORT_CLASS_FIRST=true`, `CORPUS_WRITE_NICHE_ID=false`, `REFRESH_NICHE_INTELLIGENCE_MV=false`.
+- **MV catalog (3):** `content_class_intelligence` (+ velocity/`lifecycle_stage` Wave 3a), `content_class_tier_intelligence`, `creator_niche_content_class_stats` (Wave 3c). Nightly refresh chain §8.1 in [`two-axis-niche-model.md`](two-axis-niche-model.md) §7 — ingest 03:00 ICT → class MV 04:00 → tier 04:15 → stats 04:30 → ritual read 22:00.
+- **Intelligence → surface:** Morning Signal strip (Max-2-Card) via `useClassMorningSignals`; spec [`class-intelligence-ui-spec.md`](class-intelligence-ui-spec.md). Phase 2: `peer_percentile` diagnosis when BE returns label.
 
 ---
 

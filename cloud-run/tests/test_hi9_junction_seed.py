@@ -127,3 +127,16 @@ def test_junction_has_pair_helper() -> None:
     assert junction_has_pair(None, "tutorial") is False
     assert junction_has_pair("beauty", None) is False
     assert junction_has_pair("", "") is False
+
+
+def test_junction_has_content_class_wave4_edges() -> None:
+    from getviews_pipeline.junction_content_class import creator_niche_has_content_class
+
+    assert creator_niche_has_content_class(9, 51) is True
+    assert creator_niche_has_content_class(4, 49) is True
+
+
+def test_creator_niche_has_content_class_rejects_unknown() -> None:
+    from getviews_pipeline.junction_content_class import creator_niche_has_content_class
+
+    assert creator_niche_has_content_class(1, 99999) is False

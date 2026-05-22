@@ -7,6 +7,7 @@ import { useTopPatterns, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { BreakoutGrid } from "./BreakoutGrid";
 import { HooksTable } from "./HooksTable";
 import { StudioHero } from "./StudioHero";
+import { MorningSignalStrip } from "./MorningSignalStrip";
 
 function hookTierTitle(nicheId: number | null, isPending: boolean, count: number): string {
   if (nicheId == null) return "Công thức hook đứng sau gợi ý";
@@ -76,6 +77,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           title="3 video tiếp theo bạn nên làm"
           caption="Tổng hợp từ pattern thắng 7 ngày qua. Cả 3 ý tưởng đều có kịch bản sẵn — bấm dòng để mở Xưởng viết."
         />
+        <MorningSignalStrip creatorNicheId={creatorNicheId} />
         <StudioHero nicheId={patternScope?.legacyNicheId ?? null} />
       </div>
 

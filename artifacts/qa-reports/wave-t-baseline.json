@@ -1,0 +1,71 @@
+{
+  "feature": "two-axis-enhancement-wave-t",
+  "date": "2026-05-22",
+  "healthScore": 88,
+  "passResults": {
+    "pass1": "PASS",
+    "pass2": "PASS_WITH_CONCERNS",
+    "pass3": "PASS_WITH_CONCERNS",
+    "pass4": "PASS",
+    "pass5": "PASS_WITH_CONCERNS"
+  },
+  "findings": [
+    {
+      "pass": 2,
+      "severity": "medium",
+      "title": "useCrossNicheBreakouts disabled when junction empty — lane never shows for thin profiles",
+      "status": "deferred"
+    },
+    {
+      "pass": 2,
+      "severity": "low",
+      "title": "PostgREST .not(in) string filter is novel in repo — no integration test",
+      "status": "deferred"
+    },
+    {
+      "pass": 3,
+      "severity": "medium",
+      "title": "creator_niche_content_class_stats MV GRANT SELECT to anon — corpus aggregates world-readable",
+      "status": "deferred"
+    },
+    {
+      "pass": 3,
+      "severity": "low",
+      "title": "Legacy paths still call fetch_niche_intelligence_sync shim (fail-open empty) — OK post MV drop",
+      "status": "fixed"
+    },
+    {
+      "pass": 5,
+      "severity": "medium",
+      "title": "Full npm test: 11 failures in unrelated suites (settings timeout, script) — pre-existing",
+      "status": "deferred"
+    },
+    {
+      "pass": 1,
+      "severity": "low",
+      "title": "CrossNicheBreakoutLane uses bare 'view' label (loanword OK per copy-rules)",
+      "status": "deferred"
+    }
+  ],
+  "categoryScores": {
+    "visual": 100,
+    "data": 85,
+    "security": 82,
+    "interaction": 92,
+    "build": 88,
+    "copy": 95
+  },
+  "fixesApplied": {
+    "verified": 0,
+    "bestEffort": 0,
+    "reverted": 0,
+    "deferred": 5
+  },
+  "verification": {
+    "typecheck": "PASS",
+    "vitest_targeted": "18/18 PASS (corpusNicheFilter, classMorningSignals, productionFriction)",
+    "vitest_full": "911/922 PASS — 11 failures unrelated to diff",
+    "pytest": "30 PASS (hi11, hi9, video_niche_benchmark) + 29 PASS (hi9, profile_niches)"
+  },
+  "filesReviewed": 42
+}

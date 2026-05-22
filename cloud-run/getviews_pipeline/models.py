@@ -688,7 +688,7 @@ class CarouselNicheClassification(BaseModel):
             "dance_choreography": "gallery_carousel",
             "music_performance": "gallery_carousel",
             "live_commerce": "comparison_carousel",
-            "comedy_observational": "story_carousel",
+            "observational_relatable": "story_carousel",
         }
         return legacy.get(s, "gallery_carousel")
 

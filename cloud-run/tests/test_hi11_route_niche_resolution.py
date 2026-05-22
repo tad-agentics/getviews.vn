@@ -24,7 +24,10 @@ def test_junction_lookup_carousel_tutorial() -> None:
 
 def test_primary_map_covers_hi16_grid() -> None:
     pmap = primary_content_class_id_by_niche_and_format()
+    retired = {5, 13}  # comedy, pets_home — junction removed in 20260728
     for cn in range(1, 17):
+        if cn in retired:
+            continue
         for fmt in (
             "tutorial_carousel",
             "listicle_carousel",
@@ -98,3 +101,46 @@ def test_route_mode_carousel_prefers_carousel_format_axis(
     nid, cc = _route_niche_and_class_override(analysis, 9, video_id="v-carousel")
     assert nid == 2
     assert cc == 75
+
+
+def test_route_mode_td6_rejects_non_junction_content_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Wave 1b — hard TD-6 gate rejects override when cc_id ∉ junction for niche."""
+    from getviews_pipeline.corpus_ingest import (
+        get_hi11_junction_reject_count,
+        reset_hi11_junction_reject_count,
+    )
+
+    reset_hi11_junction_reject_count()
+    monkeypatch.setattr(gv_config, "NICHE_RESOLVER_MODE", "route")
+
+    def _fake_cc(_cn: int, _fmt: str) -> int:
+        return 99999
+
+    def _fake_has(_cn: int, _cc: int) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        "getviews_pipeline.junction_content_class.content_class_id_for_creator_niche_format",
+        _fake_cc,
+    )
+    monkeypatch.setattr(
+        "getviews_pipeline.junction_content_class.creator_niche_has_content_class",
+        _fake_has,
+    )
+
+    analysis = {
+        "content_type": "video",
+        "analysis": {
+            "niche_classification": {
+                "creator_niche_slug": "beauty",
+                "format_axis": "review_unboxing",
+                "confidence": 0.95,
+            },
+        },
+    }
+    nid, cc = _route_niche_and_class_override(analysis, 9, video_id="v-td6")
+    assert nid == 9
+    assert cc is None
+    assert get_hi11_junction_reject_count() >= 1

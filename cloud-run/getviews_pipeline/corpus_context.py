@@ -583,15 +583,10 @@ async def fetch_creator_format_history(
 
 
 async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
-    """Fetch one row from niche_intelligence for a niche identified by name.
+    """DEPRECATED shim — aggregates ``content_class_intelligence`` for a niche name.
 
-    Resolves niche_id via niche_taxonomy lookup, then returns the materialized
-    niche stats row (avg_face_appears_at, pct_face_in_half_sec,
-    avg_transitions_per_second, hook_distribution, format_distribution,
-    avg_engagement_rate, avg_text_overlays, has_cta_pct, commerce_pct,
-    median_duration, sample_size).
-
-    Falls back to {} on any error so callers never raise.
+    Resolves legacy ``niche_taxonomy`` id → creator niche → junction classes.
+    Prefer ``content_class_intelligence`` directly when ``content_class_id`` known.
     """
     try:
         client = _anon_client()
@@ -601,14 +596,16 @@ async def get_niche_intelligence(niche_name: str) -> dict[str, Any]:
             logger.info("[corpus_context] niche '%s' not found in niche_taxonomy", niche_name)
             return {}
 
-        ni_result = (
-            client.table("niche_intelligence")
-            .select("*")
-            .eq("niche_id", niche_id)
-            .single()
-            .execute()
+        from getviews_pipeline.profile_niches import creator_niche_id_for_legacy_niche
+        from getviews_pipeline.video_niche_benchmark import (
+            fetch_creator_niche_aggregate_intelligence_sync,
         )
-        return ni_result.data or {}
+
+        cn_id = creator_niche_id_for_legacy_niche(niche_id)
+        if cn_id is None:
+            return {}
+        row = fetch_creator_niche_aggregate_intelligence_sync(client, cn_id)
+        return row or {}
     except Exception as exc:
         logger.warning("[corpus_context] get_niche_intelligence failed for '%s': %s", niche_name, exc)
         return {}

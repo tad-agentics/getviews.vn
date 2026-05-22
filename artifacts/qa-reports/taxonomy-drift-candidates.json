@@ -1,0 +1,9 @@
+{
+  "run_at": null,
+  "clusters": [],
+  "drift_rate_7d": null,
+  "alert": false,
+  "alert_threshold": 0.05,
+  "auto_add_class": false,
+  "_note": "Populated by ACQE nightly _export_taxonomy_drift_candidates after first batch ingest run."
+}

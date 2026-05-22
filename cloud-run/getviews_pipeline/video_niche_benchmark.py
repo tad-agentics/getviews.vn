@@ -173,22 +173,73 @@ def build_niche_benchmark_payload(
 
 
 def fetch_niche_intelligence_sync(sb: Any, niche_id: int) -> dict[str, Any] | None:
-    """Blocking fetch of one MV row (call from thread pool or sync context)."""
+    """DEPRECATED — use ``fetch_content_class_intelligence_sync`` or tier MV.
+
+    Shim aggregates ``content_class_intelligence`` across junction classes
+    for the legacy ``ingest_loop_niche_id`` bucket. Direct ``niche_intelligence``
+    reads were removed in content-class pivot Round B.
+    """
+    from getviews_pipeline.profile_niches import creator_niche_id_for_legacy_niche
+
+    cn_id = creator_niche_id_for_legacy_niche(niche_id)
+    if cn_id is not None:
+        agg = fetch_creator_niche_aggregate_intelligence_sync(sb, cn_id)
+        if agg is not None:
+            return agg
+    logger.debug(
+        "[niche_benchmark] deprecated niche_intelligence shim miss niche=%s",
+        niche_id,
+    )
+    return None
+
+
+def fetch_creator_niche_aggregate_intelligence_sync(
+    sb: Any,
+    creator_niche_id: int,
+) -> dict[str, Any] | None:
+    """Best-effort aggregate of junction ``content_class_intelligence`` rows."""
+    if not creator_niche_id or sb is None:
+        return None
     try:
-        res = (
-            sb.table("niche_intelligence")
+        junction = (
+            sb.table("creator_niche_content_classes")
+            .select("content_class_id, is_primary")
+            .eq("creator_niche_id", creator_niche_id)
+            .execute()
+            .data
+            or []
+        )
+        cc_ids = [int(j["content_class_id"]) for j in junction if j.get("content_class_id")]
+        if not cc_ids:
+            return None
+        rows = (
+            sb.table("content_class_intelligence")
             .select(
-                "niche_id,sample_size,organic_avg_views,commerce_avg_views,"
+                "content_class_id,sample_size,avg_views,median_views,"
                 "median_er,avg_engagement_rate,computed_at"
             )
-            .eq("ingest_loop_niche_id", niche_id)
+            .in_("content_class_id", cc_ids)
             .execute()
+            .data
+            or []
         )
     except Exception as exc:
-        logger.warning("[niche_benchmark] select niche=%s failed: %s", niche_id, exc)
+        logger.warning(
+            "[niche_benchmark] creator niche aggregate cn=%s failed: %s",
+            creator_niche_id,
+            exc,
+        )
         return None
-    rows = res.data or []
-    return rows[0] if rows and isinstance(rows[0], dict) else None
+    if not rows:
+        return None
+    primaries = {int(j["content_class_id"]) for j in junction if j.get("is_primary")}
+    pool = [r for r in rows if int(r.get("content_class_id") or 0) in primaries] or rows
+    best = max(pool, key=lambda r: _to_int(r.get("sample_size"), 0))
+    total_sample = sum(_to_int(r.get("sample_size"), 0) for r in pool)
+    out = dict(best)
+    out["sample_size"] = total_sample
+    out["ingest_loop_niche_id"] = None
+    return out
 
 
 # ── Two-axis A.2.3 (2026-05-15) — content_class benchmark fetch ─────────────────
@@ -309,3 +360,68 @@ def fetch_video_benchmark_with_axis(
         if n_row is not None:
             return n_row, "niche"
     return None, "none"
+
+
+def peer_percentile(
+    value: float,
+    *,
+    median: float,
+    p75: float | None = None,
+) -> float | None:
+    """Estimate 0–100 peer percentile vs tier cohort (Phase 2 dynamic tier diagnosis)."""
+    if value <= 0 or median <= 0:
+        return None
+    if p75 is not None and p75 > median and value >= p75:
+        span = max(p75 - median, 1.0)
+        extra = min(1.0, (value - p75) / span)
+        return round(min(99.0, 75.0 + extra * 24.0), 1)
+    ratio = value / median
+    if ratio >= 2.0:
+        return 95.0
+    if ratio >= 1.5:
+        return 85.0
+    if ratio >= 1.0:
+        return 65.0
+    if ratio >= 0.5:
+        return 35.0
+    return 15.0
+
+
+def carousel_diagnosis_thresholds() -> dict[str, Any]:
+    """Carousel benchmark thresholds from ``carousel_knowledge`` (topic_axis=carousel)."""
+    from getviews_pipeline.carousel_knowledge import ALGORITHM_SIGNALS, OPTIMAL_SPECS
+
+    str_sig = ALGORITHM_SIGNALS.get("swipe_through_rate") or {}
+    comp = ALGORITHM_SIGNALS.get("completion_rate") or {}
+    save = ALGORITHM_SIGNALS.get("save_rate") or {}
+    slides = OPTIMAL_SPECS.get("slide_count") or {}
+    return {
+        "topic_axis": "carousel",
+        "swipe_through_rate_strong": str_sig.get("strong"),
+        "swipe_through_rate_weak": str_sig.get("weak"),
+        "completion_rate_strong": comp.get("strong"),
+        "save_rate_strong": save.get("strong"),
+        "slide_count_ideal": slides.get("ideal"),
+        "slide_count_min": slides.get("min"),
+        "slide_count_max": slides.get("max"),
+    }
+
+
+def enrich_niche_meta_with_peer_tier(
+    meta: dict[str, Any],
+    tier_row: dict[str, Any] | None,
+    *,
+    views: int | None = None,
+    topic_axis: str = "video",
+) -> dict[str, Any]:
+    """Attach peer_percentile + carousel thresholds when tier MV or carousel path."""
+    out = dict(meta)
+    if topic_axis == "carousel":
+        out["carousel_thresholds"] = carousel_diagnosis_thresholds()
+    if tier_row and views is not None:
+        med = _to_float(tier_row.get("median_views"))
+        p75 = _to_float(tier_row.get("p75_views")) or None
+        pct = peer_percentile(float(views), median=med, p75=p75 if p75 else None)
+        if pct is not None:
+            out["peer_percentile"] = pct
+    return out

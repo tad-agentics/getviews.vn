@@ -1,5 +1,50 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Pre-deploy QA fixes (two-axis)
+
+- **Cross-niche lane:** `useCrossNicheBreakouts` no longer requires non-empty junction — empty junction shows global breakouts; unit tests for PostgREST exclude filter.
+- **MV RLS:** `creator_niche_content_class_stats` — `SELECT` grant aligned to `authenticated` only (removed `anon`).
+- **Test:** `ChannelScreen.test.tsx` — niche switch assertion matches query param (4, not retired id 5).
+
+## 2026-05-22 — Wave T formal sign-off + corpus ingest fix
+
+- **Wave T signed:** `two-axis-taxonomy-final-v1.md` status line + expanded Sign-off evidence table; `two-axis-taxonomy-audit.json` (`wave_t_signed`, triage status); `wave-t-baseline.json` QA gate PASS.
+- **Fix:** `corpus_ingest.py` — restore `_run_weekly_analytics()` (body was orphaned after `return summary`, breaking Sunday weekly analytics); batch log now includes `hi11_junction_reject`.
+- **§8.1 MV chain:** No pg_cron stagger migration needed — `run_ingest_post_processing()` already calls `_refresh_corpus_intelligence_mvs()` serially post-ingest.
+
+## 2026-05-22 — Phase 2 resilience scaffold (§T2.2)
+
+- **Doc:** `two-axis-taxonomy-final-v1.md` §T2.2 — algorithm drift, creative friction, active learning hooks.
+- **FE:** `productionFriction.ts` + energy toggle on `MorningSignalStrip`; `pickMorningSignals` filters by low friction when "Quay nhẹ hôm nay".
+- **ACQE:** `_export_hook_marker_candidates`, `_export_taxonomy_drift_candidates` → `hook-marker-candidates.json`, `taxonomy-drift-candidates.json`.
+
+## 2026-05-22 — Taxonomy feedback fixes (doc + code)
+
+- **Doc:** `two-axis-taxonomy-final-v1.md` — wellness legacy bridge → 26; §T4 format_axis vocabulary; §T3.1 trade-offs; §T2.1 intentional sparse cells (Art/Craft, Comedy/Skit, AI/Automation gaps); lifestyle primary promotion documented.
+- **Migration:** `20260823000003_taxonomy_feedback_fixes.sql` — `comedy_observational` format_axis → `observational_relatable`; lifestyle primary for classes 24–27, 69–74.
+- **BE:** `two_axis_taxonomy.py`, `junction_content_class.py` (retire + feedback migrations), `cross_format.py`, `models.py`.
+- **FE:** `fetchContentClassIdsForCreatorNiche(..., { primaryOnly })`; Morning Signal uses primary-only junction scope.
+
+## 2026-05-22 — Two-axis enhancement (Wave T, D, 1a, 3a, 3b, Phase 2 FE)
+
+- **Wave T:** `artifacts/docs/two-axis-taxonomy-final-v1.md` — Outcome A: 14 active UX niches, 79 content classes; retirement map comedy/pets_home → lifestyle.
+- **Wave D:** Consolidated `artifacts/docs/two-axis-niche-model.md` (TOC §1–11); updated `system-design.md` §354 (14 active, Phase C, 3 MVs, refresh chain, no niche_intelligence fallback); archived `niche-taxonomy-ingest-ui-pipeline.md` → `archive/`.
+- **Wave 1a:** `artifacts/qa-reports/junction-invalid-triage-v1.json` — 22-row decision tree (reclassify vs defer Wave 4).
+- **Wave 3a:** `class-intelligence-ui-spec.md`; migration `20260823000001_content_class_intelligence_velocity.sql`; `useClassMorningSignals`, `MorningSignalStrip` (Max-2-Card), extended `useContentClassIntelligence`; unit tests `classMorningSignals.test.ts`.
+- **Wave 3b:** `CrossNicheBreakoutLane` on Explore (cap 3 tiles outside junction).
+- **Phase 2 FE:** `peer_percentile_label` + carousel save ≥3% hint in `FlopDiagnosisStrip` (forward-compatible; no BE RPC yet).
+
+## 2026-05-22 — Two-axis enhancement backend (Waves 1b–1d, 2, 3c, 4, Phase 2 BE)
+
+- **Wave T (BE):** `artifacts/qa-reports/two-axis-taxonomy-audit.json` — code-truth counts; 22 junction-invalid baseline documented.
+- **Wave 1b:** TD-6 hard gate + `hi11_junction_reject` metric in `corpus_ingest.py`; `creator_niche_has_content_class()` in `junction_content_class.py`.
+- **Wave 1c:** `artifacts/qa-reports/hi11-confidence-threshold-eval.json` — recommend confidence floor 0.6.
+- **Wave 1d:** ACQE junction proposal export + >0.5% junction-invalid alert in `class_quality_engine.py`.
+- **Wave 2:** `report_diagnostic`, `corpus_context`, `video_niche_benchmark` — `content_class_intelligence` reads; deprecated `fetch_niche_intelligence_sync` shim.
+- **Wave 3c:** `20260823000000_creator_niche_content_class_stats_mv.sql`; `morning_ritual` MV class anchor.
+- **Wave 4:** `20260823000002_wave4_approved_junction_edges.sql` — 6 secondary junction edges.
+- **Phase 2 BE:** `peer_percentile`, `carousel_diagnosis_thresholds` in `video_niche_benchmark.py`.
+
 ## 2026-05-21 — Content-class pivot Phase C (`video_corpus.niche_id` dropped)
 
 - **Migration:** `20260822000001_phase_c_drop_video_corpus_niche_id.sql` — backfill `ingest_loop_niche_id`, update RPCs (`upsert_video_corpus_batch`, `corpus_hashtag_yields_14d`, `daily_corpus_growth_by_niche`, timing/pattern/channel helpers), recreate class MVs without `SELECT *`, drop `niche_id` column + indexes.

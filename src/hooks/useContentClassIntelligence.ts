@@ -5,8 +5,17 @@ export type ContentClassIntelligenceRow = {
   content_class_id: number;
   sample_size: number | null;
   median_views?: number | null;
+  avg_views?: number | null;
   claim_tier?: string | null;
   computed_at?: string | null;
+  video_count_7d?: number | null;
+  video_count_prior_7d?: number | null;
+  avg_views_7d?: number | null;
+  avg_views_prior_7d?: number | null;
+  view_velocity?: number | null;
+  format_momentum?: number | null;
+  lifecycle_stage?: string | null;
+  hook_distribution?: Record<string, number> | null;
 };
 
 export const contentClassIntelligenceKeys = {
@@ -34,7 +43,9 @@ export function useContentClassIntelligence(contentClassIds: number[]) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase as any)
         .from("content_class_intelligence")
-        .select("content_class_id,sample_size,median_views,claim_tier,computed_at")
+        .select(
+          "content_class_id,sample_size,median_views,avg_views,claim_tier,computed_at,video_count_7d,video_count_prior_7d,avg_views_7d,avg_views_prior_7d,view_velocity,format_momentum,lifecycle_stage,hook_distribution",
+        )
         .in("content_class_id", contentClassIds);
       if (error) throw error;
       const rows = (data ?? []) as ContentClassIntelligenceRow[];

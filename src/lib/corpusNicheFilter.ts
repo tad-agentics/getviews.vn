@@ -16,17 +16,27 @@ export type VideoCorpusNicheScope = {
   contentClassIds?: number[];
 };
 
+export type FetchContentClassIdsOptions = {
+  /** Morning Signal / ritual anchor — primary junction only. Browse keeps default false. */
+  primaryOnly?: boolean;
+};
+
 /**
  * Junction ``content_class_id`` rows for a creator niche (two-axis browse filter).
  */
 export async function fetchContentClassIdsForCreatorNiche(
   creatorNicheId: number,
+  options?: FetchContentClassIdsOptions,
 ): Promise<number[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  let query = (supabase as any)
     .from("creator_niche_content_classes")
     .select("content_class_id")
     .eq("creator_niche_id", creatorNicheId);
+  if (options?.primaryOnly) {
+    query = query.eq("is_primary", true);
+  }
+  const { data, error } = await query;
   if (error || !data) return [];
   return (data as { content_class_id: number }[]).map((r) => r.content_class_id);
 }

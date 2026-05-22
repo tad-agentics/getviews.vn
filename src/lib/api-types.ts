@@ -121,8 +121,10 @@ export interface VideoNicheMeta {
   benchmark_axis?: "content_class" | "niche" | "none";
   /** Optional BE cohort label (e.g. content class display name). */
   cohort_label?: string | null;
-  /** Niche / content-class MV — for server-side bright-spot ER percentile. */
-  median_er?: number;
+  /** Phase 2 — peer percentile within content_class cohort (when BE computes). */
+  peer_percentile?: number | null;
+  /** Human label e.g. "top 25% trong class". */
+  peer_percentile_label?: string | null;
   avg_engagement_rate?: number;
 }
 

@@ -154,6 +154,36 @@ def _fetch_content_class_ids_sync(client: Any, creator_niche_id: int | None) -> 
         return []
 
 
+def _fetch_class_anchor_from_mv(client: Any, creator_niche_id: int | None) -> list[int]:
+    """Wave 3c — pick junction classes from MV (no video_corpus JOIN). Fail-open."""
+    if creator_niche_id is None:
+        return []
+    try:
+        rows = (
+            client.table("creator_niche_content_class_stats")
+            .select("content_class_id, sample_size, is_primary")
+            .eq("creator_niche_id", int(creator_niche_id))
+            .order("sample_size", desc=True)
+            .limit(12)
+            .execute()
+            .data
+            or []
+        )
+        if not rows:
+            return _fetch_content_class_ids_sync(client, creator_niche_id)
+        primaries = [int(r["content_class_id"]) for r in rows if r.get("is_primary")]
+        if primaries:
+            return primaries[:8]
+        return [
+            int(r["content_class_id"])
+            for r in rows
+            if r.get("content_class_id") is not None
+        ][:8]
+    except Exception as exc:
+        logger.debug("[ritual] MV class anchor failed (fail-open): %s", exc)
+        return _fetch_content_class_ids_sync(client, creator_niche_id)
+
+
 def _scope_grounding_query(q: Any, niche_id: int, content_class_ids: list[int] | None) -> Any:
     if content_class_ids:
         return q.in_("content_class_id", content_class_ids)
@@ -852,7 +882,7 @@ def run_morning_ritual_batch(
             creator_niche_id = prof.get("creator_niche_id")
             class_ids: list[int] | None = None
             if use_class_grounding and creator_niche_id is not None:
-                ids = _fetch_content_class_ids_sync(client, int(creator_niche_id))
+                ids = _fetch_class_anchor_from_mv(client, int(creator_niche_id))
                 class_ids = ids if ids else None
             result = generate_ritual_for_user(
                 client,

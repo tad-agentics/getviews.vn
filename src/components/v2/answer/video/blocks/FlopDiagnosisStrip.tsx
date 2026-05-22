@@ -17,10 +17,12 @@ export function FlopDiagnosisStrip({
   meta,
   nicheMeta,
   retentionEnd,
+  isCarousel = false,
 }: {
   meta: VideoAnalyzeMeta;
   nicheMeta: VideoNicheMeta | null;
   retentionEnd: number | null;
+  isCarousel?: boolean;
 }) {
   const retLabel = retentionEnd != null ? `${Math.round(retentionEnd)}% giữ chân` : "— giữ chân";
   const nicheViews =
@@ -38,12 +40,23 @@ export function FlopDiagnosisStrip({
       ? `${Math.round(nicheMeta.avg_retention * 100)}% ${retSuffix}`
       : null;
   const winnersN = nicheMeta?.winners_sample_size ?? null;
+  const peerLabel = nicheMeta?.peer_percentile_label?.trim();
+  const savePct = formatSaveRatePct(meta);
+  const carouselSaveHint =
+    isCarousel && meta.save_rate != null && !Number.isNaN(meta.save_rate)
+      ? (() => {
+          const pct = meta.save_rate <= 1 ? meta.save_rate * 100 : meta.save_rate;
+          if (pct >= 3) return "save carousel ≥3% — ngưỡng phân phối tốt";
+          return "save carousel dưới 3% — thử tăng giá trị từng slide";
+        })()
+      : null;
 
   return (
     <div className="border-t-2 border-[color:var(--gv-ink)] pt-5">
       <div className="flex flex-wrap gap-x-4 gap-y-1 font-[family-name:var(--gv-font-mono)] text-xs text-[color:var(--gv-ink-3)]">
         <span>
-          {formatViewsVi(meta.views)} view · {retLabel} · save {formatSaveRatePct(meta)}
+          {formatViewsVi(meta.views)} view · {retLabel} · save {savePct}
+          {carouselSaveHint ? ` · ${carouselSaveHint}` : ""}
         </span>
         <span className="text-[color:var(--gv-ink-4)]">/</span>
         <span>
@@ -52,7 +65,12 @@ export function FlopDiagnosisStrip({
         </span>
         <span className="text-[color:var(--gv-ink-4)]">/</span>
         {winnersN != null && winnersN >= WINNERS_CLAIM_MIN ? (
-          <span>So sánh với {winnersN} {winnersLabel}</span>
+          <span>
+            So sánh với {winnersN} {winnersLabel}
+            {peerLabel ? ` · ${peerLabel}` : ""}
+          </span>
+        ) : peerLabel ? (
+          <span>{peerLabel}</span>
         ) : (
           <span className="text-[color:var(--gv-ink-4)]">
             Đang xây dựng pool (≥10 video cần thu thập)

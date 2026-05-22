@@ -55,6 +55,9 @@ def _content_class_id_to_format_axis() -> dict[int, str]:
                 m2.group(0),
             ):
                 out[int(r[0])] = r[4]
+    for cc_id, fmt in list(out.items()):
+        if fmt == "comedy_observational":
+            out[cc_id] = "observational_relatable"
     return out
 
 
@@ -93,7 +96,55 @@ def _junction_edges() -> list[tuple[int, int, bool]]:
         for cc_id in range(75, 80):
             edges.append((cn_id, cc_id, True))
 
+    wave4 = root / "supabase/migrations/20260823000002_wave4_approved_junction_edges.sql"
+    if wave4.is_file():
+        t4 = wave4.read_text(encoding="utf-8")
+        for a, b, p in re.findall(
+            r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(TRUE|FALSE)\s*\)",
+            t4,
+        ):
+            edges.append((int(a), int(b), p == "TRUE"))
+
+    edges = _apply_retire_comedy_pets_home(root, edges)
+    edges = _apply_taxonomy_feedback_fixes(root, edges)
+
     return edges
+
+
+def _apply_retire_comedy_pets_home(root: Path, edges: list[tuple[int, int, bool]]) -> list[tuple[int, int, bool]]:
+    """Mirror ``20260728000000_retire_comedy_pets_home_niches.sql`` junction changes."""
+    retire = root / "supabase/migrations/20260728000000_retire_comedy_pets_home_niches.sql"
+    if not retire.is_file():
+        return edges
+    filtered = [(cn, cc, p) for cn, cc, p in edges if cn not in (5, 13)]
+    by_key: dict[tuple[int, int], bool] = {(cn, cc): p for cn, cc, p in filtered}
+    t = retire.read_text(encoding="utf-8")
+    for a, b, p in re.findall(
+        r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(TRUE|FALSE)\s*\)",
+        t,
+    ):
+        cn, cc = int(a), int(b)
+        if cn == 4:
+            by_key[(cn, cc)] = p == "TRUE"
+    return [(cn, cc, p) for (cn, cc), p in by_key.items()]
+
+
+def _apply_taxonomy_feedback_fixes(
+    root: Path,
+    edges: list[tuple[int, int, bool]],
+) -> list[tuple[int, int, bool]]:
+    """Promote lifestyle primary for absorbed comedy + pets/home (``20260823000003``)."""
+    fix = root / "supabase/migrations/20260823000003_taxonomy_feedback_fixes.sql"
+    if not fix.is_file():
+        return edges
+    promote_ids = {24, 25, 26, 27, 69, 70, 71, 72, 73, 74}
+    out: list[tuple[int, int, bool]] = []
+    for cn, cc, is_primary in edges:
+        if cn == 4 and cc in promote_ids:
+            out.append((cn, cc, True))
+        else:
+            out.append((cn, cc, is_primary))
+    return out
 
 
 @lru_cache(maxsize=1)
@@ -129,3 +180,16 @@ def content_class_id_for_creator_niche_format(
     if not fmt:
         return None
     return primary_content_class_id_by_niche_and_format().get((int(creator_niche_id), fmt))
+
+
+@lru_cache(maxsize=1)
+def _junction_niche_class_pairs() -> frozenset[tuple[int, int]]:
+    """All ``(creator_niche_id, content_class_id)`` edges from migration seeds."""
+    return frozenset((cn, cc) for cn, cc, _ in _junction_edges())
+
+
+def creator_niche_has_content_class(creator_niche_id: int, content_class_id: int) -> bool:
+    """TD-6 hard gate — ``content_class_id`` must be a junction edge for the niche."""
+    if creator_niche_id <= 0 or content_class_id <= 0:
+        return False
+    return (int(creator_niche_id), int(content_class_id)) in _junction_niche_class_pairs()

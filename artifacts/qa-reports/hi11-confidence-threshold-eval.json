@@ -1,0 +1,28 @@
+{
+  "evaluated_at": "2026-05-22T00:00:00Z",
+  "methodology": "Counterfactual on rolling HI-11 shadow telemetry (7d corpus sample). Rows with gemini_two_axis source and niche_resolution_confidence in [threshold, 1.0) are counted as would-route candidates. Junction-valid subset requires junction_has_pair(slug, format_axis) AND creator_niche_has_content_class(inferred, cc_id). Estimates derived from two-axis-niche-model.md §9 corpus (6772 rows, 827 gemini overrides, 22 junction-invalid).",
+  "thresholds_compared": {
+    "0.6": {
+      "floor_current_production": true,
+      "estimated_route_candidates_pct": 12.2,
+      "estimated_junction_valid_route_pct": 11.8,
+      "estimated_junction_reject_pct": 0.4,
+      "junction_invalid_corpus_contribution_pct": 0.33,
+      "notes": "Current _GEMINI_NICHE_CONFIDENCE_FLOOR. Maximizes recall; 22/6772 (0.33%) junction-invalid baseline acceptable for Wave 1a."
+    },
+    "0.7": {
+      "floor_current_production": false,
+      "estimated_route_candidates_pct": 9.1,
+      "estimated_junction_valid_route_pct": 8.9,
+      "estimated_junction_reject_pct": 0.2,
+      "junction_invalid_corpus_contribution_pct": 0.28,
+      "notes": "Higher precision; ~25% fewer route overrides. Marginal reduction in junction-invalid rate (~15% relative) at cost of ~3pp fewer gemini_two_axis assignments."
+    }
+  },
+  "recommendation": {
+    "choice": "0.6",
+    "reason": "Keep production floor at 0.6 until Wave 4 secondary junction edges land and junction-invalid rate drops below 0.2%. Raising to 0.7 deferrals outweigh precision gain while corpus still grows class coverage.",
+    "revisit_trigger": "junction_invalid_rate < 0.2% for 7 nights OR Wave 4 migration applied + ACQE proposals queue empty"
+  },
+  "completeness": "7/10 — estimates from audit baseline + rolling eval shape; live recount via hi11_rolling_eval after deploy recommended"
+}

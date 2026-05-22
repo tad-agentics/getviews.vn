@@ -1,6 +1,6 @@
 # Supabase tables × GetViews pipeline audit
 
-> **Content-class pivot (runtime SSOT, 2026-05-21+):** [`system-design.md`](system-design.md) §9 · [`niche-taxonomy-ingest-ui-pipeline.md`](niche-taxonomy-ingest-ui-pipeline.md) §10. This audit may list bridge tables/MVs; trust SSOT for production flag defaults (`REFRESH_NICHE_INTELLIGENCE_MV=false`, etc.).
+> **Content-class pivot (runtime SSOT, 2026-05-21+):** [`system-design.md`](system-design.md) §354 · [`two-axis-niche-model.md`](two-axis-niche-model.md). This audit may list bridge tables/MVs; trust SSOT for production flag defaults (`REFRESH_NICHE_INTELLIGENCE_MV=false`, etc.).
 
 **Scope.** “Pipeline” here means **Cloud Run** (`cloud-run/main.py` + `cloud-run/getviews_pipeline/**/*.py`) using the **Supabase Python client** (`client.table(...)`, `sb.rpc(...)`, service-role where noted). It does **not** claim full coverage of **SPA** (`src/**` direct Supabase), **Vercel `api/*.ts`**, or **Supabase Edge Functions** (`supabase/functions/**`) — those are summarized in a separate column where relevant.
 
