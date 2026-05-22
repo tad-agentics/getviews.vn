@@ -21,8 +21,8 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from getviews_pipeline.session_store import replay_buffer_sweeper
 from getviews_pipeline import telemetry
+from getviews_pipeline.session_store import replay_buffer_sweeper
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -113,16 +113,16 @@ if SERVICE_ROLE not in {"all", "user", "batch"}:
     SERVICE_ROLE = "all"
 logger.info("SERVICE_ROLE=%s", SERVICE_ROLE)
 
-from getviews_pipeline.routers.health import router as health_router
-from getviews_pipeline.routers.intent import router as intent_router
-from getviews_pipeline.routers.video import router as video_router
-from getviews_pipeline.routers.script import router as script_router
-from getviews_pipeline.routers.home import router as home_router
+from getviews_pipeline.routers.admin import router as admin_router
 from getviews_pipeline.routers.answer import router as answer_router
-from getviews_pipeline.routers.douyin import router as douyin_router
 from getviews_pipeline.routers.batch import router as batch_router
 from getviews_pipeline.routers.batch_proxy import router as batch_proxy_router
-from getviews_pipeline.routers.admin import router as admin_router
+from getviews_pipeline.routers.douyin import router as douyin_router
+from getviews_pipeline.routers.health import router as health_router
+from getviews_pipeline.routers.home import router as home_router
+from getviews_pipeline.routers.intent import router as intent_router
+from getviews_pipeline.routers.script import router as script_router
+from getviews_pipeline.routers.video import router as video_router
 
 # /health is mounted on every shape — Cloud Run liveness probe needs it.
 app.include_router(health_router)

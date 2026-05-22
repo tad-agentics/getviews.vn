@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from getviews_pipeline.gemini import EMBED_CONTRACT_VERSION, count_valid_embedded_tiles
 from getviews_pipeline.video_analyze import (
     ON_DEMAND_RESPONSE_SCHEMA_VERSION,

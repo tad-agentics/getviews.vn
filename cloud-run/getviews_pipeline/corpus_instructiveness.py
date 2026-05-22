@@ -914,7 +914,6 @@ def post_extract_should_reject(
         if not content_format and scene_count < 2 and not hook_phrase:
             return True, "uninstructive_structure"
 
-        hook_type = str(row.get("hook_type") or hook_info.get("hook_type") or "")
         topics = inner.get("topics") or []
         pain = inner.get("pain_points") or []
         transcript = str(inner.get("audio_transcript") or analysis.get("audio_transcript") or "")

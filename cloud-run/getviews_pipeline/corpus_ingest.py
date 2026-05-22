@@ -15,7 +15,6 @@ Designed to run as a Cloud Scheduler cron or via POST /batch/ingest.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
 import time
@@ -39,7 +38,7 @@ from getviews_pipeline.config import (
     HASHTAG_YIELD_THRESHOLD,
     R2_PUBLIC_URL,
 )
-from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
+from getviews_pipeline.corpus_boost_suspect import classify_boost_suspect
 from getviews_pipeline.corpus_instructiveness import (
     IngestBatchContext,
     _classify_creator_tier,
@@ -47,14 +46,13 @@ from getviews_pipeline.corpus_instructiveness import (
     corpus_score_cohort,
     effective_videos_per_niche,
     post_extract_should_reject,
-    predict_content_class_pre_score,
     pre_pool_min_views,
+    predict_content_class_pre_score,
     prefetch_ingest_batch_context,
     select_purity_candidates,
     use_class_score_cohort,
 )
-from getviews_pipeline.corpus_boost_suspect import classify_boost_suspect
-from getviews_pipeline.settings import settings as _ingest_settings
+from getviews_pipeline.creator_blocklist import is_blocklisted_handle, niche_override_for_handle
 from getviews_pipeline.ed_budget import theoretical_ed_pool_requests
 from getviews_pipeline.gemini import (
     analyze_video,
@@ -78,6 +76,7 @@ from getviews_pipeline.r2 import (
     r2_configured,
 )
 from getviews_pipeline.runtime import get_analysis_semaphore
+from getviews_pipeline.settings import settings as _ingest_settings
 from getviews_pipeline.video_shots_writer import (
     build_video_shot_rows,
     upsert_video_shots_sync,
@@ -1094,6 +1093,8 @@ def _content_class_for(niche_id: int, content_format: str | None) -> int | None:
     if niche_id in (13, 27):
         if cf == "comedy_skit":
             return 24
+        if cf == "dance":
+            return 29  # music_dance_choreography — parity with SQL map_legacy_corpus_to_content_class
         if cf in ("storytelling", "pov"):
             return 26
         return 24

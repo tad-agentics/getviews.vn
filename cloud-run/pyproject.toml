@@ -76,6 +76,7 @@ select = ["E", "F", "I", "UP"]
 "getviews_pipeline/report_lifecycle_gemini.py" = ["E501"]
 "getviews_pipeline/report_pattern.py" = ["E501"]
 "getviews_pipeline/report_pattern_gemini.py" = ["E501"]
+"getviews_pipeline/report_script.py" = ["E501"]
 "getviews_pipeline/report_timing_gemini.py" = ["E501"]
 "getviews_pipeline/routers/admin.py" = ["E501"]
 "getviews_pipeline/routers/answer.py" = ["E501"]
@@ -87,6 +88,9 @@ select = ["E", "F", "I", "UP"]
 "getviews_pipeline/signals/distribution.py" = ["E501"]
 # Test fixtures mirror production payloads; keep line-length checks off.
 "tests/**" = ["E501"]
+# Entry point: router imports are deliberately after telemetry.setup_telemetry()
+# so OTel auto-instrumentation initialises before FastAPI/router modules load.
+"main.py" = ["E402"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -119,11 +119,11 @@ def test_returns_none_when_too_few_niches_have_format() -> None:
         ("cc_by_id", 6): {"format_axis": "pov_storytelling"},
         ("cc_by_format", "pov_storytelling"): [{"id": 6}, {"id": 20}],
         ("corpus", (6, 20)): [
-            {"video_id": "v1", "niche_id": 1, "hook_type": "pov", "views": 50000},
-            {"video_id": "v2", "niche_id": 2, "hook_type": "pov", "views": 60000},
+            {"video_id": "v1", "ingest_loop_niche_id": 1, "hook_type": "pov", "views": 50000},
+            {"video_id": "v2", "ingest_loop_niche_id": 2, "hook_type": "pov", "views": 60000},
             # All 25 rows from just 2 niches — sample is high but spread is low.
             *[
-                {"video_id": f"v{i}", "niche_id": (i % 2) + 1, "hook_type": "pov", "views": 30000 + i * 100}
+                {"video_id": f"v{i}", "ingest_loop_niche_id": (i % 2) + 1, "hook_type": "pov", "views": 30000 + i * 100}
                 for i in range(3, 28)
             ],
         ],
@@ -139,7 +139,7 @@ def test_returns_none_when_total_sample_too_thin() -> None:
         ("cc_by_id", 6): {"format_axis": "pov_storytelling"},
         ("cc_by_format", "pov_storytelling"): [{"id": 6}],
         ("corpus", (6,)): [
-            {"video_id": f"v{i}", "niche_id": (i % 4) + 1, "hook_type": "pov", "views": 50000}
+            {"video_id": f"v{i}", "ingest_loop_niche_id": (i % 4) + 1, "hook_type": "pov", "views": 50000}
             for i in range(10)
         ],
     }
@@ -155,7 +155,7 @@ def test_returns_signal_when_thresholds_met() -> None:
         for r in range(6):
             rows.append({
                 "video_id": f"v{niche}-{r}",
-                "niche_id": niche,
+                "ingest_loop_niche_id": niche,
                 "hook_type": "pov" if r < 4 else "story_open",
                 "views": 100_000 + niche * 10_000 + r * 100,
             })
@@ -179,7 +179,7 @@ def test_returns_signal_when_thresholds_met() -> None:
 def test_returns_none_when_content_format_filter_removes_all_rows() -> None:
     fn, *_ = _imports()
     rows = [
-        {"video_id": f"v{i}", "niche_id": (i % 5) + 1, "hook_type": "pov", "views": 50_000, "content_format": "format_a"}
+        {"video_id": f"v{i}", "ingest_loop_niche_id": (i % 5) + 1, "hook_type": "pov", "views": 50_000, "content_format": "format_a"}
         for i in range(30)
     ]
     dispatcher = {
@@ -199,7 +199,7 @@ def test_returns_signal_with_content_format_subset() -> None:
         for r in range(6):
             rows.append({
                 "video_id": f"v{niche}-{r}",
-                "niche_id": niche,
+                "ingest_loop_niche_id": niche,
                 "hook_type": "pov" if r < 4 else "story_open",
                 "views": 100_000 + niche * 10_000 + r * 100,
                 "content_format": fmt,
@@ -218,10 +218,10 @@ def test_returns_signal_with_content_format_subset() -> None:
 def test_top_hooks_skip_single_row_buckets() -> None:
     fn, *_ = _imports()
     rows = [
-        {"video_id": f"p{i}", "niche_id": (i % 5) + 1, "hook_type": "pov", "views": 50000}
+        {"video_id": f"p{i}", "ingest_loop_niche_id": (i % 5) + 1, "hook_type": "pov", "views": 50000}
         for i in range(20)
     ]
-    rows.append({"video_id": "single", "niche_id": 1, "hook_type": "one_off", "views": 999_999})
+    rows.append({"video_id": "single", "ingest_loop_niche_id": 1, "hook_type": "one_off", "views": 999_999})
     dispatcher = {
         ("cc_by_id", 6): {"format_axis": "pov_storytelling"},
         ("cc_by_format", "pov_storytelling"): [{"id": 6}],

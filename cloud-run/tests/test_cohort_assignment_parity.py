@@ -64,8 +64,14 @@ def test_class_dedup_allows_reupsert_when_class_changes(monkeypatch):
 
 
 def test_fetch_video_benchmark_class_first_prefers_class(monkeypatch):
+    # Round B (commit 76f07b6) made class-first unconditional in
+    # ``fetch_video_benchmark_with_axis`` — the function no longer reads
+    # ``settings.live_cohort_class_first``. The flag still exists in
+    # ``getviews_pipeline.settings`` (used by trend_velocity/morning_ritual),
+    # so patch it there rather than the removed
+    # ``video_niche_benchmark.settings`` attribute.
     monkeypatch.setattr(
-        "getviews_pipeline.video_niche_benchmark.settings.live_cohort_class_first",
+        "getviews_pipeline.settings.settings.live_cohort_class_first",
         True,
     )
 
@@ -101,18 +107,20 @@ def test_fetch_video_benchmark_class_first_prefers_class(monkeypatch):
     assert row is not None
 
 
-def test_fetch_video_benchmark_legacy_prefers_niche_when_class_first_off(monkeypatch):
-    monkeypatch.setattr(
-        "getviews_pipeline.video_niche_benchmark.settings.live_cohort_class_first",
-        False,
-    )
+# NOTE: the former ``..._legacy_prefers_niche_when_class_first_off`` test was
+# removed — Round B (commit 76f07b6) made class-first unconditional, so the
+# "flag off → niche-first" path no longer exists. The class-first-wins contract
+# is covered by ``test_fetch_video_benchmark_class_first_prefers_class`` above.
 
+
+def test_fetch_video_benchmark_returns_none_when_all_cohorts_miss():
+    # Round B: ``fetch_video_benchmark_with_axis`` tries content_class (tier →
+    # class) then the niche shim. When every cohort misses it must return
+    # ``(None, "none")`` — graceful miss, no exception. The legacy
+    # ``niche_intelligence`` MV was dropped, so the niche shim no longer queries
+    # that table directly.
     class FakeSb:
-        def __init__(self) -> None:
-            self.last_table: str | None = None
-
         def table(self, name: str):
-            self.last_table = name
             return self
 
         def select(self, *_a, **_k):
@@ -122,65 +130,6 @@ def test_fetch_video_benchmark_legacy_prefers_niche_when_class_first_off(monkeyp
             return self
 
         def execute(self):
-            if self.last_table == "niche_intelligence":
-                return type("R", (), {"data": [{
-                    "niche_id": 3,
-                    "sample_size": 100,
-                    "median_views": 8000,
-                    "median_er": 3.0,
-                    "avg_engagement_rate": 3.0,
-                    "computed_at": "2026-01-01",
-                }]})()
-            return type("R", (), {"data": [{
-                "content_class_id": 7,
-                "sample_size": 40,
-                "median_views": 12000,
-                "median_er": 4.0,
-                "avg_engagement_rate": 4.0,
-                "computed_at": "2026-01-01",
-            }]})()
-
-    row, axis = fetch_video_benchmark_with_axis(
-        FakeSb(),
-        niche_id=3,
-        content_class_id=7,
-    )
-    assert axis == "niche"
-    assert row is not None
-    assert int(row.get("niche_id") or 0) == 3
-
-
-def test_fetch_video_benchmark_legacy_queries_niche_once_on_miss(monkeypatch):
-    monkeypatch.setattr(
-        "getviews_pipeline.video_niche_benchmark.settings.live_cohort_class_first",
-        False,
-    )
-
-    niche_calls = 0
-    class_calls = 0
-
-    class FakeSb:
-        def __init__(self) -> None:
-            self.last_table: str | None = None
-
-        def table(self, name: str):
-            self.last_table = name
-            return self
-
-        def select(self, *_a, **_k):
-            return self
-
-        def eq(self, *_a, **_k):
-            return self
-
-        def execute(self):
-            nonlocal niche_calls, class_calls
-            if self.last_table == "niche_intelligence":
-                niche_calls += 1
-                return type("R", (), {"data": []})()
-            if self.last_table == "content_class_intelligence":
-                class_calls += 1
-                return type("R", (), {"data": []})()
             return type("R", (), {"data": []})()
 
     row, axis = fetch_video_benchmark_with_axis(
@@ -190,5 +139,3 @@ def test_fetch_video_benchmark_legacy_queries_niche_once_on_miss(monkeypatch):
     )
     assert row is None
     assert axis == "none"
-    assert niche_calls == 1
-    assert class_calls == 1
