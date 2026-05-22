@@ -19,7 +19,7 @@ import { ScoreCard, ScoreCardSkeleton } from "./components/ScoreCard";
 import { StepProgress, TRAJECTORY_LABELS } from "./components/StepProgress";
 import { ProvenanceLine } from "./components/ProvenanceLine";
 
-const CREDIT_COST = 3;
+const CREDIT_COST = 3; // Keep in sync with channel_diagnose.CHANNEL_DIAGNOSE_CREDIT_COST
 
 function channelInitial(name: string, handle: string): string {
   const s = (name?.trim() || handle).trim();

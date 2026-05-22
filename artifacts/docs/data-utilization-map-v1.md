@@ -1,11 +1,12 @@
 # Data Utilization Map V1 — GetViews.vn
 
-> **Pivot SSOT (2026-05-21+):** Cohort + browse runtime — [`system-design.md`](system-design.md) §9. Matrix below is pre-implement gate; several F6 rows still reference `niche_intelligence` bridge paths.
+> **Pivot SSOT (2026-05-21+):** Cohort + browse runtime — [`system-design.md`](system-design.md) §9. Matrix below is **pre-implement gate (2026-05-20)** — taxonomy prod **16×82**; several F6 rows still reference `niche_intelligence` bridge paths. Resync tracked in [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) W1-5.
 
 **Version:** 1.0  
-**Last updated:** 2026-05-20  
+**Last updated:** 2026-05-20 (matrix stale vs prod pivot — see roadmap W1-5)  
 **Status:** Pre-implement gate — Wave 1 data architecture  
 **Vision:** [`feature-map-v1.md`](feature-map-v1.md) v2.0 FINAL  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — F8 waves 0–5  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`
 

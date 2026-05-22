@@ -1,6 +1,13 @@
 # Changelog — GetViews.vn
 
-## 2026-05-22 — Docs: resync feature-map-v1 with two-axis as-built
+## 2026-05-22 — Wave 0 incremental V1 (trust + F8 verify)
+
+- **W0-1:** Channel diagnose deducts **3×** `decrement_credit` — `CHANNEL_DIAGNOSE_CREDIT_COST=3` in `channel_diagnose.py` (parity `ChannelScreen.tsx` + vision §10). Pre-check `credits_remaining >= 3` before RPC loop (no partial charge on API-only 1–2 credit callers).
+- **W0-2:** Doc hygiene — `data-utilization-map-v1.md` stale header; `feature-map.md` links incremental roadmap + wave0 checklist.
+- **W0-3:** [`wave0-cron-sla-checklist.md`](wave0-cron-sla-checklist.md) — cron SLA + corpus-health ops gate.
+- **W0-4/W0-5:** Tests — `test_corpus_boost_w0.py` (ref pool `reference_eligible` filter + boost attribution); channel 3× credit test in `test_channel_diagnose_ingest.py`.
+
+## 2026-05-22 — Docs: incremental V1 roadmap v1.1
 
 - **`feature-map-v1.md`:** Header `8969f3e`; §3 Morning Signal + Tier III copy; CrossNiche lane; §8 taxonomy 16×82 + HI-11 route prod; §13A/B shipped vs open gates; D12 two-axis done.
 - **`feature-map.md`:** As-built inventory synced (prior commit `8969f3e`).

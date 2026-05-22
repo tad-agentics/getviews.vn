@@ -5,9 +5,11 @@
 *User value / JTBD / gap analysis:* [`product-value-audit.md`](product-value-audit.md) (value → data, doc-only).  
 *V1 product vision (chỉ phạm vi ship GTM V1):* [`feature-map-v1.md`](feature-map-v1.md) — **không** liệt kê tính năng ngoài V1; xem **§ Post-V1 backlog** bên dưới.
 
-*Verified against codebase **2026-05-22** (`da76f96`). Spot-checked: two-axis browse (`corpusNicheFilter.ts`, `useTopBreakouts`, `useCrossNicheBreakouts`); Home tier I–III (`MorningSignalStrip`, `HooksTable`, `BreakoutGrid`); Trends Explore (`CrossNicheBreakoutLane`, `TrendsRail`, class MV thin banner); taxonomy v2 (16 active niches, 82 classes); dual SSE + answer path unchanged from prior audit.*
+*Verified against codebase **2026-05-22** (Wave 0 incremental — channel 3× credit + F8 verify). Spot-checked: two-axis browse (`corpusNicheFilter.ts`, `useTopBreakouts`, `useCrossNicheBreakouts`); Home tier I–III (`MorningSignalStrip`, `HooksTable`, `BreakoutGrid`); Trends Explore (`CrossNicheBreakoutLane`, `TrendsRail`, class MV thin banner); taxonomy v2 (16 active niches, 82 classes); dual SSE + answer path unchanged from prior audit.*
 
 *Pivot SSOT:* Production ingest/browse defaults — [`system-design.md`](system-design.md) §9 · taxonomy tables — [`two-axis-niche-model.md`](two-axis-niche-model.md).*
+
+*Incremental V1 path:* [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) · Wave 0 ops checklist — [`wave0-cron-sla-checklist.md`](wave0-cron-sla-checklist.md).*
 
 ---
 
@@ -183,7 +185,7 @@
   - POST `/channel/refresh-mine` (`video.py:143`) — refresh signed-in user's channel
 - **Cache:** `channel_diagnoses` row, **`max_age_days=7`** default (`_fetch_channel_diagnoses_cache`, `video.py:291`); `force_refresh=true` bypasses
 - **Synthesis:** `channel_diagnose.py` + `channel_diagnose_prompts.py`; corpus-first peers + live EnsembleData hybrid
-- **Credit cost:** UI gates **3** `credits_remaining` (`ChannelScreen.tsx` `CREDIT_COST`); BE `decrement_credit` deducts **1** per diagnosis on cache miss — align FE/BE before marketing copy
+- **Credit cost:** **3** `credits_remaining` per cache-miss diagnosis — FE `ChannelScreen.tsx` `CREDIT_COST=3`; BE `channel_diagnose.CHANNEL_DIAGNOSE_CREDIT_COST=3` (pre-check balance ≥3, then 3× `decrement_credit` RPC). Cache hit free. No credit rollback on `stream_failed` (as-built).
 - **DB tables:** `channel_diagnoses`, `video_patterns`, `hook_effectiveness`, `creator_velocity`, `niche_insights`
 - **Status:** shipped & live
 
@@ -395,7 +397,7 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 | Home | /app | live | 3-tier Gợi ý hôm nay + Morning Signal + within-niche breakouts |
 | Answer | /app/answer | live (video 1-turn V1) | `answer_turn` SSE; `FlopDiagnosisStrip` peer percentile; follow-up turns Post-V1 |
 | History | /app/history | live | `history_union` RPC |
-| Channel | /app/channel | live | UI 3 / BE 1 credit (see §5); 7d cache |
+| Channel | /app/channel | live | 3 credits FE+BE on cache miss (Wave 0) |
 | Trends | /app/trends | live | Pattern grid + kho video + cross-niche lane + desktop rail |
 | Script | /app/script | live (core) | Scene intel WIP |
 | Compare | /app/compare | codebase only (not V1 GTM) | `/stream`; see Post-V1 backlog |

@@ -534,9 +534,44 @@ def test_decrement_credit_raises_insufficient_only_when_data_is_none():
     )
 
     sb = MagicMock()
+    sb.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
+        data={"credits_remaining": 10}
+    )
     sb.rpc.return_value.execute.return_value = MagicMock(data=None)
     with pytest.raises(InsufficientCreditsError):
         _decrement_credit_or_raise(sb, user_id="u-1")
+
+
+def test_decrement_credit_pre_check_skips_rpc_when_balance_below_cost():
+    from getviews_pipeline.channel_diagnose import (
+        CHANNEL_DIAGNOSE_CREDIT_COST,
+        InsufficientCreditsError,
+        _decrement_credit_or_raise,
+    )
+
+    sb = MagicMock()
+    sb.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
+        data={"credits_remaining": CHANNEL_DIAGNOSE_CREDIT_COST - 1}
+    )
+    with pytest.raises(InsufficientCreditsError):
+        _decrement_credit_or_raise(sb, user_id="u-1")
+    sb.rpc.assert_not_called()
+
+
+def test_decrement_credit_charges_three_times_on_success():
+    from getviews_pipeline.channel_diagnose import (
+        CHANNEL_DIAGNOSE_CREDIT_COST,
+        _decrement_credit_or_raise,
+    )
+
+    sb = MagicMock()
+    sb.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
+        data={"credits_remaining": CHANNEL_DIAGNOSE_CREDIT_COST}
+    )
+    sb.rpc.return_value.execute.return_value = MagicMock(data=5)
+    _decrement_credit_or_raise(sb, user_id="u-1")
+    assert sb.rpc.call_count == CHANNEL_DIAGNOSE_CREDIT_COST
+    assert CHANNEL_DIAGNOSE_CREDIT_COST == 3
 
 
 def test_decrement_credit_lets_transport_errors_bubble():
@@ -550,6 +585,9 @@ def test_decrement_credit_lets_transport_errors_bubble():
     )
 
     sb = MagicMock()
+    sb.table.return_value.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(
+        data={"credits_remaining": 10}
+    )
     sb.rpc.return_value.execute.side_effect = RuntimeError("502 Bad Gateway")
     with pytest.raises(RuntimeError, match="502"):
         _decrement_credit_or_raise(sb, user_id="u-1")

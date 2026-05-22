@@ -4,7 +4,8 @@
 **Date:** 2026-05-22  
 **Branch baseline:** `main` (as-built re-verified 2026-05-22)  
 **Status:** SSOT for incremental path to V1 vision — **not** a wholesale `feature-map-v1.md` implementation plan  
-**Changelog v1.1:** As-built audit — fix ref-pool vs channel-peer gaps, `peer_percentile` wiring, W1-4 done scope, handoff inventory, Compare GTM note, F8 DoD.
+**Changelog v1.1:** As-built audit — fix ref-pool vs channel-peer gaps, `peer_percentile` wiring, W1-4 done scope, handoff inventory, Compare GTM note, F8 DoD.  
+**Wave 0 (2026-05-22):** ✅ Complete — see §4 Wave 0 status.
 
 **Related docs:**
 
@@ -121,7 +122,19 @@ Khi item wire extract → user value, PR phải có:
 
 ## 4. Waves 0–5 (ease / risk ordered)
 
-### Wave 0 — Trust, docs, cron SLA (no schema epic)
+### Wave 0 — Trust, docs, cron SLA (no schema epic) ✅ *Shipped 2026-05-22*
+
+| Item | Status | Notes |
+|------|--------|-------|
+| W0-1 Channel billing 3× | ✅ | `CHANNEL_DIAGNOSE_CREDIT_COST=3`; pre-check ≥3 before RPC; FE comment sync |
+| W0-2 Doc hygiene | ✅ | utilization map header + feature-map cross-links |
+| W0-3 Cron SLA checklist | ✅ | [`wave0-cron-sla-checklist.md`](../docs/wave0-cron-sla-checklist.md) |
+| W0-4 TD-7 pytest gate | ✅ | `test_hi9_extraction_models`, `test_corpus_boost_w0`, channel credit + endpoint tests; `test_cohort_assignment_parity` stale (settings monkeypatch — pre-existing) |
+| W0-5a Ref pool verify | ✅ | `test_corpus_boost_w0.py` + existing instructiveness tests |
+| W0-5b M1 columns verify | ✅ | migrations `20260520000000`, `20260730000000`; boost classify tests |
+
+<details>
+<summary>Wave 0 task table (reference)</summary>
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
@@ -133,6 +146,8 @@ Khi item wire extract → user value, PR phải có:
 | **W0-5b** M1 `boost_attribution` columns — verify ingest + promoted cols live | S | Low | F8 BAT | Batch refs | Corpus rollup | Cols populated on nightly ingest sample | migrations, `corpus_boost_suspect.py` |
 
 **Wave 0 exit:** billing aligned; corpus-health runnable; ref pool verified; **no** migration `analysis_depth`.
+
+</details>
 
 ---
 

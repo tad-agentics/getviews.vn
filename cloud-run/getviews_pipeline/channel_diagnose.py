@@ -38,8 +38,28 @@ class InsufficientCreditsError(Exception):
     """``decrement_credit`` returned NULL (no credits to spend) or raised."""
 
 
+# Must match ``ChannelScreen.tsx`` ``CREDIT_COST`` and vision §10 (F4 Channel Sâu).
+CHANNEL_DIAGNOSE_CREDIT_COST = 3
+
+
+def _read_credits_remaining(user_sb: Any, *, user_id: str) -> int:
+    """Current ``profiles.credits_remaining`` for the authenticated user."""
+    res = (
+        user_sb.table("profiles")
+        .select("credits_remaining")
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+    row = res.data if isinstance(res.data, dict) else {}
+    return int(row.get("credits_remaining") or 0)
+
+
 def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
-    """Decrement one credit; distinguish "out of credits" from "infra failed".
+    """Decrement ``CHANNEL_DIAGNOSE_CREDIT_COST`` credits (3× RPC).
+
+    Pre-checks balance **before** any RPC so API callers with 1–2 credits
+    are not partially charged (TD-1 adjacent — atomic single-credit RPC only).
 
     On NULL response (the RPC's signal for "no credits remain") raise
     ``InsufficientCreditsError`` so the caller can surface
@@ -48,10 +68,17 @@ def _decrement_credit_or_raise(user_sb: Any, *, user_id: str) -> None:
     can map them to ``stream_failed`` — the previous behaviour
     rewrapped every error as ``InsufficientCreditsError`` and told the
     user "Hết credit" for what was actually a Supabase outage.
+
+    Parity: ``answer_session.append_turn`` script path (3× loop); FE
+    ``ChannelScreen`` gates ``credits_remaining >= 3``.
     """
-    rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
-    if rpc_resp.data is None:
+    if _read_credits_remaining(user_sb, user_id=user_id) < CHANNEL_DIAGNOSE_CREDIT_COST:
         raise InsufficientCreditsError()
+
+    for _ in range(CHANNEL_DIAGNOSE_CREDIT_COST):
+        rpc_resp = user_sb.rpc("decrement_credit", {"p_user_id": user_id}).execute()
+        if rpc_resp.data is None:
+            raise InsufficientCreditsError()
 
 
 def _fetch_niche_benchmarks(
