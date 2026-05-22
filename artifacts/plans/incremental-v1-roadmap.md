@@ -2,10 +2,11 @@
 
 **Version:** 1.1  
 **Date:** 2026-05-22  
-**Branch baseline:** `main` (as-built re-verified 2026-05-22)  
+**Branch baseline:** `main` @ `e3b5d01` (as-built re-verified 2026-05-22)  
 **Status:** SSOT for incremental path to V1 vision — **not** a wholesale `feature-map-v1.md` implementation plan  
 **Changelog v1.1:** As-built audit — fix ref-pool vs channel-peer gaps, `peer_percentile` wiring, W1-4 done scope, handoff inventory, Compare GTM note, F8 DoD.  
-**Wave 0 (2026-05-22):** ✅ Complete — see §4 Wave 0 status.
+**Wave 0 (2026-05-22):** ✅ Complete — see §4 Wave 0 status.  
+**Wave 1 (2026-05-22):** ✅ Complete — `feat(wave1): handoffs + peer_percentile + win signals` @ `e3b5d01`.
 
 **Related docs:**
 
@@ -92,31 +93,31 @@ Khi item wire extract → user value, PR phải có:
 
 | Gap | As-built evidence | Incremental wave |
 |-----|-------------------|------------------|
-| Channel credit FE≠BE | `ChannelScreen.tsx` `CREDIT_COST=3`; `channel_diagnose.py` **1×** `decrement_credit` | **Wave 0** |
-| Trends→Answer handoff | Navigate sites dùng `state.prefillUrl`; `AnswerScreen` chỉ đọc `q`/`session` — **không** parse `depth`/`mode`/`from` | **Wave 1** |
-| No `analysis_depth` | No FE/BE param; cache `.eq("video_id")` only | **Wave 3+** |
-| Home vs Trends breakout scope | ✅ Tier III copy fixed (`da76f96`). Còn: `BreakoutGrid` (`useTopBreakouts`) vs `TrendsRail` (`useTrendsRailVideos`) vs `CrossNicheBreakoutLane` — 3 surface khác hook, dễ nhầm | **Wave 1–2** |
+| Channel credit FE≠BE | ✅ W0-1 — `CHANNEL_DIAGNOSE_CREDIT_COST=3`; FE/BE aligned @ `8ad7ab0` | — |
+| Trends→Answer handoff | ✅ W1-1/W1-2 — `answerHandoff.ts`; query `depth`/`mode`/`from` → `video_mode` on `/answer/turns` @ `e3b5d01` | — |
+| No `analysis_depth` | Param accepted/logged on BE; **not** enforced (no F2 whitelist, no cache partition) | **Wave 3+** |
+| Home vs Trends breakout scope | ✅ W1-4 copy — Tier III vs TrendsRail 7d/viral vs CrossNiche; nav dedup UX residual → W2 if needed | **Wave 2** (optional) |
 | Answer follow-up turn 2+ | `FollowUpComposer` in `AnswerScreen.tsx` | **Gate** — Wave 5 or post-V1 |
 | `channel_findings[]` P0 | Channel = memo SSE, no manifest | **Wave 4** |
-| `peer_percentile` | ✅ W1-3 — `finalize_niche_meta_peer_tier` + label when `content_class_tier` axis | — |
+| `peer_percentile` | ✅ W1-3 — `finalize_niche_meta_peer_tier` + label when `content_class_tier` axis @ `e3b5d01` | — |
 | Ref pool `reference_eligible` | ✅ Batch ingest + `fetch_corpus_reference_pool` filter (`corpus_context.py`) | **Done** — verify only |
 | Channel peer ads-skew | `_run_peer_corpus_query` **không** `.eq("reference_eligible", True)` | **Wave 4** |
-| Utilization map stale | ✅ **W1-5 done 2026-05-22** — v1.1 resync @ `8ad7ab0`; orphans + BAT column as-built | — |
+| Utilization map stale | ✅ W1-5 — v1.1 resync @ `88a86e5`; orphans + BAT column as-built | — |
 
 ### 3.1 Handoff inventory (vision §4.10)
 
-| Entry surface | Target (V1) | As-built | Wave |
-|---------------|-------------|----------|------|
-| Kho video / Explore card | `/app/answer?q={url}&depth=basic&mode=win&from=trends` | `navigate(..., { prefillUrl })` | W1-1 |
-| `TrendsRail` row click | same + `from=trends` | `prefillUrl` only | W1-1 |
-| `PatternModal` / evidence tile | `?q=` + inherit depth/mode | `prefillUrl` | W1-2 |
-| `GenericEvidenceGrid` | same | `prefillUrl` | W1-2 |
-| `SceneIntelligencePanel` | same | `prefillUrl` | W1-2 |
-| `IdeaBlock` | same | `prefillUrl` (raw aweme_id) | W1-2 |
+| Entry surface | Target (V1) | As-built @ `e3b5d01` | Wave |
+|---------------|-------------|----------------------|------|
+| Kho video / Explore card | `/app/answer?q={url}&depth=basic&mode=win&from=trends` | ✅ query URL via `answerHandoff` / inline equivalent | ✅ W1-1 |
+| `TrendsRail` row click | same + `from=trends` | ✅ `trendsVideoHandoffPath` | ✅ W1-1 |
+| `PatternModal` / evidence tile | `?q=` + inherit depth/mode | ✅ `from=pattern`; evidence tiles inherit via `inheritHandoffFromSearch` | ✅ W1-2 |
+| `GenericEvidenceGrid` | same | ✅ `inheritHandoffFromSearch` (`from=evidence`) | ✅ W1-2 |
+| `SceneIntelligencePanel` | same | ✅ `inheritHandoffFromSearch` (`from=script`) | ✅ W1-2 |
+| `IdeaBlock` | same | ✅ `from=ideas` (raw aweme_id) | ✅ W1-2 |
 | Home composer / Studio | pill + depth picker (post-W3) | free-text `?q=` only | W3 |
-| Compare single-side fallback | `/app/answer` + `prefillUrl` | ✅ as-built | — |
+| Compare single-side fallback | `/app/answer` + `prefillUrl` | ✅ state `prefillUrl` → query migrate (legacy) | — |
 
-**Note:** ✅ W1-1 — `mode=win` via `?mode=` → `video_mode` on `/answer/turns` → `build_video_report(mode=…)`.
+**Note:** ✅ W1-1 — `mode=win` via `?mode=` → `video_mode` on `/answer/turns` → `build_video_report(mode=…)`. `analysis_depth` logged only until Wave 3.
 
 ---
 
@@ -151,16 +152,19 @@ Khi item wire extract → user value, PR phải có:
 
 ---
 
-### Wave 1 — Handoffs, dedup UX, small wiring
+### Wave 1 — Handoffs, dedup UX, small wiring ✅ *Shipped 2026-05-22 @ `e3b5d01`*
 
 | Item | Status | Notes |
 |------|--------|-------|
-| W1-5 Utilization map resync | ✅ | `data-utilization-map-v1.md` v1.1 @ `8ad7ab0`; 16×82, class MV rows, pivot §9, `🔨` vision markers |
 | W1-1 Trends → Answer query params | ✅ | `answerHandoff.ts`; BE `video_mode` on `/answer/turns` |
 | W1-2 §3.1 handoff sites | ✅ | PatternModal, evidence, SceneIntel, IdeaBlock + `feature-map.md` |
 | W1-3 peer_percentile pipeline | ✅ | `finalize_niche_meta_peer_tier` + label; `creator_tier` on tier MV |
 | W1-4 Home vs Trends dedup copy | ✅ | Tier III / TrendsRail / CrossNiche CTAs |
+| W1-5 Utilization map resync | ✅ | `data-utilization-map-v1.md` v1.1 @ `88a86e5` |
 | W1-6 Win W0 signals (2) | ✅ | `signals/win.py`; `test_signals_win.py` |
+
+<details>
+<summary>Wave 1 task table (reference)</summary>
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
@@ -171,7 +175,9 @@ Khi item wire extract → user value, PR phải có:
 | **W1-5** Resync `data-utilization-map-v1.md` — 16×82, class MV rows, pivot §9 | M | Low | F8 gate accurate | Matrix | Matrix | Orphan count ≤5; BAT column matches cron; as-built `🔨` markers | `data-utilization-map-v1.md` |
 | **W1-6** Win path W0 — **P0 subset (2)** of vision §4.8.3: `win_er_above_niche_p75`, `win_hook_aligns_niche_top` | M | Med | F2 utilizes extract on hit tier | §4.8 W0 | — | New `signals/win.py`; `tier_gate=hit`; unit tests; fire-rate logged | `signals/win.py`, `signals/registry.py`, tests |
 
-**Wave 1 exit:** §3.1 handoffs spec-compliant; ~~utilization map resynced~~ ✅ W1-5 done; W0 P0 win signals tested; peer tier visible in UI.
+**Wave 1 exit:** ✅ §3.1 handoffs spec-compliant; utilization map resynced; W0 P0 win signals tested; peer tier label on tier-MV path. **`analysis_depth` enforcement deferred Wave 3.**
+
+</details>
 
 ---
 
@@ -384,18 +390,20 @@ Incremental V1 **launch-ready** when:
 - W4 channel_findings P0 **or** waiver with documented risk: channel memo remains free-form → **F8 gap** on aggregate `analysis_json` / compliance roll-ups until C1 ships
 - §13B items traced to wave IDs in QA report
 - F8: no undocumented orphans; `key_messages` trim only after G6
-- §13A `peer_percentile` — treat as **W1-3 complete**, not “shipped” until BE calls enrich + label
+- §13A `peer_percentile` — ✅ **W1-3 shipped** @ `e3b5d01` (`finalize_niche_meta_peer_tier` + `peer_percentile_label` on `content_class_tier` axis)
 
 ---
 
-## 13. Top quick wins (post-audit priority)
+## 13. Top quick wins (next — Wave 2+)
 
-1. **W0-1** — Channel credit FE=3 / BE=1 alignment.
-2. **W1-3** — Wire `enrich_niche_meta_with_peer_tier` + `peer_percentile_label` (highest F8 Video impact on current path).
-3. **W1-1** — Trends handoff query params + `AnswerScreen` parser.
-4. **W0-3** — Cron SLA + `corpus-health` checklist.
-5. **W1-4** — Scope/nav clarity across Home breakout vs Trends rails vs cross-niche lane (copy already done).
+1. **W2-1** — Studio tier I ritual → Script Studio ≤2 tap.
+2. **W2-2** — `ConfidenceStrip` consistent on F6 pattern + kho.
+3. **W2-3** — Hero niche list doc + `BATCH_PRIORITY_NICHE_IDS` align.
+4. **W3-1** — `analysis_depth` migration + F2 whitelist (hard epic).
+5. **W4-1** — `channel_findings[]` P0 on channel memo path.
+
+*W0 + W1 complete @ `e3b5d01` — see §4 status tables.*
 
 ---
 
-*Maintainer: Tech Lead. Next review after Wave 1 merge or taxonomy change.*
+*Maintainer: Tech Lead. Next review after Wave 2 merge or taxonomy change.*

@@ -7,7 +7,7 @@
 **Code baseline:** `main` @ `8ad7ab0` (Wave 0 shipped)  
 **Status:** As-built FIELD × feature matrix + V1 gap markers (`🔨`)  
 **Vision:** [`feature-map-v1.md`](feature-map-v1.md) v2.0 FINAL  
-**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · W1-5 ✅ · Wave 1+ open  
+**Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · Wave 1 ✅ @ `e3b5d01` · Wave 2+ open  
 **As-built routes:** [`feature-map.md`](feature-map.md)  
 **Technical audit:** [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) (tier A–D, trim-safe)  
 **Schema source:** [`models.py`](../../cloud-run/getviews_pipeline/models.py) `VideoAnalysis` · [`corpus_ingest.py`](../../cloud-run/getviews_pipeline/corpus_ingest.py) `_build_corpus_row`

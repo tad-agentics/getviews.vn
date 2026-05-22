@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Docs: Wave 1 complete in incremental roadmap
+
+- **`incremental-v1-roadmap.md`:** Wave 1 ✅ @ `e3b5d01`; §3 gaps + §3.1 handoffs resynced; §13 → Wave 2+ priorities.
+- **`data-utilization-map-v1.md`:** Header Wave 1 ✅.
+
 ## 2026-05-22 — Wave 1: handoffs, peer_percentile, win signals
 
 - **W1-1/W1-2:** §3.1 handoffs use `?q=&depth=basic&mode=win&from=` — `AnswerScreen` parses params; `POST /answer/turns` accepts `video_mode`, `analysis_depth`, `source_entry` → `build_video_report(mode=…)`.
