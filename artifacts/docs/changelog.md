@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Docs: resync feature-map-v1 with two-axis as-built
+
+- **`feature-map-v1.md`:** Header `8969f3e`; §3 Morning Signal + Tier III copy; CrossNiche lane; §8 taxonomy 16×82 + HI-11 route prod; §13A/B shipped vs open gates; D12 two-axis done.
+- **`feature-map.md`:** As-built inventory synced (prior commit `8969f3e`).
+
 ## 2026-05-22 — Docs: archive PR1–PR6 cutover, trim HI-11 runbook
 
 - Archive `two-axis-niche-cutover-pr1-pr6.md` (completed 2026-05-13 cutover).

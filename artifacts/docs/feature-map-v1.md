@@ -1,17 +1,18 @@
 # Product Vision V1 — GetViews.vn
 
 **Version:** 2.0 — **FINAL (GTM scope)**  
-**Last updated:** 2026-05-19  
-**Codebase ref:** `dc8c675`  
+**Last updated:** 2026-05-22  
+**Codebase ref:** `8969f3e`  
 **Status:** Product vision **đã chốt** cho launch — lược giản so với as-built; **freeze UI** hai surface browse (Studio gợi ý + Xu hướng công thức/kho); phần còn lại = build/align (video depth, billing, handoff)
 
-> **Pivot SSOT (2026-05-21+):** Production ingest/browse/benchmark defaults — [`system-design.md`](system-design.md) §9. Launch gate rows below may cite legacy `niche_intelligence`; class MVs are canonical for new ingest.
+> **Pivot SSOT (2026-05-21+, prod defaults ON):** Class-first ingest/browse/benchmark — [`system-design.md`](system-design.md) §9. **`content_class_intelligence`** + tier/stats MVs canonical; legacy `niche_intelligence` refresh **skipped** in prod (bridge only for unmigrated percentile paths).
 
 **Related docs:**
 
 | Doc | Role |
 |-----|------|
-| [`feature-map.md`](feature-map.md) | Inventory as-built + **Post-V1 backlog** (mọi thứ không build V1) |
+| [`feature-map.md`](feature-map.md) | Inventory as-built + **Post-V1 backlog** — synced `8969f3e` |
+| [`two-axis-niche-model.md`](two-axis-niche-model.md) | Taxonomy SSOT (16 niches × 82 classes, junction, MV chain) |
 | [`product-value-audit.md`](product-value-audit.md) | Value → data audit, gaps, PVA backlog |
 | [`corpus-gemini-utilization-audit.md`](corpus-gemini-utilization-audit.md) | Extract field tiers, trim rules |
 | [`data-utilization-map-v1.md`](data-utilization-map-v1.md) | **FIELD × feature** matrix (F1–F8 + Studio) — pre-implement gate |
@@ -19,7 +20,7 @@
 | [`emotional-design-system.md`](emotional-design-system.md) | Persona Minh, tone, authority |
 | [`bao-cao-flop-video-kenh-toan-dien-v5.md`](bao-cao-flop-video-kenh-toan-dien-v5.md) | Taxonomy flop (§1.8 Seeding & Ads) — signal engineering reference |
 
-**Maintenance:** Chỉ ghi **trong V1** ở file này. Cắt khỏi V1 → **xóa** khỏi vision doc, **thêm** dòng vào [`feature-map.md`](feature-map.md) § Post-V1 backlog. Khi ship: cập nhật cùng commit (1) vision, (2) `feature-map.md`, (3) [`system-design.md`](system-design.md).
+**Maintenance:** Chỉ ghi **trong V1** ở file này. Cắt khỏi V1 → **xóa** khỏi vision doc, **thêm** dòng vào [`feature-map.md`](feature-map.md) § Post-V1 backlog. Khi ship: cập nhật cùng commit (1) vision, (2) `feature-map.md`, (3) [`system-design.md`](system-design.md), (4) [`changelog.md`](changelog.md).
 
 ---
 
@@ -42,7 +43,7 @@ Hai surface **browse** không reshape cho GTM — chỉ fix handoff / billing / 
 | **Studio** | `/app` | **Gợi ý hôm nay** — 3 tầng [`HomeSuggestionsToday.tsx`](../../src/routes/_app/home/components/HomeSuggestionsToday.tsx): I Hôm nay quay ngay · II Công thức nền · III Cảm hứng | Composer **4 pill** + Cơ bản/Chuyên sâu; URL-only; §4 |
 | **Xu hướng** | `/app/trends` | **Công thức từ video viral trong ngách** [`TrendsPatternGrid`](../../src/routes/_app/trends/TrendsPatternGrid.tsx) + **Kho video** [`ExploreScreen`](../../src/routes/_app/trends/ExploreScreen.tsx) § II | Card → Answer: `depth=basic&mode=win&from=trends` (§4.10) |
 
-**Không yêu cầu V1:** segment TikTok/Douyin riêng trên Xu hướng; duplicate “Hôm nay” trên Trends; reshape F6. Các block phụ (âm thanh, `TrendsDouyinCard`, `TrendsRail`, thesis hero) — **giữ nếu code đã có**, không block launch → [`feature-map.md`](feature-map.md) § Post-V1.
+**Không yêu cầu V1:** segment TikTok/Douyin riêng trên Xu hướng; duplicate “Hôm nay” trên Trends; reshape F6. Các block phụ (âm thanh, `TrendsDouyinCard`, `TrendsRail`, `CrossNicheBreakoutLane`, thesis hero) — **giữ nếu code đã có**, không block launch → [`feature-map.md`](feature-map.md) § Post-V1.
 
 ---
 
@@ -118,11 +119,13 @@ Giữ nguyên khối **GỢI Ý HÔM NAY** — 3 tầng, không reshape layout/c
 
 | Tầng | Tag | Nội dung | Component |
 |------|-----|----------|-----------|
-| **I** | HÔM NAY QUAY NGAY | 3 video tiếp theo + kịch bản sẵn | [`StudioHero`](../../src/routes/_app/home/components/StudioHero.tsx) + `daily_ritual` |
-| **II** | CÔNG THỨC NỀN | Hook/pattern đứng sau gợi ý | [`HooksTable`](../../src/routes/_app/home/components/HooksTable.tsx) embedded |
-| **III** | CẢM HỨNG | 3 video nổi ngoài kênh | [`BreakoutGrid`](../../src/routes/_app/home/components/BreakoutGrid.tsx) → link `/app/trends` |
+| **I** | HÔM NAY QUAY NGAY | Morning Signal (format đang nổi) + 3 kịch bản ritual | [`MorningSignalStrip`](../../src/routes/_app/home/components/MorningSignalStrip.tsx) (`useClassMorningSignals` → `content_class_intelligence` MV, primary junction; energy toggle [`productionFriction.ts`](../../src/lib/productionFriction.ts)) + [`StudioHero`](../../src/routes/_app/home/components/StudioHero.tsx) (`GET /home/daily-ritual`) |
+| **II** | CÔNG THỨC NỀN | Hook/pattern đứng sau gợi ý | [`HooksTable`](../../src/routes/_app/home/components/HooksTable.tsx) embedded (`useTopPatterns`) |
+| **III** | CẢM HỨNG | 3 video breakout **trong ngách** (creator khác) | [`BreakoutGrid`](../../src/routes/_app/home/components/BreakoutGrid.tsx) (`useTopBreakouts` — `content_class_id IN` junction) → link `/app/trends` |
 
-Tier III = bridge sang Tab Xu hướng (kho + công thức đầy đủ) — **không** duplicate ritual trên Trends.
+*Layout freeze preserved — Wave 3a/3b added sub-blocks inside existing tiers, no reshape.*
+
+Tier III = within-niche teaser → Tab Xu hướng (kho + công thức đầy đủ). **Cross-format** inspiration = `CrossNicheBreakoutLane` on Trends only (§3.2.2) — **không** duplicate ritual trên Trends.
 
 #### 3.1.2 Composer + pills — **V1 build**
 
@@ -150,7 +153,7 @@ Tab riêng — **không** gộp pill Studio. TopBar as-built: “Xu Hướng Tu�
 | # | Tiêu đề user-facing | Phần | Component | Data |
 |---|---------------------|------|-----------|------|
 | **1** | **Công thức từ video viral trong ngách** | Phần I — Pattern | [`TrendsPatternGrid`](../../src/routes/_app/trends/TrendsPatternGrid.tsx) + `PatternModal` | `useTopPatterns`, `video_patterns` |
-| **2** | **Kho video** (kicker `II — KHO VIDEO`) | Tìm trong corpus + filter | `ExploreScreen` grid + `ExploreCorpusVideoModal` | `video_corpus`, niche pills |
+| **2** | **Kho video** (kicker `II — KHO VIDEO`) | Tìm trong corpus + filter | `ExploreScreen` grid + `ExploreCorpusVideoModal` | `video_corpus`, `applyVideoCorpusNicheFilter` (`content_class_id IN` junction), `useContentClassIntelligence` (thin banner) |
 
 **CTA V1 (build, không đổi 2 khối trên):** tap tile / breakout / “Giải mã” → `/app/answer?q=…&depth=basic&mode=win&from=trends` (§4.10).
 
@@ -160,7 +163,8 @@ Tab riêng — **không** gộp pill Studio. TopBar as-built: “Xu Hướng Tu�
 |-------|-----|
 | `TrendsNichePills`, `TrendsPatternThesisHero` | ✅ Giữ |
 | `TrendingSoundsSection`, `TrendsDouyinCard` | ✅ Giữ — **không** bắt buộc QA segment Douyin |
-| `TrendsRail` (desktop) | ✅ Giữ |
+| `CrossNicheBreakoutLane` | ✅ Shipped (Wave 3b) — cap 3, `content_class_id NOT IN` junction; distinct from Home Tier III |
+| `TrendsRail` (desktop) | ✅ Giữ — `ingest_loop_niche_id` within-niche list; may overlap Home Tier III data |
 | Segment cấp 1 **TikTok \| Douyin** | ❌ **Không** ship requirement — Post-V1 |
 
 **Ritual “hôm nay quay gì”** chỉ ở **Studio §3.1.1** — không thêm block ritual trên Xu hướng cho V1.
@@ -374,7 +378,7 @@ Mỗi signal `boost_*` export `evidence_strength` + `claim`; synthesis **bắt b
 
 | # | Phương pháp | Input (đã có / thêm) | Output | Phase |
 |---|-------------|----------------------|--------|-------|
-| **M1** | **Cross-section heuristic** | `views`, `likes`, `comments`, `engagement_rate`, `breakout_multiplier` vs phân vị `niche_intelligence` (p25/p50/p90) | `boost_attribution`: `organic_confident` · `suspect_low` · `suspect_medium` | **P0** |
+| **M1** | **Cross-section heuristic** | `views`, `likes`, `comments`, `engagement_rate`, `breakout_multiplier` vs phân vị cohort (post-pivot: **`content_class_intelligence`** / class-tier where available; legacy `niche_intelligence` bridge until M1 migrates) | `boost_attribution`: `organic_confident` · `suspect_low` · `suspect_medium` | **P0** |
 | **M2** | **Reference hygiene** | `reference_eligible = false` khi `suspect_medium`; sort ref: proximity → ER **nếu** ER ≥ median ngách; breakout chỉ khi pass ER guard | G2 | **P0** |
 | **M3** | **Live video (on diagnose)** | Cùng rule M1 trên `user_stats` + `niche_meta` percentiles | Signal vào manifest; có thể emit `boost_attribution` | **P1** |
 | **M4** | **Stats time-series** | `video_corpus.stats_history` JSONB: snapshot lúc ingest + batch re-fetch T+6h, T+24h (ED `fetch_post_info`) | `distribution_shape`: `spike_then_flat` → tăng salience suspect (gợi ý seeding/ads backfire **pattern**) | **P1** |
@@ -429,7 +433,7 @@ Không field request-body / không cột `user_declared_*`.
 | `fetch_corpus_reference_pool` | Filter `reference_eligible = true`; order ER desc nhưng pick qua proximity + ER ≥ `median_er` |
 | `_select_by_proximity_then_er` | Deprioritize / skip `suspect_medium` rows còn sót |
 | `select_top_performers` | Sort `breakout_multiplier` với ER guard, không raw `views` |
-| `niche_intelligence` MV | Aggregate từ `reference_eligible = true` |
+| `niche_intelligence` MV | Aggregate từ `reference_eligible = true` — **bridge**; canonical aggregates → class MVs post-pivot |
 | Home / ticker | Ưu tiên breakout **và** `reference_eligible` (thin corpus → disclaimer như hiện) |
 
 Video user `suspect_medium`: narrative nói refs là **corpus organic-shaped**; so sánh format/hook, không gọi peer là “viral mẫu mực” nếu peer bị loại.
@@ -556,9 +560,11 @@ Mở rộng `build_diagnosis_ctx` / batch để `niche_meta` luôn có (khi `cla
 | `avg_transitions_per_second`, `avg_hashtag_count`, `pct_has_caption_text` | editing / metadata backlog |
 | `reference_eligible` filter trên refs | `niche_reference_anchor` không anchor video ads-skew |
 
-Refresh: tái dùng `niche_intelligence` MV + query percentiles trong `corpus_context.py` — không query full corpus mỗi request.
+Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corpus_context.py`) where available; legacy `niche_intelligence` rows for unmigrated paths — không query full corpus mỗi request.
 
 #### 4.8.5 Thứ tự implement (gắn §11)
+
+*Pre-two-axis plan — depth/cache items still 🔨; W0/S1 boost still open.*
 
 | Sprint | Deliverable |
 |--------|-------------|
@@ -1077,14 +1083,14 @@ UI: `ConfidenceStrip` / humility khi dưới ngưỡng — **đã có** trên pa
 
 | ID | Tên | Trạng thái |
 |----|-----|------------|
-| **F8** | Data plane + cron SLA + utilization gates | **Partial** — crons live; ablation/search_vector/HI-11 open |
+| **F8** | Data plane + cron SLA + utilization gates | **Partial** — crons live; HI-11 route ✅ prod; ablation/search_vector open |
 
 ### 8.5 V1 data investments (ưu tiên)
 
 1. Corpus depth per niche (ingest + analytics)  
 2. Signal fire-rate ablation trước mọi prompt trim (`key_messages` only trim-safe)  
 3. `search_vector` + `subject_matter` proximity  
-4. HI-11 `route` flip sau 100-row audit ([`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md))  
+4. **HI-11 `route` mode** — ✅ **Shipped prod** (2026-05-17+); rollback = `NICHE_RESOLVER_MODE=shadow` ([`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md); historical PR1–PR6 → [`archive/two-axis-niche-cutover-pr1-pr6.md`](archive/two-axis-niche-cutover-pr1-pr6.md))  
 5. **Boost attribution P0–P1** (§4.7): heuristic + `reference_eligible` + optional `stats_history`  
 6. **`video_diagnostics` composite key** `(video_id, analysis_depth)` — §4.12.3  
 
@@ -1115,10 +1121,10 @@ Sau launch        →  Diagnosis tận dụng blob đã có (corpus-hit → synt
 
 | Trục | Bảng | Vai trò pre-launch |
 |------|------|-------------------|
-| Creator niche (UX) | `creator_niches` (16) | Pill Studio/Xu hướng, ritual, pattern filter |
-| Content class (granular) | `content_classifications` (74) + junction | **Canonical cohort** when pivot flags on (`CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`); browse via `classFirstBrowse`; diagnosis peers `(class, creator_tier)` |
+| Creator niche (UX) | `creator_niches` (**16 active**) | Pill Studio/Xu hướng, ritual, pattern filter — taxonomy v2: `comedy` (5) restored, `art_craft` (17) added, `pets_home` (13) retired |
+| Content class (granular) | `content_classifications` (**82**: 77 video + 5 carousel) + junction | **Canonical cohort** — prod defaults ON: `CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`, class-first browse; class **82** `ai_tool_workflow_tutorial`; diagnosis peers `(class, creator_tier)` |
 
-Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map-v1.md). Cutover: [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md).
+Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map-v1.md). Cutover ops: [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md). Taxonomy tables: [`two-axis-niche-model.md`](two-axis-niche-model.md).
 
 ### 8.7 Pre-launch utilization gate (tối đa giá trị trên cùng budget)
 
@@ -1130,7 +1136,7 @@ Chi tiết FIELD × feature: [`data-utilization-map-v1.md`](data-utilization-map
 |---------|-----|-------------------|-----------------|
 | **Xu hướng — Công thức** | F6 | `video_patterns` | Mỗi **ngách hero** ≥ 1 pattern có mechanism + ví dụ; không card rỗng |
 | **Xu hướng — Kho** | F6 | `video_corpus` promote cols | Filter/search; `ConfidenceStrip` đúng tier §8.3 |
-| **Studio — Gợi ý** | STU | `daily_ritual`, `hook_effectiveness`, breakout | Cron `morning-ritual` OK; preview tier I–III trên staging |
+| **Studio — Gợi ý** | STU | `daily_ritual`, `content_class_intelligence`, breakout | Cron `morning-ritual` OK; tier I = Morning Signal + ritual; tier III = within-niche breakouts; preview tier I–III trên staging |
 | **Hook / format chips** | F6/STU | `hook_effectiveness`, `content_class_hook_effectiveness`, `content_class_intelligence` | Thin → copy khiêm tốn; **`content_class_intelligence`** primary; `niche_intelligence` bridge only (MV refresh off in prod) |
 
 #### Tầng 2 — Aggregate từ corpus (Gemini **rẻ** hơn vision — tận dụng blob)
@@ -1156,7 +1162,7 @@ Chạy / verify nightly (F8 BAT) — **không** tăng `video_extraction`:
 | `hook_type`, `hook_phrase`, `views`, `engagement_rate`, `content_format` | Kho + patterns + STU |
 | `content_context.subject_matter` | Ritual + pattern naming |
 | `niche_classification` / `content_class_id` / `inferred_creator_niche_id` | Pill + filter (shadow OK) |
-| MV: `hook_effectiveness`, `video_patterns`, `niche_intelligence` | F6 + claim tiers |
+| MV: `hook_effectiveness`, `video_patterns`, **`content_class_intelligence`** (+ tier/stats MVs) | F6 + claim tiers; `niche_intelligence` bridge only (refresh skipped) |
 
 **P1 defer** (vẫn trong full extract / TD-7; **không** block launch UI):
 
@@ -1189,15 +1195,16 @@ Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** h
 
 | ID | Feature | Trụ | Basic/Deep | Ship | Route / entry |
 |----|---------|-----|------------|------|----------------|
-| F1 | Phân tích video Chuyên sâu | 1 | Deep | ◐ | `/app/answer` + `analysis_depth=deep` |
+| **STU** | Studio — Gợi ý hôm nay (3 tầng) | — | — | ✅ UI · ◐ data | `/app` — Morning Signal + ritual + breakouts (§3.1.1) |
+| F1 | Phân tích video Chuyên sâu | 1 | Deep | ◐ | `/app/answer` + `analysis_depth=deep` (🔨 not in code) |
 | F2 | Phân tích video Cơ bản (Win doomscroll) | 1 | Basic | 🔨 | `/app/answer?depth=basic`; Trends: `mode=win&from=trends` (§4.10) |
-| F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` |
+| F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` — `POST /channel/diagnose` |
 | F5 | Soi kênh Nhanh | 2 | Basic | 🔨 | Xu hướng card / channel |
-| F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · 🔨 handoff | `/app/trends` §3.2.1 |
+| F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · 🔨 handoff | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
 | F7 | Script Studio | 4 | — | ◐ | `/app/script` |
-| F8 | Data plane | 5 | — | ◐ | batch + claim tiers |
+| F8 | Data plane | 5 | — | ◐ | batch + claim tiers; HI-11 route ✅ prod |
 
-Legend: ✅ shipped · ◐ partial · 🔨 V1 build
+Legend: **✅ shipped** = in prod code today · **◐ partial** = surface live, spec gap remains · **🔨 V1 build** = in vision, not in code
 
 ---
 
@@ -1240,13 +1247,13 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 |------------|-----|------------|
 | Video | `build_video_report`, `VideoBody` | §4.2–§4.12 |
 | Kênh | `/channel/diagnose` | F5 peek; fix 3 vs 1 credit (D2) |
-| Xu hướng | `TrendsPatternGrid` + Kho video §3.2.1 | **Giữ UI**; CTA → `from=trends` §4.10 |
-| Studio home | `HomeSuggestionsToday` 3 tầng §3.1.1 | **Giữ UI** |
+| Xu hướng | `TrendsPatternGrid` + Kho video §3.2.1 + `CrossNicheBreakoutLane` | **Giữ UI**; CTA → `from=trends` §4.10 (🔨 wiring) |
+| Studio home | `HomeSuggestionsToday` 3 tầng §3.1.1 | **Giữ UI** — Morning Signal + within-niche breakouts shipped |
 | Studio shell | App layout, composer | 4 pill §3.1.2; Cơ bản/Chuyên sâu |
 | Script | `script.py`, scene intel | Golden path từ F6 / `goWinScript` |
 | Data | `/batch/*`, `video_diagnostics` | §4.12 migration; §4.7 M1–M4 |
 
-**FE files (handoff audit):** `AnswerScreen`, `ExploreScreen`, `TrendsRail`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` — §4.10.
+**FE files (handoff audit):** `AnswerScreen`, `ExploreScreen`, `TrendsRail`, `CrossNicheBreakoutLane`, `PatternModal`, `GenericEvidenceGrid`, `SceneIntelligencePanel`, `IdeaBlock` — §4.10.
 
 **BE files:** `diagnose_sections.py`, `gemini.py`, `signals/salience.py`, `report_video.py`, `video_analyze.py`, `answer_session.py` — §15.
 
@@ -1256,12 +1263,24 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 
 ## 13. Acceptance criteria V1 (launch gate)
 
-- [ ] Mở app → **Tab Studio** mặc định; **Gợi ý hôm nay** 3 tầng render (§3.1.1)  
-- [ ] Tab Xu hướng → **Công thức viral** + **Kho video** (§3.2.1) không regress layout  
-- [ ] Studio tier I → ritual/script; tier III → `/app/trends`  
+### 13A — Shipped (verified as-built `8969f3e`)
+
+- [x] Mở app → **Tab Studio** mặc định; **Gợi ý hôm nay** 3 tầng render (§3.1.1)  
+- [x] Tab Xu hướng → **Công thức viral** + **Kho video** (§3.2.1) không regress layout  
+- [x] Studio tier I → Morning Signal + ritual/script; tier III within-niche breakouts → `/app/trends`  
+- [x] Cross-niche lane on Trends (`CrossNicheBreakoutLane`, Wave 3b)  
+- [x] Class-first browse + junction filter (Phase C; `applyVideoCorpusNicheFilter`)  
+- [x] HI-11 `route` in prod; taxonomy v2 migrated (**16 × 82**)  
+- [x] TD-7: batch ingest và on-demand extract cùng contract (wave sign-off baseline)  
+- [x] `peer_percentile` UI — `FlopDiagnosisStrip` reads payload (`VideoBody.tsx`)  
+- [x] **§8.7:** Studio tier I–III render on staging (`daily_ritual` + Morning Signal + breakout); cron nightly SLA  
+
+### 13B — Launch gate still open
+
 - [ ] Mọi video card → **Cơ bản** hoặc **Chuyên sâu**; cùng V6 UI; Cơ bản ⊆ sections Chuyên sâu  
 - [ ] Cache `(video_id, analysis_depth)` tách biệt; basic ⊆ deep sections; không serve nhầm depth  
-- [ ] §4.9–§4.12 Win: Xu hướng 1 tap → `basic` + `mode=win`; không pipeline `/stream` riêng  
+- [ ] Composer **4 pill** + Cơ bản/Chuyên sâu picker (§3.1.2)  
+- [ ] §4.9–§4.12 Win: Xu hướng 1 tap → `depth=basic` + `mode=win` + `from=trends` (query params **not wired** in Explore navigate paths yet)  
 - [ ] §4.8 W0: ≥2 signal `win_*` + test; salience `tier_gate=hit`  
 - [ ] Mọi handle → **Nhanh** hoặc **Sâu**; billing đúng spec §10  
 - [ ] Kho / pattern tile → Answer handoff §4.10 (không paste URL thủ công)  
@@ -1269,10 +1288,8 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 - [ ] `corpus-health` chạy — không copy “46k” nếu DB chưa đạt tier  
 - [ ] **§8.7:** 5–8 ngách hero đạt tier tối thiểu `reference_pool` (≥5 video/30d); ưu tiên `niche_norms` / `hook_effectiveness` cho ngách launch  
 - [ ] **§8.7:** Xu hướng — mỗi ngách hero có ≥1 `video_patterns` card không rỗng; Kho + `ConfidenceStrip` khớp tier  
-- [ ] **§8.7:** Studio tier I–III render trên staging (`daily_ritual` + breakout); cron nightly SLA §6.3  
 - [ ] **§8.7:** ≥1 URL corpus-hit → Answer Cơ bản (demo) — chứng minh synthesis path, không yêu cầu mass on-demand pre-launch  
 - [ ] Channel FE/BE credit aligned  
-- [ ] TD-7: batch ingest và on-demand extract cùng contract (audit parity)  
 - [ ] §4.7: reference peers `reference_eligible`; boost section chỉ Chuyên sâu; không claim ads poisoning từ heuristic alone  
 - [ ] §4.8: deep `manifest_for_prompt` cap 5; ≥8 signal backlog P0/P1 có test  
 - [ ] §5.3: F4 có `channel_findings` P0; memo không claim FYP/shadowban chắc chắn  
@@ -1291,10 +1308,11 @@ Map PVA backlog: [`product-value-audit.md`](product-value-audit.md) §PVA-001–
 | D4 | Đổi tên route `/app/trends` → `/app/xu-huong`? | SEO/i18n vs redirect cost |
 | D5 | ~~Boost — user khai báo hay OAuth?~~ | **Đã chốt:** chỉ M1–M4 tự động (§4.7) |
 | D6 | `reference_eligible=false` khi `suspect_medium` | **Đề xuất:** A) Auto loại ref + MV aggregates (§4.7.5) |
-| D7 | ~~Xu hướng → video handoff~~ | **Đã chốt:** `depth=basic` + `mode=win` + `from=trends` (§4.10) |
+| D7 | ~~Xu hướng → video handoff~~ | **Spec chốt:** `depth=basic` + `mode=win` + `from=trends` (§4.10) — **🔨 FE wiring open** (Explore navigate chưa pass query params) |
 | D8 | Cache composite migration | **Đề xuất:** A) `UNIQUE (video_id, analysis_depth)` + backfill `deep` (§4.12.3) B) defer — ship depth without DB partition |
 | D9 | `mode` win↔flop đổi cache | **Đề xuất V1:** A) Giữ full recompute khi `mode` override (as-built) B) Cache chỉ theo depth; mode = prompt slice (V1.1) |
 | D10 | Compliance trên Win Basic | **Đề xuất:** A) Giữ khi `applies` (§4.2) B) V1.1 bỏ khỏi whitelist Win |
+| D12 | ~~Two-axis cutover~~ | **Done (2026-05-22):** HI-11 `route` prod; taxonomy v2 **16 × 82**; class MV browse; Waves 3a/3b UI under freeze |
 
 ---
 
@@ -1304,7 +1322,8 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 
 | Layer | File / area | V1 change |
 |-------|-------------|-----------|
-| BE pipeline | [`diagnose_sections.py`](../../cloud-run/getviews_pipeline/diagnose_sections.py) | `BASIC_SECTION_ALLOWLIST`, `select_sections_to_emit(..., depth=)` |
+| **Two-axis FE (✅ shipped)** | [`corpusNicheFilter.ts`](../../src/lib/corpusNicheFilter.ts), [`useClassMorningSignals.ts`](../../src/hooks/useClassMorningSignals.ts), [`useCrossNicheBreakouts.ts`](../../src/hooks/useCrossNicheBreakouts.ts), [`useTopBreakouts.ts`](../../src/hooks/useTopBreakouts.ts) | Class-first browse; Morning Signal; cross-niche + within-niche breakouts |
+| BE pipeline | [`diagnose_sections.py`](../../cloud-run/getviews_pipeline/diagnose_sections.py) | `BASIC_SECTION_ALLOWLIST`, `select_sections_to_emit(..., depth=)` — 🔨 |
 | BE synthesis | [`gemini.py`](../../cloud-run/getviews_pipeline/gemini.py) | Pass `depth` → `manifest_for_prompt` cap 3/5 |
 | BE salience | [`signals/salience.py`](../../cloud-run/getviews_pipeline/signals/) (hoặc mới) | `manifest_for_prompt(depth)` |
 | BE Win signals | [`signals/performance.py`](../../cloud-run/getviews_pipeline/signals/performance.py) hoặc `signals/win.py` | W0: `win_er_*`, `win_hook_*`; `tier_gate=hit` |
@@ -1314,7 +1333,7 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 | FE routes | [`AnswerScreen.tsx`](../../src/routes/_app/answer/AnswerScreen.tsx), [`intent-router.ts`](../../src/routes/_app/intent-router.ts) | `depth`/`mode`/`from`; **no follow-up** §4.10.1 |
 | FE Studio home | [`HomeSuggestionsToday.tsx`](../../src/routes/_app/home/components/HomeSuggestionsToday.tsx) | **Freeze** — no layout reshape |
 | FE trends | [`ExploreScreen.tsx`](../../src/routes/_app/trends/ExploreScreen.tsx), [`TrendsPatternGrid.tsx`](../../src/routes/_app/trends/TrendsPatternGrid.tsx) | **Freeze** UI; handoff query §4.10 |
-| FE UI | `DepthPicker` (mới hoặc inline composer), [`VideoBody.tsx`](../../src/components/v2/answer/video/VideoBody.tsx) | Teasers, Deep CTA §4.11 |
+| FE UI | `DepthPicker` (mới hoặc inline composer), [`VideoBody.tsx`](../../src/components/v2/answer/video/VideoBody.tsx) | Teasers, Deep CTA §4.11; `FlopDiagnosisStrip` + `peer_percentile` ✅ |
 | Types | [`api-types.ts`](../../src/lib/api-types.ts), [`report_types.py`](../../cloud-run/getviews_pipeline/report_types.py) | `analysis_depth`, `source_entry` |
 | Docs sync | [`system-design.md`](system-design.md), [`feature-map.md`](feature-map.md) | Mirror §4.12 khi ship |
 
@@ -1330,10 +1349,13 @@ Bảng ownership — **spec only**; ticket sau khi §14 sign-off.
 
 - [x] Pipeline Win riêng? → **Không** (§4.9)  
 - [x] Xu hướng freeze? → **Công thức + Kho video** giữ nguyên (§3.2.1)  
-- [x] Studio freeze? → **Gợi ý hôm nay** 3 tầng (§3.1.1)  
-- [x] Handoff? → **`depth=basic` + `mode=win`** (§4.10)  
-- [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12)  
+- [x] Studio freeze? → **Gợi ý hôm nay** 3 tầng (§3.1.1) — Morning Signal + within/cross-niche distinction documented  
+- [x] Two-axis browse shipped under UI freeze? → **Yes** (class MV, junction filter, CrossNiche lane)  
+- [x] Cross-niche ≠ Home Tier III? → **Yes** (§3.1.1, §3.2.2)  
+- [x] Handoff spec? → **`depth=basic` + `mode=win`** (§4.10) — **FE wiring still 🔨**  
+- [x] Cache key V1? → **`(video_id, analysis_depth)`** (§4.12) — **migration not shipped**  
 - [x] Pre-launch cost ≠ cắt feature? → **§8.6–§8.8** — utilize kho; ingest policy tách track A/B  
+- [ ] Video depth / composer 4 pill — still 🔨 (§3.1.2, §13B)  
 - [ ] Human sign-off §14 D2, D4, D6, D8–D10 trước implement video depth  
 - [ ] Chốt danh sách **ngách hero** + chạy `corpus-health` theo §8.7 trước GTM  
 
