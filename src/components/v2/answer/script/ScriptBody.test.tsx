@@ -10,7 +10,7 @@ vi.mock("@/hooks/useScriptSave", () => ({
   useScriptExport: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-vi.mock("@/routes/_app/script/ScriptExportModal", () => ({
+vi.mock("@/components/v2/answer/script/ScriptExportModal", () => ({
   ScriptExportModal: () => null,
 }));
 

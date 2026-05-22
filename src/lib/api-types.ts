@@ -488,12 +488,6 @@ export interface ScriptDraftResponse {
  */
 export type ScriptExportFormat = "shoot" | "markdown" | "plain" | "copy";
 
-/**
- * B.4 — ``ForecastBar`` view/retention/hook-score math is **client-only** (no API).
- * Implementations: ``scriptForecastViews``, ``scriptForecastRetentionPct``, ``scriptHookScore``
- * in ``src/components/v2/ScriptForecastBar.tsx`` (used by ``/app/script``).
- */
-
 export interface HookPatternRow {
   pattern: string;
   delta: string;
@@ -512,11 +506,8 @@ export interface HookPatternsResponse {
 }
 
 /**
- * S3 — One row in the IdeaRefStrip above the script storyboard. Mirrors
- * the BE shape from ``fetch_idea_references_for_niche`` in
- * ``cloud-run/getviews_pipeline/script_data.py``. Used to render the
- * 5-card "5 video viral cùng angle" surface in /app/script per design
- * pack ``screens/script.jsx`` lines 1284-1360.
+ * One row from ``GET /script/idea-references`` (Cloud Run). Mirrors
+ * ``fetch_idea_references_for_niche`` in ``script_data.py``.
  */
 export interface ScriptIdeaReference {
   video_id: string;

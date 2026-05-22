@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Download, Film, Loader2, Save } from "lucide-react";
 
 import { Btn } from "@/components/v2/Btn";
-import { ScriptExportModal } from "@/routes/_app/script/ScriptExportModal";
+import { ScriptExportModal } from "@/components/v2/answer/script/ScriptExportModal";
 import { useScriptExport, useScriptSave } from "@/hooks/useScriptSave";
 import type { ScriptExportFormat, ScriptReportPayload, ScriptShot, ScriptTone } from "@/lib/api-types";
 

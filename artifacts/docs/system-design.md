@@ -93,8 +93,8 @@ All routes declared in `src/routes.ts` (explicit, not file-based).
 | `/app/douyin` | Douyin | Douyin trend analysis. |
 | `/app/compare` | Compare | Two URLs → `POST /stream` `compare_videos`. |
 | `/app/channel` | Channel | Channel deep-dive (`POST /channel/diagnose`). |
-| `/app/script` | Script | Script generation. |
-| `/app/script/shoot/:draftId` | Script | Shoot-mode for a draft. |
+| `/app/script` | *(legacy shim)* | Redirects to `/app/answer` with composer `?q=` prefill. |
+| `/app/script/shoot/:draftId` | *(legacy shim)* | Redirects to `/app/answer?shoot=:draftId`. |
 | `/app/settings` | Settings | Profile + niche edit. |
 | `/app/learn-more` | Learn more | Support / refund copy (PayOS). |
 | `/app/pricing` `/app/checkout` `/app/payment-success` | Billing | PayOS **one-time** credit packs (`create-payment` Edge Function). |

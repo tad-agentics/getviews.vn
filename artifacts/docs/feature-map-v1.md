@@ -136,7 +136,7 @@ Giữ shell composer hiện tại; đổi **pill** thành **4 mục** (thay chip
 | **Khám Video flop** | Vì sao video flop, fix nhanh | `/app/answer` (video) | Preset `mode=flop` khi submit từ pill này |
 | **Khám Video win** | Vì sao video chạy, công thức tái tạo | `/app/answer` (video) | Preset `mode=win` |
 | **Khám Kênh** | Soi kênh @handle | `/app/channel` | F4 Chuyên sâu / F5 Nhanh — §5 |
-| **Tạo kịch bản** | Kịch bản đủ quay | `/app/script` | F7 |
+| **Tạo kịch bản** | Kịch bản đủ quay | `/app/answer` (`format=script`) | F7; legacy `/app/script` → redirect |
 
 **Composer (luôn visible trong Tab Studio):**
 
@@ -616,7 +616,7 @@ Refresh: tái dùng class-tier percentiles (`content_class_intelligence` / `corp
 | Studio pill **Khám Video win** | `/app/answer?q={url}` | nút composer (default `basic`) | `win` (từ pill) | `composer` |
 | Studio pill **Khám Video flop** | `/app/answer?q={url}` | nút composer (default `basic`) | `flop` (từ pill) | `composer` |
 | Studio pill **Khám Kênh** | `/app/channel` | nút composer | — | `composer` |
-| Studio pill **Tạo kịch bản** | `/app/script` | — | — | `composer` |
+| Studio pill **Tạo kịch bản** | `/app/answer?q=…` (composer prefill) | — | — | `composer` |
 | Tab Xu hướng (TikTok) — “Giải mã video này” | `/app/answer?q={url}&depth=basic&mode=win&from=trends` | `basic` (fixed) | `win` | `trends` |
 | Tab Xu hướng (Douyin) — card tương tự | handoff video nếu có URL VN map | `basic` | `win` | `trends_douyin` |
 | Evidence tile, IdeaBlock, SceneIntel | `prefillUrl` → `?q=` | inherit pill + composer | inherit pill | `evidence` |
@@ -1018,7 +1018,7 @@ Kịch bản **đủ quay** — không chỉ hook one-liner.
 | Hook đọc được | Câu mở từ ritual / generate |
 | Shot list | N scene + timing; chip scene intel khi có |
 | Meta | Duration, sound gợi ý, CTA |
-| Export | Draft + shoot mode (`/app/script/shoot/:draftId`) |
+| Export | Draft + shoot panel in Answer (`?shoot=`); legacy `/app/script/shoot/:id` redirects |
 
 ### 7.2 Feature ID
 
@@ -1214,7 +1214,7 @@ Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** h
 | F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` — `POST /channel/diagnose` |
 | F5 | Soi kênh Nhanh | 2 | Basic | 🔨 | Xu hướng card / channel |
 | F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · 🔨 handoff | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
-| F7 | Script Studio | 4 | — | ◐ | `/app/script` |
+| F7 | Script (Answer sessions) | 4 | — | ◐ | `/app/answer` script turns; legacy `/app/script` redirect |
 | F8 | Data plane | 5 | — | ◐ | batch + claim tiers; HI-11 route ✅ prod |
 
 Legend: **✅ shipped** = in prod code today · **◐ partial** = surface live, spec gap remains · **🔨 V1 build** = in vision, not in code

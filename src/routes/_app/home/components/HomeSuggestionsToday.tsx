@@ -75,7 +75,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           tag="HÔM NAY QUAY NGAY"
           tagTone="accent"
           title="3 video tiếp theo bạn nên làm"
-          caption="Tổng hợp từ pattern thắng 7 ngày qua. Cả 3 ý tưởng đều có kịch bản sẵn — bấm dòng để mở Xưởng viết."
+          caption="Tổng hợp từ pattern thắng 7 ngày qua. Cả 3 ý tưởng đều có kịch bản sẵn — bấm dòng để mở trong Phân tích."
         />
         <MorningSignalStrip creatorNicheId={creatorNicheId} />
         <StudioHero nicheId={patternScope?.legacyNicheId ?? null} />

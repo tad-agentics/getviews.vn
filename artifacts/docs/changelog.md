@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Housekeeping: Wave 2 script route cleanup
+
+- Removed dead `/app/script` UI: `IdeaWorkspace`, `ShootScreen`, `IdeaRefStrip`, `ScriptExitModal`, `ScriptForecastBar`, `useIdeaReferences`.
+- Legacy routes kept as redirect shims only; `OffTaxonomyBanner` rewrites `/app/script` suggestion chips → Answer.
+- Updated `system-design.md` route table + stale copy (Home, Douyin, admin funnel labels).
+
 ## 2026-05-22 — Wave 2: Script → Answer narrative-first + F6 claims
 
 - **W2-1a:** `/app/script` + `/app/script/shoot/*` redirect to Answer; `scriptPrefillFromDeeplink` / `scriptRouteRedirectPath`; CTAs (Channel, Douyin, PatternActionCards) → composer `?q=` prefill; intent-router unchanged.

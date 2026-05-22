@@ -37,7 +37,7 @@ const L22_EVENTS: ReadonlyArray<{ action: string; label: string; group: "ritual"
   { action: "daily_ritual_evidence_expanded",     label: "Ritual · mở rộng evidence strip",  group: "evidence" },
   { action: "daily_ritual_evidence_thumb_clicked", label: "Ritual · click vào thumb evidence", group: "evidence" },
   { action: "pattern_card_clicked",               label: "Trends · click pattern card",      group: "pattern" },
-  { action: "script_screen_load",                 label: "Studio · /app/script load",         group: "act" },
+  { action: "script_screen_load",                 label: "Studio · legacy /app/script redirect", group: "act" },
   { action: "script_generate",                    label: "Studio · script_generate",          group: "act" },
   { action: "script_save",                        label: "Studio · script_save",              group: "act" },
 ];

@@ -2,12 +2,13 @@ import { lazy, Suspense } from "react";
 import type { MetaFunction } from "react-router";
 import { pageMeta } from "@/lib/pageTitle";
 
-export const meta: MetaFunction = () => pageMeta("Xưởng viết kịch bản");
+export const meta: MetaFunction = () => pageMeta("Phân tích");
 
 const ScriptScreen = lazy(() => import("./ScriptScreen"));
 
 /**
- * `/app/script` — Phase B · B.4.3 Xưởng Viết. Query: ``?hook=``, ``?niche_id=``, ``?topic=``, ``?duration=``.
+ * Wave 2 — legacy shim. ``/app/script`` redirects to ``/app/answer`` with
+ * composer ``?q=`` prefill (see ``scriptRouteRedirectPath``).
  */
 export default function AppScriptRoute() {
   return (

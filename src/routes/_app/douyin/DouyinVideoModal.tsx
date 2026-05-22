@@ -43,11 +43,8 @@ import {
  *           translator note tagged TỪ NGỮ / BỐI CẢNH / NHẠC NỀN /
  *           ĐẠO CỤ / KHÔNG LỜI / TITLE), and a 3-button CTA row.
  *
- * The "Adapt sang VN → Kịch bản" CTA navigates to ``/app/script`` with
- * the ``title_vi`` pre-filled as ``topic`` and ``sub_vi`` (or
- * ``title_vi`` fallback) as ``hook``. The script screen already
- * handles ``?topic=&hook=&duration=&niche_id=`` query-prefill from
- * Trends / Channel / Video.
+ * The "Adapt sang VN → Kịch bản" CTA opens Answer composer via
+ * ``scriptPrefillFromDeeplink`` (``topic`` + ``hook`` from Douyin metadata).
  *
  * Synth-pending rows (``adapt_level=null``) render the CHỜ chip and
  * suppress the reason / ETA / cn_rise lines + translator notes section

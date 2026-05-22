@@ -25,6 +25,7 @@ export default [
     // → no shim or redirect handler.
     route("app/compare", "routes/_app/compare/route.tsx"),
     route("app/channel", "routes/_app/channel/route.tsx"),
+    // Legacy shims — redirect to /app/answer (Wave 2 script→Answer migration).
     route("app/script", "routes/_app/script/route.tsx"),
     route("app/script/shoot/:draftId", "routes/_app/script/shoot/route.tsx"),
     route("app/settings", "routes/_app/settings/route.tsx"),

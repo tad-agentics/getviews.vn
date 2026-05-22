@@ -206,7 +206,7 @@ def _derive_hook_patterns_from_corpus(
 
 
 # ── Idea references ────────────────────────────────────────────────────
-# S3 — Drives the IdeaRefStrip above the storyboard in /app/script
+# S3 — Drives reference cards for script idea context (BE endpoint live; FE strip removed Wave 2).
 # (per design pack ``screens/script.jsx`` lines 1284-1360). For a chosen
 # idea we surface the top N viral videos in the same niche that share
 # the idea's hook_type — proof-points the creator can study for cadence,

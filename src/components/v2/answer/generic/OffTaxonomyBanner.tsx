@@ -2,11 +2,12 @@
  * Phase C.5.2 — OffTaxonomyBanner (plan §2.4 section 2).
  *
  * Soft suggestion chip strip. Copy:
- *   "Câu hỏi này ngoài taxonomy — gợi ý: dùng Soi Kênh / Xưởng Viết
+ *   "Câu hỏi này ngoài taxonomy — gợi ý: dùng Soi Kênh / Viết kịch bản
  *    thay vì đào sâu ở đây."
  *
- * Chip buttons route to `/app/channel`, `/app/script`, etc. — driven by
- * the server's `off_taxonomy.suggestions` payload.
+ * Chip buttons route to `/app/channel`, Answer composer prefill, etc. —
+ * driven by the server's `off_taxonomy.suggestions` payload. Legacy
+ * `/app/script` paths are rewritten to Answer (Wave 2).
  *
  * Creator-only pivot (claude/remove-kol-creator-only): /app/kol no
  * longer exists; suggestions pointing there are filtered out at render.
@@ -17,8 +18,23 @@ import { Eye, Film } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import type { GenericReportPayload } from "@/lib/api-types";
+import { scriptRouteRedirectPath, scriptShootRedirectPath } from "@/lib/answerHandoff";
 
 type Suggestion = { label?: string; route?: string; icon?: string } & Record<string, unknown>;
+
+function normalizeSuggestionRoute(route: string): string {
+  const trimmed = route.trim();
+  if (!trimmed.startsWith("/app/script")) return trimmed;
+  const shootMatch = /^\/app\/script\/shoot\/([^/?#]+)/.exec(trimmed);
+  if (shootMatch?.[1]) {
+    const qs = trimmed.includes("?")
+      ? new URLSearchParams(trimmed.slice(trimmed.indexOf("?") + 1))
+      : new URLSearchParams();
+    return scriptShootRedirectPath(decodeURIComponent(shootMatch[1]), qs);
+  }
+  const query = trimmed.includes("?") ? trimmed.slice(trimmed.indexOf("?") + 1) : "";
+  return scriptRouteRedirectPath(new URLSearchParams(query));
+}
 
 function iconFor(symbol: string | undefined): React.ElementType {
   switch (symbol) {
@@ -51,13 +67,13 @@ export function OffTaxonomyBanner({
     >
       <p className="text-[14px] leading-[1.55] text-[color:var(--gv-ink-2)]">
         Câu hỏi này ngoài taxonomy — gợi ý: dùng{" "}
-        <strong className="text-[color:var(--gv-ink)]">Soi Kênh / Xưởng Viết</strong>{" "}
+        <strong className="text-[color:var(--gv-ink)]">Soi Kênh / Viết kịch bản</strong>{" "}
         thay vì đào sâu ở đây.
       </p>
       <ul className="flex flex-wrap gap-2">
         {suggestions.map((s) => {
           const label = (s.label as string | undefined) ?? "Mở";
-          const route = (s.route as string | undefined) ?? "/app";
+          const route = normalizeSuggestionRoute((s.route as string | undefined) ?? "/app");
           const Icon = iconFor(s.icon as string | undefined);
           return (
             <li key={`${label}-${route}`}>
