@@ -1,5 +1,9 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Wave 2 scope: Script → Answer narrative-first
+
+- **`incremental-v1-roadmap.md`:** Wave 2 rewritten — W2-1a/b/c (deprecate `/app/script` route only; **keep composer + intent-router**); human decisions on shoot/drafts/credits; schema = reuse `narrative_vi`.
+
 ## 2026-05-22 — Docs: Wave 1 complete in incremental roadmap
 
 - **`incremental-v1-roadmap.md`:** Wave 1 ✅ @ `e3b5d01`; §3 gaps + §3.1 handoffs resynced; §13 → Wave 2+ priorities.

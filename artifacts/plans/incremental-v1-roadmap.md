@@ -181,16 +181,65 @@ Khi item wire extract → user value, PR phải có:
 
 ---
 
-### Wave 2 — Studio entry & trends integration
+### Wave 2 — Script → Answer (narrative-first) + F6/data plane
+
+**Product decisions (2026-05-22 — human sign-off):**
+
+| # | Decision | Choice |
+|---|----------|--------|
+| 1 | Shoot mode | **Migrate vào Answer** — không giữ `/app/script/shoot` route riêng lâu dài |
+| 2 | Drafts | **Cả hai:** `answer_turns.payload` = source of truth session; `draft_scripts` + `source_session_id` (đã có FK) cho export/shoot/edit lưu lại |
+| 3 | Schema | **Reuse `narrative_vi`** — `_schema_version: "script_v1"`; sections `hook_analysis`, `script_structure`, `next_video`; `shots[]` = structured appendix (không fork type riêng) |
+| 4 | Credits | **OK:** primary script turn **3×**; regenerate/edit shot = follow-up turn **1×** (same as other answer follow-ups) |
+| 5 | Composer + intent-router | **Giữ nguyên** — mọi entry (Studio pill, handoff, deeplink) **prefill `?q=`** → `planAnswerEntry()` / `detectIntent()`; không thay bằng hardcoded script-only nav. Feature mới = thêm row `INTENT_DESTINATIONS` + `AnswerSessionFormat`, không fork route riêng |
+
+**Architecture invariant (Wave 2+):**
+
+```text
+User input (composer | pill | handoff prefill)
+  → intent-router.ts (detectIntent → planAnswerEntry)
+  → /app/answer?session=…  OR  redirect /app/channel | /app/compare
+  → POST /answer/turns (format + intent_type from router)
+```
+
+- **Composer** (`QueryComposer` / Home / Answer shell) = long-lived extensibility surface.
+- **Deprecate** chỉ `/app/script` **route + editor shell** — không deprecate router/composer contract.
+- Handoffs (`answerHandoff.ts`) chỉ set query params / `?q=` — router vẫn là SSOT cho `format=script` vs `video` vs …
+
+**Sequencing:** W2-1a → W2-1b → W2-1c (route + narrative + shoot/drafts); W2-2–W2-4 song song sau W2-1b.
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
-| **W2-1** Studio tier I ritual → Script Studio ≤2 tap | M | Low | F7 anchor fields | — | — | Verify as-built `goWinScript` / ritual CTA; prefills hook/scenes | `HomeSuggestionsToday.tsx`, `MorningSignalStrip.tsx`, `script/route.tsx` |
+| **W2-1a** Deprecate `/app/script` route — entries prefill Answer composer | M | Low | F7 single surface | — | — | No user-facing `/app/script` (redirect); CTAs → `answerHandoff` / `?q=` prefill; **`planAnswerEntry` unchanged**; deeplink `topic`/`hook`/`duration` → composed `?q=` text, not bypass router | `ScriptScreen.tsx`, `routes.ts`, CTAs, `answerHandoff.ts`, `intent-router.ts` |
+| **W2-1b** Narrative-first script report | L | Med | F7 synthesis | — | — | `build_script_report` → `synthesize_script_narrative_vi()`; payload has `narrative_vi` + `shots[]`; `ScriptBody` headline → sections → shot rail (mirror `VideoBody`) | `report_script.py`, `ScriptBody.tsx`, `api-types.ts`, `gemini.py` |
+| **W2-1c** Drafts + shoot in Answer shell | M | Med | F7 persist | — | — | Save draft sets `draft_scripts.source_session_id`; shoot panel at `?session=&shoot=` or in-session mode; export via existing `/script/drafts/*/export` | `AnswerScreen.tsx`, `useScriptSave.ts`, migration if index needed |
 | **W2-2** `ConfidenceStrip` consistent on F6 pattern + kho | S | Low | F8 claim tiers | — | — | Thin corpus → humility on all F6 cards | `TrendsPatternGrid.tsx`, `ExploreScreen.tsx`, `claim_tiers.py` |
 | **W2-3** Hero niche list doc + `BATCH_PRIORITY_NICHE_IDS` align | S | Low | F8 §8.7 ingest depth | Better refs | Better peers | 5–8 niches documented; batch config matches | `feature-map-v1.md` §8.7, env docs, `corpus_ingest.py` |
 | **W2-4** `subject_matter` / proximity ranking promote (audit §8) | M | Med | Ref pool quality | Proximity tiles | — | Proximity picks use promoted field; ablation logged | `video_analyze.py`, `corpus_ingest.py` |
 
-**Wave 2 exit:** Studio→Script golden path; F6 claims tier-aware.
+<details>
+<summary>Wave 2 — superseded W2-1 (reference)</summary>
+
+| Item | Notes |
+|------|-------|
+| ~~W2-1 ritual → Script ≤2 tap~~ | **Done in practice** — prefill → `/app/answer?q=…`; replaced by W2-1a/b/c epic |
+
+</details>
+
+**Wave 2 exit:** Mọi script flow trong `/app/answer` narrative-first; **composer + intent-router** vẫn là entry SSOT; shoot + draft linked session; F6 claim-tier aware; hero niche batch aligned.
+
+**Schema contract (W2-1b — Tech Lead default):**
+
+```text
+ScriptReportPayload {
+  narrative_vi: { headline_vi, ket_luan_nhanh, diagnosis_vi: { sections[] } }  // script_v1 sections
+  topic, hook, duration, tone, niche_label
+  shots[]           // 6-shot scaffold + references (appendix)
+  sources[], related_questions[]
+}
+```
+
+Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI for shot carousel below narrative block.
 
 ---
 
@@ -396,11 +445,11 @@ Incremental V1 **launch-ready** when:
 
 ## 13. Top quick wins (next — Wave 2+)
 
-1. **W2-1** — Studio tier I ritual → Script Studio ≤2 tap.
-2. **W2-2** — `ConfidenceStrip` consistent on F6 pattern + kho.
-3. **W2-3** — Hero niche list doc + `BATCH_PRIORITY_NICHE_IDS` align.
-4. **W3-1** — `analysis_depth` migration + F2 whitelist (hard epic).
-5. **W4-1** — `channel_findings[]` P0 on channel memo path.
+1. **W2-1a** — Redirect `/app/script` → Answer; unify CTAs.
+2. **W2-1b** — Narrative-first script (`narrative_vi` + `ScriptBody` refactor).
+3. **W2-1c** — Drafts + shoot mode inside Answer shell.
+4. **W2-2** — `ConfidenceStrip` on F6 surfaces.
+5. **W2-3** — Hero niche list + `BATCH_PRIORITY_NICHE_IDS`.
 
 *W0 + W1 complete @ `e3b5d01` — see §4 status tables.*
 
