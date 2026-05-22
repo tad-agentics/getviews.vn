@@ -5,7 +5,7 @@
 **Migrations:** `20260823000003` (feedback) · `20260824000000` (art/comedy/AI v2)  
 **Audience:** Tech Lead, PD, backend/frontend agents, QA  
 **Product spec (Morning Signal):** [`class-intelligence-ui-spec.md`](class-intelligence-ui-spec.md)  
-**Ops runbook:** [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md)
+**Ops runbook:** [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md) (HI-11 rollback + ME-18)
 
 ---
 
@@ -448,9 +448,9 @@ Legacy bridge `legacyNicheIdForCreatorNiche()` vẫn bắt buộc cho ingest loo
 
 | MV | Grain | `lifecycle_stage` | Consumer |
 |----|-------|-------------------|----------|
-| `content_class_intelligence` | 79 classes | **Có** (Wave 3a) | Morning Signal, thin banner, diagnosis |
+| `content_class_intelligence` | 82 classes | **Có** (Wave 3a) | Morning Signal, thin banner, diagnosis |
 | `content_class_tier_intelligence` | class × tier | Không | Video/channel benchmark |
-| `creator_niche_content_class_stats` | 14×79 junction | Không (Wave 3c) | Ritual anchor |
+| `creator_niche_content_class_stats` | 16×82 junction | Không (Wave 3c) | Ritual anchor |
 
 **Nightly chain (ICT, serial post-ingest via `run_ingest_post_processing`):**
 
@@ -537,10 +537,11 @@ Decision tree: **reclassify** (misclassification) vs **defer Wave 4** (valid cro
 | Doc | Purpose |
 |-----|---------|
 | [`class-intelligence-ui-spec.md`](class-intelligence-ui-spec.md) | Morning Signal UX |
-| [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md) | HI-11 flip / rollback ops |
+| [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md) | HI-11 rollback + ME-18 ops |
 | [`corpus-ingest-criteria-v1.md`](corpus-ingest-criteria-v1.md) | Purity gates |
 | [`content-class-pivot-metrics.sql`](content-class-pivot-metrics.sql) | Observability |
 | [`archive/niche-taxonomy-ingest-ui-pipeline.md`](archive/niche-taxonomy-ingest-ui-pipeline.md) | Archived — merged here |
+| [`archive/two-axis-niche-cutover-pr1-pr6.md`](archive/two-axis-niche-cutover-pr1-pr6.md) | PR1→PR6 cutover (archived) |
 
 **Code map:**
 

@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Docs: archive PR1–PR6 cutover, trim HI-11 runbook
+
+- Archive `two-axis-niche-cutover-pr1-pr6.md` (completed 2026-05-13 cutover).
+- Runbook → HI-11 + ME-18 ops only; Phase C SQL fix (`ingest_loop_niche_id`).
+- Audit: keep `taxonomy-expansion.md`, `hashtag-class-map-v2.md` (orthogonal to niche-model SSOT).
+
 ## 2026-05-22 — Taxonomy v2 (Art & Craft, Comedy restore, AI class)
 
 - **Migration:** `20260824000000_taxonomy_v2_art_comedy_ai.sql` — UX `art_craft` (17), restore `comedy` (5), classes 80–82, junction + legacy ingest 13/29.

@@ -1,82 +1,33 @@
-# Two-axis niche cutover (PR1 → PR6)
+# Two-axis niche ops runbook — HI-11 + ME-18
 
-> **STATUS: COMPLETED — 2026-05-13.** All four migrations applied. Cloud Run and FE deployed with `creator_niche_id`. `primary_niche` column dropped. Retain this doc until 2026-06-13 (30-day window per `legacy_niche_id_for_creator_niche` retention rule).
-
-## Verified migration chain (2026-05-10 — 2026-05-13)
-
-| Step | File | Date (UTC prefix) |
-|------|------|-------------------|
-| PR1 schema | `supabase/migrations/20260510000004_two_axis_niche_pr1_schema.sql` | May 10 |
-| PR2 corpus | `supabase/migrations/20260511000000_two_axis_niche_pr2_corpus.sql` | May 11 |
-| PR3 profile | `supabase/migrations/20260512000002_two_axis_niche_pr3_profile.sql` | May 12 |
-| PR6 drop legacy column | `supabase/migrations/20260513000001_two_axis_niche_pr6_drop_primary_niche.sql` | May 13 |
-
-PR3 adds and backfills `profiles.creator_niche_id` while keeping `profiles.primary_niche`. PR6 runs `ALTER TABLE profiles DROP COLUMN primary_niche` — **data in that column is gone** unless you restore from backup.
-
-## Cloud Run / FE contract (PR5 / PR6)
-
-Before **any** database client runs PR6:
-
-- Profile reads must use **`creator_niche_id`** only (PostgREST `select=` must not list `primary_niche`).
-- Legacy analysis still filters `video_corpus.niche_id`; resolve UX bucket → representative taxonomy id with:
-  - **Python:** `getviews_pipeline.profile_niches.legacy_niche_id_for_creator_niche()` / `resolve_legacy_niche_from_profile_row()`
-  - **TypeScript:** `legacyNicheIdForCreatorNiche()` in `src/lib/profileNiches.ts`  
-  The dict/switch **must stay identical** across languages.
-
-Smoke check on the deployed revision: `GET /health` exposes `morning_ritual_profile_select`; it must be the constant from `morning_ritual.PROFILE_SELECT_RITUAL_BATCH` (no `primary_niche`).
-
-## Deploy order (safe)
-
-**Do not** apply PR6 while an old revision that `select`s `primary_niche` still serves traffic.
-
-Recommended:
-
-1. Apply **PR1, PR2, PR3** (`supabase db push` through `20260512000002_*`).
-2. **Deploy** Cloud Run (user + batch) and the Vercel app build that only rely on `creator_niche_id` for profile niche (PR5-style paths: `deps.py`, `morning_ritual.py`, `channel_analyze.py`, `routers/video.py`, etc.).
-3. Smoke-test profile/niche flows against **pre-PR6** DB (both columns may still exist).
-4. Apply **PR6** (`20260513000001_*`).
-5. Follow-up migrations (e.g. `20260630000002_*` trigger cleanup) as needed.
-
-**Risk:** If PR6 runs while old pods still query `primary_niche`, PostgREST returns errors for profile reads until new pods take over. Minimize the window (pre-built revision, fast rollout) or use the sequence above.
-
-## “All migrations first, then deploy”
-
-That ordering is only safe if **no** service hits the DB between PR6 completion and the new revision taking 100% traffic (maintenance mode / blue-green with instant cutover). The default staging path is **PR1–PR3 → deploy PR5-capable images → PR6**.
-
-## `legacy_niche_id_for_creator_niche` retention
-
-Keep this mapping for at least **30 days after PR6** (stability window). Longer term it stays until analysis pipelines pivot off `video_corpus.niche_id` / representative legacy id (see `CLAUDE.md` niche section). Removing it early breaks `/home/*`, `/channel/*`, batch jobs, and any code path that still filters corpus by legacy `niche_id`.
-
-## Related cleanup (not part of the four-migration chain)
-
-- `supabase/migrations/20260630000002_drop_primary_niche_sync_trigger_pr6.sql` — removes stray `primary_niche` sync trigger/function if still present.
+> **Canonical taxonomy:** [`two-axis-niche-model.md`](two-axis-niche-model.md)  
+> **Archived (PR1→PR6 cutover, completed 2026-05-13):** [`archive/two-axis-niche-cutover-pr1-pr6.md`](archive/two-axis-niche-cutover-pr1-pr6.md)
 
 ---
 
-## Part B — HI-11: Two-axis niche resolver (shadow → `route`)
+## HI-11: Two-axis niche resolver (shadow → `route`)
 
-> **Plan cross-ref:** In the pipeline audit remediation plan, this work is also called **Phase 7 — Gemini-driven classification (HI-9 + HI-11)**.
->
 > **Production (2026-05-17+):** `NICHE_RESOLVER_MODE=route` on batch + user pods. Code default if unset remains `shadow` (rollback path).
 
-**Scope:** Batch corpus ingest (`corpus_ingest.py`) chooses how `video_corpus.niche_id` and `content_class_id` are written when Gemini HI-9 `niche_classification` is present. This is **independent** of the PR1–PR6 column cutover above; migrations `20260516120000_video_corpus_niche_resolution_shadow.sql` and RPC `20260719000001_upsert_corpus_niche_resolution_shadow.sql` add shadow/telemetry columns.
+**Scope:** Batch corpus ingest (`corpus_ingest.py`) chooses `content_class_id` (+ `ingest_loop_niche_id`) when Gemini HI-9 `niche_classification` is present. Phase C dropped `video_corpus.niche_id` — see [`two-axis-niche-model.md`](two-axis-niche-model.md) §8.
 
-### Code reference (single source of truth)
+### Code reference
 
 | Piece | Location |
 |-------|-----------|
-| Env flag | `NICHE_RESOLVER_MODE=shadow\|route` (code default **shadow** if unset/invalid; **prod: route**) — `cloud-run/getviews_pipeline/config.py` |
+| Env flag | `NICHE_RESOLVER_MODE=shadow\|route` — `cloud-run/getviews_pipeline/config.py` |
 | Shadow telemetry | `_niche_resolution_shadow_fields` — `corpus_ingest.py` |
-| Route override | `_route_niche_and_class_override` + `content_class_id_override` in `_build_corpus_row` — `corpus_ingest.py` |
+| Route override | `_route_niche_and_class_override` — `corpus_ingest.py` |
 | Junction lookup | `junction_content_class.content_class_id_for_creator_niche_format` |
+| TD-6 gate | `creator_niche_has_content_class()` — reject route when class ∉ junction |
 | Confidence floor | `_GEMINI_NICHE_CONFIDENCE_FLOOR = 0.6` |
 
-- **`shadow`:** Hashtag resolver stays canonical for `niche_id` / ladder-filled `content_class_id`. Rows still get `niche_resolution_source`, `niche_resolution_confidence`, `inferred_creator_niche_id` for observability. Cloud Logging: `niche shadow disagree` when Gemini’s legacy niche would differ from the hashtag pick.
-- **`route`:** If confidence ≥ 0.6, slug maps to a creator niche, `junction_has_pair` passes, and junction returns a row → write **representative legacy** `niche_id` and **junction** `content_class_id` (ladder bypassed for that row). Otherwise same as hashtag path.
+- **`shadow`:** Hashtag/class map stays canonical; telemetry columns populated. Cloud Logging: `niche shadow disagree`.
+- **`route`:** If confidence ≥ 0.6 + `junction_has_pair` + TD-6 pass → write junction `content_class_id`. Else hashtag ladder.
 
-### Phase 1b — Rolling automated eval (replaces one-time golden 100)
+### Rolling automated eval
 
-Nightly after batch post-processing: `hi11_rolling_eval.py` samples recent `video_corpus` rows and writes `artifacts/qa-reports/hi11-rolling-eval.json`.
+Nightly: `hi11_rolling_eval.py` → `artifacts/qa-reports/hi11-rolling-eval.json`.
 
 | Metric | Promote threshold (7-night rolling median) |
 |--------|---------------------------------------------|
@@ -84,16 +35,10 @@ Nightly after batch post-processing: `hi11_rolling_eval.py` samples recent `vide
 | Junction miss (conf ≥ 0.6) | ≤ **5%** |
 | Hook-type outlier vs class MV | ≤ **10%** |
 
-**Blocks** promoting `CORPUS_SCORE_COHORT=class` until green. CI smoke: frozen 27-row seed in `eval_classifier.py`.
+### Shadow observation (rollback drill)
 
-**Cold-start:** HI-11 eval runs regardless; class-first live benchmark stays behind `LIVE_COHORT_CLASS_FIRST=false` until Phase 2 promote.
-
-### Phase 1 — Shadow observation (calendar: 3–7 days)
-
-1. Confirm **batch** Cloud Run has `NICHE_RESOLVER_MODE=shadow` (or unset). User pod only matters if it ever batch-writes `video_corpus` with the same path — keep aligned with batch.
-2. Run daily SQL in Supabase (SQL editor or admin):
-
-**Ingest volume by resolution source (rolling 24h):**
+1. Set **`NICHE_RESOLVER_MODE=shadow`** on batch (+ user if aligned). Redeploy.
+2. Daily SQL:
 
 ```sql
 SELECT
@@ -106,12 +51,9 @@ GROUP BY 1
 ORDER BY n DESC;
 ```
 
-**Recent Gemini-tagged rows (spot-check sample):**
-
 ```sql
 SELECT
   video_id,
-  niche_id,
   content_class_id,
   niche_resolution_source,
   niche_resolution_confidence,
@@ -123,43 +65,34 @@ ORDER BY indexed_at DESC
 LIMIT 50;
 ```
 
-3. In **GCP Cloud Logging** (batch service), watch for:
-   - `[corpus] niche shadow disagree` — expected occasionally; high burst ⇒ review hashtag map vs Gemini.
-   - `[corpus] junction miss` — junction seed out of sync with `two_axis_taxonomy.JUNCTION_NICHE_FORMAT_PAIRS`; add migration rows before flipping to `route`.
+3. Cloud Logging (batch): `[corpus] niche shadow disagree`, `[corpus] junction miss`, `hi11_junction_reject`.
 
-### Phase 2 — Manual 100-row audit (human gate)
+### Manual 100-row audit (pre-flip gate)
 
-Before `route` in production:
+1. Stratified sample of **100** recent rows.
+2. Label: **`agree`** | **`gemini_better`** | **`legacy_better`** | **`both_wrong`**.
+3. **Sign-off:** `(agree + gemini_better) / 100 ≥ 0.8`.
 
-1. Draw a stratified sample of **100** recent rows (mix of `gemini_two_axis` and `hashtag` / `default` as available).
-2. For each row, label against TikTok caption + hook + known content: **`agree`** | **`gemini_better`** | **`legacy_better`** | **`both_wrong`**.
-3. **Sign-off threshold (plan):** `(agree + gemini_better) / 100 ≥ 0.8`.
+### Routing flip + post-flip hygiene
 
-If the gate fails, do **not** flip; tune junction, prompts, or threshold in code only via a reviewed change (today: `_GEMINI_NICHE_CONFIDENCE_FLOOR` in `corpus_ingest.py`).
-
-### Phase 3 — Routing flip + post-flip hygiene
-
-1. Set **`NICHE_RESOLVER_MODE=route`** on **batch** Cloud Run (and user pod if it shares ingest). Deploy.
-2. **Revert:** set `shadow`, redeploy — no migration required.
-3. **Immediately after flip (plan deploy gate):**
-   - `SELECT public.refresh_niche_intelligence();`
-   - `SELECT public.refresh_content_class_intelligence();`
-4. Ensure **`hook_effectiveness_compute`** runs once after MV refresh (or wait for the next batch job that invokes it).
-5. **ME-17:** Enable legacy-row classification backfill — ``POST /admin/backfill-classification`` (JWT) or ``POST /batch/backfill-classification`` (cron, `X-Batch-Secret`); pg_cron ``cron-backfill-classification`` at 04:00 UTC (`20260720000000_cron_batch_backfill_classification.sql`). See `getviews_pipeline/classification_backfill.py`.
+1. Set **`NICHE_RESOLVER_MODE=route`**. Deploy batch + user pods.
+2. **Revert:** `shadow` + redeploy — no migration required.
+3. After flip: run MV refresh chain per [`two-axis-niche-model.md`](two-axis-niche-model.md) §9 (`refresh_content_class_intelligence` → tier → stats).
+4. **ME-17 backfill:** `POST /batch/backfill-classification` (cron `cron-backfill-classification`).
 
 ### QA / tests
 
 - `cloud-run/tests/test_hi11_route_niche_resolution.py`
 - `cloud-run/tests/test_corpus_ingest_junction_warn.py`
-- Baseline: `artifacts/qa-reports/hi11-baseline.json` (**PASS_WITH_CONCERNS** — full plan still expects extended calendar + flip executed in prod).
+- `artifacts/qa-reports/hi11-confidence-threshold-eval.json`
 
 ---
 
-## ME-18 appendix — Carousel share vs trending (investigation SQL)
+## ME-18 appendix — Carousel share vs trending
 
-Use this after HI-16 / per-niche carousel caps land to see whether the **corpus** mix matches **real** carousel prevalence. Under-sampling shows up as corpus `carousel_pct` materially below trending `carousel_pct` for the same niche bucket.
+Corpus carousel mix vs trending sample — tune `BATCH_CAROUSELS_BY_NICHE` when corpus `carousel_pct` lags trending by >3pp.
 
-### 1) Corpus: carousel share per legacy niche (last 14 days)
+### Corpus carousel share (last 14 days)
 
 ```sql
 SELECT
@@ -171,12 +104,12 @@ SELECT
     2
   ) AS carousel_pct
 FROM video_corpus vc
-JOIN niche_taxonomy n ON vc.niche_id = n.id
+JOIN niche_taxonomy n ON vc.ingest_loop_niche_id = n.id
 WHERE vc.indexed_at > now() - interval '14 days'
 GROUP BY n.name_vn
 ORDER BY carousel_pct DESC;
 ```
 
-### 2) EnsembleData / trending (manual operator step)
+### Trending cross-check (manual)
 
-The plan cross-check is **not** a SQL report: pull a **sample** of trending posts for each niche (e.g. top 100 by momentum from your ingest keyword / trending source), classify each item as **carousel vs video** from post metadata (image-post / photo album vs short video), and compute `carousel_pct` of that sample. Compare to §1: where corpus `carousel_pct` is **several points lower** than trending `carousel_pct`, raise `BATCH_CAROUSELS_BY_NICHE` for that niche (see `settings.batch_carousels_by_niche` + `corpus_ingest._carousels_per_night_for_niche`). Re-run after 14 days until corpus and trending are within the plan tolerance (±3pp).
+Sample top trending posts per ingest bucket; compare carousel % to SQL above. Adjust `settings.batch_carousels_by_niche` + redeploy batch.

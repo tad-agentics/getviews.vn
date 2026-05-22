@@ -339,8 +339,8 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 | Table | Owner | Write path | Notes |
 |-------|-------|-----------|-------|
 | `profiles` | Supabase | Client (RLS), Edge Functions | `creator_niche_id` FK, `credits`, `is_processing`, `is_admin` |
-| `creator_niches` | Supabase | Migrations only | **14 active** UX-facing buckets (retired: comedy, pets_home) |
-| `content_classifications` | Supabase | Migrations only | **79** analysis-facing categories (74 video + 5 carousel HI-16) |
+| `creator_niches` | Supabase | Migrations only | **16 active** UX-facing buckets (taxonomy v2: `comedy` 5, `art_craft` 17; retired: `pets_home`) |
+| `content_classifications` | Supabase | Migrations only | **82** analysis-facing categories (77 video + 5 carousel HI-16; class 82 AI) |
 | `video_corpus` | Cloud Run batch | Service role only | 46K+ analyzed TikTok videos; `ingest_source` is write-once |
 | `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change) |
 | `chat_sessions` | Supabase | Client + Cloud Run | Chat model — title, niche, soft-delete via `deleted_at` |
@@ -353,8 +353,8 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 
 ### Niche model (two-axis, since 2026-05-13)
 
-- **`creator_niches`** (**14 active** buckets) — UX-facing. `profiles.creator_niche_id` FK. Retired: `comedy`, `pets_home` → `lifestyle`.
-- **`content_classifications`** (**79** categories: 74 video + 5 carousel) — analysis-facing. `video_corpus.content_class_id`.
+- **`creator_niches`** (**16 active** buckets) — UX-facing. `profiles.creator_niche_id` FK. Taxonomy v2: `comedy` (5) and `art_craft` (17) active; retired: `pets_home` → `lifestyle`.
+- **`content_classifications`** (**82** categories: 77 video + 5 carousel) — analysis-facing. `video_corpus.content_class_id`.
 - **`creator_niche_content_classes`** — M:N junction with `is_primary` tie-break at ingest only (FE loads full junction).
 - **Phase C (2026-05-21):** `video_corpus.niche_id` **dropped**. Cohort = `(content_class_id, creator_tier)`. Legacy bridge `legacyNicheIdForCreatorNiche()` for ingest loop only.
 - **HI-11:** Production `NICHE_RESOLVER_MODE=route` on batch + user pods. Rollback: `shadow` — see [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md).
