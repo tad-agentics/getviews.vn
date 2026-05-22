@@ -1,5 +1,10 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Migration apply + stats MV recreate fix
+
+- **Applied remote:** `20260823000000`–`000003` on Getviews.vn (`lzhiqnxfveqttsujebiv`).
+- **Fix:** `20260823000004` — `000001` CASCADE dropped `creator_niche_content_class_stats`; recreated + refreshed MVs (`cci_rows=62`, `stats_rows=150`).
+
 ## 2026-05-22 — Pre-deploy QA fixes (two-axis)
 
 - **Cross-niche lane:** `useCrossNicheBreakouts` no longer requires non-empty junction — empty junction shows global breakouts; unit tests for PostgREST exclude filter.
