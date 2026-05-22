@@ -39,7 +39,7 @@ import json
 import logging
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -120,23 +120,24 @@ def _score_script(
 
 
 def _eval_one_niche(client: Any, niche_id: int) -> dict[str, Any]:
-    from getviews_pipeline.morning_ritual import (
-        _build_prompt,
-        _fetch_grounding_videos,
-        _median,
-        RitualBundle,
-        MIN_GROUNDING_VIDEOS,
-    )
+    from google.genai import types  # type: ignore[import-untyped]
+
     from getviews_pipeline.config import (
-        GEMINI_SYNTHESIS_MODEL,
         GEMINI_SYNTHESIS_FALLBACKS,
+        GEMINI_SYNTHESIS_MODEL,
     )
     from getviews_pipeline.gemini import (
         _generate_content_models,
-        _response_text,
         _normalize_response,
+        _response_text,
     )
-    from google.genai import types  # type: ignore[import-untyped]
+    from getviews_pipeline.morning_ritual import (
+        MIN_GROUNDING_VIDEOS,
+        RitualBundle,
+        _build_prompt,
+        _fetch_grounding_videos,
+        _median,
+    )
 
     niche_row = (
         client.table("niche_taxonomy")
@@ -206,7 +207,7 @@ def _eval_one_niche(client: Any, niche_id: int) -> dict[str, Any]:
 
 def _format_md(results: list[dict[str, Any]]) -> str:
     lines: list[str] = []
-    lines.append(f"# Daily Ritual prompt eval — {datetime.now(timezone.utc).isoformat()}\n")
+    lines.append(f"# Daily Ritual prompt eval — {datetime.now(UTC).isoformat()}\n")
     for r in results:
         lines.append(f"## Niche {r.get('niche_id')} — {r.get('niche_name')}\n")
         if r.get("error"):

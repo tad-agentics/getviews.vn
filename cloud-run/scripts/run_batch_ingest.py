@@ -31,7 +31,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -48,7 +47,6 @@ logger = logging.getLogger("batch_ingest")
 
 
 async def _dry_run(niche_ids: list[int] | None) -> None:
-    from getviews_pipeline import ensemble
     from getviews_pipeline.corpus_ingest import _fetch_niche_pool, _fetch_niches_sync, _service_client
 
     client = _service_client()
@@ -100,7 +98,7 @@ async def main() -> None:
         print(json.dumps(summary.__dict__, default=str, indent=2))
     else:
         print(f"\n{'='*60}")
-        print(f"  Batch Ingest Complete")
+        print("  Batch Ingest Complete")
         print(f"{'='*60}")
         print(f"  Niches processed:       {summary.niches_processed}")
         print(f"  Videos inserted:        {summary.total_inserted}")

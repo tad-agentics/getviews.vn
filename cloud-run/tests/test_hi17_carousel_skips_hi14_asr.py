@@ -19,6 +19,12 @@ _FAKE_AWEME = {
 _FAKE_METADATA = MagicMock()
 _FAKE_METADATA.content_type = "carousel"
 _FAKE_METADATA.slide_count = 1
+# ``_analyze_carousel`` feeds ``metadata.description`` / ``metadata.hashtags``
+# into ``build_tiktok_caption_extraction_prefix`` (prompts.py), which joins
+# them with ``"\n".join`` — they must be real str/list values, not bare
+# MagicMock attributes.
+_FAKE_METADATA.description = "caption tiktok mẫu"
+_FAKE_METADATA.hashtags = ["fyp", "review"]
 _FAKE_METADATA.model_dump.return_value = {"aweme_id": "vid_hi17"}
 _FAKE_METADATA.model_copy.return_value = _FAKE_METADATA
 

@@ -44,6 +44,7 @@ class _Query:
 
     def select(self, *_: Any, **__: Any) -> _Query:    return self
     def eq(self, *_: Any, **__: Any) -> _Query:        return self
+    def in_(self, *_: Any, **__: Any) -> _Query:       return self
     def gte(self, *_: Any, **__: Any) -> _Query:       return self
     def order(self, *_: Any, **__: Any) -> _Query:     return self
     def limit(self, *_: Any, **__: Any) -> _Query:     return self
@@ -194,7 +195,13 @@ def test_rising_kol_drops_handles_below_breakout_floor() -> None:
 
 def test_sounds_only_take_latest_week() -> None:
     # Two weeks of data — only the latest week's entries should appear.
+    # ``_sound_items`` resolves the legacy niche → content_class_ids via
+    # ``creator_niche_content_classes`` before reading the (now
+    # class-scoped) ``trending_sounds`` table.
     client = _Client({
+        "creator_niche_content_classes": [
+            {"content_class_id": 101},
+        ],
         "trending_sounds": [
             {"sound_id": "s1", "sound_name": "Fresh 1", "usage_count": 30,
              "total_views": 2_500_000, "week_of": "2026-04-13"},

@@ -80,7 +80,7 @@ def test_grounding_uses_reference_handles_first() -> None:
         pytest.skip("pydantic not installed in test env")
     rows = [{"video_id": f"v{i}"} for i in range(15)]
     client = _Client({
-        ("eq:niche_id=4", "in:creator_handle=@a,@b", "gte:created_at"): rows,
+        ("in:creator_handle=@a,@b", "gte:created_at", "eq:ingest_loop_niche_id=4"): rows,
     })
     videos, adequacy = _fetch_grounding_videos(client, 4, ["@a", "@b"])
     assert len(videos) == 15
@@ -97,9 +97,9 @@ def test_grounding_falls_back_to_niche_wide_7d_when_reference_thin() -> None:
         import pytest
         pytest.skip("pydantic not installed in test env")
     client = _Client({
-        ("eq:niche_id=4", "in:creator_handle=@a", "gte:created_at"):  # ref-anchored
+        ("in:creator_handle=@a", "gte:created_at", "eq:ingest_loop_niche_id=4"):  # ref-anchored
             [{"video_id": "r1"}, {"video_id": "r2"}],  # only 2 — below MIN_GROUNDING_VIDEOS
-        ("eq:niche_id=4", "gte:created_at"):  # niche-wide 7d
+        ("gte:created_at", "eq:ingest_loop_niche_id=4"):  # niche-wide 7d
             [{"video_id": f"w{i}"} for i in range(18)],
     })
     videos, _ = _fetch_grounding_videos(client, 4, ["@a"])
@@ -116,7 +116,7 @@ def test_grounding_falls_back_to_30d_when_7d_still_thin() -> None:
         pytest.skip("pydantic not installed in test env")
     client = _Client({
         # 7d niche-wide returns just 3, below MIN
-        ("eq:niche_id=4", "gte:created_at"): [{"video_id": f"w{i}"} for i in range(3)],
+        ("gte:created_at", "eq:ingest_loop_niche_id=4"): [{"video_id": f"w{i}"} for i in range(3)],
     })
     # no reference handles; two calls hit the same path key — second yields []
     # To avoid that collision we'll just assert the call log grows to 2 paths

@@ -34,8 +34,32 @@ def _trending_rows(this_week: date, prev_week: date, *rows: dict) -> list[dict]:
 
 
 def _client_with_rows(rows: list[dict]) -> MagicMock:
+    """Mock Supabase routing by table name.
+
+    Production ``_compute_sound_trends_for_niche`` first resolves the
+    legacy niche → content_class_ids via
+    ``creator_niche_content_classes`` (``.select().eq().execute()``),
+    then reads ``trending_sounds`` filtered by those class ids
+    (``.select().in_("content_class_id", …).in_("week_of", …).execute()``).
+    """
     sb = MagicMock()
-    sb.table.return_value.select.return_value.eq.return_value.in_.return_value.execute.return_value = SimpleNamespace(data=rows)
+
+    junction_tbl = MagicMock()
+    junction_tbl.select.return_value.eq.return_value.execute.return_value = SimpleNamespace(
+        data=[{"content_class_id": 101}]
+    )
+
+    sounds_tbl = MagicMock()
+    sounds_tbl.select.return_value.in_.return_value.in_.return_value.execute.return_value = (
+        SimpleNamespace(data=rows)
+    )
+
+    def _table(name: str) -> MagicMock:
+        if name == "creator_niche_content_classes":
+            return junction_tbl
+        return sounds_tbl
+
+    sb.table.side_effect = _table
     return sb
 
 

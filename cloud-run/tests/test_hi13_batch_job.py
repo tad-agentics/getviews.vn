@@ -5,8 +5,6 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from getviews_pipeline.gemini import (
     _batch_stats_dict,
     parse_batch_extraction_analysis_json,

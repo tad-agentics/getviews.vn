@@ -24,15 +24,15 @@ from getviews_pipeline.config import (
 from getviews_pipeline.corpus_context import get_cached_analysis
 from getviews_pipeline.entry_cost import score_entry_cost
 from getviews_pipeline.gemini import analyze_carousel, analyze_video, synthesize_diagnosis
-from getviews_pipeline.prompts import (
-    build_tiktok_caption_extraction_prefix,
-    merge_extraction_supplemental_prefixes,
-)
 from getviews_pipeline.models import (
     CarouselAnalyzeResult,
     ContentType,
     VideoAnalyzeResult,
     VideoMetadata,
+)
+from getviews_pipeline.prompts import (
+    build_tiktok_caption_extraction_prefix,
+    merge_extraction_supplemental_prefixes,
 )
 from getviews_pipeline.runtime import run_sync
 from getviews_pipeline.services.asr_vietnamese import sync_prepare_vietnamese_asr_supplement

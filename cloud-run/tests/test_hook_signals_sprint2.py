@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from getviews_pipeline.corpus_ingest import _normalize_hook_type
+from getviews_pipeline.hook_type_normalize import normalize_hook_type as _normalize_hook_type
 from getviews_pipeline.models import HookAnalysis, VideoAnalysis
 from getviews_pipeline.signals.hook import extract_hook_signals
 

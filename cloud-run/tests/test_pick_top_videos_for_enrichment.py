@@ -58,10 +58,10 @@ def test_excludes_already_enriched_video_ids() -> None:
     client, _, _ = _mk_client(
         enriched_video_ids=["v1", "v3"],
         corpus_rows=[
-            {"video_id": "v1", "niche_id": 7},
-            {"video_id": "v2", "niche_id": 7},
-            {"video_id": "v3", "niche_id": 4},
-            {"video_id": "v4", "niche_id": 4},
+            {"video_id": "v1", "ingest_loop_niche_id": 7},
+            {"video_id": "v2", "ingest_loop_niche_id": 7},
+            {"video_id": "v3", "ingest_loop_niche_id": 4},
+            {"video_id": "v4", "ingest_loop_niche_id": 4},
         ],
     )
     picked = _pick_top_videos_for_enrichment_sync(client, limit=10)
@@ -72,7 +72,7 @@ def test_caps_at_limit_even_when_corpus_has_more() -> None:
     client, _, corpus_chain = _mk_client(
         enriched_video_ids=[],
         corpus_rows=[
-            {"video_id": f"v{i}", "niche_id": 7} for i in range(100)
+            {"video_id": f"v{i}", "ingest_loop_niche_id": 7} for i in range(100)
         ],
     )
     picked = _pick_top_videos_for_enrichment_sync(client, limit=5)
@@ -84,7 +84,7 @@ def test_caps_at_limit_even_when_corpus_has_more() -> None:
 def test_orders_by_views_desc() -> None:
     client, _, corpus_chain = _mk_client(
         enriched_video_ids=[],
-        corpus_rows=[{"video_id": "v1", "niche_id": 7}],
+        corpus_rows=[{"video_id": "v1", "ingest_loop_niche_id": 7}],
     )
     _pick_top_videos_for_enrichment_sync(client, limit=1)
     corpus_chain.order.assert_called_once_with("views", desc=True)
@@ -94,10 +94,10 @@ def test_filters_rows_missing_video_id_or_niche() -> None:
     client, _, _ = _mk_client(
         enriched_video_ids=[],
         corpus_rows=[
-            {"video_id": None, "niche_id": 7},
-            {"video_id": "v2", "niche_id": None},
-            {"video_id": "", "niche_id": 7},
-            {"video_id": "v4", "niche_id": 4},
+            {"video_id": None, "ingest_loop_niche_id": 7},
+            {"video_id": "v2", "ingest_loop_niche_id": None},
+            {"video_id": "", "ingest_loop_niche_id": 7},
+            {"video_id": "v4", "ingest_loop_niche_id": 4},
         ],
     )
     picked = _pick_top_videos_for_enrichment_sync(client, limit=10)
@@ -117,7 +117,7 @@ def test_niche_id_coerces_to_int() -> None:
     stray string slipping through older schemas."""
     client, _, _ = _mk_client(
         enriched_video_ids=[],
-        corpus_rows=[{"video_id": "v1", "niche_id": "7"}],
+        corpus_rows=[{"video_id": "v1", "ingest_loop_niche_id": "7"}],
     )
     picked = _pick_top_videos_for_enrichment_sync(client, limit=1)
     assert picked == [{"video_id": "v1", "niche_id": 7}]
@@ -127,7 +127,7 @@ def test_filters_to_content_type_video() -> None:
     """Carousels have empty scenes — no point re-extracting them."""
     client, _, corpus_chain = _mk_client(
         enriched_video_ids=[],
-        corpus_rows=[{"video_id": "v1", "niche_id": 7}],
+        corpus_rows=[{"video_id": "v1", "ingest_loop_niche_id": 7}],
     )
     _pick_top_videos_for_enrichment_sync(client, limit=1)
     corpus_chain.eq.assert_called_once_with("content_type", "video")
@@ -137,7 +137,7 @@ def test_shots_query_filters_on_non_null_framing() -> None:
     """Verify the 'enriched = any shot with framing IS NOT NULL' filter."""
     client, shots_chain, _ = _mk_client(
         enriched_video_ids=[],
-        corpus_rows=[{"video_id": "v1", "niche_id": 7}],
+        corpus_rows=[{"video_id": "v1", "ingest_loop_niche_id": 7}],
     )
     _pick_top_videos_for_enrichment_sync(client, limit=1)
     shots_chain.not_.is_.assert_called_once_with("framing", "null")

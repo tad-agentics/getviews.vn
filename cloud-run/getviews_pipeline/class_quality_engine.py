@@ -412,7 +412,6 @@ def _export_junction_proposals(client: Any, *, since_7d: str) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         history = {}
 
-    night_key = datetime.now(UTC).strftime("%Y-%m-%d")
     for prop in proposals:
         k = f"{prop['creator_niche_id']}:{prop['content_class_id']}"
         history[k] = history.get(k, 0) + 1

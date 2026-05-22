@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from getviews_pipeline.gemini import (
     EMBED_CONTRACT_VERSION,
-    count_valid_embedded_tiles,
-    repair_diagnosis_vi_embedded_tiles,
     _sanitize_diagnosis_embedded_tiles,
     _validate_diagnosis_vi_citations,
+    count_valid_embedded_tiles,
+    repair_diagnosis_vi_embedded_tiles,
 )
 
 

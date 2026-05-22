@@ -34,7 +34,7 @@ def _video(
     save_rate: float | None = 0.03,
 ) -> dict[str, Any]:
     return {
-        "niche_id": niche_id,
+        "ingest_loop_niche_id": niche_id,
         "content_class_id": content_class_id,
         "hook_type": hook_type,
         "views": views,

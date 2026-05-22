@@ -10,8 +10,8 @@ from getviews_pipeline.corpus_instructiveness import (
     apply_diversity_caps,
     compute_instructiveness_score,
     looks_like_non_vietnamese_caption,
-    predict_hook_from_caption,
     pre_pool_min_views,
+    predict_hook_from_caption,
 )
 
 
@@ -121,8 +121,8 @@ def test_instructiveness_prefers_breakout_over_flat_views():
 
 
 def test_diversity_cap_per_creator():
-    from getviews_pipeline.corpus_instructiveness import CandidateScore
     from getviews_pipeline.corpus_boost_suspect import BoostSuspectResult
+    from getviews_pipeline.corpus_instructiveness import CandidateScore
 
     boost = BoostSuspectResult(
         attribution="organic_confident",
