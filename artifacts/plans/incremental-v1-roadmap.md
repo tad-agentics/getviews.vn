@@ -74,7 +74,7 @@ EnsembleData + Gemini 1× extract (VideoAnalysis / CarouselAnalysis)
 ### 2.3 Pivot awareness (2026-05-21+)
 
 - Cohort canonical: `(content_class_id, creator_tier)` — [`system-design.md`](../docs/system-design.md) §9.
-- Taxonomy prod **16×82**; `data-utilization-map-v1.md` vẫn **2026-05-20 pre-implement** — nhiều hàng F6 bridge `niche_intelligence`, chưa có class MV rows → **resync W1-5** (không block Wave 0).
+- Taxonomy prod **16×82**; `data-utilization-map-v1.md` **v1.1 resynced 2026-05-22** (`8ad7ab0` baseline) — class MV rows, pivot §9, as-built `🔨` markers for vision-only fields.
 - Class MVs canonical; legacy `niche_intelligence` = bridge only.
 
 ### 2.4 F8 Definition of Done (mỗi wave item)
@@ -101,7 +101,7 @@ Khi item wire extract → user value, PR phải có:
 | `peer_percentile` FE-only | `enrich_niche_meta_with_peer_tier()` **defined, never called**; BE không set `peer_percentile_label`; FE `FlopDiagnosisStrip` forward-compatible | **Wave 1** |
 | Ref pool `reference_eligible` | ✅ Batch ingest + `fetch_corpus_reference_pool` filter (`corpus_context.py`) | **Done** — verify only |
 | Channel peer ads-skew | `_run_peer_corpus_query` **không** `.eq("reference_eligible", True)` | **Wave 4** |
-| Utilization map stale | Pre-implement 2026-05-20; chưa sync class MV / pivot rows | **Wave 0** doc note + **Wave 1** resync |
+| Utilization map stale | ✅ **W1-5 done 2026-05-22** — v1.1 resync @ `8ad7ab0`; orphans + BAT column as-built | — |
 
 ### 3.1 Handoff inventory (vision §4.10)
 
@@ -153,16 +153,20 @@ Khi item wire extract → user value, PR phải có:
 
 ### Wave 1 — Handoffs, dedup UX, small wiring
 
+| Item | Status | Notes |
+|------|--------|-------|
+| W1-5 Utilization map resync | ✅ | `data-utilization-map-v1.md` v1.1 @ `8ad7ab0`; 16×82, class MV rows, pivot §9, `🔨` vision markers |
+
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
 | **W1-1** Trends Explore + TrendsRail → Answer query params `depth=basic&mode=win&from=trends` | S | Low | F2 Win path entry | Corpus-hit basic demo | — | 1 tap lands Answer with params; `AnswerScreen` parses `depth`/`mode`/`from` and passes BE | `ExploreScreen.tsx`, `AnswerScreen.tsx`, `TrendsRail.tsx`, `intent-router.ts` |
 | **W1-2** Align §3.1 handoff sites (PatternModal, evidence, SceneIntel, IdeaBlock) | S | Low | Consistent depth inherit | Handoff | — | All 6 navigate sites in §3.1 documented in `feature-map.md` | `PatternModal.tsx`, `GenericEvidenceGrid.tsx`, `SceneIntelligencePanel.tsx`, `IdeaBlock.tsx` |
 | **W1-3** `peer_percentile` pipeline: call `enrich_niche_meta_with_peer_tier` + format `peer_percentile_label` | M | Med | F8 S1 — class×tier MV in diagnosis | FlopDiagnosisStrip shows percentile | — | Payload has numeric + label; empty → existing humility copy | `video_analyze.py`, `video_niche_benchmark.py`, `report_types.py`, `FlopDiagnosisStrip.tsx` |
 | **W1-4** Home vs Trends **scope/nav** (copy ✅ `da76f96`): clarify 3 surfaces | S | Low | STU/F6 dedup UX | — | — | Tier III → within-niche; TrendsRail → 7d/viral rails; CrossNiche → cross-class; CTAs distinct | `HomeSuggestionsToday.tsx`, `TrendsRail.tsx`, `CrossNicheBreakoutLane.tsx` |
-| **W1-5** Resync `data-utilization-map-v1.md` — 16×82, class MV rows, pivot §9 | M | Low | F8 gate accurate | Matrix | Matrix | Orphan count ≤5; BAT column matches cron; no false “16×82 synced” claim | `data-utilization-map-v1.md` |
+| **W1-5** Resync `data-utilization-map-v1.md` — 16×82, class MV rows, pivot §9 | M | Low | F8 gate accurate | Matrix | Matrix | Orphan count ≤5; BAT column matches cron; as-built `🔨` markers | `data-utilization-map-v1.md` |
 | **W1-6** Win path W0 — **P0 subset (2)** of vision §4.8.3: `win_er_above_niche_p75`, `win_hook_aligns_niche_top` | M | Med | F2 utilizes extract on hit tier | §4.8 W0 | — | New `signals/win.py`; `tier_gate=hit`; unit tests; fire-rate logged | `signals/win.py`, `signals/registry.py`, tests |
 
-**Wave 1 exit:** §3.1 handoffs spec-compliant; utilization map resynced; W0 P0 win signals tested; peer tier visible in UI.
+**Wave 1 exit:** §3.1 handoffs spec-compliant; ~~utilization map resynced~~ ✅ W1-5 done; W0 P0 win signals tested; peer tier visible in UI.
 
 ---
 

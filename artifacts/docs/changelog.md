@@ -1,6 +1,8 @@
 # Changelog — GetViews.vn
 
-## 2026-05-22 — Wave 0 incremental V1 (trust + F8 verify)
+## 2026-05-22 — W1-5: data-utilization-map v1.1 resync
+
+- **`data-utilization-map-v1.md` v1.1:** As-built @ `8ad7ab0`; taxonomy 16×82; Phase C pivot (`content_class_id` canonical, `ingest_loop_niche_id` bridge); class-first surfaces (Morning Signal, BreakoutGrid, CrossNicheBreakoutLane); `🔨` = vision not wired; gaps documented (`peer_percentile`, `win_*`, `channel_findings`, live M3 boost, channel peer `reference_eligible`).
 
 - **W0-1:** Channel diagnose deducts **3×** `decrement_credit` — `CHANNEL_DIAGNOSE_CREDIT_COST=3` in `channel_diagnose.py` (parity `ChannelScreen.tsx` + vision §10). Pre-check `credits_remaining >= 3` before RPC loop (no partial charge on API-only 1–2 credit callers).
 - **W0-2:** Doc hygiene — `data-utilization-map-v1.md` stale header; `feature-map.md` links incremental roadmap + wave0 checklist.
