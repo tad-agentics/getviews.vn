@@ -12,7 +12,7 @@ After reviewing the first draft of this doc + the 6 reference designs from Claud
 
 1. **The 6 reference designs are inspiration, not specs** — use them to shape new templates for intents that currently lack one. Do NOT rebuild the 4 existing templates to match the reference (they have production data shapes with real payload fields that the designs drop).
 2. **Dropped intents:** `series_audit` and `comparison` are removed from the supported intent set.
-3. **Dedicated screens, not Answer templates:** `video_diagnosis`, `metadata_only` → `/app/video`; `competitor_profile`, `own_channel` → `/app/channel`; `creator_search` → `/app/kol`; `shot_list` → `/app/script`. The reference designs for VideoDiagnosis and Channel can inspire UI polish on those dedicated screens but are **not** Answer-session templates.
+3. **Dedicated screens, not Answer templates:** `video_diagnosis`, `metadata_only` → `/app/video` *(deleted — now Answer)*; `competitor_profile`, `own_channel` → `/app/channel`; `creator_search` → `/app/kol` *(removed)*; `shot_list` → `/app/answer` script turn *(legacy `/app/script` redirect)*.
 4. **Merge into existing template:** `content_calendar` folds into `timing` (expanded TimingPayload gets calendar slots).
 5. **New Answer templates needed:** 2 — `lifecycle` (serves `format_lifecycle_optimize` + `fatigue` + `subniche_breakdown`) and `diagnostic` (serves `own_flop_no_url`).
 
@@ -21,7 +21,7 @@ After reviewing the first draft of this doc + the 6 reference designs from Claud
 - 2 new Answer templates (lifecycle, diagnostic)
 - = **6 Answer templates total**
 
-The 4 dedicated screens (`/app/video`, `/app/channel`, `/app/kol`, `/app/script`) remain separate surfaces — not counted in the template total.
+The dedicated surfaces (`/app/channel`, legacy `/app/script` redirect) remain separate from Answer templates — not counted in the template total.
 
 ---
 
@@ -62,7 +62,7 @@ Source of truth: `src/routes/_app/intent-router.ts:51-71` (frontend) and `cloud-
 | `own_channel` | `channel` | `/app/channel` |
 | `creator_search` | `kol` | `/app/kol` |
 | `comparison` | `kol` | `/app/kol` |
-| `shot_list` | `script` | `/app/script` |
+| `shot_list` | `script` | `/app/answer` (`format=script`; legacy `/app/script` redirects) |
 
 (7 items in the table — `comparison` is the 7th; the 6-count is intents *unique* to dedicated surfaces.)
 

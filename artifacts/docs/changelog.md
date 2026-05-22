@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Wave 2 complete (100%)
+
+- **W2-4 batch:** `BatchSummary.subject_matter_inserted`; ref-pool desc includes `content_context.subject_matter`; `_maybe_merge_content_targeted_refs_async` passes `user_subject_matter`; enrichment picker uses `ingest_loop_niche_id`.
+- **Docs:** `feature-map.md`, `product-value-audit.md`, `report-templates-audit.md`, roadmap Wave 2 gate @ `8d4759a`.
+- **Cleanup:** removed orphan `useScriptSceneIntelligence.ts`; `OffTaxonomyBanner` route-normalization tests.
+
 ## 2026-05-22 — Housekeeping: Wave 2 script route cleanup
 
 - Removed dead `/app/script` UI: `IdeaWorkspace`, `ShootScreen`, `IdeaRefStrip`, `ScriptExitModal`, `ScriptForecastBar`, `useIdeaReferences`.

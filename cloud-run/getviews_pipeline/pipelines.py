@@ -946,12 +946,21 @@ async def _maybe_merge_content_targeted_refs_async(
     cached_ids: set[str],
     n: int,
     recency_days: int = 30,
+    user_subject_matter: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """If all top picks have zero proximity, supplement pool from ED (user-video keywords)."""
     if not picks or not (video_desc.strip() or video_hashtags):
         return pool, picks
     topn = picks[: min(3, len(picks))]
-    scores = [_content_proximity_score(p, video_desc, video_hashtags) for p in topn]
+    scores = [
+        _content_proximity_score(
+            p,
+            video_desc,
+            video_hashtags,
+            user_subject_matter=user_subject_matter,
+        )
+        for p in topn
+    ]
     if any(s > 0 for s in scores):
         return pool, picks
     from getviews_pipeline.live_search import fetch_content_targeted_refs
@@ -973,6 +982,7 @@ async def _maybe_merge_content_targeted_refs_async(
         cached_ids=cached_ids,
         n=n,
         recency_days=recency_days,
+        user_subject_matter=user_subject_matter,
     )
     return pool, new_picks
 

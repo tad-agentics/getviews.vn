@@ -1214,7 +1214,7 @@ Giảm cost **ngoài** cắt V1 feature: chủ yếu **ít video ingest hơn** h
 | F4 | Soi kênh Sâu | 2 | Deep | ✅ | `/app/channel` — `POST /channel/diagnose` |
 | F5 | Soi kênh Nhanh | 2 | Basic | 🔨 | Xu hướng card / channel |
 | F6 | Xu hướng (công thức + kho) | 3 | — | ✅ UI · 🔨 handoff | `/app/trends` §3.2.1 + `CrossNicheBreakoutLane` |
-| F7 | Script (Answer sessions) | 4 | — | ◐ | `/app/answer` script turns; legacy `/app/script` redirect |
+| F7 | Script (Answer sessions) | 4 | — | ✅ | `/app/answer` script turns; legacy `/app/script` redirect |
 | F8 | Data plane | 5 | — | ◐ | batch + claim tiers; HI-11 route ✅ prod |
 
 Legend: **✅ shipped** = in prod code today · **◐ partial** = surface live, spec gap remains · **🔨 V1 build** = in vision, not in code

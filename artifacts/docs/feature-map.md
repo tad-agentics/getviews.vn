@@ -90,7 +90,7 @@
      - **Tier III — Cảm hứng:** `BreakoutGrid` (`useTopBreakouts` → `video_corpus`, **within** user's junction `content_class_id`; cap 3; rotating window; copy: breakout trong ngách từ creator khác) → link `/app/trends`
   3. **Starter creators** — `/home/starter-creators`
   4. **Pulse data** — `DataFreshnessPill` + `/home/pulse`
-  5. **Query composer** — 4 pills + Cơ bản/Chuyên sâu → intent router → `/app/answer` | `/app/channel` | `/app/script`
+  5. **Query composer** — 4 pills + Cơ bản/Chuyên sâu → intent router → `/app/answer` | `/app/channel` (script via `shot_list` → Answer `format=script`)
   6. **Niche picker** — session-scoped browse anchor (`studioNicheSession.ts`); profile `creator_niche_id` is SSOT
 - **FE hooks (browse filter):** `fetchContentClassIdsForCreatorNiche`, `applyVideoCorpusNicheFilter` (`src/lib/corpusNicheFilter.ts`)
 - **BE endpoints:**
@@ -223,22 +223,22 @@ Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, 
 
 ---
 
-## 7. /app/script — Content Script Workshop
+## 7. /app/script — Legacy redirect (Wave 2)
 
-- **FE:** `src/routes/_app/script/route.tsx` → ScriptScreen; shoot sub-route `app/script/shoot/:draftId`
-- **BE endpoints** (`routers/script.py`):
+- **FE:** `src/routes/_app/script/route.tsx` → redirect to `/app/answer?q=`; shoot shim → `?shoot=`
+- **Script UX lives in:** `/app/answer` script turns — `ScriptBody`, `ScriptActionsBar`, `ScriptShootPanel`, `ScriptExportModal`
+- **BE endpoints** (`routers/script.py`) — drafts, export, hook-patterns, idea-references (API live; FE strip removed):
   - GET `/script/scene-intelligence` (37)
   - GET `/script/idea-references` (58)
   - GET `/script/hook-patterns` (84)
-  - POST `/script/generate` (105)
-  - POST `/script/save` (138) — legacy
+  - POST `/script/generate` (105) — legacy direct generate
   - POST `/script/drafts` (147)
   - GET `/script/drafts` (156)
   - GET `/script/drafts/{draft_id}` (173)
   - POST `/script/drafts/{draft_id}/export` (192)
-- **Synthesis:** `run_shot_list()`; scene intel via `/batch/scene-intelligence`
+- **Primary path:** Answer session `format=script` / `shot_list` intent → `build_script_report` + narrative_vi
 - **DB tables:** `draft_scripts`, `video_shots`, `scene_intelligence`, `hook_effectiveness`
-- **Status:** shipped & live (core) / WIP (scene intelligence batch)
+- **Status:** shipped in Answer · legacy route = redirect shim only
 
 ---
 
@@ -412,7 +412,7 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 | History | /app/history | live | `history_union` RPC |
 | Channel | /app/channel | live | 3 credits FE+BE on cache miss (Wave 0) |
 | Trends | /app/trends | live | Pattern grid + kho video + cross-niche lane + desktop rail |
-| Script | /app/script | live (core) | Scene intel WIP |
+| Script | `/app/answer` (legacy `/app/script` redirect) | live in Answer | narrative_vi + shoot panel |
 | Compare | /app/compare | codebase only (not V1 GTM) | `/stream`; see Post-V1 backlog |
 | Douyin | /app/douyin | live (read) | Batch ingest live |
 | Onboarding | /app/onboarding | live | Single niche |

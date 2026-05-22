@@ -792,6 +792,11 @@ def _build_reference_awemes_from_rows(
         topics = corpus_analysis.get("topics") or []
         if isinstance(topics, list) and topics:
             desc_bits.append(" ".join(str(t) for t in topics[:6]))
+        cc = corpus_analysis.get("content_context")
+        if isinstance(cc, dict):
+            sm = str(cc.get("subject_matter") or "").strip()
+            if sm:
+                desc_bits.append(sm[:160])
         ref_desc = " ".join(desc_bits).strip()
 
         awemes.append({

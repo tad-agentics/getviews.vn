@@ -201,6 +201,7 @@ async def select_synthesis_references_for_video(
         cached_ids=cached_ids,
         n=REF_N,
         recency_days=30,
+        user_subject_matter=user_subject_matter,
     )
 
     synthesis_refs: list[dict[str, Any]] = []

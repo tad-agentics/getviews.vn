@@ -4,7 +4,7 @@
 
 **Version:** 1.1 (as-built resync)  
 **Last updated:** 2026-05-22  
-**Code baseline:** `main` @ `8ad7ab0` (Wave 0 shipped)  
+**Code baseline:** `main` @ Wave 2 complete (`8d4759a` housekeeping + W2-4 batch)  
 **Status:** As-built FIELD × feature matrix + V1 gap markers (`🔨`)  
 **Vision:** [`feature-map-v1.md`](feature-map-v1.md) v2.0 FINAL  
 **Incremental SSOT:** [`incremental-v1-roadmap.md`](../plans/incremental-v1-roadmap.md) — Wave 0 ✅ · Wave 1 ✅ @ `e3b5d01` · Wave 2 ✅  

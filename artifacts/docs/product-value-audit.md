@@ -85,9 +85,9 @@ From [`implementation-plan.md`](implementation-plan.md): *"Tell me what video to
 |------|-------------|-----------------|------------------------|
 | #1 32% | Phân tích viral/flop | Job 2 · Q3 | `/app/answer` video |
 | #2 18% | Dự đoán dễ viral | Q1 (speculative) | **Deferred** — viral score ρ&lt;0.35 |
-| #3 18% | Viết hook | Job 5 · Q2 | Answer ideas + `/app/script` |
+| #3 18% | Viết hook | Job 5 · Q2 | Answer ideas + `/app/answer` script turns |
 | #4 14% | Gợi ý idea | Job 1 · Q1 | `content_directions`, ritual, trends |
-| #5 5% | Viết script | Job 5 · Q2 | `/app/script`, `shot_list` intent |
+| #5 5% | Viết script | Job 5 · Q2 | `/app/answer` `shot_list` (3× credit) |
 | 82% | “5 video tiếp theo + hook” | Job 1 · Q1 | `brief_generation` → `answer:ideas` (Wave 2 shipped) |
 | — | Compare two videos | Q3 comparative | `/app/compare` — **live** (`compare_videos` → `/stream`, 1 credit) |
 
@@ -123,10 +123,10 @@ Schema: `surface` · `persona` · `job` · `Q` · `value_today` · `activation` 
 | `/app/answer` lifecycle turn | Minh | 1 | Q1 | Format lifecycle stage (disclaimer on thin data) | User-initiated | free tier | partial | `format_lifecycle_optimize` |
 | `/app/answer` diagnostic turn | Minh | 3 | Q3 | URL-less flop verdict | User-initiated | billable | partial | `own_flop_no_url` |
 | `/app/answer` generic / creators | Linh | 3 | Q1,Q3 | Creator search blocks (no /kol screen) | User-initiated | varies | partial | `creator_search` |
-| `/app/answer` script turn | Minh | 5 | Q2 | Shot list in session | User-initiated | **3×** `decrement_credit` | partial | `answer_session.py` L460–464 |
+| `/app/answer` script turn | Minh | 5 | Q2 | Narrative script + shot rail + save/shoot/export | User-initiated | **3×** `decrement_credit` | **delivers** | `ScriptBody`; `answer_session.py` L460–464 |
 | `/app/channel` | Minh,Linh | 2,3 | Q1–Q3 | Channel scorecard, peers, 7d cache | User-initiated | **see §Accuracy** | delivers | `ChannelScreen.tsx` `CREDIT_COST=3`; `channel_diagnose.py` |
 | `/app/compare` | Minh | 2,3 | Q3 | Side-by-side + delta; fallback → answer | User-initiated | **1** credit via `/stream` | **delivers** | `CompareScreen.tsx`; `report_compare.py` L37–39 |
-| `/app/script` | Minh | 5 | Q2 | Generate script, hook patterns, drafts, scene intel panel | Pull/User | billable on generate | partial | `useScriptSceneIntelligence.ts`; `/batch/scene-intelligence` live |
+| `/app/script` *(legacy shim)* | Minh | 5 | Q2 | Redirect → Answer composer / `?shoot=` | Pull/User | — | redirect only | `ScriptScreen.tsx` → `answerHandoff` |
 | `POST /api/chat` | Minh | 2 | Q2,Q3 | Edge fallback + `FREE_INTENTS` (not compare) | User-initiated | free cap / 1 credit | partial | `api/chat.ts` L32–37; compare uses `/stream` |
 
 ### Secondary & billing

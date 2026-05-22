@@ -228,6 +228,8 @@ User input (composer | pill | handoff prefill)
 
 **Wave 2 exit:** Mọi script flow trong `/app/answer` narrative-first; **composer + intent-router** vẫn là entry SSOT; shoot + draft linked session; F6 claim-tier aware; hero niche batch aligned.
 
+**Wave 2 complete @ `8d4759a` + W2-4 batch closure** (2026-05-22): housekeeping removed dead `/app/script` UI; W2-4 batch telemetry (`subject_matter_inserted` in `BatchSummary`), ref-pool desc includes `subject_matter`, merge-path proximity parity; docs resynced (`feature-map.md`, `product-value-audit.md`).
+
 | Item | Status | Notes |
 |------|--------|-------|
 | W2-1a Deprecate `/app/script` route | ✅ | Redirect + `scriptPrefillFromDeeplink`; CTAs → `/app/answer?q=` |
@@ -235,7 +237,7 @@ User input (composer | pill | handoff prefill)
 | W2-1c Drafts + shoot in Answer | ✅ | `ScriptActionsBar` + `?shoot=` panel; `source_session_id` on save |
 | W2-2 ConfidenceStrip on F6 | ✅ | `TrendsPatternGrid` + Explore kho when corpus thin |
 | W2-3 Hero niche list + batch IDs | ✅ | `feature-map-v1.md` §8.7; default `1,2,3,4,5,8,9,11` |
-| W2-4 subject_matter proximity | ✅ | User `subject_matter` in ref pool rank; ablation log |
+| W2-4 subject_matter proximity | ✅ | Live + batch ref pool; ablation log; batch `subject_matter_inserted` metric |
 
 **Schema contract (W2-1b — Tech Lead default):**
 

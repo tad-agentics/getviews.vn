@@ -51,6 +51,32 @@ def test_ensure_slim_refs_backfills_live_search_without_corpus_score() -> None:
     assert int(slim[0].get("content_proximity_score") or 0) >= 1
 
 
+def test_proximity_score_boosts_on_subject_matter_overlap() -> None:
+    ref = {
+        "aweme_id": "777",
+        "metadata": {"description": "generic viral clip"},
+        "analysis": {
+            "content_context": {
+                "subject_matter": "Review serum vitamin C cho da dầu mụn.",
+            }
+        },
+    }
+    score_without = _proximity_score_for_ref(
+        ref,
+        video_desc="unrelated",
+        video_hashtags=[],
+        user_subject_matter=None,
+    )
+    score_with = _proximity_score_for_ref(
+        ref,
+        video_desc="unrelated",
+        video_hashtags=[],
+        user_subject_matter="Review serum vitamin C cho da dầu",
+    )
+    assert score_with > score_without
+    assert score_with >= 5
+
+
 def test_ensure_slim_refs_does_not_overwrite_corpus_score() -> None:
     slim = [{"aweme_id": "111", "content_proximity_score": 5}]
     _ensure_slim_refs_proximity_scores(

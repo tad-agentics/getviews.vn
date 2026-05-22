@@ -262,6 +262,7 @@ class IngestResult:
     inserted: int = 0
     skipped: int = 0
     failed: int = 0
+    subject_matter_inserted: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -288,6 +289,8 @@ class BatchSummary:
     score_cohort: str = "legacy"
     ingest_loop: str = "niche"
     shadow_metrics: dict[str, Any] = field(default_factory=dict)
+    # Wave 2 W2-4 — rows upserted with HI-9 content_context.subject_matter present.
+    subject_matter_inserted: int = 0
 
 
 # ── Thin-niche prioritization (Wave 5+ Phase 2) ────────────────────────────────
@@ -2191,6 +2194,8 @@ async def _ingest_candidate_awemes(
     ingest_batch_ctx: IngestBatchContext | None = None,
 ) -> IngestResult:
     """Analyze prepared aweme dicts and upsert rows (shared by pool ingest + explicit reingest)."""
+    from getviews_pipeline.two_axis_taxonomy import extract_subject_matter_from_analysis_json
+
     result = IngestResult(niche_id=niche_id, niche_name=niche_name)
     if not candidates:
         return result
@@ -2490,6 +2495,8 @@ async def _ingest_candidate_awemes(
             except Exception as exc:
                 logger.warning("[corpus] pattern fingerprint failed: %s", exc)
             rows.append(row)
+            if extract_subject_matter_from_analysis_json(row.get("analysis_json")):
+                result.subject_matter_inserted += 1
             if frame_urls:
                 frame_urls_by_video_id[row["video_id"]] = frame_urls
             if scene_frame_pairs:
@@ -3171,7 +3178,7 @@ def _pick_top_videos_for_enrichment_sync(
     out: list[dict[str, Any]] = []
     for r in rows:
         vid = r.get("video_id")
-        nid = r.get("niche_id")
+        nid = r.get("ingest_loop_niche_id")
         if not vid or nid is None:
             continue
         if vid in enriched_ids:
@@ -3303,6 +3310,7 @@ async def run_reingest_video_items(
             summary.total_inserted += sub.inserted
             summary.total_skipped += sub.skipped
             summary.total_failed += sub_failed
+            summary.subject_matter_inserted += sub.subject_matter_inserted
             summary.niches_processed += 1
             summary.niche_results.append({
                 "niche_id": niche_id,
@@ -3810,6 +3818,7 @@ async def run_batch_ingest(
                 summary.total_inserted += res.inserted
                 summary.total_skipped += res.skipped
                 summary.total_failed += res.failed
+                summary.subject_matter_inserted += res.subject_matter_inserted
                 summary.niches_processed += 1
                 summary.niche_results.append({
                     "niche_id": res.niche_id,
@@ -3833,12 +3842,13 @@ async def run_batch_ingest(
 
         logger.info(
             "[corpus] Batch complete — inserted=%d skipped=%d failed=%d niches=%d "
-            "mv_refreshed=%s hi11_junction_reject=%d aborted_early=%s "
+            "subject_matter_rows=%d mv_refreshed=%s hi11_junction_reject=%d aborted_early=%s "
             "niches_remaining=%d elapsed=%.0fs",
             summary.total_inserted,
             summary.total_skipped,
             summary.total_failed,
             summary.niches_processed,
+            summary.subject_matter_inserted,
             summary.materialized_view_refreshed,
             get_hi11_junction_reject_count(),
             summary.aborted_early,
