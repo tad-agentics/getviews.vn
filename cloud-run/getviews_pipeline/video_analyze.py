@@ -21,6 +21,7 @@ from getviews_pipeline.corpus_context import (
 from getviews_pipeline.video_niche_benchmark import (
     build_niche_benchmark_payload,
     fetch_video_benchmark_with_axis,
+    finalize_niche_meta_peer_tier,
 )
 from getviews_pipeline.video_structural import (
     decompose_segments,
@@ -32,6 +33,24 @@ from getviews_pipeline.video_structural import (
 logger = logging.getLogger(__name__)
 
 DIAGNOSTICS_STALE_AFTER = timedelta(hours=1)
+
+
+def _apply_peer_tier_to_niche_meta(
+    niche_meta: dict[str, Any],
+    *,
+    benchmark_axis: str,
+    benchmark_row: dict[str, Any] | None,
+    views: int,
+    content_format: str,
+) -> dict[str, Any]:
+    topic = "carousel" if str(content_format or "").strip().lower() == "carousel" else "video"
+    return finalize_niche_meta_peer_tier(
+        niche_meta,
+        benchmark_axis=benchmark_axis,
+        benchmark_row=benchmark_row,
+        views=views,
+        topic_axis=topic,
+    )
 # Bump when ``VideoAnalyzeResponse.meta`` shape changes (invalidates on-demand cache).
 # v3 — embed_contract_version + finalize-lite repair for poisoned cached_response blobs.
 ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3
@@ -1580,8 +1599,12 @@ def run_video_analyze_pipeline(
         # niche × format → derive on the fly so the new path can fire.
         from getviews_pipeline.corpus_ingest import _content_class_for
         content_class_id = _content_class_for(niche_id, video.get("content_format"))
+    creator_tier = str(video.get("creator_tier") or "").strip() or None
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
-        user_sb, niche_id=niche_id, content_class_id=content_class_id,
+        user_sb,
+        niche_id=niche_id,
+        content_class_id=content_class_id,
+        creator_tier=creator_tier,
     )
     # A.1 — cross-niche format signal. Cheap read; returns None when
     # format is single-niche or sample is too thin so the FE renders
@@ -1636,6 +1659,13 @@ def run_video_analyze_pipeline(
     # can render "vs N similar-format videos" vs "vs N videos in your niche".
     if niche_meta is not default_niche_meta:
         niche_meta["benchmark_axis"] = benchmark_axis
+        niche_meta = _apply_peer_tier_to_niche_meta(
+            niche_meta,
+            benchmark_axis=benchmark_axis,
+            benchmark_row=niche_intel,
+            views=int(video.get("views") or 0),
+            content_format=str(video.get("content_format") or ""),
+        )
     rs = bench_payload.get("retention_source") or "modeled"
     retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
 
@@ -2128,8 +2158,12 @@ def run_video_analyze_on_demand(
     content_class_id = _content_class_for(niche_id, _on_demand_format) if niche_id else None
     # Propagate so _response_from_diagnostics_row can expose it as _content_format.
     video["content_format"] = _on_demand_format or ""
+    od_creator_tier = str(video.get("creator_tier") or "").strip() or None
     niche_intel, benchmark_axis = fetch_video_benchmark_with_axis(
-        user_sb, niche_id=niche_id, content_class_id=content_class_id,
+        user_sb,
+        niche_id=niche_id,
+        content_class_id=content_class_id,
+        creator_tier=od_creator_tier,
     )
     # A.1 — cross-niche format signal. Cheap read; returns None when
     # format is single-niche or sample is too thin so the FE renders
@@ -2168,6 +2202,13 @@ def run_video_analyze_on_demand(
     # A.2.3 — tag axis (matches corpus path).
     if niche_meta is not default_niche_meta:
         niche_meta["benchmark_axis"] = benchmark_axis
+        niche_meta = _apply_peer_tier_to_niche_meta(
+            niche_meta,
+            benchmark_axis=benchmark_axis,
+            benchmark_row=niche_intel,
+            views=int(video.get("views") or 0),
+            content_format=str(video.get("content_format") or ""),
+        )
     rs = bench_payload.get("retention_source") or "modeled"
     retention_source: Literal["real", "modeled"] = "real" if rs == "real" else "modeled"
 

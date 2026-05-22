@@ -396,6 +396,9 @@ def append_turn(
     kind: str,
     classifier_confidence_score: float | None = None,
     intent_id: str | None = None,
+    video_mode: str | None = None,
+    analysis_depth: str | None = None,
+    source_entry: str | None = None,
     step_queue: asyncio.Queue | None = None,
 ) -> dict[str, Any]:
     """Append validated turn; primary kind deducts credit via user client (caller passes token).
@@ -546,10 +549,22 @@ def append_turn(
             from getviews_pipeline.report_video import build_video_report
 
             sb_user_for_video = user_supabase(access_token)
+            if analysis_depth and analysis_depth not in ("basic", "deep"):
+                analysis_depth = None
+            if video_mode and video_mode not in ("win", "flop"):
+                video_mode = None
+            if source_entry:
+                logger.info(
+                    "[answer/turns] video handoff source_entry=%s depth=%s mode=%s",
+                    source_entry,
+                    analysis_depth or "basic",
+                    video_mode,
+                )
             inner = build_video_report(
                 service_sb=sb_srv,
                 user_sb=sb_user_for_video,
                 query=query,
+                mode=video_mode,
                 step_queue=step_queue,
                 session_niche_id=niche_pk or None,
                 user_id=user_id,

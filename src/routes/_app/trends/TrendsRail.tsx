@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { useNavigate } from "react-router";
+import { trendsVideoHandoffPath } from "@/lib/answerHandoff";
 
 import {
   useTrendsRailVideos,
@@ -59,7 +60,7 @@ export const TrendsRail = memo(function TrendsRail({
       <RailSection
         kicker="VIDEO NÊN THAM KHẢO"
         title="Đang nổi lên"
-        sub="Top 5 view 7 ngày qua"
+        sub="Top 5 view 7 ngày trong ngách bạn chọn — bấm để phân tích vì sao nổ"
         videos={data?.breakouts7d ?? []}
         isPending={isPending}
         emptyText="Chưa đủ dữ liệu — quay lại sau."
@@ -67,7 +68,7 @@ export const TrendsRail = memo(function TrendsRail({
       <RailSection
         kicker="VIDEO LEO ĐỈNH"
         title="Đang Viral"
-        sub="Top 5 Viral Video trong ngách của bạn"
+        sub="Top 5 viral all-time trong ngách — khác rail 7 ngày phía trên"
         videos={data?.virals ?? []}
         isPending={isPending}
         emptyText="Chưa có video phù hợp."
@@ -148,15 +149,12 @@ function RailRow({ video }: { video: RailVideo }) {
     <li>
       <button
         type="button"
-        onClick={() =>
-          navigate("/app/answer", {
-            state: {
-              prefillUrl: video.creator_handle
-                ? `https://www.tiktok.com/@${video.creator_handle.replace(/^@/, "")}/video/${video.video_id}`
-                : video.video_id,
-            },
-          })
-        }
+        onClick={() => {
+          const url = video.creator_handle
+            ? `https://www.tiktok.com/@${video.creator_handle.replace(/^@/, "")}/video/${video.video_id}`
+            : video.video_id;
+          navigate(trendsVideoHandoffPath(url));
+        }}
         className="grid w-full grid-cols-[44px_1fr] items-center gap-2.5 rounded-md border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-2.5 py-2 text-left transition-colors hover:border-[color:var(--gv-ink)]"
       >
         <span

@@ -146,6 +146,27 @@ def test_peer_percentile_below_median() -> None:
     assert peer_percentile(30_000, median=80_000) == 15.0
 
 
+def test_attach_peer_percentile_label_vi() -> None:
+    from getviews_pipeline.video_niche_benchmark import attach_peer_percentile_label
+
+    out = attach_peer_percentile_label({"peer_percentile": 82.0})
+    assert out["peer_percentile_label"]
+    assert "82" in out["peer_percentile_label"]
+
+
+def test_finalize_niche_meta_peer_tier_skips_non_tier_axis() -> None:
+    from getviews_pipeline.video_niche_benchmark import finalize_niche_meta_peer_tier
+
+    meta = {"avg_views": 10_000, "sample_size": 50}
+    out = finalize_niche_meta_peer_tier(
+        meta,
+        benchmark_axis="content_class",
+        benchmark_row={"median_views": 8_000, "p75_views": 12_000},
+        views=15_000,
+    )
+    assert "peer_percentile" not in out
+
+
 def test_carousel_diagnosis_thresholds_topic_axis() -> None:
     th = carousel_diagnosis_thresholds()
     assert th["topic_axis"] == "carousel"

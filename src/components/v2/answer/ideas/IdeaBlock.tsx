@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { buildAnswerHandoffPath } from "@/lib/answerHandoff";
 
 import type { IdeaBlockPayloadData } from "@/lib/api-types";
 import { styleLabelVi, tagLabelVi } from "./ideasFormat";
@@ -115,7 +116,9 @@ function EvidenceThumbs({ ids }: { ids: string[] }) {
           key={vid}
           type="button"
           onClick={() =>
-            navigate("/app/answer", { state: { prefillUrl: vid } })
+            navigate(
+              buildAnswerHandoffPath({ q: vid, depth: "basic", mode: "win", from: "ideas" }),
+            )
           }
           className="relative aspect-[9/12] w-full overflow-hidden rounded border border-[color:var(--gv-rule)] bg-[color:var(--gv-canvas-2)] text-left"
           aria-label={`Xem video tham khảo ${vid}`}

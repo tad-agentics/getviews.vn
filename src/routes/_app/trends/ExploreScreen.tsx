@@ -1219,13 +1219,12 @@ export default function ExploreScreen() {
             // ExploreGridVideo uses ``handle`` (not ``creator_handle``);
             // strip leading ``@`` (it's stored as ``@x``).
             const cleanHandle = v.handle?.replace(/^@/, "") ?? "";
-            navigate("/app/answer", {
-              state: {
-                prefillUrl: cleanHandle
-                  ? `https://www.tiktok.com/@${cleanHandle}/video/${v.video_id}`
-                  : v.video_id,
-              },
-            });
+            const q = cleanHandle
+              ? `https://www.tiktok.com/@${cleanHandle}/video/${v.video_id}`
+              : v.video_id;
+            navigate(
+              `/app/answer?q=${encodeURIComponent(q)}&depth=basic&mode=win&from=trends`,
+            );
           }}
         />
       </div>

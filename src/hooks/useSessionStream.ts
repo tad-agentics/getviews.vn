@@ -136,6 +136,9 @@ export type StreamArgs =
       turnKind: AnswerTurnKind;
       /** Session row ``format`` — primary script turns bill 3 credits. */
       sessionFormat?: string | null;
+      videoMode?: "win" | "flop" | null;
+      analysisDepth?: "basic" | "deep" | null;
+      sourceEntry?: string | null;
       resumeStreamId?: string;
       lastSeq?: number;
       /**
@@ -284,7 +287,13 @@ export function useSessionStream<TPayload = unknown>(
                 Authorization: `Bearer ${session.access_token}`,
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({ query: args.query, kind: args.turnKind }),
+              body: JSON.stringify({
+                query: args.query,
+                kind: args.turnKind,
+                ...(args.videoMode ? { video_mode: args.videoMode } : {}),
+                ...(args.analysisDepth ? { analysis_depth: args.analysisDepth } : {}),
+                ...(args.sourceEntry ? { source_entry: args.sourceEntry } : {}),
+              }),
               signal: abort.signal,
             });
 

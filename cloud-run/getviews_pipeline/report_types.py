@@ -502,6 +502,8 @@ class VideoNicheMetaPayload(BaseModel):
     avg_ctr: float = 0.04
     sample_size: int = 0
     winners_sample_size: int | None = None
+    peer_percentile: float | None = None
+    peer_percentile_label: str | None = None
 
     model_config = {"extra": "allow"}
 

@@ -1,8 +1,17 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Wave 1: handoffs, peer_percentile, win signals
+
+- **W1-1/W1-2:** §3.1 handoffs use `?q=&depth=basic&mode=win&from=` — `AnswerScreen` parses params; `POST /answer/turns` accepts `video_mode`, `analysis_depth`, `source_entry` → `build_video_report(mode=…)`.
+- **W1-3:** `finalize_niche_meta_peer_tier` + `peer_percentile_label` on video diagnosis when benchmark axis is `content_class_tier`; `creator_tier` passed into tier MV lookup.
+- **W1-4:** Copy clarifies Home Tier III vs TrendsRail 7d/viral vs CrossNicheBreakoutLane.
+- **W1-6:** `signals/win.py` — `win_er_above_niche_p75`, `win_hook_aligns_niche_top` (`tier_gate=hit`); tests `test_signals_win.py`.
+
 ## 2026-05-22 — W1-5: data-utilization-map v1.1 resync
 
 - **`data-utilization-map-v1.md` v1.1:** As-built @ `8ad7ab0`; taxonomy 16×82; Phase C pivot (`content_class_id` canonical, `ingest_loop_niche_id` bridge); class-first surfaces (Morning Signal, BreakoutGrid, CrossNicheBreakoutLane); `🔨` = vision not wired; gaps documented (`peer_percentile`, `win_*`, `channel_findings`, live M3 boost, channel peer `reference_eligible`).
+
+## 2026-05-22 — Wave 0 incremental V1 (trust + F8 verify)
 
 - **W0-1:** Channel diagnose deducts **3×** `decrement_credit` — `CHANNEL_DIAGNOSE_CREDIT_COST=3` in `channel_diagnose.py` (parity `ChannelScreen.tsx` + vision §10). Pre-check `credits_remaining >= 3` before RPC loop (no partial charge on API-only 1–2 credit callers).
 - **W0-2:** Doc hygiene — `data-utilization-map-v1.md` stale header; `feature-map.md` links incremental roadmap + wave0 checklist.

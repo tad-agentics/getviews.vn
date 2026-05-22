@@ -204,7 +204,7 @@
 | `stats_history` | — | audit | — | rollup | — | — | — | M4 | **🔨** §4.7 P1 cron re-fetch |
 | `distribution_shape` | — | audit | — | — | — | — | — | M4 | Derived from `stats_history` |
 | `distribution_*` (hashtag cluster annotations) | teaser | audit | — | — | feed | — | — | MV | `annotate_distribution` at ingest |
-| `peer_percentile` (derived at diagnosis) | show | show | — | — | — | — | — | MV | **`enrich_niche_meta_with_peer_tier` exists; not called** — **🔨** W1-3 |
+| `peer_percentile` (derived at diagnosis) | show | show | — | — | — | — | — | MV | **✅** `finalize_niche_meta_peer_tier` when axis `content_class_tier` |
 
 ---
 
@@ -213,7 +213,7 @@
 | AGGREGATE / TABLE | F2 | F1 | F5 | F4 | F6 | STU | F7 | BAT | Nguồn field | As-built |
 |-------------------|----|----|----|----|----|-----|----|-----|-------------|----------|
 | `content_class_intelligence` | bench | bench | — | score | feed | show | — | MV | views, ER, hooks, formats by `content_class_id` | **✅** Morning Signal, Trends thin banner, diagnosis `benchmark_axis=content_class` |
-| `content_class_tier_intelligence` | bench | bench | — | score | — | — | — | MV | `(content_class_id, creator_tier)` peer band | **✅** BE; **🔨** `peer_percentile` → UI |
+| `content_class_tier_intelligence` | bench | bench | — | score | — | — | — | MV | `(content_class_id, creator_tier)` peer band | **✅** BE + `peer_percentile` label → `FlopDiagnosisStrip` |
 | `creator_niche_content_class_stats` | — | bench | — | — | feed | — | — | MV | Junction rollup for browse gates | **✅** refreshed nightly |
 | `hook_effectiveness` | bench | bench | — | pattern | leader | anchor | anchor | MV | `hook_type`, views, ER | **✅** STU Tier II, script, pattern reports |
 | `video_patterns` | bench | bench | — | pattern | feed | anchor | spec | MV | `content_format`, corpus peers | **✅** F6 grid + STU |
@@ -283,7 +283,8 @@
 |--------------|---------|--------|
 | `key_messages[]` | **Orphan** | Trim after ablation — trim-safe |
 | `persona_consistency_signals` | **Orphan** | **🔨** wire F4 P2 or defer |
-| `peer_percentile` / `peer_percentile_label` | **Weak** | Function + FE ready; **🔨** W1-3 wire pipeline |
+| `peer_percentile` / `peer_percentile_label` | **Strong** | Wired W1-3 when tier MV + `creator_tier` on corpus row |
+| `win_er_above_niche_p75` / `win_hook_aligns_niche_top` | **Strong** | `signals/win.py`; `tier_gate=hit`; W1-6 |
 | `win_*` signals (§4.8 W0) | **Missing** | **🔨** W1-6 `signals/win.py` |
 | `channel_findings[]` roll-ups | **Missing** | **🔨** W4 — aggregate `analysis_json` on handle |
 | `key_timestamps[]` | Weak | Schema compat; defer |
@@ -310,7 +311,7 @@
 | Depth split | Documented | ✅ §7 marked **🔨 vision** |
 | Wave 0 F8 verify | Done | ✅ ref pool + boost batch + channel 3× credit |
 
-**Open gates (incremental roadmap):** W1 handoffs + `peer_percentile` + win signals · W3 `analysis_depth` · W4 channel findings + live boost · W1-5 this file resync ✅.
+**Open gates (incremental roadmap):** W3 `analysis_depth` · W4 channel findings + live boost · W1-1–W1-6 ✅ (except W1-5 doc resync).
 
 ---
 

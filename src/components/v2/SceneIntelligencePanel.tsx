@@ -1,4 +1,5 @@
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
+import { inheritHandoffFromSearch } from "@/lib/answerHandoff";
 import { Plus } from "lucide-react";
 import type { ScriptEditorShot } from "@/lib/scriptEditorMerge";
 import { MiniBarCompare } from "@/components/v2/MiniBarCompare";
@@ -38,6 +39,7 @@ export function SceneIntelligencePanel({
   sceneSampleSize = null,
   overlayCorpusCount = null,
 }: SceneIntelligencePanelProps) {
+  const [searchParams] = useSearchParams();
   const span = shot.t1 - shot.t0;
   const slow = span > shot.winnerAvg * 1.2;
   const thinCorpus =
@@ -117,10 +119,11 @@ export function SceneIntelligencePanel({
             ? referenceClips.map((c, i) => (
                 <Link
                   key={c.video_id}
-                  to="/app/answer"
-                  state={{
-                    prefillUrl: `https://www.tiktok.com/@${c.creator_handle.replace(/^@/, "")}/video/${c.video_id}`,
-                  }}
+                  to={inheritHandoffFromSearch(
+                    searchParams,
+                    `https://www.tiktok.com/@${c.creator_handle.replace(/^@/, "")}/video/${c.video_id}`,
+                    "script",
+                  )}
                   className={`relative flex aspect-[9/13] w-20 shrink-0 flex-col justify-end overflow-hidden rounded p-1.5 text-left text-[color:var(--gv-canvas)] ${
                     !c.thumbnail_url ? CLIP_FALLBACK_BG[i % CLIP_FALLBACK_BG.length] : ""
                   }`}

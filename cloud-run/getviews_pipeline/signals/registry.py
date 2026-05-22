@@ -20,6 +20,7 @@ from getviews_pipeline.signals.salience import MAX_SIGNALS_PER_SECTION_IN_PROMPT
 from getviews_pipeline.signals.script import extract_script_signals
 from getviews_pipeline.signals.sound import extract_sound_signals
 from getviews_pipeline.signals.triggers import extract_trigger_signals
+from getviews_pipeline.signals.win import extract_win_signals
 
 _EXTRACTORS = (
     extract_compliance_signals,
@@ -38,6 +39,7 @@ _EXTRACTORS = (
     extract_persona_signals,
     extract_script_signals,
     extract_trigger_signals,
+    extract_win_signals,
 )
 
 

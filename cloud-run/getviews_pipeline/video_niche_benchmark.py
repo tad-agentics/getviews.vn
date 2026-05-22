@@ -425,3 +425,48 @@ def enrich_niche_meta_with_peer_tier(
         if pct is not None:
             out["peer_percentile"] = pct
     return out
+
+
+def attach_peer_percentile_label(meta: dict[str, Any]) -> dict[str, Any]:
+    """Vietnamese humility-safe label for FlopDiagnosisStrip (Wave 1 W1-3)."""
+    pct = meta.get("peer_percentile")
+    if pct is None:
+        return meta
+    try:
+        p = float(pct)
+    except (TypeError, ValueError):
+        return meta
+    out = dict(meta)
+    if p >= 75:
+        out["peer_percentile_label"] = (
+            f"View cao hơn ~{int(round(p))}% video cùng format × tier"
+        )
+    elif p >= 50:
+        out["peer_percentile_label"] = (
+            f"View ~top {max(1, int(round(100 - p)))}% trong cùng format × tier"
+        )
+    else:
+        out["peer_percentile_label"] = (
+            f"View thấp hơn ~{int(round(100 - p))}% video cùng format × tier"
+        )
+    return out
+
+
+def finalize_niche_meta_peer_tier(
+    niche_meta: dict[str, Any],
+    *,
+    benchmark_axis: str,
+    benchmark_row: dict[str, Any] | None,
+    views: int,
+    topic_axis: str = "video",
+) -> dict[str, Any]:
+    """Apply tier MV peer percentile + label when axis is content_class_tier."""
+    if benchmark_axis != "content_class_tier" or not benchmark_row or views <= 0:
+        return niche_meta
+    enriched = enrich_niche_meta_with_peer_tier(
+        niche_meta,
+        benchmark_row,
+        views=views,
+        topic_axis=topic_axis,
+    )
+    return attach_peer_percentile_label(enriched)

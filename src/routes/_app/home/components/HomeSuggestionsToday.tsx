@@ -98,7 +98,7 @@ export const HomeSuggestionsToday = memo(function HomeSuggestionsToday({
           tag="CẢM HỨNG"
           tagTone="ink"
           title="3 video breakout trong ngách của bạn"
-          caption="Từ creator khác trong cùng ngách — view vượt trung bình kênh họ. Xem thêm ở tab Xu hướng."
+          caption="Breakout trong ngách bạn (Tier III) — khác rail 7 ngày và format khác ngách ở tab Xu hướng."
           right={SEE_ALL_TRENDS}
         />
         <BreakoutGrid embedded creatorNicheId={creatorNicheId} />

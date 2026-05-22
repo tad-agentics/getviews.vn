@@ -56,7 +56,7 @@ export const CrossNicheBreakoutLane = memo(function CrossNicheBreakoutLane({
         Format đang nổi ở ngách khác
       </p>
       <p className="mb-3 text-sm text-[color:var(--gv-ink-2)]">
-        3 video breakout ngoài format thường gặp của bạn — để tham khảo góc quay mới.
+        3 video breakout khác ngách/format so với junction của bạn — tham khảo góc quay, không phải rail 7 ngày trong ngách.
       </p>
       <div className="grid grid-cols-3 gap-3">
         {tiles.map((v) => (

@@ -8,7 +8,8 @@
  * deleted `/app/video?video_id=…` deep-link).
  */
 
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import { inheritHandoffFromSearch } from "@/lib/answerHandoff";
 
 import { VideoThumbnail } from "@/components/VideoThumbnail";
 import type { EvidenceCardPayloadData } from "@/lib/api-types";
@@ -36,6 +37,7 @@ export function GenericEvidenceGrid({
   items: EvidenceCardPayloadData[];
 }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   if (items.length === 0) return null;
   return (
     <ul
@@ -50,9 +52,13 @@ export function GenericEvidenceGrid({
           <button
             type="button"
             onClick={() =>
-              navigate("/app/answer", {
-                state: { prefillUrl: tiktokUrlFor(v.creator_handle, v.video_id) },
-              })
+              navigate(
+                inheritHandoffFromSearch(
+                  searchParams,
+                  tiktokUrlFor(v.creator_handle, v.video_id),
+                  "evidence",
+                ),
+              )
             }
             aria-label={`Mở video tham khảo ${v.video_id}`}
             className="relative block aspect-[9/12] w-full text-left"

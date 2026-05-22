@@ -139,7 +139,20 @@
   - Canonical: `narrative_vi.diagnosis_vi.sections[].embedded_tiles` joined to `reference_videos` in `DiagnosisSectionRenderer.tsx`
   - Cache repair: `embed_contract_version` + `repair_diagnosis_vi_embedded_tiles()` on corpus/on-demand cache hits (`finalize-lite`); `ON_DEMAND_RESPONSE_SCHEMA_VERSION = 3`
   - FE fallback: `embeddedTilesFromEvidenceAnchors` when anchors carry `aweme_id` (`VideoBody.tsx`)
-- **Signals (read-only lookups):** `hook_effectiveness`, `video_patterns`, `content_class_intelligence`, `signal_grades`, corpus peers; **`peer_percentile` / `peer_percentile_label`** on diagnosis payload → `FlopDiagnosisStrip` (`VideoBody.tsx`)
+- **Signals (read-only lookups):** `hook_effectiveness`, `video_patterns`, `content_class_intelligence`, `signal_grades`, corpus peers; **`peer_percentile` / `peer_percentile_label`** on diagnosis payload → `FlopDiagnosisStrip` (`VideoBody.tsx`); Win W0: `win_er_above_niche_p75`, `win_hook_aligns_niche_top` (`signals/win.py`, hit tier only)
+
+### §3.1 Answer handoffs (Wave 1 — query param contract)
+
+| Entry | Target URL pattern | `from` |
+|-------|-------------------|--------|
+| Trends Explore / `TrendsRail` | `/app/answer?q={url}&depth=basic&mode=win&from=trends` | `trends` |
+| `PatternModal` | same + `from=pattern` | `pattern` |
+| `GenericEvidenceGrid` | inherits `depth`/`mode` from current Answer URL | `evidence` |
+| `SceneIntelligencePanel` | inherits + `from=script` | `script` |
+| `IdeaBlock` (aweme id) | `depth=basic&mode=win&from=ideas` | `ideas` |
+| Compare fallback | `prefillUrl` state (unchanged) | — |
+
+Helper: `src/lib/answerHandoff.ts`. BE: `POST /answer/turns` body `video_mode`, `analysis_depth`, `source_entry`.
 - **DB tables:** `answer_sessions`, `answer_turns`, `video_diagnostics`, `video_corpus`, `content_classifications`
 - **Status:** shipped & live
 
@@ -436,6 +449,6 @@ All `/batch/*` in `cloud-run/getviews_pipeline/routers/batch.py` (require `BATCH
 | Embed repair | `gemini.py` (`repair_diagnosis_vi_embedded_tiles`, `EMBED_CONTRACT_VERSION`) |
 | FE diagnosis render | `src/components/v2/answer/DiagnosisSectionRenderer.tsx`, `VideoBody.tsx` |
 | DB | `supabase/migrations/` |
-| Signals | `cloud-run/getviews_pipeline/signals/` — `base`, `registry`, `channel`, `commerce`, `compliance`, `context_signals`, `distribution`, `douyin`, `editing`, `engagement`, `hook`, `metadata`, `performance`, `persona`, `reference`, `salience`, `script`, `sound`, `triggers` |
+| Signals | `cloud-run/getviews_pipeline/signals/` — `base`, `registry`, `channel`, `commerce`, `compliance`, `context_signals`, `distribution`, `douyin`, `editing`, `engagement`, `hook`, `metadata`, `performance`, `persona`, `reference`, `salience`, `script`, `sound`, `triggers`, `win` |
 
 **Maintenance rule:** When adding a route, endpoint, or changing orchestration, update this file **and** [`system-design.md`](system-design.md) §3–§4 in the **same commit**; bump both `main @ <short-sha>` headers.

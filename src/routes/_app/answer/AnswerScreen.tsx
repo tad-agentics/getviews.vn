@@ -29,7 +29,11 @@ import { logUsage } from "@/lib/logUsage";
 import { extractTikTokVideoIdFromText } from "@/lib/tiktokUrl";
 import { Plus, Check, ArrowLeft } from "lucide-react";
 import { ContinuationTurn } from "@/components/v2/answer/ContinuationTurn";
-import { appendTurnKindForQuery, planAnswerEntry } from "@/routes/_app/intent-router";
+import {
+  appendTurnKindForQuery,
+  parseAnswerHandoffParams,
+  planAnswerEntry,
+} from "@/routes/_app/intent-router";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import {
@@ -135,6 +139,7 @@ export default function AnswerScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const sessionId = searchParams.get("session") ?? searchParams.get("session_id");
   const seedQ = searchParams.get("q") ?? "";
+  const handoff = useMemo(() => parseAnswerHandoffParams(searchParams), [searchParams]);
 
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -219,13 +224,17 @@ export default function AnswerScreen() {
   const researchStage = useResearchStage(loading);
   const turnCount = turns.length;
 
-  // Studio / video handoff: promote `location.state` into `?q=`
+  // Legacy state handoff → canonical query params (§3.1).
   useEffect(() => {
     const state = location.state as { initialPrompt?: string; prefillUrl?: string } | null | undefined;
     const incoming = state?.initialPrompt ?? state?.prefillUrl;
     if (!incoming || typeof incoming !== "string" || !incoming.trim()) return;
-    navigate(`${location.pathname}?q=${encodeURIComponent(incoming)}`, { replace: true, state: {} });
-  }, [location.state, location.pathname, navigate]);
+    const params = new URLSearchParams(searchParams);
+    params.set("q", incoming.trim());
+    if (!params.has("depth")) params.set("depth", "basic");
+    if (!params.has("mode")) params.set("mode", "win");
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate, searchParams]);
 
   /**
    * Blocks duplicate bootstrap for the same `?q=` (React Strict Mode) but must not
@@ -376,6 +385,10 @@ export default function AnswerScreen() {
           query: seedQ,
           turnKind: "primary",
           sessionFormat: sessionFormat,
+          videoMode:
+            sessionFormat === "video" ? handoff.mode ?? undefined : undefined,
+          analysisDepth: sessionFormat === "video" ? handoff.depth : undefined,
+          sourceEntry: handoff.from ?? undefined,
         });
 
         if (!result.ok) {
@@ -408,7 +421,11 @@ export default function AnswerScreen() {
               ),
           );
         }
-        setSearchParams({ session: row.id, q: seedQ }, { replace: true });
+        const nextParams = new URLSearchParams({ session: row.id, q: seedQ });
+        nextParams.set("depth", handoff.depth);
+        if (handoff.mode) nextParams.set("mode", handoff.mode);
+        if (handoff.from) nextParams.set("from", handoff.from);
+        setSearchParams(nextParams, { replace: true });
         if (uid) {
           await queryClient.invalidateQueries({ queryKey: answerSessionKeys.listsForUser(uid) });
         }

@@ -123,13 +123,12 @@ function PatternModalBody({ pattern, nicheId }: { pattern: TopPattern; nicheId: 
             disabled={!active?.video_id}
             onClick={() => {
               if (active?.video_id) {
-                navigate("/app/answer", {
-                  state: {
-                    prefillUrl: active.creator_handle
-                      ? `https://www.tiktok.com/@${active.creator_handle.replace(/^@/, "")}/video/${active.video_id}`
-                      : active.video_id,
-                  },
-                });
+                const q = active.creator_handle
+                  ? `https://www.tiktok.com/@${active.creator_handle.replace(/^@/, "")}/video/${active.video_id}`
+                  : active.video_id;
+                navigate(
+                  `/app/answer?q=${encodeURIComponent(q)}&depth=basic&mode=win&from=pattern`,
+                );
               }
             }}
           >

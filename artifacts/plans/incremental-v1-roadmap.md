@@ -98,7 +98,7 @@ Khi item wire extract → user value, PR phải có:
 | Home vs Trends breakout scope | ✅ Tier III copy fixed (`da76f96`). Còn: `BreakoutGrid` (`useTopBreakouts`) vs `TrendsRail` (`useTrendsRailVideos`) vs `CrossNicheBreakoutLane` — 3 surface khác hook, dễ nhầm | **Wave 1–2** |
 | Answer follow-up turn 2+ | `FollowUpComposer` in `AnswerScreen.tsx` | **Gate** — Wave 5 or post-V1 |
 | `channel_findings[]` P0 | Channel = memo SSE, no manifest | **Wave 4** |
-| `peer_percentile` FE-only | `enrich_niche_meta_with_peer_tier()` **defined, never called**; BE không set `peer_percentile_label`; FE `FlopDiagnosisStrip` forward-compatible | **Wave 1** |
+| `peer_percentile` | ✅ W1-3 — `finalize_niche_meta_peer_tier` + label when `content_class_tier` axis | — |
 | Ref pool `reference_eligible` | ✅ Batch ingest + `fetch_corpus_reference_pool` filter (`corpus_context.py`) | **Done** — verify only |
 | Channel peer ads-skew | `_run_peer_corpus_query` **không** `.eq("reference_eligible", True)` | **Wave 4** |
 | Utilization map stale | ✅ **W1-5 done 2026-05-22** — v1.1 resync @ `8ad7ab0`; orphans + BAT column as-built | — |
@@ -116,7 +116,7 @@ Khi item wire extract → user value, PR phải có:
 | Home composer / Studio | pill + depth picker (post-W3) | free-text `?q=` only | W3 |
 | Compare single-side fallback | `/app/answer` + `prefillUrl` | ✅ as-built | — |
 
-**Note:** `mode=win` today chỉ qua query heuristics trong `report_video.py` — chưa URL contract cho Answer.
+**Note:** ✅ W1-1 — `mode=win` via `?mode=` → `video_mode` on `/answer/turns` → `build_video_report(mode=…)`.
 
 ---
 
@@ -156,6 +156,11 @@ Khi item wire extract → user value, PR phải có:
 | Item | Status | Notes |
 |------|--------|-------|
 | W1-5 Utilization map resync | ✅ | `data-utilization-map-v1.md` v1.1 @ `8ad7ab0`; 16×82, class MV rows, pivot §9, `🔨` vision markers |
+| W1-1 Trends → Answer query params | ✅ | `answerHandoff.ts`; BE `video_mode` on `/answer/turns` |
+| W1-2 §3.1 handoff sites | ✅ | PatternModal, evidence, SceneIntel, IdeaBlock + `feature-map.md` |
+| W1-3 peer_percentile pipeline | ✅ | `finalize_niche_meta_peer_tier` + label; `creator_tier` on tier MV |
+| W1-4 Home vs Trends dedup copy | ✅ | Tier III / TrendsRail / CrossNiche CTAs |
+| W1-6 Win W0 signals (2) | ✅ | `signals/win.py`; `test_signals_win.py` |
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
