@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Sparkles } from "lucide-react";
 import { QueryComposer } from "@/components/v2/QueryComposer";
+import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 
 const FOLLOW_UP_PILL =
   "inline-flex min-h-[44px] max-w-full items-center gap-1.5 rounded-full border border-[color:var(--gv-rule)] bg-[color:var(--gv-paper)] px-3 py-2 text-left text-[11px] font-medium leading-snug text-[color:var(--gv-ink-2)] transition-colors hover:border-[color:var(--gv-ink)] hover:bg-[color:var(--gv-canvas-2)] disabled:pointer-events-none disabled:opacity-40";
@@ -39,6 +40,8 @@ export function FollowUpComposer({
   suggestedPrompts,
   variant = "followUp",
   placeholder,
+  analysisDepth,
+  onAnalysisDepthChange,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -49,6 +52,8 @@ export function FollowUpComposer({
   /** `initial` — chưa có phiên: bắt đầu phân tích mới (không disable theo session). */
   variant?: "initial" | "followUp";
   placeholder?: string;
+  analysisDepth?: AnswerHandoffDepth;
+  onAnalysisDepthChange?: (depth: AnswerHandoffDepth) => void;
 }) {
   const prompts = useMemo(() => mergeFollowUpPrompts(suggestedPrompts), [suggestedPrompts]);
   const kicker = variant === "initial" ? "Bắt đầu phân tích" : "Tiếp tục nghiên cứu";
@@ -70,6 +75,9 @@ export function FollowUpComposer({
         placeholder={resolvedPlaceholder}
         showNicheCaption={false}
         disabled={disabled}
+        analysisDepth={analysisDepth}
+        onAnalysisDepthChange={onAnalysisDepthChange}
+        showDepthPicker={variant === "initial"}
         followUpSlot={
           variant === "followUp" ? (
             <>

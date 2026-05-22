@@ -35,6 +35,7 @@ import {
   parseAnswerHandoffParams,
   planAnswerEntry,
 } from "@/routes/_app/intent-router";
+import type { AnswerHandoffDepth } from "@/lib/answerHandoff";
 import { AnswerShell } from "@/components/v2/answer/AnswerShell";
 import { FollowUpComposer } from "@/components/v2/answer/FollowUpComposer";
 import {
@@ -142,6 +143,20 @@ export default function AnswerScreen() {
   const seedQ = searchParams.get("q") ?? "";
   const shootDraftId = searchParams.get("shoot");
   const handoff = useMemo(() => parseAnswerHandoffParams(searchParams), [searchParams]);
+
+  const setAnalysisDepth = useCallback(
+    (depth: AnswerHandoffDepth) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("depth", depth);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -303,6 +318,8 @@ export default function AnswerScreen() {
           answerSessionId: pending.sessionId,
           query: pending.query,
           turnKind: pending.turnKind,
+          sessionFormat: pending.sessionFormat ?? null,
+          analysisDepth: pending.analysisDepth ?? null,
           resumeStreamId: pending.streamId,
           lastSeq: pending.seq,
           startedAt: pending.startedAt,
@@ -435,7 +452,12 @@ export default function AnswerScreen() {
             kind: "primary",
             query: seedQ,
             payload: result.finalPayload,
-            credits_used: sessionFormat === "script" ? 3 : 1,
+            credits_used:
+              sessionFormat === "script"
+                ? 3
+                : sessionFormat === "video" && handoff.depth === "deep"
+                  ? 2
+                  : 1,
             created_at: new Date().toISOString(),
           };
           queryClient.setQueryData<AnswerDetailCache>(
@@ -470,7 +492,7 @@ export default function AnswerScreen() {
         setBootstrapLoading(false);
       }
     })();
-  }, [sessionId, seedQ, CLOUD, user, defaultProfileNicheId, setSearchParams, navigate, queryClient, uid, stream]);
+  }, [sessionId, seedQ, CLOUD, user, defaultProfileNicheId, handoff, setSearchParams, navigate, queryClient, uid, stream]);
 
   const submitFollowUp = useCallback(async () => {
     const q = followUp.trim();
@@ -552,7 +574,15 @@ export default function AnswerScreen() {
     const q = followUp.trim();
     if (!q || !CLOUD || !user || bootstrapLoading || streamInFlight) return;
     if (!sessionId) {
-      setSearchParams({ q }, { replace: true });
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("q", q);
+          next.set("depth", handoff.depth);
+          return next;
+        },
+        { replace: true },
+      );
       setFollowUp("");
       return;
     }
@@ -564,6 +594,7 @@ export default function AnswerScreen() {
     bootstrapLoading,
     streamInFlight,
     sessionId,
+    handoff.depth,
     setSearchParams,
     submitFollowUp,
   ]);
@@ -814,6 +845,8 @@ export default function AnswerScreen() {
                 suggestedPrompts={related}
                 variant={sessionId ? "followUp" : "initial"}
                 disabled={!CLOUD || !user || bootstrapLoading || streamInFlight}
+                analysisDepth={handoff.depth}
+                onAnalysisDepthChange={setAnalysisDepth}
               />
             </TimelineRail>
           }

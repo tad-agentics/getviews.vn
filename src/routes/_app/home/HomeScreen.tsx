@@ -16,6 +16,7 @@ import { useTopPatterns, type TopPatternsScope } from "@/hooks/useTopPatterns";
 import { fetchContentClassIdsForCreatorNiche } from "@/lib/corpusNicheFilter";
 import { formatRelativeSinceVi } from "@/lib/formatters";
 import { logUsage } from "@/lib/logUsage";
+import { buildAnswerHandoffPath, type AnswerHandoffDepth } from "@/lib/answerHandoff";
 import { profileFirstNicheId, profileCreatorNicheId } from "@/lib/profileNiches";
 import { readStudioNicheId, writeStudioNicheId } from "@/lib/studioNicheSession";
 import { TickerMarquee } from "./components/TickerMarquee";
@@ -25,8 +26,6 @@ import { NichePicker } from "./components/NichePicker";
 import { DateChip } from "./components/DateChip";
 import { useIsFirstRun } from "./components/useIsFirstRun";
 import {
-  PASTE_HANDLE_TEMPLATE,
-  PASTE_VIDEO_TEMPLATE,
   unfilledPasteTemplateHint,
 } from "./pasteTemplates";
 import { scrollToSuggestionsTier, type SuggestionsTier } from "./components/scrollToTier";
@@ -67,9 +66,9 @@ export default function HomeScreen() {
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const [composerText, setComposerText] = useState("");
+  const [analysisDepth, setAnalysisDepth] = useState<AnswerHandoffDepth>("basic");
   // L1.5 audit follow-up — surfaces a Vietnamese hint when the user
-  // submits an unfilled paste-template chip (e.g. clicked "Dán @handle"
-  // and pressed enter without replacing the placeholder).
+  // submits an unfilled paste-template chip (legacy template text in composer).
   const [placeholderHint, setPlaceholderHint] = useState<string | null>(null);
   const { data: profile } = useProfile();
   const { data: niches = [] } = useNicheTaxonomy();
@@ -206,8 +205,12 @@ export default function HomeScreen() {
   );
 
   const launchChat = (text: string) => {
-    logUsage("studio_composer_submit", { surface: "home", length: text.length });
-    navigate(`/app/answer?q=${encodeURIComponent(text)}`);
+    logUsage("studio_composer_submit", {
+      surface: "home",
+      length: text.length,
+      analysis_depth: analysisDepth,
+    });
+    navigate(buildAnswerHandoffPath({ q: text, depth: analysisDepth, from: "composer" }));
   };
 
   const fillComposer = (text: string) => {
@@ -333,8 +336,8 @@ export default function HomeScreen() {
               nicheLabel={nicheLabel}
               corpusCount={currentNicheCount}
               showUrlChip={URL_IN_TEXT.test(composerText)}
-              onPasteVideoClick={() => fillComposer(PASTE_VIDEO_TEMPLATE)}
-              onPasteHandleClick={() => fillComposer(PASTE_HANDLE_TEMPLATE)}
+              analysisDepth={analysisDepth}
+              onAnalysisDepthChange={setAnalysisDepth}
             />
             {placeholderHint ? (
               <p

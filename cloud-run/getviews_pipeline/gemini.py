@@ -1371,6 +1371,7 @@ def _synthesize_diagnosis_v6_section_pool(
     creator_format_history_block: str,
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
+    analysis_depth: str = "basic",
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """Section-pool diagnosis: signals → section pick list → JSON-first v6 prompt."""
     from getviews_pipeline.compliance import collect_compliance_flags
@@ -1397,8 +1398,9 @@ def _synthesize_diagnosis_v6_section_pool(
         corpus_size=corpus_size,
     )
     manifest = build_signal_manifest(ctx_dict)
-    sections_ordered = select_sections_to_emit(manifest, ctx_dict)
-    manifest_trim = manifest_for_prompt(manifest)
+    depth = "basic" if analysis_depth == "basic" else "deep"
+    sections_ordered = select_sections_to_emit(manifest, ctx_dict, depth=depth)
+    manifest_trim = manifest_for_prompt(manifest, depth=depth)
 
     model = GEMINI_DIAGNOSIS_MODEL or GEMINI_SYNTHESIS_MODEL
     sys_inst = build_voice_domain_system_instruction(include_diagnosis_examples=True)
@@ -1522,6 +1524,7 @@ def synthesize_diagnosis_v2(
     creator_format_history_block: str = "",
     cross_format_signal: dict[str, Any] | None = None,
     niche_posting_context_block: str = "",
+    analysis_depth: str = "basic",
 ) -> tuple[str, dict[str, Any] | None, list[dict[str, Any]] | None]:
     """V2 narrative diagnosis — Markdown body plus optional structured narrative/format cards."""
 
@@ -1546,6 +1549,7 @@ def synthesize_diagnosis_v2(
             creator_format_history_block=creator_format_history_block,
             cross_format_signal=cross_format_signal,
             niche_posting_context_block=niche_posting_context_block,
+            analysis_depth=analysis_depth,
         )
 
     allowed = _allowed_aweme_ids(reference_videos)

@@ -38,11 +38,18 @@ const RESUME_MAX_AGE_MS = 45_000;
 export function optimisticAnswerCreditsUsed(
   turnKind: PendingAnswerTurnKind,
   sessionFormat?: string | null,
+  analysisDepth?: AnalysisDepth | null,
 ): number {
   if (turnKind === "script") return 3;
-  if (turnKind === "primary") return sessionFormat === "script" ? 3 : 1;
+  if (turnKind === "primary") {
+    if (sessionFormat === "script") return 3;
+    if (sessionFormat === "video" && analysisDepth === "deep") return 2;
+    return 1;
+  }
   return 0;
 }
+
+export type AnalysisDepth = "basic" | "deep";
 
 export type PendingAnswerTurnKind =
   | "primary"
@@ -63,6 +70,8 @@ export interface PendingAnswerStream {
   creditsUsed: number;
   /** Session row ``format`` — when ``creditsUsed`` is absent (legacy blob), infer billing. */
   sessionFormat?: string | null;
+  /** Video primary depth — when absent (legacy blob), infer as ``basic``. */
+  analysisDepth?: AnalysisDepth | null;
 }
 
 function safeStorage(): Storage | null {
@@ -129,11 +138,15 @@ export function loadPendingAnswerStream(
     "sessionFormat" in parsed && parsed.sessionFormat !== undefined
       ? parsed.sessionFormat
       : null;
+  const depth =
+    "analysisDepth" in parsed && parsed.analysisDepth !== undefined
+      ? parsed.analysisDepth
+      : null;
   const creditsUsed =
     typeof parsed.creditsUsed === "number"
       ? parsed.creditsUsed
-      : optimisticAnswerCreditsUsed(parsed.turnKind, fmt);
-  return { ...parsed, creditsUsed, sessionFormat: fmt };
+      : optimisticAnswerCreditsUsed(parsed.turnKind, fmt, depth);
+  return { ...parsed, creditsUsed, sessionFormat: fmt, analysisDepth: depth };
 }
 
 export const PENDING_ANSWER_STREAM_KEY = KEY;

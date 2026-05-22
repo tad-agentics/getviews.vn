@@ -83,4 +83,39 @@ describe("QueryComposer (C.1.0)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Gửi/i }));
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("renders Cơ bản / Chuyên sâu depth pills by default", () => {
+    render(
+      <QueryComposer value="" onChange={vi.fn()} onSubmit={vi.fn()} />,
+    );
+    expect(screen.getByRole("button", { name: "Cơ bản" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Chuyên sâu" })).toBeTruthy();
+  });
+
+  it("calls onAnalysisDepthChange when depth pill clicked", () => {
+    const onDepth = vi.fn();
+    render(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        analysisDepth="basic"
+        onAnalysisDepthChange={onDepth}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Chuyên sâu" }));
+    expect(onDepth).toHaveBeenCalledWith("deep");
+  });
+
+  it("hides depth pills when showDepthPicker is false", () => {
+    render(
+      <QueryComposer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        showDepthPicker={false}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Cơ bản" })).toBeNull();
+  });
 });

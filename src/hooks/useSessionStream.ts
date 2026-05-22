@@ -249,9 +249,11 @@ export function useSessionStream<TPayload = unknown>(
               turnKind: args.turnKind as PendingAnswerTurnKind,
               startedAt,
               sessionFormat: args.sessionFormat ?? null,
+              analysisDepth: args.analysisDepth ?? null,
               creditsUsed: optimisticAnswerCreditsUsed(
                 args.turnKind as PendingAnswerTurnKind,
                 args.sessionFormat,
+                args.analysisDepth,
               ),
             });
           };

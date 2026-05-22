@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   clearPendingAnswerStream,
   loadPendingAnswerStream,
+  optimisticAnswerCreditsUsed,
   PENDING_ANSWER_STREAM_KEY,
   PENDING_ANSWER_STREAM_MAX_AGE_MS,
   savePendingAnswerStream,
@@ -60,6 +61,22 @@ describe("sseResume", () => {
     expect(loaded?.streamId).toBe("stream-abc");
     expect(loaded?.seq).toBe(2);
     expect(loaded?.creditsUsed).toBe(1);
+  });
+
+  it("infers creditsUsed=2 for legacy primary + video format + deep when creditsUsed omitted", () => {
+    const legacy = {
+      sessionId: "sess-1",
+      streamId: "stream-abc",
+      seq: 2,
+      query: "Phân tích video",
+      turnKind: "primary" as const,
+      startedAt: EPOCH,
+      sessionFormat: "video" as const,
+      analysisDepth: "deep" as const,
+    };
+    sessionStorage.setItem(PENDING_ANSWER_STREAM_KEY, JSON.stringify(legacy));
+    const loaded = loadPendingAnswerStream("sess-1", EPOCH + 10_000);
+    expect(loaded?.creditsUsed).toBe(2);
   });
 
   it("infers creditsUsed=3 for legacy primary + script format when creditsUsed omitted", () => {
@@ -117,5 +134,14 @@ describe("sseResume", () => {
     // _STREAM_REPLAY_TTL_SEC). Leaving ≥15s slack absorbs clock drift +
     // trip-time so the auto-resume path does not miss the buffer.
     expect(PENDING_ANSWER_STREAM_MAX_AGE_MS).toBeLessThanOrEqual(60_000 - 15_000);
+  });
+
+  it("optimisticAnswerCreditsUsed mirrors append_turn billing", () => {
+    expect(optimisticAnswerCreditsUsed("script")).toBe(3);
+    expect(optimisticAnswerCreditsUsed("primary", "script")).toBe(3);
+    expect(optimisticAnswerCreditsUsed("primary", "video", "deep")).toBe(2);
+    expect(optimisticAnswerCreditsUsed("primary", "video", "basic")).toBe(1);
+    expect(optimisticAnswerCreditsUsed("primary", "pattern")).toBe(1);
+    expect(optimisticAnswerCreditsUsed("timing")).toBe(0);
   });
 });

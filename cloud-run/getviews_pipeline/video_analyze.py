@@ -14,6 +14,13 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+AnalysisDepth = Literal["basic", "deep"]
+
+
+def _normalize_analysis_depth(depth: str | None) -> AnalysisDepth:
+    return "deep" if depth == "deep" else "basic"
+
+
 from getviews_pipeline.corpus_context import (
     format_creator_format_history_for_diagnosis,
     get_creator_format_history_sync,
@@ -983,7 +990,12 @@ def _persist_embed_repair_to_diagnostics(out: dict[str, Any]) -> None:
             else None,
         )
         if update_payload:
-            sb.table("video_diagnostics").update(update_payload).eq("video_id", cache_vid).execute()
+            depth = _normalize_analysis_depth(
+                out.get("__analysis_depth") or out.get("__cache_analysis_depth"),
+            )
+            sb.table("video_diagnostics").update(update_payload).eq(
+                "video_id", cache_vid,
+            ).eq("analysis_depth", depth).execute()
 
         on_demand_url = out.get("__cache_on_demand_url") or out.get("tiktok_url")
         if str(out.get("source") or "") == "on_demand" and on_demand_url:
@@ -993,6 +1005,7 @@ def _persist_embed_repair_to_diagnostics(out: dict[str, Any]) -> None:
                 tiktok_url=str(on_demand_url),
                 video_id=cache_vid,
                 response=cacheable,
+                analysis_depth=_normalize_analysis_depth(out.get("__analysis_depth")),
             )
     except Exception as exc:
         logger.warning(
@@ -1010,6 +1023,7 @@ def finalize_video_narrative_layer(
     user_sb: Any | None = None,
     service_sb: Any | None = None,
     user_id: str | None = None,
+    analysis_depth: str | None = None,
 ) -> None:
     """Call 2 — narrative synthesis + SSE; mutates *out* in place.
 
@@ -1022,6 +1036,9 @@ def finalize_video_narrative_layer(
     cache hit), this function returns without re-firing the Gemini
     synthesis call. The cache is populated below on the cache-miss path.
     """
+    depth = _normalize_analysis_depth(
+        out.pop("__analysis_depth", None) or analysis_depth,
+    )
 
     # Cache hit short-circuit. narrative_vi is the anchor — when it
     # exists, every dependent field (format_cards, performance_tier,
@@ -1365,6 +1382,7 @@ def finalize_video_narrative_layer(
                 else None
             ),
             niche_posting_context_block=niche_posting_context_block,
+            analysis_depth=depth,
         )
     except Exception:
         logger.exception("[video_narrative] synthesize_diagnosis_v2 failed")
@@ -1496,7 +1514,7 @@ def finalize_video_narrative_layer(
 
             get_service_client().table("video_diagnostics").update(
                 update_payload,
-            ).eq("video_id", cache_vid).execute()
+            ).eq("video_id", cache_vid).eq("analysis_depth", depth).execute()
         except Exception as exc:
             # Non-fatal — failing to cache only loses the cost saving,
             # not the user-visible response. Bubble exception to logs.
@@ -1520,6 +1538,7 @@ def finalize_video_narrative_layer(
             tiktok_url=on_demand_url,
             video_id=on_demand_vid,
             response=cacheable,
+            analysis_depth=depth,
         )
         log_cache_event(
             event="cache_write",
@@ -1566,6 +1585,7 @@ def run_video_analyze_pipeline(
     force_refresh: bool = False,
     mode: Literal["win", "flop"] | None = None,
     step_queue: Any | None = None,
+    analysis_depth: str | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline: read cache, else compute + Gemini + upsert. Returns API dict.
 
@@ -1574,18 +1594,19 @@ def run_video_analyze_pipeline(
     / prompt iteration only.
 
     When ``mode`` is ``"win"`` or ``"flop"``, that branch is used instead of
-    the ``is_flop_mode`` heuristic. Because ``video_diagnostics`` is keyed only
-    by ``video_id`` (one row holds either win- or flop-shaped analysis from the
-    last run), a mode override always skips the fresh-diagnostics cache — same
-    as an implicit ``force_refresh`` — so the response matches the requested path
-    and the row is recomputed/upserted.
+    the ``is_flop_mode`` heuristic. Because ``video_diagnostics`` is keyed by
+    ``(video_id, analysis_depth)``, a mode override skips the fresh-diagnostics
+    cache for that depth — same as an implicit ``force_refresh`` — so the
+    response matches the requested path and the row is recomputed/upserted.
     """
+    depth = _normalize_analysis_depth(analysis_depth)
     vid = resolve_video_id(user_sb, video_id=video_id, tiktok_url=tiktok_url)
 
     dres = (
         user_sb.table("video_diagnostics")
         .select("*")
         .eq("video_id", vid)
+        .eq("analysis_depth", depth)
         .limit(1)
         .execute()
     )
@@ -1712,9 +1733,10 @@ def run_video_analyze_pipeline(
         )
         base["__narrative_analysis"] = analysis
         base["__narrative_content_format"] = str(video.get("content_format") or "")
+        base["__analysis_depth"] = depth
         # Cache key for finalize_video_narrative_layer's persist step.
-        # Set only on the corpus path; on-demand outputs aren't cached.
         base["__cache_video_id"] = vid
+        base["__cache_analysis_depth"] = depth
         return _merge_sidecars_into_response(
             base,
             video_id=vid,
@@ -1765,6 +1787,7 @@ def run_video_analyze_pipeline(
 
     upsert_payload = {
         "video_id": vid,
+        "analysis_depth": depth,
         "analysis_headline": None,
         "analysis_subtext": None,
         "lessons": [],
@@ -1778,7 +1801,7 @@ def run_video_analyze_pipeline(
     try:
         service_sb.table("video_diagnostics").upsert(
             upsert_payload,
-            on_conflict="video_id",
+            on_conflict="video_id,analysis_depth",
         ).execute()
     except Exception as exc:
         logger.exception("[video_analyze] upsert failed video_id=%s: %s", vid, exc)
@@ -1799,7 +1822,9 @@ def run_video_analyze_pipeline(
     )
     out["__narrative_analysis"] = analysis
     out["__narrative_content_format"] = content_format_str
+    out["__analysis_depth"] = depth
     out["__cache_video_id"] = vid
+    out["__cache_analysis_depth"] = depth
     return _merge_sidecars_into_response(
         out,
         video_id=vid,
@@ -1965,6 +1990,7 @@ def _try_on_demand_cache_hit(
     user_sb: Any | None = None,
     fallback_niche_id: int | None = None,
     user_id: str | None = None,
+    analysis_depth: str | None = None,
 ) -> dict[str, Any] | None:
     """Return a previously-cached on-demand response if one is fresh.
 
@@ -1979,6 +2005,7 @@ def _try_on_demand_cache_hit(
     """
     if not tiktok_url:
         return None
+    depth = _normalize_analysis_depth(analysis_depth)
     canonical_url = normalize_tiktok_url(tiktok_url)
     # Phase 5.8 — track URL normalization collisions (variant → canonical).
     if canonical_url != tiktok_url:
@@ -1997,6 +2024,7 @@ def _try_on_demand_cache_hit(
             .select("cached_response,computed_at")
             .eq("tiktok_url", canonical_url)
             .eq("source", "on_demand")
+            .eq("analysis_depth", depth)
             .limit(1)
             .execute()
         )
@@ -2034,6 +2062,7 @@ def _try_on_demand_cache_hit(
                 tiktok_url=tiktok_url,
                 video_id=vid,
                 response=cacheable,
+                analysis_depth=depth,
             )
     from getviews_pipeline.observability import log_cache_event
     log_cache_event(event="cache_hit", cache_source="on_demand_cache", video_id=None)
@@ -2041,7 +2070,12 @@ def _try_on_demand_cache_hit(
 
 
 def _persist_on_demand_cache(
-    service_sb: Any, *, tiktok_url: str, video_id: str, response: dict[str, Any],
+    service_sb: Any,
+    *,
+    tiktok_url: str,
+    video_id: str,
+    response: dict[str, Any],
+    analysis_depth: str | None = None,
 ) -> None:
     """Cache an on-demand response so the next request on the same URL
     can short-circuit. Non-fatal: any failure is logged and swallowed.
@@ -2052,16 +2086,18 @@ def _persist_on_demand_cache(
     if not tiktok_url or not video_id or not response:
         return
     canonical_url = normalize_tiktok_url(tiktok_url)
+    depth = _normalize_analysis_depth(analysis_depth)
     try:
         service_sb.table("video_diagnostics").upsert(
             {
                 "video_id": video_id,
+                "analysis_depth": depth,
                 "tiktok_url": canonical_url,
                 "source": "on_demand",
                 "cached_response": response,
                 "computed_at": datetime.now(UTC).isoformat(),
             },
-            on_conflict="video_id",
+            on_conflict="video_id,analysis_depth",
         ).execute()
     except Exception as exc:
         logger.warning("[video_analyze:on_demand] cache write failed url=%s: %s", tiktok_url, exc)
@@ -2076,6 +2112,7 @@ def run_video_analyze_on_demand(
     step_queue: Any | None = None,
     fallback_niche_id: int | None = None,
     user_id: str | None = None,
+    analysis_depth: str | None = None,
 ) -> dict[str, Any]:
     """Sync pipeline for URLs not yet in ``video_corpus``.
 
@@ -2097,6 +2134,7 @@ def run_video_analyze_on_demand(
     so the FE can show a subtle "phân tích trực tiếp, không lưu corpus"
     hint without re-architecting the response shape.
     """
+    depth = _normalize_analysis_depth(analysis_depth)
     # Cache hit: skip EnsembleData + Gemini entirely when we've already
     # analysed this URL within the 1h diagnostics TTL.
     cached = _try_on_demand_cache_hit(
@@ -2106,6 +2144,7 @@ def run_video_analyze_on_demand(
         user_sb=user_sb,
         fallback_niche_id=fallback_niche_id,
         user_id=user_id,
+        analysis_depth=depth,
     )
     if cached is not None:
         return cached
@@ -2299,4 +2338,5 @@ def run_video_analyze_on_demand(
     # so the next hit on this URL skips the full Gemini pipeline.
     out["__cache_on_demand_url"] = tiktok_url
     out["__cache_on_demand_vid"] = vid
+    out["__analysis_depth"] = depth
     return out

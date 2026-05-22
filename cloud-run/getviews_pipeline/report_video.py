@@ -408,6 +408,7 @@ def build_video_report(
     user_sb: Any,
     query: str,
     mode: str | None = None,
+    analysis_depth: str | None = None,
     step_queue: asyncio.Queue | None = None,
     session_niche_id: int | None = None,
     user_id: str | None = None,
@@ -471,6 +472,7 @@ def build_video_report(
             force_refresh=False,
             mode=resolved_mode,  # type: ignore[arg-type]
             step_queue=step_queue,
+            analysis_depth=analysis_depth,
         )
     except ValueError as exc:
         msg = str(exc)
@@ -499,6 +501,7 @@ def build_video_report(
             step_queue=step_queue,
             fallback_niche_id=session_niche_id,
             user_id=user_id,
+            analysis_depth=analysis_depth,
         )
 
     # Add the answer-shell common fields. ``sources`` empty because a
@@ -606,6 +609,7 @@ def build_video_report(
         user_sb=user_sb,
         service_sb=service_sb,
         user_id=user_id,
+        analysis_depth=analysis_depth,
     )
 
     if step_queue is not None:

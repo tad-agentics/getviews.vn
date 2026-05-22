@@ -246,8 +246,18 @@ def default_section_title(section_id: str, performance_tier: str) -> str:
     )
 
 
-def select_sections_to_emit(manifest: Manifest, ctx: dict) -> list[str]:
-    """Return section_id strings in display order (compliance forced after diagnosis)."""
+# §4.2 — basic depth whitelist (Win + Flop share the same set).
+BASIC_SECTION_ALLOWLIST = frozenset({
+    "diagnosis",
+    "compliance",
+    "hook_analysis",
+    "niche_pattern",
+    "next_video",
+})
+
+
+def _select_sections_full(manifest: Manifest, ctx: dict) -> list[str]:
+    """Salience pool selection (pre-depth filter)."""
     out: list[str] = []
     seen: set[str] = set()
     for spec in sorted(SECTION_POOL, key=lambda s: s.display_order):
@@ -267,6 +277,23 @@ def select_sections_to_emit(manifest: Manifest, ctx: dict) -> list[str]:
         out.insert(idx_diag, "diagnosis")
         out.insert(idx_diag + 1, "compliance")
     return out
+
+
+def select_sections_to_emit(
+    manifest: Manifest,
+    ctx: dict,
+    *,
+    depth: str = "basic",
+) -> list[str]:
+    """Return section_id strings in display order (compliance forced after diagnosis).
+
+    ``depth=basic`` applies §4.2 whitelist; ``depth=deep`` keeps full salience pool.
+    Default ``basic`` matches Answer-session product default (explicit ``deep`` when billed 2×).
+    """
+    full = _select_sections_full(manifest, ctx)
+    if depth == "basic":
+        return [s for s in full if s in BASIC_SECTION_ALLOWLIST]
+    return full
 
 
 def section_ids_ordered() -> list[str]:

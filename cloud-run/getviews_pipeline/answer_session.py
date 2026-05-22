@@ -441,14 +441,23 @@ def append_turn(
 
     session_fmt = session.get("format") or "pattern"
     builder_fmt = select_builder_for_turn(session_fmt, kind)
+    resolved_video_depth = (
+        analysis_depth if analysis_depth in ("basic", "deep") else "basic"
+    )
 
-    def _deduct_one_credit(u: Any) -> None:
-        rpc = u.rpc("decrement_credit", {"p_user_id": user_id}).execute()
+    def _deduct_credits(u: Any, amount: int) -> None:
+        if amount <= 0:
+            return
+        rpc = u.rpc(
+            "decrement_credit",
+            {"p_user_id": user_id, "p_amount": amount},
+        ).execute()
         if rpc.data is None:
             logger.warning(
-                "[answer/turns] insufficient_credits user=%s session=%s",
+                "[answer/turns] insufficient_credits user=%s session=%s amount=%d",
                 user_id,
                 session_id,
+                amount,
             )
             raise RuntimeError("insufficient_credits")
 
@@ -462,11 +471,10 @@ def append_turn(
 
     # Script turns cost 3 credits (B.4 parity); generic follow-ups stay free.
     if builder_fmt == "script":
-        u = _user_client()
-        for _ in range(3):
-            _deduct_one_credit(u)
+        _deduct_credits(_user_client(), 3)
     elif kind == "primary":
-        _deduct_one_credit(_user_client())
+        charge = 2 if builder_fmt == "video" and resolved_video_depth == "deep" else 1
+        _deduct_credits(_user_client(), charge)
     from getviews_pipeline.adaptive_window import ReportKind, choose_adaptive_window_days
 
     niche_pk = int(session.get("niche_id") or 0)
@@ -549,15 +557,13 @@ def append_turn(
             from getviews_pipeline.report_video import build_video_report
 
             sb_user_for_video = user_supabase(access_token)
-            if analysis_depth and analysis_depth not in ("basic", "deep"):
-                analysis_depth = None
             if video_mode and video_mode not in ("win", "flop"):
                 video_mode = None
             if source_entry:
                 logger.info(
                     "[answer/turns] video handoff source_entry=%s depth=%s mode=%s",
                     source_entry,
-                    analysis_depth or "basic",
+                    resolved_video_depth,
                     video_mode,
                 )
             inner = build_video_report(
@@ -565,6 +571,7 @@ def append_turn(
                 user_sb=sb_user_for_video,
                 query=query,
                 mode=video_mode,
+                analysis_depth=resolved_video_depth,
                 step_queue=step_queue,
                 session_niche_id=niche_pk or None,
                 user_id=user_id,
@@ -655,7 +662,7 @@ def append_turn(
     if builder_fmt == "script":
         credits_used = 3
     elif kind == "primary":
-        credits_used = 1
+        credits_used = 2 if builder_fmt == "video" and resolved_video_depth == "deep" else 1
     else:
         credits_used = 0
     row_ins = {

@@ -254,16 +254,27 @@ Reuse FE: `DiagnosisSectionRenderer` / section ids where overlap; script-only UI
 
 ---
 
-### Wave 3 — Depth epic (explicitly later / harder)
+### Wave 3 — Depth epic (F2 basic / F1 deep)
+
+**UI (2026-05-22, pre-W3 BE):** `QueryComposer` thay **Dán link video** / **Dán @handle** → pill **Cơ bản** / **Chuyên sâu** (`QueryComposer.tsx`, `HomeScreen`, `AnswerScreen` initial composer). Handoff `?depth=basic|deep` qua `buildAnswerHandoffPath`; Trends vẫn force `depth=basic`.
 
 | Item | Effort | Risk | F8 utilization impact | Video diag | Channel diag | Acceptance criteria | Files touched |
 |------|--------|------|----------------------|------------|--------------|---------------------|---------------|
-| **W3-1** Migration `video_diagnostics.analysis_depth` + UNIQUE `(video_id, analysis_depth)` | L | High | F8 cache partition | basic/deep cache | — | §4.12.3 sketch applied; no serve wrong depth | `supabase/migrations/`, `database.types.ts` |
-| **W3-2** BE `append_turn` / `build_video_report` accept `analysis_depth` | L | High | F2/F1 split | Section whitelist | — | basic ⊆ deep sections; manifest cap 3 vs 5 | `answer_session.py`, `diagnose_sections.py`, `salience.py` |
-| **W3-3** FE composer Cơ bản/Chuyên sâu pills + billing 1×/2× | M | High | Product billing | — | — | **Human gate** §10; RPC matches depth | `AnswerScreen.tsx`, `HomeScreen` composer, `decrement_credit` usage |
-| **W3-4** Cache upsert always sets `analysis_depth` | M | Med | No wasted re-extract | Both depths | — | Upgrade basic→deep triggers deep pass | `video_analyze.py` |
+| **W3-1** Migration `video_diagnostics.analysis_depth` + PK `(video_id, analysis_depth)` | L | High | F8 cache partition | basic/deep cache | — | §4.12.3 applied; backfill `deep`; no serve wrong depth | `supabase/migrations/`, `database.types.ts` |
+| **W3-2** BE `append_turn` / `build_video_report` accept `analysis_depth` | L | High | F2/F1 split | Section whitelist | — | basic ⊆ deep sections; manifest cap 3 vs 5 | `answer_session.py`, `diagnose_sections.py`, `salience.py`, `gemini.py` |
+| **W3-3** FE depth pills + billing 1×/2× | M | High | Product billing | — | — | Pills ✅; BE deduct 2× on `deep` primary video | `QueryComposer.tsx`, `HomeScreen`, `AnswerScreen`, `answer_session.py` |
+| **W3-4** Cache upsert always sets `analysis_depth` | M | Med | No wasted re-extract | Both depths | — | Lookup `.eq(analysis_depth)`; on-demand URL cache partitioned | `video_analyze.py`, `report_video.py` |
 
-**Wave 3 exit:** §13B depth items; still 1-turn Answer unless gate approves follow-up hide.
+**Wave 3 exit:** §13B depth items; still 1-turn Answer unless gate approves follow-up hide (Wave 5).
+
+| Item | Status | Notes |
+|------|--------|-------|
+| W3-0 Depth pills (composer UI) | ✅ | Thay Dán link/@handle; handoff `?depth=` |
+| W3-1 Migration `analysis_depth` | ✅ | `20260827000000_video_diagnostics_analysis_depth.sql` |
+| W3-2 BE whitelist + manifest cap | ✅ | `BASIC_SECTION_ALLOWLIST`; cap 3/5 |
+| W3-3 Billing 1×/2× | ✅ | `append_turn` deduct ×2 on video deep |
+| W3-4 Cache partition | ✅ | PK `(video_id, analysis_depth)`; on-demand URL keyed |
+| W3-5 §4.11.3 post–Cơ bản upsell UI | ⏸ | **Deferred** — teaser + “Phân tích chuyên sâu” CTA not shipped; depth pills + billing only |
 
 ---
 

@@ -1,25 +1,8 @@
 /**
- * Studio Home composer paste-template helpers.
+ * Studio Home composer paste-template helpers (legacy).
  *
- * The "Dán link video" / "Dán @handle" buttons under the composer fill
- * the textarea with a Vietnamese template the user is supposed to
- * complete with a real URL or @handle. L1.5 audit follow-up flagged
- * two related bugs in the original templates:
- *
- *   1. The handle template included a literal ``@handle`` token. When
- *      the user clicked the chip and submitted without replacing it,
- *      ``detectIntent`` parsed ``@handle`` as a real TikTok handle and
- *      confidently routed to ``/app/channel?handle=handle`` (a 404).
- *      Fix: switch to ``@…`` (Vietnamese ellipsis) which the regex
- *      ``/@([a-zA-Z0-9_.]+)/`` cannot match.
- *
- *   2. The URL template fell through to ``follow_up_unclassifiable``
- *      → generic answer. Less wrong than a 404 but still confusing —
- *      the user expected to paste a URL.
- *
- * The fix here addresses both: cleaner placeholders + a submit-time
- * guard that detects unfilled templates and returns a Vietnamese hint
- * the caller surfaces inline.
+ * Paste-template chips were removed from QueryComposer (§4.11.2 depth pills).
+ * Guards remain for users who still paste the old template phrases manually.
  */
 
 export const PASTE_VIDEO_TEMPLATE =

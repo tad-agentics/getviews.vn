@@ -1,5 +1,11 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Wave 3 depth audit fixes
+
+- **Optimistic credits on SSE resume:** `optimisticAnswerCreditsUsed()` returns 2 for video primary + `deep`; `useSessionStream` / `AnswerScreen` resume pass `analysisDepth`.
+- **Atomic billing:** `decrement_credit(p_user_id, p_amount)` — single RPC for script (3×) and video deep (2×); no partial deduct on insufficient balance.
+- **Depth defaults:** `select_sections_to_emit` / `manifest_for_prompt` / `synthesize_diagnosis_v2` default `basic`; legacy `/stream` video path passes `analysis_depth=deep` explicitly.
+
 ## 2026-05-22 — Wave 2 complete (100%)
 
 - **W2-4 batch:** `BatchSummary.subject_matter_inserted`; ref-pool desc includes `content_context.subject_matter`; `_maybe_merge_content_targeted_refs_async` passes `user_subject_matter`; enrichment picker uses `ingest_loop_niche_id`.

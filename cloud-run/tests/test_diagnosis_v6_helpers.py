@@ -51,7 +51,7 @@ def test_select_sections_includes_commerce_when_organic_but_commercial_intent_si
     )
     manifest = build_signal_manifest(ctx)
     assert manifest.get("commerce"), "expected commerce signals (intent + optional §12 override)"
-    out = select_sections_to_emit(manifest, ctx)
+    out = select_sections_to_emit(manifest, ctx, depth="deep")
     assert "commerce" in out
 
 
@@ -74,7 +74,7 @@ def test_select_sections_includes_hook_analysis_after_compliance_when_salient() 
         performance_tier="average",
     )
     manifest = build_signal_manifest(ctx)
-    out = select_sections_to_emit(manifest, ctx)
+    out = select_sections_to_emit(manifest, ctx, depth="deep")
     assert "hook_analysis" in out
     assert out.index("diagnosis") < out.index("hook_analysis")
     assert "commerce" in out

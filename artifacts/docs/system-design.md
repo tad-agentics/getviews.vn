@@ -160,8 +160,8 @@ This is the default path when a creator pastes a TikTok URL in Home or Answer.
 3. FE: useSessionStream({ mode: "answer_turn" })
         → POST /answer/sessions/{session_id}/turns (Supabase JWT)
 4. Cloud Run: answer_append_turn → append_turn() (answer_session.py)
-   ├─ primary kind: decrement_credit() ×1 via user JWT (TD-1)
-   ├─ script kind: decrement_credit() ×3
+   ├─ primary kind: decrement_credit(p_amount=1) basic video; p_amount=2 when analysis_depth=deep
+   ├─ script kind: decrement_credit(p_amount=3) — single atomic RPC (TD-1)
    └─ other kinds: often free (see append_turn builder matrix)
 
 5. append_turn → build_video_report() (report_video.py)
@@ -342,7 +342,7 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 | `creator_niches` | Supabase | Migrations only | **16 active** UX-facing buckets (taxonomy v2: `comedy` 5, `art_craft` 17; retired: `pets_home`) |
 | `content_classifications` | Supabase | Migrations only | **82** analysis-facing categories (77 video + 5 carousel HI-16; class 82 AI) |
 | `video_corpus` | Cloud Run batch | Service role only | 46K+ analyzed TikTok videos; `ingest_source` is write-once |
-| `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change) |
+| `video_diagnostics` | Cloud Run user | Service role | On-demand diagnosis cache (1h TTL); PK `(video_id, analysis_depth)` partitions basic vs deep; `cached_response.response_schema_version` (bump invalidates stale rows when `meta.caption` / refs change) |
 | `chat_sessions` | Supabase | Client + Cloud Run | Chat model — title, niche, soft-delete via `deleted_at` |
 | `chat_messages` | Supabase | Cloud Run only | Chat model — immutable (no UPDATE); text intent transcripts |
 | `answer_sessions` | Supabase | Client + Cloud Run | Answer model — session format, intent type |
@@ -371,7 +371,7 @@ These are production guards. Breaking any of them silently loses money or data.
 
 | ID | Guard | Where |
 |----|-------|-------|
-| **TD-1** | Credit deduction: `decrement_credit()` RPC with `WHERE credits > 0` — never two-step read-then-write | Supabase RPC |
+| **TD-1** | Credit deduction: `decrement_credit(p_user_id, p_amount DEFAULT 1)` RPC with `WHERE credits_remaining >= p_amount` — never loop single-credit calls for multi-credit turns | Supabase RPC |
 | **TD-2** | PayOS webhook idempotency: `processed_webhook_events` UNIQUE constraint — retries safe | Supabase table |
 | **TD-3** | Concurrent analysis guard: `profiles.is_processing` boolean — `cron-reset-processing` clears stale flags after 5min | Supabase + cron |
 | **TD-4** | SSE reconnection: Cloud Run emits `stream_id` + `seq` per token, replays from 60s in-memory buffer | Cloud Run |
@@ -601,8 +601,8 @@ When adding a new pipeline (e.g., `instagram_ingest.py`):
 
 ### Credit rules (`append_turn`)
 
-- **Primary turn** (`kind = 'primary'`): 1 credit via `decrement_credit()` before work starts. Insufficient balance → `insufficient_credits`, no turn row.
-- **Script turn** (`builder_fmt == "script"`): **3 credits** (B.4 parity with script workshop).
+- **Primary turn** (`kind = 'primary'`): 1 credit (`decrement_credit(p_amount=1)`) for basic video and non-video primaries; **2 credits** (`p_amount=2`) when `format=video` and `analysis_depth=deep`. Insufficient balance → `insufficient_credits`, no turn row (atomic RPC — no partial deduct).
+- **Script turn** (`builder_fmt == "script"`): **3 credits** via single `decrement_credit(p_amount=3)` (B.4 parity with script workshop).
 - **Most other follow-up kinds** (`timing`, `creators`, `generic`, …): 0 credits on that turn.
 - Channel diagnosis (`/channel/diagnose`) bills separately (3 credits) — not via answer turns; wallet column `profiles.credits_remaining`.
 
