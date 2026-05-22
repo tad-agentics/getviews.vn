@@ -1,6 +1,6 @@
 /**
  * Heuristic production friction from `format_axis` (Phase 2 v0).
- * Full per-class column deferred to Wave 4 — see two-axis-taxonomy-final-v1.md §T2.2.
+ * Full per-class column deferred to Wave 4 — see two-axis-niche-model.md §3.2.
  */
 
 export type ProductionFriction = "low" | "mid" | "high";

@@ -31,6 +31,7 @@ CREATOR_NICHE_SLUG_TO_ID: dict[str, int] = {
     "fashion": 2,
     "food": 3,
     "lifestyle": 4,
+    "comedy": 5,
     "family": 6,
     "education": 7,
     "tech_gaming": 8,
@@ -41,6 +42,7 @@ CREATOR_NICHE_SLUG_TO_ID: dict[str, int] = {
     "gym_fitness": 14,
     "music_dance": 15,
     "real_estate": 16,
+    "art_craft": 17,
 }
 
 # Legacy ingest ids retired into niche 27 (20260728). Keep 13/19/20 for cold DB reads.
@@ -51,6 +53,7 @@ _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     2:  3,   # Fashion → Thời trang Phụ kiện
     3:  4,   # Food → Ẩm thực & Ăn uống
     4:  27,  # Lifestyle → Đời sống · Tâm sự (legacy ingest)
+    5:  13,  # Comedy → Hài · Giải trí (restored v2)
     6:  7,   # Family → Mẹ bỉm
     7:  11,  # Education → EduTok VN
     8:  9,   # Tech & Gaming → Công nghệ (representative; Gaming = legacy 17)
@@ -61,13 +64,13 @@ _LEGACY_NICHE_FOR_CREATOR_NICHE: dict[int, int] = {
     14: 8,   # Gym & Fitness → Gym / Fitness VN
     15: 28,  # Music & Dance → Âm nhạc · Vũ đạo (legacy ingest)
     16: 10,  # Real Estate → Bất động sản (niche_taxonomy)
+    17: 29,  # Art & Craft → Nghệ thuật · Thủ công (v2)
 }
 
 
 def _canonical_legacy_niche_id(legacy_id: int) -> int:
     """Map retired taxonomy ids to surviving ingest bucket (mirror ``profileNiches.ts``)."""
     aliases = {
-        13: 27,
         19: 27,
         20: 27,
         22: 28,

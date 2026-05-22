@@ -1,7 +1,8 @@
 """Canonical two-axis labels aligned with Supabase ``creator_niches`` + ``format_axis``.
 
 Source: ``20260510000004_two_axis_niche_pr1_schema.sql`` + ``20260630000003`` (16 niches)
-+ ``20260728000000`` (retire ``comedy``, ``pets_home`` → 14 active UX buckets).
++ ``20260728000000`` (retire ``pets_home``; ``comedy`` restored v2 20260824)
++ ``20260824000000`` (16 active UX buckets: +``art_craft``, restore ``comedy``).
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ CREATOR_NICHE_SLUGS: Final[tuple[str, ...]] = (
     "fashion",
     "food",
     "lifestyle",
+    "comedy",
     "family",
     "education",
     "tech_gaming",
@@ -24,6 +26,7 @@ CREATOR_NICHE_SLUGS: Final[tuple[str, ...]] = (
     "gym_fitness",
     "music_dance",
     "real_estate",
+    "art_craft",
 )
 
 # Distinct ``format_axis`` values from ``content_classifications`` seed (PR1).
@@ -48,6 +51,7 @@ CREATOR_NICHE_VI: Final[dict[str, str]] = {
     "fashion": "Thời trang · Phụ kiện",
     "food": "Ẩm thực · Ăn uống",
     "lifestyle": "Đời sống · Tâm sự",
+    "comedy": "Hài · Giải trí",
     "family": "Nuôi con · Gia đình",
     "education": "Giáo dục · Sự nghiệp",
     "tech_gaming": "Công nghệ · Gaming",
@@ -58,6 +62,7 @@ CREATOR_NICHE_VI: Final[dict[str, str]] = {
     "gym_fitness": "Gym · Fitness",
     "music_dance": "Âm nhạc · Vũ đạo",
     "real_estate": "Bất động sản · Nhà đất",
+    "art_craft": "Nghệ thuật · Thủ công",
 }
 
 FORMAT_AXIS_VI: Final[dict[str, str]] = {
@@ -80,6 +85,7 @@ CreatorNicheSlug = Literal[
     "fashion",
     "food",
     "lifestyle",
+    "comedy",
     "family",
     "education",
     "tech_gaming",
@@ -90,6 +96,7 @@ CreatorNicheSlug = Literal[
     "gym_fitness",
     "music_dance",
     "real_estate",
+    "art_craft",
 ]
 
 FormatAxisSlug = Literal[
@@ -135,10 +142,12 @@ CAROUSEL_FORMAT_AXIS_VI: Final[dict[str, str]] = {
 }
 
 
-# Junction: ``VIDEO_JUNCTION_NICHE_FORMAT_PAIRS`` = 50 (14 niches, post-20260728);
-# ``CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS`` = 70 (14 × 5 carousel axes, HI-16).
-# Union = ``JUNCTION_NICHE_FORMAT_PAIRS`` (120). Tests: ``tests/test_hi9_junction_seed.py``.
+# Junction: ``VIDEO_JUNCTION_NICHE_FORMAT_PAIRS`` = 56 (16 niches, post-20260824);
+# ``CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS`` = 80 (16 × 5 carousel axes, HI-16).
+# Union = ``JUNCTION_NICHE_FORMAT_PAIRS`` (136). Tests: ``tests/test_hi9_junction_seed.py``.
 VIDEO_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset({
+    ("art_craft", "montage_highlights"),
+    ("art_craft", "tutorial"),
     ("auto", "review_unboxing"),
     ("auto", "talking_head_advice"),
     ("auto", "tutorial"),
@@ -150,7 +159,11 @@ VIDEO_JUNCTION_NICHE_FORMAT_PAIRS: Final[frozenset[tuple[str, str]]] = frozenset
     ("business", "pov_storytelling"),
     ("business", "review_unboxing"),
     ("business", "talking_head_advice"),
+    ("business", "tutorial"),
     ("business", "vlog_daily"),
+    ("comedy", "pov_storytelling"),
+    ("comedy", "react_commentary"),
+    ("comedy", "skit_scripted"),
     ("education", "talking_head_advice"),
     ("education", "tutorial"),
     ("family", "observational_relatable"),

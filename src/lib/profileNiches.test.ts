@@ -38,8 +38,8 @@ describe("profileNiches (two-axis model since PR6)", () => {
 
   it("legacyNicheIdForCreatorNiche covers active creator_niches", () => {
     const expected: Record<number, number | null> = {
-      1: 2, 2: 3, 3: 4, 4: 27, 6: 7, 7: 11, 8: 9, 9: 5,
-      10: 26, 11: 16, 12: 14, 14: 8, 15: 28, 16: 10,
+      1: 2, 2: 3, 3: 4, 4: 27, 5: 13, 6: 7, 7: 11, 8: 9, 9: 5,
+      10: 26, 11: 16, 12: 14, 14: 8, 15: 28, 16: 10, 17: 29,
     };
     for (const [cni, legacy] of Object.entries(expected)) {
       expect(legacyNicheIdForCreatorNiche(Number(cni))).toBe(legacy);
@@ -51,7 +51,8 @@ describe("profileNiches (two-axis model since PR6)", () => {
     expect(creatorNicheIdForLegacyNiche(26)).toBe(10);
     expect(creatorNicheIdForLegacyNiche(27)).toBe(4);
     expect(creatorNicheIdForLegacyNiche(28)).toBe(15); // Âm nhạc · Vũ đạo
-    expect(creatorNicheIdForLegacyNiche(13)).toBe(4); // retired Hài alias → lifestyle
+    expect(creatorNicheIdForLegacyNiche(13)).toBe(5); // Hài → comedy UX niche (v2)
+    expect(creatorNicheIdForLegacyNiche(29)).toBe(17); // Art & Craft ingest
     expect(creatorNicheIdForLegacyNiche(999)).toBeNull();
   });
 
@@ -59,7 +60,7 @@ describe("profileNiches (two-axis model since PR6)", () => {
     expect(canonicalNicheTaxonomyId(1)).toBe(5); // Shopee review → Kinh doanh online
     expect(canonicalNicheTaxonomyId(18)).toBe(4);
     expect(canonicalNicheTaxonomyId(22)).toBe(28); // K-pop → Âm nhạc · Vũ đạo ingest
-    expect(canonicalNicheTaxonomyId(13)).toBe(27);
+    expect(canonicalNicheTaxonomyId(13)).toBe(13); // Hài restored (v2)
     expect(canonicalNicheTaxonomyId(23)).toBe(11);
     expect(canonicalNicheTaxonomyId(7)).toBe(7);
   });

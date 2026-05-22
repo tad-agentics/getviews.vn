@@ -58,6 +58,16 @@ def _content_class_id_to_format_axis() -> dict[int, str]:
     for cc_id, fmt in list(out.items()):
         if fmt == "comedy_observational":
             out[cc_id] = "observational_relatable"
+    v2 = root / "supabase/migrations/20260824000000_taxonomy_v2_art_comedy_ai.sql"
+    if v2.is_file():
+        m3 = re.search(r"INSERT INTO content_classifications[^;]+;", v2.read_text(encoding="utf-8"), re.DOTALL)
+        if m3:
+            for r in re.findall(
+                r"\(\s*(\d+)\s*,\s*'([^']+)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,"
+                r"\s*'([^']+)'\s*,\s*'([^']+)'",
+                m3.group(0),
+            ):
+                out[int(r[0])] = r[4]
     return out
 
 
@@ -91,8 +101,9 @@ def _junction_edges() -> list[tuple[int, int, bool]]:
         ):
             edges.append((int(a), int(b), p == "TRUE"))
 
-    # HI-16: CROSS JOIN creator_niches × content_classifications 75–79
-    for cn_id in range(1, 17):
+    # HI-16: carousel grid for active creator niches (excludes retired pets_home 13)
+    _ACTIVE_CAROUSEL_NICHE_IDS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17)
+    for cn_id in _ACTIVE_CAROUSEL_NICHE_IDS:
         for cc_id in range(75, 80):
             edges.append((cn_id, cc_id, True))
 
@@ -107,8 +118,35 @@ def _junction_edges() -> list[tuple[int, int, bool]]:
 
     edges = _apply_retire_comedy_pets_home(root, edges)
     edges = _apply_taxonomy_feedback_fixes(root, edges)
+    edges = _apply_taxonomy_v2_expansion(root, edges)
 
     return edges
+
+
+def _apply_taxonomy_v2_expansion(
+    root: Path,
+    edges: list[tuple[int, int, bool]],
+) -> list[tuple[int, int, bool]]:
+    """Mirror ``20260824000000_taxonomy_v2_art_comedy_ai.sql`` — comedy restore + art + AI."""
+    v2 = root / "supabase/migrations/20260824000000_taxonomy_v2_art_comedy_ai.sql"
+    if not v2.is_file():
+        return edges
+    by_key: dict[tuple[int, int], bool] = {(cn, cc): p for cn, cc, p in edges}
+    t = v2.read_text(encoding="utf-8")
+    for cc in (24, 25, 26, 27):
+        if (4, cc) in by_key:
+            by_key[(4, cc)] = False
+    for a, b, p in re.findall(
+        r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(TRUE|FALSE)\s*\)",
+        t,
+    ):
+        cn, cc = int(a), int(b)
+        if cn in (4, 5, 8, 9, 17) and cc not in range(75, 80):
+            by_key[(cn, cc)] = p == "TRUE"
+    for cn in (5, 17):
+        for cc in range(75, 80):
+            by_key[(cn, cc)] = True
+    return [(cn, cc, p) for (cn, cc), p in by_key.items()]
 
 
 def _apply_retire_comedy_pets_home(root: Path, edges: list[tuple[int, int, bool]]) -> list[tuple[int, int, bool]]:

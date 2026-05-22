@@ -25,6 +25,7 @@ from getviews_pipeline.profile_niches import (
         (2,  3),   # Fashion
         (3,  4),   # Food
         (4,  27),  # Lifestyle → Đời sống · Tâm sự
+        (5,  13),  # Comedy → Hài · Giải trí (v2)
         (6,  7),   # Family → Mẹ bỉm
         (7,  11),  # Education → EduTok
         (8,  9),   # Tech & Gaming → Tech (representative)
@@ -35,6 +36,7 @@ from getviews_pipeline.profile_niches import (
         (14, 8),   # Gym & Fitness
         (15, 28),  # Music & Dance → Âm nhạc · Vũ đạo ingest
         (16, 10),  # Real Estate → Bất động sản
+        (17, 29),  # Art & Craft → Nghệ thuật · Thủ công (v2)
     ],
 )
 def test_legacy_niche_id_for_creator_niche(creator_niche_id: int, expected: int) -> None:
@@ -50,7 +52,8 @@ def test_creator_niche_id_for_legacy_niche_tie_break() -> None:
     assert creator_niche_id_for_legacy_niche(26) == 10
     assert creator_niche_id_for_legacy_niche(27) == 4
     assert creator_niche_id_for_legacy_niche(28) == 15
-    assert creator_niche_id_for_legacy_niche(13) == 4  # retired alias → lifestyle
+    assert creator_niche_id_for_legacy_niche(13) == 5  # Hài → comedy UX niche (v2)
+    assert creator_niche_id_for_legacy_niche(29) == 17  # Art & Craft ingest
     assert creator_niche_id_for_legacy_niche(999) is None
     assert creator_niche_id_for_legacy_niche(None) is None
 

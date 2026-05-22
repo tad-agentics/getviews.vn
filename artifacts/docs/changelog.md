@@ -1,5 +1,16 @@
 # Changelog — GetViews.vn
 
+## 2026-05-22 — Taxonomy v2 (Art & Craft, Comedy restore, AI class)
+
+- **Migration:** `20260824000000_taxonomy_v2_art_comedy_ai.sql` — UX `art_craft` (17), restore `comedy` (5), classes 80–82, junction + legacy ingest 13/29.
+- **BE/FE parity:** `two_axis_taxonomy.py`, `profile_niches.py`, `profileNiches.ts`, `junction_content_class.py`; junction counts 56 video + 80 carousel = 136.
+- **Doc:** `two-axis-niche-model.md` — 16 active niches, 82 classes.
+
+## 2026-05-22 — Merge taxonomy doc into two-axis-niche-model.md
+
+- Gộp `two-axis-taxonomy-final-v1.md` → `two-axis-niche-model.md` (§2–5 taxonomy tables, §13 sign-off); xóa file taxonomy riêng.
+- Cập nhật cross-link `productionFriction.ts` → §3.2.
+
 ## 2026-05-22 — Migration apply + stats MV recreate fix
 
 - **Applied remote:** `20260823000000`–`000003` on Getviews.vn (`lzhiqnxfveqttsujebiv`).

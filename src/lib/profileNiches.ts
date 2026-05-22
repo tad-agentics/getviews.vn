@@ -1,10 +1,10 @@
 /** Taxonomy ids merged or retired — exclude from niche pickers (covers pre-migration DB rows). */
 export const RETIRED_NICHE_TAXONOMY_IDS: ReadonlySet<number> = new Set([
-  1, 6, 12, 13, 18, 19, 20, 22, 23, 24, 25,
+  1, 6, 12, 18, 19, 20, 22, 23, 24, 25,
 ]);
 
-/** Retired UX buckets — hidden from pickers; map to lifestyle (4). */
-export const RETIRED_CREATOR_NICHE_IDS: ReadonlySet<number> = new Set([5, 13]);
+/** Retired UX buckets — hidden from pickers. */
+export const RETIRED_CREATOR_NICHE_IDS: ReadonlySet<number> = new Set([13]);
 
 /** Legacy id → surviving taxonomy id (matches Supabase merge / retire migrations). */
 const NICHE_TAXONOMY_ALIASES: Readonly<Record<number, number>> = {
@@ -12,7 +12,6 @@ const NICHE_TAXONOMY_ALIASES: Readonly<Record<number, number>> = {
   6: 3, // Chị đẹp retired → Thời trang Phụ kiện
   12: 5, // Livestream → Kinh doanh online
   18: 4, // Nấu ăn / Công thức → Ẩm thực & Ăn uống (id 4)
-  13: 27, // Hài (retired) → Đời sống · Tâm sự
   19: 27, // Thú cưng (retired) → Đời sống · Tâm sự
   20: 27, // Nhà cửa (retired) → Đời sống · Tâm sự
   22: 28, // K-pop (retired) → Âm nhạc · Vũ đạo ingest
@@ -102,6 +101,7 @@ export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | n
     case 2:  return 3;  // Fashion → Thời trang Phụ kiện
     case 3:  return 4;  // Food → Ẩm thực & Ăn uống
     case 4:  return 27; // Lifestyle → Đời sống · Tâm sự (legacy ingest)
+    case 5:  return 13; // Comedy → Hài · Giải trí (restored v2)
     case 6:  return 7;  // Family → Mẹ bỉm
     case 7:  return 11; // Education → EduTok VN
     case 8:  return 9;  // Tech & Gaming → Công nghệ (representative; Gaming = legacy 17)
@@ -112,6 +112,7 @@ export function legacyNicheIdForCreatorNiche(creatorNicheId: number): number | n
     case 14: return 8;  // Gym & Fitness → Gym / Fitness VN
     case 15: return 28; // Music & Dance → Âm nhạc · Vũ đạo (legacy ingest)
     case 16: return 10; // Real Estate → Bất động sản (niche_taxonomy)
+    case 17: return 29; // Art & Craft → Nghệ thuật · Thủ công (v2)
     default: return null;
   }
 }
@@ -126,7 +127,7 @@ export function creatorNicheIdForLegacyNiche(legacyNicheId: number | null | unde
   if (legacyNicheId == null) return null;
   const canonical = canonicalNicheTaxonomyId(legacyNicheId);
   const matches: number[] = [];
-  for (let cni = 1; cni <= 16; cni += 1) {
+  for (let cni = 1; cni <= 17; cni += 1) {
     const leg = legacyNicheIdForCreatorNiche(cni);
     if (leg === canonical) matches.push(cni);
   }

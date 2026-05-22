@@ -91,13 +91,13 @@ def test_hi9_each_video_format_axis_used_in_at_least_one_niche_row() -> None:
 
 
 def test_hi9_junction_tuple_count_stable() -> None:
-    """14 active UX niches — post-20260728 comedy/pets_home retired."""
-    assert len(VIDEO_JUNCTION_NICHE_FORMAT_PAIRS) == 50
+    """16 active UX niches — post-20260824 taxonomy v2."""
+    assert len(VIDEO_JUNCTION_NICHE_FORMAT_PAIRS) == 56
 
 
 def test_hi9_video_junction_constant_matches_python_source() -> None:
-    """Runtime junction is authoritative after creator_niche retirement."""
-    assert len(VIDEO_JUNCTION_NICHE_FORMAT_PAIRS) == 50
+    """Runtime junction is authoritative after taxonomy v2 expansion."""
+    assert len(VIDEO_JUNCTION_NICHE_FORMAT_PAIRS) == 56
 
 
 def test_hi16_carousel_junction_is_full_niche_times_axis_grid() -> None:
@@ -117,7 +117,7 @@ def test_junction_union_equals_video_plus_carousel() -> None:
     assert JUNCTION_NICHE_FORMAT_PAIRS == (
         VIDEO_JUNCTION_NICHE_FORMAT_PAIRS | CAROUSEL_JUNCTION_NICHE_FORMAT_PAIRS
     )
-    assert len(JUNCTION_NICHE_FORMAT_PAIRS) == 50 + 70
+    assert len(JUNCTION_NICHE_FORMAT_PAIRS) == 56 + 80
 
 
 def test_junction_has_pair_helper() -> None:
@@ -134,6 +134,15 @@ def test_junction_has_content_class_wave4_edges() -> None:
 
     assert creator_niche_has_content_class(9, 51) is True
     assert creator_niche_has_content_class(4, 49) is True
+
+
+def test_junction_has_content_class_v2_taxonomy() -> None:
+    from getviews_pipeline.junction_content_class import creator_niche_has_content_class
+
+    assert creator_niche_has_content_class(5, 24) is True
+    assert creator_niche_has_content_class(17, 80) is True
+    assert creator_niche_has_content_class(8, 82) is True
+    assert creator_niche_has_content_class(9, 82) is True
 
 
 def test_creator_niche_has_content_class_rejects_unknown() -> None:

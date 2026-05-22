@@ -358,9 +358,9 @@ GetViews runs **two coexisting session models**. Do not confuse them or try to c
 - **`creator_niche_content_classes`** — M:N junction with `is_primary` tie-break at ingest only (FE loads full junction).
 - **Phase C (2026-05-21):** `video_corpus.niche_id` **dropped**. Cohort = `(content_class_id, creator_tier)`. Legacy bridge `legacyNicheIdForCreatorNiche()` for ingest loop only.
 - **HI-11:** Production `NICHE_RESOLVER_MODE=route` on batch + user pods. Rollback: `shadow` — see [`two-axis-niche-cutover-runbook.md`](two-axis-niche-cutover-runbook.md).
-- **Corpus browse:** `VITE_CORPUS_BROWSE_CLASS_FIRST` + `VITE_CORPUS_BROWSE_CLASS_ONLY` default on. Filter `content_class_id IN (...)` only. **Thin banner:** sum `content_class_intelligence.sample_size` across junction — **no** `niche_intelligence` fallback. Canonical: [`two-axis-niche-model.md`](two-axis-niche-model.md) §8.
+- **Corpus browse:** `VITE_CORPUS_BROWSE_CLASS_FIRST` + `VITE_CORPUS_BROWSE_CLASS_ONLY` default on. Filter `content_class_id IN (...)` only. **Thin banner:** sum `content_class_intelligence.sample_size` across junction — **no** `niche_intelligence` fallback. Canonical: [`two-axis-niche-model.md`](two-axis-niche-model.md) §10.
 - **Content-class pivot flags:** `CORPUS_SCORE_COHORT=class`, `CORPUS_INGEST_LOOP=class`, `LIVE_COHORT_CLASS_FIRST=true`, `CORPUS_WRITE_NICHE_ID=false`, `REFRESH_NICHE_INTELLIGENCE_MV=false`.
-- **MV catalog (3):** `content_class_intelligence` (+ velocity/`lifecycle_stage` Wave 3a), `content_class_tier_intelligence`, `creator_niche_content_class_stats` (Wave 3c). Nightly refresh chain §8.1 in [`two-axis-niche-model.md`](two-axis-niche-model.md) §7 — ingest 03:00 ICT → class MV 04:00 → tier 04:15 → stats 04:30 → ritual read 22:00.
+- **MV catalog (3):** `content_class_intelligence` (+ velocity/`lifecycle_stage` Wave 3a), `content_class_tier_intelligence`, `creator_niche_content_class_stats` (Wave 3c). Nightly refresh chain §8.1 in [`two-axis-niche-model.md`](two-axis-niche-model.md) §9 — ingest 03:00 ICT → class MV 04:00 → tier 04:15 → stats 04:30 → ritual read 22:00.
 - **Intelligence → surface:** Morning Signal strip (Max-2-Card) via `useClassMorningSignals`; spec [`class-intelligence-ui-spec.md`](class-intelligence-ui-spec.md). Phase 2: `peer_percentile` diagnosis when BE returns label.
 
 ---

@@ -1,4 +1,4 @@
--- Wave 4 — approved secondary junction edges from two-axis-niche-model.md §9 triage.
+-- Wave 4 — approved secondary junction edges from two-axis-niche-model.md §12 triage.
 -- is_primary=FALSE — does not override primary tie-break; fixes junction-invalid
 -- corpus rows where Gemini cross-bucket assignment is intentional.
 

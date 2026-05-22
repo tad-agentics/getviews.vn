@@ -2,7 +2,7 @@
 
 **Status:** PD approved · 2026-05-22  
 **Surface:** Studio Home Tier I — signal strip above `StudioHero`  
-**Related:** [`two-axis-niche-model.md`](two-axis-niche-model.md) §8, plan §9
+**Related:** [`two-axis-niche-model.md`](two-axis-niche-model.md) §10, plan §9
 
 ---
 
