@@ -3924,9 +3924,9 @@ def _legacy_niche_id_for_class_sync(client: Any, content_class_id: int) -> int:
     try:
         res = (
             client.table("video_corpus")
-            .select("niche_id")
+            .select("ingest_loop_niche_id")
             .eq("content_class_id", content_class_id)
-            .not_.is_("niche_id", "null")
+            .not_.is_("ingest_loop_niche_id", "null")
             .limit(200)
             .execute()
         )

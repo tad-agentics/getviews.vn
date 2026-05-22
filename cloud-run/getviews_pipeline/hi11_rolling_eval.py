@@ -215,7 +215,7 @@ def run_hi11_rolling_eval(client: Any) -> dict[str, Any]:
     )
 
     select_cols = (
-        "video_id, content_class_id, niche_id, hook_type, hashtags, caption, "
+        "video_id, content_class_id, hook_type, hashtags, caption, "
         "niche_resolution_confidence, niche_resolution_source, analysis_json, "
         "inferred_creator_niche_id"
     )

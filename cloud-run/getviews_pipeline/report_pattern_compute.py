@@ -860,7 +860,7 @@ def fetch_corpus_window(sb: Any, niche_id: int, days: int, *, limit: int = 2500)
                 "engagement_rate, video_duration, analysis_json, caption, transcript_snippet, "
                 "thumbnail_url, tiktok_url, breakout_multiplier, breakout_ratio"
             )
-            .eq("niche_id", niche_id)
+            .eq("ingest_loop_niche_id", niche_id)
             .gte("indexed_at", cutoff)
             # Exclude low-quality user-diagnosed rows; NULL quality_tier = batch (high).
             .or_("quality_tier.is.null,quality_tier.in.(high,medium)")
