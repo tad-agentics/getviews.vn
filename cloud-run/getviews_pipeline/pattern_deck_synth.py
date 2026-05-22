@@ -209,8 +209,10 @@ def _fetch_pattern_grounding(
     legacy_niche_spread: list[Any],
 ) -> list[dict[str, Any]]:
     """Top corpus videos for grounding — balanced across niches when spread ≥ 2."""
+    # video_corpus.niche_id was dropped (Phase C); alias the legacy-niche surrogate
+    # back to "niche_id" so apply_hi9_guard / downstream readers are unchanged.
     select_cols = (
-        "video_id, niche_id, creator_handle, views, hook_phrase, hook_type, analysis_json"
+        "video_id, niche_id:ingest_loop_niche_id, creator_handle, views, hook_phrase, hook_type, analysis_json"
     )
     try:
         ids = [int(x) for x in legacy_niche_spread if x is not None]
@@ -245,7 +247,7 @@ def _fetch_pattern_grounding(
                 client.table("video_corpus")
                 .select(select_cols)
                 .eq("pattern_id", pattern_id)
-                .eq("niche_id", ids[0])
+                .eq("ingest_loop_niche_id", ids[0])
                 .order("views", desc=True)
                 .limit(GROUNDING_CAP * 3)
                 .execute()
@@ -263,7 +265,7 @@ def _fetch_pattern_grounding(
                 client.table("video_corpus")
                 .select(select_cols)
                 .eq("pattern_id", pattern_id)
-                .eq("niche_id", nid)
+                .eq("ingest_loop_niche_id", nid)
                 .order("views", desc=True)
                 .limit(per_niche * 3)
                 .execute()

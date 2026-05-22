@@ -73,7 +73,7 @@ async def backfill(dry_run: bool, batch_size: int, max_rows: int) -> BackfillSta
         try:
             query = (
                 sb.table("video_corpus")
-                .select("video_id, niche_id, analysis_json")
+                .select("video_id, niche_id:ingest_loop_niche_id, analysis_json")
                 .is_("pattern_id", "null")
                 .order("video_id")
                 .limit(limit)

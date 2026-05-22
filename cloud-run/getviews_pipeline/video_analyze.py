@@ -434,9 +434,11 @@ def _fetch_corpus_row(user_sb: Any, vid: str) -> dict[str, Any]:
     """Load one ``video_corpus`` row; never surfaces PostgREST 0-row as a 500."""
     from postgrest.exceptions import APIError
 
+    # video_corpus.niche_id was dropped (Phase C); alias the surviving legacy-niche
+    # surrogate ingest_loop_niche_id back to the "niche_id" key so callers are unchanged.
     cols = (
         "video_id,creator_handle,views,likes,comments,shares,saves,save_rate,"
-        "engagement_rate,thumbnail_url,created_at,niche_id,content_class_id,"
+        "engagement_rate,thumbnail_url,created_at,niche_id:ingest_loop_niche_id,content_class_id,"
         "content_format,analysis_json,breakout_multiplier,tiktok_url,"
         "creator_median_views,caption"
     )

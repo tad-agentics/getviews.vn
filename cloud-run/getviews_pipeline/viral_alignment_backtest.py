@@ -306,11 +306,12 @@ def _fetch_scoreable_rows_sync(
     result = (
         client.table("video_corpus")
         .select(
-            "video_id,niche_id,hook_type,content_format,"
+            # niche_id dropped (Phase C); alias legacy-niche surrogate to the old key.
+            "video_id,niche_id:ingest_loop_niche_id,hook_type,content_format,"
             "posting_hour,breakout_multiplier"
         )
         .not_.is_("breakout_multiplier", "null")
-        .not_.is_("niche_id", "null")
+        .not_.is_("ingest_loop_niche_id", "null")
         .limit(5000)
         .execute()
     )
